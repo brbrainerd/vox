@@ -1,0 +1,89 @@
+================================================================================
+Component declaration
+================================================================================
+
+@component fn Chat() to Element:
+    ret <div>Hello</div>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (component_declaration
+    (identifier)
+    (parameter_list)
+    (return_type (type_identifier))
+    (block
+      (return_statement
+        (jsx_element
+          (jsx_opening_element (identifier))
+          (jsx_text)
+          (jsx_closing_element (identifier)))))))
+
+================================================================================
+Component with state
+================================================================================
+
+@component fn Counter() to Element:
+    let count = use_state(0)
+    ret <button>{count}</button>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (component_declaration
+    (identifier)
+    (parameter_list)
+    (return_type (type_identifier))
+    (block
+      (let_statement
+        (identifier)
+        (call_expression
+          (identifier)
+          (argument_list (integer_literal))))
+      (return_statement
+        (jsx_element
+          (jsx_opening_element (identifier))
+          (jsx_expression (identifier))
+          (jsx_closing_element (identifier)))))))
+
+================================================================================
+JSX self-closing element
+================================================================================
+
+@component fn App() to Element:
+    ret <input />
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (component_declaration
+    (identifier)
+    (parameter_list)
+    (return_type (type_identifier))
+    (block
+      (return_statement
+        (jsx_self_closing_element (identifier))))))
+
+================================================================================
+JSX with attributes
+================================================================================
+
+@component fn Button() to Element:
+    ret <button className="btn" onClick={handleClick}>Click</button>
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (component_declaration
+    (identifier)
+    (parameter_list)
+    (return_type (type_identifier))
+    (block
+      (return_statement
+        (jsx_element
+          (jsx_opening_element
+            (identifier)
+            (jsx_attribute (identifier) (string_literal))
+            (jsx_attribute (identifier) (jsx_expression (identifier))))
+          (jsx_text)
+          (jsx_closing_element (identifier)))))))

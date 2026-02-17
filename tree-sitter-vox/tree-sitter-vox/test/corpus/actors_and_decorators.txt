@@ -1,0 +1,86 @@
+================================================================================
+Actor declaration
+================================================================================
+
+actor Worker:
+    on receive(msg: str) to Unit:
+        ret Unit
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (actor_declaration
+    (identifier)
+    (actor_handler
+      (identifier)
+      (parameter_list
+        (parameter (identifier) (type_annotation (type_identifier))))
+      (return_type (type_identifier))
+      (block
+        (return_statement (identifier))))))
+
+================================================================================
+Actor with spawn
+================================================================================
+
+fn main():
+    let worker = spawn(Worker)
+    worker.send("hello")
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (let_statement
+        (identifier)
+        (spawn_expression (identifier)))
+      (expression_statement
+        (method_call_expression
+          (identifier)
+          (identifier)
+          (argument_list (string_literal)))))))
+
+================================================================================
+Server function
+================================================================================
+
+@server fn greet(name: str) to str:
+    ret "Hello, " + name
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (server_function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (return_type (type_identifier))
+    (block
+      (return_statement
+        (binary_expression
+          (string_literal)
+          (identifier))))))
+
+================================================================================
+Test declaration
+================================================================================
+
+@test fn test_add():
+    assert add(2, 3) is 5
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (test_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (assert_statement
+        (binary_expression
+          (call_expression
+            (identifier)
+            (argument_list (integer_literal) (integer_literal)))
+          (integer_literal))))))

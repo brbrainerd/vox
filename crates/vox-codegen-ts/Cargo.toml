@@ -1,0 +1,8 @@
+[package]
+name = "vox-codegen-ts"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-ast = { workspace = true }
+vox-hir = { workspace = true }

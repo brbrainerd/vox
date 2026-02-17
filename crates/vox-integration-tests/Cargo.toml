@@ -1,0 +1,13 @@
+[package]
+name = "vox-integration-tests"
+version = "0.1.0"
+edition.workspace = true
+
+[dev-dependencies]
+vox-lexer = { workspace = true }
+vox-ast = { workspace = true }
+vox-parser = { workspace = true }
+vox-hir = { workspace = true }
+vox-typeck = { workspace = true }
+vox-codegen-ts = { workspace = true }
+vox-codegen-rust = { workspace = true }

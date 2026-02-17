@@ -1,0 +1,7 @@
+C:\Users\Owner\vox\target\debug\deps\vox_lexer-ee81792e618f9837.d: crates\vox-lexer\src\lib.rs crates\vox-lexer\src\token.rs crates\vox-lexer\src\cursor.rs
+
+C:\Users\Owner\vox\target\debug\deps\libvox_lexer-ee81792e618f9837.rmeta: crates\vox-lexer\src\lib.rs crates\vox-lexer\src\token.rs crates\vox-lexer\src\cursor.rs
+
+crates\vox-lexer\src\lib.rs:
+crates\vox-lexer\src\token.rs:
+crates\vox-lexer\src\cursor.rs:

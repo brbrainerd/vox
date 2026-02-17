@@ -1,0 +1,28 @@
+warning: unused import: `JsxAttribute`
+ --> crates\vox-codegen-ts\src\jsx.rs:1:75
+  |
+1 | use vox_ast::expr::{Expr, BinOp, UnOp, JsxElement, JsxSelfClosingElement, JsxAttribute};
+  |                                                                           ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `emit_stmt`
+ --> crates\vox-codegen-ts\src\routes.rs:2:18
+  |
+2 | use crate::jsx::{emit_stmt, emit_expr};
+  |                  ^^^^^^^^^
+
+   Compiling vox-codegen-rust v0.1.0 (C:\Users\Owner\vox\crates\vox-codegen-rust)
+warning: `vox-codegen-ts` (lib) generated 2 warnings (run `cargo fix --lib -p vox-codegen-ts` to apply 2 suggestions)
+warning: unused imports: `HirParam`, `HirUnOp`, and `HirWorkflow`
+ --> crates\vox-codegen-rust\src\emit.rs:1:75
+  |
+1 | use vox_hir::{HirModule, HirType, HirStmt, HirExpr, HirPattern, HirBinOp, HirUnOp, HirActor, HirFn, HirWorkflow, HirParam, HirRoute, HirH...
+  |                                                                           ^^^^^^^                   ^^^^^^^^^^^  ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `vox-codegen-rust` (lib) generated 1 warning (run `cargo fix --lib -p vox-codegen-rust` to apply 1 suggestion)
+   Compiling vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.94s
+     Running `target\debug\vox.exe bundle examples/chatbot.vox`

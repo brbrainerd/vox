@@ -1,0 +1,95 @@
+================================================================================
+ADT declaration
+================================================================================
+
+type Result =
+    | Success(value: str)
+    | Error(msg: str)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (type_definition
+    (type_identifier)
+    (variant (identifier) (variant_field (identifier) (type_identifier)))
+    (variant (identifier) (variant_field (identifier) (type_identifier)))))
+
+================================================================================
+Match expression
+================================================================================
+
+fn handle(res: Result) to str:
+    match res:
+        | Success(v) -> v
+        | Error(e) -> "Error: " + e
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (return_type (type_identifier))
+    (block
+      (match_expression
+        (identifier)
+        (match_arm
+          (pattern (identifier) (identifier))
+          (identifier))
+        (match_arm
+          (pattern (identifier) (identifier))
+          (binary_expression (string_literal) (identifier)))))))
+
+================================================================================
+If expression
+================================================================================
+
+fn check(x: int) to str:
+    if x > 0:
+        ret "positive"
+    else:
+        ret "negative"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (return_type (type_identifier))
+    (block
+      (if_statement
+        (binary_expression (identifier) (integer_literal))
+        (block (return_statement (string_literal)))
+        (else_clause (block (return_statement (string_literal))))))))
+
+================================================================================
+For loop
+================================================================================
+
+fn sum(items: list[int]) to int:
+    let total = 0
+    for item in items:
+        total = total + item
+    ret total
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (generic_type (type_identifier) (type_identifier)))))
+    (return_type (type_identifier))
+    (block
+      (let_statement (identifier) (integer_literal))
+      (for_statement
+        (identifier)
+        (identifier)
+        (block
+          (assignment_statement
+            (identifier)
+            (binary_expression (identifier) (identifier)))))
+      (return_statement (identifier)))))

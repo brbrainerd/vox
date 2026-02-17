@@ -1,0 +1,59 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+default-members = ["crates/vox-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Vox Contributors"]
+rust-version = "1.75"
+
+[workspace.lints.rust]
+unsafe_code = "warn"
+
+[workspace.lints.clippy]
+all = "warn"
+
+[workspace.dependencies]
+# Internal crates
+vox-lexer        = { path = "crates/vox-lexer" }
+vox-ast          = { path = "crates/vox-ast" }
+vox-parser       = { path = "crates/vox-parser" }
+vox-hir          = { path = "crates/vox-hir" }
+vox-typeck       = { path = "crates/vox-typeck" }
+vox-codegen-llvm = { path = "crates/vox-codegen-llvm" }
+vox-codegen-ts   = { path = "crates/vox-codegen-ts" }
+vox-codegen-rust = { path = "crates/vox-codegen-rust" }
+vox-codegen-wasm = { path = "crates/vox-codegen-wasm" }
+vox-lsp          = { path = "crates/vox-lsp" }
+vox-pm           = { path = "crates/vox-pm" }
+vox-cli          = { path = "crates/vox-cli" }
+vox-runtime      = { path = "crates/vox-runtime" }
+
+# External dependencies (centralized versions)
+logos              = "0.16"
+rowan              = "0.16"
+inkwell            = { version = "0.8", features = ["llvm18-0"] }
+clap               = { version = "4.5", features = ["derive"] }
+serde              = { version = "1", features = ["derive"] }
+serde_json         = "1"
+toml               = "0.8"
+miette             = { version = "7.6", features = ["fancy"] }
+ariadne            = "0.6"
+tokio              = { version = "1", features = ["full"] }
+tracing            = "0.1"
+tracing-subscriber = "0.3"
+anyhow             = "1"
+reqwest            = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+rusqlite           = { version = "0.32", features = ["bundled"] }
+sha3               = "0.10"
+bincode            = "2"
+data-encoding      = "2"
+thiserror          = "1"
+base64             = "0.22"
+
+[profile.release]
+lto = "thin"
+strip = "debuginfo"

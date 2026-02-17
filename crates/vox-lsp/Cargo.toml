@@ -1,0 +1,17 @@
+[package]
+name = "vox-lsp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tower-lsp = "0.20"
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+vox-lexer = { workspace = true }
+vox-ast = { workspace = true }
+vox-parser = { workspace = true }
+vox-typeck = { workspace = true }

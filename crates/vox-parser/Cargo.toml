@@ -1,0 +1,9 @@
+[package]
+name = "vox-parser"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-lexer = { workspace = true }
+vox-ast = { workspace = true }
+thiserror = { workspace = true }

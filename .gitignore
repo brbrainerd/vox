@@ -1,0 +1,20 @@
+# Rust
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Node
+node_modules/
+dist/
+.env
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Vox
+.vox/
+bundle_out*.txt
+bundle_err*.txt

@@ -1,0 +1,1 @@
+C:\Users\Owner\vox\target\debug\libvox_ast.rlib: C:\Users\Owner\vox\crates\vox-ast\src\decl.rs C:\Users\Owner\vox\crates\vox-ast\src\expr.rs C:\Users\Owner\vox\crates\vox-ast\src\lib.rs C:\Users\Owner\vox\crates\vox-ast\src\pattern.rs C:\Users\Owner\vox\crates\vox-ast\src\span.rs C:\Users\Owner\vox\crates\vox-ast\src\stmt.rs C:\Users\Owner\vox\crates\vox-ast\src\types.rs

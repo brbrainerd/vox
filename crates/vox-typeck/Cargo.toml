@@ -1,0 +1,12 @@
+[package]
+name = "vox-typeck"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-ast = { workspace = true }
+vox-hir = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+miette = { workspace = true }

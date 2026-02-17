@@ -1,0 +1,101 @@
+================================================================================
+HTTP route
+================================================================================
+
+http post "/api/chat" to Result:
+    let response = process(request)
+    ret response
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (http_route_declaration
+    (http_method)
+    (string_literal)
+    (return_type (type_identifier))
+    (block
+      (let_statement
+        (identifier)
+        (call_expression (identifier) (argument_list (identifier))))
+      (return_statement (identifier)))))
+
+================================================================================
+Import statement
+================================================================================
+
+import react.use_state, network.HTTP
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (import_declaration
+    (import_path (identifier) (identifier))
+    (import_path (identifier) (identifier))))
+
+================================================================================
+Pipe operator
+================================================================================
+
+fn process(data: str) to str:
+    ret data |> trim |> uppercase
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (return_type (type_identifier))
+    (block
+      (return_statement
+        (binary_expression
+          (binary_expression (identifier) (identifier))
+          (identifier))))))
+
+================================================================================
+Lambda expression
+================================================================================
+
+fn map_items(items: list[int]) to list[int]:
+    ret items.map(fn(x) x * 2)
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (generic_type (type_identifier) (type_identifier)))))
+    (return_type (generic_type (type_identifier) (type_identifier)))
+    (block
+      (return_statement
+        (method_call_expression
+          (identifier)
+          (identifier)
+          (argument_list
+            (lambda_expression
+              (parameter_list (parameter (identifier)))
+              (binary_expression (identifier) (integer_literal)))))))))
+
+================================================================================
+Workflow declaration
+================================================================================
+
+workflow process_order(order: Order) to Result:
+    let validated = validate(order)
+    ret validated
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (workflow_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (return_type (type_identifier))
+    (block
+      (let_statement
+        (identifier)
+        (call_expression (identifier) (argument_list (identifier))))
+      (return_statement (identifier)))))

@@ -1,0 +1,1 @@
+cargo:rustc-env=MIME_TYPES_GENERATED_PATH=C:\Users\Owner\vox\target\generated\target\debug\build\mime_guess-880e5ff33ea7800f\out\mime_types_generated.rs

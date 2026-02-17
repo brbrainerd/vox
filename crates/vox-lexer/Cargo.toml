@@ -1,0 +1,9 @@
+[package]
+name = "vox-lexer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+logos = { workspace = true }
+
+[dev-dependencies]

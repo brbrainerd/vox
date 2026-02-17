@@ -1,0 +1,79 @@
+================================================================================
+Simple function
+================================================================================
+
+fn greet():
+    ret "hello"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list)
+    (block
+      (return_statement
+        (string_literal)))))
+
+================================================================================
+Function with parameters
+================================================================================
+
+fn add(a: int, b: int):
+    ret a + b
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier)))
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (block
+      (return_statement
+        (binary_expression
+          (identifier)
+          (identifier))))))
+
+================================================================================
+Function with return type
+================================================================================
+
+fn greet(name: str) to str:
+    ret "Hello, " + name
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (return_type (type_identifier))
+    (block
+      (return_statement
+        (binary_expression
+          (string_literal)
+          (identifier))))))
+
+================================================================================
+Public function
+================================================================================
+
+pub fn calculate(x: int) to int:
+    ret x * 2
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter (identifier) (type_annotation (type_identifier))))
+    (return_type (type_identifier))
+    (block
+      (return_statement
+        (binary_expression
+          (identifier)
+          (integer_literal))))))
