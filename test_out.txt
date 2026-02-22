@@ -1,0 +1,180 @@
+   Compiling vox-cli v0.1.0 (C:\Users\Owner\vox\crates\vox-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.50s
+     Running unittests src\lib.rs (target\debug\deps\vox_ast-2160fad45d553522.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\debug\deps\vox-6004d86d96d25183.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vox_codegen_llvm-6f7e4c56f08d9867.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vox_codegen_rust-2420098ba771100f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\server_fn_test.rs (target\debug\deps\server_fn_test-e07389efed6cddaf.exe)
+
+running 4 tests
+test empty_server_fns_generate_no_api_client ... ok
+test server_fn_route_path_derived_from_name ... ok
+test server_fn_generates_api_client ... ok
+test server_fn_generates_routes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\table_codegen_test.rs (target\debug\deps\table_codegen_test-4f02d747b5f97221.exe)
+
+running 8 tests
+test cargo_toml_includes_rusqlite ... ok
+test index_generates_create_index_ddl ... ok
+test optional_field_nullable ... ok
+test table_generates_create_table_ddl ... ok
+test db_setup_in_main ... ok
+test no_tables_no_db_setup ... ok
+test table_struct_in_lib ... ok
+test id_type_maps_to_i64 ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vox_codegen_ts-32acafd5474f3b73.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vox_codegen_wasm-0c1b56dd95abb232.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vox_hir-9f0efe1c89969dca.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vox_integration_tests-6fe189d060309d2d.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\chatbot_integration.rs (target\debug\deps\chatbot_integration-034e2d3fdd6756ed.exe)
+
+running 1 test
+test chatbot_full_stack_integration ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\codegen_rust.rs (target\debug\deps\codegen_rust-8bc1e7f540e51614.exe)
+
+running 11 tests
+test codegen_mcp_tool_hir_lowering ... ok
+test codegen_index_emits_ddl ... ok
+test codegen_table_emits_ddl ... ok
+test codegen_no_mcp_server_when_no_tools ... ok
+test codegen_activity_without_with_is_plain_call ... ok
+test codegen_activity_emits_async_fn ... ok
+test codegen_table_emits_struct ... ok
+test codegen_mcp_server_input_schema ... ok
+test codegen_with_all_options ... ok
+test codegen_mcp_server_produces_file ... ok
+test codegen_with_expression_emits_execute_activity ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\db_typeck.rs (target\debug\deps\db_typeck-de0101c7aad87545.exe)
+
+running 2 tests
+test test_db_unknown_table ... ok
+test test_db_operations_typecheck ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\pipeline.rs (target\debug\deps\pipeline-4c4cd0b117186fbf.exe)
+
+running 23 tests
+test codegen_routes_produces_app_tsx ... ok
+test codegen_bind_expands_to_value_onchange ... ok
+test codegen_ts_activity_has_runtime_helper ... ok
+test codegen_jsx_text_content_not_interpolated ... ok
+test codegen_ts_activity_has_async_function ... ok
+test codegen_ts_table_produces_schema_file ... ok
+test codegen_ts_activity_produces_activities_file ... ok
+test codegen_v0_placeholder_from_image ... ok
+test codegen_use_effect_maps_to_react_hook ... ok
+test codegen_v0_placeholder_from_prompt ... ok
+test codegen_component_has_use_state ... ok
+test codegen_server_has_express_route_with_await ... ok
+test codegen_types_has_tagged_union ... ok
+test pipeline_table_hir_lowering ... ok
+test pipeline_table_parse_produces_declarations ... ok
+test pipeline_table_rust_codegen_e2e ... ok
+test pipeline_table_typecheck_no_errors ... ok
+test pipeline_codegen_produces_three_files ... ok
+test dashboard_full_pipeline_e2e ... ok
+test chatbot_full_pipeline_e2e ... ok
+test pipeline_typecheck_has_no_errors ... ok
+test pipeline_lex_produces_tokens ... ok
+test pipeline_parse_produces_four_declarations ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\typeck.rs (target\debug\deps\typeck-1add56eb257d9ebe.exe)
+
+running 14 tests
+test builtin_print_is_defined ... ok
+test match_with_wildcard_is_exhaustive ... ok
+test undefined_variable_in_function ... ok
+test actor_handler_undefined_var ... ok
+test assign_to_immutable_variable ... ok
+test defined_parameter_no_error ... ok
+test adt_constructor_is_defined ... FAILED
+test exhaustive_match_no_error ... ok
+test defined_let_binding_no_error ... FAILED
+test actor_handler_checks_body ... ok
+test non_exhaustive_match_error ... ok
+test assign_to_mutable_variable_ok ... ok
+test component_with_element_return_no_warning ... ok
+test builtin_ok_error_constructors ... FAILED
+
+failures:
+
+---- adt_constructor_is_defined stdout ----
+
+thread 'adt_constructor_is_defined' (100816) panicked at crates\vox-integration-tests\tests\typeck.rs:165:5:
+ADT constructors should be in scope, got: [Diagnostic { severity: Error, message: "Implicit return type mismatch in 'make_circle': Cannot unify Named(\"Shape\") with Unit", span: Span { start: 50, end: 98 }, expected_type: Some("Named(\"Shape\")"), found_type: Some("Unit"), suggestions: [] }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- defined_let_binding_no_error stdout ----
+
+thread 'defined_let_binding_no_error' (45936) panicked at crates\vox-integration-tests\tests\typeck.rs:68:5:
+Should have no errors for defined let binding, got: [Diagnostic { severity: Error, message: "Implicit return type mismatch in 'compute': Cannot unify Int with Unit", span: Span { start: 1, end: 47 }, expected_type: Some("Int"), found_type: Some("Unit"), suggestions: [] }]
+
+---- builtin_ok_error_constructors stdout ----
+
+thread 'builtin_ok_error_constructors' (99440) panicked at crates\vox-integration-tests\tests\typeck.rs:196:5:
+Ok should be a known builtin constructor, got: [Diagnostic { severity: Error, message: "Implicit return type mismatch in 'succeed': Cannot unify Result(Str) with Unit", span: Span { start: 1, end: 52 }, expected_type: Some("Result(Str)"), found_type: Some("Unit"), suggestions: [] }]
+
+
+failures:
+    adt_constructor_is_defined
+    builtin_ok_error_constructors
+    defined_let_binding_no_error
+
+test result: FAILED. 11 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p vox-integration-tests --test typeck`

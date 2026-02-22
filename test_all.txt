@@ -1,0 +1,113 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running unittests src\lib.rs (target\debug\deps\vox_integration_tests-accd29488dc798be.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\chatbot_integration.rs (target\debug\deps\chatbot_integration-d8b0ede067a215b3.exe)
+
+running 1 test
+test chatbot_full_stack_integration ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\codegen_rust.rs (target\debug\deps\codegen_rust-79568a293ab012b2.exe)
+
+running 11 tests
+test codegen_mcp_tool_hir_lowering ... ok
+test codegen_table_emits_ddl ... ok
+test codegen_index_emits_ddl ... ok
+test codegen_activity_emits_async_fn ... ok
+test codegen_mcp_server_input_schema ... ok
+test codegen_no_mcp_server_when_no_tools ... ok
+test codegen_mcp_server_produces_file ... ok
+test codegen_table_emits_struct ... ok
+test codegen_with_all_options ... ok
+test codegen_activity_without_with_is_plain_call ... ok
+test codegen_with_expression_emits_execute_activity ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\db_typeck.rs (target\debug\deps\db_typeck-a94ac0e6f13224e4.exe)
+
+running 2 tests
+test test_db_unknown_table ... ok
+test test_db_operations_typecheck ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\pipeline.rs (target\debug\deps\pipeline-326401a35f98c730.exe)
+
+running 23 tests
+test codegen_bind_expands_to_value_onchange ... ok
+test codegen_ts_activity_produces_activities_file ... ok
+test codegen_ts_activity_has_async_function ... ok
+test codegen_routes_produces_app_tsx ... ok
+test pipeline_table_typecheck_no_errors ... ok
+test codegen_ts_activity_has_runtime_helper ... ok
+test codegen_component_has_use_state ... ok
+test codegen_ts_table_produces_schema_file ... ok
+test codegen_v0_placeholder_from_image ... ok
+test codegen_use_effect_maps_to_react_hook ... ok
+test pipeline_lex_produces_tokens ... ok
+test pipeline_table_parse_produces_declarations ... ok
+test codegen_jsx_text_content_not_interpolated ... ok
+test pipeline_table_hir_lowering ... ok
+test dashboard_full_pipeline_e2e ... ok
+test pipeline_codegen_produces_three_files ... ok
+test codegen_v0_placeholder_from_prompt ... ok
+test chatbot_full_pipeline_e2e ... ok
+test pipeline_typecheck_has_no_errors ... ok
+test codegen_server_has_express_route_with_await ... ok
+test pipeline_parse_produces_four_declarations ... ok
+test pipeline_table_rust_codegen_e2e ... ok
+test codegen_types_has_tagged_union ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\typeck.rs (target\debug\deps\typeck-82350f2bd99e2a0d.exe)
+
+running 14 tests
+test builtin_print_is_defined ... ok
+test assign_to_immutable_variable ... ok
+test actor_handler_checks_body ... ok
+test actor_handler_undefined_var ... ok
+test builtin_ok_error_constructors ... FAILED
+test component_with_element_return_no_warning ... ok
+test assign_to_mutable_variable_ok ... ok
+test adt_constructor_is_defined ... FAILED
+test defined_let_binding_no_error ... FAILED
+test defined_parameter_no_error ... ok
+test non_exhaustive_match_error ... ok
+test undefined_variable_in_function ... ok
+test match_with_wildcard_is_exhaustive ... ok
+test exhaustive_match_no_error ... ok
+
+failures:
+
+---- builtin_ok_error_constructors stdout ----
+
+thread 'builtin_ok_error_constructors' (100236) panicked at crates\vox-integration-tests\tests\typeck.rs:196:5:
+Ok should be a known builtin constructor, got: [Diagnostic { severity: Error, message: "Implicit return type mismatch in 'succeed': Cannot unify Result(Str) with Unit", span: Span { start: 1, end: 52 }, expected_type: Some("Result(Str)"), found_type: Some("Unit"), suggestions: [] }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- adt_constructor_is_defined stdout ----
+
+thread 'adt_constructor_is_defined' (89516) panicked at crates\vox-integration-tests\tests\typeck.rs:165:5:
+ADT constructors should be in scope, got: [Diagnostic { severity: Error, message: "Implicit return type mismatch in 'make_circle': Cannot unify Named(\"Shape\") with Unit", span: Span { start: 50, end: 98 }, expected_type: Some("Named(\"Shape\")"), found_type: Some("Unit"), suggestions: [] }]
+
+---- defined_let_binding_no_error stdout ----
+
+thread 'defined_let_binding_no_error' (98064) panicked at crates\vox-integration-tests\tests\typeck.rs:68:5:
+Should have no errors for defined let binding, got: [Diagnostic { severity: Error, message: "Implicit return type mismatch in 'compute': Cannot unify Int with Unit", span: Span { start: 1, end: 47 }, expected_type: Some("Int"), found_type: Some("Unit"), suggestions: [] }]
+
+
+failures:
+    adt_constructor_is_defined
+    builtin_ok_error_constructors
+    defined_let_binding_no_error
+
+test result: FAILED. 11 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p vox-integration-tests --test typeck`

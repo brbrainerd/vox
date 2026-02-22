@@ -1,0 +1,53 @@
+   Compiling vox-typeck v0.1.0 (C:\Users\Owner\vox\crates\vox-typeck)
+   Compiling vox-integration-tests v0.1.0 (C:\Users\Owner\vox\crates\vox-integration-tests)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running tests\workflow_integration.rs (target\debug\deps\workflow_integration-3fcd793eedc3c6da.exe)
+
+running 19 tests
+test test_hir_lowering_activity_and_with ... ok
+test test_activity_missing_return_type_warning ... ok
+test test_arg_type_mismatch_error ... ok
+test test_arg_count_mismatch_error ... ok
+test test_activity_invalid_return_type ... ok
+test test_table_registration_no_errors ... ok
+test test_with_non_record_options_error ... ok
+test test_generic_identity_works ... ok
+test test_with_unknown_option_key_warning ... ok
+test test_with_wrong_option_type_warning ... ok
+test test_with_valid_known_options_pass ... FAILED
+test test_activity_callable_from_function ... FAILED
+test test_index_on_known_table_no_errors ... ok
+test test_durable_execution_example_e2e ... FAILED
+test test_with_operator_associativity ... ok
+test test_activity_valid_definition ... ok
+test test_generic_type_mismatch ... ok
+test test_index_on_unknown_table_error ... ok
+test test_activity_with_syntax ... ok
+
+failures:
+
+---- test_with_valid_known_options_pass stdout ----
+
+thread 'test_with_valid_known_options_pass' (101240) panicked at crates\vox-integration-tests\tests\workflow_integration.rs:182:5:
+Valid 'with' options should have no errors, got: [Diagnostic { severity: Error, message: "Return type mismatch: Cannot unify Result(Str) with Named(\"MyRes\")", span: Span { start: 85, end: 100 }, expected_type: Some("Result(Str)"), found_type: Some("Named(\"MyRes\")"), suggestions: [] }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_activity_callable_from_function stdout ----
+
+thread 'test_activity_callable_from_function' (51312) panicked at crates\vox-integration-tests\tests\workflow_integration.rs:117:5:
+Activity should be callable like a function, got: [Diagnostic { severity: Error, message: "Return type mismatch: Cannot unify Result(Str) with Named(\"MyRes\")", span: Span { start: 85, end: 100 }, expected_type: Some("Result(Str)"), found_type: Some("Named(\"MyRes\")"), suggestions: [] }]
+
+---- test_durable_execution_example_e2e stdout ----
+
+thread 'test_durable_execution_example_e2e' (81104) panicked at crates\vox-integration-tests\tests\workflow_integration.rs:228:5:
+Example should have no type errors: [Diagnostic { severity: Error, message: "Return type mismatch: Cannot unify Result(Str) with Named(\"PaymentResult\")", span: Span { start: 247, end: 266 }, expected_type: Some("Result(Str)"), found_type: Some("Named(\"PaymentResult\")"), suggestions: [] }, Diagnostic { severity: Error, message: "Return type mismatch: Cannot unify Result(Str) with Named(\"PaymentResult\")", span: Span { start: 372, end: 384 }, expected_type: Some("Result(Str)"), found_type: Some("Named(\"PaymentResult\")"), suggestions: [] }, Diagnostic { severity: Error, message: "Return type mismatch: Cannot unify Result(Str) with Named(\"PaymentResult\")", span: Span { start: 528, end: 541 }, expected_type: Some("Result(Str)"), found_type: Some("Named(\"PaymentResult\")"), suggestions: [] }]
+
+
+failures:
+    test_activity_callable_from_function
+    test_durable_execution_example_e2e
+    test_with_valid_known_options_pass
+
+test result: FAILED. 16 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p vox-integration-tests --test workflow_integration`
