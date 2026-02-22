@@ -1,7 +1,7 @@
 pub mod emit;
 
-use vox_hir::HirModule;
 use std::collections::HashMap;
+use vox_hir::HirModule;
 
 pub struct CodegenOutput {
     pub files: HashMap<String, String>,
@@ -13,10 +13,16 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
     let mut files = HashMap::new();
 
     // Cargo.toml
-    files.insert("Cargo.toml".to_string(), emit::emit_cargo_toml(package_name));
+    files.insert(
+        "Cargo.toml".to_string(),
+        emit::emit_cargo_toml(package_name),
+    );
 
     // src/main.rs (Entry point + Routes)
-    files.insert("src/main.rs".to_string(), emit::emit_main(module, package_name));
+    files.insert(
+        "src/main.rs".to_string(),
+        emit::emit_main(module, package_name),
+    );
 
     // src/lib.rs (Types, Actors, Workflows, Functions)
     files.insert("src/lib.rs".to_string(), emit::emit_lib(module));
@@ -32,5 +38,8 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
         );
     }
 
-    Ok(CodegenOutput { files, api_client_ts })
+    Ok(CodegenOutput {
+        files,
+        api_client_ts,
+    })
 }

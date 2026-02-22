@@ -1,5 +1,5 @@
-use crate::span::Span;
 use crate::pattern::Pattern;
+use crate::span::Span;
 use crate::types::TypeExpr;
 
 /// A function/method argument, potentially named.
@@ -14,26 +14,26 @@ pub struct Arg {
 /// Binary operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinOp {
-    Add,    // +
-    Sub,    // -
-    Mul,    // *
-    Div,    // /
-    Lt,     // <
-    Gt,     // >
-    Lte,    // <=
-    Gte,    // >=
-    And,    // and
-    Or,     // or
-    Is,     // is (==)
-    Isnt,   // isnt (!=)
-    Pipe,   // |>
+    Add,  // +
+    Sub,  // -
+    Mul,  // *
+    Div,  // /
+    Lt,   // <
+    Gt,   // >
+    Lte,  // <=
+    Gte,  // >=
+    And,  // and
+    Or,   // or
+    Is,   // is (==)
+    Isnt, // isnt (!=)
+    Pipe, // |>
 }
 
 /// Unary operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
-    Not,    // not
-    Neg,    // - (prefix)
+    Not, // not
+    Neg, // - (prefix)
 }
 
 /// A match arm: pattern [if guard] -> body
@@ -89,45 +89,24 @@ pub enum StringPart {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     /// Integer literal: `42`
-    IntLit {
-        value: i64,
-        span: Span,
-    },
+    IntLit { value: i64, span: Span },
     /// Float literal: `3.14`
-    FloatLit {
-        value: f64,
-        span: Span,
-    },
+    FloatLit { value: f64, span: Span },
     /// String literal: `"hello"`
-    StringLit {
-        value: String,
-        span: Span,
-    },
+    StringLit { value: String, span: Span },
     /// Boolean literal: `true` / `false`
-    BoolLit {
-        value: bool,
-        span: Span,
-    },
+    BoolLit { value: bool, span: Span },
     /// Identifier reference: `x`, `foo`
-    Ident {
-        name: String,
-        span: Span,
-    },
+    Ident { name: String, span: Span },
     /// Object literal: `{key: value, ...}`
     ObjectLit {
         fields: Vec<(String, Expr)>,
         span: Span,
     },
     /// List literal: `[a, b, c]`
-    ListLit {
-        elements: Vec<Expr>,
-        span: Span,
-    },
+    ListLit { elements: Vec<Expr>, span: Span },
     /// Tuple literal: `(a, b)`
-    TupleLit {
-        elements: Vec<Expr>,
-        span: Span,
-    },
+    TupleLit { elements: Vec<Expr>, span: Span },
     /// Binary expression: `a + b`, `a and b`, `a is b`
     Binary {
         op: BinOp,
@@ -194,10 +173,7 @@ pub enum Expr {
         span: Span,
     },
     /// Spawn an actor: `spawn(X)`
-    Spawn {
-        target: Box<Expr>,
-        span: Span,
-    },
+    Spawn { target: Box<Expr>, span: Span },
     /// With expression: `expr with options`
     With {
         operand: Box<Expr>,
@@ -209,10 +185,7 @@ pub enum Expr {
     /// Self-closing JSX element: `<input .../>`
     JsxSelfClosing(JsxSelfClosingElement),
     /// String interpolation: `"text {expr} more"`
-    StringInterp {
-        parts: Vec<StringPart>,
-        span: Span,
-    },
+    StringInterp { parts: Vec<StringPart>, span: Span },
     /// Block expression (a sequence of statements, last expression is the value)
     Block {
         stmts: Vec<crate::stmt::Stmt>,

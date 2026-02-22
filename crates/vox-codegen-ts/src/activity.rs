@@ -1,6 +1,6 @@
-use vox_ast::decl::ActivityDecl;
-use crate::jsx::emit_stmt;
 use crate::component::map_vox_type_to_ts;
+use crate::jsx::emit_stmt;
+use vox_ast::decl::ActivityDecl;
 
 /// Generate a TypeScript async function from a Vox activity declaration.
 /// Returns the TypeScript source code for the activity.
@@ -9,17 +9,25 @@ pub fn generate_activity(activity: &ActivityDecl) -> String {
     let mut out = String::new();
 
     // Build parameter list with type annotations
-    let params: Vec<String> = activity.params.iter().map(|p| {
-        let ts_type = p.type_ann.as_ref().map_or("any".to_string(), |t| {
-            map_vox_type_to_ts(t)
-        });
-        format!("{}: {}", p.name, ts_type)
-    }).collect();
+    let params: Vec<String> = activity
+        .params
+        .iter()
+        .map(|p| {
+            let ts_type = p
+                .type_ann
+                .as_ref()
+                .map_or("any".to_string(), map_vox_type_to_ts);
+            format!("{}: {}", p.name, ts_type)
+        })
+        .collect();
 
     // Return type
-    let return_type = activity.return_type.as_ref().map_or("Promise<any>".to_string(), |t| {
-        format!("Promise<{}>", map_vox_type_to_ts(t))
-    });
+    let return_type = activity
+        .return_type
+        .as_ref()
+        .map_or("Promise<any>".to_string(), |t| {
+            format!("Promise<{}>", map_vox_type_to_ts(t))
+        });
 
     // Function signature
     out.push_str(&format!(

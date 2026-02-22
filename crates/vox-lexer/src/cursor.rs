@@ -1,5 +1,5 @@
-use logos::Logos;
 use crate::token::Token;
+use logos::Logos;
 
 /// A located token with its source span.
 #[derive(Debug, Clone, PartialEq)]
@@ -223,10 +223,10 @@ mod tests {
 
     #[test]
     fn test_numeric_literals() {
-        let tokens = lex_tokens("42 3.14");
+        let tokens = lex_tokens("42 2.75");
         assert_eq!(
             tokens,
-            vec![Token::IntLit(42), Token::FloatLit(3.14), Token::Eof]
+            vec![Token::IntLit(42), Token::FloatLit(2.75), Token::Eof]
         );
     }
 
@@ -250,7 +250,12 @@ mod tests {
         let tokens = lex_tokens("@component @mcp.tool @external");
         assert_eq!(
             tokens,
-            vec![Token::AtComponent, Token::AtMcpTool, Token::AtExternal, Token::Eof]
+            vec![
+                Token::AtComponent,
+                Token::AtMcpTool,
+                Token::AtExternal,
+                Token::Eof
+            ]
         );
     }
 
@@ -258,12 +263,21 @@ mod tests {
     fn test_symbols() {
         let tokens = lex_tokens("( ) [ ] { } : , . = -> |> | < >");
         let expected = vec![
-            Token::LParen, Token::RParen,
-            Token::LBracket, Token::RBracket,
-            Token::LBrace, Token::RBrace,
-            Token::Colon, Token::Comma, Token::Dot, Token::Eq,
-            Token::Arrow, Token::PipeOp, Token::Bar,
-            Token::Lt, Token::Gt,
+            Token::LParen,
+            Token::RParen,
+            Token::LBracket,
+            Token::RBracket,
+            Token::LBrace,
+            Token::RBrace,
+            Token::Colon,
+            Token::Comma,
+            Token::Dot,
+            Token::Eq,
+            Token::Arrow,
+            Token::PipeOp,
+            Token::Bar,
+            Token::Lt,
+            Token::Gt,
             Token::Eof,
         ];
         assert_eq!(tokens, expected);
@@ -311,7 +325,10 @@ mod tests {
         let source = "a:\n    b:\n        c\nd";
         let tokens = lex_tokens(source);
         let dedent_count = tokens.iter().filter(|t| **t == Token::Dedent).count();
-        assert_eq!(dedent_count, 2, "Should emit 2 dedents when jumping from indent 8 to 0");
+        assert_eq!(
+            dedent_count, 2,
+            "Should emit 2 dedents when jumping from indent 8 to 0"
+        );
     }
 
     #[test]
@@ -400,12 +417,7 @@ http post "/api/chat" to Result:
         let tokens = lex_tokens("activity with workflow");
         assert_eq!(
             tokens,
-            vec![
-                Token::Activity,
-                Token::With,
-                Token::Workflow,
-                Token::Eof,
-            ]
+            vec![Token::Activity, Token::With, Token::Workflow, Token::Eof,]
         );
     }
 }

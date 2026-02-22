@@ -4,10 +4,7 @@ use crate::span::Span;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeExpr {
     /// A simple named type: `int`, `str`, `bool`, `Element`, `Unit`
-    Named {
-        name: String,
-        span: Span,
-    },
+    Named { name: String, span: Span },
     /// A generic/parameterized type: `list[T]`, `Result[str]`, `Option[int]`
     Generic {
         name: String,
@@ -21,14 +18,9 @@ pub enum TypeExpr {
         span: Span,
     },
     /// A tuple type: `(int, str)`
-    Tuple {
-        elements: Vec<TypeExpr>,
-        span: Span,
-    },
+    Tuple { elements: Vec<TypeExpr>, span: Span },
     /// Unit type (void)
-    Unit {
-        span: Span,
-    },
+    Unit { span: Span },
 }
 
 impl TypeExpr {

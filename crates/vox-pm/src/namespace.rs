@@ -1,5 +1,3 @@
-
-
 /// Namespace management for the content-addressed store.
 pub struct Namespace {
     segments: Vec<String>,
@@ -22,14 +20,6 @@ impl Namespace {
         Self { segments }
     }
 
-    pub fn to_string(&self) -> String {
-        if self.segments.is_empty() {
-            ".".to_string()
-        } else {
-            self.segments.join(".")
-        }
-    }
-
     pub fn parent(&self) -> Option<Self> {
         if self.segments.is_empty() {
             None
@@ -37,6 +27,16 @@ impl Namespace {
             let mut segments = self.segments.clone();
             segments.pop();
             Some(Self { segments })
+        }
+    }
+}
+
+impl std::fmt::Display for Namespace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.segments.is_empty() {
+            write!(f, ".")
+        } else {
+            write!(f, "{}", self.segments.join("."))
         }
     }
 }

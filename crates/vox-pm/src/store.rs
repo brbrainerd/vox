@@ -1,7 +1,19 @@
-use rusqlite::{Connection, params};
-use crate::schema::{MIGRATIONS, PRAGMAS};
 use crate::hash::content_hash;
+use crate::schema::{MIGRATIONS, PRAGMAS};
+use rusqlite::{params, Connection};
 use thiserror::Error;
+
+/// Parameters for logging an execution
+pub struct LogExecutionParams<'a> {
+    pub workflow_id: &'a str,
+    pub activity_name: &'a str,
+    pub status: &'a str,
+    pub attempt: u32,
+    pub input: Option<&'a [u8]>,
+    pub output: Option<&'a [u8]>,
+    pub error: Option<&'a str>,
+    pub options: Option<&'a str>,
+}
 
 #[derive(Error, Debug)]
 pub enum StoreError {
@@ -33,7 +45,7 @@ impl CodeStore {
             "CREATE TABLE IF NOT EXISTS schema_version (
                 version INTEGER PRIMARY KEY,
                 applied_at TEXT NOT NULL DEFAULT (datetime('now'))
-            );"
+            );",
         )?;
 
         let current_version: i64 = conn.query_row(
@@ -107,16 +119,24 @@ impl CodeStore {
 
     /// Look up a name in a namespace, returning its hash.
     pub fn lookup_name(&self, namespace: &str, name: &str) -> Result<String, StoreError> {
-        let hash: String = self.conn.query_row(
-            "SELECT hash FROM names WHERE namespace = ?1 AND name = ?2",
-            params![namespace, name],
-            |row| row.get(0),
-        ).map_err(|_| StoreError::NotFound(format!("{namespace}.{name}")))?;
+        let hash: String = self
+            .conn
+            .query_row(
+                "SELECT hash FROM names WHERE namespace = ?1 AND name = ?2",
+                params![namespace, name],
+                |row| row.get(0),
+            )
+            .map_err(|_| StoreError::NotFound(format!("{namespace}.{name}")))?;
         Ok(hash)
     }
 
     /// Rename a definition without changing its hash.
-    pub fn rename(&self, namespace: &str, old_name: &str, new_name: &str) -> Result<(), StoreError> {
+    pub fn rename(
+        &self,
+        namespace: &str,
+        old_name: &str,
+        new_name: &str,
+    ) -> Result<(), StoreError> {
         let hash = self.lookup_name(namespace, old_name)?;
         self.bind_name(namespace, new_name, &hash)?;
         self.conn.execute(
@@ -128,9 +148,9 @@ impl CodeStore {
 
     /// List all names in a namespace.
     pub fn list_names(&self, namespace: &str) -> Result<Vec<(String, String)>, StoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT name, hash FROM names WHERE namespace = ?1 ORDER BY name"
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT name, hash FROM names WHERE namespace = ?1 ORDER BY name")?;
         let rows = stmt.query_map(params![namespace], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
@@ -154,9 +174,9 @@ impl CodeStore {
 
     /// Get all dependencies of a hash.
     pub fn get_dependencies(&self, hash: &str) -> Result<Vec<String>, StoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT parent_hash FROM causal WHERE hash = ?1"
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT parent_hash FROM causal WHERE hash = ?1")?;
         let rows = stmt.query_map(params![hash], |row| row.get::<_, String>(0))?;
         let mut result = Vec::new();
         for row in rows {
@@ -178,19 +198,22 @@ impl CodeStore {
 
     /// Get a metadata value for an object.
     pub fn get_metadata(&self, hash: &str, key: &str) -> Result<String, StoreError> {
-        let value: String = self.conn.query_row(
-            "SELECT value FROM metadata WHERE hash = ?1 AND key = ?2",
-            params![hash, key],
-            |row| row.get(0),
-        ).map_err(|_| StoreError::NotFound(format!("metadata {hash}.{key}")))?;
+        let value: String = self
+            .conn
+            .query_row(
+                "SELECT value FROM metadata WHERE hash = ?1 AND key = ?2",
+                params![hash, key],
+                |row| row.get(0),
+            )
+            .map_err(|_| StoreError::NotFound(format!("metadata {hash}.{key}")))?;
         Ok(value)
     }
 
     /// Get all metadata for an object.
     pub fn get_all_metadata(&self, hash: &str) -> Result<Vec<(String, String)>, StoreError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT key, value FROM metadata WHERE hash = ?1 ORDER BY key"
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT key, value FROM metadata WHERE hash = ?1 ORDER BY key")?;
         let rows = stmt.query_map(params![hash], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
@@ -240,7 +263,7 @@ impl CodeStore {
     /// Get all versions of a package.
     pub fn get_package_versions(&self, name: &str) -> Result<Vec<(String, String)>, StoreError> {
         let mut stmt = self.conn.prepare(
-            "SELECT version, hash FROM packages WHERE name = ?1 ORDER BY published_at DESC"
+            "SELECT version, hash FROM packages WHERE name = ?1 ORDER BY published_at DESC",
         )?;
         let rows = stmt.query_map(params![name], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
@@ -261,7 +284,7 @@ impl CodeStore {
         let mut stmt = self.conn.prepare(
             "SELECT dep_name, dep_version_req FROM package_deps
              WHERE package_name = ?1 AND package_version = ?2
-             ORDER BY dep_name"
+             ORDER BY dep_name",
         )?;
         let rows = stmt.query_map(params![package_name, package_version], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
@@ -275,23 +298,24 @@ impl CodeStore {
 
     // ── Execution Log ────────────────────────────────────
 
+    // Moved out
+
     /// Append an entry to the execution log (append-only).
-    pub fn log_execution(
-        &self,
-        workflow_id: &str,
-        activity_name: &str,
-        status: &str,
-        attempt: u32,
-        input: Option<&[u8]>,
-        output: Option<&[u8]>,
-        error: Option<&str>,
-        options: Option<&str>,
-    ) -> Result<i64, StoreError> {
+    pub fn log_execution<'a>(&self, params: LogExecutionParams<'a>) -> Result<i64, StoreError> {
         self.conn.execute(
             "INSERT INTO execution_log
              (workflow_id, activity_name, status, attempt, input, output, error, options)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![workflow_id, activity_name, status, attempt, input, output, error, options],
+            rusqlite::params![
+                params.workflow_id,
+                params.activity_name,
+                params.status,
+                params.attempt,
+                params.input,
+                params.output,
+                params.error,
+                params.options
+            ],
         )?;
         Ok(self.conn.last_insert_rowid())
     }
@@ -304,7 +328,7 @@ impl CodeStore {
         let mut stmt = self.conn.prepare(
             "SELECT id, activity_name, status, attempt, error, created_at
              FROM execution_log WHERE workflow_id = ?1
-             ORDER BY id ASC"
+             ORDER BY id ASC",
         )?;
         let rows = stmt.query_map(params![workflow_id], |row| {
             Ok(ExecutionEntry {
@@ -346,7 +370,7 @@ impl CodeStore {
         let mut stmt = self.conn.prepare(
             "SELECT id, function_hash, args, run_at, cron_expr
              FROM scheduled WHERE status = 'pending' AND run_at <= ?1
-             ORDER BY run_at ASC"
+             ORDER BY run_at ASC",
         )?;
         let rows = stmt.query_map(params![now], |row| {
             Ok(ScheduledEntry {
@@ -396,7 +420,7 @@ impl CodeStore {
     pub fn list_components(&self, namespace: &str) -> Result<Vec<ComponentEntry>, StoreError> {
         let mut stmt = self.conn.prepare(
             "SELECT name, namespace, version, description FROM components
-             WHERE namespace = ?1 ORDER BY name"
+             WHERE namespace = ?1 ORDER BY name",
         )?;
         let rows = stmt.query_map(params![namespace], |row| {
             Ok(ComponentEntry {
@@ -541,10 +565,15 @@ mod tests {
         let hash = store.store("fn", b"fn meta_test(): ret 1").unwrap();
 
         store.set_metadata(&hash, "author", "alice").unwrap();
-        store.set_metadata(&hash, "description", "A test function").unwrap();
+        store
+            .set_metadata(&hash, "description", "A test function")
+            .unwrap();
 
         assert_eq!(store.get_metadata(&hash, "author").unwrap(), "alice");
-        assert_eq!(store.get_metadata(&hash, "description").unwrap(), "A test function");
+        assert_eq!(
+            store.get_metadata(&hash, "description").unwrap(),
+            "A test function"
+        );
 
         let all = store.get_all_metadata(&hash).unwrap();
         assert_eq!(all.len(), 2);
@@ -565,10 +594,16 @@ mod tests {
         let store = new_store();
         let hash = store.store("pkg", b"package contents v1").unwrap();
 
-        store.publish_package(
-            "my-utils", "0.1.0", &hash,
-            Some("Utility functions"), Some("alice"), Some("MIT"),
-        ).unwrap();
+        store
+            .publish_package(
+                "my-utils",
+                "0.1.0",
+                &hash,
+                Some("Utility functions"),
+                Some("alice"),
+                Some("MIT"),
+            )
+            .unwrap();
 
         let versions = store.get_package_versions("my-utils").unwrap();
         assert_eq!(versions.len(), 1);
@@ -582,9 +617,15 @@ mod tests {
         let h1 = store.store("pkg", b"package core").unwrap();
         let h2 = store.store("pkg", b"package app").unwrap();
 
-        store.publish_package("core", "1.0.0", &h1, None, None, None).unwrap();
-        store.publish_package("app", "0.1.0", &h2, None, None, None).unwrap();
-        store.add_package_dep("app", "0.1.0", "core", ">=1.0.0").unwrap();
+        store
+            .publish_package("core", "1.0.0", &h1, None, None, None)
+            .unwrap();
+        store
+            .publish_package("app", "0.1.0", &h2, None, None, None)
+            .unwrap();
+        store
+            .add_package_dep("app", "0.1.0", "core", ">=1.0.0")
+            .unwrap();
 
         let deps = store.get_package_deps("app", "0.1.0").unwrap();
         assert_eq!(deps.len(), 1);
@@ -597,14 +638,30 @@ mod tests {
     #[test]
     fn test_execution_log() {
         let store = new_store();
-        let id1 = store.log_execution(
-            "wf-1", "build", "completed", 1,
-            Some(b"input-data"), Some(b"output-data"), None, None,
-        ).unwrap();
-        let id2 = store.log_execution(
-            "wf-1", "test", "failed", 2,
-            None, None, Some("timeout"), Some(r#"{"retries":3}"#),
-        ).unwrap();
+        let id1 = store
+            .log_execution(LogExecutionParams {
+                workflow_id: "wf-1",
+                activity_name: "build",
+                status: "completed",
+                attempt: 1,
+                input: Some(b"input-data"),
+                output: Some(b"output-data"),
+                error: None,
+                options: None,
+            })
+            .unwrap();
+        let id2 = store
+            .log_execution(LogExecutionParams {
+                workflow_id: "wf-1",
+                activity_name: "test",
+                status: "failed",
+                attempt: 2,
+                input: None,
+                output: None,
+                error: Some("timeout"),
+                options: Some(r#"{"retries":3}"#),
+            })
+            .unwrap();
 
         assert!(id2 > id1);
 
@@ -624,8 +681,17 @@ mod tests {
         let store = new_store();
         let hash = store.store("fn", b"fn cleanup(): pass").unwrap();
 
-        store.schedule_function(&hash, None, "2026-02-17T00:00:00", None).unwrap();
-        store.schedule_function(&hash, Some(b"args"), "2026-02-18T00:00:00", Some("0 0 * * *")).unwrap();
+        store
+            .schedule_function(&hash, None, "2026-02-17T00:00:00", None)
+            .unwrap();
+        store
+            .schedule_function(
+                &hash,
+                Some(b"args"),
+                "2026-02-18T00:00:00",
+                Some("0 0 * * *"),
+            )
+            .unwrap();
 
         // Query before first schedule — nothing due
         let due = store.get_due_scheduled("2026-02-16T00:00:00").unwrap();
@@ -651,14 +717,24 @@ mod tests {
     fn test_components() {
         let store = new_store();
 
-        store.register_component(
-            "http-utils", "skills", None,
-            Some("HTTP helper functions"), "1.0.0",
-        ).unwrap();
-        store.register_component(
-            "deploy-pipeline", "workflows", None,
-            Some("CI/CD workflow"), "0.2.0",
-        ).unwrap();
+        store
+            .register_component(
+                "http-utils",
+                "skills",
+                None,
+                Some("HTTP helper functions"),
+                "1.0.0",
+            )
+            .unwrap();
+        store
+            .register_component(
+                "deploy-pipeline",
+                "workflows",
+                None,
+                Some("CI/CD workflow"),
+                "0.2.0",
+            )
+            .unwrap();
 
         let skills = store.list_components("skills").unwrap();
         assert_eq!(skills.len(), 1);

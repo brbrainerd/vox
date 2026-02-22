@@ -1,13 +1,13 @@
+pub mod activity;
+pub mod mailbox;
 pub mod pid;
 pub mod process;
 pub mod registry;
-pub mod mailbox;
-pub mod supervisor;
 pub mod scheduler;
-pub mod activity;
+pub mod supervisor;
 
+pub use activity::{execute_activity, ActivityError, ActivityOptions, ActivityResult};
+pub use mailbox::{Envelope, Message, MessagePayload, Request};
 pub use pid::Pid;
-pub use process::{ProcessContext, ProcessHandle, CallError, spawn_process};
+pub use process::{spawn_process, CallError, ProcessContext, ProcessHandle};
 pub use registry::ProcessRegistry;
-pub use mailbox::{Envelope, Message, Request, MessagePayload};
-pub use activity::{ActivityOptions, ActivityResult, ActivityError, execute_activity};

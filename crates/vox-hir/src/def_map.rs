@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::hir::DefId;
+use std::collections::HashMap;
 
 /// Tracks name → DefId mappings at each scope level.
 #[derive(Debug, Clone)]
@@ -16,7 +16,9 @@ struct Scope {
 impl DefMap {
     pub fn new() -> Self {
         Self {
-            scopes: vec![Scope { bindings: HashMap::new() }],
+            scopes: vec![Scope {
+                bindings: HashMap::new(),
+            }],
             next_id: 0,
         }
     }
@@ -28,7 +30,9 @@ impl DefMap {
     }
 
     pub fn push_scope(&mut self) {
-        self.scopes.push(Scope { bindings: HashMap::new() });
+        self.scopes.push(Scope {
+            bindings: HashMap::new(),
+        });
     }
 
     pub fn pop_scope(&mut self) {

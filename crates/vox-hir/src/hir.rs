@@ -99,15 +99,25 @@ pub struct HirArg {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HirBinOp {
-    Add, Sub, Mul, Div,
-    Lt, Gt, Lte, Gte,
-    And, Or, Is, Isnt,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Lt,
+    Gt,
+    Lte,
+    Gte,
+    And,
+    Or,
+    Is,
+    Isnt,
     Pipe,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HirUnOp {
-    Not, Neg,
+    Not,
+    Neg,
 }
 
 #[derive(Debug, Clone)]
@@ -201,7 +211,10 @@ pub struct HirRoute {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HirHttpMethod {
-    Get, Post, Put, Delete,
+    Get,
+    Post,
+    Put,
+    Delete,
 }
 
 /// Actor definition in HIR.

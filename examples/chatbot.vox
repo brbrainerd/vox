@@ -95,13 +95,13 @@ http post "/api/chat" to ChatResult:
     let body = request.json()
     let prompt = str(body.message)
     let response = spawn(Claude).send(prompt)
-    ret response
+    response
 
 actor Claude:
     on send(msg: str) to ChatResult:
-        ret Success("Hello from Vox! You said: " + msg)
+        Success("Hello from Vox! You said: " + msg)
 
 actor ChatClient:
     on send(msg: str) to Unit:
         # Client-side actor logic would go here to update UI with response
-        pass
+        let _ = msg

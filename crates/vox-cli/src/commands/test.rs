@@ -1,7 +1,7 @@
+use crate::commands::build;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use crate::commands::build;
 
 pub async fn run(file: &Path) -> Result<()> {
     // 1. Build

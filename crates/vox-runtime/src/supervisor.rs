@@ -79,13 +79,21 @@ impl Supervisor {
             for idx in needs_restart.into_iter().rev() {
                 let child = &mut children[idx];
                 if child.restart_count >= self.max_restarts {
-                    tracing::error!("Child '{}' exceeded max restarts ({})", child.name, self.max_restarts);
+                    tracing::error!(
+                        "Child '{}' exceeded max restarts ({})",
+                        child.name,
+                        self.max_restarts
+                    );
                     continue;
                 }
 
                 match self.strategy {
                     RestartStrategy::OneForOne => {
-                        tracing::info!("Restarting child '{}' (attempt {})", child.name, child.restart_count + 1);
+                        tracing::info!(
+                            "Restarting child '{}' (attempt {})",
+                            child.name,
+                            child.restart_count + 1
+                        );
                         let new_handle = (child.start)();
                         child.handle = new_handle;
                         child.restart_count += 1;

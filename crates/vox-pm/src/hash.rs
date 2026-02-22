@@ -1,5 +1,5 @@
-use sha3::{Sha3_512, Digest};
 use data_encoding::BASE32HEX_NOPAD;
+use sha3::{Digest, Sha3_512};
 
 /// Compute a SHA3-512 hash of the given data, returning Base32Hex-encoded string.
 pub fn content_hash(data: &[u8]) -> String {

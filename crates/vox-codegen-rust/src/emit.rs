@@ -1,8 +1,11 @@
-use vox_hir::{HirModule, HirType, HirStmt, HirExpr, HirPattern, HirBinOp, HirActor, HirFn, HirRoute, HirHttpMethod, HirServerFn, HirActivity, HirWorkflow, HirTable, HirIndex};
+use vox_hir::{
+    HirActivity, HirActor, HirBinOp, HirExpr, HirFn, HirHttpMethod, HirIndex, HirModule,
+    HirPattern, HirRoute, HirServerFn, HirStmt, HirTable, HirType, HirWorkflow,
+};
 
 pub fn emit_cargo_toml(name: &str) -> String {
     format!(
-r#"[package]
+        r#"[package]
 name = "{name}"
 version = "0.1.0"
 edition = "2021"
@@ -50,15 +53,26 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     }
 
     let mut routing_methods = Vec::new();
-    if needs_get { routing_methods.push("get"); }
-    if needs_post { routing_methods.push("post"); }
-    if needs_put { routing_methods.push("put"); }
-    if needs_delete { routing_methods.push("delete"); }
+    if needs_get {
+        routing_methods.push("get");
+    }
+    if needs_post {
+        routing_methods.push("post");
+    }
+    if needs_put {
+        routing_methods.push("put");
+    }
+    if needs_delete {
+        routing_methods.push("delete");
+    }
 
     if routing_methods.is_empty() {
         out.push_str("use axum::Router;\n");
     } else {
-        out.push_str(&format!("use axum::{{Router, routing::{{{}}}, Json}};\n", routing_methods.join(", ")));
+        out.push_str(&format!(
+            "use axum::{{Router, routing::{{{}}}, Json}};\n",
+            routing_methods.join(", ")
+        ));
     }
     out.push_str("use axum::response::{Response, IntoResponse};\n");
     out.push_str("use axum::http::{StatusCode, header};\n");
@@ -92,7 +106,9 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("            // SPA fallback: serve index.html for client-side routing\n");
     out.push_str("            match Assets::get(\"index.html\") {\n");
     out.push_str("                Some(file) => (StatusCode::OK, [(header::CONTENT_TYPE, \"text/html\".to_string())], file.data.to_vec()).into_response(),\n");
-    out.push_str("                None => (StatusCode::NOT_FOUND, \"Not Found\").into_response(),\n");
+    out.push_str(
+        "                None => (StatusCode::NOT_FOUND, \"Not Found\").into_response(),\n",
+    );
     out.push_str("            }\n");
     out.push_str("        }\n");
     out.push_str("    }\n");
@@ -120,11 +136,19 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
                 HirHttpMethod::Put => "put",
                 HirHttpMethod::Delete => "delete",
             };
-            out.push_str(&format!("        .route(\"{}\", {}({}))\n", route.path, method, route_handler_name(&route.path, &route.method)));
+            out.push_str(&format!(
+                "        .route(\"{}\", {}({}))\n",
+                route.path,
+                method,
+                route_handler_name(&route.path, &route.method)
+            ));
         }
         // Auto-generated server function routes
         for sf in &module.server_fns {
-            out.push_str(&format!("        .route(\"{}\", post(handle_sf_{}))\n", sf.route_path, sf.name));
+            out.push_str(&format!(
+                "        .route(\"{}\", post(handle_sf_{}))\n",
+                sf.route_path, sf.name
+            ));
         }
         out.push_str("        .fallback(serve_embedded);\n\n");
 
@@ -155,7 +179,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
 }
 
 fn route_handler_name(path: &str, method: &HirHttpMethod) -> String {
-    let clean_path = path.replace('/', "_").replace(['{','}'], "");
+    let clean_path = path.replace('/', "_").replace(['{', '}'], "");
     let m = match method {
         HirHttpMethod::Get => "get",
         HirHttpMethod::Post => "post",
@@ -168,7 +192,7 @@ fn route_handler_name(path: &str, method: &HirHttpMethod) -> String {
 fn emit_route_handler(route: &HirRoute, has_tables: bool) -> String {
     let handler_name = route_handler_name(&route.path, &route.method);
     let mut out = String::new();
-    out.push_str(&format!("async fn {}(", handler_name));
+    out.push_str(&format!("async fn {handler_name}("));
     if has_tables {
         out.push_str("Extension(db): Extension<Arc<Mutex<Connection>>>, ");
     }
@@ -200,7 +224,10 @@ fn emit_server_fn_handler(sf: &HirServerFn, has_tables: bool) -> String {
 
     // Extract params from request JSON
     for param in &sf.params {
-        out.push_str(&format!("    let {} = request[\"{}\"].clone();\n", param.name, param.name));
+        out.push_str(&format!(
+            "    let {} = request[\"{}\"].clone();\n",
+            param.name, param.name
+        ));
     }
 
     let mut has_return = false;
@@ -224,7 +251,9 @@ pub fn emit_lib(module: &HirModule) -> String {
 
     // Only import runtime types when actors are present
     if !module.actors.is_empty() {
-        out.push_str("use vox_runtime::{ProcessContext, Envelope, MessagePayload, Pid, Message};\n");
+        out.push_str(
+            "use vox_runtime::{ProcessContext, Envelope, MessagePayload, Pid, Message};\n",
+        );
     }
 
     // Import rusqlite if tables are present
@@ -233,7 +262,7 @@ pub fn emit_lib(module: &HirModule) -> String {
         out.push_str("use std::sync::{Arc, Mutex};\n");
     }
 
-    out.push_str("\n");
+    out.push('\n');
 
     // Helper for casts
     out.push_str("pub fn as_string<T: serde::Serialize>(v: &T) -> String {\n");
@@ -319,8 +348,16 @@ fn emit_fn(func: &HirFn) -> String {
     let async_kw = if func.is_async { "async " } else { "" };
     out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name));
     for param in &func.params {
-        out.push_str(&format!("{}: {}, ", param.name,
-            emit_type(param.type_ann.as_ref().unwrap_or(&HirType::Named("serde_json::Value".into())))));
+        out.push_str(&format!(
+            "{}: {}, ",
+            param.name,
+            emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into()))
+            )
+        ));
     }
     out.push_str(") ");
     if let Some(ret) = &func.return_type {
@@ -339,8 +376,16 @@ fn emit_activity(func: &HirActivity) -> String {
     // Activities are always async public functions in the library crate
     out.push_str(&format!("pub async fn {}(", func.name));
     for param in &func.params {
-        out.push_str(&format!("{}: {}, ", param.name,
-            emit_type(param.type_ann.as_ref().unwrap_or(&HirType::Named("serde_json::Value".into())))));
+        out.push_str(&format!(
+            "{}: {}, ",
+            param.name,
+            emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into()))
+            )
+        ));
     }
     out.push_str(") ");
     if let Some(ret) = &func.return_type {
@@ -359,8 +404,16 @@ fn emit_workflow(wf: &HirWorkflow) -> String {
     // Workflows are async public functions (orchestrators of activities)
     out.push_str(&format!("pub async fn {}(", wf.name));
     for param in &wf.params {
-        out.push_str(&format!("{}: {}, ", param.name,
-            emit_type(param.type_ann.as_ref().unwrap_or(&HirType::Named("serde_json::Value".into())))));
+        out.push_str(&format!(
+            "{}: {}, ",
+            param.name,
+            emit_type(
+                param
+                    .type_ann
+                    .as_ref()
+                    .unwrap_or(&HirType::Named("serde_json::Value".into()))
+            )
+        ));
     }
     out.push_str(") ");
     if let Some(ret) = &wf.return_type {
@@ -384,7 +437,16 @@ fn emit_actor(actor: &HirActor) -> String {
     for handler in &actor.handlers {
         out.push_str(&format!("    {} {{ ", capitalize(&handler.event_name)));
         for param in &handler.params {
-            out.push_str(&format!("{}: {}, ", param.name, emit_type(param.type_ann.as_ref().unwrap_or(&HirType::Named("serde_json::Value".into())))));
+            out.push_str(&format!(
+                "{}: {}, ",
+                param.name,
+                emit_type(
+                    param
+                        .type_ann
+                        .as_ref()
+                        .unwrap_or(&HirType::Named("serde_json::Value".into()))
+                )
+            ));
         }
         out.push_str("},\n");
     }
@@ -397,12 +459,21 @@ fn emit_actor(actor: &HirActor) -> String {
     out.push_str("        while let Some(envelope) = ctx.receive().await {\n");
     out.push_str("            match envelope {\n");
     out.push_str("                vox_runtime::Envelope::Request(req) => {\n");
-    out.push_str("                    if let vox_runtime::MessagePayload::Json(json_str) = &req.payload {\n");
-    out.push_str(&format!("                        if let Ok(actor_msg) = serde_json::from_str::<{}>(&json_str) {{\n", msg_enum));
+    out.push_str(
+        "                    if let vox_runtime::MessagePayload::Json(json_str) = &req.payload {\n",
+    );
+    out.push_str(&format!(
+        "                        if let Ok(actor_msg) = serde_json::from_str::<{}>(&json_str) {{\n",
+        msg_enum
+    ));
     out.push_str("                            let reply_str = match actor_msg {\n");
 
     for handler in &actor.handlers {
-        out.push_str(&format!("                                {}::{} {{ ", msg_enum, capitalize(&handler.event_name)));
+        out.push_str(&format!(
+            "                                {}::{} {{ ",
+            msg_enum,
+            capitalize(&handler.event_name)
+        ));
         for param in &handler.params {
             out.push_str(&format!("{}, ", param.name));
         }
@@ -419,7 +490,9 @@ fn emit_actor(actor: &HirActor) -> String {
             // For the last statement, extract the value and serialize to String
             if let Some(last) = handler.body.last() {
                 match last {
-                    HirStmt::Return { value: Some(val), .. } => {
+                    HirStmt::Return {
+                        value: Some(val), ..
+                    } => {
                         let val_str = emit_expr(val);
                         out.push_str(&format!("                                    serde_json::to_string(&({})).unwrap_or_default()\n", val_str));
                     }
@@ -444,8 +517,13 @@ fn emit_actor(actor: &HirActor) -> String {
     out.push_str("                }\n");
     out.push_str("                vox_runtime::Envelope::Message(msg) => {\n");
     out.push_str("                    // Fire-and-forget: process but don't reply\n");
-    out.push_str("                    if let vox_runtime::MessagePayload::Json(json_str) = msg.payload {\n");
-    out.push_str(&format!("                        if let Ok(actor_msg) = serde_json::from_str::<{}>(&json_str) {{\n", msg_enum));
+    out.push_str(
+        "                    if let vox_runtime::MessagePayload::Json(json_str) = msg.payload {\n",
+    );
+    out.push_str(&format!(
+        "                        if let Ok(actor_msg) = serde_json::from_str::<{}>(&json_str) {{\n",
+        msg_enum
+    ));
     out.push_str("                            let _ = actor_msg; // processed\n");
     out.push_str("                        }\n");
     out.push_str("                    }\n");
@@ -457,37 +535,56 @@ fn emit_actor(actor: &HirActor) -> String {
     out.push_str("}\n\n");
 
     // Typed Handle — uses call() for request-response
-    out.push_str(&format!("#[derive(Clone)]\npub struct {}Handle {{\n", actor.name));
+    out.push_str(&format!(
+        "#[derive(Clone)]\npub struct {}Handle {{\n",
+        actor.name
+    ));
     out.push_str("    handle: vox_runtime::ProcessHandle,\n");
     out.push_str("}\n");
     out.push_str(&format!("impl {}Handle {{\n", actor.name));
-    out.push_str(&format!("    pub fn new(handle: vox_runtime::ProcessHandle) -> Self {{ Self {{ handle }} }}\n"));
-    out.push_str(&format!("    pub fn spawn() -> Self {{\n"));
-    out.push_str(&format!("        let handle = vox_runtime::spawn_process({}::run);\n", actor.name));
-    out.push_str(&format!("        Self::new(handle)\n"));
+    out.push_str(
+        "    pub fn new(handle: vox_runtime::ProcessHandle) -> Self { Self { handle } }\n",
+    );
+    out.push_str("    pub fn spawn() -> Self {\n");
+    out.push_str(&format!(
+        "        let handle = vox_runtime::spawn_process({}::run);\n",
+        actor.name
+    ));
+    out.push_str("        Self::new(handle)\n");
     out.push_str("    }\n");
 
     for handler in &actor.handlers {
-         out.push_str(&format!("    pub async fn {}(&self, ", handler.event_name));
-         for param in &handler.params {
-             out.push_str(&format!("{}: {}, ", param.name, emit_type(param.type_ann.as_ref().unwrap_or(&HirType::Named("serde_json::Value".into())))));
-         }
-         out.push_str(") -> String {\n");
-         out.push_str(&format!("        let msg = {}::{} {{ ", msg_enum, capitalize(&handler.event_name)));
-         for param in &handler.params {
-             out.push_str(&format!("{}, ", param.name));
-         }
-         out.push_str("};\n");
-         out.push_str("        let payload = vox_runtime::MessagePayload::Json(serde_json::to_string(&msg).unwrap());\n");
-         out.push_str("        self.handle.call(payload).await.unwrap_or_else(|e| format!(\"Actor error: {}\", e))\n");
-         out.push_str("    }\n");
+        out.push_str(&format!("    pub async fn {}(&self, ", handler.event_name));
+        for param in &handler.params {
+            out.push_str(&format!(
+                "{}: {}, ",
+                param.name,
+                emit_type(
+                    param
+                        .type_ann
+                        .as_ref()
+                        .unwrap_or(&HirType::Named("serde_json::Value".into()))
+                )
+            ));
+        }
+        out.push_str(") -> String {\n");
+        out.push_str(&format!(
+            "        let msg = {}::{} {{ ",
+            msg_enum,
+            capitalize(&handler.event_name)
+        ));
+        for param in &handler.params {
+            out.push_str(&format!("{}, ", param.name));
+        }
+        out.push_str("};\n");
+        out.push_str("        let payload = vox_runtime::MessagePayload::Json(serde_json::to_string(&msg).unwrap());\n");
+        out.push_str("        self.handle.call(payload).await.unwrap_or_else(|e| format!(\"Actor error: {}\", e))\n");
+        out.push_str("    }\n");
     }
     out.push_str("}\n\n");
 
     out
 }
-
-
 
 fn emit_type(ty: &HirType) -> String {
     match ty {
@@ -504,11 +601,17 @@ fn emit_type(ty: &HirType) -> String {
             match n.as_str() {
                 // Id[Task] → i64 (SQLite rowid)
                 "Id" => "i64".into(),
-                "List" | "list" => format!("Vec<{}>", args_str.first().unwrap_or(&"serde_json::Value".to_string())),
-                "Option" => format!("Option<{}>", args_str.first().unwrap_or(&"serde_json::Value".to_string())),
+                "List" | "list" => format!(
+                    "Vec<{}>",
+                    args_str.first().unwrap_or(&"serde_json::Value".to_string())
+                ),
+                "Option" => format!(
+                    "Option<{}>",
+                    args_str.first().unwrap_or(&"serde_json::Value".to_string())
+                ),
                 _ => format!("{}<{}>", n, args_str.join(", ")),
             }
-        },
+        }
         HirType::Unit => "()".into(),
         _ => "serde_json::Value".into(),
     }
@@ -520,14 +623,14 @@ fn hir_type_to_sql(ty: &HirType) -> &'static str {
         HirType::Named(n) => match n.as_str() {
             "int" => "INTEGER",
             "float" => "REAL",
-            "bool" => "INTEGER",   // SQLite stores bools as 0/1
+            "bool" => "INTEGER", // SQLite stores bools as 0/1
             "str" => "TEXT",
-            _ => "TEXT",           // Fallback: serialize as JSON text
+            _ => "TEXT", // Fallback: serialize as JSON text
         },
         HirType::Generic(n, _) => match n.as_str() {
-            "Id" => "INTEGER",     // Foreign key reference
-            "Option" => "TEXT",    // Nullable, type handled at Rust level
-            _ => "TEXT",           // Complex types serialized as JSON
+            "Id" => "INTEGER",  // Foreign key reference
+            "Option" => "TEXT", // Nullable, type handled at Rust level
+            _ => "TEXT",        // Complex types serialized as JSON
         },
         _ => "TEXT",
     }
@@ -542,7 +645,11 @@ fn emit_table_struct(table: &HirTable) -> String {
     out.push_str("    #[serde(skip_serializing_if = \"Option::is_none\")]\n");
     out.push_str("    pub _id: Option<i64>,\n");
     for field in &table.fields {
-        out.push_str(&format!("    pub {}: {},\n", field.name, emit_type(&field.type_ann)));
+        out.push_str(&format!(
+            "    pub {}: {},\n",
+            field.name,
+            emit_type(&field.type_ann)
+        ));
     }
     out.push_str("}\n\n");
 
@@ -554,7 +661,9 @@ fn emit_table_struct(table: &HirTable) -> String {
                 if n == "Option" {
                     // Option<T>: if T is simple, it's simple. If T is complex, it's JSON.
                     match &args[0] {
-                        HirType::Named(sub) => !matches!(sub.as_str(), "int" | "float" | "bool" | "str"),
+                        HirType::Named(sub) => {
+                            !matches!(sub.as_str(), "int" | "float" | "bool" | "str")
+                        }
                         _ => true,
                     }
                 } else if n == "Id" {
@@ -562,7 +671,7 @@ fn emit_table_struct(table: &HirTable) -> String {
                 } else {
                     true // List, etc.
                 }
-            },
+            }
             _ => true, // Unit, tuple etc.
         }
     };
@@ -570,18 +679,29 @@ fn emit_table_struct(table: &HirTable) -> String {
     out.push_str(&format!("impl {} {{\n", table.name));
 
     // -- insert(db, item) -> i64
-    out.push_str("    pub fn insert(db: &Connection, item: &Self) -> Result<i64, rusqlite::Error> {\n");
+    out.push_str(
+        "    pub fn insert(db: &Connection, item: &Self) -> Result<i64, rusqlite::Error> {\n",
+    );
     let col_names: Vec<&String> = table.fields.iter().map(|f| &f.name).collect();
     let placeholders: Vec<String> = (1..=col_names.len()).map(|i| format!("?{}", i)).collect();
     // Prepare params
     out.push_str("        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();\n");
     for field in &table.fields {
         if is_json(&field.type_ann) {
-             out.push_str(&format!("        let {}_json = serde_json::to_string(&item.{}).unwrap();\n", field.name, field.name));
-             out.push_str(&format!("        params.push(Box::new({}_json));\n", field.name));
+            out.push_str(&format!(
+                "        let {}_json = serde_json::to_string(&item.{}).unwrap();\n",
+                field.name, field.name
+            ));
+            out.push_str(&format!(
+                "        params.push(Box::new({}_json));\n",
+                field.name
+            ));
         } else {
-             // For generic Id[T] -> i64, it's simple.
-             out.push_str(&format!("        params.push(Box::new(item.{}.clone()));\n", field.name));
+            // For generic Id[T] -> i64, it's simple.
+            out.push_str(&format!(
+                "        params.push(Box::new(item.{}.clone()));\n",
+                field.name
+            ));
         }
     }
 
@@ -591,15 +711,24 @@ fn emit_table_struct(table: &HirTable) -> String {
     out.push_str(&format!(
         "        db.execute(\"INSERT INTO {} ({}) VALUES ({})\", params_refs.as_slice())?;\n",
         table.name.to_lowercase(),
-        col_names.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "),
+        col_names
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join(", "),
         placeholders.join(", ")
     ));
     out.push_str("        Ok(db.last_insert_rowid())\n");
     out.push_str("    }\n\n");
 
     // -- get(db, id) -> Option<Self>
-    out.push_str(&format!("    pub fn get(db: &Connection, id: i64) -> Result<Option<Self>, rusqlite::Error> {{\n"));
-    out.push_str(&format!("        let mut stmt = db.prepare(\"SELECT * FROM {} WHERE _id = ?1\")?;\n", table.name.to_lowercase()));
+    out.push_str(
+        "    pub fn get(db: &Connection, id: i64) -> Result<Option<Self>, rusqlite::Error> {\n",
+    );
+    out.push_str(&format!(
+        "        let mut stmt = db.prepare(\"SELECT * FROM {} WHERE _id = ?1\")?;\n",
+        table.name.to_lowercase()
+    ));
     out.push_str("        let mut rows = stmt.query_map([id], |row| Self::from_row(row))?;\n");
     out.push_str("        if let Some(res) = rows.next() { res.map(Some) } else { Ok(None) }\n");
     out.push_str("    }\n\n");
@@ -607,16 +736,24 @@ fn emit_table_struct(table: &HirTable) -> String {
     // -- query(db, sql_suffix, params) -> Vec<Self>
     // Note: User must provide valid SQL suffix starting with WHERE or similar, or empty.
     // We enforce SELECT * FROM table ...
-    out.push_str(&format!("    pub fn query(db: &Connection, clause: &str, params: &[&dyn rusqlite::ToSql]) -> Result<Vec<Self>, rusqlite::Error> {{\n"));
-    out.push_str(&format!("        let sql = format!(\"SELECT * FROM {} {{}} \", clause);\n", table.name.to_lowercase()));
+    out.push_str("    pub fn query(db: &Connection, clause: &str, params: &[&dyn rusqlite::ToSql]) -> Result<Vec<Self>, rusqlite::Error> {\n");
+    out.push_str(&format!(
+        "        let sql = format!(\"SELECT * FROM {} {{}} \", clause);\n",
+        table.name.to_lowercase()
+    ));
     out.push_str("        let mut stmt = db.prepare(&sql)?;\n");
     out.push_str("        let rows = stmt.query_map(params, |row| Self::from_row(row))?;\n");
     out.push_str("        rows.collect()\n");
     out.push_str("    }\n\n");
 
     // -- delete(db, id) -> usize
-    out.push_str(&format!("    pub fn delete(db: &Connection, id: i64) -> Result<usize, rusqlite::Error> {{\n"));
-    out.push_str(&format!("        db.execute(\"DELETE FROM {} WHERE _id = ?1\", [id])\n", table.name.to_lowercase()));
+    out.push_str(
+        "    pub fn delete(db: &Connection, id: i64) -> Result<usize, rusqlite::Error> {\n",
+    );
+    out.push_str(&format!(
+        "        db.execute(\"DELETE FROM {} WHERE _id = ?1\", [id])\n",
+        table.name.to_lowercase()
+    ));
     out.push_str("    }\n\n");
 
     // -- from_row helper
@@ -625,9 +762,12 @@ fn emit_table_struct(table: &HirTable) -> String {
     out.push_str("            _id: Some(row.get(\"_id\")?),\n");
     for field in &table.fields {
         if is_json(&field.type_ann) {
-             out.push_str(&format!("            {}: serde_json::from_str(&row.get::<_, String>(\"{}\")?).unwrap_or_else(|_| panic!(\"JSON decode error\")), // TODO: better error\n", field.name, field.name));
+            out.push_str(&format!("            {}: serde_json::from_str(&row.get::<_, String>(\"{}\")?).unwrap_or_else(|_| panic!(\"JSON decode error\")), // TODO: better error\n", field.name, field.name));
         } else {
-             out.push_str(&format!("            {}: row.get(\"{}\")?,\n", field.name, field.name));
+            out.push_str(&format!(
+                "            {}: row.get(\"{}\")?,\n",
+                field.name, field.name
+            ));
         }
     }
     out.push_str("        })\n");
@@ -650,7 +790,11 @@ pub fn emit_table_ddl(table: &HirTable) -> String {
         };
         cols.push(format!("    {} {}{}", field.name, sql_type, not_null));
     }
-    format!("CREATE TABLE IF NOT EXISTS {} (\n{}\n);", table_name, cols.join(",\n"))
+    format!(
+        "CREATE TABLE IF NOT EXISTS {} (\n{}\n);",
+        table_name,
+        cols.join(",\n")
+    )
 }
 
 /// Generate `CREATE INDEX IF NOT EXISTS` DDL for a @index.
@@ -668,58 +812,75 @@ pub fn emit_index_ddl(index: &HirIndex) -> String {
 fn emit_db_setup(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("    // ── Database setup ──\n");
-    out.push_str("    let db = Connection::open(\"app.db\").expect(\"Failed to open database\");\n");
-    out.push_str("    db.execute_batch(\"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\").unwrap();\n");
+    out.push_str(
+        "    let db = Connection::open(\"app.db\").expect(\"Failed to open database\");\n",
+    );
+    out.push_str(
+        "    db.execute_batch(\"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\").unwrap();\n",
+    );
     out.push_str("    db.execute_batch(\"\\\n");
     for table in &module.tables {
         out.push_str(&emit_table_ddl(table));
-        out.push_str("\n");
+        out.push('\n');
     }
     for index in &module.indexes {
         out.push_str(&emit_index_ddl(index));
-        out.push_str("\n");
+        out.push('\n');
     }
     out.push_str("    \").unwrap();\n");
     out.push_str("    let db = Arc::new(Mutex::new(db));\n\n");
     out
 }
 
-
 fn emit_stmt(stmt: &HirStmt, indent: usize, is_route: bool, is_actor: bool) -> String {
     let pad = " ".repeat(indent * 4);
     match stmt {
-        HirStmt::Let { pattern, value, mutable, .. } => {
+        HirStmt::Let {
+            pattern,
+            value,
+            mutable,
+            ..
+        } => {
             let mut_kw = if *mutable { "mut " } else { "" };
-            format!("{pad}let {}{} = {};\n", mut_kw, emit_pattern(pattern), emit_expr(value))
-        },
+            format!(
+                "{pad}let {}{} = {};\n",
+                mut_kw,
+                emit_pattern(pattern),
+                emit_expr(value)
+            )
+        }
         HirStmt::Assign { target, value, .. } => {
             format!("{pad}{} = {};\n", emit_expr(target), emit_expr(value))
-        },
+        }
         HirStmt::Return { value, .. } => {
             if is_actor {
                 if let Some(v) = value {
-                    format!("{pad}let _ = {}; // return ignored in actor; scaffolding only\n", emit_expr(v))
+                    format!(
+                        "{pad}let _ = {}; // return ignored in actor; scaffolding only\n",
+                        emit_expr(v)
+                    )
                 } else {
                     format!("{pad}// return ignored in actor; scaffolding only\n")
                 }
             } else if let Some(v) = value {
                 let expr_str = emit_expr(v);
                 if is_route {
-                    format!("{pad}return Json(serde_json::to_value({}).unwrap());\n", expr_str)
+                    format!(
+                        "{pad}return Json(serde_json::to_value({}).unwrap());\n",
+                        expr_str
+                    )
                 } else {
                     format!("{pad}return {};\n", expr_str)
                 }
+            } else if is_route {
+                format!("{pad}return Json(serde_json::Value::Null);\n")
             } else {
-                if is_route {
-                     format!("{pad}return Json(serde_json::Value::Null);\n")
-                } else {
-                     format!("{pad}return;\n")
-                }
+                format!("{pad}return;\n")
             }
-        },
+        }
         HirStmt::Expr { expr, .. } => {
             format!("{pad}{};\n", emit_expr(expr))
-        },
+        }
     }
 }
 
@@ -728,7 +889,10 @@ fn emit_pattern(pat: &HirPattern) -> String {
         HirPattern::Ident(n, _) => n.clone(),
         HirPattern::Wildcard(_) => "_".into(),
         HirPattern::Literal(lit, _) => emit_expr(lit),
-        HirPattern::Tuple(pats, _) => format!("({})", pats.iter().map(emit_pattern).collect::<Vec<_>>().join(", ")),
+        HirPattern::Tuple(pats, _) => format!(
+            "({})",
+            pats.iter().map(emit_pattern).collect::<Vec<_>>().join(", ")
+        ),
         HirPattern::Constructor(n, pats, _) => {
             // Rust struct variant syntax: Name { field: val }
             // HirPattern::Constructor has positional args?
@@ -756,8 +920,12 @@ fn emit_pattern(pat: &HirPattern) -> String {
             // Let's generate Tuple variants in Rust for simplicity: `Ok(String)`.
             // And ignore field names in TypeDef?
             // Or use the names?
-            format!("{}({})", n, pats.iter().map(emit_pattern).collect::<Vec<_>>().join(", "))
-        },
+            format!(
+                "{}({})",
+                n,
+                pats.iter().map(emit_pattern).collect::<Vec<_>>().join(", ")
+            )
+        }
     }
 }
 
@@ -769,34 +937,46 @@ fn emit_expr(expr: &HirExpr) -> String {
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::Ident(n, _) => {
             if n == "request" {
-                 "request".into()
+                "request".into()
             } else if n.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
-                 n.clone()
+                n.clone()
             } else {
-                 format!("{}.clone()", n)
+                format!("{}.clone()", n)
             }
-        },
+        }
         HirExpr::Binary(op, l, r, _) => {
             let op_str = match op {
-                HirBinOp::Add => "+", HirBinOp::Sub => "-", HirBinOp::Mul => "*", HirBinOp::Div => "/",
-                HirBinOp::Lt => "<", HirBinOp::Gt => ">", HirBinOp::Lte => "<=", HirBinOp::Gte => ">=",
-                HirBinOp::And => "&&", HirBinOp::Or => "||", HirBinOp::Is => "==", HirBinOp::Isnt => "!=",
+                HirBinOp::Add => "+",
+                HirBinOp::Sub => "-",
+                HirBinOp::Mul => "*",
+                HirBinOp::Div => "/",
+                HirBinOp::Lt => "<",
+                HirBinOp::Gt => ">",
+                HirBinOp::Lte => "<=",
+                HirBinOp::Gte => ">=",
+                HirBinOp::And => "&&",
+                HirBinOp::Or => "||",
+                HirBinOp::Is => "==",
+                HirBinOp::Isnt => "!=",
                 HirBinOp::Pipe => return format!("{}({})", emit_expr(r), emit_expr(l)),
             };
-            if matches!(op, HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div) {
+            if matches!(
+                op,
+                HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
+            ) {
                 format!("({} {} &{})", emit_expr(l), op_str, emit_expr(r))
             } else {
                 format!("({} {} {})", emit_expr(l), op_str, emit_expr(r))
             }
-        },
+        }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee {
-                 if n == "str" && args.len() == 1 {
-                      return format!("as_string(&{})", emit_expr(&args[0].value));
-                 }
-                 if n == "assert" && args.len() == 1 {
-                      return format!("assert!({})", emit_expr(&args[0].value));
-                 }
+                if n == "str" && args.len() == 1 {
+                    return format!("as_string(&{})", emit_expr(&args[0].value));
+                }
+                if n == "assert" && args.len() == 1 {
+                    return format!("assert!({})", emit_expr(&args[0].value));
+                }
             }
             let c = emit_expr(callee);
             let a: Vec<_> = args.iter().map(|arg| emit_expr(&arg.value)).collect();
@@ -805,84 +985,112 @@ fn emit_expr(expr: &HirExpr) -> String {
             } else {
                 format!("{}({})", c, a.join(", "))
             }
-        },
+        }
         HirExpr::ObjectLit(fields, _) => {
-            let props: Vec<String> = fields.iter().map(|(k, v)| {
-                format!("\"{}\": {}", k, emit_expr(v))
-            }).collect();
+            let props: Vec<String> = fields
+                .iter()
+                .map(|(k, v)| format!("\"{}\": {}", k, emit_expr(v)))
+                .collect();
             format!("serde_json::json!({{ {} }})", props.join(", "))
-        },
+        }
         HirExpr::MethodCall(obj, method, args, _) => {
             // Check for db.Table.method pattern
             // obj must be FieldAccess(inner="db", field=TableName)
             if let HirExpr::FieldAccess(inner, table_name, _) = &**obj {
-                 if let HirExpr::Ident(n, _) = &**inner {
-                     if n == "db" {
-                         let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
-                         return match method.as_str() {
-                             "insert" => {
-                                 // insert(item)
-                                 format!("{{ let item: {} = serde_json::from_value({}).unwrap(); {}::insert(&*db.lock().await, &item).unwrap() }}", table_name, args_str.get(0).unwrap_or(&"serde_json::json!({})".to_string()), table_name)
-                             },
-                             "get" => {
-                                 // get(id)
-                                 format!("{}::get(&*db.lock().await, {}).unwrap()", table_name, args_str.get(0).unwrap_or(&"0".to_string()))
-                             },
-                             "delete" => {
-                                 // delete(id)
-                                 format!("{}::delete(&*db.lock().await, {}).unwrap()", table_name, args_str.get(0).unwrap_or(&"0".to_string()))
-                             },
-                             "query" => {
-                                 // query(sql, params)
-                                 // Handle params specially? Currently simple pass-through.
-                                 // Note: params must be &[&ToSql].
-                                 // If user passes vector, we might need casting.
-                                 // For now assume user passes valid &[] or we simply error if types mismatch.
-                                 // Ideally we'd map Vec<T> to &[&ToSql].
-                                 // Let's assume params is empty if missing.
-                                 format!("{}::query(&*db.lock().await, {}, &[]).unwrap()", table_name, args_str.get(0).unwrap_or(&"\"\"".to_string()))
-                             },
-                             _ => format!("/* unsupported db method {} */", method),
-                         };
-                     }
-                 }
+                if let HirExpr::Ident(n, _) = &**inner {
+                    if n == "db" {
+                        let args_str: Vec<String> =
+                            args.iter().map(|a| emit_expr(&a.value)).collect();
+                        return match method.as_str() {
+                            "insert" => {
+                                format!("{{ let item: {} = serde_json::from_value({}).unwrap(); {}::insert(&*db.lock().await, &item).unwrap() }}", table_name, args_str.first().unwrap_or(&"serde_json::json!({})".to_string()), table_name)
+                            }
+                            "get" => {
+                                format!(
+                                    "{}::get(&*db.lock().await, {}).unwrap()",
+                                    table_name,
+                                    args_str.first().unwrap_or(&"0".to_string())
+                                )
+                            }
+                            "delete" => {
+                                format!(
+                                    "{}::delete(&*db.lock().await, {}).unwrap()",
+                                    table_name,
+                                    args_str.first().unwrap_or(&"0".to_string())
+                                )
+                            }
+                            "query" => {
+                                // query(sql, params)
+                                // Handle params specially? Currently simple pass-through.
+                                // Note: params must be &[&ToSql].
+                                // If user passes vector, we might need casting.
+                                // For now assume user passes valid &[] or we simply error if types mismatch.
+                                // Ideally we'd map Vec<T> to &[&ToSql].
+                                format!(
+                                    "{}::query(&*db.lock().await, {}, &[]).unwrap()",
+                                    table_name,
+                                    args_str.first().unwrap_or(&"\"\"".to_string())
+                                )
+                            }
+                            _ => format!("/* unsupported db method {} */", method),
+                        };
+                    }
+                }
             }
 
             let o = emit_expr(obj);
             if method == "json" && o == "request" {
                 "request.clone()".into()
             } else {
-                 let call = format!("{}.{}({})", o, method, args.iter().map(|a| emit_expr(&a.value)).collect::<Vec<_>>().join(", "));
-                 if method == "send" { format!("{}.await", call) } else { call }
+                let call = format!(
+                    "{}.{}({})",
+                    o,
+                    method,
+                    args.iter()
+                        .map(|a| emit_expr(&a.value))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+                if method == "send" {
+                    format!("{}.await", call)
+                } else {
+                    call
+                }
             }
-        },
+        }
         HirExpr::Spawn(target, _) => {
-             if let HirExpr::Ident(n, _) = &**target {
-                 format!("{}Handle::spawn()", n)
-             } else {
-                 "/* error: spawn target must be actor name */".into()
-             }
-        },
+            if let HirExpr::Ident(n, _) = &**target {
+                format!("{}Handle::spawn()", n)
+            } else {
+                "/* error: spawn target must be actor name */".into()
+            }
+        }
         HirExpr::If(cond, then_b, else_b, _) => {
             let mut s = format!("if {} {{\n", emit_expr(cond));
-            for stmt in then_b { s.push_str(&emit_stmt(stmt, 1, false, false)); }
-            s.push_str("}");
+            for stmt in then_b {
+                s.push_str(&emit_stmt(stmt, 1, false, false));
+            }
+            s.push('}');
             if let Some(else_stmts) = else_b {
                 s.push_str(" else {\n");
-                for stmt in else_stmts { s.push_str(&emit_stmt(stmt, 1, false, false)); }
-                s.push_str("}");
+                for stmt in else_stmts {
+                    s.push_str(&emit_stmt(stmt, 1, false, false));
+                }
+                s.push('}');
             }
             s
-        },
+        }
         HirExpr::FieldAccess(obj, field, _) => {
             format!("{}[\"{}\"].clone()", emit_expr(obj), field)
-        },
+        }
         HirExpr::Block(stmts, _) => {
             let mut s = String::from("{\n");
-            for stmt in stmts { s.push_str(&emit_stmt(stmt, 1, false, false)); }
-            s.push_str("}");
+            for stmt in stmts {
+                s.push_str(&emit_stmt(stmt, 1, false, false));
+            }
+            s.push('}');
             s
-        },
+        }
         HirExpr::With(operand, options, _) => {
             // Build ActivityOptions from the record literal
             let mut opts_builder = String::from("vox_runtime::ActivityOptions::new()");
@@ -891,7 +1099,8 @@ fn emit_expr(expr: &HirExpr) -> String {
                 for (key, value) in fields {
                     match key.as_str() {
                         "retries" => {
-                            opts_builder.push_str(&format!(".with_retries({} as u32)", emit_expr(value)));
+                            opts_builder
+                                .push_str(&format!(".with_retries({} as u32)", emit_expr(value)));
                         }
                         "timeout" => {
                             // timeout can be a string like "10s" or an int (seconds)
@@ -934,10 +1143,8 @@ fn emit_expr(expr: &HirExpr) -> String {
                         }
                         "activity_id" => {
                             if let HirExpr::StringLit(s, _) = value {
-                                opts_builder.push_str(&format!(
-                                    ".with_activity_id(\"{}\".to_string())",
-                                    s
-                                ));
+                                opts_builder
+                                    .push_str(&format!(".with_activity_id(\"{}\".to_string())", s));
                             }
                         }
                         _ => {} // unknown options ignored at codegen (warned at typecheck)
@@ -956,8 +1163,55 @@ fn emit_expr(expr: &HirExpr) -> String {
                 opts = opts_builder,
                 call = operand_str,
             )
-        },
-        _ => "/* todo expr */".into(),
+        }
+        HirExpr::Lambda(params, _ret_ty, body, _) => {
+            let mut s = String::new();
+            s.push('|');
+            let param_strs: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+            s.push_str(&param_strs.join(", "));
+            s.push_str("| ");
+            s.push_str(&emit_expr(body));
+            s
+        }
+        HirExpr::Pipe(left, right, _) => {
+            format!("({})({})", emit_expr(right), emit_expr(left))
+        }
+        HirExpr::For(name, iter, body, _) => {
+            let mut s = format!("for {} in {} {{\n", name, emit_expr(iter));
+            if let HirExpr::Block(stmts, _) = &**body {
+                for stmt in stmts {
+                    s.push_str(&emit_stmt(stmt, 1, false, false));
+                }
+            } else {
+                s.push_str(&format!("  {};\n", emit_expr(body)));
+            }
+            s.push_str("}\n");
+            s
+        }
+        HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) => {
+            "panic!(\"JSX cannot be rendered via the Rust backend yet\")".into()
+        }
+        HirExpr::ListLit(items, _) => {
+            let item_strs: Vec<String> = items.iter().map(emit_expr).collect();
+            format!("vec![{}]", item_strs.join(", "))
+        }
+        HirExpr::Unary(op, expr, _) => {
+            let op_str = match op {
+                vox_hir::HirUnOp::Not => "!",
+                vox_hir::HirUnOp::Neg => "-",
+            };
+            format!("{}({})", op_str, emit_expr(expr))
+        }
+        HirExpr::Match(obj, arms, _) => {
+            let mut s = format!("match {} {{\n", emit_expr(obj));
+            for arm in arms {
+                s.push_str(&format!("    {} => {{\n", emit_pattern(&arm.pattern)));
+                s.push_str(&emit_expr(&arm.body));
+                s.push_str("\n    }\n");
+            }
+            s.push('}');
+            s
+        }
     }
 }
 
@@ -983,12 +1237,22 @@ pub fn emit_api_client(module: &HirModule) -> String {
 
     for sf in &module.server_fns {
         // Generate TypeScript function signature
-        let params: Vec<String> = sf.params.iter().map(|p| {
-            let ts_type = p.type_ann.as_ref().map_or("any".to_string(), |t| hir_type_to_ts(t));
-            format!("{}: {}", p.name, ts_type)
-        }).collect();
+        let params: Vec<String> = sf
+            .params
+            .iter()
+            .map(|p| {
+                let ts_type = p
+                    .type_ann
+                    .as_ref()
+                    .map_or("any".to_string(), hir_type_to_ts);
+                format!("{}: {}", p.name, ts_type)
+            })
+            .collect();
 
-        let return_ts = sf.return_type.as_ref().map_or("any".to_string(), |t| hir_type_to_ts(t));
+        let return_ts = sf
+            .return_type
+            .as_ref()
+            .map_or("any".to_string(), hir_type_to_ts);
 
         out.push_str(&format!(
             "export async function {}({}): Promise<{}> {{\n",
@@ -1005,7 +1269,10 @@ pub fn emit_api_client(module: &HirModule) -> String {
 
         // Build body from params
         let body_fields: Vec<String> = sf.params.iter().map(|p| p.name.clone()).collect();
-        out.push_str(&format!("    body: JSON.stringify({{ {} }}),\n", body_fields.join(", ")));
+        out.push_str(&format!(
+            "    body: JSON.stringify({{ {} }}),\n",
+            body_fields.join(", ")
+        ));
         out.push_str("  });\n");
         out.push_str("  if (!response.ok) throw new Error(`Server error: ${response.status}`);\n");
         out.push_str("  return response.json();\n");
@@ -1030,17 +1297,19 @@ fn hir_type_to_ts(ty: &HirType) -> String {
                 "list" | "List" => format!("{}[]", args_str.first().unwrap_or(&"any".to_string())),
                 _ => format!("{}<{}>", name, args_str.join(", ")),
             }
-        },
+        }
         HirType::Function(params, ret) => {
-            let params_str: Vec<String> = params.iter().enumerate()
+            let params_str: Vec<String> = params
+                .iter()
+                .enumerate()
                 .map(|(i, p)| format!("arg{}: {}", i, hir_type_to_ts(p)))
                 .collect();
             format!("({}) => {}", params_str.join(", "), hir_type_to_ts(ret))
-        },
+        }
         HirType::Tuple(elems) => {
             let elems_str: Vec<String> = elems.iter().map(hir_type_to_ts).collect();
             format!("[{}]", elems_str.join(", "))
-        },
+        }
         HirType::Unit => "void".to_string(),
     }
 }
@@ -1048,7 +1317,6 @@ fn hir_type_to_ts(ty: &HirType) -> String {
 /// Generate the MCP (Model Context Protocol) JSON-RPC server binary.
 /// Communicates over stdio: reads JSON-RPC requests from stdin, writes responses to stdout.
 pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
-
     let crate_name = package_name.replace('-', "_");
     let mut out = String::new();
 
@@ -1072,25 +1340,30 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
             ));
         }
         // Call function — for now, wrap result in Ok(json)
-        let arg_list: Vec<String> = tool.func.params.iter().map(|p| {
-            // Convert from serde_json::Value to the appropriate type
-            let name = &p.name;
-            match p.type_ann.as_ref() {
-                Some(HirType::Named(t)) if t == "String" || t == "str" => {
-                    format!("{name}.as_str().unwrap_or_default().to_string()")
+        let arg_list: Vec<String> = tool
+            .func
+            .params
+            .iter()
+            .map(|p| {
+                // Convert from serde_json::Value to the appropriate type
+                let name = &p.name;
+                match p.type_ann.as_ref() {
+                    Some(HirType::Named(t)) if t == "String" || t == "str" => {
+                        format!("{name}.as_str().unwrap_or_default().to_string()")
+                    }
+                    Some(HirType::Named(t)) if t == "i64" || t == "int" => {
+                        format!("{name}.as_i64().unwrap_or(0)")
+                    }
+                    Some(HirType::Named(t)) if t == "f64" || t == "float" => {
+                        format!("{name}.as_f64().unwrap_or(0.0)")
+                    }
+                    Some(HirType::Named(t)) if t == "bool" => {
+                        format!("{name}.as_bool().unwrap_or(false)")
+                    }
+                    _ => name.to_string(),
                 }
-                Some(HirType::Named(t)) if t == "i64" || t == "int" => {
-                    format!("{name}.as_i64().unwrap_or(0)")
-                }
-                Some(HirType::Named(t)) if t == "f64" || t == "float" => {
-                    format!("{name}.as_f64().unwrap_or(0.0)")
-                }
-                Some(HirType::Named(t)) if t == "bool" => {
-                    format!("{name}.as_bool().unwrap_or(false)")
-                }
-                _ => format!("{name}"),
-            }
-        }).collect();
+            })
+            .collect();
         out.push_str(&format!(
             "            let result = {}({});\n",
             fn_name,
@@ -1108,7 +1381,11 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("    json!({\n");
     out.push_str("        \"tools\": [\n");
     for (i, tool) in module.mcp_tools.iter().enumerate() {
-        let trailing = if i + 1 < module.mcp_tools.len() { "," } else { "" };
+        let trailing = if i + 1 < module.mcp_tools.len() {
+            ","
+        } else {
+            ""
+        };
         out.push_str("            {\n");
         out.push_str(&format!(
             "                \"name\": \"{}\",\n",
@@ -1130,12 +1407,16 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
                 Some(HirType::Named(t)) if t == "bool" => "boolean",
                 _ => "string",
             };
-            let param_trailing = if j + 1 < tool.func.params.len() { "," } else { "" };
+            let param_trailing = if j + 1 < tool.func.params.len() {
+                ","
+            } else {
+                ""
+            };
             out.push_str(&format!(
                 "                        \"{}\": {{ \"type\": \"{}\" }}{}",
                 param.name, json_type, param_trailing
             ));
-            out.push_str("\n");
+            out.push('\n');
         }
         out.push_str("                    },\n");
         // All params required
@@ -1180,7 +1461,9 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("            }\n");
     out.push_str("        };\n");
     out.push_str("        let id = request.get(\"id\").cloned().unwrap_or(Value::Null);\n");
-    out.push_str("        let method = request.get(\"method\").and_then(|m| m.as_str()).unwrap_or(\"\");\n");
+    out.push_str(
+        "        let method = request.get(\"method\").and_then(|m| m.as_str()).unwrap_or(\"\");\n",
+    );
     out.push_str("        let params = request.get(\"params\").cloned().unwrap_or(json!({}));\n\n");
 
     out.push_str("        let response = match method {\n");
@@ -1223,13 +1506,17 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("                        \"id\": id,\n");
     out.push_str("                        \"result\": {\n");
     out.push_str("                            \"isError\": true,\n");
-    out.push_str("                            \"content\": [{ \"type\": \"text\", \"text\": e }]\n");
+    out.push_str(
+        "                            \"content\": [{ \"type\": \"text\", \"text\": e }]\n",
+    );
     out.push_str("                        }\n");
     out.push_str("                    }),\n");
     out.push_str("                }\n");
     out.push_str("            }\n");
     // notifications (no-ops)
-    out.push_str("            \"notifications/initialized\" | \"notifications/cancelled\" => continue,\n");
+    out.push_str(
+        "            \"notifications/initialized\" | \"notifications/cancelled\" => continue,\n",
+    );
     // unknown method
     out.push_str("            _ => json!({\n");
     out.push_str("                \"jsonrpc\": \"2.0\",\n");

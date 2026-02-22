@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::fmt;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_PID: AtomicU64 = AtomicU64::new(1);
 

@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::ty::Ty;
+use std::collections::HashMap;
 
 /// A single scope level in the type environment.
 #[derive(Debug, Clone)]
@@ -181,7 +181,7 @@ impl TypeEnv {
     pub fn defined_in_current_scope(&self, name: &str) -> bool {
         self.scopes
             .last()
-            .map_or(false, |scope| scope.bindings.contains_key(name))
+            .is_some_and(|scope| scope.bindings.contains_key(name))
     }
 
     // ── Type (ADT) registration ───────────────────────────────
@@ -283,11 +283,14 @@ mod tests {
     #[test]
     fn test_scope_push_pop() {
         let mut env = TypeEnv::new();
-        env.define("x".into(), Binding {
-            ty: Ty::Int,
-            mutable: false,
-            kind: BindingKind::Variable,
-        });
+        env.define(
+            "x".into(),
+            Binding {
+                ty: Ty::Int,
+                mutable: false,
+                kind: BindingKind::Variable,
+            },
+        );
         assert!(env.lookup("x").is_some());
 
         env.push_scope();
@@ -295,11 +298,14 @@ mod tests {
         assert!(env.lookup("x").is_some());
 
         // Shadow x in inner scope
-        env.define("x".into(), Binding {
-            ty: Ty::Str,
-            mutable: false,
-            kind: BindingKind::Variable,
-        });
+        env.define(
+            "x".into(),
+            Binding {
+                ty: Ty::Str,
+                mutable: false,
+                kind: BindingKind::Variable,
+            },
+        );
         assert_eq!(env.lookup("x").unwrap().ty, Ty::Str);
 
         env.pop_scope();
@@ -313,8 +319,14 @@ mod tests {
         env.register_type(AdtDef {
             name: "Shape".into(),
             variants: vec![
-                VariantDef { name: "Circle".into(), fields: vec![("r".into(), Ty::Float)] },
-                VariantDef { name: "Point".into(), fields: vec![] },
+                VariantDef {
+                    name: "Circle".into(),
+                    fields: vec![("r".into(), Ty::Float)],
+                },
+                VariantDef {
+                    name: "Point".into(),
+                    fields: vec![],
+                },
             ],
         });
 
@@ -339,8 +351,14 @@ mod tests {
         env.register_type(AdtDef {
             name: "Result".into(),
             variants: vec![
-                VariantDef { name: "Ok".into(), fields: vec![("value".into(), Ty::Str)] },
-                VariantDef { name: "Error".into(), fields: vec![("message".into(), Ty::Str)] },
+                VariantDef {
+                    name: "Ok".into(),
+                    fields: vec![("value".into(), Ty::Str)],
+                },
+                VariantDef {
+                    name: "Error".into(),
+                    fields: vec![("message".into(), Ty::Str)],
+                },
             ],
         });
 
@@ -352,13 +370,14 @@ mod tests {
     #[test]
     fn test_actor_registration() {
         let mut env = TypeEnv::new();
-        env.register_actor("Worker".into(), vec![
-            ActorHandlerSig {
+        env.register_actor(
+            "Worker".into(),
+            vec![ActorHandlerSig {
                 event_name: "receive".into(),
                 params: vec![("msg".into(), Ty::Str)],
                 return_type: Ty::Unit,
-            },
-        ]);
+            }],
+        );
 
         assert!(env.lookup("Worker").is_some());
         assert_eq!(env.lookup("Worker").unwrap().kind, BindingKind::Actor);
@@ -368,11 +387,14 @@ mod tests {
     #[test]
     fn test_defined_in_current_scope() {
         let mut env = TypeEnv::new();
-        env.define("x".into(), Binding {
-            ty: Ty::Int,
-            mutable: false,
-            kind: BindingKind::Variable,
-        });
+        env.define(
+            "x".into(),
+            Binding {
+                ty: Ty::Int,
+                mutable: false,
+                kind: BindingKind::Variable,
+            },
+        );
         assert!(env.defined_in_current_scope("x"));
 
         env.push_scope();

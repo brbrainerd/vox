@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf};
-use std::fs;
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
-use anyhow::{Result, Context, anyhow};
+use std::fs;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 use base64::Engine;
@@ -34,15 +34,26 @@ struct V0File {
 ///
 /// This function calls the v0 Platform API to generate React code.
 /// It expects the `V0_API_KEY` environment variable to be set.
-pub async fn generate_component(prompt: &str, component_name: &str, out_dir: &Path, image_path: Option<&Path>) -> Result<PathBuf> {
+pub async fn generate_component(
+    prompt: &str,
+    component_name: &str,
+    out_dir: &Path,
+    image_path: Option<&Path>,
+) -> Result<PathBuf> {
     let api_key = std::env::var("V0_API_KEY").map_err(|_| {
         anyhow!("V0_API_KEY environment variable not found. Please set it to use @v0 components.")
     })?;
 
     if let Some(path) = image_path {
-        info!("Generating v0 component '{}' with image: {:?}", component_name, path);
+        info!(
+            "Generating v0 component '{}' with image: {:?}",
+            component_name, path
+        );
     } else {
-        info!("Generating v0 component '{}' with prompt: \"{}\"", component_name, prompt);
+        info!(
+            "Generating v0 component '{}' with prompt: \"{}\"",
+            component_name, prompt
+        );
     }
 
     let client = reqwest::Client::new();
@@ -68,7 +79,8 @@ pub async fn generate_component(prompt: &str, component_name: &str, out_dir: &Pa
         image: image_data,
     };
 
-    let res = client.post(V0_API_URL)
+    let res = client
+        .post(V0_API_URL)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&req_body)
         .send()
@@ -81,7 +93,9 @@ pub async fn generate_component(prompt: &str, component_name: &str, out_dir: &Pa
         return Err(anyhow!("v0 API error ({}): {}", status, text));
     }
 
-    let chat_res: ChatResponse = res.json().await
+    let chat_res: ChatResponse = res
+        .json()
+        .await
         .context("Failed to parse v0 API response")?;
 
     // Find the component file
@@ -90,8 +104,10 @@ pub async fn generate_component(prompt: &str, component_name: &str, out_dir: &Pa
             // We look for the main component file
             if file.name.ends_with(".tsx") || file.name.ends_with(".jsx") {
                 let file_path = out_dir.join(format!("{}.tsx", component_name));
-                fs::write(&file_path, &file.content)
-                    .context(format!("Failed to write generated component to {:?}", file_path))?;
+                fs::write(&file_path, &file.content).context(format!(
+                    "Failed to write generated component to {:?}",
+                    file_path
+                ))?;
 
                 info!("Successfully generated v0 component at {:?}", file_path);
                 return Ok(file_path);

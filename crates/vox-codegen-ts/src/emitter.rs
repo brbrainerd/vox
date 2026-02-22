@@ -1,8 +1,8 @@
-use vox_ast::decl::Module;
+use crate::activity::{generate_activity, generate_activity_runner};
+use crate::adt::generate_types;
 use crate::component::generate_component;
 use crate::routes::generate_routes;
-use crate::adt::generate_types;
-use crate::activity::{generate_activity, generate_activity_runner};
+use vox_ast::decl::Module;
 
 /// Output from the TypeScript code generator.
 pub struct CodegenOutput {
@@ -54,9 +54,17 @@ pub fn generate(module: &Module) -> Result<CodegenOutput, String> {
     }
 
     // Generate activities
-    let activities: Vec<_> = module.declarations.iter().filter_map(|d| {
-        if let vox_ast::decl::Decl::Activity(a) = d { Some(a) } else { None }
-    }).collect();
+    let activities: Vec<_> = module
+        .declarations
+        .iter()
+        .filter_map(|d| {
+            if let vox_ast::decl::Decl::Activity(a) = d {
+                Some(a)
+            } else {
+                None
+            }
+        })
+        .collect();
 
     if !activities.is_empty() {
         let mut activities_content = String::new();
@@ -71,9 +79,17 @@ pub fn generate(module: &Module) -> Result<CodegenOutput, String> {
     }
 
     // Generate table interfaces + schema
-    let tables: Vec<_> = module.declarations.iter().filter_map(|d| {
-        if let vox_ast::decl::Decl::Table(t) = d { Some(t) } else { None }
-    }).collect();
+    let tables: Vec<_> = module
+        .declarations
+        .iter()
+        .filter_map(|d| {
+            if let vox_ast::decl::Decl::Table(t) = d {
+                Some(t)
+            } else {
+                None
+            }
+        })
+        .collect();
 
     if !tables.is_empty() {
         let mut schema = String::new();

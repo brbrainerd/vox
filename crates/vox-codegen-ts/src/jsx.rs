@@ -1,4 +1,4 @@
-use vox_ast::expr::{Expr, BinOp, UnOp, JsxElement, JsxSelfClosingElement};
+use vox_ast::expr::{BinOp, Expr, JsxElement, JsxSelfClosingElement, UnOp};
 use vox_ast::stmt::Stmt;
 
 /// Map Vox JSX attribute names to React attribute names.
@@ -30,7 +30,9 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize) -> String {
     for attr in &el.attributes {
         if attr.name == "bind" {
             let (value_str, onchange_str) = expand_bind_attribute(&attr.value);
-            out.push_str(&format!(" value={{{value_str}}} onChange={{{onchange_str}}}"));
+            out.push_str(&format!(
+                " value={{{value_str}}} onChange={{{onchange_str}}}"
+            ));
         } else {
             let react_name = map_jsx_attr_name(&attr.name);
             let value = emit_jsx_attr_value(&attr.value);
@@ -56,7 +58,9 @@ pub fn emit_jsx_self_closing(el: &JsxSelfClosingElement, indent: usize) -> Strin
     for attr in &el.attributes {
         if attr.name == "bind" {
             let (value_str, onchange_str) = expand_bind_attribute(&attr.value);
-            out.push_str(&format!(" value={{{value_str}}} onChange={{{onchange_str}}}"));
+            out.push_str(&format!(
+                " value={{{value_str}}} onChange={{{onchange_str}}}"
+            ));
         } else {
             let react_name = map_jsx_attr_name(&attr.name);
             let value = emit_jsx_attr_value(&attr.value);
@@ -74,9 +78,7 @@ fn emit_jsx_attr_value(expr: &Expr) -> String {
             // Check if string contains interpolation like {msg.role}
             if value.contains('{') && value.contains('}') {
                 // Convert to template literal: "message {msg.role}" -> `message ${msg.role}`
-                let template = value
-                    .replace('{', "${")
-                    .to_string();
+                let template = value.replace('{', "${").to_string();
                 format!("`{template}`")
             } else {
                 format!("\"{value}\"")
@@ -117,7 +119,7 @@ fn expand_bind_attribute(expr: &Expr) -> (String, String) {
         _ => {
             // Fallback: treat as opaque expression
             let val = emit_expr(expr);
-            (val.clone(), format!("(e) => {{}}"))
+            (val.clone(), "(e) => {}".to_string())
         }
     }
 }
@@ -128,7 +130,12 @@ fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
     match expr {
         Expr::Jsx(el) => emit_jsx_element(el, indent),
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent),
-        Expr::For { binding, iterable, body, .. } => {
+        Expr::For {
+            binding,
+            iterable,
+            body,
+            ..
+        } => {
             let iter_str = emit_expr(iterable);
             let body_str = emit_jsx_child(body, indent + 1);
             format!("{pad}{{{iter_str}.map(({binding}, _i) => (\n{body_str}{pad}))}}\n")
@@ -148,7 +155,8 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::BoolLit { value, .. } => value.to_string(),
         Expr::Ident { name, .. } => name.clone(),
         Expr::ObjectLit { fields, .. } => {
-            let pairs: Vec<String> = fields.iter()
+            let pairs: Vec<String> = fields
+                .iter()
                 .map(|(k, v)| format!("{k}: {}", emit_expr(v)))
                 .collect();
             format!("{{ {} }}", pairs.join(", "))
@@ -161,7 +169,9 @@ pub fn emit_expr(expr: &Expr) -> String {
             let elems: Vec<String> = elements.iter().map(emit_expr).collect();
             format!("[{}]", elems.join(", "))
         }
-        Expr::Binary { op, left, right, .. } => {
+        Expr::Binary {
+            op, left, right, ..
+        } => {
             let l = emit_expr(left);
             let r = emit_expr(right);
             let op_str = match op {
@@ -194,22 +204,27 @@ pub fn emit_expr(expr: &Expr) -> String {
         }
         Expr::Call { callee, args, .. } => {
             let callee_str = emit_expr(callee);
-            let args_str: Vec<String> = args.iter().map(|a| {
-                if let Some(ref name) = a.name {
-                    // Named args become object property
-                    format!("{name}: {}", emit_expr(&a.value))
-                } else {
-                    emit_expr(&a.value)
-                }
-            }).collect();
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|a| {
+                    if let Some(ref name) = a.name {
+                        // Named args become object property
+                        format!("{name}: {}", emit_expr(&a.value))
+                    } else {
+                        emit_expr(&a.value)
+                    }
+                })
+                .collect();
             // Handle named args: if any arg has a name, wrap in object
             let has_named = args.iter().any(|a| a.name.is_some());
             if has_named {
-                let positional: Vec<String> = args.iter()
+                let positional: Vec<String> = args
+                    .iter()
                     .filter(|a| a.name.is_none())
                     .map(|a| emit_expr(&a.value))
                     .collect();
-                let named: Vec<String> = args.iter()
+                let named: Vec<String> = args
+                    .iter()
                     .filter(|a| a.name.is_some())
                     .map(|a| format!("{}: {}", a.name.as_ref().unwrap(), emit_expr(&a.value)))
                     .collect();
@@ -222,7 +237,12 @@ pub fn emit_expr(expr: &Expr) -> String {
                 format!("{callee_str}({})", args_str.join(", "))
             }
         }
-        Expr::MethodCall { object, method, args, .. } => {
+        Expr::MethodCall {
+            object,
+            method,
+            args,
+            ..
+        } => {
             let obj = emit_expr(object);
             let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
             // Special case: list.append(x) -> [...list, x]
@@ -245,7 +265,9 @@ pub fn emit_expr(expr: &Expr) -> String {
             // For HTTP results, emit try/catch
             let subj = emit_expr(subject);
             let mut out = String::new();
-            out.push_str(&format!("await (async () => {{\n  const _match = {subj};\n"));
+            out.push_str(&format!(
+                "await (async () => {{\n  const _match = {subj};\n"
+            ));
             for (i, arm) in arms.iter().enumerate() {
                 let cond = match &arm.pattern {
                     vox_ast::pattern::Pattern::Constructor { name, .. } => {
@@ -254,7 +276,10 @@ pub fn emit_expr(expr: &Expr) -> String {
                     _ => "true".to_string(),
                 };
                 let keyword = if i == 0 { "if" } else { "else if" };
-                out.push_str(&format!("  {keyword} ({cond}) {{ return {}; }}\n", emit_expr(&arm.body)));
+                out.push_str(&format!(
+                    "  {keyword} ({cond}) {{ return {}; }}\n",
+                    emit_expr(&arm.body)
+                ));
             }
             out.push_str("})()");
             out
@@ -271,10 +296,24 @@ pub fn emit_expr(expr: &Expr) -> String {
         }
         Expr::Jsx(el) => emit_jsx_element(el, 0),
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0),
-        Expr::For { binding, iterable, body, .. } => {
-            format!("{}.map(({binding}) => {})", emit_expr(iterable), emit_expr(body))
+        Expr::For {
+            binding,
+            iterable,
+            body,
+            ..
+        } => {
+            format!(
+                "{}.map(({binding}) => {})",
+                emit_expr(iterable),
+                emit_expr(body)
+            )
         }
-        Expr::If { condition, then_body, else_body, .. } => {
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
             let cond = emit_expr(condition);
             let then_str: Vec<String> = then_body.iter().map(|s| emit_stmt(s, 1)).collect();
             let mut out = format!("if ({cond}) {{\n{}", then_str.join(""));
@@ -310,7 +349,12 @@ pub fn emit_expr(expr: &Expr) -> String {
 pub fn emit_stmt(stmt: &Stmt, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     match stmt {
-        Stmt::Let { pattern, value, mutable, .. } => {
+        Stmt::Let {
+            pattern,
+            value,
+            mutable,
+            ..
+        } => {
             let keyword = if *mutable { "let" } else { "const" };
             let pat = emit_pattern(pattern);
             let val = emit_expr(value);

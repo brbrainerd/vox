@@ -1,6 +1,6 @@
-use std::path::Path;
-use std::fs;
 use anyhow::{Context, Result};
+use std::fs;
+use std::path::Path;
 
 pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     let source = fs::read_to_string(file)
@@ -11,22 +11,27 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     tracing::info!("Lexed {} tokens", tokens.len());
 
     // 2. Parse
-    let module = vox_parser::parser::parse(tokens)
-        .map_err(|errors| {
-            for e in &errors {
-                eprintln!("Parse error: {} at {:?}", e.message, e.span);
-            }
-            anyhow::anyhow!("Parsing failed with {} error(s)", errors.len())
-        })?;
+    let module = vox_parser::parser::parse(tokens).map_err(|errors| {
+        for e in &errors {
+            eprintln!("Parse error: {} at {:?}", e.message, e.span);
+        }
+        anyhow::anyhow!("Parsing failed with {} error(s)", errors.len())
+    })?;
     tracing::info!("Parsed {} declarations", module.declarations.len());
 
     // 3. Type check
     let diagnostics = vox_typeck::typecheck_module(&module);
-    let has_errors = diagnostics.iter().any(|d| d.severity == vox_typeck::diagnostics::Severity::Error);
+    let has_errors = diagnostics
+        .iter()
+        .any(|d| d.severity == vox_typeck::diagnostics::Severity::Error);
     for d in &diagnostics {
         match d.severity {
-            vox_typeck::diagnostics::Severity::Error => eprintln!("error: {} at {:?}", d.message, d.span),
-            vox_typeck::diagnostics::Severity::Warning => eprintln!("warning: {} at {:?}", d.message, d.span),
+            vox_typeck::diagnostics::Severity::Error => {
+                eprintln!("error: {} at {:?}", d.message, d.span)
+            }
+            vox_typeck::diagnostics::Severity::Warning => {
+                eprintln!("warning: {} at {:?}", d.message, d.span)
+            }
         }
     }
     if has_errors {
@@ -43,7 +48,7 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
 
     // 6. Generate Rust (Backend)
     let rust_output = vox_codegen_rust::generate(&hir, "vox_generated_app")
-         .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
 
     // 7. Write output files
     fs::create_dir_all(out_dir)
@@ -75,17 +80,30 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
                 } else if let Some(img_str) = &comp.image_path {
                     let parent = file.parent().unwrap_or(Path::new("."));
                     let path = parent.join(img_str);
-                    ("Create a component based on the provided image.".to_string(), Some(path))
+                    (
+                        "Create a component based on the provided image.".to_string(),
+                        Some(path),
+                    )
                 } else {
                     ("Create a React component".to_string(), None)
                 };
 
-                match crate::v0::generate_component(&prompt, component_name, out_dir, image_path.as_deref()).await {
+                match crate::v0::generate_component(
+                    &prompt,
+                    component_name,
+                    out_dir,
+                    image_path.as_deref(),
+                )
+                .await
+                {
                     Ok(path) => println!("  generated v0 component: {}", path.display()),
-                    Err(e) => eprintln!("  failed to generate v0 component '{}': {}", component_name, e),
+                    Err(e) => eprintln!(
+                        "  failed to generate v0 component '{}': {}",
+                        component_name, e
+                    ),
                 }
             } else {
-                 println!("  skipping v0 component '{}' (file exists)", component_name);
+                println!("  skipping v0 component '{}' (file exists)", component_name);
             }
         }
     }
@@ -100,7 +118,7 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
 
     // Rust goes to target/generated
     let generated_dir = std::path::Path::new("target").join("generated");
-    fs::create_dir_all(&generated_dir.join("src"))
+    fs::create_dir_all(generated_dir.join("src"))
         .context("Failed to create generated src directory")?;
 
     for (filename, content) in &rust_output.files {
@@ -114,7 +132,10 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
         println!("  wrote {}", path.display());
     }
 
-    println!("Build complete: {} TS file(s), {} Rust file(s) generated",
-        ts_output.files.len(), rust_output.files.len());
+    println!(
+        "Build complete: {} TS file(s), {} Rust file(s) generated",
+        ts_output.files.len(),
+        rust_output.files.len()
+    );
     Ok(())
 }

@@ -1,8 +1,8 @@
-/// Embedded templates for scaffolding a complete web application.
-/// These are baked into the compiler binary so no external files are needed.
+//! Embedded templates for scaffolding a complete web application.
+//! These are baked into the compiler binary so no external files are needed.
 
 pub fn index_html() -> &'static str {
-r#"<!DOCTYPE html>
+    r#"<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -22,7 +22,7 @@ r#"<!DOCTYPE html>
 
 pub fn main_tsx(component_name: &str) -> String {
     format!(
-r#"import React from "react";
+        r#"import React from "react";
 import ReactDOM from "react-dom/client";
 import {{ {component_name} }} from "./generated/{component_name}";
 import "./index.css";
@@ -37,7 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 }
 
 pub fn index_css() -> &'static str {
-r#"/* Vox Generated App — Dark Theme Design System */
+    r#"/* Vox Generated App — Dark Theme Design System */
 :root {
   --bg-primary: #0f1117;
   --bg-secondary: #1a1d27;
@@ -215,7 +215,7 @@ html, body, #root {
 }
 
 pub fn package_json() -> &'static str {
-r#"{
+    r#"{
   "name": "vox-generated-app",
   "private": true,
   "version": "0.1.0",
@@ -242,7 +242,7 @@ r#"{
 
 pub fn vite_config(backend_port: u16) -> String {
     format!(
-r#"import {{ defineConfig }} from "vite";
+        r#"import {{ defineConfig }} from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({{
@@ -264,7 +264,7 @@ export default defineConfig({{
 }
 
 pub fn tsconfig_json() -> &'static str {
-r#"{
+    r#"{
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,

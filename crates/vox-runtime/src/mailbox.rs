@@ -34,7 +34,7 @@ pub struct Request {
 #[derive(Debug, Clone)]
 pub enum MessagePayload {
     Text(String),
-    Json(String),  // JSON-serialized data
+    Json(String), // JSON-serialized data
     Binary(Vec<u8>),
 }
 

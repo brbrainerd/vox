@@ -1,6 +1,5 @@
-use crate::process::{ProcessHandle, ProcessContext, spawn_process};
+use crate::process::{spawn_process, ProcessContext, ProcessHandle};
 use crate::registry::ProcessRegistry;
-
 
 /// Cooperative scheduler for the Vox actor runtime.
 /// Uses Tokio's work-stealing executor under the hood, with
@@ -34,7 +33,8 @@ impl Scheduler {
         Fut: std::future::Future<Output = ()> + Send + 'static,
     {
         let handle = spawn_process(behavior);
-        self.registry.register_name(name.to_string(), handle.clone());
+        self.registry
+            .register_name(name.to_string(), handle.clone());
         handle
     }
 
@@ -110,14 +110,11 @@ mod tests {
         // Spawn an echo actor that replies to requests
         let handle = scheduler.spawn(|mut ctx: ProcessContext| async move {
             while let Some(env) = ctx.receive().await {
-                match env {
-                    Envelope::Request(req) => {
-                        if let MessagePayload::Json(json_str) = &req.payload {
-                            let reply = format!("Echo: {}", json_str);
-                            ProcessContext::reply(req, reply);
-                        }
+                if let Envelope::Request(req) = env {
+                    if let MessagePayload::Json(json_str) = &req.payload {
+                        let reply = format!("Echo: {}", json_str);
+                        ProcessContext::reply(req, reply);
                     }
-                    _ => {}
                 }
             }
         });

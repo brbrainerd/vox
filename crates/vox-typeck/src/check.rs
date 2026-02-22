@@ -1,13 +1,15 @@
-use vox_ast::decl::{Module, Decl, TypeDefDecl, FnDecl, ActorDecl, WorkflowDecl, ActivityDecl, TableDecl};
-use vox_ast::expr::{Expr, BinOp};
-use vox_ast::stmt::Stmt;
-use vox_ast::pattern::Pattern;
-use vox_ast::types::TypeExpr;
-use crate::diagnostics::{Diagnostic, Severity};
-use crate::env::{TypeEnv, Binding, BindingKind, AdtDef, VariantDef, ActorHandlerSig, WorkflowSig};
 use crate::builtins::BuiltinTypes;
+use crate::diagnostics::{Diagnostic, Severity};
+use crate::env::{ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig};
 use crate::ty::Ty;
 use crate::unify::InferenceContext;
+use vox_ast::decl::{
+    ActivityDecl, ActorDecl, Decl, FnDecl, Module, TableDecl, TypeDefDecl, WorkflowDecl,
+};
+use vox_ast::expr::{BinOp, Expr};
+use vox_ast::pattern::Pattern;
+use vox_ast::stmt::Stmt;
+use vox_ast::types::TypeExpr;
 
 /// Type-check a complete Vox module, returning diagnostics.
 ///
@@ -74,7 +76,14 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
                 env.pop_scope();
             }
             Decl::Component(c) => {
-                check_function_body(&mut env, &builtins, &mut uf, &mut diagnostics, &c.func, true);
+                check_function_body(
+                    &mut env,
+                    &builtins,
+                    &mut uf,
+                    &mut diagnostics,
+                    &c.func,
+                    true,
+                );
             }
             Decl::HttpRoute(r) => {
                 env.push_scope();
@@ -96,7 +105,14 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
                         kind: BindingKind::Variable,
                     },
                 );
-                check_body(&mut env, &builtins, &mut uf, &mut diagnostics, &r.body, false);
+                check_body(
+                    &mut env,
+                    &builtins,
+                    &mut uf,
+                    &mut diagnostics,
+                    &r.body,
+                    false,
+                );
                 env.pop_scope();
             }
             Decl::Actor(a) => {
@@ -108,7 +124,12 @@ pub fn typecheck_module(module: &Module) -> Vec<Diagnostic> {
             Decl::Activity(a) => {
                 check_activity(&mut env, &builtins, &mut uf, &mut diagnostics, a);
             }
-            Decl::TypeDef(_) | Decl::Import(_) | Decl::Table(_) | Decl::Index(_) | Decl::V0Component(_) | Decl::Routes(_) => {}
+            Decl::TypeDef(_)
+            | Decl::Import(_)
+            | Decl::Table(_)
+            | Decl::Index(_)
+            | Decl::V0Component(_)
+            | Decl::Routes(_) => {}
         }
     }
 
@@ -134,7 +155,7 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
                 "Element" => Ty::Element,
                 other => Ty::Named(other.to_string()),
             }
-        },
+        }
         TypeExpr::Generic { name, args, .. } => {
             let inner_args: Vec<Ty> = args.iter().map(|a| resolve_type(a, env)).collect();
             match name.as_str() {
@@ -156,7 +177,11 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
                 }
             }
         }
-        TypeExpr::Function { params, return_type, .. } => {
+        TypeExpr::Function {
+            params,
+            return_type,
+            ..
+        } => {
             let param_tys: Vec<Ty> = params.iter().map(|p| resolve_type(p, env)).collect();
             let ret_ty = resolve_type(return_type, env);
             Ty::Fn(param_tys, Box::new(ret_ty))
@@ -197,9 +222,16 @@ fn register_function(env: &mut TypeEnv, f: &FnDecl) {
     let param_tys: Vec<Ty> = f
         .params
         .iter()
-        .map(|p| p.type_ann.as_ref().map_or(Ty::TypeVar(0), |t| resolve_type(t, env)))
+        .map(|p| {
+            p.type_ann
+                .as_ref()
+                .map_or(Ty::TypeVar(0), |t| resolve_type(t, env))
+        })
         .collect();
-    let ret_ty = f.return_type.as_ref().map_or(Ty::Unit, |t| resolve_type(t, env));
+    let ret_ty = f
+        .return_type
+        .as_ref()
+        .map_or(Ty::Unit, |t| resolve_type(t, env));
 
     env.pop_scope();
 
@@ -225,11 +257,16 @@ fn register_actor(env: &mut TypeEnv, a: &ActorDecl) {
                 .map(|p| {
                     (
                         p.name.clone(),
-                        p.type_ann.as_ref().map_or(Ty::TypeVar(0), |t| resolve_type(t, env)),
+                        p.type_ann
+                            .as_ref()
+                            .map_or(Ty::TypeVar(0), |t| resolve_type(t, env)),
                     )
                 })
                 .collect(),
-            return_type: h.return_type.as_ref().map_or(Ty::Unit, |t| resolve_type(t, env)),
+            return_type: h
+                .return_type
+                .as_ref()
+                .map_or(Ty::Unit, |t| resolve_type(t, env)),
         })
         .collect();
 
@@ -243,11 +280,16 @@ fn register_workflow(env: &mut TypeEnv, w: &WorkflowDecl) {
         .map(|p| {
             (
                 p.name.clone(),
-                p.type_ann.as_ref().map_or(Ty::TypeVar(0), |t| resolve_type(t, env)),
+                p.type_ann
+                    .as_ref()
+                    .map_or(Ty::TypeVar(0), |t| resolve_type(t, env)),
             )
         })
         .collect();
-    let ret_ty = w.return_type.as_ref().map_or(Ty::Unit, |t| resolve_type(t, env));
+    let ret_ty = w
+        .return_type
+        .as_ref()
+        .map_or(Ty::Unit, |t| resolve_type(t, env));
 
     env.register_workflow(WorkflowSig {
         name: w.name.clone(),
@@ -260,9 +302,16 @@ fn register_activity(env: &mut TypeEnv, a: &ActivityDecl) {
     let param_tys: Vec<Ty> = a
         .params
         .iter()
-        .map(|p| p.type_ann.as_ref().map_or(Ty::TypeVar(0), |t| resolve_type(t, env)))
+        .map(|p| {
+            p.type_ann
+                .as_ref()
+                .map_or(Ty::TypeVar(0), |t| resolve_type(t, env))
+        })
         .collect();
-    let ret_ty = a.return_type.as_ref().map_or(Ty::Unit, |t| resolve_type(t, env));
+    let ret_ty = a
+        .return_type
+        .as_ref()
+        .map_or(Ty::Unit, |t| resolve_type(t, env));
 
     env.define(
         a.name.clone(),
@@ -276,9 +325,11 @@ fn register_activity(env: &mut TypeEnv, a: &ActivityDecl) {
 
 /// Register a table declaration as a named record type.
 fn register_table(env: &mut TypeEnv, t: &TableDecl) {
-    let field_types: Vec<(String, Ty)> = t.fields.iter().map(|f| {
-        (f.name.clone(), resolve_type(&f.type_ann, env))
-    }).collect();
+    let field_types: Vec<(String, Ty)> = t
+        .fields
+        .iter()
+        .map(|f| (f.name.clone(), resolve_type(&f.type_ann, env)))
+        .collect();
 
     env.define(
         t.name.clone(),
@@ -308,14 +359,20 @@ fn check_function_body(
     }
 
     // Resolve return type (generics must be in scope)
-    let expected_ty = f.return_type.as_ref().map_or(Ty::Unit, |t| resolve_type(t, env));
+    let expected_ty = f
+        .return_type
+        .as_ref()
+        .map_or(Ty::Unit, |t| resolve_type(t, env));
 
     // Push expected return type for deep checking of return statements
     env.push_return_type(expected_ty.clone());
 
     // Bind parameters
     for param in &f.params {
-        let ty = param.type_ann.as_ref().map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
+        let ty = param
+            .type_ann
+            .as_ref()
+            .map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
         env.define(
             param.name.clone(),
             Binding {
@@ -337,8 +394,6 @@ fn check_function_body(
         // Must be Element.
         // We can check resolved type or AST. Inspecting resolved is better.
         if expected_ty != Ty::Element {
-
-
             diags.push(Diagnostic {
                 severity: Severity::Warning,
                 message: format!("Component '{}' should return Element", f.name),
@@ -357,24 +412,21 @@ fn check_function_body(
     // If last expr is specific type, check it.
     // If last expr is Semicolon/Unit, check it.
 
-    // NOTE: This logic assumes 'body_ty' is the intended return value.
-    if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
-        // Only report if expected != Unit?
-        // If expected is Unit, and body is Int, safe to ignore? (discard result).
-        // If expected is Int, and body is Unit (e.g. semicolon), error.
-
-        // This diagnostic might be noisy for explicit returns.
-        // Ignoring for now to preserve existing behavior, assuming 'check_stmt_immutable' handles explicit.
-
-        // Wait, existing behavior DID check this!
-        diags.push(Diagnostic {
-            severity: Severity::Error,
-            message: format!("Implicit return type mismatch in '{}': {}", f.name, msg),
-            span: f.span,
-            expected_type: Some(format!("{expected_ty:?}")),
-            found_type: Some(format!("{body_ty:?}")),
-            suggestions: vec![],
-        });
+    let has_explicit_return = f
+        .body
+        .last()
+        .is_some_and(|s| matches!(s, Stmt::Return { .. }));
+    if !has_explicit_return {
+        if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
+            diags.push(Diagnostic {
+                severity: Severity::Error,
+                message: format!("Implicit return type mismatch in '{}': {}", f.name, msg),
+                span: f.span,
+                expected_type: Some(format!("{expected_ty:?}")),
+                found_type: Some(format!("{body_ty:?}")),
+                suggestions: vec![],
+            });
+        }
     }
 }
 
@@ -399,12 +451,18 @@ fn check_actor(
         );
 
         // Resolve expected return type
-        let expected_ty = handler.return_type.as_ref().map_or(Ty::Unit, |t| resolve_type(t, env));
+        let expected_ty = handler
+            .return_type
+            .as_ref()
+            .map_or(Ty::Unit, |t| resolve_type(t, env));
         env.push_return_type(expected_ty.clone());
 
         // Bind handler parameters
         for param in &handler.params {
-            let ty = param.type_ann.as_ref().map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
+            let ty = param
+                .type_ann
+                .as_ref()
+                .map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
             env.define(
                 param.name.clone(),
                 Binding {
@@ -418,15 +476,24 @@ fn check_actor(
         let body_ty = check_body(env, builtins, uf, diags, &handler.body, false);
         env.pop_return_type();
 
-        if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
-             diags.push(Diagnostic {
-                severity: Severity::Error,
-                message: format!("Implicit return type mismatch in handler '{}': {}", handler.event_name, msg),
-                span: handler.span,
-                expected_type: Some(format!("{expected_ty:?}")),
-                found_type: Some(format!("{body_ty:?}")),
-                suggestions: vec![],
-            });
+        let has_explicit_return = handler
+            .body
+            .last()
+            .is_some_and(|s| matches!(s, Stmt::Return { .. }));
+        if !has_explicit_return {
+            if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
+                diags.push(Diagnostic {
+                    severity: Severity::Error,
+                    message: format!(
+                        "Implicit return type mismatch in handler '{}': {}",
+                        handler.event_name, msg
+                    ),
+                    span: handler.span,
+                    expected_type: Some(format!("{expected_ty:?}")),
+                    found_type: Some(format!("{body_ty:?}")),
+                    suggestions: vec![],
+                });
+            }
         }
         env.pop_scope();
     }
@@ -441,10 +508,11 @@ fn check_workflow(
 ) {
     env.push_scope();
 
-
-
     for param in &workflow.params {
-        let ty = param.type_ann.as_ref().map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
+        let ty = param
+            .type_ann
+            .as_ref()
+            .map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
         env.define(
             param.name.clone(),
             Binding {
@@ -455,22 +523,33 @@ fn check_workflow(
         );
     }
 
-
-    let expected_ty = workflow.return_type.as_ref().map_or(Ty::Unit, |t| resolve_type(t, env));
+    let expected_ty = workflow
+        .return_type
+        .as_ref()
+        .map_or(Ty::Unit, |t| resolve_type(t, env));
     env.push_return_type(expected_ty.clone());
 
     let body_ty = check_body(env, builtins, uf, diags, &workflow.body, false);
     env.pop_return_type();
 
-    if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
-         diags.push(Diagnostic {
-            severity: Severity::Error,
-            message: format!("Implicit return type mismatch in '{}': {}", workflow.name, msg),
-            span: workflow.span,
-            expected_type: Some(format!("{expected_ty:?}")),
-            found_type: Some(format!("{body_ty:?}")),
-            suggestions: vec![],
-        });
+    let has_explicit_return = workflow
+        .body
+        .last()
+        .is_some_and(|s| matches!(s, Stmt::Return { .. }));
+    if !has_explicit_return {
+        if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
+            diags.push(Diagnostic {
+                severity: Severity::Error,
+                message: format!(
+                    "Implicit return type mismatch in '{}': {}",
+                    workflow.name, msg
+                ),
+                span: workflow.span,
+                expected_type: Some(format!("{expected_ty:?}")),
+                found_type: Some(format!("{body_ty:?}")),
+                suggestions: vec![],
+            });
+        }
     }
 
     env.pop_scope();
@@ -486,7 +565,10 @@ fn check_activity(
     env.push_scope();
 
     for param in &activity.params {
-        let ty = param.type_ann.as_ref().map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
+        let ty = param
+            .type_ann
+            .as_ref()
+            .map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env));
         env.define(
             param.name.clone(),
             Binding {
@@ -501,9 +583,12 @@ fn check_activity(
     let expected_ty = if let Some(ref ret_type_expr) = activity.return_type {
         let ty = resolve_type(ret_type_expr, env);
         if !matches!(ty, Ty::Result(_)) {
-             diags.push(Diagnostic {
+            diags.push(Diagnostic {
                 severity: Severity::Error,
-                message: format!("Activity '{}' must return a Result[...] type", activity.name),
+                message: format!(
+                    "Activity '{}' must return a Result[...] type",
+                    activity.name
+                ),
                 span: activity.span,
                 expected_type: Some("Result[...]".into()),
                 found_type: Some(format!("{ty:?}")),
@@ -514,7 +599,10 @@ fn check_activity(
     } else {
         diags.push(Diagnostic {
             severity: Severity::Warning,
-            message: format!("Activity '{}' should have an explicit return type (e.g. 'to Result[Unit]')", activity.name),
+            message: format!(
+                "Activity '{}' should have an explicit return type (e.g. 'to Result[Unit]')",
+                activity.name
+            ),
             span: activity.span,
             expected_type: Some("Result[...]".into()),
             found_type: None,
@@ -527,15 +615,24 @@ fn check_activity(
     let body_ty = check_body(env, builtins, uf, diags, &activity.body, false);
     env.pop_return_type();
 
-    if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
-         diags.push(Diagnostic {
-            severity: Severity::Error,
-            message: format!("Implicit return type mismatch in '{}': {}", activity.name, msg),
-            span: activity.span,
-            expected_type: Some(format!("{expected_ty:?}")),
-            found_type: Some(format!("{body_ty:?}")),
-            suggestions: vec![],
-        });
+    let has_explicit_return = activity
+        .body
+        .last()
+        .is_some_and(|s| matches!(s, Stmt::Return { .. }));
+    if !has_explicit_return {
+        if let Err(msg) = uf.unify(&expected_ty, &body_ty) {
+            diags.push(Diagnostic {
+                severity: Severity::Error,
+                message: format!(
+                    "Implicit return type mismatch in '{}': {}",
+                    activity.name, msg
+                ),
+                span: activity.span,
+                expected_type: Some(format!("{expected_ty:?}")),
+                found_type: Some(format!("{body_ty:?}")),
+                suggestions: vec![],
+            });
+        }
     }
     env.pop_scope();
 }
@@ -593,7 +690,11 @@ fn check_stmt(
             Ty::Unit
         }
 
-        Stmt::Assign { target, value, span } => {
+        Stmt::Assign {
+            target,
+            value,
+            span,
+        } => {
             // Check that the target is mutable
             if let Expr::Ident { name, .. } = target {
                 match env.lookup(name) {
@@ -637,8 +738,8 @@ fn check_stmt(
             };
 
             if let Some(expected_ty) = env.current_return_type() {
-                 if let Err(msg) = uf.unify(expected_ty, &actual_ty) {
-                     diags.push(Diagnostic {
+                if let Err(msg) = uf.unify(expected_ty, &actual_ty) {
+                    diags.push(Diagnostic {
                         severity: Severity::Error,
                         message: format!("Return type mismatch: {}", msg),
                         span: *span,
@@ -697,25 +798,34 @@ fn bind_pattern(
     }
 }
 
-
-
-fn instantiate_inner(ty: Ty, uf: &mut InferenceContext, map: &mut std::collections::HashMap<u32, Ty>) -> Ty {
+fn instantiate_inner(
+    ty: Ty,
+    uf: &mut InferenceContext,
+    map: &mut std::collections::HashMap<u32, Ty>,
+) -> Ty {
     match ty {
-        Ty::GenericParam(id) => {
-            map.entry(id).or_insert_with(|| uf.fresh_var()).clone()
-        }
+        Ty::GenericParam(id) => map.entry(id).or_insert_with(|| uf.fresh_var()).clone(),
         Ty::List(inner) => Ty::List(Box::new(instantiate_inner(*inner, uf, map))),
         Ty::Option(inner) => Ty::Option(Box::new(instantiate_inner(*inner, uf, map))),
         Ty::Result(inner) => Ty::Result(Box::new(instantiate_inner(*inner, uf, map))),
         Ty::Fn(params, ret) => Ty::Fn(
-            params.into_iter().map(|p| instantiate_inner(p, uf, map)).collect(),
+            params
+                .into_iter()
+                .map(|p| instantiate_inner(p, uf, map))
+                .collect(),
             Box::new(instantiate_inner(*ret, uf, map)),
         ),
         Ty::Tuple(elems) => Ty::Tuple(
-            elems.into_iter().map(|e| instantiate_inner(e, uf, map)).collect(),
+            elems
+                .into_iter()
+                .map(|e| instantiate_inner(e, uf, map))
+                .collect(),
         ),
         Ty::Record(fields) => Ty::Record(
-            fields.into_iter().map(|(n, t)| (n, instantiate_inner(t, uf, map))).collect(),
+            fields
+                .into_iter()
+                .map(|(n, t)| (n, instantiate_inner(t, uf, map)))
+                .collect(),
         ),
         _ => ty,
     }
@@ -738,7 +848,11 @@ fn check_arguments(
     if expected_args.len() != actual_args.len() {
         diags.push(Diagnostic {
             severity: Severity::Error,
-            message: format!("Argument count mismatch: expected {}, found {}", expected_args.len(), actual_args.len()),
+            message: format!(
+                "Argument count mismatch: expected {}, found {}",
+                expected_args.len(),
+                actual_args.len()
+            ),
             span,
             expected_type: None,
             found_type: None,
@@ -813,17 +927,28 @@ fn infer_expr(
             Ty::Record(field_types)
         }
 
-        Expr::TupleLit { elements, .. } => {
-            Ty::Tuple(elements.iter().map(|e| infer_expr(env, builtins, uf, diags, e)).collect())
-        }
+        Expr::TupleLit { elements, .. } => Ty::Tuple(
+            elements
+                .iter()
+                .map(|e| infer_expr(env, builtins, uf, diags, e))
+                .collect(),
+        ),
 
-        Expr::Binary { op, left, right, .. } => {
+        Expr::Binary {
+            op, left, right, ..
+        } => {
             let left_ty = infer_expr(env, builtins, uf, diags, left);
             let _right_ty = infer_expr(env, builtins, uf, diags, right);
             match op {
                 BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => left_ty,
-                BinOp::Lt | BinOp::Gt | BinOp::Lte | BinOp::Gte
-                | BinOp::Is | BinOp::Isnt | BinOp::And | BinOp::Or => Ty::Bool,
+                BinOp::Lt
+                | BinOp::Gt
+                | BinOp::Lte
+                | BinOp::Gte
+                | BinOp::Is
+                | BinOp::Isnt
+                | BinOp::And
+                | BinOp::Or => Ty::Bool,
                 BinOp::Pipe => _right_ty,
             }
         }
@@ -863,7 +988,12 @@ fn infer_expr(
             }
         }
 
-        Expr::MethodCall { object, method, args, span } => {
+        Expr::MethodCall {
+            object,
+            method,
+            args,
+            span,
+        } => {
             let obj_ty = infer_expr(env, builtins, uf, diags, object);
 
             // If obj_ty is a type variable, we can't reliably check the method yet.
@@ -901,7 +1031,11 @@ fn infer_expr(
             }
         }
 
-        Expr::FieldAccess { object, field, span } => {
+        Expr::FieldAccess {
+            object,
+            field,
+            span,
+        } => {
             let obj_ty = infer_expr(env, builtins, uf, diags, object);
             // If we know it's a Record, look up the field
             if let Ty::Record(fields) = &obj_ty {
@@ -929,7 +1063,11 @@ fn infer_expr(
             uf.fresh_var()
         }
 
-        Expr::Match { subject, arms, span } => {
+        Expr::Match {
+            subject,
+            arms,
+            span,
+        } => {
             let _subject_ty = infer_expr(env, builtins, uf, diags, subject);
 
             // Check match exhaustiveness for known ADTs
@@ -942,7 +1080,12 @@ fn infer_expr(
             }
         }
 
-        Expr::If { condition, then_body, else_body, .. } => {
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
             let cond_ty = infer_expr(env, builtins, uf, diags, condition);
             if cond_ty != Ty::Bool && !matches!(cond_ty, Ty::TypeVar(_) | Ty::Error) {
                 diags.push(Diagnostic {
@@ -967,7 +1110,12 @@ fn infer_expr(
             Ty::Unit
         }
 
-        Expr::For { binding: _, iterable, body, .. } => {
+        Expr::For {
+            binding: _,
+            iterable,
+            body,
+            ..
+        } => {
             let iter_ty = infer_expr(env, builtins, uf, diags, iterable);
             let _elem_ty = match &iter_ty {
                 Ty::List(inner) => *inner.clone(),
@@ -981,7 +1129,11 @@ fn infer_expr(
         Expr::Lambda { params, .. } => {
             let param_tys: Vec<Ty> = params
                 .iter()
-                .map(|p| p.type_ann.as_ref().map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env)))
+                .map(|p| {
+                    p.type_ann
+                        .as_ref()
+                        .map_or_else(|| uf.fresh_var(), |t| resolve_type(t, env))
+                })
                 .collect();
             let ret_ty = uf.fresh_var();
             Ty::Fn(param_tys, Box::new(ret_ty))
@@ -997,7 +1149,9 @@ fn infer_expr(
             uf.fresh_var() // spawn returns a PID/handle
         }
 
-        Expr::With { operand, options, .. } => {
+        Expr::With {
+            operand, options, ..
+        } => {
             let op_ty = infer_expr(env, builtins, uf, diags, operand);
             let opt_ty = infer_expr(env, builtins, uf, diags, options);
 
@@ -1057,12 +1211,12 @@ fn infer_expr(
                             }
                         }
                     }
-                },
-                Ty::TypeVar(_) => {}, // allowed, will unify later
+                }
+                Ty::TypeVar(_) => {} // allowed, will unify later
                 _ => {
-                     diags.push(Diagnostic {
+                    diags.push(Diagnostic {
                         severity: Severity::Error,
-                        message: format!("'with' options must be a record/object literal"),
+                        message: "'with' options must be a record/object literal".to_string(),
                         span: options.span(),
                         expected_type: Some("Record".into()),
                         found_type: Some(format!("{opt_ty:?}")),
@@ -1093,8 +1247,6 @@ fn infer_expr(
         }
     }
 }
-
-
 
 /// Check a statement without being able to modify the env (for nested blocks
 /// where we don't want to add bindings to the outer scope).
@@ -1129,7 +1281,7 @@ fn check_stmt_immutable(
 
             if let Some(expected_ty) = env.current_return_type() {
                 if let Err(msg) = uf.unify(expected_ty, &actual_ty) {
-                     diags.push(Diagnostic {
+                    diags.push(Diagnostic {
                         severity: Severity::Error,
                         message: format!("Return type mismatch: {}", msg),
                         span: *span,
@@ -1137,10 +1289,16 @@ fn check_stmt_immutable(
                         found_type: Some(format!("{actual_ty:?}")),
                         suggestions: vec![],
                     });
-                    println!("DEBUG: Explicit mismatch actual {:?} vs expected {:?}", actual_ty, expected_ty);
+                    println!(
+                        "DEBUG: Explicit mismatch actual {:?} vs expected {:?}",
+                        actual_ty, expected_ty
+                    );
                     expected_ty.clone()
                 } else {
-                    println!("DEBUG: Explicit match actual {:?} vs expected {:?}", actual_ty, expected_ty);
+                    println!(
+                        "DEBUG: Explicit match actual {:?} vs expected {:?}",
+                        actual_ty, expected_ty
+                    );
                     actual_ty
                 }
             } else {
@@ -1148,13 +1306,9 @@ fn check_stmt_immutable(
                 actual_ty
             }
         }
-        Stmt::Expr { expr, .. } => {
-            infer_expr(env, builtins, uf, diags, expr)
-        }
+        Stmt::Expr { expr, .. } => infer_expr(env, builtins, uf, diags, expr),
     }
 }
-
-
 
 /// Check match exhaustiveness for ADT-typed subjects.
 fn check_match_exhaustiveness(

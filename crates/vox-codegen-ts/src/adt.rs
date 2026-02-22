@@ -1,4 +1,4 @@
-use vox_ast::decl::{Module, Decl, TypeDefDecl};
+use vox_ast::decl::{Decl, Module, TypeDefDecl};
 
 /// Generate TypeScript type definitions from Vox ADTs.
 pub fn generate_types(module: &Module) -> String {
@@ -22,11 +22,20 @@ fn generate_adt(typedef: &TypeDefDecl) -> String {
     // Generate the union type
     out.push_str(&format!("export type {name} =\n"));
     for (i, variant) in typedef.variants.iter().enumerate() {
-        let separator = if i < typedef.variants.len() - 1 { "" } else { ";" };
-        if variant.fields.is_empty() {
-            out.push_str(&format!("  | {{ readonly _tag: \"{}\" }}{separator}\n", variant.name));
+        let separator = if i < typedef.variants.len() - 1 {
+            ""
         } else {
-            let fields: Vec<String> = variant.fields.iter()
+            ";"
+        };
+        if variant.fields.is_empty() {
+            out.push_str(&format!(
+                "  | {{ readonly _tag: \"{}\" }}{separator}\n",
+                variant.name
+            ));
+        } else {
+            let fields: Vec<String> = variant
+                .fields
+                .iter()
                 .map(|f| {
                     let ts_type = map_type_to_ts(&f.type_ann);
                     format!("readonly {}: {ts_type}", f.name)
@@ -49,12 +58,12 @@ fn generate_adt(typedef: &TypeDefDecl) -> String {
                 variant.name, variant.name
             ));
         } else {
-            let params: Vec<String> = variant.fields.iter()
+            let params: Vec<String> = variant
+                .fields
+                .iter()
                 .map(|f| format!("{}: {}", f.name, map_type_to_ts(&f.type_ann)))
                 .collect();
-            let fields: Vec<String> = variant.fields.iter()
-                .map(|f| f.name.clone())
-                .collect();
+            let fields: Vec<String> = variant.fields.iter().map(|f| f.name.clone()).collect();
             out.push_str(&format!(
                 "export const {} = ({}): {name} => ({{ _tag: \"{}\", {} }});\n",
                 variant.name,

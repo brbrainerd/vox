@@ -1,7 +1,7 @@
 use vox_lexer::cursor::lex;
 use vox_parser::parser::parse;
-use vox_typeck::typecheck_module;
 use vox_typeck::diagnostics::Severity;
+use vox_typeck::typecheck_module;
 
 fn check(src: &str) -> Vec<vox_typeck::Diagnostic> {
     let tokens = lex(src);
@@ -57,13 +57,17 @@ http post "/api/chat" to ChatResult:
     # spawn(Actor) returns a handle? (Not fully typed yet, generic var)
     # let response = spawn(Claude).send(prompt)
 
-    ret Success("Hello " + prompt)
+    Success("Hello " + prompt)
 
 actor Claude:
     on send(msg: str) to ChatResult:
-        ret Success("Hello from Vox! You said: " + msg)
+        Success("Hello from Vox! You said: " + msg)
 "#;
 
     let errs = errors(src);
-    assert!(errs.is_empty(), "Chatbot integration test failed with errors: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "Chatbot integration test failed with errors: {:?}",
+        errs
+    );
 }

@@ -82,9 +82,13 @@ impl ActivityOptions {
         } else if let Some(rest) = s.strip_suffix('s') {
             rest.parse::<u64>().ok().map(Duration::from_secs)
         } else if let Some(rest) = s.strip_suffix('m') {
-            rest.parse::<u64>().ok().map(|m| Duration::from_secs(m * 60))
+            rest.parse::<u64>()
+                .ok()
+                .map(|m| Duration::from_secs(m * 60))
         } else if let Some(rest) = s.strip_suffix('h') {
-            rest.parse::<u64>().ok().map(|h| Duration::from_secs(h * 3600))
+            rest.parse::<u64>()
+                .ok()
+                .map(|h| Duration::from_secs(h * 3600))
         } else {
             // Try as plain seconds
             s.parse::<u64>().ok().map(Duration::from_secs)
@@ -110,10 +114,7 @@ pub enum ActivityError {
     Timeout(Duration),
 
     #[error("activity failed after {attempts} attempts: {last_error}")]
-    RetriesExhausted {
-        attempts: u32,
-        last_error: String,
-    },
+    RetriesExhausted { attempts: u32, last_error: String },
 
     #[error("activity execution error: {0}")]
     ExecutionError(String),
@@ -237,9 +238,7 @@ where
 
 /// Calculate the next backoff duration using exponential backoff with cap.
 fn next_backoff(current: Duration, options: &ActivityOptions) -> Duration {
-    let next = Duration::from_secs_f64(
-        current.as_secs_f64() * options.backoff_multiplier,
-    );
+    let next = Duration::from_secs_f64(current.as_secs_f64() * options.backoff_multiplier);
     std::cmp::min(next, options.max_backoff)
 }
 
@@ -311,8 +310,7 @@ mod tests {
 
     #[test]
     fn test_next_backoff_capped() {
-        let opts = ActivityOptions::new()
-            .with_max_backoff(Duration::from_secs(5));
+        let opts = ActivityOptions::new().with_max_backoff(Duration::from_secs(5));
         // Starting from 4s with 2x multiplier should cap at 5s
         let result = next_backoff(Duration::from_secs(4), &opts);
         assert_eq!(result, Duration::from_secs(5));
@@ -321,10 +319,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_activity_success() {
         let opts = ActivityOptions::new();
-        let result = execute_activity("test", &opts, || async {
-            Ok::<_, String>("hello")
-        })
-        .await;
+        let result = execute_activity("test", &opts, || async { Ok::<_, String>("hello") }).await;
 
         match result {
             ActivityResult::Ok(v) => assert_eq!(v, "hello"),
@@ -372,7 +367,10 @@ mod tests {
         .await;
 
         match result {
-            ActivityResult::Failed(ActivityError::RetriesExhausted { attempts, last_error }) => {
+            ActivityResult::Failed(ActivityError::RetriesExhausted {
+                attempts,
+                last_error,
+            }) => {
                 assert_eq!(attempts, 3); // 1 initial + 2 retries
                 assert_eq!(last_error, "always fails");
             }
@@ -382,8 +380,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_activity_timeout() {
-        let opts = ActivityOptions::new()
-            .with_timeout(Duration::from_millis(10));
+        let opts = ActivityOptions::new().with_timeout(Duration::from_millis(10));
 
         let result = execute_activity("timeout-test", &opts, || async {
             tokio::time::sleep(Duration::from_secs(10)).await;

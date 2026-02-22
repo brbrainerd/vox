@@ -1,7 +1,7 @@
 //! Integration tests for Rust code generation, focusing on server functions.
 
-use vox_hir::*;
 use vox_ast::span::Span;
+use vox_hir::*;
 
 fn dummy_span() -> Span {
     Span { start: 0, end: 0 }
@@ -72,20 +72,44 @@ fn server_fn_generates_routes() {
     let module = make_module_with_server_fns();
     let output = vox_codegen_rust::generate(&module, "test_app").unwrap();
 
-    let main_rs = output.files.get("src/main.rs").expect("main.rs should exist");
+    let main_rs = output
+        .files
+        .get("src/main.rs")
+        .expect("main.rs should exist");
 
     // Routes registered
-    assert!(main_rs.contains(".route(\"/api/greet\", post(handle_sf_greet))"), "greet route missing");
-    assert!(main_rs.contains(".route(\"/api/add\", post(handle_sf_add))"), "add route missing");
+    assert!(
+        main_rs.contains(".route(\"/api/greet\", post(handle_sf_greet))"),
+        "greet route missing"
+    );
+    assert!(
+        main_rs.contains(".route(\"/api/add\", post(handle_sf_add))"),
+        "add route missing"
+    );
 
     // Handlers generated
-    assert!(main_rs.contains("async fn handle_sf_greet("), "greet handler missing");
-    assert!(main_rs.contains("async fn handle_sf_add("), "add handler missing");
+    assert!(
+        main_rs.contains("async fn handle_sf_greet("),
+        "greet handler missing"
+    );
+    assert!(
+        main_rs.contains("async fn handle_sf_add("),
+        "add handler missing"
+    );
 
     // Param extraction
-    assert!(main_rs.contains("request[\"name\"]"), "name param extraction missing");
-    assert!(main_rs.contains("request[\"a\"]"), "a param extraction missing");
-    assert!(main_rs.contains("request[\"b\"]"), "b param extraction missing");
+    assert!(
+        main_rs.contains("request[\"name\"]"),
+        "name param extraction missing"
+    );
+    assert!(
+        main_rs.contains("request[\"a\"]"),
+        "a param extraction missing"
+    );
+    assert!(
+        main_rs.contains("request[\"b\"]"),
+        "b param extraction missing"
+    );
 }
 
 #[test]
@@ -97,20 +121,32 @@ fn server_fn_generates_api_client() {
     assert!(!api_ts.is_empty(), "api.ts should not be empty");
 
     // greet function
-    assert!(api_ts.contains("export async function greet(name: string): Promise<string>"),
-        "greet TS function missing");
-    assert!(api_ts.contains("fetch(`${API_BASE}/api/greet`"),
-        "greet fetch URL missing");
-    assert!(api_ts.contains("JSON.stringify({ name })"),
-        "greet body missing");
+    assert!(
+        api_ts.contains("export async function greet(name: string): Promise<string>"),
+        "greet TS function missing"
+    );
+    assert!(
+        api_ts.contains("fetch(`${API_BASE}/api/greet`"),
+        "greet fetch URL missing"
+    );
+    assert!(
+        api_ts.contains("JSON.stringify({ name })"),
+        "greet body missing"
+    );
 
     // add function
-    assert!(api_ts.contains("export async function add(a: number, b: number): Promise<number>"),
-        "add TS function missing");
-    assert!(api_ts.contains("fetch(`${API_BASE}/api/add`"),
-        "add fetch URL missing");
-    assert!(api_ts.contains("JSON.stringify({ a, b })"),
-        "add body missing");
+    assert!(
+        api_ts.contains("export async function add(a: number, b: number): Promise<number>"),
+        "add TS function missing"
+    );
+    assert!(
+        api_ts.contains("fetch(`${API_BASE}/api/add`"),
+        "add fetch URL missing"
+    );
+    assert!(
+        api_ts.contains("JSON.stringify({ a, b })"),
+        "add body missing"
+    );
 }
 
 #[test]
@@ -130,7 +166,10 @@ fn empty_server_fns_generate_no_api_client() {
         mcp_tools: vec![],
     };
     let output = vox_codegen_rust::generate(&module, "test_app").unwrap();
-    assert!(output.api_client_ts.is_empty(), "api.ts should be empty when no server fns");
+    assert!(
+        output.api_client_ts.is_empty(),
+        "api.ts should be empty when no server fns"
+    );
 }
 
 #[test]

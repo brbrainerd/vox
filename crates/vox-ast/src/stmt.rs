@@ -1,6 +1,6 @@
-use crate::span::Span;
 use crate::expr::Expr;
 use crate::pattern::Pattern;
+use crate::span::Span;
 use crate::types::TypeExpr;
 
 /// All statement types in Vox.
@@ -21,15 +21,9 @@ pub enum Stmt {
         span: Span,
     },
     /// Return statement: `ret value`
-    Return {
-        value: Option<Expr>,
-        span: Span,
-    },
+    Return { value: Option<Expr>, span: Span },
     /// Expression statement (an expression evaluated for its side effects)
-    Expr {
-        expr: Expr,
-        span: Span,
-    },
+    Expr { expr: Expr, span: Span },
 }
 
 impl Stmt {

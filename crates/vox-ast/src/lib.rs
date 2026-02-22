@@ -1,8 +1,8 @@
-pub mod span;
-pub mod expr;
-pub mod stmt;
 pub mod decl;
-pub mod types;
+pub mod expr;
 pub mod pattern;
+pub mod span;
+pub mod stmt;
+pub mod types;
 
 pub use span::Span;

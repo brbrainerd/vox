@@ -64,7 +64,11 @@ impl InferenceContext {
             (Ty::Result(a_inner), Ty::Result(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Fn(a_params, a_ret), Ty::Fn(b_params, b_ret)) => {
                 if a_params.len() != b_params.len() {
-                    return Err(format!("Function arity mismatch: expected {}, got {}", a_params.len(), b_params.len()));
+                    return Err(format!(
+                        "Function arity mismatch: expected {}, got {}",
+                        a_params.len(),
+                        b_params.len()
+                    ));
                 }
                 for (ap, bp) in a_params.iter().zip(b_params.iter()) {
                     self.unify(ap, bp)?;
@@ -73,7 +77,11 @@ impl InferenceContext {
             }
             (Ty::Tuple(a_elems), Ty::Tuple(b_elems)) => {
                 if a_elems.len() != b_elems.len() {
-                    return Err(format!("Tuple size mismatch: expected {}, got {}", a_elems.len(), b_elems.len()));
+                    return Err(format!(
+                        "Tuple size mismatch: expected {}, got {}",
+                        a_elems.len(),
+                        b_elems.len()
+                    ));
                 }
                 for (ae, be) in a_elems.iter().zip(b_elems.iter()) {
                     self.unify(ae, be)?;
@@ -82,7 +90,11 @@ impl InferenceContext {
             }
             (Ty::Record(a_fields), Ty::Record(b_fields)) => {
                 if a_fields.len() != b_fields.len() {
-                     return Err(format!("Record size mismatch: expected {}, got {}", a_fields.len(), b_fields.len()));
+                    return Err(format!(
+                        "Record size mismatch: expected {}, got {}",
+                        a_fields.len(),
+                        b_fields.len()
+                    ));
                 }
                 // Order-independent structural unification
                 for (name, a_ty) in a_fields {
@@ -135,7 +147,12 @@ mod tests {
     fn test_unify_list() {
         let mut ctx = InferenceContext::new();
         let var = ctx.fresh_var();
-        assert!(ctx.unify(&Ty::List(Box::new(var.clone())), &Ty::List(Box::new(Ty::Int))).is_ok());
+        assert!(ctx
+            .unify(
+                &Ty::List(Box::new(var.clone())),
+                &Ty::List(Box::new(Ty::Int))
+            )
+            .is_ok());
         assert_eq!(ctx.resolve(&var), Ty::Int);
     }
 }

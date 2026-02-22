@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
 use crate::pid::Pid;
 use crate::process::ProcessHandle;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 /// Global registry mapping Pids and names to live process handles.
 #[derive(Clone)]

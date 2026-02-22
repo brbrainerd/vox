@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
-use std::fs;
-use anyhow::{Context, Result};
 use crate::commands::build;
 use crate::templates;
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Bundle a Vox source file into a complete, runnable web application.
 ///
@@ -20,9 +20,11 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
     let has_frontend = out_dir.join("Chat.tsx").exists()
         || fs::read_dir(out_dir)
             .ok()
-            .map(|entries| entries.filter_map(|e| e.ok()).any(|e| {
-                e.path().extension().map_or(false, |ext| ext == "tsx")
-            }))
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .any(|e| e.path().extension().is_some_and(|ext| ext == "tsx"))
+            })
             .unwrap_or(false);
 
     if !has_frontend {
@@ -52,10 +54,16 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
     // Copy binary to dist/
     let dist_dir = PathBuf::from("dist");
     fs::create_dir_all(&dist_dir)?;
-    let app_name = file.file_stem()
+    let app_name = file
+        .file_stem()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "app".to_string());
-    let ext = if cfg!(windows) && target.is_none() { ".exe" } else if target.map_or(false, |t| t.contains("windows")) { ".exe" } else { "" };
+    let ext =
+        if target.is_some_and(|t| t.contains("windows")) || (cfg!(windows) && target.is_none()) {
+            ".exe"
+        } else {
+            ""
+        };
     let dest = dist_dir.join(format!("{}{}", app_name, ext));
     fs::copy(&binary_path, &dest)
         .with_context(|| format!("Failed to copy binary to {}", dest.display()))?;
@@ -65,7 +73,10 @@ pub async fn run(file: &Path, out_dir: &Path, target: Option<&str>, release: boo
     if let Some(t) = target {
         println!("  Target: {}", t);
     }
-    println!("  Size: {:.1} MB", fs::metadata(&dest)?.len() as f64 / 1_048_576.0);
+    println!(
+        "  Size: {:.1} MB",
+        fs::metadata(&dest)?.len() as f64 / 1_048_576.0
+    );
     println!("\n  Run with: ./{}", dest.display());
     println!("  Then open: http://localhost:3000");
 
@@ -77,8 +88,7 @@ fn scaffold_react_app(app_dir: &Path, generated_ts_dir: &Path) -> Result<()> {
     let src_dir = app_dir.join("src");
     let generated_dir = src_dir.join("generated");
 
-    fs::create_dir_all(&generated_dir)
-        .context("Failed to create app/src/generated directory")?;
+    fs::create_dir_all(&generated_dir).context("Failed to create app/src/generated directory")?;
 
     // Write template files
     fs::write(app_dir.join("index.html"), templates::index_html())
@@ -99,13 +109,14 @@ fn scaffold_react_app(app_dir: &Path, generated_ts_dir: &Path) -> Result<()> {
     // Find the main component name from generated TSX files
     let component_name = find_component_name(generated_ts_dir)?;
 
-    fs::write(src_dir.join("main.tsx"), templates::main_tsx(&component_name))
-        .context("Failed to write main.tsx")?;
+    fs::write(
+        src_dir.join("main.tsx"),
+        templates::main_tsx(&component_name),
+    )
+    .context("Failed to write main.tsx")?;
 
     // Copy all generated TS/TSX files into app/src/generated/
-    for entry in fs::read_dir(generated_ts_dir)
-        .context("Failed to read generated TS directory")?
-    {
+    for entry in fs::read_dir(generated_ts_dir).context("Failed to read generated TS directory")? {
         let entry = entry?;
         let path = entry.path();
         if let Some(ext) = path.extension() {
@@ -125,11 +136,11 @@ fn find_component_name(generated_dir: &Path) -> Result<String> {
     for entry in fs::read_dir(generated_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().map_or(false, |e| e == "tsx") {
+        if path.extension().is_some_and(|e| e == "tsx") {
             if let Some(stem) = path.file_stem() {
                 let name = stem.to_string_lossy().to_string();
                 // Skip types.ts files, look for component-like names (PascalCase)
-                if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                if name.chars().next().is_some_and(|c| c.is_uppercase()) {
                     return Ok(name);
                 }
             }
@@ -187,8 +198,13 @@ fn copy_built_assets(from: &Path, to: &Path) -> Result<()> {
     }
     fs::create_dir_all(to)?;
 
-    copy_dir_recursive(from, to)
-        .with_context(|| format!("Failed to copy assets from {} to {}", from.display(), to.display()))?;
+    copy_dir_recursive(from, to).with_context(|| {
+        format!(
+            "Failed to copy assets from {} to {}",
+            from.display(),
+            to.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -212,11 +228,19 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<()> {
 
 /// Build the generated Rust backend into a single binary.
 /// Optionally cross-compiles for a specific target triple.
-fn build_single_binary(generated_dir: &Path, target: Option<&str>, release: bool) -> Result<PathBuf> {
+fn build_single_binary(
+    generated_dir: &Path,
+    target: Option<&str>,
+    release: bool,
+) -> Result<PathBuf> {
     // If cross-compiling, ensure the target is installed
     if let Some(target_triple) = target {
         println!("  Installing target: {}", target_triple);
-        let rustup = if cfg!(windows) { "rustup.exe" } else { "rustup" };
+        let rustup = if cfg!(windows) {
+            "rustup.exe"
+        } else {
+            "rustup"
+        };
         let _ = std::process::Command::new(rustup)
             .args(["target", "add", target_triple])
             .stdout(std::process::Stdio::inherit())
@@ -241,7 +265,8 @@ fn build_single_binary(generated_dir: &Path, target: Option<&str>, release: bool
         .stderr(std::process::Stdio::inherit());
 
     println!("  Running: {:?}", cmd);
-    let status = cmd.status()
+    let status = cmd
+        .status()
         .context("Failed to run cargo build on generated backend")?;
 
     if !status.success() {
@@ -250,16 +275,19 @@ fn build_single_binary(generated_dir: &Path, target: Option<&str>, release: bool
 
     // Determine binary path
     let profile = if release { "release" } else { "debug" };
-    let binary_name = if cfg!(windows) && target.is_none() {
-        "vox_generated_app.exe"
-    } else if target.map_or(false, |t| t.contains("windows")) {
-        "vox_generated_app.exe"
-    } else {
-        "vox_generated_app"
-    };
+    let binary_name =
+        if target.is_some_and(|t| t.contains("windows")) || (cfg!(windows) && target.is_none()) {
+            "vox_generated_app.exe"
+        } else {
+            "vox_generated_app"
+        };
 
     let binary_path = if let Some(target_triple) = target {
-        generated_dir.join("target").join(target_triple).join(profile).join(binary_name)
+        generated_dir
+            .join("target")
+            .join(target_triple)
+            .join(profile)
+            .join(binary_name)
     } else {
         generated_dir.join("target").join(profile).join(binary_name)
     };

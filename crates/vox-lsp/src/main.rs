@@ -5,8 +5,8 @@ use tracing::info;
 
 use vox_lexer::cursor::lex;
 use vox_parser::parser::parse;
-use vox_typeck::typecheck_module;
 use vox_typeck::diagnostics::Severity;
+use vox_typeck::typecheck_module;
 
 #[derive(Debug)]
 struct Backend {
@@ -39,25 +39,32 @@ impl LanguageServer for Backend {
     }
 
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.validate_document(params.text_document.uri, params.text_document.text).await;
+        self.validate_document(params.text_document.uri, params.text_document.text)
+            .await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
         // We assume FULL sync, so content_changes[0].text is the full document.
         if let Some(change) = params.content_changes.first() {
-            self.validate_document(params.text_document.uri, change.text.clone()).await;
+            self.validate_document(params.text_document.uri, change.text.clone())
+                .await;
         }
     }
 
     async fn did_save(&self, params: DidSaveTextDocumentParams) {
-         if let Some(text) = params.text {
-             self.validate_document(params.text_document.uri, text).await;
-         } else {
-             // If text is not provided on save, we might need to read from disk or rely on did_change state.
-             // For now, assume did_change handles the live state.
-             // But to be robust, let's just log "Saved".
-             self.client.log_message(MessageType::INFO, format!("Saved {}", params.text_document.uri)).await;
-         }
+        if let Some(text) = params.text {
+            self.validate_document(params.text_document.uri, text).await;
+        } else {
+            // If text is not provided on save, we might need to read from disk or rely on did_change state.
+            // For now, assume did_change handles the live state.
+            // But to be robust, let's just log "Saved".
+            self.client
+                .log_message(
+                    MessageType::INFO,
+                    format!("Saved {}", params.text_document.uri),
+                )
+                .await;
+        }
     }
 }
 
@@ -93,7 +100,7 @@ impl Backend {
                         data: None,
                     });
                 }
-            },
+            }
             Err(parse_errors) => {
                 // Convert ParseError to Diagnostic
                 for err in parse_errors {
@@ -102,7 +109,7 @@ impl Backend {
                     // Let's rely on Debug fmt for now if we can't access fields easily without viewing error.rs
                     // But wait, I can extract span if I know the struct.
                     // Let's use 0:0 with full debug message as fail-safe.
-                     diagnostics.push(Diagnostic {
+                    diagnostics.push(Diagnostic {
                         range: Range::default(), // 0:0
                         severity: Some(DiagnosticSeverity::ERROR),
                         code: None,
@@ -115,7 +122,9 @@ impl Backend {
             }
         }
 
-        self.client.publish_diagnostics(uri, diagnostics, None).await;
+        self.client
+            .publish_diagnostics(uri, diagnostics, None)
+            .await;
     }
 }
 
@@ -136,7 +145,10 @@ fn index_to_pos(text: &str, index: usize) -> Position {
             col += 1; // Note: simplified column count (Unicode support needed for production)
         }
     }
-    Position { line, character: col }
+    Position {
+        line,
+        character: col,
+    }
 }
 
 #[tokio::main]

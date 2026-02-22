@@ -1,6 +1,6 @@
-/// Indentation tracking for the parser.
-/// The lexer already injects Indent/Dedent/Newline tokens,
-/// so this module provides utilities for the parser to track block depth.
+//! Indentation tracking for the parser.
+//! The lexer already injects Indent/Dedent/Newline tokens,
+//! so this module provides utilities for the parser to track block depth.
 
 /// Tracks indentation context during parsing.
 pub struct IndentTracker {

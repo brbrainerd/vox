@@ -1,9 +1,9 @@
-use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::fs;
 use crate::commands::build;
 use crate::templates;
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 pub async fn run(file: &Path, args: &[String]) -> Result<()> {
     // 1. Build using existing build command logic
@@ -15,9 +15,11 @@ pub async fn run(file: &Path, args: &[String]) -> Result<()> {
     // 2. Check if we have frontend components to bundle
     let has_frontend = fs::read_dir(&out_dir)
         .ok()
-        .map(|entries| entries.filter_map(|e| e.ok()).any(|e| {
-            e.path().extension().map_or(false, |ext| ext == "tsx")
-        }))
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .any(|e| e.path().extension().is_some_and(|ext| ext == "tsx"))
+        })
         .unwrap_or(false);
 
     if has_frontend {
@@ -57,8 +59,7 @@ fn build_frontend(generated_ts_dir: &Path) -> Result<()> {
     let src_dir = app_dir.join("src");
     let gen_dir = src_dir.join("generated");
 
-    fs::create_dir_all(&gen_dir)
-        .context("Failed to create frontend app directory")?;
+    fs::create_dir_all(&gen_dir).context("Failed to create frontend app directory")?;
 
     // Write template files
     fs::write(app_dir.join("index.html"), templates::index_html())?;
@@ -69,7 +70,10 @@ fn build_frontend(generated_ts_dir: &Path) -> Result<()> {
 
     // Find component name and write main.tsx
     let component_name = find_component_name(generated_ts_dir)?;
-    fs::write(src_dir.join("main.tsx"), templates::main_tsx(&component_name))?;
+    fs::write(
+        src_dir.join("main.tsx"),
+        templates::main_tsx(&component_name),
+    )?;
 
     // Copy generated TS/TSX files
     for entry in fs::read_dir(generated_ts_dir)? {
@@ -137,10 +141,10 @@ fn find_component_name(dir: &Path) -> Result<String> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.extension().map_or(false, |e| e == "tsx") {
+        if path.extension().is_some_and(|e| e == "tsx") {
             if let Some(stem) = path.file_stem() {
                 let name = stem.to_string_lossy().to_string();
-                if name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                if name.chars().next().is_some_and(|c| c.is_uppercase()) {
                     return Ok(name);
                 }
             }

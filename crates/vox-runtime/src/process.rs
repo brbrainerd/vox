@@ -1,5 +1,7 @@
+use crate::mailbox::{
+    new_mailbox, Envelope, MailboxReceiver, MailboxSender, MessagePayload, Request,
+};
 use crate::pid::Pid;
-use crate::mailbox::{Envelope, Request, MailboxSender, MailboxReceiver, new_mailbox, MessagePayload};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
@@ -49,7 +51,10 @@ pub struct ProcessHandle {
 
 impl ProcessHandle {
     /// Send a fire-and-forget message to this process.
-    pub async fn send(&self, envelope: Envelope) -> Result<(), tokio::sync::mpsc::error::SendError<Envelope>> {
+    pub async fn send(
+        &self,
+        envelope: Envelope,
+    ) -> Result<(), tokio::sync::mpsc::error::SendError<Envelope>> {
         self.mailbox_tx.send(envelope).await
     }
 

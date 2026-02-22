@@ -1,5 +1,5 @@
-use crate::span::Span;
 use crate::expr::Param;
+use crate::span::Span;
 use crate::stmt::Stmt;
 use crate::types::TypeExpr;
 

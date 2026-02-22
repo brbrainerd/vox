@@ -1,7 +1,7 @@
 use vox_lexer::cursor::lex;
 use vox_parser::parser::parse;
-use vox_typeck::typecheck_module;
 use vox_typeck::diagnostics::Severity;
+use vox_typeck::typecheck_module;
 
 fn check(src: &str) -> Vec<vox_typeck::Diagnostic> {
     let tokens = lex(src);
@@ -30,12 +30,16 @@ http post "/api/msg" to int:
 
     # Check result type (Result[int])
     match id:
-        | Ok(i) -> i
-        | Error(e) -> 0
+        Ok(_) -> 1
+        Error(_) -> 0
 "#;
 
     let errs = errors(src);
-    assert!(errs.is_empty(), "DB operations should typecheck. Errors: {:?}", errs);
+    assert!(
+        errs.is_empty(),
+        "DB operations should typecheck. Errors: {:?}",
+        errs
+    );
 }
 
 #[test]

@@ -1,5 +1,5 @@
+use crate::jsx::{emit_expr, emit_jsx_element, emit_jsx_self_closing, emit_stmt};
 use vox_ast::decl::FnDecl;
-use crate::jsx::{emit_stmt, emit_expr, emit_jsx_element, emit_jsx_self_closing};
 use vox_ast::expr::Expr;
 use vox_ast::stmt::Stmt;
 
@@ -14,11 +14,22 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     // Detect which React hooks are used
     let body_str = format!("{:?}", func.body);
     let mut hooks = vec!["useState"];
-    if body_str.contains("use_effect") { hooks.push("useEffect"); }
-    if body_str.contains("use_memo") { hooks.push("useMemo"); }
-    if body_str.contains("use_ref") { hooks.push("useRef"); }
-    if body_str.contains("use_callback") { hooks.push("useCallback"); }
-    out.push_str(&format!("import React, {{ {} }} from \"react\";\n\n", hooks.join(", ")));
+    if body_str.contains("use_effect") {
+        hooks.push("useEffect");
+    }
+    if body_str.contains("use_memo") {
+        hooks.push("useMemo");
+    }
+    if body_str.contains("use_ref") {
+        hooks.push("useRef");
+    }
+    if body_str.contains("use_callback") {
+        hooks.push("useCallback");
+    }
+    out.push_str(&format!(
+        "import React, {{ {} }} from \"react\";\n\n",
+        hooks.join(", ")
+    ));
     if has_styles {
         out.push_str(&format!("import \"./{name}.css\";\n\n"));
     }
@@ -27,9 +38,10 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     if !func.params.is_empty() {
         out.push_str(&format!("export interface {name}Props {{\n"));
         for param in &func.params {
-            let ts_type = param.type_ann.as_ref().map_or("any".to_string(), |t| {
-                map_vox_type_to_ts(t)
-            });
+            let ts_type = param
+                .type_ann
+                .as_ref()
+                .map_or("any".to_string(), map_vox_type_to_ts);
             let optional = if param.default.is_some() { "?" } else { "" };
             out.push_str(&format!("  {}{optional}: {ts_type};\n", param.name));
         }
@@ -38,16 +50,22 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
 
     // Function component
     if func.params.is_empty() {
-        out.push_str(&format!("export function {name}(): React.ReactElement {{\n"));
+        out.push_str(&format!(
+            "export function {name}(): React.ReactElement {{\n"
+        ));
     } else {
         // Destructure props
-        let param_names: Vec<String> = func.params.iter().map(|p| {
-            if let Some(ref default) = p.default {
-                format!("{} = {}", p.name, emit_expr(default))
-            } else {
-                p.name.clone()
-            }
-        }).collect();
+        let param_names: Vec<String> = func
+            .params
+            .iter()
+            .map(|p| {
+                if let Some(ref default) = p.default {
+                    format!("{} = {}", p.name, emit_expr(default))
+                } else {
+                    p.name.clone()
+                }
+            })
+            .collect();
         out.push_str(&format!(
             "export function {name}({{ {} }}: {name}Props): React.ReactElement {{\n",
             param_names.join(", ")
@@ -79,7 +97,9 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
                     }
                 }
             }
-            Stmt::Return { value: Some(expr), .. } => {
+            Stmt::Return {
+                value: Some(expr), ..
+            } => {
                 jsx_return = Some(format!("    {}", emit_expr(expr)));
             }
             _ => {}
@@ -136,7 +156,12 @@ fn emit_component_expr(expr: &Expr) -> String {
             let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
-        Expr::MethodCall { object, method, args, .. } => {
+        Expr::MethodCall {
+            object,
+            method,
+            args,
+            ..
+        } => {
             let obj = emit_component_expr(object);
             let args_str: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
             if method == "append" && args.len() == 1 {
@@ -148,7 +173,9 @@ fn emit_component_expr(expr: &Expr) -> String {
             // For HTTP.post results in a component, emit try/catch
             let subj = emit_component_expr(subject);
             let mut out = String::new();
-            out.push_str(&format!("(async () => {{\n    try {{\n      const _result = await {subj};\n"));
+            out.push_str(&format!(
+                "(async () => {{\n    try {{\n      const _result = await {subj};\n"
+            ));
             if let Some(ok_arm) = arms.first() {
                 out.push_str(&format!("      {};\n", emit_expr(&ok_arm.body)));
             }
@@ -178,16 +205,14 @@ fn emit_component_pattern(pattern: &vox_ast::pattern::Pattern) -> String {
 /// Map a Vox type expression to a TypeScript type string.
 pub fn map_vox_type_to_ts(ty: &vox_ast::types::TypeExpr) -> String {
     match ty {
-        vox_ast::types::TypeExpr::Named { name, .. } => {
-            match name.as_str() {
-                "int" | "float" => "number".to_string(),
-                "str" => "string".to_string(),
-                "bool" => "boolean".to_string(),
-                "Element" => "React.ReactElement".to_string(),
-                "Unit" => "void".to_string(),
-                other => other.to_string(),
-            }
-        }
+        vox_ast::types::TypeExpr::Named { name, .. } => match name.as_str() {
+            "int" | "float" => "number".to_string(),
+            "str" => "string".to_string(),
+            "bool" => "boolean".to_string(),
+            "Element" => "React.ReactElement".to_string(),
+            "Unit" => "void".to_string(),
+            other => other.to_string(),
+        },
         vox_ast::types::TypeExpr::Generic { name, args, .. } => {
             let args_str: Vec<String> = args.iter().map(map_vox_type_to_ts).collect();
             match name.as_str() {
@@ -197,11 +222,21 @@ pub fn map_vox_type_to_ts(ty: &vox_ast::types::TypeExpr) -> String {
                 _ => format!("{}<{}>", name, args_str.join(", ")),
             }
         }
-        vox_ast::types::TypeExpr::Function { params, return_type, .. } => {
-            let params_str: Vec<String> = params.iter().enumerate()
+        vox_ast::types::TypeExpr::Function {
+            params,
+            return_type,
+            ..
+        } => {
+            let params_str: Vec<String> = params
+                .iter()
+                .enumerate()
                 .map(|(i, p)| format!("arg{i}: {}", map_vox_type_to_ts(p)))
                 .collect();
-            format!("({}) => {}", params_str.join(", "), map_vox_type_to_ts(return_type))
+            format!(
+                "({}) => {}",
+                params_str.join(", "),
+                map_vox_type_to_ts(return_type)
+            )
         }
         vox_ast::types::TypeExpr::Tuple { elements, .. } => {
             let elems: Vec<String> = elements.iter().map(map_vox_type_to_ts).collect();

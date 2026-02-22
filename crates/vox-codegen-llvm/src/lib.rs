@@ -1,5 +1,5 @@
-/// LLVM backend - deferred per user decision.
-/// The crate defines the CodegenBackend trait that all backends must implement.
+//! LLVM backend - deferred per user decision.
+//! The crate defines the CodegenBackend trait that all backends must implement.
 
 /// Trait for code generation backends.
 pub trait CodegenBackend {

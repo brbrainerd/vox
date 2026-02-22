@@ -1,8 +1,8 @@
+use crate::builtins::BuiltinTypes;
 use crate::ty::Ty;
 use crate::unify::InferenceContext;
-use vox_ast::expr::{Expr, BinOp};
+use vox_ast::expr::{BinOp, Expr};
 use vox_ast::stmt::Stmt;
-use crate::builtins::BuiltinTypes;
 
 /// Infer the type of an expression.
 pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTypes) -> Ty {
@@ -11,9 +11,7 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
         Expr::FloatLit { .. } => Ty::Float,
         Expr::StringLit { .. } => Ty::Str,
         Expr::BoolLit { .. } => Ty::Bool,
-        Expr::Ident { name, .. } => {
-            builtins.lookup_var(name).unwrap_or_else(|| ctx.fresh_var())
-        }
+        Expr::Ident { name, .. } => builtins.lookup_var(name).unwrap_or_else(|| ctx.fresh_var()),
         Expr::ListLit { elements, .. } => {
             if elements.is_empty() {
                 Ty::List(Box::new(ctx.fresh_var()))
@@ -29,13 +27,21 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
                 .collect();
             Ty::Record(field_types)
         }
-        Expr::Binary { op, left, right, .. } => {
+        Expr::Binary {
+            op, left, right, ..
+        } => {
             let _left_ty = infer_expr(left, ctx, builtins);
             let _right_ty = infer_expr(right, ctx, builtins);
             match op {
                 BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => _left_ty,
-                BinOp::Lt | BinOp::Gt | BinOp::Lte | BinOp::Gte
-                | BinOp::Is | BinOp::Isnt | BinOp::And | BinOp::Or => Ty::Bool,
+                BinOp::Lt
+                | BinOp::Gt
+                | BinOp::Lte
+                | BinOp::Gte
+                | BinOp::Is
+                | BinOp::Isnt
+                | BinOp::And
+                | BinOp::Or => Ty::Bool,
                 BinOp::Pipe => _right_ty,
             }
         }
@@ -51,12 +57,19 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
                 _ => ctx.fresh_var(),
             }
         }
-        Expr::MethodCall { object, method, args, .. } => {
+        Expr::MethodCall {
+            object,
+            method,
+            args,
+            ..
+        } => {
             let obj_ty = infer_expr(object, ctx, builtins);
             for arg in args {
                 infer_expr(&arg.value, ctx, builtins);
             }
-            builtins.lookup_method(&obj_ty, method).unwrap_or_else(|| ctx.fresh_var())
+            builtins
+                .lookup_method(&obj_ty, method)
+                .unwrap_or_else(|| ctx.fresh_var())
         }
         Expr::FieldAccess { object, .. } => {
             infer_expr(object, ctx, builtins);
@@ -97,10 +110,15 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             }
             last_ty
         }
-        Expr::TupleLit { elements, .. } => {
-            Ty::Tuple(elements.iter().map(|e| infer_expr(e, ctx, builtins)).collect())
-        }
-        Expr::With { operand, options, .. } => {
+        Expr::TupleLit { elements, .. } => Ty::Tuple(
+            elements
+                .iter()
+                .map(|e| infer_expr(e, ctx, builtins))
+                .collect(),
+        ),
+        Expr::With {
+            operand, options, ..
+        } => {
             let op_ty = infer_expr(operand, ctx, builtins);
             let _opt_ty = infer_expr(options, ctx, builtins);
             op_ty

@@ -74,7 +74,12 @@ async fn main() -> anyhow::Result<()> {
         Cli::Test { file } => {
             commands::test::run(&file).await?;
         }
-        Cli::Bundle { file, out_dir, target, release } => {
+        Cli::Bundle {
+            file,
+            out_dir,
+            target,
+            release,
+        } => {
             commands::bundle::run(&file, &out_dir, target.as_deref(), release).await?;
         }
         Cli::Lsp => {

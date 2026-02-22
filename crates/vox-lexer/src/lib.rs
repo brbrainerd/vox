@@ -1,5 +1,5 @@
-pub mod token;
 pub mod cursor;
+pub mod token;
 
-pub use token::Token;
 pub use cursor::lex;
+pub use token::Token;

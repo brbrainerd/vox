@@ -1,5 +1,5 @@
+use crate::env::{AdtDef, Binding, BindingKind, TypeEnv, VariantDef};
 use crate::ty::Ty;
-use crate::env::{TypeEnv, Binding, BindingKind, AdtDef, VariantDef};
 
 /// Pre-registered type signatures for the Vox standard library.
 ///
@@ -193,10 +193,7 @@ impl BuiltinTypes {
         env.define(
             "use_effect".into(),
             Binding {
-                ty: Ty::Fn(
-                    vec![Ty::Fn(vec![], Box::new(Ty::Unit))],
-                    Box::new(Ty::Unit),
-                ),
+                ty: Ty::Fn(vec![Ty::Fn(vec![], Box::new(Ty::Unit))], Box::new(Ty::Unit)),
                 mutable: false,
                 kind: BindingKind::Function,
             },
@@ -238,14 +235,14 @@ impl BuiltinTypes {
                 Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
             ),
         );
-        list_methods.insert(
-            "length".into(),
-            Ty::Fn(vec![], Box::new(Ty::Int)),
-        );
+        list_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         list_methods.insert(
             "map".into(),
             Ty::Fn(
-                vec![Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::GenericParam(1)))],
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::GenericParam(1)),
+                )],
                 Box::new(Ty::List(Box::new(Ty::GenericParam(1)))),
             ),
         );
@@ -261,26 +258,14 @@ impl BuiltinTypes {
         // String methods
         let mut str_methods = std::collections::HashMap::new();
         str_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
-        str_methods.insert(
-            "contains".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
-        );
+        str_methods.insert("contains".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
         str_methods.insert(
             "split".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::List(Box::new(Ty::Str)))),
         );
-        str_methods.insert(
-            "trim".into(),
-            Ty::Fn(vec![], Box::new(Ty::Str)),
-        );
-        str_methods.insert(
-            "to_upper".into(),
-            Ty::Fn(vec![], Box::new(Ty::Str)),
-        );
-        str_methods.insert(
-            "to_lower".into(),
-            Ty::Fn(vec![], Box::new(Ty::Str)),
-        );
+        str_methods.insert("trim".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        str_methods.insert("to_upper".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        str_methods.insert("to_lower".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods
@@ -321,26 +306,17 @@ impl BuiltinTypes {
             "json".into(),
             Ty::Fn(vec![], Box::new(Ty::Named("JsonBody".into()))),
         );
-        req_methods.insert(
-            "text".into(),
-            Ty::Fn(vec![], Box::new(Ty::Str)),
-        );
+        req_methods.insert("text".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         methods.insert("Request".into(), req_methods);
 
         // Response methods
         let mut resp_methods = std::collections::HashMap::new();
-        resp_methods.insert(
-            "text".into(),
-            Ty::Fn(vec![], Box::new(Ty::Str)),
-        );
+        resp_methods.insert("text".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         resp_methods.insert(
             "json".into(),
             Ty::Fn(vec![], Box::new(Ty::Named("JsonBody".into()))),
         );
-        resp_methods.insert(
-            "status".into(),
-            Ty::Fn(vec![], Box::new(Ty::Int)),
-        );
+        resp_methods.insert("status".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         methods.insert("Response".into(), resp_methods);
 
         Self { methods }

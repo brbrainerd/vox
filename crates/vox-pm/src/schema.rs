@@ -111,10 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_components_namespace ON components(namespace);
 ";
 
 /// All migrations in order. Each entry is (version, sql).
-pub const MIGRATIONS: &[(i64, &str)] = &[
-    (1, SCHEMA_V1),
-    (2, SCHEMA_V2),
-];
+pub const MIGRATIONS: &[(i64, &str)] = &[(1, SCHEMA_V1), (2, SCHEMA_V2)];
 
 /// SQLite pragmas for performance and concurrency.
 pub const PRAGMAS: &str = "
