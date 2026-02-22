@@ -1,7 +1,50 @@
+use std::collections::HashMap;
+
 use vox_hir::{
     HirActivity, HirActor, HirBinOp, HirExpr, HirFn, HirHttpMethod, HirIndex, HirModule,
     HirPattern, HirRoute, HirServerFn, HirStmt, HirTable, HirType, HirWorkflow,
 };
+
+pub struct CodegenOutput {
+    pub files: HashMap<String, String>,
+    /// TypeScript API client for server functions (empty if no server fns)
+    pub api_client_ts: String,
+}
+
+pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput, miette::Error> {
+    let mut files = HashMap::new();
+
+    // Cargo.toml
+    files.insert(
+        "Cargo.toml".to_string(),
+        emit_cargo_toml(package_name),
+    );
+
+    // src/main.rs (Entry point + Routes)
+    files.insert(
+        "src/main.rs".to_string(),
+        emit_main(module, package_name),
+    );
+
+    // src/lib.rs (Types, Actors, Workflows, Functions)
+    files.insert("src/lib.rs".to_string(), emit_lib(module));
+
+    // TypeScript API client
+    let api_client_ts = emit_api_client(module);
+
+    // MCP server (if @mcp.tool declarations are present)
+    if !module.mcp_tools.is_empty() {
+        files.insert(
+            "src/mcp_server.rs".to_string(),
+            emit_mcp_server(module, package_name),
+        );
+    }
+
+    Ok(CodegenOutput {
+        files,
+        api_client_ts,
+    })
+}
 
 pub fn emit_cargo_toml(name: &str) -> String {
     format!(
@@ -758,11 +801,15 @@ fn emit_table_struct(table: &HirTable) -> String {
 
     // -- from_row helper
     out.push_str("    fn from_row(row: &rusqlite::Row) -> Result<Self, rusqlite::Error> {\n");
+    out.push_str("        let _id_val: i64 = row.get(\"_id\")?;\n");
     out.push_str("        Ok(Self {\n");
-    out.push_str("            _id: Some(row.get(\"_id\")?),\n");
+    out.push_str("            _id: Some(_id_val),\n");
     for field in &table.fields {
         if is_json(&field.type_ann) {
-            out.push_str(&format!("            {}: serde_json::from_str(&row.get::<_, String>(\"{}\")?).unwrap_or_else(|_| panic!(\"JSON decode error\")), // TODO: better error\n", field.name, field.name));
+            out.push_str(&format!(
+                "            {}: serde_json::from_str(&row.get::<_, String>(\"{}\")?).map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, format!(\"JSON decode error on table `{}` field `{}` for row _id {{}}: {{}}\", _id_val, e)))))?,\n",
+                field.name, field.name, table.name.to_lowercase(), field.name
+            ));
         } else {
             out.push_str(&format!(
                 "            {}: row.get(\"{}\")?,\n",

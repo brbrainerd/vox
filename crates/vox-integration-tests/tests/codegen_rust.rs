@@ -1,5 +1,5 @@
 use vox_codegen_rust::emit::emit_lib;
-use vox_hir::lower::lower_module;
+use vox_hir::lower_module;
 /// Integration tests for Rust code generation of durable execution features.
 /// Verifies that activities and `with` expressions produce correct Rust output.
 use vox_lexer::cursor::lex;

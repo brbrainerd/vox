@@ -40,7 +40,7 @@ pub fn generate(module: &Module) -> Result<CodegenOutput, String> {
                 "No prompt provided".to_string()
             };
             let content = format!(
-                "// @v0 generated component\n// {}\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* TODO: Generate via v0.dev */}}</div>;\n}}\n",
+                "// @v0 generated component\n// {}\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* AI component definition pending API integration */}}</div>;\n}}\n",
                 prompt_comment, v0.name
             );
             files.push((filename, content));

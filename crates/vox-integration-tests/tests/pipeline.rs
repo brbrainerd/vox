@@ -365,7 +365,7 @@ fn pipeline_table_typecheck_no_errors() {
 fn pipeline_table_hir_lowering() {
     let tokens = lex(DATA_LAYER_SRC);
     let module = parse(tokens).unwrap();
-    let hir = vox_hir::lower::lower_module(&module);
+    let hir = vox_hir::lower_module(&module);
 
     assert_eq!(hir.tables.len(), 1, "one table");
     assert_eq!(hir.tables[0].name, "Task");
@@ -379,7 +379,7 @@ fn pipeline_table_hir_lowering() {
 fn pipeline_table_rust_codegen_e2e() {
     let tokens = lex(DATA_LAYER_SRC);
     let module = parse(tokens).unwrap();
-    let hir = vox_hir::lower::lower_module(&module);
+    let hir = vox_hir::lower_module(&module);
     let output = vox_codegen_rust::generate(&hir, "test_data").unwrap();
 
     let lib_rs = output.files.get("src/lib.rs").expect("lib.rs");

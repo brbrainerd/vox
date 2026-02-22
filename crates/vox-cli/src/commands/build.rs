@@ -40,7 +40,7 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
     tracing::info!("Type checking passed");
 
     // 4. Lower to HIR
-    let hir = vox_hir::lower::lower_module(&module);
+    let hir = vox_hir::lower_module(&module);
 
     // 5. Generate TypeScript (Frontend)
     let ts_output = vox_codegen_ts::generate(&module)

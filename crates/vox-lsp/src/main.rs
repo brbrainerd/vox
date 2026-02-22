@@ -75,7 +75,7 @@ impl Backend {
         // 1. Lex
         let tokens = lex(&text);
 
-        // 2. Parse (TODO: handle parser errors gracefully to position them)
+        // 2. Parse errors are now handled to position them properly
         match parse(tokens) {
             Ok(module) => {
                 // 3. Type Check
@@ -104,17 +104,14 @@ impl Backend {
             Err(parse_errors) => {
                 // Convert ParseError to Diagnostic
                 for err in parse_errors {
-                    // Assuming ParseError has a `token` field with `span` (based on logs)
-                    // If not accessible, we default to 0:0.
-                    // Let's rely on Debug fmt for now if we can't access fields easily without viewing error.rs
-                    // But wait, I can extract span if I know the struct.
-                    // Let's use 0:0 with full debug message as fail-safe.
+                    let start = index_to_pos(&text, err.span.start);
+                    let end = index_to_pos(&text, err.span.end);
                     diagnostics.push(Diagnostic {
-                        range: Range::default(), // 0:0
+                        range: Range { start, end },
                         severity: Some(DiagnosticSeverity::ERROR),
                         code: None,
                         code_description: None,
-                        message: format!("Parse Error: {:?}", err),
+                        message: err.to_string(),
                         source: Some("vox-lsp".to_string()),
                         ..Default::default()
                     });

@@ -143,7 +143,7 @@ fn main() to Result[str]:
 #[test]
 fn test_hir_lowering_activity_and_with() {
     // Verify the full pipeline through HIR lowering doesn't panic
-    use vox_hir::lower::lower_module;
+    use vox_hir::lower_module;
 
     let src = r#"
 
@@ -276,7 +276,7 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
     );
 
     // HIR lowering
-    let hir = vox_hir::lower::lower_module(&module);
+    let hir = vox_hir::lower_module(&module);
     assert_eq!(hir.activities.len(), 3, "Should have 3 activities");
     assert_eq!(hir.workflows.len(), 1, "Should have 1 workflow");
 
