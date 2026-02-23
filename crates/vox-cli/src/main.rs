@@ -52,6 +52,18 @@ enum Cli {
         #[arg(long, default_value = "true")]
         release: bool,
     },
+    /// Format a Vox source file in place
+    Fmt {
+        /// Path to the .vox source file
+        #[arg(required = true)]
+        file: std::path::PathBuf,
+    },
+    /// Install a component or package via vox-pm
+    Install {
+        /// Name of package to retrieve
+        #[arg(required = true)]
+        package_name: String,
+    },
     /// Start the Vox Language Server
     Lsp,
 }
@@ -81,6 +93,12 @@ async fn main() -> anyhow::Result<()> {
             release,
         } => {
             commands::bundle::run(&file, &out_dir, target.as_deref(), release).await?;
+        }
+        Cli::Fmt { file } => {
+            commands::fmt::run(&file)?;
+        }
+        Cli::Install { package_name } => {
+            commands::install::run(&package_name).await?;
         }
         Cli::Lsp => {
             commands::lsp::run()?;

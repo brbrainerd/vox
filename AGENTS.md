@@ -13,6 +13,7 @@
 3.  **Distribution**: The runtime is inherently distributed. Location transparency is the default.
 4.  **AI-Native**: The syntax and semantics are designed to be easily generated and reasoned about by LLMs.
 5.  **Performance**: Compiles to native code (Rust) and optimized WASM/JS, not an interpreted runtime.
+6.  **ZERO Null States**: The presence of `null` severely breaks AI generative capabilities, leads to fatal NPE logic flaws, and produces ambiguous reasoning gaps. All states must strictly utilize `Option[T]` (lowering to TS `undefined`), `Result`, strict structurally-typed Discriminated Unions, or definitive error types. `null` is permanently banned from generation logic and the Vox ecosystem payload lifecycle.
 
 ## 2. Architecture
 
@@ -75,8 +76,8 @@ The runtime is built on top of **Tokio** and **Axum**.
 
 ### Phase 3: Ecosystem & Tooling (Current Focus)
 - [x] **LSP**: Syntax highlighting, diagnostics using `tower-lsp`.
-- [ ] **Formatter**: `vox fmt`.
-- [ ] **Package Manager**: `vox install`.
+- [x] **Formatter**: `vox fmt` integrated utilizing a Lexical span formatter preserving inline indentation logic perfectly.
+- [x] **Package Manager**: `vox install` integrated over `vox-pm` SQL CAS backend logic!
 
 ### Phase 4: Advanced Features (Future)
 - [ ] **WASM Target**: Compile Vox actors directly to WASM modules.

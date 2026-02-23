@@ -1,7 +1,7 @@
 # Vox Chatbot Demo
 # A full-stack AI chatbot: React frontend + Axum backend + Claude LLM
 
-import react.use_state
+import react . use_state
 
 type ChatResult =
     | Success(text: str)
@@ -11,23 +11,23 @@ type ChatResult =
     let (messages, set_messages) = use_state([])
     let (input, set_input) = use_state("")
 
-    let send = fn(_e) (set_messages(messages.append({role: "user", text: input})), spawn(ChatClient).send(input), set_input(""))
+    let send = fn (_e) (set_messages(messages . append({role: "user", text: input})), spawn (ChatClient) . send(input), set_input(""))
 
-    <div class="chat_container">
-        <div class="messages">
+    < div class = "chat_container" >
+        < div class = "messages" >
             for msg in messages:
-                <div class="message {msg.role}">
-                    {msg.text}
-                </div>
-        </div>
-        <div class="input_area">
-            <input class="chat_input" bind={input} on_key_up={fn(e) e.key is "Enter" and send(e)} placeholder="Type a message..." />
-            <button class="send_btn" on_click={send}>Send</button>
-        </div>
-    </div>
+                < div class = "message {msg.role}" >
+                    {msg . text}
+                </ div >
+        </ div >
+        < div class = "input_area" >
+            < input class = "chat_input" bind = {input} on_key_up = {fn (e) e . key is "Enter" and send(e)} placeholder = "Type a message..." />
+            < button class = "send_btn" on_click = {send} > Send </ button >
+        </ div >
+    </ div >
 
 style:
-    .chat_container:
+    . chat_container:
         fontFamily: "sans-serif"
         display: "flex"
         flexDirection: "column"
@@ -37,7 +37,7 @@ style:
         borderLeft: "1px solid #eee"
         borderRight: "1px solid #eee"
 
-    .messages:
+    . messages:
         flex: "1"
         overflowY: "auto"
         padding: "24px"
@@ -45,32 +45,32 @@ style:
         flexDirection: "column"
         gap: "16px"
 
-    .message:
+    . message:
         padding: "12px 16px"
         borderRadius: "12px"
         maxWidth: "80%"
         lineHeight: "1.5"
 
-    .user:
+    . user:
         backgroundColor: "#007AFF"
         color: "white"
         alignSelf: "flex-end"
         borderBottomRightRadius: "4px"
 
-    .bot:
+    . bot:
         backgroundColor: "#f0f0f0"
         color: "#333"
         alignSelf: "flex-start"
         borderBottomLeftRadius: "4px"
 
-    .input_area:
+    . input_area:
         padding: "24px"
         borderTop: "1px solid #eee"
         display: "flex"
         gap: "12px"
         background: "white"
 
-    .chat_input:
+    . chat_input:
         flex: "1"
         padding: "12px"
         border: "1px solid #ddd"
@@ -78,7 +78,7 @@ style:
         fontSize: "16px"
         outline: "none"
 
-    .send_btn:
+    . send_btn:
         backgroundColor: "#007AFF"
         color: "white"
         border: "none"
@@ -92,9 +92,9 @@ routes:
     "/" to Chat
 
 http post "/api/chat" to ChatResult:
-    let body = request.json()
-    let prompt = str(body.message)
-    let response = spawn(Claude).send(prompt)
+    let body = request . json()
+    let prompt = str(body . message)
+    let response = spawn (Claude) . send(prompt)
     response
 
 actor Claude:

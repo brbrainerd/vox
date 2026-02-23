@@ -30,8 +30,8 @@ Continue executing all remaining steps from our current plan in priority order, 
 
 <quality_gates>
 - CONTEXT AWARENESS: Apply only the instructions above that are strictly relevant to the current task.
-- EFFICIENCY: Avoid unnecessary tool calls, tests, or searches that do not directly advance the plan.
-- ERROR HANDLING: If you encounter an error (compilation, test failure), attempt to resolve it immediately inside a single atomic loop rather than reporting it and stopping.
+- EFFICIENCY: Avoid unnecessary tool calls, tests, or searches that do not directly advance the plan. Test and add code in chunks to improve efficiency.
+- ERROR HANDLING: If you encounter multiple errors or issues (compilation, test failures), address and fix ALL of them at once before retesting. Resolve them immediately inside a single atomic loop rather than reporting and stopping.
 </quality_gates>
 </instructions>
 ```
