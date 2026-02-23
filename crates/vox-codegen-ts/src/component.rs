@@ -218,7 +218,7 @@ pub fn map_vox_type_to_ts(ty: &vox_ast::types::TypeExpr) -> String {
             match name.as_str() {
                 "list" => format!("{}[]", args_str.join(", ")),
                 "Result" => format!("Result<{}>", args_str.join(", ")),
-                "Option" => format!("{} | null", args_str.join(", ")),
+                "Option" => format!("{} | undefined", args_str.join(", ")),
                 _ => format!("{}<{}>", name, args_str.join(", ")),
             }
         }
