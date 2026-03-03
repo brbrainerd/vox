@@ -1,0 +1,96 @@
+    Blocking waiting for file lock on artifact directory
+   Compiling windows-sys v0.61.2
+   Compiling mio v1.1.1
+   Compiling winapi-util v0.1.11
+   Compiling nu-ansi-term v0.50.3
+   Compiling tempfile v3.26.0
+   Compiling schannel v0.1.28
+   Compiling rustls-platform-verifier v0.6.2
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle-wincon v3.0.11
+   Compiling wasmtime-internal-jit-icache-coherence v42.0.1
+   Compiling dirs-sys v0.5.0
+   Compiling dirs v6.0.0
+   Compiling termcolor v1.4.1
+   Compiling same-file v1.0.6
+   Compiling anstream v0.6.21
+   Compiling walkdir v2.5.0
+   Compiling tracing-subscriber v0.3.22
+   Compiling native-tls v0.2.18
+   Compiling tokio v1.49.0
+   Compiling rust-embed-utils v8.11.0
+   Compiling wasmprinter v0.244.0
+   Compiling clap_builder v4.5.60
+   Compiling notify v8.2.0
+   Compiling rust-embed v8.11.0
+   Compiling turso_core v0.4.4
+   Compiling tracing-appender v0.2.4
+   Compiling wasmtime-environ v42.0.1
+   Compiling clap v4.5.60
+   Compiling clap_complete v4.5.66
+   Compiling hyper v1.8.1
+   Compiling tokio-util v0.7.18
+   Compiling tower v0.5.3
+   Compiling tokio-rustls v0.26.4
+   Compiling tokio-native-tls v0.3.1
+   Compiling tokio-stream v0.1.18
+   Compiling tower-http v0.6.8
+   Compiling tower-lsp-server v0.23.0
+   Compiling rmcp v0.16.0
+   Compiling hyper-util v0.1.20
+   Compiling hyper-rustls v0.27.7
+   Compiling hyper-tls v0.6.0
+   Compiling axum v0.8.8
+   Compiling vox-lsp v0.1.0 (C:\Users\Owner\vox\crates\vox-lsp)
+   Compiling reqwest v0.13.2
+   Compiling wasmtime-internal-unwinder v42.0.1
+   Compiling wasmtime-internal-fiber v42.0.1
+   Compiling wasmtime-internal-cache v42.0.1
+   Compiling vox-toestub v0.1.0 (C:\Users\Owner\vox\crates\vox-toestub)
+   Compiling wasmtime-internal-cranelift v42.0.1
+   Compiling wasmtime v42.0.1
+   Compiling turso_sync_engine v0.4.4
+   Compiling turso_sdk_kit v0.4.4
+   Compiling turso_sync_sdk_kit v0.4.4
+   Compiling turso v0.4.4
+   Compiling vox-pm v0.1.0 (C:\Users\Owner\vox\crates\vox-pm)
+   Compiling vox-db v0.1.0 (C:\Users\Owner\vox\crates\vox-db)
+   Compiling vox-gamify v0.1.0 (C:\Users\Owner\vox\crates\vox-gamify)
+   Compiling vox-runtime v0.1.0 (C:\Users\Owner\vox\crates\vox-runtime)
+   Compiling vox-skills v0.1.0 (C:\Users\Owner\vox\crates\vox-skills)
+   Compiling vox-codegen-rust v0.1.0 (C:\Users\Owner\vox\crates\vox-codegen-rust)
+   Compiling vox-orchestrator v0.1.0 (C:\Users\Owner\vox\crates\vox-orchestrator)
+   Compiling vox-mcp v0.1.0 (C:\Users\Owner\vox\crates\vox-mcp)
+error[E0425]: cannot find function `vox_v0_generate` in this scope
+    --> crates\vox-mcp\src\tools.rs:1786:33
+     |
+1786 |         "vox_v0_generate" => Ok(vox_v0_generate(state, serde_json::from_value(args)?).await),
+     |                                 ^^^^^^^^^^^^^^^ not found in this scope
+
+error: this function depends on never type fallback being `()`
+    --> crates\vox-mcp\src\tools.rs:1778:1
+     |
+1778 | / pub async fn handle_tool_call(
+1779 | |     state: &ServerState,
+1780 | |     name: &str,
+1781 | |     args: serde_json::Value,
+1782 | | ) -> Result<String, anyhow::Error> {
+     | |__________________________________^
+     |
+     = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in Rust 2024 and in a future release in all editions!
+     = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/never-type-fallback.html>
+     = help: specify the types explicitly
+note: in edition 2024, the requirement `for<'de> !: _::_serde::Deserialize<'de>` will fail
+    --> crates\vox-mcp\src\tools.rs:1786:56
+     |
+1786 |         "vox_v0_generate" => Ok(vox_v0_generate(state, serde_json::from_value(args)?).await),
+     |                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = note: `#[deny(dependency_on_unit_never_type_fallback)]` (part of `#[deny(rust_2024_compatibility)]`) on by default
+help: use `()` annotations to avoid fallback changes
+     |
+1786 |         "vox_v0_generate" => Ok(vox_v0_generate(state, serde_json::from_value::<()>(args)?).await),
+     |                                                                              ++++++
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `vox-mcp` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...

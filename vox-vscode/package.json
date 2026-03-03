@@ -1,0 +1,201 @@
+{
+  "name": "vox-lang",
+  "displayName": "Vox Language",
+  "description": "Language support for Vox — the AI-native, full-stack programming language",
+  "version": "0.1.0",
+  "publisher": "vox-lang",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters",
+    "Machine Learning"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vox",
+        "aliases": [
+          "Vox",
+          "vox"
+        ],
+        "extensions": [
+          ".vox"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/vox-icon.png",
+          "dark": "./icons/vox-icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vox",
+        "scopeName": "source.vox",
+        "path": "./syntaxes/vox.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Vox AI settings",
+      "properties": {
+        "vox.inlineAI.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Ghost Text autocomplete and Inline Edits."
+        },
+        "vox.inlineAI.debounceMs": {
+          "type": "number",
+          "default": 600,
+          "description": "Delay in ms before analyzing code for ghost text."
+        },
+        "vox.composer.autoApply": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically apply Composer changes instead of reviewing them."
+        },
+        "vox.agent.defaultMode": {
+          "type": "string",
+          "enum": ["chat", "plan", "debug", "auto"],
+          "default": "auto",
+          "description": "Default agent mode."
+        },
+        "vox.vcs.showSnapshotBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show snapshot history bar."
+        },
+        "vox.gamify.showHud": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the Companion gamification HUD."
+        },
+        "vox.ai.model": {
+          "type": "string",
+          "default": "gemini-2.0-flash-lite",
+          "description": "Active AI Model"
+        },
+        "vox.lsp.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the vox-lsp binary."
+        },
+        "vox.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Vox Language Server."
+        },
+        "vox.models.byok.anthropic": {
+          "type": "string",
+          "default": "",
+          "description": "BYOK API Key for Anthropic."
+        },
+        "vox.models.byok.openai": {
+          "type": "string",
+          "default": "",
+          "description": "BYOK API Key for OpenAI."
+        }
+      }
+    },
+    "commands": [
+      { "command": "vox.build", "title": "Vox: Build Current File" },
+      { "command": "vox.run", "title": "Vox: Run Current Project" },
+      { "command": "vox.restartLsp", "title": "Vox: Restart Language Server" },
+      { "command": "vox.focusSidebar", "title": "Vox: Open Chat" },
+      { "command": "vox.openVisualEditor", "title": "Vox: Open Visual Editor" },
+      { "command": "vox.pickModel", "title": "Vox: Select AI Model" },
+      { "command": "vox.inlineEdit", "title": "Vox: Inline Edit (Ask)" },
+      { "command": "vox.inlineExplain", "title": "Vox: Explain Code" },
+      { "command": "vox.inlineFix", "title": "Vox: Fix Errors" },
+      { "command": "vox.snapshotList", "title": "Vox: View Snapshots" },
+      { "command": "vox.undo", "title": "Vox: Undo (VCS)" },
+      { "command": "vox.redo", "title": "Vox: Redo (VCS)" },
+      { "command": "vox.plan", "title": "Vox: Planning Mode — Generate PLAN.md" },
+      { "command": "vox.debugMode", "title": "Vox: Enable Agent Debug Mode" },
+      { "command": "vox.rebalance", "title": "Vox: Rebalance Agents" }
+    ],
+    "keybindings": [
+      {
+        "command": "vox.inlineEdit",
+        "key": "ctrl+k",
+        "mac": "cmd+k",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "vox.plan",
+        "key": "ctrl+shift+p ctrl+p",
+        "mac": "cmd+shift+p cmd+p"
+      },
+      {
+        "command": "vox.inlineEdit.accept",
+        "key": "tab",
+        "when": "vox.inlineEditActive"
+      },
+      {
+        "command": "vox.inlineEdit.escapeReject",
+        "key": "escape",
+        "when": "vox.inlineEditActive || editorTextFocus"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        { "command": "vox.inlineEdit", "group": "vox@1" },
+        { "command": "vox.inlineExplain", "group": "vox@2" },
+        { "command": "vox.inlineFix", "group": "vox@3" },
+        { "command": "vox.plan", "group": "vox@4" }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vox-sidebar",
+          "title": "Vox",
+          "icon": "$(zap)"
+        }
+      ]
+    },
+    "views": {
+      "vox-sidebar": [
+        {
+          "type": "webview",
+          "id": "vox-sidebar.chat",
+          "name": "Vox Workspace",
+          "icon": "$(zap)"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./ && node esbuild.js",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.27.3",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vscode/webview-ui-toolkit": "^1.4.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "shiki": "^4.0.1",
+    "vscode-languageclient": "^9.0.1"
+  }
+}

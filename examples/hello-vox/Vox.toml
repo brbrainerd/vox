@@ -1,0 +1,4 @@
+[package]
+name = "hello-vox"
+version = "0.1.0"
+kind = "application"

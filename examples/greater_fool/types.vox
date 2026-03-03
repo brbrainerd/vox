@@ -1,0 +1,96 @@
+# FTT Core Types — ADT-first design per Vox language principles
+# Every enumerated concept is a proper Vox ADT, not a stringly-typed field.
+
+# ─── Developmental / MPT ───────────────────────────────────────────
+
+type DevelopmentalStage =
+    | Child
+    | Adolescent
+    | Adult
+    | Expert
+
+type MPTWeights = {
+    gist_weight: Float,
+    verbatim_weight: Float
+}
+
+# ─── Framing & Contrast ───────────────────────────────────────────
+
+type Frame =
+    | Gain
+    | Loss
+
+type ContrastType =
+    | AllOrNone
+    | MoreOrLess
+
+type GistLevel =
+    | Categorical
+    | Ordinal
+    | VerbatimFallback
+
+type TruncationType =
+    | ZeroTruncated
+    | NonzeroTruncated
+    | Complete
+
+# ─── Routing ──────────────────────────────────────────────────────
+
+type RouteDecision =
+    | FullFTT
+    | SimpleChat
+    | ResearchRequired(reason: String)
+
+# ─── Categorical Gist (Reyna 2021) ───────────────────────────────
+
+type CategoricalGist = {
+    option_a: String,
+    option_b: String,
+    contrast: ContrastType,
+    contains_zero_outcome: Bool,
+    truncation: TruncationType
+}
+
+# ─── Trace Artifacts ─────────────────────────────────────────────
+
+type GistArtifact = {
+    summary: String,
+    frame: Frame,
+    contrast: ContrastType,
+    complexity: Int,
+    level: GistLevel,
+    categorical: CategoricalGist?,
+    zero_valence_detected: Bool
+}
+
+type VerbatimArtifact = {
+    facts: [String],
+    numbers: [Float],
+    details_count: Int,
+    expected_value: Float?
+}
+
+type DecisionArtifact = {
+    choice: String,
+    confidence: Float,
+    reasoning: String,
+    level_used: GistLevel,
+    conflict_detected: Bool,
+    conflict_resolution: String?
+}
+
+# ─── Pipeline Result ─────────────────────────────────────────────
+
+type FttResult = {
+    response: String,
+    gist: GistArtifact?,
+    verbatim: VerbatimArtifact?,
+    decision: DecisionArtifact?,
+    stage: DevelopmentalStage,
+    request_id: String,
+    input_hash: String,
+    total_time_ms: Int,
+    gist_time_ms: Int,
+    verbatim_time_ms: Int,
+    decision_time_ms: Int
+}

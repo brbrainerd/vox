@@ -1,0 +1,39 @@
+# Example: Dashboard example: full-stack Vox with @v0 + routes + component + http route
+
+```vox
+# Dashboard example: full-stack Vox with @v0 + routes + component + http route
+# Demonstrates all Phase 5 features in a single file
+
+type Message = | User(text: str) | Bot(text: str)
+
+# AI-generated dashboard component using v0.dev
+@v0 "A metrics dashboard with cards showing KPIs and a line chart" fn Dashboard() to Element
+
+# Hand-coded chat widget with two-way binding
+@component fn ChatWidget() to Element:
+    let (messages, set_messages) = use_state([])
+    let (input, set_input) = use_state("")
+
+    fn handle_send():
+        set_messages(messages.append(User(text: input)))
+        set_input("")
+
+    ret <div class="chat-widget">
+        <h2>"Chat"</h2>
+        <div class="messages">
+            for msg in messages:
+                <p>{msg}</p>
+        </div>
+        <input bind={input} />
+        <button on_click={fn(e) handle_send()}>"Send"</button>
+    </div>
+
+# Server-side API endpoint
+http get "/api/stats" to list[int]:
+    ret 42
+
+# Client-side routing
+routes:
+    "/" to Dashboard
+    "/chat" to ChatWidget
+```

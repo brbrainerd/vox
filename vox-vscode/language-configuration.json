@@ -1,0 +1,33 @@
+{
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"],
+    ["<", ">"]
+  ],
+  "autoClosingPairs": [
+    { "open": "{", "close": "}" },
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "\"", "close": "\"", "notIn": ["string"] },
+    { "open": "<", "close": ">", "notIn": ["string"] }
+  ],
+  "surroundingPairs": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"],
+    ["\"", "\""],
+    ["<", ">"]
+  ],
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(fn|if|else|for|while|match|actor|workflow|activity|type|style|routes|on|@component|@server|@test|@query|@mutation|@action|@mcp).*:\\s*(#.*)?$",
+    "decreaseIndentPattern": "^\\s*\\}"
+  },
+  "folding": {
+    "indentation": true
+  },
+  "wordPattern": "[a-zA-Z_][a-zA-Z0-9_]*"
+}

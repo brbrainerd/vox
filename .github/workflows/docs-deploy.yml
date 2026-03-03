@@ -1,0 +1,84 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'crates/vox-doc-pipeline/**'
+      - 'examples/**'
+
+# ── Permissions ────────────────────────────────────────────────────────────
+# GitHub Pages requires pages: write + id-token: write.
+# When porting to GitLab/Gitea, remove this block entirely —
+# those platforms use separate deploy keys or CI variables.
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Rust toolchain ──────────────────────────────────────────────────
+      # Portable alternative: rustup update stable && rustup default stable
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # ── mdBook ─────────────────────────────────────────────────────────
+      # Portable alternative (any platform): cargo install mdbook --locked
+      - name: Install mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: 'latest'
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      - name: Build Docs Pipeline
+        run: cargo build -p vox-doc-pipeline --profile ci
+        env:
+          RUSTC_WRAPPER: sccache
+
+      - name: Run Docs Pipeline (extract + validate SUMMARY)
+        run: |
+          cargo run -p vox-doc-pipeline -- \
+            --pairs-out populi/data/doc_pairs.jsonl \
+            --gap-limit 300
+
+      - name: Check SUMMARY.md drift
+        run: cargo run -p vox-doc-pipeline -- --check
+
+      - name: Build mdBook
+        run: mdbook build docs
+
+      # ── Archive docs artifact ───────────────────────────────────────────
+      # This step is platform-agnostic: it produces docs.tar.gz as a
+      # portable build artifact. The deploy steps below are GitHub-specific.
+      # GitLab equivalent:
+      #   artifacts:
+      #     paths: [docs/book/]
+      # Forgejo/Gitea equivalent: similar artifacts block in Forgejo Actions YAML.
+      - name: Archive docs
+        run: tar -czf docs.tar.gz docs/book/
+
+      # ── GitHub Pages deploy (GitHub-only) ──────────────────────────────
+      # When porting to another forge, remove steps below and add that
+      # platform's equivalent (GitLab Pages, rsync, S3, etc.)
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/book
+
+  deploy-github-pages:
+    name: Deploy to GitHub Pages
+    needs: build-docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

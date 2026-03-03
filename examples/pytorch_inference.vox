@@ -1,0 +1,57 @@
+# PyTorch Inference Example
+#
+# Demonstrates native PyTorch integration in Vox using @py.import.
+# Run with: vox run pytorch_inference.vox  (requires torch in PATH)
+
+@py.import torch
+@py.import torch.nn as nn
+@py.import torch.nn.functional as F
+
+# ─── Model definition ──────────────────────────────────────────────────────────
+# A simple 2-layer MLP: input_dim=4 → hidden=8 → output_dim=2
+
+fn build_model() to str:
+    let model = nn.Sequential(
+        nn.Linear(4, 8),
+        nn.ReLU(),
+        nn.Linear(8, 2)
+    )
+    ret model
+
+fn forward(model: str, x: list[float]) to list[float]:
+    let input_tensor = torch.tensor(x)
+    let output = model.forward(input_tensor)
+    ret output.tolist()
+
+# ─── Training loop (illustrative) ──────────────────────────────────────────────
+
+fn train_step(model: str, x: list[float], y: list[float], lr: float) to float:
+    let optimizer = torch.optim.SGD(model.parameters(), lr)
+    let input_t   = torch.tensor(x)
+    let target_t  = torch.tensor(y)
+    let pred      = model.forward(input_t)
+    let loss      = F.mse_loss(pred, target_t)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    ret loss.item()
+
+# ─── Entry point ───────────────────────────────────────────────────────────────
+
+fn main() to unit:
+    let model   = build_model()
+    let sample  = [1.0, 0.5, -0.3, 2.0]
+    let targets = [0.0, 1.0]
+
+    let initial_pred = forward(model, sample)
+    print("Initial output: ")
+    print(initial_pred)
+
+    for i in 0..100:
+        let loss = train_step(model, sample, targets, 0.01)
+        if i % 20 is 0:
+            print("Step " + i + " | loss: " + loss)
+
+    let final_pred = forward(model, sample)
+    print("Final output:   ")
+    print(final_pred)

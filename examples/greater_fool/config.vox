@@ -1,0 +1,18 @@
+# Greater Fool Configuration — Model Registry
+# Uses Vox @config for typed, environment-backed configuration.
+# Generates load_from_env() Rust code with compile-time validation.
+
+@config model_registry:
+    gist_model: String
+    verbatim_model: String
+    decision_model: String
+    router_model: String
+    chat_model: String
+    embed_model: String
+
+@config ftt_settings:
+    default_stage: String
+    enable_provenance: String
+    enable_token_tracking: String
+    gist_lattice_categorical_threshold: String
+    gist_lattice_ordinal_threshold: String

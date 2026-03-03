@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "generated": "2026-02-26",
+  "decorators": [
+    {
+      "name": "@deprecated",
+      "category": "function",
+      "syntax": "@deprecated",
+      "hasArgs": false,
+      "description": "Mark a function as deprecated. Emits a warning at every call site.",
+      "rustCodegen": "#[deprecated]",
+      "tsCodegen": "/** @deprecated */",
+      "docUrl": "api/decorators/deprecated.md"
+    },
+    {
+      "name": "@pure",
+      "category": "function",
+      "syntax": "@pure",
+      "hasArgs": false,
+      "description": "Enforce function purity — no side effects allowed in the function body.",
+      "rustCodegen": "/* @pure */ comment",
+      "tsCodegen": "/** @__PURE__ */",
+      "docUrl": "api/decorators/pure.md"
+    },
+    {
+      "name": "@require",
+      "category": "function",
+      "syntax": "@require(expr)",
+      "hasArgs": true,
+      "argType": "expression",
+      "description": "Add a precondition assertion. Panics at runtime if the expression is false.",
+      "rustCodegen": "assert!(expr, message)",
+      "tsCodegen": "if (!expr) throw new Error(message)",
+      "docUrl": "api/decorators/require.md"
+    },
+    {
+      "name": "@test",
+      "category": "function",
+      "syntax": "@test",
+      "hasArgs": false,
+      "description": "Mark a function as a test case. Run with 'vox test'.",
+      "rustCodegen": "#[test]",
+      "tsCodegen": "describe/it block",
+      "docUrl": "api/decorators/test.md"
+    },
+    {
+      "name": "@component",
+      "category": "ui",
+      "syntax": "@component",
+      "hasArgs": false,
+      "description": "Define a React-like UI component that returns Element.",
+      "rustCodegen": "N/A (TS only)",
+      "tsCodegen": "React function component",
+      "docUrl": "api/decorators/component.md"
+    },
+    {
+      "name": "@table",
+      "category": "data",
+      "syntax": "@table",
+      "hasArgs": false,
+      "description": "Define a database table with typed fields.",
+      "rustCodegen": "CREATE TABLE DDL + struct",
+      "tsCodegen": "TypeScript interface",
+      "docUrl": "api/decorators/table.md"
+    },
+    {
+      "name": "@index",
+      "category": "data",
+      "syntax": "@index TableName.index_name on (field1, field2)",
+      "hasArgs": true,
+      "argType": "table_fields",
+      "description": "Define a database index on table fields.",
+      "rustCodegen": "CREATE INDEX DDL",
+      "tsCodegen": "N/A",
+      "docUrl": "api/decorators/index.md"
+    },
+    {
+      "name": "@query",
+      "category": "data",
+      "syntax": "@query",
+      "hasArgs": false,
+      "description": "Read-only database function. Must have an explicit return type.",
+      "rustCodegen": "GET endpoint handler",
+      "tsCodegen": "useQuery hook wrapper",
+      "docUrl": "api/decorators/query.md"
+    },
+    {
+      "name": "@mutation",
+      "category": "data",
+      "syntax": "@mutation",
+      "hasArgs": false,
+      "description": "Write database function with transaction semantics.",
+      "rustCodegen": "POST endpoint handler",
+      "tsCodegen": "useMutation hook wrapper",
+      "docUrl": "api/decorators/mutation.md"
+    },
+    {
+      "name": "@action",
+      "category": "data",
+      "syntax": "@action",
+      "hasArgs": false,
+      "description": "Server-side logic that can call queries and mutations.",
+      "rustCodegen": "async handler function",
+      "tsCodegen": "useAction hook wrapper",
+      "docUrl": "api/decorators/action.md"
+    },
+    {
+      "name": "@server",
+      "category": "infrastructure",
+      "syntax": "@server",
+      "hasArgs": false,
+      "description": "Server-only function. Generates both a Rust handler and a TypeScript API client.",
+      "rustCodegen": "axum POST handler",
+      "tsCodegen": "fetch() API client wrapper",
+      "docUrl": "api/decorators/server.md"
+    },
+    {
+      "name": "@scheduled",
+      "category": "infrastructure",
+      "syntax": "@scheduled",
+      "hasArgs": false,
+      "description": "Cron/interval scheduled function.",
+      "rustCodegen": "tokio::time::interval loop",
+      "tsCodegen": "N/A",
+      "docUrl": "api/decorators/scheduled.md"
+    },
+    {
+      "name": "@mcp.tool",
+      "category": "infrastructure",
+      "syntax": "@mcp.tool \"description\"",
+      "hasArgs": true,
+      "argType": "string_literal",
+      "description": "Register a function as an MCP (Model Context Protocol) tool.",
+      "rustCodegen": "MCP JSON-RPC dispatch handler",
+      "tsCodegen": "N/A",
+      "docUrl": "api/decorators/mcp_tool.md"
+    },
+    {
+      "name": "@v0",
+      "category": "ui",
+      "syntax": "@v0(prompt: \"description\")",
+      "hasArgs": true,
+      "argType": "key_value",
+      "description": "AI-generated component placeholder via v0.dev.",
+      "rustCodegen": "N/A",
+      "tsCodegen": "placeholder React component",
+      "docUrl": "api/decorators/v0.md"
+    }
+  ]
+}

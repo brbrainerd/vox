@@ -1,0 +1,34 @@
+# Vox Chatbot Pipeline (Compression Layer)
+# This example intentionally keeps authored complexity low by declaring
+# reliability policies with `with { ... }` instead of manual retry loops.
+
+@table type Conversation:
+    user_id: str
+    started_at: str
+
+@table type MessageTrace:
+    conversation_id: str
+    role: str
+    content: str
+    request_id: str
+
+fn log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool]:
+    ret Ok(true)
+
+activity route_model(prompt: str) to Result[str]:
+    Ok("route:" + prompt)
+
+activity retrieve_context(prompt: str) to Result[str]:
+    Ok("context:" + prompt)
+
+activity call_provider(prompt: str, context: str) to Result[str]:
+    Ok("answer:" + prompt + ":" + context)
+
+workflow chatbot_orchestration(prompt: str, request_id: str) to Result[str]:
+    let routed = route_model(prompt) with { retries: 2, timeout: "5s", activity_id: "route-model" }
+    let context = retrieve_context(prompt) with { retries: 2, timeout: "10s", activity_id: "retrieve-context" }
+    let _ = routed
+    let _ = context
+    let response = call_provider(prompt, prompt) with { retries: 3, timeout: "30s", activity_id: "call-provider" }
+    let _ = log_message("conv-default", "assistant", "generated", request_id)
+    response

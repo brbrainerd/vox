@@ -1,0 +1,20 @@
+[package]
+name = "vox-tensor"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+gpu = ["dep:burn"]
+train = ["gpu"]
+lstm = ["gpu"]
+
+[dependencies]
+burn = { version = "0.19", features = ["ndarray", "autodiff", "wgpu", "train"], optional = true }
+vox-ast = { path = "../vox-ast" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+burn = { version = "0.19", features = ["ndarray", "autodiff", "train"] }
+tempfile = "3"

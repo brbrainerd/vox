@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+  <title>Vox Language Release Notes</title>
+  <link>https://github.com/brbrainerd/vox</link>
+  <description>The latest updates for the Vox AI-native programming language.</description>
+  <item>
+    <title>v0.8.0 Release</title>
+    <link>https://github.com/brbrainerd/vox/changelog.html</link>
+    <description>Added @require, @pure, @deprecated decorators. 10 LSP features implemented.</description>
+    <pubDate>Thu, 26 Feb 2026 00:00:00 GMT</pubDate>
+  </item>
+</channel>
+</rss>

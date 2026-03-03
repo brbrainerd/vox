@@ -1,0 +1,27 @@
+[package]
+name = "vox-skills"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Skill marketplace and plugin architecture for the Vox agent system"
+
+[dependencies]
+vox-db       = { path = "../vox-db" }
+vox-pm       = { path = "../vox-pm" }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+tokio        = { workspace = true }
+reqwest      = { workspace = true }
+anyhow       = { workspace = true }
+thiserror    = { workspace = true }
+tracing      = { workspace = true }
+toml         = { workspace = true }
+sha3         = { workspace = true }
+data-encoding = { workspace = true }
+semver       = "1"
+
+[features]
+default = []
+# Enable the Vox Skills registry bridge (makes HTTP calls to the registry)
+skills-registry = []

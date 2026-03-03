@@ -1,0 +1,11 @@
+[package]
+name = "vox-ssg"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+vox-ast    = { path = "../vox-ast" }
+vox-parser = { path = "../vox-parser" }
+vox-lexer  = { path = "../vox-lexer" }
+vox-codegen-ts = { path = "../vox-codegen-ts" }

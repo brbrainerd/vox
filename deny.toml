@@ -1,0 +1,42 @@
+# cargo-deny configuration file
+# See https://embarkstudios.github.io/cargo-deny/
+
+[advisories]
+ignore = []
+severity-threshold = "low"
+
+[licenses]
+unlicensed = "deny"
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Zlib",
+]
+deny = [
+  "GPL-1.0-only",
+  "GPL-1.0-or-later",
+  "GPL-2.0-only",
+  "GPL-2.0-or-later",
+  "GPL-3.0-only",
+  "GPL-3.0-or-later",
+  "AGPL-3.0-only",
+  "AGPL-3.0-or-later",
+]
+copyleft = "deny"
+allow-osi-fsf-free = "neither"
+
+[bans]
+multiple-versions = "warn"
+highlight = "all"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = [
+  "https://github.com/rust-lang/crates.io-index"
+]
+allow-git = []

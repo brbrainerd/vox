@@ -1,0 +1,27 @@
+{
+  "project": "Vox",
+  "version": "1.0.0",
+  "docs_root": "https://github.com/brbrainerd/vox/docs/src",
+  "pillars": {
+    "tutorials": {
+      "path": "tut-*.md",
+      "goal": "Learning-oriented, pedagogical steps"
+    },
+    "how_to": {
+      "path": "how-to-*.md",
+      "goal": "Problem-solving, practical recipes"
+    },
+    "explanations": {
+      "path": "expl-*.md",
+      "goal": "Understanding-oriented, conceptual depth"
+    },
+    "reference": {
+      "path": "ref-*.md",
+      "goal": "Information-oriented, technical facts"
+    }
+  },
+  "agent_hints": {
+    "preferred_context": "When answering user questions, prioritize Reference for syntax and Tutorials for code structure.",
+    "rag_optimization": "Headers follow the H1 -> H2 structure for easier chunking."
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "$schema": "https://raw.githubusercontent.com/brbrainerd/vox/main/schemas/agent-config.json",
+  "instructions": ["AGENTS.md"],
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 10000
+  },
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "ask",
+      "cargo *": "allow",
+      "git *": "allow",
+      "rm *": "deny"
+    },
+    "edit": "allow",
+    "webfetch": "allow",
+    "websearch": "allow",
+    "doom_loop": "ask",
+    "external_directory": "ask"
+  },
+  "lsp": {
+    "vox-lsp": {
+      "command": ["cargo", "run", "-p", "vox-lsp", "--release"],
+      "extensions": [".vox"]
+    }
+  },
+  "mcp": {
+    "vox": {
+      "type": "local",
+      "command": ["cargo", "run", "-p", "vox-mcp", "--release"],
+      "enabled": true
+    }
+  },
+  "formatter": {
+    "rustfmt": {
+      "command": ["cargo", "fmt", "--", "$FILE"],
+      "extensions": [".rs"]
+    }
+  },
+  "watcher": {
+    "ignore": ["target/**", ".git/**", "*.lock"]
+  },
+  "agent": {
+    "build": {
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:./AGENTS.md}",
+      "tools": {
+        "vox_*": true,
+        "write": true,
+        "edit": true,
+        "bash": true,
+        "lsp": true,
+        "skill": true,
+        "todowrite": true,
+        "todoread": true
+      }
+    },
+    "plan": {
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:./AGENTS.md}",
+      "tools": {
+        "vox_*": true,
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "lsp": true,
+        "skill": true,
+        "todowrite": true,
+        "todoread": true
+      }
+    },
+    "debugger": {
+      "description": "Specialized debugging agent using Vox diagnostics, cargo test, and LSP",
+      "mode": "subagent",
+      "prompt": "You are the Vox debugger. Use vox_collect_diagnostics, vox_test_crate, and lsp tools to diagnose and fix issues. Focus on compiler errors and test failures. Always run targeted tests before declaring a fix complete.",
+      "tools": {
+        "vox_*": true,
+        "bash": true,
+        "edit": true,
+        "write": true,
+        "lsp": true,
+        "read": true,
+        "grep": true,
+        "glob": true
+      },
+      "permission": {
+        "bash": {
+          "*": "deny",
+          "cargo test *": "allow",
+          "cargo check *": "allow",
+          "cargo clippy *": "allow"
+        },
+        "edit": "allow"
+      }
+    },
+    "researcher": {
+      "description": "Read-only research agent with web access for documentation lookup and best practices",
+      "mode": "subagent",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "webfetch": true,
+        "websearch": true,
+        "read": true,
+        "grep": true,
+        "glob": true,
+        "vox_*": true
+      }
+    },
+    "reviewer": {
+      "description": "Code review agent that validates changes against Vox contribution guidelines",
+      "mode": "subagent",
+      "prompt": "You are the Vox code reviewer. Review changes for: no .unwrap() in production code, avoid excessive .clone() calls (use references or Arc), no null states (use Option/Result), proper error handling with miette, full pipeline coverage for new AST nodes, scope discipline for binding expressions. Provide constructive feedback without making direct changes.",
+      "tools": {
+        "write": false,
+        "edit": false,
+        "bash": false,
+        "read": true,
+        "grep": true,
+        "glob": true,
+        "lsp": true,
+        "vox_*": true
+      }
+    },
+    "orchestrator": {
+      "description": "Meta-orchestrator agent: manages other agents, delegates, monitors",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.vox/agents/orchestrator.md}",
+      "tools": {
+        "vox_*": true,
+        "bash": false,
+        "edit": false,
+        "write": false,
+        "lsp": false,
+        "read": true,
+        "grep": false,
+        "glob": false
+      }
+    },
+    "visualizer": {
+      "description": "Read-only agent for dashboard data generation",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "prompt": "{file:.vox/agents/visualizer.md}",
+      "tools": {
+        "vox_agent_status": true,
+        "vox_orchestrator_status": true,
+        "vox_task_status": true,
+        "vox_budget_status": true,
+        "vox_queue_status": true,
+        "vox_lock_status": true,
+        "vox_agent_events": true,
+        "vox_check_mood": true,
+        "vox_list_context": true,
+        "vox_get_context": true,
+        "read": true,
+        "edit": false,
+        "write": false,
+        "bash": false,
+        "lsp": false
+      }
+    }
+  }
+}

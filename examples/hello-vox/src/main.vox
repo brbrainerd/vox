@@ -1,0 +1,103 @@
+# Hello Vox — Your First Full-Stack App
+#
+# Run with:
+#   vox build src/main.vox -o dist
+#   vox run src/main.vox
+#
+# Then open http://localhost:3000 in your browser.
+
+# --- Data Layer ---
+# @table creates a database table. Vox generates migrations automatically.
+
+@table type Note:
+    title: str
+    content: str
+    created_at: str
+
+# --- API Layer ---
+# @server fn creates a backend endpoint. Clients call it like a normal function.
+
+@server fn add_note(title: str, content: str) to Result[str]:
+    ret Ok("Added: " + title)
+
+@server fn list_notes() to Result[str]:
+    ret Ok("[]")
+
+@server fn delete_note(id: str) to Result[str]:
+    ret Ok("Deleted: " + id)
+
+# --- UI Layer ---
+# @component fn creates a React component. Vox compiles it to TypeScript.
+
+@component fn NoteCard(title: str, content: str) to Element:
+    <div class="note_card">
+        <h3>{title}</h3>
+        <p>{content}</p>
+    </div>
+
+style:
+    . note_card:
+        background: "#f8f9fa"
+        borderRadius: "8px"
+        padding: "1rem"
+        border: "1px solid #e9ecef"
+
+@component fn App() to Element:
+    let (notes, set_notes) = use_state([])
+    let (title, set_title) = use_state("")
+    let (content, set_content) = use_state("")
+
+    <div class="app">
+        <div class="app_header">
+            <h1>"📝 Hello Vox"</h1>
+            <p class="subtitle">"A full-stack note-taking app in one file"</p>
+        </div>
+
+        <section class="add_note">
+            <input
+                placeholder="Title"
+                bind={title}
+            />
+            <input
+                placeholder="Write your note..."
+                bind={content}
+            />
+            <button on_click={fn(_e) add_note(title, content)}>"Add Note"</button>
+        </section>
+
+        <section class="notes_grid">
+            for note in notes key note.id:
+                <NoteCard title={note.title} content={note.content} />
+        </section>
+    </div>
+
+style:
+    . app:
+        maxWidth: "800px"
+        margin: "0 auto"
+        padding: "2rem"
+        fontFamily: "'Inter', sans-serif"
+
+    . app_header:
+        textAlign: "center"
+        marginBottom: "2rem"
+
+    . subtitle:
+        color: "#666"
+
+    . add_note:
+        display: "flex"
+        flexDirection: "column"
+        gap: "0.5rem"
+        marginBottom: "2rem"
+
+    . notes_grid:
+        display: "grid"
+        gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))"
+        gap: "1rem"
+
+# --- Routes ---
+# Map URL paths to components.
+
+routes:
+    "/" to App

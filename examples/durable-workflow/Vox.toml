@@ -1,0 +1,7 @@
+[package]
+name = "durable-workflow"
+version = "0.1.0"
+kind = "workflow"
+description = "Demonstrates durable workflow execution with retries, timeouts, and activity chaining."
+
+[dependencies]

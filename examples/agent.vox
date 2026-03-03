@@ -1,0 +1,21 @@
+# agent.vox
+# Example agent definition with tools and memory
+
+@table type AgentMemory:
+    session_id: str
+    context: str
+
+@agent_def fn SupportBot(query: str, session: str) to str:
+    # Agent with system prompt and implicit tool access
+    let past = db.agent_memory.find(session)
+    let response = "Based on " + past.context + " -> " + query
+    db.agent_memory.insert(AgentMemory(session, query))
+    ret response
+
+@mcp.tool("Search knowledge base for articles")
+fn search_kb(topic: str) to str:
+    "Found 3 articles about " + topic
+
+@action fn handle_support_query(session: str, query: str) to Result[str]:
+    let reply = SupportBot(query, session)
+    ret Ok(reply)

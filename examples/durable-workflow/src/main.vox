@@ -1,0 +1,46 @@
+# Durable Workflow Example
+#
+# This example demonstrates the durable execution model in Vox:
+#   - activity blocks represent retriable, isolated units of work
+#   - workflow blocks orchestrate activities with at-least-once guarantees
+#   - with { retries, timeout, initial_backoff, activity_id } configures execution policy
+#
+# Each activity MUST return Result[T]. The with clause injects retry/timeout policy
+# at the call site without coupling business logic to retry plumbing.
+#
+# Activity execution semantics:
+# - If an activity fails, the runtime retries up to retries times
+# - Each retry waits initial_backoff * 2^attempt (default: 1s, 2s, 4s)
+# - If activity_id is set, the result is memoized for idempotent replay on crash
+# - timeout applies per single attempt, not the entire retry chain
+#
+# Run with: vox workflow run src/main.vox process_order
+
+# Activities are retriable, isolated units of work.
+# Each is journaled by the runtime before execution.
+
+activity validate_order(order_data: str) to Result[str]:
+    let normalized = "validated-" + order_data
+    ret Ok(normalized)
+
+activity charge_payment(amount: int, card_token: str) to Result[str]:
+    let tx_id = "tx-" + card_token
+    ret Ok(tx_id)
+
+activity send_confirmation(recipient: str, order_id: str, tx_id: str) to Result[str]:
+    let msg = "Order " + order_id + " confirmed (tx=" + tx_id + ") for " + recipient
+    ret Ok(msg)
+
+activity record_audit_log(order_id: str, status: str) to Result[str]:
+    let entry = "[AUDIT] order=" + order_id + " status=" + status
+    ret Ok(entry)
+
+# Workflow orchestrates the above activities.
+# Each with clause injects a per-call execution policy.
+
+workflow process_order(customer: str, order_data: str, amount: int, card_token: str) to Result[str]:
+    let validated = validate_order(order_data) with { timeout: "5s" }
+    let tx_id = charge_payment(amount, card_token) with { retries: 3, timeout: "30s", initial_backoff: "500ms", activity_id: "charge-card" }
+    let confirmation = send_confirmation(customer, "order-001", "tx-ref-001") with { retries: 2, timeout: "15s", activity_id: "confirm-order-001" }
+    let _audit = record_audit_log("order-001", "completed") with { timeout: "5s" }
+    ret confirmation

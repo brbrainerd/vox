@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Vox Multi-Agent Dashboard — Real-time visualization of AI coding agent orchestration">
+    <title>Vox Dashboard — Multi-Agent Orchestrator</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- ── Header ────────────────────────────────────────────── -->
+    <header id="app-header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">⚡</span>
+                <span class="logo-text">Vox</span>
+                <span class="logo-badge">Dashboard</span>
+            </div>
+            <div id="connection-status" class="status-indicator disconnected">
+                <span class="status-dot"></span>
+                <span class="status-label">Disconnected</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div id="global-stats" class="global-stats">
+                <div class="stat">
+                    <span class="stat-label">Agents</span>
+                    <span class="stat-value" id="stat-agents">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Tasks</span>
+                    <span class="stat-value" id="stat-tasks">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Cost</span>
+                    <span class="stat-value" id="stat-cost">$0.00</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Events</span>
+                    <span class="stat-value" id="stat-events">0</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ── Main Content ──────────────────────────────────────── -->
+    <main id="app-main">
+        <!-- Action Bar -->
+        <section id="action-bar" class="dashboard-section">
+            <div class="action-buttons">
+                <button id="btn-continue-all" class="action-btn primary" title="Continue all idle agents">
+                    <span class="btn-icon">▶</span> Continue All
+                </button>
+                <button id="btn-assess" class="action-btn secondary" title="Assess remaining work">
+                    <span class="btn-icon">📋</span> Assess
+                </button>
+                <button id="btn-rebalance" class="action-btn secondary" title="Rebalance tasks across agents">
+                    <span class="btn-icon">⚖</span> Rebalance
+                </button>
+                <button id="btn-pause-all" class="action-btn warning" title="Pause all agents">
+                    <span class="btn-icon">⏸</span> Pause All
+                </button>
+            </div>
+        </section>
+
+        <!-- Agent Grid -->
+        <section id="agent-grid-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">🤖</span> Agents
+            </h2>
+            <div id="agent-grid" class="agent-grid">
+                <!-- Agent cards rendered by JS -->
+                <div class="empty-state" id="agents-empty">
+                    <span class="empty-icon">🔌</span>
+                    <p>No agents connected</p>
+                    <p class="empty-hint">Agents will appear here when they connect to the orchestrator</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Agent Topology Graph -->
+        <section id="agent-topology-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">🕸️</span> Agent Topology
+            </h2>
+            <div id="topology-graph" class="topology-graph" style="height: 300px; background: rgba(15, 23, 42, 0.6); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.1);">
+                <div class="empty-state" id="topology-empty">
+                    <span class="empty-icon">🕸️</span>
+                    <p>Waiting for agent connections...</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Two-column layout: Tasks + Events -->
+        <div class="two-col">
+            <!-- Task Board -->
+            <section id="task-board-section" class="dashboard-section">
+                <h2 class="section-title">
+                    <span class="section-icon">📌</span> Tasks
+                </h2>
+                <div id="task-board" class="task-board">
+                    <div class="task-column" id="col-pending">
+                        <div class="col-header">
+                            <span class="col-dot pending"></span>
+                            Pending <span class="col-count" id="count-pending">0</span>
+                        </div>
+                        <div class="col-body" id="tasks-pending"></div>
+                    </div>
+                    <div class="task-column" id="col-active">
+                        <div class="col-header">
+                            <span class="col-dot active"></span>
+                            Active <span class="col-count" id="count-active">0</span>
+                        </div>
+                        <div class="col-body" id="tasks-active"></div>
+                    </div>
+                    <div class="task-column" id="col-done">
+                        <div class="col-header">
+                            <span class="col-dot done"></span>
+                            Done <span class="col-count" id="count-done">0</span>
+                        </div>
+                        <div class="col-body" id="tasks-done"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Event Timeline -->
+            <section id="events-section" class="dashboard-section">
+                <h2 class="section-title">
+                    <span class="section-icon">📡</span> Events
+                    <input type="text" id="event-filter" class="event-filter" placeholder="Filter events...">
+                </h2>
+                <div id="event-timeline" class="event-timeline">
+                    <div class="empty-state" id="events-empty">
+                        <span class="empty-icon">📭</span>
+                        <p>No events yet</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Three-column layout: Costs + Locks + Companion -->
+        <div class="three-col">
+            <!-- Cost Tracker -->
+            <section id="cost-section" class="dashboard-section">
+                <h2 class="section-title">
+                    <span class="section-icon">💰</span> Costs
+                </h2>
+                <div id="cost-tracker" class="cost-tracker">
+                    <div class="cost-total">
+                        <span class="cost-label">Session Total</span>
+                        <span class="cost-value" id="cost-total-value">$0.0000</span>
+                    </div>
+                    <div id="cost-pie-chart" style="width: 100%; height: 180px; margin-top: 1rem;"></div>
+                    <div class="cost-breakdown" id="cost-breakdown" style="margin-top: 1rem;">
+                        <!-- Per-agent costs rendered by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Lock Map -->
+            <section id="lock-section" class="dashboard-section">
+                <h2 class="section-title">
+                    <span class="section-icon">🔒</span> File Locks
+                </h2>
+                <div id="lock-map" class="lock-map">
+                    <div class="empty-state" id="locks-empty">
+                        <span class="empty-icon">🔓</span>
+                        <p>No active locks</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Companion View -->
+            <section id="companion-section" class="dashboard-section">
+                <h2 class="section-title">
+                    <span class="section-icon">🎮</span> Companion
+                </h2>
+                <div id="companion-view" class="companion-view">
+                    <pre id="companion-sprite" class="companion-sprite"></pre>
+                    <div class="companion-stats">
+                        <div class="stat-bar">
+                            <span class="bar-label">❤️ Health</span>
+                            <div class="bar-track"><div class="bar-fill health" id="companion-health" style="width:100%"></div></div>
+                        </div>
+                        <div class="stat-bar">
+                            <span class="bar-label">⚡ Energy</span>
+                            <div class="bar-track"><div class="bar-fill energy" id="companion-energy" style="width:100%"></div></div>
+                        </div>
+                        <div class="stat-bar">
+                            <span class="bar-label">🧠 Quality</span>
+                            <div class="bar-track"><div class="bar-fill quality" id="companion-quality" style="width:50%"></div></div>
+                        </div>
+                    </div>
+                    <div id="companion-mood" class="companion-mood">😊 Neutral</div>
+                </div>
+            </section>
+        </div>
+
+        <!-- A2A Messages -->
+        <section id="a2a-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">💬</span> Agent Messages
+            </h2>
+            <div id="a2a-chat" class="a2a-chat">
+                <div class="empty-state" id="a2a-empty">
+                    <span class="empty-icon">🤝</span>
+                    <p>No agent-to-agent messages</p>
+                </div>
+            </div>
+        </section>
+        <!-- Skills Section -->
+        <section id="skills-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">🛠</span> Installed Skills
+                <button type="button" id="btn-install-skill" class="action-btn secondary" style="margin-left: auto;">+ Install Manual Skill</button>
+            </h2>
+
+            <div id="skill-install-form" class="skill-install-form" style="display: none; margin-bottom: 24px; padding: 16px; background-color: var(--color-surface-elevated); border-radius: var(--radius-md);">
+                <h3 style="margin-top:0; font-size:14px;">Paste SKILL.md Contents</h3>
+                <textarea id="skill-md-content" style="width: 100%; height: 150px; background-color: var(--color-background); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 4px; padding: 8px; font-family: monospace;" placeholder="---\nid = &quot;custom.skill&quot;\nname = &quot;Custom Skill&quot;\n...\n---"></textarea>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button type="button" id="btn-submit-skill" class="action-btn primary">Install</button>
+                    <button type="button" id="btn-cancel-skill" class="action-btn secondary">Cancel</button>
+                </div>
+            </div>
+
+            <div id="skills-list" class="skills-list">
+                <div class="empty-state" id="skills-empty">
+                    <span class="empty-icon">📦</span>
+                    <p>No skills installed</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Trust & Safety -->
+        <section id="safety-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">🛡</span> Trust &amp; Safety
+            </h2>
+            <div id="safety-list" class="safety-list">
+                <div class="empty-state" id="safety-empty">
+                    <span class="empty-icon">✓</span>
+                    <p>No scope violations or safety events</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Task trace (shown when a task trace is loaded) -->
+        <section id="task-trace-section" class="dashboard-section" style="display: none;">
+            <h2 class="section-title">
+                <span class="section-icon">📋</span> Task trace: <span id="task-trace-title">—</span>
+                <button type="button" id="task-trace-close" class="action-btn secondary" style="margin-left: auto;">Close</button>
+            </h2>
+            <div id="task-trace-steps" class="task-trace-steps"></div>
+        </section>
+
+        <!-- ── Task Timeline (Gantt) ─────────────────────────── (5.4) -->
+        <section id="timeline-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">📅</span> Task Timeline
+            </h2>
+            <div id="timeline-container" style="overflow-x: auto;">
+                <div id="gantt-chart" style="min-width: 600px; height: 200px; position: relative; background: rgba(15,23,42,0.6); border-radius: 8px; border: 1px solid rgba(148,163,184,0.1); padding: 12px;">
+                    <div class="empty-state" id="timeline-empty">
+                        <span class="empty-icon">📅</span>
+                        <p>No task history yet — run some tasks to see the timeline</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── File Lock Heatmap ─────────────────────────────── (5.5) -->
+        <section id="heatmap-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">🔥</span> File Contention Heatmap
+            </h2>
+            <div id="lock-heatmap" style="min-height: 120px; background: rgba(15,23,42,0.6); border-radius: 8px; border: 1px solid rgba(148,163,184,0.1); padding: 16px;">
+                <div class="empty-state" id="heatmap-empty">
+                    <span class="empty-icon">🔓</span>
+                    <p>No file contention data</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Config Tuning Panel ───────────────────────────── (5.9) -->
+        <section id="config-section" class="dashboard-section">
+            <h2 class="section-title">
+                <span class="section-icon">⚙️</span> Config Tuning
+            </h2>
+            <form id="config-tune-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px; background: rgba(15,23,42,0.6); border-radius: 8px; border: 1px solid rgba(148,163,184,0.1);">
+                <div class="form-group">
+                    <label for="cfg-cpu-mult" style="font-size:12px; color: var(--color-text-muted);">CPU Multiplier</label>
+                    <input type="number" id="cfg-cpu-mult" name="cpu_multiplier" min="0.1" max="10" step="0.1" value="1.0" class="cfg-input">
+                </div>
+                <div class="form-group">
+                    <label for="cfg-mem-mult" style="font-size:12px; color: var(--color-text-muted);">Memory Multiplier</label>
+                    <input type="number" id="cfg-mem-mult" name="memory_multiplier" min="0.1" max="10" step="0.1" value="1.0" class="cfg-input">
+                </div>
+                <div class="form-group">
+                    <label for="cfg-exponent" style="font-size:12px; color: var(--color-text-muted);">Scale Exponent</label>
+                    <input type="number" id="cfg-exponent" name="exponent" min="0.1" max="5" step="0.1" value="1.0" class="cfg-input">
+                </div>
+                <div class="form-group">
+                    <label for="cfg-resource-weight" style="font-size:12px; color: var(--color-text-muted);">Resource Weight</label>
+                    <input type="number" id="cfg-resource-weight" name="resource_weight" min="0" max="1" step="0.05" value="0.5" class="cfg-input">
+                </div>
+                <div style="grid-column: 1/-1; display: flex; gap: 8px; align-items: center;">
+                    <button type="button" id="btn-apply-config" class="action-btn primary">Apply</button>
+                    <span id="config-status" style="font-size:12px; color: var(--color-text-muted);"></span>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <!-- ── Toast Notifications ─────────────────────────────── -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ── Scripts ────────────────────────────────────────────── -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="app.js" type="module"></script>
+</body>
+</html>

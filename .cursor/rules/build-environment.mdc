@@ -1,0 +1,26 @@
+---
+description: Ensure Rust/Cargo and workspace build commands run reliably in agent and IDE shells
+alwaysApply: true
+---
+
+# Build environment (Rust / Cargo)
+
+Agent and terminal shells may not have `PATH` set like a normal user login. To avoid "cargo: command not found" and linker flakiness:
+
+## Running Cargo
+
+- **Windows (PowerShell)**: Use the full path to Cargo so the command runs without relying on `PATH`:
+  - `& "$env:USERPROFILE\.cargo\bin\cargo.exe" <args>`
+- **Working directory**: Always run Cargo from the workspace root. Set `working_directory` to the repo root (e.g. `c:\Users\Owner\vox`) when invoking terminal commands.
+- Prefer `cargo check --workspace` when only checking for compile errors (faster, less I/O than full `cargo build`). Use `cargo build --workspace` when artifacts are needed.
+- If you see "file lock" or "user-mapped section" errors on Windows, another Cargo process may be holding the lock; retry once or use `cargo check` to avoid writing binaries.
+
+## Running tests
+
+- Use `cargo test --workspace` for full test runs. For quick iteration, run tests per crate, e.g. `cargo test -p vox-cli` or a specific test name.
+- On Windows, linking test binaries can occasionally fail with LNK1104; retrying the test run or running a subset of tests often succeeds.
+
+## Reproducibility
+
+- CI (`.github/workflows/ci.yml`) installs the stable Rust toolchain with `dtolnay/rust-toolchain@stable` and components `rustfmt`, `clippy`. Local agent runs should use the same toolchain (stable) when possible.
+- For a reproducible sandbox, use the same Rust version as CI (see `rust-version` in root `Cargo.toml`).

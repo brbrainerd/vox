@@ -1,0 +1,12 @@
+[package]
+name = "vox-fmt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+vox-lexer = { workspace = true }
+vox-ast = { workspace = true }
+vox-parser = { workspace = true }
+anyhow = { workspace = true }

@@ -1,0 +1,28 @@
+[package]
+name = "vox-forge"
+description = "Platform-agnostic Git forge API for Vox — GitHub, GitLab, Gitea, Forgejo"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = []
+# Enable GitHub forge implementation.
+github = []
+# Enable GitLab forge implementation.
+gitlab = []
+# Enable Gitea/Forgejo implementation (API-compatible).
+gitea = []
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+anyhow.workspace = true
+tokio = { workspace = true }
+async-trait = "0.1.89"
+# Pure-Rust HTTP + TLS. No OpenSSL, no C.
+reqwest = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full", "test-util"] }

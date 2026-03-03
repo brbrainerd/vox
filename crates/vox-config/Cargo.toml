@@ -1,0 +1,10 @@
+[package]
+name = "vox-config"
+version.workspace = true
+edition.workspace = true
+description = "Centralized configuration and env/default resolution for Vox tooling"
+
+[dependencies]
+serde       = { workspace = true }
+toml        = { workspace = true }
+serde_json  = { workspace = true }

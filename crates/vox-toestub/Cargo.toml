@@ -1,0 +1,19 @@
+[package]
+name = "vox-toestub"
+description = "AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+syn = { version = "2", features = ["full", "visit", "parsing", "extra-traits"] }
+walkdir = "2"
+regex = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+miette = { workspace = true }
+owo-colors = { workspace = true }
+thiserror = { workspace = true }
+similar = "2"
+globset = "0.4"
+reqwest = { version = "0.13", features = ["json", "rustls"], default-features = false }
+anyhow = { workspace = true }

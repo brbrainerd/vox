@@ -1,0 +1,21 @@
+[package]
+name = "vox-gamify"
+description = "Gamification layer for Vox — companions, quests, battles, and free AI integration"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+futures-util = { workspace = true }
+async-stream = { workspace = true }
+thiserror = { workspace = true }
+owo-colors = { workspace = true }
+bytes = "1"
+rand = "0.10"
+vox-db = { version = "0.1.0", path = "../vox-db" }
+turso.workspace = true
+anyhow.workspace = true

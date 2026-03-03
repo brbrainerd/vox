@@ -1,0 +1,281 @@
+name: ML Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.vox'
+      - 'crates/vox-parser/**'
+      - 'crates/vox-typeck/**'
+      - 'crates/vox-ast/**'
+      - 'crates/vox-hir/**'
+      - 'crates/vox-lexer/**'
+      - 'docs/src/**'
+      - 'examples/**'
+      - 'scripts/vox_system_prompt.txt'
+      - 'scripts/generate_instruction_pairs.py'
+      - 'scripts/validate_training_data.py'
+      - 'crates/vox-cli/src/training/**'
+      - 'crates/vox-cli/src/commands/corpus.rs'
+  schedule:
+    - cron: '0 4 * * *'  # 4 AM UTC nightly
+  workflow_dispatch:       # manual trigger
+    inputs:
+      force_train:
+        description: 'Force fine-tuning even if corpus unchanged'
+        required: false
+        default: 'false'
+      native_train:
+        description: 'Use native Rust trainer instead of Python scripts'
+        required: false
+        default: 'false'
+
+# ── Platform portability notes ───────────────────────────────────────────────
+# GitHub-specific: github.sha, github.event.inputs.*, workflow_dispatch
+# GitLab equivalent: CI_COMMIT_SHA, manual job variables
+# Forgejo equivalent: gitea.sha, workflow_dispatch (Forgejo Actions supports this)
+# Abstract env var VCS_SHA is set in each job's env block for portability.
+
+jobs:
+  extract:
+    name: Extract & Validate Training Corpus
+    runs-on: ubuntu-latest
+    env:
+      # Abstract VCS_SHA: use github.sha on GitHub Actions.
+      # On GitLab: set VCS_SHA: $CI_COMMIT_SHA in variables block.
+      # On Forgejo: set VCS_SHA: ${{ gitea.sha }}
+      VCS_SHA: ${{ github.sha }}
+    outputs:
+      corpus_changed: ${{ steps.check_diff.outputs.changed }}
+      pair_count: ${{ steps.count_pairs.outputs.count }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2   # need HEAD^ for diff
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-ml-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-ml-
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.5
+
+      - name: Build Vox Compiler
+        run: cargo build -p vox-cli --release --quiet
+        env:
+          RUSTC_WRAPPER: sccache
+
+      - name: Detect grammar drift
+        id: grammar_drift
+        run: |
+          # Compare the taxonomy fingerprint embedded in the binary
+          FINGERPRINT=$(./target/release/vox corpus prompt --output /dev/stdout 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "unknown")
+          STORED=$(cat populi/data/grammar_fingerprint.txt 2>/dev/null || echo "")
+          if [ "$FINGERPRINT" != "$STORED" ]; then
+            echo "drift=true" >> $GITHUB_OUTPUT
+            echo "Grammar drift detected (fingerprint changed). Forcing full corpus re-extraction."
+            echo "$FINGERPRINT" > populi/data/grammar_fingerprint.txt
+          else
+            echo "drift=false" >> $GITHUB_OUTPUT
+            echo "No grammar drift detected."
+          fi
+
+      - name: Extract training corpus (incremental)
+        run: |
+          VOX_BIN="./target/release/vox"
+          mkdir -p populi/data target/dogfood
+
+          # Incremental: existing populi/data/validated.jsonl is preserved by extract
+          "$VOX_BIN" corpus extract examples/ -o populi/data/validated.jsonl
+          "$VOX_BIN" corpus extract docs/ -o populi/data/validated.jsonl 2>/dev/null || true
+
+          # Extract high-quality training pairs from documentation code blocks
+          "$VOX_BIN" corpus pairs populi/data/validated.jsonl \
+            -o populi/data/doc_pairs.jsonl \
+            --docs docs/src/ 2>/dev/null || true
+          [ -f populi/data/doc_pairs.jsonl ] && \
+            DOCLINES=$(wc -l < populi/data/doc_pairs.jsonl) && \
+            echo "Extracted $DOCLINES doc-sourced training pairs" || true
+
+          LINES=$(wc -l < populi/data/validated.jsonl 2>/dev/null || echo 0)
+          echo "Corpus has $LINES validated records."
+
+      - name: Validate corpus
+        run: |
+          ./target/release/vox corpus validate populi/data/validated.jsonl --no-recheck \
+            -o populi/data/validated.jsonl
+
+      - name: Generate training pairs
+        run: |
+          ./target/release/vox corpus pairs populi/data/validated.jsonl \
+            -o target/dogfood/train.jsonl \
+            --docs docs/src/
+
+      - name: Auto-generate system prompt
+        run: |
+          ./target/release/vox corpus prompt -o scripts/vox_system_prompt.txt
+
+      - name: Run native eval on training corpus
+        run: |
+          ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json 2>/dev/null || true
+          [ -f target/dogfood/eval_results.json ] && python3 -c "import json; d=json.load(open('target/dogfood/eval_results.json')); print(f'Samples: {d.get(\"total_samples\")} | Parse rate: {d.get(\"vox_parse_rate\", 0)*100:.1f}% | Coverage: {d.get(\"construct_coverage_pct\", 0):.1f}%')"
+
+
+      - name: Count generated pairs
+        id: count_pairs
+        run: |
+          COUNT=$(wc -l < target/dogfood/train.jsonl 2>/dev/null || echo 0)
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "Generated $COUNT training pairs"
+
+      - name: Check for corpus changes
+        id: check_diff
+        run: |
+          if git diff --quiet populi/data/validated.jsonl 2>/dev/null && \
+             git diff --quiet populi/data/grammar_fingerprint.txt 2>/dev/null && \
+             git diff --quiet populi/data/doc_pairs.jsonl 2>/dev/null; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Corpus unchanged."
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Corpus changed — will trigger training."
+          fi
+
+      - name: Commit updated corpus
+        if: steps.check_diff.outputs.changed == 'true'
+        # Portable: plain git commands work on any CI platform.
+        # Previously used stefanzweifel/git-auto-commit-action@v5 (GitHub Marketplace only).
+        shell: bash
+        run: |
+          git config user.name "vox-ci"
+          git config user.email "ci@vox-lang.dev"
+          git add populi/data/validated.jsonl \
+                  populi/data/doc_pairs.jsonl \
+                  populi/data/grammar_fingerprint.txt \
+                  scripts/vox_system_prompt.txt
+          git diff --cached --quiet || git commit -m "chore: update validated ML training corpus [skip ci]"
+          git push
+
+      - name: Upload training data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # Portable note: GitLab uses `artifacts: paths:` block.
+          # Forgejo Actions uses identical syntax to GitHub Actions.
+          name: training-data-${{ env.VCS_SHA }}
+          path: |
+            target/dogfood/train.jsonl
+            target/dogfood/metadata.json
+            target/dogfood/eval_results.json
+          retention-days: 30
+
+  # Training job — runs when corpus changes OR forced
+  train:
+    name: Fine-tune Model (GPU)
+    needs: extract
+    if: |
+      needs.extract.outputs.corpus_changed == 'true' ||
+      github.event.inputs.force_train == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    # Portable note: On GitLab, use `when: manual` + `rules:` with CI variables.
+    # On Forgejo Actions, workflow_dispatch and event.inputs work identically.
+    runs-on: self-hosted  # GPU runner — requires setup
+    env:
+      VCS_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download training data
+        uses: actions/download-artifact@v4
+        with:
+          name: training-data-${{ env.VCS_SHA }}
+          path: target/dogfood/
+
+      - name: Verify training data
+        run: |
+          COUNT=$(wc -l < target/dogfood/train.jsonl 2>/dev/null || echo 0)
+          echo "Training pairs to process: $COUNT"
+          if [ "$COUNT" -lt "50" ]; then
+            echo "::warning::Only $COUNT training pairs found. Minimum is 50. Skipping fine-tuning."
+            echo "Add more examples to examples/ or docs/src/ to generate training data."
+            exit 0
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install training dependencies (Python)
+        if: github.event.inputs.native_train != 'true'
+        # Portable: pip install uv && uv sync works on any runner.
+        run: pip install uv && uv sync --project scripts
+
+      - name: Set up Rust (Native)
+        if: github.event.inputs.native_train == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Vox Compiler (Native)
+        if: github.event.inputs.native_train == 'true'
+        run: cargo build -p vox-cli --release --quiet
+
+      - name: Run native Rust training
+        if: github.event.inputs.native_train == 'true'
+        run: |
+          ./target/release/vox train --native \
+            --data-dir target/dogfood \
+            --output-dir target/dogfood/run
+
+      - name: Run QLoRA fine-tuning (Python/unsloth)
+        if: github.event.inputs.native_train != 'true'
+        env:
+          OMP_NUM_THREADS: "4"
+          MKL_NUM_THREADS: "4"
+          PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+          # Env-var overrides for CI — 1 epoch, smaller batch for faster iteration
+          VOX_EVAL_MIN_PARSE_RATE: "0.70"
+          VOX_EVAL_MIN_COVERAGE: "0.50"
+        run: |
+          uv run --project scripts vox-train \
+            --data-dir target/dogfood \
+            --output-dir target/dogfood/run \
+            --epochs 1
+
+      - name: Upload LoRA adapter
+        uses: actions/upload-artifact@v4
+        with:
+          name: lora-adapter-${{ env.VCS_SHA }}
+          path: target/dogfood/run/
+          retention-days: 90
+
+      - name: Upload eval gate result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-gate-${{ env.VCS_SHA }}
+          path: |
+            target/dogfood/run/eval_results.json
+            target/dogfood/run/eval_gate_failed.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Check eval gate
+        run: |
+          if [ -f target/dogfood/run/eval_gate_failed.json ]; then
+            echo "::warning::Eval gate FAILED — training data quality below thresholds."
+            echo "Review eval_gate_failed.json for details."
+            cat target/dogfood/run/eval_gate_failed.json
+          else
+            echo "Eval gate passed."
+          fi

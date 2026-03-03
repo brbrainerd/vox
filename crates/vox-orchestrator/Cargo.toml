@@ -1,0 +1,47 @@
+[package]
+name = "vox-orchestrator"
+description = "Multi-agent file-affinity queue system for coordinating concurrent AI coding agents"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["toestub-gate", "runtime"]
+runtime = ["vox-runtime"]
+toestub-gate = ["vox-toestub", "vox-lsp", "dep:tower-lsp-server"]
+lsp = ["dep:tower-lsp-server"]
+system-metrics = ["dep:sysinfo"]
+# Enable jj-lib as VCS backend. Pure Rust, no C. Pin to exact version for stability.
+# All jj-lib calls are confined to src/jj_backend.rs — swap here if APIs break.
+jj-backend = ["dep:jj-lib"]
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+globset = "0.4"
+toml = { workspace = true }
+vox-pm = { workspace = true }
+vox-gamify = { workspace = true }
+futures-util = { workspace = true }
+sysinfo = { version = "0.38.2", optional = true }
+sha3 = { workspace = true }
+xxhash-rust = { version = "0.8", features = ["xxh3"] }
+
+# Optional dependencies behind feature flags
+vox-runtime = { workspace = true, optional = true }
+vox-toestub = { workspace = true, optional = true }
+vox-lsp = { workspace = true, optional = true }
+tower-lsp-server = { version = "0.23", optional = true }
+vox-db = { version = "0.1.0", path = "../vox-db" }
+async-trait = "0.1.89"
+anyhow.workspace = true
+# jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
+# See src/jj_backend.rs for the isolation wrapper. Use `--features jj-backend` to enable.
+jj-lib = { version = "=0.27.0", optional = true, default-features = false }
+
+[dev-dependencies]
+proptest = "1.10.0"
+vox-runtime = { workspace = true }
+tokio = { workspace = true, features = ["full", "test-util"] }

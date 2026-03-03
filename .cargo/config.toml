@@ -1,0 +1,9 @@
+[build]
+# Use all available CPU cores for rustc parallelism
+jobs = 8
+
+[target.x86_64-pc-windows-msvc]
+# Use lld linker for faster linking on Windows (rustup component add llvm-tools)
+# Uncomment the line below if lld is available:
+# linker = "lld-link"
+rustflags = ["-C", "link-arg=/DEBUG:NONE"]

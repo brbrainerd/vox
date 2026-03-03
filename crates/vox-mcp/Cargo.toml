@@ -1,0 +1,59 @@
+[package]
+name = "vox-mcp"
+description = "MCP (Model Context Protocol) server exposing the Vox orchestrator to AI coding agents"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "vox-mcp"
+path = "src/main.rs"
+
+[features]
+default = []
+wasm = ["dep:wasmtime"]
+
+[dependencies]
+# Workspace dependencies
+vox-orchestrator = { workspace = true }
+vox-runtime      = { workspace = true }
+vox-config       = { workspace = true }
+vox-gamify       = { workspace = true }
+vox-skills       = { path = "../vox-skills" }
+vox-lsp          = { path = "../vox-lsp" }
+vox-db           = { path = "../vox-db", features = ["local"] }
+vox-lexer        = { path = "../vox-lexer" }
+vox-parser       = { path = "../vox-parser" }
+vox-ast          = { path = "../vox-ast" }
+tokio            = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+tracing          = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow           = { workspace = true }
+thiserror        = { workspace = true }
+reqwest          = { workspace = true }
+vox-toestub      = { workspace = true }
+turso            = { workspace = true }
+
+# MCP protocol
+rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
+tower-lsp-server = "0.23"
+
+# JSON Schema generation for typed tool parameters
+schemars = "1"
+wasmtime = { version = "42.0.1", optional = true }
+rmp-serde = "1.3.1"
+lru = "0.16.3"
+futures-core = "0.3.32"
+async-stream = "0.3.6"
+futures-util = "0.3.32"
+regex      = "1"
+walkdir    = "2"
+chrono     = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+insta = { workspace = true }
+
+[lints]
+workspace = true

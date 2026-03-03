@@ -1,0 +1,81 @@
+# greaterFool Reference Target in Vox
+# Goal: express a production-style chatbot architecture with low authored complexity.
+
+import react.use_state
+
+type ProcessingStage =
+    | Routing
+    | Retrieval
+    | ModelCall
+    | Completed
+
+@table type Conversation:
+    user_id: str
+    title: str
+    created_at: str
+
+@table type ProcessingRun:
+    request_id: str
+    conversation_id: str
+    stage: str
+    status: str
+    started_at: str
+
+@table type ModelMetric:
+    request_id: str
+    model: str
+    latency_ms: int
+    estimated_cost_usd: str
+
+@query fn list_conversations(user_id: str) to list[Conversation]:
+    ret []
+
+fn start_run(request_id: str, conversation_id: str) to Result[bool]:
+    ret Ok(true)
+
+fn mark_stage(request_id: str, stage: str, status: str) to Result[bool]:
+    ret Ok(true)
+
+fn record_metric(request_id: str, model: str, latency_ms: int, estimated_cost_usd: str) to Result[bool]:
+    ret Ok(true)
+
+activity route_message(prompt: str) to Result[str]:
+    Ok("ftt")
+
+activity retrieve_context(prompt: str) to Result[str]:
+    Ok("retrieved-context")
+
+activity call_llm(prompt: str, context: str) to Result[str]:
+    Ok("assistant-response")
+
+workflow process_chat(prompt: str, request_id: str, conversation_id: str) to Result[str]:
+    let _ = mark_stage(request_id, "routing", "started")
+    let route = route_message(prompt) with { retries: 2, timeout: "5s", activity_id: "route-message" }
+    let _ = mark_stage(request_id, "routing", "completed")
+
+    let _ = mark_stage(request_id, "retrieval", "started")
+    let context = retrieve_context(prompt) with { retries: 2, timeout: "10s", activity_id: "retrieve-context" }
+    let _ = mark_stage(request_id, "retrieval", "completed")
+
+    let _ = mark_stage(request_id, "model_call", "started")
+    let _ = route
+    let _ = context
+    let response = call_llm(prompt, prompt) with { retries: 3, timeout: "30s", activity_id: "call-llm" }
+    let _ = mark_stage(request_id, "model_call", "completed")
+
+    let _ = record_metric(request_id, "default-model", 120, "0.0012")
+    response
+
+@server fn chat(prompt: str, request_id: str, conversation_id: str) to Result[str]:
+    let _ = start_run(request_id, conversation_id)
+    ret process_chat(prompt, request_id, conversation_id)
+
+@component fn ChatApp() to Element:
+    let (input, set_input) = use_state("")
+    <div class="chat-app">
+        <h1>"Vox greaterFool Reference"</h1>
+        <input bind={input} />
+    </div>
+
+routes:
+    "/" to ChatApp

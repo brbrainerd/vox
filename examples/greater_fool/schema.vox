@@ -1,0 +1,128 @@
+# Greater Fool Schema — Full FTT + Provenance + Telemetry
+# Expands on the base schema with ProcessingRun, CognitiveProfile,
+# and comprehensive indexes for efficient data access.
+
+@table type User:
+    id: String
+    username: String
+    email: String
+    created_at: Int
+    last_active: Int
+    token_limit: Int
+    token_used: Int
+
+@table type Conversation:
+    id: String
+    user_id: String
+    title: String
+    summary: String
+    created_at: Int
+    updated_at: Int
+
+@table type Message:
+    id: String
+    conv_id: String
+    role: String
+    content: String
+    created_at: Int
+
+@table type GistTrace:
+    id: String
+    message_id: String
+    summary: String
+    frame: String
+    contrast: String
+    complexity: Int
+    level: String
+    zero_valence_detected: Bool
+    vector: [Float]
+
+@table type VerbatimTrace:
+    id: String
+    message_id: String
+    facts: [String]
+    numbers: [Float]
+    details_count: Int
+    expected_value: Float?
+    vector: [Float]
+
+@table type DecisionTrace:
+    id: String
+    message_id: String
+    choice: String
+    confidence: Float
+    reasoning: String
+    level_used: String
+    conflict_detected: Bool
+    conflict_resolution: String?
+
+@table type ProcessingRun:
+    id: String
+    conv_id: String
+    request_id: String
+    input_hash: String
+    route: String
+    stage: String
+    gist_model: String
+    verbatim_model: String
+    decision_model: String
+    total_time_ms: Int
+    ts: Int
+
+@table type CognitiveProfile:
+    id: String
+    name: String
+    stage: String
+    rationality_mode: Bool
+    suppress_biases: [String]
+    created_at: Int
+
+@table type Telemetry:
+    id: String
+    user_id: String
+    event_type: String
+    payload: String
+    ts: Int
+
+@table type TokenUsage:
+    id: String
+    user_id: String
+    model: String
+    prompt_tokens: Int
+    completion_tokens: Int
+    cost_usd: Float
+    ts: Int
+
+@table type TopicEvolution:
+    id: String
+    conv_id: String
+    topic: String
+    weight: Float
+    parent_topic_id: String?
+    ts: Int
+
+# ─── Indexes ─────────────────────────────────────────────────────
+
+@index User.email_idx on (email)
+@index Conversation.user_at on (user_id, updated_at)
+@index Message.conv_at on (conv_id, created_at)
+@index GistTrace.message on (message_id)
+@index VerbatimTrace.message on (message_id)
+@index DecisionTrace.message on (message_id)
+@index ProcessingRun.conv_ts on (conv_id, ts)
+@index ProcessingRun.request on (request_id)
+@index TokenUsage.user_ts on (user_id, ts)
+@index TokenUsage.model_ts on (model, ts)
+@index TopicEvolution.conv_ts on (conv_id, ts)
+@index Telemetry.user_ts on (user_id, ts)
+@index Telemetry.event_ts on (event_type, ts)
+@index CognitiveProfile.name on (name)
+
+# ─── Vector Indexes ──────────────────────────────────────────────
+
+@vector_index GistTrace.v_idx on (vector) dimensions 768
+@vector_index VerbatimTrace.v_idx on (vector) dimensions 768
+
+# ─── Full-Text Search ────────────────────────────────────────────
+
+@search_index Message.search on (content)

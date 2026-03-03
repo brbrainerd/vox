@@ -1,0 +1,48 @@
+import { VSCodeButton, VSCodePanels, VSCodePanelTab, VSCodePanelView, VSCodeBadge } from "@vscode/webview-ui-toolkit/react";
+import React from "react";
+
+@component
+export fn App() {
+  style: {
+    container {
+      padding: 0px;
+    }
+    chatPanel {
+      padding: 1rem;
+      flex-direction: column;
+    }
+    agentCard {
+      border: 1px solid var(--vscode-widget-border);
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+  }
+
+  return (
+    <div className="container">
+      <VSCodePanels>
+        <VSCodePanelTab id="tab-chat">CHAT</VSCodePanelTab>
+        <VSCodePanelTab id="tab-agents">AGENTS <VSCodeBadge>3</VSCodeBadge></VSCodePanelTab>
+
+        <VSCodePanelView id="view-chat" className="chatPanel">
+          <h3>Multi-Tab Chat (Preview v2 in Vox)</h3>
+          <p>This UI is natively written in Vox and compiled to TSX!</p>
+          <VSCodeButton>Debug Mode</VSCodeButton>
+        </VSCodePanelView>
+
+        <VSCodePanelView id="view-agents" className="chatPanel">
+          <h3>Mission Control</h3>
+          <div className="agentCard">
+            <div><strong>Agent: builder</strong></div>
+            <div style={{ color: "var(--vscode-charts-green)" }}>Status: Active</div>
+            <p>Processing vox_submit_task...</p>
+          </div>
+          <div className="agentCard">
+            <div><strong>Agent: debugger</strong></div>
+            <div style={{ color: "var(--vscode-charts-yellow)" }}>Status: Idle</div>
+          </div>
+        </VSCodePanelView>
+      </VSCodePanels>
+    </div>
+  );
+}

@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "generated": "2026-02-26",
+  "keywords": [
+    {
+      "name": "fn",
+      "category": "declaration",
+      "syntax": "fn name(args) to Type:",
+      "description": "Declares a function.",
+      "rustCodegen": "pub fn",
+      "tsCodegen": "export function"
+    },
+    {
+      "name": "let",
+      "category": "declaration",
+      "syntax": "let name = expr",
+      "description": "Declares an immutable variable binding.",
+      "rustCodegen": "let name = expr;",
+      "tsCodegen": "const name = expr;"
+    },
+    {
+      "name": "mut",
+      "category": "modifier",
+      "syntax": "let mut name = expr",
+      "description": "Declares a mutable variable binding modifier.",
+      "rustCodegen": "let mut name = expr;",
+      "tsCodegen": "let name = expr;"
+    },
+    {
+      "name": "ret",
+      "category": "control_flow",
+      "syntax": "ret expr",
+      "description": "Returns a value from a function.",
+      "rustCodegen": "return expr;",
+      "tsCodegen": "return expr;"
+    },
+    {
+      "name": "type",
+      "category": "declaration",
+      "syntax": "type Name = | Variant",
+      "description": "Declares a new type, ADT, or record.",
+      "rustCodegen": "pub enum / pub struct",
+      "tsCodegen": "type / interface"
+    },
+    {
+      "name": "actor",
+      "category": "declaration",
+      "syntax": "actor Name:",
+      "description": "Declares an actor for concurrent message passing.",
+      "rustCodegen": "pub struct Name; impl Name",
+      "tsCodegen": "class Name"
+    },
+    {
+      "name": "match",
+      "category": "control_flow",
+      "syntax": "match expr:\n    | pattern -> body",
+      "description": "Exhaustive pattern matching on values, typically ADTs.",
+      "rustCodegen": "match expr { pattern => body }",
+      "tsCodegen": "switch (expr.type) { case ... }"
+    },
+    {
+      "name": "spawn",
+      "category": "expression",
+      "syntax": "spawn(ActorName)",
+      "description": "Spawns a new instance of an actor.",
+      "rustCodegen": "spawn(ActorName)",
+      "tsCodegen": "new ActorName()"
+    },
+    {
+      "name": "import",
+      "category": "declaration",
+      "syntax": "import path.to.module",
+      "description": "Imports types and functions from another module.",
+      "rustCodegen": "use path::to::module;",
+      "tsCodegen": "import { ... } from 'path/to/module';"
+    },
+    {
+      "name": "if",
+      "category": "control_flow",
+      "syntax": "if cond:\n    body\nelse:\n    body",
+      "description": "Conditional branching.",
+      "rustCodegen": "if cond { body } else { body }",
+      "tsCodegen": "if (cond) { body } else { body }"
+    },
+    {
+      "name": "for",
+      "category": "control_flow",
+      "syntax": "for item in iterable:\n    body",
+      "description": "Iteration over lists and strings.",
+      "rustCodegen": "for item in iterable { body }",
+      "tsCodegen": "for (const item of iterable) { body }"
+    },
+    {
+      "name": "while",
+      "category": "control_flow",
+      "syntax": "while cond:\n    body",
+      "description": "Loops while a condition is true.",
+      "rustCodegen": "while cond { body }",
+      "tsCodegen": "while (cond) { body }"
+    },
+    {
+      "name": "await",
+      "category": "expression",
+      "syntax": "await expr",
+      "description": "Awaits the result of an asynchronous operation.",
+      "rustCodegen": "expr.await",
+      "tsCodegen": "await expr"
+    }
+  ]
+}

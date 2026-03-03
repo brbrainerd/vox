@@ -1,0 +1,19 @@
+[package]
+name = "vox-db"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-ast = { workspace = true }
+vox-config = { workspace = true }
+vox-pm = { workspace = true }
+turso = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+default = ["local"]
+local = ["vox-pm/local"]
+replication = ["vox-pm/replication"]

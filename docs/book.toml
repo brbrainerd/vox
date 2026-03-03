@@ -1,0 +1,20 @@
+[book]
+title = "Vox: The Engineering Manual"
+authors = ["The Vox Core Team"]
+description = "Official documentation for the Vox AI-native programming language."
+src = "src"
+
+[output.html]
+mathjax-support = false
+git-repository-url = "https://github.com/brbrainerd/vox"
+git-repository-icon = "fa-github"
+edit-url-template = "https://github.com/brbrainerd/vox/edit/main/docs/src/{path}"
+
+[output.html.search]
+enable = true
+limit-results = 100
+teaser-word-count = 50
+use-boolean-and = true
+expand = true
+heading-split-level = 3
+copy-js = true

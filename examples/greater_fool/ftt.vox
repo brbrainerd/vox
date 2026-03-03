@@ -1,0 +1,361 @@
+# FTT Pipeline — Full Fuzzy Trace Theory implementation
+# Implements: routing, dual-trace independence, gist lattice cascade,
+# MPT weighting, conflict resolution, provenance, and persistence.
+
+import greater_fool.types.DevelopmentalStage
+import greater_fool.types.MPTWeights
+import greater_fool.types.Frame
+import greater_fool.types.ContrastType
+import greater_fool.types.GistLevel
+import greater_fool.types.TruncationType
+import greater_fool.types.RouteDecision
+import greater_fool.types.CategoricalGist
+import greater_fool.types.GistArtifact
+import greater_fool.types.VerbatimArtifact
+import greater_fool.types.DecisionArtifact
+import greater_fool.types.FttResult
+import greater_fool.schema.Message
+import greater_fool.schema.GistTrace
+import greater_fool.schema.VerbatimTrace
+import greater_fool.schema.DecisionTrace
+import greater_fool.schema.Telemetry
+import greater_fool.schema.TokenUsage
+import greater_fool.schema.ProcessingRun
+
+# ─── Pure Functions ──────────────────────────────────────────────
+
+# MPT developmental weights per Reyna & Brainerd (2011)
+fn mpt_weights(stage: DevelopmentalStage) to MPTWeights:
+    match stage:
+        | Child -> { gist_weight: 0.1, verbatim_weight: 0.9 }
+        | Adolescent -> { gist_weight: 0.5, verbatim_weight: 0.5 }
+        | Adult -> { gist_weight: 0.9, verbatim_weight: 0.1 }
+        | Expert -> { gist_weight: 0.95, verbatim_weight: 0.05 }
+
+# Stage-aware conflict resolution: when gist and verbatim disagree
+fn resolve_conflict(
+    gist_choice: String,
+    verbatim_choice: String,
+    gist_confidence: Float,
+    verbatim_confidence: Float,
+    stage: DevelopmentalStage
+) to DecisionArtifact:
+    let weights = mpt_weights(stage)
+    let weighted_gist = gist_confidence * weights.gist_weight
+    let weighted_verbatim = verbatim_confidence * weights.verbatim_weight
+
+    if weighted_gist >= weighted_verbatim:
+        ret {
+            choice: gist_choice,
+            confidence: weighted_gist,
+            reasoning: "Gist dominance — " + stage.to_string() + " stage favors meaning over detail (MPT gist_w=" + weights.gist_weight.to_string() + ")",
+            level_used: GistLevel.Categorical,
+            conflict_detected: true,
+            conflict_resolution: "Gist-Wins policy applied (weighted score: " + weighted_gist.to_string() + " vs " + weighted_verbatim.to_string() + ")"
+        }
+    else:
+        ret {
+            choice: verbatim_choice,
+            confidence: weighted_verbatim,
+            reasoning: "Verbatim preference — " + stage.to_string() + " stage relies on precise data (MPT verbatim_w=" + weights.verbatim_weight.to_string() + ")",
+            level_used: GistLevel.VerbatimFallback,
+            conflict_detected: true,
+            conflict_resolution: "Verbatim-Wins policy applied (weighted score: " + weighted_verbatim.to_string() + " vs " + weighted_gist.to_string() + ")"
+        }
+
+# ─── Activities ──────────────────────────────────────────────────
+
+# Router: skip FTT for simple chat, route to research when needed
+activity classify_intent(message: String) to String:
+    with {
+        model: "openai/gpt-4o-mini",
+        temperature: 0.0,
+        max_tokens: 150,
+    }
+    prompt: """
+    Classify this user message into EXACTLY ONE category.
+
+    Categories:
+    - "full_ftt": The message involves a decision, risk assessment, trade-off, choice under uncertainty, or ethical dilemma.
+    - "simple_chat": The message is a greeting, general question, factual lookup, or casual conversation with no decision involved.
+    - "research_required": The message requires current real-world data, market prices, news, or statistics to answer properly.
+
+    Message: {{message}}
+
+    Output ONLY valid JSON: { "route": "full_ftt" | "simple_chat" | "research_required", "reason": "brief explanation" }
+    """
+
+# Enriched gist extractor with categorical gist + zero valence detection
+activity extract_gist(message: String) to String:
+    with {
+        model: "openai/gpt-4o-mini",
+        temperature: 0.1,
+        max_tokens: 800,
+    }
+    prompt: """
+    You are an expert in Fuzzy-Trace Theory (FTT) per Reyna & Brainerd.
+    Analyze the following message and extract the 'gist' — the qualitative core meaning.
+
+    Message: {{message}}
+
+    Identify ALL of the following:
+    - summary: A concise qualitative simplification of the problem.
+    - frame: "Gain" or "Loss" — is the problem framed as obtaining something positive or avoiding something negative?
+    - contrast: "AllOrNone" or "MoreOrLess" — is the core contrast categorical (something vs nothing) or ordinal (more vs less)?
+    - complexity: 1-10, how complex is the underlying value trade-off?
+    - level: "Categorical" if it reduces to a binary choice, "Ordinal" if it involves ranking, "VerbatimFallback" if purely quantitative.
+    - zero_valence_detected: true if A zero-outcome is present (e.g., "none die", "nothing lost", "zero risk"). This triggers the FTT zero-valence effect.
+    - categorical_gist: If level is "Categorical", provide:
+        - option_a: First option as a simple phrase
+        - option_b: Second option as a simple phrase
+        - contrast: Same as above
+        - contains_zero_outcome: true if either option involves zero/nothing
+        - truncation: "ZeroTruncated" if zero outcome is present, "NonzeroTruncated" if all outcomes are nonzero but some truncated, "Complete" otherwise
+
+    Output ONLY valid JSON matching the schema above. Use null for categorical_gist if level is not "Categorical".
+    """
+
+# Precise verbatim extractor with expected value computation
+activity extract_verbatim(message: String) to String:
+    with {
+        model: "openai/gpt-4o-mini",
+        temperature: 0.0,
+        max_tokens: 600,
+    }
+    prompt: """
+    Extract raw, verbatim facts and numbers from this message.
+    Do NOT interpret or simplify. List the explicit data points exactly as stated.
+
+    Message: {{message}}
+
+    Compute the expected value (EV) if probabilistic data is present:
+    EV = sum(probability_i * value_i) for each option.
+    If no probabilistic data, set expected_value to null.
+
+    Output JSON: {
+        "facts": [string],
+        "numbers": [number],
+        "details_count": number,
+        "expected_value": number | null
+    }
+    """
+
+# Gist Lattice Level 1: Categorical decision (something vs nothing)
+activity try_categorical_decision(gist_json: String, verbatim_json: String) to String:
+    with {
+        model: "openai/gpt-4o",
+        temperature: 0.2,
+        max_tokens: 600,
+    }
+    prompt: """
+    Using Fuzzy-Trace Theory CATEGORICAL reasoning:
+    Can this decision be resolved by a simple "something vs nothing" or "some vs none" comparison?
+
+    Gist Trace: {{gist_json}}
+    Verbatim Trace: {{verbatim_json}}
+
+    If YES: The categorical principle applies. Choose the option that avoids the zero/nothing outcome.
+    Apply the zero-valence effect: outcomes of zero have EXTRA psychological impact beyond their numerical value.
+
+    If NO: This requires ordinal or quantitative reasoning. Set confidence to 0.
+
+    Output JSON: { "choice": string, "confidence": number (0-1), "reasoning": string, "level_used": "Categorical" }
+    """
+
+# Gist Lattice Level 2: Ordinal decision (more vs less)
+activity try_ordinal_decision(gist_json: String, verbatim_json: String) to String:
+    with {
+        model: "openai/gpt-4o",
+        temperature: 0.2,
+        max_tokens: 600,
+    }
+    prompt: """
+    Using Fuzzy-Trace Theory ORDINAL reasoning:
+    Can this decision be resolved by "more is better" or "less is worse" without exact numbers?
+
+    Gist Trace: {{gist_json}}
+    Verbatim Trace: {{verbatim_json}}
+
+    If YES: Choose the option with the qualitatively better outcome using ordinal comparison.
+    If NO: This requires exact numerical comparison. Set confidence to 0.
+
+    Output JSON: { "choice": string, "confidence": number (0-1), "reasoning": string, "level_used": "Ordinal" }
+    """
+
+# Gist Lattice Level 3: Verbatim fallback (expected value calculation)
+activity verbatim_fallback_decision(gist_json: String, verbatim_json: String) to String:
+    with {
+        model: "openai/gpt-4o",
+        temperature: 0.1,
+        max_tokens: 800,
+    }
+    prompt: """
+    Using Fuzzy-Trace Theory VERBATIM reasoning (fallback):
+    The categorical and ordinal levels could not resolve this decision.
+    Use precise numerical analysis and expected value (EV) calculation.
+
+    Gist Trace: {{gist_json}}
+    Verbatim Trace: {{verbatim_json}}
+
+    Calculate exact probabilities and expected values. Choose the option that maximizes EV.
+    Note any framing effects that could bias the result.
+
+    Output JSON: { "choice": string, "confidence": number (0-1), "reasoning": string, "level_used": "VerbatimFallback" }
+    """
+
+# Natural language response generation
+activity generate_response(message: String, gist_summary: String, verbatim_count: Int, decision_choice: String, decision_reasoning: String) to String:
+    with { model: "openai/gpt-4o-mini", temperature: 0.6, max_tokens: 1000 }
+    prompt: """
+    Respond to the user naturally and helpfully based on this analysis.
+    User: {{message}}
+    Core insight: {{gist_summary}}
+    Data points analyzed: {{verbatim_count}}.
+    Recommendation: {{decision_choice}} because {{decision_reasoning}}.
+
+    Be warm, clear, and value-driven. Do NOT mention FTT, gist, verbatim, or any technical analysis terms.
+    Frame your response as thoughtful advice grounded in the user's values.
+    """
+
+# Simple chat fallback (no FTT processing needed)
+activity simple_chat_response(message: String) to String:
+    with { model: "openai/gpt-4o-mini", temperature: 0.7, max_tokens: 500 }
+    prompt: """
+    Respond to this message conversationally. Be helpful, friendly, and concise.
+    Message: {{message}}
+    """
+
+# ─── Main Pipeline Workflow ─────────────────────────────────────
+
+workflow ftt_pipeline(message: String, stage: DevelopmentalStage) to FttResult:
+    let start_ts = std.now_ms()
+    let request_id = std.uuid()
+    let input_hash = std.crypto.hash_secure(message)
+
+    # Step 1: Route — skip FTT for non-decision messages
+    let route_json = await classify_intent(message)
+
+    # For simple chat, return early without full FTT processing
+    if route_json.contains("simple_chat"):
+        let chat_response = await simple_chat_response(message)
+        ret {
+            response: chat_response,
+            gist: None,
+            verbatim: None,
+            decision: None,
+            stage: stage,
+            request_id: request_id,
+            input_hash: input_hash,
+            total_time_ms: 0,
+            gist_time_ms: 0,
+            verbatim_time_ms: 0,
+            decision_time_ms: 0
+        }
+
+    # Step 2: FTT Independence Hypothesis — Gist and Verbatim encoded in parallel
+    let gist_task = extract_gist(message)
+    let verbatim_task = extract_verbatim(message)
+
+    let gist_json = await gist_task
+    let verbatim_json = await verbatim_task
+
+    # Step 3: Gist Lattice Cascade — resolve at simplest possible level
+    # Level 1: Categorical (something vs nothing)
+    let cat_result_json = await try_categorical_decision(gist_json, verbatim_json)
+
+    let decision_json = cat_result_json
+    # If categorical confidence is too low, try ordinal
+    if cat_result_json.contains("\"confidence\": 0") || cat_result_json.contains("\"confidence\":0"):
+        let ord_result_json = await try_ordinal_decision(gist_json, verbatim_json)
+        decision_json = ord_result_json
+        # If ordinal also fails, fall back to verbatim EV calculation
+        if ord_result_json.contains("\"confidence\": 0") || ord_result_json.contains("\"confidence\":0"):
+            let verb_result_json = await verbatim_fallback_decision(gist_json, verbatim_json)
+            decision_json = verb_result_json
+
+    # Step 4: Generate natural language response
+    let response = await generate_response(
+        message,
+        gist_json,
+        0,
+        decision_json,
+        ""
+    )
+
+    # Step 5: Persistence layer
+    let msg_id = "msg-" + request_id
+
+    db.insert(Message, {
+        id: msg_id,
+        conv_id: "global",
+        role: "user",
+        content: message,
+        created_at: start_ts
+    })
+
+    db.insert(ProcessingRun, {
+        id: "run-" + request_id,
+        conv_id: "global",
+        request_id: request_id,
+        input_hash: input_hash,
+        route: "full_ftt",
+        stage: stage.to_string(),
+        gist_model: "openai/gpt-4o-mini",
+        verbatim_model: "openai/gpt-4o-mini",
+        decision_model: "openai/gpt-4o",
+        total_time_ms: 0,
+        ts: start_ts
+    })
+
+    db.insert(Telemetry, {
+        id: "telemetry-" + msg_id,
+        user_id: "anon",
+        event_type: "ftt_pipeline_completed",
+        payload: { pipeline: "gist_lattice", route: "full_ftt", request_id: request_id }.to_json(),
+        ts: start_ts
+    })
+
+    # Token usage tracking (counts are placeholders until B7 LlmResult<T> is implemented)
+    db.insert(TokenUsage, {
+        id: "tok-" + request_id + "-gist",
+        user_id: "anon",
+        model: "openai/gpt-4o-mini",
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        cost_usd: 0.0,
+        ts: start_ts
+    })
+
+    db.insert(TokenUsage, {
+        id: "tok-" + request_id + "-verbatim",
+        user_id: "anon",
+        model: "openai/gpt-4o-mini",
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        cost_usd: 0.0,
+        ts: start_ts
+    })
+
+    db.insert(TokenUsage, {
+        id: "tok-" + request_id + "-decision",
+        user_id: "anon",
+        model: "openai/gpt-4o",
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        cost_usd: 0.0,
+        ts: start_ts
+    })
+
+    ret {
+        response: response,
+        gist: None,
+        verbatim: None,
+        decision: None,
+        stage: stage,
+        request_id: request_id,
+        input_hash: input_hash,
+        total_time_ms: 0,
+        gist_time_ms: 0,
+        verbatim_time_ms: 0,
+        decision_time_ms: 0
+    }

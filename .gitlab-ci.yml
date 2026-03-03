@@ -1,0 +1,266 @@
+# .gitlab-ci.yml — Vox GitLab CI/CD Pipeline
+#
+# Equivalent to .github/workflows/ci.yml for GitLab.
+# All steps use portable `cargo` commands — no GitHub Marketplace actions.
+#
+# To use:
+#   1. Set up a GitLab Runner (any OS, or use shared runners)
+#   2. For GPU training: register a self-hosted runner with the `gpu` tag
+#   3. For docs: enable GitLab Pages in project settings
+
+stages:
+  - check
+  - test
+  - coverage
+  - docs
+  - ml-extract
+  - ml-train
+
+variables:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+  # CI cache key
+  CARGO_HOME: "${CI_PROJECT_DIR}/.cargo"
+  # Abstract VCS SHA (equivalent to github.sha)
+  VCS_SHA: "${CI_COMMIT_SHA}"
+
+# ── Cache ──────────────────────────────────────────────────────────────────
+.cargo-cache: &cargo-cache
+  cache:
+    key: "${CI_JOB_NAME}-${CI_COMMIT_REF_SLUG}"
+    paths:
+      - .cargo/registry
+      - .cargo/git
+      - target/
+
+# ── Rust setup ─────────────────────────────────────────────────────────────
+.rust-setup: &rust-setup
+  before_script:
+    - rustup update stable && rustup default stable
+    - rustup component add rustfmt clippy
+
+# ── Base template ──────────────────────────────────────────────────────────
+.base:
+  image: rust:latest
+  <<: *cargo-cache
+  <<: *rust-setup
+
+# ── fmt ───────────────────────────────────────────────────────────────────
+fmt:
+  extends: .base
+  stage: check
+  script:
+    - cargo fmt --all -- --check
+
+# ── build ─────────────────────────────────────────────────────────────────
+build:
+  extends: .base
+  stage: check
+  script:
+    - cargo build --workspace
+  artifacts:
+    paths:
+      - target/debug/vox
+    expire_in: 1 hour
+
+# ── clippy ────────────────────────────────────────────────────────────────
+clippy:
+  extends: .base
+  stage: check
+  script:
+    - cargo clippy --workspace -- -D warnings
+
+# ── test ──────────────────────────────────────────────────────────────────
+test:
+  extends: .base
+  stage: test
+  script:
+    - cargo install cargo-nextest --locked
+    - cargo nextest run --workspace --profile ci
+    - cargo test --workspace --doc
+    # Integration tests
+    - cargo test -p vox-integration-tests prompt_canonical_guardrails
+    - cargo test -p vox-integration-tests parity_contract
+    - cargo test -p vox-integration-tests greaterfool_reference
+    - cargo test -p vox-integration-tests compression_layer
+    - cargo test -p vox-integration-tests codegen_table_app_compiles -- --ignored
+
+# ── doc test ──────────────────────────────────────────────────────────────
+doc-check:
+  extends: .base
+  stage: test
+  script:
+    - RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+
+# ── coverage ──────────────────────────────────────────────────────────────
+coverage:
+  extends: .base
+  stage: coverage
+  script:
+    - cargo install cargo-llvm-cov --locked
+    - cargo llvm-cov --workspace --lcov --output-path lcov.info
+    - cargo llvm-cov report --workspace
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: lcov.info
+    expire_in: 1 week
+
+# ── guards ────────────────────────────────────────────────────────────────
+guards:
+  extends: .base
+  stage: check
+  script:
+    # Guard: No Ty::TypeVar(0)
+    - |
+      if grep -r "TypeVar(0)" crates/ --include="*.rs" 2>/dev/null; then
+        echo "ERROR: Found Ty::TypeVar(0) hardcoded — use uf.fresh_var() instead"
+        exit 1
+      fi
+      echo "OK: No Ty::TypeVar(0) found"
+    # Guard: No opencode references
+    - |
+      FOUND=$(grep -rn "opencode" crates/ --include="*.rs" \
+        | grep -v "tests_agent_session" \
+        | grep -v "// formerly" \
+        | grep -v "how-to-opencode" \
+        || true)
+      if [ -n "$FOUND" ]; then
+        echo "ERROR: Found opencode references:"; echo "$FOUND"; exit 1
+      fi
+      echo "OK: No opencode references"
+    # Guard: No stray files at root
+    - |
+      FOUND=$(find . -maxdepth 1 \( -name "*.txt" -o -name "*.log" -o -name "*.err" \
+        -o -name "patch_*.py" -o -name "fix_*.py" -o -name "temp*.vox" \
+        -o -name "test_*.vox" -o -name "debug_*.vox" \) 2>/dev/null | grep -v "^\.$" || true)
+      if [ -n "$FOUND" ]; then
+        echo "ERROR: Stray files at root: $FOUND"; exit 1
+      fi
+      echo "OK: No stray files at root"
+
+# ── TOESTUB ───────────────────────────────────────────────────────────────
+toestub:
+  extends: .base
+  stage: check
+  script:
+    - cargo build -p vox-cli --quiet 2>/dev/null || true
+    - |
+      if cargo run -p vox-cli --quiet -- stub-check --path crates/ --severity error 2>/dev/null; then
+        echo "OK: TOESTUB passed"
+      else
+        echo "WARN: TOESTUB found issues"
+      fi
+
+# ── link checker ──────────────────────────────────────────────────────────
+link-check:
+  extends: .base
+  stage: check
+  script:
+    - cargo install lychee --locked
+    - lychee --base . --verbose --no-progress '**/*.md' || true
+  only:
+    - main
+    - merge_requests
+
+# ── docs ──────────────────────────────────────────────────────────────────
+build-docs:
+  extends: .base
+  stage: docs
+  script:
+    - cargo install mdbook --locked
+    - cargo build -p vox-doc-pipeline
+    - cargo run -p vox-doc-pipeline
+    - mdbook build docs
+  artifacts:
+    paths:
+      - docs/book/
+    expire_in: 1 week
+  only:
+    - main
+
+# GitLab Pages deployment (equivalent to GitHub Pages)
+pages:
+  stage: docs
+  needs: [build-docs]
+  script:
+    - mv docs/book/ public/
+  artifacts:
+    paths:
+      - public/
+  only:
+    - main
+
+# ── ML: extract ───────────────────────────────────────────────────────────
+ml-extract:
+  extends: .base
+  stage: ml-extract
+  script:
+    - cargo build -p vox-cli --release --quiet
+    # Detect grammar drift
+    - |
+      FINGERPRINT=$(./target/release/vox corpus prompt --output /dev/stdout 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "unknown")
+      STORED=$(cat populi/data/grammar_fingerprint.txt 2>/dev/null || echo "")
+      if [ "$FINGERPRINT" != "$STORED" ]; then
+        echo "drift=true" > drift.env
+        echo "$FINGERPRINT" > populi/data/grammar_fingerprint.txt
+      else
+        echo "drift=false" > drift.env
+      fi
+    # Extract corpus
+    - mkdir -p populi/data target/dogfood
+    - ./target/release/vox corpus extract examples/ -o populi/data/validated.jsonl
+    - ./target/release/vox corpus extract docs/ -o populi/data/validated.jsonl 2>/dev/null || true
+    - ./target/release/vox corpus validate populi/data/validated.jsonl --no-recheck -o populi/data/validated.jsonl
+    - ./target/release/vox corpus pairs populi/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/
+    - ./target/release/vox corpus prompt -o scripts/vox_system_prompt.txt
+    - ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json 2>/dev/null || true
+    # Commit if changed (portable git)
+    - |
+      if ! git diff --quiet populi/data/validated.jsonl 2>/dev/null; then
+        git config user.name "vox-ci"
+        git config user.email "ci@vox-lang.dev"
+        git add populi/data/validated.jsonl populi/data/grammar_fingerprint.txt scripts/vox_system_prompt.txt
+        git diff --cached --quiet || git commit -m "chore: update validated ML training corpus [skip ci]"
+        git push "https://oauth2:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" HEAD:main
+      fi
+  artifacts:
+    paths:
+      - target/dogfood/train.jsonl
+      - target/dogfood/eval_results.json
+      - populi/data/
+    expire_in: 30 days
+  only:
+    - main
+  # Equivalent to GitHub's schedule trigger:
+  # Set up a GitLab Pipeline Schedule at 4 AM UTC in CI/CD → Schedules
+
+# ── ML: train (GPU, self-hosted) ──────────────────────────────────────────
+ml-train:
+  stage: ml-train
+  needs: [ml-extract]
+  tags:
+    - gpu  # requires a self-hosted GitLab Runner with GPU
+  rules:
+    # Run when corpus changed or manually triggered with FORCE_TRAIN=true
+    - if: '$FORCE_TRAIN == "true"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'  # manual trigger via UI
+  script:
+    - pip install uv && uv sync --project scripts
+    - |
+      COUNT=$(wc -l < target/dogfood/train.jsonl 2>/dev/null || echo 0)
+      if [ "$COUNT" -lt "10" ]; then
+        echo "WARNING: Very few training pairs ($COUNT). Skipping."
+        exit 0
+      fi
+    - |
+      uv run --project scripts vox-train \
+        --data-dir target/dogfood \
+        --output-dir target/dogfood/run \
+        --epochs 1
+  artifacts:
+    paths:
+      - target/dogfood/run/
+    expire_in: 90 days

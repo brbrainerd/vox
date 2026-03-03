@@ -1,0 +1,45 @@
+{
+  "project": "Vox",
+  "version": "1.0.0",
+  "description": "Architectual Single Source of Truth for File Paths and Governance",
+  "thresholds": {
+    "god_object": {
+      "max_lines": 500,
+      "max_methods": 12,
+      "max_trait_impls_per_file": 8
+    },
+    "sprawl": {
+      "max_files_per_dir": 20,
+      "max_nesting_depth": 5,
+      "forbidden_names": [
+        "utils.rs",
+        "helpers.ts",
+        "misc.py",
+        "common.vox"
+      ]
+    }
+  },
+  "crates": {
+    "vox-ast": {
+      "role": "Source of Truth for syntax tree node definitions",
+      "path_pattern": "crates/vox-ast/src/**/*.rs"
+    },
+    "vox-hir": {
+      "role": "Intermediate representation and desugaring logic",
+      "path_pattern": "crates/vox-hir/src/**/*.rs"
+    },
+    "vox-toestub": {
+      "role": "Architectural enforcer and anti-pattern detector",
+      "path_pattern": "crates/vox-toestub/src/**/*.rs"
+    },
+    "vox-pm": {
+      "role": "Package manager and dependency resolver",
+      "path_pattern": "crates/vox-pm/src/**/*.rs"
+    }
+  },
+  "staging_policy": {
+    "allowed_path": "src/staging/",
+    "governance": "experimental",
+    "promotion_requirement": "Subagent @reviewer approval + Lint Clean"
+  }
+}

@@ -1,0 +1,31 @@
+[package]
+name = "vox-webhook"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "HTTP webhook gateway for the Vox agent system"
+
+[dependencies]
+vox-orchestrator = { workspace = true }
+vox-db           = { path = "../vox-db" }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+tokio            = { workspace = true }
+anyhow           = { workspace = true }
+thiserror        = { workspace = true }
+tracing          = { workspace = true }
+sha3             = { workspace = true }
+data-encoding    = { workspace = true }
+# HTTP server
+axum             = { version = "0.8", features = ["macros"] }
+tower            = { version = "0.5" }
+hyper            = { version = "1" }
+# HTTP client (for outbound webhooks)
+reqwest          = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

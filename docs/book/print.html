@@ -1,0 +1,2012 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title></title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-630e9535.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-da5b4e7e.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p><strong>Vox</strong> is the AI-native programming language built from the ground up to compile to <strong>Rust</strong> (backend) and <strong>TypeScript</strong> (frontend). Write full-stack, durable, type-safe applications in a single file designed for LLMs to generate flawlessly.</p>
+<h2 id="what-makes-vox-different"><a class="header" href="#what-makes-vox-different">What Makes Vox Different</a></h2>
+<ul>
+<li><strong>One language, full stack</strong> — Define your data layer (<code>@table</code>), backend (<code>@server fn</code>), and React UI (<code>@component</code>) in a single <code>.vox</code> file</li>
+<li><strong>AI-native design</strong> — Strong types, zero null states, and predictable syntax eliminate hallucinations</li>
+<li><strong>Durable execution</strong> — Built-in <code>workflow</code> and <code>actor</code> primitives survive crashes and restarts</li>
+<li><strong>MCP integration</strong> — <code>@mcp.tool</code> decorators export functions directly to the Model Context Protocol for AI assistants</li>
+</ul>
+<h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
+<pre><code class="language-vox">@table type Task:
+    title: str
+    done: bool
+
+@server fn toggle_task(id: int) to Result[Unit]:
+    let task = db.query_one("SELECT * FROM Task WHERE id = ?", id)
+    db.execute("UPDATE Task SET done = ? WHERE id = ?", !task.done, id)
+    ret Ok(())
+
+@component fn TaskItem(task: Task) to Element:
+    ret &lt;li&gt;
+        &lt;input type="checkbox" checked={task.done} onChange={fn(e) toggle_task(task.id)} /&gt;
+        {task.title}
+    &lt;/li&gt;
+</code></pre>
+<pre><code class="language-bash">vox build app.vox -o dist --watch
+</code></pre>
+<h2 id="documentation"><a class="header" href="#documentation">Documentation</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Section</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="#vox-language-guide">Language Guide</a></td><td>Syntax, types, decorators, pattern matching</td></tr>
+<tr><td><a href="#compiler-architecture">Compiler Architecture</a></td><td>Pipeline from source to Rust/TypeScript</td></tr>
+<tr><td><a href="#actors--workflows">Actors &amp; Workflows</a></td><td>Durable execution and the actor model</td></tr>
+<tr><td><a href="#ecosystem--tooling">Ecosystem &amp; Tooling</a></td><td>CLI commands, LSP, package manager</td></tr>
+<tr><td><a href="#examples">Examples</a></td><td>Annotated walkthrough of all 14 example programs</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="project-layout"><a class="header" href="#project-layout">Project Layout</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Path</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>crates/vox-cli</code></td><td>CLI entry point (<code>vox build</code>, <code>vox test</code>, etc.)</td></tr>
+<tr><td><code>crates/vox-lexer</code></td><td>Tokenizer (logos)</td></tr>
+<tr><td><code>crates/vox-parser</code></td><td>Recursive descent parser</td></tr>
+<tr><td><code>crates/vox-ast</code></td><td>Typed AST wrappers</td></tr>
+<tr><td><code>crates/vox-hir</code></td><td>HIR lowering + name resolution</td></tr>
+<tr><td><code>crates/vox-typeck</code></td><td>Bidirectional type checker</td></tr>
+<tr><td><code>crates/vox-codegen-rust</code></td><td>Rust code generation (quote!)</td></tr>
+<tr><td><code>crates/vox-codegen-ts</code></td><td>TypeScript code generation</td></tr>
+<tr><td><code>crates/vox-runtime</code></td><td>Tokio/Axum runtime</td></tr>
+<tr><td><code>crates/vox-pm</code></td><td>Package manager (CAS store)</td></tr>
+<tr><td><code>crates/vox-lsp</code></td><td>Language Server Protocol</td></tr>
+<tr><td><code>examples/</code></td><td>Reference <code>.vox</code> programs</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="actors--workflows"><a class="header" href="#actors--workflows">Actors &amp; Workflows</a></h1>
+<p>Vox provides two first-class concurrency primitives: <strong>Actors</strong> for lightweight message-passing and <strong>Workflows</strong> for durable, fault-tolerant execution.</p>
+<hr>
+<h2 id="actors"><a class="header" href="#actors">Actors</a></h2>
+<p>Actors are isolated processes with their own state and a mailbox for receiving messages. They communicate exclusively via message passing — no shared memory.</p>
+<h3 id="defining-an-actor"><a class="header" href="#defining-an-actor">Defining an Actor</a></h3>
+<pre><code class="language-vox">actor Counter:
+    state count: int = 0
+
+    on increment(amount: int) to int:
+        count = count + amount
+        count
+
+    on get_count() to int:
+        count
+
+    on reset() to Unit:
+        count = 0
+</code></pre>
+<p>Key concepts:</p>
+<ul>
+<li><strong><code>state</code></strong> fields hold mutable internal data</li>
+<li><strong><code>on</code></strong> handlers define message responses</li>
+<li>Each handler returns a typed result</li>
+</ul>
+<h3 id="spawning-and-messaging"><a class="header" href="#spawning-and-messaging">Spawning and Messaging</a></h3>
+<pre><code class="language-vox">fn main():
+    # spawn() creates a new actor instance, returns a handle (Pid)
+    let counter = spawn(Counter)
+    let greeter = spawn(Greeter)
+
+    # .send() dispatches a message to the actor's mailbox
+    let new_count = counter.send(increment(5))
+    let greeting  = greeter.send(greet("Alice"))
+
+    # Actors can receive multiple messages
+    let _ = counter.send(increment(3))
+    let total = counter.send(get_count())   # returns 8
+</code></pre>
+<h3 id="messages"><a class="header" href="#messages">Messages</a></h3>
+<p>Define typed messages for inter-actor communication:</p>
+<pre><code class="language-vox">message Greeting:
+    from_name: str
+    text: str
+</code></pre>
+<h3 id="durable-actors"><a class="header" href="#durable-actors">Durable Actors</a></h3>
+<p>Actors can persist state across restarts using <code>state_load</code> and <code>state_save</code>:</p>
+<pre><code class="language-vox">actor PersistentCounter:
+    on increment() to int:
+        let current = state_load("counter")
+        let next = current + 1
+        state_save("counter", next)
+        ret next
+</code></pre>
+<p>This compiles to database-backed state management — the actor’s count survives process restarts.</p>
+<h3 id="how-actors-compile"><a class="header" href="#how-actors-compile">How Actors Compile</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Vox Concept</th><th>Compiled Output (Rust)</th></tr>
+</thead>
+<tbody>
+<tr><td><code>actor Counter</code></td><td>Tokio task + <code>mpsc::channel</code> mailbox</td></tr>
+<tr><td><code>spawn(Counter)</code></td><td><code>ProcessHandle</code> via <code>ProcessRegistry</code></td></tr>
+<tr><td><code>counter.send(msg)</code></td><td>Channel send + optional <code>oneshot</code> for reply</td></tr>
+<tr><td><code>state count: int = 0</code></td><td>Struct field with default</td></tr>
+<tr><td><code>state_load</code> / <code>state_save</code></td><td>Database read/write via <code>ProcessContext</code></td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="activities"><a class="header" href="#activities">Activities</a></h2>
+<p>Activities are retryable units of work that may fail. They are the <strong>only</strong> place for side effects within workflows.</p>
+<pre><code class="language-vox">activity fetch_user_data(user_id: str) to Result[str]:
+    # Would call an external API in production
+    ret Ok("User data for " + user_id)
+
+activity send_notification(email: str, body: str) to Result[bool]:
+    # External email service call
+    ret Ok(true)
+</code></pre>
+<p>Activities must always return a <code>Result</code> type, since they represent operations that can fail.</p>
+<hr>
+<h2 id="workflows"><a class="header" href="#workflows">Workflows</a></h2>
+<p>Workflows orchestrate activities with <strong>durable execution</strong> guarantees. Each step is recorded so execution survives crashes and restarts.</p>
+<pre><code class="language-vox">workflow onboard_user(user_id: str, email: str) to Result[str]:
+    # Step 1: Fetch user profile
+    let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" }
+
+    # Step 2: Send welcome email
+    let _ = send_notification(email, "Welcome! " + profile) with { retries: 5, timeout: "60s" }
+
+    # Step 3: Return success
+    ret Ok("Onboarding complete for " + user_id)
+</code></pre>
+<h3 id="the-with-expression"><a class="header" href="#the-with-expression">The <code>with</code> Expression</a></h3>
+<p>The <code>with</code> expression configures retry and timeout policies for activity calls:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Option</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>retries</code></td><td><code>int</code></td><td>Maximum retry attempts</td></tr>
+<tr><td><code>timeout</code></td><td><code>str</code></td><td>Maximum time for the activity (e.g., <code>"30s"</code>)</td></tr>
+<tr><td><code>initial_backoff</code></td><td><code>str</code></td><td>Backoff delay between retries (e.g., <code>"500ms"</code>)</td></tr>
+<tr><td><code>activity_id</code></td><td><code>str</code></td><td>Explicit ID for deduplication</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="durable-execution"><a class="header" href="#durable-execution">Durable Execution</a></h3>
+<p>If a process crashes after step 1 completes, the workflow resumes at step 2 when restarted — no work is lost. This is achieved by recording each step’s result in a durable store before proceeding.</p>
+<h3 id="how-workflows-compile"><a class="header" href="#how-workflows-compile">How Workflows Compile</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Vox Concept</th><th>Compiled Output (Rust)</th></tr>
+</thead>
+<tbody>
+<tr><td><code>workflow</code></td><td>State machine with step tracking</td></tr>
+<tr><td><code>activity</code></td><td>Async function with retry wrapper</td></tr>
+<tr><td><code>with { retries: 3 }</code></td><td>Retry loop configuration</td></tr>
+<tr><td>Step completion</td><td>Recorded to durable store before proceeding</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="full-example-order-processing"><a class="header" href="#full-example-order-processing">Full Example: Order Processing</a></h2>
+<p>A complete workflow combining activities with different retry policies:</p>
+<pre><code class="language-vox">type OrderResult =
+    | Ok(order_id: str)
+    | Error(message: str)
+
+activity validate_order(order_data: str) to Result[str]:
+    let validated = "validated-" + order_data
+    ret Ok(validated)
+
+activity charge_payment(amount: int, card_token: str) to Result[str]:
+    let tx = "tx-" + card_token
+    ret Ok(tx)
+
+activity send_confirmation(recipient: str, order_id: str) to Result[str]:
+    let msg = "Order " + order_id + " confirmed for " + recipient
+    ret Ok(msg)
+
+workflow process_order(customer: str, order_data: str, amount: int) to Result[str]:
+    # Validate with a short timeout and no retries
+    let validated = validate_order(order_data) with { timeout: "5s" }
+
+    # Charge payment with retries and backoff
+    let payment = charge_payment(amount, "card-123") with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
+
+    # Send confirmation with basic retry
+    let confirmation = send_confirmation(customer, "order-001") with { retries: 2, activity_id: "confirm-order-001" }
+
+    ret confirmation
+</code></pre>
+<hr>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next Steps</a></h2>
+<ul>
+<li><a href="#vox-language-guide">Language Guide</a> — Full syntax and type system reference</li>
+<li><a href="#compiler-architecture">Compiler Architecture</a> — How actors and workflows compile</li>
+<li><a href="#examples">Examples</a> — All example programs with annotations</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="compiler-architecture"><a class="header" href="#compiler-architecture">Compiler Architecture</a></h1>
+<p>The Vox compiler follows a modern, modular pipeline architecture. Each stage is implemented as an independent Rust crate within the <code>crates/</code> workspace.</p>
+<hr>
+<h2 id="pipeline-overview"><a class="header" href="#pipeline-overview">Pipeline Overview</a></h2>
+<pre><code>Source Code (.vox)
+    │
+    ▼
+┌──────────────┐
+│  vox-lexer   │  Tokenization (logos)
+└──────┬───────┘
+       │ Vec&lt;Token&gt;
+       ▼
+┌──────────────┐
+│  vox-parser  │  Recursive descent → lossless GreenTree (Rowan)
+└──────┬───────┘
+       │ GreenTree / CST
+       ▼
+┌──────────────┐
+│   vox-ast    │  Strongly-typed AST wrappers
+└──────┬───────┘
+       │ Module (Decl, Expr, Stmt, Pattern)
+       ▼
+┌──────────────┐
+│   vox-hir    │  Desugaring + name resolution + dead code detection
+└──────┬───────┘
+       │ HirModule
+       ▼
+┌──────────────┐
+│  vox-typeck  │  Bidirectional type checking + HM inference
+└──────┬───────┘
+       │ Typed HIR + Vec&lt;Diagnostic&gt;
+       ▼
+┌──────────────────┬─────────────────────┐
+│ vox-codegen-rust │  vox-codegen-ts     │
+│  (quote! → .rs)  │  (string → .ts/tsx) │
+└──────────────────┴─────────────────────┘
+</code></pre>
+<hr>
+<h2 id="stage-details"><a class="header" href="#stage-details">Stage Details</a></h2>
+<h3 id="1-lexer-vox-lexer"><a class="header" href="#1-lexer-vox-lexer">1. Lexer (<code>vox-lexer</code>)</a></h3>
+<p><strong>Purpose</strong>: Converts source text into a flat stream of tokens.</p>
+<p><strong>Implementation</strong>: Uses the <a href="https://docs.rs/logos"><code>logos</code></a> crate for high-performance, zero-copy tokenization.</p>
+<p><strong>Key files</strong>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>lib.rs</code></td><td>Public API: <code>lex()</code> function</td></tr>
+<tr><td><code>token.rs</code></td><td><code>Token</code> enum with all language tokens</td></tr>
+<tr><td><code>cursor.rs</code></td><td>Low-level cursor for character-by-character scanning</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Output</strong>: <code>Vec&lt;Token&gt;</code> — each token carries its kind and span.</p>
+<hr>
+<h3 id="2-parser-vox-parser"><a class="header" href="#2-parser-vox-parser">2. Parser (<code>vox-parser</code>)</a></h3>
+<p><strong>Purpose</strong>: Transforms a token stream into a lossless Concrete Syntax Tree (CST).</p>
+<p><strong>Implementation</strong>: A hand-written recursive descent parser producing a <a href="https://docs.rs/rowan">Rowan</a>-based GreenTree. The parser is <strong>resilient to errors</strong>, meaning it continues parsing after encountering invalid syntax — this is critical for LSP support, where the user is actively typing.</p>
+<p><strong>Key features</strong>:</p>
+<ul>
+<li>Error recovery with synchronization points</li>
+<li>Trailing comma support in parameter lists</li>
+<li>Duplicate parameter name detection</li>
+<li>Indentation-aware formatting (<code>indent.rs</code>)</li>
+</ul>
+<p><strong>Output</strong>: <code>GreenTree</code> — a lossless syntax tree preserving all whitespace and comments.</p>
+<hr>
+<h3 id="3-ast-vox-ast"><a class="header" href="#3-ast-vox-ast">3. AST (<code>vox-ast</code>)</a></h3>
+<p><strong>Purpose</strong>: Strongly-typed wrappers around the untyped CST nodes.</p>
+<p><strong>Key types</strong>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Types</th></tr>
+</thead>
+<tbody>
+<tr><td><code>decl.rs</code></td><td><code>Decl</code> — function, type, actor, workflow, activity, table, etc.</td></tr>
+<tr><td><code>expr.rs</code></td><td><code>Expr</code> — literals, binary ops, calls, match, spawn, JSX</td></tr>
+<tr><td><code>stmt.rs</code></td><td><code>Stmt</code> — let, return, assignment, expression statements</td></tr>
+<tr><td><code>pattern.rs</code></td><td><code>Pattern</code> — matching patterns for ADTs</td></tr>
+<tr><td><code>types.rs</code></td><td><code>TypeExpr</code> — type annotations and generics</td></tr>
+<tr><td><code>span.rs</code></td><td><code>Span</code> — source location tracking</td></tr>
+</tbody>
+</table>
+</div>
+<p>This layer converts the untyped tree into a typed API that downstream stages (HIR, typeck) consume.</p>
+<hr>
+<h3 id="4-hir--high-level-intermediate-representation-vox-hir"><a class="header" href="#4-hir--high-level-intermediate-representation-vox-hir">4. HIR — High-Level Intermediate Representation (<code>vox-hir</code>)</a></h3>
+<p><strong>Purpose</strong>: Desugars syntax, performs name resolution, and detects dead code.</p>
+<p><strong>Key files</strong>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>hir.rs</code></td><td><code>HirModule</code>, <code>HirDecl</code>, <code>HirExpr</code> — IR node types</td></tr>
+<tr><td><code>lower.rs</code></td><td><code>lower_module()</code> — AST → HIR transformation</td></tr>
+<tr><td><code>def_map.rs</code></td><td>Name resolution and definition mapping</td></tr>
+<tr><td><code>dead_code.rs</code></td><td>Dead code detection pass</td></tr>
+<tr><td><code>validate.rs</code></td><td>HIR validation rules</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Key operations</strong>:</p>
+<ul>
+<li>Resolves all identifier references to their definitions</li>
+<li>Desugars patterns and complex expressions</li>
+<li>Builds a <code>DefMap</code> mapping names to their definitions for the type checker</li>
+</ul>
+<hr>
+<h3 id="5-type-checker-vox-typeck"><a class="header" href="#5-type-checker-vox-typeck">5. Type Checker (<code>vox-typeck</code>)</a></h3>
+<p><strong>Purpose</strong>: Bidirectional type checking with Hindley-Milner style inference.</p>
+<p><strong>Algorithm</strong>:</p>
+<ol>
+<li><strong>Fresh type variables</strong> — Unknown types get <code>Ty::TypeVar(id)</code> via <code>uf.fresh_var()</code></li>
+<li><strong>Constraint generation</strong> — Expressions generate equality constraints</li>
+<li><strong>Unification</strong> — Union-Find solver merges equivalent type variables</li>
+<li><strong>Substitution</strong> — After solving, variables are replaced with concrete types</li>
+<li><strong>Error reporting</strong> — Conflicts produce <code>Diagnostic</code> errors with source spans</li>
+</ol>
+<p><strong>Key files</strong>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>check.rs</code></td><td>Main checking logic: <code>check_expr</code>, <code>check_stmt</code>, <code>check_decl</code></td></tr>
+<tr><td><code>env.rs</code></td><td><code>TypeEnv</code> — scoped symbol table with push/pop</td></tr>
+<tr><td><code>ty.rs</code></td><td><code>Ty</code> enum — internal type representation</td></tr>
+<tr><td><code>unify.rs</code></td><td>Union-Find constraint solver</td></tr>
+<tr><td><code>infer.rs</code></td><td>Type inference rules</td></tr>
+<tr><td><code>builtins.rs</code></td><td>Built-in type definitions</td></tr>
+<tr><td><code>diagnostics.rs</code></td><td>Error and warning types</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Example flow</strong>:</p>
+<pre><code>let x = 42       →  TypeEnv.define("x", Ty::Int)
+let y = x + 1    →  check x: Ty::Int, check 1: Ty::Int, unify(+): Int×Int→Int
+fn f(a):          →  push_scope, define "a" as fresh TypeVar
+    ret a + 1     →  unify TypeVar(a) with Int → a: Int
+</code></pre>
+<hr>
+<h3 id="6-code-generation"><a class="header" href="#6-code-generation">6. Code Generation</a></h3>
+<h4 id="rust-codegen-vox-codegen-rust"><a class="header" href="#rust-codegen-vox-codegen-rust">Rust Codegen (<code>vox-codegen-rust</code>)</a></h4>
+<p>Emits Rust source using the <a href="https://docs.rs/quote"><code>quote!</code></a> macro. Each decorator maps to specific Rust constructs:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Vox</th><th>Generated Rust</th></tr>
+</thead>
+<tbody>
+<tr><td><code>@server fn</code></td><td>Axum handler + route registration</td></tr>
+<tr><td><code>@table type</code></td><td>Struct + SQLite schema</td></tr>
+<tr><td><code>@test fn</code></td><td><code>#[test]</code> function</td></tr>
+<tr><td><code>@deprecated</code></td><td><code>#[deprecated]</code> attribute</td></tr>
+<tr><td><code>actor</code></td><td>Tokio task + mpsc mailbox</td></tr>
+<tr><td><code>workflow</code></td><td>State machine with durable step recording</td></tr>
+</tbody>
+</table>
+</div>
+<h4 id="typescript-codegen-vox-codegen-ts"><a class="header" href="#typescript-codegen-vox-codegen-ts">TypeScript Codegen (<code>vox-codegen-ts</code>)</a></h4>
+<p>Emits TypeScript/TSX in modular files:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module</th><th>Output</th></tr>
+</thead>
+<tbody>
+<tr><td><code>jsx.rs</code></td><td>React JSX components</td></tr>
+<tr><td><code>component.rs</code></td><td>Component declarations and hooks</td></tr>
+<tr><td><code>activity.rs</code></td><td>Activity/workflow client wrappers</td></tr>
+<tr><td><code>routes.rs</code></td><td>React Router route definitions</td></tr>
+<tr><td><code>adt.rs</code></td><td>TypeScript discriminated union types</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="supporting-crates"><a class="header" href="#supporting-crates">Supporting Crates</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Crate</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>vox-cli</code></td><td><code>vox</code> command-line entry point (build, bundle, test, fmt, lsp, install)</td></tr>
+<tr><td><code>vox-lsp</code></td><td>Language Server Protocol implementation</td></tr>
+<tr><td><code>vox-runtime</code></td><td>Tokio/Axum runtime: actors, scheduler, subscriptions, storage</td></tr>
+<tr><td><code>vox-pm</code></td><td>Package manager: CAS store, dependency resolution, caching</td></tr>
+<tr><td><code>vox-db</code></td><td>Database abstraction layer</td></tr>
+<tr><td><code>vox-gamify</code></td><td>Gamification system</td></tr>
+<tr><td><code>vox-orchestrator</code></td><td>Multi-agent orchestration</td></tr>
+<tr><td><code>vox-toestub</code></td><td>AI anti-pattern detector</td></tr>
+<tr><td><code>vox-integration-tests</code></td><td>End-to-end pipeline tests</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="adding-a-language-feature"><a class="header" href="#adding-a-language-feature">Adding a Language Feature</a></h2>
+<p>The full checklist for adding a new language construct:</p>
+<ol>
+<li><strong>Lexer</strong> — Add tokens to <code>vox-lexer/src/token.rs</code></li>
+<li><strong>Parser</strong> — Add grammar rules in <code>vox-parser/src/grammar.rs</code></li>
+<li><strong>AST</strong> — Add node types in <code>vox-ast/src/</code></li>
+<li><strong>HIR</strong> — Map AST → HIR in <code>vox-hir/src/lower.rs</code></li>
+<li><strong>Type Check</strong> — Add inference rules in <code>vox-typeck/src/check.rs</code></li>
+<li><strong>Codegen</strong> — Emit code in both <code>vox-codegen-rust</code> and <code>vox-codegen-ts</code></li>
+<li><strong>Test</strong> — Add an integration test in <code>vox-integration-tests/tests/</code></li>
+</ol>
+<hr>
+<h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next Steps</a></h2>
+<ul>
+<li><a href="#vox-language-guide">Language Guide</a> — Full syntax and feature reference</li>
+<li><a href="#actors--workflows">Actors &amp; Workflows</a> — Durable execution system</li>
+<li><a href="#ecosystem--tooling">Ecosystem &amp; Tooling</a> — CLI commands, package manager, LSP</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="ecosystem--tooling"><a class="header" href="#ecosystem--tooling">Ecosystem &amp; Tooling</a></h1>
+<p>Vox ships with a complete development toolchain: compiler, bundler, test runner, formatter, package manager, and language server — all accessed through the <code>vox</code> CLI.</p>
+<hr>
+<h2 id="cli-commands"><a class="header" href="#cli-commands">CLI Commands</a></h2>
+<h3 id="vox-build"><a class="header" href="#vox-build"><code>vox build</code></a></h3>
+<p>Compile a <code>.vox</code> file to Rust and TypeScript:</p>
+<pre><code class="language-bash"># Basic build
+vox build app.vox -o dist
+
+# Watch mode with live-reload
+vox build app.vox -o dist --watch
+</code></pre>
+<p><strong>Output structure</strong>:</p>
+<pre><code>dist/
+├── backend/      # Generated Rust (Axum server)
+│   ├── src/
+│   │   └── main.rs
+│   └── Cargo.toml
+└── frontend/     # Generated TypeScript (React)
+    ├── src/
+    │   └── App.tsx
+    └── package.json
+</code></pre>
+<h3 id="vox-bundle"><a class="header" href="#vox-bundle"><code>vox bundle</code></a></h3>
+<p>Ship a single statically-linked binary containing frontend + backend + SQLite:</p>
+<pre><code class="language-bash"># Release build targeting Linux
+vox bundle app.vox --release --target x86_64-unknown-linux-musl
+
+# Debug build (default)
+vox bundle app.vox
+</code></pre>
+<h3 id="vox-test"><a class="header" href="#vox-test"><code>vox test</code></a></h3>
+<p>Run <code>@test</code> decorated functions:</p>
+<pre><code class="language-bash">vox test tests.vox
+</code></pre>
+<p>This compiles the test functions to Rust <code>#[test]</code> blocks and runs them with <code>cargo test</code>.</p>
+<h3 id="vox-fmt"><a class="header" href="#vox-fmt"><code>vox fmt</code></a></h3>
+<p>Format <code>.vox</code> source files using the integrated lexical span formatter:</p>
+<pre><code class="language-bash">vox fmt app.vox
+</code></pre>
+<p>The formatter preserves inline indentation logic while normalizing whitespace and alignment.</p>
+<h3 id="vox-lsp"><a class="header" href="#vox-lsp"><code>vox lsp</code></a></h3>
+<p>Launch the Language Server Protocol server:</p>
+<pre><code class="language-bash">vox lsp
+</code></pre>
+<p>See <a href="#language-server-lsp">Language Server</a> below for details.</p>
+<h3 id="vox-install"><a class="header" href="#vox-install"><code>vox install</code></a></h3>
+<p>Install packages from the Vox registry:</p>
+<pre><code class="language-bash"># Install a package
+vox install my-package
+
+# Install with offline-only mode (cached packages only)
+vox install my-package --offline
+</code></pre>
+<h3 id="vox-vendor"><a class="header" href="#vox-vendor"><code>vox vendor</code></a></h3>
+<p>Bundle all dependencies into a local <code>vendor/</code> directory for fully offline builds:</p>
+<pre><code class="language-bash">vox vendor
+</code></pre>
+<hr>
+<h2 id="language-server-lsp"><a class="header" href="#language-server-lsp">Language Server (LSP)</a></h2>
+<p>The <code>vox-lsp</code> crate provides IDE support via the <a href="https://microsoft.github.io/language-server-protocol/">Language Server Protocol</a>.</p>
+<h3 id="current-features"><a class="header" href="#current-features">Current Features</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature</th><th>Status</th></tr>
+</thead>
+<tbody>
+<tr><td>Syntax error diagnostics</td><td>✅ Implemented</td></tr>
+<tr><td>Type error diagnostics</td><td>✅ Implemented</td></tr>
+<tr><td>Go to Definition</td><td>🔜 Planned</td></tr>
+<tr><td>Completion</td><td>🔜 Planned</td></tr>
+<tr><td>Hover info</td><td>🔜 Planned</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="setup"><a class="header" href="#setup">Setup</a></h3>
+<ol>
+<li>
+<p>Build the LSP server:</p>
+<pre><code class="language-bash">cargo build --release -p vox-lsp
+</code></pre>
+</li>
+<li>
+<p>Configure your editor:</p>
+<p><strong>VS Code</strong> (with the <code>vox-vscode</code> extension or manual configuration):</p>
+<pre><code class="language-json">"vox.lsp.serverPath": "/path/to/target/release/vox-lsp"
+</code></pre>
+</li>
+</ol>
+<p>The LSP server integrates the full compiler pipeline — when you save a file, it re-runs the lexer, parser, and type checker to provide real-time diagnostics.</p>
+<hr>
+<h2 id="package-manager-vox-pm"><a class="header" href="#package-manager-vox-pm">Package Manager (<code>vox-pm</code>)</a></h2>
+<p>The Vox package manager uses a <strong>Content-Addressable Store (CAS)</strong> backed by libSQL/Turso.</p>
+<h3 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h3>
+<pre><code>store(data) → SHA3-256 hash
+get(hash)   → data
+</code></pre>
+<p>All artifacts are stored by their content hash:</p>
+<ul>
+<li><strong>Deterministic</strong> — same content always produces the same hash</li>
+<li><strong>Deduplication</strong> — identical artifacts share a single stored copy</li>
+<li><strong>Integrity</strong> — content can be verified against its hash at any time</li>
+</ul>
+<h3 id="database-backends"><a class="header" href="#database-backends">Database Backends</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Mode</th><th>Use Case</th></tr>
+</thead>
+<tbody>
+<tr><td>Remote (Turso)</td><td>Production — cloud-hosted database</td></tr>
+<tr><td>Local SQLite</td><td>Development — local file storage</td></tr>
+<tr><td>In-Memory</td><td>Testing — ephemeral database</td></tr>
+<tr><td>Embedded Replica</td><td>Hybrid — local cache with cloud sync</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="semantic-code-search"><a class="header" href="#semantic-code-search">Semantic Code Search</a></h3>
+<p>The package manager includes a <strong>de Bruijn indexing</strong> normalizer that strips identifier names from AST nodes and replaces bound variables with positional indices. This enables detection of semantically identical code regardless of naming differences.</p>
+<pre><code>bind_name(namespace, name, hash)    # Map a name to content
+lookup_name(namespace, name) → hash # Resolve a name to content
+search_code_snippets(query, limit)  # Vector-similarity search
+</code></pre>
+<h3 id="agent-memory"><a class="header" href="#agent-memory">Agent Memory</a></h3>
+<p>The store also manages agent memory for AI-powered features:</p>
+<pre><code>recall_memory(agent, type, limit, min_importance)  # Query with relevance filtering
+</code></pre>
+<hr>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<h3 id="automated-recommended"><a class="header" href="#automated-recommended">Automated (recommended)</a></h3>
+<pre><code class="language-bash"># Linux / macOS
+./scripts/install.sh          # End-user install
+./scripts/install.sh --dev    # Full contributor setup
+
+# Windows (PowerShell)
+.\scripts\install.ps1         # End-user install
+.\scripts\install.ps1 -Dev    # Full contributor setup
+</code></pre>
+<h3 id="manual"><a class="header" href="#manual">Manual</a></h3>
+<p>Prerequisites: Rust &gt;= 1.75, Node.js &gt;= 18, C compiler (gcc/clang/MSVC)</p>
+<pre><code class="language-bash">cargo install --path crates/vox-cli
+</code></pre>
+<blockquote>
+<p><strong>Note:</strong> Node.js and npm are required at runtime for <code>vox bundle</code> and <code>vox run</code> (frontend scaffolding). Copy <code>.env.example</code> to <code>.env</code> to configure optional API keys.</p>
+</blockquote>
+<hr>
+<h2 id="development"><a class="header" href="#development">Development</a></h2>
+<h3 id="building"><a class="header" href="#building">Building</a></h3>
+<pre><code class="language-bash">cargo build --workspace
+</code></pre>
+<h3 id="testing"><a class="header" href="#testing">Testing</a></h3>
+<pre><code class="language-bash">cargo test --workspace
+</code></pre>
+<h3 id="linting"><a class="header" href="#linting">Linting</a></h3>
+<pre><code class="language-bash">cargo fmt --all -- --check    # Format check
+cargo clippy --workspace      # Lint check
+</code></pre>
+<hr>
+<h2 id="next-steps-2"><a class="header" href="#next-steps-2">Next Steps</a></h2>
+<ul>
+<li><a href="#vox-language-guide">Language Guide</a> — Full syntax and feature reference</li>
+<li><a href="#compiler-architecture">Compiler Architecture</a> — Pipeline internals</li>
+<li><a href="#actors--workflows">Actors &amp; Workflows</a> — Concurrency and durable execution</li>
+<li><a href="#examples">Examples</a> — Annotated example programs</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="examples"><a class="header" href="#examples">Examples</a></h1>
+<p>All examples are located in the <a href="../../examples"><code>examples/</code></a> directory. Each demonstrates a key feature of the Vox language.</p>
+<hr>
+<h2 id="quick-reference"><a class="header" href="#quick-reference">Quick Reference</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Example</th><th>Features Demonstrated</th></tr>
+</thead>
+<tbody>
+<tr><td><a href="#server-functions"><code>simple_server_fn.vox</code></a></td><td><code>@server</code>, <code>@component</code>, auto-generated fetch</td></tr>
+<tr><td><a href="#full-stack-chatbot"><code>chatbot.vox</code></a></td><td><code>@component</code>, <code>@table</code>, <code>@query</code>, <code>@mutation</code>, <code>@action</code>, actors, <code>style</code>, <code>routes</code></td></tr>
+<tr><td><a href="#chatbot-with-server-functions"><code>chatbot_server_fn.vox</code></a></td><td><code>@server</code>, <code>@component</code>, ADT pattern matching in JSX</td></tr>
+<tr><td><a href="#data-layer"><code>data_layer.vox</code></a></td><td><code>@table</code>, <code>@index</code>, <code>@server</code>, typed database API</td></tr>
+<tr><td><a href="#actors-1"><code>actor.vox</code></a></td><td><code>actor</code>, <code>state</code>, <code>spawn</code>, <code>send</code>, <code>message</code></td></tr>
+<tr><td><a href="#durable-counter"><code>durable_counter.vox</code></a></td><td>Actor with <code>state_load</code>/<code>state_save</code>, <code>@component</code>, <code>routes</code></td></tr>
+<tr><td><a href="#workflows-1"><code>workflow.vox</code></a></td><td><code>workflow</code>, <code>activity</code>, <code>with</code> expression</td></tr>
+<tr><td><a href="#durable-execution-1"><code>durable_execution.vox</code></a></td><td>Activities with retry/timeout/backoff policies</td></tr>
+<tr><td><a href="#mcp-tools"><code>mcp_tool.vox</code></a></td><td><code>@mcp.tool</code>, <code>@mcp.resource</code></td></tr>
+<tr><td><a href="#ai-agents"><code>agent.vox</code></a></td><td><code>@agent_def</code>, <code>@mcp.tool</code>, agent memory</td></tr>
+<tr><td><a href="#dashboard"><code>dashboard.vox</code></a></td><td><code>@v0</code>, <code>@component</code>, <code>http</code>, <code>routes</code></td></tr>
+<tr><td><a href="#sharing--skills"><code>sharing.vox</code></a></td><td><code>@skill</code>, <code>workflow</code>, <code>@component</code>, publishable packages</td></tr>
+<tr><td><a href="#testing-1"><code>testing.vox</code></a></td><td><code>@test</code>, <code>assert</code>, ADT matching</td></tr>
+<tr><td><a href="#minimal-server-function"><code>server_fn.vox</code></a></td><td>Minimal <code>@server</code> example</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="server-functions"><a class="header" href="#server-functions">Server Functions</a></h2>
+<p><strong>File</strong>: <code>examples/simple_server_fn.vox</code></p>
+<p>Demonstrates how <code>@server</code> generates both a backend HTTP route and a frontend fetch wrapper:</p>
+<pre><code class="language-vox">@server fn greet(name: str) to Greeting:
+    ret Hello("Welcome, " + name + "!")
+
+@component fn App() to Element:
+    let result = use_state("")
+    let handle_click = fn(_e):
+        let greeting = greet("Alice")     # ← auto-generated fetch call
+        set_result(greeting)
+    ret &lt;div&gt;&lt;button onClick={handle_click}&gt;Greet&lt;/button&gt;&lt;p&gt;{result}&lt;/p&gt;&lt;/div&gt;
+</code></pre>
+<p><strong>Key insight</strong>: <code>greet("Alice")</code> in the component compiles to a typed <code>fetch()</code> call — the compiler generates the HTTP client automatically.</p>
+<hr>
+<h2 id="full-stack-chatbot"><a class="header" href="#full-stack-chatbot">Full-Stack Chatbot</a></h2>
+<p><strong>File</strong>: <code>examples/chatbot.vox</code></p>
+<p>A complete application in a single file: React UI + Axum backend + database + actors:</p>
+<pre><code class="language-vox">@component fn Chat() to Element:
+    let (messages, set_messages) = use_state([])
+    let (input, set_input) = use_state("")
+    let send = fn (_e) (set_messages(messages.append({role: "user", text: input})),
+                        spawn(ChatClient).send(input), set_input(""))
+    &lt;div class="chat_container"&gt;
+        &lt;div class="messages"&gt;
+            for msg in messages:
+                &lt;div class="msg {msg.role}"&gt;{msg.text}&lt;/div&gt;
+        &lt;/div&gt;
+        &lt;div class="input_area"&gt;
+            &lt;input class="chat_input" bind={input} placeholder="Type a message..." /&gt;
+            &lt;button class="send_btn" on_click={send}&gt;Send&lt;/button&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+</code></pre>
+<p>This single file defines: UI components, styling, routes, database tables, queries, mutations, actions, and actors.</p>
+<hr>
+<h2 id="chatbot-with-server-functions"><a class="header" href="#chatbot-with-server-functions">Chatbot with Server Functions</a></h2>
+<p><strong>File</strong>: <code>examples/chatbot_server_fn.vox</code></p>
+<p>Shows ADT pattern matching inside JSX for rendering different message types:</p>
+<pre><code class="language-vox">type Message =
+    | User(text: str)
+    | Assistant(text: str)
+
+{messages.map(fn(msg) match msg:
+    | User(text) -&gt; &lt;div className="user-message"&gt;{text}&lt;/div&gt;
+    | Assistant(text) -&gt; &lt;div className="assistant-message"&gt;{text}&lt;/div&gt;
+)}
+</code></pre>
+<hr>
+<h2 id="data-layer"><a class="header" href="#data-layer">Data Layer</a></h2>
+<p><strong>File</strong>: <code>examples/data_layer.vox</code></p>
+<p>Typed database tables with indexes and server functions:</p>
+<pre><code class="language-vox">@table type Task:
+    title: str
+    done: bool
+    priority: int
+    owner: str
+
+@index Task.by_done on (done, priority)
+@index Task.by_owner on (owner)
+
+@server fn list_tasks() to List[Task]:
+    ret db.query(Task).collect()
+
+@server fn add_task(title: str, owner: str) to Id[Task]:
+    ret db.insert(Task, { title: title, done: false, priority: 0, owner: owner })
+</code></pre>
+<hr>
+<h2 id="actors-1"><a class="header" href="#actors-1">Actors</a></h2>
+<p><strong>File</strong>: <code>examples/actor.vox</code></p>
+<p>The actor model with state, message handlers, and inter-actor communication:</p>
+<pre><code class="language-vox">actor Counter:
+    state count: int = 0
+    on increment(amount: int) to int:
+        count = count + amount
+        count
+    on get_count() to int:
+        count
+
+fn main():
+    let counter = spawn(Counter)
+    let new_count = counter.send(increment(5))   # returns 5
+    let _ = counter.send(increment(3))
+    let total = counter.send(get_count())         # returns 8
+</code></pre>
+<hr>
+<h2 id="durable-counter"><a class="header" href="#durable-counter">Durable Counter</a></h2>
+<p><strong>File</strong>: <code>examples/durable_counter.vox</code></p>
+<p>An actor whose state persists across restarts via <code>state_load</code>/<code>state_save</code>:</p>
+<pre><code class="language-vox">actor PersistentCounter:
+    on increment() to int:
+        let current = state_load("counter")
+        let next = current + 1
+        state_save("counter", next)
+        ret next
+</code></pre>
+<hr>
+<h2 id="workflows-1"><a class="header" href="#workflows-1">Workflows</a></h2>
+<p><strong>File</strong>: <code>examples/workflow.vox</code></p>
+<p>Durable workflows with activities and the <code>with</code> expression:</p>
+<pre><code class="language-vox">activity fetch_user_data(user_id: str) to Result[str]:
+    ret Ok("User data for " + user_id)
+
+workflow onboard_user(user_id: str, email: str) to Result[str]:
+    let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" }
+    let _ = send_notification(email, "Welcome! " + profile) with { retries: 5, timeout: "60s" }
+    ret Ok("Onboarding complete for " + user_id)
+</code></pre>
+<hr>
+<h2 id="durable-execution-1"><a class="header" href="#durable-execution-1">Durable Execution</a></h2>
+<p><strong>File</strong>: <code>examples/durable_execution.vox</code></p>
+<p>Full workflow with varied retry policies:</p>
+<pre><code class="language-vox">workflow process_order(customer: str, order_data: str, amount: int) to Result[str]:
+    let validated = validate_order(order_data) with { timeout: "5s" }
+    let payment = charge_payment(amount, "card-123") with { retries: 3, timeout: "30s", initial_backoff: "500ms" }
+    let confirmation = send_confirmation(customer, "order-001") with { retries: 2, activity_id: "confirm-order-001" }
+    ret confirmation
+</code></pre>
+<hr>
+<h2 id="mcp-tools"><a class="header" href="#mcp-tools">MCP Tools</a></h2>
+<p><strong>File</strong>: <code>examples/mcp_tool.vox</code></p>
+<p>Expose functions as AI-discoverable tools via the Model Context Protocol:</p>
+<pre><code class="language-vox">@mcp.tool("create_note", "Create a new note with a title and content")
+fn create_note(title: str, content: str) to str:
+    ret "Created note: " + title
+
+@mcp.resource("notes://recent", "List of recently created notes")
+fn recent_notes() to list[str]:
+    ret ["Recent note 1", "Recent note 2"]
+</code></pre>
+<hr>
+<h2 id="ai-agents"><a class="header" href="#ai-agents">AI Agents</a></h2>
+<p><strong>File</strong>: <code>examples/agent.vox</code></p>
+<p>Define AI agents with memory and tool access:</p>
+<pre><code class="language-vox">@agent_def fn SupportBot(query: str, session: str) to str:
+    let past = db.agent_memory.find(session)
+    let response = "Based on " + past.context + " -&gt; " + query
+    db.agent_memory.insert(AgentMemory(session, query))
+    ret response
+</code></pre>
+<hr>
+<h2 id="dashboard"><a class="header" href="#dashboard">Dashboard</a></h2>
+<p><strong>File</strong>: <code>examples/dashboard.vox</code></p>
+<p>AI-generated UI + hand-coded components + routing:</p>
+<pre><code class="language-vox">@v0 "A metrics dashboard with cards showing KPIs and a line chart" fn Dashboard() to Element
+
+@component fn ChatWidget() to Element:
+    # ... hand-coded component
+
+routes:
+    "/" to Dashboard
+    "/chat" to ChatWidget
+</code></pre>
+<hr>
+<h2 id="sharing--skills"><a class="header" href="#sharing--skills">Sharing &amp; Skills</a></h2>
+<p><strong>File</strong>: <code>examples/sharing.vox</code></p>
+<p>Publishable skills and reusable components:</p>
+<pre><code class="language-vox">@skill fn DataSummarizer(text: str) to str:
+    "Summary of " + text
+
+workflow process_document(doc_id: str) to Result[bool]:
+    let doc = db.documents.find(doc_id)
+    let summary = DataSummarizer(doc.content)
+    db.documents.update(doc_id, summary)
+    ret Ok(true)
+</code></pre>
+<hr>
+<h2 id="testing-1"><a class="header" href="#testing-1">Testing</a></h2>
+<p><strong>File</strong>: <code>examples/testing.vox</code></p>
+<p>Unit tests with <code>@test</code> and <code>assert</code>:</p>
+<pre><code class="language-vox">@test fn test_addition() to Unit:
+    let sum = 1 + 2
+    assert(sum is 3)
+
+@test fn test_str_cast() to Unit:
+    let n = 42
+    let s = str(n)
+    assert(s is "42")
+</code></pre>
+<hr>
+<h2 id="minimal-server-function"><a class="header" href="#minimal-server-function">Minimal Server Function</a></h2>
+<p><strong>File</strong>: <code>examples/server_fn.vox</code></p>
+<p>The simplest possible server function:</p>
+<pre><code class="language-vox">type Greeting =
+    | Hello(message: str)
+
+@server fn greet(name: str) to Greeting:
+    ret Hello("Welcome, " + name + "!")
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="vox-language-guide"><a class="header" href="#vox-language-guide">Vox Language Guide</a></h1>
+<p>This guide covers the Vox language syntax, type system, and key features. All code examples are drawn from real <code>.vox</code> files in the <a href="../../examples"><code>examples/</code></a> directory.</p>
+<hr>
+<h2 id="basic-syntax"><a class="header" href="#basic-syntax">Basic Syntax</a></h2>
+<h3 id="functions"><a class="header" href="#functions">Functions</a></h3>
+<p>Functions are declared with <code>fn</code>, parameters are typed, and return types use <code>to</code>:</p>
+<pre><code class="language-vox">fn main():
+    let result = onboard_user("usr_123", "alice@example.com")
+    ret result
+</code></pre>
+<h3 id="variables"><a class="header" href="#variables">Variables</a></h3>
+<p>Variables are declared with <code>let</code> and are immutable by default:</p>
+<pre><code class="language-vox">let sum = 1 + 2
+let s = "hello"
+</code></pre>
+<h3 id="comments"><a class="header" href="#comments">Comments</a></h3>
+<p>Use <code>#</code> for line comments:</p>
+<pre><code class="language-vox"># This is a comment
+let x = 42  # Inline comment
+</code></pre>
+<h3 id="imports"><a class="header" href="#imports">Imports</a></h3>
+<p>Import modules with the <code>import</code> keyword:</p>
+<pre><code class="language-vox">import react.use_state
+import std.io
+</code></pre>
+<hr>
+<h2 id="type-system"><a class="header" href="#type-system">Type System</a></h2>
+<h3 id="primitive-types"><a class="header" href="#primitive-types">Primitive Types</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Type</th><th>Description</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>int</code></td><td>Integer</td><td><code>42</code></td></tr>
+<tr><td><code>str</code></td><td>String</td><td><code>"hello"</code></td></tr>
+<tr><td><code>bool</code></td><td>Boolean</td><td><code>true</code>, <code>false</code></td></tr>
+<tr><td><code>Unit</code></td><td>No value</td><td>(implicit)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="algebraic-data-types-adts"><a class="header" href="#algebraic-data-types-adts">Algebraic Data Types (ADTs)</a></h3>
+<p>Define sum types (discriminated unions) with <code>type ... = | Variant(...)</code>:</p>
+<pre><code class="language-vox">type ChatResult =
+    | Success(text: str)
+    | Error(msg: str)
+</code></pre>
+<p>ADTs can be generic:</p>
+<pre><code class="language-vox">type Option[T] = Some(T) | None
+type Result[T] = Ok(T) | Err(str)
+</code></pre>
+<h3 id="struct-like-types"><a class="header" href="#struct-like-types">Struct-like Types</a></h3>
+<p>Record types use <code>type</code> with fields:</p>
+<pre><code class="language-vox">@table type Task:
+    title: str
+    done: bool
+    priority: int
+    owner: str
+</code></pre>
+<h3 id="pattern-matching"><a class="header" href="#pattern-matching">Pattern Matching</a></h3>
+<p>Use <code>match</code> for exhaustive pattern matching on ADTs:</p>
+<pre><code class="language-vox">match msg:
+    | User(text) -&gt; &lt;div className="user-message"&gt;{text}&lt;/div&gt;
+    | Assistant(text) -&gt; &lt;div className="assistant-message"&gt;{text}&lt;/div&gt;
+</code></pre>
+<p>Pattern matching in tests:</p>
+<pre><code class="language-vox">@test fn test_success() to Unit:
+    let r = Success("ok")
+    match r:
+        Success(v) -&gt; assert(v is "ok")
+        Error -&gt; assert(false)
+</code></pre>
+<hr>
+<h2 id="decorators"><a class="header" href="#decorators">Decorators</a></h2>
+<p>Decorators are the core mechanism for declaring intent in Vox. They tell the compiler how to generate code for each target (Rust backend, TypeScript frontend).</p>
+<h3 id="table--database-tables"><a class="header" href="#table--database-tables"><code>@table</code> — Database Tables</a></h3>
+<p>Declares a persistent data type. The compiler generates schema definitions and typed query APIs:</p>
+<pre><code class="language-vox">@table type Note:
+    title: str
+    content: str
+    created_at: str
+</code></pre>
+<h3 id="index--database-indexes"><a class="header" href="#index--database-indexes"><code>@index</code> — Database Indexes</a></h3>
+<p>Declares indexes on tables for efficient queries:</p>
+<pre><code class="language-vox">@index Task.by_done on (done, priority)
+@index Task.by_owner on (owner)
+</code></pre>
+<h3 id="server--server-functions"><a class="header" href="#server--server-functions"><code>@server</code> — Server Functions</a></h3>
+<p>Generates both a backend HTTP route (Axum) and a typed frontend fetch wrapper:</p>
+<pre><code class="language-vox">@server fn greet(name: str) to Greeting:
+    ret Hello("Welcome, " + name + "!")
+
+@server fn add(a: int, b: int) to int:
+    ret a + b
+</code></pre>
+<p>From the frontend, you call <code>greet("Alice")</code> and the compiler generates the <code>fetch()</code> call automatically.</p>
+<h3 id="component--react-components"><a class="header" href="#component--react-components"><code>@component</code> — React Components</a></h3>
+<p>Declares a React component with JSX syntax:</p>
+<pre><code class="language-vox">@component fn ChatWidget() to Element:
+    let (messages, set_messages) = use_state([])
+    let (input, set_input) = use_state("")
+
+    fn handle_send():
+        set_messages(messages.append(User(text: input)))
+        set_input("")
+
+    ret &lt;div class="chat-widget"&gt;
+        &lt;h2&gt;"Chat"&lt;/h2&gt;
+        &lt;div class="messages"&gt;
+            for msg in messages:
+                &lt;p&gt;{msg}&lt;/p&gt;
+        &lt;/div&gt;
+        &lt;input bind={input} /&gt;
+        &lt;button on_click={fn(e) handle_send()}&gt;"Send"&lt;/button&gt;
+    &lt;/div&gt;
+</code></pre>
+<h3 id="test--unit-tests"><a class="header" href="#test--unit-tests"><code>@test</code> — Unit Tests</a></h3>
+<p>Generates Rust <code>#[test]</code> functions runnable with <code>vox test</code>:</p>
+<pre><code class="language-vox">@test fn test_addition() to Unit:
+    let sum = 1 + 2
+    assert(sum is 3)
+
+@test fn test_strings() to Unit:
+    let s = "foo"
+    let s2 = "bar"
+    let res = s + s2
+    assert(res is "foobar")
+</code></pre>
+<h3 id="mcptool--mcpresource--ai-tool-protocol"><a class="header" href="#mcptool--mcpresource--ai-tool-protocol"><code>@mcp.tool</code> / <code>@mcp.resource</code> — AI Tool Protocol</a></h3>
+<p>Exposes functions as MCP-compatible tools for AI assistants:</p>
+<pre><code class="language-vox">@mcp.tool("create_note", "Create a new note with a title and content")
+fn create_note(title: str, content: str) to str:
+    ret "Created note: " + title
+
+@mcp.resource("notes://recent", "List of recently created notes")
+fn recent_notes() to list[str]:
+    ret ["Recent note 1", "Recent note 2"]
+</code></pre>
+<h3 id="v0--ai-generated-ui"><a class="header" href="#v0--ai-generated-ui"><code>@v0</code> — AI-Generated UI</a></h3>
+<p>Generates a UI component from a natural language prompt via <a href="https://v0.dev">v0.dev</a>:</p>
+<pre><code class="language-vox">@v0 "A metrics dashboard with cards showing KPIs and a line chart" fn Dashboard() to Element
+</code></pre>
+<h3 id="skill--reusable-ai-capabilities"><a class="header" href="#skill--reusable-ai-capabilities"><code>@skill</code> — Reusable AI Capabilities</a></h3>
+<p>Defines a publishable AI skill:</p>
+<pre><code class="language-vox">@skill fn DataSummarizer(text: str) to str:
+    "Summary of " + text
+</code></pre>
+<h3 id="agent_def--agent-definitions"><a class="header" href="#agent_def--agent-definitions"><code>@agent_def</code> — Agent Definitions</a></h3>
+<p>Defines an AI agent with tools and memory:</p>
+<pre><code class="language-vox">@agent_def fn SupportBot(query: str, session: str) to str:
+    let past = db.agent_memory.find(session)
+    let response = "Based on " + past.context + " -&gt; " + query
+    db.agent_memory.insert(AgentMemory(session, query))
+    ret response
+</code></pre>
+<h3 id="deprecated--pure"><a class="header" href="#deprecated--pure"><code>@deprecated</code> / <code>@pure</code></a></h3>
+<p>Metadata decorators for tooling:</p>
+<ul>
+<li><code>@deprecated</code> — Marks a function as deprecated (generates <code>#[deprecated]</code> in Rust, <code>/** @deprecated */</code> in TS)</li>
+<li><code>@pure</code> — Indicates a function has no side effects</li>
+</ul>
+<hr>
+<h2 id="styling"><a class="header" href="#styling">Styling</a></h2>
+<p>Vox supports inline CSS-in-Vox style blocks:</p>
+<pre><code class="language-vox">style:
+    .chat_container:
+        fontFamily: "sans-serif"
+        display: "flex"
+        flexDirection: "column"
+        height: "100vh"
+
+    .send_btn:
+        backgroundColor: "#007AFF"
+        color: "white"
+        border: "none"
+        padding: "0 24px"
+        borderRadius: "8px"
+        cursor: "pointer"
+        transition: "background 0.2s"
+</code></pre>
+<hr>
+<h2 id="routing"><a class="header" href="#routing">Routing</a></h2>
+<p>Client-side routes are declared with the <code>routes:</code> block:</p>
+<pre><code class="language-vox">routes:
+    "/" to Dashboard
+    "/chat" to ChatWidget
+</code></pre>
+<p>Server-side HTTP routes use the <code>http</code> keyword:</p>
+<pre><code class="language-vox">http get "/api/stats" to list[int]:
+    ret 42
+</code></pre>
+<hr>
+<h2 id="queries-mutations--actions"><a class="header" href="#queries-mutations--actions">Queries, Mutations &amp; Actions</a></h2>
+<p>Vox provides Convex-inspired data access patterns:</p>
+<pre><code class="language-vox">@query fn get_history() to list[MessageRecord]:
+    ret []
+
+@mutation fn save_message(role: str, text: str) to Result[bool]:
+    ret Ok(true)
+
+@action fn handle_chat(prompt: str) to Result[str]:
+    let _ = save_message("user", prompt)
+    let openai = spawn(OpenRouterActor)
+    let response = openai.send(prompt)
+    let _ = save_message("bot", response)
+    ret Ok(response)
+</code></pre>
+<hr>
+<h2 id="next-steps-3"><a class="header" href="#next-steps-3">Next Steps</a></h2>
+<ul>
+<li><a href="#actors--workflows">Actors &amp; Workflows</a> — Durable execution and the actor model</li>
+<li><a href="#compiler-architecture">Compiler Architecture</a> — How Vox compiles to Rust and TypeScript</li>
+<li><a href="#ecosystem--tooling">Ecosystem &amp; Tooling</a> — CLI commands, LSP, package manager</li>
+<li><a href="#examples">Examples</a> — Annotated walkthrough of all example programs</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-ast"><a class="header" href="#vox-ast">vox-ast</a></h1>
+<p>Strongly-typed Abstract Syntax Tree for the Vox language.</p>
+<h2 id="purpose"><a class="header" href="#purpose">Purpose</a></h2>
+<p>Provides typed wrappers around the parser’s untyped Concrete Syntax Tree (CST) nodes. This is the API that downstream stages (HIR lowering, type checking) consume.</p>
+<h2 id="key-files"><a class="header" href="#key-files">Key Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>decl.rs</code></td><td><code>Decl</code> — function, type, actor, workflow, activity, table, decorator declarations</td></tr>
+<tr><td><code>expr.rs</code></td><td><code>Expr</code> — literals, binary ops, calls, match, spawn, JSX, lambda</td></tr>
+<tr><td><code>stmt.rs</code></td><td><code>Stmt</code> — let bindings, return, assignment, expression statements</td></tr>
+<tr><td><code>pattern.rs</code></td><td><code>Pattern</code> — destructuring and match patterns for ADTs</td></tr>
+<tr><td><code>types.rs</code></td><td><code>TypeExpr</code> — type annotations, generics, and type parameters</td></tr>
+<tr><td><code>span.rs</code></td><td><code>Span</code> — source location tracking (start/end offsets)</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="design"><a class="header" href="#design">Design</a></h2>
+<p>Each AST node type is an enum with variants for every language construct. All nodes carry <code>Span</code> information for error reporting and LSP integration.</p>
+<pre><code>Module
+├── Vec&lt;Decl&gt;
+│   ├── FnDecl { name, params, return_type, body, decorators }
+│   ├── TypeDecl { name, variants }
+│   ├── ActorDecl { name, state, handlers }
+│   ├── WorkflowDecl { name, params, body }
+│   └── ...
+├── Vec&lt;Stmt&gt;
+└── Vec&lt;Route&gt;
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-cli"><a class="header" href="#vox-cli">vox-cli</a></h1>
+<p>The command-line interface for the Vox programming language. Entry point for all <code>vox</code> commands.</p>
+<h2 id="commands"><a class="header" href="#commands">Commands</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Command</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>vox build &lt;file&gt;</code></td><td>Compile a <code>.vox</code> file to Rust + TypeScript</td></tr>
+<tr><td><code>vox run &lt;file&gt;</code></td><td>Build and run a Vox application</td></tr>
+<tr><td><code>vox bundle &lt;file&gt;</code></td><td>Bundle into a standalone web application</td></tr>
+<tr><td><code>vox test &lt;file&gt;</code></td><td>Run <code>@test</code> decorated functions</td></tr>
+<tr><td><code>vox fmt &lt;file&gt;</code></td><td>Format Vox source files</td></tr>
+<tr><td><code>vox lsp</code></td><td>Launch the Language Server</td></tr>
+<tr><td><code>vox init [name]</code></td><td>Scaffold a new Vox project</td></tr>
+<tr><td><code>vox install &lt;pkg&gt;</code></td><td>Install a package</td></tr>
+<tr><td><code>vox vendor</code></td><td>Bundle dependencies for offline builds</td></tr>
+<tr><td><code>vox publish</code></td><td>Publish a package to the registry</td></tr>
+<tr><td><code>vox search &lt;query&gt;</code></td><td>Search the package registry</td></tr>
+<tr><td><code>vox audit</code></td><td>Check dependencies for security advisories</td></tr>
+<tr><td><code>vox clean</code></td><td>Remove build artifacts</td></tr>
+<tr><td><code>vox stub-check</code></td><td>Run TOESTUB anti-pattern detection</td></tr>
+<tr><td><code>vox share &lt;action&gt;</code></td><td>Publish/browse shared artifacts</td></tr>
+<tr><td><code>vox snippet &lt;action&gt;</code></td><td>Save/search code snippets</td></tr>
+<tr><td><code>vox agent &lt;action&gt;</code></td><td>Register/manage AI agents</td></tr>
+<tr><td><code>vox gamify &lt;action&gt;</code></td><td>Code companions, quests, battles</td></tr>
+<tr><td><code>vox orchestrator &lt;action&gt;</code></td><td>Multi-agent task queues</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="key-files-1"><a class="header" href="#key-files-1">Key Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>main.rs</code></td><td>CLI argument parsing (clap) and command dispatch</td></tr>
+<tr><td><code>commands/</code></td><td>One module per subcommand</td></tr>
+<tr><td><code>templates.rs</code></td><td>Project scaffolding templates for <code>vox init</code></td></tr>
+<tr><td><code>v0.rs</code></td><td>v0.dev AI component generation integration</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
+<pre><code class="language-bash"># Install from source
+cargo install --path crates/vox-cli
+
+# Or build for development
+cargo build -p vox-cli
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-codegen-rust"><a class="header" href="#vox-codegen-rust">vox-codegen-rust</a></h1>
+<p>Rust code generator for the Vox compiler. Emits Axum server code, actor implementations, table schemas, and test harnesses.</p>
+<h2 id="purpose-1"><a class="header" href="#purpose-1">Purpose</a></h2>
+<p>Transforms the typed HIR into runnable Rust source using the <a href="https://docs.rs/quote"><code>quote!</code></a> macro. Each Vox decorator maps to specific Rust constructs.</p>
+<h2 id="key-files-2"><a class="header" href="#key-files-2">Key Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>emit.rs</code></td><td><code>generate()</code> — main entry point, <code>CodegenOutput</code> type</td></tr>
+<tr><td><code>emit_main.rs</code></td><td>Generates <code>main()</code> with Axum router setup</td></tr>
+<tr><td><code>emit_table.rs</code></td><td>Generates SQLite schema definitions from <code>@table</code></td></tr>
+<tr><td><code>emit_expr.rs</code></td><td>Expression-level code emission</td></tr>
+<tr><td><code>emit_agent.rs</code></td><td>Agent definition code generation</td></tr>
+<tr><td><code>emit_lib.rs</code></td><td>Library-level module emission</td></tr>
+<tr><td><code>emit_trait.rs</code></td><td>Trait and interface code generation</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="decorator-mapping"><a class="header" href="#decorator-mapping">Decorator Mapping</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Vox</th><th>Generated Rust</th></tr>
+</thead>
+<tbody>
+<tr><td><code>@server fn</code></td><td>Axum handler + route registration</td></tr>
+<tr><td><code>@table type</code></td><td>Struct + SQLite <code>CREATE TABLE</code></td></tr>
+<tr><td><code>@test fn</code></td><td><code>#[test]</code> function</td></tr>
+<tr><td><code>@deprecated</code></td><td><code>#[deprecated]</code> attribute</td></tr>
+<tr><td><code>@pure</code></td><td><code>/* @pure */</code> annotation</td></tr>
+<tr><td><code>actor</code></td><td>Tokio task + mpsc mailbox struct</td></tr>
+<tr><td><code>workflow</code></td><td>Durable state machine</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="usage-1"><a class="header" href="#usage-1">Usage</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use vox_codegen_rust::generate;
+
+let output = generate(&amp;hir_module);
+// output.main_rs — main entry point with Axum routes
+// output.lib_rs  — library module with types and functions
+<span class="boring">}</span></code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-codegen-ts"><a class="header" href="#vox-codegen-ts">vox-codegen-ts</a></h1>
+<p>TypeScript/TSX code generator for the Vox compiler. Emits React components, fetch wrappers, ADT types, and route definitions.</p>
+<h2 id="purpose-2"><a class="header" href="#purpose-2">Purpose</a></h2>
+<p>Transforms the typed HIR into TypeScript source files. The emitter is modularized by concern — each module handles a specific category of output.</p>
+<h2 id="key-files-3"><a class="header" href="#key-files-3">Key Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>emitter.rs</code></td><td><code>generate()</code> — main entry point, orchestrates all modules</td></tr>
+<tr><td><code>jsx.rs</code></td><td>React JSX component rendering</td></tr>
+<tr><td><code>component.rs</code></td><td><code>@component</code> declarations and hook wiring</td></tr>
+<tr><td><code>activity.rs</code></td><td>Activity and workflow client wrappers</td></tr>
+<tr><td><code>routes.rs</code></td><td>React Router route definitions</td></tr>
+<tr><td><code>adt.rs</code></td><td>TypeScript discriminated union types from Vox ADTs</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="output-mapping"><a class="header" href="#output-mapping">Output Mapping</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Vox</th><th>Generated TypeScript</th></tr>
+</thead>
+<tbody>
+<tr><td><code>@component fn</code></td><td>React functional component</td></tr>
+<tr><td><code>@server fn</code></td><td>Typed <code>fetch()</code> wrapper</td></tr>
+<tr><td><code>type A = | B | C</code></td><td>Discriminated union type</td></tr>
+<tr><td><code>routes:</code></td><td>React Router <code>&lt;Route&gt;</code> elements</td></tr>
+<tr><td><code>@deprecated</code></td><td><code>/** @deprecated */</code> JSDoc</td></tr>
+<tr><td><code>style:</code></td><td>CSS-in-JS object</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="usage-2"><a class="header" href="#usage-2">Usage</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use vox_codegen_ts::generate;
+
+let ts_output = generate(&amp;ast_module);
+// ts_output: String — complete TypeScript/TSX file
+<span class="boring">}</span></code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-db"><a class="header" href="#vox-db">vox-db</a></h1>
+<p>High-level database facade for the Vox ecosystem. Wraps <code>vox-pm::CodeStore</code> with connection management, retry logic, and transaction support.</p>
+<h2 id="connection-modes"><a class="header" href="#connection-modes">Connection Modes</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Mode</th><th>Feature Flag</th><th>Use Case</th></tr>
+</thead>
+<tbody>
+<tr><td>Remote (Turso)</td><td>(default)</td><td>Production — cloud-hosted</td></tr>
+<tr><td>Local SQLite</td><td><code>local</code></td><td>Development — file-based</td></tr>
+<tr><td>In-Memory</td><td><code>local</code></td><td>Testing — ephemeral</td></tr>
+<tr><td>Embedded Replica</td><td><code>replication</code></td><td>Hybrid — local + cloud sync</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="key-apis"><a class="header" href="#key-apis">Key APIs</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>VoxDb::connect(config)</code></td><td>Connect with automatic retry (3× w/ backoff)</td></tr>
+<tr><td><code>VoxDb::store()</code></td><td>Access the underlying <code>CodeStore</code></td></tr>
+<tr><td><code>VoxDb::sync()</code></td><td>Sync embedded replica with remote</td></tr>
+<tr><td><code>VoxDb::schema_version()</code></td><td>Get current schema version</td></tr>
+<tr><td><code>VoxDb::transaction(f)</code></td><td>Execute within BEGIN/COMMIT/ROLLBACK</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="usage-3"><a class="header" href="#usage-3">Usage</a></h2>
+<pre class="playground"><code class="language-rust">use vox_db::{VoxDb, DbConfig};
+
+#[tokio::main]
+async fn main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let db = VoxDb::connect(DbConfig::Remote {
+        url: "turso://my-db.turso.io".to_string(),
+        token: "my-token".to_string(),
+    }).await?;
+
+    let hash = db.store().store("fn", b"fn hello(): ret 42").await?;
+    println!("Stored: {hash}");
+    Ok(())
+}</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-doc-pipeline"><a class="header" href="#vox-doc-pipeline">vox-doc-pipeline</a></h1>
+<p>Documentation generation tool for the Vox project. Scans <code>docs/src/</code> for Markdown files and generates a <code>SUMMARY.md</code> navigation index.</p>
+<h2 id="usage-4"><a class="header" href="#usage-4">Usage</a></h2>
+<pre><code class="language-bash">cargo run -p vox-doc-pipeline
+</code></pre>
+<p>This scans <code>docs/src/</code> for all <code>.md</code> files (excluding <code>SUMMARY.md</code> itself), sorts them alphabetically, and generates a <code>SUMMARY.md</code> with title-cased links.</p>
+<h2 id="how-it-works-1"><a class="header" href="#how-it-works-1">How It Works</a></h2>
+<ol>
+<li>Reads all <code>.md</code> files in <code>docs/src/</code></li>
+<li>Converts filenames to title-case headings (e.g., <code>language-guide.md</code> → <code>Language guide</code>)</li>
+<li>Writes a <code># Summary</code> with links to each page</li>
+</ol>
+<h2 id="future-plans"><a class="header" href="#future-plans">Future Plans</a></h2>
+<ul>
+<li>Copy crate <code>README.md</code> files into <code>docs/src/api/</code> as individual pages</li>
+<li>Generate cross-reference links between docs and rustdoc</li>
+<li>Integrate with mdBook or Pagefind for full-text search</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-gamify"><a class="header" href="#vox-gamify">vox-gamify</a></h1>
+<p>Gamification layer for the Vox programming language. Code companions, daily quests, bug battles, and ASCII sprites — all working fully offline.</p>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>companion.rs</code></td><td>Code companions with mood, interaction, and energy systems</td></tr>
+<tr><td><code>quest.rs</code></td><td>Daily quests with randomized objectives</td></tr>
+<tr><td><code>battle.rs</code></td><td>Bug battle encounters with typed bug categories</td></tr>
+<tr><td><code>sprite.rs</code></td><td>ASCII art sprites for companions and bugs</td></tr>
+<tr><td><code>ai.rs</code></td><td>Free multi-provider AI client (Pollinations / Ollama / Gemini)</td></tr>
+<tr><td><code>profile.rs</code></td><td>Player profile with XP, level, and statistics</td></tr>
+<tr><td><code>db.rs</code></td><td>SQLite persistence for game state</td></tr>
+<tr><td><code>schema.rs</code></td><td>Database schema (V5) for all gamification data</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="cli-commands-1"><a class="header" href="#cli-commands-1">CLI Commands</a></h2>
+<pre><code class="language-bash">vox gamify status              # Show your profile
+vox gamify companion list      # List code companions
+vox gamify companion adopt     # Adopt a new companion
+vox gamify quest list           # View daily quests
+vox gamify battle start         # Start a bug battle
+</code></pre>
+<h2 id="design-1"><a class="header" href="#design-1">Design</a></h2>
+<p>All features work offline with deterministic fallbacks. The AI client (<code>FreeAiClient</code>) attempts multiple providers in order and falls back to template-based responses if all providers are unavailable.</p>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-hir"><a class="header" href="#vox-hir">vox-hir</a></h1>
+<p>High-Level Intermediate Representation for the Vox compiler. Desugars syntax, resolves names, and detects dead code.</p>
+<h2 id="purpose-3"><a class="header" href="#purpose-3">Purpose</a></h2>
+<p>Transforms the typed AST from <code>vox-ast</code> into a simpler, canonical IR that the type checker and code generators consume. This stage resolves all identifier references to their definitions and detects unreachable code.</p>
+<h2 id="key-files-4"><a class="header" href="#key-files-4">Key Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>hir.rs</code></td><td><code>HirModule</code>, <code>HirDecl</code>, <code>HirExpr</code>, <code>HirStmt</code> — IR node types</td></tr>
+<tr><td><code>lower.rs</code></td><td><code>lower_module()</code> — AST → HIR transformation</td></tr>
+<tr><td><code>def_map.rs</code></td><td><code>DefMap</code> — name resolution mapping identifiers to definitions</td></tr>
+<tr><td><code>dead_code.rs</code></td><td>Dead code detection pass</td></tr>
+<tr><td><code>validate.rs</code></td><td><code>validate_module()</code> — HIR validation rules</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="usage-5"><a class="header" href="#usage-5">Usage</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use vox_hir::lower_module;
+
+let hir_module = lower_module(&amp;ast_module);
+// hir_module contains resolved references and desugared expressions
+<span class="boring">}</span></code></pre>
+<h2 id="key-operations"><a class="header" href="#key-operations">Key Operations</a></h2>
+<ol>
+<li><strong>Name resolution</strong> — All identifiers are resolved to their definitions via <code>DefMap</code></li>
+<li><strong>Desugaring</strong> — Complex patterns and expressions are simplified</li>
+<li><strong>Dead code detection</strong> — Unreachable functions and variables are flagged</li>
+<li><strong>Validation</strong> — Structural invariants are checked before type checking</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-integration-tests"><a class="header" href="#vox-integration-tests">vox-integration-tests</a></h1>
+<p>End-to-end tests for the Vox compiler pipeline. Each test exercises the full path from parsing through code generation.</p>
+<h2 id="test-files"><a class="header" href="#test-files">Test Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Test</th><th>Coverage</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pipeline.rs</code></td><td>Full pipeline: parse → HIR → typeck → codegen for all language features</td></tr>
+<tr><td><code>codegen_rust.rs</code></td><td>Rust code generation specifics</td></tr>
+<tr><td><code>typeck.rs</code></td><td>Type checking edge cases</td></tr>
+<tr><td><code>db_typeck.rs</code></td><td>Database type checking (<code>@table</code>, <code>@index</code>)</td></tr>
+<tr><td><code>chatbot_integration.rs</code></td><td>Full chatbot example compilation</td></tr>
+<tr><td><code>workflow_integration.rs</code></td><td>Workflow and activity compilation</td></tr>
+<tr><td><code>agent_message.rs</code></td><td>Agent and MCP tool compilation</td></tr>
+<tr><td><code>traits.rs</code></td><td>Trait/interface compilation</td></tr>
+<tr><td><code>stream_emit.rs</code></td><td>Streaming code emission</td></tr>
+<tr><td><code>while_trycatch.rs</code></td><td>While loops and try/catch compilation</td></tr>
+<tr><td><code>test_hang.rs</code></td><td>Regression test for parser hangs</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="running"><a class="header" href="#running">Running</a></h2>
+<pre><code class="language-bash">cargo test -p vox-integration-tests
+</code></pre>
+<h2 id="adding-tests"><a class="header" href="#adding-tests">Adding Tests</a></h2>
+<p>Each test follows the pattern:</p>
+<ol>
+<li>Define Vox source as a string</li>
+<li>Lex → Parse → Lower → Typecheck → Codegen</li>
+<li>Assert on the generated output or diagnostics</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-lexer"><a class="header" href="#vox-lexer">vox-lexer</a></h1>
+<p>High-performance tokenizer for the Vox programming language, built on <a href="https://docs.rs/logos"><code>logos</code></a>.</p>
+<h2 id="purpose-4"><a class="header" href="#purpose-4">Purpose</a></h2>
+<p>Converts Vox source code into a flat stream of typed tokens — the first stage of the compiler pipeline.</p>
+<h2 id="key-files-5"><a class="header" href="#key-files-5">Key Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>token.rs</code></td><td><code>Token</code> enum — all language tokens (keywords, operators, literals, punctuation)</td></tr>
+<tr><td><code>cursor.rs</code></td><td>Character-level scanning cursor and <code>lex()</code> function</td></tr>
+<tr><td><code>lib.rs</code></td><td>Public API: re-exports <code>lex()</code> and <code>Token</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="usage-6"><a class="header" href="#usage-6">Usage</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use vox_lexer::{lex, Token};
+
+let tokens = lex("fn hello(): ret 42");
+// → [Fn, Ident("hello"), LParen, RParen, Colon, Ret, IntLit(42)]
+<span class="boring">}</span></code></pre>
+<h2 id="design-2"><a class="header" href="#design-2">Design</a></h2>
+<ul>
+<li><strong>Zero-copy</strong> tokenization via <code>logos</code> derive macro</li>
+<li>Tokens carry their source span for error reporting</li>
+<li>Whitespace and comments are preserved as tokens for the lossless parser</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-language-server"><a class="header" href="#vox-language-server">Vox Language Server</a></h1>
+<p>This crate provides the Language Server Protocol (LSP) implementation for Vox.</p>
+<h2 id="features-1"><a class="header" href="#features-1">Features</a></h2>
+<ul>
+<li><strong>Diagnostics</strong>: Reports syntax errors (parser) and type errors (checker).</li>
+<li><strong>Go to Definition</strong>: (Planned)</li>
+<li><strong>Completion</strong>: (Planned)</li>
+<li><strong>Hover</strong>: (Planned)</li>
+</ul>
+<h2 id="installation-1"><a class="header" href="#installation-1">Installation</a></h2>
+<ol>
+<li>Build the LSP server:
+<pre><code class="language-bash">cargo build --release -p vox-lsp
+</code></pre>
+</li>
+<li>The binary will be at <code>target/release/vox-lsp</code>.</li>
+</ol>
+<h2 id="editor-configuration"><a class="header" href="#editor-configuration">Editor Configuration</a></h2>
+<h3 id="vs-code"><a class="header" href="#vs-code">VS Code</a></h3>
+<p>Use the <code>vscode-vox</code> extension (TBD) or configure manually:</p>
+<pre><code class="language-json">"vox.lsp.serverPath": "/path/to/target/release/vox-lsp"
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-orchestrator"><a class="header" href="#vox-orchestrator">vox-orchestrator</a></h1>
+<p>Multi-agent file-affinity queue system. Routes tasks to AI agents based on file ownership, preventing race conditions when multiple agents work concurrently.</p>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<pre><code>User Request
+    │
+    ▼
+Orchestrator ──► FileAffinityMap ──► route to Agent
+    │                                    │
+    ▼                                    ▼
+BulletinBoard ◄──── AgentQueue ──► FileLockManager
+</code></pre>
+<h2 id="key-modules"><a class="header" href="#key-modules">Key Modules</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>orchestrator.rs</code></td><td>Core orchestrator — task routing and lifecycle</td></tr>
+<tr><td><code>affinity.rs</code></td><td>File-to-agent affinity mapping</td></tr>
+<tr><td><code>queue.rs</code></td><td>Per-agent task queue with priority ordering</td></tr>
+<tr><td><code>locks.rs</code></td><td>File-level lock manager (one writer per file)</td></tr>
+<tr><td><code>bulletin.rs</code></td><td>Bulletin board for inter-agent coordination</td></tr>
+<tr><td><code>groups.rs</code></td><td>Agent grouping and capability matching</td></tr>
+<tr><td><code>state.rs</code></td><td>Orchestrator state persistence</td></tr>
+<tr><td><code>types.rs</code></td><td><code>AgentId</code>, <code>TaskId</code>, <code>TaskStatus</code>, etc.</td></tr>
+<tr><td><code>config.rs</code></td><td><code>OrchestratorConfig</code></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="feature-flags"><a class="header" href="#feature-flags">Feature Flags</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>runtime</code></td><td>Actor-based agents via <code>vox-runtime</code></td></tr>
+<tr><td><code>toestub-gate</code></td><td>Post-task quality validation via TOESTUB</td></tr>
+<tr><td><code>lsp</code></td><td>LSP integration for file ownership info</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="cli"><a class="header" href="#cli">CLI</a></h2>
+<pre><code class="language-bash">vox orchestrator enqueue --file src/main.vox --task "fix bug"
+vox orchestrator status
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-parser"><a class="header" href="#vox-parser">vox-parser</a></h1>
+<p>Recursive descent parser for the Vox programming language. Produces a lossless syntax tree with full error recovery.</p>
+<h2 id="purpose-5"><a class="header" href="#purpose-5">Purpose</a></h2>
+<p>Transforms a token stream from <code>vox-lexer</code> into a typed AST (<code>vox-ast</code>). Designed for error resilience — the parser continues after encountering invalid syntax, which is critical for LSP support where the user is actively typing.</p>
+<h2 id="key-files-6"><a class="header" href="#key-files-6">Key Files</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>parser.rs</code></td><td>Core recursive descent parser — <code>parse()</code> entry point</td></tr>
+<tr><td><code>error.rs</code></td><td><code>ParseError</code> type with source spans and recovery info</td></tr>
+<tr><td><code>indent.rs</code></td><td>Indentation-aware formatting and scope detection</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="features-2"><a class="header" href="#features-2">Features</a></h2>
+<ul>
+<li><strong>Error recovery</strong> with synchronization points — never panics on invalid input</li>
+<li><strong>Trailing comma</strong> support in function parameter lists</li>
+<li><strong>Duplicate parameter</strong> name detection with clear error messages</li>
+<li><strong>Indentation-aware</strong> parsing for Python-style block structure</li>
+</ul>
+<h2 id="usage-7"><a class="header" href="#usage-7">Usage</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use vox_parser::parse;
+use vox_lexer::lex;
+
+let tokens = lex("fn hello(): ret 42");
+let (module, errors) = parse(&amp;tokens);
+// module: Module with one FnDecl
+// errors: Vec&lt;ParseError&gt; (empty for valid input)
+<span class="boring">}</span></code></pre>
+<h2 id="design-3"><a class="header" href="#design-3">Design</a></h2>
+<p>The parser produces <code>vox_ast::Module</code> structures and collects all errors into a <code>Vec&lt;ParseError&gt;</code> rather than failing on the first error. This design enables:</p>
+<ul>
+<li>Real-time diagnostics in the LSP</li>
+<li>Partial compilation of files with syntax errors</li>
+<li>Better error messages by continuing to parse after mistakes</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-pm"><a class="header" href="#vox-pm">vox-pm</a></h1>
+<p>Vox Package Manager — a content-addressable store (CAS) backend for Vox packages, artifacts, and agent memories. Built on <strong>libSQL/Turso</strong> for local-first with optional cloud sync.</p>
+<h2 id="architecture-1"><a class="header" href="#architecture-1">Architecture</a></h2>
+<h3 id="content-addressable-store-cas"><a class="header" href="#content-addressable-store-cas">Content-Addressable Store (CAS)</a></h3>
+<p>All artifacts are stored by their SHA3-256 content hash:</p>
+<pre><code>store(data) → hash
+get(hash) → data
+</code></pre>
+<ul>
+<li><strong>Deterministic</strong>: Same content always produces the same hash</li>
+<li><strong>Deduplication</strong>: Identical artifacts share a single stored copy</li>
+<li><strong>Integrity</strong>: Content can be verified against its hash at any time</li>
+</ul>
+<h3 id="name-binding"><a class="header" href="#name-binding">Name Binding</a></h3>
+<p>Names are mapped to content hashes within namespaces:</p>
+<pre><code>bind_name(namespace, name, hash)
+lookup_name(namespace, name) → hash
+</code></pre>
+<p>This enables versioned references (e.g., <code>my_package@1.2.3</code>) while keeping the underlying storage content-addressed.</p>
+<h3 id="database-backends-1"><a class="header" href="#database-backends-1">Database Backends</a></h3>
+<p>The <code>CodeStore</code> supports multiple connection modes via feature flags:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Mode</th><th>Feature Flag</th><th>Use Case</th></tr>
+</thead>
+<tbody>
+<tr><td>Remote</td><td>(default)</td><td>Production — connects to Turso cloud</td></tr>
+<tr><td>Local</td><td><code>local</code></td><td>Development — local SQLite file</td></tr>
+<tr><td>Memory</td><td><code>local</code></td><td>Testing — ephemeral in-memory DB</td></tr>
+<tr><td>Embedded Replica</td><td><code>replication</code></td><td>Hybrid — local cache with cloud sync</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="schema-management"><a class="header" href="#schema-management">Schema Management</a></h3>
+<p>Migrations are managed incrementally via a <code>schema_version</code> table:</p>
+<ul>
+<li><code>migrate_schema()</code> — applies pending migrations</li>
+<li><code>dry_run_migration()</code> — reports what would change without applying</li>
+<li><code>health_check()</code> — runs <code>PRAGMA integrity_check</code> to verify DB health</li>
+</ul>
+<h3 id="artifact-normalization"><a class="header" href="#artifact-normalization">Artifact Normalization</a></h3>
+<p><code>normalize.rs</code> implements semantic hashing using de Bruijn indexing:</p>
+<ul>
+<li>Strips identifier names from AST nodes</li>
+<li>Replaces bound variables with positional indices</li>
+<li>Enables detection of semantically identical code regardless of naming</li>
+</ul>
+<h2 id="key-apis-1"><a class="header" href="#key-apis-1">Key APIs</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>store(data)</code></td><td>Store bytes, returns content hash</td></tr>
+<tr><td><code>get(hash)</code></td><td>Retrieve bytes by hash</td></tr>
+<tr><td><code>batch_insert(items)</code></td><td>Bulk insert artifacts in one transaction</td></tr>
+<tr><td><code>bind_name(ns, name, hash)</code></td><td>Associate a name with a hash</td></tr>
+<tr><td><code>list_components(limit, offset)</code></td><td>Paginated artifact listing</td></tr>
+<tr><td><code>recall_memory(agent, type, limit, min_importance)</code></td><td>Query agent memories with relevance filtering</td></tr>
+<tr><td><code>search_code_snippets(query, limit)</code></td><td>Vector-similarity search over code</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-runtime"><a class="header" href="#vox-runtime">vox-runtime</a></h1>
+<p>The Vox runtime provides the execution infrastructure for compiled Vox applications, built on <strong>Tokio</strong> and <strong>Axum</strong>.</p>
+<h2 id="architecture-2"><a class="header" href="#architecture-2">Architecture</a></h2>
+<h3 id="actor-system"><a class="header" href="#actor-system">Actor System</a></h3>
+<p>Every <code>actor</code> declaration in Vox compiles to an isolated Tokio task with a message-passing mailbox:</p>
+<ul>
+<li><strong>ProcessHandle</strong>: A lightweight handle for sending messages to an actor (<code>send</code>, <code>call</code>)</li>
+<li><strong>ProcessRegistry</strong>: A global registry mapping actor IDs to their handles</li>
+<li><strong>Mailbox</strong>: An <code>mpsc</code> channel providing asynchronous message delivery with configurable capacity</li>
+</ul>
+<h3 id="scheduler"><a class="header" href="#scheduler">Scheduler</a></h3>
+<p>The scheduler manages lifecycle and message routing:</p>
+<ul>
+<li>Spawns actor tasks with proper Tokio supervision</li>
+<li>Routes messages between actors via the registry</li>
+<li>Supports request/reply patterns through <code>oneshot</code> channels</li>
+</ul>
+<h3 id="subscription-manager"><a class="header" href="#subscription-manager">Subscription Manager</a></h3>
+<p>Reactive subscriptions for real-time data updates:</p>
+<ul>
+<li>Table-level change notifications</li>
+<li>Client subscription tracking</li>
+<li>SSE (Server-Sent Events) integration for push-based updates</li>
+</ul>
+<h3 id="local-storage"><a class="header" href="#local-storage">Local Storage</a></h3>
+<p>Content-addressable file storage with FNV-1a hashing:</p>
+<ul>
+<li>Deterministic IDs for identical content</li>
+<li>Automatic deduplication</li>
+<li>URL-based access via <code>/storage/{id}</code> prefix</li>
+</ul>
+<h2 id="key-design-decisions"><a class="header" href="#key-design-decisions">Key Design Decisions</a></h2>
+<ol>
+<li><strong>No <code>null</code></strong>: All optional values use <code>Option&lt;T&gt;</code>, following Vox’s zero-null philosophy</li>
+<li><strong>Lock safety</strong>: All <code>RwLock</code>/<code>Mutex</code> operations use <code>.expect()</code> with descriptive messages instead of <code>.unwrap()</code></li>
+<li><strong>Content addressing</strong>: Storage uses content hashing (FNV-1a) instead of timestamp-based IDs for deterministic behavior</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-toestub"><a class="header" href="#vox-toestub">vox-toestub</a></h1>
+<p><strong>T</strong>odo, <strong>O</strong>mitted wiring, <strong>E</strong>mpty bodies, <strong>S</strong>tub functions, <strong>T</strong>oo-early victory, <strong>U</strong>nresolved references, <strong>B</strong>roken DRY — detector.</p>
+<p>TOESTUB mechanically detects AI coding anti-patterns that are banned by <code>AGENTS.md</code> but otherwise only caught during manual review.</p>
+<h2 id="key-modules-1"><a class="header" href="#key-modules-1">Key Modules</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>scanner.rs</code></td><td>File system scanner — discovers source files</td></tr>
+<tr><td><code>rules.rs</code></td><td><code>DetectionRule</code> definitions and <code>Finding</code> types</td></tr>
+<tr><td><code>detectors/</code></td><td>Individual detection implementations</td></tr>
+<tr><td><code>engine.rs</code></td><td><code>ToestubEngine</code> — orchestrates scan + detection</td></tr>
+<tr><td><code>report.rs</code></td><td>Output formatting (terminal, JSON, Markdown)</td></tr>
+<tr><td><code>ai_analyze.rs</code></td><td>Optional AI-powered analysis for complex patterns</td></tr>
+<tr><td><code>task_queue.rs</code></td><td>Parallel task processing</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="what-it-detects"><a class="header" href="#what-it-detects">What It Detects</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Anti-Pattern</th><th>Example</th></tr>
+</thead>
+<tbody>
+<tr><td><code>todo!()</code> / <code>unimplemented!()</code></td><td>Stub implementations left in place</td></tr>
+<tr><td>Empty function bodies</td><td><code>fn handle() {}</code></td></tr>
+<tr><td>Hardcoded values</td><td>Magic numbers, hardcoded URLs</td></tr>
+<tr><td>DRY violations</td><td>Duplicated code blocks</td></tr>
+<tr><td>Unwrap in production</td><td><code>.unwrap()</code> outside tests</td></tr>
+<tr><td>Stale comments</td><td>Comments that don’t match code</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="cli-1"><a class="header" href="#cli-1">CLI</a></h2>
+<pre><code class="language-bash">vox stub-check                          # Scan current directory
+vox stub-check --path src/              # Scan specific path
+vox stub-check --format json            # JSON output
+vox stub-check --format markdown        # Markdown report
+vox stub-check --ai-provider ollama     # Enable AI analysis
+</code></pre>
+<h2 id="severity-levels"><a class="header" href="#severity-levels">Severity Levels</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Level</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Critical</code></td><td>Must fix before merge</td></tr>
+<tr><td><code>Warning</code></td><td>Should fix, may indicate incomplete work</td></tr>
+<tr><td><code>Info</code></td><td>Informational, style improvement</td></tr>
+</tbody>
+</table>
+</div>
+<div style="break-before: page; page-break-before: always;"></div><!-- Generated by vox-doc-pipeline -->
+<p><a href="#introduction">← Back to API Index</a></p>
+<h1 id="vox-typeck"><a class="header" href="#vox-typeck">vox-typeck</a></h1>
+<p><strong>Constraint-based type inference and checking for the Vox language.</strong></p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p><code>vox-typeck</code> implements a bidirectional type checking algorithm with Hindley-Milner style
+type inference using union-find (UF) based constraint unification.</p>
+<h2 id="architecture-3"><a class="header" href="#architecture-3">Architecture</a></h2>
+<pre><code>AST Module
+    ↓
+typecheck_module()
+    ↓
+╔═══════════════════════════════╗
+║  TypeEnv                      ║  ← symbol table with scoped bindings
+║  UnionFind                    ║  ← constraint solver (unification)
+║  check_expr / check_stmt      ║  ← bidirectional type checking
+╚═══════════════════════════════╝
+    ↓
+Vec&lt;Diagnostic&gt;  (errors + warnings)
+</code></pre>
+<h3 id="key-components"><a class="header" href="#key-components">Key Components</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Purpose</th></tr>
+</thead>
+<tbody>
+<tr><td><code>check.rs</code></td><td>Main type-checking logic: <code>check_expr</code>, <code>check_stmt</code>, <code>check_decl</code></td></tr>
+<tr><td><code>env.rs</code></td><td><code>TypeEnv</code> — scoped symbol table with push/pop scope support</td></tr>
+<tr><td><code>ty.rs</code></td><td><code>Ty</code> enum — internal type representation used during checking</td></tr>
+<tr><td><code>unify.rs</code></td><td>Union-Find constraint solver for type unification</td></tr>
+<tr><td><code>diagnostics.rs</code></td><td><code>Diagnostic</code> and <code>Severity</code> types for error reporting</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="type-inference-algorithm"><a class="header" href="#type-inference-algorithm">Type Inference Algorithm</a></h3>
+<ol>
+<li><strong>Fresh type variables</strong> — Unknown types are assigned fresh <code>Ty::TypeVar(id)</code> values</li>
+<li><strong>Constraint generation</strong> — Binary expressions, calls, and assignments generate equality constraints</li>
+<li><strong>Unification</strong> — The UF solver merges equivalent type variables, detecting conflicts</li>
+<li><strong>Substitution</strong> — After solving, type variables are replaced with their resolved types</li>
+<li><strong>Error reporting</strong> — Unresolvable conflicts produce <code>Diagnostic</code> errors</li>
+</ol>
+<h3 id="scoping"><a class="header" href="#scoping">Scoping</a></h3>
+<p>The <code>TypeEnv</code> maintains a scope stack:</p>
+<ul>
+<li><code>push_scope()</code> — Enter a new lexical scope (function body, lambda, block)</li>
+<li><code>pop_scope()</code> — Exit scope, discarding local bindings</li>
+<li><code>define(name, ty)</code> — Bind a name to a type in the current scope</li>
+<li><code>lookup(name)</code> — Resolve a name by searching outward through scopes</li>
+</ul>
+<h3 id="example-flow"><a class="header" href="#example-flow">Example Flow</a></h3>
+<pre><code>let x = 42       →  TypeEnv.define("x", Ty::Int)
+let y = x + 1    →  check x: Ty::Int, check 1: Ty::Int, unify(+): Int×Int→Int
+fn f(a):          →  push_scope, define "a" as fresh TypeVar
+    ret a + 1     →  unify TypeVar(a) with Int → a: Int
+</code></pre>
+<h2 id="usage-8"><a class="header" href="#usage-8">Usage</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use vox_typeck::{typecheck_module, diagnostics::Severity};
+
+let diagnostics = typecheck_module(&amp;ast_module);
+let errors: Vec&lt;_&gt; = diagnostics.iter()
+    .filter(|d| d.severity == Severity::Error)
+    .collect();
+<span class="boring">}</span></code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

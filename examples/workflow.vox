@@ -1,0 +1,37 @@
+# Vox Workflow Example
+# Demonstrates durable workflows with steps, retries, and activity calls.
+#
+# Workflows are long-running, fault-tolerant execution graphs.
+# Each step is durably recorded so execution survives crashes.
+# Activities are retryable async operations called within workflows.
+
+# An activity that fetches data from an external API.
+# Activities are the only place for side effects in workflows.
+activity fetch_user_data(user_id: str) to Result[str]:
+    # This would call an external API in production
+    ret Ok("User data for " + user_id)
+
+# An activity that sends a notification email.
+# The `with` expression configures retry and timeout behavior.
+activity send_notification(email: str, body: str) to Result[bool]:
+    # External email service call
+    ret Ok(true)
+
+# A multi-step onboarding workflow.
+#
+# If the process crashes after step 1, it will resume at step 2
+# when restarted. This is "durable execution" — no work is lost.
+workflow onboard_user(user_id: str, email: str) to Result[str]:
+    # Step 1: Fetch user profile
+    let profile = fetch_user_data(user_id) with { retries: 3, timeout: "30s" }
+
+    # Step 2: Send welcome email
+    let _ = send_notification(email, "Welcome! " + profile) with { retries: 5, timeout: "60s" }
+
+    # Step 3: Return success
+    ret Ok("Onboarding complete for " + user_id)
+
+# Entry point
+fn main():
+    let result = onboard_user("usr_123", "alice@example.com")
+    ret result

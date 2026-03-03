@@ -1,0 +1,31 @@
+[package]
+name = "vox-workspace"
+version = "1.0.0"
+kind = "workspace"
+repository = "https://github.com/brbrainerd/vox"
+
+[workspace]
+members = [
+    "crates/vox-ast",
+    "crates/vox-cli",
+    "crates/vox-codegen-rust",
+    "crates/vox-codegen-ts",
+    "crates/vox-config",
+    "crates/vox-db",
+    "crates/vox-doc-pipeline",
+    "crates/vox-gamify",
+    "crates/vox-hir",
+    "crates/vox-integration-tests",
+    "crates/vox-lexer",
+    "crates/vox-lsp",
+    "crates/vox-mcp",
+    "crates/vox-orchestrator",
+    "crates/vox-parser",
+    "crates/vox-pm",
+    "crates/vox-py",
+    "crates/vox-runtime",
+    "crates/vox-skills",
+    "crates/vox-toestub",
+    "crates/vox-typeck",
+    "crates/vox-webhook"
+]

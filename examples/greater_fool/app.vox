@@ -1,0 +1,139 @@
+import greater_fool.ftt.ftt_pipeline
+import greater_fool.types.FttResult
+import greater_fool.types.DevelopmentalStage
+
+@component fn DecisionDashboard(conv_id: String):
+    # State hooks
+    let (input, set_input) = use_state("")
+    let (results, set_results) = use_state(db.use_query(Message, { conv_id }).collect())
+    let (loading, set_loading) = use_state(false)
+
+    # Effect to scroll to bottom
+    use_effect(():
+        let el = document.get_element_by_id("scroll-anchor")
+        el?.scroll_into_view({ behavior: "smooth" })
+    , [results.length])
+
+    let handle_submit = async (e: Event):
+        e.prevent_default()
+        if input.trim() == "": ret
+
+        set_loading(true)
+        let msg = input
+        set_input("")
+
+        # Call the Vox-native durable pipeline
+        let res = await ftt_pipeline(msg, DevelopmentalStage.Adult)
+        set_loading(false)
+
+    # Render
+    <div className="flex h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
+        # Left Sidebar: Conversation History
+        <aside className="w-72 border-r border-slate-800 flex flex-col bg-slate-900/50 backdrop-blur-xl">
+            <header className="p-6 border-b border-slate-800">
+                <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+                    Greater Fool
+                </h1>
+                <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-mono">Parallel Logic Engine</p>
+            </header>
+
+            <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+                <button className="w-full text-left p-3 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600/30 transition-all font-medium flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                    Current Session
+                </button>
+            </nav>
+
+            <footer className="p-4 border-t border-slate-800 bg-slate-950/50">
+                <div className="flex items-center gap-3 p-2 bg-slate-800/40 rounded-xl border border-slate-700/50">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/20"></div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">Vox User</p>
+                        <p className="text-[10px] text-slate-500 truncate">768-dim embeddings active</p>
+                    </div>
+                </div>
+            </footer>
+        </aside>
+
+        # Main Content: Chat & Analytics
+        <main className="flex-1 flex flex-col relative overflow-hidden">
+            # Ambient Background
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-20">
+                <div className="absolute top-[-10%] left-[-10%] w-1/2 h-1/2 bg-indigo-600/30 blur-[120px] rounded-full"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-1/2 h-1/2 bg-cyan-600/20 blur-[100px] rounded-full"></div>
+            </div>
+
+            # Chat Stream
+            <section className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth z-10">
+                for msg in results:
+                    <div className={"flex " + (msg.role == "user" ? "justify-end" : "justify-start")}>
+                        <div className={"max-w-2xl p-4 rounded-2xl " + (msg.role == "user" ? "bg-slate-800/80 border border-slate-700/50 text-slate-200" : "bg-indigo-950/40 border border-indigo-500/20")}>
+                            {msg.content}
+
+                            # Render FTT Trace if assistant message
+                            if msg.role == "assistant":
+                                let gist = db.use_query(GistTrace, { message_id: msg.id }).first()
+                                if gist:
+                                    <div className="mt-4 pt-4 border-t border-indigo-500/20 space-y-4">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] uppercase font-bold tracking-tighter text-indigo-400">Gist Representation</span>
+                                            <div className="h-[1px] flex-1 bg-indigo-500/10"></div>
+                                        </div>
+                                        <p className="text-sm italic text-slate-400">"{gist.summary}"</p>
+                                        <div className="flex gap-4">
+                                            <div className="bg-slate-900/60 p-2 rounded border border-slate-700/50">
+                                                <p className="text-[9px] uppercase text-slate-500">Frame</p>
+                                                <p className={"text-xs font-mono " + (gist.frame == "gain" ? "text-emerald-400" : "text-rose-400")}>{gist.frame.to_upper()}</p>
+                                            </div>
+                                            <div className="bg-slate-900/60 p-2 rounded border border-slate-700/50">
+                                                <p className="text-[9px] uppercase text-slate-500">Complexity</p>
+                                                <div className="flex gap-0.5 mt-1">
+                                                    for i in 1..10:
+                                                        <div className={"w-1 h-2 rounded-full " + (i <= gist.complexity ? "bg-indigo-400" : "bg-slate-700")}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                        </div>
+                    </div>
+
+                if loading:
+                    <div className="flex justify-start">
+                        <div className="bg-indigo-950/20 border border-indigo-500/10 p-4 rounded-2xl flex items-center gap-3">
+                            <div className="animate-spin w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full"></div>
+                            <span className="text-sm text-indigo-300 animate-pulse">Running FTT Independence Pipeline...</span>
+                        </div>
+                    </div>
+
+                <div id="scroll-anchor"></div>
+            </section>
+
+            # Input Area
+            <footer className="p-8 pb-4 z-10">
+                <form onSubmit={handle_submit} className="max-w-4xl mx-auto relative group">
+                    <div className="absolute inset-0 bg-indigo-500/20 blur-2xl opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
+                    <div className="relative flex items-center bg-slate-900/80 border border-slate-700/50 backdrop-blur-2xl rounded-2xl p-1 shadow-2xl overflow-hidden focus-within:border-indigo-500/50 transition-colors">
+                        <input
+                            type="text"
+                            value={input}
+                            onChange={(e) => set_input(e.target.value)}
+                            placeholder="Describe a decision problem..."
+                            className="flex-1 bg-transparent border-none outline-none p-4 text-slate-200 placeholder:text-slate-600 font-medium"
+                        />
+                        <button
+                            type="submit"
+                            disabled={loading || input.trim() == ""}
+                            className="p-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <p className="text-center text-[10px] text-slate-600 mt-4 uppercase tracking-[0.2em]">
+                        Vox Native • Durable Workflows • Vector Search Active
+                    </p>
+                </form>
+            </footer>
+        </main>
+    </div>

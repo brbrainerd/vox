@@ -1,0 +1,21 @@
+# Vox Full Stack — Docker Compose
+# Usage:
+#   cp .env.example .env   # fill in GEMINI_API_KEY
+#   docker compose up
+
+services:
+  vox:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - VOX_DB_URL=${VOX_DB_URL:-}
+      - VOX_DB_TOKEN=${VOX_DB_TOKEN:-}
+    volumes:
+      - vox-data:/root/.vox
+    restart: unless-stopped
+
+volumes:
+  vox-data:
