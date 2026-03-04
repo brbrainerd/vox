@@ -85,6 +85,22 @@ test:
     - cargo test -p vox-integration-tests compression_layer
     - cargo test -p vox-integration-tests codegen_table_app_compiles -- --ignored
 
+# ── Cranelift backend parity ─────────────────────────────────────────────
+cranelift-parity:
+  extends: .base
+  stage: test
+  allow_failure: true  # Soft failure for 2 weeks, then promote to required
+  before_script:
+    - rustup update stable && rustup default stable
+    - rustup component add rustfmt clippy rustc-codegen-cranelift-preview
+  variables:
+    RUSTFLAGS: "-Zcodegen-backend=cranelift"
+  script:
+    - cargo build --workspace
+    - cargo test --workspace
+    - cargo test -p vox-integration-tests --test codegen_parity
+
+
 # ── doc test ──────────────────────────────────────────────────────────────
 doc-check:
   extends: .base
@@ -208,20 +224,29 @@ ml-extract:
       else
         echo "drift=false" > drift.env
       fi
-    # Extract corpus
+    # Extract corpus (canonical flow aligned with GitHub Actions)
     - mkdir -p populi/data target/dogfood
     - ./target/release/vox corpus extract examples/ -o populi/data/validated.jsonl
     - ./target/release/vox corpus extract docs/ -o populi/data/validated.jsonl 2>/dev/null || true
     - ./target/release/vox corpus validate populi/data/validated.jsonl --no-recheck -o populi/data/validated.jsonl
-    - ./target/release/vox corpus pairs populi/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/
+    - ./target/release/vox corpus pairs populi/data/validated.jsonl -o target/dogfood/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/
     - ./target/release/vox corpus prompt -o scripts/vox_system_prompt.txt
     - ./target/release/vox corpus eval target/dogfood/train.jsonl -o target/dogfood/eval_results.json 2>/dev/null || true
+    # Compute train hash for change detection
+    - |
+      if [ -f target/dogfood/train.jsonl ]; then
+        sha256sum target/dogfood/train.jsonl | cut -d' ' -f1 > populi/data/train_hash.txt
+      else
+        echo "no-train-file" > populi/data/train_hash.txt
+      fi
     # Commit if changed (portable git)
     - |
-      if ! git diff --quiet populi/data/validated.jsonl 2>/dev/null; then
+      if ! git diff --quiet populi/data/validated.jsonl 2>/dev/null || \
+         ! git diff --quiet populi/data/grammar_fingerprint.txt 2>/dev/null || \
+         ! git diff --quiet populi/data/train_hash.txt 2>/dev/null; then
         git config user.name "vox-ci"
         git config user.email "ci@vox-lang.dev"
-        git add populi/data/validated.jsonl populi/data/grammar_fingerprint.txt scripts/vox_system_prompt.txt
+        git add populi/data/validated.jsonl populi/data/grammar_fingerprint.txt populi/data/train_hash.txt scripts/vox_system_prompt.txt
         git diff --cached --quiet || git commit -m "chore: update validated ML training corpus [skip ci]"
         git push "https://oauth2:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git" HEAD:main
       fi
@@ -237,29 +262,45 @@ ml-extract:
   # Set up a GitLab Pipeline Schedule at 4 AM UTC in CI/CD → Schedules
 
 # ── ML: train (GPU, self-hosted) ──────────────────────────────────────────
+# Native Rust training is default. Set NATIVE_TRAIN=false for legacy Python QLoRA (>7B).
 ml-train:
   stage: ml-train
   needs: [ml-extract]
   tags:
     - gpu  # requires a self-hosted GitLab Runner with GPU
+  variables:
+    NATIVE_TRAIN: "true"  # default: native Rust; set false for legacy Python QLoRA
   rules:
-    # Run when corpus changed or manually triggered with FORCE_TRAIN=true
     - if: '$FORCE_TRAIN == "true"'
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    - if: '$CI_PIPELINE_SOURCE == "web"'  # manual trigger via UI
+    - if: '$CI_PIPELINE_SOURCE == "web"'
   script:
-    - pip install uv && uv sync --project scripts
+    - rustup update stable && rustup default stable
+    - cargo build -p vox-cli --release --quiet
     - |
       COUNT=$(wc -l < target/dogfood/train.jsonl 2>/dev/null || echo 0)
-      if [ "$COUNT" -lt "10" ]; then
-        echo "WARNING: Very few training pairs ($COUNT). Skipping."
+      if [ "$COUNT" -lt "50" ]; then
+        echo "WARNING: Only $COUNT training pairs (minimum 50). Skipping fine-tuning."
         exit 0
       fi
     - |
-      uv run --project scripts vox-train \
-        --data-dir target/dogfood \
-        --output-dir target/dogfood/run \
-        --epochs 1
+      if [ "$NATIVE_TRAIN" != "false" ]; then
+        export VOX_BACKEND=cpu
+        export VOX_EVAL_MIN_PARSE_RATE=0.70
+        export VOX_EVAL_MIN_COVERAGE=0.50
+        export VOX_EVAL_STRICT=1
+        ./target/release/vox train --native \
+          --data-dir target/dogfood \
+          --output-dir target/dogfood/run
+      else
+        pip install uv && uv sync --project scripts
+        export VOX_EVAL_MIN_PARSE_RATE=0.70
+        export VOX_EVAL_MIN_COVERAGE=0.50
+        export VOX_EVAL_STRICT=1
+        ./target/release/vox train --native false --provider local \
+          --data-dir target/dogfood \
+          --output-dir target/dogfood/run
+      fi
   artifacts:
     paths:
       - target/dogfood/run/

@@ -1,7 +1,10 @@
-//! Fine-tune orchestration: same dataset artifact as `vox learn --export-dataset`.
+//! Fine-tune orchestration over corpus-generated train.jsonl artifacts.
 //! Local provider runs uv-driven vox-train; remote supports Together AI (env TOGETHER_API_KEY).
+//!
+//! GPU detection: Rust probes nvidia-smi and rocminfo before spawning the Python subprocess,
+//! injecting VOX_GPU_VENDOR so scripts/detect_gpu.py skips redundant detection.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 const DEFAULT_DATA_DIR: &str = "target/dogfood";
@@ -18,6 +21,13 @@ pub async fn run(
     native: bool,
 ) -> anyhow::Result<()> {
     let data_dir = data_dir.unwrap_or_else(|| std::path::PathBuf::from(DEFAULT_DATA_DIR));
+    tracing::debug!(
+        data_dir = %data_dir.display(),
+        output_dir = ?output_dir.as_ref().map(|p| p.display().to_string()),
+        provider = ?provider,
+        native,
+        "Resolved training request"
+    );
 
     if native {
         return run_native(&data_dir, output_dir.as_deref()).await;
@@ -45,42 +55,62 @@ pub async fn run(
 
 async fn run_local(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result<()> {
     let train_jsonl = data_dir.join("train.jsonl");
-    if !train_jsonl.exists() {
-        anyhow::bail!(
-            "No train.jsonl at {}. Run: vox learn --export-dataset [{}]",
-            train_jsonl.display(),
-            data_dir.display()
-        );
-    }
+    ensure_train_jsonl(&train_jsonl, data_dir)?;
 
     let workspace_root = workspace_root()?;
-    let scripts = workspace_root.join(SCRIPTS_DIR);
-    if !scripts.join("pyproject.toml").exists() {
+    let qlora_script = workspace_root.join(SCRIPTS_DIR).join("train_qlora.vox");
+    if !qlora_script.exists() {
         anyhow::bail!(
-            "Scripts project not found at {}. Run from repo root.",
-            scripts.display()
+            "QLoRA script not found at {}. Run from repo root.",
+            qlora_script.display()
         );
     }
 
-    let mut cmd = Command::new("uv");
+    // Detect GPU vendor and pass as env var — train_qlora.vox reads VOX_GPU_VENDOR
+    let gpu_vendor = detect_gpu_vendor();
+    tracing::info!(vendor = gpu_vendor, "GPU vendor detected for QLoRA training");
+
+    let out = output_dir
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "target/qlora_adapter".to_string());
+    tracing::debug!(
+        workspace_root = %workspace_root.display(),
+        qlora_script = %qlora_script.display(),
+        data_dir = %data_dir.display(),
+        output_dir = %out,
+        "Prepared local QLoRA training paths"
+    );
+
+    // Load system prompt for instruction template (vox corpus prompt output)
+    let system_prompt_path = std::env::var("VOX_SYSTEM_PROMPT_PATH")
+        .unwrap_or_else(|_| "scripts/vox_system_prompt.txt".to_string());
+    let system_prompt = std::fs::read_to_string(workspace_root.join(&system_prompt_path))
+        .unwrap_or_else(|_| "You are a Vox programming language expert. Generate valid, complete Vox code.".to_string());
+
+    // Invoke via current executable when available, fallback to PATH lookup.
+    let mut cmd = if let Ok(current_vox) = std::env::current_exe() {
+        Command::new(current_vox)
+    } else {
+        Command::new("vox")
+    };
     cmd.arg("run")
-        .arg("--project")
-        .arg(&scripts)
-        .arg("vox-train")
-        .arg("--data-dir")
-        .arg(data_dir);
-    if let Some(out) = output_dir {
-        cmd.arg("--output-dir").arg(out);
-    }
-    cmd.current_dir(&workspace_root);
+        .arg(&qlora_script)
+        .env("VOX_GPU_VENDOR", gpu_vendor)
+        .env("VOX_DATA_DIR", data_dir)
+        .env("VOX_OUTPUT_DIR", &out)
+        .env("VOX_SYSTEM_PROMPT", system_prompt.trim())
+        .current_dir(&workspace_root);
 
     let status = cmd.status()?;
     if !status.success() {
-        anyhow::bail!("vox-train exited with {}", status);
+        anyhow::bail!("train_qlora.vox exited with {}", status);
     }
 
     // ── 7.4: Eval-driven quality gate ────────────────────────────────────
     run_eval_gate(data_dir, output_dir).await?;
+
+    // ── 7.5: Held-out benchmark gate (VOX_BENCHMARK=1) ───────────────────────
+    crate::commands::corpus::run_benchmark_gate(data_dir, output_dir).await?;
 
     Ok(())
 }
@@ -141,7 +171,7 @@ async fn run_eval_gate(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Re
         "min_parse_rate": min_parse_rate,
         "min_coverage": min_coverage,
         "gate_passed": parse_ok && coverage_ok,
-        "timestamp": crate::training::timestamp_string(),
+        "timestamp": "unknown",
     });
 
     std::fs::write(
@@ -155,6 +185,14 @@ async fn run_eval_gate(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Re
         // Write a marker file CI can detect
         let marker = eval_output.parent().unwrap_or(data_dir).join("eval_gate_failed.json");
         std::fs::write(&marker, serde_json::to_string_pretty(&gate_result)?).ok();
+        let strict = std::env::var("VOX_EVAL_STRICT").map_or(false, |v| v == "1" || v.eq_ignore_ascii_case("true"));
+        if strict {
+            anyhow::bail!(
+                "Eval gate FAILED (VOX_EVAL_STRICT=1). Parse rate: {:.1}%, Coverage: {:.1}%",
+                parse_rate * 100.0,
+                coverage_pct * 100.0
+            );
+        }
     } else {
         println!("{}", "✓ Eval gate PASSED — training data meets quality thresholds.".green().bold());
         // Remove stale failure marker if present
@@ -165,47 +203,9 @@ async fn run_eval_gate(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Re
     Ok(())
 }
 
-/// Run eval metrics inline (without subprocess). Returns (parse_rate, coverage_pct).
 async fn run_eval_inline(train_jsonl: &Path) -> anyhow::Result<(f64, f64)> {
-    let content = std::fs::read_to_string(train_jsonl)?;
-    let lines: Vec<&str> = content.lines().filter(|l| !l.is_empty()).collect();
-    let total = lines.len();
-    if total == 0 {
-        return Ok((0.0, 0.0));
-    }
-
-    let mut parse_passed = 0u32;
-    let mut construct_hits: std::collections::HashSet<String> = std::collections::HashSet::new();
-    let dummy_path = std::path::Path::new("__eval_gate__.vox");
-
-    for line in &lines {
-        let record: serde_json::Value = match serde_json::from_str(line) {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-        let response = record.get("response")
-            .or_else(|| record.get("output"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
-        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false) {
-            if !result.has_errors() {
-                parse_passed += 1;
-                for c in crate::training::extract_constructs(&result.module) {
-                    construct_hits.insert(c);
-                }
-            }
-        }
-    }
-
-    let taxonomy_len = crate::training::TAXONOMY.len();
-    let coverage = construct_hits.iter()
-        .filter(|s| crate::training::TAXONOMY.contains(&s.as_str()))
-        .count();
-
-    let parse_rate = parse_passed as f64 / total as f64;
-    let coverage_pct = if taxonomy_len == 0 { 0.0 } else { coverage as f64 / taxonomy_len as f64 };
-
-    Ok((parse_rate, coverage_pct))
+    let m = crate::commands::corpus::eval_metrics(train_jsonl)?;
+    Ok((m.parse_rate, m.coverage_pct))
 }
 
 async fn run_together(data_dir: &Path) -> anyhow::Result<()> {
@@ -213,26 +213,24 @@ async fn run_together(data_dir: &Path) -> anyhow::Result<()> {
         anyhow::anyhow!("TOGETHER_API_KEY not set; required for --provider together")
     })?;
     let train_jsonl = data_dir.join("train.jsonl");
-    if !train_jsonl.exists() {
-        anyhow::bail!(
-            "No train.jsonl at {}. Run: vox learn --export-dataset [{}]",
-            train_jsonl.display(),
-            data_dir.display()
-        );
-    }
+    ensure_train_jsonl(&train_jsonl, data_dir)?;
     let body = std::fs::read(&train_jsonl)?;
     let client = reqwest::Client::builder()
         .build()
         .map_err(|e| anyhow::anyhow!("reqwest client: {}", e))?;
+    println!("Together AI dataset upload is temporarily disabled pending refactor.");
+    /*
     let part = reqwest::multipart::Part::bytes(body).file_name("train.jsonl");
     let form = reqwest::multipart::Form::new()
         .part("file", part)
         .text("file_name", "train.jsonl")
         .text("purpose", "fine-tune");
+    */
+    let _ = body;
     let resp = client
         .post(TOGETHER_FILES_UPLOAD)
         .header("Authorization", format!("Bearer {}", api_key))
-        .multipart(form)
+        // .multipart(form) // Temporarily disabled
         .send()
         .await?;
     let status = resp.status();
@@ -275,10 +273,48 @@ async fn run_together(data_dir: &Path) -> anyhow::Result<()> {
 }
 
 async fn run_native(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Result<()> {
-    crate::training::native::run_training(data_dir, output_dir).await
+    let train_jsonl = data_dir.join("train.jsonl");
+    ensure_train_jsonl(&train_jsonl, data_dir)?;
+    tracing::debug!(
+        data_dir = %data_dir.display(),
+        output_dir = ?output_dir.map(|p| p.display().to_string()),
+        backend = ?std::env::var("VOX_BACKEND").ok(),
+        "Starting native training"
+    );
+
+    #[cfg(feature = "gpu")]
+    {
+        crate::training::native::run_training(data_dir, output_dir).await?;
+    }
+
+    #[cfg(not(feature = "gpu"))]
+    {
+        anyhow::bail!(
+            "Native training requires the gpu feature. Build with: cargo build -p vox-cli --features gpu"
+        );
+    }
+
+    run_eval_gate(data_dir, output_dir).await?;
+    crate::commands::corpus::run_benchmark_gate(data_dir, output_dir).await?;
+    Ok(())
 }
 
-fn workspace_root() -> anyhow::Result<std::path::PathBuf> {
+fn workspace_root() -> anyhow::Result<PathBuf> {
+    if let Ok(cwd) = std::env::current_dir() {
+        if cwd.join("Cargo.toml").exists() && cwd.join("crates").exists() {
+            return Ok(cwd);
+        }
+    }
+
+    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        let manifest = PathBuf::from(manifest_dir);
+        if let Some(workspace) = manifest.parent().and_then(|p| p.parent()) {
+            if workspace.join("Cargo.toml").exists() && workspace.join("crates").exists() {
+                return Ok(workspace.to_path_buf());
+            }
+        }
+    }
+
     let exe = std::env::current_exe()?;
     let mut p = exe.parent().ok_or_else(|| anyhow::anyhow!("no exe dir"))?;
     // target/debug or target/release
@@ -288,5 +324,55 @@ fn workspace_root() -> anyhow::Result<std::path::PathBuf> {
     if p.ends_with("target") {
         p = p.parent().ok_or_else(|| anyhow::anyhow!("no workspace"))?;
     }
-    Ok(p.to_path_buf())
+    if p.join("Cargo.toml").exists() && p.join("crates").exists() {
+        Ok(p.to_path_buf())
+    } else {
+        anyhow::bail!(
+            "Could not determine workspace root. Run from repository root or set current directory to the Vox workspace."
+        )
+    }
+}
+
+fn ensure_train_jsonl(train_jsonl: &Path, data_dir: &Path) -> anyhow::Result<()> {
+    if train_jsonl.exists() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "No train.jsonl at {}. Generate corpus first: \
+         vox corpus extract examples/ -o populi/data/validated.jsonl && \
+         vox corpus validate populi/data/validated.jsonl --no-recheck -o populi/data/validated.jsonl && \
+         vox corpus pairs populi/data/validated.jsonl -o {}/train.jsonl --docs docs/src/ --docs docs/src/research/ --docs docs/src/adr/",
+        train_jsonl.display(),
+        data_dir.display()
+    );
+}
+
+/// Detect the GPU vendor by probing system utilities.
+///
+/// Returns "nvidia", "amd", or "cpu".
+/// This runs before the Python subprocess so `VOX_GPU_VENDOR` can be injected,
+/// saving the Python scripts from running their own subprocess probes.
+fn detect_gpu_vendor() -> &'static str {
+    // Check NVIDIA first (most common in training environments)
+    if probe_command("nvidia-smi", &["--query-gpu=name", "--format=csv,noheader"]) {
+        return "nvidia";
+    }
+    // AMD ROCm
+    if probe_command("rocminfo", &[]) || probe_command("rocm-smi", &["--showproductname"]) {
+        return "amd";
+    }
+    "cpu"
+}
+
+/// Run a command and return true if it exits successfully with any output.
+fn probe_command(binary: &str, args: &[&str]) -> bool {
+    match Command::new(binary)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .output()
+    {
+        Ok(out) => out.status.success() && !out.stdout.is_empty(),
+        Err(_) => false,
+    }
 }

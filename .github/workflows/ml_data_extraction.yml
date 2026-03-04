@@ -12,6 +12,7 @@ on:
       - 'crates/vox-hir/**'
       - 'crates/vox-lexer/**'
       - 'docs/src/**'
+      - 'docs/src/research/**'
       - 'examples/**'
       - 'scripts/vox_system_prompt.txt'
       - 'scripts/generate_instruction_pairs.py'
@@ -27,7 +28,19 @@ on:
         required: false
         default: 'false'
       native_train:
-        description: 'Use native Rust trainer instead of Python scripts'
+        description: 'Use native Rust trainer (default). Set to false for legacy Python QLoRA.'
+        required: false
+        default: 'true'
+      strict_quality_gate:
+        description: 'Set true to fail on eval/benchmark regression (phase B).'
+        required: false
+        default: 'false'
+      benchmark_min_pass_rate:
+        description: 'Held-out benchmark threshold (0.0 disables hard benchmark fail).'
+        required: false
+        default: '0.0'
+      publish_model:
+        description: 'Publish trained model bundle to Hugging Face when secrets are configured.'
         required: false
         default: 'false'
 
@@ -101,14 +114,6 @@ jobs:
           "$VOX_BIN" corpus extract examples/ -o populi/data/validated.jsonl
           "$VOX_BIN" corpus extract docs/ -o populi/data/validated.jsonl 2>/dev/null || true
 
-          # Extract high-quality training pairs from documentation code blocks
-          "$VOX_BIN" corpus pairs populi/data/validated.jsonl \
-            -o populi/data/doc_pairs.jsonl \
-            --docs docs/src/ 2>/dev/null || true
-          [ -f populi/data/doc_pairs.jsonl ] && \
-            DOCLINES=$(wc -l < populi/data/doc_pairs.jsonl) && \
-            echo "Extracted $DOCLINES doc-sourced training pairs" || true
-
           LINES=$(wc -l < populi/data/validated.jsonl 2>/dev/null || echo 0)
           echo "Corpus has $LINES validated records."
 
@@ -117,11 +122,16 @@ jobs:
           ./target/release/vox corpus validate populi/data/validated.jsonl --no-recheck \
             -o populi/data/validated.jsonl
 
-      - name: Generate training pairs
+      - name: Generate training pairs (canonical)
         run: |
+          # Single pairs run with all docs dirs; deterministic merge+dedup
           ./target/release/vox corpus pairs populi/data/validated.jsonl \
             -o target/dogfood/train.jsonl \
-            --docs docs/src/
+            --docs docs/src/ \
+            --docs docs/src/research/ \
+            --docs docs/src/adr/
+
+      # Rustdoc pairs have Rust prose as response, not Vox code; skip merge to preserve parse rate.
 
       - name: Auto-generate system prompt
         run: |
@@ -140,12 +150,24 @@ jobs:
           echo "count=$COUNT" >> $GITHUB_OUTPUT
           echo "Generated $COUNT training pairs"
 
+      - name: Compute train.jsonl hash for change detection
+        id: train_hash
+        run: |
+          mkdir -p populi/data
+          if [ -f target/dogfood/train.jsonl ]; then
+            HASH=$(sha256sum target/dogfood/train.jsonl | cut -d' ' -f1)
+          else
+            HASH="no-train-file"
+          fi
+          echo "$HASH" > populi/data/train_hash.txt
+          echo "Train hash: $HASH"
+
       - name: Check for corpus changes
         id: check_diff
         run: |
           if git diff --quiet populi/data/validated.jsonl 2>/dev/null && \
              git diff --quiet populi/data/grammar_fingerprint.txt 2>/dev/null && \
-             git diff --quiet populi/data/doc_pairs.jsonl 2>/dev/null; then
+             git diff --quiet populi/data/train_hash.txt 2>/dev/null; then
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "Corpus unchanged."
           else
@@ -162,8 +184,8 @@ jobs:
           git config user.name "vox-ci"
           git config user.email "ci@vox-lang.dev"
           git add populi/data/validated.jsonl \
-                  populi/data/doc_pairs.jsonl \
                   populi/data/grammar_fingerprint.txt \
+                  populi/data/train_hash.txt \
                   scripts/vox_system_prompt.txt
           git diff --cached --quiet || git commit -m "chore: update validated ML training corpus [skip ci]"
           git push
@@ -212,45 +234,74 @@ jobs:
             exit 0
           fi
 
-      - name: Set up Python
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Vox Compiler
+        run: cargo build -p vox-cli --release --quiet
+
+      - name: Set up Python (legacy path only)
+        if: github.event.inputs.native_train == 'false'
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install training dependencies (Python)
-        if: github.event.inputs.native_train != 'true'
-        # Portable: pip install uv && uv sync works on any runner.
-        run: pip install uv && uv sync --project scripts
+      - name: Install uv (legacy Python QLoRA)
+        if: github.event.inputs.native_train == 'false'
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
-      - name: Set up Rust (Native)
-        if: github.event.inputs.native_train == 'true'
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install training dependencies (legacy Python QLoRA)
+        if: github.event.inputs.native_train == 'false'
+        run: ~/.local/bin/uv sync --project scripts
 
-      - name: Build Vox Compiler (Native)
-        if: github.event.inputs.native_train == 'true'
-        run: cargo build -p vox-cli --release --quiet
-
-      - name: Run native Rust training
-        if: github.event.inputs.native_train == 'true'
+      - name: Run native Rust training (default)
+        if: github.event.inputs.native_train != 'false'
+        env:
+          VOX_BACKEND: cpu
+          VOX_EVAL_MIN_PARSE_RATE: "0.70"
+          VOX_EVAL_MIN_COVERAGE: "0.50"
+          VOX_EVAL_STRICT: ${{ github.event.inputs.strict_quality_gate == 'true' && '1' || '0' }}
+          VOX_BENCHMARK: "1"
+          VOX_BENCHMARK_MIN_PASS_RATE: ${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}
         run: |
+          echo "strict_quality_gate=${{ github.event.inputs.strict_quality_gate || 'false' }}"
+          echo "benchmark_min_pass_rate=${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}"
           ./target/release/vox train --native \
             --data-dir target/dogfood \
             --output-dir target/dogfood/run
 
-      - name: Run QLoRA fine-tuning (Python/unsloth)
-        if: github.event.inputs.native_train != 'true'
+      - name: Run QLoRA fine-tuning (legacy Python, >7B)
+        if: github.event.inputs.native_train == 'false'
         env:
           OMP_NUM_THREADS: "4"
           MKL_NUM_THREADS: "4"
           PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
-          # Env-var overrides for CI — 1 epoch, smaller batch for faster iteration
           VOX_EVAL_MIN_PARSE_RATE: "0.70"
           VOX_EVAL_MIN_COVERAGE: "0.50"
+          VOX_EVAL_STRICT: ${{ github.event.inputs.strict_quality_gate == 'true' && '1' || '0' }}
+          VOX_BENCHMARK: "1"
+          VOX_BENCHMARK_MIN_PASS_RATE: ${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}
         run: |
-          uv run --project scripts vox-train \
+          echo "strict_quality_gate=${{ github.event.inputs.strict_quality_gate || 'false' }}"
+          echo "benchmark_min_pass_rate=${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}"
+          ./target/release/vox train --native false --provider local \
             --data-dir target/dogfood \
-            --output-dir target/dogfood/run \
-            --epochs 1
+            --output-dir target/dogfood/run
+
+      - name: Write model provenance manifest
+        if: always()
+        run: |
+          mkdir -p target/dogfood/run
+          cat > target/dogfood/run/model_manifest.json <<EOF
+          {
+            "commit_sha": "${{ env.VCS_SHA }}",
+            "native_train": "${{ github.event.inputs.native_train || 'true' }}",
+            "strict_quality_gate": "${{ github.event.inputs.strict_quality_gate || 'false' }}",
+            "benchmark_min_pass_rate": "${{ github.event.inputs.benchmark_min_pass_rate || '0.0' }}",
+            "data_path": "target/dogfood/train.jsonl",
+            "output_path": "target/dogfood/run"
+          }
+          EOF
 
       - name: Upload LoRA adapter
         uses: actions/upload-artifact@v4
@@ -259,7 +310,38 @@ jobs:
           path: target/dogfood/run/
           retention-days: 90
 
-      - name: Upload eval gate result
+      - name: Install uv (model publish)
+        if: github.event.inputs.publish_model == 'true'
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: Publish model bundle to Hugging Face (optional)
+        if: github.event.inputs.publish_model == 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_MODEL_REPO: ${{ vars.HF_MODEL_REPO }}
+        run: |
+          if [ -z "$HF_TOKEN" ] || [ -z "$HF_MODEL_REPO" ]; then
+            echo "Skipping publish_model: HF_TOKEN or HF_MODEL_REPO is not configured."
+            exit 0
+          fi
+          ~/.local/bin/uv run --with huggingface_hub python - <<'PY'
+          import os
+          from huggingface_hub import HfApi, upload_folder
+          repo_id = os.environ["HF_MODEL_REPO"]
+          token = os.environ["HF_TOKEN"]
+          path = "target/dogfood/run"
+          api = HfApi(token=token)
+          api.create_repo(repo_id=repo_id, repo_type="model", exist_ok=True)
+          upload_folder(
+              repo_id=repo_id,
+              folder_path=path,
+              repo_type="model",
+              path_in_repo=f"runs/{os.environ.get('VCS_SHA','unknown')}"
+          )
+          print(f"Uploaded model bundle to hf://{repo_id}/runs/{os.environ.get('VCS_SHA','unknown')}")
+          PY
+
+      - name: Upload eval and benchmark artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -267,6 +349,7 @@ jobs:
           path: |
             target/dogfood/run/eval_results.json
             target/dogfood/run/eval_gate_failed.json
+            target/dogfood/run/benchmark_results.json
           if-no-files-found: ignore
           retention-days: 30
 
