@@ -292,14 +292,14 @@ These rules apply to `.vox` source files and are enforced by `vox stub-check` (s
 **Effect declarations (Phase 5):**
 - Any `pub fn` or `@endpoint fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
 - A `@pure fn` MUST NOT call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or any `async/await` — the compiler will reject it.
-- Workflow bodies (`workflow { }`) MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`. Use `activity` functions for side-effectful work instead.
+- `workflow { }` and `activity` declarations are **reserved per ADR-028** and rejected at parse time with error code `E028` (see [`crates/vox-compiler/src/pipeline.rs`](crates/vox-compiler/src/pipeline.rs) function `check_adr028_reserved_keywords`). Use plain `fn` until the durability runtime lands per [`mesh-phase1-language-spine-plan-2026.md`](docs/src/architecture/mesh-phase1-language-spine-plan-2026.md). When the surface lands, workflow bodies MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`.
 
 **Type boundaries (Phase 3):**
-- ID parameters on `@endpoint`, `@activity`, or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
+- ID parameters on `@endpoint` or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`. (The `@activity` decorator currently shares this enforcement at the detector level for forward compatibility with the reserved `activity` surface, but `activity` itself is rejected at parse time per ADR-028.)
 - Error types on public boundaries MUST be named ADTs — `Result[T, str]` is flagged by `vox/types/anonymous-error-type`.
 
 **Decorator position (Phase 2):**
-- Use `@durable fn`, `@pure fn`, `@scheduled fn` — NOT `durable fn`, `pure fn`, `scheduled fn`. The bare-keyword position is reserved for `actor`, `workflow`, `activity`, `fn`, `type`, `component`, `routes`, `module`, `state_machine`.
+- Use `@pure fn` — NOT `pure fn`. The bare-keyword position is reserved for `actor`, `fn`, `type`, `component`, `routes`, `module`, `state_machine`. `workflow` and `activity` are also reserved per ADR-028 but are rejected at parse time with `E028`; `@durable` and `@scheduled` are likewise reserved. Reserved forms MUST NOT appear in source files until the durability runtime lands.
 - See the Grammar Unification section above for the full keyword table.
 
 **Auth / access control:**
