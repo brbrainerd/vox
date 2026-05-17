@@ -1,0 +1,13 @@
+fn len_bucket(s: str) to str {
+    let n = len(s)
+    if n is 0 {
+        return "empty"
+    }
+    if n <= 5 {
+        return "short"
+    }
+    if n <= 20 {
+        return "medium"
+    }
+    return "long"
+}

@@ -1,0 +1,10 @@
+id = "humaneval-vox-008-validate-email"
+training_eligible = false
+provenance = "examples-golden-lift"
+derived_from = "examples/golden/error_propagation.vox"
+
+prompt = """
+Write a Vox function `validate_email(email: str) to Result[str]` returning
+`Error("email too short")` for inputs shorter than 5 characters, and
+`Ok(email)` otherwise. (Length check only; full RFC validation out of scope.)
+"""

@@ -13020,8 +13020,10 @@ dependencies = [
  "serde_yaml",
  "tempfile",
  "thiserror 1.0.69",
+ "toml 0.8.23",
  "tracing",
  "vox-code-audit",
+ "vox-compiler",
  "vox-telemetry",
  "workspace-hack",
 ]

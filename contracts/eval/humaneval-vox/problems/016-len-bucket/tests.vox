@@ -1,0 +1,33 @@
+fn len_bucket(s: str) to str {
+    let n = len(s)
+    if n is 0 {
+        return "empty"
+    }
+    if n <= 5 {
+        return "short"
+    }
+    if n <= 20 {
+        return "medium"
+    }
+    return "long"
+}
+
+@test
+fn test_empty() to Unit {
+    assert(len_bucket("") is "empty")
+}
+
+@test
+fn test_short() to Unit {
+    assert(len_bucket("hi") is "short")
+}
+
+@test
+fn test_medium() to Unit {
+    assert(len_bucket("hello world") is "medium")
+}
+
+@test
+fn test_long() to Unit {
+    assert(len_bucket("this is a much longer string for testing") is "long")
+}

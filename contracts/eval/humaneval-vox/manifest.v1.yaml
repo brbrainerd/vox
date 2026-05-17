@@ -13,19 +13,27 @@ schema_version: 1
 corpus:
   id: humaneval-vox
   schema_version: 1
-  status: stub                            # stub | minimum-viable | complete
+  status: seed                            # seed | stub | minimum-viable | complete
   bar:
-    target: 0.80                          # >= 80% pass rate (median of panel)
+    target: 0.80                          # >= 80% pass rate (median of panel) — LLM-panel measurement
     sub_bar_block_demote: 0.60            # < 60% -> demote CR-L1 to v1.1
+    corpus_validity_target: 1.00          # corpus-validity layer must be 100% (any compile failure is a corpus bug)
   count_target: 164                       # anchored to HumanEval-Python
   held_out_target: 30                     # 30 of 164 must be training_eligible:false
-  count_current: 0
-  held_out_current: 0
-  corpus_hash: "blake3:0000000000000000000000000000000000000000000000000000000000000000"
+  count_current: 18                       # seed batch landed 2026-05-17
+  held_out_current: 10                    # all 10 examples-golden-lift fixtures are training_eligible:false
+  corpus_hash: "blake3:e5756bc96dbc36e8052a596426d34ab9210335101e2be1c20c0f98785c592a7a"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
-# Fixtures (empty stub).
-fixtures: []
+# Fixtures are discovered on disk under `problems/<NNN-name>/` directories,
+# each containing `spec.toml` + `reference.vox` + `tests.vox`. The runner at
+# `crates/vox-audit/src/subcommands/humaneval.rs` walks this directory and
+# computes corpus_hash from the sorted content of those files. Listing
+# fixtures here would duplicate the on-disk source of truth.
+fixtures_layout:
+  problems_dir: "problems/"
+  fixture_files: ["spec.toml", "reference.vox", "tests.vox"]
+  hash_input: "sorted (id, reference_source, tests_source) tuples joined by newlines"
 
 # Provenance taxonomy enforced when fixtures land.
 provenance_kinds:
@@ -41,9 +49,12 @@ provenance_kinds:
 
 # CI policy.
 ci:
-  # While status: stub, `vox audit humaneval` returns exit 2 (infra-not-ready).
-  # Once corpus reaches minimum-viable (e.g. 50 problems with 10 held-out),
-  # `vox audit humaneval` flips to exit 0/1 per bar comparison.
+  # The runner now ships real measurement (corpus-validity layer) even at
+  # `status: seed`. The earlier "stub returns exit 2" path was removed in
+  # 2026-05-17 per the no-stub policy. Status transitions:
+  #   seed (1-49)            → corpus-validity exit codes (Ok / InvalidInput)
+  #   minimum-viable (50-163) → adds bar comparison gating once LLM-panel client lands
+  #   complete (164)         → CR-L1 bar comparison authoritative
   minimum_viable:
     count: 50
     held_out_count: 10
@@ -52,6 +63,12 @@ ci:
     seed: 42
     attempts_per_fixture: 5
     scoring: "median-of-panel"
+  corpus_validity_measurement:
+    # Layer that runs without --llm-panel; deterministic, no LLM cost.
+    # Each fixture passes iff both reference.vox and tests.vox produce zero
+    # error-severity diagnostics from vox_compiler::pipeline::check_file.
+    enabled: true
+    must_be_one: true                      # any failure -> ExitCode::InvalidInput
 
 # Council ratification log (D10, D25 — 2026-05-15).
 council_ratification_log:

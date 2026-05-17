@@ -1,0 +1,3 @@
+fn first_three(s: str) to str {
+    return s.slice(0, 3)
+}

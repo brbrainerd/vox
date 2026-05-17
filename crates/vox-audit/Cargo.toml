@@ -15,7 +15,9 @@ chrono = { workspace = true }
 blake3 = { workspace = true }
 tracing = { workspace = true }
 vox-code-audit = { workspace = true }
+vox-compiler = { workspace = true }
 vox-telemetry = { workspace = true }
+toml = { workspace = true }
 workspace-hack = { workspace = true }
 
 [[bin]]

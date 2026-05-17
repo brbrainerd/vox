@@ -1,0 +1,11 @@
+id = "humaneval-vox-002-first-three"
+training_eligible = false
+provenance = "examples-golden-lift"
+derived_from = "examples/golden/str_utils.vox"
+
+prompt = """
+Write a Vox function `first_three(s: str) to str` that returns the
+first three characters of `s` using the str.slice method.
+
+Assume the input always has at least 3 characters.
+"""

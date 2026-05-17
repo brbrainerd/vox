@@ -49,28 +49,8 @@ impl Subcommand for SpecToAppStub {
     }
 }
 
-// ---------------------------------------------------------------------------
-// CR-L1 — HumanEval-Vox.
-// ---------------------------------------------------------------------------
-
-pub struct HumanEvalStub;
-
-impl Subcommand for HumanEvalStub {
-    fn gate(&self) -> CrlGate {
-        CrlGate::L1HumanEval
-    }
-
-    fn description(&self) -> &'static str {
-        "CR-L1: HumanEval-Vox (≥80%) on the 164-problem corpus."
-    }
-
-    fn run(&self, _args: &CommonArgs) -> RunOutcome {
-        corpus_stub_outcome(
-            self.gate(),
-            "contracts/eval/humaneval-vox/manifest.v1.yaml",
-        )
-    }
-}
+// CR-L1 (humaneval) replaced its stub on 2026-05-17 — see
+// `crate::subcommands::humaneval::HumanEvalRunner`.
 
 // ---------------------------------------------------------------------------
 // CR-L2 — MENS on-distribution rate.
@@ -183,7 +163,6 @@ mod tests {
     fn every_stub_returns_infrastructure_error_with_incomplete_report() {
         let stubs: Vec<Box<dyn Subcommand>> = vec![
             Box::new(SpecToAppStub),
-            Box::new(HumanEvalStub),
             Box::new(MensOnDistributionStub),
             Box::new(RepairCorpusStub),
             Box::new(PlanFidelityStub),
@@ -216,7 +195,6 @@ mod tests {
     fn stub_thing_names_match_gate_names() {
         let stubs: Vec<(Box<dyn Subcommand>, &'static str)> = vec![
             (Box::new(SpecToAppStub), "spec-to-app"),
-            (Box::new(HumanEvalStub), "humaneval"),
             (Box::new(MensOnDistributionStub), "mens-on-distribution"),
             (Box::new(RepairCorpusStub), "repair-corpus"),
             (Box::new(PlanFidelityStub), "plan-fidelity"),

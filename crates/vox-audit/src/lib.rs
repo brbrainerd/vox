@@ -188,7 +188,10 @@ pub trait Subcommand: Send + Sync {
 pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
         Box::new(subcommands::stubs::SpecToAppStub),
-        Box::new(subcommands::stubs::HumanEvalStub),
+        // CR-L1: real HumanEvalRunner replaced HumanEvalStub 2026-05-17
+        // (corpus-validity layer is real; LLM-panel layer is explicit opt-in
+        // returning InvalidInput until the panel client lands).
+        Box::new(subcommands::humaneval::HumanEvalRunner),
         Box::new(subcommands::stubs::MensOnDistributionStub),
         Box::new(subcommands::stubs::RepairCorpusStub),
         Box::new(subcommands::stubs::PlanFidelityStub),

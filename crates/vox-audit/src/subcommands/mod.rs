@@ -12,5 +12,6 @@
 
 pub mod aci_default;
 pub mod corpus_feedback;
+pub mod humaneval;
 pub mod retirement;
 pub mod stubs;

@@ -1,0 +1,10 @@
+id = "humaneval-vox-015-clamp"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write a Vox function `clamp(n: int, lo: int, hi: int) to int` that
+returns `n` constrained to the inclusive range [lo, hi]. Values below
+`lo` clamp to `lo`; values above `hi` clamp to `hi`. Assume `lo <= hi`.
+"""

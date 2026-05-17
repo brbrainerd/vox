@@ -1,0 +1,32 @@
+fn access_level(role: str, active: bool) to str {
+    if !active {
+        return "suspended"
+    }
+    if role is "admin" {
+        return "full"
+    }
+    if role is "editor" {
+        return "write"
+    }
+    return "read"
+}
+
+@test
+fn test_inactive_admin() to Unit {
+    assert(access_level("admin", false) is "suspended")
+}
+
+@test
+fn test_active_admin() to Unit {
+    assert(access_level("admin", true) is "full")
+}
+
+@test
+fn test_editor() to Unit {
+    assert(access_level("editor", true) is "write")
+}
+
+@test
+fn test_reader() to Unit {
+    assert(access_level("viewer", true) is "read")
+}
