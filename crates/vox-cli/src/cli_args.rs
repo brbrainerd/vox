@@ -304,6 +304,12 @@ pub struct DoctorArgs {
     /// Prepend NVIDIA CUDA toolkit bin dirs to the User PATH and set User CUDA_PATH.
     #[arg(long, default_value_t = false)]
     pub fix_cuda_path: bool,
+    /// Project-health check mode (CR-L7): compile-check every `.vox` file under PATH.
+    /// When set, environment-check flags (--compile-target, --auto-heal, --test-health,
+    /// --build-perf, --scope, --probe, --fix-cuda-path) are ignored. Use `--json` for
+    /// structured output (the deploy integration test consumes this).
+    #[arg(long, value_name = "PATH", num_args = 0..=1, default_missing_value = ".")]
+    pub project: Option<PathBuf>,
 }
 
 /// `vox stub-check` / `vox mens stub-check`

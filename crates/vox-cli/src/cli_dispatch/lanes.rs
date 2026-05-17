@@ -6,6 +6,10 @@ use crate::commands;
 use crate::latin_cmd;
 
 pub(crate) async fn run_doctor_command(args: &cli_args::DoctorArgs) -> anyhow::Result<()> {
+    // Project-health (CR-L7) takes precedence over environment-check flags.
+    if let Some(ref project_root) = args.project {
+        return commands::diagnostics::doctor::project_check::run(project_root, args.json).await;
+    }
     commands::diagnostics::doctor::run(
         args.compile_target.as_deref(),
         args.auto_heal,
