@@ -269,6 +269,117 @@ fn gate_thing_name() -> &'static str {
     CrlGate::L1HumanEval.thing_name()
 }
 
+// ── Held-out contamination guard (audit omission #4 / R1) ─────────────────
+//
+// MENS training pipelines consume `held-out.v1.json` to know which fixture
+// ids are excluded from training. The guard pair (build + verify) lives
+// here so the CI check and the artifact stay in lockstep with the
+// fixture spec.toml flags.
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct HeldOutEntry {
+    pub id: String,
+    pub provenance: String,
+    pub derived_from: String,
+    /// blake3 hash of `reference.vox || tests.vox` — lets the MENS
+    /// pipeline detect if a held-out fixture was mutated since emit.
+    pub fixture_hash: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HeldOutManifest {
+    pub schema_version: u32,
+    pub corpus: String,
+    pub total_fixtures: u32,
+    pub held_out_count: u32,
+    /// Matches `HumanEvalRunner`'s corpus_hash so downstream consumers
+    /// can join held-out membership with the CR-L1 measurement.
+    pub corpus_hash: String,
+    pub entries: Vec<HeldOutEntry>,
+}
+
+/// Walk `problems_dir`, collect every fixture with
+/// `training_eligible: false`, and produce a sorted, hashed manifest.
+pub fn build_held_out_manifest(problems_dir: &Path) -> Result<HeldOutManifest, String> {
+    let fixtures = load_fixtures(problems_dir)?;
+    let total = fixtures.len() as u32;
+    let mut entries: Vec<HeldOutEntry> = Vec::new();
+    for fixture in &fixtures {
+        if fixture.training_eligible {
+            continue;
+        }
+        let spec_path = fixture
+            .reference_path
+            .parent()
+            .map(|p| p.join("spec.toml"))
+            .unwrap_or_else(|| PathBuf::from("spec.toml"));
+        let spec_text = std::fs::read_to_string(&spec_path)
+            .map_err(|e| format!("re-read of {} failed: {e}", spec_path.display()))?;
+        let spec: SpecToml = toml::from_str(&spec_text)
+            .map_err(|e| format!("malformed spec at {}: {e}", spec_path.display()))?;
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(fixture.reference_source.as_bytes());
+        hasher.update(b"\n");
+        hasher.update(fixture.tests_source.as_bytes());
+        entries.push(HeldOutEntry {
+            id: fixture.id.clone(),
+            provenance: spec.provenance,
+            derived_from: spec.derived_from,
+            fixture_hash: format!("blake3:{}", hasher.finalize().to_hex()),
+        });
+    }
+    entries.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(HeldOutManifest {
+        schema_version: 1,
+        corpus: "humaneval-vox".into(),
+        total_fixtures: total,
+        held_out_count: entries.len() as u32,
+        corpus_hash: corpus_hash(&fixtures),
+        entries,
+    })
+}
+
+/// Verify the on-disk `held-out.v1.json` matches what
+/// [`build_held_out_manifest`] derives from `problems_dir`. Returns a
+/// human-readable Err message on any drift; CI consumers treat this as
+/// the contamination-guard pass/fail.
+pub fn verify_held_out_manifest(
+    problems_dir: &Path,
+    on_disk_path: &Path,
+) -> Result<(), String> {
+    let derived = build_held_out_manifest(problems_dir)?;
+    let text = std::fs::read_to_string(on_disk_path)
+        .map_err(|e| format!("read {} failed: {e}", on_disk_path.display()))?;
+    let on_disk: HeldOutManifest = serde_json::from_str(&text)
+        .map_err(|e| format!("parse {} failed: {e}", on_disk_path.display()))?;
+    if on_disk.schema_version != derived.schema_version {
+        return Err(format!(
+            "schema_version drift: on-disk={}, derived={}",
+            on_disk.schema_version, derived.schema_version
+        ));
+    }
+    if on_disk.corpus_hash != derived.corpus_hash {
+        return Err(format!(
+            "corpus_hash drift: on-disk={}, derived={} (regenerate \
+             contracts/eval/humaneval-vox/held-out.v1.json via \
+             build_held_out_manifest)",
+            on_disk.corpus_hash, derived.corpus_hash
+        ));
+    }
+    if on_disk.held_out_count != derived.held_out_count {
+        return Err(format!(
+            "held_out_count drift: on-disk={}, derived={}",
+            on_disk.held_out_count, derived.held_out_count
+        ));
+    }
+    if on_disk.entries != derived.entries {
+        return Err(
+            "held-out entries differ (id/provenance/derived_from/hash drift)".into(),
+        );
+    }
+    Ok(())
+}
+
 /// Panel-mode execution: for each fixture, ask each panel member to write
 /// the solution, compile-check the response, and record pass/fail.
 ///
@@ -868,6 +979,54 @@ prompt = "Write fn add(a: int, b: int) to int."
         let outcome = super::run_with_panel(&problems, &args, &panel_cfg, &client);
         assert_eq!(outcome.exit_code, ExitCode::BarMissed);
         assert_eq!(outcome.report.results.overall_pass_rate, 0.0);
+    }
+
+    #[test]
+    fn held_out_manifest_on_disk_matches_seed_corpus() {
+        let problems_dir = crate::workspace_root().join("contracts/eval/humaneval-vox/problems");
+        let on_disk = crate::workspace_root()
+            .join("contracts/eval/humaneval-vox/held-out.v1.json");
+        if !on_disk.exists() {
+            panic!(
+                "held-out manifest not present at {}; regenerate via \
+                 build_held_out_manifest and check it in",
+                on_disk.display()
+            );
+        }
+        super::verify_held_out_manifest(&problems_dir, &on_disk).expect(
+            "drift between contracts/eval/humaneval-vox/held-out.v1.json and the live \
+             problems/*/spec.toml flags; regenerate the manifest",
+        );
+    }
+
+    /// Regenerate the on-disk held-out manifest. Run with
+    /// `cargo test -p vox-audit -- --ignored emit_held_out_manifest`
+    /// after any change to problems/*/spec.toml that affects training
+    /// eligibility, then commit the resulting JSON.
+    #[test]
+    #[ignore]
+    fn emit_held_out_manifest() {
+        let problems_dir = crate::workspace_root().join("contracts/eval/humaneval-vox/problems");
+        let out = crate::workspace_root().join("contracts/eval/humaneval-vox/held-out.v1.json");
+        let manifest = super::build_held_out_manifest(&problems_dir).unwrap();
+        let text = serde_json::to_string_pretty(&manifest).unwrap();
+        std::fs::write(&out, text).unwrap();
+        println!("wrote {}", out.display());
+    }
+
+    #[test]
+    fn build_held_out_manifest_collects_only_training_eligible_false() {
+        let problems_dir = crate::workspace_root().join("contracts/eval/humaneval-vox/problems");
+        let manifest = super::build_held_out_manifest(&problems_dir).unwrap();
+        assert!(manifest.held_out_count >= 1);
+        assert!(manifest.total_fixtures >= manifest.held_out_count);
+        for entry in &manifest.entries {
+            assert!(
+                entry.fixture_hash.starts_with("blake3:"),
+                "fixture_hash must be blake3-prefixed; got {}",
+                entry.fixture_hash
+            );
+        }
     }
 
     #[test]

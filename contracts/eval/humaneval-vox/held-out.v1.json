@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "corpus": "humaneval-vox",
+  "total_fixtures": 18,
+  "held_out_count": 10,
+  "corpus_hash": "blake3:b6c5fe32f5b8067ac5bb5720c307b522365b2c4c7db0aeca151a7e52beb63816",
+  "entries": [
+    {
+      "id": "humaneval-vox-001-greet",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/hello.vox",
+      "fixture_hash": "blake3:cc198c51b77e2d91cdf1882716291d00845bed562bfc0940b791bba93060f473"
+    },
+    {
+      "id": "humaneval-vox-002-first-three",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/str_utils.vox",
+      "fixture_hash": "blake3:b4d9cb9d2898008626dd861b8cac7be96d4d961818639844ba21fda8b7d11a72"
+    },
+    {
+      "id": "humaneval-vox-003-classify-score",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/control_flow_if.vox",
+      "fixture_hash": "blake3:0de5b8c80dc547bf47a3a0ccee6d2a01928ad86f6d3035caa7a3aebb42853e03"
+    },
+    {
+      "id": "humaneval-vox-004-shipping-cost",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/control_flow_if.vox",
+      "fixture_hash": "blake3:b35ec46b0e0bb0e063fa7abdf8064408a2380d958f28f93234fa8d168b44a217"
+    },
+    {
+      "id": "humaneval-vox-005-is-valid-username",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/control_flow_if.vox",
+      "fixture_hash": "blake3:d3ffa7a4cbb9916ad0a201a84a74ba6f86bd72439cdc6faf5f4978f94c2166ea"
+    },
+    {
+      "id": "humaneval-vox-006-parse-int",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/error_propagation.vox",
+      "fixture_hash": "blake3:8924139aa14ccaa2e4ce6d10d72aaa7909cdcb0cb4344b84fbf04fa94c6618c2"
+    },
+    {
+      "id": "humaneval-vox-007-divide-safe",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/error_propagation.vox",
+      "fixture_hash": "blake3:35f1872113eda5249eda393e01cde52b19d2ec8667b370b61ca44407f3516a88"
+    },
+    {
+      "id": "humaneval-vox-008-validate-email",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/error_propagation.vox",
+      "fixture_hash": "blake3:0ca7e3cbeb514adfd6b18806b13f6881c2ef38b0059826c57d9b5cc07444afae"
+    },
+    {
+      "id": "humaneval-vox-009-access-level",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/control_flow_if.vox",
+      "fixture_hash": "blake3:4928b452b2b2086b4531981d22209a76a165e62dbe91c1ef79681c77a0bbebeb"
+    },
+    {
+      "id": "humaneval-vox-010-find-substr",
+      "provenance": "examples-golden-lift",
+      "derived_from": "examples/golden/str_utils.vox",
+      "fixture_hash": "blake3:ea27111ab996d4a8d594a4366ec97cca64ebf54d85769a07d72c27e25eac35d9"
+    }
+  ]
+}
