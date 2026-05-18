@@ -101,6 +101,12 @@ pub(super) fn extract_count_chain_args(
 pub(crate) struct DbQueryChain {
     pub(crate) table: String,
     pub(crate) op: HirDbTableOp,
+    /// Flattened per-field args carried for downstream codegen. As of
+    /// 2026-05-18 the lowering at expr.rs:83 passes the SURFACE args
+    /// onto the MethodCall instead of these flattened ones so typecheck
+    /// can match the `filter(record)` signature; the plan carries the
+    /// predicate info separately.
+    #[allow(dead_code)]
     pub(crate) args: Vec<HirArg>,
     pub(crate) predicate: Option<HirDbPredicate>,
     pub(crate) select_cols: Option<Vec<String>>,

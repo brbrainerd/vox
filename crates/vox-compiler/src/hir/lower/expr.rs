@@ -82,10 +82,24 @@ impl LowerCtx {
             } => {
                 if let Some(chain) = super::expr_db::extract_db_query_chain(self, e) {
                     let plan = super::expr_db::make_db_plan_from_chain(&chain);
+                    // Lower the call-site args ORIGINALLY so typecheck
+                    // matches the surface `filter(record)` / `update(id,
+                    // record)` etc. signatures in typeck/builtins.rs.
+                    // chain.args carries per-field flattened predicate
+                    // entries which the plan already encodes; the
+                    // MethodCall.args field is what typecheck consumes,
+                    // and it needs the source-level shape.
+                    let surface_args: Vec<HirArg> = args
+                        .iter()
+                        .map(|a| HirArg {
+                            name: a.name.clone(),
+                            value: self.lower_expr(&a.value),
+                        })
+                        .collect();
                     return HirExpr::MethodCall(
                         Box::new(self.lower_expr(object)),
                         method.clone(),
-                        chain.args,
+                        surface_args,
                         Some(Box::new(plan)),
                         *span,
                     );
@@ -143,10 +157,15 @@ impl LowerCtx {
                         has_limit: false,
                         capabilities: HirDbPlanCapabilities::default(),
                     };
+                    // Pass the ORIGINAL hir_args (the single positional
+                    // ObjectLit) so typecheck matches the
+                    // `filter(record) -> Result[List[Row]]` signature in
+                    // typeck/builtins.rs. The plan above still carries
+                    // the flattened per-field predicate for codegen.
                     return HirExpr::MethodCall(
                         Box::new(obj_hir),
                         method.clone(),
-                        filter_args,
+                        hir_args,
                         Some(Box::new(plan)),
                         *span,
                     );

@@ -269,11 +269,30 @@ impl InferenceContext {
                 Ok(())
             }
             (Ty::Record(a_fields), Ty::Record(b_fields)) => {
+                // Permissive structural rule: every shared field name must
+                // unify, but EITHER side is allowed to carry extra fields
+                // the other doesn't have, so long as one side is a subset
+                // of the other. Powers the partial-record-as-arg ergonomic
+                // (e.g. `db.UserProfile.filter({ name: n })` against the
+                // full column shape). Strict subset-mismatch (each side has
+                // fields the other doesn't) is still rejected — that's a
+                // genuine type conflict, not a partial match.
+                let a_names: std::collections::HashSet<&String> =
+                    a_fields.iter().map(|(n, _)| n).collect();
+                let b_names: std::collections::HashSet<&String> =
+                    b_fields.iter().map(|(n, _)| n).collect();
+                let a_extra: Vec<&String> = a_names.difference(&b_names).copied().collect();
+                let b_extra: Vec<&String> = b_names.difference(&a_names).copied().collect();
+                if !a_extra.is_empty() && !b_extra.is_empty() {
+                    return Err(format!(
+                        "Record field-set mismatch: left-only fields {:?}, right-only fields {:?}",
+                        a_extra, b_extra
+                    ));
+                }
+                // Unify every shared field's type.
                 for (name, a_ty) in a_fields {
                     if let Some((_, b_ty)) = b_fields.iter().find(|(n, _)| n == name) {
                         self.unify(a_ty, b_ty)?;
-                    } else {
-                        return Err(format!("Expected field '{name}' missing from record"));
                     }
                 }
                 Ok(())
