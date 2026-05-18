@@ -282,6 +282,12 @@ impl InferenceContext {
                 crate::typeck::ty::ty_display(other)
             )),
             (Ty::Named(a), Ty::Named(b)) if a == b => Ok(()),
+            // Named(X) and Table(X, _) refer to the same @table type — the
+            // type-alias added in register_table makes annotations like
+            // `fn f(row: X)` resolve to Table, while db.X.all() returns
+            // rows typed as Named(X) per the row-type fix in 9685d8316.
+            // Treat them as identical so consumers compose cleanly.
+            (Ty::Named(a), Ty::Table(b, _)) | (Ty::Table(b, _), Ty::Named(a)) if a == b => Ok(()),
             (Ty::ActorRef(a), Ty::ActorRef(b)) if a == b => Ok(()),
             (Ty::Table(an, af), Ty::Table(bn, bf)) if an == bn => {
                 if af.len() != bf.len() {

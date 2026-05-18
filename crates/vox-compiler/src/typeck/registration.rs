@@ -428,15 +428,20 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
         .iter()
         .map(|f| (f.name.clone(), resolve_hir_type(&f.type_ann, env)))
         .collect();
+    let table_ty = Ty::Table(t.name.clone(), fields);
     env.define(
         t.name.clone(),
         Binding {
-            ty: Ty::Table(t.name.clone(), fields),
+            ty: table_ty.clone(),
             mutable: false,
             kind: BindingKind::Table,
             is_deprecated: t.is_deprecated,
         },
     );
+    // Type alias so `fn f(row: UserProfile)` resolves to Ty::Table
+    // (field-bearing) instead of bare Ty::Named — same fix as
+    // ast_decl_lints::register_table.
+    env.define_type(t.name.clone(), table_ty);
 }
 
 pub fn register_hir_agent(env: &mut TypeEnv, a: &HirAgent, mut uf: Option<&mut InferenceContext>) {

@@ -142,15 +142,23 @@ fn register_table(env: &mut TypeEnv, t: &TableDecl) {
         .map(|f| (f.name.clone(), resolve_type(&f.type_ann, env)))
         .collect();
 
+    let table_ty = Ty::Table(t.name.clone(), field_types);
+
     env.define(
         t.name.clone(),
         Binding {
-            ty: Ty::Table(t.name.clone(), field_types),
+            ty: table_ty.clone(),
             mutable: false,
             kind: BindingKind::Table,
             is_deprecated: t.is_deprecated,
         },
     );
+
+    // Register the table name as a TYPE alias too, so source-level
+    // annotations like `fn f(row: UserProfile)` resolve to Ty::Table
+    // (carrying field shapes) rather than to bare Ty::Named. Closes the
+    // v0.5 "Cannot access field 'x' on Named(...)" class of errors.
+    env.define_type(t.name.clone(), table_ty);
 }
 
 fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<Diagnostic>) {
