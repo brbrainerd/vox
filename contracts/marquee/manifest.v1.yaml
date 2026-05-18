@@ -97,7 +97,7 @@ apps:
   # Slot 3 — Chat / realtime archetype (RATIFIED 2026-05-15, fixture pending)
   # ---------------------------------------------------------------------
   - id: marquee-chat
-    status: archetype-approved
+    status: real                                 # bumped 2026-05-17: seed fixture landed
     name: "Vox Chat"
     description: >
       Realtime chat exercising actor primitives. Council ratified
@@ -105,12 +105,25 @@ apps:
       session state, and streaming endpoints — the lanes that future
       "agent + agent" workflows depend on.
     fixture_path: "apps/marquee/chat"
+    vox_toml: "apps/marquee/chat/Vox.toml"
+    entry: "apps/marquee/chat/src/main.vox"
     archetype: "realtime"
     features_needed:
       - "actor declaration"
       - "@endpoint(kind: stream)"
       - "websocket emit"
       - "presence state"
+    features_shipped:
+      - "actor declaration (ChatRoom with join/leave/send_msg handlers)"
+      - "@endpoint(kind: query) + @endpoint(kind: mutation) over the actor"
+      - "@auth(scheme: bearer) on the endpoint surface"
+      - "presence state semantics (join/leave handlers + presence_label fn)"
+      - "@test coverage (9 tests including @send_message validation)"
+      - "@example blocks (corpus-eligible reference solutions)"
+    features_deferred:
+      - "@endpoint(kind: stream) — kind:stream not yet in parser"
+      - "websocket emit primitive — runtime surface not yet shipped"
+    test_coverage_status: partial
     used_by_criteria:
       - CR-P1
       - CR-L0
