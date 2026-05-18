@@ -912,6 +912,30 @@ impl BuiltinTypes {
                     // find(id: int) -> Result[Option[Row]]
                     Some(Ty::Fn(
                         vec![Ty::Int],
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))))),
+                    ))
+                }
+                "filter" => {
+                    // filter({ field: value, ... }) -> Result[List[Row]]
+                    // The predicate input mirrors the row column shape so
+                    // partial-match object literals (`{ name: "x" }`) type-
+                    // check against the table's columns.
+                    Some(Ty::Fn(
+                        vec![record_ty.clone()],
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))))),
+                    ))
+                }
+                "update" => {
+                    // update(id: int, { field: value, ... }) -> Result[Unit]
+                    Some(Ty::Fn(
+                        vec![Ty::Int, record_ty.clone()],
+                        Box::new(Ty::Result(Box::new(Ty::Unit))),
+                    ))
+                }
+                "first" => {
+                    // first() -> Result[Option[Row]]
+                    Some(Ty::Fn(
+                        vec![],
                         Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty))))),
                     ))
                 }
