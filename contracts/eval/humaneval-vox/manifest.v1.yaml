@@ -20,9 +20,9 @@ corpus:
     corpus_validity_target: 1.00          # corpus-validity layer must be 100% (any compile failure is a corpus bug)
   count_target: 164                       # anchored to HumanEval-Python
   held_out_target: 30                     # 30 of 164 must be training_eligible:false
-  count_current: 18                       # seed batch landed 2026-05-17
+  count_current: 30                       # seed expanded 2026-05-18 (P3.1: +12)
   held_out_current: 10                    # all 10 examples-golden-lift fixtures are training_eligible:false
-  corpus_hash: "blake3:b6c5fe32f5b8067ac5bb5720c307b522365b2c4c7db0aeca151a7e52beb63816"
+  corpus_hash: "blake3:d3758c07d6e69062c24ef6b5da298420424a0fc50c59304e30a6bd2f44fb2bb1"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
 # Fixtures are discovered on disk under `problems/<NNN-name>/` directories,

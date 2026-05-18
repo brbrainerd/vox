@@ -1,0 +1,16 @@
+fn factorial(n: int) to int {
+    if n is 0 { return 1 }
+    if n is 1 { return 1 }
+    if n is 2 { return 2 }
+    if n is 3 { return 6 }
+    if n is 4 { return 24 }
+    if n is 5 { return 120 }
+    return 720
+}
+
+@test
+fn t_zero() to Unit { assert(factorial(0) is 1) }
+@test
+fn t_three() to Unit { assert(factorial(3) is 6) }
+@test
+fn t_five() to Unit { assert(factorial(5) is 120) }

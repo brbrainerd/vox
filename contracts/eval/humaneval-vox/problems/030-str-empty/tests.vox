@@ -1,0 +1,10 @@
+fn is_empty(s: str) to bool {
+    return len(s) is 0
+}
+
+@test
+fn t_empty() to Unit { assert(is_empty("") is true) }
+@test
+fn t_nonempty() to Unit { assert(is_empty("hi") is false) }
+@test
+fn t_space() to Unit { assert(is_empty(" ") is false) }

@@ -1,0 +1,6 @@
+fn grade(score: int) to str {
+    if score >= 60 {
+        return "P"
+    }
+    return "F"
+}

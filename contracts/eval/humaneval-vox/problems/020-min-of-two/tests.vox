@@ -1,0 +1,13 @@
+fn min(a: int, b: int) to int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+@test
+fn t_first() to Unit { assert(min(3, 7) is 3) }
+@test
+fn t_second() to Unit { assert(min(8, 2) is 2) }
+@test
+fn t_equal() to Unit { assert(min(4, 4) is 4) }
