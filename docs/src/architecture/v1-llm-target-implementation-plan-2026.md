@@ -24,6 +24,19 @@ This doc moves from "what we measure" to "how we get there." It exists because �
 
 ---
 
+> **Phase progress 2026-05-18.** Across the original 5-phase model:
+>
+> | Phase | Status |
+> |---|---|
+> | P0 — Prep | **CLOSED.** Marquee manifest with 3 status:real apps; eval directory structure; reference-LLM panel pinned; AGENTS.md drift fixed in commits fbffa175c + e42ff52b4. |
+> | P1 — Quick wins | **CLOSED.** ACI default-on, retirement detectors + parity gate, `vox audit` umbrella with all 9 subcommands registered. |
+> | P2 — Measurement infra | **PARTIAL (5/9 runners real).** ACI default (CR-L5), retirement (CR-L6), corpus-feedback (CR-L8), humaneval (CR-L1, 68841b39f), deploy doctor leg (CR-L7, ac9503761) all real. Still stub: SpecToApp (CR-L0), MensOnDistribution (CR-L2), RepairCorpus (CR-L3), PlanFidelity (CR-L4) — addressable per [`2026-05-18-v1-completion-plan.md`](../../superpowers/specs/2026-05-18-v1-completion-plan.md) §P1. |
+> | P3 — Corpus engineering | **PARTIAL.** humaneval-vox 18/164 (seed landed, mining toward MV per plan §P3.1). repair-corpus, plan-fidelity, spec-to-app still 0 fixtures. Held-out guard real (5d27ca6f3). |
+> | P4 — Hard CR-L work | **PARTIAL.** `vox repair --project` (08c086cc0), `vox doctor --project` (1761e0709), DeployRunner doctor leg (ac9503761), in-process @test (0c67eecb7), LLM-panel client+cache+retry (c5742f1cc + a7bf52785 + feaa0d7c8). Still open: `vox new` / `vox deploy` platform integration (P4.5), cross-file coordinated repair (P4.1 deeper). |
+> | P5 — Hardening | Not yet started. |
+>
+> See [`docs/superpowers/specs/2026-05-18-v1-completion-plan.md`](../../superpowers/specs/2026-05-18-v1-completion-plan.md) for the remaining-work plan and effort estimates.
+
 ## §1 Phasing — P0 through P5
 
 Five sequenced phases. Each phase lists its **gate** — the condition for moving to the next phase. Phases overlap; the gate is a logical predicate, not a calendar boundary.

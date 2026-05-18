@@ -121,6 +121,37 @@ These are real foundations. The audit is honest about gaps below; that should no
 
 ## §3 Audit: Gaps Between Current State and the Vision
 
+> **State-of-the-world update 2026-05-18.** The 2026-05-17/18 push closed
+> several gaps below. Quick scorecard:
+>
+> | Gap | Status |
+> |---|---|
+> | §3.1 Self-repair measurement (CR-L3) | **PARTIAL** — `vox repair --project` real (commit 08c086cc0); RepairCorpusRunner harness still pending |
+> | §3.2 Corpus-feedback closed loop (CR-L8) | **CLOSED** — telemetry export + CI gate landed in 2026-05-15 |
+> | §3.3 Plan-mode fidelity (CR-L4) | **PARTIAL** — harness stub still present, real runner pending |
+> | §3.4 Deploy/health CLI gap (CR-L7) | **PARTIAL** — `vox doctor --project` real (commit 1761e0709); DeployRunner ships the doctor leg (commit ac9503761); `vox new` + `vox deploy` platform integration is the remaining lift |
+> | §3.5 Retirement guards (CR-L6) | **CLOSED** — 5 detectors + parity gate landed pre-session; AGENTS.md drift fixed in commits fbffa175c + e42ff52b4 |
+> | §3.6 MENS on-distribution (CR-L2) | **PARTIAL** — harness stub still present |
+> | §3.7 ACI envelope opt-in (CR-L5) | **CLOSED** — `aci_default.rs` runner real |
+> | §3.8 Codegen IR unification | Unchanged — separate multi-quarter track |
+> | §3.9 Inference hosting | Out of scope per audit (mesh Phase 5–6) |
+> | §3.10 Mesh chaos testing | Out of scope per audit |
+>
+> Additional closures not in the original audit table:
+> - HumanEvalRunner + 18 seed fixtures (commits 68841b39f + 0c67eecb7)
+> - In-process `@test` execution via vox_compiler::eval::Interpreter
+> - LLM-panel client + cache + retry (commits c5742f1cc + a7bf52785 + feaa0d7c8)
+> - Two-parameter `Result[T, E]` (commit 92e4c59a7)
+> - `@example`, `@public`, `@endpoint(kind: stream)` decorators (commits 43a40410c + e42ff52b4)
+> - `minimal_repro` field on diagnostic envelope (commit cd2d130b6)
+> - Held-out contamination guard (commit 5d27ca6f3)
+> - Named↔Table unify + row-type fix + Id[T] alias (commits 9685d8316 + 314cbc360 + 89d9fb31f)
+> - Marquee slots 2 & 3 (todo-auth, chat) (commits fb811651b + a0cd76255)
+> - examples/golden corpus 36 → 54 doctor-green (P2 typecheck depth)
+>
+> The gap narrative below is preserved unchanged for historical context;
+> the scorecard above is the canonical "what's still open" view.
+
 Severity tiers used below:
 
 - **🔴 Blocker** — must close to credibly claim v1.0 ships "LLMs can author Vox."
