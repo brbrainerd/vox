@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "corpus": "humaneval-vox",
-  "total_fixtures": 18,
+  "total_fixtures": 30,
   "held_out_count": 10,
-  "corpus_hash": "blake3:b6c5fe32f5b8067ac5bb5720c307b522365b2c4c7db0aeca151a7e52beb63816",
+  "corpus_hash": "blake3:d3758c07d6e69062c24ef6b5da298420424a0fc50c59304e30a6bd2f44fb2bb1",
   "entries": [
     {
       "id": "humaneval-vox-001-greet",
