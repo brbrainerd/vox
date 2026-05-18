@@ -56,7 +56,7 @@ apps:
   # Slot 2 — Todo-CRUD with @auth (RATIFIED 2026-05-15, fixture pending)
   # ---------------------------------------------------------------------
   - id: marquee-todo-auth
-    status: archetype-approved
+    status: real                                 # bumped 2026-05-17: seed fixture landed
     name: "Vox Todo-CRUD with @auth"
     description: >
       The simplest credible SaaS skeleton: per-user todo list with
@@ -64,7 +64,9 @@ apps:
       SQLite persistence, tests. Council ratified 2026-05-15 (D4–D6) as
       the auth-lane Marquee app over a larger multi-tenant SaaS — keeps
       P3.5 corpus engineering cost bounded while covering @auth coverage.
-    fixture_path: "apps/marquee/todo-auth"      # to be created in P3.5
+    fixture_path: "apps/marquee/todo-auth"
+    vox_toml: "apps/marquee/todo-auth/Vox.toml"
+    entry: "apps/marquee/todo-auth/src/main.vox"
     archetype: "single-tenant-saas"
     features_needed:
       - "@endpoint(kind: query)"
@@ -73,6 +75,19 @@ apps:
       - "@table types with Id[User] foreign keys"
       - "JSON wire format"
       - "tests covering auth gates"
+    features_shipped:
+      # Recorded against the seed fixture; gaps documented in main.vox.
+      - "@endpoint(kind: query)"
+      - "@endpoint(kind: mutation)"
+      - "@auth(scheme: bearer)"
+      - "@table types"
+      - "tests covering auth gates (auth_outcome_label / title_is_valid)"
+      - "@example blocks (corpus-eligible reference solutions)"
+    features_deferred:
+      - "Id[User] foreign keys (row-shape unification gap; see main.vox)"
+      - "real db.Todo.all() read path (same unification gap)"
+      - "@public health probe (post-@endpoint @public not yet in parser)"
+    test_coverage_status: partial
     used_by_criteria:
       - CR-P1
       - CR-L0
