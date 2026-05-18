@@ -16,7 +16,9 @@ blake3 = { workspace = true }
 tracing = { workspace = true }
 vox-code-audit = { workspace = true }
 vox-compiler = { workspace = true }
+vox-config = { workspace = true }
 vox-telemetry = { workspace = true }
+reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
 toml = { workspace = true }
 workspace-hack = { workspace = true }
 
