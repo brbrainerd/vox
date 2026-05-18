@@ -255,6 +255,10 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
                 "Set" => Ty::Set(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
+                // `Id[T]` is a surrogate-int newtype in v0.5 — see
+                // ast_decl_lints::resolve_type and infer::lower_ast_ty
+                // for the matching aliasing.
+                "Id" => Ty::Int,
                 _ => Ty::Named(name.clone()),
             }
         }

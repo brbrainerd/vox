@@ -105,6 +105,15 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
                 "Result" => Ty::Result(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
+                // `Id[T]` is a surrogate-int newtype in v0.5 — the @table
+                // primary key column lowers to a 64-bit row id. Typecheck
+                // erases to Ty::Int so `db.X.insert(...)?` (returning Int)
+                // unifies with user code annotated `to Result[Id[X]]`.
+                // The boundary-typing detector
+                // (vox/types/id-required-at-boundary in vox-code-audit)
+                // still enforces typed-ID usage at @endpoint parameter
+                // positions where the visual distinction matters.
+                "Id" => Ty::Int,
                 _ => Ty::Named(name.clone()),
             }
         }

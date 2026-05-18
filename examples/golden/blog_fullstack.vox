@@ -15,8 +15,9 @@
     title: str
 }
 
-@endpoint(kind: query) fn list_posts() to List[Post] {
-    return db.Post.all()
+@endpoint(kind: query) fn list_posts() to Result[List[Post]] {
+    let rows = db.Post.all()?
+    return Ok(rows)
 }
 
 @endpoint(kind: mutation) fn publish_post(title: str) to Result[Id[Post]] {

@@ -25,6 +25,12 @@ fn lower_ast_ty(type_expr: &crate::ast::types::TypeExpr, ctx: &mut InferenceCont
                 Ty::Option(Box::new(lower_ast_ty(&args[0], ctx)))
             } else if name == "Result" && args.len() == 1 {
                 Ty::Result(Box::new(lower_ast_ty(&args[0], ctx)))
+            } else if name == "Id" {
+                // `Id[T]` is a surrogate-int newtype in v0.5; erases to
+                // Ty::Int so `db.X.insert(...)?` unifies with
+                // `to Result[Id[X]]`. Boundary-typing detector still
+                // enforces typed-ID usage at @endpoint param positions.
+                Ty::Int
             } else {
                 Ty::Named(name.clone())
             }
