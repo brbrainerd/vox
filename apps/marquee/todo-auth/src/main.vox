@@ -31,12 +31,17 @@
     done: bool
 }
 
-// ── authenticated surface ─────────────────────────────────────────────────
+// ── public surface ────────────────────────────────────────────────────────
 //
-// @public is a future Phase-3 HTTP-ergonomics surface that does not yet
-// parse post-@endpoint per boilerplate-reduction-gap-analysis-2026.md
-// §GA-06; all endpoints here require bearer auth. Platform-level health
-// probes are a separate concern.
+// `@public` is parsed post-`@endpoint(...)` as of 2026-05-18 (Task R) and
+// opts the endpoint out of the @auth requirement; the boundary lint
+// (`vox/auth/endpoint-missing-decorator`) accepts the bare-keyword form.
+
+@endpoint(kind: query) @public fn health() to str {
+    return "ok"
+}
+
+// ── authenticated surface ─────────────────────────────────────────────────
 
 // Note: `db.Todo.all()` returns `Result[List[Record(...)]]` against the
 // strict typechecker (the row-shape→Named-type unification is a

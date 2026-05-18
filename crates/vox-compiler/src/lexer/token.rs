@@ -211,6 +211,11 @@ pub enum Token {
     /// `@webhook` — verified-inbound-webhook decorator (CC-04 / GA-16).
     #[token("@webhook")]
     AtWebhook,
+    /// `@public` — opts an `@endpoint` out of `@auth` requirement
+    /// (Phase-3 HTTP-ergonomics; one half of the
+    /// `@public XOR @auth(...)` rule). Composes after `@endpoint(...)`.
+    #[token("@public")]
+    AtPublic,
     /// `@auth` — OAuth/OIDC auth flow decorator (GA-04).
     #[token("@auth")]
     AtAuth,
@@ -467,6 +472,7 @@ impl std::fmt::Display for Token {
             Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
             Token::AtExample => write!(f, "@example"),
+            Token::AtPublic => write!(f, "@public"),
             Token::AtEndpoint => write!(f, "@endpoint"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),

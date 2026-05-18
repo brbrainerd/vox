@@ -939,6 +939,7 @@ impl Parser {
                     "query" => kind = Some(EndpointKind::Query),
                     "mutation" => kind = Some(EndpointKind::Mutation),
                     "server" => kind = Some(EndpointKind::Server),
+                    "stream" => kind = Some(EndpointKind::Stream),
                     _ => {
                         self.errors.push(ParseError::classified(
                             self.span(),
@@ -957,7 +958,7 @@ impl Parser {
         if kind.is_none() {
             self.errors.push(ParseError::classified(
                 self.span(),
-                "Expected `kind: query`, `kind: mutation`, or `kind: server` inside `@endpoint(...)`.",
+                "Expected `kind: query | mutation | server | stream` inside `@endpoint(...)`.",
                 vec!["kind: query".into()],
                 Some(self.peek().to_string()),
                 ParseErrorClass::Declaration,
@@ -1894,6 +1895,15 @@ impl Parser {
                     }
                 }
                 Token::AtAuth | Token::AtOfflineCapable | Token::AtCollaborative => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        self.skip_paren_args_inner();
+                    }
+                }
+                Token::AtPublic => {
+                    // Bare marker — opts the @endpoint out of @auth coverage.
+                    // No paren args today (Phase-3 surface; semantic policy
+                    // enforcement remains the boundary lint's job).
                     self.advance();
                     if self.eat(&Token::LParen) {
                         self.skip_paren_args_inner();

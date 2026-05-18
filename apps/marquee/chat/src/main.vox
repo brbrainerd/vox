@@ -31,6 +31,10 @@ actor ChatRoom {
     return []
 }
 
+@endpoint(kind: stream) @auth(scheme: bearer) fn watch_room() to str {
+    return "tick"
+}
+
 @endpoint(kind: mutation) @auth(scheme: bearer) fn send_message(text: str) to Result[str] {
     if len(text) is 0 {
         return Error("message must not be empty")

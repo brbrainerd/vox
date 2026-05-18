@@ -250,6 +250,12 @@ pub enum EndpointKind {
     Query,
     Mutation,
     Server,
+    /// `@endpoint(kind: stream)` — streaming response endpoint, typically
+    /// fronting an actor / websocket source. Lands the surface used by
+    /// marquee-chat; semantic codegen (SSE / websocket emit) is a
+    /// follow-on. Recorded so the lint surface and the boundary checks
+    /// can opt in.
+    Stream,
 }
 
 /// Unified endpoint declaration (wraps a function with @endpoint semantics).

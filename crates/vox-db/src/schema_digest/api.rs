@@ -79,6 +79,10 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
                     mutations.push(extract_function_info(&e.func, &table_names));
                 }
                 vox_compiler::ast::decl::EndpointKind::Server => {}
+                // Streaming endpoints don't surface as plain query/mutation
+                // shapes in the schema digest; tracking on the streaming-
+                // codegen follow-on.
+                vox_compiler::ast::decl::EndpointKind::Stream => {}
             },
 
             _ => {}

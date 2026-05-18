@@ -201,6 +201,16 @@ impl LowerCtx {
                         crate::ast::decl::EndpointKind::Server => {
                             (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
                         }
+                        // `kind: stream` is a source-level marker for
+                        // streaming endpoints (SSE / websocket). The HIR
+                        // currently routes it through the Server kind; the
+                        // streaming-codegen lift (SSE response shaping,
+                        // websocket emit) is a follow-on. Surface-level
+                        // distinction is preserved at the AST so future
+                        // codegen passes can branch on it directly.
+                        crate::ast::decl::EndpointKind::Stream => {
+                            (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
+                        }
                     };
                     let route_path = format!("{prefix}{}", lowered.name);
                     let webhook = e.func.webhook.as_ref().map(|w| {

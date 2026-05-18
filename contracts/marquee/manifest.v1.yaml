@@ -86,7 +86,9 @@ apps:
     features_deferred:
       - "Id[User] foreign keys (row-shape unification gap; see main.vox)"
       - "real db.Todo.all() read path (same unification gap)"
-      - "@public health probe (post-@endpoint @public not yet in parser)"
+      # @public landed 2026-05-18 (Task R); health endpoint now ships.
+    features_shipped_followups:
+      - "@public health probe (Task R, 2026-05-18)"
     test_coverage_status: partial
     used_by_criteria:
       - CR-P1
@@ -121,8 +123,12 @@ apps:
       - "@test coverage (9 tests including @send_message validation)"
       - "@example blocks (corpus-eligible reference solutions)"
     features_deferred:
-      - "@endpoint(kind: stream) — kind:stream not yet in parser"
+      # @endpoint(kind: stream) landed 2026-05-18 (Task S); HIR routes it
+      # through HirEndpointKind::Server until streaming codegen ships.
       - "websocket emit primitive — runtime surface not yet shipped"
+      - "streaming response codegen (SSE / WS) — HIR lowers Stream → Server for now"
+    features_shipped_followups:
+      - "@endpoint(kind: stream) parsed (Task S, 2026-05-18)"
     test_coverage_status: partial
     used_by_criteria:
       - CR-P1
