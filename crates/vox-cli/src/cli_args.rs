@@ -278,8 +278,19 @@ pub struct PlayArgs {
 /// `vox repair`
 #[derive(Args, Clone, Debug)]
 pub struct RepairArgs {
-    /// File to repair.
-    pub file: PathBuf,
+    /// File to repair. Required unless `--project` is set.
+    #[arg(required_unless_present = "project", conflicts_with = "project")]
+    pub file: Option<PathBuf>,
+    /// Project-scope mode (CR-L3): walk `PATH` for `.vox` files and run
+    /// the single-file repair loop on each one that produces error-level
+    /// diagnostics. PATH defaults to `.`. Aggregates outcomes into a
+    /// structured JSON report with `--json`.
+    #[arg(long, value_name = "PATH", num_args = 0..=1, default_missing_value = ".")]
+    pub project: Option<PathBuf>,
+    /// Emit a structured JSON report when running in `--project` mode.
+    /// Ignored in single-file mode (existing rustc-style output stays).
+    #[arg(long, default_value_t = false)]
+    pub json: bool,
 }
 
 /// `vox doctor` / `vox mens doctor`

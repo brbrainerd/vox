@@ -174,7 +174,16 @@ fn check_diagnostics(file_path: &std::path::Path) -> Result<Vec<DiagnosticPayloa
 }
 
 pub async fn run(args: RepairArgs) -> Result<()> {
-    let file_path = &args.file;
+    // Project-scope mode (CR-L3): walk a directory of `.vox` files and run
+    // the single-file repair loop on each one that has errors.
+    if let Some(project_root) = args.project.clone() {
+        return run_project(&project_root, args.json).await;
+    }
+
+    let file_path = args
+        .file
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("vox repair: either FILE or --project must be provided"))?;
     if !file_path.exists() {
         anyhow::bail!("File not found: {}", file_path.display());
     }
@@ -408,6 +417,190 @@ Focus on correctness and adhering to Vox language standards (Wave 1: non-null by
     }
 }
 
+// ─── Project-scope repair (CR-L3) ──────────────────────────────────────────
+
+#[derive(Debug, serde::Serialize)]
+pub struct ProjectFileOutcome {
+    pub path: String,
+    /// `"clean"` (no diagnostics on first scan)
+    /// `"repaired"` (file had errors but the single-file loop converged)
+    /// `"residual"` (file had errors, loop ran, errors still present)
+    /// `"infra_error"` (loop bailed before producing a result)
+    pub status: String,
+    pub initial_error_count: u32,
+    pub residual_error_count: u32,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ProjectRepairReport {
+    pub schema_version: u32,
+    pub project_root: String,
+    pub files_total: u32,
+    pub files_initially_clean: u32,
+    pub files_repaired: u32,
+    pub files_residual: u32,
+    pub files_infra_error: u32,
+    pub outcome: String,
+    pub duration_seconds: f64,
+    pub per_file: Vec<ProjectFileOutcome>,
+}
+
+/// Walk `project_root` for `.vox` files, identify those with errors, and
+/// run the single-file [`run`] loop on each. Aggregate to a structured
+/// report. CR-L3 measurement consumes the JSON form.
+///
+/// Honest scope: this lands the project-walker + per-file dispatch + the
+/// aggregate report. It does NOT yet do cross-file reasoning (coordinated
+/// fix sets, dependency ordering); the per-file loop is the existing
+/// 3-attempt OpenRouter flow unchanged. Cross-file is P4.1's deeper lift.
+pub async fn run_project(project_root: &std::path::Path, json: bool) -> Result<()> {
+    let started = Instant::now();
+    let canonical_root = project_root
+        .canonicalize()
+        .unwrap_or_else(|_| project_root.to_path_buf());
+    if !canonical_root.exists() {
+        anyhow::bail!(
+            "vox repair --project: path does not exist: {}",
+            canonical_root.display()
+        );
+    }
+
+    let files = discover_vox_files(&canonical_root);
+    let mut per_file: Vec<ProjectFileOutcome> = Vec::with_capacity(files.len());
+    let mut clean = 0u32;
+    let mut repaired = 0u32;
+    let mut residual = 0u32;
+    let mut infra_err = 0u32;
+
+    for path in &files {
+        let initial = check_diagnostics(path).unwrap_or_default();
+        let initial_error_count = initial.len() as u32;
+        if initial.is_empty() {
+            clean += 1;
+            per_file.push(ProjectFileOutcome {
+                path: path.display().to_string(),
+                status: "clean".into(),
+                initial_error_count: 0,
+                residual_error_count: 0,
+            });
+            continue;
+        }
+
+        // Dispatch to the existing single-file repair loop. It writes the
+        // repaired file in place; we re-check afterwards to record the
+        // residual count.
+        let single_args = RepairArgs {
+            file: Some(path.clone()),
+            project: None,
+            json: false,
+        };
+        let single_result = Box::pin(run(single_args)).await;
+        let residual_diags = check_diagnostics(path).unwrap_or_default();
+        let residual_count = residual_diags.len() as u32;
+        let status = match (single_result, residual_count) {
+            (Ok(_), 0) => {
+                repaired += 1;
+                "repaired"
+            }
+            (Ok(_), _) => {
+                residual += 1;
+                "residual"
+            }
+            (Err(_), _) => {
+                infra_err += 1;
+                "infra_error"
+            }
+        };
+        per_file.push(ProjectFileOutcome {
+            path: path.display().to_string(),
+            status: status.into(),
+            initial_error_count,
+            residual_error_count: residual_count,
+        });
+    }
+
+    let outcome = if files.is_empty() || (residual == 0 && infra_err == 0) {
+        "green"
+    } else if infra_err > 0 && repaired == 0 && residual == 0 {
+        "infra_error"
+    } else {
+        "red"
+    };
+
+    let report = ProjectRepairReport {
+        schema_version: 1,
+        project_root: canonical_root.display().to_string(),
+        files_total: files.len() as u32,
+        files_initially_clean: clean,
+        files_repaired: repaired,
+        files_residual: residual,
+        files_infra_error: infra_err,
+        outcome: outcome.into(),
+        duration_seconds: started.elapsed().as_secs_f64(),
+        per_file,
+    };
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        println!(
+            "vox repair --project {} → {} ({} clean / {} repaired / {} residual / {} infra-error, {:.2}s)",
+            report.project_root,
+            outcome.to_uppercase(),
+            report.files_initially_clean,
+            report.files_repaired,
+            report.files_residual,
+            report.files_infra_error,
+            report.duration_seconds,
+        );
+        for f in &report.per_file {
+            if f.status != "clean" {
+                println!("  [{}] {}", f.status, f.path);
+            }
+        }
+    }
+
+    if residual > 0 || infra_err > 0 {
+        anyhow::bail!(
+            "vox repair --project: {} residual / {} infra-error of {} files",
+            residual,
+            infra_err,
+            files.len()
+        );
+    }
+    Ok(())
+}
+
+/// Walk `root` for `.vox` files; skips build/cache/vcs directories so that
+/// generated or transient files don't surface as repair work. Mirrors the
+/// skip list used by `vox doctor --project`.
+fn discover_vox_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    for entry in walkdir::WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| !is_skipped_dir_for_repair(e.path()))
+        .filter_map(|r| r.ok())
+    {
+        let p = entry.path();
+        if p.is_file() && p.extension().is_some_and(|x| x == "vox") {
+            out.push(p.to_path_buf());
+        }
+    }
+    out.sort();
+    out
+}
+
+fn is_skipped_dir_for_repair(path: &std::path::Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    matches!(
+        name,
+        "target" | "node_modules" | ".git" | ".cargo" | "dist" | "build" | "archive"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -461,6 +654,61 @@ mod tests {
 
         let repo = RepairSession::discover_repository_id(&project);
         assert_eq!(repo.as_deref(), Some("dir-proj"));
+    }
+
+    #[tokio::test]
+    async fn run_project_on_clean_tempdir_returns_ok_zero_repaired() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::write(
+            tmp.path().join("src/ok.vox"),
+            "fn add(a: int, b: int) to int { return a + b }\n",
+        )
+        .unwrap();
+        let result = run_project(tmp.path(), true).await;
+        assert!(
+            result.is_ok(),
+            "clean project should produce no repair work: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_project_skipped_dirs_are_not_walked() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Real source.
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::write(
+            tmp.path().join("src/ok.vox"),
+            "fn id(n: int) to int { return n }\n",
+        )
+        .unwrap();
+        // Broken file inside target/ — should be skipped.
+        std::fs::create_dir_all(tmp.path().join("target")).unwrap();
+        std::fs::write(
+            tmp.path().join("target/debris.vox"),
+            "this is broken vox ###\n",
+        )
+        .unwrap();
+        let result = run_project(tmp.path(), true).await;
+        assert!(
+            result.is_ok(),
+            "target/ debris should not surface as repair work"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_project_with_missing_root_bails() {
+        let tmp = tempfile::tempdir().unwrap();
+        let nope = tmp.path().join("does-not-exist");
+        let result = run_project(&nope, true).await;
+        assert!(result.is_err());
+        assert!(
+            result
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("does not exist")
+        );
     }
 
     #[test]
