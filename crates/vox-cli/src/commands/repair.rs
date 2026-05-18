@@ -587,8 +587,32 @@ fn discover_vox_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
             out.push(p.to_path_buf());
         }
     }
-    out.sort();
+    // Order by import-dependency depth (best-effort topological): files
+    // with the FEWEST imports first, so when we repair a downstream file
+    // its dependencies have already been seen/fixed in this pass. This
+    // is P4.2's first slice — full SCC + cycle handling lands later.
+    out.sort_by(|a, b| {
+        let depth_a = import_count(a);
+        let depth_b = import_count(b);
+        depth_a.cmp(&depth_b).then_with(|| a.cmp(b))
+    });
     out
+}
+
+/// Cheap textual count of `import` lines in a `.vox` file. Used as a
+/// lightweight dependency-depth proxy for repair ordering — full
+/// HIR-based topological sort lands when the repair loop's cross-file
+/// reasoning gets a dedicated context graph.
+fn import_count(path: &std::path::Path) -> usize {
+    let Ok(src) = std::fs::read_to_string(path) else {
+        return 0;
+    };
+    src.lines()
+        .filter(|line| {
+            let t = line.trim_start();
+            t.starts_with("import ") || t.starts_with("import\t")
+        })
+        .count()
 }
 
 fn is_skipped_dir_for_repair(path: &std::path::Path) -> bool {
