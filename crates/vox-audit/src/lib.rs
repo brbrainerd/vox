@@ -188,14 +188,21 @@ pub trait Subcommand: Send + Sync {
 /// §subcommands.
 pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
-        Box::new(subcommands::stubs::SpecToAppStub),
+        // CR-L0: real SpecToAppRunner replaced its stub 2026-05-18 (P1.3).
+        Box::new(subcommands::spec_to_app::SpecToAppRunner),
         // CR-L1: real HumanEvalRunner replaced HumanEvalStub 2026-05-17
         // (corpus-validity layer is real; LLM-panel layer is explicit opt-in
         // returning InvalidInput until the panel client lands).
         Box::new(subcommands::humaneval::HumanEvalRunner),
-        Box::new(subcommands::stubs::MensOnDistributionStub),
-        Box::new(subcommands::stubs::RepairCorpusStub),
-        Box::new(subcommands::stubs::PlanFidelityStub),
+        // CR-L2: real MensOnDistributionRunner replaced its stub
+        // 2026-05-18 (P1.4).
+        Box::new(subcommands::mens_on_distribution::MensOnDistributionRunner),
+        // CR-L3: real RepairCorpusRunner replaced RepairCorpusStub
+        // 2026-05-18 (P1.1 of the v1.0 completion plan).
+        Box::new(subcommands::repair_corpus::RepairCorpusRunner),
+        // CR-L4: real PlanFidelityRunner replaced its stub
+        // 2026-05-18 (P1.2).
+        Box::new(subcommands::plan_fidelity::PlanFidelityRunner),
         Box::new(subcommands::aci_default::AciDefaultSubcommand),
         Box::new(subcommands::retirement::RetirementSubcommand),
         // CR-L7: real DeployRunner replaced DeployStub 2026-05-17 (Task O).
