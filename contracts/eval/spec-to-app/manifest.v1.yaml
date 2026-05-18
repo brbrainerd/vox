@@ -10,15 +10,15 @@ schema_version: 1
 corpus:
   id: spec-to-app
   schema_version: 1
-  status: stub
+  status: seed                              # 3 fixtures landed 2026-05-18 (P3.4)
   bar:
     pass_rate_target: 0.60
     cost_ceiling_usd_median: 5.00
     sub_bar_block_ga_pass_rate: 0.40      # CR-L0 sub-bar blocks GA outright
     sub_bar_block_ga_cost: 10.00          # cost ceiling >$10/spec median also blocks GA
   count_target: 10
-  count_current: 0
-  corpus_hash: "blake3:0000000000000000000000000000000000000000000000000000000000000000"
+  count_current: 3
+  corpus_hash: "blake3:populated-by-SpecToAppRunner-at-run-time"
 
 difficulty_distribution:
   T1: 4                                   # single-archetype, single-file scope
