@@ -331,11 +331,11 @@ impl<'a> Checker<'a> {
                     let bindings = match &obj_ty {
                         Ty::List(inner)
                         | Ty::Option(inner)
-                        | Ty::Result(inner)
                         | Ty::Stream(inner)
                         | Ty::Set(inner) => {
                             vec![inner.as_ref().clone()]
                         }
+                        Ty::Result(ok, err) => vec![ok.as_ref().clone(), err.as_ref().clone()],
                         Ty::Map(k, v) => vec![k.as_ref().clone(), v.as_ref().clone()],
                         _ => vec![],
                     };
@@ -613,7 +613,7 @@ impl<'a> Checker<'a> {
             HirExpr::With(resource, options, span) => {
                 let res_ty = self.check_expr(resource, None);
                 self.check_with_options(options.as_ref(), *span);
-                let expected = Ty::Result(Box::new(self.uf.fresh_var()));
+                let expected = Ty::Result(Box::new(self.uf.fresh_var()), Box::new(Ty::Str));
                 if let Err(msg) = self.uf.unify(&res_ty, &expected) {
                     self.diags.push(Diagnostic::error(
                         format!(
@@ -680,11 +680,11 @@ impl<'a> Checker<'a> {
                 let resolved = self.uf.resolve(&inner_ty);
                 let resolved = self.uf.instantiate(&resolved);
                 match resolved {
-                    Ty::Result(ok_ty) => {
+                    Ty::Result(ok_ty, _err_ty) => {
                         if let Some(expected_ret) = self.env.current_return_type() {
                             let expected_ret_inst = self.uf.instantiate(expected_ret);
                             match self.uf.resolve(&expected_ret_inst) {
-                                Ty::Result(_) => {}
+                                Ty::Result(_, _) => {}
                                 Ty::Error => {}
                                 _ => {
                                     self.diags.push(Diagnostic::error(

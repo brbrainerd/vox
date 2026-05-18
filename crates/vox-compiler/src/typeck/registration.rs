@@ -239,9 +239,14 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
                 "Option" => Ty::Option(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
-                "Result" => Ty::Result(Box::new(
-                    inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
-                )),
+                "Result" => {
+                    // `Result[T]` defaults E to Str; `Result[T, E]` threads
+                    // the explicit second arg through.
+                    let mut it = inner_args.into_iter();
+                    let ok = it.next().unwrap_or(Ty::TypeVar(0));
+                    let err = it.next().unwrap_or(Ty::Str);
+                    Ty::Result(Box::new(ok), Box::new(err))
+                }
                 "Stream" => Ty::Stream(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),

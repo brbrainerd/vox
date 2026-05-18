@@ -14,7 +14,10 @@ pub enum Ty {
     Never,
     List(Box<Ty>),
     Option(Box<Ty>),
-    Result(Box<Ty>),
+    /// Two-parameter Result type. `E` defaults to `Ty::Str` when source
+    /// writes the single-arg `Result[T]` form (see Result[T,E] design doc
+    /// 2026-05-18, Phase 1 land).
+    Result(Box<Ty>, Box<Ty>),
     Stream(Box<Ty>),
     Map(Box<Ty>, Box<Ty>),
     Set(Box<Ty>),
@@ -53,7 +56,17 @@ impl Ty {
             Ty::Never => "never".to_string(),
             Ty::List(inner) => format!("List[{}]", inner.signature()),
             Ty::Option(inner) => format!("Option[{}]", inner.signature()),
-            Ty::Result(inner) => format!("Result[{}]", inner.signature()),
+            Ty::Result(ok, err) => {
+                // Omit the err half from the signature when it's the
+                // single-arg default (Str) — preserves canonical signature
+                // strings for downstream consumers that pinned the v0.5
+                // shape (snapshot tests, contract serialization).
+                if matches!(err.as_ref(), Ty::Str) {
+                    format!("Result[{}]", ok.signature())
+                } else {
+                    format!("Result[{}, {}]", ok.signature(), err.signature())
+                }
+            }
             Ty::Stream(inner) => format!("Stream[{}]", inner.signature()),
             Ty::Map(k, v) => format!("Map[{}, {}]", k.signature(), v.signature()),
             Ty::Set(inner) => format!("Set[{}]", inner.signature()),

@@ -81,27 +81,52 @@ impl BuiltinTypes {
             fields: vec![],
         });
 
-        // Ok(value: T) → Result[T]
+        // Ok(value: T) → Result[T, E]
+        // Polymorphic in both T and E so two-param Result[T, E] surfaces unify.
         env.define(
             "Ok".into(),
             Binding {
                 ty: Ty::Fn(
                     vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
+                    Box::new(Ty::Result(
+                        Box::new(Ty::GenericParam(0)),
+                        Box::new(Ty::GenericParam(1)),
+                    )),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
                 is_deprecated: false,
             },
         );
-        // Error(message: str) → Result[T]
+        // Error(payload: E) → Result[T, E]
+        // Polymorphic; before two-param Result landed this was fixed to
+        // Error(str), which is why the marquee fixtures had to fall back
+        // to string error payloads.
         env.define(
             "Error".into(),
             Binding {
                 ty: Ty::Fn(
-                    vec![Ty::Str],
-                    // Error returns Result[T]
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
+                    vec![Ty::GenericParam(1)],
+                    Box::new(Ty::Result(
+                        Box::new(Ty::GenericParam(0)),
+                        Box::new(Ty::GenericParam(1)),
+                    )),
+                ),
+                mutable: false,
+                kind: BindingKind::Constructor,
+                is_deprecated: false,
+            },
+        );
+        // Err is an alias of Error for Rust-familiar source.
+        env.define(
+            "Err".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::GenericParam(1)],
+                    Box::new(Ty::Result(
+                        Box::new(Ty::GenericParam(0)),
+                        Box::new(Ty::GenericParam(1)),
+                    )),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
@@ -506,14 +531,14 @@ impl BuiltinTypes {
             "list_dir".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
             ),
         );
         fs_methods.insert(
             "glob".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
             ),
         );
         methods.insert("FsModule".into(), fs_methods);
@@ -543,32 +568,32 @@ impl BuiltinTypes {
         let mut json_value_methods = std::collections::HashMap::new();
         json_value_methods.insert(
             "get_str".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         json_value_methods.insert(
             "get_int".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Int)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str)))),
         );
         json_value_methods.insert(
             "get_float".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Float)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Float), Box::new(Ty::Str)))),
         );
         json_value_methods.insert(
             "get_bool".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
         );
         json_value_methods.insert(
             "get_object".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
             ),
         );
         json_value_methods.insert(
             "get_array".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
             ),
         );
         json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
@@ -577,7 +602,7 @@ impl BuiltinTypes {
             "at".into(),
             Ty::Fn(
                 vec![Ty::Int],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
             ),
         );
         json_value_methods.insert(
@@ -605,7 +630,7 @@ impl BuiltinTypes {
             "spawn_background".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Int))),
+                Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
             ),
         );
         process_methods.insert(
@@ -619,14 +644,14 @@ impl BuiltinTypes {
             "exec".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Unit))),
+                Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
             ),
         );
         process_methods.insert(
             "register_exit_command".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Unit))),
+                Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
             ),
         );
         process_methods.insert("exit".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)));
@@ -699,28 +724,28 @@ impl BuiltinTypes {
             "post".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         http_methods.insert(
             "get".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         http_methods.insert(
             "put".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         http_methods.insert(
             "delete".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         methods.insert("HTTPModule".into(), http_methods);
@@ -729,11 +754,11 @@ impl BuiltinTypes {
         let mut speech_methods = std::collections::HashMap::new();
         speech_methods.insert(
             "transcribe".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         speech_methods.insert(
             "transcribe_microphone".into(),
-            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         methods.insert("SpeechModule".into(), speech_methods);
 
@@ -876,43 +901,43 @@ impl BuiltinTypes {
                     // that's a separate gap).
                     Some(Ty::Fn(
                         vec![record_ty.clone()],
-                        Box::new(Ty::Result(Box::new(Ty::Int))),
+                        Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
                     ))
                 }
                 "get" => {
                     // get(id: int) -> Result[Option[Row]]
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
                     ))
                 }
                 "delete" => {
                     // delete(id: int) -> Result[Unit]
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Unit))),
+                        Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
                     ))
                 }
                 "query" => {
                     // query(sql: str) -> Result[List[Row]]
                     Some(Ty::Fn(
                         vec![Ty::Str],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
                     ))
                 }
                 "all" => {
                     // all() -> Result[List[Row]]
                     Some(Ty::Fn(
                         vec![],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
                     ))
                 }
-                "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int))))),
+                "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))))),
                 "find" => {
                     // find(id: int) -> Result[Option[Row]]
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
                     ))
                 }
                 "filter" => {
@@ -922,21 +947,21 @@ impl BuiltinTypes {
                     // check against the table's columns.
                     Some(Ty::Fn(
                         vec![record_ty.clone()],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
                     ))
                 }
                 "update" => {
                     // update(id: int, { field: value, ... }) -> Result[Unit]
                     Some(Ty::Fn(
                         vec![Ty::Int, record_ty.clone()],
-                        Box::new(Ty::Result(Box::new(Ty::Unit))),
+                        Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
                     ))
                 }
                 "first" => {
                     // first() -> Result[Option[Row]]
                     Some(Ty::Fn(
                         vec![],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 _ => None,
@@ -964,7 +989,7 @@ impl BuiltinTypes {
             Ty::Named(n) => n.as_str(),
             Ty::List(_) => "List",
             Ty::Str => "Str",
-            Ty::Result(_) => "Result",
+            Ty::Result(_, _) => "Result",
             Ty::Option(_) => "Option",
             _ => return None,
         };

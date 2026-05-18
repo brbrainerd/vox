@@ -102,9 +102,14 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
                 "Option" => Ty::Option(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
-                "Result" => Ty::Result(Box::new(
-                    inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
-                )),
+                "Result" => {
+                    // Source-level `Result[T]` defaults E to Ty::Str;
+                    // `Result[T, E]` honors the explicit second arg.
+                    let mut it = inner_args.into_iter();
+                    let ok = it.next().unwrap_or(Ty::TypeVar(0));
+                    let err = it.next().unwrap_or(Ty::Str);
+                    Ty::Result(Box::new(ok), Box::new(err))
+                }
                 // `Id[T]` is a surrogate-int newtype in v0.5 — the @table
                 // primary key column lowers to a 64-bit row id. Typecheck
                 // erases to Ty::Int so `db.X.insert(...)?` (returning Int)

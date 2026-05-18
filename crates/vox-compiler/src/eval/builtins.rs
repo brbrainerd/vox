@@ -146,23 +146,23 @@ pub fn call_builtin_method(
                 let idx = match args.first().cloned() {
                     Some(VoxValue::Int(i)) => i,
                     _ => {
-                        return Some(VoxValue::Result(Err(
+                        return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
                             "json: invalid array index".into(),
-                        )));
+                        )))));
                     }
                 };
                 if idx < 0 {
-                    return Some(VoxValue::Result(Err(format!(
+                    return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(format!(
                         "json: negative array index {idx}"
-                    ))));
+                    ))))));
                 }
                 let i = idx as usize;
                 match v.get(i) {
                     Some(el) => Some(VoxValue::Result(Ok(Box::new(el.clone())))),
-                    None => Some(VoxValue::Result(Err(format!(
+                    None => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(format!(
                         "json: index {idx} out of bounds (len={})",
                         v.len()
-                    )))),
+                    )))))),
                 }
             }
             "is_null" => Some(VoxValue::Bool(false)),
@@ -172,9 +172,9 @@ pub fn call_builtin_method(
                 Some(VoxValue::Str(serde_json::to_string(&j).unwrap_or_default()))
             }
             "get_str" | "get_int" | "get_float" | "get_bool" | "get_object" | "get_array" => {
-                Some(VoxValue::Result(Err(
+                Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
                     "json: receiver is not an object".into(),
-                )))
+                )))))
             }
             _ => None,
         },
@@ -398,7 +398,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::read_to_string(path) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e.to_string()),
+                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -414,7 +414,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::write(path, content) {
                             Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(e.to_string()),
+                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -446,7 +446,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::remove_dir_all(&path) {
                             Ok(()) => Ok(Box::new(VoxValue::Null)),
-                            Err(e) => Err(e.to_string()),
+                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -462,7 +462,7 @@ pub fn call_builtin_method(
                                 .collect();
                             Ok(Box::new(VoxValue::List(list)))
                         } else {
-                            Err("failed to list directory".to_string())
+                            Err(Box::new(VoxValue::Str("failed to list directory".to_string())))
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -486,7 +486,7 @@ pub fn call_builtin_method(
                                     .collect();
                                 Ok(Box::new(VoxValue::List(list)))
                             }
-                            Err(e) => Err(e.to_string()),
+                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -513,7 +513,7 @@ pub fn call_builtin_method(
                                     .collect();
                                 Ok(Box::new(VoxValue::List(list)))
                             }
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -532,7 +532,7 @@ pub fn call_builtin_method(
                                 ("is_file".into(), VoxValue::Bool(r.is_file)),
                                 ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
                             ]))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -543,7 +543,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::create_dir_all(&path) {
                             Ok(()) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(e.to_string()),
+                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -699,7 +699,7 @@ pub fn call_builtin_method(
                             .status();
                         let res = match status {
                             Ok(st) => Ok(Box::new(VoxValue::Int(st.code().unwrap_or(0) as i64))),
-                            Err(e) => Err(e.to_string()),
+                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -726,10 +726,10 @@ pub fn call_builtin_method(
                         let handle = match tokio::runtime::Handle::try_current() {
                             Ok(h) => h,
                             Err(_) => {
-                                return Some(VoxValue::Result(Err(
+                                return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
                                     "spawn_background must be run within a Tokio runtime"
                                         .to_string(),
-                                )));
+                                )))));
                             }
                         };
 
@@ -744,7 +744,7 @@ pub fn call_builtin_method(
                                 });
                                 Some(VoxValue::Result(Ok(Box::new(VoxValue::Int(id as i64)))))
                             }
-                            Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                            Err(e) => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(e.to_string()))))),
                         }
                     }
                     "exec" => {
@@ -771,7 +771,7 @@ pub fn call_builtin_method(
                         {
                             use std::os::unix::process::CommandExt;
                             let err = std::process::Command::new(cmd_name).args(cmd_args).exec();
-                            Some(VoxValue::Result(Err(err.to_string())))
+                            Some(VoxValue::Result(Err(Box::new(VoxValue::Str(err.to_string())))))
                         }
                         #[cfg(not(unix))]
                         {
@@ -780,7 +780,7 @@ pub fn call_builtin_method(
                                     vox_flush_exit_commands();
                                     std::process::exit(st.code().unwrap_or(1))
                                 }
-                                Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                                Err(e) => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(e.to_string()))))),
                             }
                         }
                     }
@@ -840,7 +840,7 @@ pub fn call_builtin_method(
                         let res = interp_process_run_capture_json(&cmd_name, &cmd_args);
                         Some(VoxValue::Result(match res {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     "run_capture_lines" => {
@@ -867,7 +867,7 @@ pub fn call_builtin_method(
                             Ok(lines) => Ok(Box::new(VoxValue::List(
                                 lines.into_iter().map(VoxValue::Str).collect(),
                             ))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     _ => None,
@@ -892,7 +892,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_csv_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     "parse_records" => {
@@ -902,7 +902,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_csv_parse_records(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     "render" => {
@@ -913,14 +913,14 @@ pub fn call_builtin_method(
                         let rows = match voxvalue_as_table_str(&rows_v) {
                             Some(r) => r,
                             None => {
-                                return Some(VoxValue::Result(Err(
+                                return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
                                     "csv.render: expected list[list[str]]".into(),
-                                )));
+                                )))));
                             }
                         };
                         Some(VoxValue::Result(match interp_csv_render(&rows) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     _ => None,
@@ -933,7 +933,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_toml_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     "render" => {
@@ -944,7 +944,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(v);
                         Some(VoxValue::Result(match interp_toml_render(&j) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     _ => None,
@@ -957,7 +957,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_yaml_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     "render" => {
@@ -968,7 +968,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(v);
                         Some(VoxValue::Result(match interp_yaml_render(&j) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     _ => None,
@@ -981,7 +981,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_io_open(&path) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     "save" => {
@@ -997,7 +997,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(val);
                         Some(VoxValue::Result(match interp_io_save(&path, &j) {
                             Ok(()) => Ok(Box::new(VoxValue::Null)),
-                            Err(e) => Err(e),
+                            Err(e) => Err(Box::new(VoxValue::Str(e))),
                         }))
                     }
                     _ => None,
@@ -1052,7 +1052,7 @@ fn interp_json_object_methods(
     args: &[VoxValue],
 ) -> Option<VoxValue> {
     let res_ok = |v: VoxValue| Some(VoxValue::Result(Ok(Box::new(v))));
-    let res_err = |msg: String| Some(VoxValue::Result(Err(msg)));
+    let res_err = |msg: String| Some(VoxValue::Result(Err(Box::new(VoxValue::Str(msg)))));
 
     match method {
         "get_str" => {

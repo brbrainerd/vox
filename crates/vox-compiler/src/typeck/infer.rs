@@ -23,8 +23,16 @@ fn lower_ast_ty(type_expr: &crate::ast::types::TypeExpr, ctx: &mut InferenceCont
                 Ty::List(Box::new(lower_ast_ty(&args[0], ctx)))
             } else if name == "Option" && args.len() == 1 {
                 Ty::Option(Box::new(lower_ast_ty(&args[0], ctx)))
-            } else if name == "Result" && args.len() == 1 {
-                Ty::Result(Box::new(lower_ast_ty(&args[0], ctx)))
+            } else if name == "Result" && !args.is_empty() {
+                // `Result[T]` defaults E to Ty::Str; `Result[T, E]` honors
+                // the explicit second arg.
+                let ok = lower_ast_ty(&args[0], ctx);
+                let err = if args.len() >= 2 {
+                    lower_ast_ty(&args[1], ctx)
+                } else {
+                    Ty::Str
+                };
+                Ty::Result(Box::new(ok), Box::new(err))
             } else if name == "Id" {
                 // `Id[T]` is a surrogate-int newtype in v0.5; erases to
                 // Ty::Int so `db.X.insert(...)?` unifies with
@@ -300,9 +308,10 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
                         let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
                     }
                 }
-                (Ty::Result(obj_inner), Ty::Fn(_params, ref ret)) => {
-                    if let Ty::Result(ret_inner) = &**ret {
-                        let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
+                (Ty::Result(obj_ok, obj_err), Ty::Fn(_params, ref ret)) => {
+                    if let Ty::Result(ret_ok, ret_err) = &**ret {
+                        let _ = ctx.unify(obj_ok.as_ref(), ret_ok.as_ref());
+                        let _ = ctx.unify(obj_err.as_ref(), ret_err.as_ref());
                     }
                 }
                 _ => {}
@@ -347,7 +356,8 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
         Expr::Try { target, .. } => {
             let operand_ty = infer_expr(target, ctx, builtins);
             match ctx.resolve(&operand_ty) {
-                Ty::Result(inner) | Ty::Option(inner) => (*inner).clone(),
+                Ty::Result(ok, _err) => (*ok).clone(),
+                Ty::Option(inner) => (*inner).clone(),
                 _ => ctx.fresh_var(),
             }
         }

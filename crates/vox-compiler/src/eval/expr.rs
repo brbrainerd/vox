@@ -251,15 +251,13 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                             Ok(VoxValue::Result(Ok(Box::new(v))))
                         }
                         ("Err", 1) | ("Error", 1) => {
+                            // Two-param Result lands the payload as a full
+                            // VoxValue. ADT-shaped errors (e.g. the
+                            // `Error(TitleEmpty(msg))` patterns from the
+                            // marquee fixtures) round-trip through pattern
+                            // match with the variant tag preserved.
                             let v = eval_args.into_iter().next().unwrap();
-                            // Result's Err side stores a String per VoxValue;
-                            // coerce strings directly, render anything else
-                            // via the builtins display helper.
-                            let msg = match v {
-                                VoxValue::Str(s) => s,
-                                other => super::builtins::vox_value_display(&other),
-                            };
-                            Ok(VoxValue::Result(Err(msg)))
+                            Ok(VoxValue::Result(Err(Box::new(v))))
                         }
                         _ => Ok(VoxValue::Tagged {
                             name,

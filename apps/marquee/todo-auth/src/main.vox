@@ -31,6 +31,13 @@
     done: bool
 }
 
+// Domain error ADT — exhaustively matchable on the Err arm now that
+// two-parameter `Result[T, E]` lands (design doc 2026-05-18).
+type TodoError =
+    | TitleEmpty(text: str)
+    | TitleTooLong(text: str)
+    | EmptyId(text: str)
+
 // ── public surface ────────────────────────────────────────────────────────
 //
 // `@public` is parsed post-`@endpoint(...)` as of 2026-05-18 (Task R) and
@@ -53,19 +60,19 @@
     return []
 }
 
-@endpoint(kind: mutation) @auth(scheme: bearer) fn add_todo(title: str) to Result[str] {
+@endpoint(kind: mutation) @auth(scheme: bearer) fn add_todo(title: str) to Result[str, TodoError] {
     if len(title) is 0 {
-        return Error("title must not be empty")
+        return Error(TitleEmpty("title must not be empty"))
     }
     if len(title) > 280 {
-        return Error("title too long")
+        return Error(TitleTooLong("title exceeds 280 chars"))
     }
     return Ok("queued")
 }
 
-@endpoint(kind: mutation) @auth(scheme: bearer) fn complete_todo(id: str) to Result[str] {
+@endpoint(kind: mutation) @auth(scheme: bearer) fn complete_todo(id: str) to Result[str, TodoError] {
     if len(id) is 0 {
-        return Error("id must not be empty")
+        return Error(EmptyId("id must not be empty"))
     }
     return Ok("ok")
 }
@@ -132,6 +139,30 @@ fn test_auth_gate_allowed_when_authenticated() to Unit {
 @test
 fn test_auth_gate_rejected_when_anonymous() to Unit {
     assert(auth_outcome_label(false) is "rejected:401")
+}
+
+// Exercises the two-parameter Result[T, TodoError] path end-to-end —
+// the Err arm matches a typed ADT variant rather than a raw string.
+@test
+fn test_add_todo_empty_returns_titleempty_variant() to Unit {
+    let r = add_todo("")
+    match r {
+        Error(TitleEmpty(_))    => assert(true)
+        Error(TitleTooLong(_))  => assert(false)
+        Error(EmptyId(_))       => assert(false)
+        Ok(_)                   => assert(false)
+    }
+}
+
+@test
+fn test_complete_todo_empty_id_returns_emptyid_variant() to Unit {
+    let r = complete_todo("")
+    match r {
+        Error(EmptyId(_))       => assert(true)
+        Error(TitleEmpty(_))    => assert(false)
+        Error(TitleTooLong(_))  => assert(false)
+        Ok(_)                   => assert(false)
+    }
 }
 
 // ── examples (corpus-eligible reference solutions) ────────────────────────

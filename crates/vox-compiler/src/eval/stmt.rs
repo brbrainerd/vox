@@ -75,8 +75,11 @@ pub fn eval_pattern(
                         Err(EvalError::AssertionFailed("Matched Ok on Err".into()))
                     }
                 } else if (name == "Err" || name == "Error") && args.len() == 1 {
-                    if let Err(msg) = res {
-                        eval_pattern(interp, &args[0], VoxValue::Str(msg))?;
+                    if let Err(payload) = res {
+                        // Payload is now a full VoxValue (two-param Result).
+                        // Pattern can be a wildcard, a binding, or a nested
+                        // constructor like `Error(TitleEmpty(msg))`.
+                        eval_pattern(interp, &args[0], *payload)?;
                         Ok(())
                     } else {
                         Err(EvalError::AssertionFailed("Matched Err on Ok".into()))
