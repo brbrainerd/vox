@@ -74,11 +74,12 @@ fn seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
 
 // ANCHOR: null_safety_demo
 // No null, no None, no nullptr — the missing case is a compile error.
-fn get_stack_safe(id: str) to Option[InventoryStack] {
-    let stack = db.InventoryStack.get(id)
-    match stack {
-        Some(s) => Some(s)
-        None => None
+fn get_stack_safe(id: Id[InventoryStack]) to Option[InventoryStack] {
+    // Id[T] erases to Ty::Int in v0.5; db.X.get takes the int row id.
+    let result = db.InventoryStack.get(id)
+    match result {
+        Ok(opt) => opt
+        Error(_) => None
     }
 }
 // ANCHOR_END: null_safety_demo

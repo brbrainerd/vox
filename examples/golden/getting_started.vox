@@ -27,8 +27,9 @@ component App() {
 
 // ANCHOR: concepts
 // ANCHOR: logic
-@endpoint(kind: query) fn get_notes() to List[Note] {
-    return db.Note.all()
+@endpoint(kind: query) fn get_notes() to Result[List[Note]] {
+    let rows = db.Note.all()?
+    return Ok(rows)
 }
 
 @endpoint(kind: mutation) fn create_note(title: str, content: str) to Result[Id[Note]] {
@@ -36,8 +37,15 @@ component App() {
     return Ok(id)
 }
 
+fn check_inventory(id: str) to Result[str] {
+    if len(id) is 0 {
+        return Error("inventory id required")
+    }
+    return Ok("ok")
+}
+
 fn order(id: str) to Result[Unit] {
-    let status = check_inventory(id)
+    let status = check_inventory(id)?
     return Ok(Unit)
 }
 // ANCHOR_END: logic

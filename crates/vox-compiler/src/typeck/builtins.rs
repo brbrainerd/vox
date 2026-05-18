@@ -156,11 +156,14 @@ impl BuiltinTypes {
 
         // ── Standard library functions ────────────────────────
 
-        // print(value: str) → Unit
+        // print(value: any) → Unit
+        // Polymorphic — eval-side prints via the Str-conversion helper,
+        // so accepting any type at typecheck matches runtime behavior
+        // and unblocks `print(i)` for non-string i (the Vox source idiom).
         env.define(
             "print".into(),
             Binding {
-                ty: Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)),
+                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Unit)),
                 mutable: false,
                 kind: BindingKind::Function,
                 is_deprecated: false,
@@ -194,6 +197,18 @@ impl BuiltinTypes {
         // str(value: any) → str
         env.define(
             "str".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // to_string(value: any) → str — common alias for str() that
+        // shows up in golden examples like inventory_rosetta_core.
+        env.define(
+            "to_string".into(),
             Binding {
                 ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
                 mutable: false,
