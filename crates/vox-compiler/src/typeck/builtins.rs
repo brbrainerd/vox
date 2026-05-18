@@ -856,22 +856,34 @@ impl BuiltinTypes {
 
     /// Look up a method on a given type.
     pub fn lookup_method(&self, obj_ty: &Ty, method: &str) -> Option<Ty> {
-        if let Ty::Table(_, fields) = obj_ty {
+        if let Ty::Table(name, fields) = obj_ty {
+            // Row type: use the Named alias of the @table so callers writing
+            // `fn list_todos() to List[Todo]` unify with what db.Todo.all()
+            // returns. The Record-shape form is kept as a fallback for the
+            // insert input (so { ... } object literals still type-check
+            // against the column shape).
+            let row_ty = Ty::Named(name.clone());
+            let record_ty = Ty::Record(fields.clone());
             return match method {
                 "insert" => {
-                    // insert(item: Record) -> Result[i64]
-                    let item_ty = Ty::Record(fields.clone());
+                    // insert(item: Record) -> Result[Id[T]] / Result[int]
+                    // The input is still Record-shaped so { title: ... }
+                    // literals match. The output is the row's Named type
+                    // wrapped — callers expecting Result[Id[T]] need a
+                    // follow-on for the Id[T] codepath; today the int
+                    // return matches the existing examples (blog_fullstack
+                    // returns `Result[Id[Post]]` against Result[int] —
+                    // that's a separate gap).
                     Some(Ty::Fn(
-                        vec![item_ty],
+                        vec![record_ty.clone()],
                         Box::new(Ty::Result(Box::new(Ty::Int))),
                     ))
                 }
                 "get" => {
-                    // get(id: int) -> Result[Option[Record]]
-                    let record_ty = Ty::Record(fields.clone());
+                    // get(id: int) -> Result[Option[Row]]
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))))),
                     ))
                 }
                 "delete" => {
@@ -882,26 +894,25 @@ impl BuiltinTypes {
                     ))
                 }
                 "query" => {
-                    // query(sql: str) -> Result[List[Record]] (Simplified params)
-                    let record_ty = Ty::Record(fields.clone());
+                    // query(sql: str) -> Result[List[Row]]
                     Some(Ty::Fn(
                         vec![Ty::Str],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))))),
                     ))
                 }
                 "all" => {
-                    let record_ty = Ty::Record(fields.clone());
+                    // all() -> Result[List[Row]]
                     Some(Ty::Fn(
                         vec![],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))))),
                     ))
                 }
                 "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int))))),
                 "find" => {
-                    let record_ty = Ty::Record(fields.clone());
+                    // find(id: int) -> Result[Option[Row]]
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty))))),
                     ))
                 }
                 _ => None,

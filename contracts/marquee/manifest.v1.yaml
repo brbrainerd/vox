@@ -85,10 +85,10 @@ apps:
       - "@example blocks (corpus-eligible reference solutions)"
     features_deferred:
       - "Id[User] foreign keys (row-shape unification gap; see main.vox)"
-      - "real db.Todo.all() read path (same unification gap)"
-      # @public landed 2026-05-18 (Task R); health endpoint now ships.
+      # db.Todo.all() now returns Result[List[Todo]] per Task T (2026-05-18).
     features_shipped_followups:
       - "@public health probe (Task R, 2026-05-18)"
+      - "real db.Todo.all() read path (Task T, 2026-05-18)"
     test_coverage_status: partial
     used_by_criteria:
       - CR-P1
