@@ -1,0 +1,26 @@
+id = "plan-002-add-test"
+wave = "wave_1"
+description = "Add a @test block for an existing fn."
+max_steps = 2
+max_cost_usd = 0.75
+
+prompt = """
+The file declares fn `classify_score(score: int) to str` returning
+"A" / "B" / "C" / "F" by score thresholds. Add three @test blocks
+covering one passing assertion for each grade except F.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "append"
+description = "Append three @test blocks."
+
+[success_criteria]
+vox_check_passes = true
+new_test_count = 3
+existing_fn_unchanged = true

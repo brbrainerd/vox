@@ -1,0 +1,12 @@
+// Repair-corpus fixture 002 — effect-violation bug class.
+// @pure fn calls a non-pure builtin (print).
+// Expected repair: remove @pure or remove the print call.
+
+@pure
+fn classify(n: int) to str {
+    print(n)
+    if n is 0 {
+        return "zero"
+    }
+    return "nonzero"
+}

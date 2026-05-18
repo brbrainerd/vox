@@ -1,0 +1,38 @@
+id = "plan-003-rename-field"
+wave = "wave_2"
+description = "Rename a @table column across a multi-file project."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The project has @table type Todo { owner: str, title: str, done:
+bool }. Rename the `owner` column to `owner_email` everywhere it's
+referenced: the @table definition, every @endpoint signature that
+binds an owner field, every match arm, and every test asserting on
+that field. vox check must remain clean after.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Identify every reference to `owner` in the project."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Apply the rename atomically across all sites."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "All @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+field_renamed_completely = true
+no_dangling_references = true

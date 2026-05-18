@@ -1,0 +1,17 @@
+// Repair-corpus fixture 005 — api-misuse bug class.
+// db.Todo.get expects Id[Todo] (which erases to int in v0.5) but
+// the caller passes a str. Expected repair: parse the str into an
+// int / Id[Todo] before calling .get.
+
+@table type Todo {
+    title: str,
+    done: bool
+}
+
+fn lookup(id: str) to Option[Todo] {
+    let row = db.Todo.get(id)
+    match row {
+        Ok(opt) => opt
+        Error(_) => None
+    }
+}

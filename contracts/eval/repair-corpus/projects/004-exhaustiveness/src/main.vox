@@ -1,0 +1,9 @@
+// Repair-corpus fixture 004 — exhaustiveness bug class.
+// The match is missing the None arm; only Some is handled.
+// Expected repair: add a None arm with a sensible default.
+
+fn unwrap_or_default(o: Option[int]) to int {
+    match o {
+        Some(n) => n
+    }
+}

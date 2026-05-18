@@ -1,0 +1,5 @@
+[package]
+name = "repair-004-exhaustiveness"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: exhaustiveness bug class. match misses a variant."

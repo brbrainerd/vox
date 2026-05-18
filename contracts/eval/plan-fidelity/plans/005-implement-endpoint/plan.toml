@@ -1,0 +1,51 @@
+id = "plan-005-implement-endpoint"
+wave = "wave_3"
+description = "Implement a new @endpoint end-to-end (effects + auth + ADT error)."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+Add a new endpoint
+`@endpoint(kind: mutation) @auth(scheme: bearer) fn archive_todo(id:
+Id[Todo]) to Result[str, TodoError]` to the marquee todo-auth project.
+- Validates that id length > 0; returns Error(EmptyId(_)) otherwise.
+- Returns Ok("archived") on success.
+- Add a @test that the empty-id path returns Error(EmptyId(_))
+  using the existing TodoError ADT.
+
+The fn must use the @auth + @endpoint decorator order shipped post-
+2026-05-17 (commit e42ff52b4); Result is the two-param `Result[T, E]`
+shape from commit 92e4c59a7.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing TodoError ADT + add_todo as reference."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Append the new endpoint."
+
+[[steps]]
+step = 3
+verb = "write-test"
+description = "Append the @test covering the EmptyId variant."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "The @test runs clean via the in-process interpreter."
+
+[success_criteria]
+vox_check_passes = true
+new_endpoint_added = true
+new_test_passes = true
+adt_error_variant_used = true
+auth_decorator_present = true
