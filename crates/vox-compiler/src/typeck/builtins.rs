@@ -260,6 +260,33 @@ impl BuiltinTypes {
             },
         );
 
+        // Unit → Ty::Unit. Used as the payload of `Ok(Unit)` and
+        // `Result[Unit]` returns. eval/expr.rs already resolves the
+        // ident; this is the typecheck-side binding so source like
+        // `fn send() to Result[Unit] { return Ok(Unit) }` typechecks.
+        env.define(
+            "Unit".into(),
+            Binding {
+                ty: Ty::Unit,
+                mutable: false,
+                kind: BindingKind::Constructor,
+                is_deprecated: false,
+            },
+        );
+
+        // panic(msg: str) → Never. Canonical Vox surface but missing
+        // from the typecheck builtin set; eval-side raises
+        // EvalError::Panic when invoked.
+        env.define(
+            "panic".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Str], Box::new(Ty::Never)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // ── Automation/Glue namespaces ────────────────────────
 
         // fs module

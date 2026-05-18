@@ -571,9 +571,15 @@ impl<'a> Checker<'a> {
                 mutable,
                 ..
             } => {
-                let val_ty = self.check_expr(value, None);
-                let target_ty = if let Some(ann) = type_ann {
-                    let ann_ty = resolve_hir_type(ann, self.env);
+                // Pass the type annotation as the expected type to
+                // check_expr so context-sensitive inference (e.g.
+                // ObjectLit-as-Map per 2026-05-18 P2.3) can specialize
+                // the value's shape. Without this hint, `let m: Map[...] =
+                // {a: 1, b: 2}` infers the literal as Record and then
+                // fails the post-hoc unify against Map.
+                let ann_ty_opt = type_ann.as_ref().map(|ann| resolve_hir_type(ann, self.env));
+                let val_ty = self.check_expr(value, ann_ty_opt.as_ref());
+                let target_ty = if let Some(ann_ty) = ann_ty_opt {
                     if let Err(msg) = self.uf.unify(&val_ty, &ann_ty) {
                         self.diags.push(Diagnostic::error(
                             format!("Type mismatch in `let`: {msg}"),

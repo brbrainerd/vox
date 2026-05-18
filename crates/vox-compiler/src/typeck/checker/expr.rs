@@ -193,6 +193,7 @@ impl<'a> Checker<'a> {
             HirExpr::ObjectLit(fields, _span) => {
                 let mut expected_fields = std::collections::HashMap::new();
                 let mut struct_name: Option<String> = None;
+                let mut map_value_ty: Option<Ty> = None;
                 if let Some(exp) = expected {
                     let resolved = self.uf.resolve(exp);
                     match &resolved {
@@ -200,6 +201,17 @@ impl<'a> Checker<'a> {
                             for (n, t) in fds {
                                 expected_fields.insert(n.clone(), t.clone());
                             }
+                        }
+                        Ty::Map(k_ty, v_ty) => {
+                            // Object-literal-as-Map: `{a: 1, b: 2}` ascribed
+                            // to `Map[K, V]` infers as Map, with every field
+                            // value checked against V and the key shape
+                            // unified to K (typically Str). Closes the
+                            // `Record vs Map` class of typecheck failures
+                            // surfaced in option_type / nested_types /
+                            // ref_types — 2026-05-18 P2.3.
+                            let _ = self.uf.unify(&Ty::Str, k_ty);
+                            map_value_ty = Some(v_ty.as_ref().clone());
                         }
                         Ty::Named(n) => {
                             // Struct type: pull declared fields from the env so an anonymous
@@ -221,11 +233,14 @@ impl<'a> Checker<'a> {
                 let typed_fields: Vec<(String, Ty)> = fields
                     .iter()
                     .map(|(name, expr)| {
-                        let field_expected = expected_fields.get(name);
+                        let field_expected =
+                            map_value_ty.as_ref().or_else(|| expected_fields.get(name));
                         (name.clone(), self.check_expr(expr, field_expected))
                     })
                     .collect();
-                if let Some(name) = struct_name {
+                if let Some(value_ty) = map_value_ty {
+                    Ty::Map(Box::new(Ty::Str), Box::new(value_ty))
+                } else if let Some(name) = struct_name {
                     Ty::Named(name)
                 } else {
                     Ty::Record(typed_fields)
