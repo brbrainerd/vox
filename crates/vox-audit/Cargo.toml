@@ -20,6 +20,7 @@ vox-config = { workspace = true }
 vox-telemetry = { workspace = true }
 reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
 toml = { workspace = true }
+walkdir = { workspace = true }
 workspace-hack = { workspace = true }
 
 [[bin]]

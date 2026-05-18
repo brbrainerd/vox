@@ -198,7 +198,11 @@ pub fn registry() -> Vec<Box<dyn Subcommand>> {
         Box::new(subcommands::stubs::PlanFidelityStub),
         Box::new(subcommands::aci_default::AciDefaultSubcommand),
         Box::new(subcommands::retirement::RetirementSubcommand),
-        Box::new(subcommands::stubs::DeployStub),
+        // CR-L7: real DeployRunner replaced DeployStub 2026-05-17 (Task O).
+        // The doctor leg runs against status:real Marquee fixtures today;
+        // the vox new + vox deploy legs front-stack onto this runner when
+        // they ship.
+        Box::new(subcommands::deploy::DeployRunner),
         // P2.2: CR-L8 stub replaced by real aggregator-backed impl.
         Box::new(subcommands::corpus_feedback::CorpusFeedbackSubcommand),
     ]

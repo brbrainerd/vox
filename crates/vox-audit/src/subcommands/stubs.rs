@@ -122,29 +122,8 @@ impl Subcommand for PlanFidelityStub {
     }
 }
 
-// ---------------------------------------------------------------------------
-// CR-L7 — deploy CLI E2E (vox new → vox deploy → vox doctor).
-// ---------------------------------------------------------------------------
-
-pub struct DeployStub;
-
-impl Subcommand for DeployStub {
-    fn gate(&self) -> CrlGate {
-        CrlGate::L7Deploy
-    }
-
-    fn description(&self) -> &'static str {
-        "CR-L7: `vox new web → vox deploy → vox doctor` E2E on every Marquee fixture."
-    }
-
-    fn run(&self, _args: &CommonArgs) -> RunOutcome {
-        corpus_stub_outcome(
-            self.gate(),
-            "contracts/marquee/manifest.v1.yaml",
-        )
-    }
-}
-
+// CR-L7 (deploy) replaced its stub on 2026-05-17 — see
+// `crate::subcommands::deploy::DeployRunner`.
 // CR-L8 (corpus-feedback) replaced its stub in P2.2 — see
 // `crate::subcommands::corpus_feedback::CorpusFeedbackSubcommand`.
 
@@ -166,7 +145,6 @@ mod tests {
             Box::new(MensOnDistributionStub),
             Box::new(RepairCorpusStub),
             Box::new(PlanFidelityStub),
-            Box::new(DeployStub),
         ];
         for stub in stubs {
             let outcome = stub.run(&args());
@@ -198,7 +176,6 @@ mod tests {
             (Box::new(MensOnDistributionStub), "mens-on-distribution"),
             (Box::new(RepairCorpusStub), "repair-corpus"),
             (Box::new(PlanFidelityStub), "plan-fidelity"),
-            (Box::new(DeployStub), "deploy"),
         ];
         for (stub, expected) in stubs {
             assert_eq!(stub.gate().thing_name(), expected);
