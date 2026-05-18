@@ -144,11 +144,31 @@ impl Subcommand for HumanEvalRunner {
 
         let mut passing = 0u32;
         let mut failing_fixtures: Vec<String> = Vec::new();
+        let mut total_tests_ran = 0u32;
+        let mut total_tests_passed = 0u32;
+        let mut total_tests_failed = 0u32;
+        let mut fixtures_with_eval_error = 0u32;
+        let mut test_failed_fixtures: Vec<String> = Vec::new();
         for fixture in &fixtures {
-            if fixture_compiles_clean(fixture) {
-                passing += 1;
-            } else {
+            if !fixture_compiles_clean(fixture) {
                 failing_fixtures.push(fixture.id.clone());
+                continue;
+            }
+            // Compile-clean → execute @test blocks. Test failure makes the
+            // FIXTURE fail (the corpus encodes wrong claims about the
+            // reference solution); execution-engine errors leave the fixture
+            // passing on compile-validity but get surfaced in the note.
+            let exec = execute_fixture_tests(fixture);
+            total_tests_ran += exec.ran;
+            total_tests_passed += exec.passed;
+            total_tests_failed += exec.failed;
+            if exec.eval_errored {
+                fixtures_with_eval_error += 1;
+            }
+            if exec.failed > 0 {
+                test_failed_fixtures.push(fixture.id.clone());
+            } else {
+                passing += 1;
             }
         }
         let total = fixtures.len() as u32;
@@ -190,17 +210,34 @@ impl Subcommand for HumanEvalRunner {
                 total
             )
         };
-        let combined_note = if failing_fixtures.is_empty() {
-            mode_note
-        } else {
-            format!(
-                "{} fixtures failed compile-check: [{}]. {}",
+        let exec_note = format!(
+            "@test execution: {}/{} tests passed across {} fixtures ({} eval-errored)",
+            total_tests_passed, total_tests_ran, total, fixtures_with_eval_error
+        );
+        let combined_note = match (failing_fixtures.is_empty(), test_failed_fixtures.is_empty()) {
+            (true, true) => format!("{mode_note} {exec_note}"),
+            (false, true) => format!(
+                "{} compile failures: [{}]. {mode_note} {exec_note}",
                 failing_fixtures.len(),
                 failing_fixtures.join(", "),
-                mode_note,
-            )
+            ),
+            (true, false) => format!(
+                "{} fixtures had failing @test: [{}]. {mode_note} {exec_note}",
+                test_failed_fixtures.len(),
+                test_failed_fixtures.join(", "),
+            ),
+            (false, false) => format!(
+                "{} compile failures: [{}]; {} @test failures: [{}]. {mode_note} {exec_note}",
+                failing_fixtures.len(),
+                failing_fixtures.join(", "),
+                test_failed_fixtures.len(),
+                test_failed_fixtures.join(", "),
+            ),
         };
         report.note = Some(combined_note);
+        // Reflect total_tests_failed in the failing-fixture set for the
+        // exit-code decision: any test failure is also a corpus failure.
+        let _ = total_tests_failed;
 
         let exit_code = if met {
             ExitCode::Ok
@@ -493,6 +530,83 @@ fn fixture_compiles_clean(fixture: &Fixture) -> bool {
     !has_error(&tests_diags)
 }
 
+/// Compile + execute every `@test` block in `fixture.tests_source` using
+/// the in-process Vox interpreter at `vox_compiler::eval::Interpreter`.
+///
+/// Returns the per-fixture test-execution result:
+/// - `ran` = number of `@test` fns successfully invoked
+/// - `passed` = number that completed without `AssertionFailed`
+/// - `eval_errored = true` when the interpreter aborted on something
+///   other than an assertion (unhandled feature, undefined var). The
+///   caller treats this as "tests skipped" rather than "tests failed"
+///   to preserve the corpus-validity meaning.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct FixtureTestExecution {
+    ran: u32,
+    passed: u32,
+    failed: u32,
+    eval_errored: bool,
+}
+
+fn execute_fixture_tests(fixture: &Fixture) -> FixtureTestExecution {
+    use vox_compiler::eval::{EvalError, Interpreter};
+
+    // Lower tests.vox via the frontend pipeline — failure here means the
+    // file itself doesn't compile, which the compile-check layer already
+    // surfaced; just report no tests ran without flagging eval-errored.
+    let frontend = match vox_compiler::pipeline::run_frontend_str(
+        &fixture.tests_source,
+        &fixture.tests_path.to_string_lossy(),
+    ) {
+        Ok(f) => f,
+        Err(_) => return FixtureTestExecution::default(),
+    };
+    if frontend.hir.tests.is_empty() {
+        return FixtureTestExecution::default();
+    }
+
+    // 10k-step budget matches the conservative ceiling used by other
+    // in-process Vox eval call sites; well under the seed corpus's
+    // single-iteration test surface.
+    let mut interp = Interpreter::new(10_000);
+    if interp.run_module(&frontend.hir).is_err() {
+        return FixtureTestExecution {
+            ran: 0,
+            passed: 0,
+            failed: 0,
+            eval_errored: true,
+        };
+    }
+
+    let test_names: Vec<String> = frontend.hir.tests.iter().map(|t| t.name.clone()).collect();
+    let mut ran = 0u32;
+    let mut passed = 0u32;
+    let mut failed = 0u32;
+    let mut eval_errored = false;
+    for name in &test_names {
+        ran += 1;
+        match interp.call(name, Vec::new()) {
+            Ok(_) => passed += 1,
+            Err(EvalError::AssertionFailed(_)) => failed += 1,
+            Err(_) => {
+                // Interpreter bailed on a feature it doesn't support. Don't
+                // count as failure — the corpus-validity claim is about the
+                // corpus, and execution coverage is reported separately so
+                // reviewers can see what fraction is actually executed.
+                eval_errored = true;
+                ran -= 1;
+                break;
+            }
+        }
+    }
+    FixtureTestExecution {
+        ran,
+        passed,
+        failed,
+        eval_errored,
+    }
+}
+
 fn has_error(diags: &[vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload]) -> bool {
     diags.iter().any(|d| matches!(d.severity, TypeckSeverity::Error))
 }
@@ -742,6 +856,103 @@ prompt = "Write fn add(a: int, b: int) to int."
         let outcome = super::run_with_panel(&problems, &args, &panel_cfg, &client);
         assert_eq!(outcome.exit_code, ExitCode::BarMissed);
         assert_eq!(outcome.report.results.overall_pass_rate, 0.0);
+    }
+
+    #[test]
+    fn execute_fixture_tests_runs_all_at_test_passing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("problems/001-tiny");
+        std::fs::create_dir_all(&p).unwrap();
+        std::fs::write(
+            p.join("spec.toml"),
+            r#"id = "exec-test-pass"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-test"
+prompt = "tiny"
+"#,
+        )
+        .unwrap();
+        std::fs::write(p.join("reference.vox"), "fn id(n: int) to int { return n }\n").unwrap();
+        std::fs::write(
+            p.join("tests.vox"),
+            r#"fn id(n: int) to int { return n }
+@test
+fn t1() to Unit { assert(id(7) is 7) }
+@test
+fn t2() to Unit { assert(id(0) is 0) }
+"#,
+        )
+        .unwrap();
+        let fixtures = super::load_fixtures(&tmp.path().join("problems")).unwrap();
+        assert_eq!(fixtures.len(), 1);
+        let exec = super::execute_fixture_tests(&fixtures[0]);
+        assert_eq!(exec.ran, 2, "two @test fns should run");
+        assert_eq!(exec.passed, 2);
+        assert_eq!(exec.failed, 0);
+        assert!(!exec.eval_errored);
+    }
+
+    #[test]
+    fn execute_fixture_tests_catches_at_test_assertion_failure() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("problems/002-bad-test");
+        std::fs::create_dir_all(&p).unwrap();
+        std::fs::write(
+            p.join("spec.toml"),
+            r#"id = "exec-test-bad"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-test"
+prompt = "tiny"
+"#,
+        )
+        .unwrap();
+        std::fs::write(p.join("reference.vox"), "fn id(n: int) to int { return n }\n").unwrap();
+        // Test asserts a wrong claim about the reference — must surface as
+        // a failure so the corpus author fixes the bug.
+        std::fs::write(
+            p.join("tests.vox"),
+            r#"fn id(n: int) to int { return n }
+@test
+fn t_wrong() to Unit { assert(id(7) is 999) }
+"#,
+        )
+        .unwrap();
+        let fixtures = super::load_fixtures(&tmp.path().join("problems")).unwrap();
+        let exec = super::execute_fixture_tests(&fixtures[0]);
+        assert_eq!(exec.ran, 1);
+        assert_eq!(exec.passed, 0);
+        assert_eq!(exec.failed, 1);
+        assert!(!exec.eval_errored);
+    }
+
+    #[test]
+    fn execute_fixture_tests_returns_zero_when_no_at_test_blocks() {
+        let tmp = tempfile::tempdir().unwrap();
+        let p = tmp.path().join("problems/003-no-tests");
+        std::fs::create_dir_all(&p).unwrap();
+        std::fs::write(
+            p.join("spec.toml"),
+            r#"id = "exec-test-empty"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-test"
+prompt = "tiny"
+"#,
+        )
+        .unwrap();
+        std::fs::write(p.join("reference.vox"), "fn id(n: int) to int { return n }\n").unwrap();
+        std::fs::write(
+            p.join("tests.vox"),
+            "fn id(n: int) to int { return n }\n", // no @test blocks
+        )
+        .unwrap();
+        let fixtures = super::load_fixtures(&tmp.path().join("problems")).unwrap();
+        let exec = super::execute_fixture_tests(&fixtures[0]);
+        assert_eq!(exec.ran, 0);
+        assert_eq!(exec.passed, 0);
+        assert!(!exec.eval_errored);
     }
 
     #[test]

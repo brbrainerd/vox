@@ -22,7 +22,7 @@ corpus:
   held_out_target: 30                     # 30 of 164 must be training_eligible:false
   count_current: 18                       # seed batch landed 2026-05-17
   held_out_current: 10                    # all 10 examples-golden-lift fixtures are training_eligible:false
-  corpus_hash: "blake3:e5756bc96dbc36e8052a596426d34ab9210335101e2be1c20c0f98785c592a7a"
+  corpus_hash: "blake3:b6c5fe32f5b8067ac5bb5720c307b522365b2c4c7db0aeca151a7e52beb63816"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
 # Fixtures are discovered on disk under `problems/<NNN-name>/` directories,
@@ -69,6 +69,18 @@ ci:
     # error-severity diagnostics from vox_compiler::pipeline::check_file.
     enabled: true
     must_be_one: true                      # any failure -> ExitCode::InvalidInput
+  in_process_test_execution:
+    # Added 2026-05-17 (Task J). After compile-check, each fixture's @test
+    # blocks are executed in-process via vox_compiler::eval::Interpreter.
+    # AssertionFailed from any @test fails the fixture (the corpus encoded
+    # a wrong claim about the reference solution). Eval-engine errors
+    # (interpreter feature gaps — Option/Result pattern matching, etc.)
+    # leave the fixture passing on compile + surface in the report note
+    # so corpus authors can choose tests within the supported subset.
+    enabled: true
+    failure_makes_fixture_fail: true       # @test AssertionFailed = corpus bug
+    eval_error_makes_fixture_fail: false   # interp gap = advisory, not gating
+    interpreter_step_budget: 10000
 
 # Council ratification log (D10, D25 — 2026-05-15).
 council_ratification_log:

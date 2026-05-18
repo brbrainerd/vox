@@ -1,5 +1,5 @@
 fn access_level(role: str, active: bool) to str {
-    if !active {
+    if active is false {
         return "suspended"
     }
     if role is "admin" {
