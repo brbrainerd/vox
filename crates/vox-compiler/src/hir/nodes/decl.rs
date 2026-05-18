@@ -39,6 +39,11 @@ pub struct HirModule {
 
     /// `@test` functions.
     pub tests: Vec<HirFn>,
+    /// `@example` functions — corpus-eligible reference solutions, distinct
+    /// from `tests` so tooling (HumanEval-Vox mining, doctest harvest) can
+    /// enumerate them without grepping the test set.
+    #[serde(default)]
+    pub examples: Vec<HirFn>,
     /// `@forall` properties.
     pub foralls: Vec<HirForall>,
     /// Unified endpoint functions (`@endpoint`, `@server`, `@query`, `@mutation`).

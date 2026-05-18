@@ -216,6 +216,24 @@ pub struct TestDecl {
     pub func: FnDecl,
 }
 
+/// Example declaration (`@example`).
+///
+/// Shape mirrors [`TestDecl`] — the body is typically a small fn that uses
+/// `assert(...)` to demonstrate correct behavior. The semantic delta is
+/// *intent*: examples are corpus-eligible reference solutions for tooling
+/// (HumanEval-Vox mining, doctest pipeline) to harvest. They are NOT run
+/// by the regression test runner by default.
+///
+/// Lowered into [`crate::hir::nodes::decl::HirModule::examples`] (a Vec
+/// distinct from `tests`), preserving the discoverable separation.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ExampleDecl {
+    /// Optional human-readable label, e.g. `@example("greet a user")`.
+    pub label: String,
+    /// The underlying function implementing the example.
+    pub func: FnDecl,
+}
+
 /// Property-based test declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ForallDecl {

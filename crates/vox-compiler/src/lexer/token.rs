@@ -126,6 +126,12 @@ pub enum Token {
     AtMcpResource,
     #[token("@test")]
     AtTest,
+    /// `@example` — corpus-eligible reference fn for HumanEval-Vox / doctest
+    /// mining. Same surface as `@test` (no params, returns Unit, body uses
+    /// `assert(...)`); the semantic delta is that examples are harvested as
+    /// authored solutions, not as regression tests.
+    #[token("@example")]
+    AtExample,
     #[token("@endpoint")]
     AtEndpoint,
     #[token("@table")]
@@ -460,6 +466,7 @@ impl std::fmt::Display for Token {
             Token::AtResource => write!(f, "@resource"),
             Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
+            Token::AtExample => write!(f, "@example"),
             Token::AtEndpoint => write!(f, "@endpoint"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),

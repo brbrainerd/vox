@@ -238,6 +238,7 @@ fn visit_fn_decl_in_decl(decl: &Decl, visit: &mut impl FnMut(&FnDecl)) {
         Decl::Function(f) => visit(f),
         Decl::McpTool(m) => visit(&m.func),
         Decl::Test(t) => visit(&t.func),
+        Decl::Example(e) => visit(&e.func),
         Decl::Forall(f) => visit(&f.func),
         Decl::Endpoint(e) => visit(&e.func),
         Decl::Skill(s) => visit(&s.func),

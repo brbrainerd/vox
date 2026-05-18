@@ -3,7 +3,7 @@
 use super::super::Parser;
 use crate::ast::decl::{
     AstColorToken, AstFontToken, AstScalarToken, BackButtonDecl, Decl, DeepLinkDecl, EffectDecl,
-    EndpointDecl, EndpointKind, FieldConstraint, FnDecl, ForallDecl, FormDecl, FormField,
+    EndpointDecl, EndpointKind, ExampleDecl, FieldConstraint, FnDecl, ForallDecl, FormDecl, FormField,
     ImportDecl, ImportPath, ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl,
     OnCleanupDecl, OnMountDecl, PostCondition, PushDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, TestDecl, TokensDecl,
@@ -841,6 +841,24 @@ impl Parser {
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::Test(TestDecl { label, func: f }))
+    }
+
+    /// `@example` mirrors `@test`'s surface — optional `(label)` then a
+    /// regular `fn` body. Lowers into a distinct HIR vector so tooling
+    /// can enumerate corpus-eligible examples without scanning the test set.
+    pub(crate) fn parse_example(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @example
+        let mut label = String::new();
+        if self.eat(&Token::LParen) {
+            if let Token::StringLit(s) = self.peek().clone() {
+                self.advance();
+                label = s;
+            }
+            let _ = self.eat(&Token::RParen);
+        }
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Example(ExampleDecl { label, func: f }))
     }
 
     pub(crate) fn parse_forall(&mut self) -> Result<Decl, ()> {

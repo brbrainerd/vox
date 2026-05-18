@@ -174,6 +174,11 @@ impl LowerCtx {
                         hir.tests.push(self.lower_fn(&t.func));
                     }
                 }
+                Decl::Example(e) => {
+                    // Examples are kept regardless of strip_tests: they are
+                    // corpus-eligible authored solutions, not regression tests.
+                    hir.examples.push(self.lower_fn(&e.func));
+                }
                 Decl::Forall(f) => {
                     let func = self.lower_fn(&f.func);
                     hir.foralls.push(HirForall {

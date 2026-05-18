@@ -226,6 +226,7 @@ impl Parser {
                     | Token::Component
                     | Token::AtLoading
                     | Token::AtTest
+                    | Token::AtExample
                     | Token::AtV0
                     | Token::AtEndpoint
                     | Token::AtForall
@@ -393,6 +394,7 @@ impl Parser {
                 | Token::Workflow
                 | Token::Http
                 | Token::AtTest
+                | Token::AtExample
                 | Token::AtEndpoint
                 | Token::AtTable
                 | Token::TypeKw
@@ -463,6 +465,7 @@ impl Parser {
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
+            Token::AtExample => self.parse_example(),
             Token::AtEndpoint => self.parse_endpoint(),
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),
