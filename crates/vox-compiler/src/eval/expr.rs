@@ -22,6 +22,17 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     body: vec![], // Not used for builtins
                     env: interp.scope.clone(),
                 })
+            } else if name == "None" {
+                // Built-in Option::None — referenced as a bare ident, not called.
+                Ok(VoxValue::Option(None))
+            } else if name == "Unit" {
+                // Built-in unit value, used as the payload of Ok(Unit) / Result[Unit].
+                Ok(VoxValue::Null)
+            } else if matches!(name.as_str(), "Some" | "Ok" | "Err" | "Error") {
+                // Built-in Option/Result constructors. Returned as a Constructor
+                // value so the Call arm below can specialize them into typed
+                // Option/Result values.
+                Ok(VoxValue::Constructor(name.clone()))
             } else {
                 Err(EvalError::UndefinedVariable(name.clone()))
             }
@@ -225,10 +236,37 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     interp.scope = old_scope;
                     Ok(val)
                 }
-                VoxValue::Constructor(name) => Ok(VoxValue::Tagged {
-                    name,
-                    fields: eval_args,
-                }),
+                VoxValue::Constructor(name) => {
+                    // Specialize built-in Option / Result constructors so the
+                    // pattern-match path in stmt.rs (which already handles
+                    // VoxValue::Option / VoxValue::Result) sees them. Other
+                    // (user-declared) variants fall through to Tagged.
+                    match (name.as_str(), eval_args.len()) {
+                        ("Some", 1) => {
+                            let v = eval_args.into_iter().next().unwrap();
+                            Ok(VoxValue::Option(Some(Box::new(v))))
+                        }
+                        ("Ok", 1) => {
+                            let v = eval_args.into_iter().next().unwrap();
+                            Ok(VoxValue::Result(Ok(Box::new(v))))
+                        }
+                        ("Err", 1) | ("Error", 1) => {
+                            let v = eval_args.into_iter().next().unwrap();
+                            // Result's Err side stores a String per VoxValue;
+                            // coerce strings directly, render anything else
+                            // via the builtins display helper.
+                            let msg = match v {
+                                VoxValue::Str(s) => s,
+                                other => super::builtins::vox_value_display(&other),
+                            };
+                            Ok(VoxValue::Result(Err(msg)))
+                        }
+                        _ => Ok(VoxValue::Tagged {
+                            name,
+                            fields: eval_args,
+                        }),
+                    }
+                }
                 _ => Err(EvalError::TypeError {
                     expected: "function",
                     found: "other".into(),
