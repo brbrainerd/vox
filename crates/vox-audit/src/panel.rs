@@ -257,6 +257,110 @@ fn estimate_cost(member: &PanelMemberConfig, input: Option<u32>, output: Option<
     input_cost + output_cost
 }
 
+/// Wraps any inner [`PanelClient`] with a content-addressed disk cache.
+///
+/// Per `llm-panel.v1.yaml §operational_policy.caching`, identical inputs
+/// at the same temperature/seed return the cached response. Critical for
+/// cost control during iteration phases (P4.2, P4.9). Cache keys are
+/// blake3 hashes over `(member.id, system_prompt, user_prompt)` — the
+/// runner pins temperature to 0.0, so no per-call temperature carrying.
+///
+/// Cache entries are JSON files under `cache_dir`; entries older than
+/// `ttl_days` (mtime check) are treated as misses.
+pub struct CachingPanelClient<I: PanelClient> {
+    inner: I,
+    cache_dir: std::path::PathBuf,
+    ttl_days: u64,
+}
+
+impl<I: PanelClient> CachingPanelClient<I> {
+    pub fn new(inner: I, cache_dir: std::path::PathBuf, ttl_days: u64) -> Self {
+        Self {
+            inner,
+            cache_dir,
+            ttl_days,
+        }
+    }
+
+    fn cache_key(member: &PanelMemberConfig, system_prompt: &str, user_prompt: &str) -> String {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(member.id.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(system_prompt.as_bytes());
+        hasher.update(b"\0");
+        hasher.update(user_prompt.as_bytes());
+        hasher.finalize().to_hex().to_string()
+    }
+
+    fn entry_path(&self, key: &str) -> std::path::PathBuf {
+        self.cache_dir.join(format!("{key}.json"))
+    }
+
+    fn try_load(&self, key: &str) -> Option<PanelResponse> {
+        let path = self.entry_path(key);
+        let meta = std::fs::metadata(&path).ok()?;
+        if self.ttl_days > 0 {
+            let modified = meta.modified().ok()?;
+            let age = std::time::SystemTime::now()
+                .duration_since(modified)
+                .ok()?
+                .as_secs();
+            let ttl_secs = self.ttl_days.saturating_mul(86_400);
+            if age > ttl_secs {
+                return None;
+            }
+        }
+        let text = std::fs::read_to_string(&path).ok()?;
+        let dto: CacheEntry = serde_json::from_str(&text).ok()?;
+        Some(PanelResponse {
+            content: dto.content,
+            cost_usd: dto.cost_usd,
+            input_tokens: dto.input_tokens,
+            output_tokens: dto.output_tokens,
+        })
+    }
+
+    fn try_store(&self, key: &str, response: &PanelResponse) {
+        let _ = std::fs::create_dir_all(&self.cache_dir);
+        let dto = CacheEntry {
+            content: response.content.clone(),
+            cost_usd: response.cost_usd,
+            input_tokens: response.input_tokens,
+            output_tokens: response.output_tokens,
+        };
+        if let Ok(text) = serde_json::to_string(&dto) {
+            let _ = std::fs::write(self.entry_path(key), text);
+        }
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct CacheEntry {
+    content: String,
+    cost_usd: f64,
+    #[serde(default)]
+    input_tokens: Option<u32>,
+    #[serde(default)]
+    output_tokens: Option<u32>,
+}
+
+impl<I: PanelClient> PanelClient for CachingPanelClient<I> {
+    fn complete(
+        &self,
+        member: &PanelMemberConfig,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<PanelResponse, PanelClientError> {
+        let key = Self::cache_key(member, system_prompt, user_prompt);
+        if let Some(hit) = self.try_load(&key) {
+            return Ok(hit);
+        }
+        let response = self.inner.complete(member, system_prompt, user_prompt)?;
+        self.try_store(&key, &response);
+        Ok(response)
+    }
+}
+
 /// Extract a Vox source code block from a model response.
 ///
 /// Looks for the first fenced block tagged ```vox / ```vox\n / ``` (untagged
@@ -432,6 +536,97 @@ mod tests {
         let resp = "fn raw() to int { return 1 }";
         let code = extract_vox_code(resp);
         assert_eq!(code.trim(), "fn raw() to int { return 1 }");
+    }
+
+    #[test]
+    fn caching_panel_client_serves_second_call_from_disk() {
+        use super::test_support::ScriptedPanelClient;
+        let tmp = tempfile::tempdir().unwrap();
+        let inner = ScriptedPanelClient::new(vec![PanelResponse {
+            content: "first".into(),
+            cost_usd: 0.42,
+            input_tokens: Some(10),
+            output_tokens: Some(5),
+        }]);
+        let cache = CachingPanelClient::new(inner, tmp.path().to_path_buf(), 30);
+        let member = PanelMemberConfig {
+            id: "test-llm".into(),
+            role: "x".into(),
+            version_pinned: None,
+            openrouter_model: None,
+            pricing: None,
+        };
+
+        let r1 = cache.complete(&member, "sys", "user").unwrap();
+        assert_eq!(r1.content, "first");
+        assert_eq!(r1.cost_usd, 0.42);
+
+        // Second call: ScriptedPanelClient stack is empty; the cache must
+        // serve the response. If the cache didn't hit, ScriptedPanelClient
+        // would return MalformedResponse("script exhausted").
+        let r2 = cache.complete(&member, "sys", "user").unwrap();
+        assert_eq!(r2.content, "first", "second call must hit the cache");
+        assert_eq!(r2.cost_usd, 0.42);
+    }
+
+    #[test]
+    fn caching_panel_client_distinguishes_keys_by_user_prompt() {
+        use super::test_support::ScriptedPanelClient;
+        let tmp = tempfile::tempdir().unwrap();
+        let inner = ScriptedPanelClient::new(vec![
+            PanelResponse {
+                content: "for-prompt-B".into(),
+                cost_usd: 0.0,
+                input_tokens: None,
+                output_tokens: None,
+            },
+            PanelResponse {
+                content: "for-prompt-A".into(),
+                cost_usd: 0.0,
+                input_tokens: None,
+                output_tokens: None,
+            },
+        ]);
+        let cache = CachingPanelClient::new(inner, tmp.path().to_path_buf(), 30);
+        let member = PanelMemberConfig {
+            id: "x".into(),
+            role: "x".into(),
+            version_pinned: None,
+            openrouter_model: None,
+            pricing: None,
+        };
+        let a = cache.complete(&member, "sys", "PROMPT-A").unwrap();
+        let b = cache.complete(&member, "sys", "PROMPT-B").unwrap();
+        assert_eq!(a.content, "for-prompt-A");
+        assert_eq!(b.content, "for-prompt-B");
+        // Second call with same A prompt hits the cache (script exhausted).
+        let a2 = cache.complete(&member, "sys", "PROMPT-A").unwrap();
+        assert_eq!(a2.content, "for-prompt-A");
+    }
+
+    #[test]
+    fn caching_panel_client_zero_ttl_means_no_expiry_check() {
+        // ttl_days=0 disables the freshness check entirely (callers can
+        // request "never expire" semantics by passing 0).
+        use super::test_support::ScriptedPanelClient;
+        let tmp = tempfile::tempdir().unwrap();
+        let inner = ScriptedPanelClient::new(vec![PanelResponse {
+            content: "cached".into(),
+            cost_usd: 0.0,
+            input_tokens: None,
+            output_tokens: None,
+        }]);
+        let cache = CachingPanelClient::new(inner, tmp.path().to_path_buf(), 0);
+        let member = PanelMemberConfig {
+            id: "x".into(),
+            role: "x".into(),
+            version_pinned: None,
+            openrouter_model: None,
+            pricing: None,
+        };
+        let _r1 = cache.complete(&member, "sys", "user").unwrap();
+        let r2 = cache.complete(&member, "sys", "user").unwrap();
+        assert_eq!(r2.content, "cached");
     }
 
     #[test]
