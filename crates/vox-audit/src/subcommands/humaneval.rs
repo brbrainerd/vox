@@ -25,7 +25,7 @@ use crate::{
     CommonArgs, CrlGate, RunOutcome, Subcommand,
     panel::{
         CachingPanelClient, OpenRouterPanelClient, PanelClient, PanelConfig, PanelMemberConfig,
-        extract_vox_code,
+        ProtectedPanelClient, extract_vox_code,
     },
     report::{AuditReport, ExitCode, PanelMember, PerLlmResult, Results, Threshold},
     workspace_root,
@@ -67,12 +67,19 @@ impl Subcommand for HumanEvalRunner {
                     };
                 }
             };
-            // Wrap live OpenRouter calls in the content-addressed disk
-            // cache per llm-panel.v1.yaml §operational_policy.caching.
-            // Default cache_dir matches the YAML; TTL 30 days.
+            // Wrap layers per llm-panel.v1.yaml §operational_policy:
+            //   OpenRouter (HTTP)
+            //   → Protected (retry/backoff on rate-limits + transient HTTP)
+            //   → Caching   (content-addressed disk cache, skips network)
+            // Outer = caching so a cache hit skips the network + retry loop
+            // entirely. Cache miss falls through to retry-wrapped HTTP.
             let cache_dir = workspace_root().join("contracts/reports/llm-panel-cache/");
             let client: Box<dyn PanelClient> = match OpenRouterPanelClient::from_env() {
-                Ok(c) => Box::new(CachingPanelClient::new(c, cache_dir, 30)),
+                Ok(c) => Box::new(CachingPanelClient::new(
+                    ProtectedPanelClient::with_yaml_defaults(c),
+                    cache_dir,
+                    30,
+                )),
                 Err(e) => {
                     return RunOutcome {
                         report: AuditReport::infra_error(

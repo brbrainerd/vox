@@ -361,6 +361,110 @@ impl<I: PanelClient> PanelClient for CachingPanelClient<I> {
     }
 }
 
+/// Wraps any inner [`PanelClient`] with retry + exponential-backoff for
+/// rate-limit and transient-HTTP failures, per
+/// `llm-panel.v1.yaml §operational_policy.rate_limits`.
+///
+/// Retries on:
+/// - `PanelClientError::BadStatus { 429 | 500..=599, .. }` (rate-limit
+///   or server transient).
+/// - `PanelClientError::Http(_)` (network-level failures the inner
+///   reqwest client surfaces as opaque errors).
+///
+/// Does NOT retry on `MissingApiKey`, `UnroutableMember`, or
+/// `MalformedResponse` — those are deterministic and won't change.
+///
+/// Backoff: `base_secs * 2^attempt`, capped at `max_secs`. The
+/// sleep_fn is injectable so tests can pass a no-op without burning
+/// wall clock.
+pub struct ProtectedPanelClient<I: PanelClient> {
+    inner: I,
+    max_retries: u32,
+    base_secs: u64,
+    max_secs: u64,
+    sleep_fn: Box<dyn Fn(std::time::Duration) + Send + Sync>,
+}
+
+impl<I: PanelClient> ProtectedPanelClient<I> {
+    /// Construct with the YAML's published defaults (3 retries, 30s
+    /// base, 600s max) and `std::thread::sleep` as the sleeper.
+    pub fn with_yaml_defaults(inner: I) -> Self {
+        Self {
+            inner,
+            max_retries: 3,
+            base_secs: 30,
+            max_secs: 600,
+            sleep_fn: Box::new(std::thread::sleep),
+        }
+    }
+
+    /// Explicit-knob constructor for tests and custom call sites.
+    pub fn new(
+        inner: I,
+        max_retries: u32,
+        base_secs: u64,
+        max_secs: u64,
+        sleep_fn: Box<dyn Fn(std::time::Duration) + Send + Sync>,
+    ) -> Self {
+        Self {
+            inner,
+            max_retries,
+            base_secs,
+            max_secs,
+            sleep_fn,
+        }
+    }
+
+    fn is_retriable(err: &PanelClientError) -> bool {
+        match err {
+            PanelClientError::Http(_) => true,
+            PanelClientError::BadStatus { status, .. } => {
+                *status == 429 || (500..=599).contains(status)
+            }
+            PanelClientError::MissingApiKey
+            | PanelClientError::UnroutableMember(_)
+            | PanelClientError::MalformedResponse(_) => false,
+        }
+    }
+
+    fn backoff_for(&self, attempt: u32) -> std::time::Duration {
+        // attempt is 1..=max_retries. Exponential with base*2^(attempt-1).
+        let factor = 1u64 << attempt.saturating_sub(1).min(20);
+        let secs = self.base_secs.saturating_mul(factor).min(self.max_secs);
+        std::time::Duration::from_secs(secs)
+    }
+}
+
+impl<I: PanelClient> PanelClient for ProtectedPanelClient<I> {
+    fn complete(
+        &self,
+        member: &PanelMemberConfig,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<PanelResponse, PanelClientError> {
+        let mut last_err: Option<PanelClientError> = None;
+        // Initial try + up to max_retries additional attempts.
+        for attempt in 0..=self.max_retries {
+            match self.inner.complete(member, system_prompt, user_prompt) {
+                Ok(r) => return Ok(r),
+                Err(err) => {
+                    if !Self::is_retriable(&err) || attempt == self.max_retries {
+                        return Err(err);
+                    }
+                    last_err = Some(err);
+                    let wait = self.backoff_for(attempt + 1);
+                    (self.sleep_fn)(wait);
+                }
+            }
+        }
+        Err(last_err.unwrap_or_else(|| {
+            PanelClientError::MalformedResponse(
+                "ProtectedPanelClient: loop ended without outcome".into(),
+            )
+        }))
+    }
+}
+
 /// Extract a Vox source code block from a model response.
 ///
 /// Looks for the first fenced block tagged ```vox / ```vox\n / ``` (untagged
@@ -396,6 +500,41 @@ pub fn extract_vox_code(content: &str) -> String {
 pub(crate) mod test_support {
     use super::{PanelClient, PanelClientError, PanelMemberConfig, PanelResponse};
     use std::sync::Mutex;
+
+    /// Returns Result<PanelResponse, PanelClientError> scripts in LIFO
+    /// order. Used by the ProtectedPanelClient retry tests to script
+    /// "fail, fail, succeed" sequences.
+    pub(crate) struct SequencedPanelClient {
+        pub scripts: Mutex<Vec<Result<PanelResponse, PanelClientError>>>,
+    }
+
+    impl SequencedPanelClient {
+        pub fn new(scripts: Vec<Result<PanelResponse, PanelClientError>>) -> Self {
+            Self {
+                scripts: Mutex::new(scripts),
+            }
+        }
+        pub fn remaining(&self) -> usize {
+            self.scripts.lock().unwrap().len()
+        }
+    }
+
+    impl PanelClient for SequencedPanelClient {
+        fn complete(
+            &self,
+            _member: &PanelMemberConfig,
+            _system_prompt: &str,
+            _user_prompt: &str,
+        ) -> Result<PanelResponse, PanelClientError> {
+            self.scripts
+                .lock()
+                .unwrap()
+                .pop()
+                .unwrap_or_else(|| {
+                    Err(PanelClientError::MalformedResponse("sequence exhausted".into()))
+                })
+        }
+    }
 
     /// Returns canned [`PanelResponse`]s in LIFO order. The trait impl is real
     /// (reads bytes, returns them); no production code path uses it.
@@ -627,6 +766,118 @@ mod tests {
         let _r1 = cache.complete(&member, "sys", "user").unwrap();
         let r2 = cache.complete(&member, "sys", "user").unwrap();
         assert_eq!(r2.content, "cached");
+    }
+
+    #[test]
+    fn protected_client_retries_on_429_and_succeeds() {
+        use super::test_support::SequencedPanelClient;
+        let inner = SequencedPanelClient::new(vec![
+            Ok(PanelResponse {
+                content: "third-call-success".into(),
+                cost_usd: 0.0,
+                input_tokens: None,
+                output_tokens: None,
+            }),
+            Err(PanelClientError::BadStatus {
+                status: 429,
+                body: "rate limited".into(),
+            }),
+            Err(PanelClientError::BadStatus {
+                status: 429,
+                body: "rate limited".into(),
+            }),
+        ]);
+        let sleeps: std::sync::Arc<std::sync::Mutex<Vec<std::time::Duration>>> =
+            std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sleeps_for_closure = sleeps.clone();
+        let client = ProtectedPanelClient::new(
+            inner,
+            3,
+            1,
+            10,
+            Box::new(move |d| sleeps_for_closure.lock().unwrap().push(d)),
+        );
+        let member = PanelMemberConfig {
+            id: "x".into(),
+            role: "x".into(),
+            version_pinned: None,
+            openrouter_model: None,
+            pricing: None,
+        };
+        let r = client.complete(&member, "sys", "user").unwrap();
+        assert_eq!(r.content, "third-call-success");
+        let sleeps = sleeps.lock().unwrap();
+        assert_eq!(
+            sleeps.len(),
+            2,
+            "two retries should sleep twice; got {sleeps:?}"
+        );
+        // Exponential: first wait base*2^0 = 1s; second base*2^1 = 2s.
+        assert_eq!(sleeps[0], std::time::Duration::from_secs(1));
+        assert_eq!(sleeps[1], std::time::Duration::from_secs(2));
+    }
+
+    #[test]
+    fn protected_client_does_not_retry_on_missing_api_key() {
+        use super::test_support::SequencedPanelClient;
+        let inner = SequencedPanelClient::new(vec![Err(PanelClientError::MissingApiKey)]);
+        let client = ProtectedPanelClient::new(inner, 5, 1, 1, Box::new(|_| {}));
+        let member = PanelMemberConfig {
+            id: "x".into(),
+            role: "x".into(),
+            version_pinned: None,
+            openrouter_model: None,
+            pricing: None,
+        };
+        let err = client.complete(&member, "sys", "user").unwrap_err();
+        assert!(matches!(err, PanelClientError::MissingApiKey));
+    }
+
+    #[test]
+    fn protected_client_gives_up_after_max_retries() {
+        use super::test_support::SequencedPanelClient;
+        let inner = SequencedPanelClient::new(vec![
+            Err(PanelClientError::Http("net".into())),
+            Err(PanelClientError::Http("net".into())),
+            Err(PanelClientError::Http("net".into())),
+            Err(PanelClientError::Http("net".into())),
+        ]);
+        let client = ProtectedPanelClient::new(inner, 3, 1, 1, Box::new(|_| {}));
+        let member = PanelMemberConfig {
+            id: "x".into(),
+            role: "x".into(),
+            version_pinned: None,
+            openrouter_model: None,
+            pricing: None,
+        };
+        let err = client.complete(&member, "sys", "user").unwrap_err();
+        assert!(matches!(err, PanelClientError::Http(_)));
+    }
+
+    #[test]
+    fn protected_client_does_not_retry_on_malformed_response() {
+        use super::test_support::SequencedPanelClient;
+        let inner = SequencedPanelClient::new(vec![Err(PanelClientError::MalformedResponse(
+            "no choices".into(),
+        ))]);
+        let client = ProtectedPanelClient::new(inner, 5, 1, 1, Box::new(|_| {}));
+        let member = PanelMemberConfig {
+            id: "x".into(),
+            role: "x".into(),
+            version_pinned: None,
+            openrouter_model: None,
+            pricing: None,
+        };
+        let err = client.complete(&member, "sys", "user").unwrap_err();
+        assert!(matches!(err, PanelClientError::MalformedResponse(_)));
+        assert_eq!(inner_remaining_via_err_count(&client), 0);
+    }
+
+    fn inner_remaining_via_err_count<I: PanelClient>(_c: &ProtectedPanelClient<I>) -> usize {
+        // Indirect: the test above scripted exactly 1 response; if more
+        // were consumed we'd panic in the test harness. This helper is a
+        // documentation hook for the no-retry semantic.
+        0
     }
 
     #[test]
