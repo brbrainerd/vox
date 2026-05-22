@@ -1,0 +1,29 @@
+// Base source for plan-003-rename-field.
+//
+// The plan asks the model to rename the @table Todo column `owner` →
+// `owner_email` across every reference site. Collapsed to a single
+// file for the v1.0 panel evaluation (the multi-file variant lives at
+// contracts/eval/repair-corpus for related coverage).
+
+@table type Todo {
+  id: str,
+  owner: str,
+  title: str,
+  done: bool
+}
+
+@endpoint(kind: query)
+fn list_todos_for(owner: str) to List[Todo] {
+  return []
+}
+
+@endpoint(kind: mutation)
+fn add_todo(owner: str, title: str) to Result[str, str] {
+  return Ok(title)
+}
+
+@test
+fn test_add_todo_returns_title() to Unit {
+  let result = add_todo("alice@example.com", "buy milk")
+  assert(result is Ok("buy milk"))
+}

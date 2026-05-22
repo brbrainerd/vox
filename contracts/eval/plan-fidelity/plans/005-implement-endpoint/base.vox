@@ -1,0 +1,27 @@
+// Base source for plan-005-implement-endpoint.
+//
+// Skeleton of the marquee todo-auth project. The plan asks the model
+// to ADD an `archive_todo` @endpoint that validates the id length and
+// returns Result[str, TodoError], plus a @test exercising the empty-
+// id error path via the existing TodoError ADT.
+
+enum TodoError {
+  Empty,
+  TooLong,
+  EmptyId(str)
+}
+
+@endpoint(kind: mutation)
+@auth(scheme: bearer)
+fn add_todo(title: str) to Result[str, TodoError] {
+  if title is "" {
+    return Err(TodoError.Empty)
+  }
+  return Ok(title)
+}
+
+@test
+fn test_add_todo_empty_returns_error() to Unit {
+  let result = add_todo("")
+  assert(result is Err(TodoError.Empty))
+}

@@ -152,6 +152,14 @@ struct PlanFixture {
     id: String,
     wave: String,
     source: String,
+    /// Optional `base.vox` next to plan.toml. When present, the panel
+    /// prompt asks the model to MODIFY this source per the plan
+    /// (instead of generating from scratch). Per the documented
+    /// finding in plan_fidelity §3.6 / readiness-snapshot 2026-05-22:
+    /// plan-fidelity failures are semantic plan-misunderstandings
+    /// that vox-check refinement can't fix; supplying base source so
+    /// the model anchors against concrete code is the path past 40%.
+    base_source: Option<String>,
 }
 
 fn discover_plans(plans_dir: &Path) -> Result<Vec<PlanFixture>, String> {
@@ -175,11 +183,14 @@ fn discover_plans(plans_dir: &Path) -> Result<Vec<PlanFixture>, String> {
             .to_string();
         let source = std::fs::read_to_string(&plan_toml)
             .map_err(|e| format!("read {}: {}", plan_toml.display(), e))?;
-        // Best-effort wave extraction: parse the toml and look for a
-        // top-level `wave = "wave_1"` (or similar) string. Defaults to
-        // "unknown" when absent so the runner still reports.
+        let base_source = std::fs::read_to_string(path.join("base.vox")).ok();
         let wave = extract_wave(&source).unwrap_or_else(|| "unknown".to_string());
-        out.push(PlanFixture { id, wave, source });
+        out.push(PlanFixture {
+            id,
+            wave,
+            source,
+            base_source,
+        });
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(out)
@@ -197,6 +208,11 @@ fn corpus_hash(plans: &[PlanFixture]) -> String {
         hasher.update(b"\n");
         hasher.update(p.source.as_bytes());
         hasher.update(b"\n");
+        if let Some(base) = &p.base_source {
+            hasher.update(b"base:");
+            hasher.update(base.as_bytes());
+            hasher.update(b"\n");
+        }
     }
     format!("blake3:{}", hasher.finalize().to_hex())
 }
@@ -365,15 +381,30 @@ fn run_with_panel(
                 continue;
             }
             let prompt_text = extract_prompt(&plan.source);
-            let base_user_prompt = format!(
-                "Apply the following plan to produce a single self-contained Vox module \
-                 that compiles cleanly under `vox check`.\n\n\
-                 Plan ({}, wave={}):\n{prompt}\n\n\
-                 Reply with ONLY a single fenced ```vox code block.",
-                plan.id,
-                plan.wave,
-                prompt = prompt_text
-            );
+            let base_user_prompt = match &plan.base_source {
+                Some(base) => format!(
+                    "Apply the following plan to the base Vox source below. \
+                     Produce the resulting single self-contained Vox module \
+                     that compiles cleanly under `vox check`.\n\n\
+                     Plan ({}, wave={}):\n{prompt}\n\n\
+                     Base source (modify per the plan):\n```vox\n{base}\n```\n\n\
+                     Reply with ONLY a single fenced ```vox code block \
+                     containing the modified module.",
+                    plan.id,
+                    plan.wave,
+                    prompt = prompt_text,
+                    base = base,
+                ),
+                None => format!(
+                    "Apply the following plan to produce a single self-contained Vox module \
+                     that compiles cleanly under `vox check`.\n\n\
+                     Plan ({}, wave={}):\n{prompt}\n\n\
+                     Reply with ONLY a single fenced ```vox code block.",
+                    plan.id,
+                    plan.wave,
+                    prompt = prompt_text
+                ),
+            };
 
             // Refinement loop: up to max_iterations attempts; each
             // failed iteration feeds vox-check diagnostics back to the

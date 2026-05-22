@@ -1,0 +1,32 @@
+// Base source for plan-004-refactor-loop.
+//
+// Two @endpoint mutations duplicate the same 4-line validation
+// sequence. The plan asks the model to extract a `validate_title`
+// helper and call it from both. Endpoint signatures must not change.
+
+enum TodoError {
+  Empty,
+  TooLong
+}
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+  if title is "" {
+    return Err(TodoError.Empty)
+  }
+  if title.len() > 100 {
+    return Err(TodoError.TooLong)
+  }
+  return Ok(title)
+}
+
+@endpoint(kind: mutation)
+fn rename_todo(id: str, new_title: str) to Result[str, TodoError] {
+  if new_title is "" {
+    return Err(TodoError.Empty)
+  }
+  if new_title.len() > 100 {
+    return Err(TodoError.TooLong)
+  }
+  return Ok(new_title)
+}
