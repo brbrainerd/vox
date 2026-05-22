@@ -19,4 +19,5 @@ pub mod plan_fidelity;
 pub mod repair_corpus;
 pub mod retirement;
 pub mod spec_to_app;
+pub mod spec_to_app_panel;
 pub mod stubs;

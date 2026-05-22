@@ -22,10 +22,50 @@ reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
 toml = { workspace = true }
 walkdir = { workspace = true }
 workspace-hack = { workspace = true }
+# CR-L7 deploy + new legs (P2.2 of the 2026-05-21 honest plan): scaffold
+# a fresh web project + dry-run a deploy plan, both timed end-to-end.
+vox-project-scaffold = { workspace = true }
+vox-deploy-codegen = { workspace = true }
+vox-container = { workspace = true }
+vox-package = { workspace = true }
+tempfile = { workspace = true }
 
 [[bin]]
 name = "vox-audit"
 path = "src/main.rs"
+
+# CR-E1 cold-start benchmark — measures lex+parse+lower+typeck p99 over
+# a hello-world fixture. Per honest plan §5.4. Threshold: p99 <= 50ms.
+[[bin]]
+name = "cr-e1"
+path = "src/bin/cr-e1.rs"
+
+# CR-A1 cyclomatic-complexity sweep over primary lowering paths.
+# Per honest plan §5.6. Threshold: max function complexity <= 15.
+[[bin]]
+name = "cr-a1"
+path = "src/bin/cr-a1.rs"
+
+# CR-D3 CLI subcommand example coverage sweep.
+# Per honest plan §5.9. Threshold: 100% of `vox` subcommands have
+# at least one .vox example referencing them.
+[[bin]]
+name = "cr-d3"
+path = "src/bin/cr-d3.rs"
+
+# CR-A4 lifecycle metadata parity sweep over orchestration contracts.
+# Per honest plan §5.8. Threshold: every orchestration contract declares
+# lifecycle (experimental|stable|deprecated) + migration_window if
+# deprecated.
+[[bin]]
+name = "cr-a4"
+path = "src/bin/cr-a4.rs"
+
+# CR-A2 schema-parity sweep over contracts/. Per honest plan §5.7.
+# Initial enforce=false; flipped to true when 100% parity reached.
+[[bin]]
+name = "cr-a2"
+path = "src/bin/cr-a2.rs"
 
 [dev-dependencies]
 tempfile = { workspace = true }
