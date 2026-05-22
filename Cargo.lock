@@ -13017,6 +13017,7 @@ dependencies = [
  "blake3",
  "chrono",
  "clap",
+ "flate2",
  "reqwest 0.12.28",
  "serde",
  "serde_json",

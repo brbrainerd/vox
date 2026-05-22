@@ -1,7 +1,7 @@
 {
   "thing": "aci-default",
   "schema_version": 1,
-  "measured_at": "2026-05-22T00:58:44.813605100+00:00",
+  "measured_at": "2026-05-22T08:58:58.069764700+00:00",
   "corpus_hash": "blake3:85d28978c8d29b58f394b558e16f849a4946b5241c6ae096803e708c92400998",
   "corpus_size": 1,
   "llm_panel": [],
