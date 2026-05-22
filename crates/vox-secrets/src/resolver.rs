@@ -129,13 +129,34 @@ impl<B: SecretBackend> SecretResolver<B> {
                         detail: Some(format!("source {:?} blocked by strict source policy", src)),
                     };
                 }
+                // Surface env-vs-auth.json conflicts so users who ran
+                // `vox secrets set <reg> …` aren't silently overridden by
+                // a stale env var. Detail is informational; env keeps
+                // precedence (operator-override convention).
+                let mut detail: Option<String> = None;
+                if let Some(reg) = spec.auth_registry
+                    && let Some((auth_value, _)) =
+                        crate::sources::auth_json::read_registry_token(reg)
+                    && let (Some(env_v), Some(auth_v)) = (
+                        env_value.as_ref().map(secrecy::ExposeSecret::expose_secret),
+                        Some(secrecy::ExposeSecret::expose_secret(&auth_value)),
+                    )
+                    && env_v != auth_v
+                {
+                    detail = Some(format!(
+                        "env `{}` is shadowing a different value stored via \
+                         `vox secrets set {reg}` — unset the env or run \
+                         `vox secrets set {reg} <token>` again to align",
+                        spec.canonical_env
+                    ));
+                }
                 return ResolvedSecret {
                     id: spec.id,
                     value: env_value,
                     source: env_source,
                     status: env_status,
                     remediation: spec.remediation,
-                    detail: None,
+                    detail,
                 };
             }
             if matches!(env_status, ResolutionStatus::InvalidEmpty) {
