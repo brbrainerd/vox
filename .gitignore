@@ -50,7 +50,6 @@ bundle_*.txt
 
 # Python (local tooling under scripts/)
 scripts/.venv/
-crates/vox-py/.venv/
 .mypy_cache/
 *.swp
 *~
