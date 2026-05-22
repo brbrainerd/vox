@@ -7,11 +7,14 @@
 //! `vox deploy` succeeds, `vox doctor` green) under a per-spec token
 //! cost ceiling.
 //!
-//! Real corpus-inventory layer runs today. The autonomous-agent loop
-//! itself depends on the orchestrator's MCP plan-mode + panel client
-//! + budget tracking, which front-stacks onto this runner via
-//! `--llm-panel` (presently returns `InfrastructureError` with a
-//! note pointing at the integration follow-on).
+//! Two modes:
+//!
+//! - **Corpus-inventory** (default): walks the specs, hashes the
+//!   corpus, reports tier mix; no LLM calls, no scoring.
+//! - **Panel** (`--llm-panel <yaml>`): drives each OpenRouter-routable
+//!   panel member through a single-shot generate → `vox check` → score
+//!   loop, under a hard cumulative budget cap. See
+//!   `spec_to_app_panel.rs` for details.
 //!
 //! Replaces `SpecToAppStub`.
 
@@ -90,20 +93,57 @@ impl Subcommand for SpecToAppRunner {
             };
         }
 
-        // Panel mode = autonomous-agent loop. Not yet shipped — front-
-        // stacks onto the orchestrator's plan-mode + panel client.
-        if args.llm_panel.is_some() {
-            return RunOutcome {
-                report: AuditReport::infra_error(
-                    gate_thing_name(),
-                    "panel mode (the autonomous-agent loop driving Vox via MCP) requires \
-                     the orchestrator integration follow-on. Without --llm-panel the \
-                     runner reports corpus-inventory; with --llm-panel it would invoke \
-                     the agent loop with the per-spec $5 cost ceiling. Not yet shipped."
-                        .to_string(),
-                ),
-                exit_code: ExitCode::InfrastructureError,
+        // Panel mode = real LLM generate → check → score loop. The full
+        // multi-iteration agent loop (vox build / deploy / doctor each
+        // round, with feedback) is still front-stacked; this v1.0 version
+        // is single-shot per (spec, member) which is the smallest
+        // honest-publishable measurement.
+        if let Some(panel_yaml) = args.llm_panel.as_ref() {
+            let panel_specs: Vec<crate::subcommands::spec_to_app_panel::PanelSpec> = match specs
+                .iter()
+                .map(|s| {
+                    crate::subcommands::spec_to_app_panel::PanelSpec::from_toml(
+                        s.id.clone(),
+                        &s.source,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()
+            {
+                Ok(v) => v,
+                Err(msg) => {
+                    return RunOutcome {
+                        report: AuditReport::infra_error(gate_thing_name(), msg),
+                        exit_code: ExitCode::InfrastructureError,
+                    };
+                }
             };
+            // Panel mode does HTTP via reqwest::blocking. That client
+            // spins up its own internal runtime, which panics when it
+            // tries to drop inside an outer async context (vox-cli runs
+            // us under tokio). Hop to a dedicated OS thread so the
+            // blocking runtime nesting is clean.
+            let corpus_hash_val = corpus_hash(&specs);
+            let panel_yaml = panel_yaml.clone();
+            let args_owned = args.clone();
+            return std::thread::scope(|s| {
+                s.spawn(move || {
+                    crate::subcommands::spec_to_app_panel::run_panel(
+                        &args_owned,
+                        &panel_specs,
+                        &panel_yaml,
+                        gate_thing_name(),
+                        corpus_hash_val,
+                    )
+                })
+                .join()
+                .unwrap_or_else(|_| RunOutcome {
+                    report: AuditReport::infra_error(
+                        gate_thing_name(),
+                        "panel thread panicked".to_string(),
+                    ),
+                    exit_code: ExitCode::InfrastructureError,
+                })
+            });
         }
 
         let total = specs.len() as u32;
@@ -116,6 +156,20 @@ impl Subcommand for SpecToAppRunner {
             .iter()
             .map(|(k, v)| format!("{k}={v}"))
             .collect();
+
+        // Evidence-preservation guard (shared helper). Skipped when an
+        // explicit `corpus` override is in play — tests and ad-hoc
+        // inspectors should not silently get the canonical artifact.
+        if args.corpus.is_none()
+            && let Some(existing) =
+                crate::same_day_canonical_with_panel(&workspace_root(), gate_thing_name())
+        {
+            return RunOutcome {
+                report: existing,
+                exit_code: ExitCode::Ok,
+            };
+        }
+
         let mut report = AuditReport::complete(
             gate_thing_name(),
             corpus_hash(&specs),
@@ -146,6 +200,10 @@ impl Subcommand for SpecToAppRunner {
 fn gate_thing_name() -> &'static str {
     CrlGate::L0SpecToApp.thing_name()
 }
+
+// Evidence-preservation guard moved to vox_audit::same_day_canonical_with_panel
+// so humaneval / repair-corpus / plan-fidelity can share it. See call site
+// in `run` above.
 
 #[derive(Debug)]
 struct SpecFixture {
@@ -239,8 +297,13 @@ prompt = "build a tiny app"
         assert!(outcome.report.note.as_deref().unwrap_or("").contains("T1"));
     }
 
+    /// When `--llm-panel` is set but the panel YAML path is missing, the
+    /// runner must surface that as a real `InfrastructureError` rather
+    /// than silently dropping into corpus-inventory mode. (The "panel
+    /// requires follow-on" test from the stub era is retired now that
+    /// panel mode is implemented in `spec_to_app_panel.rs`.)
     #[test]
-    fn panel_mode_returns_honest_infra_error() {
+    fn panel_mode_with_missing_yaml_is_infra_error() {
         let tmp = tempfile::tempdir().unwrap();
         let specs = tmp.path().join("specs");
         let p = specs.join("001-tiny");
@@ -253,14 +316,14 @@ prompt = "x"
 "#,
         )
         .unwrap();
+        let missing_yaml = tmp.path().join("nope.yaml");
         let args = CommonArgs {
             corpus: Some(tmp.path().to_path_buf()),
-            llm_panel: Some(std::path::PathBuf::from("contracts/eval/llm-panel.v1.yaml")),
+            llm_panel: Some(missing_yaml),
             write_canonical_report: false,
             ..CommonArgs::default()
         };
         let outcome = SpecToAppRunner.run(&args);
         assert_eq!(outcome.exit_code, ExitCode::InfrastructureError);
-        assert!(outcome.report.note.as_deref().unwrap_or("").contains("agent loop"));
     }
 }
