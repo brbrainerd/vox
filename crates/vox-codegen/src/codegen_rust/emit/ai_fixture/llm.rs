@@ -8,26 +8,11 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
     let structured_output = func
         .ai_structured_output
         .as_ref()
-        .or(match &func.ai_fixture {
-            Some(HirAiFixture::ModelPin(v)) => v.structured_output.as_ref(),
-            _ => None,
-        });
-    let intent_routed = match &func.ai_fixture {
-        Some(HirAiFixture::IntentRouted(v)) => Some(v),
-        _ => None,
-    };
-    let prompt_fixture = match &func.ai_fixture {
-        Some(HirAiFixture::Prompt(v)) => Some(v),
-        _ => None,
-    };
-    let subagent_fixture = match &func.ai_fixture {
-        Some(HirAiFixture::Subagent(v)) => Some(v),
-        _ => None,
-    };
-    let search_fixture = match &func.ai_fixture {
-        Some(HirAiFixture::Search(v)) => Some(v),
-        _ => None,
-    };
+        .or_else(|| extract_model_pin_structured_output(func.ai_fixture.as_ref()));
+    let intent_routed = extract_intent_fixture(func.ai_fixture.as_ref());
+    let prompt_fixture = extract_prompt_fixture(func.ai_fixture.as_ref());
+    let subagent_fixture = extract_subagent_fixture(func.ai_fixture.as_ref());
+    let search_fixture = extract_search_fixture(func.ai_fixture.as_ref());
     let model_init = if let Some(m) = func.llm_model.as_deref() {
         format!(
             "\"{}\".to_string()",
@@ -362,5 +347,55 @@ pub(super) fn emit_llm_function_body(out: &mut String, func: &HirFn) {
             }
         }
         out.push_str("    it\n");
+    }
+}
+
+// Typed fixture extractors. Each peeks the discriminant of
+// `Option<&HirAiFixture>` and returns the inner payload reference for
+// the variant it matches, or None. Extracted from the inline pattern
+// matches at the top of `emit_llm_function_body` per CR-A1 refactor.
+
+fn extract_model_pin_structured_output(
+    fixture: Option<&HirAiFixture>,
+) -> Option<&vox_compiler::hir::nodes::boilerplate_grafts::HirAiStructuredOutput> {
+    match fixture {
+        Some(HirAiFixture::ModelPin(v)) => v.structured_output.as_ref(),
+        _ => None,
+    }
+}
+
+fn extract_intent_fixture(
+    fixture: Option<&HirAiFixture>,
+) -> Option<&vox_compiler::hir::nodes::boilerplate_grafts::HirAiIntentFixture> {
+    match fixture {
+        Some(HirAiFixture::IntentRouted(v)) => Some(v),
+        _ => None,
+    }
+}
+
+fn extract_prompt_fixture(
+    fixture: Option<&HirAiFixture>,
+) -> Option<&vox_compiler::hir::nodes::boilerplate_grafts::HirPromptFixture> {
+    match fixture {
+        Some(HirAiFixture::Prompt(v)) => Some(v),
+        _ => None,
+    }
+}
+
+fn extract_subagent_fixture(
+    fixture: Option<&HirAiFixture>,
+) -> Option<&vox_compiler::hir::nodes::boilerplate_grafts::HirSubagentFixture> {
+    match fixture {
+        Some(HirAiFixture::Subagent(v)) => Some(v),
+        _ => None,
+    }
+}
+
+fn extract_search_fixture(
+    fixture: Option<&HirAiFixture>,
+) -> Option<&vox_compiler::hir::nodes::boilerplate_grafts::HirSearchFixture> {
+    match fixture {
+        Some(HirAiFixture::Search(v)) => Some(v),
+        _ => None,
     }
 }
