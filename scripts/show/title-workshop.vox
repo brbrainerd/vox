@@ -1,66 +1,80 @@
+// vox:caps process fs
 // scripts/show/title-workshop.vox
 // Generates 10 ranked title candidates for an episode from an outline
 // or 1-paragraph summary.
 //
-// Usage:  vox run scripts/show/title-workshop.vox <outline-or-summary-path>
-//
-// Output: 10 titles printed to stdout with CTR prediction and brand-match
-// scores. The top 3 are usable as-is; the rest are diagnostic.
-//
-// vox:caps subprocess, fs
+// Inputs (environment):
+//   RAW_NERVE_OUTLINE  required; path to outline-or-summary markdown file
 
-import fs
+import process;
+import fs;
+import env;
 
 fn title_prompt(summary: str) to str {
-    return "You are a title workshopper for Raw Nerve, a programming-language\n" +
-        "YouTube channel. The channel's positioning is rigorous, opinionated,\n" +
-        "dry-witted -- 'deadpan irreverence with journalistic structure.'\n" +
-        "\n" +
-        "Episode summary or outline:\n" +
-        "\n" + summary + "\n" +
-        "\n" +
-        "Generate 10 titles. For each:\n" +
-        "  - Title (under 65 characters)\n" +
-        "  - Predicted CTR rationale (one sentence)\n" +
-        "  - Reason it might NOT work (one sentence)\n" +
-        "  - Brand-style match score (1-5)\n" +
-        "  - Rank (1 = most usable, 10 = least)\n" +
-        "\n" +
-        "Avoid:\n" +
-        "  - Generic clickbait ('You won't believe...')\n" +
-        "  - Hyperbole that doesn't deliver in the video\n" +
-        "  - Punctuation tricks (excessive caps, multiple question marks)\n" +
-        "  - Generic phrasings ('How I...', 'The truth about...')\n" +
-        "\n" +
-        "Prefer:\n" +
-        "  - Concrete claims that match the video's payoff\n" +
-        "  - Specific numbers if real\n" +
-        "  - Distinctive Vox-coded language ('unsamplable', 'structurally refuses',\n" +
-        "    'deadlock watchdog', 'one declaration, four outputs')\n" +
-        "  - Subject-verb-object structures (best on HN historically)"
+    let mut p = ""
+    p = p + "You are a title workshopper for Raw Nerve, a programming-language\n"
+    p = p + "YouTube channel. The channel's positioning is rigorous, opinionated,\n"
+    p = p + "dry-witted -- 'deadpan irreverence with journalistic structure.'\n"
+    p = p + "\n"
+    p = p + "Episode summary or outline:\n"
+    p = p + "\n" + summary + "\n"
+    p = p + "\n"
+    p = p + "Generate 10 titles. For each:\n"
+    p = p + "  - Title (under 65 characters)\n"
+    p = p + "  - Predicted CTR rationale (one sentence)\n"
+    p = p + "  - Reason it might NOT work (one sentence)\n"
+    p = p + "  - Brand-style match score (1-5)\n"
+    p = p + "  - Rank (1 = most usable, 10 = least)\n"
+    p = p + "\n"
+    p = p + "Avoid:\n"
+    p = p + "  - Generic clickbait\n"
+    p = p + "  - Hyperbole that doesn't deliver in the video\n"
+    p = p + "  - Excessive caps or multiple question marks\n"
+    p = p + "  - Generic phrasings ('How I...', 'The truth about...')\n"
+    p = p + "\n"
+    p = p + "Prefer:\n"
+    p = p + "  - Concrete claims that match the video's payoff\n"
+    p = p + "  - Specific numbers if real\n"
+    p = p + "  - Distinctive Vox-coded language ('unsamplable', 'structurally refuses',\n"
+    p = p + "    'deadlock watchdog', 'one declaration, four outputs')\n"
+    p = p + "  - Subject-verb-object structures (best on HN historically)"
+    return p
 }
 
 fn main() {
-    let args = std.args
-    if len(args) < 2 {
-        println("usage: vox run scripts/show/title-workshop.vox <outline-or-summary-path>")
-        exit(1)
+    let in_opt = env.get("RAW_NERVE_OUTLINE")
+    if in_opt is null {
+        print("RAW_NERVE_OUTLINE is required; set it to your outline.md path")
+        process.exit(1)
     }
-    let in_path = args[1]
+    let in_path = in_opt.unwrap()
 
-    let summary = fs.read_to_string(in_path)
-    if len(summary) is 0 {
-        println("empty or unreadable: " + in_path)
-        exit(1)
+    let summary_opt = fs.read_file(in_path)
+    if summary_opt is null {
+        print("could not read " + in_path)
+        process.exit(1)
+    }
+    let summary = summary_opt.unwrap()
+
+    if summary is "" {
+        print("empty file: " + in_path)
+        process.exit(1)
     }
 
     let prompt = title_prompt(summary)
-    let result = exec("vox", ["mens", "prompt", "--text", prompt])
-    if result.exit_code != 0 {
-        println("LLM call failed; raw prompt follows for manual use:")
-        println("--- PROMPT ---")
-        println(prompt)
-        exit(1)
+    let llm_opt = process.run("vox", ["mens", "prompt", "--text", prompt])
+    if llm_opt is null {
+        print("LLM call failed: could not spawn vox")
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
     }
-    println(result.stdout)
+    let llm = llm_opt.unwrap()
+    if llm.code != 0 {
+        print("LLM call failed: exit " + str(llm.code))
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
+    }
+    print(llm.stdout)
 }

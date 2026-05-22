@@ -1,99 +1,88 @@
+// vox:caps process
 // scripts/show/topic-suggest.vox
-// Reads the past week of repository signals (commits, closed issues,
-// merged PRs, docs changes) and proposes 3 ranked episode candidates.
+// Reads the past week of repository signals and proposes 3 ranked
+// episode candidates for Raw Nerve.
 //
-// Usage:  vox run scripts/show/topic-suggest.vox [--since 7d]
-//
-// Output: 3 candidate episodes printed to stdout, each with title,
-// segment, why-this-week, 3-act sketch, prep effort, and risk.
-//
-// vox:caps subprocess
+// Inputs (environment):
+//   RAW_NERVE_SINCE   optional; default "7 days ago" (git --since format)
+
+import process;
+import env;
 
 fn suggest_prompt(commits: str, closed_issues: str, merged_prs: str, doc_changes: str) to str {
-    return "You are pitching episodes for Raw Nerve, a literary engineering\n" +
-        "journal documenting Vox, an AI-native programming language.\n" +
-        "\n" +
-        "This past week's signals from the repository:\n" +
-        "\n" +
-        "Commits (oldest -> newest):\n" + commits + "\n" +
-        "\n" +
-        "Closed issues:\n" + closed_issues + "\n" +
-        "\n" +
-        "Merged PRs:\n" + merged_prs + "\n" +
-        "\n" +
-        "Docs changes:\n" + doc_changes + "\n" +
-        "\n" +
-        "Suggest 3 candidate episodes, each with:\n" +
-        "  1. Working title (concrete, <= 8 words)\n" +
-        "  2. Segment: one of Acta / Documenta / Analogia / Mens / Disputatio / Nota\n" +
-        "  3. Why this week (1-2 sentences)\n" +
-        "  4. 3-act sketch (1 line per act)\n" +
-        "  5. Estimated prep effort (low / medium / high)\n" +
-        "  6. Risk (what could make this not land)\n" +
-        "  7. Playground example that best demonstrates it (from examples/golden/)\n" +
-        "\n" +
-        "Rank from most promising to least. Be specific. No generic clickbait."
+    let mut p = ""
+    p = p + "You are pitching episodes for Raw Nerve, a literary engineering\n"
+    p = p + "journal documenting Vox, an AI-native programming language.\n"
+    p = p + "\n"
+    p = p + "This past week's signals from the repository:\n"
+    p = p + "\n"
+    p = p + "Commits (oldest -> newest):\n" + commits + "\n"
+    p = p + "\n"
+    p = p + "Closed issues:\n" + closed_issues + "\n"
+    p = p + "\n"
+    p = p + "Merged PRs:\n" + merged_prs + "\n"
+    p = p + "\n"
+    p = p + "Docs changes:\n" + doc_changes + "\n"
+    p = p + "\n"
+    p = p + "Suggest 3 candidate episodes, each with:\n"
+    p = p + "  1. Working title (concrete, <= 8 words)\n"
+    p = p + "  2. Segment: Acta / Documenta / Analogia / Mens / Disputatio / Nota\n"
+    p = p + "  3. Why this week (1-2 sentences)\n"
+    p = p + "  4. 3-act sketch (1 line per act)\n"
+    p = p + "  5. Estimated prep effort (low / medium / high)\n"
+    p = p + "  6. Risk (what could make this not land)\n"
+    p = p + "  7. Playground example that best demonstrates it (from examples/golden/)\n"
+    p = p + "\n"
+    p = p + "Rank from most promising to least. Be specific. No generic clickbait."
+    return p
 }
 
-fn collect_git_log(since: str) to str {
-    let result = exec("git", ["log", "--since=" + since, "--oneline", "--no-merges"])
-    if result.exit_code != 0 {
+fn capture(cmd: str, args: list[str]) to str {
+    let res_opt = process.run(cmd, args)
+    if res_opt is null {
         return ""
     }
-    return result.stdout
-}
-
-fn collect_closed_issues(since: str) to str {
-    let result = exec("gh", ["issue", "list", "--state", "closed",
-                              "--search", "closed:>=" + since, "--limit", "20"])
-    if result.exit_code != 0 {
-        return "(gh CLI unavailable or not authenticated)"
-    }
-    return result.stdout
-}
-
-fn collect_merged_prs(since: str) to str {
-    let result = exec("gh", ["pr", "list", "--state", "merged",
-                              "--search", "merged:>=" + since, "--limit", "20"])
-    if result.exit_code != 0 {
-        return "(gh CLI unavailable or not authenticated)"
-    }
-    return result.stdout
-}
-
-fn collect_doc_changes(since: str) to str {
-    let result = exec("git", ["log", "--since=" + since, "--name-only",
-                                "--pretty=format:", "--", "docs/"])
-    if result.exit_code != 0 {
+    let res = res_opt.unwrap()
+    if res.code != 0 {
         return ""
     }
-    return result.stdout
+    return res.stdout
 }
 
 fn main() {
-    // Default to the past 7 days; future: parse --since flag.
-    let since = "7 days ago"
+    let since_opt = env.get("RAW_NERVE_SINCE")
+    let mut since = "7 days ago"
+    if since_opt is not null {
+        since = since_opt.unwrap()
+    }
 
-    println("collecting repository signals (--since " + since + ")...")
+    print("collecting repository signals (--since " + since + ")...")
 
-    let commits = collect_git_log(since)
-    let closed = collect_closed_issues(since)
-    let merged = collect_merged_prs(since)
-    let docs = collect_doc_changes(since)
+    let commits = capture("git", ["log", "--since=" + since, "--oneline", "--no-merges"])
+    let closed = capture("gh", ["issue", "list", "--state", "closed", "--search", "closed:>=" + since, "--limit", "20"])
+    let merged = capture("gh", ["pr", "list", "--state", "merged", "--search", "merged:>=" + since, "--limit", "20"])
+    let docs = capture("git", ["log", "--since=" + since, "--name-only", "--pretty=format:", "--", "docs/"])
 
-    if len(commits) is 0 {
-        println("no commits in window; pick a different --since or take the week off")
-        exit(0)
+    if commits is "" {
+        print("no commits in window; pick a different --since or take the week off")
+        process.exit(0)
     }
 
     let prompt = suggest_prompt(commits, closed, merged, docs)
 
-    let llm_result = exec("vox", ["mens", "prompt", "--text", prompt])
-    if llm_result.exit_code != 0 {
-        println("LLM call failed; raw prompt follows for manual use:")
-        println("--- PROMPT ---")
-        println(prompt)
-        exit(1)
+    let llm_opt = process.run("vox", ["mens", "prompt", "--text", prompt])
+    if llm_opt is null {
+        print("LLM call failed: could not spawn vox")
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
     }
-    println(llm_result.stdout)
+    let llm = llm_opt.unwrap()
+    if llm.code != 0 {
+        print("LLM call failed: exit " + str(llm.code))
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
+    }
+    print(llm.stdout)
 }
