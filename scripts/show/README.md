@@ -18,6 +18,7 @@ Vox programs that automate the recurring work of producing **Raw Nerve**, the Vo
 | [`script.vox`](script.vox) | Whisper transcript → 3-act outline (Acta/Documenta/Analogia/Mens) | foundational |
 | [`topic-suggest.vox`](topic-suggest.vox) | git log + issues + PRs → 3 ranked episode candidates | foundational |
 | [`title-workshop.vox`](title-workshop.vox) | outline → 10 ranked title candidates | foundational |
+| [`cross-post.vox`](cross-post.vox) | episode MD → drafts for YouTube / X / Reddit / HN / Discord / newsletter | foundational |
 
 Future additions (built when needed, see [funding-campaign implementation plan](https://github.com/vox-foundation/vox-funding-plan)):
 
@@ -59,6 +60,7 @@ Following the convention in `scripts/ci/script-hygiene.vox`, scripts here read t
 | `script.vox` | `RAW_NERVE_RECORDING_DIR` | `RAW_NERVE_CTA_TYPE`, `RAW_NERVE_OUT`, `RAW_NERVE_WHISPER_OUT` |
 | `topic-suggest.vox` | (none) | `RAW_NERVE_SINCE` (default `"7 days ago"`) |
 | `title-workshop.vox` | `RAW_NERVE_OUTLINE` | (none) |
+| `cross-post.vox` | `RAW_NERVE_EPISODE_MD` | `RAW_NERVE_DRAFTS_DIR`, `RAW_NERVE_PLAYGROUND_URL`, `RAW_NERVE_YOUTUBE_URL` |
 
 ## Why this exists
 

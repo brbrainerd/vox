@@ -1,0 +1,219 @@
+// vox:caps process fs
+// scripts/show/cross-post.vox
+// Take one canonical episode description (markdown) and produce
+// platform-specific DRAFTS for each downstream channel. Drafts only —
+// the user reviews and clicks send.
+//
+// Inputs (environment):
+//   RAW_NERVE_EPISODE_MD     required; path to the canonical episode
+//                            description markdown file
+//   RAW_NERVE_DRAFTS_DIR     optional; output directory for drafts
+//                            (default: ~/raw-nerve/drafts/<episode-stem>)
+//   RAW_NERVE_PLAYGROUND_URL optional; playground example URL to include in
+//                            the per-platform CTA where relevant
+//                            (e.g. https://voxlang.org/play?example=mcp_tools)
+//   RAW_NERVE_YOUTUBE_URL    optional; YouTube video URL (once uploaded;
+//                            empty for pre-launch drafts)
+//
+// Output: 6 platform-specific draft files in RAW_NERVE_DRAFTS_DIR:
+//   youtube-description.txt    Full YouTube description
+//   x-thread.txt               6-panel X thread
+//   reddit-r-programming.md    r/programming flavor
+//   reddit-r-langs.md          r/programminglanguages flavor (deeper)
+//   hn-submission.txt          Title + first comment
+//   discord-announcement.md    Markdown for #announcements
+//   newsletter-section.md      Paragraph for next monthly digest
+//
+// No auto-publish. The user reviews each draft, edits, posts manually.
+
+import process;
+import fs;
+import env;
+
+fn fanout_prompt(episode_md: str, playground_url: str, youtube_url: str) to str {
+    let mut p = ""
+    p = p + "You are a content adapter for Raw Nerve, a literary engineering\n"
+    p = p + "journal documenting Vox, an AI-native programming language.\n"
+    p = p + "\n"
+    p = p + "Input: one canonical episode description (markdown). Below.\n"
+    p = p + "\n"
+    p = p + "Output: 7 platform-specific drafts. Format each draft as a\n"
+    p = p + "fenced block with a header line `=== platform-name ===` immediately\n"
+    p = p + "before the fenced content. Use exactly these 7 platform names in this\n"
+    p = p + "order: youtube, x, reddit-programming, reddit-langs, hn, discord,\n"
+    p = p + "newsletter.\n"
+    p = p + "\n"
+    p = p + "Per-platform conventions:\n"
+    p = p + "  youtube       Long-form description. Two paragraphs of context,\n"
+    p = p + "                a timestamped 'Chapters:' block, three CTAs at the\n"
+    p = p + "                bottom (Sponsor / GitHub / Newsletter), and the\n"
+    p = p + "                vox-scientia citation block.\n"
+    p = p + "  x             6 panels, each <= 280 chars. Hook in panel 1. Demo\n"
+    p = p + "                or screenshot beat in panel 3 or 4. CTA panel 6.\n"
+    p = p + "                No emoji except in panel 1 if it earns its keep.\n"
+    p = p + "  reddit-programming   Technical, no sales language. 3-4 paragraphs.\n"
+    p = p + "                       Link to the YouTube video at the end.\n"
+    p = p + "  reddit-langs  Deeper technical detail for r/programminglanguages.\n"
+    p = p + "                Mention the specific design decision the episode\n"
+    p = p + "                covers (P0/P1/P2/P3 priority, the IR, the type\n"
+    p = p + "                system choice, etc.).\n"
+    p = p + "  hn            Bare-bones. Title line + 1-2 line context. First\n"
+    p = p + "                comment provides the substantive context. No\n"
+    p = p + "                'Show HN:' prefix unless this is a launch episode.\n"
+    p = p + "  discord       Warm, community-flavored. Markdown OK. Pinged at\n"
+    p = p + "                #announcements; include playground link if relevant.\n"
+    p = p + "  newsletter    One paragraph for inclusion in next monthly\n"
+    p = p + "                digest. Tight, narrative, links to the video.\n"
+    p = p + "\n"
+    p = p + "Each draft must include this playground link where relevant: " + playground_url + "\n"
+    p = p + "Each draft must include this YouTube link where relevant: " + youtube_url + "\n"
+    p = p + "(If a URL is empty, write `[YouTube link]` or `[Playground link]` as a placeholder.)\n"
+    p = p + "\n"
+    p = p + "Voice register across all platforms: deadpan irreverence with\n"
+    p = p + "journalistic structure. Comedy in asides, never setpieces. No fake\n"
+    p = p + "urgency. No clickbait. Self-deprecation over self-aggrandizement.\n"
+    p = p + "Punch the industry, not individuals.\n"
+    p = p + "\n"
+    p = p + "Episode markdown:\n"
+    p = p + "\n"
+    p = p + episode_md
+    return p
+}
+
+fn ensure_dir(path: str) {
+    let res_opt = process.run("mkdir", ["-p", path])
+    if res_opt is null { return }
+    let res = res_opt.unwrap()
+    if res.code != 0 {
+        // On Windows mkdir -p won't work; try without -p
+        let _retry = process.run("mkdir", [path])
+    }
+}
+
+// Extract a fenced section between "=== name ===" and the next "=== "
+// or end of string. Returns the content between, trimmed of the fence
+// header line. Returns "" if not found.
+fn extract_section(text: str, name: str) to str {
+    let marker = "=== " + name + " ==="
+    let split = text.split(marker)
+    if split.len() < 2 {
+        return ""
+    }
+    let after = split.get(1)
+    if after is null { return "" }
+    let after_str = after.unwrap()
+    // Cut off at the next "=== "
+    let parts = after_str.split("\n=== ")
+    if parts.len() < 1 { return "" }
+    let first = parts.get(0)
+    if first is null { return "" }
+    return first.unwrap()
+}
+
+fn main() {
+    let in_opt = env.get("RAW_NERVE_EPISODE_MD")
+    if in_opt is null {
+        print("RAW_NERVE_EPISODE_MD is required; set it to your episode description markdown path")
+        process.exit(1)
+    }
+    let in_path = in_opt.unwrap()
+
+    let drafts_dir_opt = env.get("RAW_NERVE_DRAFTS_DIR")
+    let mut drafts_dir = "raw-nerve-drafts"
+    if drafts_dir_opt is not null {
+        drafts_dir = drafts_dir_opt.unwrap()
+    }
+
+    let playground_opt = env.get("RAW_NERVE_PLAYGROUND_URL")
+    let mut playground_url = ""
+    if playground_opt is not null {
+        playground_url = playground_opt.unwrap()
+    }
+
+    let youtube_opt = env.get("RAW_NERVE_YOUTUBE_URL")
+    let mut youtube_url = ""
+    if youtube_opt is not null {
+        youtube_url = youtube_opt.unwrap()
+    }
+
+    let episode_opt = fs.read_file(in_path)
+    if episode_opt is null {
+        print("could not read " + in_path)
+        process.exit(1)
+    }
+    let episode_md = episode_opt.unwrap()
+
+    if episode_md is "" {
+        print("empty episode markdown: " + in_path)
+        process.exit(1)
+    }
+
+    print("scripts/show/cross-post.vox: producing drafts in " + drafts_dir)
+    ensure_dir(drafts_dir)
+
+    let prompt = fanout_prompt(episode_md, playground_url, youtube_url)
+
+    let llm_opt = process.run("vox", ["mens", "prompt", "--text", prompt])
+    if llm_opt is null {
+        print("LLM call failed: could not spawn vox (is vox-mens installed?)")
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
+    }
+    let llm = llm_opt.unwrap()
+    if llm.code != 0 {
+        print("LLM call failed: exit " + str(llm.code))
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
+    }
+
+    let body = llm.stdout
+
+    // Split out each platform draft and write to disk.
+    let yt = extract_section(body, "youtube")
+    let xt = extract_section(body, "x")
+    let rp = extract_section(body, "reddit-programming")
+    let rl = extract_section(body, "reddit-langs")
+    let hn = extract_section(body, "hn")
+    let ds = extract_section(body, "discord")
+    let nl = extract_section(body, "newsletter")
+
+    let mut wrote = 0
+    if yt isnt "" {
+        let ok = fs.write_file(drafts_dir + "/youtube-description.txt", yt)
+        if ok { wrote = wrote + 1 }
+    }
+    if xt isnt "" {
+        let ok = fs.write_file(drafts_dir + "/x-thread.txt", xt)
+        if ok { wrote = wrote + 1 }
+    }
+    if rp isnt "" {
+        let ok = fs.write_file(drafts_dir + "/reddit-r-programming.md", rp)
+        if ok { wrote = wrote + 1 }
+    }
+    if rl isnt "" {
+        let ok = fs.write_file(drafts_dir + "/reddit-r-langs.md", rl)
+        if ok { wrote = wrote + 1 }
+    }
+    if hn isnt "" {
+        let ok = fs.write_file(drafts_dir + "/hn-submission.txt", hn)
+        if ok { wrote = wrote + 1 }
+    }
+    if ds isnt "" {
+        let ok = fs.write_file(drafts_dir + "/discord-announcement.md", ds)
+        if ok { wrote = wrote + 1 }
+    }
+    if nl isnt "" {
+        let ok = fs.write_file(drafts_dir + "/newsletter-section.md", nl)
+        if ok { wrote = wrote + 1 }
+    }
+
+    print("wrote " + str(wrote) + " platform drafts to " + drafts_dir)
+    if wrote < 7 {
+        print("NOTE: not all 7 sections were parsed; full LLM output:")
+        print("--- raw output ---")
+        print(body)
+    }
+    print("review each draft, edit, then post manually. drafts only — never auto-publish.")
+}
