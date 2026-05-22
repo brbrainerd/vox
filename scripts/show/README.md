@@ -19,6 +19,7 @@ Vox programs that automate the recurring work of producing **Raw Nerve**, the Vo
 | [`topic-suggest.vox`](topic-suggest.vox) | git log + issues + PRs → 3 ranked episode candidates | foundational |
 | [`title-workshop.vox`](title-workshop.vox) | outline → 10 ranked title candidates | foundational |
 | [`cross-post.vox`](cross-post.vox) | episode MD → drafts for YouTube / X / Reddit / HN / Discord / newsletter | foundational |
+| [`publish.vox`](publish.vox) | episode metadata → CITATION.cff + RSS entry + scientia ingest YAML | foundational |
 
 Future additions (built when needed, see [funding-campaign implementation plan](https://github.com/vox-foundation/vox-funding-plan)):
 
@@ -61,6 +62,7 @@ Following the convention in `scripts/ci/script-hygiene.vox`, scripts here read t
 | `topic-suggest.vox` | (none) | `RAW_NERVE_SINCE` (default `"7 days ago"`) |
 | `title-workshop.vox` | `RAW_NERVE_OUTLINE` | (none) |
 | `cross-post.vox` | `RAW_NERVE_EPISODE_MD` | `RAW_NERVE_DRAFTS_DIR`, `RAW_NERVE_PLAYGROUND_URL`, `RAW_NERVE_YOUTUBE_URL` |
+| `publish.vox` | `RAW_NERVE_EPISODE_TITLE`, `RAW_NERVE_EPISODE_DATE`, `RAW_NERVE_EPISODE_SLUG`, `RAW_NERVE_EPISODE_SEGMENT`, `RAW_NERVE_EPISODE_ABSTRACT` | `RAW_NERVE_EPISODE_AUTHOR`, `RAW_NERVE_EPISODE_YOUTUBE_URL`, `RAW_NERVE_EPISODE_PLAYGROUND_URL`, `RAW_NERVE_EPISODE_LENGTH_MIN`, `RAW_NERVE_DRAFTS_DIR` |
 
 ## Why this exists
 
