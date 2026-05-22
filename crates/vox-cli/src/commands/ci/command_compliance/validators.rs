@@ -119,6 +119,13 @@ pub(crate) fn check_root_readme_cli_drift(readme: &str) -> Result<()> {
             "README.md must link to the canonical domain https://voxlang.org"
         ));
     }
+    if readme.contains("https://vox-lang.org") {
+        return Err(anyhow!(
+            "README.md contains the legacy domain https://vox-lang.org; \
+             the canonical domain is https://voxlang.org (without hyphen). \
+             Replace any remaining vox-lang.org references."
+        ));
+    }
 
     let section = markdown_section(readme, "## The CLI").ok_or_else(|| {
         anyhow!("README.md is missing `## The CLI` section required for discoverability")

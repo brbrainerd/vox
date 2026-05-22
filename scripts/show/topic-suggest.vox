@@ -49,6 +49,23 @@ fn capture(cmd: str, args: list[str]) to str {
     return res.stdout
 }
 
+// Convert a git-style relative date string ("7 days ago", "1 month ago")
+// to ISO-8601 (YYYY-MM-DD), which is what `gh issue list --search` and
+// `gh pr list --search` accept in `closed:>=` / `merged:>=` qualifiers.
+// Returns "" on failure; callers should fall back gracefully.
+fn relative_to_iso(rel: str) to str {
+    let res_opt = process.run("date", ["-d", rel, "+%Y-%m-%d"])
+    if res_opt is null {
+        return ""
+    }
+    let res = res_opt.unwrap()
+    if res.code != 0 {
+        return ""
+    }
+    let s = res.stdout.replace("\n", "")
+    return s.replace("\r", "")
+}
+
 fn main() {
     let since_opt = env.get("RAW_NERVE_SINCE")
     let mut since = "7 days ago"
@@ -56,11 +73,19 @@ fn main() {
         since = since_opt.unwrap()
     }
 
-    print("collecting repository signals (--since " + since + ")...")
+    // git log accepts the relative form directly; gh issue/pr search
+    // requires an ISO date in `closed:>=` / `merged:>=` qualifiers.
+    let since_iso = relative_to_iso(since)
+
+    print("collecting repository signals (--since " + since + " / " + since_iso + ")...")
 
     let commits = capture("git", ["log", "--since=" + since, "--oneline", "--no-merges"])
-    let closed = capture("gh", ["issue", "list", "--state", "closed", "--search", "closed:>=" + since, "--limit", "20"])
-    let merged = capture("gh", ["pr", "list", "--state", "merged", "--search", "merged:>=" + since, "--limit", "20"])
+    let mut closed = ""
+    let mut merged = ""
+    if since_iso isnt "" {
+        closed = capture("gh", ["issue", "list", "--state", "closed", "--search", "closed:>=" + since_iso, "--limit", "20"])
+        merged = capture("gh", ["pr", "list", "--state", "merged", "--search", "merged:>=" + since_iso, "--limit", "20"])
+    }
     let docs = capture("git", ["log", "--since=" + since, "--name-only", "--pretty=format:", "--", "docs/"])
 
     if commits is "" {

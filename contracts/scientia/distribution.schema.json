@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox/contracts/scientia/distribution.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/distribution.schema.json",
   "title": "ScientiaDistribution",
   "description": "Syndication intent for Scientia items. Runtime: embed this object under the `syndication` key in publication `metadata_json`, or under `syndication` in markdown/DB-derived metadata. Keys match `SyndicationConfig` in `vox-publisher` (not the legacy `scientia_distribution` root name).",
   "type": "object",
