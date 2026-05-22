@@ -196,7 +196,7 @@ build-docs:
   extends: .base
   stage: docs
   variables:
-    MDBOOK_SITEMAP_DOMAIN: "https://vox-lang.org/"
+    MDBOOK_SITEMAP_DOMAIN: "https://voxlang.org/"
   script:
     # Match .github/workflows/docs-deploy.yml (peaceiris/actions-mdbook mdbook-version).
     - cargo install mdbook --version 0.4.40 --locked

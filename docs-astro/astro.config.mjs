@@ -6,7 +6,7 @@ import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
 
 export default defineConfig({
-  site: 'https://vox-lang.org/',
+  site: 'https://voxlang.org/',
   integrations: [
     starlight({
       title: 'Vox: The AI-Native Programming Language',

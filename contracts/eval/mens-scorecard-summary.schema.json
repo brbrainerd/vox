@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/eval/mens-scorecard-summary.schema.json",
+  "$id": "https://voxlang.org/schemas/eval/mens-scorecard-summary.schema.json",
   "title": "Mens scorecard summary artifact",
   "type": "object",
   "additionalProperties": false,
@@ -52,7 +52,7 @@
         },
         "mens_scorecard_event_schema_id": {
           "type": "string",
-          "const": "https://vox-lang.org/schemas/eval/mens-scorecard-event.schema.json"
+          "const": "https://voxlang.org/schemas/eval/mens-scorecard-event.schema.json"
         }
       }
     },

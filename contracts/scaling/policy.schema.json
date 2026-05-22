@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/scaling-policy.schema.json",
+  "$id": "https://voxlang.org/schemas/scaling-policy.schema.json",
   "title": "Vox scaling policy",
   "type": "object",
   "required": ["schema_version"],

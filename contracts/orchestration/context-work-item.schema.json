@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/orchestration/context-work-item.schema.json",
+  "$id": "https://voxlang.org/contracts/orchestration/context-work-item.schema.json",
   "title": "ContextProgramWorkItem",
   "description": "Work-item schema for context-management epics, capabilities, and tasks.",
   "type": "object",

@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/scientia/novelty-evidence-bundle.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/novelty-evidence-bundle.v1.schema.json",
   "title": "SCIENTIA novelty evidence bundle v1",
   "description": "Normalized prior-art / overlap snapshot from federated sources (OpenAlex, Crossref, Semantic Scholar, …) with deterministic digests for audit.",
   "type": "object",

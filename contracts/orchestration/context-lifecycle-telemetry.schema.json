@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/orchestration/context-lifecycle-telemetry.schema.json",
+  "$id": "https://voxlang.org/contracts/orchestration/context-lifecycle-telemetry.schema.json",
   "title": "Context lifecycle tracing (orchestrator)",
   "description": "Stable field names for structured logs emitted when VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW is on. Target is tracing target vox_orchestrator::context_lifecycle. Serializers may add fields; pipelines should tolerate unknown keys.",
   "oneOf": [

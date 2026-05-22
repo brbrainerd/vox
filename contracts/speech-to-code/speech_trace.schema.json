@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/speech-to-code/speech_trace.schema.json",
+  "$id": "https://voxlang.org/schemas/speech-to-code/speech_trace.schema.json",
   "title": "SpeechToCodeTrace",
   "type": "object",
   "required": ["schema_version", "session_id", "refined_transcript"],

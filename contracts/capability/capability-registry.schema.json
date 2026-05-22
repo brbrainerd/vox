@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/capability-registry.schema.json",
+  "$id": "https://voxlang.org/schemas/capability-registry.schema.json",
   "title": "Vox transport-independent capability registry",
   "type": "object",
   "additionalProperties": false,

@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/scientia/finding-candidate.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/finding-candidate.v1.schema.json",
   "title": "SCIENTIA finding candidate ledger record v1",
   "description": "Canonical candidate from internal signals through novelty evidence to worthiness decision traces. internal_signals align with discovery-signal.schema.json (validated separately or embedded here).",
   "type": "object",

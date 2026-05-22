@@ -16,7 +16,7 @@
 //!    `VOX_NEWS_TWITTER_TRUNCATION_SUFFIX` in [`crate::PublisherConfig::from_operator_environment`].
 
 /// Default public site base (GitHub Pages) for generated links and RSS.
-pub const DEFAULT_SITE_BASE_URL: &str = "https://vox-lang.org";
+pub const DEFAULT_SITE_BASE_URL: &str = "https://voxlang.org";
 
 /// Default path to RSS feed relative to repository root.
 pub const DEFAULT_RSS_FEED_PATH: &str = "docs/src/feed.xml";

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/mcp/tool-registry.schema.json",
+  "$id": "https://voxlang.org/schemas/mcp/tool-registry.schema.json",
   "title": "MCP canonical tool registry",
   "type": "object",
   "additionalProperties": false,

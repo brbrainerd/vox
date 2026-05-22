@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/tool_trace_record.json",
+  "$id": "https://voxlang.org/schemas/tool_trace_record.json",
   "title": "Tool trace row for corpus mix (record_format: tool_trace)",
   "description": "Matches vox-corpus ToolTraceRecord. Mix normalizes to prompt/response TrainingPair JSON with category tool_trace.",
   "type": "object",

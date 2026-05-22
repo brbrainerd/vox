@@ -26,7 +26,7 @@ pub enum CoolifyEvalCmd {
         /// After PATCH, call `GET /api/v1/deploy?uuid=…`.
         #[arg(long, default_value_t = true)]
         deploy: bool,
-        /// Coolify `domains` field (e.g. `https://eval.vox-lang.org`). Omit to leave unchanged.
+        /// Coolify `domains` field (e.g. `https://eval.voxlang.org`). Omit to leave unchanged.
         #[arg(long)]
         domains: Option<String>,
     },

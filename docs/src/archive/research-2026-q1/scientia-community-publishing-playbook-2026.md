@@ -335,10 +335,10 @@ archived_date: 2026-04-18
 
 **File:** [`crates/vox-publisher/src/contract.rs`](../../../crates/vox-publisher/src/contract.rs)
 
-**Problem:** `templates.rs` references `DEFAULT_SITE_BASE_URL` from `contract.rs`. If this constant is `"https://vox-lang.org"` it is correct (matching the repo-wide domain policy). If it contains `"https://voxlang.org"` (the incorrect domain), all syndicated content will contain broken canonical links. Additionally, `DEFAULT_GITHUB_REPO` must be `"vox-foundation/vox"` and `DEFAULT_OPENCOLLECTIVE_SLUG` must match the actual collective slug (which hasn't been publicly established yet).
+**Problem:** `templates.rs` references `DEFAULT_SITE_BASE_URL` from `contract.rs`. If this constant is `"https://voxlang.org"` it is correct (matching the repo-wide domain policy). If it contains `"https://voxlang.org"` (the incorrect domain), all syndicated content will contain broken canonical links. Additionally, `DEFAULT_GITHUB_REPO` must be `"vox-foundation/vox"` and `DEFAULT_OPENCOLLECTIVE_SLUG` must match the actual collective slug (which hasn't been publicly established yet).
 
 **Action required:** Read `contract.rs` and verify these three constants against:
-1. The codebase-enforced `vox-lang.org` domain
+1. The codebase-enforced `voxlang.org` domain
 2. The actual GitHub repository path
 3. The actual Open Collective slug (placeholder is acceptable until launch, but must be flagged)
 
@@ -580,7 +580,7 @@ Use this as a task checklist. Items are grouped by dependency — complete each 
 ### Wave 0 — Audit & Foundation (no code changes — verify first)
 - [ ] Read `crates/vox-forge/src/github.rs` — verify `create_discussion_or_issue` creates Discussions not Issues (PROBLEM-10)
 - [ ] Read `crates/vox-clavis/src/lib.rs` — enumerate all existing social secret IDs (PROBLEM-11)
-- [ ] Read `crates/vox-publisher/src/contract.rs` — verify `DEFAULT_SITE_BASE_URL = "https://vox-lang.org"` (PROBLEM-13)
+- [ ] Read `crates/vox-publisher/src/contract.rs` — verify `DEFAULT_SITE_BASE_URL = "https://voxlang.org"` (PROBLEM-13)
 - [ ] Read `crates/vox-publisher/src/distribution_compile.rs` or `switching.rs` — map all 12 adapter dispatch paths (PROBLEM-14)
 - [ ] Read `crates/vox-publisher/src/adapters/hacker_news.rs` — verify what ManualAssist output looks like now (PROBLEM-20)
 

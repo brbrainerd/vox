@@ -34,18 +34,18 @@ services:
       - VOX_MCP_HTTP_BEARER_TOKEN=${VOX_MCP_HTTP_BEARER_TOKEN}
     ports:
       # Only expose to Traefik, not to the public directly.
-      # Coolify will route eval.vox-lang.org → container port 3921
+      # Coolify will route eval.voxlang.org → container port 3921
       - "3921"
     labels:
       # Coolify / Traefik routing labels
       - "traefik.enable=true"
       # HTTPS Router
-      - "traefik.http.routers.vox-eval.rule=Host(`eval.vox-lang.org`)"
+      - "traefik.http.routers.vox-eval.rule=Host(`eval.voxlang.org`)"
       - "traefik.http.routers.vox-eval.entrypoints=https"
       - "traefik.http.routers.vox-eval.tls=true"
       - "traefik.http.routers.vox-eval.tls.certresolver=letsencrypt"
       # HTTP Router (for redirect)
-      - "traefik.http.routers.vox-eval-http.rule=Host(`eval.vox-lang.org`)"
+      - "traefik.http.routers.vox-eval-http.rule=Host(`eval.voxlang.org`)"
       - "traefik.http.routers.vox-eval-http.entrypoints=http"
       - "traefik.http.routers.vox-eval-http.middlewares=redirect-to-https"
       # Global redirect middleware (assumed to exist in Coolify's Traefik, otherwise we define it)
@@ -53,7 +53,7 @@ services:
 
       - "traefik.http.services.vox-eval.loadbalancer.server.port=3921"
       # CORS for GitHub Pages
-      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolalloworiginlist=https://vox-lang.github.io,https://vox-lang.org,http://localhost:4321"
+      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolalloworiginlist=https://vox-lang.github.io,https://voxlang.org,http://localhost:4321"
       - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolallowmethods=POST,OPTIONS"
       - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.routers.vox-eval.middlewares=vox-eval-cors"

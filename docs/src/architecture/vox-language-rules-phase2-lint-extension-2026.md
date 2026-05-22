@@ -235,7 +235,7 @@ Composite([
         { "kind": "replace", "new_text": "populi.stream(...)" },
         { "kind": "replace", "new_text": "populi.embed(...)" }
       ],
-      "explain_url": "https://vox-lang.org/diag/vox/llm/direct-provider-call"
+      "explain_url": "https://voxlang.org/diag/vox/llm/direct-provider-call"
     }
   ]
 }
@@ -261,7 +261,7 @@ $ vox check --explain vox/llm/direct-provider-call
 
 vox/llm/direct-provider-call (error, since 0.6.0)
 ADR: TBD-llm-call-discipline
-URL: https://vox-lang.org/diag/vox/llm/direct-provider-call
+URL: https://voxlang.org/diag/vox/llm/direct-provider-call
 
 Why this rule exists
 --------------------

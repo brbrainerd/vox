@@ -1,6 +1,6 @@
 //! Verify `contracts/eval/benchmark-matrix.json` against
 //! `contracts/eval/benchmark-matrix.schema.json` (JSON Schema `$id`:
-//! `https://vox-lang.org/schemas/eval/benchmark-matrix.schema.json`; M5 / WS11–WS12).
+//! `https://voxlang.org/schemas/eval/benchmark-matrix.schema.json`; M5 / WS11–WS12).
 //!
 //! [`run_executions`] maps each `benchmark_classes` entry to a concrete `cargo` invocation.
 //! [`BENCHMARK_CLASS_IDS`] must match the schema `enum` for `benchmark_classes.items` and

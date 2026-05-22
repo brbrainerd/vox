@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/communication/context-envelope.schema.json",
+  "$id": "https://voxlang.org/contracts/communication/context-envelope.schema.json",
   "title": "ContextEnvelope",
   "description": "Canonical context payload envelope for MCP, orchestrator, search, and Populi handoff surfaces.",
   "type": "object",

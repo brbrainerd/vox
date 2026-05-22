@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/orchestration/agent-harness.schema.json",
+  "$id": "https://voxlang.org/contracts/orchestration/agent-harness.schema.json",
   "title": "AgentHarnessSpec",
   "description": "Portable contract-first natural-language agent harness representation for Vox orchestration, MCP handoff, and remote relay surfaces.",
   "type": "object",

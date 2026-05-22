@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/orchestration/vox-generate-code-file-outcomes.schema.json",
+  "$id": "https://voxlang.org/contracts/orchestration/vox-generate-code-file-outcomes.schema.json",
   "title": "VoxGenerateCodeFileOutcomes",
   "description": "Optional `meta.file_outcomes` on successful `vox_generate_code` ToolResult when `output_path` is set.",
   "type": "object",

@@ -116,7 +116,7 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
 
       if (editor) editor.value = initialCode;
       
-      const evalUrl = import.meta.env?.PUBLIC_VOX_EVAL_ENDPOINT || localStorage.getItem("VOX_EVAL_ENDPOINT") || "https://eval.vox-lang.org/v1/eval";
+      const evalUrl = import.meta.env?.PUBLIC_VOX_EVAL_ENDPOINT || localStorage.getItem("VOX_EVAL_ENDPOINT") || "https://eval.voxlang.org/v1/eval";
       const healthUrl = evalUrl.replace("/v1/eval", "/health");
 
       // Auto-detect backend health on mount

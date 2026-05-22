@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/communication/interruption-decision.schema.json",
+  "$id": "https://voxlang.org/contracts/communication/interruption-decision.schema.json",
   "title": "InterruptionDecisionEnvelope",
   "type": "object",
   "additionalProperties": false,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/orchestration/orch-daemon-rpc-methods.schema.json",
+  "$id": "https://voxlang.org/schemas/orchestration/orch-daemon-rpc-methods.schema.json",
   "title": "Vox orchestrator daemon JSON-line dispatch request",
   "description": "One JSON object per line on stdin/stdout or TCP (`id`, `method`, `params`) for `vox-orchestrator-d` (`orch.*`). Separate from DeI `ai.*` contracts.",
   "type": "object",

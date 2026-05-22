@@ -4,33 +4,33 @@
 > One .vox file compiles to a database schema, a type-safe server, and a live browser UI.
 
 ## Agent Policy Entry Points
-- [AGENTS.md](https://vox-lang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
-- [GEMINI.md](https://vox-lang.org/GEMINI.md): Antigravity-specific overlay for this repo
-- [CLAUDE.md](https://vox-lang.org/CLAUDE.md): Claude Code overlay
+- [AGENTS.md](https://voxlang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
+- [GEMINI.md](https://voxlang.org/GEMINI.md): Antigravity-specific overlay for this repo
+- [CLAUDE.md](https://voxlang.org/CLAUDE.md): Claude Code overlay
 
 ## Core Documentation
-- [Getting Started](https://vox-lang.org/tutorials/tut-getting-started/)
-- [Language Syntax Reference](https://vox-lang.org/reference/ref-syntax/)
-- [Decorators Reference](https://vox-lang.org/reference/ref-decorators/)
-- [Type System Reference](https://vox-lang.org/reference/ref-type-system/)
-- [Standard Library](https://vox-lang.org/reference/ref-stdlib/)
-- [CLI Reference](https://vox-lang.org/reference/cli/)
-- [Environment Variables SSOT](https://vox-lang.org/reference/env-vars/)
-- [Secrets (Secret Management)](https://vox-lang.org/reference/secrets-ssot/)
-- [MCP Tool Reference](https://vox-lang.org/reference/mcp-tool-reference/)
+- [Getting Started](https://voxlang.org/tutorials/tut-getting-started/)
+- [Language Syntax Reference](https://voxlang.org/reference/ref-syntax/)
+- [Decorators Reference](https://voxlang.org/reference/ref-decorators/)
+- [Type System Reference](https://voxlang.org/reference/ref-type-system/)
+- [Standard Library](https://voxlang.org/reference/ref-stdlib/)
+- [CLI Reference](https://voxlang.org/reference/cli/)
+- [Environment Variables SSOT](https://voxlang.org/reference/env-vars/)
+- [Secrets (Secret Management)](https://voxlang.org/reference/secrets-ssot/)
+- [MCP Tool Reference](https://voxlang.org/reference/mcp-tool-reference/)
 
 ## Architecture Authority
-- [Architecture Index](https://vox-lang.org/architecture/architecture-index/)
-- [Research Index](https://vox-lang.org/architecture/research-index/)
-- [Classification SSOT](https://vox-lang.org/architecture/classification-ssot-2026/)
-- [Cryptography SSOT](https://vox-lang.org/architecture/cryptography-ssot-2026/)
-- [Telemetry Trust SSOT](https://vox-lang.org/architecture/telemetry-trust-ssot/)
+- [Architecture Index](https://voxlang.org/architecture/architecture-index/)
+- [Research Index](https://voxlang.org/architecture/research-index/)
+- [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/)
+- [Cryptography SSOT](https://voxlang.org/architecture/cryptography-ssot-2026/)
+- [Telemetry Trust SSOT](https://voxlang.org/architecture/telemetry-trust-ssot/)
 
 ## Contributor Hub
-- [Contributor Hub](https://vox-lang.org/contributors/contributor-hub/)
-- [Documentation Governance](https://vox-lang.org/contributors/documentation-governance/)
-- [Agent Instruction Architecture](https://vox-lang.org/contributors/agent-instruction-architecture/)
-- [Continuation Prompt Engineering](https://vox-lang.org/contributors/continuation-prompt-engineering/)
+- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/)
+- [Documentation Governance](https://voxlang.org/contributors/documentation-governance/)
+- [Agent Instruction Architecture](https://voxlang.org/contributors/agent-instruction-architecture/)
+- [Continuation Prompt Engineering](https://voxlang.org/contributors/continuation-prompt-engineering/)
 
 ## Retired Surfaces (Do Not Use)
 The following symbols are retired and must NOT be used in generated code:

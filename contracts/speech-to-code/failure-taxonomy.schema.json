@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/speech-to-code/failure-taxonomy.schema.json",
+  "$id": "https://voxlang.org/schemas/speech-to-code/failure-taxonomy.schema.json",
   "title": "SpeechToCodeFailureCategory",
   "type": "string",
   "enum": [

@@ -51,7 +51,7 @@ pub(super) fn crossref_from_secrets() -> Result<CrossrefDepositAdapter, Scholarl
     let login_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScientiaCrossrefMailto)
         .expose()
         .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "scientia@vox-lang.org".to_string());
+        .unwrap_or_else(|| "scientia@voxlang.org".to_string());
     Ok(CrossrefDepositAdapter::new(
         CROSSREF_DEPOSIT_URL.to_string(),
         login_id,
@@ -100,7 +100,7 @@ pub fn build_crossref_deposit_xml(doi: &str, title: &str, author: &str, date: &s
 </doi_batch>"#,
         batch_id = batch_id,
         ts = date.replace('-', ""),
-        author_email = "scientia@vox-lang.org",
+        author_email = "scientia@voxlang.org",
         surname = xml_escape(author),
         title = xml_escape(title),
         doi = xml_escape(doi),

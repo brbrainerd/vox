@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/asr_refine_pairs.json",
+  "$id": "https://voxlang.org/schemas/asr_refine_pairs.json",
   "title": "ASR refinement pair (noisy transcript → corrected)",
   "type": "object",
   "required": ["noisy_text", "corrected_text"],

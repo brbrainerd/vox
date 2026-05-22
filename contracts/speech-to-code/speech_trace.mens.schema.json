@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/speech-to-code/speech_trace.mens.schema.json",
+  "$id": "https://voxlang.org/schemas/speech-to-code/speech_trace.mens.schema.json",
   "title": "SpeechToCodeMensTrainingTrace",
   "description": "MENS / corpus export: base speech telemetry trace plus required vox_code for supervised speech-to-code rows.",
   "type": "object",

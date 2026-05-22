@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vox-lang.org/contracts/telemetry/completion-detector-snapshot.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/telemetry/completion-detector-snapshot.v1.schema.json",
   "title": "per-detector rollup snapshot v1",
   "type": "object",
   "required": ["detector_id", "tier", "finding_count"],

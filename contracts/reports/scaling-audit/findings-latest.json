@@ -17688,7 +17688,7 @@
   },
   {
     "column": 0,
-    "context": "   1 | //! Verify `contracts/eval/benchmark-matrix.json` against\n   2 | //! `contracts/eval/benchmark-matrix.schema.json` (JSON Schema `$id`:\n   3 | //! `https://vox-lang.org/schemas/eval/benchmark-matrix.schema.json`; M5 / WS11–WS12).",
+    "context": "   1 | //! Verify `contracts/eval/benchmark-matrix.json` against\n   2 | //! `contracts/eval/benchmark-matrix.schema.json` (JSON Schema `$id`:\n   3 | //! `https://voxlang.org/schemas/eval/benchmark-matrix.schema.json`; M5 / WS11–WS12).",
     "file": "crates\\vox-cli\\src\\commands\\ci\\eval_matrix.rs",
     "line": 1,
     "message": "File is growing large (394 non-blank lines / Soft Limit >300).",

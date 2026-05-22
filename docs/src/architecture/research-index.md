@@ -101,7 +101,7 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md) — Ticket-sized work items (M-00 through M-78) across six phases, with owners, blockers, and acceptance criteria; cross-indexed to SSOT findings.
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md) — Concrete `vox ci data-storage-guard` subcommand, clippy denies, `deny.toml` bans, grep rules, Cursor rule, and CI wiring that enforce the SSOT.
 - [Coolify Deployment Contract](../ci/deploy-contract.md) — Automated CI/CD pipeline definition for the Hetzner VPS including LLM auto-healing loops.
-- [Eval sandbox deployment (Coolify)](eval-sandbox-deployment.md) — `eval.vox-lang.org` MCP HTTP gateway: GHCR image, compose SSOT, DNS, **`vox ci coolify-eval`**, Gate 3 alignment.
+- [Eval sandbox deployment (Coolify)](eval-sandbox-deployment.md) — `eval.voxlang.org` MCP HTTP gateway: GHCR image, compose SSOT, DNS, **`vox ci coolify-eval`**, Gate 3 alignment.
 
 ## Documentation Platform
 

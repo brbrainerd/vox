@@ -54,7 +54,7 @@ The `_redirects` file also contains:
 
 This wildcard pattern **cannot** be served with static stubs — there is no finite set of files that covers an arbitrary suffix. If `/book/` traffic materialises (e.g. from cached CDN links to an old mdBook deployment), the options are:
 
-1. **Cloudflare proxy + Page Rule / Transform Rule** — add a bulk redirect in the Cloudflare dashboard if `vox-lang.org` DNS is proxied through Cloudflare.
+1. **Cloudflare proxy + Page Rule / Transform Rule** — add a bulk redirect in the Cloudflare dashboard if `voxlang.org` DNS is proxied through Cloudflare.
 2. **Cloudflare Worker** — a small Worker script can intercept requests matching `/book/*` and issue a 301 to the path with the prefix stripped.
 3. **Accept the 404** — if `/book/` links are not meaningfully indexed or linked, the cost of the broken redirect is low.
 

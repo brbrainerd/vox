@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vox-lang.org/contracts/telemetry/completion-finding.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/telemetry/completion-finding.v1.schema.json",
   "title": "completion finding v1",
   "type": "object",
   "required": ["detector_id", "tier", "message", "fingerprint"],

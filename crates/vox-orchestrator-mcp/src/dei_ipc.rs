@@ -2,7 +2,7 @@
 //! Logical docs name: `vox-dei-d`.
 //!
 //! Wire shape `{ id, method, params }` is [`vox_protocol::DispatchRequest`] (same as CLI dispatch); validates against
-//! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
+//! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://voxlang.org/schemas/dei/rpc-methods.schema.json`).
 //! No `vox-cli` dependency — types come from `vox-protocol` only.
 
 use serde_json::Value;

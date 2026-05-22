@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vox-lang.org/schemas/ir/vox-ir.v1.schema.json",
+  "$id": "https://voxlang.org/schemas/ir/vox-ir.v1.schema.json",
   "title": "Vox Intermediate Representation (VoxIrModule)",
   "description": "Mirror of docs/src/reference/vox-ir.schema.json — keep both files in sync. Structural contract for `lower_hir_to_vox_ir` / `vox check --emit-ir` JSON.",
   "type": "object",

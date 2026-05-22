@@ -1,6 +1,6 @@
 ---
 title: "Eval sandbox deployment (Coolify)"
-description: "Public MCP HTTP eval gateway at eval.vox-lang.org — image, compose, DNS, Coolify API sync."
+description: "Public MCP HTTP eval gateway at eval.voxlang.org — image, compose, DNS, Coolify API sync."
 category: "architecture"
 status: "current"
 training_eligible: true
@@ -13,7 +13,7 @@ related:
 
 # Eval sandbox deployment (Coolify)
 
-The **eval sandbox** is a minimal **`vox mcp`** HTTP gateway that exposes **`/v1/eval`** for the static docs playground. It does **not** mount a workspace or provider keys. Production URL: **`https://eval.vox-lang.org`**. The documentation site (**`https://vox-lang.org`**) is separate (GitHub Pages / mdBook), not this stack.
+The **eval sandbox** is a minimal **`vox mcp`** HTTP gateway that exposes **`/v1/eval`** for the static docs playground. It does **not** mount a workspace or provider keys. Production URL: **`https://eval.voxlang.org`**. The documentation site (**`https://voxlang.org`**) is separate (GitHub Pages / mdBook), not this stack.
 
 ## Compose and container image
 
@@ -24,12 +24,12 @@ The **eval sandbox** is a minimal **`vox mcp`** HTTP gateway that exposes **`/v1
 
 ## DNS (outside Coolify)
 
-Point **`eval.vox-lang.org`** to the same edge IP (or CNAME) where Coolify’s Traefik terminates TLS for your VPS. Coolify cannot create this record; configure it at your DNS provider (for example Cloudflare or your registrar). Confirm with **`dig`** / **`nslookup`** before debugging TLS.
+Point **`eval.voxlang.org`** to the same edge IP (or CNAME) where Coolify’s Traefik terminates TLS for your VPS. Coolify cannot create this record; configure it at your DNS provider (for example Cloudflare or your registrar). Confirm with **`dig`** / **`nslookup`** before debugging TLS.
 
 ## Coolify configuration
 
 1. Create or select a **Docker Compose** application in Coolify.
-2. Set **FQDN / domains** to **`https://eval.vox-lang.org`** (or equivalent field for your Coolify version).
+2. Set **FQDN / domains** to **`https://eval.voxlang.org`** (or equivalent field for your Coolify version).
 3. Inject **`VOX_MCP_HTTP_BEARER_TOKEN`** (and any other env vars from compose) via Coolify **project/environment secrets**.
 4. If the GHCR package is private, configure registry credentials in Coolify so **`pull_policy: always`** can fetch **`ghcr.io/vox-foundation/vox-eval`**.
 5. Align Traefik / TLS with Coolify’s documented certificate workflow. Raw Compose labels use **`tls.certresolver=letsencrypt`**; your Coolify install may prefer UI-managed certs—avoid duplicate conflicting resolvers.
@@ -56,10 +56,10 @@ vox ci coolify-eval discover
 ```bash
 vox ci coolify-eval sync-compose \
   --compose vox-eval.compose.yml \
-  --domains https://eval.vox-lang.org
+  --domains https://eval.voxlang.org
 ```
 
-Verify **`COOLIFY_APP_UUID`** matches the eval compose application (**`vox ci coolify-eval discover`** prints **`uuid`** and **`fqdn`**). **`deploy-hetzner.yml`** Gate 3 assumes this UUID backs **`https://eval.vox-lang.org/health`** unless **`COOLIFY_PUBLIC_EVAL_HEALTH_URL`** overrides it.
+Verify **`COOLIFY_APP_UUID`** matches the eval compose application (**`vox ci coolify-eval discover`** prints **`uuid`** and **`fqdn`**). **`deploy-hetzner.yml`** Gate 3 assumes this UUID backs **`https://eval.voxlang.org/health`** unless **`COOLIFY_PUBLIC_EVAL_HEALTH_URL`** overrides it.
 
 ### GitHub Actions
 
@@ -69,7 +69,7 @@ Manual **[`.github/workflows/coolify-eval-sync.yml`](../../../.github/workflows/
 
 ## Recovery loop (everything except Cloudflare)
 
-Use this **repeat-until-green** procedure when **`curl -fsS https://eval.vox-lang.org/health`** fails (TLS errors, **503** **`no available server`**, etc.). Symptom → cause mapping: **[deploy-contract Gate 3 cheatsheet](../ci/deploy-contract.md)**.
+Use this **repeat-until-green** procedure when **`curl -fsS https://eval.voxlang.org/health`** fails (TLS errors, **503** **`no available server`**, etc.). Symptom → cause mapping: **[deploy-contract Gate 3 cheatsheet](../ci/deploy-contract.md)**.
 
 ### Step 1 — Identity (`COOLIFY_APP_UUID` vs eval app)
 
@@ -79,7 +79,7 @@ Use this **repeat-until-green** procedure when **`curl -fsS https://eval.vox-lan
 vox ci coolify-eval discover
 ```
 
-Confirm exactly one application is the eval stack: **`docker_compose_raw`** is present (compose app), **`fqdn`** / name matches **`eval.vox-lang.org`**. Align GitHub repository secret **`COOLIFY_APP_UUID`** with that row’s **`uuid`** so **`deploy-hetzner.yml`** Gate 3 targets the correct resource.
+Confirm exactly one application is the eval stack: **`docker_compose_raw`** is present (compose app), **`fqdn`** / name matches **`eval.voxlang.org`**. Align GitHub repository secret **`COOLIFY_APP_UUID`** with that row’s **`uuid`** so **`deploy-hetzner.yml`** Gate 3 targets the correct resource.
 
 ### Step 2 — Compose sync and secrets (Coolify + GHCR)
 
@@ -88,7 +88,7 @@ Push SSOT compose from this repo (writes Coolify application state; requires wri
 ```bash
 vox ci coolify-eval sync-compose \
   --compose vox-eval.compose.yml \
-  --domains https://eval.vox-lang.org
+  --domains https://eval.voxlang.org
 ```
 
 Or run **[`.github/workflows/coolify-eval-sync.yml`](../../../.github/workflows/coolify-eval-sync.yml)** with **`sync_compose: true`**.
@@ -97,7 +97,7 @@ In Coolify, set **`VOX_MCP_HTTP_BEARER_TOKEN`** and any other env vars reference
 
 ### Step 3 — TLS and Traefik router
 
-Choose **one** TLS strategy: Coolify UI **FQDN / Generate TLS certificates** for **`eval.vox-lang.org`**, **or** Traefik **`tls.certresolver=letsencrypt`** in labels — avoid duplicate conflicting resolvers (see §Coolify configuration above). Confirm the Traefik **`Host`** rule matches **`eval.vox-lang.org`** (same as [`vox-eval.compose.yml`](../../../vox-eval.compose.yml)). For HTTP-01 ACME, port **80** must reach Traefik on the origin.
+Choose **one** TLS strategy: Coolify UI **FQDN / Generate TLS certificates** for **`eval.voxlang.org`**, **or** Traefik **`tls.certresolver=letsencrypt`** in labels — avoid duplicate conflicting resolvers (see §Coolify configuration above). Confirm the Traefik **`Host`** rule matches **`eval.voxlang.org`** (same as [`vox-eval.compose.yml`](../../../vox-eval.compose.yml)). For HTTP-01 ACME, port **80** must reach Traefik on the origin.
 
 ### Step 4 — Backend (**503**)
 
@@ -109,11 +109,11 @@ After the public URL is green, push **`main`** or run **Deploy Hetzner (Coolify)
 
 ### Cloudflare (operator-only; not automated here)
 
-Do this at your DNS provider when **`eval.vox-lang.org`** uses Cloudflare:
+Do this at your DNS provider when **`eval.voxlang.org`** uses Cloudflare:
 
-1. **DNS:** **`eval`** → **`A`** / **`AAAA`** (or **`CNAME`**) to the **Coolify/VPS** public target Cloudflare documents for your setup. Confirm with **`dig eval.vox-lang.org`**.
+1. **DNS:** **`eval`** → **`A`** / **`AAAA`** (or **`CNAME`**) to the **Coolify/VPS** public target Cloudflare documents for your setup. Confirm with **`dig eval.voxlang.org`**.
 2. **Proxy:** **DNS only (grey)** simplifies origin TLS/Let’s Encrypt while debugging. **Proxied (orange)** visitors see Cloudflare’s certificate; set **SSL/TLS** to **Full** or **Full (strict)** when the origin presents a valid cert. Avoid **Flexible** if you rely on **`VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS=1`** (see compose).
-3. **ACME:** For HTTP-01, ensure **`http://eval.vox-lang.org/.well-known/acme-challenge/`** is not blocked by rules. Prefer **DNS-01** in Coolify if HTTP-01 is impractical; that may require a Cloudflare **API token** (**DNS:Edit**) configured **in Coolify**, not in this repository.
+3. **ACME:** For HTTP-01, ensure **`http://eval.voxlang.org/.well-known/acme-challenge/`** is not blocked by rules. Prefer **DNS-01** in Coolify if HTTP-01 is impractical; that may require a Cloudflare **API token** (**DNS:Edit**) configured **in Coolify**, not in this repository.
 4. **Wrong origin:** Ensure **`eval`** is not a **CNAME** to GitHub Pages or another unrelated host.
 
 ## Verification
@@ -121,7 +121,7 @@ Do this at your DNS provider when **`eval.vox-lang.org`** uses Cloudflare:
 **Loop exit:** from a machine with a normal CA store (no **`-k`**):
 
 ```bash
-curl -fsS https://eval.vox-lang.org/health
+curl -fsS https://eval.voxlang.org/health
 ```
 
 Expect **HTTP 200**. Repeat until success after each Coolify/DNS change.
@@ -130,7 +130,7 @@ Expect **HTTP 200**. Repeat until success after each Coolify/DNS change.
 
 ```powershell
 while ($true) {
-  curl.exe -fsS "https://eval.vox-lang.org/health" 2>$null
+  curl.exe -fsS "https://eval.voxlang.org/health" 2>$null
   if ($LASTEXITCODE -eq 0) { break }
   Start-Sleep -Seconds 3
 }
@@ -139,5 +139,5 @@ while ($true) {
 **Periodic check (bash):**
 
 ```bash
-until curl -fsS https://eval.vox-lang.org/health; do sleep 3; done
+until curl -fsS https://eval.voxlang.org/health; do sleep 3; done
 ```

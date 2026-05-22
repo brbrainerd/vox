@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/contracts-index.schema.json",
+  "$id": "https://voxlang.org/schemas/contracts-index.schema.json",
   "title": "Vox contracts index",
   "type": "object",
   "required": ["schema_version", "contracts"],

@@ -114,9 +114,9 @@ pub(crate) fn check_root_readme_cli_drift(readme: &str) -> Result<()> {
         }
     }
 
-    if !readme.contains("https://vox-lang.org") {
+    if !readme.contains("https://voxlang.org") {
         return Err(anyhow!(
-            "README.md must link to the canonical domain https://vox-lang.org"
+            "README.md must link to the canonical domain https://voxlang.org"
         ));
     }
 

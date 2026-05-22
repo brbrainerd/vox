@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/dei/rpc-methods.schema.json",
+  "$id": "https://voxlang.org/schemas/dei/rpc-methods.schema.json",
   "title": "Vox Dei JSON-line dispatch request",
   "description": "One JSON object per line on stdin/stdout (`id`, `method`, `params`), matching `vox_cli::dispatch_protocol::DispatchRequest` and `vox_mcp::dei_ipc` wire shape. This contract currently covers plan/control RPC; retrieval trigger policy and memory search execution remain in MCP/orchestrator runtime surfaces.",
   "type": "object",
