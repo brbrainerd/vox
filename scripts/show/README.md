@@ -33,11 +33,32 @@ Future additions (built when needed, see [funding-campaign implementation plan](
 ## Conventions
 
 - Every script ≤ 500 LoC (TOESTUB-compliant)
-- Every script has a 1-line header comment describing what it does and what it depends on
-- Every script accepts `--dry-run` (when applicable) and prints what it would do without doing it
-- All LLM calls route through `vox-mens` or the unified provider routing — no hardcoded keys
-- All output drafts go under `~/raw-nerve/drafts/` or a `--out` flag
+- Every script has a header block describing what it does and what it depends on
+- All LLM calls go through `vox mens prompt --text "..."` — see note below
+- All output drafts go under `~/raw-nerve/drafts/` (recordings) or are written to a path passed via env var
 - Drafts: never auto-publish
+
+## Runtime prerequisite — install `vox-mens`
+
+The `mens` subsystem is an extracted crate; the main `vox` binary delegates to a separate `vox-mens` binary that must be installed once:
+
+```bash
+cargo install --path crates/vox-mens
+```
+
+After install, `vox mens prompt --text "..."` returns LLM output on stdout. The scripts here invoke that. If `vox-mens` is not installed, they fail at the LLM-call step with a clear error and print the prompt for manual use.
+
+If you prefer a different LLM CLI, change the `process.run("vox", ["mens", "prompt", ...])` line in each script to your preferred command.
+
+## Inputs are environment variables, not CLI args
+
+Following the convention in `scripts/ci/script-hygiene.vox`, scripts here read their inputs from environment variables rather than `argv`. This keeps them simple and side-steps the still-evolving `std.args` API.
+
+| Script | Required env | Optional env |
+|---|---|---|
+| `script.vox` | `RAW_NERVE_RECORDING_DIR` | `RAW_NERVE_CTA_TYPE`, `RAW_NERVE_OUT`, `RAW_NERVE_WHISPER_OUT` |
+| `topic-suggest.vox` | (none) | `RAW_NERVE_SINCE` (default `"7 days ago"`) |
+| `title-workshop.vox` | `RAW_NERVE_OUTLINE` | (none) |
 
 ## Why this exists
 
