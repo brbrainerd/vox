@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-05-22T00:30:25.449374900+00:00",
+  "total_lint_findings": 0,
+  "total_autofix_observations": 0,
+  "total_repair_sessions": 0,
+  "top_50_diagnostics": [],
+  "repair_outcomes": {
+    "success": 0,
+    "partial": 0,
+    "abandoned": 0,
+    "infra_error": 0,
+    "other": 0,
+    "total_sessions": 0
+  },
+  "by_repository": {}
+}
