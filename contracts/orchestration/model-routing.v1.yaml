@@ -1,5 +1,7 @@
 x-vox-version: 3
 schema_version: 3
+# CR-A4 lifecycle metadata declared via the nested `lifecycle:` block below
+# (`maturity` + `migration_window_days`), per honest-completion plan §5.8.
 
 # SSOT for quality-first routing, exploration, and outage fallback (overridable via Clavis).
 routing_objective:

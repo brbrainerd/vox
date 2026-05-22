@@ -1,5 +1,8 @@
 x-vox-version: 1
 schema_version: 1
+# CR-A4 lifecycle metadata (annotated 2026-05-21 per honest-completion
+# plan §5.8). Nested form (existing) — the CR-A4 sweep recognizes both
+# `lifecycle: <value>` and `lifecycle:\n  maturity: <value>` shapes.
 lifecycle:
   maturity: "experimental"
   migration_window_days: 90

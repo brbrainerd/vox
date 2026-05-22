@@ -1,3 +1,4 @@
+schema_version: 1
 # Default distribution contract used for documentation and tooling.
 # Runtime hydration: this content maps to the `syndication` object inside `metadata_json`, not a top-level `scientia_distribution` key in the DB row.
 channels:
