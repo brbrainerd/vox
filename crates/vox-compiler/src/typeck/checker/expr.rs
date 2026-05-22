@@ -177,9 +177,15 @@ impl<'a> Checker<'a> {
                             ast_node_kind: None,
                         });
                     }
-                    binding.ty.clone()
+                    // Instantiate polymorphic bindings (constructors like
+                    // `None`, generic builtins) so each reference site gets
+                    // fresh type variables in place of `GenericParam(N)`.
+                    // Standard HM-style let-polymorphism — required for
+                    // `let x: Option[Str] = None` and friends.
+                    let bty = binding.ty.clone();
+                    self.uf.instantiate(&bty)
                 } else if let Some(ty) = self.builtins.lookup_var(name) {
-                    ty
+                    self.uf.instantiate(&ty)
                 } else {
                     self.diags.push(Diagnostic::error(
                         format!("Undefined variable: {name}"),
@@ -310,6 +316,43 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Call(callee, args, _tail, span) => {
+                // B3: `subscribe(ActorName)` — look up the named actor's
+                // `on broadcast(...) to T` handler and return `Stream[T]`
+                // instead of the generic `Stream[str]`. Falls through to
+                // the regular Fn path when the call doesn't fit this shape
+                // (single-arg `subscribe` ident call with an ActorRef arg).
+                if let HirExpr::Ident(name, _) = callee.as_ref()
+                    && name == "subscribe"
+                    && args.len() == 1
+                {
+                    let arg_ty = self.check_expr(&args[0].value, None);
+                    let arg_ty = self.uf.resolve(&arg_ty);
+                    // Match both shapes:
+                    //   - `subscribe(spawn(Counter))` → arg is ActorRef
+                    //   - `subscribe(c)` with `c: Counter` → arg is Named("Counter")
+                    // Either resolves to the actor's broadcast return type.
+                    let actor_name = match &arg_ty {
+                        Ty::ActorRef(n) => Some(n.clone()),
+                        Ty::Named(n) if self.env.lookup_actor(n).is_some() => {
+                            Some(n.clone())
+                        }
+                        _ => None,
+                    };
+                    if let Some(actor_name) = actor_name {
+                        if let Some(handlers) = self.env.lookup_actor(&actor_name) {
+                            // Per-actor broadcast type: the return type of
+                            // the actor's `on broadcast(...)` handler. If
+                            // the actor doesn't declare one, fall back to
+                            // `Stream[str]` (the v1.0 default).
+                            let broadcast_ty = handlers
+                                .iter()
+                                .find(|h| h.event_name == "broadcast")
+                                .map(|h| h.return_type.clone())
+                                .unwrap_or(Ty::Str);
+                            return Ty::Stream(Box::new(broadcast_ty));
+                        }
+                    }
+                }
                 let raw_callee = self.check_expr(callee, None);
                 let callee_ty = self.uf.resolve(&raw_callee);
                 let callee_ty = self.uf.instantiate(&callee_ty);
@@ -330,121 +373,7 @@ impl<'a> Checker<'a> {
                 }
             }
             HirExpr::MethodCall(object, method, args, opt_plan, span) => {
-                if opt_plan.is_some() && matches!(method.as_str(), "limit" | "order_by") {
-                    self.diags.push(Diagnostic::error(
-                        format!(
-                            "db query chaining via '.{method}(...)' is not supported yet; use typed db.Table operations directly"
-                        ),
-                        *span,
-                        self.source,
-                    ));
-                    return Ty::Error;
-                }
-                let obj_ty = self.check_expr(object, None);
-                let obj_ty = self.uf.resolve(&obj_ty);
-                if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
-                    let bindings = match &obj_ty {
-                        Ty::List(inner)
-                        | Ty::Option(inner)
-                        | Ty::Stream(inner)
-                        | Ty::Set(inner) => {
-                            vec![inner.as_ref().clone()]
-                        }
-                        Ty::Result(ok, err) => vec![ok.as_ref().clone(), err.as_ref().clone()],
-                        Ty::Map(k, v) => vec![k.as_ref().clone(), v.as_ref().clone()],
-                        _ => vec![],
-                    };
-                    let method_ty = self.uf.instantiate_with(&method_ty, &bindings);
-
-                    if let Ty::Fn(params, ret) = method_ty {
-                        self.check_arguments(&params, args, *span);
-                        ret.as_ref().clone()
-                    } else {
-                        Ty::Error
-                    }
-                } else if let Ty::ActorRef(actor_name) = &obj_ty {
-                    if let Some(handlers) = self.env.lookup_actor(actor_name) {
-                        if let Some(h) = handlers.iter().find(|h| h.event_name == *method) {
-                            let params: Vec<Ty> = h.params.iter().map(|(_, t)| t.clone()).collect();
-                            let method_ty = self
-                                .uf
-                                .instantiate(&Ty::Fn(params, Box::new(h.return_type.clone())));
-                            if let Ty::Fn(params, ret) = method_ty {
-                                self.check_arguments(&params, args, *span);
-                                ret.as_ref().clone()
-                            } else {
-                                Ty::Error
-                            }
-                        } else {
-                            self.diags.push(Diagnostic::error(
-                                format!("Method '{method}' not found on actor '{actor_name}'"),
-                                *span,
-                                self.source,
-                            ));
-                            Ty::Error
-                        }
-                    } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Unknown actor '{actor_name}' for method call"),
-                            *span,
-                            self.source,
-                        ));
-                        Ty::Error
-                    }
-                } else if let Ty::Named(n) = &obj_ty {
-                    let ns = match n.as_str() {
-                        "StdHttpNs" => Some("http"),
-                        "StdLogNs" => Some("log"),
-                        "StdJsonNs" => Some("json"),
-                        "StdFsNs" => Some("fs"),
-                        "StdEnvNs" => Some("env"),
-                        "StdProcessNs" => Some("process"),
-                        "StdCryptoNs" => Some("crypto"),
-                        "StdTimeNs" => Some("time"),
-                        "StdMobileNs" => Some("mobile"),
-                        "StdRegexNs" => Some("regex"),
-                        "StdAgentosNs" => Some("agentos"),
-                        "StdCsvNs" => Some("csv"),
-                        "StdTomlNs" => Some("toml"),
-                        "StdYamlNs" => Some("yaml"),
-                        "StdIoNs" => Some("io"),
-                        _ => None,
-                    };
-                    if let Some(ns) = ns {
-                        if let Some(method_ty) =
-                            crate::builtin_registry::std_namespace_method_ty(ns, method)
-                        {
-                            let method_ty = self.uf.instantiate(&method_ty);
-                            if let Ty::Fn(params, ret) = method_ty {
-                                self.check_arguments(&params, args, *span);
-                                ret.as_ref().clone()
-                            } else {
-                                Ty::Error
-                            }
-                        } else {
-                            self.diags.push(Diagnostic::error(
-                                format!("Method '{method}' not found on {obj_ty:?}"),
-                                *span,
-                                self.source,
-                            ));
-                            Ty::Error
-                        }
-                    } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Method '{method}' not found on {obj_ty:?}"),
-                            *span,
-                            self.source,
-                        ));
-                        Ty::Error
-                    }
-                } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Method '{method}' not found on {obj_ty:?}"),
-                        *span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
+                self.check_method_call_expr(object, method, args, opt_plan, *span)
             }
 
             HirExpr::FieldAccess(object, field, span) => {
@@ -495,6 +424,17 @@ impl<'a> Checker<'a> {
                     self.env.pop_scope();
                     let _ = self.uf.unify(&then_ty, &else_ty);
                 }
+                // Expected-type propagation through if branches. The
+                // body-level `check_stmt` doesn't take expected, but
+                // because Ident-site instantiation gives each constructor
+                // (`Ok`, `Error`, `Some`, etc.) fresh type variables,
+                // unifying the resolved branch type with `expected` here
+                // binds those vars correctly — enough for
+                // `let r: Result[T, MyErr] = if cond { Ok(...) } else { Error(...) }`
+                // to specialize the constructor against `MyErr`.
+                if let Some(exp) = expected {
+                    let _ = self.uf.unify(&then_ty, exp);
+                }
                 then_ty
             }
 
@@ -532,56 +472,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Lambda(params, ret_ann, body, _cancellable, _span) => {
-                self.env.push_scope();
-
-                // If expected is a specific function type, distribute param types to arguments.
-                let mut expected_params = None;
-                let mut expected_ret_ty = None;
-                if let Some(exp) = expected {
-                    let res_exp = self.uf.resolve(exp);
-                    if let Ty::Fn(exp_p, exp_r) = res_exp {
-                        if exp_p.len() == params.len() {
-                            expected_params = Some(exp_p);
-                            expected_ret_ty = Some(exp_r.as_ref().clone());
-                        }
-                    }
-                }
-
-                let param_tys: Vec<Ty> = params
-                    .iter()
-                    .enumerate()
-                    .map(|(i, p)| {
-                        let p_ty = p
-                            .type_ann
-                            .as_ref()
-                            .map(|t| resolve_hir_type(t, self.env))
-                            .unwrap_or_else(|| {
-                                expected_params
-                                    .as_ref()
-                                    .and_then(|ep| ep.get(i))
-                                    .cloned()
-                                    .unwrap_or_else(|| self.uf.fresh_var())
-                            });
-                        self.env.define(
-                            p.name.clone(),
-                            Binding::new(p_ty.clone(), false, BindingKind::Parameter),
-                        );
-                        p_ty
-                    })
-                    .collect();
-
-                let ret_ty = ret_ann
-                    .as_ref()
-                    .map(|t| resolve_hir_type(t, self.env))
-                    .or(expected_ret_ty.clone())
-                    .unwrap_or_else(|| self.uf.fresh_var());
-
-                self.env.push_return_type(ret_ty.clone());
-                let body_ty = self.check_expr(body.as_ref(), Some(&ret_ty));
-                let _ = self.uf.unify(&body_ty, &ret_ty);
-                self.env.pop_return_type();
-                self.env.pop_scope();
-                Ty::Fn(param_tys, Box::new(ret_ty))
+                self.check_lambda_expr(params, ret_ann.as_ref(), body, expected)
             }
 
             HirExpr::Spawn(inner, span) => {
@@ -690,62 +581,295 @@ impl<'a> Checker<'a> {
             }
             HirExpr::WorkflowVersion(_) => Ty::Unit,
 
-            HirExpr::Try(hir_try) => {
-                let inner_ty = self.check_expr(hir_try.target.as_ref(), None);
-                let resolved = self.uf.resolve(&inner_ty);
-                let resolved = self.uf.instantiate(&resolved);
-                match resolved {
-                    Ty::Result(ok_ty, _err_ty) => {
-                        if let Some(expected_ret) = self.env.current_return_type() {
-                            let expected_ret_inst = self.uf.instantiate(expected_ret);
-                            match self.uf.resolve(&expected_ret_inst) {
-                                Ty::Result(_, _) => {}
-                                Ty::Error => {}
-                                _ => {
-                                    self.diags.push(Diagnostic::error(
-                                        "Cannot use `?` operator on Result in a function that does not return a Result".into(),
-                                        hir_try.span,
-                                        self.source,
-                                    ).with_suggestion("Change the function's return type to Result[T] or handle the error using pattern matching / `unwrap()`."));
-                                }
-                            }
-                        }
-                        (*ok_ty).clone()
-                    }
-                    Ty::Option(some_ty) => {
-                        if let Some(expected_ret) = self.env.current_return_type() {
-                            let expected_ret_inst = self.uf.instantiate(expected_ret);
-                            match self.uf.resolve(&expected_ret_inst) {
-                                Ty::Option(_) => {}
-                                Ty::Error => {}
-                                _ => {
-                                    self.diags.push(Diagnostic::error(
-                                        "Cannot use `?` operator on Option in a function that does not return an Option".into(),
-                                        hir_try.span,
-                                        self.source,
-                                    ).with_suggestion("Change the function's return type to Option[T] or handle the None case using pattern matching / `unwrap()`."));
-                                }
-                            }
-                        }
-                        (*some_ty).clone()
-                    }
-                    Ty::Error => Ty::Error,
-                    other => {
-                        self.diags.push(Diagnostic::error(
-                            format!(
-                                "`?` can only be used on Result or Option types; found incompatible type ({other:?})"
-                            ),
-                            hir_try.span,
-                            self.source,
-                        ));
-                        Ty::Error
-                    }
-                }
-            }
+            HirExpr::Try(hir_try) => self.check_try_expr(hir_try),
         };
         let resolved = self.uf.resolve(&ty);
         let hir_ty = resolved.to_hir_type();
         self.inferred_types.insert(super::hir_expr_span(expr), hir_ty);
         ty
+    }
+
+    /// Type-check a `MethodCall` expression. Extracted from `check_expr`
+    /// (per CR-A1 honest plan §5.6 — that match arm alone contributed
+    /// ~25 decision points; moving it here cuts `check_expr` complexity
+    /// roughly in half). Behavior is byte-for-byte identical to the
+    /// inline arm.
+    fn check_method_call_expr(
+        &mut self,
+        object: &HirExpr,
+        method: &str,
+        args: &[HirArg],
+        opt_plan: &Option<Box<HirDbQueryPlan>>,
+        span: Span,
+    ) -> Ty {
+        if opt_plan.is_some() && matches!(method, "limit" | "order_by") {
+            self.diags.push(Diagnostic::error(
+                format!(
+                    "db query chaining via '.{method}(...)' is not supported yet; use typed db.Table operations directly"
+                ),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        }
+        let obj_ty = self.check_expr(object, None);
+        let obj_ty = self.uf.resolve(&obj_ty);
+        if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
+            let bindings = match &obj_ty {
+                Ty::List(inner) | Ty::Option(inner) | Ty::Stream(inner) | Ty::Set(inner) => {
+                    vec![inner.as_ref().clone()]
+                }
+                Ty::Result(ok, err) => vec![ok.as_ref().clone(), err.as_ref().clone()],
+                Ty::Map(k, v) => vec![k.as_ref().clone(), v.as_ref().clone()],
+                _ => vec![],
+            };
+            let method_ty = self.uf.instantiate_with(&method_ty, &bindings);
+            if let Ty::Fn(params, ret) = method_ty {
+                self.check_arguments(&params, args, span);
+                ret.as_ref().clone()
+            } else {
+                Ty::Error
+            }
+        } else if let Ty::ActorRef(actor_name) = &obj_ty {
+            self.check_actor_method_call(actor_name, method, args, span)
+        } else if let Ty::Named(n) = &obj_ty {
+            self.check_named_method_call(n, &obj_ty, method, args, span)
+        } else {
+            self.diags.push(Diagnostic::error(
+                format!("Method '{method}' not found on {obj_ty:?}"),
+                span,
+                self.source,
+            ));
+            Ty::Error
+        }
+    }
+
+    /// Actor-method-call sub-case of `check_method_call_expr`. Looks up
+    /// the actor's declared handlers and type-checks the arguments
+    /// against the handler signature.
+    fn check_actor_method_call(
+        &mut self,
+        actor_name: &str,
+        method: &str,
+        args: &[HirArg],
+        span: Span,
+    ) -> Ty {
+        let Some(handlers) = self.env.lookup_actor(actor_name) else {
+            self.diags.push(Diagnostic::error(
+                format!("Unknown actor '{actor_name}' for method call"),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        };
+        let Some(h) = handlers.iter().find(|h| h.event_name == method) else {
+            self.diags.push(Diagnostic::error(
+                format!("Method '{method}' not found on actor '{actor_name}'"),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        };
+        let params: Vec<Ty> = h.params.iter().map(|(_, t)| t.clone()).collect();
+        let method_ty = self
+            .uf
+            .instantiate(&Ty::Fn(params, Box::new(h.return_type.clone())));
+        if let Ty::Fn(params, ret) = method_ty {
+            self.check_arguments(&params, args, span);
+            ret.as_ref().clone()
+        } else {
+            Ty::Error
+        }
+    }
+
+    /// Type-check a `Lambda` expression. Extracted from `check_expr`
+    /// per CR-A1 plan §5.6. Captures both the expected-from-context
+    /// type (for parameter-type propagation) and the explicit return
+    /// annotation, then type-checks the body in a new scope.
+    fn check_lambda_expr(
+        &mut self,
+        params: &[HirParam],
+        ret_ann: Option<&HirType>,
+        body: &HirExpr,
+        expected: Option<&Ty>,
+    ) -> Ty {
+        self.env.push_scope();
+
+        // If expected is a specific function type, distribute param types to arguments.
+        let mut expected_params = None;
+        let mut expected_ret_ty = None;
+        if let Some(exp) = expected {
+            let res_exp = self.uf.resolve(exp);
+            if let Ty::Fn(exp_p, exp_r) = res_exp
+                && exp_p.len() == params.len()
+            {
+                expected_params = Some(exp_p);
+                expected_ret_ty = Some(exp_r.as_ref().clone());
+            }
+        }
+
+        let param_tys: Vec<Ty> = params
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let p_ty = p
+                    .type_ann
+                    .as_ref()
+                    .map(|t| resolve_hir_type(t, self.env))
+                    .unwrap_or_else(|| {
+                        expected_params
+                            .as_ref()
+                            .and_then(|ep| ep.get(i))
+                            .cloned()
+                            .unwrap_or_else(|| self.uf.fresh_var())
+                    });
+                self.env.define(
+                    p.name.clone(),
+                    Binding::new(p_ty.clone(), false, BindingKind::Parameter),
+                );
+                p_ty
+            })
+            .collect();
+
+        let ret_ty = ret_ann
+            .map(|t| resolve_hir_type(t, self.env))
+            .or(expected_ret_ty.clone())
+            .unwrap_or_else(|| self.uf.fresh_var());
+
+        self.env.push_return_type(ret_ty.clone());
+        let body_ty = self.check_expr(body, Some(&ret_ty));
+        let _ = self.uf.unify(&body_ty, &ret_ty);
+        self.env.pop_return_type();
+        self.env.pop_scope();
+        Ty::Fn(param_tys, Box::new(ret_ty))
+    }
+
+    /// Type-check a `Try` (`?`) expression. Extracted from `check_expr`
+    /// per CR-A1 plan §5.6. The two cases (Result and Option) each
+    /// carry their own "is the enclosing function compatible?" check;
+    /// the helper centralizes both.
+    fn check_try_expr(&mut self, hir_try: &HirTry) -> Ty {
+        let inner_ty = self.check_expr(hir_try.target.as_ref(), None);
+        let resolved = self.uf.resolve(&inner_ty);
+        let resolved = self.uf.instantiate(&resolved);
+        match resolved {
+            Ty::Result(ok_ty, _err_ty) => {
+                self.check_try_enclosing_return_compatible(
+                    hir_try.span,
+                    /*want_result=*/ true,
+                );
+                (*ok_ty).clone()
+            }
+            Ty::Option(some_ty) => {
+                self.check_try_enclosing_return_compatible(
+                    hir_try.span,
+                    /*want_result=*/ false,
+                );
+                (*some_ty).clone()
+            }
+            Ty::Error => Ty::Error,
+            other => {
+                self.diags.push(Diagnostic::error(
+                    format!(
+                        "`?` can only be used on Result or Option types; found incompatible type ({other:?})"
+                    ),
+                    hir_try.span,
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// Helper for `check_try_expr`: verifies the enclosing function's
+    /// return type is compatible with the `?` operator (`Result` for
+    /// `want_result=true`, `Option` otherwise). Emits a diagnostic
+    /// when incompatible.
+    fn check_try_enclosing_return_compatible(
+        &mut self,
+        span: Span,
+        want_result: bool,
+    ) {
+        let Some(expected_ret) = self.env.current_return_type() else {
+            return;
+        };
+        let expected_ret_inst = self.uf.instantiate(expected_ret);
+        let compatible = match self.uf.resolve(&expected_ret_inst) {
+            Ty::Result(_, _) => want_result,
+            Ty::Option(_) => !want_result,
+            Ty::Error => true, // already errored upstream; don't pile on
+            _ => false,
+        };
+        if compatible {
+            return;
+        }
+        let (msg, suggestion) = if want_result {
+            (
+                "Cannot use `?` operator on Result in a function that does not return a Result",
+                "Change the function's return type to Result[T] or handle the error using pattern matching / `unwrap()`.",
+            )
+        } else {
+            (
+                "Cannot use `?` operator on Option in a function that does not return an Option",
+                "Change the function's return type to Option[T] or handle the None case using pattern matching / `unwrap()`.",
+            )
+        };
+        self.diags.push(
+            Diagnostic::error(msg.into(), span, self.source).with_suggestion(suggestion),
+        );
+    }
+
+    /// Std-namespace-method-call sub-case of `check_method_call_expr`
+    /// (covers `StdHttpNs`, `StdLogNs`, etc.). Looks up the namespace
+    /// table, resolves the method type, type-checks the arguments.
+    fn check_named_method_call(
+        &mut self,
+        named: &str,
+        obj_ty: &Ty,
+        method: &str,
+        args: &[HirArg],
+        span: Span,
+    ) -> Ty {
+        let ns = match named {
+            "StdHttpNs" => Some("http"),
+            "StdLogNs" => Some("log"),
+            "StdJsonNs" => Some("json"),
+            "StdFsNs" => Some("fs"),
+            "StdEnvNs" => Some("env"),
+            "StdProcessNs" => Some("process"),
+            "StdCryptoNs" => Some("crypto"),
+            "StdTimeNs" => Some("time"),
+            "StdMobileNs" => Some("mobile"),
+            "StdRegexNs" => Some("regex"),
+            "StdAgentosNs" => Some("agentos"),
+            "StdCsvNs" => Some("csv"),
+            "StdTomlNs" => Some("toml"),
+            "StdYamlNs" => Some("yaml"),
+            "StdIoNs" => Some("io"),
+            _ => None,
+        };
+        let Some(ns) = ns else {
+            self.diags.push(Diagnostic::error(
+                format!("Method '{method}' not found on {obj_ty:?}"),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        };
+        let Some(method_ty) = crate::builtin_registry::std_namespace_method_ty(ns, method) else {
+            self.diags.push(Diagnostic::error(
+                format!("Method '{method}' not found on {obj_ty:?}"),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        };
+        let method_ty = self.uf.instantiate(&method_ty);
+        if let Ty::Fn(params, ret) = method_ty {
+            self.check_arguments(&params, args, span);
+            ret.as_ref().clone()
+        } else {
+            Ty::Error
+        }
     }
 }
