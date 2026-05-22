@@ -6,15 +6,15 @@
   "type": "object",
   "required": ["detector_id", "tier", "message", "fingerprint"],
   "additionalProperties": true,
-  "properties": 
-    "detector_id":  "type": "string" },
-    "tier":  "type": "string", "enum": ["A", "B", "C"] },
-    "severity":  "type": "string" },
-    "confidence":  "type": ["string", "null"] },
-    "file_path":  "type": ["string", "null"] },
-    "line":  "type": ["integer", "null"] },
-    "message":  "type": "string" },
-    "fingerprint":  "type": "string" },
-    "meta":  "type": "object" }
+  "properties": {
+    "detector_id": { "type": "string" },
+    "tier": { "type": "string", "enum": ["A", "B", "C"] },
+    "severity": { "type": "string" },
+    "confidence": { "type": ["string", "null"] },
+    "file_path": { "type": ["string", "null"] },
+    "line": { "type": ["integer", "null"] },
+    "message": { "type": "string" },
+    "fingerprint": { "type": "string" },
+    "meta": { "type": "object" }
   }
 }

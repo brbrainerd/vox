@@ -6,17 +6,17 @@
   "type": "object",
   "required": ["schema_version", "repository_id", "recorded_at", "workflow", "findings_count"],
   "additionalProperties": true,
-  "properties": 
-    "schema_version":  "type": "integer", "const": 1 },
-    "repository_id":  "type": "string" },
-    "branch":  "type": ["string", "null"] },
-    "commit_sha":  "type": ["string", "null"] },
-    "workflow":  "type": "string" },
-    "run_kind":  "type": "string" },
-    "recorded_at":  "type": "string" },
-    "findings_count":  "type": "integer", "minimum": 0 },
-    "tier_a_count":  "type": "integer", "minimum": 0 },
-    "tier_b_count":  "type": "integer", "minimum": 0 },
-    "tool_versions_json":  "type": "object" }
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "repository_id": { "type": "string" },
+    "branch": { "type": ["string", "null"] },
+    "commit_sha": { "type": ["string", "null"] },
+    "workflow": { "type": "string" },
+    "run_kind": { "type": "string" },
+    "recorded_at": { "type": "string" },
+    "findings_count": { "type": "integer", "minimum": 0 },
+    "tier_a_count": { "type": "integer", "minimum": 0 },
+    "tier_b_count": { "type": "integer", "minimum": 0 },
+    "tool_versions_json": { "type": "object" }
   }
 }

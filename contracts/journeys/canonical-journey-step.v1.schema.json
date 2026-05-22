@@ -6,23 +6,23 @@
   "type": "object",
   "additionalProperties": true,
   "required": ["step_id", "ordinal", "actor", "maturity"],
-  "properties": 
-    "step_id":  "type": "string", "minLength": 1 },
-    "ordinal":  "type": "integer", "minimum": 1 },
-    "actor": 
+  "properties": {
+    "step_id": { "type": "string", "minLength": 1 },
+    "ordinal": { "type": "integer", "minimum": 1 },
+    "actor": {
       "type": "string",
       "enum": ["human", "cli", "runtime", "mcp", "ci", "daemon"]
     },
-    "primary_operation_id":  "type": "string" },
-    "persistence_hints": 
+    "primary_operation_id": { "type": "string" },
+    "persistence_hints": {
       "type": "array",
-      "items":  "type": "string" }
+      "items": { "type": "string" }
     },
-    "limitation_ids": 
+    "limitation_ids": {
       "type": "array",
-      "items":  "type": "string", "pattern": "^L-[0-9]3}$" }
+      "items": { "type": "string", "pattern": "^L-[0-9]3}$" }
     },
-    "maturity": 
+    "maturity": {
       "type": "string",
       "enum": ["stable", "beta", "spec_only"]
     }
