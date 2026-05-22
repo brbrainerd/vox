@@ -9,10 +9,15 @@
 
 use crate::{
     CommonArgs, CrlGate, RunOutcome, Subcommand,
-    report::{AuditReport, ExitCode, Results, Threshold},
+    panel::{
+        CachingPanelClient, OpenRouterPanelClient, PanelClient, PanelConfig, PanelMemberConfig,
+        ProtectedPanelClient, extract_vox_code,
+    },
+    report::{AuditReport, ExitCode, PanelMember, PerLlmResult, Results, Threshold},
     workspace_root,
 };
 use std::path::Path;
+use vox_compiler::typeck::diagnostics::TypeckSeverity;
 
 const DEFAULT_CORPUS_RELPATH: &str = "contracts/eval/plan-fidelity";
 
@@ -32,6 +37,22 @@ impl Subcommand for PlanFidelityRunner {
             .corpus
             .clone()
             .unwrap_or_else(|| workspace_root().join(DEFAULT_CORPUS_RELPATH));
+        // Panel mode: drive each plan through the LLM panel, score by
+        // whether the produced source vox-checks clean.
+        if let Some(panel_yaml) = args.llm_panel.clone() {
+            return run_panel_mode(&corpus_root, args, &panel_yaml);
+        }
+        // Evidence-preservation: if a same-day panel artifact exists,
+        // echo it back rather than clobbering it with corpus-inventory.
+        if args.corpus.is_none()
+            && let Some(existing) =
+                crate::same_day_canonical_with_panel(&workspace_root(), gate_thing_name())
+        {
+            return RunOutcome {
+                report: existing,
+                exit_code: ExitCode::Ok,
+            };
+        }
         let plans_dir = corpus_root.join("plans");
         if !plans_dir.exists() {
             return RunOutcome {
@@ -178,6 +199,340 @@ fn corpus_hash(plans: &[PlanFixture]) -> String {
         hasher.update(b"\n");
     }
     format!("blake3:{}", hasher.finalize().to_hex())
+}
+
+/// Extract the plan's English `prompt` field. Returns an empty string if
+/// the toml is malformed or the field is missing — the run will still
+/// score, but the model will see an empty prompt (almost certainly a fail).
+fn extract_prompt(source: &str) -> String {
+    let Ok(parsed) = toml::from_str::<toml::Value>(source) else {
+        return String::new();
+    };
+    parsed
+        .get("prompt")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string()
+}
+
+/// Wire CR-L4 panel mode. Single-shot generate → `vox check` → score by
+/// vox_check_passes. The richer "did this plan modify only the things it
+/// promised to modify" check needs a base source per plan; deferred until
+/// §4.3 corpus expansion ships those base sources. For v1.0 we publish
+/// the vox-check-clean rate as honest evidence.
+fn run_panel_mode(
+    corpus_root: &Path,
+    args: &CommonArgs,
+    panel_yaml: &Path,
+) -> RunOutcome {
+    let plans_dir = corpus_root.join("plans");
+    if !plans_dir.exists() {
+        return RunOutcome {
+            report: AuditReport::infra_error(
+                gate_thing_name(),
+                format!("plans dir not found at {}", plans_dir.display()),
+            ),
+            exit_code: ExitCode::InfrastructureError,
+        };
+    }
+    let plans = match discover_plans(&plans_dir) {
+        Ok(p) => p,
+        Err(msg) => {
+            return RunOutcome {
+                report: AuditReport::infra_error(gate_thing_name(), msg),
+                exit_code: ExitCode::InfrastructureError,
+            };
+        }
+    };
+    if plans.is_empty() {
+        return RunOutcome {
+            report: AuditReport::infra_error(
+                gate_thing_name(),
+                format!("no plans under {}", plans_dir.display()),
+            ),
+            exit_code: ExitCode::InfrastructureError,
+        };
+    }
+    let panel_cfg = match PanelConfig::from_yaml_path(panel_yaml) {
+        Ok(c) => c,
+        Err(msg) => {
+            return RunOutcome {
+                report: AuditReport::infra_error(gate_thing_name(), msg),
+                exit_code: ExitCode::InvalidInput,
+            };
+        }
+    };
+
+    let args_owned = args.clone();
+    let cache_dir = workspace_root().join("contracts/reports/llm-panel-cache/plan-fidelity");
+    std::thread::scope(|s| {
+        s.spawn(move || {
+            let client: Box<dyn PanelClient> = match OpenRouterPanelClient::from_env() {
+                Ok(c) => Box::new(CachingPanelClient::new(
+                    ProtectedPanelClient::with_yaml_defaults(c),
+                    cache_dir,
+                    30,
+                )),
+                Err(e) => {
+                    return RunOutcome {
+                        report: AuditReport::infra_error(
+                            gate_thing_name(),
+                            format!("panel mode: {e}"),
+                        ),
+                        exit_code: ExitCode::InfrastructureError,
+                    };
+                }
+            };
+            run_with_panel(&plans, &args_owned, &panel_cfg, client.as_ref())
+        })
+        .join()
+        .unwrap_or_else(|_| RunOutcome {
+            report: AuditReport::infra_error(
+                gate_thing_name(),
+                "plan-fidelity panel thread panicked".to_string(),
+            ),
+            exit_code: ExitCode::InfrastructureError,
+        })
+    })
+}
+
+fn run_with_panel(
+    plans: &[PlanFixture],
+    args: &CommonArgs,
+    panel_cfg: &PanelConfig,
+    client: &dyn PanelClient,
+) -> RunOutcome {
+    let routable: Vec<&PanelMemberConfig> = panel_cfg
+        .members
+        .iter()
+        .filter(|m| m.openrouter_model_id().is_some())
+        .collect();
+    if routable.is_empty() {
+        return RunOutcome {
+            report: AuditReport::infra_error(
+                gate_thing_name(),
+                "no OpenRouter-routable panel members".to_string(),
+            ),
+            exit_code: ExitCode::InfrastructureError,
+        };
+    }
+    const DEFAULT_BUDGET_USD: f64 = 20.0;
+    // 2026-05-21 empirical finding: 5 iterations vs 3 iterations gave
+    // identical pass rate (40% on the 5-plan corpus) at 5× cost.
+    // Plan-fidelity failures aren't shallow compiler errors that
+    // diagnostics can fix — the model misunderstands the plan
+    // semantically and produces compile-clean nonsense. Refinement-loop
+    // cost is wasted here until §4.3 ships base sources so the model
+    // has concrete context to anchor against. Cap default low.
+    const DEFAULT_MAX_ITERATIONS: u32 = 3;
+    let budget_cap_usd = std::env::var("VOX_AUDIT_BUDGET_USD")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(DEFAULT_BUDGET_USD)
+        .max(0.0);
+    let max_iterations = std::env::var("VOX_AUDIT_CR_L4_MAX_ITERATIONS")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(DEFAULT_MAX_ITERATIONS)
+        .max(1);
+    let max_plans: Option<usize> = std::env::var("VOX_AUDIT_CR_L4_MAX_PLANS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|n| *n > 0);
+    let effective: Vec<&PlanFixture> = match max_plans {
+        Some(n) => plans.iter().take(n).collect(),
+        None => plans.iter().collect(),
+    };
+
+    let system_prompt = "You are a Vox programming language expert. Reply with ONLY a single \
+```vox fenced code block — no commentary. Vox idioms: `to T` for return arrow (not `->`); \
+`assert(X is Y)` for equality assertions; explicit `return expr`; `to Unit` for void; \
+`@test\\nfn name() to Unit { … }` for tests. Forbidden: macros, `#[...]`, `->`, `assert_eq`, \
+`use`/`import`, implicit last-expression returns.";
+
+    let mut per_llm: Vec<PerLlmResult> = Vec::with_capacity(routable.len());
+    let mut cumulative_cost_usd = 0.0_f64;
+    let mut total_unreachable = 0_u32;
+    let mut total_budget_skipped = 0_u32;
+    for member in &routable {
+        let mut passing = 0_u32;
+        let mut unreachable = 0_u32;
+        let mut budget_skipped = 0_u32;
+        let mut cost_samples: Vec<f64> = Vec::new();
+        for plan in &effective {
+            if cumulative_cost_usd >= budget_cap_usd {
+                budget_skipped += 1;
+                continue;
+            }
+            let prompt_text = extract_prompt(&plan.source);
+            let base_user_prompt = format!(
+                "Apply the following plan to produce a single self-contained Vox module \
+                 that compiles cleanly under `vox check`.\n\n\
+                 Plan ({}, wave={}):\n{prompt}\n\n\
+                 Reply with ONLY a single fenced ```vox code block.",
+                plan.id,
+                plan.wave,
+                prompt = prompt_text
+            );
+
+            // Refinement loop: up to max_iterations attempts; each
+            // failed iteration feeds vox-check diagnostics back to the
+            // model. Pattern mirrors spec_to_app_panel.
+            let mut current_prompt = base_user_prompt.clone();
+            let mut plan_cost = 0.0_f64;
+            let mut iter_passed = false;
+            let mut unreachable_for_plan = false;
+            for iter in 1..=max_iterations {
+                if iter > 1 && cumulative_cost_usd + plan_cost >= budget_cap_usd {
+                    break;
+                }
+                let response = match client.complete(member, system_prompt, &current_prompt) {
+                    Ok(r) => r,
+                    Err(_) => {
+                        if iter == 1 {
+                            unreachable_for_plan = true;
+                        }
+                        break;
+                    }
+                };
+                plan_cost += response.cost_usd;
+                let source = extract_vox_code(&response.content);
+                let diags = vox_compiler::pipeline::check_file(&source, "plan.vox");
+                let err_count = diags
+                    .iter()
+                    .filter(|d| d.severity == TypeckSeverity::Error)
+                    .count();
+                if err_count == 0 {
+                    iter_passed = true;
+                    break;
+                }
+                if iter < max_iterations {
+                    // Build refinement prompt: prior source + diagnostics.
+                    let diag_text = format_diags_for_refinement(&diags);
+                    current_prompt = format!(
+                        "Your previous draft for plan `{}` did not pass `vox check`. Refine it.\n\n\
+                         Original plan:\n{}\n\n\
+                         Your previous draft:\n```vox\n{}\n```\n\n\
+                         vox-check diagnostics:\n{}\n\n\
+                         Reply with ONLY a single fenced ```vox code block containing the revised module. \
+                         Do not explain. Fix EVERY diagnostic above.",
+                        plan.id, prompt_text, source, diag_text
+                    );
+                }
+            }
+            cumulative_cost_usd += plan_cost;
+            if plan_cost > 0.0 {
+                cost_samples.push(plan_cost);
+            }
+            if unreachable_for_plan {
+                unreachable += 1;
+            } else if iter_passed {
+                passing += 1;
+            }
+        }
+        let scored = effective
+            .len()
+            .saturating_sub((unreachable + budget_skipped) as usize);
+        let rate = if scored == 0 {
+            0.0
+        } else {
+            f64::from(passing) / scored as f64
+        };
+        per_llm.push(PerLlmResult {
+            id: member.id.clone(),
+            pass_rate: rate,
+            median_cost_usd: median_cost(&cost_samples),
+            unreachable_count: Some(unreachable + budget_skipped),
+        });
+        total_unreachable += unreachable;
+        total_budget_skipped += budget_skipped;
+    }
+
+    let median_rate = {
+        let mut rates: Vec<f64> = per_llm.iter().map(|r| r.pass_rate).collect();
+        rates.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        if rates.is_empty() {
+            0.0
+        } else if rates.len() % 2 == 0 {
+            (rates[rates.len() / 2 - 1] + rates[rates.len() / 2]) / 2.0
+        } else {
+            rates[rates.len() / 2]
+        }
+    };
+    let target = args.threshold.unwrap_or(0.85);
+    let met = median_rate >= target;
+
+    let mut report = AuditReport::complete(
+        gate_thing_name(),
+        corpus_hash(plans),
+        plans.len() as u32,
+        Results {
+            overall_pass_rate: median_rate,
+            median_pass_rate: Some(median_rate),
+            per_llm,
+        },
+    );
+    report.llm_panel = routable
+        .iter()
+        .map(|m| PanelMember {
+            id: m.id.clone(),
+            version: m.version_pinned.clone().unwrap_or_default(),
+        })
+        .collect();
+    report.threshold = Some(Threshold { target, met });
+    report.note = Some(format!(
+        "panel mode: {} routable member(s) against {}/{} plans; \
+         {total_unreachable} unreachable + {total_budget_skipped} budget-skipped. \
+         panel cost: ${cumulative_cost_usd:.3} of ${budget_cap_usd:.2} budget. \
+         Scoring is vox_check_passes only (existing_fns_unchanged needs base sources, \
+         deferred to §4.3 corpus expansion).",
+        routable.len(),
+        effective.len(),
+        plans.len()
+    ));
+    let exit_code = if met {
+        ExitCode::Ok
+    } else {
+        ExitCode::BarMissed
+    };
+    RunOutcome { report, exit_code }
+}
+
+fn format_diags_for_refinement(
+    diags: &[vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload],
+) -> String {
+    let mut out = String::new();
+    for d in diags
+        .iter()
+        .filter(|d| d.severity == TypeckSeverity::Error)
+        .take(10)
+    {
+        out.push_str(&format!(
+            "  • [{code}] line {line}: {msg}\n",
+            code = d.error_code,
+            line = d.span.start_line.max(1),
+            msg = d.message
+        ));
+    }
+    if out.is_empty() {
+        "(only warnings)".into()
+    } else {
+        out
+    }
+}
+
+fn median_cost(samples: &[f64]) -> Option<f64> {
+    if samples.is_empty() {
+        return None;
+    }
+    let mut sorted: Vec<f64> = samples.to_vec();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mid = sorted.len() / 2;
+    Some(if sorted.len() % 2 == 0 {
+        (sorted[mid - 1] + sorted[mid]) / 2.0
+    } else {
+        sorted[mid]
+    })
 }
 
 #[cfg(test)]

@@ -67,31 +67,46 @@ impl Subcommand for HumanEvalRunner {
                     };
                 }
             };
-            // Wrap layers per llm-panel.v1.yaml §operational_policy:
-            //   OpenRouter (HTTP)
-            //   → Protected (retry/backoff on rate-limits + transient HTTP)
-            //   → Caching   (content-addressed disk cache, skips network)
-            // Outer = caching so a cache hit skips the network + retry loop
-            // entirely. Cache miss falls through to retry-wrapped HTTP.
-            let cache_dir = workspace_root().join("contracts/reports/llm-panel-cache/");
-            let client: Box<dyn PanelClient> = match OpenRouterPanelClient::from_env() {
-                Ok(c) => Box::new(CachingPanelClient::new(
-                    ProtectedPanelClient::with_yaml_defaults(c),
-                    cache_dir,
-                    30,
-                )),
-                Err(e) => {
-                    return RunOutcome {
-                        report: AuditReport::infra_error(
-                            gate_thing_name(),
-                            format!("panel mode: {e}"),
-                        ),
-                        exit_code: ExitCode::InfrastructureError,
-                    };
-                }
-            };
             let problems_dir = corpus_root.join("problems");
-            return run_with_panel(&problems_dir, args, &panel_cfg, client.as_ref());
+            // Panel mode uses reqwest::blocking, whose internal runtime
+            // cannot be created OR dropped inside an outer Tokio context
+            // (vox-cli owns one). Construct AND consume the client on a
+            // dedicated OS thread. Mirrors spec_to_app.rs.
+            let args_owned = args.clone();
+            let cache_dir = workspace_root().join("contracts/reports/llm-panel-cache/");
+            return std::thread::scope(|s| {
+                s.spawn(move || {
+                    // Wrap layers per llm-panel.v1.yaml §operational_policy:
+                    //   OpenRouter (HTTP)
+                    //   → Protected (retry/backoff on rate-limits)
+                    //   → Caching   (content-addressed disk cache)
+                    let client: Box<dyn PanelClient> = match OpenRouterPanelClient::from_env() {
+                        Ok(c) => Box::new(CachingPanelClient::new(
+                            ProtectedPanelClient::with_yaml_defaults(c),
+                            cache_dir,
+                            30,
+                        )),
+                        Err(e) => {
+                            return RunOutcome {
+                                report: AuditReport::infra_error(
+                                    gate_thing_name(),
+                                    format!("panel mode: {e}"),
+                                ),
+                                exit_code: ExitCode::InfrastructureError,
+                            };
+                        }
+                    };
+                    run_with_panel(&problems_dir, &args_owned, &panel_cfg, client.as_ref())
+                })
+                .join()
+                .unwrap_or_else(|_| RunOutcome {
+                    report: AuditReport::infra_error(
+                        gate_thing_name(),
+                        "humaneval panel thread panicked".to_string(),
+                    ),
+                    exit_code: ExitCode::InfrastructureError,
+                })
+            });
         }
 
         let problems_dir = corpus_root.join("problems");
@@ -106,6 +121,19 @@ impl Subcommand for HumanEvalRunner {
                     ),
                 ),
                 exit_code: ExitCode::InfrastructureError,
+            };
+        }
+
+        // Evidence-preservation: if a same-day panel artifact exists,
+        // echo it back rather than clobbering it with corpus-validity
+        // mode. Skipped when caller overrides `corpus`.
+        if args.corpus.is_none()
+            && let Some(existing) =
+                crate::same_day_canonical_with_panel(&workspace_root(), gate_thing_name())
+        {
+            return RunOutcome {
+                report: existing,
+                exit_code: ExitCode::Ok,
             };
         }
 
@@ -451,22 +479,69 @@ pub(crate) fn run_with_panel(
         };
     }
 
-    let system_prompt = "You are an expert Vox language programmer. \
-Given a prompt describing a function, return ONLY the Vox source code that \
-implements it, inside a single ```vox fenced block. No commentary.";
+    // Calibrated Vox primer — matches the one used by spec_to_app_panel.
+    // Models that get this primer reliably emit `assert(X is Y)` instead
+    // of `assert_eq(a, b)`, use `to Unit` for void, and `return expr`
+    // explicitly. Without it, single-shot pass-rates drop ~50 pts.
+    let system_prompt = "You are a Vox programming language expert. Vox is a strongly typed \
+language for AI-native server apps. Reply with ONLY a single ```vox fenced code block — no commentary, no extra text.\n\n\
+Vox syntax — read carefully, these are NOT optional:\n\
+  • Functions: `fn name(arg: Type) to ReturnType { return expr }`. \
+Use **explicit `return`**. The return arrow is `to`, NOT `->`. \
+Void / unit functions return `to Unit`.\n\
+  • Tests: `@test\\nfn test_name() to Unit { assert(actual is expected) }`. \
+Assertion is `assert(X is Y)`. Do NOT use `assert_eq(a, b)`, `assert!(…)`, `expect`, or `==` inside `assert`.\n\
+  • Common types: `str`, `int`, `bool`, `Unit`, `List[T]`, `Result[T, E]`, `Option[T]`. \
+Result: `Ok(v)` / `Err(e)`.\n\
+  • Strings concat with `+`. Double-quoted: `\"Hello \" + name + \"!\"`.\n\
+  • `let name = expr` and `let name: Type = expr`.\n\
+Forbidden: macros, `#[derive(…)]`, `#[…]`, `->` as return arrow, `use`/`import`, \
+implicit last-expression-as-return — write `return expr`.";
+
+    // Budget enforcement (mirrors spec_to_app_panel). The cap is the
+    // cumulative cost across the entire run, not per-member.
+    const DEFAULT_BUDGET_USD: f64 = 20.0;
+    let budget_cap_usd = std::env::var("VOX_AUDIT_BUDGET_USD")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(DEFAULT_BUDGET_USD)
+        .max(0.0);
+    // Optional CI-friendly cap on fixture count, so a full 164-fixture
+    // run can be opted out of when only a stable subsample is wanted.
+    // 0 / unset = no cap (use the full discovered corpus).
+    let max_fixtures: Option<usize> = std::env::var("VOX_AUDIT_CR_L1_MAX_FIXTURES")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|n| *n > 0);
+    let effective_fixtures: Vec<&Fixture> = match max_fixtures {
+        Some(n) => fixtures.iter().take(n).collect(),
+        None => fixtures.iter().collect(),
+    };
 
     let mut per_llm_results: Vec<PerLlmResult> = Vec::with_capacity(routable.len());
+    let mut cumulative_cost_usd: f64 = 0.0;
+    let mut total_unreachable: u32 = 0;
+    let mut total_budget_skipped: u32 = 0;
     for member in &routable {
         let mut passing = 0u32;
-        let mut total_cost = 0.0;
+        let mut unreachable = 0u32;
+        let mut budget_skipped = 0u32;
         let mut cost_samples: Vec<f64> = Vec::new();
-        for fixture in &fixtures {
+        for fixture in &effective_fixtures {
+            // Per-call budget gate — refuse to spend over cap.
+            if cumulative_cost_usd >= budget_cap_usd {
+                budget_skipped += 1;
+                continue;
+            }
             let user_prompt = build_user_prompt(fixture);
             let response = match client.complete(member, system_prompt, &user_prompt) {
                 Ok(r) => r,
-                Err(_) => continue, // unreachable member -> count as fail (not passing)
+                Err(_) => {
+                    unreachable += 1;
+                    continue;
+                }
             };
-            total_cost += response.cost_usd;
+            cumulative_cost_usd += response.cost_usd;
             cost_samples.push(response.cost_usd);
             let candidate_source = extract_vox_code(&response.content);
             let path_str = fixture.reference_path.to_string_lossy();
@@ -475,20 +550,24 @@ implements it, inside a single ```vox fenced block. No commentary.";
                 passing += 1;
             }
         }
-        let rate = if fixtures.is_empty() {
+        // Pass rate denominator excludes unreachable + budget-skipped per
+        // llm-panel.v1.yaml §fallback_when_unreachable ("record-skip-not-fail").
+        let scored = effective_fixtures
+            .len()
+            .saturating_sub((unreachable + budget_skipped) as usize);
+        let rate = if scored == 0 {
             0.0
         } else {
-            f64::from(passing) / fixtures.len() as f64
+            f64::from(passing) / scored as f64
         };
         per_llm_results.push(PerLlmResult {
             id: member.id.clone(),
             pass_rate: rate,
             median_cost_usd: median(&cost_samples),
-            unreachable_count: None,
+            unreachable_count: Some(unreachable + budget_skipped),
         });
-        // total_cost is used for reporting in a future revision; suppress
-        // the unused-var lint without losing the accumulator semantics.
-        let _ = total_cost;
+        total_unreachable += unreachable;
+        total_budget_skipped += budget_skipped;
     }
 
     let median_rate = median(&per_llm_results.iter().map(|r| r.pass_rate).collect::<Vec<_>>())
@@ -515,10 +594,16 @@ implements it, inside a single ```vox fenced block. No commentary.";
         .collect();
     report.threshold = Some(Threshold { target, met });
     let mut note = format!(
-        "panel mode: {} routable member(s) measured against {} fixtures",
+        "panel mode: {} routable member(s) measured against {}/{} fixtures",
         routable.len(),
+        effective_fixtures.len(),
         fixtures.len()
     );
+    if let Some(n) = max_fixtures {
+        note.push_str(&format!(
+            " (VOX_AUDIT_CR_L1_MAX_FIXTURES={n})"
+        ));
+    }
     if !unroutable_ids.is_empty() {
         note.push_str(&format!(
             "; {} unroutable member(s) skipped ({})",
@@ -526,6 +611,14 @@ implements it, inside a single ```vox fenced block. No commentary.";
             unroutable_ids.join(", ")
         ));
     }
+    if total_unreachable > 0 || total_budget_skipped > 0 {
+        note.push_str(&format!(
+            "; {total_unreachable} unreachable + {total_budget_skipped} budget-skipped"
+        ));
+    }
+    note.push_str(&format!(
+        ". panel cost: ${cumulative_cost_usd:.3} of ${budget_cap_usd:.2} budget"
+    ));
     report.note = Some(note);
 
     let exit_code = if met {
@@ -753,8 +846,15 @@ mod tests {
     use super::*;
 
     fn args() -> CommonArgs {
+        // Explicitly set `corpus` so the runner skips the
+        // same-day-canonical-with-panel guard (which would otherwise
+        // return the workspace's real panel artifact instead of running
+        // corpus-validity over the seed fixtures). The path resolves to
+        // the same default the runner would have used; making it
+        // explicit just opts the test out of the guard.
         CommonArgs {
             write_canonical_report: false,
+            corpus: Some(crate::workspace_root().join(DEFAULT_CORPUS_RELPATH)),
             ..CommonArgs::default()
         }
     }

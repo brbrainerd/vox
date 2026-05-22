@@ -1,0 +1,45 @@
+{
+  "thing": "plan-fidelity",
+  "schema_version": 1,
+  "measured_at": "2026-05-22T00:04:14.489037600+00:00",
+  "corpus_hash": "blake3:0875dc5ed284568f0c125e47be1f25f10437a7249ba947d3b26582cbd7b2e379",
+  "corpus_size": 5,
+  "llm_panel": [
+    {
+      "id": "claude-sonnet",
+      "version": "claude-sonnet-4-6"
+    },
+    {
+      "id": "gpt-frontier",
+      "version": "gpt-5.4"
+    }
+  ],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 0.4,
+    "median_pass_rate": 0.4,
+    "per_llm": [
+      {
+        "id": "claude-sonnet",
+        "pass_rate": 0.4,
+        "median_cost_usd": 0.019935,
+        "unreachable_count": 0
+      },
+      {
+        "id": "gpt-frontier",
+        "pass_rate": 0.4,
+        "median_cost_usd": 0.017224999999999997,
+        "unreachable_count": 0
+      }
+    ]
+  },
+  "threshold": {
+    "target": 0.85,
+    "met": false
+  },
+  "note": "panel mode: 2 routable member(s) against 5/5 plans; 0 unreachable + 0 budget-skipped. panel cost: $0.221 of $20.00 budget. Scoring is vox_check_passes only (existing_fns_unchanged needs base sources, deferred to §4.3 corpus expansion)."
+}
