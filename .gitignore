@@ -34,6 +34,12 @@ docs-astro/public/.well-known
 # docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.3 P2.1c.
 /contracts/reports/corpus-feedback-events/
 
+# LLM-panel response cache (CR-L0/L1/L3/L4 panel runners). Content-addressed
+# disk cache written by CachingPanelClient; regenerated on demand. The
+# canonical evidence is the per-gate <UTC>.json artifact, not the cache.
+# Per honest-completion-plan §3.x.
+/contracts/reports/llm-panel-cache/
+
 # === SCRATCH / EPHEMERAL / LOGS ===
 .tmp_metadata.json
 scratch/*
