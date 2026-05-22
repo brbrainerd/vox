@@ -12,7 +12,6 @@
 //! not warm-cache costs.
 
 use serde_json::json;
-use std::path::PathBuf;
 use std::time::Instant;
 
 use vox_compiler::hir::lower_module;

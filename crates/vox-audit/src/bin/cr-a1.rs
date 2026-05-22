@@ -14,7 +14,7 @@
 //! CI gate; AST-based refinement is a v1.1 sharpening, not v1.0 blocker).
 
 use serde_json::json;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Honest plan §5.6 / v1-release-criteria CR-A1.
 const COMPLEXITY_BUDGET: u32 = 15;
