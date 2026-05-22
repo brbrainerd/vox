@@ -18,6 +18,7 @@
 // work tracked under P3.5 fixture growth.
 
 @table type User {
+    id: int
     email: str
 }
 
@@ -26,6 +27,7 @@
 // `str` here. Tracked under the boundary-typing follow-on; the
 // `vox/types/id-required-at-boundary` detector covers @endpoint params.
 @table type Todo {
+    id: int
     owner: str,
     title: str,
     done: bool

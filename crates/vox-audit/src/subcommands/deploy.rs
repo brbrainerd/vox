@@ -93,6 +93,7 @@ impl Subcommand for DeployRunner {
         let workspace = workspace_root();
         let mut green = 0u32;
         let mut red_apps: Vec<String> = Vec::new();
+        let doctor_started = Instant::now();
         for app in &real_apps {
             let fixture_path = workspace.join(&app.fixture_path);
             if !fixture_path.exists() {
@@ -104,6 +105,15 @@ impl Subcommand for DeployRunner {
                 DoctorOutcome::Red(reason) => red_apps.push(format!("{}:{reason}", app.id)),
             }
         }
+        let doctor_seconds = doctor_started.elapsed().as_secs_f64();
+
+        // P2.2: new + deploy legs. Scaffold a fresh `--template web` project,
+        // run `vox deploy --dry-run` against it, then re-run the doctor over
+        // the scaffolded sources. The trio sum is the canonical CR-P3 budget
+        // (120s). We call the library functions directly so the gate stays
+        // library-pure (no `vox` binary required).
+        let new_deploy_legs = run_new_and_deploy_legs();
+
         let total = real_apps.len() as u32;
         let pass_rate = if total == 0 {
             0.0
@@ -112,7 +122,16 @@ impl Subcommand for DeployRunner {
         };
 
         let target = args.threshold.unwrap_or(1.0);
-        let met = green == total;
+        let cr_p3_budget_seconds = 120.0;
+        let trio_seconds = new_deploy_legs.new_seconds
+            + new_deploy_legs.deploy_seconds
+            + new_deploy_legs.doctor_seconds;
+        let met = green == total
+            && new_deploy_legs.new_ok
+            && new_deploy_legs.deploy_ok
+            && new_deploy_legs.doctor_ok
+            && trio_seconds <= cr_p3_budget_seconds;
+
         let mut report = AuditReport::complete(
             gate_thing_name(),
             manifest_hash(&manifest_path),
@@ -124,13 +143,27 @@ impl Subcommand for DeployRunner {
             },
         );
         report.threshold = Some(Threshold { target, met });
+
         let duration = started.elapsed().as_secs_f64();
         let mut note = format!(
-            "doctor leg: {}/{} fixtures green ({:.2}s); deploy + new legs deferred",
-            green, total, duration,
+            "doctor leg: {green}/{total} marquee fixtures green ({doctor_seconds:.2}s). \
+             new leg: {new_ok} ({new_seconds:.2}s). \
+             deploy --dry-run leg: {deploy_ok} ({deploy_seconds:.2}s). \
+             scaffold doctor leg: {scaffold_doctor_ok} ({scaffold_doctor_seconds:.2}s). \
+             new+deploy+doctor trio: {trio_seconds:.2}s vs {cr_p3_budget_seconds:.0}s CR-P3 budget. \
+             total: {duration:.2}s.",
+            new_ok = if new_deploy_legs.new_ok { "ok" } else { "FAIL" },
+            new_seconds = new_deploy_legs.new_seconds,
+            deploy_ok = if new_deploy_legs.deploy_ok { "ok" } else { "FAIL" },
+            deploy_seconds = new_deploy_legs.deploy_seconds,
+            scaffold_doctor_ok = if new_deploy_legs.doctor_ok { "ok" } else { "FAIL" },
+            scaffold_doctor_seconds = new_deploy_legs.doctor_seconds,
         );
         if !red_apps.is_empty() {
-            note.push_str(&format!(" — failing: [{}]", red_apps.join(", ")));
+            note.push_str(&format!(" — failing fixtures: [{}]", red_apps.join(", ")));
+        }
+        if let Some(err) = &new_deploy_legs.error {
+            note.push_str(&format!(" — leg error: {err}"));
         }
         report.note = Some(note);
 
@@ -141,6 +174,119 @@ impl Subcommand for DeployRunner {
         };
         RunOutcome { report, exit_code }
     }
+}
+
+/// Result of running the `vox new` + `vox deploy --dry-run` + scaffold-doctor
+/// legs end-to-end in a tempdir. The trio sum is compared against the CR-P3
+/// 120-second budget in the caller.
+struct NewAndDeployLegs {
+    new_ok: bool,
+    new_seconds: f64,
+    deploy_ok: bool,
+    deploy_seconds: f64,
+    doctor_ok: bool,
+    doctor_seconds: f64,
+    error: Option<String>,
+}
+
+/// Scaffold a fresh `web` project, run `vox deploy --dry-run` against it,
+/// and re-run the doctor over the scaffolded sources. The whole sequence
+/// runs in a `tempfile::tempdir()` so it leaves no side-effects.
+fn run_new_and_deploy_legs() -> NewAndDeployLegs {
+    let mut result = NewAndDeployLegs {
+        new_ok: false,
+        new_seconds: 0.0,
+        deploy_ok: false,
+        deploy_seconds: 0.0,
+        doctor_ok: false,
+        doctor_seconds: 0.0,
+        error: None,
+    };
+
+    let tmp = match tempfile::tempdir() {
+        Ok(t) => t,
+        Err(e) => {
+            result.error = Some(format!("tempdir: {e}"));
+            return result;
+        }
+    };
+
+    // Leg 1: vox new --template web.
+    let new_started = Instant::now();
+    let scaffold = vox_project_scaffold::scaffold_vox_project_at(
+        tmp.path(),
+        "cr-l7-gate",
+        "application",
+        Some("web"),
+    );
+    result.new_seconds = new_started.elapsed().as_secs_f64();
+    if let Err(e) = scaffold {
+        result.error = Some(format!("scaffold: {e}"));
+        return result;
+    }
+    result.new_ok = true;
+
+    // Leg 2: vox deploy --dry-run. Replicates `vox-cli::commands::deploy::run`
+    // for the container-target dry-run path. The dry-run short-circuit in
+    // execute_container() lands before any docker/podman invocation, so this
+    // leg requires no container runtime.
+    let deploy_started = Instant::now();
+    let manifest_path = tmp.path().join("Vox.toml");
+    let deploy_outcome = (|| -> Result<(), String> {
+        let manifest = vox_package::VoxManifest::load(&manifest_path)
+            .map_err(|e| format!("load Vox.toml: {e}"))?;
+        let deploy = manifest
+            .deploy
+            .as_ref()
+            .ok_or_else(|| "no [deploy] section in scaffolded Vox.toml".to_string())?;
+        let target_kind = vox_deploy_codegen::resolve_target_kind(None, deploy.target.as_deref());
+        if target_kind != "container" {
+            return Err(format!(
+                "scaffolded web template should default to container; got {target_kind}"
+            ));
+        }
+        let ct = vox_deploy_codegen::build_container_target(
+            &manifest.package.name,
+            "production",
+            deploy.effective_image_name(),
+            deploy.effective_registry(),
+            deploy
+                .container
+                .as_ref()
+                .and_then(|c| c.dockerfile.as_deref()),
+            &deploy
+                .container
+                .as_ref()
+                .map(|c| c.build_args.clone())
+                .unwrap_or_default(),
+            tmp.path(),
+        );
+        let target = vox_deploy_codegen::DeployTarget::Container(ct);
+        target
+            .execute(None, /* dry_run */ true)
+            .map_err(|e| format!("dry-run execute: {e}"))?;
+        Ok(())
+    })();
+    result.deploy_seconds = deploy_started.elapsed().as_secs_f64();
+    match deploy_outcome {
+        Ok(()) => result.deploy_ok = true,
+        Err(e) => {
+            result.error = Some(e);
+            return result;
+        }
+    }
+
+    // Leg 3: doctor over the scaffolded source.
+    let doctor_started = Instant::now();
+    let doctor = doctor_project(tmp.path());
+    result.doctor_seconds = doctor_started.elapsed().as_secs_f64();
+    match doctor {
+        DoctorOutcome::Green => result.doctor_ok = true,
+        DoctorOutcome::Red(reason) => {
+            result.error = Some(format!("scaffold-doctor: {reason}"));
+        }
+    }
+    result
 }
 
 fn gate_thing_name() -> &'static str {
