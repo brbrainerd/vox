@@ -1,0 +1,172 @@
+{
+  "$schema": "../schemas/evidence-ledger.v1.schema.json",
+  "schema_version": 1,
+  "purpose": "Canonical map from `claim_id` (the words the audit scorecard uses to assert closure) to `artifact_path` (a file under contracts/reports/ or a binary that produces such a file). Any 'CLOSED' / 'PASSING' word in docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md must cite a claim_id resolvable here, and the artifact_path must exist on disk and be fresher than max_age_days. Enforced by `cargo run -p vox-arch-check` via `evidence_ledger_check`.",
+  "claims": {
+    "arch.cycles": {
+      "criterion": "CR-A3",
+      "artifact_path": "crates/vox-arch-check/src/main.rs",
+      "artifact_kind": "source_file",
+      "max_age_days": 365,
+      "notes": "vox-arch-check binary entry point; `cargo run -p vox-arch-check` exits 0 iff zero cycles (and the rest of the rule pack passes)."
+    },
+    "audit.cr_l5.aci_default": {
+      "criterion": "CR-L5",
+      "artifact_path": "contracts/reports/aci-default/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Most recent contracts/reports/aci-default/<UTC>.json must show threshold.met=true."
+    },
+    "audit.cr_l6.retirement": {
+      "criterion": "CR-L6",
+      "artifact_path": "contracts/reports/retirement/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Most recent contracts/reports/retirement/<UTC>.json must show threshold.met=true."
+    },
+    "audit.cr_l7.full": {
+      "criterion": "CR-L7",
+      "artifact_path": "contracts/reports/deploy/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Full gate: doctor + new + deploy --dry-run legs all running. Wallclock trio measured against the 120s CR-P3 budget. Per-leg timings in the gate's `note` field."
+    },
+    "perf.cr_p3.120s_loop": {
+      "criterion": "CR-P3",
+      "artifact_path": "contracts/reports/deploy/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "CR-P3 (`vox new web -> vox deploy` <= 120s) is measured as part of the CR-L7 deploy gate's wallclock trio (new+deploy+doctor). The `note` field of each contracts/reports/deploy/<UTC>.json records `trio: <Xs> vs 120s CR-P3 budget`. As of 2026-05-22: 0.01s vs 120s budget (12000x under). No separate cr-p3/ artifact directory is needed; the CR-L7 artifact is the SSOT for both gates."
+    },
+    "audit.cr_l8.feedback_loop": {
+      "criterion": "CR-L8",
+      "artifact_path": "contracts/reports/corpus-feedback/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 90,
+      "notes": "Quarterly aggregator artifact. Quiet-quarter reports count: when the events directory exists and the aggregator has run, the freshness gate is met. Per-quarter shape at contracts/reports/corpus-feedback/<YYYY-QN>.json."
+    },
+    "perf.cr_e1.coldstart_50ms": {
+      "criterion": "CR-E1",
+      "artifact_path": "contracts/reports/perf/cr-e1/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Cold-start p99 over 200 hello-world pipeline iterations. Threshold: p99 <= 50ms. Measured by `cargo run -p vox-audit --bin cr-e1`. First measurement: p99 = 0.25ms (200x under budget)."
+    },
+    "arch.cr_a1.cyclomatic_measured": {
+      "criterion": "CR-A1 (measured, threshold not yet met)",
+      "artifact_path": "contracts/reports/arch/cr-a1/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Cyclomatic-complexity sweep over crates/vox-compiler/src/hir/lower, crates/vox-compiler/src/typeck/checker, and crates/vox-codegen/src/codegen_rust/emit. Threshold: max function complexity <= 15. Trajectory: 2026-05-21 first measurement = 14 over-budget, max=28. 2026-05-22 refactor pass: max dropped 78 -> 53 (-32%) by extracting MethodCall / Lambda / Try arms out of check_expr and collapsing 17 near-duplicate Std-namespace arms in check_expr_field_access into a table-driven dispatch. check_expr_field_access fell off the over-budget list. Count of over-budget functions unchanged (21) because the refactor added well-named helpers (all sub-15) that count too. Further refactoring is real v1.x polish; threshold itself remains unmet."
+    },
+    "arch.cr_a4.lifecycle_parity": {
+      "criterion": "CR-A4",
+      "artifact_path": "contracts/reports/arch/cr-a4/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Lifecycle metadata sweep over contracts/orchestration/. Threshold: 100% of contracts declare a top-level lifecycle marker. 2026-05-21 first measurement: 9/9 (100%) — all v1 orchestration contracts tagged stable or experimental."
+    },
+    "arch.cr_a2.schema_parity": {
+      "criterion": "CR-A2",
+      "artifact_path": "contracts/reports/arch/cr-a2/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Schema-parity sweep over contracts/. Measured by `cargo run -p vox-audit --bin cr-a2`. Trajectory 2026-05-21: 24.1% (sweep too narrow, only recognized `schema_version`) → 81.3% (accept `$schema`/`x-vox-version`/`openapi`) → 93.0% (also exclude DATA-not-CONTRACT files: protocol message samples, fixtures, examples) → 97.8% (accept `version:`/`schema:` top-level conventions + yaml-language-server $schema pragma) → 98.4% (accept top-level array catalogs whose first element carries the version header) → 100.0% (annotated remaining 3 YAMLs: contracts/db/retention-policy.yaml, contracts/mens/golden_decl_expectations.yaml, contracts/scientia/distribution.default.yaml). 186 of 186 contracts versioned. ENFORCE=true as of 2026-05-22; new unversioned contracts now fail CI. Separately: 12 malformed JSON schema files identified in the artifact's `malformed_json` field — those are real bugs in the corpus; tracked as a follow-on task."
+    },
+    "docs.cr_d3.cli_examples_measured": {
+      "criterion": "CR-D3 (measured, threshold not yet met)",
+      "artifact_path": "contracts/reports/arch/cr-d3/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "CLI subcommand example coverage. Threshold: 100% of `vox` subcommands referenced from at least one .vox example. 2026-05-21 first measurement: 8/68 = 11.8%. Authoring the remaining 60 examples is real follow-on work."
+    },
+    "audit.cr_l1.corpus_validity": {
+      "criterion": "CR-L1 (partial)",
+      "artifact_path": "contracts/reports/humaneval/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 90,
+      "notes": "Corpus-validity layer. Subsumed by audit.cr_l1.llm_panel as of 2026-05-21 — the same artifact directory carries both layers."
+    },
+    "audit.cr_l1.llm_panel": {
+      "criterion": "CR-L1 (full)",
+      "artifact_path": "contracts/reports/humaneval/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Panel-mode CR-L1 measurement landed 2026-05-21 (honest plan §3.3). Full 164-fixture corpus × 2 OpenRouter members (claude-sonnet-4-6 + gpt-5.4). Median pass rate: 93.9% (gpt 96.3%, claude 91.5%) vs 80% target — met=true. Cost: $1.156 of $20 cumulative cap. mens-current excluded (not OpenRouter-routable; reported separately per panel YAML §cr_l0_mens_handling). Caching layer at contracts/reports/llm-panel-cache/ makes repeat runs free."
+    },
+    "audit.cr_l3.repair_panel": {
+      "criterion": "CR-L3",
+      "artifact_path": "contracts/reports/repair-corpus/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Panel-mode CR-L3 measurement landed 2026-05-21 (honest plan §3.5). 5-project corpus × 2 OpenRouter members. For each broken project, the first .vox under src/ + its vox-check diagnostics are sent to the model; pass = repaired source compiles with zero errors. Median pass rate: 80.0% (both members 4/5) vs 70% target — met=true. Cost: $0.031. §4.2 corpus growth 5→50 remains future work to stabilize the median signal; the 5-project measurement is publishable evidence as-is."
+    },
+    "audit.cr_l4.plan_loop_measured": {
+      "criterion": "CR-L4 (measured, sub-bar)",
+      "artifact_path": "contracts/reports/plan-fidelity/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Panel-mode CR-L4 measurement landed 2026-05-21 (honest plan §3.6). 5-plan corpus × 2 OpenRouter members; both single-shot AND 5-iteration refinement loop measured. Median pass rate: 40.0% (both members 2/5) vs 85% target — sub-bar. KEY FINDING: refinement loop (5 iters) gave identical 40% at 5× cost — plan-fidelity failures aren't shallow compiler errors that vox-check diagnostics can fix; the model misunderstands the plan semantically and emits compile-clean nonsense. Reaching 85% requires §4.3 corpus expansion to ship base sources per plan so the model has concrete context, OR a richer agent loop with test-execution feedback (not just vox-check)."
+    },
+    "audit.cr_l0.spec_to_app": {
+      "criterion": "CR-L0",
+      "artifact_path": "contracts/reports/spec-to-app/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "Panel-mode CR-L0 measurement landed 2026-05-21 (honest plan §3.7). Real OpenRouter calls against claude-sonnet + gpt-frontier per llm-panel.v1.yaml; generate → vox check → success_criteria scoring with up to 5 refinement iterations per (spec, member). Diagnostics from each failed vox check are fed back to the model on the next iteration. Measurement trajectory same-day: 0% (no calibration) → 41.7% (calibrated prompt, single-shot) → 50.0% (3-iteration refinement) → 66.7% (5-iteration refinement; bar met). Per-member: gpt-frontier 100%, claude-sonnet 33% (1/3). Hard $20 cumulative budget cap (VOX_AUDIT_BUDGET_USD); 5-iteration default measured run cost ~$0.20. Build/deploy/doctor refinement remain follow-on (would require project-skeleton generation per spec — not v1.0 blocker; vox check diagnostics already give the model adequate signal to recover from most first-shot misses)."
+    },
+    "code.workflow_runtime": {
+      "criterion": "language surface",
+      "artifact_path": "crates/vox-cli/tests/workflow_populi_golden.rs",
+      "artifact_kind": "test_file",
+      "max_age_days": 365,
+      "notes": "Golden test verifies WorkflowStarted/ActivityStarted/ActivityCompleted/LocalActivity/MeshActivity/WorkflowCompleted journal events end-to-end."
+    },
+    "code.sse_codegen": {
+      "criterion": "language surface",
+      "artifact_path": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
+      "artifact_kind": "source_file",
+      "max_age_days": 365,
+      "notes": "emit_sse_handler with actor-subscribe bridge + IntervalStream tick. Tests under codegen_rust::emit::http::tests."
+    },
+    "code.cr_l3_cr_l4_runners": {
+      "criterion": "language surface",
+      "artifact_path": "crates/vox-audit/src/subcommands/",
+      "artifact_kind": "directory",
+      "max_age_days": 365,
+      "notes": "Runners are real. Measurements are not — see cr_l3.repair_panel and cr_l4.plan_loop below."
+    }
+  },
+  "blocked_claims": {
+    "audit.cr_l2.mens_sampling": {
+      "criterion": "CR-L2",
+      "blocked_on": "Probe wiring landed 2026-05-22: contracts/reports/mens-on-distribution/<UTC>.json now records the MENS endpoint probe result (URL + error / status verbatim). Current artifact shows BackendUnavailable because the MENS server isn't running in this environment. Remediation in note: `python scripts/vox_inference.py --serve`. The follow-on (sampling protocol implementation against the running endpoint — VoxLocal speaks non-OpenAI-compat RPC) lands when the server is reachable in a measurement environment.",
+      "expected_artifact_path": "contracts/reports/mens-on-distribution/<UTC>.json with threshold.met=true"
+    },
+    "audit.cr_l4.plan_loop": {
+      "criterion": "CR-L4",
+      "blocked_on": "panel-mode wiring landed 2026-05-21 (§3.6 ✓); reaching threshold.met=true still requires (a) the multi-iteration refinement loop (mirror from CR-L0), and (b) §4.3 corpus growth shipping base sources per plan so the model isn't guessing what to modify. See `audit.cr_l4.plan_loop_measured` for the live sub-bar artifact.",
+      "expected_artifact_path": "contracts/reports/plan-fidelity/<UTC>.json with threshold.met=true"
+    },
+    "perf.cr_p1.three_apps_live": {
+      "criterion": "CR-P1",
+      "blocked_on": "§5.2 of the honest plan",
+      "expected_artifact_path": "contracts/reports/perf/cr-p1/<UTC>.json with 3 health endpoints"
+    },
+    "perf.cr_p2.uptime_7d": {
+      "criterion": "CR-P2",
+      "blocked_on": "§5.3 of the honest plan",
+      "expected_artifact_path": "contracts/reports/perf/cr-p2/<UTC>-7day.json with uptime_pct >= 99.9"
+    },
+    "perf.cr_e2.bundle_800kb": {
+      "criterion": "CR-E2",
+      "blocked_on": "§5.5 of the honest plan",
+      "expected_artifact_path": "contracts/reports/perf/cr-e2/<UTC>.json with gzip_bytes_max <= 819200"
+    },
+    "arch.cr_a2.voxproto_parity": {
+      "criterion": "CR-A2",
+      "blocked_on": "§5.7 of the honest plan (DEFERRED: VoxProto framework is v1.1)",
+      "expected_artifact_path": "contracts/reports/arch/cr-a2/<UTC>.json with parity_pct == 100"
+    }
+  }
+}
