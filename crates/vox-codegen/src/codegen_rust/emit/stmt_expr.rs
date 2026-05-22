@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use super::ownership::OwnershipMode;
 use vox_compiler::ast::span::Span;
 use vox_compiler::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
-use vox_compiler::hir::{HirBinOp, HirExpr, HirPattern, HirStmt, HirType};
+use vox_compiler::hir::{HirArg, HirBinOp, HirExpr, HirPattern, HirStmt, HirType};
 
 pub(super) fn emit_stmt(
     stmt: &HirStmt,
@@ -358,54 +358,10 @@ pub(super) fn emit_expr_with(
             }
         }
         HirExpr::Call(callee, args, is_await, _) => {
-            if let HirExpr::Ident(n, _) = &**callee {
-                // `broadcast(msg)` — actor handler body emit. Pushes the
-                // payload through `SubscriptionManager::notify_payload`
-                // keyed on the runtime-resolved actor name (env var
-                // `VOX_BROADCAST_CHANNEL`, set when the actor body is
-                // spawned). The payload is `as_string`-coerced so
-                // `broadcast(42)` and `broadcast("hi")` both work.
-                //
-                // This is the symmetric send side that pairs with the
-                // SSE handler's `subscribe_payload(...)` bridge (B5).
-                if n == "broadcast" && args.len() == 1 {
-                    return format!(
-                        "{{ let __vox_mgr = ::vox_actor_runtime::SubscriptionManager::default(); \
-                         let __vox_ch = std::env::var(\"VOX_BROADCAST_CHANNEL\").unwrap_or_default(); \
-                         __vox_mgr.notify_payload(&__vox_ch, as_string(&{})).await; }}",
-                        emit(&args[0].value, OwnershipMode::Owned)
-                    );
-                }
-                if n == "str" && args.len() == 1 {
-                    return format!("as_string(&{})", emit(&args[0].value, OwnershipMode::Owned));
-                }
-                if n == "assert" && args.len() == 1 {
-                    if let HirExpr::Binary(HirBinOp::Is, l, r, _) = &args[0].value {
-                        return format!("assert_eq!({}, {})", emit(l, OwnershipMode::Owned), emit(r, OwnershipMode::Owned));
-                    }
-                    return format!("assert!({})", emit(&args[0].value, OwnershipMode::Owned));
-                }
-                if n == "assert_eq" && args.len() >= 2 {
-                    return format!(
-                        "assert_eq!({}, {})",
-                        emit(&args[0].value, OwnershipMode::Owned),
-                        emit(&args[1].value, OwnershipMode::Owned)
-                    );
-                }
-                if n == "assert_ne" && args.len() >= 2 {
-                    return format!(
-                        "assert_ne!({}, {})",
-                        emit(&args[0].value, OwnershipMode::Owned),
-                        emit(&args[1].value, OwnershipMode::Owned)
-                    );
-                }
-                if n == "print" && args.len() == 1 {
-                    return format!("println!(\"{{}}\", {})", emit(&args[0].value, OwnershipMode::Owned));
-                }
-                if n == "len" && args.len() == 1 {
-                    // Vec, String, &str, etc. — use Rust `.len()` (db.Table.all() lowers to Vec)
-                    return format!("({}).len()", emit(&args[0].value, OwnershipMode::Owned));
-                }
+            if let HirExpr::Ident(n, _) = &**callee
+                && let Some(s) = emit_builtin_ident_call(n, args, &emit)
+            {
+                return s;
             }
             // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
             if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
@@ -506,6 +462,76 @@ pub(super) fn emit_expr_with(
         _ => unreachable!(
             "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
         ),
+    }
+}
+
+/// Try to emit a builtin function call by name (the `Call(Ident("..."), ...)`
+/// shape). Returns `None` if the ident isn't a recognized builtin, in which
+/// case the caller falls through to namespace / generic dispatch.
+///
+/// Extracted from `emit_expr_with` per CR-A1 plan §5.6 refactoring pass:
+/// the inline if-chain contributed ~16 decision points and obscured the
+/// dispatcher pattern.
+fn emit_builtin_ident_call<F>(
+    name: &str,
+    args: &[HirArg],
+    emit: &F,
+) -> Option<String>
+where
+    F: Fn(&HirExpr, OwnershipMode) -> String,
+{
+    match (name, args.len()) {
+        // broadcast(msg) — actor handler body emit. Pushes the payload
+        // through SubscriptionManager::notify_payload keyed on the
+        // runtime-resolved actor name (env var VOX_BROADCAST_CHANNEL,
+        // set when the actor body is spawned). The payload is
+        // as_string-coerced so broadcast(42) and broadcast("hi") both
+        // work. Symmetric send side that pairs with the SSE handler's
+        // subscribe_payload(...) bridge (B5).
+        ("broadcast", 1) => Some(format!(
+            "{{ let __vox_mgr = ::vox_actor_runtime::SubscriptionManager::default(); \
+             let __vox_ch = std::env::var(\"VOX_BROADCAST_CHANNEL\").unwrap_or_default(); \
+             __vox_mgr.notify_payload(&__vox_ch, as_string(&{})).await; }}",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        ("str", 1) => Some(format!(
+            "as_string(&{})",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        ("assert", 1) => {
+            if let HirExpr::Binary(HirBinOp::Is, l, r, _) = &args[0].value {
+                Some(format!(
+                    "assert_eq!({}, {})",
+                    emit(l.as_ref(), OwnershipMode::Owned),
+                    emit(r.as_ref(), OwnershipMode::Owned)
+                ))
+            } else {
+                Some(format!(
+                    "assert!({})",
+                    emit(&args[0].value, OwnershipMode::Owned)
+                ))
+            }
+        }
+        ("assert_eq", n) if n >= 2 => Some(format!(
+            "assert_eq!({}, {})",
+            emit(&args[0].value, OwnershipMode::Owned),
+            emit(&args[1].value, OwnershipMode::Owned)
+        )),
+        ("assert_ne", n) if n >= 2 => Some(format!(
+            "assert_ne!({}, {})",
+            emit(&args[0].value, OwnershipMode::Owned),
+            emit(&args[1].value, OwnershipMode::Owned)
+        )),
+        ("print", 1) => Some(format!(
+            "println!(\"{{}}\", {})",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        // len works on Vec / String / &str (db.Table.all() lowers to Vec).
+        ("len", 1) => Some(format!(
+            "({}).len()",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        _ => None,
     }
 }
 

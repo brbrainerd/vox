@@ -2,14 +2,14 @@
   "budget": 15,
   "criterion": "CR-A1",
   "files_scanned": 31,
-  "functions_scanned": 192,
+  "functions_scanned": 195,
   "lowering_paths": [
     "crates/vox-compiler/src/hir/lower",
     "crates/vox-compiler/src/typeck/checker",
     "crates/vox-codegen/src/codegen_rust/emit"
   ],
   "max_complexity": 53,
-  "measured_at": "2026-05-22T00:29:10.104295200+00:00",
+  "measured_at": "2026-05-22T01:44:00.372189200+00:00",
   "over_budget": [
     {
       "complexity": 53,
@@ -18,16 +18,16 @@
       "line": 149
     },
     {
-      "complexity": 51,
+      "complexity": 37,
       "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
       "function": "emit_expr_with",
       "line": 249
     },
     {
-      "complexity": 31,
+      "complexity": 29,
       "file": "crates/vox-compiler/src/hir/lower/decl.rs",
-      "function": "lower_fn",
-      "line": 10
+      "function": "lower_ai_fixture",
+      "line": 686
     },
     {
       "complexity": 29,
@@ -151,16 +151,16 @@
       "line": 149
     },
     {
-      "complexity": 51,
+      "complexity": 37,
       "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
       "function": "emit_expr_with",
       "line": 249
     },
     {
-      "complexity": 31,
+      "complexity": 29,
       "file": "crates/vox-compiler/src/hir/lower/decl.rs",
-      "function": "lower_fn",
-      "line": 10
+      "function": "lower_ai_fixture",
+      "line": 686
     },
     {
       "complexity": 29,

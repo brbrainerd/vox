@@ -16,28 +16,7 @@ impl LowerCtx {
         self.def_map.pop_scope();
 
         let capabilities = Self::merge_mens_capabilities(
-            f.effects
-                .iter()
-                .map(|e| match e {
-                    crate::ast::decl::EffectAnnotation::Net => crate::hir::HirCapability::Net,
-                    crate::ast::decl::EffectAnnotation::Db => crate::hir::HirCapability::Db,
-                    crate::ast::decl::EffectAnnotation::Fs => crate::hir::HirCapability::Fs,
-                    crate::ast::decl::EffectAnnotation::Env => crate::hir::HirCapability::Env,
-                    crate::ast::decl::EffectAnnotation::Clock => crate::hir::HirCapability::Clock,
-                    crate::ast::decl::EffectAnnotation::Random => crate::hir::HirCapability::Random,
-                    crate::ast::decl::EffectAnnotation::Spawn => crate::hir::HirCapability::Spawn,
-                    crate::ast::decl::EffectAnnotation::GpuCompute => {
-                        crate::hir::HirCapability::GpuCompute
-                    }
-                    crate::ast::decl::EffectAnnotation::Mutate => crate::hir::HirCapability::Mutate,
-                    crate::ast::decl::EffectAnnotation::Mcp(t) => {
-                        crate::hir::HirCapability::Mcp(t.clone())
-                    }
-                    crate::ast::decl::EffectAnnotation::Nothing => {
-                        crate::hir::HirCapability::Nothing
-                    }
-                })
-                .collect(),
+            f.effects.iter().map(lower_effect_to_capability).collect(),
             f.inference_model.is_some(),
             f.training_step,
         );
@@ -68,121 +47,7 @@ impl LowerCtx {
                     span: f.span,
                 }
             }),
-            ai_fixture: if f.hole_spec.is_some() || f.hole_cache_key.is_some() {
-                Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Hole(
-                    crate::hir::nodes::boilerplate_grafts::HirHoleFixture {
-                        spec: f
-                            .hole_spec
-                            .clone()
-                            .unwrap_or_else(|| "unfilled-hole".to_string()),
-                        reviewer: f
-                            .hole_reviewer
-                            .clone()
-                            .unwrap_or_else(|| "human".to_string()),
-                        cache_key: f
-                            .hole_cache_key
-                            .clone()
-                            .unwrap_or_else(|| "unset".to_string()),
-                        constraints: f.hole_constraints.clone(),
-                        span: f.span,
-                    },
-                ))
-            } else if f.is_llm {
-                let has_prompt_payload = f.prompt_stage.is_some() && f.prompt_schema.is_some();
-                let has_subagent_payload = f.subagent_policy.is_some() || f.subagent_max_depth.is_some();
-                let has_search_payload = f.search_corpus.is_some()
-                    || f.search_query.is_some()
-                    || f.search_into.is_some()
-                    || f.search_top_k.is_some()
-                    || f.search_policy.is_some();
-                let has_intent_payload = f.ai_task_category.is_some()
-                    || !f.ai_strengths.is_empty()
-                    || f.ai_tier_max.is_some()
-                    || f.ai_cost_ceiling_usd_per_call.is_some();
-                if has_search_payload {
-                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Search(
-                        crate::hir::nodes::boilerplate_grafts::HirSearchFixture {
-                            corpus: f
-                                .search_corpus
-                                .clone()
-                                .unwrap_or_else(|| "docs".to_string()),
-                            query: f
-                                .search_query
-                                .clone()
-                                .unwrap_or_else(|| String::from("")),
-                            into_type: f
-                                .search_into
-                                .clone()
-                                .or_else(|| {
-                                    f.return_type.as_ref().and_then(|t| match t {
-                                        TypeExpr::Named { name, .. } => Some(name.clone()),
-                                        _ => None,
-                                    })
-                                })
-                                .unwrap_or_else(|| "str".to_string()),
-                            top_k: f.search_top_k,
-                            policy: f.search_policy.clone(),
-                            span: f.span,
-                        },
-                    ))
-                } else if has_subagent_payload {
-                    Some(
-                        crate::hir::nodes::boilerplate_grafts::HirAiFixture::Subagent(
-                            crate::hir::nodes::boilerplate_grafts::HirSubagentFixture {
-                                policy: f
-                                    .subagent_policy
-                                    .clone()
-                                    .unwrap_or_else(|| "inline_only".to_string()),
-                                max_depth: f.subagent_max_depth.unwrap_or(1),
-                                budget_usd: f.subagent_budget_usd,
-                                description: f.subagent_description.clone(),
-                                parallel: f.subagent_parallel,
-                                complexity: f.subagent_complexity,
-                                span: f.span,
-                            },
-                        ),
-                    )
-                } else if has_prompt_payload {
-                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Prompt(
-                        crate::hir::nodes::boilerplate_grafts::HirPromptFixture {
-                            stage: f.prompt_stage.clone().unwrap_or_else(|| "Planner".to_string()),
-                            schema: f.prompt_schema.clone().unwrap_or_else(|| "Unknown".to_string()),
-                            redact: f.prompt_redact.clone(),
-                            span: f.span,
-                        },
-                    ))
-                } else if has_intent_payload {
-                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::IntentRouted(
-                        crate::hir::nodes::boilerplate_grafts::HirAiIntentFixture {
-                            task_category: f.ai_task_category.clone(),
-                            strengths: f.ai_strengths.clone(),
-                            tier_max: f.ai_tier_max.clone(),
-                            cost_ceiling_usd_per_call: f.ai_cost_ceiling_usd_per_call,
-                            span: f.span,
-                        },
-                    ))
-                } else {
-                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::ModelPin(
-                        crate::hir::nodes::boilerplate_grafts::HirAiModelPinFixture {
-                            model: f.llm_model.clone(),
-                            structured_output: f.ai_structured_output_type.as_ref().map(|ty| {
-                                crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput {
-                                    return_type: ty.clone(),
-                                    max_iterations: if f.ai_max_iterations == 0 {
-                                        3
-                                    } else {
-                                        f.ai_max_iterations
-                                    },
-                                    span: f.span,
-                                }
-                            }),
-                            span: f.span,
-                        },
-                    ))
-                }
-            } else {
-                None
-            },
+            ai_fixture: lower_ai_fixture(f),
             embed: f
                 .embed
                 .as_ref()
@@ -788,4 +653,145 @@ impl LowerCtx {
             span: s.span,
         }
     }
+}
+
+/// Map an AST `EffectAnnotation` to its HIR `HirCapability` counterpart.
+/// Extracted from `lower_fn` per CR-A1 plan §5.6 — the inline 10-arm
+/// match contributed ~10 decision points and obscured the dispatcher
+/// pattern.
+fn lower_effect_to_capability(
+    e: &crate::ast::decl::EffectAnnotation,
+) -> crate::hir::HirCapability {
+    use crate::ast::decl::EffectAnnotation as A;
+    use crate::hir::HirCapability as H;
+    match e {
+        A::Net => H::Net,
+        A::Db => H::Db,
+        A::Fs => H::Fs,
+        A::Env => H::Env,
+        A::Clock => H::Clock,
+        A::Random => H::Random,
+        A::Spawn => H::Spawn,
+        A::GpuCompute => H::GpuCompute,
+        A::Mutate => H::Mutate,
+        A::Mcp(t) => H::Mcp(t.clone()),
+        A::Nothing => H::Nothing,
+    }
+}
+
+/// Build the optional `HirAiFixture` for a function declaration.
+/// Extracted from `lower_fn` per CR-A1 plan §5.6 — the inline 5-branch
+/// `if`-cascade (Hole / Search / Subagent / Prompt / IntentRouted /
+/// ModelPin) contributed ~15 decision points.
+fn lower_ai_fixture(
+    f: &FnDecl,
+) -> Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture> {
+    use crate::hir::nodes::boilerplate_grafts as gb;
+
+    if f.hole_spec.is_some() || f.hole_cache_key.is_some() {
+        return Some(gb::HirAiFixture::Hole(gb::HirHoleFixture {
+            spec: f
+                .hole_spec
+                .clone()
+                .unwrap_or_else(|| "unfilled-hole".to_string()),
+            reviewer: f
+                .hole_reviewer
+                .clone()
+                .unwrap_or_else(|| "human".to_string()),
+            cache_key: f
+                .hole_cache_key
+                .clone()
+                .unwrap_or_else(|| "unset".to_string()),
+            constraints: f.hole_constraints.clone(),
+            span: f.span,
+        }));
+    }
+    if !f.is_llm {
+        return None;
+    }
+
+    let has_prompt_payload = f.prompt_stage.is_some() && f.prompt_schema.is_some();
+    let has_subagent_payload =
+        f.subagent_policy.is_some() || f.subagent_max_depth.is_some();
+    let has_search_payload = f.search_corpus.is_some()
+        || f.search_query.is_some()
+        || f.search_into.is_some()
+        || f.search_top_k.is_some()
+        || f.search_policy.is_some();
+    let has_intent_payload = f.ai_task_category.is_some()
+        || !f.ai_strengths.is_empty()
+        || f.ai_tier_max.is_some()
+        || f.ai_cost_ceiling_usd_per_call.is_some();
+
+    if has_search_payload {
+        return Some(gb::HirAiFixture::Search(gb::HirSearchFixture {
+            corpus: f
+                .search_corpus
+                .clone()
+                .unwrap_or_else(|| "docs".to_string()),
+            query: f.search_query.clone().unwrap_or_else(|| String::from("")),
+            into_type: f
+                .search_into
+                .clone()
+                .or_else(|| {
+                    f.return_type.as_ref().and_then(|t| match t {
+                        TypeExpr::Named { name, .. } => Some(name.clone()),
+                        _ => None,
+                    })
+                })
+                .unwrap_or_else(|| "str".to_string()),
+            top_k: f.search_top_k,
+            policy: f.search_policy.clone(),
+            span: f.span,
+        }));
+    }
+    if has_subagent_payload {
+        return Some(gb::HirAiFixture::Subagent(gb::HirSubagentFixture {
+            policy: f
+                .subagent_policy
+                .clone()
+                .unwrap_or_else(|| "inline_only".to_string()),
+            max_depth: f.subagent_max_depth.unwrap_or(1),
+            budget_usd: f.subagent_budget_usd,
+            description: f.subagent_description.clone(),
+            parallel: f.subagent_parallel,
+            complexity: f.subagent_complexity,
+            span: f.span,
+        }));
+    }
+    if has_prompt_payload {
+        return Some(gb::HirAiFixture::Prompt(gb::HirPromptFixture {
+            stage: f.prompt_stage.clone().unwrap_or_else(|| "Planner".to_string()),
+            schema: f
+                .prompt_schema
+                .clone()
+                .unwrap_or_else(|| "Unknown".to_string()),
+            redact: f.prompt_redact.clone(),
+            span: f.span,
+        }));
+    }
+    if has_intent_payload {
+        return Some(gb::HirAiFixture::IntentRouted(gb::HirAiIntentFixture {
+            task_category: f.ai_task_category.clone(),
+            strengths: f.ai_strengths.clone(),
+            tier_max: f.ai_tier_max.clone(),
+            cost_ceiling_usd_per_call: f.ai_cost_ceiling_usd_per_call,
+            span: f.span,
+        }));
+    }
+    Some(gb::HirAiFixture::ModelPin(gb::HirAiModelPinFixture {
+        model: f.llm_model.clone(),
+        structured_output: f.ai_structured_output_type.as_ref().map(|ty| {
+            gb::HirAiStructuredOutput {
+                return_type: ty.clone(),
+                max_iterations: if f.ai_max_iterations == 0 {
+                    3
+                } else {
+                    f.ai_max_iterations
+                },
+                span: f.span,
+            }
+        }),
+        span: f.span,
+    }))
 }
