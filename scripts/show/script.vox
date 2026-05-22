@@ -1,0 +1,163 @@
+// scripts/show/script.vox
+// Whisper transcript -> 3-act outline drafter for Raw Nerve episodes.
+//
+// Usage:  vox run scripts/show/script.vox <recording-dir> [--out outline.md] [--cta playground|donation]
+//
+// Pipeline:
+//   1. List media files in <recording-dir> (.mp4/.mkv/.webm/.wav)
+//   2. For each, run Whisper-local large-v3 -> JSON transcript
+//   3. Concatenate transcripts (timestamps preserved)
+//   4. Send to LLM with the outline-shape prompt (see PROMPT below)
+//   5. Write outline.md next to the recordings (or to --out)
+//
+// Dependencies:
+//   - whisper-cli (whisper.cpp or python whisper) on $PATH
+//   - LLM backend reachable via the vox-mens provider routing layer
+//
+// This script produces a DRAFT outline, not a finished script. The host
+// talks through the outline conversationally; ruthless edit after.
+//
+// vox:caps subprocess, fs
+
+import fs
+import path
+
+// The system prompt sent to the LLM after transcripts are concatenated.
+// Embedded literally so the outline format is reproducible across runs.
+fn outline_prompt(transcript: str, cta_type: str) to str {
+    return "You are an editor for Raw Nerve, a programming-language YouTube channel.\n" +
+        "The host is Bert Brainerd, a former neuroscientist building Vox, an AI-native\n" +
+        "programming language designed after the LLM.\n" +
+        "\n" +
+        "Below is a transcript of one week's worth of recorded development work.\n" +
+        "Produce a 3-act episode OUTLINE (not a script) that the host will talk\n" +
+        "through conversationally. The outline is bullets and one-liners; the host\n" +
+        "fills in the takes.\n" +
+        "\n" +
+        "Constraints:\n" +
+        "  - Total spoken length ~10 minutes (~1200 words when delivered)\n" +
+        "  - Voice register: deadpan irreverence with journalistic structure\n" +
+        "  - Comedy in asides only, never setpieces\n" +
+        "  - Show the wound (failures > wins for retention)\n" +
+        "  - One CTA at the end. CTA type: " + cta_type + "\n" +
+        "  - Reference specific moments by [HH:MM:SS] timestamps where useful\n" +
+        "\n" +
+        "Output schema:\n" +
+        "  ## Act 1 - Setup (~2 min)\n" +
+        "  - The problem in one sentence\n" +
+        "  - Why it matters (one beat)\n" +
+        "  - The provocation that opens Act 2\n" +
+        "\n" +
+        "  ## Act 2 - Evidence (~6 min)\n" +
+        "  - 3-5 bullets, each ~60-90 sec\n" +
+        "  - Each bullet ties to a transcript moment\n" +
+        "  - Demos or code references where applicable\n" +
+        "\n" +
+        "  ## Act 3 - Payoff (~1-2 min)\n" +
+        "  - The take (one stance to remember)\n" +
+        "  - Connect to a worldview, not just a feature\n" +
+        "  - CTA\n" +
+        "\n" +
+        "  ## Meta\n" +
+        "  - 5 candidate titles (workshop)\n" +
+        "  - 1 thumbnail concept (visual + text overlay)\n" +
+        "  - Segment: one of Acta / Documenta / Analogia / Mens / Disputatio / Nota\n" +
+        "  - Vox-scientia citation key: raw-nerve-YYYY-MM-DD-slug\n" +
+        "\n" +
+        "Transcript:\n" +
+        transcript
+}
+
+// Run whisper-cli on a single media file; return the transcript text or
+// an Error explaining what went wrong.
+fn transcribe(media_path: str) to Result[str] {
+    let result = exec("whisper-cli", [
+        media_path,
+        "--model", "large-v3",
+        "--output-format", "json",
+        "--output-dir", "/tmp/rawnerve-transcripts"
+    ])
+    if result.exit_code != 0 {
+        return Error("whisper-cli failed on " + media_path + ": exit " + str(result.exit_code))
+    }
+    let stem = path.stem(media_path)
+    let transcript_path = "/tmp/rawnerve-transcripts/" + stem + ".json"
+    return Ok(fs.read_to_string(transcript_path))
+}
+
+// Send the outline prompt to the LLM backend. Routes through vox-mens
+// provider routing; no hardcoded keys. Returns the generated outline.
+fn generate_outline(prompt: str) to Result[str] {
+    // TODO: replace with the canonical vox-mens call once that surface is
+    // ready. For now, shell out to whatever CLI you have available.
+    let result = exec("vox", ["mens", "prompt", "--text", prompt])
+    if result.exit_code != 0 {
+        return Error("LLM call failed: exit " + str(result.exit_code))
+    }
+    return Ok(result.stdout)
+}
+
+fn main() {
+    let args = std.args
+    if len(args) < 2 {
+        println("usage: vox run scripts/show/script.vox <recording-dir> [--out outline.md] [--cta playground|donation]")
+        exit(1)
+    }
+    let recording_dir = args[1]
+
+    // Defaults; can override via flags.
+    let out_path = recording_dir + "/outline.md"
+    let cta_type = "playground"
+
+    // (Minimal flag parsing; real parsing later.)
+    let i = 2
+    for arg in args {
+        if arg is "--out" {
+            // Next arg is the path.
+        }
+        if arg is "--cta" {
+            // Next arg is the cta type.
+        }
+    }
+
+    println("scripts/show/script.vox: transcribing recordings in " + recording_dir)
+
+    let media_files = fs.list_recursive(recording_dir, "*.mp4")
+    media_files.extend(fs.list_recursive(recording_dir, "*.mkv"))
+    media_files.extend(fs.list_recursive(recording_dir, "*.webm"))
+    media_files.extend(fs.list_recursive(recording_dir, "*.wav"))
+
+    if len(media_files) is 0 {
+        println("no media files found in " + recording_dir)
+        exit(1)
+    }
+
+    let combined = ""
+    for f in media_files {
+        println("  - " + f)
+        let tr = transcribe(f)
+        match tr {
+            Error(e) => {
+                println("    SKIPPED: " + e)
+            }
+            Ok(text) => {
+                combined = combined + "\n\n=== " + f + " ===\n\n" + text
+            }
+        }
+    }
+
+    println("generating outline...")
+    let prompt = outline_prompt(combined, cta_type)
+    let outline_res = generate_outline(prompt)
+    match outline_res {
+        Error(e) => {
+            println("FAILED: " + e)
+            exit(1)
+        }
+        Ok(outline) => {
+            fs.write_to_file(out_path, outline)
+            println("wrote outline -> " + out_path)
+            println("review it, then record from it conversationally")
+        }
+    }
+}

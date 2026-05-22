@@ -1,0 +1,66 @@
+// scripts/show/title-workshop.vox
+// Generates 10 ranked title candidates for an episode from an outline
+// or 1-paragraph summary.
+//
+// Usage:  vox run scripts/show/title-workshop.vox <outline-or-summary-path>
+//
+// Output: 10 titles printed to stdout with CTR prediction and brand-match
+// scores. The top 3 are usable as-is; the rest are diagnostic.
+//
+// vox:caps subprocess, fs
+
+import fs
+
+fn title_prompt(summary: str) to str {
+    return "You are a title workshopper for Raw Nerve, a programming-language\n" +
+        "YouTube channel. The channel's positioning is rigorous, opinionated,\n" +
+        "dry-witted -- 'deadpan irreverence with journalistic structure.'\n" +
+        "\n" +
+        "Episode summary or outline:\n" +
+        "\n" + summary + "\n" +
+        "\n" +
+        "Generate 10 titles. For each:\n" +
+        "  - Title (under 65 characters)\n" +
+        "  - Predicted CTR rationale (one sentence)\n" +
+        "  - Reason it might NOT work (one sentence)\n" +
+        "  - Brand-style match score (1-5)\n" +
+        "  - Rank (1 = most usable, 10 = least)\n" +
+        "\n" +
+        "Avoid:\n" +
+        "  - Generic clickbait ('You won't believe...')\n" +
+        "  - Hyperbole that doesn't deliver in the video\n" +
+        "  - Punctuation tricks (excessive caps, multiple question marks)\n" +
+        "  - Generic phrasings ('How I...', 'The truth about...')\n" +
+        "\n" +
+        "Prefer:\n" +
+        "  - Concrete claims that match the video's payoff\n" +
+        "  - Specific numbers if real\n" +
+        "  - Distinctive Vox-coded language ('unsamplable', 'structurally refuses',\n" +
+        "    'deadlock watchdog', 'one declaration, four outputs')\n" +
+        "  - Subject-verb-object structures (best on HN historically)"
+}
+
+fn main() {
+    let args = std.args
+    if len(args) < 2 {
+        println("usage: vox run scripts/show/title-workshop.vox <outline-or-summary-path>")
+        exit(1)
+    }
+    let in_path = args[1]
+
+    let summary = fs.read_to_string(in_path)
+    if len(summary) is 0 {
+        println("empty or unreadable: " + in_path)
+        exit(1)
+    }
+
+    let prompt = title_prompt(summary)
+    let result = exec("vox", ["mens", "prompt", "--text", prompt])
+    if result.exit_code != 0 {
+        println("LLM call failed; raw prompt follows for manual use:")
+        println("--- PROMPT ---")
+        println(prompt)
+        exit(1)
+    }
+    println(result.stdout)
+}

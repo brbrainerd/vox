@@ -1,0 +1,99 @@
+// scripts/show/topic-suggest.vox
+// Reads the past week of repository signals (commits, closed issues,
+// merged PRs, docs changes) and proposes 3 ranked episode candidates.
+//
+// Usage:  vox run scripts/show/topic-suggest.vox [--since 7d]
+//
+// Output: 3 candidate episodes printed to stdout, each with title,
+// segment, why-this-week, 3-act sketch, prep effort, and risk.
+//
+// vox:caps subprocess
+
+fn suggest_prompt(commits: str, closed_issues: str, merged_prs: str, doc_changes: str) to str {
+    return "You are pitching episodes for Raw Nerve, a literary engineering\n" +
+        "journal documenting Vox, an AI-native programming language.\n" +
+        "\n" +
+        "This past week's signals from the repository:\n" +
+        "\n" +
+        "Commits (oldest -> newest):\n" + commits + "\n" +
+        "\n" +
+        "Closed issues:\n" + closed_issues + "\n" +
+        "\n" +
+        "Merged PRs:\n" + merged_prs + "\n" +
+        "\n" +
+        "Docs changes:\n" + doc_changes + "\n" +
+        "\n" +
+        "Suggest 3 candidate episodes, each with:\n" +
+        "  1. Working title (concrete, <= 8 words)\n" +
+        "  2. Segment: one of Acta / Documenta / Analogia / Mens / Disputatio / Nota\n" +
+        "  3. Why this week (1-2 sentences)\n" +
+        "  4. 3-act sketch (1 line per act)\n" +
+        "  5. Estimated prep effort (low / medium / high)\n" +
+        "  6. Risk (what could make this not land)\n" +
+        "  7. Playground example that best demonstrates it (from examples/golden/)\n" +
+        "\n" +
+        "Rank from most promising to least. Be specific. No generic clickbait."
+}
+
+fn collect_git_log(since: str) to str {
+    let result = exec("git", ["log", "--since=" + since, "--oneline", "--no-merges"])
+    if result.exit_code != 0 {
+        return ""
+    }
+    return result.stdout
+}
+
+fn collect_closed_issues(since: str) to str {
+    let result = exec("gh", ["issue", "list", "--state", "closed",
+                              "--search", "closed:>=" + since, "--limit", "20"])
+    if result.exit_code != 0 {
+        return "(gh CLI unavailable or not authenticated)"
+    }
+    return result.stdout
+}
+
+fn collect_merged_prs(since: str) to str {
+    let result = exec("gh", ["pr", "list", "--state", "merged",
+                              "--search", "merged:>=" + since, "--limit", "20"])
+    if result.exit_code != 0 {
+        return "(gh CLI unavailable or not authenticated)"
+    }
+    return result.stdout
+}
+
+fn collect_doc_changes(since: str) to str {
+    let result = exec("git", ["log", "--since=" + since, "--name-only",
+                                "--pretty=format:", "--", "docs/"])
+    if result.exit_code != 0 {
+        return ""
+    }
+    return result.stdout
+}
+
+fn main() {
+    // Default to the past 7 days; future: parse --since flag.
+    let since = "7 days ago"
+
+    println("collecting repository signals (--since " + since + ")...")
+
+    let commits = collect_git_log(since)
+    let closed = collect_closed_issues(since)
+    let merged = collect_merged_prs(since)
+    let docs = collect_doc_changes(since)
+
+    if len(commits) is 0 {
+        println("no commits in window; pick a different --since or take the week off")
+        exit(0)
+    }
+
+    let prompt = suggest_prompt(commits, closed, merged, docs)
+
+    let llm_result = exec("vox", ["mens", "prompt", "--text", prompt])
+    if llm_result.exit_code != 0 {
+        println("LLM call failed; raw prompt follows for manual use:")
+        println("--- PROMPT ---")
+        println(prompt)
+        exit(1)
+    }
+    println(llm_result.stdout)
+}
