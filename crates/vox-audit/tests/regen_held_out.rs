@@ -13,4 +13,7 @@ fn regenerate_held_out_v1_json() {
     let text = serde_json::to_string_pretty(&manifest).expect("to_string_pretty");
     std::fs::write(&out_path, text + "\n").expect("write");
     println!("wrote {}", out_path.display());
+    println!("corpus_hash: {}", manifest.corpus_hash);
+    println!("total_fixtures: {}", manifest.total_fixtures);
+    println!("held_out_count: {}", manifest.held_out_count);
 }

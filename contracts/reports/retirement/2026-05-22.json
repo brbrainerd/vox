@@ -1,0 +1,20 @@
+{
+  "thing": "retirement",
+  "schema_version": 1,
+  "measured_at": "2026-05-22T00:30:25.437951100+00:00",
+  "corpus_hash": "blake3:3b29aaad06f0eb7d1cc0a627e0e48de2495281cb515768e9cd1bbdf49373a888",
+  "corpus_size": 16,
+  "llm_panel": [],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 1.0
+  },
+  "threshold": {
+    "target": 1.0,
+    "met": true
+  }
+}

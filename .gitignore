@@ -87,6 +87,10 @@ populi/data/*.jsonl
 .vox-research-data/
 .vox/cache/
 .vox/artifacts/
+# Telemetry upload spool — runtime state written by vox-telemetry's
+# upload queue; pending/ holds per-event JSON until upload succeeds.
+# Not source-of-truth, regenerated on every run, should not be committed.
+.vox/telemetry-upload-queue/
 # Runtime memory stubs (regenerated locally; never commit)
 /.vox/memory/
 # Crate-local `.vox/` state (orchestrator memory, etc.)
