@@ -1,7 +1,7 @@
 {
   "thing": "mens-on-distribution",
   "schema_version": 1,
-  "measured_at": "2026-05-22T00:30:25.405347600+00:00",
+  "measured_at": "2026-05-22T00:58:44.812533300+00:00",
   "corpus_hash": "blake3:reusing-cr-l1-corpus-164",
   "corpus_size": 164,
   "llm_panel": [],
