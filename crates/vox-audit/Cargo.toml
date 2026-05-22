@@ -9,6 +9,7 @@ clap = { workspace = true, features = ["derive"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
+flate2 = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
@@ -66,6 +67,12 @@ path = "src/bin/cr-a4.rs"
 [[bin]]
 name = "cr-a2"
 path = "src/bin/cr-a2.rs"
+
+# CR-E2 marquee bundle-size measurement. Per honest plan §5.5.
+# Threshold: 800 KB gzip per app.
+[[bin]]
+name = "cr-e2"
+path = "src/bin/cr-e2.rs"
 
 [dev-dependencies]
 tempfile = { workspace = true }
