@@ -2,14 +2,14 @@
   "budget": 15,
   "criterion": "CR-A1",
   "files_scanned": 31,
-  "functions_scanned": 195,
+  "functions_scanned": 209,
   "lowering_paths": [
     "crates/vox-compiler/src/hir/lower",
     "crates/vox-compiler/src/typeck/checker",
     "crates/vox-codegen/src/codegen_rust/emit"
   ],
   "max_complexity": 53,
-  "measured_at": "2026-05-22T01:44:00.372189200+00:00",
+  "measured_at": "2026-05-22T09:25:29.080666500+00:00",
   "over_budget": [
     {
       "complexity": 53,
@@ -22,18 +22,6 @@
       "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
       "function": "emit_expr_with",
       "line": 249
-    },
-    {
-      "complexity": 29,
-      "file": "crates/vox-compiler/src/hir/lower/decl.rs",
-      "function": "lower_ai_fixture",
-      "line": 686
-    },
-    {
-      "complexity": 29,
-      "file": "crates/vox-compiler/src/hir/lower/expr_db.rs",
-      "function": "extract_db_query_chain",
-      "line": 319
     },
     {
       "complexity": 29,
@@ -158,18 +146,6 @@
     },
     {
       "complexity": 29,
-      "file": "crates/vox-compiler/src/hir/lower/decl.rs",
-      "function": "lower_ai_fixture",
-      "line": 686
-    },
-    {
-      "complexity": 29,
-      "file": "crates/vox-compiler/src/hir/lower/expr_db.rs",
-      "function": "extract_db_query_chain",
-      "line": 319
-    },
-    {
-      "complexity": 29,
       "file": "crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs",
       "function": "emit_llm_function_body",
       "line": 7
@@ -263,6 +239,18 @@
       "file": "crates/vox-compiler/src/typeck/checker/expr_field.rs",
       "function": "check_expr_field_access",
       "line": 12
+    },
+    {
+      "complexity": 16,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
+      "function": "emit_stmt",
+      "line": 7
+    },
+    {
+      "complexity": 15,
+      "file": "crates/vox-compiler/src/hir/lower/async_flags.rs",
+      "function": "has_async_expr",
+      "line": 21
     }
   ]
 }

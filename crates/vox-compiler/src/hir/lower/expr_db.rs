@@ -328,93 +328,8 @@ pub(super) fn extract_db_query_chain(ctx: &mut LowerCtx, expr: &Expr) -> Option<
     };
 
     if let Some(mut chain) = extract_db_query_chain(ctx, object) {
-        match method.as_str() {
-            "order_by" => {
-                if args.is_empty() || args.len() > 2 {
-                    return None;
-                }
-                let col = match &args[0].value {
-                    Expr::StringLit { value, .. } => value.clone(),
-                    Expr::Ident { name, .. } => name.clone(),
-                    _ => return None,
-                };
-                let mut asc = true;
-                if args.len() == 2 {
-                    asc = match &args[1].value {
-                        Expr::StringLit { value, .. } => !value.eq_ignore_ascii_case("desc"),
-                        Expr::BoolLit { value, .. } => *value,
-                        _ => return None,
-                    };
-                }
-                chain.order_by = Some((col, asc));
-                return Some(chain);
-            }
-            "limit" => {
-                if args.len() != 1 {
-                    return None;
-                }
-                chain.limit = Some(ctx.lower_expr(&args[0].value));
-                return Some(chain);
-            }
-            "select" => {
-                if chain.select_cols.is_some() {
-                    return None;
-                }
-                let cols = parse_select_columns(args)?;
-                chain.select_cols = Some(cols);
-                return Some(chain);
-            }
-            "sync" => {
-                if !args.is_empty() {
-                    return None;
-                }
-                chain.capabilities.requires_sync = true;
-                return Some(chain);
-            }
-            "using" => {
-                if args.len() != 1 {
-                    return None;
-                }
-                let mode = match &args[0].value {
-                    Expr::StringLit { value, .. } => value.to_ascii_lowercase(),
-                    Expr::Ident { name, .. } => name.to_ascii_lowercase(),
-                    _ => return None,
-                };
-                chain.capabilities.retrieval_mode = match mode.as_str() {
-                    "fts" | "search" => Some(HirDbRetrievalMode::Fts),
-                    "vector" => Some(HirDbRetrievalMode::Vector),
-                    "hybrid" => Some(HirDbRetrievalMode::Hybrid),
-                    _ => None,
-                };
-                return Some(chain);
-            }
-            "live" => {
-                if args.len() != 1 {
-                    return None;
-                }
-                let topic = match &args[0].value {
-                    Expr::StringLit { value, .. } => value.clone(),
-                    Expr::Ident { name, .. } => name.clone(),
-                    _ => return None,
-                };
-                chain.capabilities.emits_change_log = true;
-                chain.capabilities.live_topic = Some(topic);
-                return Some(chain);
-            }
-            "scope" => {
-                if args.len() != 1 {
-                    return None;
-                }
-                let scope = match &args[0].value {
-                    Expr::StringLit { value, .. } => value.clone(),
-                    Expr::Ident { name, .. } => name.clone(),
-                    _ => return None,
-                };
-                chain.capabilities.orchestration_scope = Some(scope);
-                return Some(chain);
-            }
-            _ => return None,
-        }
+        apply_chain_modifier(ctx, method, args, &mut chain)?;
+        return Some(chain);
     }
 
     let obj_hir = ctx.lower_expr(object);
@@ -484,4 +399,125 @@ pub(super) fn extract_db_query_chain(ctx: &mut LowerCtx, expr: &Expr) -> Option<
         }
         _ => None,
     }
+}
+
+/// Apply a chain-modifier method (`order_by`, `limit`, `select`, `sync`,
+/// `using`, `live`, `scope`) to an existing query chain. Returns
+/// `Some(())` on success, `None` on argument shape mismatch or
+/// unrecognized method (so the caller can fall back to base-case
+/// handling). Extracted from `extract_db_query_chain` per CR-A1
+/// refactoring pass — the inline 7-method match contributed ~14
+/// decision points and obscured the dispatch.
+fn apply_chain_modifier(
+    ctx: &mut LowerCtx,
+    method: &str,
+    args: &[expr::Arg],
+    chain: &mut DbQueryChain,
+) -> Option<()> {
+    match method {
+        "order_by" => apply_order_by(args, chain),
+        "limit" => apply_limit(ctx, args, chain),
+        "select" => apply_select(args, chain),
+        "sync" => apply_sync(args, chain),
+        "using" => apply_using(args, chain),
+        "live" => apply_live(args, chain),
+        "scope" => apply_scope(args, chain),
+        _ => None,
+    }
+}
+
+fn apply_order_by(args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
+    if args.is_empty() || args.len() > 2 {
+        return None;
+    }
+    let col = match &args[0].value {
+        Expr::StringLit { value, .. } => value.clone(),
+        Expr::Ident { name, .. } => name.clone(),
+        _ => return None,
+    };
+    let asc = if args.len() == 2 {
+        match &args[1].value {
+            Expr::StringLit { value, .. } => !value.eq_ignore_ascii_case("desc"),
+            Expr::BoolLit { value, .. } => *value,
+            _ => return None,
+        }
+    } else {
+        true
+    };
+    chain.order_by = Some((col, asc));
+    Some(())
+}
+
+fn apply_limit(
+    ctx: &mut LowerCtx,
+    args: &[expr::Arg],
+    chain: &mut DbQueryChain,
+) -> Option<()> {
+    if args.len() != 1 {
+        return None;
+    }
+    chain.limit = Some(ctx.lower_expr(&args[0].value));
+    Some(())
+}
+
+fn apply_select(args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
+    if chain.select_cols.is_some() {
+        return None;
+    }
+    let cols = parse_select_columns(args)?;
+    chain.select_cols = Some(cols);
+    Some(())
+}
+
+fn apply_sync(args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
+    if !args.is_empty() {
+        return None;
+    }
+    chain.capabilities.requires_sync = true;
+    Some(())
+}
+
+fn apply_using(args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
+    if args.len() != 1 {
+        return None;
+    }
+    let mode = match &args[0].value {
+        Expr::StringLit { value, .. } => value.to_ascii_lowercase(),
+        Expr::Ident { name, .. } => name.to_ascii_lowercase(),
+        _ => return None,
+    };
+    chain.capabilities.retrieval_mode = match mode.as_str() {
+        "fts" | "search" => Some(HirDbRetrievalMode::Fts),
+        "vector" => Some(HirDbRetrievalMode::Vector),
+        "hybrid" => Some(HirDbRetrievalMode::Hybrid),
+        _ => None,
+    };
+    Some(())
+}
+
+fn apply_live(args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
+    if args.len() != 1 {
+        return None;
+    }
+    let topic = match &args[0].value {
+        Expr::StringLit { value, .. } => value.clone(),
+        Expr::Ident { name, .. } => name.clone(),
+        _ => return None,
+    };
+    chain.capabilities.emits_change_log = true;
+    chain.capabilities.live_topic = Some(topic);
+    Some(())
+}
+
+fn apply_scope(args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
+    if args.len() != 1 {
+        return None;
+    }
+    let scope = match &args[0].value {
+        Expr::StringLit { value, .. } => value.clone(),
+        Expr::Ident { name, .. } => name.clone(),
+        _ => return None,
+    };
+    chain.capabilities.orchestration_scope = Some(scope);
+    Some(())
 }

@@ -686,100 +686,149 @@ fn lower_effect_to_capability(
 fn lower_ai_fixture(
     f: &FnDecl,
 ) -> Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture> {
-    use crate::hir::nodes::boilerplate_grafts as gb;
-
-    if f.hole_spec.is_some() || f.hole_cache_key.is_some() {
-        return Some(gb::HirAiFixture::Hole(gb::HirHoleFixture {
-            spec: f
-                .hole_spec
-                .clone()
-                .unwrap_or_else(|| "unfilled-hole".to_string()),
-            reviewer: f
-                .hole_reviewer
-                .clone()
-                .unwrap_or_else(|| "human".to_string()),
-            cache_key: f
-                .hole_cache_key
-                .clone()
-                .unwrap_or_else(|| "unset".to_string()),
-            constraints: f.hole_constraints.clone(),
-            span: f.span,
-        }));
+    // Hole has priority over LLM-flavored fixtures (a function carrying
+    // hole_spec is a hole regardless of @ai surface).
+    if let Some(hole) = try_lower_hole_fixture(f) {
+        return Some(hole);
     }
     if !f.is_llm {
         return None;
     }
+    // LLM-flavored fixtures, in priority order. ModelPin is the always-
+    // succeeds default tail.
+    try_lower_search_fixture(f)
+        .or_else(|| try_lower_subagent_fixture(f))
+        .or_else(|| try_lower_prompt_fixture(f))
+        .or_else(|| try_lower_intent_fixture(f))
+        .or_else(|| Some(lower_model_pin_fixture(f)))
+}
 
-    let has_prompt_payload = f.prompt_stage.is_some() && f.prompt_schema.is_some();
-    let has_subagent_payload =
-        f.subagent_policy.is_some() || f.subagent_max_depth.is_some();
-    let has_search_payload = f.search_corpus.is_some()
+fn try_lower_hole_fixture(
+    f: &FnDecl,
+) -> Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture> {
+    use crate::hir::nodes::boilerplate_grafts as gb;
+    if f.hole_spec.is_none() && f.hole_cache_key.is_none() {
+        return None;
+    }
+    Some(gb::HirAiFixture::Hole(gb::HirHoleFixture {
+        spec: f
+            .hole_spec
+            .clone()
+            .unwrap_or_else(|| "unfilled-hole".to_string()),
+        reviewer: f
+            .hole_reviewer
+            .clone()
+            .unwrap_or_else(|| "human".to_string()),
+        cache_key: f
+            .hole_cache_key
+            .clone()
+            .unwrap_or_else(|| "unset".to_string()),
+        constraints: f.hole_constraints.clone(),
+        span: f.span,
+    }))
+}
+
+fn try_lower_search_fixture(
+    f: &FnDecl,
+) -> Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture> {
+    use crate::hir::nodes::boilerplate_grafts as gb;
+    let has_payload = f.search_corpus.is_some()
         || f.search_query.is_some()
         || f.search_into.is_some()
         || f.search_top_k.is_some()
         || f.search_policy.is_some();
-    let has_intent_payload = f.ai_task_category.is_some()
+    if !has_payload {
+        return None;
+    }
+    Some(gb::HirAiFixture::Search(gb::HirSearchFixture {
+        corpus: f
+            .search_corpus
+            .clone()
+            .unwrap_or_else(|| "docs".to_string()),
+        query: f.search_query.clone().unwrap_or_else(|| String::from("")),
+        into_type: f
+            .search_into
+            .clone()
+            .or_else(|| {
+                f.return_type.as_ref().and_then(|t| match t {
+                    TypeExpr::Named { name, .. } => Some(name.clone()),
+                    _ => None,
+                })
+            })
+            .unwrap_or_else(|| "str".to_string()),
+        top_k: f.search_top_k,
+        policy: f.search_policy.clone(),
+        span: f.span,
+    }))
+}
+
+fn try_lower_subagent_fixture(
+    f: &FnDecl,
+) -> Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture> {
+    use crate::hir::nodes::boilerplate_grafts as gb;
+    if f.subagent_policy.is_none() && f.subagent_max_depth.is_none() {
+        return None;
+    }
+    Some(gb::HirAiFixture::Subagent(gb::HirSubagentFixture {
+        policy: f
+            .subagent_policy
+            .clone()
+            .unwrap_or_else(|| "inline_only".to_string()),
+        max_depth: f.subagent_max_depth.unwrap_or(1),
+        budget_usd: f.subagent_budget_usd,
+        description: f.subagent_description.clone(),
+        parallel: f.subagent_parallel,
+        complexity: f.subagent_complexity,
+        span: f.span,
+    }))
+}
+
+fn try_lower_prompt_fixture(
+    f: &FnDecl,
+) -> Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture> {
+    use crate::hir::nodes::boilerplate_grafts as gb;
+    if !(f.prompt_stage.is_some() && f.prompt_schema.is_some()) {
+        return None;
+    }
+    Some(gb::HirAiFixture::Prompt(gb::HirPromptFixture {
+        stage: f
+            .prompt_stage
+            .clone()
+            .unwrap_or_else(|| "Planner".to_string()),
+        schema: f
+            .prompt_schema
+            .clone()
+            .unwrap_or_else(|| "Unknown".to_string()),
+        redact: f.prompt_redact.clone(),
+        span: f.span,
+    }))
+}
+
+fn try_lower_intent_fixture(
+    f: &FnDecl,
+) -> Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture> {
+    use crate::hir::nodes::boilerplate_grafts as gb;
+    let has_payload = f.ai_task_category.is_some()
         || !f.ai_strengths.is_empty()
         || f.ai_tier_max.is_some()
         || f.ai_cost_ceiling_usd_per_call.is_some();
+    if !has_payload {
+        return None;
+    }
+    Some(gb::HirAiFixture::IntentRouted(gb::HirAiIntentFixture {
+        task_category: f.ai_task_category.clone(),
+        strengths: f.ai_strengths.clone(),
+        tier_max: f.ai_tier_max.clone(),
+        cost_ceiling_usd_per_call: f.ai_cost_ceiling_usd_per_call,
+        span: f.span,
+    }))
+}
 
-    if has_search_payload {
-        return Some(gb::HirAiFixture::Search(gb::HirSearchFixture {
-            corpus: f
-                .search_corpus
-                .clone()
-                .unwrap_or_else(|| "docs".to_string()),
-            query: f.search_query.clone().unwrap_or_else(|| String::from("")),
-            into_type: f
-                .search_into
-                .clone()
-                .or_else(|| {
-                    f.return_type.as_ref().and_then(|t| match t {
-                        TypeExpr::Named { name, .. } => Some(name.clone()),
-                        _ => None,
-                    })
-                })
-                .unwrap_or_else(|| "str".to_string()),
-            top_k: f.search_top_k,
-            policy: f.search_policy.clone(),
-            span: f.span,
-        }));
-    }
-    if has_subagent_payload {
-        return Some(gb::HirAiFixture::Subagent(gb::HirSubagentFixture {
-            policy: f
-                .subagent_policy
-                .clone()
-                .unwrap_or_else(|| "inline_only".to_string()),
-            max_depth: f.subagent_max_depth.unwrap_or(1),
-            budget_usd: f.subagent_budget_usd,
-            description: f.subagent_description.clone(),
-            parallel: f.subagent_parallel,
-            complexity: f.subagent_complexity,
-            span: f.span,
-        }));
-    }
-    if has_prompt_payload {
-        return Some(gb::HirAiFixture::Prompt(gb::HirPromptFixture {
-            stage: f.prompt_stage.clone().unwrap_or_else(|| "Planner".to_string()),
-            schema: f
-                .prompt_schema
-                .clone()
-                .unwrap_or_else(|| "Unknown".to_string()),
-            redact: f.prompt_redact.clone(),
-            span: f.span,
-        }));
-    }
-    if has_intent_payload {
-        return Some(gb::HirAiFixture::IntentRouted(gb::HirAiIntentFixture {
-            task_category: f.ai_task_category.clone(),
-            strengths: f.ai_strengths.clone(),
-            tier_max: f.ai_tier_max.clone(),
-            cost_ceiling_usd_per_call: f.ai_cost_ceiling_usd_per_call,
-            span: f.span,
-        }));
-    }
-    Some(gb::HirAiFixture::ModelPin(gb::HirAiModelPinFixture {
+fn lower_model_pin_fixture(
+    f: &FnDecl,
+) -> crate::hir::nodes::boilerplate_grafts::HirAiFixture {
+    use crate::hir::nodes::boilerplate_grafts as gb;
+    gb::HirAiFixture::ModelPin(gb::HirAiModelPinFixture {
         model: f.llm_model.clone(),
         structured_output: f.ai_structured_output_type.as_ref().map(|ty| {
             gb::HirAiStructuredOutput {
@@ -793,5 +842,5 @@ fn lower_ai_fixture(
             }
         }),
         span: f.span,
-    }))
+    })
 }
