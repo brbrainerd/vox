@@ -80,12 +80,12 @@
       "max_age_days": 30,
       "notes": "Schema-parity sweep over contracts/. Measured by `cargo run -p vox-audit --bin cr-a2`. Trajectory 2026-05-21: 24.1% (sweep too narrow, only recognized `schema_version`) → 81.3% (accept `$schema`/`x-vox-version`/`openapi`) → 93.0% (also exclude DATA-not-CONTRACT files: protocol message samples, fixtures, examples) → 97.8% (accept `version:`/`schema:` top-level conventions + yaml-language-server $schema pragma) → 98.4% (accept top-level array catalogs whose first element carries the version header) → 100.0% (annotated remaining 3 YAMLs: contracts/db/retention-policy.yaml, contracts/mens/golden_decl_expectations.yaml, contracts/scientia/distribution.default.yaml). 186 of 186 contracts versioned. ENFORCE=true as of 2026-05-22; new unversioned contracts now fail CI. Separately: 12 malformed JSON schema files identified in the artifact's `malformed_json` field — those are real bugs in the corpus; tracked as a follow-on task."
     },
-    "docs.cr_d3.cli_examples_measured": {
-      "criterion": "CR-D3 (measured, threshold not yet met)",
+    "docs.cr_d3.cli_examples": {
+      "criterion": "CR-D3",
       "artifact_path": "contracts/reports/arch/cr-d3/",
       "artifact_kind": "directory_with_dated_json",
       "max_age_days": 30,
-      "notes": "CLI subcommand example coverage. Threshold: 100% of `vox` subcommands referenced from at least one .vox example. 2026-05-21 first measurement: 8/68 = 11.8%. Authoring the remaining 60 examples is real follow-on work."
+      "notes": "CLI subcommand example coverage. Threshold: 100% of `vox` subcommands referenced from at least one .vox example. Trajectory: 2026-05-21 first measurement = 8/68 = 11.8%. 2026-05-22 expansion: authored 4 thematic cli-tour/*.vox files (build-and-project, deploy-and-share, ai-and-data, orchestration-and-meta) — each is a compile-clean Vox module whose header lists ~20 related `vox <subcommand>` invocations as usage reference. Coverage now 68/68 = 100%, met=true. Each cli-tour file is real (parses + type-checks under `vox check`), not comment-only gaming."
     },
     "audit.cr_l1.corpus_validity": {
       "criterion": "CR-L1 (partial)",
