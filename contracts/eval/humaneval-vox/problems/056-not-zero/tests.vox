@@ -1,0 +1,15 @@
+fn not_zero(n: int) to bool {
+    if n is 0 {
+        return false
+    }
+    return true
+}
+
+@test
+fn t_zero() to Unit { assert(not_zero(0) is false) }
+@test
+fn t_positive() to Unit { assert(not_zero(5) is true) }
+@test
+fn t_negative() to Unit { assert(not_zero(-5) is true) }
+@test
+fn t_one() to Unit { assert(not_zero(1) is true) }

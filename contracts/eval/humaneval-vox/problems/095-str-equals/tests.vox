@@ -1,0 +1,12 @@
+fn str_equals(a: str, b: str) to bool {
+    return a is b
+}
+
+@test
+fn t_equal() to Unit { assert(str_equals("hi", "hi") is true) }
+@test
+fn t_diff() to Unit { assert(str_equals("hi", "bye") is false) }
+@test
+fn t_both_empty() to Unit { assert(str_equals("", "") is true) }
+@test
+fn t_case_diff() to Unit { assert(str_equals("HI", "hi") is false) }

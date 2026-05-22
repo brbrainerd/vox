@@ -1,0 +1,14 @@
+fn is_even(n: int) to bool {
+    return n % 2 is 0
+}
+
+@test
+fn t_zero() to Unit { assert(is_even(0) is true) }
+@test
+fn t_one() to Unit { assert(is_even(1) is false) }
+@test
+fn t_two() to Unit { assert(is_even(2) is true) }
+@test
+fn t_neg_four() to Unit { assert(is_even(-4) is true) }
+@test
+fn t_neg_seven() to Unit { assert(is_even(-7) is false) }

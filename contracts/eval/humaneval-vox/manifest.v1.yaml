@@ -20,9 +20,9 @@ corpus:
     corpus_validity_target: 1.00          # corpus-validity layer must be 100% (any compile failure is a corpus bug)
   count_target: 164                       # anchored to HumanEval-Python
   held_out_target: 30                     # 30 of 164 must be training_eligible:false
-  count_current: 30                       # seed expanded 2026-05-18 (P3.1: +12)
+  count_current: 164                      # 2026-05-19: HumanEval-Python anchor reached. 134 hand-authored fixtures (031-164) added this session on top of the 30 seed. Surface coverage: int/bool/str primitives, Option/Result construction + match, list literals + len, conditional bands, Cartesian quadrants, Gregorian leap-year, BMI/tax/grade brackets.
   held_out_current: 10                    # all 10 examples-golden-lift fixtures are training_eligible:false
-  corpus_hash: "blake3:d3758c07d6e69062c24ef6b5da298420424a0fc50c59304e30a6bd2f44fb2bb1"
+  corpus_hash: "blake3:feaf32ed39b465f134bc1e4af700374361091fa6190d940ad4ed34efbbc59d2a"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
 # Fixtures are discovered on disk under `problems/<NNN-name>/` directories,

@@ -1,0 +1,8 @@
+fn vowel_like(s: str) to bool {
+    if s is "a" { return true }
+    if s is "e" { return true }
+    if s is "i" { return true }
+    if s is "o" { return true }
+    if s is "u" { return true }
+    return false
+}

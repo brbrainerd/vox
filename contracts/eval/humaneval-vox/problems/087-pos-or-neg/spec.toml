@@ -1,0 +1,8 @@
+id = "humaneval-vox-087-pos-or-neg"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `pos_or_neg(n: int) to str` returning "positive" when n > 0, "negative" when n < 0, and "zero" otherwise.
+"""

@@ -1,0 +1,14 @@
+fn percent(part: int, whole: int) to int {
+    return part * 100 / whole
+}
+
+@test
+fn t_half() to Unit { assert(percent(1, 2) is 50) }
+@test
+fn t_quarter() to Unit { assert(percent(1, 4) is 25) }
+@test
+fn t_full() to Unit { assert(percent(7, 7) is 100) }
+@test
+fn t_zero() to Unit { assert(percent(0, 5) is 0) }
+@test
+fn t_over_one() to Unit { assert(percent(3, 2) is 150) }

@@ -1,0 +1,17 @@
+fn min_two(a: int, b: int) to int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+@test
+fn t_a_smaller() to Unit { assert(min_two(1, 2) is 1) }
+@test
+fn t_b_smaller() to Unit { assert(min_two(5, 3) is 3) }
+@test
+fn t_equal() to Unit { assert(min_two(4, 4) is 4) }
+@test
+fn t_negatives() to Unit { assert(min_two(-5, -2) is -5) }
+@test
+fn t_mixed() to Unit { assert(min_two(-1, 1) is -1) }

@@ -1,0 +1,12 @@
+fn bool_equals(a: bool, b: bool) to bool {
+    return a is b
+}
+
+@test
+fn t_tt() to Unit { assert(bool_equals(true, true) is true) }
+@test
+fn t_ff() to Unit { assert(bool_equals(false, false) is true) }
+@test
+fn t_tf() to Unit { assert(bool_equals(true, false) is false) }
+@test
+fn t_ft() to Unit { assert(bool_equals(false, true) is false) }

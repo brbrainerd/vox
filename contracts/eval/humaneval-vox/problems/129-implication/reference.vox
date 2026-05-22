@@ -1,0 +1,6 @@
+fn implication(p: bool, q: bool) to bool {
+    if p {
+        return q
+    }
+    return true
+}

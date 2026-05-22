@@ -1,0 +1,3 @@
+fn greet_titled(title: str, name: str) to str {
+    return "Hello, " + title + " " + name
+}

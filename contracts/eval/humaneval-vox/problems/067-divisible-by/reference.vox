@@ -1,0 +1,3 @@
+fn divisible_by(n: int, d: int) to bool {
+    return n % d is 0
+}

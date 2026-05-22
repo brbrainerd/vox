@@ -1,0 +1,6 @@
+fn is_none(o: Option[int]) to bool {
+    match o {
+        Some(_) => return false
+        None    => return true
+    }
+}

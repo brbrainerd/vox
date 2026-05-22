@@ -1,0 +1,12 @@
+fn concat_prefix(p: str, s: str) to str {
+    return p + s
+}
+
+@test
+fn t_simple() to Unit { assert(concat_prefix("Dr. ", "Ada") is "Dr. Ada") }
+@test
+fn t_empty_prefix() to Unit { assert(concat_prefix("", "Ada") is "Ada") }
+@test
+fn t_empty_suffix() to Unit { assert(concat_prefix("Dr. ", "") is "Dr. ") }
+@test
+fn t_both_empty() to Unit { assert(concat_prefix("", "") is "") }

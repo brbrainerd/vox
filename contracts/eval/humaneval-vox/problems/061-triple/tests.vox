@@ -1,0 +1,12 @@
+fn triple(n: int) to int {
+    return n * 3
+}
+
+@test
+fn t_zero() to Unit { assert(triple(0) is 0) }
+@test
+fn t_pos() to Unit { assert(triple(4) is 12) }
+@test
+fn t_neg() to Unit { assert(triple(-2) is -6) }
+@test
+fn t_one() to Unit { assert(triple(1) is 3) }

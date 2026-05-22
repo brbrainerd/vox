@@ -1,0 +1,3 @@
+fn add_five(n: int) to int {
+    return n + 5
+}

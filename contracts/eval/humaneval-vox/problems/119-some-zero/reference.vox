@@ -1,0 +1,3 @@
+fn some_zero() to Option[int] {
+    return Some(0)
+}

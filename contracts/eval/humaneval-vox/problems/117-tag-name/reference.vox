@@ -1,0 +1,3 @@
+fn tag_name(tag: str, content: str) to str {
+    return "<" + tag + ">" + content + "</" + tag + ">"
+}

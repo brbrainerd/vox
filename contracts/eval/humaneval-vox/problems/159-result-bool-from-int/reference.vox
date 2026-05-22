@@ -1,0 +1,9 @@
+fn result_bool_from_int(n: int) to Result[bool] {
+    if n < 0 {
+        return Error("negative")
+    }
+    if n > 0 {
+        return Ok(true)
+    }
+    return Ok(false)
+}

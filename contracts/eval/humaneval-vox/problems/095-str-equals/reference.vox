@@ -1,0 +1,3 @@
+fn str_equals(a: str, b: str) to bool {
+    return a is b
+}

@@ -1,0 +1,3 @@
+fn list_pair(a: int, b: int) to list[int] {
+    return [a, b]
+}

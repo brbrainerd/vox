@@ -1,0 +1,8 @@
+id = "humaneval-vox-091-greet-named"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `greet_named(name: str) to str` returning "Hello, " followed by name.
+"""

@@ -1,0 +1,8 @@
+id = "humaneval-vox-141-quadrant"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `quadrant(x: int, y: int) to int` returning 1, 2, 3, or 4 for the Cartesian quadrant of (x, y). Returns 0 when on an axis.
+"""

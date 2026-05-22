@@ -1,0 +1,3 @@
+fn list_of_one_two_three() to list[int] {
+    return [1, 2, 3]
+}

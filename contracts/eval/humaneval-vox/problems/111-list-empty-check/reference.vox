@@ -1,0 +1,3 @@
+fn list_is_empty(xs: list[int]) to bool {
+    return len(xs) is 0
+}

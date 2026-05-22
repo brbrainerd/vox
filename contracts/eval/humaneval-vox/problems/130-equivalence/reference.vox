@@ -1,0 +1,3 @@
+fn equivalence(p: bool, q: bool) to bool {
+    return p is q
+}

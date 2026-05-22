@@ -1,0 +1,20 @@
+fn clamp_mid(n: int) to int {
+    if n < -50 {
+        return -50
+    }
+    if n > 50 {
+        return 50
+    }
+    return n
+}
+
+@test
+fn t_zero() to Unit { assert(clamp_mid(0) is 0) }
+@test
+fn t_below() to Unit { assert(clamp_mid(-200) is -50) }
+@test
+fn t_above() to Unit { assert(clamp_mid(200) is 50) }
+@test
+fn t_in() to Unit { assert(clamp_mid(25) is 25) }
+@test
+fn t_in_neg() to Unit { assert(clamp_mid(-25) is -25) }

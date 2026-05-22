@@ -1,0 +1,20 @@
+fn pos_or_neg(n: int) to str {
+    if n > 0 {
+        return "positive"
+    }
+    if n < 0 {
+        return "negative"
+    }
+    return "zero"
+}
+
+@test
+fn t_pos() to Unit { assert(pos_or_neg(5) is "positive") }
+@test
+fn t_neg() to Unit { assert(pos_or_neg(-5) is "negative") }
+@test
+fn t_zero() to Unit { assert(pos_or_neg(0) is "zero") }
+@test
+fn t_one() to Unit { assert(pos_or_neg(1) is "positive") }
+@test
+fn t_neg_one() to Unit { assert(pos_or_neg(-1) is "negative") }

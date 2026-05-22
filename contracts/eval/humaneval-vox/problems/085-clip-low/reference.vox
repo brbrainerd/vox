@@ -1,0 +1,6 @@
+fn clip_low(n: int, lo: int) to int {
+    if n < lo {
+        return lo
+    }
+    return n
+}

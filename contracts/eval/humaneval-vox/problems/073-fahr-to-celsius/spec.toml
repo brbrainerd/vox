@@ -1,0 +1,8 @@
+id = "humaneval-vox-073-fahr-to-celsius"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `fahr_to_celsius(f: int) to int` converting Fahrenheit to Celsius using integer (truncating) division: (f - 32) * 5 / 9.
+"""

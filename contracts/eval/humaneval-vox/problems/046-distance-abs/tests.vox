@@ -1,0 +1,17 @@
+fn distance_abs(a: int, b: int) to int {
+    if a > b {
+        return a - b
+    }
+    return b - a
+}
+
+@test
+fn t_a_gt_b() to Unit { assert(distance_abs(7, 3) is 4) }
+@test
+fn t_b_gt_a() to Unit { assert(distance_abs(2, 9) is 7) }
+@test
+fn t_equal() to Unit { assert(distance_abs(5, 5) is 0) }
+@test
+fn t_negatives() to Unit { assert(distance_abs(-3, -8) is 5) }
+@test
+fn t_across_zero() to Unit { assert(distance_abs(-4, 4) is 8) }

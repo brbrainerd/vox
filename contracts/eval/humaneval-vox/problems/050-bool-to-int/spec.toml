@@ -1,0 +1,8 @@
+id = "humaneval-vox-050-bool-to-int"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `bool_to_int(b: bool) to int` returning 1 for true and 0 for false.
+"""

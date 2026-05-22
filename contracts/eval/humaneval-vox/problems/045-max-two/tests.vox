@@ -1,0 +1,17 @@
+fn max_two(a: int, b: int) to int {
+    if a > b {
+        return a
+    }
+    return b
+}
+
+@test
+fn t_a_larger() to Unit { assert(max_two(5, 3) is 5) }
+@test
+fn t_b_larger() to Unit { assert(max_two(1, 2) is 2) }
+@test
+fn t_equal() to Unit { assert(max_two(4, 4) is 4) }
+@test
+fn t_negatives() to Unit { assert(max_two(-5, -2) is -2) }
+@test
+fn t_mixed() to Unit { assert(max_two(-1, 1) is 1) }

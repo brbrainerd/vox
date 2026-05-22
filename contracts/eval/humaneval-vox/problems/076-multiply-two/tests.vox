@@ -1,0 +1,14 @@
+fn multiply_two(a: int, b: int) to int {
+    return a * b
+}
+
+@test
+fn t_zero() to Unit { assert(multiply_two(0, 7) is 0) }
+@test
+fn t_positives() to Unit { assert(multiply_two(3, 4) is 12) }
+@test
+fn t_neg_pos() to Unit { assert(multiply_two(-3, 4) is -12) }
+@test
+fn t_neg_neg() to Unit { assert(multiply_two(-3, -4) is 12) }
+@test
+fn t_one() to Unit { assert(multiply_two(1, 999) is 999) }

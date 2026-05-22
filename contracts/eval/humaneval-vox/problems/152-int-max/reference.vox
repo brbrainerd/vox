@@ -1,0 +1,6 @@
+fn int_max(a: int, b: int) to int {
+    if a > b {
+        return a
+    }
+    return b
+}

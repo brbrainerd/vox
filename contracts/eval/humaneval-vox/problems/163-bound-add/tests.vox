@@ -1,0 +1,16 @@
+fn bound_add(a: int, b: int, cap: int) to int {
+    let s = a + b
+    if s > cap {
+        return cap
+    }
+    return s
+}
+
+@test
+fn t_under() to Unit { assert(bound_add(2, 3, 10) is 5) }
+@test
+fn t_at_cap() to Unit { assert(bound_add(7, 3, 10) is 10) }
+@test
+fn t_over() to Unit { assert(bound_add(8, 5, 10) is 10) }
+@test
+fn t_neg_sum() to Unit { assert(bound_add(-3, -2, 0) is -5) }

@@ -1,0 +1,8 @@
+fn larger_square(a: int, b: int) to int {
+    let sa = a * a
+    let sb = b * b
+    if sa > sb {
+        return sa
+    }
+    return sb
+}

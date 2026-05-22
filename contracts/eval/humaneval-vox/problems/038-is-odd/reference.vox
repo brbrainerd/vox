@@ -1,0 +1,6 @@
+fn is_odd(n: int) to bool {
+    if n % 2 is 0 {
+        return false
+    }
+    return true
+}
