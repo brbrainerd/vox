@@ -12,6 +12,7 @@
 // @training_prompt: Draft a multi-tenant data architecture establishing data isolation via tenant_id queries.
 // ANCHOR: display
 @table type TenantResource {
+    id: int
     tenant_id: str
     resource_name: str
     data: str

@@ -12,6 +12,7 @@
 // @training_prompt: Implement cursor-based pagination and filtering over database tables.
 // ANCHOR: display
 @table type EventLog {
+    id: int
     timestamp: int
     event_type: str
     payload: str

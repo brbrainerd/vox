@@ -97,6 +97,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
         Box::new(|| stale_capture_lint::check_stale_captures(hir, source)),
         Box::new(|| async_handler_lint::check_async_handlers(hir, source)),
         Box::new(|| form_check::check_forms(hir, source)),
+        Box::new(|| check_table_primary_keys(hir, source)),
         // GA-20 / CC-23: contrast-ratio validation for design token color pairs.
         Box::new(|| contrast::check_tokens(&hir.token_decls)),
         // GA-19: a11y label enforcement for semantic UI primitives.
@@ -174,6 +175,69 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     diags
 }
 
+
+/// Validate that every `@table` has a primary-key column.
+///
+/// Two error shapes:
+/// - **E1041** — `@table(pk: <name>)` was written but `<name>` is not a
+///   field on the table. The fix is either to add the field or fix the
+///   `pk:` argument.
+/// - **E1042** — `@table type Foo {}` was written with no `pk:` argument
+///   and the table has no `id` field. The fix is to either add `id: int`
+///   or write `@table(pk: <field>)` pointing at the intended primary key.
+///
+/// Council-ratified 2026-05-19: every `@table` carries an explicit primary
+/// key. No implicit auto-id (no magic), no "headless" tables (no surprise).
+fn check_table_primary_keys(hir: &HirModule, source: &str) -> Vec<Diagnostic> {
+    let mut diags = Vec::new();
+    for table in &hir.tables {
+        let pk = &table.primary_key;
+        let has_field = table.fields.iter().any(|f| &f.name == pk);
+        if has_field {
+            continue;
+        }
+        let (msg, code) = if pk == "id" {
+            (
+                format!(
+                    "`@table type {name}` requires a primary-key column. \
+                     Add `id: int` to the field list, or write \
+                     `@table(pk: <field>) type {name}` to point at a \
+                     different primary key.",
+                    name = table.name
+                ),
+                "E1042",
+            )
+        } else {
+            (
+                format!(
+                    "`@table(pk: {pk}) type {name}` names a primary-key \
+                     column `{pk}` that is not a field on this table. \
+                     Either add `{pk}: <type>` to the field list, or \
+                     change the `pk:` argument to name an existing field.",
+                    pk = pk,
+                    name = table.name
+                ),
+                "E1041",
+            )
+        };
+        diags.push(Diagnostic {
+            severity: TypeckSeverity::Error,
+            message: msg,
+            span: table.span,
+            expected_type: None,
+            found_type: None,
+            context: Some(Diagnostic::capture_context(source, table.span)),
+            suggestions: vec![],
+            category: DiagnosticCategory::Typecheck,
+            code: Some(code.to_string()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    diags
+}
 
 /// Walk all statements in a function body looking for `Async[T]` view nodes.
 fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::HirAsyncView> {

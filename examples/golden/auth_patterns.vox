@@ -12,6 +12,7 @@
 // @training_prompt: Implement authentication and authorization workflows, including route guards and permission assertions.
 // ANCHOR: display
 @table type Session {
+    id: int
     token: str
     user_id: str
     admin: bool

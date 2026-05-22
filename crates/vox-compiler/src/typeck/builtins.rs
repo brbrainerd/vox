@@ -250,6 +250,85 @@ impl BuiltinTypes {
             },
         );
 
+        // ── Streaming primitives ───────────────────────────────────────────
+        //
+        // `subscribe(actor_type) -> Stream[str]` subscribes to an actor's
+        // broadcast channel. Used inside `@endpoint(kind: stream)` bodies
+        // to wire the SSE handler to actor-emitted events:
+        //
+        // ```vox
+        // @endpoint(kind: stream)
+        // fn watch_room() to Stream[str] {
+        //     return subscribe(ChatRoom)
+        // }
+        // ```
+        //
+        // The runtime side is `vox_actor_runtime::SubscriptionManager`. For
+        // v1.0 the broadcast payload type is `str`; per-actor message types
+        // land in a follow-up (currently the actor's `on broadcast(...)` is
+        // not threaded through the type-checker as the stream element type).
+        //
+        // The first argument is an actor type name — passed by-name like a
+        // type, not as a value. We type it as `GenericParam(0)` and
+        // postpone the strict shape check until the per-actor message
+        // type lands.
+        env.define(
+            "subscribe".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::Stream(Box::new(Ty::Str))),
+                ),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // `broadcast(msg)` — called from inside an actor handler body to
+        // push a message to every active `subscribe(...)` receiver. The
+        // codegen lowers this to `vox_actor_runtime::SubscriptionManager::notify`
+        // keyed by the actor name (the channel keys are shared between
+        // `subscribe` and `broadcast` in the runtime). For v1.0 the
+        // payload is opaque (any element type) since the broadcast
+        // channel itself currently signals only — the actual message
+        // payload flows back to clients via the SSE re-fetch convention
+        // (Convex-style invalidation).
+        env.define(
+            "broadcast".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Unit)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // ── Capability tokens (capability-grants-ssot) ─────────────────────
+        //
+        // `cap` is an opaque named type. Users obtain a `cap` value from a
+        // capability grant and pass it through to operations that need
+        // proof of authorization. The only operation defined directly on
+        // a `cap` value today is `has_capability(c)` → bool, which the
+        // runtime uses to verify the token is still active.
+        //
+        // Registering `cap` here means callers can write
+        // `fn import_csv(c: cap, path: str)` and the type-checker resolves
+        // `cap` to this opaque Named instead of falling through to the
+        // "Undefined type" diagnostic. The implementation surface
+        // (capability tables, grant lifecycle, revocation) lives in
+        // the runtime layer and is opaque to the type system.
+        env.define_type("cap".into(), Ty::Named("cap".into()));
+        env.define(
+            "has_capability".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Named("cap".into())], Box::new(Ty::Bool)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // range(start: int, end: int) → List[int]
         env.define(
             "range".into(),

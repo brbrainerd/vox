@@ -65,6 +65,7 @@ pub fn hir_table(name: impl Into<String>) -> HirTable {
         fields: vec![],
         is_pub: false,
         is_deprecated: false,
+        primary_key: "id".to_string(),
         span: dummy_span(),
     }
 }

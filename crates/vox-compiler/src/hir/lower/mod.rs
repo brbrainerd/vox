@@ -19,7 +19,9 @@
 use crate::ast::decl::*;
 use crate::hir::def_map::DefMap;
 use crate::hir::*;
-use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
+use crate::web_prefixes::{
+    MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX, STREAM_FN_API_PREFIX,
+};
 
 mod async_flags;
 mod contracts;
@@ -201,15 +203,16 @@ impl LowerCtx {
                         crate::ast::decl::EndpointKind::Server => {
                             (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
                         }
-                        // `kind: stream` is a source-level marker for
-                        // streaming endpoints (SSE / websocket). The HIR
-                        // currently routes it through the Server kind; the
-                        // streaming-codegen lift (SSE response shaping,
-                        // websocket emit) is a follow-on. Surface-level
-                        // distinction is preserved at the AST so future
-                        // codegen passes can branch on it directly.
+                        // `kind: stream` lowers to a first-class HIR variant
+                        // that codegen branches on to emit an SSE response
+                        // shape (`text/event-stream`) instead of the
+                        // one-shot JSON shape used by Server/Query/Mutation.
+                        // The body of a stream endpoint is invoked per tick
+                        // (`every: "<duration>"`) or its tail-call to
+                        // `subscribe(Actor)` is bridged to the actor's
+                        // broadcast channel.
                         crate::ast::decl::EndpointKind::Stream => {
-                            (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
+                            (crate::hir::HirEndpointKind::Stream, STREAM_FN_API_PREFIX)
                         }
                     };
                     let route_path = format!("{prefix}{}", lowered.name);
@@ -297,6 +300,7 @@ impl LowerCtx {
                         rate_limit,
                         pii,
                         layer,
+                        stream_interval: e.stream_interval.clone(),
                         span: lowered.span,
                     });
                 }
@@ -651,7 +655,9 @@ mod tests {
     use super::*;
     use crate::lexer::cursor::lex;
     use crate::parser::parse;
-    use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
+    use crate::web_prefixes::{
+    MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX, STREAM_FN_API_PREFIX,
+};
 
     fn lower_str(source: &str) -> HirModule {
         let tokens = lex(source);
@@ -924,15 +930,26 @@ fn f() to Unit {
         let sp = Span::new(0, 0);
         let table = TableDecl {
             name: "Doc".into(),
-            fields: vec![TableField {
-                name: "title".into(),
-                type_ann: TypeExpr::Named {
-                    name: "str".into(),
+            fields: vec![
+                TableField {
+                    name: "id".into(),
+                    type_ann: TypeExpr::Named {
+                        name: "int".into(),
+                        span: sp,
+                    },
+                    description: None,
                     span: sp,
                 },
-                description: None,
-                span: sp,
-            }],
+                TableField {
+                    name: "title".into(),
+                    type_ann: TypeExpr::Named {
+                        name: "str".into(),
+                        span: sp,
+                    },
+                    description: None,
+                    span: sp,
+                },
+            ],
             description: None,
             json_layout: None,
             auth_provider: None,
@@ -940,6 +957,7 @@ fn f() to Unit {
             cors: None,
             is_pub: true,
             is_deprecated: false,
+            primary_key: None,
             span: sp,
         };
         let col = CollectionDecl {

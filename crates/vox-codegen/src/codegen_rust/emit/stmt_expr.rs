@@ -359,6 +359,23 @@ pub(super) fn emit_expr_with(
         }
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee {
+                // `broadcast(msg)` — actor handler body emit. Pushes the
+                // payload through `SubscriptionManager::notify_payload`
+                // keyed on the runtime-resolved actor name (env var
+                // `VOX_BROADCAST_CHANNEL`, set when the actor body is
+                // spawned). The payload is `as_string`-coerced so
+                // `broadcast(42)` and `broadcast("hi")` both work.
+                //
+                // This is the symmetric send side that pairs with the
+                // SSE handler's `subscribe_payload(...)` bridge (B5).
+                if n == "broadcast" && args.len() == 1 {
+                    return format!(
+                        "{{ let __vox_mgr = ::vox_actor_runtime::SubscriptionManager::default(); \
+                         let __vox_ch = std::env::var(\"VOX_BROADCAST_CHANNEL\").unwrap_or_default(); \
+                         __vox_mgr.notify_payload(&__vox_ch, as_string(&{})).await; }}",
+                        emit(&args[0].value, OwnershipMode::Owned)
+                    );
+                }
                 if n == "str" && args.len() == 1 {
                     return format!("as_string(&{})", emit(&args[0].value, OwnershipMode::Owned));
                 }

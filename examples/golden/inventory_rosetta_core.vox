@@ -49,6 +49,7 @@ fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int
 
 // ANCHOR: table_layer
 @table type InventoryStack {
+    id: int
     kind: str
     qty: int
     max_stack: int

@@ -158,6 +158,17 @@ fn execute_container(
     runtime: Option<&dyn ContainerRuntime>,
     dry_run: bool,
 ) -> Result<()> {
+    // Dry-run paths must not require an installed container runtime — CI
+    // (CR-L7) and air-gapped contributors should be able to validate the
+    // deploy plan without docker/podman present.
+    if dry_run {
+        println!("  [dry-run] would build OCI image: {}", cfg.image_tag);
+        if let Some(ref rt) = cfg.registry_tag {
+            println!("  [dry-run] would push: {}", rt);
+        }
+        return Ok(());
+    }
+
     let runtime = runtime.context("Container deployment requires a container runtime")?;
 
     let opts = BuildOpts {
@@ -166,14 +177,6 @@ fn execute_container(
         tag: cfg.image_tag.clone(),
         build_args: cfg.build_args.clone(),
     };
-
-    if dry_run {
-        println!("  [dry-run] would build OCI image: {}", cfg.image_tag);
-        if let Some(ref rt) = cfg.registry_tag {
-            println!("  [dry-run] would push: {}", rt);
-        }
-        return Ok(());
-    }
 
     println!("  Building OCI image: {}", cfg.image_tag);
     let image_id = runtime.build(&opts).context("OCI image build failed")?;

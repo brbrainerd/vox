@@ -517,6 +517,13 @@ edition = "{edition}"
 
 [dependencies]
 tokio = {{ version = "1", features = ["full"] }}
+# tokio-stream + futures-util drive the SSE handler emitted for
+# `@endpoint(kind: stream)` (axum::response::sse::Sse). The `sync`
+# feature on tokio-stream provides BroadcastStream, which the
+# `subscribe(Actor)` bridge wraps around the actor's SubscriptionManager
+# channel.
+tokio-stream = {{ version = "0.1", features = ["sync"] }}
+futures-util = "0.3"
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
 axum = "0.7"

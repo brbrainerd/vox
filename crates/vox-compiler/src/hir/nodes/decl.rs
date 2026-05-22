@@ -385,6 +385,12 @@ pub enum HirEndpointKind {
     Query,
     Mutation,
     Server,
+    /// Server-sent-events / streaming endpoint. Codegen emits an
+    /// `axum::response::sse::Sse<...>` handler instead of the one-shot
+    /// JSON response shape used by Server/Query/Mutation. Drives the
+    /// stream either by a fixed-interval tick (`every: "<duration>"`) or
+    /// by piping an actor's broadcast channel through `subscribe(...)`.
+    Stream,
 }
 
 /// A server endpoint function — callable from the frontend, auto-generates API route + fetch wrapper.
@@ -425,6 +431,12 @@ pub struct HirEndpointFn {
     /// `@layer(tier:)` Z-tier annotation (GA-26).
     #[serde(default)]
     pub layer: Option<super::layer::HirLayerDecl>,
+    /// Stream tick interval for `kind: stream` endpoints. Carries the
+    /// `every: "<duration>"` argument from `@endpoint(kind: stream, every: ...)`.
+    /// `None` on non-stream endpoints, and on stream endpoints that drive
+    /// their stream via `subscribe(Actor)` instead of timer ticks.
+    #[serde(default)]
+    pub stream_interval: Option<String>,
     /// Span covering the declaration.
     pub span: Span,
 }
@@ -442,6 +454,10 @@ pub struct HirTable {
     pub is_pub: bool,
     /// `@deprecated` table.
     pub is_deprecated: bool,
+    /// Resolved primary-key column name. Always set after lowering — either
+    /// the `pk:` argument from `@table(pk: name)` or the default `"id"`.
+    /// The typeck guarantees this column exists on the table.
+    pub primary_key: String,
     /// Span covering the table.
     pub span: Span,
 }

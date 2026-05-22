@@ -1,3 +1,9 @@
+// vox:skip — exercises the planned chained-query surface
+// (`.where(...).using(...).live(...).scope(...).sync().order_by(...).limit(...).select(...)`)
+// which the type-checker currently rejects with
+// "db query chaining via '.limit(...)' is not supported yet". Re-enable
+// once the typed db.Table query plan IR lands (tracked alongside the
+// vox-db query-shape SSOT).
 // ---
 // title: "DB Native IR Example"
 // description: "Predicate-object where(), plan capabilities (sync/using/live/scope), and projection chaining."

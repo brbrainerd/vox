@@ -13,22 +13,29 @@ use crate::typeck::diagnostics::{
 };
 use anyhow::Result;
 
-/// ADR-028: emit an error diagnostic for each reserved durability keyword found in `source`.
+/// ADR-028 (revised 2026-05-19): emit an error diagnostic for each still-reserved durability
+/// keyword found in `source`.
 ///
-/// `@scheduled`, `@durable`, `workflow`, and `activity` have been removed from the public
-/// grammar.  They are detected at the source-text level (before full parsing) so that the
-/// error is reported even when the token stream is otherwise broken.
+/// **History.** Originally `@scheduled`, `@durable`, `workflow`, and `activity` were all
+/// reserved-but-rejected pending a durability runtime. As of 2026-05-19, **`workflow` and
+/// `activity` are part of the public grammar** — the `vox-workflow-runtime` crate provides
+/// `DurablePromise`, journal-backed replay, and the `interpret_workflow_durable` interpreter
+/// that the codegen targets via `durability_lower.rs::emit_workflow_body`. The parser, HIR,
+/// lowering, and codegen have always been wired; only this text-level gate was holding them
+/// closed.
+///
+/// **Still reserved.** `@scheduled` and `@durable` remain reserved — they target a future
+/// "decorator on a plain fn" surface that the runtime doesn't model yet. Use a `workflow`
+/// declaration instead until they land.
 fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
     // (pattern, keyword_label, error_code, identifier_boundary)
     // `identifier_boundary` is true when the pattern is a bare keyword that could appear inside
-    // a longer identifier (e.g. `workflow_handle`); for those we additionally require the byte
-    // immediately after the match to NOT continue the identifier (alpha/digit/underscore).
-    // Decorator forms like `@scheduled` use `@` as a leading sentinel and don't need it.
+    // a longer identifier; for those we additionally require the byte immediately after the
+    // match to NOT continue the identifier (alpha/digit/underscore). Decorator forms like
+    // `@scheduled` use `@` as a leading sentinel and don't need it.
     const RESERVED: &[(&str, &str, &str, bool)] = &[
         ("@scheduled", "@scheduled", "E028", false),
         ("@durable", "@durable", "E028", false),
-        ("workflow", "workflow", "E028", true),
-        ("activity", "activity", "E028", true),
     ];
 
     let mut diags = Vec::new();
@@ -53,6 +60,89 @@ fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
                 "Replace `{}` with a plain `fn` declaration.",
                 label
             )],
+            category: DiagnosticCategory::Parse,
+            code: Some(code.to_string()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+    diags
+}
+
+/// Detect retired-form decorators in source text and emit an actionable
+/// diagnostic suggesting the canonical replacement.
+///
+/// **Why text-level.** `@server`, `@query`, `@mutation`, `@health`,
+/// `@metric` are not lexer tokens — the Logos lexer silently drops the
+/// `@` byte and the parser sees an orphan `Ident("server")` which trips
+/// the unhelpful "Unexpected token at top level: server" path. A pre-parse
+/// text scan turns that into a precise migration hint.
+///
+/// Each entry pairs the retired form with its canonical replacement:
+///
+/// | Retired | Canonical |
+/// |---|---|
+/// | `@server fn` | `@endpoint(kind: server) fn` |
+/// | `@query fn` | `@endpoint(kind: query) fn` |
+/// | `@mutation fn` | `@endpoint(kind: mutation) fn` |
+/// | `@health fn` | plain `fn` (use a route + healthcheck client) |
+/// | `@metric fn` | plain `fn` (emit a metric from the body) |
+fn check_retired_decorators(source: &str) -> Vec<Diagnostic> {
+    // (pattern, retired_label, canonical_replacement, error_code)
+    const RETIRED: &[(&str, &str, &str, &str)] = &[
+        (
+            "@server",
+            "@server",
+            "@endpoint(kind: server)",
+            "E040",
+        ),
+        (
+            "@query",
+            "@query",
+            "@endpoint(kind: query)",
+            "E040",
+        ),
+        (
+            "@mutation",
+            "@mutation",
+            "@endpoint(kind: mutation)",
+            "E040",
+        ),
+        (
+            "@health",
+            "@health",
+            "plain `fn` (wire a healthcheck route by hand)",
+            "E040",
+        ),
+        (
+            "@metric",
+            "@metric",
+            "plain `fn` (emit a metric from the body)",
+            "E040",
+        ),
+    ];
+
+    let mut diags = Vec::new();
+    for (pattern, label, canonical, code) in RETIRED {
+        // Decorator forms always carry the `@` leading sentinel, so no
+        // identifier-boundary check is needed.
+        let Some(offset) =
+            find_keyword_outside_comments_and_strings(source, pattern, false)
+        else {
+            continue;
+        };
+        diags.push(Diagnostic {
+            severity: TypeckSeverity::Error,
+            message: format!(
+                "`{label}` is retired. Replace with `{canonical}`. See AGENTS.md §Retired Surfaces.",
+            ),
+            span: crate::ast::span::Span::new(offset, offset + pattern.len()),
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![format!("Replace `{label}` with `{canonical}`.")],
             category: DiagnosticCategory::Parse,
             code: Some(code.to_string()),
             fixes: vec![],
@@ -280,6 +370,24 @@ pub fn run_frontend_str_with_options(
         }
     }
 
+    // 1.7. Retired-decorator scan: catch `@server`/`@query`/`@mutation`/
+    // `@health`/`@metric` at the text level and emit an actionable
+    // diagnostic suggesting the canonical replacement.
+    {
+        let retired_diags = check_retired_decorators(source);
+        if !retired_diags.is_empty() {
+            return Ok(FrontendResult {
+                module: crate::ast::decl::Module {
+                    declarations: vec![],
+                    span: crate::ast::span::Span::new(0, 0),
+                },
+                hir: crate::hir::HirModule::default(),
+                diagnostics: retired_diags,
+                source: source.to_owned(),
+            });
+        }
+    }
+
     // 2. Parse
     let module_res = if options.script_mode {
         crate::parser::parse_script(tokens.clone())
@@ -421,6 +529,17 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
         }
     }
 
+    // 1.7. Retired-decorator scan (mirrors run_frontend_str path 1.7).
+    {
+        let retired_diags = check_retired_decorators(source);
+        if !retired_diags.is_empty() {
+            return retired_diags
+                .iter()
+                .map(|d| VoxCompilerDiagnosticPayload::from_diagnostic(d, file_path, source))
+                .collect();
+        }
+    }
+
     match crate::parser::parse(tokens) {
         Ok(module) => {
             let mut hir = crate::hir::lower_module(&module);
@@ -528,6 +647,313 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
 mod tests {
     use super::*;
 
+    /// Retired-decorator scan must emit an actionable migration hint
+    /// instead of the bare "Unexpected token at top level" path that
+    /// the parser used to produce when the lexer silently dropped `@`.
+    #[test]
+    fn retired_decorators_emit_actionable_migration_hint() {
+        for (retired, canonical_fragment) in [
+            ("@server", "@endpoint(kind: server)"),
+            ("@query", "@endpoint(kind: query)"),
+            ("@mutation", "@endpoint(kind: mutation)"),
+            ("@health", "plain `fn`"),
+            ("@metric", "plain `fn`"),
+        ] {
+            let source = format!("{retired} fn handler() to int {{ return 0 }}");
+            let diagnostics = check_file(&source, "retired.vox");
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|d| d.message.contains(retired) && d.message.contains(canonical_fragment)),
+                "retired {retired} should suggest {canonical_fragment}; got: {:?}",
+                diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+            );
+            assert!(
+                diagnostics.iter().any(|d| d.error_code == "E040"),
+                "retired-decorator diagnostic should carry code E040"
+            );
+        }
+    }
+
+    /// The retired-decorator scan must NOT fire when the form appears
+    /// inside a string literal or a comment. Mirrors the ADR-028 comment
+    /// skip tests.
+    #[test]
+    fn retired_decorators_are_ignored_inside_strings_and_comments() {
+        let source = r#"
+// Note: @server is retired — this is just a comment.
+fn render() to str {
+    return "documentation for @query is at /docs"
+}
+"#;
+        let diagnostics = check_file(source, "no_retired.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "retired decorators inside strings/comments should not fire; got: {errors:?}"
+        );
+    }
+
+    /// B3: `subscribe(Actor)` types as `Stream[T]` where `T` is the
+    /// return type of the actor's `on broadcast(...)` handler. When the
+    /// actor declares `on broadcast(...) to int`, the call should type
+    /// as `Stream[int]` (not the `Stream[str]` v1.0 default fallback).
+    #[test]
+    fn subscribe_uses_actor_broadcast_return_type() {
+        let source = r#"
+actor Counter {
+    on broadcast(n: int) to int { return n }
+}
+
+fn watch(c: Counter) to Stream[int] {
+    return subscribe(c)
+}
+"#;
+        let diagnostics = check_file(source, "subscribe_int.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "subscribe(Counter) where Counter.broadcast returns int should type as Stream[int]; got: {errors:?}"
+        );
+    }
+
+    /// `let r: T = if cond { ctor_a } else { ctor_b }` should specialize
+    /// each branch's polymorphic constructor against `T`. Without
+    /// expected-type propagation through `if`, the polymorphic
+    /// constructor's fresh type vars never bind and the unification
+    /// against `T` fails downstream.
+    #[test]
+    fn if_expression_propagates_expected_to_branches() {
+        let source = r#"
+type MyErr = | NotFound | BadInput
+fn classify(cond: bool) to Result[int, MyErr] {
+    let r: Result[int, MyErr] = if cond { Ok(42) } else { Error(NotFound) }
+    return r
+}
+"#;
+        let diagnostics = check_file(source, "if_expected.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "if-expression with Result[T, MyErr] should specialize both branches; got: {errors:?}"
+        );
+    }
+
+    /// `@endpoint(kind: stream, every: "<duration>")` accepts the
+    /// `every:` argument for tick-on-schedule streaming endpoints.
+    /// The interval string is preserved through HIR for downstream
+    /// SSE-handler codegen.
+    #[test]
+    fn endpoint_stream_with_every_compiles_clean() {
+        let source = r#"@endpoint(kind: stream, every: "1s") fn ticker() to int { return 0 }"#;
+        let diagnostics = check_file(source, "stream.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "stream + every should compile clean; got: {errors:?}"
+        );
+    }
+
+    /// `every:` on a non-stream endpoint must be rejected — it's a
+    /// streaming-only directive.
+    #[test]
+    fn endpoint_every_rejected_on_non_stream() {
+        let source = r#"@endpoint(kind: query, every: "1s") fn bad() to int { return 0 }"#;
+        let diagnostics = check_file(source, "every_wrong.vox");
+        let has_error = diagnostics
+            .iter()
+            .any(|d| matches!(d.severity, crate::typeck::diagnostics::TypeckSeverity::Error));
+        assert!(
+            has_error,
+            "every: on a query endpoint should error; got: {:?}",
+            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+    }
+
+    /// `subscribe(ActorName)` is a builtin returning `Stream[str]` — the
+    /// minimum surface needed for an actor-driven streaming endpoint.
+    #[test]
+    fn subscribe_builtin_returns_stream() {
+        let source = r#"
+actor ChatRoom { on broadcast(msg: str) to str { return msg } }
+@endpoint(kind: stream) fn watch() to Stream[str] {
+    return subscribe(ChatRoom)
+}
+"#;
+        let diagnostics = check_file(source, "subscribe.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "subscribe(Actor) -> Stream[str] should compile clean; got: {errors:?}"
+        );
+    }
+
+    /// `@table type T {}` without an `id` field and without an explicit
+    /// `@table(pk: ...)` argument must error with E1042 — the explicit-pk
+    /// rule (council-ratified 2026-05-19).
+    #[test]
+    fn table_without_id_or_explicit_pk_errors_with_e1042() {
+        let source = "@table type Foo { title: str }";
+        let diagnostics = check_file(source, "pk.vox");
+        let e1042 = diagnostics.iter().find(|d| d.error_code == "E1042");
+        assert!(
+            e1042.is_some(),
+            "missing-pk should produce E1042; got: {:?}",
+            diagnostics
+                .iter()
+                .map(|d| (&d.error_code, &d.message))
+                .collect::<Vec<_>>()
+        );
+        let msg = &e1042.unwrap().message;
+        assert!(msg.contains("primary-key"), "msg should mention primary-key: {msg}");
+        assert!(msg.contains("Foo"), "msg should mention table name: {msg}");
+    }
+
+    /// `@table type T { id: int, ... }` (default pk) must compile clean.
+    #[test]
+    fn table_with_default_id_compiles_clean() {
+        let source = r#"@table type Foo { id: int, title: str }"#;
+        let diagnostics = check_file(source, "pk.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "default-id table should compile clean; got: {errors:?}"
+        );
+    }
+
+    /// `@table(pk: ulid) type Order { ulid: str, ... }` (explicit pk)
+    /// must compile clean.
+    #[test]
+    fn table_with_explicit_pk_compiles_clean() {
+        let source = r#"@table(pk: ulid) type Order { ulid: str, amount: int }"#;
+        let diagnostics = check_file(source, "pk.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "explicit-pk table should compile clean; got: {errors:?}"
+        );
+    }
+
+    /// `@table(pk: missing_field) type Bad { other: str }` must error
+    /// with E1041 — the pk argument names a non-existent field.
+    #[test]
+    fn table_with_wrong_pk_argument_errors_with_e1041() {
+        let source = r#"@table(pk: missing) type Bad { other: str }"#;
+        let diagnostics = check_file(source, "pk.vox");
+        let e1041 = diagnostics.iter().find(|d| d.error_code == "E1041");
+        assert!(
+            e1041.is_some(),
+            "wrong-pk should produce E1041; got: {:?}",
+            diagnostics
+                .iter()
+                .map(|d| (&d.error_code, &d.message))
+                .collect::<Vec<_>>()
+        );
+        let msg = &e1041.unwrap().message;
+        assert!(msg.contains("missing"), "msg should mention the wrong pk: {msg}");
+    }
+
+    /// `cap` parameters and `has_capability(...)` calls are part of the
+    /// capability-grants-ssot surface. The type-checker should accept
+    /// `cap` as an opaque named type and `has_capability` as a built-in
+    /// `fn(cap) -> bool`. Regression coverage for the
+    /// `inventory_rosetta_platform.vox` golden example.
+    #[test]
+    fn cap_type_and_has_capability_builtin_compile_clean() {
+        let source = r#"
+fn import_csv(c: cap, path: str) to Result[str] {
+    if !has_capability(c) {
+        return Error("missing capability token")
+    }
+    return Ok("imported:" + path)
+}
+"#;
+        let diagnostics = check_file(source, "cap.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "cap + has_capability should compile clean; got: {errors:?}"
+        );
+    }
+
+    /// `has_capability` must reject non-`cap` arguments — otherwise the
+    /// builtin would be a stub. Calling it with a `str` should produce
+    /// a type error.
+    #[test]
+    fn has_capability_rejects_non_cap_argument() {
+        let source = r#"
+fn check(s: str) to bool {
+    return has_capability(s)
+}
+"#;
+        let diagnostics = check_file(source, "cap_misuse.vox");
+        let has_error = diagnostics.iter().any(|d| matches!(
+            d.severity,
+            crate::typeck::diagnostics::TypeckSeverity::Error
+        ));
+        assert!(
+            has_error,
+            "has_capability(str) should be rejected; got: {:?}",
+            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+    }
+
     #[test]
     fn test_reject_macros_e091() {
         let source = "macro_rules! my_macro { () => {} }";
@@ -546,8 +972,9 @@ mod tests {
         assert_eq!(frontend_res.diagnostics[0].code, Some("E091".to_string()));
     }
 
-    // ADR-028: @scheduled, @durable, workflow, activity are reserved/removed from public grammar.
-    // actor is retained and must compile cleanly.
+    // ADR-028 (revised 2026-05-19): @scheduled and @durable remain reserved.
+    // workflow, activity, and actor are part of the public grammar and must
+    // compile cleanly — they're backed by vox-workflow-runtime + vox-actor-runtime.
 
     #[test]
     fn test_reject_scheduled_adr028() {
@@ -588,47 +1015,48 @@ mod tests {
         );
     }
 
+    /// **ADR-028 revision (2026-05-19):** `workflow` is now part of the public
+    /// grammar. The `vox-workflow-runtime` crate provides journal-backed
+    /// durable execution; the codegen wires workflow bodies via
+    /// `durability_lower::emit_workflow_body`. Smoke test: a minimal
+    /// workflow declaration must compile clean.
     #[test]
-    fn test_reject_workflow_adr028() {
-        // workflow parses successfully but must be rejected with a diagnostic.
-        let source = r#"workflow order() {}"#;
+    fn test_workflow_keyword_compiles_clean() {
+        let source = r#"workflow order_pipeline() to int { return 0 }"#;
         let diagnostics = check_file(source, "test.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
         assert!(
-            !diagnostics.is_empty(),
-            "workflow keyword should produce a compile error (ADR-028)"
-        );
-        assert!(
-            diagnostics.iter().any(|d| d.message.contains("workflow")),
-            "diagnostic message should mention workflow; got: {:?}",
-            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
-        );
-        assert!(
-            diagnostics
-                .iter()
-                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
-            "severity should be error"
+            errors.is_empty(),
+            "workflow should compile clean (ADR-028 revision 2026-05-19); errors: {errors:?}"
         );
     }
 
+    /// **ADR-028 revision (2026-05-19):** `activity` is now part of the
+    /// public grammar. Activities are journal-recorded side-effects called
+    /// from inside workflows; codegen lowers them via
+    /// `durability_lower::emit_activity_body`.
     #[test]
-    fn test_reject_activity_adr028() {
-        // activity parses successfully but must be rejected with a diagnostic.
-        let source = r#"activity charge() {}"#;
+    fn test_activity_keyword_compiles_clean() {
+        let source = r#"activity charge_card(amount: int) to int { return amount }"#;
         let diagnostics = check_file(source, "test.vox");
+        let errors: Vec<&str> = diagnostics
+            .iter()
+            .filter(|d| matches!(
+                d.severity,
+                crate::typeck::diagnostics::TypeckSeverity::Error
+            ))
+            .map(|d| d.message.as_str())
+            .collect();
         assert!(
-            !diagnostics.is_empty(),
-            "activity keyword should produce a compile error (ADR-028)"
-        );
-        assert!(
-            diagnostics.iter().any(|d| d.message.contains("activity")),
-            "diagnostic message should mention activity; got: {:?}",
-            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
-        );
-        assert!(
-            diagnostics
-                .iter()
-                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
-            "severity should be error"
+            errors.is_empty(),
+            "activity should compile clean (ADR-028 revision 2026-05-19); errors: {errors:?}"
         );
     }
 

@@ -12,6 +12,7 @@
 // @training_prompt: Combine @table Post, a list @endpoint(kind: query), an @endpoint(kind: mutation), and a small routes tree for a tutorial-style blog slice.
 
 @table type Post {
+    id: int
     title: str
 }
 

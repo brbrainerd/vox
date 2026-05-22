@@ -752,6 +752,7 @@ fn caller() to str { fetch() }",
             rate_limit: None,
             pii: None,
             layer: None,
+            stream_interval: None,
             span: dummy_span(),
         }
     }

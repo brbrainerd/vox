@@ -587,32 +587,200 @@ fn discover_vox_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
             out.push(p.to_path_buf());
         }
     }
-    // Order by import-dependency depth (best-effort topological): files
-    // with the FEWEST imports first, so when we repair a downstream file
-    // its dependencies have already been seen/fixed in this pass. This
-    // is P4.2's first slice — full SCC + cycle handling lands later.
-    out.sort_by(|a, b| {
-        let depth_a = import_count(a);
-        let depth_b = import_count(b);
-        depth_a.cmp(&depth_b).then_with(|| a.cmp(b))
-    });
+    // Order files so that **dependencies repair first**: if A imports B,
+    // repair B before A so that when A's repair runs, B is already clean.
+    // Uses Tarjan's SCC over the project-local import graph to handle
+    // mutual / cyclic imports without infinite recursion. Files inside an
+    // SCC are emitted in lex order; std.* and external imports are ignored
+    // (they're not in the discovered set, so they don't participate).
+    order_by_import_graph(&out, root)
+}
+
+/// Project-local import graph topological order with Tarjan SCC handling.
+///
+/// Returns files such that every file appears AFTER all the project files
+/// it imports (depth-first). Cycles are collapsed into SCCs and emitted
+/// as one unit, lex-ordered within. Unknown imports (stdlib, externals,
+/// or unresolved paths) are silently ignored — only project-local edges
+/// affect the order, which is the right behavior for repair: we only need
+/// to order the files we're about to rewrite.
+fn order_by_import_graph(
+    files: &[std::path::PathBuf],
+    project_root: &std::path::Path,
+) -> Vec<std::path::PathBuf> {
+    use std::collections::HashMap;
+
+    // Index: canonical path → index in `files`. We canonicalize both
+    // the discovered files and the candidate import paths so they match
+    // even when one side carries a `\\?\` prefix (Windows) or a relative
+    // walk-root prefix.
+    let path_index: HashMap<std::path::PathBuf, usize> = files
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let key = p.canonicalize().unwrap_or_else(|_| p.clone());
+            (key, i)
+        })
+        .collect();
+
+    // Adjacency: file_idx → indices of project-local files it imports.
+    let mut adj: Vec<Vec<usize>> = vec![Vec::new(); files.len()];
+    for (i, path) in files.iter().enumerate() {
+        for dotted in parse_imports(path) {
+            for cand in candidate_import_paths(project_root, &dotted) {
+                if let Some(&j) = path_index.get(&cand) {
+                    if j != i {
+                        adj[i].push(j);
+                    }
+                    break;
+                }
+            }
+        }
+        adj[i].sort_unstable();
+        adj[i].dedup();
+    }
+
+    // Tarjan's SCC (iterative). Produces SCCs in reverse topological order:
+    // sinks first → leaves of the DAG → exactly what we want for repair
+    // (deps before dependents).
+    let sccs = tarjan_scc(&adj);
+
+    let mut out: Vec<std::path::PathBuf> = Vec::with_capacity(files.len());
+    for mut scc in sccs {
+        // Stable within-SCC order: lex by file path.
+        scc.sort_by(|&a, &b| files[a].cmp(&files[b]));
+        for idx in scc {
+            out.push(files[idx].clone());
+        }
+    }
     out
 }
 
-/// Cheap textual count of `import` lines in a `.vox` file. Used as a
-/// lightweight dependency-depth proxy for repair ordering — full
-/// HIR-based topological sort lands when the repair loop's cross-file
-/// reasoning gets a dedicated context graph.
-fn import_count(path: &std::path::Path) -> usize {
+/// Extract `import <dotted.path>` declarations from a `.vox` source file.
+/// Returns the dotted path string (e.g. `"std.mobile"`, `"app.routes.api"`).
+/// Pure text scan — robust enough for the repair-ordering use case without
+/// requiring a full parse.
+fn parse_imports(path: &std::path::Path) -> Vec<String> {
     let Ok(src) = std::fs::read_to_string(path) else {
-        return 0;
+        return Vec::new();
     };
-    src.lines()
-        .filter(|line| {
-            let t = line.trim_start();
-            t.starts_with("import ") || t.starts_with("import\t")
-        })
-        .count()
+    let mut out = Vec::new();
+    for line in src.lines() {
+        let t = line.trim_start();
+        let rest = if let Some(r) = t.strip_prefix("import ") {
+            r
+        } else if let Some(r) = t.strip_prefix("import\t") {
+            r
+        } else {
+            continue;
+        };
+        // Take until whitespace or `as` (alias clause). Strip trailing
+        // comments / commas / semicolons defensively.
+        let dotted: String = rest
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .trim_end_matches([',', ';'])
+            .to_string();
+        if !dotted.is_empty() {
+            out.push(dotted);
+        }
+    }
+    out
+}
+
+/// Map a dotted import like `app.routes.api` to candidate filesystem
+/// paths inside `project_root`. Tries both `app/routes/api.vox` and
+/// `app/routes/api/mod.vox`. Returns canonical paths when they exist on
+/// disk (so they match the entries in `discover_vox_files`).
+fn candidate_import_paths(
+    project_root: &std::path::Path,
+    dotted: &str,
+) -> Vec<std::path::PathBuf> {
+    let segments: Vec<&str> = dotted.split('.').collect();
+    if segments.is_empty() {
+        return Vec::new();
+    }
+    let mut candidates = Vec::with_capacity(4);
+    // Two common roots: project_root/ and project_root/src/.
+    for base in [project_root.to_path_buf(), project_root.join("src")] {
+        let mut leaf = base.clone();
+        for seg in &segments {
+            leaf.push(seg);
+        }
+        let direct = leaf.with_extension("vox");
+        let module = leaf.join("mod.vox");
+        for p in [direct, module] {
+            if let Ok(canon) = p.canonicalize() {
+                candidates.push(canon);
+            }
+        }
+    }
+    candidates
+}
+
+/// Iterative Tarjan's strongly-connected-components algorithm.
+/// Returns SCCs in reverse topological order — sinks first — which is the
+/// natural order for repair (dependencies before dependents).
+fn tarjan_scc(adj: &[Vec<usize>]) -> Vec<Vec<usize>> {
+    let n = adj.len();
+    let mut index_counter: usize = 0;
+    let mut stack: Vec<usize> = Vec::new();
+    let mut on_stack = vec![false; n];
+    let mut index = vec![usize::MAX; n];
+    let mut lowlink = vec![0usize; n];
+    let mut sccs: Vec<Vec<usize>> = Vec::new();
+
+    // Iterative DFS frame: (node, next-child-iter-position).
+    for start in 0..n {
+        if index[start] != usize::MAX {
+            continue;
+        }
+        let mut work: Vec<(usize, usize)> = vec![(start, 0)];
+        index[start] = index_counter;
+        lowlink[start] = index_counter;
+        index_counter += 1;
+        stack.push(start);
+        on_stack[start] = true;
+
+        while let Some(&(v, i)) = work.last() {
+            if i < adj[v].len() {
+                let w = adj[v][i];
+                work.last_mut().unwrap().1 = i + 1;
+                if index[w] == usize::MAX {
+                    index[w] = index_counter;
+                    lowlink[w] = index_counter;
+                    index_counter += 1;
+                    stack.push(w);
+                    on_stack[w] = true;
+                    work.push((w, 0));
+                } else if on_stack[w] {
+                    lowlink[v] = lowlink[v].min(index[w]);
+                }
+            } else {
+                // Post-visit: roll up lowlink to parent, and if v is a
+                // root, pop its SCC.
+                if lowlink[v] == index[v] {
+                    let mut comp = Vec::new();
+                    loop {
+                        let w = stack.pop().expect("scc stack underflow");
+                        on_stack[w] = false;
+                        comp.push(w);
+                        if w == v {
+                            break;
+                        }
+                    }
+                    sccs.push(comp);
+                }
+                work.pop();
+                if let Some(&(parent, _)) = work.last() {
+                    lowlink[parent] = lowlink[parent].min(lowlink[v]);
+                }
+            }
+        }
+    }
+
+    sccs
 }
 
 fn is_skipped_dir_for_repair(path: &std::path::Path) -> bool {
@@ -632,6 +800,94 @@ mod tests {
     /// Build a session, simulate one open→close cycle, and prove the event
     /// shape lines up. We don't actually emit (no recorder registered in lib
     /// tests), but the construction path itself exercises the field plumbing.
+    /// `parse_imports` should pick up both `import x` and `import x.y.z`
+    /// while ignoring lookalikes (comments, inline strings).
+    #[test]
+    fn parse_imports_extracts_dotted_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let f = tmp.path().join("a.vox");
+        std::fs::write(
+            &f,
+            "import std.mobile\nimport app.routes.api\n// import not.an.import\nfn x() to int { return 0 }\n",
+        )
+        .unwrap();
+        let imports = parse_imports(&f);
+        assert_eq!(imports, vec!["std.mobile", "app.routes.api"]);
+    }
+
+    /// Tarjan SCC on a simple DAG should produce sinks-first ordering.
+    #[test]
+    fn tarjan_scc_orders_dag_sinks_first() {
+        // 0 -> 1 -> 2 (2 is the sink)
+        let adj = vec![vec![1], vec![2], vec![]];
+        let sccs = tarjan_scc(&adj);
+        // Expected order: [2], [1], [0]
+        assert_eq!(sccs, vec![vec![2], vec![1], vec![0]]);
+    }
+
+    /// Tarjan SCC on a cycle should collapse into one component.
+    #[test]
+    fn tarjan_scc_collapses_cycle() {
+        // 0 -> 1 -> 0 (mutual import)
+        let adj = vec![vec![1], vec![0]];
+        let sccs = tarjan_scc(&adj);
+        assert_eq!(sccs.len(), 1);
+        let mut comp = sccs.into_iter().next().unwrap();
+        comp.sort();
+        assert_eq!(comp, vec![0, 1]);
+    }
+
+    /// End-to-end: a project where `app.vox` imports `lib.vox` should
+    /// repair `lib.vox` first.
+    #[test]
+    fn order_by_import_graph_places_dependencies_first() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(
+            root.join("src/app.vox"),
+            "import lib\nfn main() to int { return 0 }\n",
+        )
+        .unwrap();
+        std::fs::write(root.join("src/lib.vox"), "fn helper() to int { return 0 }\n").unwrap();
+
+        let files = discover_vox_files(root);
+        // discover_vox_files already returns import-graph order.
+        assert_eq!(files.len(), 2);
+        assert!(
+            files[0].ends_with("lib.vox"),
+            "lib.vox (dep) should come first; got: {:?}",
+            files
+        );
+        assert!(files[1].ends_with("app.vox"));
+    }
+
+    /// External / unresolved imports (std.*, missing files) must not
+    /// affect order — they're not in the discovered set.
+    #[test]
+    fn order_by_import_graph_ignores_external_imports() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        // Two siblings, both importing std.* — they're independent in the
+        // project-local graph and should fall back to lex order.
+        std::fs::write(
+            root.join("src/b.vox"),
+            "import std.io\nfn b() to int { return 0 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("src/a.vox"),
+            "import std.io\nfn a() to int { return 0 }\n",
+        )
+        .unwrap();
+
+        let files = discover_vox_files(root);
+        assert_eq!(files.len(), 2);
+        assert!(files[0].ends_with("a.vox"));
+        assert!(files[1].ends_with("b.vox"));
+    }
+
     #[test]
     fn repair_session_open_and_close_attempt_does_not_panic() {
         let mut s = RepairSession::new(3, Some("openrouter/claude-sonnet-4-7".into()));

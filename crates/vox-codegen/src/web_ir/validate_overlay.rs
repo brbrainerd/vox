@@ -145,8 +145,28 @@ mod tests {
         assert!(out.is_empty(), "unexpected: {out:?}");
     }
 
+    /// Two overlay children with **distinct named** z-tiers should
+    /// produce no overlay-validator warnings. (ADR-034 added the
+    /// `loose_z_index` lint that fires on numeric `data-vox-z` values,
+    /// so this regression fixture switched from `"100"` / `"90"` to
+    /// the canonical named tiers `"content"` / `"popover"`.)
     #[test]
     fn overlay_unique_z_no_warning() {
+        let m = module_with_nodes(vec![
+            elem(0, vec![("data-vox-overlay", "true")], vec![1, 2]),
+            elem(1, vec![("data-vox-z", "content")], vec![]),
+            elem(2, vec![("data-vox-z", "popover")], vec![]),
+        ]);
+        let mut out = Vec::new();
+        validate_overlay(&m, &mut out);
+        assert!(out.is_empty(), "unexpected: {out:?}");
+    }
+
+    /// Companion regression: when the author writes numeric z-indices,
+    /// the loose_z_index lint fires (one diagnostic per numeric value)
+    /// even when each value is unique. This locks in the ADR-034 surface.
+    #[test]
+    fn overlay_loose_numeric_z_warns_per_value() {
         let m = module_with_nodes(vec![
             elem(0, vec![("data-vox-overlay", "true")], vec![1, 2]),
             elem(1, vec![("data-vox-z", "100")], vec![]),
@@ -154,7 +174,16 @@ mod tests {
         ]);
         let mut out = Vec::new();
         validate_overlay(&m, &mut out);
-        assert!(out.is_empty(), "unexpected: {out:?}");
+        let loose_count = out
+            .iter()
+            .filter(|d| d.code == "web_ir_validate.overlay.loose_z_index")
+            .count();
+        assert_eq!(loose_count, 2, "expected one loose_z_index per numeric value; got: {out:?}");
+        // No duplicate-z warning when the numeric values themselves are distinct.
+        assert!(
+            !out.iter().any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
+            "distinct numeric z-values must not trip duplicate_z; got: {out:?}"
+        );
     }
 
     #[test]

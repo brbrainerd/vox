@@ -131,6 +131,10 @@ pub fn lower_module_routes(module: &HirModule) -> Vec<RouteIR> {
                 vox_compiler::hir::HirEndpointKind::Server => RouteKind::ServerFn,
                 vox_compiler::hir::HirEndpointKind::Query => RouteKind::QueryFn,
                 vox_compiler::hir::HirEndpointKind::Mutation => RouteKind::MutationFn,
+                // Streams route as GET like queries from the router's
+                // perspective; the SSE response shape is emitted by the
+                // handler itself (see codegen_rust::emit::http::emit_sse_handler).
+                vox_compiler::hir::HirEndpointKind::Stream => RouteKind::QueryFn,
             };
             (sf, kind)
         })

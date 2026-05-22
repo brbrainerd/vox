@@ -361,7 +361,14 @@ impl<'a> Checker<'a> {
         for m in &c.members {
             match m {
                 crate::hir::HirReactiveMember::State(s) => {
-                    let init_ty = self.check_expr(&s.init, None);
+                    // Pass the declared state type as the expected type so that
+                    // polymorphic constructors like `None`, `Ok(x)`, `[]`, and
+                    // empty object literals can specialize against the
+                    // annotation. Mirrors the let-binding fix in P2.3.
+                    let expected = state_vars
+                        .get(state_idx)
+                        .map(|(_, ty)| ty.clone());
+                    let init_ty = self.check_expr(&s.init, expected.as_ref());
                     if let Some((_, decl_ty)) = state_vars.get(state_idx) {
                         // `any` is an escape hatch — skip unification and accept
                         // any initializer value (mirrors TypeScript `any` semantics).

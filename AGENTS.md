@@ -136,13 +136,17 @@ Vox source follows one rule for top-level declarations:
 > **Bare-keyword blocks declare scope. Decorators modify declarations.**
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
-`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`.
-**Reserved (ADR-028, not yet implemented):** `workflow`, `activity`.
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`,
+`workflow`, `activity`.
+*(`workflow` and `activity` became public in the ADR-028 revision 2026-05-19;
+backed by `vox-workflow-runtime`'s journal-replay engine.)*
 
 **Decorators** (modifiers composed on top of a declaration):
 `@table`, `@endpoint`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
 `@v0`, `@test`.
-**Reserved (ADR-028, not yet implemented):** `@durable`, `@scheduled`.
+**Reserved (ADR-028):** `@durable`, `@scheduled` — surface targeting a
+"decorator-on-plain-fn" model the runtime doesn't yet provide. Use a
+`workflow` declaration until they land.
 
 Decorators compose with bare-keyword blocks:
 
@@ -157,18 +161,18 @@ Decorators compose with bare-keyword blocks:
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (2026-05-15, corrects earlier drift).** `actor` is fully
-supported as a bare keyword and lowers to runtime mailbox dispatch. `workflow`,
-`activity`, `@durable`, and `@scheduled` are **reserved per ADR-028** and
-**rejected at parse time** with error code `E028` — see
+**Implementation status (2026-05-19, ADR-028 revision).** `actor`, `workflow`,
+and `activity` are all fully supported bare keywords. `actor` lowers to runtime
+mailbox dispatch (`vox-actor-runtime`); `workflow` and `activity` lower to
+journal-backed durable execution (`vox-workflow-runtime`) with replay-on-restart
+semantics via `interpret_workflow_durable`. The codegen lives in
+`crates/vox-codegen/src/codegen_rust/emit/durability_lower.rs`.
+`@durable` and `@scheduled` remain **reserved per ADR-028** and **rejected at
+parse time** with error code `E028` — see
 [`crates/vox-compiler/src/pipeline.rs`](crates/vox-compiler/src/pipeline.rs)
-function `check_adr028_reserved_keywords`. Source files MUST NOT declare these
-forms; use a plain `fn` until the durability runtime lands per
-[`mesh-phase1-language-spine-plan-2026.md`](docs/src/architecture/mesh-phase1-language-spine-plan-2026.md).
-A previous revision of this section claimed they were "fully supported as of
-TASK-2.6 Path A" — that claim was incorrect and is corrected here. The
-[`durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md)
-audit confirms parse-only with zero runtime implementation.
+function `check_adr028_reserved_keywords`. They target a "decorator-on-plain-fn"
+surface the runtime doesn't yet provide; use a `workflow` declaration until
+they land.
 
 The `vox ci retirement-audit` gate (planned per
 [CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3)
@@ -292,14 +296,14 @@ These rules apply to `.vox` source files and are enforced by `vox stub-check` (s
 **Effect declarations (Phase 5):**
 - Any `pub fn` or `@endpoint fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
 - A `@pure fn` MUST NOT call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or any `async/await` — the compiler will reject it.
-- `workflow { }` and `activity` declarations are **reserved per ADR-028** and rejected at parse time with error code `E028` (see [`crates/vox-compiler/src/pipeline.rs`](crates/vox-compiler/src/pipeline.rs) function `check_adr028_reserved_keywords`). Use plain `fn` until the durability runtime lands per [`mesh-phase1-language-spine-plan-2026.md`](docs/src/architecture/mesh-phase1-language-spine-plan-2026.md). When the surface lands, workflow bodies MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`.
+- `workflow { }` and `activity { }` declarations are **public** as of ADR-028 revision 2026-05-19 — backed by `vox-workflow-runtime`'s journal-replay engine. Workflow bodies MUST NOT call non-deterministic builtins outside of an `activity` call: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()` — these break replay determinism and must be wrapped in an activity. `@durable` and `@scheduled` decorators remain **reserved per ADR-028** with error code `E028`; use a `workflow` declaration until they land.
 
 **Type boundaries (Phase 3):**
-- ID parameters on `@endpoint` or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`. (The `@activity` decorator currently shares this enforcement at the detector level for forward compatibility with the reserved `activity` surface, but `activity` itself is rejected at parse time per ADR-028.)
+- ID parameters on `@endpoint`, actor-message, or `activity` functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
 - Error types on public boundaries MUST be named ADTs — `Result[T, str]` is flagged by `vox/types/anonymous-error-type`.
 
 **Decorator position (Phase 2):**
-- Use `@pure fn` — NOT `pure fn`. The bare-keyword position is reserved for `actor`, `fn`, `type`, `component`, `routes`, `module`, `state_machine`. `workflow` and `activity` are also reserved per ADR-028 but are rejected at parse time with `E028`; `@durable` and `@scheduled` are likewise reserved. Reserved forms MUST NOT appear in source files until the durability runtime lands.
+- Use `@pure fn` — NOT `pure fn`. The bare-keyword position is reserved for `actor`, `fn`, `type`, `component`, `routes`, `module`, `state_machine`, `workflow`, `activity`. The `@durable` and `@scheduled` decorators remain reserved per ADR-028 and are rejected at parse time with `E028`; use a `workflow` declaration instead.
 - See the Grammar Unification section above for the full keyword table.
 
 **Auth / access control:**

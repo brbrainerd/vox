@@ -929,30 +929,74 @@ impl Parser {
         self.advance(); // eat @endpoint
         self.expect(&Token::LParen)?;
         let mut kind = None;
-        if let Token::Ident(k) = self.peek().clone()
-            && k == "kind"
-        {
-            self.advance();
-            self.expect(&Token::Colon)?;
-            if let Token::Ident(v) = self.peek().clone() {
-                match v.as_str() {
-                    "query" => kind = Some(EndpointKind::Query),
-                    "mutation" => kind = Some(EndpointKind::Mutation),
-                    "server" => kind = Some(EndpointKind::Server),
-                    "stream" => kind = Some(EndpointKind::Stream),
+        let mut interval: Option<String> = None;
+        // Parse arguments — `kind: <id>` and the optional
+        // `every: "<duration>"` argument. They may appear in either
+        // order, comma-separated.
+        loop {
+            if matches!(self.peek(), Token::RParen) {
+                break;
+            }
+            if let Token::Ident(arg) = self.peek().clone() {
+                match arg.as_str() {
+                    "kind" => {
+                        self.advance();
+                        self.expect(&Token::Colon)?;
+                        if let Token::Ident(v) = self.peek().clone() {
+                            match v.as_str() {
+                                "query" => kind = Some(EndpointKind::Query),
+                                "mutation" => kind = Some(EndpointKind::Mutation),
+                                "server" => kind = Some(EndpointKind::Server),
+                                "stream" => kind = Some(EndpointKind::Stream),
+                                _ => {
+                                    self.errors.push(ParseError::classified(
+                                        self.span(),
+                                        "Unknown endpoint kind. Expected query, mutation, server, or stream.",
+                                        vec!["query".into(), "mutation".into(), "server".into(), "stream".into()],
+                                        Some(v),
+                                        ParseErrorClass::Declaration,
+                                    ));
+                                    return Err(());
+                                }
+                            }
+                            self.advance();
+                        }
+                    }
+                    "every" => {
+                        self.advance();
+                        self.expect(&Token::Colon)?;
+                        // Accepts a string literal like "1s", "500ms", "5m".
+                        if let Token::StringLit(s) = self.peek().clone() {
+                            interval = Some(s);
+                            self.advance();
+                        } else {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected duration string literal after `every:`, e.g. `every: \"1s\"`.",
+                                vec!["\"1s\"".into(), "\"500ms\"".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
                     _ => {
                         self.errors.push(ParseError::classified(
                             self.span(),
-                            "Unknown endpoint kind. Expected query, mutation, or server.",
-                            vec!["query".into(), "mutation".into(), "server".into()],
-                            Some(v),
+                            format!("Unknown @endpoint argument `{arg}`. Expected `kind:` or `every:`."),
+                            vec!["kind: server".into(), "every: \"1s\"".into()],
+                            Some(arg),
                             ParseErrorClass::Declaration,
                         ));
                         return Err(());
                     }
                 }
-                self.advance();
             }
+            if matches!(self.peek(), Token::Comma) {
+                self.advance();
+                continue;
+            }
+            break;
         }
         self.expect(&Token::RParen)?;
         if kind.is_none() {
@@ -965,11 +1009,22 @@ impl Parser {
             ));
             return Err(());
         }
+        if interval.is_some() && !matches!(kind, Some(EndpointKind::Stream)) {
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "`every:` is only valid on `@endpoint(kind: stream)` — it sets the tick interval for SSE-style streaming.",
+                vec!["kind: stream".into()],
+                None,
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        }
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::Endpoint(EndpointDecl {
             kind: kind.unwrap(),
             func: f,
+            stream_interval: interval,
         }))
     }
 

@@ -12,6 +12,7 @@
 // @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @endpoint(kind: query), @endpoint(kind: mutation), one query endpoint, and db.Table operations (get/find, all, insert).
 // ANCHOR: display
 @table type User {
+    id: int
     name: str
     active: bool
 }

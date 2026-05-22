@@ -307,6 +307,11 @@ impl LowerCtx {
 
     pub(crate) fn lower_table(&mut self, t: &TableDecl) -> HirTable {
         let id = self.def_map.define(t.name.clone());
+        // Resolve the primary-key column name: either the explicit
+        // `@table(pk: name)` argument or the default `"id"`. The typeck
+        // is responsible for validating that the resolved name actually
+        // names a field on this table (E1041 / E1042).
+        let primary_key = t.primary_key.clone().unwrap_or_else(|| "id".to_string());
         HirTable {
             id,
             name: t.name.clone(),
@@ -321,6 +326,7 @@ impl LowerCtx {
                 .collect(),
             is_pub: t.is_pub,
             is_deprecated: t.is_deprecated,
+            primary_key,
             span: t.span,
         }
     }

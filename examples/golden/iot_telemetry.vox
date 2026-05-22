@@ -12,6 +12,7 @@
 // @training_prompt: Draft an IoT device telemetry service demonstrating event sourcing and analytical aggregations using actors and tables.
 // ANCHOR: display
 @table type DeviceLog {
+    id: int
     device_id: str
     temperature: float
     status_code: int
@@ -19,6 +20,7 @@
 }
 
 @table type DeviceRegistry {
+    id: int
     device_id: str
     active: bool
 }

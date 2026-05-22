@@ -12,6 +12,7 @@
 // @training_prompt: Show advanced database operations in Vox: filtering, limits, aggregations, and composition.
 // ANCHOR: display
 @table type Product {
+    id: int
     name: str
     category: str
     price: int

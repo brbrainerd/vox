@@ -263,6 +263,13 @@ pub enum EndpointKind {
 pub struct EndpointDecl {
     pub kind: EndpointKind,
     pub func: FnDecl,
+    /// Optional tick interval for `kind: stream` endpoints —
+    /// `every: "<duration>"` argument (e.g. `"1s"`, `"500ms"`). When set,
+    /// the SSE handler invokes the body on this cadence and pushes each
+    /// result as a `data:` event. Only honored when `kind` is `Stream`;
+    /// the parser rejects `every:` on other kinds (E040-class check).
+    #[serde(default)]
+    pub stream_interval: Option<String>,
 }
 
 /// Skill declaration: a modular AI capability.

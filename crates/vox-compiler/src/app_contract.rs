@@ -26,6 +26,13 @@ pub struct AppContractModule {
     pub server_fns: Vec<AppServerFnContract>,
     pub query_fns: Vec<AppServerFnContract>,
     pub mutation_fns: Vec<AppMutationContract>,
+    /// Streaming endpoints (`@endpoint(kind: stream)`). Routed as GET
+    /// under `/api/stream/<name>` and emitted as SSE handlers
+    /// (`Sse<Stream<...>>`) by the Rust codegen. The `interval_ms`
+    /// field carries the parsed `every: "<duration>"` value, defaulting
+    /// to 1000ms when absent.
+    #[serde(default)]
+    pub stream_fns: Vec<AppStreamFnContract>,
     /// MCP tools from `@mcp.tool` (names, descriptions, signatures) — machine-readable SSOT for tooling.
     #[serde(default)]
     pub mcp_tools: Vec<AppMcpToolContract>,
@@ -64,6 +71,19 @@ pub struct AppServerFnContract {
     pub name: String,
     pub route_path: String,
     pub signature: String,
+}
+
+/// Streaming endpoint contract — surfaced to codegen as a distinct slice
+/// so the SSE route emission stays separate from server-fn POST routes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppStreamFnContract {
+    pub name: String,
+    pub route_path: String,
+    pub signature: String,
+    /// Tick interval in milliseconds, derived from `every: "<duration>"`.
+    /// `None` indicates the codegen default (1000ms).
+    #[serde(default)]
+    pub interval_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,6 +146,21 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         })
         .collect();
 
+    let stream_fns = module
+        .endpoint_fns
+        .iter()
+        .filter(|sf| sf.kind == crate::hir::HirEndpointKind::Stream)
+        .map(|sf| AppStreamFnContract {
+            name: sf.name.clone(),
+            route_path: sf.route_path.clone(),
+            signature: fn_signature(&sf.params, sf.return_type.as_ref()),
+            interval_ms: sf
+                .stream_interval
+                .as_deref()
+                .and_then(parse_duration_to_ms),
+        })
+        .collect();
+
     let mcp_tools = module
         .mcp_tools
         .iter()
@@ -152,6 +187,7 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         server_fns,
         query_fns,
         mutation_fns,
+        stream_fns,
         mcp_tools,
         mcp_resources,
         server_config: AppServerConfigContract {
@@ -162,6 +198,25 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
             static_assets_embed_dir: "public/".to_string(),
         },
     }
+}
+
+/// Parse `every: "<duration>"` strings to milliseconds. Public on the
+/// contract projection because both the contract and the codegen need
+/// the same parser. Accepts `ms`, `s`, `m`, `h` suffixes.
+fn parse_duration_to_ms(s: &str) -> Option<u64> {
+    let s = s.trim();
+    let (num, unit) = if let Some(rest) = s.strip_suffix("ms") {
+        (rest, 1u64)
+    } else if let Some(rest) = s.strip_suffix('s') {
+        (rest, 1000)
+    } else if let Some(rest) = s.strip_suffix('m') {
+        (rest, 60_000)
+    } else if let Some(rest) = s.strip_suffix('h') {
+        (rest, 3_600_000)
+    } else {
+        return None;
+    };
+    num.trim().parse::<u64>().ok().map(|n| n.saturating_mul(unit))
 }
 
 /// Canonical JSON bytes for stable app-contract hashing (sorted object keys at every depth).

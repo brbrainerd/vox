@@ -102,6 +102,35 @@ impl Parser {
     pub(crate) fn parse_table(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @table
+
+        // Optional `(pk: <ident>)` argument — names the primary-key column
+        // when it differs from the default `"id"`. The typeck enforces
+        // that the named column actually exists on the table (E1041);
+        // when the decorator is bare, the typeck enforces an `id` field
+        // exists (E1042).
+        let mut primary_key: Option<String> = None;
+        if matches!(self.peek(), Token::LParen) {
+            self.advance(); // eat `(`
+            if let Token::Ident(k) = self.peek().clone()
+                && k == "pk"
+            {
+                self.advance(); // eat `pk`
+                self.expect(&Token::Colon)?;
+                primary_key = Some(self.parse_ident_name()?);
+            } else {
+                use crate::parser::error::{ParseError, ParseErrorClass};
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected `pk: <field_name>` inside `@table(...)`.",
+                    vec!["pk: id".into()],
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+            self.expect(&Token::RParen)?;
+        }
+
         self.expect(&Token::TypeKw)?;
         let name = self.parse_ident_name()?;
         self.expect(&Token::LBrace)?;
@@ -136,6 +165,7 @@ impl Parser {
             cors: None,
             is_pub: false,
             is_deprecated: false,
+            primary_key,
             span: start.merge(self.span()),
         }))
     }

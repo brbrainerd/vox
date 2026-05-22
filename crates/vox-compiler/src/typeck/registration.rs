@@ -207,6 +207,10 @@ pub fn register_hir_module(
     for u in &module.url_decls {
         register_hir_url_decl(env, u);
     }
+    // Register actor handler signatures so call sites can look them up.
+    // Actors are stored in `module.functions` with `durability = Actor`;
+    // their handlers are sibling `HirFn`s with name `ActorName::handler`.
+    register_hir_actors(env, module);
     diags
 }
 
@@ -447,6 +451,75 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
     // (field-bearing) instead of bare Ty::Named — same fix as
     // ast_decl_lints::register_table.
     env.define_type(t.name.clone(), table_ty);
+}
+
+/// Register actor handler signatures from `module.functions`.
+///
+/// Actors live in `module.functions` as `HirFn`s with
+/// `durability = DurabilityKind::Actor`. Their `on <event>(...)` handlers
+/// are sibling functions named `ActorName::event`. We synthesize an
+/// [`ActorHandlerSig`] per handler and register them under the actor's
+/// bare name, so call sites can `env.lookup_actor(name)` and walk
+/// handler signatures.
+pub fn register_hir_actors(env: &mut TypeEnv, module: &crate::hir::HirModule) {
+    use crate::hir::nodes::DurabilityKind;
+    use crate::typeck::env::ActorHandlerSig;
+
+    let mut by_actor: std::collections::HashMap<String, Vec<ActorHandlerSig>> =
+        std::collections::HashMap::new();
+    // Each actor's main fn carries `durability = Actor`; its handlers are
+    // separate `HirFn`s whose `name` is `ActorName::handlerName`.
+    let actor_names: Vec<String> = module
+        .functions
+        .iter()
+        .filter(|f| matches!(f.durability, Some(DurabilityKind::Actor)))
+        .filter(|f| !f.name.contains("::"))
+        .map(|f| f.name.clone())
+        .collect();
+    for actor_name in &actor_names {
+        let prefix = format!("{actor_name}::");
+        for h in module
+            .functions
+            .iter()
+            .filter(|f| f.name.starts_with(&prefix))
+        {
+            let event_name = h.name[prefix.len()..].to_string();
+            let params: Vec<(String, Ty)> = h
+                .params
+                .iter()
+                .map(|p| {
+                    let ty = p
+                        .type_ann
+                        .as_ref()
+                        .map(|t| resolve_hir_type(t, env))
+                        .unwrap_or(Ty::Infer);
+                    (p.name.clone(), ty)
+                })
+                .collect();
+            let return_type = h
+                .return_type
+                .as_ref()
+                .map(|t| resolve_hir_type(t, env))
+                .unwrap_or(Ty::Unit);
+            by_actor
+                .entry(actor_name.clone())
+                .or_default()
+                .push(ActorHandlerSig {
+                    event_name,
+                    params,
+                    return_type,
+                });
+        }
+        // Ensure even handler-less actors register so `lookup_actor`
+        // returns `Some(empty_vec)` instead of `None` (the subscribe()
+        // fallback to `Stream[str]` still works either way).
+        by_actor
+            .entry(actor_name.clone())
+            .or_default();
+    }
+    for (name, handlers) in by_actor {
+        env.register_actor(name, handlers);
+    }
 }
 
 pub fn register_hir_agent(env: &mut TypeEnv, a: &HirAgent, mut uf: Option<&mut InferenceContext>) {
