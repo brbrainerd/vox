@@ -25,10 +25,10 @@ Users will install Vox via a single command that does not require `brew`, `dpkg`
 
 ```bash
 # macOS/Linux
-curl --proto '=https' --tlsv1.2 -sSf https://vox-lang.org/voxup | sh
+curl --proto '=https' --tlsv1.2 -sSf https://voxlang.org/voxup | sh
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri https://vox-lang.org/voxup.ps1 -OutFile voxup.ps1; .\voxup.ps1
+Invoke-WebRequest -Uri https://voxlang.org/voxup.ps1 -OutFile voxup.ps1; .\voxup.ps1
 ```
 
 The bootstrap script is intentionally minimal. Its only job is to detect the host architecture (e.g., `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`), download the `voxup` Rust binary for that target, and execute it.

@@ -38,7 +38,7 @@ Instead of invoking the host's `cargo` and requiring `wasm32-wasip1`, Vox should
 - **Impact:** Ensures sandboxed `vox run` execution works 100% out of the box on machines without Rust installed.
 
 ### 3. The `voxup` Omnibus Installer
-Deprecate the direct OS package manager guides in favor of an omnibus bootstrap script (`curl https://vox-lang.org/voxup | sh`). Similar to `rustup`, `voxup` would:
+Deprecate the direct OS package manager guides in favor of an omnibus bootstrap script (`curl https://voxlang.org/voxup | sh`). Similar to `rustup`, `voxup` would:
 - Install the `vox` binary.
 - Fetch and configure hermetic, self-contained versions of mandatory dependencies (a minimal Node runtime, portable Git, WASI sysroots) into `~/.vox/toolchains/`.
 - **Impact:** Guarantees a perfectly controlled, identical environment across all machines without polluting the user's global PATH or relying on their pre-existing OS packages.

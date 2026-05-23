@@ -19,15 +19,15 @@ schema_type: "TechArticle"
   <br><br>
 
   <p><strong>A unified language designed for human intent and machine execution—empowering developers and intelligent models to build complex systems and accelerate discovery together.</strong></p>
-  <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
+  <p><a href="https://voxlang.org"><strong>vox-lang.org</strong></a></p>
 
 </div>
 
 <p align="center">
-  <a href="https://vox-lang.org"><img src="https://img.shields.io/badge/docs-vox--lang.org-blue?style=flat-square" alt="Documentation"/></a>
+  <a href="https://voxlang.org"><img src="https://img.shields.io/badge/docs-vox--lang.org-blue?style=flat-square" alt="Documentation"/></a>
   <a href="https://github.com/vox-foundation/vox/commits/main"><img src="https://img.shields.io/github/last-commit/vox-foundation/vox?style=flat-square&label=updated" alt="Last Updated"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License"/></a>
-  <a href="https://vox-lang.org/feed.xml"><img src="https://img.shields.io/badge/RSS-updates-orange?style=flat-square" alt="RSS Feed"/></a>
+  <a href="https://voxlang.org/feed.xml"><img src="https://img.shields.io/badge/RSS-updates-orange?style=flat-square" alt="RSS Feed"/></a>
 </p>
 
 ---
@@ -468,7 +468,7 @@ Vox is licensed under **Apache 2.0**. You can use it to build commercial or clos
 Vox Scientia is a publication pipeline for aggregating and surfacing community research — pulling from wherever developers are talking, not constraining where they talk. Roadmap decisions and architectural questions are tracked in GitHub Discussions because that's the format our tooling can index, parse, and feed back into the system. Come wherever you are.
 
 - **[GitHub Discussions](https://github.com/vox-foundation/vox/issues)**: Architecture questions, language design feedback, and roadmap input.
-- **RSS Feed**: [`vox-lang.org/feed.xml`](https://vox-lang.org/feed.xml) — changelogs and architectural decision records.
+- **RSS Feed**: [`vox-lang.org/feed.xml`](https://voxlang.org/feed.xml) — changelogs and architectural decision records.
 <!-- ANCHOR_END: community_license -->
 
 ---
