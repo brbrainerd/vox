@@ -16,11 +16,20 @@ sources:
     optional: false
 
   - path: target/dogfood/vox_corpus_extract_pkg.jsonl
-    weight: 2.0                   # Human-mined vox workspace code (GOLDEN / Wave 0)
+    weight: 2.0                   # Human-mined Rust workspace code (GOLDEN / Wave 0)
+    # Produced by: `vox mens corpus extract-rs crates --output target/dogfood/vox_corpus_extract_pkg.jsonl`
+    # (was: `vox populi corpus extract` — that name was renamed during the 2026-Q1
+    # populi → mens pipeline reorg; see vox-ml-cli mens corpus help)
+    optional: true
+
+  - path: target/dogfood/vox_corpus_extract_pkg_vox.jsonl
+    weight: 2.0                   # Human-mined .vox source files (GOLDEN / Wave 0)
+    # Produced by: `vox mens corpus extract . --output target/dogfood/vox_corpus_extract_pkg_vox.jsonl`
     optional: true
 
   - path: target/dogfood/mutated_vox.jsonl
     weight: 1.5                   # Structural AST mutations — pure vox-lang signal
+    # Produced by: `vox mens corpus mutate --source-dir examples/golden --count 5000 --output target/dogfood/mutated_vox.jsonl`
     optional: true
 
   - path: mens/data/research-lane-sft.jsonl
