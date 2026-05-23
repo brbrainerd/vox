@@ -4126,7 +4126,7 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.5.0"
-    description: "Base URL for the VoxLocal (MENS) inference server. Defaults to http://127.0.0.1:7863."
+    description: "Base URL for the VoxLocal (MENS) inference server. Defaults to http://127.0.0.1:11434 (in-tree `vox-ml-cli mens serve`, Ollama-compat port). Older docs reference :7863 — that was an aspirational pre-implementation value that never shipped."
   - name: "VOX_CONFIG_DIR"
     owner_crate: "vox-dashboard"
     kind: "string"

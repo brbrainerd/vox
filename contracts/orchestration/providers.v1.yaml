@@ -130,7 +130,7 @@ providers:
       migration_window_days: 90
 
   - name: VoxLocal
-    description: "Vox-trained MENS checkpoint served at 127.0.0.1:7863 (started by `python scripts/vox_inference.py --serve`)"
+    description: "Vox-trained MENS checkpoint served by in-tree `vox-ml-cli mens serve`. Default endpoint http://127.0.0.1:11434 (Ollama-compat port). Speaks OpenAI v1/completions (text-prompt) — NOT v1/chat/completions (messages). Requires `--features execution-api` + trained `model_final.bin`. Source: crates/vox-ml-cli/src/commands/ai/serve/mod.rs. Panel client: vox_audit::panel::MensPanelClient."
     secret_id: null
     supports_openai_compat: false
     default_route_kind: "VoxLocal"

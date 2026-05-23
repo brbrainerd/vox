@@ -242,6 +242,120 @@ impl PanelClient for OpenRouterPanelClient {
     }
 }
 
+/// Local-MENS-backed panel client. Speaks the in-tree `vox-ml-cli mens
+/// serve` HTTP API at `<base_url>/v1/completions`. Distinct from
+/// [`OpenRouterPanelClient`] because the request shape is OpenAI's
+/// legacy `prompt`-string completions surface (per
+/// crates/vox-ml-cli/src/commands/ai/serve/schema.rs::GenerateRequest),
+/// not the modern messages-array chat-completions surface.
+///
+/// No auth header. Base URL configurable via constructor or default
+/// `http://127.0.0.1:11434`.
+pub struct MensPanelClient {
+    base_url: String,
+    http: reqwest::blocking::Client,
+}
+
+impl MensPanelClient {
+    /// Construct a MENS client targeting `base_url`. Use [`Self::default`]
+    /// for the canonical 127.0.0.1:11434.
+    pub fn new(base_url: impl Into<String>) -> Result<Self, PanelClientError> {
+        let http = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .build()
+            .map_err(|e| PanelClientError::Http(e.to_string()))?;
+        Ok(Self {
+            base_url: base_url.into(),
+            http,
+        })
+    }
+
+    /// Construct from `VOX_MENS_ENDPOINT` env var, falling back to the
+    /// canonical default 127.0.0.1:11434 — the Ollama-compat port the
+    /// in-tree `vox-ml-cli mens serve` listens on by default.
+    pub fn from_env() -> Result<Self, PanelClientError> {
+        let base_url = std::env::var("VOX_MENS_ENDPOINT")
+            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string());
+        Self::new(base_url)
+    }
+}
+
+impl PanelClient for MensPanelClient {
+    fn complete(
+        &self,
+        member: &PanelMemberConfig,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<PanelResponse, PanelClientError> {
+        // MENS GenerateRequest takes a single `prompt: String`, not a
+        // messages array. Concatenate system + user with a clear
+        // delimiter the model can recognize from training-time
+        // conventions.
+        let full_prompt = if system_prompt.is_empty() {
+            user_prompt.to_string()
+        } else {
+            format!("{system_prompt}\n\n{user_prompt}")
+        };
+        let body = serde_json::json!({
+            "prompt": full_prompt,
+            "max_tokens": 1024,
+            "temperature": 0.0,
+        });
+        let url = format!("{}/v1/completions", self.base_url.trim_end_matches('/'));
+        let resp = self
+            .http
+            .post(&url)
+            .json(&body)
+            .send()
+            .map_err(|e| PanelClientError::Http(e.to_string()))?;
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().unwrap_or_default();
+            return Err(PanelClientError::BadStatus {
+                status: status.as_u16(),
+                body,
+            });
+        }
+        // MENS GenerateResponse: { text, tokens_generated, model, object,
+        // choices: [{text, index, finish_reason}], repair_attempts }.
+        // We accept either `text` (top-level convenience) or
+        // `choices[0].text` (OpenAI-compat).
+        #[derive(Deserialize)]
+        struct OuterResp {
+            #[serde(default)]
+            text: Option<String>,
+            #[serde(default)]
+            choices: Vec<Choice>,
+            #[serde(default)]
+            tokens_generated: Option<u32>,
+        }
+        #[derive(Deserialize)]
+        struct Choice {
+            text: String,
+        }
+        let parsed: OuterResp = resp
+            .json()
+            .map_err(|e| PanelClientError::MalformedResponse(e.to_string()))?;
+        let content = parsed
+            .text
+            .clone()
+            .or_else(|| parsed.choices.into_iter().next().map(|c| c.text))
+            .ok_or_else(|| {
+                PanelClientError::MalformedResponse("MENS response missing both `text` and `choices`".into())
+            })?;
+        let output_tokens = parsed.tokens_generated;
+        // Local MENS has no metered cost; record 0.0 so cost-budget
+        // accounting still works uniformly across panel members.
+        let cost_usd = estimate_cost(member, None, output_tokens);
+        Ok(PanelResponse {
+            content,
+            cost_usd,
+            input_tokens: None,
+            output_tokens,
+        })
+    }
+}
+
 fn estimate_cost(member: &PanelMemberConfig, input: Option<u32>, output: Option<u32>) -> f64 {
     let Some(pricing) = &member.pricing else {
         return 0.0;
