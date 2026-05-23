@@ -1,7 +1,7 @@
 {
   "thing": "deploy",
   "schema_version": 1,
-  "measured_at": "2026-05-23T13:48:29.578105300+00:00",
+  "measured_at": "2026-05-23T15:02:20.462647800+00:00",
   "corpus_hash": "blake3:08c60f00cd626681c359be138157469f2517ab928264ca56633710c4d26a012b",
   "corpus_size": 3,
   "llm_panel": [],

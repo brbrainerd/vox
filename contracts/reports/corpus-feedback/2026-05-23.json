@@ -1,7 +1,7 @@
 {
   "thing": "corpus-feedback",
   "schema_version": 1,
-  "measured_at": "2026-05-23T13:48:29.579862500+00:00",
+  "measured_at": "2026-05-23T15:02:20.464054200+00:00",
   "corpus_hash": "blake3:events-count-0",
   "corpus_size": 0,
   "llm_panel": [],
