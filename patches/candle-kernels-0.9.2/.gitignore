@@ -1,0 +1,21 @@
+# Compiled PTX kernels — regenerated at build time from the .cu files
+# next to this patch. ~10MB of arch-specific binary-ish content that
+# bloats git history without adding source-of-truth value.
+#
+# The kernels are produced by build.rs (which auto-invokes nvcc when
+# .cu sources are newer than .ptx targets and nvcc + cl.exe are on
+# PATH). Until build.rs handles the auto-compile, the one-shot manual
+# build is:
+#
+#   PTX_DIR=patches/candle-kernels-0.9.2/src/ptx
+#   SRC_DIR=patches/candle-kernels-0.9.2/src
+#   for k in affine binary cast conv fill indexing quantized sort ternary unary; do
+#       nvcc -ptx -arch=sm_80 -O3 --use_fast_math "$SRC_DIR/$k.cu" -o "$PTX_DIR/$k.ptx" -I"$SRC_DIR"
+#   done
+#   nvcc -ptx -arch=sm_80 -O3 --use_fast_math -std=c++17 -Xcompiler /Zc:preprocessor \
+#       "$SRC_DIR/reduce.cu" -o "$PTX_DIR/reduce.ptx" -I"$SRC_DIR"
+#
+# Documented in build-environment.mdc; tracked under the "ship a CI
+# step that produces PTX as a release artifact" follow-up so end users
+# don't need nvcc + cl.exe on their build host.
+src/ptx/*.ptx

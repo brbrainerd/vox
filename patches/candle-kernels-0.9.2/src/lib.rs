@@ -59,8 +59,15 @@ const fn module_index(id: Id) -> usize {
 }
 
 macro_rules! mdl {
+    // `pub static` (not `const`) is required so the inner `ptx::$cst`
+    // string lives at a stable memory location and survives LTO. With
+    // `pub const Module`, rustc inlines the value at every use site,
+    // and `lto = "thin"` then strips the `&'static str` data because no
+    // direct use-site is visible through the cudarc indirection chain —
+    // the result is empty PTX at cuModuleLoadData and
+    // CUDA_ERROR_INVALID_IMAGE at first kernel launch.
     ($cst:ident, $id:ident) => {
-        pub const $cst: Module = Module {
+        pub static $cst: Module = Module {
             index: module_index(Id::$id),
             ptx: ptx::$cst,
         };
