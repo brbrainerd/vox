@@ -154,3 +154,31 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
+  # ── Live site smoke test (runs after CF deploy completes) ────────────────
+  smoke-test:
+    name: Smoke test live site
+    needs: deploy-cloudflare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install docs-astro deps
+        working-directory: docs-astro
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        working-directory: docs-astro
+        run: npx playwright install chromium --with-deps
+      - name: Wait for CF Pages propagation
+        run: sleep 30
+      - name: Run smoke test
+        working-directory: docs-astro
+        run: npx playwright test tests/smoke.spec.ts
+        env:
+          BASE_URL: https://voxlang.org
+
