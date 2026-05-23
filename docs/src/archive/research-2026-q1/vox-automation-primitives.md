@@ -1,7 +1,7 @@
 ---
 title: "Automation primitives"
 description: "Official automation primitive surface for Vox script-mode builtins and runtime semantics."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

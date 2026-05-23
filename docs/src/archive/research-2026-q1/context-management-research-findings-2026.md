@@ -1,7 +1,7 @@
 ---
 title: "Context management research findings 2026"
 description: "Research synthesis, baseline inventory, target contracts, and policy recommendations for Vox context management across MCP, orchestrator, search, and Populi."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-03-30"
 training_eligible: false

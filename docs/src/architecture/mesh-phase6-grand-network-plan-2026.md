@@ -2535,7 +2535,7 @@ Expected: clap prints usage with `--yes` and `--initial-tier`.
 ---
 title: "Grand Network Quickstart — Volunteer Compute Across Friend Meshes"
 description: "Pair two vox meshes via signed attestation manifests. No Vox-owned server, no token, no SaaS. Out-of-band invite, Ed25519-signed JSON manifests in a Gist or .well-known/, mutual confirmation, then donate compute."
-category: "howto"
+category: "How-To Guides"
 status: "current"
 training_eligible: true
 ---

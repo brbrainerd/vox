@@ -1,7 +1,7 @@
 ---
 title: "The Compile-Pass Oracle and Semantic Degradation"
 description: "Research on semantic drift, reward hacking, and compile-pass-only validation in Vox MENS code flywheels."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

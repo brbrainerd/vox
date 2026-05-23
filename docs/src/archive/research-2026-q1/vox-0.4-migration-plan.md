@@ -1,7 +1,7 @@
 ---
 title: "Vox 0.4 Grand Migration Plan (Uncompressed)"
 description: "Comprehensive research-to-practice implementation plan: 270+ atomic tasks translating 9 deep research clusters into a greenfield Vox 0.4 standard."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 research_source: "gemini_deep_research"
 research_date: "2026-04-09"

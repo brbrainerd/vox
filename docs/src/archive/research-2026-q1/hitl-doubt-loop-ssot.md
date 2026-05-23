@@ -1,7 +1,7 @@
 ---
 title: "HITL Doubt Loop (SSOT)"
 description: "Canonical authority document for the HITL doubt system and Resolution Agent."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-10"
 training_eligible: false

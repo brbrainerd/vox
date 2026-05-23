@@ -1,7 +1,7 @@
 ---
 title: "Scientia Publication Endpoints — Ground-Truth Research & Implementation Policy (April 2026)"
 description: "Authoritative, web-research- and code-audit-backed reference for all publication destinations in the Vox Scientia pipeline. Covers real API mechanics, code reality, hallucination inventory, ResearchGate policy, new scholarly targets (ORCID, Figshare), codebase structural discrepancies, and a forward implementation policy."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-13"
 training_eligible: false

@@ -1,7 +1,7 @@
 ---
 title: "2026 State-of-the-Art: Dynamic Agentic Planning & Orchestration"
 description: "Research synthesis on LLM agent planning, context management, workflow orchestration, and state persistence."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-05"
 training_eligible: false

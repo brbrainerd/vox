@@ -1,7 +1,7 @@
 ---
 title: "MENS Research Track Blueprint 2026"
 description: "Architectural specification for MENS Lane G (research-expert) adapter and post-training protocol."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-12"
 training_eligible: false

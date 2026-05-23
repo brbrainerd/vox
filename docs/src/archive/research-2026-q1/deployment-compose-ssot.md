@@ -1,7 +1,7 @@
 ---
 title: "Deployment Compose SSOT"
 description: "Bookmark for Compose/Coolify narrative in reference/deployment-compose.md; normative Docker/OCI portability lives in reference/vox-portability-ssot.md."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

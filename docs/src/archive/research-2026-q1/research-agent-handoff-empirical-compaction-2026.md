@@ -1,6 +1,6 @@
 ---
 title: "Empirical Evidence for Context Compaction Strategies"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

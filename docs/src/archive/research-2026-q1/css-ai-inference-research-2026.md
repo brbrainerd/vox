@@ -1,7 +1,7 @@
 ---
 title: "CSS and AI Inference: The Computed Styles Cascade Problem"
 description: "Research findings on the challenges AI agents face when inferring CSS computed styles, how CSS differs mechanically from traditional programming, and potential mitigations."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 6
 last_updated: "2026-04-16"

@@ -1,7 +1,7 @@
 ---
 title: "Vox Scientia Gap Analysis (April 2026)"
 description: "Comprehensive audit of gaps, bugs, and structural limitations in the Vox Scientia automatic publication model — inbound discovery, outbound pipeline, RAG loop, SSOT convergence, and autonomy boundaries."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-12"
 training_eligible: false

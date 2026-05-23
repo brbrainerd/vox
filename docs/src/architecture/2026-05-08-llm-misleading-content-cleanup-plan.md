@@ -735,7 +735,7 @@ plan-banner updates. No hand edits.
 ---
 title: "Phase Numbering Index (2026-05-08)"
 description: "Disambiguates the three independent phase sequences used in vox plans. When a plan or commit says \"Phase 5\", look here first."
-category: "architecture"
+category: "Architecture SSOTs"
 status: current
 last_updated: "2026-05-08"
 training_eligible: true

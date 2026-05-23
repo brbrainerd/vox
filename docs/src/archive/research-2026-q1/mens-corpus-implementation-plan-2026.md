@@ -1,7 +1,7 @@
 ---
 title: "MENS Corpus: Full Implementation Plan (2026)"
 description: "Executable, wave-gated implementation plan for escaping the synthetic data paradox in Vox MENS. Grounded in codebase audit of actual mix reports, evaluate code, and research synthesis."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 research_date: "2026-04-12"
 last_updated: "2026-04-12"

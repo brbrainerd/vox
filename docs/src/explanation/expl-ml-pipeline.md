@@ -185,7 +185,7 @@ This creates a **closed feedback loop**: better docs → more training data → 
 ```yaml
 ---
 title: "My Guide"
-category: how-to
+category: "How-To Guides"
 constructs: [function, workflow]
 training_eligible: true
 difficulty: intermediate

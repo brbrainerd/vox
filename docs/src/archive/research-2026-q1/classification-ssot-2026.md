@@ -1,7 +1,7 @@
 ---
 title: "Architecture Classification SSOT (2026)"
 description: "Authoritative taxonomy for classifying architectural artifacts, research findings, and implementation blueprints."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-18"
 training_eligible: false

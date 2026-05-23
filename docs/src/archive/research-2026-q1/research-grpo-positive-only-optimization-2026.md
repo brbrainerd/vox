@@ -1,7 +1,7 @@
 ---
 title: "The Optimization Landscape of Positive-Only Training Loops"
 description: "Research on positive-only code RL loops, negative reinforcement, and exploration failure modes."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

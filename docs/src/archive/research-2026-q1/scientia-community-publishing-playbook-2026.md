@@ -1,7 +1,7 @@
 ---
 title: "Scientia Community Publishing Playbook 2026"
 description: "Comprehensive implementation plan for the multi-platform Vox Scientia community publishing pipeline. Covers codebase audit findings, 30+ identified problems with explicit solutions, Clavis secret registration requirements, data model gaps, topic-pack contract extensions, and a dependency-ordered execution backlog."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 16
 last_updated: "2026-04-12"

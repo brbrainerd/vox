@@ -1,7 +1,7 @@
 ---
 title: "Completion policy SSOT (LLM premature-completion)"
 description: "Single source of truth for LLM completion policy enforcement, TOESTUB integration, and CI gating."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-05"
 training_eligible: false

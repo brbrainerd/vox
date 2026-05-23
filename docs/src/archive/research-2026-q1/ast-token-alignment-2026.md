@@ -1,7 +1,7 @@
 ---
 title: "ast-token-alignment-2026.md"
 description: "Documentation for ast-token-alignment-2026.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 training_rationale: "Project architecture context."

@@ -1,6 +1,6 @@
 ---
 title: "Design Pattern Recommendations for Platform Gaps"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

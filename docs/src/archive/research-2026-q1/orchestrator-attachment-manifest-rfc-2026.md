@@ -1,7 +1,7 @@
 ---
 title: "Orchestrator task attachment_manifest (RFC 2026)"
 description: "Sketch for structured MIME+hash attachments on tasks so vision routing does not rely on substring heuristics alone."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 20
 last_updated: "2026-04-12"

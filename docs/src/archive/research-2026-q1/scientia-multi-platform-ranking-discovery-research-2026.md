@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA multi-platform ranking, discovery, and anti-slop SSOT (research 2026)"
 description: "Tiered survey of social and scholarly visibility mechanics (expanded per-surface research with Tier A URLs); ingest vs syndicate posture; canonical manifest to channel projection profiles; Crossref Event Data sunset note; operator metrics; works-cited registry; ties to RAG and publication SSOT."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 15
 last_updated: "2026-04-12"

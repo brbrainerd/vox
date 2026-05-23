@@ -1,7 +1,7 @@
 ---
 title: "Actor GC Implementation Blueprint"
 description: "Detailed operational blueprint for bridging actor boundaries in the Vox Rust-lowering compiler to support Per-Actor Garbage Collection, isolating LLM code generation from strict borrow-checking."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 11
 last_updated: "2026-04-16"

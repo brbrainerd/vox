@@ -1,7 +1,7 @@
 ---
 title: "README: Vox Platform (Scientia Draft, April 2026)"
 description: "Full-length README preserved for Vox Scientia publication. Contains extended rationale, academic citations, and pedagogical prose removed during the April 2026 brevity rewrite."
-category: "explanation"
+category: "Concepts"
 status: deprecated
 archived_date: 2026-04-13
 training_eligible: false

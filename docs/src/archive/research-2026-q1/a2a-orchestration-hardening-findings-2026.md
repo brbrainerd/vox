@@ -1,7 +1,7 @@
 ---
 title: "Vox A2A Orchestration Hardening Findings 2026"
 description: "Synthesized results and implementation details for securing agent-to-agent handoffs, preventing infinite loops, and ensuring durable context continuity."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-16"
 training_eligible: false

@@ -1,7 +1,7 @@
 ---
 title: "Crate and build-lane migration map"
 description: "Official documentation for Crate and build-lane migration map for the Vox language. Detailed technical reference, architecture guides, an"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

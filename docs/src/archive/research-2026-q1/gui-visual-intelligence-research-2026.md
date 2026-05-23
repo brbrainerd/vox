@@ -1,7 +1,7 @@
 ---
 title: "GUI Visual Intelligence: Image Analysis Lane Architecture"
 description: "Comprehensive research and design blueprint for an AI-native GUI visual testing and continuous feedback system within the Vox ecosystem."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 6
 last_updated: "2026-04-16"

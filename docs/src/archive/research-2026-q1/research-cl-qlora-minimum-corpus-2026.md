@@ -1,7 +1,7 @@
 ---
 title: "Minimum Viable Corpus Size for QLoRA Domain Adaptation"
 description: "Research on minimum data thresholds for safe QLoRA adaptation of Vox-specific syntax and behavior."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

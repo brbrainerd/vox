@@ -1,7 +1,7 @@
 ---
 title: "Vox shell operations boundaries"
 description: "Where host PowerShell, `vox shell`, and `.vox` std I/O/process primitives each belong — and what Vox is not building (shell emulator)."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-02"
 training_eligible: false

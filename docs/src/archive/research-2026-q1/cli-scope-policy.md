@@ -1,7 +1,7 @@
 ---
 title: "CLI scope policy"
 description: "Official documentation for CLI scope policy for the Vox language. Detailed technical reference, architecture guides, and implementation p"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Vox corpus lab: mass examples, metrics, and eval harness (research 2026)"
 description: "Tier A/B/C corpus policy, compiler lanes vs golden parity, Syntax-K and WebIR aggregates, optional UI and vision rubrics, integration with Mens validate-batch and research metrics."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 18
 last_updated: "2026-04-12"

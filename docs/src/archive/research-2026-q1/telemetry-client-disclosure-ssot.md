@@ -1,7 +1,7 @@
 ---
 title: "Telemetry client disclosure SSOT"
 description: "VS Code extension, MCP host, and debug surfaces that affect user perception of data collection and trust."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-02"
 training_eligible: false

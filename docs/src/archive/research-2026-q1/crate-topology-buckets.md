@@ -1,7 +1,7 @@
 ---
 title: "Crate topology buckets"
 description: "Like-with-like map for workspace crates under crates/* and major modules."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-26"
 training_eligible: false
 

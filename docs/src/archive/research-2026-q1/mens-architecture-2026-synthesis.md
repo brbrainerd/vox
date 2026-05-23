@@ -1,7 +1,7 @@
 ---
 title: "Mens Architecture 2026 Synthesis"
 description: "Official documentation for Mens Architecture 2026 Synthesis for the Vox language. Detailed technical reference, architecture guides, an"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Telemetry implementation backlog 2026"
 description: "Executable, codebase-wide checklist for telemetry unification; grouped by phase and primary path."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-02"
 training_eligible: false

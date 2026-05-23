@@ -1,7 +1,7 @@
 ---
 title: "IR emission SSOT (HIR, WebIR, VoxIrModule)"
 description: "Which CLI flags emit which JSON, and how they relate to ADR 012 WebIR."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-11"
 training_eligible: false

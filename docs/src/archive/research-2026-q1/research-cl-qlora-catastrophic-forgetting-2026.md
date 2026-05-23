@@ -1,7 +1,7 @@
 ---
 title: "Catastrophic Forgetting in QLoRA Fine-Tuning"
 description: "Research on forgetting dynamics and mitigation strategies for repeated QLoRA adaptation in Vox MENS."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

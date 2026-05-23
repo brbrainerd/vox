@@ -1,7 +1,7 @@
 ---
 title: "Vox as the First AI-Native Language: Reducing K-Complexity (Research 2026)"
 description: "Research analyzing the landscape of LLM-native programming languages, Kolmogorov complexity, and Vox's unprecedented position as the first production-ready AI-native language."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 6
 last_updated: "2026-04-16"

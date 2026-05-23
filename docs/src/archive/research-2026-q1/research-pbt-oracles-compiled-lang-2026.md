@@ -1,7 +1,7 @@
 ---
 title: "Compiler Testing Research Synthesis"
 description: "Property-based testing and oracle design for compiled language implementations."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

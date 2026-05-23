@@ -1,7 +1,7 @@
 ---
 title: "Testing Standard — SSOT"
 description: "Official documentation for Testing Standard — SSOT for the Vox language. Detailed technical reference, architecture guides, and implement"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

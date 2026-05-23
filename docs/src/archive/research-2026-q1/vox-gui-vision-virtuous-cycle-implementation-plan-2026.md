@@ -1,7 +1,7 @@
 ---
 title: "GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)"
 description: "Roadmap tying WebIR, golden UI, vox island/v0, Playwright, MCP browser, orchestrator vision routing, and Mens Qwen3.5 (+ optional vision lane) into a closed improvement loop. Each item names repo anchors and a concrete implementation path."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 19
 last_updated: "2026-04-12"

@@ -1,7 +1,7 @@
 ---
 title: "Populi GPU network research 2026"
 description: "Research synthesis for evolving Populi from a CPU-first control plane into a user-owned local or internet-distributed GPU network without changing shipped behavior yet."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-03-29"
 training_eligible: false

@@ -1,7 +1,7 @@
 ---
 title: "Mens training SSOT"
 description: "Stable bookmark to reference/mens-training.md for hardware, datasets, and smoke checks; procedural detail belongs on the reference page."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

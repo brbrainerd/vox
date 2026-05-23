@@ -1,7 +1,7 @@
 ---
 title: "Crate API: vox-mcp"
 description: "Internal MCP server crate: chat, codegen, and orchestrator bridges."
-category: "api-crate"
+category: "API Reference — Crates"
 status: deprecated
 archived_date: 2026-04-13
 training_eligible: false

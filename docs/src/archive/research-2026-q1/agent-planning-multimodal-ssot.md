@@ -1,7 +1,7 @@
 ---
 title: "agent-planning-multimodal-ssot.md"
 description: "Documentation for agent-planning-multimodal-ssot.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Project architecture context."

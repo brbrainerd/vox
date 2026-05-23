@@ -1,7 +1,7 @@
 ---
 title: "Gap Analysis and Recommended Architectural Adjustments"
 description: "Open questions and recommended changes for stabilizing the Vox MENS GRPO training loop."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

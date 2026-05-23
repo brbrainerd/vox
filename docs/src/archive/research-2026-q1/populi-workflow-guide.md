@@ -1,7 +1,7 @@
 ---
 title: "Mens Coordination Workflow Guide"
 description: "Official documentation for Mens Coordination Workflow Guide for the Vox language. Detailed technical reference, architecture guides, and "
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

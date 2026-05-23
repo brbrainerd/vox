@@ -1,7 +1,7 @@
 ---
 title: "AI IDE feature research findings 2026"
 description: "Evidence-backed comparison of modern AI IDE features and a Vox difficulty, LOC, necessity, GUI, and Mens gap analysis."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-03-31"
 training_eligible: false

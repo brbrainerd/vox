@@ -1,7 +1,7 @@
 ---
 title: "Research: Phonetic Operators vs. Symbols"
 description: "Evaluation of phonetic operators (and, or, is) vs symbolic operators (&&, ||, ==) for LLM-native language design."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

@@ -1,6 +1,6 @@
 ---
 title: "Cross-Agent Evidence Sharing in A2A Protocol Implementations"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

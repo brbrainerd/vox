@@ -1,7 +1,7 @@
 ---
 title: "HITL Doubt Flow and Resolution (Redirect)"
 description: "Redirect to hitl-doubt-loop-ssot.md"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "deprecated"
 last_updated: "2026-04-16"
 training_eligible: false

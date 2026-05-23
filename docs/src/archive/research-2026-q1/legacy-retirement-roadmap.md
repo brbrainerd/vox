@@ -1,7 +1,7 @@
 ---
 title: "Legacy retirement roadmap (2026)"
 description: "Machine-readable guide identifying retired and retiring code pathways in Vox. Prevents LLMs and contributors from building on deprecated surfaces. Last research audit: 2026-04-06."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-10"
 training_eligible: false

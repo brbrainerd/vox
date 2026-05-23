@@ -56,7 +56,7 @@ Published pages should use YAML frontmatter. At minimum, new pages should carry:
 ---
 title: "Human-readable Title"
 description: "One-sentence summary"
-category: getting-started|tutorial|how-to|explanation|reference|adr|architecture|contributor|ci
+category: "Getting Started"|tutorial|how-to|explanation|reference|adr|architecture|contributor|ci
 last_updated: "2026-03-01"
 training_eligible: true
 status: current|experimental|legacy|research|roadmap|deprecated  # when needed

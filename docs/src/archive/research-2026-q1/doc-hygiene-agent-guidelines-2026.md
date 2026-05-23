@@ -1,7 +1,7 @@
 ---
 title: "Documentation hygiene and AI-agent guidelines 2026"
 description: "Guidelines and architecture for documentation hygiene intended to ensure discoverability and robust operation across all AI agents."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-16"
 training_eligible: false

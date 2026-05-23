@@ -77,7 +77,7 @@ Use this template for new pages so docs lint passes on first run:
 ---
 title: "Page title"
 description: "One specific sentence about what this page covers."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 ---

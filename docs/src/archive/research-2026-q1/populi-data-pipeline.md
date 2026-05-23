@@ -1,7 +1,7 @@
 ---
 title: "Populi data pipeline (control plane vs Mens corpus)"
 description: "Clarifies Populi/mesh runtime data paths versus Mens training corpus sources—two different pipelines that share orchestration branding."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 4
 last_updated: "2026-04-12"

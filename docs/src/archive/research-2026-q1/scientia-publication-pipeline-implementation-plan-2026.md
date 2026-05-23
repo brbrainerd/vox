@@ -1,7 +1,7 @@
 ---
 title: "Scientia Publication Pipeline — Full Implementation Plan v2 (2026)"
 description: "Explicit, task-by-task implementation plan for hardening the Vox Scientia publication pipeline. v2: corrected 9 factual errors from v1, added Bluesky XRPC endpoint fix, filled missing PublisherConfig credential fields, corrected SyndicationResult already-present fields, removed false Zenodo tasks, and added LinkedIn base-path correction. Designed as a self-contained reference for implementation agents."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-13"
 training_eligible: false

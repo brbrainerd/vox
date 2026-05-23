@@ -1,7 +1,7 @@
 ---
 title: "How-To: Islands and Pages (ARCHIVED)"
 description: "Archived: islands retired 2026-05-03. See external-frontend-interop-plan-2026.md."
-category: "how-to"
+category: "How-To Guides"
 status: deprecated
 archived_date: 2026-05-03
 training_eligible: false

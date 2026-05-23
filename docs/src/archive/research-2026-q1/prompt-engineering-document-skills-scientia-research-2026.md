@@ -1,7 +1,7 @@
 ---
 title: "Prompt engineering, system prompts, document-skills, and SCIENTIA (research 2026)"
 description: "Research synthesis on instruction layering, document-shaped skills, prompt-security risks, and scholarly publication implications for Vox SCIENTIA and legacy submission ecosystems."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 13
 last_updated: "2026-04-06"
