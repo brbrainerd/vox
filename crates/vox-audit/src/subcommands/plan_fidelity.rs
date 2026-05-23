@@ -364,7 +364,8 @@ fn run_with_panel(
 ```vox fenced code block — no commentary. Vox idioms: `to T` for return arrow (not `->`); \
 `assert(X is Y)` for equality assertions; explicit `return expr`; `to Unit` for void; \
 `@test\\nfn name() to Unit { … }` for tests. Forbidden: macros, `#[...]`, `->`, `assert_eq`, \
-`use`/`import`, implicit last-expression returns.";
+`use`/`import`, implicit last-expression returns. Your output is scored by BOTH `vox check` \
+(must compile clean) AND in-process @test execution (every @test block must run + assert).";
 
     let mut per_llm: Vec<PerLlmResult> = Vec::with_capacity(routable.len());
     let mut cumulative_cost_usd = 0.0_f64;
@@ -434,8 +435,36 @@ fn run_with_panel(
                     .filter(|d| d.severity == TypeckSeverity::Error)
                     .count();
                 if err_count == 0 {
-                    iter_passed = true;
-                    break;
+                    // vox check passed — also EXECUTE the @test blocks
+                    // in the generated source. Per the 2026-05-22
+                    // documented finding, plan-fidelity failures are
+                    // semantic plan-misunderstandings: the model
+                    // produces compile-clean nonsense that wouldn't
+                    // run. Test-execution catches that.
+                    let test_result = execute_tests_in_source(&source);
+                    if test_result.is_pass() {
+                        iter_passed = true;
+                        break;
+                    }
+                    if iter < max_iterations {
+                        // Build refinement prompt with runtime-failure
+                        // signal instead of compile diagnostics.
+                        current_prompt = format!(
+                            "Your previous draft for plan `{}` compiled cleanly but its \
+                             @test blocks did not pass at runtime. Refine the implementation \
+                             so the tests pass.\n\n\
+                             Original plan:\n{}\n\n\
+                             Your previous draft:\n```vox\n{}\n```\n\n\
+                             Test-execution outcome: {}\n\n\
+                             Reply with ONLY a single fenced ```vox code block containing the revised module. \
+                             Do not explain. Make the @test blocks pass.",
+                            plan.id,
+                            prompt_text,
+                            source,
+                            test_result.summary()
+                        );
+                    }
+                    continue;
                 }
                 if iter < max_iterations {
                     // Build refinement prompt: prior source + diagnostics.
@@ -515,8 +544,9 @@ fn run_with_panel(
         "panel mode: {} routable member(s) against {}/{} plans; \
          {total_unreachable} unreachable + {total_budget_skipped} budget-skipped. \
          panel cost: ${cumulative_cost_usd:.3} of ${budget_cap_usd:.2} budget. \
-         Scoring is vox_check_passes only (existing_fns_unchanged needs base sources, \
-         deferred to §4.3 corpus expansion).",
+         Scoring: vox_check_passes AND in-process @test execution (every @test \
+         block must run + assert). Refinement loop feeds back diagnostics on \
+         vox-check fail OR runtime-failure summary on assertion fail.",
         routable.len(),
         effective.len(),
         plans.len()
@@ -527,6 +557,109 @@ fn run_with_panel(
         ExitCode::BarMissed
     };
     RunOutcome { report, exit_code }
+}
+
+/// Outcome of running the @test blocks declared in the source.
+#[derive(Debug, Clone)]
+struct TestExecutionResult {
+    /// Tests that ran AND passed.
+    passed: u32,
+    /// Tests that ran but failed an assertion.
+    failed: u32,
+    /// The interpreter bailed on a feature it doesn't support; counted
+    /// neither as pass nor fail (treated as eval-uncertain).
+    eval_errored: bool,
+    /// True when there were no @test blocks at all.
+    no_tests: bool,
+}
+
+impl TestExecutionResult {
+    /// A "pass" outcome for scoring purposes: at least one @test ran
+    /// AND none failed AND no eval-error. No-tests is a fail because
+    /// the plan specs require @test blocks.
+    fn is_pass(&self) -> bool {
+        !self.no_tests && self.failed == 0 && !self.eval_errored && self.passed > 0
+    }
+
+    /// Human-readable summary for the refinement prompt.
+    fn summary(&self) -> String {
+        if self.no_tests {
+            return "no @test blocks declared (plan requires them)".into();
+        }
+        if self.eval_errored {
+            return format!(
+                "interpreter bailed on an unsupported feature after {} pass / {} fail",
+                self.passed, self.failed
+            );
+        }
+        if self.failed > 0 {
+            return format!(
+                "{} test(s) failed an assertion, {} passed",
+                self.failed, self.passed
+            );
+        }
+        format!("{} test(s) passed", self.passed)
+    }
+}
+
+/// Lower the source, run the interpreter, exercise every `@test`
+/// block. Mirrors `humaneval.rs::execute_fixture_tests` but operates on
+/// an in-memory string (no fixture path).
+fn execute_tests_in_source(source: &str) -> TestExecutionResult {
+    use vox_compiler::eval::{EvalError, Interpreter};
+    let frontend = match vox_compiler::pipeline::run_frontend_str(source, "plan.vox") {
+        Ok(f) => f,
+        Err(_) => {
+            return TestExecutionResult {
+                passed: 0,
+                failed: 0,
+                eval_errored: true,
+                no_tests: false,
+            };
+        }
+    };
+    if frontend.hir.tests.is_empty() {
+        return TestExecutionResult {
+            passed: 0,
+            failed: 0,
+            eval_errored: false,
+            no_tests: true,
+        };
+    }
+    let mut interp = Interpreter::new(10_000);
+    if interp.run_module(&frontend.hir).is_err() {
+        return TestExecutionResult {
+            passed: 0,
+            failed: 0,
+            eval_errored: true,
+            no_tests: false,
+        };
+    }
+    let test_names: Vec<String> = frontend
+        .hir
+        .tests
+        .iter()
+        .map(|t| t.name.clone())
+        .collect();
+    let mut passed = 0u32;
+    let mut failed = 0u32;
+    let mut eval_errored = false;
+    for name in &test_names {
+        match interp.call(name, Vec::new()) {
+            Ok(_) => passed += 1,
+            Err(EvalError::AssertionFailed(_)) => failed += 1,
+            Err(_) => {
+                eval_errored = true;
+                break;
+            }
+        }
+    }
+    TestExecutionResult {
+        passed,
+        failed,
+        eval_errored,
+        no_tests: false,
+    }
 }
 
 fn format_diags_for_refinement(

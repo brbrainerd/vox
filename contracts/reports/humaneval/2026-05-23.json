@@ -1,0 +1,45 @@
+{
+  "thing": "humaneval",
+  "schema_version": 1,
+  "measured_at": "2026-05-23T07:27:41.825213400+00:00",
+  "corpus_hash": "blake3:feaf32ed39b465f134bc1e4af700374361091fa6190d940ad4ed34efbbc59d2a",
+  "corpus_size": 164,
+  "llm_panel": [
+    {
+      "id": "claude-sonnet",
+      "version": "claude-sonnet-4-6"
+    },
+    {
+      "id": "gpt-frontier",
+      "version": "gpt-5.4"
+    }
+  ],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 0.9390243902439024,
+    "median_pass_rate": 0.9390243902439024,
+    "per_llm": [
+      {
+        "id": "claude-sonnet",
+        "pass_rate": 0.9146341463414634,
+        "median_cost_usd": 0.003708,
+        "unreachable_count": 0
+      },
+      {
+        "id": "gpt-frontier",
+        "pass_rate": 0.9634146341463414,
+        "median_cost_usd": 0.0025575,
+        "unreachable_count": 0
+      }
+    ]
+  },
+  "threshold": {
+    "target": 0.8,
+    "met": true
+  },
+  "note": "panel mode: 2 routable member(s) measured against 164/164 fixtures; 1 unroutable member(s) skipped (mens-current). panel cost: $1.156 of $20.00 budget"
+}

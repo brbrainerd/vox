@@ -1,0 +1,36 @@
+{
+  "thing": "spec-to-app",
+  "schema_version": 1,
+  "measured_at": "2026-05-23T07:20:03.601259800+00:00",
+  "corpus_hash": "blake3:7b407a7c3ded8de63e9fbfdff99e9a2971ee3b5f5885ccfc8bb260f16b382db1",
+  "corpus_size": 3,
+  "llm_panel": [],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 0.6666666666666666,
+    "median_pass_rate": 0.6666666666666666,
+    "per_llm": [
+      {
+        "id": "claude-sonnet",
+        "pass_rate": 0.3333333333333333,
+        "median_cost_usd": 0.057453,
+        "unreachable_count": 0
+      },
+      {
+        "id": "gpt-frontier",
+        "pass_rate": 1.0,
+        "median_cost_usd": 0.02613,
+        "unreachable_count": 0
+      }
+    ]
+  },
+  "threshold": {
+    "target": 0.6,
+    "met": true
+  },
+  "note": "panel mode: 3 spec(s) (T1=1, T2=1, T3=1); 6 attempts scored; 0 panel-unreachable/budget-skipped. panel cost: $0.196 of $20.00 budget. scoring=median-of-members; mens excluded per ratified policy."
+}
