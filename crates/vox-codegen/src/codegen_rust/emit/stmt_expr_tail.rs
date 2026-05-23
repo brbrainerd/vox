@@ -37,55 +37,19 @@ where
             )
         }
         HirExpr::Block(stmts, _) => {
-            let mut s = String::from("{\n");
-            for stmt in stmts {
-                s.push_str(&super::stmt_expr::emit_stmt(
-                    stmt,
-                    1,
-                    is_route,
-                    is_actor,
-                    mutation_tx,
-                    inferred_types,
-                    usage,
-                    None,
-                ));
-            }
-            s.push('}');
-            s
+            emit_block_tail(stmts, is_route, is_actor, mutation_tx, inferred_types, usage)
         }
-        HirExpr::If(cond, then_b, else_b, _) => {
-            let mut s = format!("if {} {{\n", emit(cond, OwnershipMode::Owned));
-            for stmt in then_b {
-                s.push_str(&super::stmt_expr::emit_stmt(
-                    stmt,
-                    1,
-                    is_route,
-                    is_actor,
-                    mutation_tx,
-                    inferred_types,
-                    usage,
-                    None,
-                ));
-            }
-            s.push_str("    }");
-            if let Some(eb) = else_b {
-                s.push_str(" else {\n");
-                for stmt in eb {
-                    s.push_str(&super::stmt_expr::emit_stmt(
-                        stmt,
-                        1,
-                        is_route,
-                        is_actor,
-                        mutation_tx,
-                        inferred_types,
-                        usage,
-                        None,
-                    ));
-                }
-                s.push_str("    }");
-            }
-            s
-        }
+        HirExpr::If(cond, then_b, else_b, _) => emit_if_tail(
+            cond,
+            then_b,
+            else_b.as_deref(),
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            emit,
+        ),
         HirExpr::FieldAccess(obj, field, _) => {
             let o = emit(obj, OwnershipMode::Owned);
             if o == "std" && field == "args" {
@@ -158,4 +122,81 @@ where
 
         _ => return None,
     })
+}
+
+// Per-variant tail emitters extracted from `try_emit_expr_tail` per CR-A1
+// refactor pass — the inline blocks each carry their own stmt loop +
+// option handling, contributing ~4-6 decision points apiece.
+
+fn emit_block_tail(
+    stmts: &[vox_compiler::hir::HirStmt],
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> String {
+    let mut s = String::from("{\n");
+    for stmt in stmts {
+        s.push_str(&super::stmt_expr::emit_stmt(
+            stmt,
+            1,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            None,
+        ));
+    }
+    s.push('}');
+    s
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_if_tail<F>(
+    cond: &HirExpr,
+    then_b: &[vox_compiler::hir::HirStmt],
+    else_b: Option<&[vox_compiler::hir::HirStmt]>,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+    emit: &F,
+) -> String
+where
+    F: Fn(&HirExpr, OwnershipMode) -> String,
+{
+    let mut s = format!("if {} {{\n", emit(cond, OwnershipMode::Owned));
+    for stmt in then_b {
+        s.push_str(&super::stmt_expr::emit_stmt(
+            stmt,
+            1,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            None,
+        ));
+    }
+    s.push_str("    }");
+    if let Some(eb) = else_b {
+        s.push_str(" else {\n");
+        for stmt in eb {
+            s.push_str(&super::stmt_expr::emit_stmt(
+                stmt,
+                1,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+                None,
+            ));
+        }
+        s.push_str("    }");
+    }
+    s
 }

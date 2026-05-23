@@ -363,90 +363,19 @@ pub(super) fn emit_expr_with(
             {
                 return s;
             }
-            // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
-            if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
-                if let HirExpr::Ident(module_name, _) = &**namespace_expr {
-                    let a: Vec<_> = args.iter().map(|arg| emit(&arg.value, OwnershipMode::Owned)).collect();
-                    if module_name == "OpenClaw" || module_name == "Browser" {
-                        if let Some(expr) =
-                            emit_openclaw_or_browser_registry_call(module_name, fn_name, &a)
-                        {
-                            return expr;
-                        }
-                    } else if module_name == "fs" {
-                        if let Some(call) = std_namespace_runtime_call("fs", fn_name, &a) {
-                            return call;
-                        }
-                    }
-                }
-                if let HirExpr::Ident(std_kw, _) = &**namespace_expr {
-                    if std_kw == "std" {
-                        let a: Vec<_> = args
-                            .iter()
-                            .enumerate()
-                            .map(|(i, arg)| {
-                                let mode = if is_builtin_arg_borrowed("std", fn_name, i) {
-                                    OwnershipMode::Borrowed
-                                } else {
-                                    OwnershipMode::Owned
-                                };
-                                emit_expr_with(
-                                    &arg.value,
-                                    is_route,
-                                    is_actor,
-                                    mutation_tx,
-                                    inferred_types,
-                                    usage,
-                                    mode,
-                                )
-                            })
-                            .collect();
-                        if let Some(call) = emit_registry_runtime_call("std", fn_name, &a) {
-                            return if *is_await {
-                                format!("{}.await", call)
-                            } else {
-                                call
-                            };
-                        }
-                    }
-                }
-                if let HirExpr::FieldAccess(std_expr, ns_name, _) = &**namespace_expr {
-                    if let HirExpr::Ident(std_kw, _) = &**std_expr {
-                        if std_kw == "std" {
-                            let a: Vec<_> = args
-                                .iter()
-                                .enumerate()
-                                .map(|(i, arg)| {
-                                    let mode = if is_builtin_arg_borrowed(ns_name, fn_name, i) {
-                                        OwnershipMode::Borrowed
-                                    } else {
-                                        OwnershipMode::Owned
-                                    };
-                                    emit_expr_with(
-                                        &arg.value,
-                                        is_route,
-                                        is_actor,
-                                        mutation_tx,
-                                        inferred_types,
-                                        usage,
-                                        mode,
-                                    )
-                                })
-                                .collect();
-                            let builtin =
-                                std_namespace_runtime_call(ns_name.as_str(), fn_name.as_str(), &a);
-                            if let Some(b) = builtin {
-                                return if *is_await { format!("{}.await", b) } else { b };
-                            }
-                            let call = format!("::std::{}::{}({})", ns_name, fn_name, a.join(", "));
-                            return if *is_await {
-                                format!("{}.await", call)
-                            } else {
-                                call
-                            };
-                        }
-                    }
-                }
+            // std.* call forms (std.fs.read, std.json.parse, OpenClaw.X,
+            // Browser.X, etc.) — see helper below.
+            if let Some(s) = try_emit_namespace_call(
+                callee,
+                args,
+                *is_await,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+            ) {
+                return s;
             }
             let c = emit(callee, OwnershipMode::Owned);
             let a: Vec<_> = args.iter().map(|arg| emit(&arg.value, OwnershipMode::Owned)).collect();
@@ -463,6 +392,132 @@ pub(super) fn emit_expr_with(
             "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
         ),
     }
+}
+
+/// Try to emit a namespaced call: `std.fs.read(path)`, `OpenClaw.X(...)`,
+/// `Browser.X(...)`, or `fs.X(...)`. Returns `None` if the call shape
+/// doesn't match a namespace path, so the caller falls through to
+/// generic Fn dispatch.
+///
+/// Extracted from `emit_expr_with` per CR-A1 plan §5.6 — the nested
+/// if-let chains here contributed ~10-12 decision points and made the
+/// caller hard to read.
+#[allow(clippy::too_many_arguments)]
+fn try_emit_namespace_call(
+    callee: &HirExpr,
+    args: &[HirArg],
+    is_await: bool,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> Option<String> {
+    let HirExpr::FieldAccess(namespace_expr, fn_name, _) = callee else {
+        return None;
+    };
+    let emit_owned = |e: &HirExpr| {
+        emit_expr_with(e, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+    };
+    let with_await = |s: String| -> String {
+        if is_await {
+            format!("{}.await", s)
+        } else {
+            s
+        }
+    };
+
+    // Shape 1: `Module.fn(args)` where Module is OpenClaw / Browser / fs.
+    if let HirExpr::Ident(module_name, _) = namespace_expr.as_ref() {
+        let a: Vec<_> = args.iter().map(|arg| emit_owned(&arg.value)).collect();
+        if module_name == "OpenClaw" || module_name == "Browser" {
+            if let Some(expr) = emit_openclaw_or_browser_registry_call(module_name, fn_name, &a) {
+                return Some(expr);
+            }
+        } else if module_name == "fs"
+            && let Some(call) = std_namespace_runtime_call("fs", fn_name, &a)
+        {
+            return Some(call);
+        }
+    }
+
+    // Shape 2: `std.fn(args)` — root-namespace call.
+    if let HirExpr::Ident(std_kw, _) = namespace_expr.as_ref()
+        && std_kw == "std"
+    {
+        let a = emit_call_args_with_borrow_inference(
+            args,
+            "std",
+            fn_name,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+        );
+        if let Some(call) = emit_registry_runtime_call("std", fn_name, &a) {
+            return Some(with_await(call));
+        }
+    }
+
+    // Shape 3: `std.ns.fn(args)` — nested-namespace call.
+    if let HirExpr::FieldAccess(std_expr, ns_name, _) = namespace_expr.as_ref()
+        && let HirExpr::Ident(std_kw, _) = std_expr.as_ref()
+        && std_kw == "std"
+    {
+        let a = emit_call_args_with_borrow_inference(
+            args,
+            ns_name,
+            fn_name,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+        );
+        if let Some(b) = std_namespace_runtime_call(ns_name.as_str(), fn_name.as_str(), &a) {
+            return Some(with_await(b));
+        }
+        let call = format!("::std::{}::{}({})", ns_name, fn_name, a.join(", "));
+        return Some(with_await(call));
+    }
+    None
+}
+
+/// Lower a sequence of call arguments with per-position
+/// `is_builtin_arg_borrowed(ns, fn, i)` borrow inference. Used by both
+/// the `std.fn(...)` and `std.ns.fn(...)` shapes — pulled out to keep
+/// `try_emit_namespace_call` readable.
+#[allow(clippy::too_many_arguments)]
+fn emit_call_args_with_borrow_inference(
+    args: &[HirArg],
+    namespace: &str,
+    fn_name: &str,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> Vec<String> {
+    args.iter()
+        .enumerate()
+        .map(|(i, arg)| {
+            let mode = if is_builtin_arg_borrowed(namespace, fn_name, i) {
+                OwnershipMode::Borrowed
+            } else {
+                OwnershipMode::Owned
+            };
+            emit_expr_with(
+                &arg.value,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+                mode,
+            )
+        })
+        .collect()
 }
 
 /// Try to emit a builtin function call by name (the `Call(Ident("..."), ...)`

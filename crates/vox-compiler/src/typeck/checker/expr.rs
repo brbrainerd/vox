@@ -197,60 +197,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::ObjectLit(fields, _span) => {
-                let mut expected_fields = std::collections::HashMap::new();
-                let mut struct_name: Option<String> = None;
-                let mut map_value_ty: Option<Ty> = None;
-                if let Some(exp) = expected {
-                    let resolved = self.uf.resolve(exp);
-                    match &resolved {
-                        Ty::Record(fds) | Ty::Table(_, fds) | Ty::Collection(_, fds) => {
-                            for (n, t) in fds {
-                                expected_fields.insert(n.clone(), t.clone());
-                            }
-                        }
-                        Ty::Map(k_ty, v_ty) => {
-                            // Object-literal-as-Map: `{a: 1, b: 2}` ascribed
-                            // to `Map[K, V]` infers as Map, with every field
-                            // value checked against V and the key shape
-                            // unified to K (typically Str). Closes the
-                            // `Record vs Map` class of typecheck failures
-                            // surfaced in option_type / nested_types /
-                            // ref_types — 2026-05-18 P2.3.
-                            let _ = self.uf.unify(&Ty::Str, k_ty);
-                            map_value_ty = Some(v_ty.as_ref().clone());
-                        }
-                        Ty::Named(n) => {
-                            // Struct type: pull declared fields from the env so an anonymous
-                            // record literal `{ f: e, ... }` ascribed to `Named(Foo)` checks
-                            // against the struct's shape and unifies with `Named(Foo)`.
-                            if let Some(adt) = self.env.lookup_adt(n) {
-                                if !adt.fields.is_empty() {
-                                    for (fname, fty) in &adt.fields {
-                                        expected_fields.insert(fname.clone(), fty.clone());
-                                    }
-                                    struct_name = Some(n.clone());
-                                }
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-
-                let typed_fields: Vec<(String, Ty)> = fields
-                    .iter()
-                    .map(|(name, expr)| {
-                        let field_expected =
-                            map_value_ty.as_ref().or_else(|| expected_fields.get(name));
-                        (name.clone(), self.check_expr(expr, field_expected))
-                    })
-                    .collect();
-                if let Some(value_ty) = map_value_ty {
-                    Ty::Map(Box::new(Ty::Str), Box::new(value_ty))
-                } else if let Some(name) = struct_name {
-                    Ty::Named(name)
-                } else {
-                    Ty::Record(typed_fields)
-                }
+                self.check_object_lit_expr(fields, expected)
             }
             HirExpr::ListLit(elements, _span) => {
                 let mut expected_elem_ty = None;
@@ -316,61 +263,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Call(callee, args, _tail, span) => {
-                // B3: `subscribe(ActorName)` — look up the named actor's
-                // `on broadcast(...) to T` handler and return `Stream[T]`
-                // instead of the generic `Stream[str]`. Falls through to
-                // the regular Fn path when the call doesn't fit this shape
-                // (single-arg `subscribe` ident call with an ActorRef arg).
-                if let HirExpr::Ident(name, _) = callee.as_ref()
-                    && name == "subscribe"
-                    && args.len() == 1
-                {
-                    let arg_ty = self.check_expr(&args[0].value, None);
-                    let arg_ty = self.uf.resolve(&arg_ty);
-                    // Match both shapes:
-                    //   - `subscribe(spawn(Counter))` → arg is ActorRef
-                    //   - `subscribe(c)` with `c: Counter` → arg is Named("Counter")
-                    // Either resolves to the actor's broadcast return type.
-                    let actor_name = match &arg_ty {
-                        Ty::ActorRef(n) => Some(n.clone()),
-                        Ty::Named(n) if self.env.lookup_actor(n).is_some() => {
-                            Some(n.clone())
-                        }
-                        _ => None,
-                    };
-                    if let Some(actor_name) = actor_name {
-                        if let Some(handlers) = self.env.lookup_actor(&actor_name) {
-                            // Per-actor broadcast type: the return type of
-                            // the actor's `on broadcast(...)` handler. If
-                            // the actor doesn't declare one, fall back to
-                            // `Stream[str]` (the v1.0 default).
-                            let broadcast_ty = handlers
-                                .iter()
-                                .find(|h| h.event_name == "broadcast")
-                                .map(|h| h.return_type.clone())
-                                .unwrap_or(Ty::Str);
-                            return Ty::Stream(Box::new(broadcast_ty));
-                        }
-                    }
-                }
-                let raw_callee = self.check_expr(callee, None);
-                let callee_ty = self.uf.resolve(&raw_callee);
-                let callee_ty = self.uf.instantiate(&callee_ty);
-                match callee_ty {
-                    Ty::Fn(params, ret) => {
-                        self.check_arguments(&params, args, *span);
-                        ret.as_ref().clone()
-                    }
-                    Ty::Error => Ty::Error,
-                    _ => {
-                        self.diags.push(Diagnostic::error(
-                            format!("Not a function: {callee_ty:?}"),
-                            *span,
-                            self.source,
-                        ));
-                        Ty::Error
-                    }
-                }
+                self.check_call_expr(callee, args, *span)
             }
             HirExpr::MethodCall(object, method, args, opt_plan, span) => {
                 self.check_method_call_expr(object, method, args, opt_plan, *span)
@@ -587,6 +480,160 @@ impl<'a> Checker<'a> {
         let hir_ty = resolved.to_hir_type();
         self.inferred_types.insert(super::hir_expr_span(expr), hir_ty);
         ty
+    }
+
+    /// Type-check an `ObjectLit` expression. Extracted from check_expr
+    /// per CR-A1 plan §5.6. The expected-type-resolution match
+    /// (Record / Table / Collection / Map / Named struct) was ~8
+    /// decision points alone.
+    fn check_object_lit_expr(
+        &mut self,
+        fields: &[(String, HirExpr)],
+        expected: Option<&Ty>,
+    ) -> Ty {
+        let mut expected_fields = std::collections::HashMap::new();
+        let mut struct_name: Option<String> = None;
+        let mut map_value_ty: Option<Ty> = None;
+        if let Some(exp) = expected {
+            let resolved = self.uf.resolve(exp);
+            self.populate_object_lit_expected(
+                &resolved,
+                &mut expected_fields,
+                &mut struct_name,
+                &mut map_value_ty,
+            );
+        }
+        let typed_fields: Vec<(String, Ty)> = fields
+            .iter()
+            .map(|(name, expr)| {
+                let field_expected =
+                    map_value_ty.as_ref().or_else(|| expected_fields.get(name));
+                (name.clone(), self.check_expr(expr, field_expected))
+            })
+            .collect();
+        if let Some(value_ty) = map_value_ty {
+            Ty::Map(Box::new(Ty::Str), Box::new(value_ty))
+        } else if let Some(name) = struct_name {
+            Ty::Named(name)
+        } else {
+            Ty::Record(typed_fields)
+        }
+    }
+
+    /// Resolve the expected type for an `ObjectLit` site into one of
+    /// three buckets: per-field record types, a Map value type, or a
+    /// Named struct (with declared fields pulled from the env).
+    fn populate_object_lit_expected(
+        &mut self,
+        resolved: &Ty,
+        expected_fields: &mut std::collections::HashMap<String, Ty>,
+        struct_name: &mut Option<String>,
+        map_value_ty: &mut Option<Ty>,
+    ) {
+        match resolved {
+            Ty::Record(fds) | Ty::Table(_, fds) | Ty::Collection(_, fds) => {
+                for (n, t) in fds {
+                    expected_fields.insert(n.clone(), t.clone());
+                }
+            }
+            Ty::Map(k_ty, v_ty) => {
+                // Object-literal-as-Map: `{a: 1, b: 2}` ascribed to
+                // `Map[K, V]` infers as Map, every field value checked
+                // against V and the key shape unified to K (typically
+                // Str). Closes the `Record vs Map` typecheck class
+                // surfaced in option_type / nested_types / ref_types —
+                // 2026-05-18 P2.3.
+                let _ = self.uf.unify(&Ty::Str, k_ty);
+                *map_value_ty = Some(v_ty.as_ref().clone());
+            }
+            Ty::Named(n) => {
+                // Struct type: pull declared fields from the env so an
+                // anonymous record literal `{ f: e, ... }` ascribed to
+                // `Named(Foo)` checks against the struct's shape and
+                // unifies with `Named(Foo)`.
+                if let Some(adt) = self.env.lookup_adt(n)
+                    && !adt.fields.is_empty()
+                {
+                    for (fname, fty) in &adt.fields {
+                        expected_fields.insert(fname.clone(), fty.clone());
+                    }
+                    *struct_name = Some(n.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Type-check a `Call` expression. Extracted from `check_expr` per
+    /// CR-A1 plan §5.6 — the inline Call arm contributed ~12 decision
+    /// points (the subscribe-special-case alone was ~7). The fast-path
+    /// is split out so the generic fn-call dispatch stays small.
+    fn check_call_expr(
+        &mut self,
+        callee: &HirExpr,
+        args: &[HirArg],
+        span: Span,
+    ) -> Ty {
+        // B3 fast-path: `subscribe(<Actor>)` returns `Stream[T]` where T
+        // is the actor's `on broadcast(...)` return type. Falls through
+        // to the generic Fn path on mismatch.
+        if let Some(ty) = self.try_check_subscribe_actor_call(callee, args) {
+            return ty;
+        }
+        let raw_callee = self.check_expr(callee, None);
+        let callee_ty = self.uf.resolve(&raw_callee);
+        let callee_ty = self.uf.instantiate(&callee_ty);
+        match callee_ty {
+            Ty::Fn(params, ret) => {
+                self.check_arguments(&params, args, span);
+                ret.as_ref().clone()
+            }
+            Ty::Error => Ty::Error,
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    format!("Not a function: {callee_ty:?}"),
+                    span,
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+
+    /// Try the B3 `subscribe(<ActorName>)` special case. Returns
+    /// `Some(Stream[T])` when the call matches the shape (single-arg
+    /// `subscribe` ident call with an ActorRef / Named-actor arg),
+    /// `None` otherwise so the caller falls through.
+    fn try_check_subscribe_actor_call(
+        &mut self,
+        callee: &HirExpr,
+        args: &[HirArg],
+    ) -> Option<Ty> {
+        let HirExpr::Ident(name, _) = callee else {
+            return None;
+        };
+        if name != "subscribe" || args.len() != 1 {
+            return None;
+        }
+        let arg_ty = self.check_expr(&args[0].value, None);
+        let arg_ty = self.uf.resolve(&arg_ty);
+        // Match both shapes:
+        //   - `subscribe(spawn(Counter))` → arg is ActorRef
+        //   - `subscribe(c)` with `c: Counter` → arg is Named("Counter")
+        let actor_name = match &arg_ty {
+            Ty::ActorRef(n) => n.clone(),
+            Ty::Named(n) if self.env.lookup_actor(n).is_some() => n.clone(),
+            _ => return None,
+        };
+        let handlers = self.env.lookup_actor(&actor_name)?;
+        // Per-actor broadcast type: return type of the `on broadcast(...)`
+        // handler, falling back to `Stream[str]` (v1.0 default).
+        let broadcast_ty = handlers
+            .iter()
+            .find(|h| h.event_name == "broadcast")
+            .map(|h| h.return_type.clone())
+            .unwrap_or(Ty::Str);
+        Some(Ty::Stream(Box::new(broadcast_ty)))
     }
 
     /// Type-check a `MethodCall` expression. Extracted from `check_expr`
