@@ -1,7 +1,7 @@
 ---
 title: "Continuation Prompt Engineering"
 description: "SSOT for the Vox continuation prompt, its design rationale, and the layered anti-skeleton defense model."
-category: "contributors"
+category: "Contributors"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

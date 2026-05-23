@@ -1,7 +1,7 @@
 ---
 title: "Journey: One-File Full-Stack Data"
 description: "How to ship a database model and UI component without writing a separate API layer in Vox."
-category: "journey"
+category: "Getting Started"
 sort_order: 3
 
 schema_type: "HowTo"

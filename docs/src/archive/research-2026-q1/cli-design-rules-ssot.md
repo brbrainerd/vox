@@ -1,7 +1,7 @@
 ---
 title: "CLI design rules SSOT"
 description: "Stable doc anchor to reference/cli.md for shipped CLI conventions (hierarchy, --help, JSON/stderr, description style); contributors update that section and run vox ci command-compliance—no duplicate rules here."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

@@ -1,7 +1,7 @@
 ---
 title: "Cross-repo querying and observability"
 description: "SSOT for explicit polyrepo catalogs, local-first cross-repo querying, remote adapter shapes, and shared observability metadata in Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 0
 last_updated: "2026-03-29"

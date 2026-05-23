@@ -1,7 +1,7 @@
 ---
 title: "K-Complexity and Multi-File LLM Code Generation"
 description: "Research on multi-file degradation effects, Kolmogorov complexity, and design strategies for reducing LLM code hallucination pressure."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

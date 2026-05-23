@@ -1,7 +1,7 @@
 ---
 title: "ADR 033 — Typed parametric fragment primitive"
 description: "Introduces a `fragment` bare-keyword scope for typed parametric markup blocks that are passable as props, callable multiple times with different arguments, and validated against consumer prop interfaces at compile time. Drafted ahead of Phase F implementation; deferred until the Phase 6 (TASK-6.1) typed semantic primitives stabilize."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-03"
 training_eligible: true

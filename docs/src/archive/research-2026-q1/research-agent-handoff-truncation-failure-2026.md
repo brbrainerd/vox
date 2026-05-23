@@ -1,6 +1,6 @@
 ---
 title: "Production Evidence: Context Truncation as a Silent Failure Mode"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

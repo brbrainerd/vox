@@ -1,7 +1,7 @@
 ---
 title: "Research: Claude Code Ultraplan Architecture"
 description: "Synthesis of Anthropic's ultraplan methodology for low-hallucination agentic agent execution."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

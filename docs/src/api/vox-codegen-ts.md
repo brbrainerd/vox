@@ -1,7 +1,7 @@
 ---
 title: "vox-codegen-ts API (deprecated stub)"
 description: "Deprecated API stub: TypeScript/TSX generation is implemented in vox-compiler, not a separate vox-codegen-ts crate."
-category: "api-crate"
+category: "API Reference — Crates"
 status: deprecated
 ---
 

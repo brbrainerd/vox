@@ -1,7 +1,7 @@
 ---
 title: "LLM Target Language Gap Analysis (April 2026)"
 description: "Comprehensive audit of gaps across syntax, AST, HIR, type checking, codegen, grammar-constrained decoding, diagnostics, testing, contract system, training, and LSP — with specific, actionable tasks for making Vox the premier LLM target language."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-17"
 correction_pass: "2026-04-17"

@@ -1,7 +1,7 @@
 ---
 title: "Language LSP parity — findings (2026)"
 description: "Probe B: checklist-driven gaps between IDE features and compiler capabilities for Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-11"
 training_eligible: true

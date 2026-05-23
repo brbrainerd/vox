@@ -1,7 +1,7 @@
 ---
 title: "How to Configure Code Signing for Releases"
 description: "Step-by-step guide to acquiring code signing certificates and configuring GitHub Actions to bypass Gatekeeper and SmartScreen."
-category: "how-to"
+category: "How-To Guides"
 
 schema_type: "HowTo"
 keywords: ["code signing", "Tauri code signing", "Apple Developer ID", "Windows EV certificate", "SmartScreen bypass", "Gatekeeper bypass"]

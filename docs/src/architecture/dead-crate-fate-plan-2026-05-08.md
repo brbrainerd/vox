@@ -1,7 +1,7 @@
 ---
 title: "Dead Crate Fate Plan (2026-05-08)"
 description: "Per-crate recommendation for the 17 DEAD and 3 MISPLACED workspace crates: delete, wire up, extract to plugin, or freeze."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Plan for resolving each abandoned crate either by removal or by wiring it into the plugin-first architecture; useful reference for future workspace hygiene."

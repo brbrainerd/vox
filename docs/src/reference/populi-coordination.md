@@ -1,7 +1,7 @@
 ---
 title: "Mens Coordination & Database Write Safety"
 description: "Official documentation for Mens Coordination & Database Write Safety for the Vox language. Detailed technical reference, architecture gui"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 

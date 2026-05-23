@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules — Phase 1: SSOT Collapse (2026-05-09)"
 description: "Step-by-step plan to collapse hand-mirrored Rust↔Vox surfaces into single-source-of-truth + xtask-generated outputs. Generates the typechecker builtin manifest, LSP completions, system prompt sections, mdbook reference pages, decorator catalog, diagnostic catalog scaffolding, and TS codegen headers from one Rust source each. Every generated file gets a blake3 provenance header and a CI drift check."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 1 child plan of vox-language-rules-and-enforcement-plan-2026.md. Generation patterns shown here are reusable for any future Rust↔Vox seam."
@@ -179,7 +179,7 @@ For markdown / text files, use `<!--` comments instead of `//`.
 ## Task 5: Wire generated builtin docs into mdbook
 
 **Files:**
-- Modify: `docs/src/SUMMARY.md` is auto-generated — add appropriate frontmatter to `docs/src/reference/builtins.generated.md` (`title`, `category: "reference"`, `sort_order`, `training_eligible: true`)
+- Modify: `docs/src/SUMMARY.md` is auto-generated — add appropriate frontmatter to `docs/src/reference/builtins.generated.md` (`title`, `category: "Language Reference"`, `sort_order`, `training_eligible: true`)
 - Modify: `crates/vox-doc-pipeline/src/lib.rs` (or its test set) — add a smoke test that the builtins reference page renders without errors
 
 **Why:** [AGENTS.md:204–210 (Markdown Hygiene and Code Snippets)](../../../AGENTS.md) requires every `vox` block in docs to compile via `vox-doc-pipeline`. The generator must emit `vox` blocks that round-trip; this task wires the test.

@@ -1,7 +1,7 @@
 ---
 title: "Agent Trust Reliability Evaluation"
 description: "Empirical evaluation of trust reliability via EWMA and Laplace smoothing as agent quality proxies."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

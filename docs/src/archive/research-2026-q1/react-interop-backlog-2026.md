@@ -1,7 +1,7 @@
 ---
 title: "React interop migration backlog (2026)"
 description: "Granular checklist derived from the mega-plan workstreams (WS01–WS26). Use with react-interop-migration-charter-2026.md."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 

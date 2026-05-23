@@ -1,7 +1,7 @@
 ---
 title: "Compiler diagnostics and Rust codegen ergonomics"
 description: "Policy for miette vs custom diagnostics, error layers, and how contributors should read and troubleshoot vox check output."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 0
 last_updated: "2026-04-17"

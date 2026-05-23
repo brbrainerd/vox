@@ -1,7 +1,7 @@
 ---
 title: "Trim, build, and defer (feature lifecycle)"
 description: "Official documentation for Trim, build, and defer (feature lifecycle) for the Vox language. Detailed technical reference, architecture gu"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

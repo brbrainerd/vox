@@ -1,7 +1,7 @@
 ---
 title: "Vox packaging research findings 2026"
 description: "Hard-cut research findings for Cargo-first Vox package management, command namespace unification, and Python/UV retirement."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: false
 

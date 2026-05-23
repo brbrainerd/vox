@@ -1,7 +1,7 @@
 ---
 title: "Agentic VCS Automation — Phase 4 Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD plan that adds the Vox-language @vcs.* decorator surface: parser support for @vcs.read_only / @vcs.requires(...) / @vcs.linear_working_tree / @vcs.audit_trail on fn declarations, HIR effect annotations, type-checker rules (read_only cannot call requires; linear cap consumed at most once), lowering to the Phase 1 Rust capability types, and standard-library .vox shapes for VcsCapability. Builds on Phases 1–3 and on the existing @durable / @endpoint precedent in the compiler."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 4 turns capability-typed VCS effects from a Rust-side soft contract into a language-level enforced contract. The compiler refuses to emit code that calls a write-side fn without the requisite capability. Concrete code, exact file paths, exact commands. Future agents executing this plan should not need to invent code."

@@ -1,7 +1,7 @@
 ---
 title: "Compatibility and deprecation windows"
 description: "Official documentation for Compatibility and deprecation windows for the Vox language. Detailed technical reference, architecture guides,"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

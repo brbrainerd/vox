@@ -1,7 +1,7 @@
 ---
 title: "Telemetry trust boundary and SSOT map"
 description: "Single map of telemetry-related surfaces, trust boundaries, documentation authority, and corrections to earlier research-only plans."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: false

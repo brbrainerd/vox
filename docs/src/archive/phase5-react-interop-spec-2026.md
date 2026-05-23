@@ -1,7 +1,7 @@
 ---
 title: "Phase 5: Bidirectional Vox↔React Interop Spec (2026)"
 description: "Design spec for importing React components into Vox source, making emitted Vox components consumable by external React apps, and retiring @island."
-category: "architecture"
+category: "Architecture SSOTs"
 status: deprecated
 archived_date: 2026-05-03
 training_eligible: false

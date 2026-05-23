@@ -1,3 +1,9 @@
+---
+title: "AI-Laziness Audit — Findings & Pivot (2026-05-16)"
+category: "Architecture SSOTs"
+status: "current"
+---
+
 # AI-Laziness Audit — Findings & Pivot (2026-05-16)
 
 **Status:** Audit investigation complete; no Phase 1 work shipped. Read this as an audit-of-audit, not as an execution plan.

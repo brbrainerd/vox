@@ -1,7 +1,7 @@
 ---
 title: "ADR 015: Vox Docker/OCI portability SSOT"
 description: "Formalizes Docker/OCI-backed application portability, layered SSOT boundaries, and the rule against a portability god object."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-28"
 training_eligible: true
 

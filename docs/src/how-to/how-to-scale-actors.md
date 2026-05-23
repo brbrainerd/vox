@@ -1,7 +1,7 @@
 ---
 title: "How-To: Scale Actors"
 description: "Strategies for distributing and managing Vox actor lifecycles across a cluster."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 last_updated: "2026-04-26"
 training_eligible: true

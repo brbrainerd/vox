@@ -2,7 +2,7 @@
 title: "LLM Output Mediation and Programmatic Validator Generation"
 last_updated: "2026-04-11"
 research_source: "mixed (web research + codebase cross-reference)"
-category: "architecture"
+category: "Architecture SSOTs"
 description: >
   Comprehensive research on the problem of having one consistent, extensible system
   to mediate between LLM outputs (non-zero error probability) and validated, deterministic

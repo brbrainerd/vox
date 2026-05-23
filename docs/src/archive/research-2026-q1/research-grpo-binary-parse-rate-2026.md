@@ -1,7 +1,7 @@
 ---
 title: "The Efficacy of Binary Parse-Rate as a Primary Reward Signal"
 description: "Research on the limits of binary parse rewards and their effect on exploration in code RL."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

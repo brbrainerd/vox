@@ -1,7 +1,7 @@
 ---
 title: "FableForge Roadmap Audit — 2026-04-23"
 description: "Document-level audit of the FableForge End-to-End Roadmap (280 tasks / 14 phases). Covers internal consistency, redundancies, mis-prioritizations, prunable items, missing-context flags, and a re-ranked top-30 execution list."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Project planning artifact for a separate codebase (FableForge, TypeScript/Convex)."

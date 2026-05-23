@@ -1,6 +1,6 @@
 ---
 title: "shipped-v0.4"
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: false
 ---

@@ -1,7 +1,7 @@
 ---
 title: "Diagnostic taxonomy (compiler)"
 description: "Categories for Vox compiler diagnostics (parse, lowering, typecheck, HIR, runtime, lint)"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-25"
 training_eligible: true
 

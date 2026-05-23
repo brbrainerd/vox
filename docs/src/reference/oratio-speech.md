@@ -1,7 +1,7 @@
 ---
 title: "Oratio & speech SSOT (Candle Whisper, no whisper.cpp)"
 description: "Official documentation for Oratio & speech SSOT (Candle Whisper, no whisper.cpp) for the Vox language."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-28"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Qwen 3.6 integration research (groundwork)"
 description: "Pre-implementation checklist for Qwen 3.6 vs 3.5: primary sources, HF config and weight layout, Vox integration matrix (native QLoRA vs remote API), risks (context, reasoning, tools, multimodal, closed weights)."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 
 schema_type: "TechArticle"

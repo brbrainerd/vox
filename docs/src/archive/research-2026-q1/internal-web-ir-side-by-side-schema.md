@@ -1,7 +1,7 @@
 ---
 title: "Internal Web IR Side-by-Side Schema"
 description: "Parser-grounded current-vs-target WebIR mapping for one full-stack Vox app across source, IR, TSX/TS, CSS, HTML, and Rust/API."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: false
 

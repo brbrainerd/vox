@@ -1,7 +1,7 @@
 ---
 title: "Research, Scientia, and telemetry channels"
 description: "How ResearchEvent, research_metrics, and TelemetryEvent relate without cyclic deps."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 860
 ---

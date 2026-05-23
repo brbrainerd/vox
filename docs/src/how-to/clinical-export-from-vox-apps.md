@@ -1,7 +1,7 @@
 ---
 title: "Clinical export (app-owned)"
 description: "Pointer: clinical CSV/JSON/HTML export guidance for Vox apps lives with the product app, not in Vox language docs."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 ---
 

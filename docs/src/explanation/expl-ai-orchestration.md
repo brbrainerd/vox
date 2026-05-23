@@ -1,7 +1,7 @@
 ---
 title: "AI Agent Orchestration"
 description: "How Vox natively integrates LLMs, agents, and local logic via the Model Context Protocol (MCP) and Distributed Execution Intelligence (DEI) orchestrator."
-category: "explanation"
+category: "Concepts"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

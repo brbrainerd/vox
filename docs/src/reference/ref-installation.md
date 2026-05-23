@@ -1,7 +1,7 @@
 ---
 title: "Installation Reference"
 description: "Authoritative guide for installing the Vox CLI, toolchain, and AI provider backends across Windows, macOS, and Linux."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-04-05"
 training_eligible: true
 

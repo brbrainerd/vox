@@ -1,7 +1,7 @@
 ---
 title: "Mens vision and multimodal inputs (research 2026)"
 description: "TrainingPair limits, orchestrator vision hints vs attachments, corpus-lab screenshot-to-JSON rubrics, Candle text-only native stack vs remote VLMs, telemetry and privacy boundaries."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 16
 last_updated: "2026-04-12"

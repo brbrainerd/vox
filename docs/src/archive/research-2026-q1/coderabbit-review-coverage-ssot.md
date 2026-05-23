@@ -1,7 +1,7 @@
 ---
 title: "CodeRabbit review coverage SSOT"
 description: "Canonical policy for full-repository CodeRabbit review coverage, lane behavior, persistence, and failure recovery in Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: false

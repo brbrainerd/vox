@@ -1,7 +1,7 @@
 ---
 title: "Reference: literals"
 description: "Numeric, decimal, string, and character literal lexing rules for Vox source (UTF-8)."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

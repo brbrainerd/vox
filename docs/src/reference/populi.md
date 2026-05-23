@@ -1,7 +1,7 @@
 ---
 title: "Mesh / Populi SSOT (CPU-first)"
 description: "Official documentation for mesh (Populi) runtime, env vars, and HTTP control plane (CPU-first)."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-29"
 training_eligible: true
 

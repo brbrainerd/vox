@@ -1,7 +1,7 @@
 ---
 title: "FableForge to Vox Conversion Analysis"
 description: "Feasibility study and architectural comparison for migrating the FableForge TypeScript/Convex stack to the Vox AI-native language."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-16"
 training_eligible: false

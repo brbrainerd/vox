@@ -1,7 +1,7 @@
 ---
 title: "Vox IR Specification"
 description: "Stability-first Intermediate Representation (IR) for machine-verifiable Vox programs."
-category: "reference"
+category: "Language Reference"
 status: current
 last_updated: "2026-04-11"
 

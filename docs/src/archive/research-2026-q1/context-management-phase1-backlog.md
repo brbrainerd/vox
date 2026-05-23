@@ -1,7 +1,7 @@
 ---
 title: "Context management phase 1 backlog"
 description: "Prioritized high-win backlog, rollout strategy, and KPI/SLO targets for the first implementation wave of the Vox context-management program."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-03-30"
 training_eligible: false

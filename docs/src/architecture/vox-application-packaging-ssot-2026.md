@@ -1,7 +1,7 @@
 ---
 title: "Vox application packaging SSOT (2026)"
 description: "Sibling contract to deploy/OCI portability: end-user native installers (desktop + mobile), workspace suites, and `vox compile` journeys."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

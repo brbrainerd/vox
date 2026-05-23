@@ -1,7 +1,7 @@
 ---
 title: "Adopting Erlang's Benefits for LLM-Native Code Generation"
 description: "Research and architectural plan to bring Erlang's isolation, preemption, and let-it-crash benefits into Vox to lower K-complexity for LLMs."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-16"
 training_eligible: false

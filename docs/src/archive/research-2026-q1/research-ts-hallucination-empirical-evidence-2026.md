@@ -1,7 +1,7 @@
 ---
 title: "Empirical Evidence: Strictly-Typed vs. Dynamically-Typed Languages"
 description: "Research comparing type-system strictness, corpus bias, and LLM error rates across programming languages."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

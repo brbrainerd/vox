@@ -1,7 +1,7 @@
 ---
 title: "Vox RAG and Autonomous Research Architecture 2026"
 description: "Single source of truth for the Vox retrieval-augmented generation pipeline, Socrates hallucination gate, Tavily web search integration, CRAG loop, and agent-to-agent research handoff."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-10"
 see_also:

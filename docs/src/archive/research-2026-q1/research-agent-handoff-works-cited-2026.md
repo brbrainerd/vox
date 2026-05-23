@@ -1,6 +1,6 @@
 ---
 title: "Works Cited: AI Agent Context and Handoff"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

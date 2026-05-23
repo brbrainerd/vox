@@ -1,7 +1,7 @@
 ---
 title: "Native ML Training Pipeline"
 description: "End-to-end Mens ML pipeline: corpus → native Candle+qlora-rs QLoRA via vox mens train; Burn scratch path legacy."
-category: "explanation"
+category: "Concepts"
 last_updated: "2026-04-12"
 training_eligible: true
 
@@ -185,7 +185,7 @@ This creates a **closed feedback loop**: better docs → more training data → 
 ```yaml
 ---
 title: "My Guide"
-category: how-to
+category: "How-To Guides"
 constructs: [function, workflow]
 training_eligible: true
 difficulty: intermediate

@@ -1,7 +1,7 @@
 ---
 title: "External repositories & workspace SSOT"
 description: "Official documentation for External repositories & workspace SSOT for the Vox language. Detailed technical reference, architecture guides"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 

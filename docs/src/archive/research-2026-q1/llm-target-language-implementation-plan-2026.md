@@ -1,7 +1,7 @@
 ---
 title: "LLM Target Language: Explicit Implementation Plan (April 2026)"
 description: "Fully explicit, file-level remediation plan for making Vox the premier LLM target language. Incorporates a full codebase audit pass, corrects erroneous prior analysis, surfaces real bugs, and marks all deprecated language surfaces with machine-readable deprecation notices."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-17"
 training_eligible: false

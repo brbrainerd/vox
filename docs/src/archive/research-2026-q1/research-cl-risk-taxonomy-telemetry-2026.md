@@ -1,7 +1,7 @@
 ---
 title: "Risk Taxonomy, Monitoring Design, and Open Research Questions"
 description: "Risk taxonomy, monitoring metrics, and open questions for operating a safe continual-learning flywheel in Vox MENS."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

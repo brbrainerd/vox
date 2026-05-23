@@ -1,7 +1,7 @@
 ---
 title: "Explanation: Capabilities"
 description: "Understanding the Capability-Gated Execution limits applied to workflows and agents."
-category: "explanation"
+category: "Concepts"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

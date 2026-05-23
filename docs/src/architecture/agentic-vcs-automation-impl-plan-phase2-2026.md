@@ -1,7 +1,7 @@
 ---
 title: "Agentic VCS Automation — Phase 2 Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD plan that lands the Push/PR write-side: PushAllowed / ForcePushAllowed / DestructiveOp capability tokens, vox_push / vox_pr_open / vox_force_push / vox_branch_delete MCP tools, an arch-check rule that bans raw Command::new(\"git\") outside the central wrapper, migration of remaining direct git callsites, normalised flag handling in the banned-command denylist, capability-ledger persistence in vox-orchestrator-queue, and the .vox glue scripts (wip/sync/finish/recover). Builds directly on Phase 1."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 2 closes the agentic VCS write loop end-to-end (commit → push → PR) and locks the central git executor as the sole git surface across the workspace. Concrete code, exact file paths, exact commands, TDD steps. Future agents executing this plan should not need to invent code."

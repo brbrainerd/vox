@@ -1,7 +1,7 @@
 ---
 title: "Semantic Proximity, Split-Brain Detection, and Safe Symbol Surfacing (Research 2026)"
 description: "How to programmatically detect conceptually related but divergently named code, surface proximity hints without causing LLM hallucination, and build a discovery layer for semantic drift in AI-native codebases."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-17"
 training_eligible: false

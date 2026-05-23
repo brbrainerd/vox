@@ -14,30 +14,25 @@ use chrono::NaiveDate;
 
 use super::types::{LintError, LintKind};
 
+// These must match the `sections` array in contracts/documentation/docs-sidebar-section-order.v1.json.
+// Display-label format (e.g. "Language Reference") is canonical; slug aliases are kept for grep-safety
+// but all new files must use the display-label form.
 const VALID_CATEGORIES: &[&str] = &[
-    "getting-started",
-    "journey",
-    "journeys",
-    "tutorial",
-    "tutorials",
-    "how-to",
-    "ref",
-    "reference",
-    "lang-ref",
-    "language-reference",
-    "api-keyword",
-    "api-decorator",
-    "api-crate",
-    "example",
-    "explanation",
-    "adr",
-    "architecture",
-    "ssot",
-    "ci",
-    "quality",
-    "contributor",
-    "contributors",
-    "operations",
+    // ── Canonical display labels (SSOT — match sidebar JSON exactly) ──────────
+    "Getting Started",
+    "Tutorials",
+    "How-To Guides",
+    "Language Reference",
+    "API Reference — Crates",
+    "Examples",
+    "Concepts",
+    "Architecture Decisions (ADRs)",
+    "Architecture SSOTs",
+    "Contributors",
+    "CI & Quality",
+    "Operations",
+    // ── archive (excluded from sidebar but still a valid category) ────────────
+    "archive",
 ];
 
 const VALID_STATUS: &[&str] = &[

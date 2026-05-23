@@ -1,7 +1,7 @@
 ---
 title: "Tutorial: Building a Collaborative Task List"
 description: "Build a full-stack Task app end to end with Vox."
-category: "tutorials"
+category: "Tutorials"
 status: "current"
 sort_order: 2
 last_updated: "2026-04-06"

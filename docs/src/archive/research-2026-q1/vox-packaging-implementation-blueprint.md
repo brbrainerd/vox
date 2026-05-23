@@ -1,7 +1,7 @@
 ---
 title: "Vox packaging implementation blueprint"
 description: "Tactical migration blueprint for hard Python retirement, hybrid Vox package commands, and strict install/update/upgrade namespace policy."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-27"
 training_eligible: false
 

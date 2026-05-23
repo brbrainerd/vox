@@ -1,7 +1,7 @@
 ---
 title: "vox-tensor-pytorch-gap-audit.md"
 description: "Documentation for vox-tensor-pytorch-gap-audit.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 training_rationale: "Project architecture context."

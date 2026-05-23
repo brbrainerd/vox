@@ -1,7 +1,7 @@
 ---
 title: "ADR 032 — `.vox.ui` reactive modules"
 description: "Introduces a `.vox.ui` file-suffix convention that allows module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` reactive members. Lowers to a generated React context+provider+hook in TSX emit. Addresses the gap that today's reactive members live only inside `component { }` blocks, with no story for shared state across components."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-03"
 training_eligible: true

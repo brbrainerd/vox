@@ -1,6 +1,6 @@
 ---
 title: "repo-root-files"
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: false
 ---

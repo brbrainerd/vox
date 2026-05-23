@@ -1,7 +1,7 @@
 ---
 title: "Crate Org Follow-up — Implementation Plan"
 description: "Step-by-step plan to land the 6 PRs from 2026-05-08-crate-org-followup-design.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."

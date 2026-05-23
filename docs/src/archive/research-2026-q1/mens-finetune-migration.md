@@ -1,7 +1,7 @@
 ---
 title: "Migration: backend-centric flags → fine-tune contract"
 description: "Official documentation for Migration: backend-centric flags → fine-tune contract for the Vox language."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

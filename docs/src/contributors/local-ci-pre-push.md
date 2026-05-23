@@ -1,7 +1,7 @@
 ---
 title: "Local CI parity (pre-push)"
 description: "Fast default `git push` hook via `vox ci pre-push`; full static gate with `--complete`; emergency `--no-verify` policy."
-category: "contributors"
+category: "Contributors"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

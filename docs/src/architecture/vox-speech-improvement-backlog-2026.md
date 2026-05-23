@@ -1,7 +1,7 @@
 ---
 title: "Vox Speech Improvement Backlog 2026"
 description: "Prioritized backlog for improving Vox speech-to-code accuracy, surface parity, pipeline reliability, and CI coverage."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-05-11"
 training_eligible: true

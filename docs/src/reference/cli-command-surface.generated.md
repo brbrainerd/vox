@@ -1,7 +1,7 @@
 ---
 title: "CLI command surface (generated)"
 description: "Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox ci operations-sync --target cli --write then vox ci command-sync --write."
-category: "reference"
+category: "Language Reference"
 ---
 
 <!--

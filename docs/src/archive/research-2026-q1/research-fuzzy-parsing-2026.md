@@ -1,7 +1,7 @@
 ---
 title: "Research: Fuzzy & Partial Parsing"
 description: "Evaluation of resilient parsing strategies for incremental LLM-driven code generation."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

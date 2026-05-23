@@ -1,7 +1,7 @@
 ---
 title: "Context isolation — SSOT"
 description: "Policy summary for multi-repo and agent context boundaries; links to archived deep research."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

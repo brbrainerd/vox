@@ -1,7 +1,7 @@
 ---
 title: "Mesh Phase 6 — Grand Network (Volunteer Compute) Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD implementation plan for Phase 6 of the Mesh & Language-Distribution SSOT: opt-in joinable bounded-trust global mesh. Eight tasks (P6-T1..P6-T8) producing a federation envelope, a public attestation registry, a Tier-4 micro-VM sandbox interface, redundant-execution voting, a TEE attestation envelope, the Scientia discovery feedback loop, the `vox populi join` flow, and trust-graph self-publication."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. The SSOT (mesh-and-language-distribution-ssot-2026.md) is the durable artifact."
@@ -2535,7 +2535,7 @@ Expected: clap prints usage with `--yes` and `--initial-tier`.
 ---
 title: "Grand Network Quickstart — Volunteer Compute Across Friend Meshes"
 description: "Pair two vox meshes via signed attestation manifests. No Vox-owned server, no token, no SaaS. Out-of-band invite, Ed25519-signed JSON manifests in a Gist or .well-known/, mutual confirmation, then donate compute."
-category: "howto"
+category: "How-To Guides"
 status: "current"
 training_eligible: true
 ---

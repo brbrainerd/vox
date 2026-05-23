@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh — Probe Correctness Implementation Plan (S1, 2026-05-01)"
 description: "Step-by-step TDD implementation plan for the probe-correctness spec. 17 tasks producing the HardwareProbe trait, mock harness, refactored probes, operator override, observability, and tests. ~1000 LOC end-to-end."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. Spec is the durable artifact."

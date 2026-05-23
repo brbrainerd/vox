@@ -1,7 +1,7 @@
 ---
 title: "Document boundary matrix"
 description: "Boundary and ownership matrix for planning-meta documents to prevent overlap and contradiction."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Telemetry unification research findings 2026"
 description: "Research synthesis for privacy-preserving, trust-first telemetry unification in Vox, including political risk analysis, safe data boundaries, and strategic direction."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-02"
 training_eligible: false

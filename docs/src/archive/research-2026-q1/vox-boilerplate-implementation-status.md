@@ -1,7 +1,7 @@
 ---
 title: "Vox boilerplate implementation status"
 description: "Live status board for roadmap execution across Wave 1, Wave 2, and Wave 3."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-25"
 training_eligible: false
 

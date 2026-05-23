@@ -1,7 +1,7 @@
 ---
 title: "VUV Naming Policy (2026)"
 description: "Deprecation cycle for primitive names, kwarg names, and decorator names. Every rename is announced, aliased for one major version, then removed. A rename registry tracks every alias; the `vox migrate` codemod rewrites old names to new ones."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Canonical reference for how Vox renames evolve. Cited from VUV phase plans."

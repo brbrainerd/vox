@@ -1,7 +1,7 @@
 ---
 title: "GRPO Reward Shaping for Code LLMs"
 description: "Cluster overview: empirical assessment of the Vox MENS GRPO training framework, covering reward design, VRAM constraints, reward hacking, and training loop stability."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

@@ -1,7 +1,7 @@
 ---
 title: "Language surface SSOT (keywords, decorators, manifests)"
 description: "Authoritative plan for unifying Vox language-surface metadata across LSP, MCP, docs, eval, and speech tooling."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 0
 last_updated: "2026-04-12"

@@ -1,7 +1,7 @@
 ---
 title: "Mesh Phase 5 — Public-Internet Safety Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD implementation plan for SSOT Phase 5: the trust ladder that makes a Vox node safe to expose to the internet under bounded trust. 10 tasks (P5-T1..P5-T10) covering Ed25519-signed envelopes, GitHub-attested pairing, per-key quota and reputation EMA, signed result attestations, spot-check sampling, per-job ephemeral subkeys, end-to-end kudos accounting, mesh-wide model inventory aggregation, donation-policy privacy signaling, and per-pairing X25519 JWE keys."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. SSOT (mesh-and-language-distribution-ssot-2026.md §3 Phase 5) is the durable artifact."

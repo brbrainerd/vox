@@ -1,7 +1,7 @@
 ---
 title: Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)
 description: "Pure-Rust workspace build posture and elimination of C/MSVC from default paths (2026 snapshot)."
-category: "architecture"
+category: "Architecture SSOTs"
 date: 2026-05-08
 status: current
 training_eligible: true

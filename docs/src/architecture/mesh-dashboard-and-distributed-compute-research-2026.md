@@ -1,7 +1,7 @@
 ---
 title: "Mesh, Dashboard & Distributed Compute — Research (2026-05-09)"
 description: "Two-horizon research synthesis for the Vox mesh — personal mesh today, grand volunteer compute network tomorrow. Audits the current mesh / dashboard / durable-workflow / multi-agent-VCS state, surveys prior art (BOINC, Tailscale, Ray, Temporal, Restate, Pijul, JJ, Akash), and lays out the security, killer-feature, language-level, and agent-collaboration changes needed to take Vox from trusted-LAN to bounded-trust internet-facing. Not yet an implementation plan — feeds the next plan-of-record."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Synthesis-of-record for the mesh/distributed-compute direction; names the audited gaps and the Wave-2 design space so subsequent plans don't re-survey."

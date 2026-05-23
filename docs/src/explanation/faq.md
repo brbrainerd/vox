@@ -1,7 +1,7 @@
 ---
 title: "Vox FAQ: Frequently Asked Questions"
 description: "Answers to common questions about Vox, its current architecture, generated outputs, MCP support, and Mens training lanes."
-category: "explanation"
+category: "Concepts"
 status: "current"
 last_updated: "2026-03-28"
 training_eligible: true

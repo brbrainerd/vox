@@ -1,7 +1,7 @@
 ---
 title: "Model Routing & Provider Cascade"
 description: "Official documentation for Model Routing & Provider Cascade for the Vox language. Detailed technical reference, architecture guides, and "
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-04-29"
 training_eligible: true
 

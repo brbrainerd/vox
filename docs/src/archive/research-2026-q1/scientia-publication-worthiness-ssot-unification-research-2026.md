@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA publication-worthiness and SSOT unification (research 2026)"
 description: "Research plan deliverables for standards-to-signals mapping, canonical metadata SSOT graph, detection-quality study design, Codex persistence blueprint, and automation boundary ledger."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 14
 last_updated: "2026-04-06"

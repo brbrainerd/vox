@@ -1,7 +1,7 @@
 ---
 title: "Vox boilerplate research findings 2026"
 description: "Research findings on common boilerplate sources and reduction methods applied to Vox language design."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-25"
 training_eligible: false
 

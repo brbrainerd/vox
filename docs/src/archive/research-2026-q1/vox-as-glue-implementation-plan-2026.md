@@ -1,7 +1,7 @@
 ---
 title: "VoxScript as Universal Glue Code — Implementation Plan 2026"
 description: "Phased roadmap for decommissioning legacy shell/PowerShell technical debt and standardizing on native .vox automation."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-17"
 training_eligible: false

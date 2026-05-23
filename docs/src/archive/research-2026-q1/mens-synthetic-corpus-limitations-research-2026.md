@@ -1,7 +1,7 @@
 ---
 title: "MENS Synthetic Corpus: Limitations and Mitigation Strategies (Research 2026)"
 description: "Synthesizes the known limitations of Vox's gigantic synthetic corpus generation approach for MENS training, maps them to the existing codebase, and proposes concrete mitigation strategies to bypass the data paradox."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_date: "2026-04-12"
 last_updated: "2026-04-12"

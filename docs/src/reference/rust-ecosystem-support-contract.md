@@ -1,7 +1,7 @@
 ---
 title: "Rust ecosystem support contract"
 description: "Machine-readable contract paths and semantics for Vox Rust crate-family support metadata."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-28"
 training_eligible: true
 

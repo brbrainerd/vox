@@ -1,7 +1,7 @@
 ---
 title: "Vox Webhook Integration"
 description: "Lightweight HTTP gateway for receiving events from external services and routing into the orchestrator with HMAC verification."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-05"
 training_eligible: true

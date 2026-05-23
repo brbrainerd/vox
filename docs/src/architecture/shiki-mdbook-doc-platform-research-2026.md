@@ -1,7 +1,7 @@
 ---
 title: "Shiki, mdBook & Documentation Platform Evaluation (2026)"
 description: "Comprehensive research and quantified feature comparison of documentation site generators and syntax highlighting strategies for an AI-native, Rust-first codebase in 2026."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Research on documentation platforms."

@@ -7,7 +7,7 @@ import { getSidebar } from './src/utils/sidebar.mjs';
 import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 
 export default defineConfig({
-  site: 'https://vox-lang.org/',
+  site: 'https://voxlang.org/',
   // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
   // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
   markdown: {

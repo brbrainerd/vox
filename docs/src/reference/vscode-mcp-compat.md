@@ -1,7 +1,7 @@
 ---
 title: "VS Code extension and vox-mcp compatibility"
 description: "Maps canonical MCP registry, VS Code parity scripts, activation model, wire aliases, MCP-related settings, release checklist, and manual compatibility/theme verification between the extension and vox-mcp."
-category: "reference"
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

@@ -1,7 +1,7 @@
 ---
 title: "TanStack Start Codegen Specification"
 description: "Complete technical specification for how Vox compiler emits a real runnable TanStack Start fullstack application. Covers decorator fate, HIR changes, emitter refactors, scaffold files, virtual route trees, server function architecture, and layout/context/loading/not_found decorator repurposing. This is the SSOT for the TanStack Start codegen build-out."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 

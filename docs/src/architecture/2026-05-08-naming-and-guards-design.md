@@ -1,7 +1,7 @@
 ---
 title: "Naming & Anti-Entanglement Guards (2026-05-08)"
 description: "Design for LLM-navigation naming conventions and CI drift guards after the 2026-05-08 workspace reorg."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

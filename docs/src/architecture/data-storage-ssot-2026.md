@@ -1,6 +1,6 @@
 ---
 title: "Data Storage SSOT (2026)"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Single source of truth for data storage architecture"

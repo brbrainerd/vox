@@ -1,7 +1,7 @@
 ---
 title: "Version Tracking SSOT Research 2026"
 description: "Research and best practices on establishing a single source of truth for versioning across Cargo crates, standard documentation, and compiler IR for the Vox 0.4 language."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 10
 last_updated: "2026-04-16"

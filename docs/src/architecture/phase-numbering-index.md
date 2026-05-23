@@ -1,7 +1,7 @@
 ---
 title: "Phase Numbering Index"
 description: "Disambiguates the three independent phase sequences used in vox plans. When a plan or commit says 'Phase N', look here first."
-category: "architecture"
+category: "Architecture SSOTs"
 status: current
 last_updated: "2026-05-11"
 training_eligible: true

@@ -1,7 +1,7 @@
 ---
 title: "FFScript Mutation API Spec (T-041)"
 description: "Full TypeScript interface for the FFScriptDoc mutation API: 15 public methods, branded types, JSON-Patch undo/redo, error types, and optimistic-concurrency contract."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation spec for a separate codebase (FableForge)."

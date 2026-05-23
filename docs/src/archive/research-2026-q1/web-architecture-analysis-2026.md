@@ -1,7 +1,7 @@
 ---
 title: "Vox Web Architecture Analysis"
 description: "Official documentation for Vox Web Architecture Analysis for the Vox language. Detailed technical reference, architecture guides, and imp"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

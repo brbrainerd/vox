@@ -1,7 +1,7 @@
 ---
 title: "Coding Agent Instructions"
 description: "Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox."
-category: "contributor"
+category: "Contributors"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

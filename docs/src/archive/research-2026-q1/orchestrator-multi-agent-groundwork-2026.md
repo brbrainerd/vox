@@ -1,7 +1,7 @@
 ---
 title: "Orchestrator multi-agent groundwork (2026)"
 description: "Code-grounded baseline for delegation topology, unified routing, provenance ledger, Vox orchestration surface, and OpenRouter enrichment."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-28"
 
 schema_type: "TechArticle"

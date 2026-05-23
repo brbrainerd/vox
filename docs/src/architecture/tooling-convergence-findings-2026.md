@@ -1,7 +1,7 @@
 ---
 title: "Tooling Convergence — Findings & Plan (2026-05-09)"
 description: "Audit of Vox testing, linting, code-quality, architectural, doc, search, and CI/CD tooling. Inventory of redundancy and gaps, plus a phased convergence plan that picks the best tool for each job and routes every check through a single owner."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 ---

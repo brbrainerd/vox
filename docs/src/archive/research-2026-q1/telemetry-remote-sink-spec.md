@@ -1,7 +1,7 @@
 ---
 title: "Telemetry remote sink specification"
 description: "Normative behavior for optional vox telemetry upload: transport, auth, limits, signing roadmap."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-02"
 training_eligible: false
 

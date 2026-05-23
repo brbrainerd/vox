@@ -1,7 +1,7 @@
 ---
 title: "AI Agent Context and Handoff Research"
 description: "Synthesis on context management and multi-agent handoff continuity."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

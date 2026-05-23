@@ -1,7 +1,7 @@
 ---
 title: "Interop tier policy"
 description: "SSOT for the four-tier Vox interop model: core surfaces, approved bindings, package-managed Vox libraries, and explicit escape hatches."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-28"
 training_eligible: false
 

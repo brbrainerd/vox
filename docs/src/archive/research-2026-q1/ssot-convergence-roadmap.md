@@ -1,7 +1,7 @@
 ---
 title: "SSOT / DRY convergence roadmap"
 description: "Rev C convergence scope: authoritative contract and registry artifacts, machine-readable drift evidence, and planned waves extending existing guards (ssot-drift, persistence normalization) rather than parallel checkers."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

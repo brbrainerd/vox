@@ -1,7 +1,7 @@
 ---
 title: "Network Neuroscience Theory Orchestration Implementation Plan (2026)"
 description: "Implementation roadmap for integrating small-world topologies and affinity routing into the vox-dei orchestrator."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 186
 last_updated: "2026-04-16"

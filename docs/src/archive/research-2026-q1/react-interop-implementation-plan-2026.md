@@ -1,7 +1,7 @@
 ---
 title: "Vox Web: Minimal React Interop Implementation Plan"
 description: "Complete implementation plan for Vox's minimal-surface, framework-agnostic React interop system. Supersedes the TanStack Start-specific codegen plan. Covers route manifest pattern, vox-client typed fetch SDK, v0/shadcn compatibility, decorator retirement, and full migration with 250+ tasks."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 

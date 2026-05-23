@@ -1,7 +1,7 @@
 ---
 title: "Research index"
 description: "Guide to the research, findings, and roadmap-heavy documentation in the architecture section."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 5
 last_updated: "2026-04-17"

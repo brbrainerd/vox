@@ -1,7 +1,7 @@
 ---
 title: "AGENTS.md"
 description: "Documentation for AGENTS.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Project architecture context."

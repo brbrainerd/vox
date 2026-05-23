@@ -1,7 +1,7 @@
 ---
 title: "HF fine-tune gap matrix (SSOT ↔ code)"
 description: "Official documentation for HF fine-tune gap matrix (SSOT ↔ code) for the Vox language. Detailed technical reference, architecture guides,"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 

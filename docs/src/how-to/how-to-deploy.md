@@ -1,7 +1,7 @@
 ---
 title: "How-To: Deploy to Production"
 description: "Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-04-06"
 status: "current"
 training_eligible: true

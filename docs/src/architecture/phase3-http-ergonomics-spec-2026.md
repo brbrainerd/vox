@@ -1,7 +1,7 @@
 ---
 title: "Phase 3: HTTP Ergonomics Decorators Spec (2026)"
 description: "Design spec for explicit method/path, @cors, @auth, and @rate_limit decorators on Vox endpoints."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Implementation spec for HTTP ergonomics; required reading before touching endpoint codegen or HIR endpoint nodes."

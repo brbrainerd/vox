@@ -1,7 +1,7 @@
 ---
 title: "ADR 030 — state_machine as SSoT for reactive UI state"
 description: "Formally adopts the Vox state_machine compiler primitive as the single source of truth for all reactive browser UI state in vox-dashboard and Vox-generated applications."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-01"
 training_eligible: true

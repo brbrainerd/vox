@@ -1,7 +1,7 @@
 ---
 title: "Vox Publication and Orchestration Hardening: Implementation Plan 2026"
 description: "Ordered execution plan for de-factoring God Objects across vox-publisher, vox-orchestrator, and vox-cli to adhere to the 500-line TOESTUB architectural policy."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "experimental"
 
 last_updated: "2026-04-13"

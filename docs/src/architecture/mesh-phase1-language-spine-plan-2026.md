@@ -1,7 +1,7 @@
 ---
 title: "Mesh Phase 1 — Language Spine Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD implementation plan for Phase 1 of the Mesh & Language-Distribution SSOT: collapse Future/Promise/Activity-result/Awakeable into the single DurablePromise[T] primitive, introduce @remote, auto-derive activity_id, flip effect inference to bottom-up, add workflow determinism check, side_effect blocks, and `vox workflow preview`. 9 task groups, ~1900 lines."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. Spec/SSOT is the durable artifact."

@@ -102,3 +102,83 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v5
 
+  # ── Cloudflare Pages Deploy (parallel to GH Pages during cutover) ─────────
+  # After CF Pages is stable, the GH Pages job above can be removed (see
+  # docs/superpowers/plans/2026-05-23-voxlang-hosting-docs-overhaul.md Phase Z).
+  deploy-cloudflare:
+    name: Deploy to Cloudflare Pages
+    needs: build-docs
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Build Docs Pipeline
+        run: cargo build -p vox-doc-pipeline --profile ci
+        env:
+          RUSTC_WRAPPER: sccache
+
+      - name: Run Docs Pipeline (extract + validate SUMMARY)
+        run: cargo run -p vox-doc-pipeline
+        env:
+          SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
+
+      - name: Install docs-astro deps
+        working-directory: docs-astro
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Starlight
+        working-directory: docs-astro
+        run: pnpm build
+
+      - name: Deploy to Cloudflare Pages
+        working-directory: docs-astro
+        run: npx wrangler pages deploy dist --project-name=vox-docs --branch=main --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+  # ── Live site smoke test (runs after CF deploy completes) ────────────────
+  smoke-test:
+    name: Smoke test live site
+    needs: deploy-cloudflare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Install docs-astro deps
+        working-directory: docs-astro
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright Chromium
+        working-directory: docs-astro
+        run: npx playwright install chromium --with-deps
+      - name: Wait for CF Pages propagation
+        run: sleep 30
+      - name: Run smoke test
+        working-directory: docs-astro
+        run: npx playwright test tests/smoke.spec.ts
+        env:
+          BASE_URL: https://voxlang.org
+

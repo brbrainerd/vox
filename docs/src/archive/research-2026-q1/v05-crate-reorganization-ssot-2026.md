@@ -1,7 +1,7 @@
 ---
 title: "Vox V0.5 Crate Reorganization and Stability SSOT (2026)"
 description: "Authoritative tier classification for all 64 workspace crates, React-as-primary-target declaration, and the strategy for surfacing maturity warnings. Prerequisite for V1.0 scope discipline."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 domain: "P"
 last_updated: "2026-04-18"

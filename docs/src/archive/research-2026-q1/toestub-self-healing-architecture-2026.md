@@ -1,7 +1,7 @@
 ---
 title: "TOESTUB self-healing architecture 2026"
 description: "Research-backed architecture blueprint for evolving TOESTUB into a self-healing, LLM-aware quality system integrated with Populi and MENS."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-26"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Repository cleanup ledger (2026 deep reorg)"
 description: "Audit ledger for orphan artifact removal, runtime untracking, surface folder clustering, and docs/superpowers/plans sprawl reduction."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: false

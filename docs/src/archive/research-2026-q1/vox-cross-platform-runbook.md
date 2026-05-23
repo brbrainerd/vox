@@ -1,7 +1,7 @@
 ---
 title: "Cross-platform Vox — runbook"
 description: "Official documentation for Cross-platform Vox — runbook for the Vox language. Detailed technical reference, architecture guides, and impl"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

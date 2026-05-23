@@ -1,7 +1,7 @@
 ---
 title: "Secrets SSOT"
 description: "Canonical secret-management source of truth for Vox Secrets"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-05-08"
 training_eligible: true
 

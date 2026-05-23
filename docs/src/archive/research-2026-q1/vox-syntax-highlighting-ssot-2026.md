@@ -1,7 +1,7 @@
 ---
 title: "Vox Syntax Highlighting: Universal SSOT Strategy (2026)"
 description: "Research synthesis on how tree-sitter-vox, TextMate grammars, and Markdown injection queries combine to provide consistent, IDE-agnostic Vox syntax coloring everywhere code appears."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 last_updated: "2026-04-16"

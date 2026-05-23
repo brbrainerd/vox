@@ -1,7 +1,7 @@
 ---
 title: "Getting Started with Vox"
 description: "Zero to full-stack in under 5 minutes. Initial setup, first app, and basic concepts."
-category: "getting-started"
+category: "Tutorials"
 sort_order: 1
 
 schema_type: "HowTo"

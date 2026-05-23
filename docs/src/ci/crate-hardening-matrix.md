@@ -1,7 +1,7 @@
 ---
 title: "Crate hardening matrix (rolling)"
 description: "Official documentation for Crate hardening matrix (rolling) for the Vox language. Detailed technical reference, architecture guides, and "
-category: "reference"
+category: "CI & Quality"
 last_updated: "2026-03-24"
 training_eligible: true
 

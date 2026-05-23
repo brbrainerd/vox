@@ -1,7 +1,7 @@
 ---
 title: "ADR 016: Oratio streaming Whisper and constrained decode"
 description: "Decide how Vox ships wire-level streaming Whisper and decoder-time constrained generation in Candle."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-28"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Deprecation policy — Mens native fine-tuning"
 description: "Official documentation for Deprecation policy — Mens native fine-tuning for the Vox language. Detailed technical reference, architectur"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

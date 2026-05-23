@@ -1,7 +1,7 @@
 ---
 title: "Vox v1.0 LLM-Target Implementation Plan (2026)"
 description: "Phased implementation plan for delivering CR-L0..CR-L8 (the §5 LLM-Target Fidelity criteria of v1-release-criteria.md). Names owners, dependencies, fixture-corpus budget, CI contract, risk register, rollback policy."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-15"
 training_eligible: false

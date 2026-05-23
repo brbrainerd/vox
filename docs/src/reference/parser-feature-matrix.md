@@ -1,7 +1,7 @@
 ---
 title: "Parser feature matrix"
 description: "Current parser coverage matrix for Vox declarations and expressions."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-05-09"
 training_eligible: true
 

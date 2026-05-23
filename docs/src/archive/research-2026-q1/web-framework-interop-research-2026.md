@@ -1,7 +1,7 @@
 ---
 title: "Web Framework Interop Research 2026"
 description: "Codebase-grounded research on React, TanStack, Svelte, SolidJS, Next.js, Qwik, Astro, and Vite — their TypeScript requirements, convergence trends, and how Vox can support all of them as an AI-first compilation target without creating a maintenance nightmare."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-14"
 training_eligible: false

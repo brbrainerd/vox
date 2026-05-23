@@ -1,7 +1,7 @@
 ---
 title: "Eval sandbox deployment (Coolify)"
 description: "Public MCP HTTP eval gateway at eval.vox-lang.org — image, compose, DNS, Coolify API sync."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Operators need one place for eval stack topology and provisioning."
@@ -13,7 +13,7 @@ related:
 
 # Eval sandbox deployment (Coolify)
 
-The **eval sandbox** is a minimal **`vox mcp`** HTTP gateway that exposes **`/v1/eval`** for the static docs playground. It does **not** mount a workspace or provider keys. Production URL: **`https://eval.vox-lang.org`**. The documentation site (**`https://vox-lang.org`**) is separate (GitHub Pages / mdBook), not this stack.
+The **eval sandbox** is a minimal **`vox mcp`** HTTP gateway that exposes **`/v1/eval`** for the static docs playground. It does **not** mount a workspace or provider keys. Production URL: **`https://eval.vox-lang.org`**. The documentation site (**`https://voxlang.org`**) is separate (GitHub Pages / mdBook), not this stack.
 
 ## Compose and container image
 

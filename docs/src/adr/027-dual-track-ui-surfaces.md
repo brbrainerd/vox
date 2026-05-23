@@ -1,7 +1,7 @@
 ---
 title: "ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)"
 description: "Splits Vox's UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent and the training corpus stays clean."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "deprecated"
 last_updated: "2026-05-01"
 training_eligible: false

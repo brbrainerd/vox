@@ -1,3 +1,9 @@
+---
+title: "Implementation Plan: State Unification & TS Hardening (2026)"
+category: "Architecture SSOTs"
+status: "current"
+---
+
 # Implementation Plan: State Unification & TS Hardening (2026)
 
 This plan addresses the "split plane" issue in Vox web development by ensuring that structural state (state machines, component state, and reactive modules) is emitted to React/TypeScript with the same fidelity and safety as the Native Rust target.

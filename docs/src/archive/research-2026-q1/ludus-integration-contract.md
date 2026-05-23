@@ -1,7 +1,7 @@
 ---
 title: "Vox Ludus integration contract (producers)"
 description: "Producer contract: snake_case event types, route_event on Codex (not raw process_event_rewards), ludus_dedupe_id for idempotency, config/env/CLI/MCP surfaces, canonical_user_id, and PR checklist."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

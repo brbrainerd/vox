@@ -1,7 +1,7 @@
 ---
 title: "Web Framework Interop — Codebase Backlog 2026"
 description: "Exhaustive task backlog derived from codebase audit, refined against Svelte 5, Solid 2.0, and Vite 8/Rolldown realities. Optimized to prune multi-compiler bloat in favor of a rock-solid 'Library Mode'."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-15"
 parent: "web-framework-interop-research-2026.md"

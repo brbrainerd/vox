@@ -1,7 +1,7 @@
 ---
 title: "Reference: async and concurrency"
 description: "async/await keywords, spawn, and workflow-shaped syntax vs runtime scheduling."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

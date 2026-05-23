@@ -1,7 +1,7 @@
 ---
 title: "Agentic VCS Automation — Phase 1 Implementation Plan (2026-05-08)"
 description: "Step-by-step TDD plan that implements Phase 1 of the agentic-version-control-automation research: capability types, workspace↔branch binding, central banned-command-enforcing git exec wrapper, secret-scanner, write-side commit and branch MCP tools, telemetry namespace, and one production callsite migration. Phases 2–4 (Vox @vcs.* decorators, dashboard, .vox glue) are sketched at the end as separate plans."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 1 lowers the agentic-vcs research findings into concrete, ordered tasks with full code, exact file paths, exact commands, and TDD steps. Every task produces a commit. Future agents executing this plan should not need to invent code."

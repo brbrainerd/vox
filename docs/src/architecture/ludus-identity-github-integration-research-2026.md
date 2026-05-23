@@ -1,7 +1,7 @@
 ---
 title: "Ludus Identity Federation & GitHub Integration"
 description: "Research findings and architecture plan for decentralized Ludus profile storage and GitHub account linking."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Defines identity federation patterns and gamification integration for contributor workflows."

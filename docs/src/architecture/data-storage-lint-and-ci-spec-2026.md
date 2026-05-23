@@ -1,7 +1,7 @@
 ---
 title: "Data Storage Lint & CI Spec (2026)"
 description: "Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real* `.gitlab-ci.yml` `vox-ci-guards` job and `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Machine-checkable policy the repository will enforce; agents should assume these gates are live and reason about changes under their constraints."

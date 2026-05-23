@@ -1,7 +1,7 @@
 ---
 title: "Multi-Agent VCS Replication — Landscape Research (2026-05-03)"
 description: "Survey of version-control and CRDT systems evaluated for a multi-agent code-collaboration substrate. Finds no off-the-shelf project provides codebase-scale auto-converging replication; recommends building op-log gossip on top of existing jj-lib + Populi mesh investment (Path 1) over pivoting to Pijul (Path 2) or an Automerge-based hybrid (Path 3). Companion to the spec doc."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Canonical justification for why Vox builds its own op-log gossip protocol on jj rather than adopting Pijul or Automerge. Names the projects evaluated, their fitness scores, and the decision criteria so future agents don't re-run the survey."

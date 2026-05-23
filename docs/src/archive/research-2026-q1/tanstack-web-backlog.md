@@ -1,7 +1,7 @@
 ---
 title: "TanStack web backlog"
 description: "Official documentation for TanStack web backlog for the Vox language. Detailed technical reference, architecture guides, and implementati"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-04-08"
 training_eligible: false
 

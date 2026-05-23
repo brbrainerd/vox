@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh — Config Baseline Spec (S1, 2026-05-01)"
 description: "Slice S1 child spec for workstream W7 partial. Designs the Vox.toml [mesh] schema, sensible defaults, an env-var precedence policy, and the populi-quickstart how-to. Sets up the surface that S2/S3 operator-UX work extends."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Defines the configuration surface for the Populi mesh and the env-var deprecation contract."

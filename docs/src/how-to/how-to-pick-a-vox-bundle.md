@@ -1,7 +1,7 @@
 ---
 title: "Picking a Vox bundle"
 description: "Decision guide for choosing the right Vox distribution bundle for your use case."
-category: how-to
+category: "How-To Guides"
 ---
 
 # Picking a Vox bundle

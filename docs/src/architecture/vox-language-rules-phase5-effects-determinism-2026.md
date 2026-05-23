@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules — Phase 5: Effect System & Workflow Determinism (2026-05-09)"
 description: "Multi-quarter step-by-step plan to land the @uses(net | fs | time | random | secret) effect system on every public fn, prove @pure transitively, forbid non-deterministic builtins inside workflow bodies (ADR-019 promised this), enforce @uses(fs(read:'./data/**')) glob declarations against literal paths, and lock the closed bare-keyword table from Phase 1. Each effect ships as warning over two minor versions, then escalates to error. Effect-row foundations land in Task 1; per-effect rules follow as one task each so partial completion is still a usable improvement."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 5 child plan. Largest single language win in the series. Sized for multi-quarter execution; child plan per-effect. Symmetric error/fix pairs (vox/effect/missing-X-decl ↔ vox/effect/unjustified-X-decl) deliberately designed so LLM training picks up the inverse rule at the same time."

@@ -1,7 +1,7 @@
 ---
 title: "Environment variables (SSOT)"
 description: "Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-04-11"
 training_eligible: true
 

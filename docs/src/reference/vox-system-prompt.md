@@ -1,7 +1,7 @@
 ---
 title: "Vox Language System Prompt"
 description: "Vox language primer for LLM code generation — constructs, syntax, actors, workflows, and best practices."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 training_rationale: "Canonical LLM primer for Vox syntax; high-value for MENS training corpus and agent bootstrapping."

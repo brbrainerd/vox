@@ -1,7 +1,7 @@
 ---
 title: "Telemetry unification design 2026"
 description: "Runtime architecture for unifying Vox telemetry emission behind an L1 facade crate, with default-on local collection, durable model performance metrics, and propagated agent call trees. Supersedes the deferred 'open questions' from the 2026-Q1 trust-governance pass."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-05-09"
 training_eligible: false
