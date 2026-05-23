@@ -1,0 +1,5 @@
+[package]
+name = "repair-050-undefined-fn-call"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. The function `do_thing` is called but has no declaration in scope."

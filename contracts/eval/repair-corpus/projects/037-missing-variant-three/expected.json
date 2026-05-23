@@ -1,0 +1,6 @@
+{
+  "id": "repair-037-missing-variant-three",
+  "bug_class": "exhaustiveness",
+  "post_repair_criterion": "vox_check_clean",
+  "expected_diagnostic_count_before_min": 1
+}

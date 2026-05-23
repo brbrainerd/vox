@@ -1,0 +1,5 @@
+[package]
+name = "repair-006-type-mismatch-arith"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: type-error bug class. Arithmetic between str and int."

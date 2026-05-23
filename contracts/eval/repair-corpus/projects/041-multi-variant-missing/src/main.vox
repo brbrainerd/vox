@@ -1,0 +1,17 @@
+// Repair-corpus fixture 041 — exhaustiveness bug class.
+// The Color ADT has five variants but the match only handles two.
+// Expected repair: add arms for Green, Yellow, and Purple.
+
+type Color =
+    | Red
+    | Blue
+    | Green
+    | Yellow
+    | Purple
+
+fn hex(c: Color) to str {
+    match c {
+        Red  => "#ff0000"
+        Blue => "#0000ff"
+    }
+}

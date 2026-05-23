@@ -1,0 +1,14 @@
+// Repair-corpus fixture 033 — exhaustiveness bug class.
+// Custom Maybe ADT matched only on the Just(_) variant; the Nothing arm is missing.
+// (Mirrors the canonical Option-missing-None bug shape.)
+// Expected repair: add a `Nothing => 0` arm.
+
+type Maybe =
+    | Just(value: int)
+    | Nothing
+
+fn unwrap_or_zero(m: Maybe) to int {
+    match m {
+        Just(n) => n
+    }
+}

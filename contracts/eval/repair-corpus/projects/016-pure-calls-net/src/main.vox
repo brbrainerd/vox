@@ -1,0 +1,8 @@
+// Repair-corpus fixture 016 — effect-violation bug class.
+// @pure fn performs network IO via `http.get()` (Net capability).
+// Expected repair: drop @pure and declare `uses net`, or remove the HTTP call.
+
+@pure
+fn fetch_homepage() to str {
+    http.get("https://example.com")
+}

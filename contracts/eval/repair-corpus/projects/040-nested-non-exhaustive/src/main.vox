@@ -1,0 +1,18 @@
+// Repair-corpus fixture 040 — exhaustiveness bug class.
+// Nested ADT: the outer Box wraps an inner Outcome. The match only
+// covers Wrap(Success(_)); Wrap(Failure(_)) and Empty are missing.
+// Expected repair: add the missing arms.
+
+type Outcome =
+    | Success(value: int)
+    | Failure(reason: str)
+
+type Box =
+    | Wrap(inner: Outcome)
+    | Empty
+
+fn unwrap_nested(b: Box) to int {
+    match b {
+        Wrap(Success(n)) => n
+    }
+}

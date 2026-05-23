@@ -10,13 +10,13 @@ schema_version: 1
 corpus:
   id: repair-corpus
   schema_version: 1
-  status: seed                              # 5 fixtures landed 2026-05-18 (P3.2)
+  status: target-met                        # 50 fixtures landed 2026-05-23 (honest plan §4.2)
   bar:
     project_scope_target: 0.70
     single_file_aim: 0.90
     sub_bar_block_project_scope: 0.50
   count_target: 50
-  count_current: 5
+  count_current: 50
   corpus_hash: "blake3:populated-by-RepairCorpusRunner-at-run-time"
 
 # Target distribution: 10 fixtures per bug class.

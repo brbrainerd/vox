@@ -1,0 +1,5 @@
+[package]
+name = "repair-036-missing-ok"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: exhaustiveness bug class. Custom Outcome ADT match missing the Success arm (Result-missing-Ok shape)."

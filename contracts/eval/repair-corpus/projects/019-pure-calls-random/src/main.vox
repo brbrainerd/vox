@@ -1,0 +1,12 @@
+// Repair-corpus fixture 019 — effect-violation bug class.
+// @pure fn calls a helper that declares `uses random` (entropy / non-determinism).
+// Expected repair: drop @pure and declare `uses random`, or thread a seed argument.
+
+fn fresh_uuid() uses random to str {
+    "00000000-0000-0000-0000-000000000000"
+}
+
+@pure
+fn make_id() to str {
+    fresh_uuid()
+}

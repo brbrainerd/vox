@@ -1,0 +1,20 @@
+// Base source for plan-035-add-table-with-index.
+//
+// A single Article table. The plan asks the model to add an
+// ArticleTag join-style table.
+
+@table type Article {
+    id: str,
+    title: str
+}
+
+@endpoint(kind: query)
+fn list_articles() to List[Article] {
+    return []
+}
+
+@test
+fn test_list_articles_empty() to Unit {
+    let xs = list_articles()
+    assert(len(xs) is 0)
+}

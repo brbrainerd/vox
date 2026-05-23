@@ -1,0 +1,51 @@
+id = "plan-043-extract-workflow-step"
+wave = "wave_3"
+description = "Extract a named helper for an inlined workflow step."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The `process_order` orchestration fn inlines four sequential
+steps (validate, charge, ship, log). Extract the third step (ship)
+into a named helper `ship_order(order_id: str) to Result[str]` and
+call it from `process_order` in place of the inlined body. The
+`process_order` signature and the order of effects must not change.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(payload)` for Result errors and bare variant constructors
+    for ADT errors.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Use `match` to discriminate Result variants.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Identify the third inlined step (ship) in process_order."
+
+[[steps]]
+step = 2
+verb = "extract"
+description = "Add the new ship_order helper fn."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Replace the inlined step with a call to ship_order."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "Existing @test still runs clean."
+
+[success_criteria]
+vox_check_passes = true
+helper_fn_added = true
+process_order_signature_unchanged = true
+existing_tests_pass = true

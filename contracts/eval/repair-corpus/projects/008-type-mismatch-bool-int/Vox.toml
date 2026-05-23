@@ -1,0 +1,5 @@
+[package]
+name = "repair-008-type-mismatch-bool-int"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: type-error bug class. Comparing bool with int via `is`."

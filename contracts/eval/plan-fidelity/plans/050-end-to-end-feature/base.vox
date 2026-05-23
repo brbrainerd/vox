@@ -1,0 +1,32 @@
+// Base source for plan-050-end-to-end-feature.
+//
+// A single @table + query endpoint. The plan asks the model to add
+// an archive feature end-to-end: extend the table with an
+// `archived_at` field, add an `archive_todo` mutation endpoint, and
+// add a @test exercising the empty-id error path.
+
+@table type Todo {
+    id: str,
+    title: str,
+    done: bool
+}
+
+type TodoError =
+    | Missing(text: str)
+
+@endpoint(kind: query) @auth(scheme: bearer)
+fn get_todo(id: str) to Result[Todo, TodoError] {
+    if len(id) is 0 {
+        return Error(Missing("id must not be empty"))
+    }
+    return Error(Missing("not found"))
+}
+
+@test
+fn test_get_todo_empty_returns_error() to Unit {
+    let r = get_todo("")
+    match r {
+        Error(Missing(_)) => assert(true)
+        Ok(_)             => assert(false)
+    }
+}

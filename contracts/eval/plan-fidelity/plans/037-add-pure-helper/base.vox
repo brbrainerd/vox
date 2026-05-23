@@ -1,0 +1,14 @@
+// Base source for plan-037-add-pure-helper.
+//
+// Small project skeleton. The plan asks the model to add a pure
+// `fmt_money(cents: int) to str` helper plus a @test.
+
+@endpoint(kind: query)
+fn total_cents() to int {
+    return 199
+}
+
+@test
+fn test_total_cents() to Unit {
+    assert(total_cents() is 199)
+}

@@ -1,0 +1,6 @@
+{
+  "id": "repair-014-type-mismatch-result-payload",
+  "bug_class": "type-error",
+  "post_repair_criterion": "vox_check_clean",
+  "expected_diagnostic_count_before_min": 1
+}

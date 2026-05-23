@@ -1,0 +1,67 @@
+id = "plan-050-end-to-end-feature"
+wave = "wave_3"
+description = "Add an archive feature end-to-end (field + endpoint + test)."
+max_steps = 6
+max_cost_usd = 0.75
+
+prompt = """
+Starting from a single `@table type Todo` and a `get_todo` query
+endpoint, add an archive feature end-to-end:
+  - Add a new field `archived_at: str` to the `Todo` table type.
+    Keep all existing fields in place; new field goes last.
+  - Add a new endpoint
+    `@endpoint(kind: mutation) @auth(scheme: bearer) fn archive_todo(id: str) to Result[str, TodoError]`.
+    On empty id return `Error(Missing("id must not be empty"))`.
+    On non-empty id return `Ok("archived")`.
+  - Add a `@test` exercising the empty-id error path via the
+    `TodoError` ADT and matching `Error(Missing(_))`.
+
+Vox conventions to honor (the base source already follows them):
+  - `@table type Name { field: T, ... }`.
+  - `@endpoint(kind: query|mutation|stream)`.
+  - `@auth(scheme: bearer)`.
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - Variant constructors are referenced bare (e.g. `Missing("...")`),
+    not as `TodoError.Missing(...)`.
+  - Use `match` in the @test to discriminate Result variants;
+    each arm should call `assert(true)` or `assert(false)`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing Todo table + get_todo endpoint as reference."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Add the archived_at field to Todo."
+
+[[steps]]
+step = 3
+verb = "write"
+description = "Add the archive_todo mutation endpoint."
+
+[[steps]]
+step = 4
+verb = "write-test"
+description = "Append the @test covering the Missing variant."
+
+[[steps]]
+step = 5
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 6
+verb = "verify-test"
+description = "The new @test runs clean via the in-process interpreter."
+
+[success_criteria]
+vox_check_passes = true
+new_field_added = true
+new_endpoint_added = true
+new_test_passes = true
+adt_error_variant_used = true
+auth_decorator_present = true

@@ -1,0 +1,22 @@
+// Repair-corpus fixture 032 — logic bug class.
+// `first_or_zero(xs)` is supposed to return the first element
+// of the list, or 0 when the list is empty. The empty-list
+// branch mistakenly returns 1, so callers that rely on the
+// "or zero" contract receive the wrong fallback. Expected
+// repair: change `return 1` to `return 0`.
+
+fn first_or_zero(xs: List[int]) to int {
+    if len(xs) is 0 {
+        return 1
+    }
+    for v in xs {
+        return v
+    }
+    return 0
+}
+
+@test
+fn test_first_or_zero_empty() to Unit {
+    let xs: List[int] = []
+    assert(first_or_zero(xs) is 0)
+}

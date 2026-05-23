@@ -1,0 +1,8 @@
+// Base source for plan-008-add-import-style-helper.
+//
+// The plan asks the model to ADD a small `shout` helper fn above the
+// existing `greet` fn. `greet` must remain byte-identical.
+
+fn greet(name: str) to str {
+  return "hello, " + name
+}

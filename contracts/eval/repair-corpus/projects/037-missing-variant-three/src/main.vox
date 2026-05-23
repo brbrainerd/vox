@@ -1,0 +1,15 @@
+// Repair-corpus fixture 037 — exhaustiveness bug class.
+// The Status ADT has three variants but the match only handles two.
+// Expected repair: add a `Done => "done"` arm.
+
+type Status =
+    | Pending
+    | Active
+    | Done
+
+fn describe(s: Status) to str {
+    match s {
+        Pending => "pending"
+        Active  => "active"
+    }
+}

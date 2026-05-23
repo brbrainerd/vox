@@ -1,0 +1,9 @@
+// Repair-corpus fixture 012 — type-error bug class.
+// The `p` let-binding is annotated `str` but assigned the float
+// literal 3.14. Expected repair: change the annotation to `float`,
+// or wrap the value as `str(3.14)`.
+
+fn pi_label() to str {
+    let p: str = 3.14
+    return p
+}

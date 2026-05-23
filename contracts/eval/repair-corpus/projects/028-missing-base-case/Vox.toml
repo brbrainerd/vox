@@ -1,0 +1,5 @@
+[package]
+name = "repair-028-missing-base-case"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Recursive factorial has the wrong base-case value."

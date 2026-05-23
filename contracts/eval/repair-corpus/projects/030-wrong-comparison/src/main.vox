@@ -1,0 +1,17 @@
+// Repair-corpus fixture 030 — logic bug class.
+// `max(a, b)` is supposed to return the larger of two ints,
+// but the comparison direction is wrong, so it returns the
+// smaller value. Expected repair: flip `<` to `>` (or swap
+// the two return branches).
+
+fn max(a: int, b: int) to int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+@test
+fn test_max_three_seven() to Unit {
+    assert(max(3, 7) is 7)
+}

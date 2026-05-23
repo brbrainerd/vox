@@ -1,0 +1,43 @@
+id = "plan-041-add-bulk-mutation"
+wave = "wave_2"
+description = "Add a bulk-delete mutation returning a count."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+Add a new endpoint
+`@endpoint(kind: mutation) fn delete_all() to Result[int, FooError]`
+that returns `Ok(0)`. Use the existing `FooError` ADT — do not
+introduce a new one. Do not modify existing endpoints.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing FooError ADT and endpoints."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Append the new `delete_all` endpoint."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+new_endpoint_added = true
+result_int_return_type = true

@@ -1,0 +1,15 @@
+// Repair-corpus fixture 045 — api-misuse bug class.
+// `worker` returns Result[int], but the caller binds the call to a
+// let annotated `int` — dropping the Result wrapper instead of
+// matching on it. Expected repair: match the Result and pull the int
+// out of Ok, e.g.
+// `let x = match worker() { Ok(v) => v, Error(_) => 0 }`.
+
+fn worker() to Result[int] {
+    return Ok(1)
+}
+
+fn caller() to int {
+    let x: int = worker()
+    return x
+}

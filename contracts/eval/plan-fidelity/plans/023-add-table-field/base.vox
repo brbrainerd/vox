@@ -1,0 +1,29 @@
+// Base source for plan-023-add-table-field.
+//
+// The Todo table is missing a `done` column. The plan asks the model
+// to add it.
+
+@table type Todo {
+    id: str,
+    title: str
+}
+
+type TodoError =
+    | Empty(text: str)
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    return Ok(title)
+}
+
+@test
+fn test_add_todo_empty_returns_error() to Unit {
+    let result = add_todo("")
+    match result {
+        Error(Empty(_)) => assert(true)
+        Ok(_)           => assert(false)
+    }
+}

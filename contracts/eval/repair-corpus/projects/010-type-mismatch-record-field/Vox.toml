@@ -1,0 +1,5 @@
+[package]
+name = "repair-010-type-mismatch-record-field"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: type-error bug class. Record literal field has wrong type."

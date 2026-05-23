@@ -1,0 +1,13 @@
+// Base source for plan-015-add-mutation-endpoint.
+//
+// A read-only bookmark service. The plan asks the model to add a new
+// mutation endpoint that validates non-empty input.
+
+type BookmarkError =
+    | InvalidUrl(text: str)
+    | NotFound(text: str)
+
+@endpoint(kind: query)
+fn list_bookmarks() to List[str] {
+    return []
+}

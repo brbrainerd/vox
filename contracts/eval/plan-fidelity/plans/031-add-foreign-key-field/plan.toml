@@ -1,0 +1,42 @@
+id = "plan-031-add-foreign-key-field"
+wave = "wave_2"
+description = "Add a foreign-key-style field to an existing @table."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base has `@table type Order { id: str, total_cents: int }`. Add a
+new field `customer: str` to the Order table to act as a foreign-key
+reference. Do not change existing fields or their order.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing Order table layout."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Append the `customer: str` field to the @table."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+field_added = true
+existing_fields_unchanged = true

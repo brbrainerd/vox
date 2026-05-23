@@ -1,0 +1,36 @@
+id = "plan-008-add-import-style-helper"
+wave = "wave_1"
+description = "Introduce a small pure helper fn alongside an existing fn."
+max_steps = 3
+max_cost_usd = 0.50
+
+prompt = """
+The file declares fn `greet(name: str) to str` returning a greeting.
+Add a small pure helper fn `shout(s: str) to str` that returns the
+input prefixed with "!! " and suffixed with " !!". Place the helper
+above `greet`. Do not modify `greet` or its body.
+
+Vox conventions to honor:
+  - Return arrow is `to T`, not `->`.
+  - String concatenation uses `+`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Insert the `shout` helper fn above `greet`."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes; existing `greet` fn unchanged."
+
+[success_criteria]
+vox_check_passes = true
+helper_fn_added = true
+existing_fn_unchanged = true

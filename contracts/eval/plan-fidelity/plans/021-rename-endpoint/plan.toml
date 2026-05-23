@@ -1,0 +1,47 @@
+id = "plan-021-rename-endpoint"
+wave = "wave_2"
+description = "Rename an endpoint fn and update an in-file caller."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file defines `@endpoint fn create_todo(...)` and a helper fn
+`add_default_todo` that calls `create_todo("untitled")`. Rename the
+endpoint and helper to use `add_todo` instead of `create_todo` —
+both the @endpoint declaration AND every call site. The endpoint
+decorators, signature shape, and helper signature must otherwise be
+preserved.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `Empty("...")`),
+    not as `TodoError.Empty(...)`.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate `create_todo` declaration and call sites."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Rename the @endpoint fn."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Update the in-file caller to use the new name."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[success_criteria]
+vox_check_passes = true
+endpoint_renamed = true
+no_dangling_references = true
+existing_tests_pass = true

@@ -1,0 +1,6 @@
+{
+  "id": "repair-015-pure-calls-print",
+  "bug_class": "effect-violation",
+  "post_repair_criterion": "vox_check_clean",
+  "expected_diagnostic_count_before_min": 1
+}

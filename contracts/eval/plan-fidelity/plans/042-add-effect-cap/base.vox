@@ -1,0 +1,25 @@
+// Base source for plan-042-add-effect-cap.
+//
+// `classify` is annotated `@pure` but calls the non-pure builtin
+// `print(n)`. The plan asks the model to resolve the effect-capability
+// violation by removing the side effect (the print call) while
+// keeping the @pure annotation in place.
+
+@pure
+fn classify(n: int) to str {
+    print(n)
+    if n is 0 {
+        return "zero"
+    }
+    return "nonzero"
+}
+
+@test
+fn test_classify_zero() to Unit {
+    assert(classify(0) is "zero")
+}
+
+@test
+fn test_classify_nonzero() to Unit {
+    assert(classify(7) is "nonzero")
+}

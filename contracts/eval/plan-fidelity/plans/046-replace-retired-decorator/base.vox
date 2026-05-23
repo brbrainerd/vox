@@ -1,0 +1,38 @@
+// Base source for plan-046-replace-retired-decorator.
+//
+// `format_status` is `@deprecated` and is still called from the
+// `status_label` endpoint. The plan asks the model to introduce a
+// `@pure fn render_status(...)` replacement and migrate the in-file
+// caller. The old `format_status` must remain in place.
+
+@deprecated
+fn format_status(active: bool) to str {
+    if active is true {
+        return "online"
+    }
+    return "offline"
+}
+
+@endpoint(kind: query) @auth(scheme: bearer)
+fn status_label(active: bool) to Result[str] {
+    let label = format_status(active)
+    return Ok(label)
+}
+
+@test
+fn test_status_label_online() to Unit {
+    let r = status_label(true)
+    match r {
+        Ok(s) => assert(s is "online")
+        Error(_) => assert(false)
+    }
+}
+
+@test
+fn test_status_label_offline() to Unit {
+    let r = status_label(false)
+    match r {
+        Ok(s) => assert(s is "offline")
+        Error(_) => assert(false)
+    }
+}

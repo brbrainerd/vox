@@ -1,0 +1,42 @@
+id = "plan-034-add-actor"
+wave = "wave_2"
+description = "Introduce an actor to a project that currently has only endpoints."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base has only @endpoint definitions and no actor. Add a small
+`actor Counter { on incr() to int { return 1 } }`. Do not modify the
+existing endpoints.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Confirm there is no existing actor declaration."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Append the new `actor Counter` block."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+actor_added = true
+existing_endpoints_unchanged = true

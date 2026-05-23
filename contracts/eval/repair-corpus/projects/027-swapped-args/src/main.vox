@@ -1,0 +1,13 @@
+// Repair-corpus fixture 027 — logic bug class.
+// `divide(a, b)` is supposed to compute a / b, but the body
+// returns `b / a` instead. Expected repair: swap the operands
+// inside the division.
+
+fn divide(a: int, b: int) to int {
+    return b / a
+}
+
+@test
+fn test_divide_ten_by_two() to Unit {
+    assert(divide(10, 2) is 5)
+}

@@ -1,0 +1,50 @@
+id = "plan-013-tighten-return-type"
+wave = "wave_1"
+description = "Tighten a stringly-typed error into a proper ADT error type."
+max_steps = 4
+max_cost_usd = 0.50
+
+prompt = """
+The file declares fn `parse_age(s: str) to Result[int, str]` which
+returns `Error("empty")` or `Error("negative")` as bare strings.
+Introduce a proper ADT error type:
+
+  type AgeError =
+      | Empty
+      | Negative
+
+and change the fn signature to `to Result[int, AgeError]`. Replace
+the string errors with `Error(Empty)` and `Error(Negative)` bare
+variant constructors. The fn name and parameter list must not change.
+
+Vox conventions to honor:
+  - ADTs use `type Name = | Variant1 | Variant2` syntax.
+  - Variant constructors are bare: `Error(Empty)`, not `AgeError.Empty`.
+  - Return arrow is `to T`, not `->`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Add the `AgeError` ADT type above the fn."
+
+[[steps]]
+step = 3
+verb = "edit"
+description = "Change the fn return type and replace string errors with variants."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes; fn name and parameter list unchanged."
+
+[success_criteria]
+vox_check_passes = true
+adt_introduced = true
+return_type_tightened = true
+fn_name_unchanged = true

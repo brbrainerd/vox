@@ -1,0 +1,20 @@
+// Base source for plan-031-add-foreign-key-field.
+//
+// A minimal Order table. The plan asks the model to add a
+// `customer: str` field.
+
+@table type Order {
+    id: str,
+    total_cents: int
+}
+
+@endpoint(kind: query)
+fn list_orders() to List[Order] {
+    return []
+}
+
+@test
+fn test_list_orders_empty() to Unit {
+    let orders = list_orders()
+    assert(len(orders) is 0)
+}

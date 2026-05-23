@@ -1,0 +1,17 @@
+// Repair-corpus fixture 042 — api-misuse bug class.
+// db.Note.get expects Id[Note] (which erases to int in v0.5) but
+// the caller passes a bool. Expected repair: pass an int / Id[Note]
+// instead of the bool.
+
+@table type Note {
+    id: int,
+    body: str
+}
+
+fn lookup(flag: bool) to Option[Note] {
+    let row = db.Note.get(flag)
+    match row {
+        Ok(opt) => opt
+        Error(_) => None
+    }
+}

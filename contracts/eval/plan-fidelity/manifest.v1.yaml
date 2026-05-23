@@ -10,12 +10,12 @@ schema_version: 1
 corpus:
   id: plan-fidelity
   schema_version: 1
-  status: seed                              # 5 fixtures landed 2026-05-18 (P3.3)
+  status: target-met                        # 50 fixtures landed 2026-05-23 (honest plan §4.3)
   bar:
     target: 0.85                          # matches [CR-D1] 85% Wave-2 success
     sub_bar_block_demote: 0.65
   count_target: 50
-  count_current: 5
+  count_current: 50
   corpus_hash: "blake3:populated-by-PlanFidelityRunner-at-run-time"
 
 wave_distribution:

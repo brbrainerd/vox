@@ -1,0 +1,15 @@
+// Base source for plan-007-rename-local.
+//
+// The plan asks the model to rename the local `n` -> `count` inside
+// `sum_first_n`. The parameter `limit` and the fn signature must not
+// change.
+
+fn sum_first_n(limit: int) to int {
+  let mut n = 0
+  let mut total = 0
+  while n < limit {
+    total = total + n
+    n = n + 1
+  }
+  return total
+}

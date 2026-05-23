@@ -1,0 +1,5 @@
+[package]
+name = "repair-016-pure-calls-net"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: effect-violation bug class. @pure fn performs a network call via http.get()."

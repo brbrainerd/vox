@@ -1,0 +1,5 @@
+[package]
+name = "repair-043-db-insert-missing-field"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. db.X.insert is called with a bare str instead of a row record carrying every column."

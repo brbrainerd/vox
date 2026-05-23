@@ -1,0 +1,13 @@
+// Base source for plan-012-add-default-branch.
+//
+// The plan asks the model to ADD a default `_ => "unknown"` arm to
+// the partial match in `describe`. The existing arms must not change.
+
+fn describe(day: str) to str {
+  match day {
+    "mon" => return "monday"
+    "tue" => return "tuesday"
+    "wed" => return "wednesday"
+  }
+  return "unreachable"
+}

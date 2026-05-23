@@ -1,0 +1,10 @@
+// Repair-corpus fixture 050 — api-misuse bug class.
+// The caller invokes `do_thing(42)`, but `do_thing` has no
+// declaration anywhere in this module (and is not in the stdlib).
+// Expected repair: define `do_thing` (e.g.
+// `fn do_thing(n: int) to int { return n }`) or rename the call to
+// an existing fn.
+
+fn caller() to int {
+    return do_thing(42)
+}

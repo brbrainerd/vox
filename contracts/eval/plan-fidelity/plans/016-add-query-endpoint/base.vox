@@ -1,0 +1,20 @@
+// Base source for plan-016-add-query-endpoint.
+//
+// A @table is defined plus a mutation that creates rows. The plan
+// asks the model to add a query endpoint reading from the table.
+
+@table type Note {
+    id: str,
+    body: str
+}
+
+type NoteError =
+    | Empty(text: str)
+
+@endpoint(kind: mutation)
+fn add_note(body: str) to Result[str, NoteError] {
+    if len(body) is 0 {
+        return Error(Empty("body must not be empty"))
+    }
+    return Ok(body)
+}

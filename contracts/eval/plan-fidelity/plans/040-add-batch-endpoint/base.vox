@@ -1,0 +1,26 @@
+// Base source for plan-040-add-batch-endpoint.
+//
+// Existing `add_todo` single endpoint. The plan asks the model to add
+// an `add_todos(titles: List[str])` batch sibling.
+
+type TodoError =
+    | Empty(text: str)
+    | TooLong(text: str)
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    return Ok(title)
+}
+
+@test
+fn test_add_todo_rejects_empty() to Unit {
+    let r = add_todo("")
+    match r {
+        Error(Empty(_))   => assert(true)
+        Error(TooLong(_)) => assert(false)
+        Ok(_)             => assert(false)
+    }
+}

@@ -1,0 +1,5 @@
+[package]
+name = "repair-023-pure-in-test"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: effect-violation bug class. @test exercises an invariant marked @pure that performs a side effect."

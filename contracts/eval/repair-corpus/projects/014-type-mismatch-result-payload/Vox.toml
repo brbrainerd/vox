@@ -1,0 +1,5 @@
+[package]
+name = "repair-014-type-mismatch-result-payload"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: type-error bug class. Result[int] returned with Ok(str)."

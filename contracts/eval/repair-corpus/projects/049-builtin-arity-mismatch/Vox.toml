@@ -1,0 +1,5 @@
+[package]
+name = "repair-049-builtin-arity-mismatch"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. The stdlib `len` builtin is called with zero arguments where one is required."

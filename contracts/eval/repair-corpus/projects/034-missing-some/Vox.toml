@@ -1,0 +1,5 @@
+[package]
+name = "repair-034-missing-some"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: exhaustiveness bug class. Custom Maybe ADT match missing the Just arm (Option-missing-Some shape)."

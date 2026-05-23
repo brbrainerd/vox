@@ -1,0 +1,5 @@
+[package]
+name = "repair-012-type-mismatch-let-bind"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: type-error bug class. Let-binding str annotation gets float."

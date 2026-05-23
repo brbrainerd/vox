@@ -1,0 +1,12 @@
+// Repair-corpus fixture 013 — type-error bug class.
+// `compute` expects an int, but `caller` passes the str "five".
+// Expected repair: pass an int literal, or parse "five" into an
+// int (e.g. via a parse_int helper) before calling.
+
+fn compute(n: int) to int {
+    return n * 2
+}
+
+fn caller() to int {
+    return compute("five")
+}

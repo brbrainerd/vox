@@ -1,0 +1,9 @@
+// Base source for plan-011-add-input-validation.
+//
+// The plan asks the model to ADD an early-return guard at the top of
+// `first_char` that returns "" when the input is empty. The existing
+// happy-path behavior must remain unchanged.
+
+fn first_char(s: str) to str {
+  return s
+}

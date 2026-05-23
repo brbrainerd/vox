@@ -1,0 +1,19 @@
+// Base source for plan-034-add-actor.
+//
+// The project has only endpoints today. The plan asks the model to
+// introduce a small Counter actor alongside them.
+
+@endpoint(kind: query)
+fn ping() to str {
+    return "pong"
+}
+
+@endpoint(kind: query)
+fn version() to str {
+    return "v1"
+}
+
+@test
+fn test_ping() to Unit {
+    assert(ping() is "pong")
+}

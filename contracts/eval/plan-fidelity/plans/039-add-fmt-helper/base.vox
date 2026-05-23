@@ -1,0 +1,14 @@
+// Base source for plan-039-add-fmt-helper.
+//
+// Small project skeleton. The plan asks the model to add a
+// `format_timestamp(ms: int) to str` helper plus a @test.
+
+@endpoint(kind: query)
+fn now_ms() to int {
+    return 1700000000000
+}
+
+@test
+fn test_now_ms_positive() to Unit {
+    assert(now_ms() > 0)
+}

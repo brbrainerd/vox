@@ -1,0 +1,5 @@
+[package]
+name = "repair-017-pure-calls-fs"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: effect-violation bug class. @pure fn performs filesystem IO via fs.read()."

@@ -1,0 +1,26 @@
+// Base source for plan-019-add-endpoint-validation.
+//
+// add_todo validates emptiness only. The plan asks the model to add a
+// length-cap check using the existing TitleTooLong variant.
+
+type TodoError =
+    | TitleEmpty(text: str)
+    | TitleTooLong(text: str)
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(TitleEmpty("title must not be empty"))
+    }
+    return Ok(title)
+}
+
+@test
+fn test_add_todo_empty_returns_error() to Unit {
+    let result = add_todo("")
+    match result {
+        Error(TitleEmpty(_))   => assert(true)
+        Error(TitleTooLong(_)) => assert(false)
+        Ok(_)                  => assert(false)
+    }
+}
