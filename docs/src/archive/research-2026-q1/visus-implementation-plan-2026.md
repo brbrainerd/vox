@@ -1,7 +1,7 @@
 ---
 title: "Archive"
 description: "Archive"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "legacy"
 training_eligible: false
 archived_date: 2026-04-18

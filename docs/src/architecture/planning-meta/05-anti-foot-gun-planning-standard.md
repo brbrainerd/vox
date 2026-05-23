@@ -1,7 +1,7 @@
 ---
 title: "Anti-foot-gun planning standard"
 description: "Normative planning standard that blocks common planning mistakes which cause migration regressions, drift, or unsafe rollout assumptions."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: true
 

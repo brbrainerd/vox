@@ -1,6 +1,6 @@
 ---
 title: "Vox Language Focused Training SSOT"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-17"
 training_eligible: false

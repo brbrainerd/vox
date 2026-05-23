@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules & Enforcement — Top-Level Plan (2026-05-09)"
 description: "Five-phase plan to close the gap between Vox's stated language-design philosophy (LANGUAGE_DESIGN_PRIORITIES.md P0–P5, C1–C5) and machine-checkable enforcement. Absorbs a 73-item cross-language audit (Rust↔Vox AI-rules interplay) into Vox-only sequenced work. Optimizes for Vox as a large-language-model destination target: stable diagnostic IDs, generated-hash codegen provenance, single-source-of-truth across the Rust↔Vox seam, runtime fuel/panic-trap monitors, and an effect system that makes wrong programs structurally unrepresentable."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Canonical sequencing for Vox-language enforcement work; downstream phase plans (phase1..phase5) reference this document as parent."

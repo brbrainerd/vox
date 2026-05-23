@@ -1,7 +1,7 @@
 ---
 title: "Golden Examples: Working Vox Code"
 description: "Complete, validated Vox code examples demonstrating server functions, actors, workflows, MCP tools, and UI components in the Vox programming language."
-category: "example"
+category: "Examples"
 last_updated: "2026-03-24"
 training_eligible: true
 

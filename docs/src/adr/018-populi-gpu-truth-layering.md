@@ -1,7 +1,7 @@
 ---
 title: "ADR 018: Populi GPU truth layering"
 description: "Normative layering between probe-backed hardware facts, allocatable capacity, and operator policy labels for Populi scheduling."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-29"
 training_eligible: true
 

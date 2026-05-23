@@ -1,7 +1,7 @@
 ---
 title: "Unified Agentic Control Surface Research"
 description: "Synthesis of Human-in-the-Loop (HITL) steering, 'Second Pass' reflection patterns, and the integration of Vox's existing control concepts into a unified Tri-State Pilot Console."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 5
 last_updated: "2026-04-12"

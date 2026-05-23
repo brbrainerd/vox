@@ -1,7 +1,7 @@
 ---
 title: "Bootstrap a Vox application outside the monorepo"
 description: "Install the toolchain, scaffold a project, and choose how to depend on platform crates like vox-db."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 ---
 

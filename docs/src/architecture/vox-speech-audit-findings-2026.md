@@ -1,7 +1,7 @@
 ---
 title: "Vox Speech Audit Findings 2026"
 description: "ASR-primary findings from the broad-wave speech-to-code audit setup, including verified repository gaps and the scorecard model used for matrix runs."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-11"
 training_eligible: true

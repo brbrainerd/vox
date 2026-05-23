@@ -1,7 +1,7 @@
 ---
 title: "ADR 020: Populi mesh scaling — default transport posture"
 description: "Records the decision to keep the HTTP control plane as the default scaling surface and when to adopt gossip or QUIC."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-29"
 training_eligible: true
 

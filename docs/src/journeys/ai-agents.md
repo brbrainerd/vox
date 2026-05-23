@@ -1,7 +1,7 @@
 ---
 title: "Journey: Building Resilient AI Agents"
 description: "How to use Vox's native MCP integration, vector memory, and type safety to build reliable, stateful AI agents without ductile LLM orchestration layers."
-category: "journey"
+category: "Getting Started"
 sort_order: 1
 
 schema_type: "HowTo"

@@ -1,7 +1,7 @@
 ---
 title: "MENS findings: Composer and Kimi (2026)"
 description: "Revalidated evidence grading for Composer/Kimi claims and operational implications for MENS."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-25"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Journey: Native Rust LLM Training"
 description: "How to use Vox's native ML toolchain to fine-tune open weights directly from your application data without diving into Python environments."
-category: "journey"
+category: "Getting Started"
 sort_order: 4
 
 schema_type: "HowTo"

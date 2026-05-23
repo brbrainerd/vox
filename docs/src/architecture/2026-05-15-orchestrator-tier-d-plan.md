@@ -1,7 +1,7 @@
 ---
 title: "Tier D — Orchestrator core-extraction plan (2026-05-15)"
 description: "Assessment and implementation plan for extracting vox-orchestrator-core from vox-orchestrator. Post-Tier-A/B/C: 65,560 LoC with 7% headroom. Vertical-slice (agentos/) is 358 LoC and not viable. C5 (orchestrator/ subdir) is the correct wedge but requires co-moving the Orchestrator struct."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-15"
 training_eligible: false

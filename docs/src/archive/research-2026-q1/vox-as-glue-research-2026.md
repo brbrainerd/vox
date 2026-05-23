@@ -1,7 +1,7 @@
 ---
 title: "VoxScript as Universal Glue Code — Research & Architecture 2026"
 description: "Strategy, security model, execution tiers, and migration policy for replacing .ps1/.sh/.py glue scripts with .vox files driven by `vox run`."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-17"
 training_eligible: false

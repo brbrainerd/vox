@@ -1,7 +1,7 @@
 ---
 title: "Architecture index"
 description: "Guide to the current architecture, SSOT, research, and roadmap documentation under docs/src/architecture."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 0
 last_updated: "2026-04-12"

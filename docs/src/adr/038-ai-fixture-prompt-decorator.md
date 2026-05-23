@@ -1,7 +1,7 @@
 ---
 title: "ADR 038 — AI fixture `@prompt` decorator"
 description: "Proposes stage-aware prompt fixture lowering onto runtime cascade primitives."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

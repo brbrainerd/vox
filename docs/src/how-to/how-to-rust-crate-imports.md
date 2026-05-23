@@ -1,7 +1,7 @@
 ---
 title: "How-To: Rust crate imports in Vox scripts"
 description: "Syntax, compiler pipeline, Cargo.toml synthesis, diagnostics, limitations, and pragmatic ways to reduce boilerplate without over-engineering."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-03-28"
 training_eligible: true
 

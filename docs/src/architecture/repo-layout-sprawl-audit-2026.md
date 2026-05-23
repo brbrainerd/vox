@@ -1,7 +1,7 @@
 ---
 title: "Repository layout sprawl audit (2026)"
 description: "Organization-focused audit: sparse directories, overlapping categories, and provenance of non-Rust artifacts — with a prioritized consolidation backlog."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: false

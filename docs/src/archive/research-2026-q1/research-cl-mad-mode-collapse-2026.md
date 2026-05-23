@@ -1,7 +1,7 @@
 ---
 title: "Quality and Mode Collapse in Self-Play LLM Loops"
 description: "Research on model autophagy disorder, recursive stability, and synthetic-data collapse in continual learning loops."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

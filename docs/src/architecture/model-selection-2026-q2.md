@@ -1,7 +1,7 @@
 ---
 title: "Vox Model Selection — 2026-Q2 Refresh"
 description: "Current-month (May 2026) frontier model audit, recommended task-to-model mapping for Vox's existing 5-tier routing pipeline, and rationale for the 2026-05-15 catalog refresh."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-15"
 training_eligible: false

@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Testing Pipeline"
 description: "Embedding tests into .vox format and LLM to Vox delivery pipeline with five-stage gate validation."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-04"
 training_eligible: false

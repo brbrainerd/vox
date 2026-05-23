@@ -1,7 +1,7 @@
 ---
 title: "Database Query Reference"
 description: "Complete syntactic reference for Vox db.* accessors and complex filtering criteria."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

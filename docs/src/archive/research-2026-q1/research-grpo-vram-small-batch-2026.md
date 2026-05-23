@@ -1,7 +1,7 @@
 ---
 title: "GRPO and VRAM Efficiency: Architectural Comparisons and Small-Batch Dynamics"
 description: "Research on GRPO memory efficiency, low-rollout instability, and small-batch dynamics under Vox hardware constraints."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

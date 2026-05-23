@@ -1,7 +1,7 @@
 ---
 title: "Vox Docker-backed portability research 2026"
 description: "Research findings and architectural recommendation for Docker/OCI-backed cross-platform `.vox` deployment, packaging, and SSOT boundaries."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-28"
 training_eligible: false
 

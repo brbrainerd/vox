@@ -1,7 +1,7 @@
 ---
 title: "Documentation Reality Audit Program"
 description: "Sustaining doc/code/contract reality checks: taxonomy, machine-readable backlog, scoring, and CI entry points."
-category: "contributor"
+category: "Contributors"
 status: "current"
 sort_order: 11
 last_updated: "2026-05-11"

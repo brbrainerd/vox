@@ -1,6 +1,6 @@
 ---
 title: "Documented Failure Modes: Context Bleed and Session Identity Confusion"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Distribution Bundles"
 description: "What Vox bundles are, how to pick one, and how to roll your own."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 ---

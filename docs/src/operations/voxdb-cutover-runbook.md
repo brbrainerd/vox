@@ -1,7 +1,7 @@
 ---
 title: "VoxDB data cutover and telemetry sidecar runbook"
 description: "Operator runbook for legacy schema_version migration via export/import, historical training telemetry file cleanup, aligning telemetry consumers with Populi envelopes, publication/news tables, and rollback guidance."
-category: "operations"
+category: "Operations"
 last_updated: "2026-04-12"
 
 schema_type: "TechArticle"

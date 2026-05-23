@@ -1,7 +1,7 @@
 ---
 title: "Build-Time Log"
 description: "Per-phase build-time measurements for the 2026-05-08 workspace reorg."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

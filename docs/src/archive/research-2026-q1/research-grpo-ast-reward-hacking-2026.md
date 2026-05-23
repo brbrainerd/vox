@@ -1,7 +1,7 @@
 ---
 title: "Vulnerabilities in AST-Based Coverage Scoring and Reward Hacking"
 description: "Research on reward hacking risks introduced by AST-density and proxy-based code RL rewards."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

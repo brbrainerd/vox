@@ -1,7 +1,7 @@
 ---
 title: "Vox Security Model"
 description: "Multi-layer protection against prompt injection, scope violations, and unauthorized access via SecurityPolicy and SecurityGuard."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-05"
 training_eligible: false

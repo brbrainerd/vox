@@ -1,7 +1,7 @@
 ---
 title: "ADR 035 — SWC parser vs alternatives (evaluation only)"
 description: "No migration without explicit ADR sign-off: compare swc_ecma_* with oxc, biome_js_parser, tsgo for vox-cli validation paths."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 status: "research"
 last_updated: "2026-05-11"
 training_eligible: true

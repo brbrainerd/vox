@@ -1,7 +1,7 @@
 ---
 title: "Durability & Scheduling Runtime Audit (2026)"
 description: "Definitive audit of @scheduled, @durable, DurabilityKind, actor/workflow/activity keywords — what parses vs. what executes. Verdict: zero runtime implementation across all features."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Audit establishing that all Vox durability/scheduling features are syntax-only with no runtime semantics; required reading before any Phase 4 implementation work."

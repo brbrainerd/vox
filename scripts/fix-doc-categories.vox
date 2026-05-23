@@ -1,0 +1,361 @@
+// ---
+// title: "Fix Doc Categories"
+// description: "Rewrite the YAML frontmatter `category:` line in every docs/src/**/*.md file to match the SSOT-aligned label derived from the file's path prefix."
+// category: "tooling"
+// status: "current"
+// last_updated: "2026-05-23"
+// training_eligible: false
+// ---
+//
+// Usage:
+//   DRY_RUN=1 vox run --mode interp scripts/fix-doc-categories.vox   # report only
+//   vox run --mode interp scripts/fix-doc-categories.vox             # apply
+//
+// Behaviour:
+//   - Walk docs/src/**/*.md
+//   - For each file, derive the new category from the path prefix (first match wins)
+//   - Skip files under archive/, .well-known/, assets/
+//   - Read the file, locate the `category:` line inside the YAML frontmatter,
+//     replace it with `category: "<new>"`
+//   - If no `category:` line exists -> recorded as needs-manual-triage, file NOT modified
+//   - If path doesn't match any rule and isn't a root-level explicit case ->
+//     recorded as unmapped
+//   - DRY_RUN=1 prints "WOULD UPDATE: ..." lines and does not write
+//   - Print a summary with counts and the list of unmapped + needs-manual-triage files.
+
+// vox:caps fs env
+
+// ---------------------------------------------------------------------------
+// Normalise a path to use forward slashes (Windows + POSIX safe).
+// ---------------------------------------------------------------------------
+fn norm(p: str) to str {
+    return p.replace("\\", "/");
+}
+
+// ---------------------------------------------------------------------------
+// Strip "docs/src/" prefix and return the relative portion.
+// Uses split because the installed vox interp lacks String.slice().
+// ---------------------------------------------------------------------------
+fn rel_under_docs_src(p: str) to str {
+    let n = norm(p);
+    let prefix = "docs/src/";
+    if n.starts_with(prefix) {
+        // Split on the first occurrence and rejoin the tail.
+        let parts = n.split(prefix);
+        if len(parts) >= 2 {
+            // Rejoin everything after the first split point in case the
+            // path coincidentally contains "docs/src/" deeper down.
+            let mut out = parts[1];
+            let mut i = 2;
+            while i < len(parts) {
+                out = out + prefix + parts[i];
+                i = i + 1;
+            }
+            return out;
+        }
+    }
+    return n;
+}
+
+// ---------------------------------------------------------------------------
+// Returns the category result for a given relative path.
+//   "SKIP"     -> excluded
+//   ""         -> no prefix rule matched
+//   otherwise  -> new category string
+// ---------------------------------------------------------------------------
+fn category_for_rel(rel: str) to str {
+    if rel.starts_with("archive/")     { return "SKIP"; }
+    if rel.starts_with(".well-known/") { return "SKIP"; }
+    if rel.starts_with("assets/")      { return "SKIP"; }
+
+    if rel.starts_with("adr/")          { return "Architecture Decisions (ADRs)"; }
+    if rel.starts_with("architecture/") { return "Architecture SSOTs"; }
+    if rel.starts_with("contributors/") { return "Contributors"; }
+    if rel.starts_with("ci/")           { return "CI & Quality"; }
+    if rel.starts_with("operations/")   { return "Operations"; }
+    if rel.starts_with("tutorials/")    { return "Tutorials"; }
+    if rel.starts_with("how-to/")       { return "How-To Guides"; }
+    if rel.starts_with("explanation/")  { return "Concepts"; }
+    if rel.starts_with("reference/")    { return "Language Reference"; }
+    if rel.starts_with("ref/")          { return "Language Reference"; }
+    if rel.starts_with("api/")          { return "API Reference — Crates"; }
+    if rel.starts_with("journeys/")     { return "Getting Started"; }
+    if rel.starts_with("examples/")     { return "Examples"; }
+    if rel.starts_with("case-studies/") { return "Examples"; }
+
+    return "";
+}
+
+// ---------------------------------------------------------------------------
+// Root-level explicit overrides for files that live directly in docs/src/.
+// ---------------------------------------------------------------------------
+fn root_level_category(rel: str) to str {
+    if rel == "AGENTS.md"  { return "Architecture SSOTs"; }
+    if rel == "ref-cli.md" { return "Language Reference"; }
+    return "";
+}
+
+// ---------------------------------------------------------------------------
+// Returns one of:
+//   "SKIP"     -> skip this file
+//   "UNMAPPED" -> path matched no rule
+//   else        -> the new category value
+// ---------------------------------------------------------------------------
+fn classify_path(rel: str) to str {
+    let prefix_match = category_for_rel(rel);
+    if prefix_match == "SKIP" { return "SKIP"; }
+    if prefix_match.len() > 0 { return prefix_match; }
+
+    let root_match = root_level_category(rel);
+    if root_match.len() > 0 { return root_match; }
+
+    return "UNMAPPED";
+}
+
+// ---------------------------------------------------------------------------
+// Return [start, end] inclusive line indices for the YAML frontmatter block
+// (the first `---` ... `---` pair). If the file doesn't open with `---`,
+// returns [-1, -1].
+// ---------------------------------------------------------------------------
+fn find_frontmatter_range(lines: list[str]) to list[int] {
+    let n = len(lines);
+    if n < 2 {
+        return [-1, -1];
+    }
+    let first = lines[0].trim();
+    if first != "---" {
+        return [-1, -1];
+    }
+    let mut i = 1;
+    while i < n {
+        let t = lines[i].trim();
+        if t == "---" {
+            return [0, i];
+        }
+        i = i + 1;
+    }
+    return [-1, -1];
+}
+
+// ---------------------------------------------------------------------------
+// Replace the `category:` line in the frontmatter with `category: "<new>"`.
+// Returns the new content, or "" if no `category:` line was found.
+// ---------------------------------------------------------------------------
+fn replace_category_line(content: str, new_category: str) to str {
+    let lines = content.split("\n");
+    let range = find_frontmatter_range(lines);
+    let fm_start = range[0];
+    let fm_end = range[1];
+    if fm_start < 0 {
+        return "";
+    }
+
+    let mut found_idx = -1;
+    let mut i = fm_start + 1;
+    while i < fm_end {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with("category:") {
+            found_idx = i;
+            i = fm_end;
+        } else {
+            i = i + 1;
+        }
+    }
+
+    if found_idx < 0 {
+        return "";
+    }
+
+    let new_line = "category: \"" + new_category + "\"";
+    let n = len(lines);
+    let mut out = "";
+    let mut k = 0;
+    while k < n {
+        if k == found_idx {
+            out = out + new_line;
+        } else {
+            out = out + lines[k];
+        }
+        if k < n - 1 {
+            out = out + "\n";
+        }
+        k = k + 1;
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------------------
+// Return the current `category:` value (quotes + surrounding whitespace
+// stripped), or "" if the frontmatter has no `category:` line.
+// ---------------------------------------------------------------------------
+fn current_category_value(content: str) to str {
+    let lines = content.split("\n");
+    let range = find_frontmatter_range(lines);
+    let fm_start = range[0];
+    let fm_end = range[1];
+    if fm_start < 0 {
+        return "";
+    }
+    let mut i = fm_start + 1;
+    while i < fm_end {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with("category:") {
+            // Strip the "category:" key by splitting on it (no slice() builtin).
+            let parts = trimmed.split("category:");
+            if len(parts) < 2 {
+                return "";
+            }
+            // Rejoin in case "category:" appears in the value (unlikely).
+            let mut after = parts[1];
+            let mut k = 2;
+            while k < len(parts) {
+                after = after + "category:" + parts[k];
+                k = k + 1;
+            }
+            let val = after.trim();
+            // Strip wrapping double quotes by splitting on `"`.
+            if val.starts_with("\"") and val.ends_with("\"") {
+                let qparts = val.split("\"");
+                if len(qparts) >= 3 {
+                    // qparts[0] = "", qparts[1] = inner, qparts[2..] = trailing
+                    return qparts[1];
+                }
+            }
+            return val;
+        }
+        i = i + 1;
+    }
+    return "";
+}
+
+// ---------------------------------------------------------------------------
+// True when the DRY_RUN environment variable is set to "1".
+// ---------------------------------------------------------------------------
+fn is_dry_run() to bool {
+    let opt = env.get("DRY_RUN");
+    if opt.is_some() {
+        return opt.unwrap() == "1";
+    }
+    return false;
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+fn main() {
+    let docs_src = "docs/src";
+    if not fs.exists(docs_src) {
+        print("Error: docs/src not found — run from the repo root.");
+        return;
+    }
+
+    let dry_run = is_dry_run();
+    if dry_run {
+        print("=== fix-doc-categories.vox (DRY RUN — no files written) ===");
+    } else {
+        print("=== fix-doc-categories.vox (APPLY — files will be modified) ===");
+    }
+
+    let mut changed_count = 0;
+    let mut already_correct_count = 0;
+    let mut skipped_count = 0;
+    let mut unmapped_files = [];
+    let mut needs_triage_files = [];
+
+    let glob_res = fs.glob("docs/src/**/*.md");
+    if glob_res.is_err() {
+        print("Error: fs.glob failed for docs/src/**/*.md");
+        return;
+    }
+    let all_files = glob_res.unwrap();
+    let n_files = len(all_files);
+
+    let mut idx = 0;
+    while idx < n_files {
+        let f = all_files[idx];
+        idx = idx + 1;
+
+        let rel = rel_under_docs_src(f);
+        let tag = classify_path(rel);
+
+        if tag == "SKIP" {
+            skipped_count = skipped_count + 1;
+            continue;
+        }
+        if tag == "UNMAPPED" {
+            unmapped_files = unmapped_files.push(rel);
+            continue;
+        }
+
+        let new_category = tag;
+
+        let content_res = fs.read(f);
+        if content_res.is_err() {
+            print("  [warn] could not read: " + f);
+            continue;
+        }
+        let content = content_res.unwrap();
+
+        let existing = current_category_value(content);
+        if existing.len() == 0 {
+            needs_triage_files = needs_triage_files.push(rel);
+            continue;
+        }
+
+        if existing == new_category {
+            already_correct_count = already_correct_count + 1;
+            continue;
+        }
+
+        let new_content = replace_category_line(content, new_category);
+        if new_content.len() == 0 {
+            needs_triage_files = needs_triage_files.push(rel);
+            continue;
+        }
+
+        if dry_run {
+            print("WOULD UPDATE: " + rel + " -> " + new_category + " (was: " + existing + ")");
+            changed_count = changed_count + 1;
+        } else {
+            let write_res = fs.write(f, new_content);
+            if write_res.is_ok() {
+                print("UPDATED: " + rel + " -> " + new_category + " (was: " + existing + ")");
+                changed_count = changed_count + 1;
+            } else {
+                print("  [err] write failed: " + f);
+            }
+        }
+    }
+
+    print("");
+    print("=== Summary ===");
+    if dry_run {
+        print("  would-change:        " + str(changed_count));
+    } else {
+        print("  changed:             " + str(changed_count));
+    }
+    print("  already-correct:     " + str(already_correct_count));
+    print("  skipped:             " + str(skipped_count));
+    print("  unmapped:            " + str(len(unmapped_files)));
+    print("  needs-manual-triage: " + str(len(needs_triage_files)));
+
+    if len(unmapped_files) > 0 {
+        print("");
+        print("Unmapped files (no path-prefix rule matched):");
+        let mut u = 0;
+        while u < len(unmapped_files) {
+            print("  - " + unmapped_files[u]);
+            u = u + 1;
+        }
+    }
+
+    if len(needs_triage_files) > 0 {
+        print("");
+        print("Needs manual triage (no `category:` line in frontmatter):");
+        let mut t = 0;
+        while t < len(needs_triage_files) {
+            print("  - " + needs_triage_files[t]);
+            t = t + 1;
+        }
+    }
+}

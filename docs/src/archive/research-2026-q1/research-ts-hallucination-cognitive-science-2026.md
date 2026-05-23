@@ -1,7 +1,7 @@
 ---
 title: "Cognitive Science and NLP: Constraint as Guide vs. Output Space Collapse"
 description: "Research on constrained decoding theory, the Alignment Tax, Structure Snowballing, and compiler feedback as a hallucination oracle."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

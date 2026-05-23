@@ -1,7 +1,7 @@
 ---
 title: "Orchestrator AgentEventKind → Ludus matrix"
 description: "Maps each orchestrator bus `type` string to Ludus base_reward and process_rewards behavior."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-25"
 
 schema_type: "TechArticle"

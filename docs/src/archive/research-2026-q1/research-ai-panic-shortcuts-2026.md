@@ -1,7 +1,7 @@
 ---
 title: "AI Agent Panic and Shortcut Pathology: Research Findings 2026"
 description: "Why AI coding agents suppress errors, use git destructively, and choose the shortest path to target — and what Vox can do about it at the platform level."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 7
 last_updated: "2026-04-16"

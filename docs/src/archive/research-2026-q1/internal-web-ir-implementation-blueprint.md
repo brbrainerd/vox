@@ -1,7 +1,7 @@
 ---
 title: "Internal Web IR Implementation Blueprint"
 description: "Detailed execution blueprint for implementing WebIR in Vox with weighted task quotas and critical-path checklist."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: false
 

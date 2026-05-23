@@ -1,7 +1,7 @@
 ---
 title: "VUV Layered Layout Discipline — making Z-fighting and tier inversion structurally unrepresentable (2026)"
 description: "Design memo motivating GA-26: typed Z-tiers, partitioning containers, and Mark<T> typed jump targets. Adopts wlr-layer-shell's four-tier model and i3/Sway's tree-of-partitioning-containers discipline as the structural foundation for VUV view trees."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-10"
 training_eligible: true

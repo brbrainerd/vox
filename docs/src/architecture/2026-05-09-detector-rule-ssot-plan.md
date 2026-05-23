@@ -1,7 +1,7 @@
 ---
 title: "Detector & Heuristic Rule SSOT — Implementation Plan"
 description: "Step-by-step plan to land the foundation, pilot detector, and benchmark tool from the rule-SSOT design. Executable by an autonomous Sonnet 4.6 agent."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."

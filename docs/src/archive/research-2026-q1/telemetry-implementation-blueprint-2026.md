@@ -1,7 +1,7 @@
 ---
 title: "Telemetry implementation blueprint 2026"
 description: "Phased, codebase-wide plan to unify telemetry under trust boundaries, contracts, retention, controls, CI enforcement, and client disclosure."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-02"
 training_eligible: false

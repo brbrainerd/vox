@@ -1,7 +1,7 @@
 ---
 title: "Minimal React Interop Shell Strategy"
 description: "Architectural strategy for supporting the React ecosystem (including v0.dev) and modern frameworks (Next.js, TanStack) without tightly coupling the Vox compiler to any single framework's complex routing or SSR APIs."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-07"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Script surface audit and Vox migration"
 description: "SSOT inventory of tracked Python, PowerShell, and shell scripts with owners, essential vs replaceable classification, mapping to vox ci / vox mens equivalents, and noted capability gaps versus container/runtime boundaries."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

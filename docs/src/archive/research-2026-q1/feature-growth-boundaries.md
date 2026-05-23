@@ -1,7 +1,7 @@
 ---
 title: "Feature growth boundaries"
 description: "SSOT for where Vox should add app capability first: WebIR, AppContract, RuntimeProjection, builtin registry, and approved bindings."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-28"
 training_eligible: false
 

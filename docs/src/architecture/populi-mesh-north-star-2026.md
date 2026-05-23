@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh North-Star (2026-05-01)"
 description: "Design intent and capability-slice plan for taking the Populi mesh from single-node-correct to multi-node power-user dogfood. Decomposes seven workstreams into three sequenced slices with a child-spec roadmap."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Architectural plan-of-record for Populi mesh evolution; names the workstreams, slices, and child specs that subsequent work decomposes into."

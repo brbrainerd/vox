@@ -1,7 +1,7 @@
 ---
 title: "Multi-Agent VCS Replication — Architecture Spec (2026-05-03)"
 description: "Architecture spec for op-log gossip on top of jj-lib and the Populi mesh. Defines the AgentChange / OpFragment / Convergence Set primitives, the gossip wire protocol, the auto-merge / escalation policy, and the four-phase rollout (local multi-agent → conflict UX → mesh gossip → policy/safety). Implements Path 1 from the research findings."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Canonical architecture for how Vox eliminates manual merging across local multi-agent fleets and mesh peers. Names the new primitives (AgentChange, OpFragment, ConvergenceSet, MergePolicy), the wire protocol, and the four implementation phases."

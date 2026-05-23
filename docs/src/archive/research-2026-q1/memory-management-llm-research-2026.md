@@ -1,7 +1,7 @@
 ---
 title: "Memory Management & Per-Actor GC for LLMs"
 description: "Architectural research analyzing the cognitive-load impacts of strict borrow-checking on LLM code generation and the shift toward an Erlang-style, per-actor garbage collection model to reduce K-Complexity."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 10
 last_updated: "2026-04-16"

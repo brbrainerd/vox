@@ -1,7 +1,7 @@
 ---
 title: "Doc-to-code acceptance checklist"
 description: "High-value checks for keeping Vox documentation aligned with the current code, contracts, and contributor workflow."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-03-28"
 training_eligible: false

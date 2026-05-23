@@ -1,7 +1,7 @@
 ---
 title: "Documentation governance"
 description: "Authority map, taxonomy, status vocabulary, and maintenance rules for Vox documentation."
-category: "contributor"
+category: "Contributors"
 status: "current"
 sort_order: 10
 last_updated: "2026-04-16"
@@ -77,7 +77,7 @@ Use this template for new pages so docs lint passes on first run:
 ---
 title: "Page title"
 description: "One specific sentence about what this page covers."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 ---

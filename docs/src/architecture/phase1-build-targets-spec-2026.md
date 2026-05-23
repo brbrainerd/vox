@@ -1,7 +1,7 @@
 ---
 title: "Phase 1: Build Target Split Spec (2026)"
 description: "Design spec for vox build --target=server|fullstack|client, vox emit client, and vox init --kind=backend."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Implementation spec for the build target split; required reading before touching vox-cli build or Vox.toml manifest code."

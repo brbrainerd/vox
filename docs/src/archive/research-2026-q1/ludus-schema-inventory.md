@@ -1,7 +1,7 @@
 ---
 title: "Ludus / gamify schema inventory (SSOT pointers)"
 description: "Index to vox-db gamification SQL, agents domain, legacy Ludus hook, plus vox-ludus router/rewards/schema code and key tests—no duplicated schema text."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

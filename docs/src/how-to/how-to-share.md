@@ -1,7 +1,7 @@
 ---
 title: "How-To: Share a Vox App"
 description: "Expose a running Vox app on a public URL in one command using vox share, with automatic tunnel selection and optional authentication."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-05-09"
 status: "current"
 training_eligible: true

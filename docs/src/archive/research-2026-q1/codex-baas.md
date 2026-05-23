@@ -1,7 +1,7 @@
 ---
 title: "Codex BaaS scaffolding"
 description: "Official documentation for Codex BaaS scaffolding for the Vox language. Detailed technical reference, architecture guides, and implementa"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

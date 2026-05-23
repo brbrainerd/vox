@@ -1,7 +1,7 @@
 ---
 title: "TanStack Start Implementation Backlog"
 description: "Complete checkbox-by-checkbox implementation backlog for Vox TanStack Start fullstack codegen. 200+ tasks organized by wave, with exact file names, line numbers, and code shapes for each change."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 

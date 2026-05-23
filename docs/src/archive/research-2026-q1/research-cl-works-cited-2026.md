@@ -1,7 +1,7 @@
 ---
 title: "Works Cited: Continual Learning Flywheel Risks"
 description: "Bibliography for the continual-learning flywheel research cluster."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

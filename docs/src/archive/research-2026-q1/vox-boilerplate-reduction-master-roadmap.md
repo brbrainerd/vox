@@ -1,7 +1,7 @@
 ---
 title: "Vox boilerplate reduction master roadmap"
 description: "Execution roadmap for reducing accidental complexity and boilerplate in Vox language and full-stack surfaces."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-25"
 training_eligible: false
 

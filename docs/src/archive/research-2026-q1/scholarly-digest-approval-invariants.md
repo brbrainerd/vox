@@ -1,7 +1,7 @@
 ---
 title: "Scholarly publication: digest-bound approval invariants"
 description: "Invariants for CLI, MCP, and publisher worker paths: dual approvers tied to manifest digest, job row digest consistency with publication_manifests, adapter error handling, and preflight ledger semantics."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

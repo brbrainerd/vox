@@ -1,7 +1,7 @@
 ---
 title: "Workspace Reorg Outcome (2026-05-08)"
 description: "Outcome report for the 2026-05-08 workspace reorg: phases completed, build-time gains, and naming history."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

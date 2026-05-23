@@ -1,6 +1,6 @@
 ---
 title: "Works Cited: GRPO Reward Shaping"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

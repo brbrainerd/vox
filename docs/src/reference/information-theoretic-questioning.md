@@ -1,7 +1,7 @@
 ---
 title: "Information-theoretic questioning protocol"
 description: "SSOT for when and how Vox asks clarifying questions with maximum diagnostic value per user effort."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-28"
 training_eligible: true
 

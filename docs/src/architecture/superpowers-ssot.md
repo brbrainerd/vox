@@ -1,7 +1,7 @@
 ---
 title: "Superpowers SSoT"
 description: "Single Source of Truth for Vox Superpowers (Procedural Agentic Skills)."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Defines the agentic framework for structured development workflows."

@@ -1,7 +1,7 @@
 ---
 title: "Vox packaging full implementation plan 2026"
 description: "Execution-grade implementation plan for Cargo-first Vox package management, hard Python retirement, and CLI namespace unification."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-27"
 training_eligible: false
 

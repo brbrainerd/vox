@@ -1,7 +1,7 @@
 ---
 title: "Review Regression Challenges Contract"
 description: "Stability-first contract for review_regression_memory rows."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 

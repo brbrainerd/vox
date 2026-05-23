@@ -1,7 +1,7 @@
 ---
 title: "ADR 010 — TanStack as the Vox web spine"
 description: "Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide"
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-24"
 training_eligible: true
 

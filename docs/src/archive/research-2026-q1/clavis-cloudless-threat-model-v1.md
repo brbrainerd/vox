@@ -1,7 +1,7 @@
 ---
 title: "Clavis Cloudless Threat Model V1"
 description: "Threat model, source policy matrix, and break-glass governance for Clavis Cloudless hard-cut execution."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-06"
 training_eligible: false

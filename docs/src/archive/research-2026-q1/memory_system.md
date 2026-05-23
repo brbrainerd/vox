@@ -1,7 +1,7 @@
 ---
 title: "Vox Memory System"
 description: "Persistent, searchable long-term storage for agent knowledge with tiered primaries per concern."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-11"
 training_eligible: false

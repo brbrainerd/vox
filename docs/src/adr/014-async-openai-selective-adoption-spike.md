@@ -1,7 +1,7 @@
 ---
 title: "ADR 014: async-openai selective adoption (spike outcome)"
 description: "Bounded spike: whether to adopt the async-openai crate after internal OpenAI-compat unification"
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-28"
 training_eligible: true
 

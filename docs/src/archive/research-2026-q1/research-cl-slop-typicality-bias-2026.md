@@ -1,7 +1,7 @@
 ---
 title: "The Risks of Agent-Generated Prose (Schola & Scientia)"
 description: "Research on AI-slop accumulation, typicality bias, and prose-corpus contamination in continual learning loops."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

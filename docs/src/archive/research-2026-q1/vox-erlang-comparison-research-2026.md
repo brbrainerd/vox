@@ -1,7 +1,7 @@
 ---
 title: "Vox and Erlang: Architectural Parallels and Divergences"
 description: "Research and findings comparing Vox's AI-native actor model with Erlang/OTP, highlighting specific capabilities and ideal use cases for each."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-16"
 training_eligible: false

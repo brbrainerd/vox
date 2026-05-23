@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules — Phase 3: Cheap Typechecker Rules (2026-05-09)"
 description: "Step-by-step plan to add typechecker rules that make wrong programs structurally unrepresentable: Id[T] required at API boundaries (no bare str IDs), named tagged-union error types (no Result[T, str] on public APIs), single workspace syntax_version enforced, @deprecated machine-checked across versions, training_eligible propagation, and a precursor warning for the Phase 5 effect system. Each rule lands as warning for one minor version, escalates to error in the next. Includes vox migrate id-strings codemod for the Id[T] migration."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 3 child plan. Strongest 'wrong programs unrepresentable' wins land here; the Id[T] rule alone removes a major LLM hallucination class."

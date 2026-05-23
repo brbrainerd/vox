@@ -1,7 +1,7 @@
 ---
 title: "Planning taxonomy and glossary"
 description: "Canonical terminology for planning-meta artifacts, including preferred terms, forbidden ambiguous aliases, and historical mappings."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: true
 

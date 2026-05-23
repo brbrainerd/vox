@@ -1,7 +1,7 @@
 ---
 title: "Capability registry SSOT"
 description: "Transport-independent capability IDs for CLI, MCP, Mens, and model manifests."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 12
 last_updated: "2026-03-31"

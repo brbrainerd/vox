@@ -1,7 +1,7 @@
 ---
 title: "Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-Agent Behavior Switching (2026)"
 description: "Research synthesis of when an orchestrator can autonomously change models, switch modes, enter planning, invoke research (Socrates), spawn sub-agents, escalate to HITL, and recover from runaway loops. Maps the external state-of-the-art onto Vox's existing routing/policy surface and proposes decision-rule contracts for the gaps."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-08"
 authored: "2026-05-08"

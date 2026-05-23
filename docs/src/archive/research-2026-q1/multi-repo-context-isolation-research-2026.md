@@ -1,7 +1,7 @@
 ---
 title: "Multi-repo context isolation: research findings 2026"
 description: "Comprehensive synthesis of 2026 best practices for managing repository context isolation across AI agents, orchestrators, IDEs, and CI/CD pipelines. Covers scope enforcement, ignore-file SSOT, agent instruction files, memory architecture, security threats, and the vox catalog layer."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-11"
 training_eligible: false

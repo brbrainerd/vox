@@ -5,7 +5,7 @@ description: >
   QLoRA to a custom pretrained Vox model, including distributed mesh training
   feasibility and solutions to gradient poisoning using the existing Populi
   identity layer.
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-16"
 training_eligible: false

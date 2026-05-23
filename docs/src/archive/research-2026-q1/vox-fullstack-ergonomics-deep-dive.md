@@ -1,7 +1,7 @@
 ---
 title: "Vox full-stack ergonomics deep dive"
 description: "Repository-grounded full-stack boilerplate hotspots and implementation roadmap for Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-25"
 training_eligible: false
 

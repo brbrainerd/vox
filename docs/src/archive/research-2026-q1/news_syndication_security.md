@@ -1,7 +1,7 @@
 ---
 title: "Unified News Syndication Security & Safety"
 description: "Safety mechanisms and architectural constraints preventing accidental automated social media posts."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-05"
 training_eligible: false

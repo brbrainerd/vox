@@ -1,7 +1,7 @@
 ---
 title: "Mesh Phase 2 — Code Mobility & Versioning Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD implementation plan for Phase 2 of the Mesh & Language-Level Distribution SSOT — content-addressed workflow bundles via vox-package CAS, workflow.version() patch markers, drain tooling, mesh code seeding, activity result caching, dispatch preview, and the codegen split that lowers DurabilityKind to durable/journaled/mailbox call shapes. Seven tasks (P2-T1..P2-T7) producing the bundle store, drain CLI, A2A bundle-fetch protocol, activity_result_cache vox-db table, the dispatch-preview projector, and the lowering split — closing the 'all three emit identical async Rust' gap left after Phase 1."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. The SSOT (mesh-and-language-distribution-ssot-2026.md) is the durable artifact."

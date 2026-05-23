@@ -1,7 +1,7 @@
 ---
 title: "Contracts outside contracts/index.yaml — classification (2026)"
 description: "How to treat YAML/JSON under contracts/ that are not listed in contracts/index.yaml."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

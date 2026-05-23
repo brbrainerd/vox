@@ -1,7 +1,7 @@
 ---
 title: "Package management migration (2026)"
 description: "Old-to-new command mappings for Cargo-first Vox PM, retired install/Python lanes, and tooling upgrades."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-27"
 training_eligible: true
 

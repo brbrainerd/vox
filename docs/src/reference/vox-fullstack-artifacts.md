@@ -1,7 +1,7 @@
 ---
 title: "Vox full-stack build artifacts — single source of truth"
 description: "Official documentation for Vox full-stack build artifacts — single source of truth for the Vox language."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-05-11"
 training_eligible: true
 

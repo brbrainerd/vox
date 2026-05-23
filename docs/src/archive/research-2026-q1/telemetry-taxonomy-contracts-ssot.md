@@ -1,7 +1,7 @@
 ---
 title: "Telemetry taxonomy and contracts SSOT"
 description: "Planned unified event taxonomy, metric_type families, JSON Schema contracts, and transmission classes for Vox telemetry."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-02"
 training_eligible: false

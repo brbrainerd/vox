@@ -1,7 +1,7 @@
 ---
 title: "Dependency policy"
 description: "How Vox pins Rust and JS dependencies, workspace inheritance, and optional CI insight jobs."
-category: "contributor"
+category: "Contributors"
 status: "current"
 sort_order: 12
 last_updated: "2026-05-11"

@@ -1,6 +1,6 @@
 ---
 title: "Data Storage Migration Backlog (2026)"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Backlog for the data storage migration"

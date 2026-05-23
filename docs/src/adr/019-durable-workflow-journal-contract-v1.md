@@ -1,7 +1,7 @@
 ---
 title: "ADR 019: Durable workflow journal contract v1"
 description: "Freeze the interpreted workflow durability boundary, replay source of truth, and v1 event contract."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-29"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Vox source → compiler → Mens training (pipeline SSOT)"
 description: "End-to-end map from .vox text through the lexer and compiler to golden examples, corpus mix, and Mens (HF) training—without conflating compile tokens with model tokens."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 3
 last_updated: "2026-04-12"

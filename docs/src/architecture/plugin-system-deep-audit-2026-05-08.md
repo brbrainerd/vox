@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Deep Audit (2026-05-08)"
 description: "Second-pass audit covering ABI completeness, discovery, sandbox model, cross-cutting concerns, and distribution."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Comprehensive snapshot of plugin system invariants and gaps useful for plugin authors and future architecture work."

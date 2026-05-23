@@ -1,7 +1,7 @@
 ---
 title: "Plugin Catalog"
 description: "What the Vox plugin catalog is and how it relates to per-plugin manifests."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 ---

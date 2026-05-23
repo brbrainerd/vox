@@ -1,7 +1,7 @@
 ---
 title: "Crate API: vox-codegen-rust"
 description: "Rust crate vox-codegen-rust"
-category: "api-crate"
+category: "API Reference — Crates"
 status: deprecated
 archived_date: 2026-04-13
 training_eligible: false

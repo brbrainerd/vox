@@ -1,7 +1,7 @@
 ---
 title: "English-Core + Latin Alias Migration Ledger"
 description: "Complete migration tracking for nomenclature transition from Latin aliases (vox-dei, vox-ars) -> English canonical names."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "legacy"
 last_updated: "2026-04-05"
 training_eligible: false

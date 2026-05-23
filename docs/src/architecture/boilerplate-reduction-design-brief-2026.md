@@ -1,7 +1,7 @@
 ---
 title: "Boilerplate Reduction in Modern Full-Stack & Mobile Development — Ranked Design Brief for Vox (2026)"
 description: "Externally-sourced design brief ranking 25 categories of repetitive scaffolding (async-state, cross-stack types, forms, auth, effect/IO, request validation, reactive sync, i18n, observability, durable jobs, real-time, offline-first, LLM glue, agentic orchestration, taint/consent, vector search, multiplayer, etc.) by frequency × time-burden × language-leverage, with proposed Vox-language treatments. Filed verbatim with reviewer critique appended; the parallel gap-analysis document maps each category to existing SSOT / CC / Phase coverage and flags genuine deltas."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-09"
 training_eligible: true

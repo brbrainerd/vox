@@ -1,7 +1,7 @@
 ---
 title: "Command surface duals (intentional)"
 description: "Official documentation for Command surface duals (intentional) for the Vox language. Detailed technical reference, architecture guides, a"
-category: "reference"
+category: "CI & Quality"
 last_updated: "2026-03-24"
 training_eligible: true
 

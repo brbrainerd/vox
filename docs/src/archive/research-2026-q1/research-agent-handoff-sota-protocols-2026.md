@@ -1,6 +1,6 @@
 ---
 title: "State of the Art for Context-Aware Agent Handoff Protocols"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

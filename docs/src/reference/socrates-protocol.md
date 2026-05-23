@@ -1,7 +1,7 @@
 ---
 title: "Socrates protocol — single source of truth"
 description: "Official documentation for Socrates protocol — single source of truth for the Vox language. Detailed technical reference, architecture gu"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 

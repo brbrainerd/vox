@@ -1,7 +1,7 @@
 ---
 title: "Rosetta language comparison: C++, Rust, Python pedagogy research 2026"
 description: "Pedagogical research and web search findings supporting the design of the Vox Rosetta Inventory multi-language documentation."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-14"
 training_eligible: false

@@ -94,3 +94,5 @@ file://.*docs/src/feed\.xml
 # wravery/webview2-rs compare URLs that 404 because upstream restructured tag layout.
 # We don't control the vendored content; ignore the specific 404 paths.
 https://github\.com/wravery/webview2-rs/compare/.*
+# Nature.com uses cookie-auth redirects; lychee trips on the chain despite 200 final status
+.*nature\.com/.*

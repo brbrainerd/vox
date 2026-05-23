@@ -1,7 +1,7 @@
 ---
 title: "scientia pipeline ssot 2026"
 description: "Automatically added frontmatter for scientia pipeline ssot 2026"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 archived_date: 2026-04-18

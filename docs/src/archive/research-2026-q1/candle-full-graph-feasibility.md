@@ -1,7 +1,7 @@
 ---
 title: "Feasibility: full-graph Candle training (qlora-rs)"
 description: "Official documentation for Feasibility: full-graph Candle training (qlora-rs) for the Vox language."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

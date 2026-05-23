@@ -1,7 +1,7 @@
 ---
 title: "TypeScript boundary policy"
 description: "Official documentation for TypeScript boundary policy for the Vox language. Detailed technical reference, architecture guides, and implem"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

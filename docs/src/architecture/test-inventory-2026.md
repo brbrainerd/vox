@@ -1,7 +1,7 @@
 ---
 title: "Workspace test inventory (2026)"
 description: "Regenerable counts of Rust tests, ignores, golden Vox, and app E2E paths across the workspace (fully regenerated; refresh dates via git history)."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

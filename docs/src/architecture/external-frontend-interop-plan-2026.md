@@ -1,7 +1,7 @@
 ---
 title: "External Frontend Interop Plan (2026)"
 description: "Five-phase plan to make Vox interoperable with the React/TS ecosystem in both directions: keep Vox's GUI authoring (TS/React emission), add bidirectional component interop, retire @island, and add a backend-only mode for users with an existing React frontend."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Strategic plan; canonical reference for backend-only mode, bidirectional Vox↔React component interop, and @island retirement."

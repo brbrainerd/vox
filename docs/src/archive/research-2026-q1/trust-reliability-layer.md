@@ -1,7 +1,7 @@
 ---
 title: "Trust Reliability Layer (SSOT)"
 description: "Defines unified trust observation vocabulary, trust_observations / trust_rollups persistence, EWMA rollups, producers and consumers (orchestrator, endpoints, Socrates), degradation/outbox health signals, and MCP/CLI trust surfaces."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

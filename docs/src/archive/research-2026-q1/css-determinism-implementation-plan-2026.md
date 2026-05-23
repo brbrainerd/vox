@@ -1,7 +1,7 @@
 ---
 title: "CSS Determinism: Implementation Plan for Vox Style Emission"
 description: "Grounded implementation plan for making Vox's CSS emission auditable, constraint-checked, and AI-tractable. Rooted in actual codebase analysis of codegen_ts/emitter.rs, web_ir/, and the StyleBlock/StyleNode pipeline."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 6
 last_updated: "2026-04-16"

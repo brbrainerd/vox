@@ -1,7 +1,7 @@
 ---
 title: "LLM-Native Language Design"
 description: "Cluster overview: scientific evidence for hallucination reduction via type system design, constrained decoding tradeoffs, and LLM-native language architecture for Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

@@ -1,7 +1,7 @@
 ---
 title: "Tutorial: Building UI with VUV view-calls"
 description: "Learn how to build modern, reactive UIs in Vox using the view-call (VUV) authoring syntax — function calls + trailing-block children + typed style kwargs."
-category: "tutorials"
+category: "Tutorials"
 status: "current"
 sort_order: 5
 last_updated: "2026-05-02"

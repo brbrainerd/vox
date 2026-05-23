@@ -1,7 +1,7 @@
 ---
 title: "Nomenclature migration map (SSOT)"
 description: "Canonical English terms, Latin CLI aliases, and legacy identifiers for the Vox codebase."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Terminal AST validation research 2026"
 description: "Resolving IDE allowlist/denylist brittleness with a single-source-of-truth PowerShell AST validation engine and robust IDE enforcement."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-02"
 

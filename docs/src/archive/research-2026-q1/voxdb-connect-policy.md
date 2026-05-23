@@ -1,7 +1,7 @@
 ---
 title: "VoxDB connection policy (SSOT)"
 description: "Strict, degraded-optional, and legacy-schema policies for VoxDb connects; inventory of callsites by surface/crate; remediation pointer and rules for adding new connections without silent Codex drops."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-11"
 
 schema_type: "TechArticle"

@@ -1,7 +1,7 @@
 ---
 title: "Vox Dashboard — Design Brief for Anthropic Labs Design (2026)"
 description: "Screen-by-screen spec for the Vox dashboard redesign. VUV-form code examples, primitive inventory, token map, anti-patterns."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-03"
 training_eligible: false

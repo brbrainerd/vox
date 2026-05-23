@@ -1,7 +1,7 @@
 ---
 title: "Populi overlay personal cluster runbook"
 description: "Operator steps and WAN boundaries for user-owned Populi clusters across VPN-style overlays."
-category: "reference"
+category: "Operations"
 last_updated: "2026-03-29"
 training_eligible: true
 

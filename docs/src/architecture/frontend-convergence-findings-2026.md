@@ -1,7 +1,7 @@
 ---
 title: "Frontend Convergence Findings (2026)"
 description: "Audit of Vox's TypeScript/JSX/React emit, GUI primitive surface, parser/HIR lowering, and two-way interop seeds. Identifies dead surfaces to retire, the canonical SSOT (HIR → Web IR → emitters), and the missing Contract IR layer that unifies wire-format outputs. Companion to the External Frontend Interop Plan (2026)."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Canonical convergence reference; defines the SSOT seam and the redundancies to delete on the path to Phase 2/5 of the interop plan."

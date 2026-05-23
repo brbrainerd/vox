@@ -1,7 +1,7 @@
 ---
 title: "Mobile/Desktop Convergence & Language Extension Research 2026"
 description: "Research findings on mobile–desktop view convergence, device API unification, and parser gaps for agent/environment declarations. Informs future implementation planning."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-06"
 training_eligible: false
 

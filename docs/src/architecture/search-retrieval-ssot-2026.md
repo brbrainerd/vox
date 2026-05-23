@@ -1,7 +1,7 @@
 ---
 title: "Search & Retrieval SSOT (2026)"
 description: "Single baseline for how agent-facing retrieval works across vox-db contracts, vox-search execution, orchestrator MCP tools, and dashboard transport — including the two distinct \"VoxDB\" surfaces."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 52
 status: "current"
 last_updated: "2026-05-05"

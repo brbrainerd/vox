@@ -1,7 +1,7 @@
 ---
 title: "Vox bell-curve strategy"
 description: "Program SSOT for the narrow app-software scope, product lanes, ranking model, and rollout status used by the Vox bell-curve work."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-28"
 training_eligible: false
 

@@ -1,7 +1,7 @@
 ---
 title: "Rosetta Inventory: One Scenario, Four Languages"
 description: "The same inventory merge across C++, Rust, Python, and Vox — not to show who wins, but to show what each language reveals about the problem."
-category: "explanation"
+category: "Concepts"
 last_updated: "2026-04-14"
 status: "current"
 training_eligible: true

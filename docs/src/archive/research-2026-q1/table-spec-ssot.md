@@ -1,7 +1,7 @@
 ---
 title: "Table metadata SSOT (Arca ↔ @table convergence)"
 description: "Compares Arca domain DDL, spec append, orchestrator digest, and compiler @table emission; documents current parity/wiring tests and a target single logical table spec driving generators and CI."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

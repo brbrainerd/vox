@@ -1,7 +1,7 @@
 ---
 title: "Wire Format v1 SSOT"
 description: "Versioned specification for how Vox types are encoded over HTTP between a Vox backend and any TypeScript/React consumer."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Canonical wire format contract; required reading for any Vox API consumer or emitter."

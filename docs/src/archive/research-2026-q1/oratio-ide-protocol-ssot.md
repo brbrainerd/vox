@@ -1,7 +1,7 @@
 ---
 title: "Oratio IDE Protocol (SSOT)"
 description: "Protocol for injecting IDE/Workspace context into the Vox Oratio speech-to-code pipeline."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-18"
 training_eligible: false

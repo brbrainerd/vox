@@ -1,7 +1,7 @@
 ---
 title: "VoxGiantia publication architecture (beginner map)"
 description: "Beginner-friendly map of how VoxGiantia turns one manifest into multi-platform publication attempts."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: false
 

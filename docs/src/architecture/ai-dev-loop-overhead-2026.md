@@ -1,7 +1,7 @@
 ---
 title: "AI-assisted dev loop — compile overhead (2026)"
 description: "Evidence-backed practices and tooling to reduce redundant Cargo rebuilds when using coding agents (multi-terminal, pre-push frequency, cache fragmentation)."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

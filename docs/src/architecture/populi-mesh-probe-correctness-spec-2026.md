@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh — Probe Correctness Spec (S1, 2026-05-01)"
 description: "Slice S1 child spec for workstream W2 (GPU truth, partial). Refactors hardware probes behind a trait, introduces a mock harness, and establishes correctness criteria for NVML / wgpu / DRM / Metal / DXGI probes. No admission-control integration (deferred to S2)."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Defines the probe trait shape and test pattern that subsequent hardware-related work in vox-populi follows."

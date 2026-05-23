@@ -1,7 +1,7 @@
 ---
 title: "Inference Tuning Resolution Research 2026"
 description: "Research into precedence-based parameter resolution for LLM inference."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Documents the April 2026 shift to granular tuning overrides."

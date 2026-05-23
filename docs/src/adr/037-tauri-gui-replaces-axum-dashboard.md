@@ -2,7 +2,7 @@
 title: "037 - Tauri GUI Replaces Axum Dashboard"
 date: "2026-05-11"
 status: "current"
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 ---
 
 # 037 - Tauri GUI Replaces Axum Dashboard

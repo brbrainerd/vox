@@ -1,7 +1,7 @@
 ---
 title: "Vox Session Management"
 description: "Persistent conversation history, metadata, and state management across agent interactions."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-05"
 training_eligible: false

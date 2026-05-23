@@ -1,7 +1,7 @@
 ---
 title: "Language Syntax Reference"
 description: "A comprehensive, scannable syntax quick-reference page."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-26"
 training_eligible: true

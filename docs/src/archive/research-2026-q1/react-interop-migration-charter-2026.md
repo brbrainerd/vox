@@ -1,7 +1,7 @@
 ---
 title: "React interop full-repo migration charter (2026)"
 description: "Governance, KPIs, cutover policy, and completion checkpoints for the framework-agnostic React + islands + v0/shadcn/Tailwind migration."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 

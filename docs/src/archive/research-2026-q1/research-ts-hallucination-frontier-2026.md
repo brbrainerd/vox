@@ -1,7 +1,7 @@
 ---
 title: "The Frontier: Unknowns in LLM-Native Language Design"
 description: "Open questions in LLM-native language design, experimental validation approaches, and concrete Vox language design directives."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"
