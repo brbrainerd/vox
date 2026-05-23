@@ -7,7 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'list',
   use: {
-    baseURL: process.env.BASE_URL ?? 'https://vox-lang.org',
+    baseURL: process.env.BASE_URL ?? 'https://voxlang.org',
     trace: 'on-first-retry',
   },
   projects: [
