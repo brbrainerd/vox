@@ -1,0 +1,42 @@
+id = "spec-to-app-006-notes-list"
+tier = "T2"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a Vox single-tenant Notes app skeleton:
+
+  - @table type Note { title: str, body: str, pinned: bool }
+  - type NoteError =
+      | EmptyTitle(text: str)
+      | TitleTooLong(text: str)
+      | BodyTooLong(text: str)
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      list_notes() to List[Note] returning an empty literal list.
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      add_note(title: str, body: str) to Result[str, NoteError]
+        that validates:
+          - title is non-empty (returns Error(EmptyTitle("...")) otherwise),
+          - title length <= 120 (returns Error(TitleTooLong("..."))),
+          - body length <= 4096 (returns Error(BodyTooLong("..."))),
+        and on success returns Ok("queued").
+
+Include three @test blocks covering the three error variants.
+
+Vox conventions:
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors.
+  - bare variant constructors: `EmptyTitle("…")`, not `NoteError.EmptyTitle(…)`.
+  - `match result { Error(EmptyTitle(_)) => assert(true) … }` in tests.
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 3
+auth_decorator_required = true
+endpoint_kind_required = true
+adt_error_variant_required = true

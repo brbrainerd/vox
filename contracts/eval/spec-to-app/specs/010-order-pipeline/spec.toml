@@ -1,0 +1,53 @@
+id = "spec-to-app-010-order-pipeline"
+tier = "T3"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a Vox order-processing skeleton exercising multi-table reads,
+ADT error discrimination, and retry-eligible failure modes:
+
+  - @table type Customer { email: str, tier: str }
+  - @table type Order { customer: str, sku: str, qty: int, status: str }
+  - @table type Inventory { sku: str, on_hand: int }
+  - type OrderError =
+      | UnknownCustomer(text: str)
+      | UnknownSku(text: str)
+      | OutOfStock(text: str)
+      | InvalidQty(text: str)
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      list_orders() to List[Order] returning [].
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      check_inventory(sku: str) to Result[int, OrderError]
+        returning Ok(0) on success or Error(UnknownSku("...")) when
+        sku is empty.
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      place_order(customer: str, sku: str, qty: int)
+        to Result[str, OrderError]
+        validating:
+          - customer non-empty   → Error(UnknownCustomer("...")),
+          - sku non-empty        → Error(UnknownSku("...")),
+          - qty > 0              → Error(InvalidQty("...")),
+        and on success returns Ok("queued").
+
+Include four @test blocks covering the four error variants via
+match-arm dispatch.
+
+Vox conventions:
+  - `len(s) is 0` for emptiness check.
+  - `Error(VariantName(payload))` constructor.
+  - bare variant constructors.
+  - `match result { Error(UnknownSku(_)) => assert(true), ... }`.
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 4
+auth_decorator_required = true
+endpoint_kind_required = true
+adt_error_variant_required = true
+multiple_tables_required = true

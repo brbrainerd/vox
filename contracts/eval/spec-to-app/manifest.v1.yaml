@@ -10,20 +10,22 @@ schema_version: 1
 corpus:
   id: spec-to-app
   schema_version: 1
-  status: seed                              # 3 fixtures landed 2026-05-18 (P3.4)
+  status: target-met                        # 10 fixtures landed 2026-05-23 (honest plan §4.1)
   bar:
     pass_rate_target: 0.60
     cost_ceiling_usd_median: 5.00
     sub_bar_block_ga_pass_rate: 0.40      # CR-L0 sub-bar blocks GA outright
     sub_bar_block_ga_cost: 10.00          # cost ceiling >$10/spec median also blocks GA
   count_target: 10
-  count_current: 3
+  count_current: 10
   corpus_hash: "blake3:populated-by-SpecToAppRunner-at-run-time"
 
 difficulty_distribution:
-  T1: 4                                   # single-archetype, single-file scope
-  T2: 4                                   # multi-feature with auth
-  T3: 2                                   # marquee-class
+  # Reconciled 2026-05-23 with honest plan §4.1 ("at least 3 T1, 3 T2,
+  # 4 T3"); earlier 4/4/2 was the pre-honest-plan target.
+  T1: 3                                   # single-archetype, single-file scope (≥ 3)
+  T2: 3                                   # multi-feature with auth (≥ 3)
+  T3: 4                                   # marquee-class (≥ 4)
 
 fixtures: []
 

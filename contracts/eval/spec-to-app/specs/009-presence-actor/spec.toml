@@ -1,0 +1,50 @@
+id = "spec-to-app-009-presence-actor"
+tier = "T3"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a Vox presence service mixing actor + stream endpoint + ADT
+error:
+
+  - actor Presence {
+      on join(user: str) to str         // returns "online:" + user
+      on leave(user: str) to str        // returns "offline:" + user
+      on heartbeat(user: str) to str    // returns "tick:" + user
+    }
+  - type PresenceError =
+      | EmptyUser(text: str)
+      | TooManyUsers(text: str)
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      list_online() to List[str] returning [].
+  - @endpoint(kind: stream) @auth(scheme: bearer)
+      watch_presence() to str returning "tick".
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      announce(user: str) to Result[str, PresenceError]
+        validating user non-empty (Error(EmptyUser("..."))) and
+        returning Ok("announced") on success.
+
+Include three @test blocks:
+  - announce("") returns Error(EmptyUser(_)).
+  - announce("ada") returns Ok(_).
+  - one helper-fn test exercising a pure `presence_label(online: bool)
+    to str` that returns "online"/"offline" without using the actor.
+
+Vox conventions:
+  - actor handlers are `on event(args) to T { ... }` blocks INSIDE
+    `actor Name { ... }`.
+  - bare variant constructors in `Error(...)`.
+  - `match result { Error(EmptyUser(_)) => ... }` discrimination.
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 3
+actor_required = true
+endpoint_kind_required = true
+streaming_decorator_required = true
+adt_error_variant_required = true
