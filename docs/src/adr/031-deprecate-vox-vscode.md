@@ -1,7 +1,7 @@
 ---
 title: "ADR 031 — Deprecate vox-vscode; dashboard is the primary surface"
 description: "Formally deprecates the vox-vscode VS Code extension as the primary Vox user surface. The Axum-served vox-dashboard is the replacement. vox-vscode is retained for LSP only."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-01"
 training_eligible: false

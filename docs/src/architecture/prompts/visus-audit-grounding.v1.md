@@ -1,7 +1,7 @@
 ---
 title: "visus-audit-grounding.v1.md"
 description: "Documentation for visus-audit-grounding.v1.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Project architecture context."

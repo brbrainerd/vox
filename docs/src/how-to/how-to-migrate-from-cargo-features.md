@@ -1,7 +1,7 @@
 ---
 title: "Migrating from Cargo Feature Flags"
 description: "Mapping from `cargo --features` invocations to the runtime plugin system."
-category: how-to
+category: "How-To Guides"
 ---
 
 # Migrating from Cargo Feature Flags

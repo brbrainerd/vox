@@ -1,7 +1,7 @@
 ---
 title: "RCICD coverage and cost matrix (2026)"
 description: "Maps CI workflows and jobs to risk coverage, local equivalents, and optimization notes. Companion to runner-contract and local pre-push docs."
-category: "ci"
+category: "CI & Quality"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

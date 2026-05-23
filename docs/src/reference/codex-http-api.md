@@ -1,7 +1,7 @@
 ---
 title: "Codex HTTP API"
 description: "Official documentation for Codex HTTP API for the Vox language. Detailed technical reference, architecture guides, and implementation pat"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-26"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Mesh Phase 3 — Multi-agent VCS over mesh (op-log gossip) Implementation Plan"
 description: "TDD-style implementation plan for Phase 3 of the mesh & language-distribution SSOT: durable op-log persistence in vox-db, signed capability mints and op-fragments, Bloom-filter anti-entropy gossip, vector-clock affinity, lock-wait outcome, sealed-trait hardening, raw-git arch-check rule, unknown-parent backfill, and op-log-as-projection-source. Nine tasks (P3-T1..P3-T9), expected ~9 PRs."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. Spec/SSOT is the durable artifact."

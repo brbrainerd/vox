@@ -1,7 +1,7 @@
 ---
 title: "CLI vs compilerd params (split-brain backlog)"
 description: "Documents the duplicate clap vs serde request structs today and the convergence target."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

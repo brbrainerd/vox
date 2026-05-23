@@ -1,6 +1,6 @@
 ---
 title: "workspace-health-audit-research-2026"
-category: "reference"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

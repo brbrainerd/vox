@@ -1,7 +1,7 @@
 ---
 title: "Vox Skill Marketplace"
 description: "Documentation for the Vox skills ecosystem including ARS runtime, skill registries, and workflows."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-05"
 training_eligible: true

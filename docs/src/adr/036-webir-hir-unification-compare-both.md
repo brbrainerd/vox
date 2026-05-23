@@ -1,7 +1,7 @@
 ---
 title: "ADR 036 — WebIR vs HIR unification (compare-both)"
 description: "Scores full IR merge vs core+projection; records decision, rubric, and follow-up execution gates for GUI-any-platform and AI-first goals."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

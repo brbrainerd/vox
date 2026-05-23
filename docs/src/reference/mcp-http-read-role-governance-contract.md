@@ -1,7 +1,7 @@
 ---
 title: MCP HTTP read-role governance contract
 description: Canonical governance profile and schema for MCP HTTP read-token tool eligibility.
-category: reference
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

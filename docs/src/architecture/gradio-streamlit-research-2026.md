@@ -1,7 +1,7 @@
 ---
 title: "Gradio & Streamlit Research (2026): What VUV Should Steal, Adapt, and Reject"
 description: "Primary-source history and architectural review of Gradio and Streamlit, the two dominant Python web-GUI libraries, framed as design input to Vox's VUV authoring layer. Records what each got right, where each falls below Vox's quality bar, and what translates well or badly to LLM-emitted GUI code."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-08"
 training_eligible: true

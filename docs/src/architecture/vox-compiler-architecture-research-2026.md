@@ -1,7 +1,7 @@
 ---
 title: "Vox compiler architecture (research)"
 description: "High-level map of the vox-compiler pipeline (lexer → AST → HIR → typecheck → codegen), extension points, and links to enforcement plans."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-11"
 training_eligible: true

@@ -1,7 +1,7 @@
 ---
 title: "Canonical runtime names (daemon, MCP, env)"
 description: "Frozen canonical identifiers vs deprecated aliases — prevents split-brain between CLI, MCP, docs, and contracts."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Reduces agent/human drift when renaming crates, binaries, tools, or env families."

@@ -1,7 +1,7 @@
 ---
 title: "Standard library surfaces"
 description: "How script-mode std.* surfaces relate to host shells and cross-platform ergonomics."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

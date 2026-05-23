@@ -1,7 +1,7 @@
 ---
 title: "Grand Network Quickstart (Volunteer Compute)"
 description: "How to join or host a federated Vox volunteer compute node using vox populi join and vox populi attest."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 ---
 

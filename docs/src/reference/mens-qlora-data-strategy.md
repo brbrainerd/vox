@@ -1,7 +1,7 @@
 ---
 title: "QLoRA Fine-tuning Data Strategy & SSoT"
 description: "Official documentation for QLoRA Fine-tuning Data Strategy & SSoT for the Vox language. Detailed technical reference, architecture guides"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 

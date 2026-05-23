@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules — Phase 2: Lint Extension with Stable Diagnostic IDs (2026-05-09)"
 description: "Step-by-step plan to extend vox-code-audit with 14+ new detectors covering direct-LLM-call rejection, env.get-secret-shape rejection, ?-operator opportunity, ADR-citation discipline, decorator-position lint, duplicate-prefix names, long-range coupling, and more. Every detector ships with a stable diagnostic ID, a serializable LintFix descriptor, an --explain page, confidence + alternatives, and a negative-example corpus entry. Adds vox check --for-llm JSON mode optimized for LLM agents proposing fixes."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 2 child plan. Each detector descriptor is a complete spec for the implementing PR; the LLM-target additions (--for-llm, confidence, alternatives) are the largest single delta between Vox and a typical compiler."

@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign (2026)"
 description: "Design spec for unifying Vox's modularity surfaces — Cargo features, vox-skills, and capability registries — into a single runtime-loadable plugin system that supports lean per-deployment distribution bundles."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Architecture spec defining the unified plugin model, ABI, loader, CLI, and distribution-bundle story."

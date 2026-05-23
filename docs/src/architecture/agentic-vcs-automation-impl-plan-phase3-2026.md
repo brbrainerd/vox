@@ -1,7 +1,7 @@
 ---
 title: "Agentic VCS Automation — Phase 3 Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD plan that lands the dashboard surface for agentic VCS state: API routes under /api/v2/vcs/, five panels (workspace branch board, oplog viewer, push queue, capability ledger, leaked-secret diff scanner), WebSocket telemetry tap on vox.vcs.* events, and the React/HTMX-side wiring. Builds on Phases 1 and 2."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 3 makes the agentic VCS state legible to humans. Dashboard panels are how operators audit minted capabilities, undo bad ops, and see leaked-secret findings before push. Concrete code, exact file paths, exact commands. Future agents executing this plan should not need to invent code."

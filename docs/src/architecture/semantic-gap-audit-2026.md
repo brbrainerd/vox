@@ -1,3 +1,9 @@
+---
+title: "Semantic Gap Audit — 2026-05-16"
+category: "Architecture SSOTs"
+status: "current"
+---
+
 # Semantic Gap Audit — 2026-05-16
 
 **Goal:** Find code that *looks* finished — compiles, passes tests, no `todo!()` markers — but whose bodies don't honor the contract their names, signatures, or doc comments imply. This is the LLM-laziness pattern that the prior surface-keyword audit missed.

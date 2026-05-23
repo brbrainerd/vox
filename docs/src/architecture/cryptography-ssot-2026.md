@@ -1,7 +1,7 @@
 ---
 title: "Cryptography Policy SSoT"
 description: "Canonical cryptographic invariants and banned primitives for Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 20
 status: "current"
 ---

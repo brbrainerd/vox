@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules — Phase 1: SSOT Collapse (2026-05-09)"
 description: "Step-by-step plan to collapse hand-mirrored Rust↔Vox surfaces into single-source-of-truth + xtask-generated outputs. Generates the typechecker builtin manifest, LSP completions, system prompt sections, mdbook reference pages, decorator catalog, diagnostic catalog scaffolding, and TS codegen headers from one Rust source each. Every generated file gets a blake3 provenance header and a CI drift check."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 1 child plan of vox-language-rules-and-enforcement-plan-2026.md. Generation patterns shown here are reusable for any future Rust↔Vox seam."

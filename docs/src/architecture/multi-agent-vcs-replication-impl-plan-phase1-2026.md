@@ -1,7 +1,7 @@
 ---
 title: "Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)"
 description: "Step-by-step TDD implementation plan for Phase 1 of the multi-agent VCS replication architecture: local-only op-log gossip between agents on one machine. 16 tasks, ~80 individual steps, every code change shown. Phases 2–4 will be drafted as separate plans when queued."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Canonical step-by-step build of the convergence engine, MergePolicy v1, and op-fragment serialization. Engineers (and agents) implementing this feature must follow this sequence."

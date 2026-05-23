@@ -1,7 +1,7 @@
 ---
 title: "Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan"
 description: "Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280 numbered improvements across 27 surface clusters (A..AB). Four-axis tagged: risk/capability/hygiene/perf × P0–P3 × S/M/L effort."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-01"
 training_eligible: true

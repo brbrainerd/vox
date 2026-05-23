@@ -1,7 +1,7 @@
 ---
 title: "Deployment: Docker, Compose, Coolify, CI (SSOT)"
 description: "Official documentation for Deployment: Docker, Compose, Coolify, CI (SSOT) for the Vox language. Detailed technical reference, architectu"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-29"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Reference: FFI and interop"
 description: "Rust crate imports, extern declarations, and frontend bridge boundaries."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

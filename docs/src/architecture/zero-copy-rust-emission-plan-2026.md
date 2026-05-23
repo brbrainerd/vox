@@ -1,3 +1,9 @@
+---
+title: "Implementation Plan: Zero-Copy Vox Codegen"
+category: "Architecture SSOTs"
+status: "current"
+---
+
 # Implementation Plan: Zero-Copy Vox Codegen
 
 ## Overview

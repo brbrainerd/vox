@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh — Local Observability Spec (S1, 2026-05-01)"
 description: "Slice S1 child spec for workstream W5 partial. Establishes the vox.mesh.* span-attribute namespace, threads trace_id through the local task path, and prepares the A2A envelope for cross-node propagation in S2 — without yet emitting cross-node traces."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Defines the trace and span-attribute conventions used by all subsequent mesh observability work."

@@ -1,6 +1,6 @@
 ---
 title: Vox Feature Builds & Capabilities
-category: reference
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

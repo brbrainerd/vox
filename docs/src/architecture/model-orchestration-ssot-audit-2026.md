@@ -1,7 +1,7 @@
 ---
 title: "Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)"
 description: "Audit of Vox model selection, orchestration, telemetry, discovery, and mesh-secret distribution; proposes a single source of truth and a concrete backlog of ~70 improvements."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Core orchestration architecture reference; names all files touching the model-routing surface."

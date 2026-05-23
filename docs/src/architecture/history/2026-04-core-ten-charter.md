@@ -1,3 +1,9 @@
+---
+title: "Vox Crate Ledger (v1.0 Frozen Core)"
+category: "Architecture SSOTs"
+status: "current"
+---
+
 # Vox Crate Ledger (v1.0 Frozen Core)
 
 Status: Enforced as of April 2026.

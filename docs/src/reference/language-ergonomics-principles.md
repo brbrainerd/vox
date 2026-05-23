@@ -1,7 +1,7 @@
 ---
 title: "Language ergonomics principles"
 description: "Principles for reducing boilerplate in Vox while preserving readability and explicit intent."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-25"
 training_eligible: true
 

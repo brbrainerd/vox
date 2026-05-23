@@ -1,7 +1,7 @@
 ---
 title: "Telemetry Trust (SSoT)"
 description: "Canonical boundaries and trust policies for Vox telemetry."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 10
 status: "current"
 ---

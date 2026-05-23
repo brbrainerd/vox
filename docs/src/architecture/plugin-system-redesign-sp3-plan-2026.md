@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign — SP3 Implementation Plan (2026)"
 description: "Step-by-step implementation plan for Sub-Project 3: define the MlBackend extension-point trait, extract candle-cuda from vox-populi into a standalone vox-plugin-mens-candle-cuda cdylib plugin, and wire vox-populi to consume the backend through vox-plugin-host."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Concrete TDD task plan for SP3; companion to the parent design spec."

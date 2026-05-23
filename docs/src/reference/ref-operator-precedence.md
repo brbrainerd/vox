@@ -1,7 +1,7 @@
 ---
 title: "Reference: operator precedence"
 description: "Binary and postfix operator precedence for Vox expressions, sourced from the Pratt parser binding powers."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

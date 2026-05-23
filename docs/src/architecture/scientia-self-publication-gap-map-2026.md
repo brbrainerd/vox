@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA Self-Publication Gap Map (2026)"
 description: "Audit of what is still missing in Vox SCIENTIA after Finalization Plan Phases 0–10, mapped to the developer's end-to-end self-publication user journey, with priority and dependencies."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-15"
 training_eligible: true

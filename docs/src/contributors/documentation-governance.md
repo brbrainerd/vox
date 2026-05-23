@@ -1,7 +1,7 @@
 ---
 title: "Documentation governance"
 description: "Authority map, taxonomy, status vocabulary, and maintenance rules for Vox documentation."
-category: "contributor"
+category: "Contributors"
 status: "current"
 sort_order: 10
 last_updated: "2026-04-16"

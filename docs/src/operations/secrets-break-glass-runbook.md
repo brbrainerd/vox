@@ -1,7 +1,7 @@
 ---
 title: "Secrets Break-Glass Runbook"
 description: "Emergency access workflow for Secrets Cloudless with JIT controls, immutable audit, and mandatory rotation."
-category: "operations"
+category: "Operations"
 last_updated: "2026-05-08"
 training_eligible: true
 

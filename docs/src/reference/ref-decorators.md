@@ -1,7 +1,7 @@
 ---
 title: "Reference: Decorator Registry"
 description: "All available decorators and their technical effects."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

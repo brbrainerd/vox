@@ -1,7 +1,7 @@
 ---
 title: "Agent Quick Reference"
 description: "A tightly condensed reference for essential agent tasks, constraints, and CI rules."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-16"
 training_eligible: true

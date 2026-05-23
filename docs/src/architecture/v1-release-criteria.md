@@ -1,6 +1,6 @@
 ---
 title: "v1-release-criteria"
-category: "reference"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---

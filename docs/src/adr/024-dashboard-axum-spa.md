@@ -1,7 +1,7 @@
 ---
 title: "ADR 024 — Dashboard as local Axum-served SPA"
 description: "Decision record for migrating the Vox dashboard from a VS Code webview to a standalone Axum-served SPA."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-04-23"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Vox-Populi Extraction Follow-Up Plan (2026)"
 description: "Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor, vox-oratio Whisper, and vox-browser extraction into their respective plugin scaffolds."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Honest accounting of what plugin extractions are still pending after the foundation landed; sequencing for follow-up sessions."

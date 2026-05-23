@@ -2,7 +2,7 @@
 title: Git Concurrency Policy
 description: Rules for safe git use by agentic workers in the Vox orchestrator
 date: 2026-05-09
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # Git Concurrency Policy

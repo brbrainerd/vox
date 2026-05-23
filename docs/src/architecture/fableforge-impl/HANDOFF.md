@@ -1,7 +1,7 @@
 ---
 title: "FableForge — Developer Handoff Brief"
 description: "FableForge Handoff Notes"
-category: "architecture"
+category: "Architecture SSOTs"
 ---
 # FableForge — Developer Handoff Brief
 

@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules — Phase 4: Runtime Monitors (2026-05-09)"
 description: "Step-by-step plan to add runtime safety nets that the compiler can't reach: per-call fuel decremented per HIR step, allocation observer with cap, stack-depth cap, panic-trap boundary on every vox run invocation, runtime telemetry redactor for @secret-tagged fields, capability-violation runtime trap, idiom fingerprint telemetry export, deterministic-seed playground mode for examples, and a per-call sandbox under vox-bounded-fs. Defaults are CI-strict, end-user-friendly with --strict opt-in."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 4 child plan. Runtime monitors are Rust-side defense-in-depth; everything here is independent of compiler changes and can ship in parallel with Phase 2."

@@ -1,7 +1,7 @@
 ---
 title: "OpenClaw Discovery and Sidecar SSOT"
 description: "SSOT for OpenClaw endpoint resolution order, discovery env vars and cache behavior, managed openclaw-gateway sidecar install and doctor controls, failure modes, and vox ci openclaw-contract fixture locations."
-category: "reference"
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

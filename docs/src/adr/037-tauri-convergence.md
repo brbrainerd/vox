@@ -1,7 +1,7 @@
 ---
 title: "ADR 037 — Tauri Convergence"
 description: "Decision record for converging Vox desktop and mobile application packaging on Tauri 2."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-05-11"
 training_eligible: true
 schema_type: "TechArticle"

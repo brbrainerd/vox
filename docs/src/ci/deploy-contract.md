@@ -1,7 +1,7 @@
 ---
 title: "Coolify Deployment Contract"
 description: "Automated CI/CD pipeline definition for the Hetzner VPS including LLM auto-healing loops."
-category: "ci"
+category: "CI & Quality"
 ---
 # Coolify Deployment Contract
 

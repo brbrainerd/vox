@@ -1,7 +1,7 @@
 ---
 title: "ADR 039 — AI fixture `@hole` decorator"
 description: "Proposes explicit deferred-fill fixtures with compile-time enforcement and reviewer accountability."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

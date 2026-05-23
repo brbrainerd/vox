@@ -1,7 +1,7 @@
 ---
 title: "GitHub-hosted runner exceptions"
 description: "Official documentation for GitHub-hosted runner exceptions for the Vox language. Detailed technical reference, architecture guides, and i"
-category: "reference"
+category: "CI & Quality"
 last_updated: "2026-03-24"
 training_eligible: true
 

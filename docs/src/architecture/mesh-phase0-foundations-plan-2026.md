@@ -1,7 +1,7 @@
 ---
 title: "Mesh Phase 0 — Foundations Implementation Plan (2026-05-09)"
 description: "TDD implementation plan for Phase 0 of the Mesh & Language-Level Distribution SSOT — persisted lock map, lock-leader election, lease-gated dispatch, secret injection, TLS option, probe trait, SkillRuntime seam, and traceparent propagation. Eight tasks, ~1700 LOC."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; gets stale as tasks are completed. Spec/SSOT is the durable artifact."

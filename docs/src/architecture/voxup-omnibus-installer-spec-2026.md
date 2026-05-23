@@ -1,7 +1,7 @@
 ---
 title: "Voxup Omnibus Installer Spec"
 description: "Architecture and implementation plan for the voxup unified installer, designed to provide a hermetic, zero-dependency environment for Vox development."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 ---
 

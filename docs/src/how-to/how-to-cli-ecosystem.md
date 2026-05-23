@@ -1,7 +1,7 @@
 ---
 title: "Ecosystem & Tooling"
 description: "Official documentation for Ecosystem & Tooling for the Vox language. Detailed technical reference, architecture guides, and implementatio"
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-03-24"
 training_eligible: true
 

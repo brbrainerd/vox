@@ -1,7 +1,7 @@
 ---
 title: "Crate Organization Follow-up — SSOT, Naming, and Sprawl"
 description: "Follow-up to the 2026-05-08 workspace reorg: closes SSOT/discoverability drift, picks up deferred Phase 3/6/7 extractions, and adds enforcement so the gains stick."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."

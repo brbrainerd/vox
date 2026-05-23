@@ -1,7 +1,7 @@
 ---
 title: "Research Notes: Achieving Serverless-like Performance with MCP"
 description: "Official documentation for Research Notes: Achieving Serverless-like Performance with MCP for the Vox language."
-category: "reference"
+category: "Concepts"
 last_updated: "2026-03-24"
 training_eligible: true
 

@@ -1,7 +1,7 @@
 ---
 title: "Internal Web IR Implementation Blueprint"
 description: "Implementation plan, acceptance gates, and parity requirements for the Vox internal Web IR layer."
-category: architecture
+category: "Architecture SSOTs"
 status: current
 ---
 

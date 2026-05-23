@@ -1,7 +1,7 @@
 ---
 title: "Reference: documentation comments"
 description: "How Vox sources relate to Markdown docs, doctests, and generated reference material."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

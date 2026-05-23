@@ -1,7 +1,7 @@
 ---
 title: "Vox–React backend interop audit (2026)"
 description: "Code-anchored audit of Vox as a backend/API provider for existing React frontends. Wire/OpenAPI/path parity, build targets, runtime ops, observability, with explicit, file-and-line action plans."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-11"
 training_eligible: true

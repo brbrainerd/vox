@@ -1,7 +1,7 @@
 ---
 title: "Internal Web IR side-by-side schema"
 description: "Stable entrypoint for current-vs-target Web IR representation mapping (CI cross-link surface)."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 ---
 

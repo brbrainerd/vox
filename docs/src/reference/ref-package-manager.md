@@ -1,7 +1,7 @@
 ---
 title: "Reference: package manager and workspace"
 description: "Vox.toml manifests, workspace members, lockfiles, and registry client (vox-package)."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

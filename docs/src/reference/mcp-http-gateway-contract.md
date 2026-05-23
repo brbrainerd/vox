@@ -1,7 +1,7 @@
 ---
 title: MCP HTTP gateway contract
 description: OpenAPI contract and operational guardrails for the optional MCP HTTP and WebSocket gateway.
-category: reference
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

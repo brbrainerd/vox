@@ -1,7 +1,7 @@
 ---
 title: "Web Model Reference"
 description: "Reference for building APIs and interactive frontends with the Vox web model."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-08"
 training_eligible: true

@@ -1,7 +1,7 @@
 ---
 title: "Editor integrations (LSP & grammar)"
 description: "How to wire Vox into Neovim, Helix, Zed, JetBrains, Sublime, and VS Code-class editors using the repo LSP server and Tree-sitter grammar."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-05-11"
 training_eligible: true
 schema_type: "HowTo"

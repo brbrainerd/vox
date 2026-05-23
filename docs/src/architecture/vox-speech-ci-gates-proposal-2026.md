@@ -1,7 +1,7 @@
 ---
 title: "Vox Speech CI Gates Proposal 2026"
 description: "Proposal for turning speech-to-code audit checks into required and advisory CI gates."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-05-11"
 training_eligible: true

@@ -1,7 +1,7 @@
 ---
 title: "Review Fix Pairs Contract"
 description: "Stability-first contract for review_fix_pairs_memory rows."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 

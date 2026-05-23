@@ -1,7 +1,7 @@
 ---
 title: "Language quality telemetry — blind spots (2026)"
 description: "Probe D: constraints from telemetry-trust SSOT vs planned language feedback loops (idiom events, diagnostic analytics)."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-11"
 training_eligible: true

@@ -1,7 +1,7 @@
 ---
 title: "Legacy URL Redirects on GitHub Pages"
 description: "How the Vox docs site handles old mdBook-era URLs via static HTML stubs on GitHub Pages."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-30"
 training_eligible: false

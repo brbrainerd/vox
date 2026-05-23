@@ -1,7 +1,7 @@
 ---
 title: "Mesh & Language-Level Distribution — SSOT & Upgrade Plan (2026-05-09)"
 description: "Authoritative single-source-of-truth and seven-phase upgrade plan for the Vox mesh + the language-level features that make distributed durable workflows safe to author, dispatch, and replay across it. Defines the canonical mental model (DurablePromise, effect rows, content-addressed code, signed op-fragments, capability tokens), audits the codebase against the model, sequences the work into Phase 0–6 with concrete files / contracts / acceptance per phase, and pins three release contracts (v0.6 single-machine multi-agent, v0.7 two-daemon LAN mesh, v1.0 internet-facing personal mesh) plus a v1.x grand-network direction. Subsumes prior research; supersedes scattered intent."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Plan-of-record for the load-bearing mesh + language convergence; agents and contributors should orient from this doc before changes that cross mesh, populi, orchestrator, workflow runtime, or compiler boundaries."

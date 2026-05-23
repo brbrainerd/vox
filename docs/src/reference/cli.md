@@ -1,7 +1,7 @@
 ---
 title: "Reference: `vox` CLI (minimal compiler binary)"
 description: "Official documentation for the `vox` CLI — compiler driver, package manager, CI guards, and delegated toolchain binaries."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 schema_type: "TechArticle"

@@ -1,7 +1,7 @@
 ---
 title: "Architecture Decision Records (ADR)"
 description: "Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a"
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-04-01"
 training_eligible: true
 

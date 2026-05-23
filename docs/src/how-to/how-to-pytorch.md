@@ -1,7 +1,7 @@
 ---
 title: "Python Library Integration (Retired)"
 description: "Stub: @py.import has been removed from the Vox compiler. See AGENTS.md §VoxScript-First Glue Code for the canonical glue surface."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-05-08"
 training_eligible: false
 training_rationale: "Retired surface; do not train models to emit @py.import."

@@ -1,7 +1,7 @@
 ---
 title: "Eval sandbox deployment (Coolify)"
 description: "Public MCP HTTP eval gateway at eval.vox-lang.org — image, compose, DNS, Coolify API sync."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Operators need one place for eval stack topology and provisioning."

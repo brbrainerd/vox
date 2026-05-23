@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign — SP1 Implementation Plan (2026)"
 description: "Step-by-step implementation plan for Sub-Project 1 of the plugin system redesign: plugin manifest schemas, the vox-plugin-catalog SSOT crate, hand-rolled and generated documentation, vox-build-meta deprecation shims, and the plugin-catalog-parity CI guard."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Concrete TDD task plan for SP1; companion to the parent design spec."

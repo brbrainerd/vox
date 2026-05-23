@@ -1,7 +1,7 @@
 ---
 title: "Crate structure audit & consolidation plan (2026-05-15)"
 description: "Snapshot of post-reorg crate sprawl: drift between layers.toml / where-things-live.md / disk, candidates for condensation, build-time critical path, and arch-check rules to prevent regression."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-15"
 training_eligible: false

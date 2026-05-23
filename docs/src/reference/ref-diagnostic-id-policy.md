@@ -1,7 +1,7 @@
 ---
 title: "Reference: diagnostic ID policy"
 description: "Namespaces and backward-compatibility rules for compiler vs audit diagnostic identifiers."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

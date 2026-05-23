@@ -1,7 +1,7 @@
 ---
 title: "Classification Taxonomy SSoT"
 description: "Single Source of Truth for Vox component classification and naming conventions."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 15
 status: "current"
 ---

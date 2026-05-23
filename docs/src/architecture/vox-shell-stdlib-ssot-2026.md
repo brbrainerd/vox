@@ -1,7 +1,7 @@
 ---
 title: "Vox shell-tier stdlib SSOT (2026)"
 description: "Argv-first Rust builtins for filesystem, process, and structured formats; separation from host shells and MCP vox_run_shell."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

@@ -1,7 +1,7 @@
 ---
 title: "Troubleshooting FAQ"
 description: "Operational troubleshooting for Vox CLI, MCP, LSP, dashboard, and contributor environment issues."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 last_updated: "2026-03-28"
 training_eligible: true

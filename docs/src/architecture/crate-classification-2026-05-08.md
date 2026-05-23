@@ -1,7 +1,7 @@
 ---
 title: "Crate Classification Audit (2026-05-08)"
 description: "Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "deprecated"
 superseded_by:
   - "2026-05-08-workspace-reorg-outcome.md"

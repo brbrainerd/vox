@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh Improvement Backlog (2026-05-01)"
 description: "Flat tagged list of Populi mesh improvements that aren't load-bearing enough to deserve their own spec. Picked up opportunistically when the area is being touched for slice work in the north-star plan."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Inventory of small-to-medium mesh improvements; useful as a queue when an agent is asked to clean up a specific subsystem."

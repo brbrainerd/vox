@@ -1,7 +1,7 @@
 ---
 title: "Model Catalog SSOT — Architecture & Implementation Plan 2026"
 description: "Evidence-based audit of split-brain problems in the model catalog pipeline, and the complete plan to achieve a single source of truth with automatic model adoption."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 42
 status: "current"
 ---

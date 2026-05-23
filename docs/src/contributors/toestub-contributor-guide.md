@@ -1,7 +1,7 @@
 ---
 title: "TOESTUB contributor guide"
 description: "Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes."
-category: "contributor"
+category: "Contributors"
 status: "current"
 last_updated: "2026-05-09"
 training_eligible: true

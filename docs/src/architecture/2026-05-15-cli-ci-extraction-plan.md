@@ -1,7 +1,7 @@
 ---
 title: "C3 — vox-cli-ci extraction plan (2026-05-15)"
 description: "Plan for extracting vox-cli/src/commands/ci/ (22K LoC, 74 files) into a new vox-cli-ci crate. Identifies the three shared-module blockers, the correct move via vox-cli-core, and a 6-task TDD breakdown."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-15"
 training_eligible: false

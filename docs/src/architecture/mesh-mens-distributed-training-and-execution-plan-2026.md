@@ -1,7 +1,7 @@
 ---
 title: "MENS Distributed Training & Execution Plan (2026-05-09)"
 description: "Distributed-AI track that supplements the seven-phase Mesh & Language SSOT. Audits MENS current state (training stubbed), surveys distributed training prior art, defines the inference-anywhere / training-only-on-CUDA split, content-addresses SafeTensors model bundles, and lays out 15 Mn-T tasks integrating with SSOT P0–P6 (especially P0-T7 SkillRuntime, P2-T1 CAS, P4-T12 model registry, P5-T8 mesh inventory, P6-T4 redundant execution). Covers MENS corpus gaps for the Vox spine primitives so emissions stay on-distribution."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Defines the MENS / distributed-AI track for the mesh; agents and contributors should orient from this before changes that cross MENS, vox-populi mens, vox-distributed-training, model dispatch, or HF safetensors paths."

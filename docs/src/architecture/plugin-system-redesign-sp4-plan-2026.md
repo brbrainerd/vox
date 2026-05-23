@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign — SP4 Implementation Plan (2026)"
 description: "Step-by-step implementation plan for Sub-Project 4: migrate the vox.compiler skill from vox-skills's compile-time builtins to a standalone skill-payload plugin loaded at runtime through vox-plugin-host."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Concrete TDD task plan for SP4; companion to the parent design spec."

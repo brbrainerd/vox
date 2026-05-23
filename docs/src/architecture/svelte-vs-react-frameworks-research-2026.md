@@ -1,7 +1,7 @@
 ---
 title: "Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)"
 description: "Comparative analysis of Svelte 5/6, Next.js 15/16, and TanStack Start as competitors and idea sources for Vox's GUI authoring layer. Frames Vox's React-emit position, identifies Svelte-specific syntax and compiler primitives worth mining for AI-generated GUI code, and explains why bidirectional Svelte interop is not recommended even though specific Svelte ideas are."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-02"
 training_eligible: true

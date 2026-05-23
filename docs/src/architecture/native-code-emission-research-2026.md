@@ -1,3 +1,9 @@
+---
+title: "Research: Compiled Systems Native Code Emission for Vox (2026)"
+category: "Architecture SSOTs"
+status: "research"
+---
+
 # Research: Compiled Systems Native Code Emission for Vox (2026)
 
 ## Overview

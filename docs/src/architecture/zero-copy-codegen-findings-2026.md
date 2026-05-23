@@ -1,3 +1,9 @@
+---
+title: "Zero-Copy Codegen Research and Implementation Findings (2026)"
+category: "Architecture SSOTs"
+status: "research"
+---
+
 # Zero-Copy Codegen Research and Implementation Findings (2026)
 
 This document records the findings and implementation details of the zero-copy Rust emission initiative within the Vox codegen pipeline.

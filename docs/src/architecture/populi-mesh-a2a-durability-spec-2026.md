@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh — A2A Durability Spec (S1, 2026-05-01)"
 description: "SUPERSEDED design spec for the SQLite/rusqlite mesh store. The shipped implementation uses VoxDb instead. Retained for historical context only."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "deprecated"
 training_eligible: false
 ---

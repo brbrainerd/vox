@@ -1,7 +1,7 @@
 ---
 title: "vox-container vs WASM Sandbox (2026-05-08)"
 description: "Audit of vox-container's two distinct roles (deployment-codegen vs runtime sandbox) and an evaluation of WASM as a replacement for the runtime path."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Architectural reasoning for sandbox-runtime selection; clarifies the dual role of vox-container and the bounds of WASM as a sandbox for arbitrary Vox skill code."

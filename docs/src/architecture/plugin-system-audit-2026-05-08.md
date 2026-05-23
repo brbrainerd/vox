@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Audit (2026-05-08)"
 description: "Audit of the plugin system after major slim-core extractions — ABI drift, SP7 scaffolds, duplicate code paths, dead deps, and build/distribution optimization."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Audit findings on plugin system architecture, ABI versioning discipline, duplicate code paths, and build optimization — useful context for future plugin work."

@@ -1,7 +1,7 @@
 ---
 title: "Reference: standard library index"
 description: "Index of std.* surfaces with stability tiers and authority split between builtins and shell-tier stdlib."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-05-11"
 training_eligible: true

@@ -1,7 +1,7 @@
 ---
 title: "Dashboard Migration Research 2026"
 description: "Architectural decisions for standalone dashboard"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 ---
 # Vox Dashboard Migration Research (April 2026)

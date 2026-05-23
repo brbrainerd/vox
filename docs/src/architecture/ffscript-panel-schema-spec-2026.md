@@ -1,7 +1,7 @@
 ---
 title: "FFScript Panel Schema Spec (v0.2.0)"
 description: "Authoritative Zod schema for the Panel type introduced in FFScript v0.2.0, resolving the version-naming conflict identified in the 2026-04-23 audit."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation spec for a separate codebase (FableForge)."

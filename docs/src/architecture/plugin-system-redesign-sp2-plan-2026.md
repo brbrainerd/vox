@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign — SP2 Implementation Plan (2026)"
 description: "Step-by-step implementation plan for Sub-Project 2: vox-plugin-api shared types, vox-plugin-host loader for both code and skill payloads, dual-payload registry, two noop test plugins, and ABI-mismatch CI guards."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Concrete TDD task plan for SP2; companion to the parent design spec."

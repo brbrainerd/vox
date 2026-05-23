@@ -1,6 +1,8 @@
 ---
 title: "Vox Model Autonomic System — L1/L2/L3 Design (2026-Q2)"
 description: "Continuous-discovery + auto-classification + selection-SSOT architecture replacing hand-curated model bootstrap."
+category: "Architecture SSOTs"
+status: "current"
 ---
 
 # Vox Model Autonomic System

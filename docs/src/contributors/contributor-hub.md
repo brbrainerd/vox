@@ -1,7 +1,7 @@
 ---
 title: "Contributor hub"
 description: "Start here for contributor-facing Vox documentation, governance, inventories, and review checklists."
-category: "contributor"
+category: "Contributors"
 status: "current"
 sort_order: 0
 last_updated: "2026-04-12"
