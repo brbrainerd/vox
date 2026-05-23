@@ -154,7 +154,8 @@ fn main() {
             "live = HTTP GET <probe_url> returned 2xx within 5s.",
             "probe_url resolution: (1) manifest.apps[].live_url if set; (2) env VOX_CR_P1_<APP_ID>_URL (uppercase, dashes→_); (3) http://127.0.0.1:<default_port>/health.",
             "Default ports per slot: marquee-app=8080, marquee-todo-auth=8081, marquee-chat=8082.",
-            "Local-dev: bring up each app before re-running. The sub-bar artifact is publishable evidence per honest plan §3.x."
+            "Local-dev scope: this measurement assumes the three slots are reachable on the loopback interface; the v1.0 acceptance bar is local-dev reachability, not production OCI hosting. Canonical bring-up runbook: `vox run scripts/start-marquee.vox` (handles slot 2 + slot 3 native binaries) + docker (slot 1's nginx SPA). Slot 1 has no Rust backend at runtime — it ships as a static SPA + nginx — so it follows the docker recipe in apps/interop/marquee_app/Dockerfile rather than the native-binary recipe.",
+            "Sub-bar artifacts are publishable evidence per honest plan §3.x — even a 1/3 result documents real measured progress."
         ]
     });
 
