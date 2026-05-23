@@ -5,6 +5,9 @@ use crate::typeck::env::TypeEnv;
 use crate::typeck::ty::Ty;
 
 /// ADT / option-style exhaustiveness (mirrors `check::patterns::check_match_exhaustiveness` for HIR).
+///
+/// CR-A1: the Bool arm was extracted to `check_bool_exhaustiveness`
+/// (12 decision points removed, function now ~8 CC).
 pub(crate) fn check_hir_match_exhaustiveness(
     env: &TypeEnv,
     diags: &mut Vec<Diagnostic>,
@@ -15,47 +18,7 @@ pub(crate) fn check_hir_match_exhaustiveness(
 ) {
     let type_name = match subject_ty {
         Ty::Bool => {
-            let mut has_true = false;
-            let mut has_false = false;
-            let mut has_wildcard = false;
-
-            for arm in arms {
-                match &arm.pattern {
-                    HirPattern::Literal(lit, _) => {
-                        if let crate::hir::HirExpr::BoolLit(b, _) = lit.as_ref() {
-                            if *b {
-                                has_true = true;
-                            } else {
-                                has_false = true;
-                            }
-                        }
-                    }
-                    HirPattern::Wildcard(_) | HirPattern::Ident(_, _) => has_wildcard = true,
-                    _ => {}
-                }
-            }
-
-            if !has_wildcard && (!has_true || !has_false) {
-                let mut missing = Vec::new();
-                if !has_true {
-                    missing.push("true".to_string());
-                }
-                if !has_false {
-                    missing.push("false".to_string());
-                }
-
-                let mut d = Diagnostic::error(
-                    format!(
-                        "Non-exhaustive match on bool. Missing: {}",
-                        missing.join(", ")
-                    ),
-                    span,
-                    source,
-                );
-                d.missing_cases = missing;
-                d.code = Some("E0301".into());
-                diags.push(d);
-            }
+            check_bool_exhaustiveness(arms, span, diags, source);
             return;
         }
         Ty::Named(name) => name.as_str(),
@@ -124,6 +87,52 @@ pub(crate) fn check_hir_match_exhaustiveness(
         );
         d.missing_cases = missing.iter().map(|s| s.to_string()).collect();
         d.ast_node_kind = Some("MatchExpr".to_string());
+        d.code = Some("E0301".into());
+        diags.push(d);
+    }
+}
+
+/// Boolean exhaustiveness helper — extracted from `check_hir_match_exhaustiveness`
+/// (CR-A1: the for-loop + pattern match + `!has_wildcard && (!has_true || !has_false)`
+/// chain contributed ~12 decision points inline).
+fn check_bool_exhaustiveness(
+    arms: &[HirMatchArm],
+    span: Span,
+    diags: &mut Vec<Diagnostic>,
+    source: &str,
+) {
+    let mut has_true = false;
+    let mut has_false = false;
+    let mut has_wildcard = false;
+    for arm in arms {
+        match &arm.pattern {
+            HirPattern::Literal(lit, _) => {
+                if let crate::hir::HirExpr::BoolLit(b, _) = lit.as_ref() {
+                    if *b {
+                        has_true = true;
+                    } else {
+                        has_false = true;
+                    }
+                }
+            }
+            HirPattern::Wildcard(_) | HirPattern::Ident(_, _) => has_wildcard = true,
+            _ => {}
+        }
+    }
+    if !has_wildcard && (!has_true || !has_false) {
+        let mut missing = Vec::new();
+        if !has_true {
+            missing.push("true".to_string());
+        }
+        if !has_false {
+            missing.push("false".to_string());
+        }
+        let mut d = Diagnostic::error(
+            format!("Non-exhaustive match on bool. Missing: {}", missing.join(", ")),
+            span,
+            source,
+        );
+        d.missing_cases = missing;
         d.code = Some("E0301".into());
         diags.push(d);
     }

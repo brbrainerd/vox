@@ -18,28 +18,12 @@ impl<'a> Checker<'a> {
         let raw_obj = self.check_expr(object, None);
         let obj_ty = self.uf.resolve(&raw_obj);
         match &obj_ty {
-            Ty::Named(n) if n == "JsonBody" => match field {
-                "message" => Ty::Str,
-                _ => {
-                    self.diags.push(Diagnostic::error(
-                        format!("Field '{field}' not found on JsonBody"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "KeyboardEvent" => match field {
-                "key" => Ty::Str,
-                _ => {
-                    self.diags.push(Diagnostic::error(
-                        format!("Field '{field}' not found on KeyboardEvent"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
-            },
+            Ty::Named(n) if n == "JsonBody" => {
+                self.check_single_str_field("JsonBody", field, "message", span)
+            }
+            Ty::Named(n) if n == "KeyboardEvent" => {
+                self.check_single_str_field("KeyboardEvent", field, "key", span)
+            }
             // Std-namespace dispatch — collapsed from 17 near-duplicate
             // match arms into a table-driven lookup. Each StdXxxNs name
             // maps to a sub-namespace key (e.g. "StdFsNs" → "fs"); we
@@ -98,10 +82,12 @@ impl<'a> Checker<'a> {
                 }
             }
             Ty::Database => {
-                if let Some(binding) = self.env.lookup(field) {
-                    if binding.kind == BindingKind::Table {
+                // CR-A1: collapse two identical error-emit branches into one.
+                match self.env.lookup(field) {
+                    Some(binding) if binding.kind == BindingKind::Table => {
                         binding.ty.clone()
-                    } else {
+                    }
+                    _ => {
                         self.diags.push(Diagnostic::error(
                             format!("Unknown table '{field}' in database"),
                             span,
@@ -109,13 +95,6 @@ impl<'a> Checker<'a> {
                         ));
                         Ty::Error
                     }
-                } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown table '{field}' in database"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
                 }
             }
             Ty::TypeVar(_) => {
@@ -161,6 +140,30 @@ impl<'a> Checker<'a> {
             }
         }
     }
+    /// Check field access on a named type that exposes exactly one `Str` field.
+    ///
+    /// CR-A1: extracted from `check_expr_field_access` — each inline
+    /// `match field { ... }` contributed 1 DP (the match keyword);
+    /// sharing them here removes 2 DPs from the caller.
+    fn check_single_str_field(
+        &mut self,
+        type_name: &str,
+        field: &str,
+        expected: &str,
+        span: Span,
+    ) -> Ty {
+        if field == expected {
+            Ty::Str
+        } else {
+            self.diags.push(Diagnostic::error(
+                format!("Field '{field}' not found on {type_name}"),
+                span,
+                self.source,
+            ));
+            Ty::Error
+        }
+    }
+
 }
 
 /// Map an `StdXxxNs` HIR type name to its `std.xxx` short namespace key.

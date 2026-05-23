@@ -158,72 +158,12 @@ impl<'a> Checker<'a> {
                 Ty::Tuple(tys)
             }
 
-            HirExpr::Ident(name, span) => {
-                if let Some(binding) = self.env.lookup(name) {
-                    if binding.is_deprecated {
-                        self.diags.push(Diagnostic {
-                            severity: TypeckSeverity::Warning,
-                            message: format!("'{name}' is deprecated"),
-                            span: *span,
-                            expected_type: None,
-                            found_type: None,
-                            context: Some(Diagnostic::capture_context(self.source, *span)),
-                            suggestions: vec![],
-                            category: DiagnosticCategory::Typecheck,
-                            code: Some("typecheck.deprecated_ident".into()),
-                            fixes: vec![],
-                            line_col: None,
-                            missing_cases: vec![],
-                            ast_node_kind: None,
-                        });
-                    }
-                    // Instantiate polymorphic bindings (constructors like
-                    // `None`, generic builtins) so each reference site gets
-                    // fresh type variables in place of `GenericParam(N)`.
-                    // Standard HM-style let-polymorphism — required for
-                    // `let x: Option[Str] = None` and friends.
-                    let bty = binding.ty.clone();
-                    self.uf.instantiate(&bty)
-                } else if let Some(ty) = self.builtins.lookup_var(name) {
-                    self.uf.instantiate(&ty)
-                } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Undefined variable: {name}"),
-                        *span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
-            }
+            HirExpr::Ident(name, span) => self.check_ident_expr(name, *span),
 
             HirExpr::ObjectLit(fields, _span) => {
                 self.check_object_lit_expr(fields, expected)
             }
-            HirExpr::ListLit(elements, _span) => {
-                let mut expected_elem_ty = None;
-                if let Some(exp) = expected {
-                    if let Ty::List(inner) = self.uf.resolve(exp) {
-                        expected_elem_ty = Some(inner.as_ref().clone())
-                    }
-                }
-
-                let elem_ty = if elements.is_empty() {
-                    expected_elem_ty.unwrap_or_else(|| self.uf.fresh_var())
-                } else {
-                    let mut unified_ty =
-                        expected_elem_ty.unwrap_or_else(|| self.check_expr(&elements[0], None));
-                    for e in elements.iter() {
-                        let t = self.check_expr(e, Some(&unified_ty));
-                        if let Ok(lub) = self.uf.least_upper_bound(unified_ty.clone(), t.clone()) {
-                            unified_ty = lub;
-                        } else {
-                            let _ = self.uf.unify(&unified_ty, &t);
-                        }
-                    }
-                    unified_ty
-                };
-                Ty::List(Box::new(elem_ty))
-            }
+            HirExpr::ListLit(elements, _span) => self.check_list_lit_expr(elements, expected),
 
             HirExpr::Binary(HirBinOp::Pipe, left, right, span) => {
                 let l_ty = self.check_expr(left, None);
@@ -300,35 +240,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::If(cond, then_body, else_body, _span) => {
-                let cond_ty = self.check_expr(cond, None);
-                let _ = self.uf.unify(&cond_ty, &Ty::Bool);
-                self.env.push_scope();
-                let mut then_ty = Ty::Unit;
-                for stmt in then_body {
-                    then_ty = self.check_stmt(stmt);
-                }
-                self.env.pop_scope();
-                if let Some(eb) = else_body {
-                    self.env.push_scope();
-                    let mut else_ty = Ty::Unit;
-                    for stmt in eb {
-                        else_ty = self.check_stmt(stmt);
-                    }
-                    self.env.pop_scope();
-                    let _ = self.uf.unify(&then_ty, &else_ty);
-                }
-                // Expected-type propagation through if branches. The
-                // body-level `check_stmt` doesn't take expected, but
-                // because Ident-site instantiation gives each constructor
-                // (`Ok`, `Error`, `Some`, etc.) fresh type variables,
-                // unifying the resolved branch type with `expected` here
-                // binds those vars correctly — enough for
-                // `let r: Result[T, MyErr] = if cond { Ok(...) } else { Error(...) }`
-                // to specialize the constructor against `MyErr`.
-                if let Some(exp) = expected {
-                    let _ = self.uf.unify(&then_ty, exp);
-                }
-                then_ty
+                self.check_if_expr(cond, then_body, else_body.as_ref(), expected)
             }
 
             HirExpr::Block(stmts, _span) => {
@@ -368,46 +280,7 @@ impl<'a> Checker<'a> {
                 self.check_lambda_expr(params, ret_ann.as_ref(), body, expected)
             }
 
-            HirExpr::Spawn(inner, span) => {
-                let inner_ty = self.check_expr(inner, None);
-                let actor_name = match inner.as_ref() {
-                    HirExpr::Ident(name, _) => name.clone(),
-                    _ => {
-                        self.diags.push(Diagnostic::error(
-                            "spawn target must be a bare actor name (identifier)".into(),
-                            *span,
-                            self.source,
-                        ));
-                        return Ty::Error;
-                    }
-                };
-                if self.uf.resolve(&inner_ty) == Ty::Error {
-                    return Ty::Error;
-                }
-                if !self
-                    .env
-                    .lookup(&actor_name)
-                    .is_some_and(|b| b.kind == BindingKind::Actor)
-                {
-                    self.diags.push(Diagnostic::error(
-                        format!("'{actor_name}' is not an actor"),
-                        *span,
-                        self.source,
-                    ));
-                    return Ty::Error;
-                }
-                if self.env.lookup_actor(&actor_name).is_none() {
-                    self.diags.push(Diagnostic::error(
-                        format!(
-                            "actor '{actor_name}' has no handler signatures in this module (declare `actor {actor_name}:`)"
-                        ),
-                        *span,
-                        self.source,
-                    ));
-                    return Ty::Error;
-                }
-                Ty::ActorRef(actor_name)
-            }
+            HirExpr::Spawn(inner, span) => return self.check_spawn_expr(inner, *span),
 
             HirExpr::With(resource, options, span) => {
                 let res_ty = self.check_expr(resource, None);
@@ -456,22 +329,7 @@ impl<'a> Checker<'a> {
                 self.uf.fresh_var()
             }
 
-            HirExpr::AsyncView(v) => {
-                let _ = self.check_expr(&v.source, None);
-                if let Some(a) = &v.fetching_arm {
-                    let _ = self.check_expr(a, None);
-                }
-                if let Some(a) = &v.empty_arm {
-                    let _ = self.check_expr(a, None);
-                }
-                if let Some(a) = &v.error_arm {
-                    let _ = self.check_expr(a, None);
-                }
-                if let Some(a) = &v.ok_arm {
-                    let _ = self.check_expr(a, None);
-                }
-                Ty::Unit
-            }
+            HirExpr::AsyncView(v) => self.check_async_view_expr(v),
             HirExpr::WorkflowVersion(_) => Ty::Unit,
 
             HirExpr::Try(hir_try) => self.check_try_expr(hir_try),
@@ -480,6 +338,176 @@ impl<'a> Checker<'a> {
         let hir_ty = resolved.to_hir_type();
         self.inferred_types.insert(super::hir_expr_span(expr), hir_ty);
         ty
+    }
+
+    // ── Helpers extracted from check_expr for CR-A1 compliance ──────────
+
+    /// Type-check an `Ident` expression.  Extracted from check_expr
+    /// (CR-A1): the deprecated-warning + three-branch lookup contributed
+    /// ~4 decision points inline.
+    fn check_ident_expr(&mut self, name: &str, span: Span) -> Ty {
+        if let Some(binding) = self.env.lookup(name) {
+            if binding.is_deprecated {
+                self.diags.push(Diagnostic {
+                    severity: TypeckSeverity::Warning,
+                    message: format!("'{name}' is deprecated"),
+                    span,
+                    expected_type: None,
+                    found_type: None,
+                    context: Some(Diagnostic::capture_context(self.source, span)),
+                    suggestions: vec![],
+                    category: DiagnosticCategory::Typecheck,
+                    code: Some("typecheck.deprecated_ident".into()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
+            }
+            // Instantiate polymorphic bindings (constructors like
+            // `None`, generic builtins) so each reference site gets
+            // fresh type variables in place of `GenericParam(N)`.
+            // Standard HM-style let-polymorphism — required for
+            // `let x: Option[Str] = None` and friends.
+            let bty = binding.ty.clone();
+            self.uf.instantiate(&bty)
+        } else if let Some(ty) = self.builtins.lookup_var(name) {
+            self.uf.instantiate(&ty)
+        } else {
+            self.diags.push(Diagnostic::error(
+                format!("Undefined variable: {name}"),
+                span,
+                self.source,
+            ));
+            Ty::Error
+        }
+    }
+
+    /// Type-check a `ListLit` expression.  Extracted from check_expr
+    /// (CR-A1): the empty/non-empty branch + unification loop contributed
+    /// ~5 decision points inline.
+    fn check_list_lit_expr(&mut self, elements: &[HirExpr], expected: Option<&Ty>) -> Ty {
+        let mut expected_elem_ty = None;
+        if let Some(exp) = expected {
+            if let Ty::List(inner) = self.uf.resolve(exp) {
+                expected_elem_ty = Some(inner.as_ref().clone());
+            }
+        }
+        let elem_ty = if elements.is_empty() {
+            expected_elem_ty.unwrap_or_else(|| self.uf.fresh_var())
+        } else {
+            let mut unified_ty =
+                expected_elem_ty.unwrap_or_else(|| self.check_expr(&elements[0], None));
+            for e in elements.iter() {
+                let t = self.check_expr(e, Some(&unified_ty));
+                if let Ok(lub) = self.uf.least_upper_bound(unified_ty.clone(), t.clone()) {
+                    unified_ty = lub;
+                } else {
+                    let _ = self.uf.unify(&unified_ty, &t);
+                }
+            }
+            unified_ty
+        };
+        Ty::List(Box::new(elem_ty))
+    }
+
+    /// Type-check a `Spawn` expression.  Extracted from check_expr
+    /// (CR-A1): the actor-name validation chain contributed ~5 decision
+    /// points (match + 3 guard-and-early-return ifs).
+    fn check_spawn_expr(&mut self, inner: &HirExpr, span: Span) -> Ty {
+        let inner_ty = self.check_expr(inner, None);
+        let actor_name = match inner {
+            HirExpr::Ident(name, _) => name.clone(),
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "spawn target must be a bare actor name (identifier)".into(),
+                    span,
+                    self.source,
+                ));
+                return Ty::Error;
+            }
+        };
+        if self.uf.resolve(&inner_ty) == Ty::Error {
+            return Ty::Error;
+        }
+        if !self
+            .env
+            .lookup(&actor_name)
+            .is_some_and(|b| b.kind == BindingKind::Actor)
+        {
+            self.diags.push(Diagnostic::error(
+                format!("'{actor_name}' is not an actor"),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        }
+        if self.env.lookup_actor(&actor_name).is_none() {
+            self.diags.push(Diagnostic::error(
+                format!(
+                    "actor '{actor_name}' has no handler signatures in this module \
+                     (declare `actor {actor_name}:`)"
+                ),
+                span,
+                self.source,
+            ));
+            return Ty::Error;
+        }
+        Ty::ActorRef(actor_name)
+    }
+
+    /// Type-check an `If` expression.  Extracted from check_expr (CR-A1):
+    /// the cond/then/else + expected-propagation logic contributed ~4
+    /// decision points inline.
+    fn check_if_expr(
+        &mut self,
+        cond: &HirExpr,
+        then_body: &[HirStmt],
+        else_body: Option<&Vec<HirStmt>>,
+        expected: Option<&Ty>,
+    ) -> Ty {
+        let cond_ty = self.check_expr(cond, None);
+        let _ = self.uf.unify(&cond_ty, &Ty::Bool);
+        self.env.push_scope();
+        let mut then_ty = Ty::Unit;
+        for stmt in then_body {
+            then_ty = self.check_stmt(stmt);
+        }
+        self.env.pop_scope();
+        if let Some(eb) = else_body {
+            self.env.push_scope();
+            let mut else_ty = Ty::Unit;
+            for stmt in eb {
+                else_ty = self.check_stmt(stmt);
+            }
+            self.env.pop_scope();
+            let _ = self.uf.unify(&then_ty, &else_ty);
+        }
+        // Expected-type propagation through if branches. The
+        // body-level `check_stmt` doesn't take expected, but
+        // because Ident-site instantiation gives each constructor
+        // (`Ok`, `Error`, `Some`, etc.) fresh type variables,
+        // unifying the resolved branch type with `expected` here
+        // binds those vars correctly — enough for
+        // `let r: Result[T, MyErr] = if cond { Ok(...) } else { Error(...) }`
+        // to specialize the constructor against `MyErr`.
+        if let Some(exp) = expected {
+            let _ = self.uf.unify(&then_ty, exp);
+        }
+        then_ty
+    }
+
+    /// Type-check an `AsyncView` expression.  Extracted from check_expr
+    /// (CR-A1): the five optional-arm checks contributed ~5 decision
+    /// points inline.
+    fn check_async_view_expr(&mut self, v: &crate::hir::nodes::HirAsyncView) -> Ty {
+        let _ = self.check_expr(&v.source, None);
+        for arm in [&v.fetching_arm, &v.empty_arm, &v.error_arm, &v.ok_arm] {
+            if let Some(a) = arm {
+                let _ = self.check_expr(a, None);
+            }
+        }
+        Ty::Unit
     }
 
     /// Type-check an `ObjectLit` expression. Extracted from check_expr

@@ -280,15 +280,7 @@ pub fn emit_main(
     out.push_str("    serve_embedded(uri).await\n");
     out.push_str("}\n\n");
 
-    for sf in &module.endpoint_fns {
-        let pfx = match sf.kind {
-            HirEndpointKind::Query => "q_",
-            HirEndpointKind::Mutation => "m_",
-            HirEndpointKind::Server => "sf_",
-            HirEndpointKind::Stream => "stream_",
-        };
-        out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
-    }
+    emit_ip_rate_limit_preludes(&mut out, module);
 
     out.push_str(
         "async fn vox_copy_request_id(mut req: axum::http::Request<Body>, next: middleware::Next) -> Response {\n",
@@ -312,38 +304,7 @@ pub fn emit_main(
         .iter()
         .any(|f| f.durability == Some(DurabilityKind::Workflow))
     {
-        out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
-        out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
-        out.push_str("        if !wf_name.is_empty() {\n");
-        out.push_str(
-            "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
-        );
-        out.push_str(
-            "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
-        );
-        out.push_str("                Ok(v) => v,\n");
-        out.push_str("                Err(e) => {\n");
-        out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
-        out.push_str("                    std::process::exit(2);\n");
-        out.push_str("                }\n");
-        out.push_str("            };\n");
-        out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
-        out.push_str("                Ok(()) => {\n");
-        out.push_str(
-            "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
-        );
-        out.push_str("                    return;\n");
-        out.push_str("                }\n");
-        out.push_str("                Err(e) => {\n");
-        out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
-        out.push_str(
-            "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
-        );
-        out.push_str("                    std::process::exit(2);\n");
-        out.push_str("                }\n");
-        out.push_str("            }\n");
-        out.push_str("        }\n");
-        out.push_str("    }\n");
+        emit_workflow_dispatch_block(&mut out);
     }
 
     let has_routes = !module.endpoint_fns.is_empty();
@@ -351,40 +312,7 @@ pub fn emit_main(
     // Setup routes
     if has_routes {
         out.push_str("    let mut app = Router::new()\n");
-        // Manual routes
-        for route in &app_contract.http_routes {
-            let method = route_method_from_contract(route.method.as_str());
-            out.push_str(&format!(
-                "        .route(\"{}\", {}({}))\n",
-                route.path,
-                method,
-                route_handler_name_from_contract(route)
-            ));
-        }
-        // Auto-generated server function routes
-        for sf in &app_contract.server_fns {
-            let hir_sf = endpoint_fn_by_name(module, &sf.name, HirEndpointKind::Server);
-            let mr = wrap_method_router(format!("post(handle_sf_{})", sf.name), hir_sf);
-            out.push_str(&format!("        .route(\"{}\", {mr})\n", sf.route_path));
-        }
-        // `@query` — GET /api/query/<name> + deterministic JSON-in-query encoding (see vox-client.ts).
-        for qf in &app_contract.query_fns {
-            let hir_sf = endpoint_fn_by_name(module, &qf.name, HirEndpointKind::Query);
-            let mr = wrap_method_router(format!("get(handle_q_{})", qf.name), hir_sf);
-            out.push_str(&format!("        .route(\"{}\", {mr})\n", qf.route_path));
-        }
-        // `@mutation` — POST /api/mutation/<name>
-        for mf in &app_contract.mutation_fns {
-            let hir_sf = endpoint_fn_by_name(module, &mf.name, HirEndpointKind::Mutation);
-            let mr = wrap_method_router(format!("post(handle_m_{})", mf.name), hir_sf);
-            out.push_str(&format!("        .route(\"{}\", {mr})\n", mf.route_path));
-        }
-        // `@endpoint(kind: stream)` — GET /api/stream/<name>, SSE response.
-        for stf in &app_contract.stream_fns {
-            let hir_sf = endpoint_fn_by_name(module, &stf.name, HirEndpointKind::Stream);
-            let mr = wrap_method_router(format!("get(handle_stream_{})", stf.name), hir_sf);
-            out.push_str(&format!("        .route(\"{}\", {mr})\n", stf.route_path));
-        }
+        emit_route_registrations(&mut out, module, app_contract);
         out.push_str("        .fallback(serve_dispatch);\n\n");
         if has_tables {
             out.push_str("    app = app.layer(Extension(db.clone()));\n");
@@ -421,6 +349,114 @@ pub fn emit_main(
     }
     out.push_str("}\n\n");
 
+    emit_endpoint_handlers(&mut out, module, app_contract, has_tables);
+
+    out
+}
+
+/// Emit all `.route(...)` lines for the router builder (manual + auto-generated).
+/// Extracted from `emit_main` per CR-A1: the 4 for-loops contributed ~8 DPs inline.
+fn emit_route_registrations(
+    out: &mut String,
+    module: &HirModule,
+    app_contract: &AppContractModule,
+) {
+    // Manual routes from the app contract
+    for route in &app_contract.http_routes {
+        let method = route_method_from_contract(route.method.as_str());
+        out.push_str(&format!(
+            "        .route(\"{}\", {}({}))\n",
+            route.path,
+            method,
+            route_handler_name_from_contract(route)
+        ));
+    }
+    // Auto-generated server function routes
+    for sf in &app_contract.server_fns {
+        let hir_sf = endpoint_fn_by_name(module, &sf.name, HirEndpointKind::Server);
+        let mr = wrap_method_router(format!("post(handle_sf_{})", sf.name), hir_sf);
+        out.push_str(&format!("        .route(\"{}\", {mr})\n", sf.route_path));
+    }
+    // `@query` — GET /api/query/<name>
+    for qf in &app_contract.query_fns {
+        let hir_sf = endpoint_fn_by_name(module, &qf.name, HirEndpointKind::Query);
+        let mr = wrap_method_router(format!("get(handle_q_{})", qf.name), hir_sf);
+        out.push_str(&format!("        .route(\"{}\", {mr})\n", qf.route_path));
+    }
+    // `@mutation` — POST /api/mutation/<name>
+    for mf in &app_contract.mutation_fns {
+        let hir_sf = endpoint_fn_by_name(module, &mf.name, HirEndpointKind::Mutation);
+        let mr = wrap_method_router(format!("post(handle_m_{})", mf.name), hir_sf);
+        out.push_str(&format!("        .route(\"{}\", {mr})\n", mf.route_path));
+    }
+    // `@endpoint(kind: stream)` — GET /api/stream/<name>, SSE response.
+    for stf in &app_contract.stream_fns {
+        let hir_sf = endpoint_fn_by_name(module, &stf.name, HirEndpointKind::Stream);
+        let mr = wrap_method_router(format!("get(handle_stream_{})", stf.name), hir_sf);
+        out.push_str(&format!("        .route(\"{}\", {mr})\n", stf.route_path));
+    }
+}
+
+/// Emit all IP rate-limit prelude functions for every endpoint in the module.
+/// Extracted from `emit_main` per CR-A1: the for-loop + match with 4 arms contributed ~5 DPs inline.
+fn emit_ip_rate_limit_preludes(out: &mut String, module: &HirModule) {
+    for sf in &module.endpoint_fns {
+        let pfx = match sf.kind {
+            HirEndpointKind::Query => "q_",
+            HirEndpointKind::Mutation => "m_",
+            HirEndpointKind::Server => "sf_",
+            HirEndpointKind::Stream => "stream_",
+        };
+        out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
+    }
+}
+
+/// Emit the `if let Ok(wf_name_raw) = std::env::var("VOX_RUN_WORKFLOW")` guard block
+/// that runs a workflow and exits early before starting the HTTP server.
+/// Extracted from `emit_main` per CR-A1: the nested if + 2 match arms contributed ~4 DPs inline.
+fn emit_workflow_dispatch_block(out: &mut String) {
+    out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
+    out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
+    out.push_str("        if !wf_name.is_empty() {\n");
+    out.push_str(
+        "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
+    );
+    out.push_str(
+        "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
+    );
+    out.push_str("                Ok(v) => v,\n");
+    out.push_str("                Err(e) => {\n");
+    out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
+    out.push_str("                    std::process::exit(2);\n");
+    out.push_str("                }\n");
+    out.push_str("            };\n");
+    out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
+    out.push_str("                Ok(()) => {\n");
+    out.push_str(
+        "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
+    );
+    out.push_str("                    return;\n");
+    out.push_str("                }\n");
+    out.push_str("                Err(e) => {\n");
+    out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
+    out.push_str(
+        "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
+    );
+    out.push_str("                    std::process::exit(2);\n");
+    out.push_str("                }\n");
+    out.push_str("            }\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n");
+}
+
+/// Emit the Axum handler function for every endpoint in the module.
+/// Extracted from `emit_main` per CR-A1: the match + 4 arms loop contributed ~8 DPs.
+fn emit_endpoint_handlers(
+    out: &mut String,
+    module: &HirModule,
+    app_contract: &AppContractModule,
+    has_tables: bool,
+) {
     let mut mutation_idx = 0;
     for sf in &module.endpoint_fns {
         match sf.kind {
@@ -466,8 +502,6 @@ pub fn emit_main(
             }
         }
     }
-
-    out
 }
 
 fn route_method_from_contract(method: &str) -> &'static str {

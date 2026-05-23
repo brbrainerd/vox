@@ -100,26 +100,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
     }
     out.push_str("}\n\n");
 
-    // Helper to check if a type needs JSON serialization for SQL
-    let is_json = |ty: &HirType| -> bool {
-        match ty {
-            HirType::Named(n) => VoxScalar::parse(n).is_none(),
-            HirType::Generic(n, args) => {
-                if n == "Option" {
-                    // Option<T>: if T is simple, it's simple. If T is complex, it's JSON.
-                    match &args[0] {
-                        HirType::Named(sub) => VoxScalar::parse(sub).is_none(),
-                        _ => true,
-                    }
-                } else if n == "Id" {
-                    false
-                } else {
-                    true // List, etc.
-                }
-            }
-            _ => true, // Unit, tuple etc.
-        }
-    };
+    let is_json = |ty: &HirType| hir_type_needs_json_serialization(ty);
 
     out.push_str(&format!("impl {} {{\n", table.name));
 
@@ -327,6 +308,32 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
 
     out.push_str("}\n\n");
     out
+}
+
+/// Returns `true` when a HIR type must be serialized to JSON before storage
+/// in a SQL column (i.e. it is not a SQLite-native scalar).
+///
+/// Extracted from the `is_json` closure in `emit_table_struct` per CR-A1:
+/// the 4-branch match contributed DPs inline and also prevented the closure
+/// from being referenced in `emit_select_projection_helpers`.
+fn hir_type_needs_json_serialization(ty: &HirType) -> bool {
+    match ty {
+        HirType::Named(n) => VoxScalar::parse(n).is_none(),
+        HirType::Generic(n, args) => {
+            if n == "Option" {
+                // Option<T>: if T is a SQL scalar, no JSON needed; otherwise JSON.
+                match &args[0] {
+                    HirType::Named(sub) => VoxScalar::parse(sub).is_none(),
+                    _ => true,
+                }
+            } else if n == "Id" {
+                false
+            } else {
+                true // List, etc.
+            }
+        }
+        _ => true, // Unit, tuple, etc.
+    }
 }
 
 /// Generate `CREATE TABLE IF NOT EXISTS` DDL for a @table.

@@ -218,41 +218,59 @@ impl<'a> Checker<'a> {
             }
             HirPattern::Wildcard(_) => {}
             HirPattern::Literal(_, _) => {}
-            HirPattern::Constructor(name, fields, span) => match &ty {
-                Ty::Option(inner) if name == "Some" && fields.len() == 1 => {
-                    self.bind_pattern(&fields[0], inner.as_ref(), mutable);
-                }
-                Ty::Result(ok_ty, _) if name == "Ok" && fields.len() == 1 => {
-                    self.bind_pattern(&fields[0], ok_ty.as_ref(), mutable);
-                }
-                Ty::Result(_, err_ty)
-                    if (name == "Error" || name == "Err") && fields.len() == 1 =>
-                {
-                    self.bind_pattern(&fields[0], err_ty.as_ref(), mutable);
-                }
-                Ty::Option(_) if name == "None" && fields.is_empty() => {}
-                _ => {
-                    let expected_adt_name = match &ty {
-                        Ty::Named(n) => Some(n.as_str()),
-                        _ => None,
-                    };
-                    if let Some(field_defs) = self.env.lookup_adt_variant(name, expected_adt_name) {
-                        for (i, p) in fields.iter().enumerate() {
-                            let ft = field_defs
-                                .get(i)
-                                .map(|(_, t)| t.clone())
-                                .unwrap_or(Ty::Error);
-                            self.bind_pattern(p, &ft, mutable);
-                        }
-                    } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Unknown constructor or pattern mismatch: {name} on {ty:?}"),
-                            *span,
-                            self.source,
-                        ));
+            HirPattern::Constructor(name, fields, span) => {
+                self.bind_constructor_pattern(name, fields, *span, &ty, mutable);
+            }
+        }
+    }
+
+    /// Type-bind a `Constructor` pattern against its subject type.
+    ///
+    /// CR-A1: the inline nested `match &ty { … }` block contributed ~10
+    /// decision points to `bind_pattern`; extracting it here drops
+    /// `bind_pattern` to ~7 CC.
+    fn bind_constructor_pattern(
+        &mut self,
+        name: &str,
+        fields: &[HirPattern],
+        span: crate::ast::span::Span,
+        ty: &Ty,
+        mutable: bool,
+    ) {
+        match ty {
+            Ty::Option(inner) if name == "Some" && fields.len() == 1 => {
+                self.bind_pattern(&fields[0], inner.as_ref(), mutable);
+            }
+            Ty::Result(ok_ty, _) if name == "Ok" && fields.len() == 1 => {
+                self.bind_pattern(&fields[0], ok_ty.as_ref(), mutable);
+            }
+            Ty::Result(_, err_ty)
+                if (name == "Error" || name == "Err") && fields.len() == 1 =>
+            {
+                self.bind_pattern(&fields[0], err_ty.as_ref(), mutable);
+            }
+            Ty::Option(_) if name == "None" && fields.is_empty() => {}
+            _ => {
+                let expected_adt_name = match ty {
+                    Ty::Named(n) => Some(n.as_str()),
+                    _ => None,
+                };
+                if let Some(field_defs) = self.env.lookup_adt_variant(name, expected_adt_name) {
+                    for (i, p) in fields.iter().enumerate() {
+                        let ft = field_defs
+                            .get(i)
+                            .map(|(_, t)| t.clone())
+                            .unwrap_or(Ty::Error);
+                        self.bind_pattern(p, &ft, mutable);
                     }
+                } else {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown constructor or pattern mismatch: {name} on {ty:?}"),
+                        span,
+                        self.source,
+                    ));
                 }
-            },
+            }
         }
     }
 }

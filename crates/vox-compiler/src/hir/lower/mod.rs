@@ -103,51 +103,7 @@ impl LowerCtx {
         for decl in &module.declarations {
             match decl {
                 Decl::Import(imp) => {
-                    for path in &imp.paths {
-                        match &path.kind {
-                            ImportPathKind::SymbolPath { segments } => {
-                                let (mod_path, item) = if segments.len() > 1 {
-                                    let item = segments.last().expect("segments non-empty").clone();
-                                    let mod_path = segments[..segments.len() - 1].to_vec();
-                                    (mod_path, item)
-                                } else {
-                                    (vec![], segments[0].clone())
-                                };
-                                hir.imports.push(HirImport {
-                                    module_path: mod_path,
-                                    item: path.alias.clone().unwrap_or(item),
-                                    es_module_specifier: None,
-                                    span: path.span,
-                                });
-                            }
-                            ImportPathKind::RustCrate(spec) => {
-                                let alias = path
-                                    .alias
-                                    .clone()
-                                    .unwrap_or_else(|| spec.crate_name.clone());
-                                hir.rust_imports.push(HirRustImport {
-                                    crate_name: spec.crate_name.clone(),
-                                    alias,
-                                    version: spec.version.clone(),
-                                    path: spec.path.clone(),
-                                    git: spec.git.clone(),
-                                    rev: spec.rev.clone(),
-                                    span: path.span,
-                                });
-                            }
-                            ImportPathKind::ReactComponent {
-                                local_name,
-                                module_specifier,
-                            } => {
-                                hir.imports.push(HirImport {
-                                    module_path: Vec::new(),
-                                    item: local_name.clone(),
-                                    es_module_specifier: Some(module_specifier.clone()),
-                                    span: path.span,
-                                });
-                            }
-                        }
-                    }
+                    lower_import_paths(imp, &mut hir);
                 }
                 Decl::Function(f) => {
                     hir.functions.push(self.lower_fn(f));
@@ -191,118 +147,7 @@ impl LowerCtx {
                 }
                 // `route_path` is the stable HTTP contract surface for WebIR `RouteNode` / client stubs.
                 Decl::Endpoint(e) => {
-                    let lowered = self.lower_fn(&e.func);
-                    let (kind, prefix) = match e.kind {
-                        crate::ast::decl::EndpointKind::Query => {
-                            (crate::hir::HirEndpointKind::Query, QUERY_FN_API_PREFIX)
-                        }
-                        crate::ast::decl::EndpointKind::Mutation => (
-                            crate::hir::HirEndpointKind::Mutation,
-                            MUTATION_FN_API_PREFIX,
-                        ),
-                        crate::ast::decl::EndpointKind::Server => {
-                            (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
-                        }
-                        // `kind: stream` lowers to a first-class HIR variant
-                        // that codegen branches on to emit an SSE response
-                        // shape (`text/event-stream`) instead of the
-                        // one-shot JSON shape used by Server/Query/Mutation.
-                        // The body of a stream endpoint is invoked per tick
-                        // (`every: "<duration>"`) or its tail-call to
-                        // `subscribe(Actor)` is bridged to the actor's
-                        // broadcast channel.
-                        crate::ast::decl::EndpointKind::Stream => {
-                            (crate::hir::HirEndpointKind::Stream, STREAM_FN_API_PREFIX)
-                        }
-                    };
-                    let route_path = format!("{prefix}{}", lowered.name);
-                    let webhook = e.func.webhook.as_ref().map(|w| {
-                        use crate::ast::decl::webhook::AstWebhookProvider as A;
-                        use crate::hir::nodes::boilerplate_grafts::{
-                            HirWebhookDecl, WebhookProvider as H,
-                        };
-                        let provider = match &w.provider {
-                            A::Stripe => H::Stripe,
-                            A::Github => H::Github,
-                            A::Slack => H::Slack,
-                            A::Custom { secret_var } => H::Custom {
-                                secret_var: secret_var.clone(),
-                            },
-                        };
-                        HirWebhookDecl {
-                            provider,
-                            idempotent: w.idempotent,
-                            replay_window_secs: w.replay_window_secs,
-                            span: w.span,
-                        }
-                    });
-                    let cors = e.func.cors_spec.as_ref().map(|c| {
-                        crate::hir::nodes::http_ergonomics::HirCorsPolicy {
-                            origins: c.origins.clone(),
-                            allow_credentials: c.allow_credentials,
-                            span: c.span,
-                        }
-                    });
-                    let rate_limit = e.func.rate_limit.as_ref().map(|r| {
-                        use crate::ast::decl::http_decorators::AstRateLimitBy as A;
-                        use crate::hir::nodes::http_ergonomics::{
-                            HirRateLimitPolicy, RateLimitBy as H,
-                        };
-                        HirRateLimitPolicy {
-                            by: match r.by {
-                                A::Ip => H::Ip,
-                                A::UserId => H::UserId,
-                                A::ApiKey => H::ApiKey,
-                            },
-                            window_secs: r.window_secs,
-                            max_requests: r.max_requests,
-                            span: r.span,
-                        }
-                    });
-                    let pii = e.func.pii.as_ref().map(|p| {
-                        use crate::ast::decl::http_decorators::AstPiiClass as A;
-                        use crate::hir::nodes::boilerplate_grafts::{HirPiiMarker, PiiClass as H};
-                        let class = match &p.class {
-                            A::Name => H::Name,
-                            A::Email => H::Email,
-                            A::Phone => H::Phone,
-                            A::Ip => H::Ip,
-                            A::FinancialData => H::FinancialData,
-                            A::BiometricData => H::BiometricData,
-                            A::Other(_) => H::Email, // best-effort fallback
-                        };
-                        HirPiiMarker {
-                            class,
-                            span: p.span,
-                        }
-                    });
-                    let layer = e.func.layer.as_ref().and_then(|l| {
-                        crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {
-                            crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
-                        })
-                    });
-                    hir.endpoint_fns.push(crate::hir::HirEndpointFn {
-                        kind,
-                        id: lowered.id,
-                        name: lowered.name.clone(),
-                        params: lowered.params.clone(),
-                        return_type: lowered.return_type.clone(),
-                        body: lowered.body.clone(),
-                        route_path,
-                        is_pure: lowered.is_pure,
-                        effects: lowered
-                            .capabilities
-                            .iter()
-                            .filter_map(cap_to_effect_kind)
-                            .collect(),
-                        webhook,
-                        cors,
-                        rate_limit,
-                        pii,
-                        layer,
-                        stream_interval: e.stream_interval.clone(),
-                        span: lowered.span,
-                    });
+                    hir.endpoint_fns.push(self.lower_endpoint_decl(e));
                 }
                 Decl::Table(t) => {
                     hir.tables.push(self.lower_table(t));
@@ -567,7 +412,167 @@ impl LowerCtx {
         // Drain synthesised side_effect activities (P1-T7) into the function list.
         hir.functions.append(&mut self.synthesised_fns);
 
+
         hir
+    }
+
+    /// Lower a single `@endpoint` declaration to an `HirEndpointFn`.
+    ///
+    /// CR-A1: the 4-arm `match e.kind` + the webhook/CORS/rate-limit/PII/layer
+    /// conversion closures contributed ~12 decision points inline in `lower()`;
+    /// moving them here drops `lower` to ~7 CC.
+    fn lower_endpoint_decl(&mut self, e: &EndpointDecl) -> crate::hir::HirEndpointFn {
+        let lowered = self.lower_fn(&e.func);
+        let (kind, prefix) = match e.kind {
+            crate::ast::decl::EndpointKind::Query => {
+                (crate::hir::HirEndpointKind::Query, QUERY_FN_API_PREFIX)
+            }
+            crate::ast::decl::EndpointKind::Mutation => (
+                crate::hir::HirEndpointKind::Mutation,
+                MUTATION_FN_API_PREFIX,
+            ),
+            crate::ast::decl::EndpointKind::Server => {
+                (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
+            }
+            crate::ast::decl::EndpointKind::Stream => {
+                (crate::hir::HirEndpointKind::Stream, STREAM_FN_API_PREFIX)
+            }
+        };
+        let route_path = format!("{prefix}{}", lowered.name);
+        let webhook = e.func.webhook.as_ref().map(|w| {
+            use crate::ast::decl::webhook::AstWebhookProvider as A;
+            use crate::hir::nodes::boilerplate_grafts::{HirWebhookDecl, WebhookProvider as H};
+            let provider = match &w.provider {
+                A::Stripe => H::Stripe,
+                A::Github => H::Github,
+                A::Slack => H::Slack,
+                A::Custom { secret_var } => H::Custom {
+                    secret_var: secret_var.clone(),
+                },
+            };
+            HirWebhookDecl {
+                provider,
+                idempotent: w.idempotent,
+                replay_window_secs: w.replay_window_secs,
+                span: w.span,
+            }
+        });
+        let cors = e.func.cors_spec.as_ref().map(|c| {
+            crate::hir::nodes::http_ergonomics::HirCorsPolicy {
+                origins: c.origins.clone(),
+                allow_credentials: c.allow_credentials,
+                span: c.span,
+            }
+        });
+        let rate_limit = e.func.rate_limit.as_ref().map(|r| {
+            use crate::ast::decl::http_decorators::AstRateLimitBy as A;
+            use crate::hir::nodes::http_ergonomics::{HirRateLimitPolicy, RateLimitBy as H};
+            HirRateLimitPolicy {
+                by: match r.by {
+                    A::Ip => H::Ip,
+                    A::UserId => H::UserId,
+                    A::ApiKey => H::ApiKey,
+                },
+                window_secs: r.window_secs,
+                max_requests: r.max_requests,
+                span: r.span,
+            }
+        });
+        let pii = e.func.pii.as_ref().map(|p| {
+            use crate::ast::decl::http_decorators::AstPiiClass as A;
+            use crate::hir::nodes::boilerplate_grafts::{HirPiiMarker, PiiClass as H};
+            let class = match &p.class {
+                A::Name => H::Name,
+                A::Email => H::Email,
+                A::Phone => H::Phone,
+                A::Ip => H::Ip,
+                A::FinancialData => H::FinancialData,
+                A::BiometricData => H::BiometricData,
+                A::Other(_) => H::Email, // best-effort fallback
+            };
+            HirPiiMarker { class, span: p.span }
+        });
+        let layer = e.func.layer.as_ref().and_then(|l| {
+            crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {
+                crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
+            })
+        });
+        crate::hir::HirEndpointFn {
+            kind,
+            id: lowered.id,
+            name: lowered.name.clone(),
+            params: lowered.params.clone(),
+            return_type: lowered.return_type.clone(),
+            body: lowered.body.clone(),
+            route_path,
+            is_pure: lowered.is_pure,
+            effects: lowered
+                .capabilities
+                .iter()
+                .filter_map(cap_to_effect_kind)
+                .collect(),
+            webhook,
+            cors,
+            rate_limit,
+            pii,
+            layer,
+            stream_interval: e.stream_interval.clone(),
+            span: lowered.span,
+        }
+    }
+}
+
+/// Lower all import paths from one `ImportDecl` into the HIR module's
+/// import/rust-import lists.
+///
+/// CR-A1: the for-loop + match-on-3-arms + SymbolPath if-else contributed
+/// ~5 decision points inline in `LowerCtx::lower`; moving them here drops
+/// `lower` to ~7 CC.
+fn lower_import_paths(imp: &ImportDecl, hir: &mut HirModule) {
+    for path in &imp.paths {
+        match &path.kind {
+            ImportPathKind::SymbolPath { segments } => {
+                let (mod_path, item) = if segments.len() > 1 {
+                    let item = segments.last().expect("segments non-empty").clone();
+                    let mod_path = segments[..segments.len() - 1].to_vec();
+                    (mod_path, item)
+                } else {
+                    (vec![], segments[0].clone())
+                };
+                hir.imports.push(HirImport {
+                    module_path: mod_path,
+                    item: path.alias.clone().unwrap_or(item),
+                    es_module_specifier: None,
+                    span: path.span,
+                });
+            }
+            ImportPathKind::RustCrate(spec) => {
+                let alias = path
+                    .alias
+                    .clone()
+                    .unwrap_or_else(|| spec.crate_name.clone());
+                hir.rust_imports.push(HirRustImport {
+                    crate_name: spec.crate_name.clone(),
+                    alias,
+                    version: spec.version.clone(),
+                    path: spec.path.clone(),
+                    git: spec.git.clone(),
+                    rev: spec.rev.clone(),
+                    span: path.span,
+                });
+            }
+            ImportPathKind::ReactComponent {
+                local_name,
+                module_specifier,
+            } => {
+                hir.imports.push(HirImport {
+                    module_path: Vec::new(),
+                    item: local_name.clone(),
+                    es_module_specifier: Some(module_specifier.clone()),
+                    span: path.span,
+                });
+            }
+        }
     }
 }
 

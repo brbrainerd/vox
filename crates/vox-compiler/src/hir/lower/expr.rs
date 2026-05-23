@@ -79,123 +79,7 @@ impl LowerCtx {
                 method,
                 args,
                 span,
-            } => {
-                if let Some(chain) = super::expr_db::extract_db_query_chain(self, e) {
-                    let plan = super::expr_db::make_db_plan_from_chain(&chain);
-                    // Lower the call-site args ORIGINALLY so typecheck
-                    // matches the surface `filter(record)` / `update(id,
-                    // record)` etc. signatures in typeck/builtins.rs.
-                    // chain.args carries per-field flattened predicate
-                    // entries which the plan already encodes; the
-                    // MethodCall.args field is what typecheck consumes,
-                    // and it needs the source-level shape.
-                    let surface_args: Vec<HirArg> = args
-                        .iter()
-                        .map(|a| HirArg {
-                            name: a.name.clone(),
-                            value: self.lower_expr(&a.value),
-                        })
-                        .collect();
-                    return HirExpr::MethodCall(
-                        Box::new(self.lower_expr(object)),
-                        method.clone(),
-                        surface_args,
-                        Some(Box::new(plan)),
-                        *span,
-                    );
-                }
-                let obj_hir = self.lower_expr(object);
-                let hir_args: Vec<HirArg> = args
-                    .iter()
-                    .map(|a| HirArg {
-                        name: a.name.clone(),
-                        value: self.lower_expr(&a.value),
-                    })
-                    .collect();
-                if method == "count"
-                    && hir_args.is_empty()
-                    && let Some((table, count_args)) =
-                        super::expr_db::extract_count_chain_args(self, object)
-                {
-                    let plan = HirDbQueryPlan {
-                        table: table.clone(),
-                        op: HirDbTableOp::Count,
-                        predicate: None,
-                        projection: None,
-                        order_by: None,
-                        has_limit: false,
-                        capabilities: HirDbPlanCapabilities::default(),
-                    };
-                    return HirExpr::MethodCall(
-                        Box::new(obj_hir),
-                        method.clone(),
-                        count_args,
-                        Some(Box::new(plan)),
-                        *span,
-                    );
-                }
-                if method == "filter"
-                    && let Some(table) = super::expr_db::db_table_handle_name(&obj_hir)
-                    && let Some(filter_args) = super::expr_db::extract_filter_record_args(&hir_args)
-                    && !filter_args.is_empty()
-                {
-                    let plan = HirDbQueryPlan {
-                        table: table.clone(),
-                        op: HirDbTableOp::FilterRecord,
-                        predicate: Some(HirDbPredicate::And(
-                            filter_args
-                                .iter()
-                                .filter_map(|a| {
-                                    Some(HirDbPredicate::Eq {
-                                        field: a.name.clone()?,
-                                    })
-                                })
-                                .collect(),
-                        )),
-                        projection: None,
-                        order_by: None,
-                        has_limit: false,
-                        capabilities: HirDbPlanCapabilities::default(),
-                    };
-                    // Pass the ORIGINAL hir_args (the single positional
-                    // ObjectLit) so typecheck matches the
-                    // `filter(record) -> Result[List[Row]]` signature in
-                    // typeck/builtins.rs. The plan above still carries
-                    // the flattened per-field predicate for codegen.
-                    return HirExpr::MethodCall(
-                        Box::new(obj_hir),
-                        method.clone(),
-                        hir_args,
-                        Some(Box::new(plan)),
-                        *span,
-                    );
-                }
-                if let Some((table, op)) =
-                    super::expr_db::db_table_op_from_field(&obj_hir, method.as_str())
-                {
-                    let mut cap = HirDbPlanCapabilities::default();
-                    if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
-                        cap.emits_change_log = true;
-                    }
-                    HirExpr::MethodCall(
-                        Box::new(obj_hir),
-                        method.clone(),
-                        hir_args,
-                        Some(Box::new(HirDbQueryPlan {
-                            table,
-                            op,
-                            predicate: None,
-                            projection: None,
-                            order_by: None,
-                            has_limit: false,
-                            capabilities: cap,
-                        })),
-                        *span,
-                    )
-                } else {
-                    HirExpr::MethodCall(Box::new(obj_hir), method.clone(), hir_args, None, *span)
-                }
-            }
+            } => return self.lower_method_call_expr(e, object, method, args, *span),
             Expr::FieldAccess {
                 object,
                 field,
@@ -398,6 +282,127 @@ impl LowerCtx {
                 max: call.max,
                 span: call.span,
             }),
+        }
+    }
+
+    /// Lower a `MethodCall` expression.  Extracted from `lower_expr` (CR-A1):
+    /// the four DB-query-plan early-return branches contributed ~8 decision
+    /// points inline; moving them here drops `lower_expr` to ~11 CC.
+    pub(crate) fn lower_method_call_expr(
+        &mut self,
+        e: &crate::ast::expr::Expr,
+        object: &crate::ast::expr::Expr,
+        method: &str,
+        args: &[crate::ast::expr::Arg],
+        span: crate::ast::span::Span,
+    ) -> HirExpr {
+        if let Some(chain) = super::expr_db::extract_db_query_chain(self, e) {
+            let plan = super::expr_db::make_db_plan_from_chain(&chain);
+            // Lower the call-site args ORIGINALLY so typecheck matches the
+            // surface `filter(record)` / `update(id, record)` etc. signatures
+            // in typeck/builtins.rs.
+            let surface_args: Vec<HirArg> = args
+                .iter()
+                .map(|a| HirArg {
+                    name: a.name.clone(),
+                    value: self.lower_expr(&a.value),
+                })
+                .collect();
+            return HirExpr::MethodCall(
+                Box::new(self.lower_expr(object)),
+                method.to_string(),
+                surface_args,
+                Some(Box::new(plan)),
+                span,
+            );
+        }
+        let obj_hir = self.lower_expr(object);
+        let hir_args: Vec<HirArg> = args
+            .iter()
+            .map(|a| HirArg {
+                name: a.name.clone(),
+                value: self.lower_expr(&a.value),
+            })
+            .collect();
+        if method == "count"
+            && hir_args.is_empty()
+            && let Some((table, count_args)) =
+                super::expr_db::extract_count_chain_args(self, object)
+        {
+            let plan = HirDbQueryPlan {
+                table: table.clone(),
+                op: HirDbTableOp::Count,
+                predicate: None,
+                projection: None,
+                order_by: None,
+                has_limit: false,
+                capabilities: HirDbPlanCapabilities::default(),
+            };
+            return HirExpr::MethodCall(
+                Box::new(obj_hir),
+                method.to_string(),
+                count_args,
+                Some(Box::new(plan)),
+                span,
+            );
+        }
+        if method == "filter"
+            && let Some(table) = super::expr_db::db_table_handle_name(&obj_hir)
+            && let Some(filter_args) = super::expr_db::extract_filter_record_args(&hir_args)
+            && !filter_args.is_empty()
+        {
+            let plan = HirDbQueryPlan {
+                table: table.clone(),
+                op: HirDbTableOp::FilterRecord,
+                predicate: Some(HirDbPredicate::And(
+                    filter_args
+                        .iter()
+                        .filter_map(|a| {
+                            Some(HirDbPredicate::Eq {
+                                field: a.name.clone()?,
+                            })
+                        })
+                        .collect(),
+                )),
+                projection: None,
+                order_by: None,
+                has_limit: false,
+                capabilities: HirDbPlanCapabilities::default(),
+            };
+            // Pass the ORIGINAL hir_args so typecheck matches the
+            // `filter(record) -> Result[List[Row]]` signature.
+            return HirExpr::MethodCall(
+                Box::new(obj_hir),
+                method.to_string(),
+                hir_args,
+                Some(Box::new(plan)),
+                span,
+            );
+        }
+        if let Some((table, op)) =
+            super::expr_db::db_table_op_from_field(&obj_hir, method)
+        {
+            let mut cap = HirDbPlanCapabilities::default();
+            if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
+                cap.emits_change_log = true;
+            }
+            HirExpr::MethodCall(
+                Box::new(obj_hir),
+                method.to_string(),
+                hir_args,
+                Some(Box::new(HirDbQueryPlan {
+                    table,
+                    op,
+                    predicate: None,
+                    projection: None,
+                    order_by: None,
+                    has_limit: false,
+                    capabilities: cap,
+                })),
+                span,
+            )
+        } else {
+            HirExpr::MethodCall(Box::new(obj_hir), method.to_string(), hir_args, None, span)
         }
     }
 }

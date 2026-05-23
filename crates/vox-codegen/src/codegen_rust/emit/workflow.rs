@@ -30,31 +30,7 @@ pub fn emit_lib(module: &HirModule) -> String {
 
     // Types
     for typedef in &module.types {
-        // Struct typedef → `pub struct Foo { pub f: T, ... }`.
-        if typedef.variants.is_empty() && !typedef.fields.is_empty() {
-            out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
-            out.push_str(&format!("pub struct {} {{\n", typedef.name));
-            for (fname, ftype) in &typedef.fields {
-                out.push_str(&format!("    pub {}: {},\n", fname, emit_type(ftype)));
-            }
-            out.push_str("}\n\n");
-            continue;
-        }
-        // Sum type / ADT.
-        out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
-        out.push_str(&format!("pub enum {} {{\n", typedef.name));
-        for variant in &typedef.variants {
-            if variant.fields.is_empty() {
-                out.push_str(&format!("    {},\n", variant.name));
-            } else {
-                out.push_str(&format!("    {}(", variant.name));
-                for (_fname, ftype) in &variant.fields {
-                    out.push_str(&format!("{}, ", emit_type(ftype)));
-                }
-                out.push_str("),\n");
-            }
-        }
-        out.push_str("}\n\n");
+        emit_typedef(typedef, &mut out);
     }
 
     // State Machines
@@ -74,14 +50,7 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     for func in &module.functions {
-        let handlers: Vec<&HirFn> = if !func.actor_state_fields.is_empty() {
-            module.functions.iter()
-                .filter(|f| f.name.starts_with(&format!("{}::", func.name)))
-                .collect()
-        } else {
-            vec![]
-        };
-        out.push_str(&emit_fn(func, Some(&module.inferred_types), &handlers));
+        out.push_str(&emit_fn_with_actor_handlers(func, module));
     }
 
     // MCP tools and resources — must be `pub` so `mcp_server` binary can `use crate::*`.
@@ -112,6 +81,53 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     out
+}
+
+/// Emit a single HIR typedef (struct or ADT) as a Rust type definition.
+/// Extracted from `emit_lib` per CR-A1: the two-branch if-chain inside the
+/// for-loop contributed ~8 DPs (variants-empty/fields-empty, inner loops).
+fn emit_typedef(typedef: &vox_compiler::hir::HirTypeDef, out: &mut String) {
+    // Struct typedef → `pub struct Foo { pub f: T, ... }`.
+    if typedef.variants.is_empty() && !typedef.fields.is_empty() {
+        out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
+        out.push_str(&format!("pub struct {} {{\n", typedef.name));
+        for (fname, ftype) in &typedef.fields {
+            out.push_str(&format!("    pub {}: {},\n", fname, emit_type(ftype)));
+        }
+        out.push_str("}\n\n");
+        return;
+    }
+    // Sum type / ADT.
+    out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
+    out.push_str(&format!("pub enum {} {{\n", typedef.name));
+    for variant in &typedef.variants {
+        if variant.fields.is_empty() {
+            out.push_str(&format!("    {},\n", variant.name));
+        } else {
+            out.push_str(&format!("    {}(", variant.name));
+            for (_fname, ftype) in &variant.fields {
+                out.push_str(&format!("{}, ", emit_type(ftype)));
+            }
+            out.push_str("),\n");
+        }
+    }
+    out.push_str("}\n\n");
+}
+
+/// Emit a function together with its actor handler set (if it is an actor shell).
+/// Extracted from `emit_lib` per CR-A1: the `if !func.actor_state_fields.is_empty()`
+/// guard + the `filter` closure contributed ~3 DPs inside the for-loop.
+fn emit_fn_with_actor_handlers(func: &HirFn, module: &vox_compiler::hir::HirModule) -> String {
+    let handlers: Vec<&HirFn> = if !func.actor_state_fields.is_empty() {
+        module
+            .functions
+            .iter()
+            .filter(|f| f.name.starts_with(&format!("{}::", func.name)))
+            .collect()
+    } else {
+        vec![]
+    };
+    emit_fn(func, Some(&module.inferred_types), &handlers)
 }
 
 fn emit_forall(forall: &HirForall, inferred_types: Option<&HashMap<Span, HirType>>) -> String {

@@ -55,7 +55,7 @@ where
             if o == "std" && field == "args" {
                 "std::env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>()"
                     .to_string()
-            } else if o == "fs" || o == "path" || o == "env" || o == "process" || o == "csv" || o == "toml" || o == "yaml" || o == "io" || o == "json" || o == "http" || o == "crypto" || o == "time" || o == "log" || o == "mobile" || o == "regex" || o == "agentos" {
+            } else if is_vox_namespace_ident(&o) {
                 format!("{}::{}", o, field)
             } else {
                 format!("{}.{}", o, field)
@@ -199,4 +199,30 @@ where
         s.push_str("    }");
     }
     s
+}
+
+/// Returns `true` when the identifier is a Vox namespace module that should
+/// be lowered to Rust path syntax (`fs::read` rather than `fs.read`).
+///
+/// Extracted from the `FieldAccess` arm of `try_emit_expr_tail` per CR-A1:
+/// the original `||` chain contributed 16 decision points to the caller.
+fn is_vox_namespace_ident(name: &str) -> bool {
+    matches!(
+        name,
+        "fs" | "path"
+            | "env"
+            | "process"
+            | "csv"
+            | "toml"
+            | "yaml"
+            | "io"
+            | "json"
+            | "http"
+            | "crypto"
+            | "time"
+            | "log"
+            | "mobile"
+            | "regex"
+            | "agentos"
+    )
 }

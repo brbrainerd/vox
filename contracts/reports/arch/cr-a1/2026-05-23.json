@@ -2,238 +2,21 @@
   "budget": 15,
   "criterion": "CR-A1",
   "files_scanned": 31,
-  "functions_scanned": 233,
+  "functions_scanned": 280,
   "lowering_paths": [
     "crates/vox-compiler/src/hir/lower",
     "crates/vox-compiler/src/typeck/checker",
     "crates/vox-codegen/src/codegen_rust/emit"
   ],
-  "max_complexity": 36,
-  "measured_at": "2026-05-23T07:17:28.591249600+00:00",
-  "over_budget": [
-    {
-      "complexity": 36,
-      "file": "crates/vox-compiler/src/typeck/checker/expr.rs",
-      "function": "check_expr",
-      "line": 149
-    },
-    {
-      "complexity": 25,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs",
-      "function": "emit_llm_function_body",
-      "line": 7
-    },
-    {
-      "complexity": 24,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
-      "function": "emit_method_call",
-      "line": 507
-    },
-    {
-      "complexity": 24,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs",
-      "function": "try_emit_expr_tail",
-      "line": 6
-    },
-    {
-      "complexity": 23,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
-      "function": "emit_main",
-      "line": 130
-    },
-    {
-      "complexity": 22,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/client.rs",
-      "function": "emit_mcp_server",
-      "line": 180
-    },
-    {
-      "complexity": 20,
-      "file": "crates/vox-compiler/src/typeck/checker/match_exhaust.rs",
-      "function": "check_hir_match_exhaustiveness",
-      "line": 8
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-compiler/src/hir/lower/expr.rs",
-      "function": "lower_expr",
-      "line": 9
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-compiler/src/hir/lower/mod.rs",
-      "function": "lower",
-      "line": 100
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
-      "function": "emit_expr_with",
-      "line": 249
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs",
-      "function": "emit_table_struct",
-      "line": 88
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/workflow.rs",
-      "function": "emit_lib",
-      "line": 8
-    },
-    {
-      "complexity": 18,
-      "file": "crates/vox-compiler/src/typeck/checker/expr_ops.rs",
-      "function": "bind_pattern",
-      "line": 187
-    },
-    {
-      "complexity": 18,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/state_machine.rs",
-      "function": "emit_one",
-      "line": 19
-    },
-    {
-      "complexity": 17,
-      "file": "crates/vox-compiler/src/typeck/checker/mod.rs",
-      "function": "check_reactive_component",
-      "line": 297
-    },
-    {
-      "complexity": 17,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
-      "function": "emit_db_table_op",
-      "line": 18
-    },
-    {
-      "complexity": 16,
-      "file": "crates/vox-compiler/src/typeck/checker/expr_field.rs",
-      "function": "check_expr_field_access",
-      "line": 12
-    },
-    {
-      "complexity": 16,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
-      "function": "emit_stmt",
-      "line": 7
-    }
-  ],
+  "max_complexity": 15,
+  "measured_at": "2026-05-23T17:20:29.254028700+00:00",
+  "over_budget": [],
   "schema_version": 1,
   "threshold": {
-    "met": false,
+    "met": true,
     "target_max_complexity": 15
   },
   "top_20_complexity": [
-    {
-      "complexity": 36,
-      "file": "crates/vox-compiler/src/typeck/checker/expr.rs",
-      "function": "check_expr",
-      "line": 149
-    },
-    {
-      "complexity": 25,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs",
-      "function": "emit_llm_function_body",
-      "line": 7
-    },
-    {
-      "complexity": 24,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
-      "function": "emit_method_call",
-      "line": 507
-    },
-    {
-      "complexity": 24,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs",
-      "function": "try_emit_expr_tail",
-      "line": 6
-    },
-    {
-      "complexity": 23,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
-      "function": "emit_main",
-      "line": 130
-    },
-    {
-      "complexity": 22,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/client.rs",
-      "function": "emit_mcp_server",
-      "line": 180
-    },
-    {
-      "complexity": 20,
-      "file": "crates/vox-compiler/src/typeck/checker/match_exhaust.rs",
-      "function": "check_hir_match_exhaustiveness",
-      "line": 8
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-compiler/src/hir/lower/expr.rs",
-      "function": "lower_expr",
-      "line": 9
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-compiler/src/hir/lower/mod.rs",
-      "function": "lower",
-      "line": 100
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
-      "function": "emit_expr_with",
-      "line": 249
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs",
-      "function": "emit_table_struct",
-      "line": 88
-    },
-    {
-      "complexity": 19,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/workflow.rs",
-      "function": "emit_lib",
-      "line": 8
-    },
-    {
-      "complexity": 18,
-      "file": "crates/vox-compiler/src/typeck/checker/expr_ops.rs",
-      "function": "bind_pattern",
-      "line": 187
-    },
-    {
-      "complexity": 18,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/state_machine.rs",
-      "function": "emit_one",
-      "line": 19
-    },
-    {
-      "complexity": 17,
-      "file": "crates/vox-compiler/src/typeck/checker/mod.rs",
-      "function": "check_reactive_component",
-      "line": 297
-    },
-    {
-      "complexity": 17,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
-      "function": "emit_db_table_op",
-      "line": 18
-    },
-    {
-      "complexity": 16,
-      "file": "crates/vox-compiler/src/typeck/checker/expr_field.rs",
-      "function": "check_expr_field_access",
-      "line": 12
-    },
-    {
-      "complexity": 16,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
-      "function": "emit_stmt",
-      "line": 7
-    },
     {
       "complexity": 15,
       "file": "crates/vox-compiler/src/hir/lower/async_flags.rs",
@@ -244,7 +27,115 @@
       "complexity": 15,
       "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
       "function": "try_emit_namespace_call",
-      "line": 406
+      "line": 461
+    },
+    {
+      "complexity": 15,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/tables/codegen.rs",
+      "function": "emit_table_struct",
+      "line": 88
+    },
+    {
+      "complexity": 14,
+      "file": "crates/vox-compiler/src/hir/lower/expr_db.rs",
+      "function": "parse_where_object_predicate",
+      "line": 130
+    },
+    {
+      "complexity": 14,
+      "file": "crates/vox-compiler/src/typeck/checker/expr.rs",
+      "function": "check_expr",
+      "line": 149
+    },
+    {
+      "complexity": 14,
+      "file": "crates/vox-compiler/src/typeck/checker/expr_field.rs",
+      "function": "check_expr_field_access",
+      "line": 12
+    },
+    {
+      "complexity": 14,
+      "file": "crates/vox-compiler/src/typeck/checker/expr_ops.rs",
+      "function": "bind_constructor_pattern",
+      "line": 232
+    },
+    {
+      "complexity": 14,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
+      "function": "emit_main",
+      "line": 130
+    },
+    {
+      "complexity": 13,
+      "file": "crates/vox-compiler/src/hir/lower/expr_db.rs",
+      "function": "extract_db_query_chain",
+      "line": 319
+    },
+    {
+      "complexity": 13,
+      "file": "crates/vox-compiler/src/hir/lower/mod.rs",
+      "function": "hir_lowering_db_all_select_sets_projection",
+      "line": 813
+    },
+    {
+      "complexity": 13,
+      "file": "crates/vox-compiler/src/typeck/checker/mod.rs",
+      "function": "contains_db_write_or_unsafe_in_expr",
+      "line": 493
+    },
+    {
+      "complexity": 13,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs",
+      "function": "emit_llm_function_body",
+      "line": 7
+    },
+    {
+      "complexity": 13,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/client.rs",
+      "function": "hir_type_json_schema_property",
+      "line": 132
+    },
+    {
+      "complexity": 13,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
+      "function": "emit_method_call",
+      "line": 450
+    },
+    {
+      "complexity": 12,
+      "file": "crates/vox-compiler/src/hir/lower/contracts.rs",
+      "function": "inject_postconditions_into_expr",
+      "line": 161
+    },
+    {
+      "complexity": 12,
+      "file": "crates/vox-compiler/src/hir/lower/expr.rs",
+      "function": "lower_method_call_expr",
+      "line": 291
+    },
+    {
+      "complexity": 12,
+      "file": "crates/vox-compiler/src/typeck/checker/mod.rs",
+      "function": "solve_constraints",
+      "line": 676
+    },
+    {
+      "complexity": 12,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
+      "function": "emit_server_fn_handler",
+      "line": 532
+    },
+    {
+      "complexity": 12,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/workflow.rs",
+      "function": "emit_lib",
+      "line": 8
+    },
+    {
+      "complexity": 11,
+      "file": "crates/vox-compiler/src/hir/lower/decl.rs",
+      "function": "try_lower_search_fixture",
+      "line": 731
     }
   ]
 }

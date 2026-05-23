@@ -356,22 +356,39 @@ impl<'a> Checker<'a> {
             }
         }
 
+        self.check_reactive_members_second_pass(
+            &c.members,
+            &state_vars,
+            &derived_vars,
+        );
+
+        if let Some(view) = &c.view {
+            let _ = self.check_expr(view, None);
+        }
+
+        self.env.pop_scope();
+    }
+
+    /// Type-check each reactive member in `members` against its pre-declared
+    /// type variable, then check effects, mounts, cleanups, and stmts.
+    ///
+    /// CR-A1: extracted from `check_reactive_component` — the second
+    /// for-loop + 6-arm match + inner State/Derived if-let chains
+    /// contributed ~8 decision points inline.
+    fn check_reactive_members_second_pass(
+        &mut self,
+        members: &[crate::hir::HirReactiveMember],
+        state_vars: &[(String, Ty)],
+        derived_vars: &[(String, Ty)],
+    ) {
         let mut state_idx = 0usize;
         let mut derived_idx = 0usize;
-        for m in &c.members {
+        for m in members {
             match m {
                 crate::hir::HirReactiveMember::State(s) => {
-                    // Pass the declared state type as the expected type so that
-                    // polymorphic constructors like `None`, `Ok(x)`, `[]`, and
-                    // empty object literals can specialize against the
-                    // annotation. Mirrors the let-binding fix in P2.3.
-                    let expected = state_vars
-                        .get(state_idx)
-                        .map(|(_, ty)| ty.clone());
+                    let expected = state_vars.get(state_idx).map(|(_, ty)| ty.clone());
                     let init_ty = self.check_expr(&s.init, expected.as_ref());
                     if let Some((_, decl_ty)) = state_vars.get(state_idx) {
-                        // `any` is an escape hatch — skip unification and accept
-                        // any initializer value (mirrors TypeScript `any` semantics).
                         let resolved_decl = self.uf.resolve(decl_ty);
                         let is_any = matches!(&resolved_decl, Ty::Named(n) if n == "any");
                         if !is_any {
@@ -394,7 +411,10 @@ impl<'a> Checker<'a> {
                     if let Some((_, decl_ty)) = derived_vars.get(derived_idx) {
                         if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
                             self.diags.push(Diagnostic::error(
-                                format!("Type mismatch in `derived {}` expression: {msg}", d.name),
+                                format!(
+                                    "Type mismatch in `derived {}` expression: {msg}",
+                                    d.name
+                                ),
                                 d.span,
                                 self.source,
                             ));
@@ -416,12 +436,6 @@ impl<'a> Checker<'a> {
                 }
             }
         }
-
-        if let Some(view) = &c.view {
-            let _ = self.check_expr(view, None);
-        }
-
-        self.env.pop_scope();
     }
 
     fn enforce_query_read_only(&mut self, sf: &HirEndpointFn) {
