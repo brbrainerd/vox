@@ -237,100 +237,17 @@ where
                 )
             }
         }
-        HirDbTableOp::FilterRecord => {
-            if args.is_empty() {
-                return format!(
-                    "{{ /* vox codegen: empty filter */ {}::all({}){} }}",
-                    table_name,
-                    db,
-                    await_or_expect_suffix(fallible, "")
-                );
-            }
-            let where_sql = if let Some(pred) = plan.and_then(|p| p.predicate.as_ref()) {
-                let mut next_param = 1usize;
-                let mut next_arg = 0usize;
-                emit_predicate_sql(emit_expr, pred, args, &mut next_param, &mut next_arg)
-            } else {
-                args.iter()
-                    .enumerate()
-                    .map(|(i, a)| {
-                        let col = a
-                            .name
-                            .as_deref()
-                            .expect("filter_record args must be named columns");
-                        format!("{col} = ?{}", i + 1)
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" AND ")
-            };
-            let params = emit_params_values(emit_expr, args);
-            let proj = select_cols.as_ref().and_then(|c| {
-                if c.is_empty() {
-                    None
-                } else {
-                    Some(super::tables::db_projection_method_suffix(c.as_slice()))
-                }
-            });
-            if order_by.is_some() || limit.is_some() {
-                let order_sql = order_by
-                    .as_ref()
-                    .map(|(col, asc)| format!("{col} {}", if *asc { "ASC" } else { "DESC" }))
-                    .unwrap_or_default();
-                let limit_sql = limit
-                    .as_ref()
-                    .map(|e| format!("Some(({}) as i64)", emit_expr(e.as_ref())))
-                    .unwrap_or_else(|| "None".to_string());
-                if let Some(sfx) = proj {
-                    format!(
-                        "{}::filter_where_order_limit_proj_{}({}, \"{}\", turso::params![{}], \"{}\", {}){}",
-                        table_name,
-                        sfx,
-                        db,
-                        where_sql,
-                        params,
-                        order_sql,
-                        limit_sql,
-                        await_or_expect_suffix(
-                            fallible,
-                            "vox codegen: db filter_where_order_limit_proj"
-                        )
-                    )
-                } else {
-                    format!(
-                        "{}::filter_where_order_limit({}, \"{}\", turso::params![{}], \"{}\", {}){}",
-                        table_name,
-                        db,
-                        where_sql,
-                        params,
-                        order_sql,
-                        limit_sql,
-                        await_or_expect_suffix(
-                            fallible,
-                            "vox codegen: db filter_where_order_limit"
-                        )
-                    )
-                }
-            } else if let Some(sfx) = proj {
-                format!(
-                    "{}::filter_where_proj_{}({}, \"{}\", turso::params![{}]){}",
-                    table_name,
-                    sfx,
-                    db,
-                    where_sql,
-                    params,
-                    await_or_expect_suffix(fallible, "vox codegen: db filter_where_proj")
-                )
-            } else {
-                format!(
-                    "{}::filter_where({}, \"{}\", turso::params![{}]){}",
-                    table_name,
-                    db,
-                    where_sql,
-                    params,
-                    await_or_expect_suffix(fallible, "vox codegen: db filter_where")
-                )
-            }
-        }
+        HirDbTableOp::FilterRecord => emit_filter_record(
+            emit_expr,
+            table_name,
+            args,
+            select_cols,
+            order_by,
+            limit,
+            plan,
+            fallible,
+            &db,
+        ),
         HirDbTableOp::UnsafeQueryRawClause => {
             format!(
                 "{}::unsafe_query_raw_clause({}, {}){}",
@@ -358,6 +275,233 @@ where
     } else {
         rendered
     }
+}
+
+/// Emit the `HirDbTableOp::FilterRecord` arm. Extracted from
+/// `emit_db_table_op` per CR-A1 refactor — the inline arm was ~93
+/// lines and contributed ~12 decision points.
+#[allow(clippy::too_many_arguments)]
+fn emit_filter_record<F>(
+    emit_expr: &F,
+    table_name: &str,
+    args: &[vox_compiler::hir::HirArg],
+    select_cols: &Option<Vec<String>>,
+    order_by: &Option<(String, bool)>,
+    limit: &Option<Box<HirExpr>>,
+    plan: Option<&HirDbQueryPlan>,
+    fallible: bool,
+    db: &str,
+) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    if args.is_empty() {
+        return format!(
+            "{{ /* vox codegen: empty filter */ {}::all({}){} }}",
+            table_name,
+            db,
+            await_or_expect_suffix(fallible, "")
+        );
+    }
+    let where_sql = build_filter_where_sql(emit_expr, args, plan);
+    let params = args
+        .iter()
+        .map(|a| emit_expr(&a.value))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let proj = select_cols.as_ref().and_then(|c| {
+        if c.is_empty() {
+            None
+        } else {
+            Some(super::tables::db_projection_method_suffix(c.as_slice()))
+        }
+    });
+    if order_by.is_some() || limit.is_some() {
+        let order_sql = order_by
+            .as_ref()
+            .map(|(col, asc)| format!("{col} {}", if *asc { "ASC" } else { "DESC" }))
+            .unwrap_or_default();
+        let limit_sql = limit
+            .as_ref()
+            .map(|e| format!("Some(({}) as i64)", emit_expr(e.as_ref())))
+            .unwrap_or_else(|| "None".to_string());
+        emit_filter_where_order_limit(
+            table_name, &where_sql, &params, &order_sql, &limit_sql, proj.as_deref(), fallible, db,
+        )
+    } else {
+        emit_filter_where(table_name, &where_sql, &params, proj.as_deref(), fallible, db)
+    }
+}
+
+fn emit_filter_where_order_limit(
+    table_name: &str,
+    where_sql: &str,
+    params: &str,
+    order_sql: &str,
+    limit_sql: &str,
+    proj: Option<&str>,
+    fallible: bool,
+    db: &str,
+) -> String {
+    if let Some(sfx) = proj {
+        format!(
+            "{}::filter_where_order_limit_proj_{}({}, \"{}\", turso::params![{}], \"{}\", {}){}",
+            table_name,
+            sfx,
+            db,
+            where_sql,
+            params,
+            order_sql,
+            limit_sql,
+            await_or_expect_suffix(
+                fallible,
+                "vox codegen: db filter_where_order_limit_proj"
+            )
+        )
+    } else {
+        format!(
+            "{}::filter_where_order_limit({}, \"{}\", turso::params![{}], \"{}\", {}){}",
+            table_name,
+            db,
+            where_sql,
+            params,
+            order_sql,
+            limit_sql,
+            await_or_expect_suffix(fallible, "vox codegen: db filter_where_order_limit")
+        )
+    }
+}
+
+fn emit_filter_where(
+    table_name: &str,
+    where_sql: &str,
+    params: &str,
+    proj: Option<&str>,
+    fallible: bool,
+    db: &str,
+) -> String {
+    if let Some(sfx) = proj {
+        format!(
+            "{}::filter_where_proj_{}({}, \"{}\", turso::params![{}]){}",
+            table_name,
+            sfx,
+            db,
+            where_sql,
+            params,
+            await_or_expect_suffix(fallible, "vox codegen: db filter_where_proj")
+        )
+    } else {
+        format!(
+            "{}::filter_where({}, \"{}\", turso::params![{}]){}",
+            table_name,
+            db,
+            where_sql,
+            params,
+            await_or_expect_suffix(fallible, "vox codegen: db filter_where")
+        )
+    }
+}
+
+fn build_filter_where_sql<F>(
+    emit_expr: &F,
+    args: &[vox_compiler::hir::HirArg],
+    plan: Option<&HirDbQueryPlan>,
+) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    if let Some(pred) = plan.and_then(|p| p.predicate.as_ref()) {
+        let mut next_param = 1usize;
+        let mut next_arg = 0usize;
+        return emit_predicate_sql_module(emit_expr, pred, args, &mut next_param, &mut next_arg);
+    }
+    args.iter()
+        .enumerate()
+        .map(|(i, a)| {
+            let col = a
+                .name
+                .as_deref()
+                .expect("filter_record args must be named columns");
+            format!("{col} = ?{}", i + 1)
+        })
+        .collect::<Vec<_>>()
+        .join(" AND ")
+}
+
+/// Module-scope twin of the nested `emit_predicate_sql` inside
+/// `emit_db_table_op`. Same body, just lifted so the extracted
+/// `emit_filter_record` can call it.
+fn emit_predicate_sql_module<F>(
+    _emit_expr: &F,
+    pred: &HirDbPredicate,
+    _args: &[vox_compiler::hir::HirArg],
+    next_param: &mut usize,
+    next_arg: &mut usize,
+) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    match pred {
+        HirDbPredicate::Eq { field } => single_param_pred(field, "=", next_param, next_arg),
+        HirDbPredicate::Neq { field } => single_param_pred(field, "<>", next_param, next_arg),
+        HirDbPredicate::Lt { field } => single_param_pred(field, "<", next_param, next_arg),
+        HirDbPredicate::Lte { field } => single_param_pred(field, "<=", next_param, next_arg),
+        HirDbPredicate::Gt { field } => single_param_pred(field, ">", next_param, next_arg),
+        HirDbPredicate::Gte { field } => single_param_pred(field, ">=", next_param, next_arg),
+        HirDbPredicate::Contains { field } => {
+            let idx = *next_param;
+            *next_param += 1;
+            *next_arg += 1;
+            format!("{field} LIKE '%' || ?{idx} || '%'")
+        }
+        HirDbPredicate::IsNull { field } => format!("{field} IS NULL"),
+        HirDbPredicate::In { field, arity } => {
+            let mut slots = Vec::with_capacity(*arity);
+            for _ in 0..*arity {
+                let idx = *next_param;
+                *next_param += 1;
+                *next_arg += 1;
+                slots.push(format!("?{idx}"));
+            }
+            format!("{field} IN ({})", slots.join(", "))
+        }
+        HirDbPredicate::And(parts) => combine_preds(_emit_expr, parts, _args, next_param, next_arg, " AND "),
+        HirDbPredicate::Or(parts) => combine_preds(_emit_expr, parts, _args, next_param, next_arg, " OR "),
+        HirDbPredicate::Not(inner) => format!(
+            "NOT ({})",
+            emit_predicate_sql_module(_emit_expr, inner, _args, next_param, next_arg)
+        ),
+    }
+}
+
+fn single_param_pred(field: &str, sql_op: &str, next_param: &mut usize, next_arg: &mut usize) -> String {
+    let idx = *next_param;
+    *next_param += 1;
+    *next_arg += 1;
+    format!("{field} {sql_op} ?{idx}")
+}
+
+fn combine_preds<F>(
+    emit_expr: &F,
+    parts: &[HirDbPredicate],
+    args: &[vox_compiler::hir::HirArg],
+    next_param: &mut usize,
+    next_arg: &mut usize,
+    sep: &str,
+) -> String
+where
+    F: Fn(&HirExpr) -> String,
+{
+    parts
+        .iter()
+        .map(|p| {
+            format!(
+                "({})",
+                emit_predicate_sql_module(emit_expr, p, args, next_param, next_arg)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(sep)
 }
 
 pub(super) fn emit_method_call<F>(

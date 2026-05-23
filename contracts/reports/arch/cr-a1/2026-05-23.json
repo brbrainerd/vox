@@ -2,26 +2,20 @@
   "budget": 15,
   "criterion": "CR-A1",
   "files_scanned": 31,
-  "functions_scanned": 226,
+  "functions_scanned": 233,
   "lowering_paths": [
     "crates/vox-compiler/src/hir/lower",
     "crates/vox-compiler/src/typeck/checker",
     "crates/vox-codegen/src/codegen_rust/emit"
   ],
   "max_complexity": 36,
-  "measured_at": "2026-05-23T07:13:29.410984+00:00",
+  "measured_at": "2026-05-23T07:17:28.591249600+00:00",
   "over_budget": [
     {
       "complexity": 36,
       "file": "crates/vox-compiler/src/typeck/checker/expr.rs",
       "function": "check_expr",
       "line": 149
-    },
-    {
-      "complexity": 26,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
-      "function": "emit_db_table_op",
-      "line": 18
     },
     {
       "complexity": 25,
@@ -33,7 +27,7 @@
       "complexity": 24,
       "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
       "function": "emit_method_call",
-      "line": 363
+      "line": 507
     },
     {
       "complexity": 24,
@@ -106,6 +100,12 @@
       "file": "crates/vox-compiler/src/typeck/checker/mod.rs",
       "function": "check_reactive_component",
       "line": 297
+    },
+    {
+      "complexity": 17,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
+      "function": "emit_db_table_op",
+      "line": 18
     },
     {
       "complexity": 16,
@@ -133,12 +133,6 @@
       "line": 149
     },
     {
-      "complexity": 26,
-      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
-      "function": "emit_db_table_op",
-      "line": 18
-    },
-    {
       "complexity": 25,
       "file": "crates/vox-codegen/src/codegen_rust/emit/ai_fixture/llm.rs",
       "function": "emit_llm_function_body",
@@ -148,7 +142,7 @@
       "complexity": 24,
       "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
       "function": "emit_method_call",
-      "line": 363
+      "line": 507
     },
     {
       "complexity": 24,
@@ -221,6 +215,12 @@
       "file": "crates/vox-compiler/src/typeck/checker/mod.rs",
       "function": "check_reactive_component",
       "line": 297
+    },
+    {
+      "complexity": 17,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/method_emit.rs",
+      "function": "emit_db_table_op",
+      "line": 18
     },
     {
       "complexity": 16,
