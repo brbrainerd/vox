@@ -61,20 +61,35 @@ pub(super) fn emit_stmt(
             } else if let Some(v) = value {
                 let expr_str = emit_expr_with(v, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned);
                 let rid_tok = http_error_rid.unwrap_or("None");
+                // In route context, short-circuit through serde_json::json!
+                // for shapes that defeat `serde_json::to_value`'s type
+                // inference: `Ok(x)` / `Err(x)` literals (Result<T, _>
+                // with unconstrained T → E0282), and empty list literals
+                // (Vec<_> with unconstrained element type → E0283).
+                // Per the 2026-05-23 slot-2 todo-auth bring-up. The
+                // wire shape produced matches what serde would have
+                // emitted from the corresponding Result/Vec.
+                let route_inference_safe_expr = if is_route {
+                    route_json_shortcut(v, is_route, is_actor, mutation_tx, inferred_types, usage)
+                } else {
+                    None
+                };
                 if is_route && mutation_tx {
-                    format!(
-                        "{pad}return Ok(Json(serde_json::to_value({}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?));\n",
+                    let inner = route_inference_safe_expr.unwrap_or_else(|| format!(
+                        "serde_json::to_value({}).map_err(|e| vox_db::StoreError::Serialization(format!(\"{{}}\", e)))?",
                         expr_str
-                    )
+                    ));
+                    format!("{pad}return Ok(Json({inner}));\n")
                 } else if is_route {
-                    format!(
-                        "{pad}return Ok(Json(serde_json::to_value({expr}).map_err(|e| (
+                    let inner = route_inference_safe_expr.unwrap_or_else(|| format!(
+                        "serde_json::to_value({expr}).map_err(|e| (
     StatusCode::INTERNAL_SERVER_ERROR,
     Json(vox_http_client::envelope::error_json(\"SERIALIZATION_ERROR\", format!(\"{{}}\", e), {rid}, None)),
-))?));\n",
+))?",
                         expr = expr_str,
                         rid = rid_tok,
-                    )
+                    ));
+                    format!("{pad}return Ok(Json({inner}));\n")
                 } else {
                     format!("{pad}return {};\n", expr_str)
                 }
@@ -520,6 +535,56 @@ fn emit_call_args_with_borrow_inference(
         .collect()
 }
 
+/// In a route-handler return position, side-step the serde_json
+/// inference dead-ends `Ok(...)` / `Err(...)` (Result<T, _> with
+/// unconstrained T) and `[]` (Vec<_> with unconstrained element
+/// type) by emitting a `serde_json::json!` literal directly. The
+/// wire shape matches what `serde_json::to_value` would have produced
+/// for the corresponding Vox Result / List.
+///
+/// Returns `None` when the expression isn't one of the inference-
+/// fragile shapes; the caller then falls back to the generic
+/// `serde_json::to_value(...)` form.
+///
+/// Per the 2026-05-23 slot-2 todo-auth bring-up.
+fn route_json_shortcut(
+    v: &HirExpr,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> Option<String> {
+    let emit = |e: &HirExpr| {
+        emit_expr_with(e, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+    };
+    match v {
+        HirExpr::Call(callee, args, _await, _span) => {
+            if let HirExpr::Ident(name, _) = &**callee
+                && args.len() == 1
+            {
+                match name.as_str() {
+                    "Ok" => Some(format!(
+                        "serde_json::json!({{ \"Ok\": {} }})",
+                        emit(&args[0].value)
+                    )),
+                    "Error" | "Err" => Some(format!(
+                        "serde_json::json!({{ \"Err\": {} }})",
+                        emit(&args[0].value)
+                    )),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }
+        HirExpr::ListLit(items, _) if items.is_empty() => {
+            Some("serde_json::Value::Array(Vec::new())".to_string())
+        }
+        _ => None,
+    }
+}
+
 /// Try to emit a builtin function call by name (the `Call(Ident("..."), ...)`
 /// shape). Returns `None` if the ident isn't a recognized builtin, in which
 /// case the caller falls through to namespace / generic dispatch.
@@ -584,6 +649,22 @@ where
         // len works on Vec / String / &str (db.Table.all() lowers to Vec).
         ("len", 1) => Some(format!(
             "({}).len()",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        // Vox `Error(VariantName(payload))` is the Result-error
+        // constructor. The Vox surface spells it `Error(...)` (matches
+        // the ADT-variant terminology); Rust's std spells it `Err(...)`.
+        // Without this rewrite, codegen emits a bare `Error(...)` call
+        // and rustc errors with "cannot find function Error". Per the
+        // 2026-05-23 slot-2 todo-auth bring-up.
+        //
+        // Type inference at the `return` site is the route wrapper's
+        // job — see `emit_stmt`'s HirStmt::Return arm for route
+        // contexts, which now wraps Err(...) in `serde_json::json!`
+        // form so `serde_json::to_value` doesn't choke on Result<T, _>
+        // with unconstrained T.
+        ("Error", 1) => Some(format!(
+            "Err({})",
             emit(&args[0].value, OwnershipMode::Owned)
         )),
         _ => None,

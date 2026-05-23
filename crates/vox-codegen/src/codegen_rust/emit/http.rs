@@ -512,11 +512,16 @@ fn emit_server_fn_handler(
         "Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
     );
 
-    // Extract params from request JSON
+    // Extract params from request JSON, coercing to a concrete Rust
+    // type per the Vox parameter annotation. Without coercion the
+    // value stays a `serde_json::Value` and downstream codegen like
+    // `len(x)` → `x.len()` fails to typecheck (no `len` on Value).
+    // Per the 2026-05-23 slot-2 todo-auth bring-up.
     for param in &sf.params {
+        let extract_expr = param_extract_expr(param.type_ann.as_ref(), &param.name);
         out.push_str(&format!(
-            "    let {} = request[\"{}\"].clone();\n",
-            param.name, param.name
+            "    let {} = {};\n",
+            param.name, extract_expr
         ));
     }
 
@@ -558,6 +563,39 @@ fn emit_server_fn_handler(
     }
     out.push_str("}\n\n");
     out
+}
+
+/// Build a Rust expression that extracts `request["<name>"]` and
+/// coerces it to the concrete type implied by the Vox annotation.
+/// Returning the right Rust type up-front lets downstream codegen
+/// (`.len()`, arithmetic, comparisons) typecheck without inserting
+/// Value→T conversions at every use site.
+fn param_extract_expr(ty: Option<&HirType>, name: &str) -> String {
+    // Bare Value fallback when we don't have an annotation.
+    let raw = format!("request[\"{name}\"].clone()");
+    let Some(t) = ty else { return raw };
+    match t {
+        HirType::Named(n) => match n.as_str() {
+            "str" | "string" | "String" => format!(
+                "request[\"{name}\"].as_str().unwrap_or(\"\").to_string()"
+            ),
+            "int" | "i64" | "Int" => format!(
+                "request[\"{name}\"].as_i64().unwrap_or(0)"
+            ),
+            "float" | "f64" | "Float" => format!(
+                "request[\"{name}\"].as_f64().unwrap_or(0.0)"
+            ),
+            "bool" | "Bool" => format!(
+                "request[\"{name}\"].as_bool().unwrap_or(false)"
+            ),
+            // Custom / record types stay as serde_json::Value so
+            // serde can deserialize at the use site if needed.
+            _ => raw,
+        },
+        // Generic / function / tuple / unit / decimal: leave as Value
+        // for now; specific lowering will sharpen these case-by-case.
+        _ => raw,
+    }
 }
 
 /// Axum GET handler for `@query`: args are JSON-encoded query values (`name=<json>`), keys sorted on the client.

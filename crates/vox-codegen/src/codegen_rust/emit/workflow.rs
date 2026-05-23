@@ -190,9 +190,28 @@ pub fn emit_fn(
 }
 
 fn emit_actor_state_structs(module: &HirModule) -> String {
+    use vox_compiler::hir::DurabilityKind;
     let mut out = String::new();
     for func in &module.functions {
-        if !func.actor_state_fields.is_empty() {
+        // Emit a state struct for every actor SHELL — i.e. an actor
+        // function whose name has no `::` (handlers are named
+        // "ActorName::event"). The emit_actor_body lowering refers to
+        // `<ActorName>State::default()` unconditionally; without a
+        // struct definition, rustc errors with E0412 / E0433. State
+        // fields are optional in the Vox surface — when absent, emit
+        // a unit-like struct so `::default()` still resolves. Per the
+        // 2026-05-23 slot-3 chat bring-up.
+        let is_actor_shell = matches!(func.durability, Some(DurabilityKind::Actor))
+            && !func.name.contains("::");
+        if !is_actor_shell {
+            continue;
+        }
+        if func.actor_state_fields.is_empty() {
+            out.push_str(&format!(
+                "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]\npub struct {}State;\n\n",
+                func.name
+            ));
+        } else {
             out.push_str(&format!(
                 "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]\npub struct {}State {{\n",
                 func.name
