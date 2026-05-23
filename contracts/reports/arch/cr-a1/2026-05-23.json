@@ -2,14 +2,14 @@
   "budget": 15,
   "criterion": "CR-A1",
   "files_scanned": 31,
-  "functions_scanned": 222,
+  "functions_scanned": 226,
   "lowering_paths": [
     "crates/vox-compiler/src/hir/lower",
     "crates/vox-compiler/src/typeck/checker",
     "crates/vox-codegen/src/codegen_rust/emit"
   ],
   "max_complexity": 36,
-  "measured_at": "2026-05-23T07:10:52.125114400+00:00",
+  "measured_at": "2026-05-23T07:13:29.410984+00:00",
   "over_budget": [
     {
       "complexity": 36,
@@ -40,12 +40,6 @@
       "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr_tail.rs",
       "function": "try_emit_expr_tail",
       "line": 6
-    },
-    {
-      "complexity": 23,
-      "file": "crates/vox-compiler/src/typeck/checker/expr_ops.rs",
-      "function": "check_binary_op",
-      "line": 43
     },
     {
       "complexity": 23,
@@ -99,7 +93,7 @@
       "complexity": 18,
       "file": "crates/vox-compiler/src/typeck/checker/expr_ops.rs",
       "function": "bind_pattern",
-      "line": 186
+      "line": 187
     },
     {
       "complexity": 18,
@@ -164,12 +158,6 @@
     },
     {
       "complexity": 23,
-      "file": "crates/vox-compiler/src/typeck/checker/expr_ops.rs",
-      "function": "check_binary_op",
-      "line": 43
-    },
-    {
-      "complexity": 23,
       "file": "crates/vox-codegen/src/codegen_rust/emit/http.rs",
       "function": "emit_main",
       "line": 130
@@ -220,7 +208,7 @@
       "complexity": 18,
       "file": "crates/vox-compiler/src/typeck/checker/expr_ops.rs",
       "function": "bind_pattern",
-      "line": 186
+      "line": 187
     },
     {
       "complexity": 18,
@@ -251,6 +239,12 @@
       "file": "crates/vox-compiler/src/hir/lower/async_flags.rs",
       "function": "has_async_expr",
       "line": 21
+    },
+    {
+      "complexity": 15,
+      "file": "crates/vox-codegen/src/codegen_rust/emit/stmt_expr.rs",
+      "function": "try_emit_namespace_call",
+      "line": 406
     }
   ]
 }

@@ -44,57 +44,58 @@ impl<'a> Checker<'a> {
         let l = self.uf.resolve(&l);
         let r = self.uf.resolve(&r);
         match op {
-            HirBinOp::Add => {
-                if l == Ty::Str || r == Ty::Str {
-                    Ty::Str
-                } else if l == Ty::Int && r == Ty::Int {
-                    Ty::Int
-                } else if l == Ty::Decimal && r == Ty::Decimal {
-                    Ty::Decimal
-                } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
-                    Ty::Float
-                } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Invalid operands for +: {l:?} and {r:?}"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
-            }
+            HirBinOp::Add => self.check_add_op(&l, &r, span),
             HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
-                if l == Ty::Int && r == Ty::Int {
-                    Ty::Int
-                } else if l == Ty::Decimal && r == Ty::Decimal {
-                    Ty::Decimal
-                } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
-                    Ty::Float
-                } else {
-                    Ty::Error
-                }
+                check_arithmetic_op(&l, &r)
             }
-            HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte => Ty::Bool,
-            HirBinOp::Is | HirBinOp::Isnt => Ty::Bool,
+            HirBinOp::Lt
+            | HirBinOp::Gt
+            | HirBinOp::Lte
+            | HirBinOp::Gte
+            | HirBinOp::Is
+            | HirBinOp::Isnt => Ty::Bool,
             HirBinOp::And | HirBinOp::Or => {
                 let _ = self.uf.unify(&l, &Ty::Bool);
                 let _ = self.uf.unify(&r, &Ty::Bool);
                 Ty::Bool
             }
-            HirBinOp::Pipe => match r {
-                Ty::Fn(params, ret) => {
-                    let instantiated = self.uf.instantiate(&Ty::Fn(params, ret));
-                    if let Ty::Fn(p, rt) = instantiated {
-                        if !p.is_empty() {
-                            let _ = self.uf.unify(&l, &p[0]);
-                        }
-                        rt.as_ref().clone()
-                    } else {
-                        Ty::Error
-                    }
-                }
-                _ => l,
-            },
+            HirBinOp::Pipe => self.check_pipe_op(l, r),
         }
+    }
+
+    /// Type-check the `+` operator. Distinguishes string concat, int
+    /// arithmetic, decimal arithmetic, and float-promoted arithmetic.
+    /// Emits a diagnostic on incompatible operands.
+    fn check_add_op(&mut self, l: &Ty, r: &Ty, span: Span) -> Ty {
+        if *l == Ty::Str || *r == Ty::Str {
+            return Ty::Str;
+        }
+        if let Some(t) = numeric_promote(l, r) {
+            return t;
+        }
+        self.diags.push(Diagnostic::error(
+            format!("Invalid operands for +: {l:?} and {r:?}"),
+            span,
+            self.source,
+        ));
+        Ty::Error
+    }
+
+    /// Type-check the pipe (`|>`) operator. The right operand must be a
+    /// function; the left is unified with its first parameter; the
+    /// function's return type is the pipe's result.
+    fn check_pipe_op(&mut self, l: Ty, r: Ty) -> Ty {
+        let Ty::Fn(params, ret) = r else {
+            return l;
+        };
+        let instantiated = self.uf.instantiate(&Ty::Fn(params, ret));
+        let Ty::Fn(p, rt) = instantiated else {
+            return Ty::Error;
+        };
+        if !p.is_empty() {
+            let _ = self.uf.unify(&l, &p[0]);
+        }
+        rt.as_ref().clone()
     }
 
     /// Validate `with { ... }` option bags (workflow / activity calls).
@@ -254,4 +255,26 @@ impl<'a> Checker<'a> {
             },
         }
     }
+}
+
+/// Promote two numeric operands to a result type: same-typed Int/Decimal
+/// stay; Int+Float or Float+Float widen to Float. Returns None on
+/// incompatible operands.
+fn numeric_promote(l: &Ty, r: &Ty) -> Option<Ty> {
+    if *l == Ty::Int && *r == Ty::Int {
+        return Some(Ty::Int);
+    }
+    if *l == Ty::Decimal && *r == Ty::Decimal {
+        return Some(Ty::Decimal);
+    }
+    if (*l == Ty::Float || *l == Ty::Int) && (*r == Ty::Float || *r == Ty::Int) {
+        return Some(Ty::Float);
+    }
+    None
+}
+
+/// Type-check the `Sub`/`Mul`/`Div`/`Mod` operators. Same numeric
+/// promotion rule as `+` minus the string-concat fallback.
+fn check_arithmetic_op(l: &Ty, r: &Ty) -> Ty {
+    numeric_promote(l, r).unwrap_or(Ty::Error)
 }
