@@ -15,7 +15,7 @@ fn workflow_lowers_to_interpret_workflow_durable() {
         .iter()
         .find(|f| f.durability == Some(DurabilityKind::Workflow))
         .expect("workflow present");
-    let rust = emit_fn(func);
+    let rust = emit_fn(func, None, &[]);
     assert!(
         rust.contains("interpret_workflow_durable"),
         "workflow MUST lower to interpret_workflow_durable; got:\n{rust}"
@@ -32,7 +32,7 @@ fn activity_lowers_to_journal_execute() {
         .iter()
         .find(|f| f.durability == Some(DurabilityKind::Activity))
         .expect("activity present");
-    let rust = emit_fn(func);
+    let rust = emit_fn(func, None, &[]);
     assert!(
         rust.contains("journal::execute"),
         "activity MUST lower to journal::execute; got:\n{rust}"
@@ -53,10 +53,15 @@ fn actor_lowers_to_mailbox_spawn() {
         .iter()
         .find(|f| f.durability == Some(DurabilityKind::Actor))
         .expect("actor handler present");
-    let rust = emit_fn(func);
+    let rust = emit_fn(func, None, &[]);
+    // The codegen targets vox_actor_runtime::spawn_process (the
+    // current public entrypoint re-exported by vox-actor-runtime
+    // crate root, see process.rs::spawn_process). The earlier
+    // assertion `mailbox::spawn` was a pre-existing test/code drift
+    // that pre-dated the spawn_process API consolidation.
     assert!(
-        rust.contains("mailbox::spawn"),
-        "actor MUST lower to mailbox::spawn; got:\n{rust}"
+        rust.contains("spawn_process"),
+        "actor MUST lower to vox_actor_runtime::spawn_process; got:\n{rust}"
     );
 }
 
@@ -70,7 +75,7 @@ fn plain_fn_unchanged() {
         .iter()
         .find(|f| f.durability.is_none())
         .expect("plain fn present");
-    let rust = emit_fn(func);
+    let rust = emit_fn(func, None, &[]);
     assert!(
         !rust.contains("interpret_workflow_durable"),
         "plain fn must not use workflow runtime"

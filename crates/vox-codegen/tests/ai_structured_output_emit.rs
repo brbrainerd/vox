@@ -23,7 +23,7 @@ fn emit_fn_includes_response_format_for_ai_structured_output() {
         .iter()
         .find(|f| f.name == "with_schema")
         .expect("with_schema");
-    let emitted = emit_fn(f);
+    let emitted = emit_fn(f, None, &[]);
     assert!(
         emitted.contains("config.response_format = Some(response_format);"),
         "expected response_format wiring through LlmConfig, got:\n{emitted}"
@@ -50,7 +50,7 @@ fn emit_fn_omits_response_format_without_structured_output() {
         .iter()
         .find(|f| f.name == "without_schema")
         .expect("without_schema");
-    let emitted = emit_fn(f);
+    let emitted = emit_fn(f, None, &[]);
     assert!(
         !emitted.contains("\"response_format\": response_format"),
         "did not expect response_format injection, got:\n{emitted}"
@@ -73,7 +73,7 @@ fn emit_fn_maps_intent_routed_payload_to_llm_telemetry_fields() {
         .iter()
         .find(|f| f.name == "routed")
         .expect("routed");
-    let emitted = emit_fn(f);
+    let emitted = emit_fn(f, None, &[]);
     assert!(
         emitted.contains("config.telemetry_task_category = Some(\"CodeGen\".to_string());"),
         "expected task_category telemetry assignment, got:\n{emitted}"
@@ -100,7 +100,7 @@ fn emit_fn_uses_prompt_cascade_when_prompt_fixture_present() {
         .iter()
         .find(|f| f.name == "plan_next")
         .expect("plan_next");
-    let emitted = emit_fn(f);
+    let emitted = emit_fn(f, None, &[]);
     assert!(
         emitted.contains("llm::cascade::cascade_for_research_stage"),
         "expected cascade candidate construction, got:\n{emitted}"
@@ -127,7 +127,7 @@ fn emit_fn_distributed_subagent_invokes_mesh_relay_helper() {
         .iter()
         .find(|f| f.name == "mesh_delegate")
         .expect("mesh_delegate");
-    let emitted = emit_fn(f);
+    let emitted = emit_fn(f, None, &[]);
     assert!(
         emitted.contains("relay_ai_fixture_distributed_subagent"),
         "expected distributed fixture to call mesh relay helper, got:\n{emitted}"
@@ -154,7 +154,7 @@ fn emit_fn_routes_subagent_fixture_via_dispatch_router() {
         .iter()
         .find(|f| f.name == "delegate")
         .expect("delegate");
-    let emitted = emit_fn(f);
+    let emitted = emit_fn(f, None, &[]);
     assert!(
         emitted.contains("DispatchRouter::new"),
         "expected dispatch router creation, got:\n{emitted}"
@@ -181,7 +181,7 @@ fn emit_fn_branches_search_fixture_with_aci_envelope() {
         .iter()
         .find(|f| f.name == "lookup_memory")
         .expect("lookup_memory");
-    let emitted = emit_fn(f);
+    let emitted = emit_fn(f, None, &[]);
     assert!(
         emitted.contains("lookup_fact_by_key"),
         "expected memory runtime hook reference, got:\n{emitted}"

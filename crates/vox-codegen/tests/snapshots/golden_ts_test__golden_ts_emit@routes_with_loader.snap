@@ -39,6 +39,7 @@ export function About(): React.ReactElement {
     }
   ],
   "mutation_fns": [],
+  "stream_fns": [],
   "mcp_tools": [],
   "mcp_resources": [],
   "server_config": {
