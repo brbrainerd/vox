@@ -1,10 +1,10 @@
 // Repair-corpus fixture 002 — effect-violation bug class.
-// @pure fn calls a non-pure builtin (print).
-// Expected repair: remove @pure or remove the print call.
+// @pure fn classify calls env.println which requires the `env` capability.
+// Expected repair: drop @pure and declare `uses env`, or remove the env.println call.
 
 @pure
 fn classify(n: int) to str {
-    print(n)
+    env.println(as_string(n))
     if n is 0 {
         return "zero"
     }

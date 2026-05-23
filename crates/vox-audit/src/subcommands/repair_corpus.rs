@@ -121,14 +121,25 @@ impl Subcommand for RepairCorpusRunner {
         // Corpus-validity layer: count fixtures that contain at least
         // one error-level diagnostic (the "needs repair" baseline). This
         // is the deterministic measurement that runs without LLM calls.
+        // Logic-class fixtures (post_repair_criterion == "test_runs_clean" |
+        // "test_passes") compile clean by design and are excluded from the
+        // inventory broken-count; they are tracked separately.
         let mut broken = 0u32;
+        let mut logic_class_count = 0u32;
         for project in &projects {
-            if project_has_errors(project) {
+            if is_test_criterion(project) {
+                logic_class_count += 1;
+            } else if project_has_errors(project) {
                 broken += 1;
             }
         }
+        let scoreable = projects.len() as u32 - logic_class_count;
+        let baseline_rate = if scoreable == 0 {
+            0.0
+        } else {
+            f64::from(broken) / f64::from(scoreable)
+        };
         let total = projects.len() as u32;
-        let baseline_rate = f64::from(broken) / f64::from(total);
 
         let target = args.threshold.unwrap_or(0.70);
         let mut report = AuditReport::complete(
@@ -146,10 +157,10 @@ impl Subcommand for RepairCorpusRunner {
             met: false,
         });
         report.note = Some(format!(
-            "corpus-inventory mode ({}/{} projects carry pre-repair errors). \
+            "corpus-inventory mode ({broken}/{scoreable} scoreable projects carry pre-repair errors; \
+             {logic_class_count} logic-class fixture(s) excluded — require test execution, not yet implemented). \
              Repair-loop pass rate (the CR-L3 70% bar) requires --llm-panel + \
              an OpenRouter key to invoke `vox repair --project` per project.",
-            broken, total
         ));
         // Corpus inventory always returns Ok exit code; bar comparison
         // doesn't fire without panel mode. This matches the
@@ -170,6 +181,31 @@ struct ProjectFixture {
     /// Hashed content of every `.vox` file under the project root, so
     /// re-running on the same corpus produces a stable corpus_hash.
     content_hash_input: Vec<(String, String)>,
+}
+
+/// Minimal subset of `expected.json` used by the runner.
+#[derive(serde::Deserialize, Default)]
+struct ExpectedJson {
+    #[serde(default)]
+    post_repair_criterion: Option<String>,
+}
+
+/// Return true when `expected.json` declares a test-execution criterion
+/// (`"test_runs_clean"` or `"test_passes"`).  The runner only checks
+/// `vox check` output; test execution is not implemented, so these
+/// fixtures are excluded from the panel-mode scored set and flagged in
+/// the corpus-inventory note.
+fn is_test_criterion(project: &ProjectFixture) -> bool {
+    let path = project.root.join("expected.json");
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return false,
+    };
+    let parsed: ExpectedJson = serde_json::from_str(&text).unwrap_or_default();
+    matches!(
+        parsed.post_repair_criterion.as_deref(),
+        Some("test_runs_clean") | Some("test_passes")
+    )
 }
 
 fn discover_projects(projects_dir: &Path) -> Result<Vec<ProjectFixture>, String> {
@@ -380,6 +416,17 @@ pass. Use Vox idioms: `to T` for return arrow (not `->`); `assert(X is Y)` for \
 equality assertions; explicit `return expr`. Forbidden: macros, `#[...]`, \
 `->`, `assert_eq`.";
 
+    // Logic-class fixtures (post_repair_criterion == "test_runs_clean" |
+    // "test_passes") are excluded from panel scoring: the runner only
+    // evaluates `vox check` output, so pre-repair-clean logic fixtures
+    // would trivially "pass" without the model doing any real work.
+    let effective_non_logic: Vec<&ProjectFixture> = effective
+        .iter()
+        .filter(|p| !is_test_criterion(p))
+        .copied()
+        .collect();
+    let logic_skipped = effective.len() - effective_non_logic.len();
+
     let mut per_llm: Vec<PerLlmResult> = Vec::with_capacity(routable.len());
     let mut cumulative_cost_usd = 0.0_f64;
     let mut total_unreachable = 0_u32;
@@ -389,7 +436,7 @@ equality assertions; explicit `return expr`. Forbidden: macros, `#[...]`, \
         let mut unreachable = 0_u32;
         let mut budget_skipped = 0_u32;
         let mut cost_samples: Vec<f64> = Vec::new();
-        for project in &effective {
+        for project in &effective_non_logic {
             if cumulative_cost_usd >= budget_cap_usd {
                 budget_skipped += 1;
                 continue;
@@ -430,7 +477,7 @@ equality assertions; explicit `return expr`. Forbidden: macros, `#[...]`, \
                 passing += 1;
             }
         }
-        let scored = effective
+        let scored = effective_non_logic
             .len()
             .saturating_sub((unreachable + budget_skipped) as usize);
         let rate = if scored == 0 {
@@ -481,11 +528,12 @@ equality assertions; explicit `return expr`. Forbidden: macros, `#[...]`, \
         .collect();
     report.threshold = Some(Threshold { target, met });
     report.note = Some(format!(
-        "panel mode: {} routable member(s) against {}/{} projects; \
+        "panel mode: {} routable member(s) against {}/{} projects \
+         ({logic_skipped} logic-class fixture(s) excluded — test execution not implemented); \
          {total_unreachable} unreachable + {total_budget_skipped} budget-skipped. \
          panel cost: ${cumulative_cost_usd:.3} of ${budget_cap_usd:.2} budget",
         routable.len(),
-        effective.len(),
+        effective_non_logic.len(),
         projects.len()
     ));
     let exit_code = if met {

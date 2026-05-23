@@ -1,9 +1,14 @@
 // Repair-corpus fixture 004 — exhaustiveness bug class.
-// The match is missing the None arm; only Some is handled.
-// Expected repair: add a None arm with a sensible default.
+// The match is missing the Nothing arm; only Just is handled.
+// Expected repair: add a Nothing arm returning a sensible default.
+// Uses a user-defined ADT so the exhaustiveness checker fires.
 
-fn unwrap_or_default(o: Option[int]) to int {
-    match o {
-        Some(n) => n
+type Maybe =
+    | Just(value: int)
+    | Nothing
+
+fn unwrap_or_zero(m: Maybe) to int {
+    match m {
+        Just(n) => n
     }
 }
