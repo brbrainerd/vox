@@ -1,21 +1,45 @@
 {
   "thing": "repair-corpus",
   "schema_version": 1,
-  "measured_at": "2026-05-23T16:20:52.416210700+00:00",
-  "corpus_hash": "blake3:5bca2090e4f50a8c3d99928a8e83c43f22bc0a9a7d4d38950f4303b11676c2b2",
+  "measured_at": "2026-05-23T19:45:35.382692400+00:00",
+  "corpus_hash": "blake3:941fc707c186c5382308e1ecb2e919dfb93f44311482cdbb00c4d0ad13afe589",
   "corpus_size": 50,
-  "llm_panel": [],
+  "llm_panel": [
+    {
+      "id": "claude-sonnet",
+      "version": "claude-sonnet-4-6"
+    },
+    {
+      "id": "gpt-frontier",
+      "version": "gpt-5.4"
+    }
+  ],
   "reproducibility": {
     "temperature": 0.0,
     "seed": 42,
     "attempts_per_fixture": 5
   },
   "results": {
-    "overall_pass_rate": 1.0
+    "overall_pass_rate": 0.775,
+    "median_pass_rate": 0.775,
+    "per_llm": [
+      {
+        "id": "claude-sonnet",
+        "pass_rate": 0.75,
+        "median_cost_usd": 0.0028320000000000003,
+        "unreachable_count": 0
+      },
+      {
+        "id": "gpt-frontier",
+        "pass_rate": 0.8,
+        "median_cost_usd": 0.0034599999999999995,
+        "unreachable_count": 0
+      }
+    ]
   },
   "threshold": {
     "target": 0.7,
-    "met": false
+    "met": true
   },
-  "note": "corpus-inventory mode (40/40 scoreable projects carry pre-repair errors; 10 logic-class fixture(s) excluded — require test execution, not yet implemented). Repair-loop pass rate (the CR-L3 70% bar) requires --llm-panel + an OpenRouter key to invoke `vox repair --project` per project."
+  "note": "panel mode: 2 routable member(s) against 40/50 projects (10 logic-class fixture(s) excluded — test execution not implemented); 0 unreachable + 0 budget-skipped. panel cost: $0.260 of $25.00 budget"
 }

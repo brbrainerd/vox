@@ -1,7 +1,7 @@
 {
   "thing": "retirement",
   "schema_version": 1,
-  "measured_at": "2026-05-23T15:02:20.455587500+00:00",
+  "measured_at": "2026-05-23T21:43:57.078704600+00:00",
   "corpus_hash": "blake3:3b29aaad06f0eb7d1cc0a627e0e48de2495281cb515768e9cd1bbdf49373a888",
   "corpus_size": 16,
   "llm_panel": [],

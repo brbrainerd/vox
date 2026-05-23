@@ -730,7 +730,37 @@ fn path_to_vault_file_url(path: &str) -> String {
         return t.to_string();
     }
     let norm = t.replace('\\', "/");
-    format!("file:{norm}")
+    // Turso's `Builder::new_local()` (libsql) treats a `file:` URL as a real
+    // URI string. On Windows, a path like `C:/Users/.../vault.db` contains a
+    // colon after the drive letter, so the naive `file:{path}` form produces
+    // `file:C:/...` which Turso then treats as a literal filename including
+    // the prefix — failing with `I/O error: invalid filename` (absolute) or
+    // creating a file literally named `file:vault.db` (relative). Emit a
+    // standards-compliant `file://` URL for absolute Windows paths so the
+    // colon falls inside the authority section, not the scheme.
+    //
+    // Reproducer / context: see vox_vault path_to_vault_file_url tests below.
+    if is_windows_absolute_path(&norm) {
+        // `file:///C:/path/to/db` — three slashes, then drive-letter path.
+        format!("file:///{norm}")
+    } else if norm.starts_with('/') {
+        // POSIX absolute path: `file:///abs/path`.
+        format!("file://{norm}")
+    } else {
+        // Relative path: `file:rel/path` is acceptable to Turso because
+        // there is no colon-bearing drive letter to confuse the URL parser.
+        format!("file:{norm}")
+    }
+}
+
+/// `true` for paths like `C:/foo` or `D:/bar` (Windows absolute path with a
+/// drive letter and forward-slash separator after path normalization).
+fn is_windows_absolute_path(normalized: &str) -> bool {
+    let bytes = normalized.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && bytes[2] == b'/'
 }
 
 fn resolve_cloudless_db_url() -> String {
@@ -1171,4 +1201,72 @@ where
     Err(SecretError::BackendMisconfigured(
         "run_secrets_future requires an active Tokio runtime".to_string(),
     ))
+}
+
+#[cfg(test)]
+mod path_url_tests {
+    use super::*;
+
+    #[test]
+    fn already_file_url_passes_through() {
+        assert_eq!(
+            path_to_vault_file_url("file:foo.db"),
+            "file:foo.db",
+            "existing file: URLs are not double-wrapped"
+        );
+        assert_eq!(
+            path_to_vault_file_url("file:///C:/x.db"),
+            "file:///C:/x.db",
+            "existing triple-slash URLs survive verbatim"
+        );
+    }
+
+    #[test]
+    fn relative_path_uses_short_file_form() {
+        // No drive letter, no leading slash → short form, no colon ambiguity.
+        assert_eq!(
+            path_to_vault_file_url(".vox/clavis_vault.db"),
+            "file:.vox/clavis_vault.db"
+        );
+        assert_eq!(
+            path_to_vault_file_url("clavis_vault.db"),
+            "file:clavis_vault.db"
+        );
+    }
+
+    #[test]
+    fn posix_absolute_path_uses_double_slash_authority() {
+        assert_eq!(
+            path_to_vault_file_url("/home/user/.vox/clavis_vault.db"),
+            "file:///home/user/.vox/clavis_vault.db"
+        );
+    }
+
+    #[test]
+    fn windows_absolute_path_uses_triple_slash_authority() {
+        // Forward-slash form (already normalized).
+        assert_eq!(
+            path_to_vault_file_url("C:/Users/Owner/.vox/clavis_vault.db"),
+            "file:///C:/Users/Owner/.vox/clavis_vault.db",
+            "regression: bare `file:C:/...` makes Turso treat the drive-letter colon \
+             as part of the filename and fail with `I/O error: invalid filename`"
+        );
+        // Backslash form (caller may pass either; we normalize).
+        assert_eq!(
+            path_to_vault_file_url(r"C:\Users\Owner\.vox\clavis_vault.db"),
+            "file:///C:/Users/Owner/.vox/clavis_vault.db"
+        );
+    }
+
+    #[test]
+    fn is_windows_absolute_path_recognizes_drive_letters() {
+        assert!(is_windows_absolute_path("C:/foo"));
+        assert!(is_windows_absolute_path("d:/foo"));
+        assert!(is_windows_absolute_path("Z:/x"));
+        assert!(!is_windows_absolute_path("C:foo"), "no slash after colon");
+        assert!(!is_windows_absolute_path("/foo"));
+        assert!(!is_windows_absolute_path("foo/bar"));
+        assert!(!is_windows_absolute_path("1:/foo"), "first char not alpha");
+        assert!(!is_windows_absolute_path(""));
+    }
 }

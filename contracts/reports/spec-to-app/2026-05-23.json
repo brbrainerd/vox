@@ -1,9 +1,9 @@
 {
   "thing": "spec-to-app",
   "schema_version": 1,
-  "measured_at": "2026-05-23T07:20:03.601259800+00:00",
-  "corpus_hash": "blake3:7b407a7c3ded8de63e9fbfdff99e9a2971ee3b5f5885ccfc8bb260f16b382db1",
-  "corpus_size": 3,
+  "measured_at": "2026-05-23T19:48:40.437514600+00:00",
+  "corpus_hash": "blake3:afbca2137e0634a77fa267003708a11e9e8dfd8400b6d56b169037748a23f622",
+  "corpus_size": 10,
   "llm_panel": [],
   "reproducibility": {
     "temperature": 0.0,
@@ -11,19 +11,19 @@
     "attempts_per_fixture": 5
   },
   "results": {
-    "overall_pass_rate": 0.6666666666666666,
-    "median_pass_rate": 0.6666666666666666,
+    "overall_pass_rate": 0.6833333333333333,
+    "median_pass_rate": 0.6833333333333333,
     "per_llm": [
       {
         "id": "claude-sonnet",
-        "pass_rate": 0.3333333333333333,
-        "median_cost_usd": 0.057453,
-        "unreachable_count": 0
+        "pass_rate": 0.6666666666666666,
+        "median_cost_usd": 0.023045999999999997,
+        "unreachable_count": 1
       },
       {
         "id": "gpt-frontier",
-        "pass_rate": 1.0,
-        "median_cost_usd": 0.02613,
+        "pass_rate": 0.7,
+        "median_cost_usd": 0.037015,
         "unreachable_count": 0
       }
     ]
@@ -32,5 +32,5 @@
     "target": 0.6,
     "met": true
   },
-  "note": "panel mode: 3 spec(s) (T1=1, T2=1, T3=1); 6 attempts scored; 0 panel-unreachable/budget-skipped. panel cost: $0.196 of $20.00 budget. scoring=median-of-members; mens excluded per ratified policy."
+  "note": "panel mode: 10 spec(s) (T1=3, T2=3, T3=4); 19 attempts scored; 1 panel-unreachable/budget-skipped. panel cost: $0.801 of $25.00 budget. scoring=median-of-members; mens excluded per ratified policy."
 }

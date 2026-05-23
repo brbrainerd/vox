@@ -40,6 +40,75 @@ pub fn resolve_plugins_root() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from("./vox-plugins"))
 }
 
+/// Format the canonical multi-line install hint for a missing plugin.
+///
+/// Always includes the catalog command (`vox plugin install <id>`). When the
+/// caller is running from a Vox workspace checkout that contains the plugin
+/// source under `crates/vox-plugin-<id>/`, also appends the local-path
+/// variant so contributors get a copy-pasteable command pointing at their
+/// own checkout (no GitHub fetch needed).
+///
+/// Optionally appends a "Build with cargo:" line when the caller knows
+/// the plugin is enabled behind a cargo feature flag on a vox crate (e.g.
+/// vox-ml-cli's `gpu` / `mens-candle-cuda`). Pass `Some(cargo_hint)` with
+/// the command body — `cargo build -p vox-ml-cli --release --features ...`.
+#[must_use]
+pub fn format_install_hint(plugin_id: &str, cargo_feature_hint: Option<&str>) -> String {
+    let mut out = format!("  vox plugin install {plugin_id}");
+    if let Some(local) = workspace_local_plugin_source(plugin_id) {
+        out.push_str(&format!(
+            "\n\nor, from this workspace checkout (faster, no GitHub fetch):\n\n  vox plugin install --path {} --yes",
+            local.display()
+        ));
+    }
+    if let Some(cargo_hint) = cargo_feature_hint {
+        out.push_str(&format!(
+            "\n\nif the missing capability is a cargo-feature gate (not a runtime plugin), rebuild with:\n\n  {cargo_hint}"
+        ));
+    }
+    out.push_str("\n\nSee: docs/src/reference/plugins.md");
+    out
+}
+
+/// Detect the in-tree source directory for a plugin id when running from a
+/// Vox workspace checkout. Used by `load_code_plugin` to make the "plugin
+/// not installed" error message actionable for contributors and by
+/// `vox plugin install <id>` (catalog path) to prefer the local checkout
+/// over fetching a release tarball.
+///
+/// Walks up from CWD looking for a `crates/vox-plugin-<id>/Plugin.toml`.
+/// Returns `Some(path-to-crate-dir)` on the first hit, `None` otherwise.
+/// Honors `VOX_WORKSPACE_ROOT` as an explicit override.
+#[must_use]
+pub fn workspace_local_plugin_source(plugin_id: &str) -> Option<std::path::PathBuf> {
+    let candidates_root = if let Ok(root) = std::env::var("VOX_WORKSPACE_ROOT") {
+        vec![std::path::PathBuf::from(root)]
+    } else if let Ok(cwd) = std::env::current_dir() {
+        // Walk up at most 8 levels — covers both repo-root invocations and
+        // common nested layouts (e.g. .claude/worktrees/<name>/...).
+        let mut hops = Vec::new();
+        let mut cur: &std::path::Path = &cwd;
+        for _ in 0..8 {
+            hops.push(cur.to_path_buf());
+            match cur.parent() {
+                Some(p) => cur = p,
+                None => break,
+            }
+        }
+        hops
+    } else {
+        return None;
+    };
+    let crate_dir_name = format!("vox-plugin-{plugin_id}");
+    for root in candidates_root {
+        let candidate = root.join("crates").join(&crate_dir_name);
+        if candidate.join("Plugin.toml").is_file() {
+            return Some(candidate);
+        }
+    }
+    None
+}
+
 /// Return the target-triple key used in `[plugin.payload.artifacts]` for the current build.
 ///
 /// The format is `"<os>-<arch>"` where `os` is `"windows"`, `"linux"`, or `"macos"` and
@@ -86,7 +155,8 @@ pub fn load_code_plugin(
 
     let entry = registry.get_full_entry(plugin_id).ok_or_else(|| {
         errors::LoadError::InitFailed(format!(
-            "plugin '{plugin_id}' is not installed — run `vox plugin install {plugin_id}`"
+            "plugin '{plugin_id}' is not installed.\n\nTo install it, run:\n\n{}",
+            format_install_hint(plugin_id, None)
         ))
     })?;
 

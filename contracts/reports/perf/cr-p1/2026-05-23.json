@@ -1,7 +1,7 @@
 {
   "criterion": "CR-P1",
   "manifest_path": "C:\\Users\\Owner\\vox\\.claude\\worktrees\\jovial-buck-e93ac0\\contracts\\marquee\\manifest.v1.yaml",
-  "measured_at": "2026-05-23T14:34:31.667528200+00:00",
+  "measured_at": "2026-05-23T20:20:14.705221200+00:00",
   "measurement_notes": [
     "live = HTTP GET <probe_url> returned 2xx within 5s.",
     "probe_url resolution: (1) manifest.apps[].live_url if set; (2) env VOX_CR_P1_<APP_ID>_URL (uppercase, dashes→_); (3) http://127.0.0.1:<default_port>/health.",
@@ -21,34 +21,34 @@
       "status": "real"
     },
     {
-      "error": null,
+      "error": "connect: No connection could be made because the target machine actively refused it. (os error 10061)",
       "fixture_path": "apps/marquee/todo-auth",
-      "http_status": 200,
+      "http_status": null,
       "id": "marquee-todo-auth",
-      "live": true,
+      "live": false,
       "probe_url": "http://127.0.0.1:8081/health",
-      "response_time_ms": 5,
+      "response_time_ms": null,
       "status": "real"
     },
     {
-      "error": null,
+      "error": "connect: No connection could be made because the target machine actively refused it. (os error 10061)",
       "fixture_path": "apps/marquee/chat",
-      "http_status": 200,
+      "http_status": null,
       "id": "marquee-chat",
-      "live": true,
+      "live": false,
       "probe_url": "http://127.0.0.1:8082/health",
-      "response_time_ms": 3,
+      "response_time_ms": null,
       "status": "real"
     }
   ],
   "results": {
-    "live_pct": 1.0,
-    "real_apps_live": 3,
+    "live_pct": 0.3333333333333333,
+    "real_apps_live": 1,
     "real_apps_total": 3
   },
   "schema_version": 1,
   "threshold": {
-    "met": true,
+    "met": false,
     "target_all_live": true,
     "target_real_apps_total": 3
   }

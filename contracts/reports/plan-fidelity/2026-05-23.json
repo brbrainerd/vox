@@ -1,9 +1,9 @@
 {
   "thing": "plan-fidelity",
   "schema_version": 1,
-  "measured_at": "2026-05-23T10:34:17.791743300+00:00",
-  "corpus_hash": "blake3:64f57873975f3e95147196dafbbeee702564dbf05224035e1c2f3864f663d29d",
-  "corpus_size": 5,
+  "measured_at": "2026-05-23T19:53:02.419972900+00:00",
+  "corpus_hash": "blake3:fc09ffb34ce928acb6858ec034814123b51703f9cdfe4d157456615397acf0f5",
+  "corpus_size": 50,
   "llm_panel": [
     {
       "id": "claude-sonnet",
@@ -20,19 +20,19 @@
     "attempts_per_fixture": 5
   },
   "results": {
-    "overall_pass_rate": 1.0,
-    "median_pass_rate": 1.0,
+    "overall_pass_rate": 0.9099999999999999,
+    "median_pass_rate": 0.9099999999999999,
     "per_llm": [
       {
         "id": "claude-sonnet",
-        "pass_rate": 1.0,
-        "median_cost_usd": 0.005424,
+        "pass_rate": 0.96,
+        "median_cost_usd": 0.006285000000000001,
         "unreachable_count": 0
       },
       {
         "id": "gpt-frontier",
-        "pass_rate": 1.0,
-        "median_cost_usd": 0.006515,
+        "pass_rate": 0.86,
+        "median_cost_usd": 0.007147499999999999,
         "unreachable_count": 0
       }
     ]
@@ -41,5 +41,5 @@
     "target": 0.85,
     "met": true
   },
-  "note": "panel mode: 2 routable member(s) against 5/5 plans; 0 unreachable + 0 budget-skipped. panel cost: $0.094 of $10.00 budget. Scoring: vox_check_passes for every plan; ALSO in-process @test execution for plans whose success_criteria require it (new_test_passes or existing_tests_pass). Refactor-only plans (no test requirement) pass on vox-check-clean alone. Refinement loop feeds back diagnostics on vox-check fail OR runtime-failure summary on assertion fail."
+  "note": "panel mode: 2 routable member(s) against 50/50 plans; 0 unreachable + 0 budget-skipped. panel cost: $1.497 of $25.00 budget. Scoring: vox_check_passes for every plan; ALSO in-process @test execution for plans whose success_criteria require it (new_test_passes or existing_tests_pass). Refactor-only plans (no test requirement) pass on vox-check-clean alone. Refinement loop feeds back diagnostics on vox-check fail OR runtime-failure summary on assertion fail."
 }
