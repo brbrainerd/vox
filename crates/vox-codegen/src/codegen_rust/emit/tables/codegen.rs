@@ -211,7 +211,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
         tn
     ));
     out.push_str(
-        "        let row = rows.next().await?.ok_or_else(|| turso::Error::SqliteFailure(0, \"count: empty result\".into()))?;\n",
+        "        let row = rows.next().await?.ok_or(turso::Error::QueryReturnedNoRows)?;\n",
     );
     out.push_str("        let c: i64 = row.get(0)?;\n");
     out.push_str("        Ok(c)\n");
@@ -226,7 +226,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
         tn
     ));
     out.push_str(
-        "        let mut rows = db.connection().query(&sql, params).await?;\n        let row = rows.next().await?.ok_or_else(|| turso::Error::SqliteFailure(0, \"count_where: empty result\".into()))?;\n        let c: i64 = row.get(0)?;\n        Ok(c)\n",
+        "        let mut rows = db.connection().query(&sql, params).await?;\n        let row = rows.next().await?.ok_or(turso::Error::QueryReturnedNoRows)?;\n        let c: i64 = row.get(0)?;\n        Ok(c)\n",
     );
     out.push_str("    }\n\n");
 
