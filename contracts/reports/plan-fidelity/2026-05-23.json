@@ -1,8 +1,8 @@
 {
   "thing": "plan-fidelity",
   "schema_version": 1,
-  "measured_at": "2026-05-23T07:33:19.588080400+00:00",
-  "corpus_hash": "blake3:7b981f6dab062671a978dcc0f69c41804e32a1d2bb8b1e8c46e5ae2a78762e6f",
+  "measured_at": "2026-05-23T10:34:17.791743300+00:00",
+  "corpus_hash": "blake3:64f57873975f3e95147196dafbbeee702564dbf05224035e1c2f3864f663d29d",
   "corpus_size": 5,
   "llm_panel": [
     {
@@ -20,26 +20,26 @@
     "attempts_per_fixture": 5
   },
   "results": {
-    "overall_pass_rate": 0.7,
-    "median_pass_rate": 0.7,
+    "overall_pass_rate": 1.0,
+    "median_pass_rate": 1.0,
     "per_llm": [
       {
         "id": "claude-sonnet",
-        "pass_rate": 0.8,
-        "median_cost_usd": 0.009954,
+        "pass_rate": 1.0,
+        "median_cost_usd": 0.005424,
         "unreachable_count": 0
       },
       {
         "id": "gpt-frontier",
-        "pass_rate": 0.6,
-        "median_cost_usd": 0.018065,
+        "pass_rate": 1.0,
+        "median_cost_usd": 0.006515,
         "unreachable_count": 0
       }
     ]
   },
   "threshold": {
     "target": 0.85,
-    "met": false
+    "met": true
   },
-  "note": "panel mode: 2 routable member(s) against 5/5 plans; 0 unreachable + 0 budget-skipped. panel cost: $0.202 of $20.00 budget. Scoring is vox_check_passes only (existing_fns_unchanged needs base sources, deferred to §4.3 corpus expansion)."
+  "note": "panel mode: 2 routable member(s) against 5/5 plans; 0 unreachable + 0 budget-skipped. panel cost: $0.094 of $10.00 budget. Scoring: vox_check_passes for every plan; ALSO in-process @test execution for plans whose success_criteria require it (new_test_passes or existing_tests_pass). Refactor-only plans (no test requirement) pass on vox-check-clean alone. Refinement loop feeds back diagnostics on vox-check fail OR runtime-failure summary on assertion fail."
 }

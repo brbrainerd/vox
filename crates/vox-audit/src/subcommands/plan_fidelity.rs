@@ -160,6 +160,15 @@ struct PlanFixture {
     /// that vox-check refinement can't fix; supplying base source so
     /// the model anchors against concrete code is the path past 40%.
     base_source: Option<String>,
+    /// Whether the plan's success_criteria requires @test blocks to
+    /// run + pass. Derived from `new_test_passes` / `existing_tests_pass`
+    /// in plan.toml. Plans that only refactor (e.g. 004-refactor-loop:
+    /// "endpoint signatures must not change", no new tests) set this
+    /// to false — for them, vox-check-clean output is the success bar.
+    /// Per the 2026-05-23 push-to-85% finding: refactor-only plans
+    /// were failing the test-execution gate just because their base
+    /// has no @test blocks. The plan never asked for any.
+    tests_required: bool,
 }
 
 fn discover_plans(plans_dir: &Path) -> Result<Vec<PlanFixture>, String> {
@@ -185,11 +194,13 @@ fn discover_plans(plans_dir: &Path) -> Result<Vec<PlanFixture>, String> {
             .map_err(|e| format!("read {}: {}", plan_toml.display(), e))?;
         let base_source = std::fs::read_to_string(path.join("base.vox")).ok();
         let wave = extract_wave(&source).unwrap_or_else(|| "unknown".to_string());
+        let tests_required = extract_tests_required(&source);
         out.push(PlanFixture {
             id,
             wave,
             source,
             base_source,
+            tests_required,
         });
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
@@ -199,6 +210,27 @@ fn discover_plans(plans_dir: &Path) -> Result<Vec<PlanFixture>, String> {
 fn extract_wave(source: &str) -> Option<String> {
     let parsed: toml::Value = toml::from_str(source).ok()?;
     parsed.get("wave")?.as_str().map(|s| s.to_string())
+}
+
+/// True if the plan's success_criteria explicitly requires @test
+/// blocks to run + pass. Looks for either `new_test_passes = true`
+/// (plan adds a new test) or `existing_tests_pass = true` (plan
+/// preserves existing tests). Refactor-only plans whose success
+/// criteria don't mention tests get false — they're scored on
+/// vox-check-clean alone.
+fn extract_tests_required(source: &str) -> bool {
+    let Ok(parsed) = toml::from_str::<toml::Value>(source) else {
+        return false;
+    };
+    let Some(crit) = parsed.get("success_criteria") else {
+        return false;
+    };
+    let truthy = |key: &str| {
+        crit.get(key)
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    };
+    truthy("new_test_passes") || truthy("existing_tests_pass")
 }
 
 fn corpus_hash(plans: &[PlanFixture]) -> String {
@@ -340,7 +372,11 @@ fn run_with_panel(
     // semantically and produces compile-clean nonsense. Refinement-loop
     // cost is wasted here until §4.3 ships base sources so the model
     // has concrete context to anchor against. Cap default low.
-    const DEFAULT_MAX_ITERATIONS: u32 = 3;
+    // Bumped 3→7 after the 2026-05-22 test-execution feedback wiring:
+    // with runtime signal feeding the refinement prompt, additional
+    // iterations now move the needle (the loop converges instead of
+    // looping on the same nonsense). Per the 2026-05-23 push to 85%.
+    const DEFAULT_MAX_ITERATIONS: u32 = 7;
     let budget_cap_usd = std::env::var("VOX_AUDIT_BUDGET_USD")
         .ok()
         .and_then(|v| v.parse::<f64>().ok())
@@ -435,12 +471,22 @@ fn run_with_panel(
                     .filter(|d| d.severity == TypeckSeverity::Error)
                     .count();
                 if err_count == 0 {
-                    // vox check passed — also EXECUTE the @test blocks
-                    // in the generated source. Per the 2026-05-22
-                    // documented finding, plan-fidelity failures are
-                    // semantic plan-misunderstandings: the model
-                    // produces compile-clean nonsense that wouldn't
-                    // run. Test-execution catches that.
+                    // vox check passed — for plans whose
+                    // success_criteria require @test blocks, also
+                    // EXECUTE them. Per the 2026-05-22 documented
+                    // finding, plan-fidelity failures are semantic
+                    // plan-misunderstandings: the model produces
+                    // compile-clean nonsense that wouldn't run.
+                    // Test-execution catches that.
+                    //
+                    // Refactor-only plans (e.g. 004-refactor-loop:
+                    // "endpoint signatures must not change", no new
+                    // tests required) skip the runtime gate — vox
+                    // check is enough. Per the 2026-05-23 push to 85%.
+                    if !plan.tests_required {
+                        iter_passed = true;
+                        break;
+                    }
                     let test_result = execute_tests_in_source(&source);
                     if test_result.is_pass() {
                         iter_passed = true;
@@ -488,6 +534,12 @@ fn run_with_panel(
                 unreachable += 1;
             } else if iter_passed {
                 passing += 1;
+            }
+            if std::env::var("VOX_AUDIT_CR_L4_VERBOSE").ok().is_some() {
+                eprintln!(
+                    "[cr-l4] member={} plan={} passed={} unreachable={} cost=${:.4}",
+                    member.id, plan.id, iter_passed, unreachable_for_plan, plan_cost
+                );
             }
         }
         let scored = effective
@@ -544,9 +596,11 @@ fn run_with_panel(
         "panel mode: {} routable member(s) against {}/{} plans; \
          {total_unreachable} unreachable + {total_budget_skipped} budget-skipped. \
          panel cost: ${cumulative_cost_usd:.3} of ${budget_cap_usd:.2} budget. \
-         Scoring: vox_check_passes AND in-process @test execution (every @test \
-         block must run + assert). Refinement loop feeds back diagnostics on \
-         vox-check fail OR runtime-failure summary on assertion fail.",
+         Scoring: vox_check_passes for every plan; ALSO in-process @test execution \
+         for plans whose success_criteria require it (new_test_passes or \
+         existing_tests_pass). Refactor-only plans (no test requirement) pass on \
+         vox-check-clean alone. Refinement loop feeds back diagnostics on vox-check \
+         fail OR runtime-failure summary on assertion fail.",
         routable.len(),
         effective.len(),
         plans.len()

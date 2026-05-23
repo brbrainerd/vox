@@ -6,10 +6,17 @@ max_cost_usd = 0.75
 
 prompt = """
 Two @endpoint mutation fns each duplicate a 4-line validation
-sequence (empty-check + length-cap-check returning Error variants).
-Extract the duplicated logic into a single helper `validate_title(s:
-str) to Result[str, TodoError]` and call it from both endpoints. The
-endpoint signatures must not change.
+sequence (empty-check + length-cap-check returning Error variants
+from the `TodoError` ADT). Extract the duplicated logic into a single
+helper `validate_title(s: str) to Result[str, TodoError]` and call it
+from both endpoints. The endpoint signatures must not change.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `Empty("...")`),
+    not as `TodoError.Empty(...)`.
 """
 
 [[steps]]

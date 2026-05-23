@@ -7,15 +7,22 @@ max_cost_usd = 0.75
 prompt = """
 Add a new endpoint
 `@endpoint(kind: mutation) @auth(scheme: bearer) fn archive_todo(id:
-Id[Todo]) to Result[str, TodoError]` to the marquee todo-auth project.
-- Validates that id length > 0; returns Error(EmptyId(_)) otherwise.
-- Returns Ok("archived") on success.
-- Add a @test that the empty-id path returns Error(EmptyId(_))
-  using the existing TodoError ADT.
+str) to Result[str, TodoError]` to the marquee todo-auth project.
+- Validates that the id is non-empty (`len(id) is 0` rejects);
+  on failure return `Error(EmptyId("id must not be empty"))`.
+- Returns `Ok("archived")` on success.
+- Append a @test that exercises the empty-id path and matches
+  `Error(EmptyId(_))` via the existing `TodoError` ADT (see the
+  existing test in the base for the pattern).
 
-The fn must use the @auth + @endpoint decorator order shipped post-
-2026-05-17 (commit e42ff52b4); Result is the two-param `Result[T, E]`
-shape from commit 92e4c59a7.
+Vox conventions (the base source already uses them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the two Result constructors.
+  - Variant constructors are referenced bare (e.g. `EmptyId("...")`),
+    not as `TodoError.EmptyId(...)`.
+  - Use a `match` block in the @test to discriminate Result variants;
+    each arm should call `assert(true)` or `assert(false)`.
 """
 
 [[steps]]

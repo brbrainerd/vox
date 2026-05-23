@@ -5,23 +5,26 @@
 // returns Result[str, TodoError], plus a @test exercising the empty-
 // id error path via the existing TodoError ADT.
 
-enum TodoError {
-  Empty,
-  TooLong,
-  EmptyId(str)
-}
+type TodoError =
+    | TitleEmpty(text: str)
+    | TitleTooLong(text: str)
+    | EmptyId(text: str)
 
-@endpoint(kind: mutation)
-@auth(scheme: bearer)
+@endpoint(kind: mutation) @auth(scheme: bearer)
 fn add_todo(title: str) to Result[str, TodoError] {
-  if title is "" {
-    return Err(TodoError.Empty)
-  }
-  return Ok(title)
+    if len(title) is 0 {
+        return Error(TitleEmpty("title must not be empty"))
+    }
+    return Ok("queued")
 }
 
 @test
 fn test_add_todo_empty_returns_error() to Unit {
-  let result = add_todo("")
-  assert(result is Err(TodoError.Empty))
+    let result = add_todo("")
+    match result {
+        Error(TitleEmpty(_))   => assert(true)
+        Error(TitleTooLong(_)) => assert(false)
+        Error(EmptyId(_))      => assert(false)
+        Ok(_)                  => assert(false)
+    }
 }
