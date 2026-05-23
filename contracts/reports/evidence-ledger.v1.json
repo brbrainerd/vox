@@ -155,15 +155,19 @@
       "blocked_on": "panel-mode wiring landed 2026-05-21 (§3.6 ✓); reaching threshold.met=true still requires (a) the multi-iteration refinement loop (mirror from CR-L0), and (b) §4.3 corpus growth shipping base sources per plan so the model isn't guessing what to modify. See `audit.cr_l4.plan_loop_measured` for the live sub-bar artifact.",
       "expected_artifact_path": "contracts/reports/plan-fidelity/<UTC>.json with threshold.met=true"
     },
-    "perf.cr_p1.three_apps_live": {
-      "criterion": "CR-P1",
-      "blocked_on": "§5.2 of the honest plan",
-      "expected_artifact_path": "contracts/reports/perf/cr-p1/<UTC>.json with 3 health endpoints"
+    "perf.cr_p1.three_apps_live_measured": {
+      "criterion": "CR-P1 (measured, sub-bar)",
+      "artifact_path": "contracts/reports/perf/cr-p1/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "CR-P1 probe binary landed 2026-05-23. Walks contracts/marquee/manifest.v1.yaml, for each `real` app resolves a probe URL (manifest.live_url → VOX_CR_P1_<APP>_URL env → http://127.0.0.1:<default_port>/health), HTTP-GETs /health with a 5s timeout, records HTTP status + response time + error verbatim. First measurement: 0/3 live (no marquee apps running on this machine; real `connect: refused` errors per app). Threshold = 3 apps real AND all live. Closing met=true needs: (a) slot 1 marquee_app's Vox→TSX codegen step that produces dist/ItemDetail (currently absent, causing `pnpm build` to fail), (b) Dockerfiles for slots 2-3 (todo-auth, chat — Vox source fixtures only today), (c) `docker compose up` or equivalent so all three serve on their default ports. Real OCI deployment is a deployment-environment decision, not a code-shipped-this-session decision."
     },
-    "perf.cr_p2.uptime_7d": {
-      "criterion": "CR-P2",
-      "blocked_on": "§5.3 of the honest plan",
-      "expected_artifact_path": "contracts/reports/perf/cr-p2/<UTC>-7day.json with uptime_pct >= 99.9"
+    "perf.cr_p2.uptime_7d_measured": {
+      "criterion": "CR-P2 (measured, sub-bar — first samples accruing)",
+      "artifact_path": "contracts/reports/perf/cr-p2/",
+      "artifact_kind": "directory_with_dated_json",
+      "max_age_days": 30,
+      "notes": "CR-P2 monitor binary landed 2026-05-23. Two modes: probe-and-append (default — probes each real app's /health, appends a `{ts, app, live, ...}` row to contracts/reports/perf/cr-p2/monitor.jsonl) and --compute-only (rolls up the existing log without side effects). Each invocation emits `<UTC>-7day.json` with per-app rolling-7-day uptime % over `samples_in_window` JSONL rows. First-run sample count is tiny by design; published evidence accrues as the binary runs on a cron. Target 99.9% per app. Today's first roll-up: 0% uptime across 3 samples (no apps responding). Closing met=true needs the marquee fleet live + the monitor running on a cron for ≥7 days."
     },
     "arch.cr_a2.voxproto_parity": {
       "criterion": "CR-A2",

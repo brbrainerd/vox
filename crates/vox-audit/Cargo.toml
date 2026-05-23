@@ -74,6 +74,18 @@ path = "src/bin/cr-a2.rs"
 name = "cr-e2"
 path = "src/bin/cr-e2.rs"
 
+# CR-P1 marquee-live probe. Per honest plan §5.2. Three apps must
+# answer /health with 2xx.
+[[bin]]
+name = "cr-p1"
+path = "src/bin/cr-p1.rs"
+
+# CR-P2 uptime monitor. Per honest plan §5.3. Probe-and-append +
+# rolling 7-day window roll-up.
+[[bin]]
+name = "cr-p2"
+path = "src/bin/cr-p2.rs"
+
 [dev-dependencies]
 tempfile = { workspace = true }
 

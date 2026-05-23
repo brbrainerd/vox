@@ -6,7 +6,7 @@
       "corpus_hash": "blake3:85d28978c8d29b58f394b558e16f849a4946b5241c6ae096803e708c92400998",
       "corpus_size": 1,
       "llm_panel": [],
-      "measured_at": "2026-05-23T07:52:52.344995300+00:00",
+      "measured_at": "2026-05-23T08:02:23.169173300+00:00",
       "reproducibility": {
         "attempts_per_fixture": 5,
         "seed": 42,
@@ -26,7 +26,7 @@
       "corpus_hash": "blake3:events-count-0",
       "corpus_size": 0,
       "llm_panel": [],
-      "measured_at": "2026-05-23T07:52:52.391650100+00:00",
+      "measured_at": "2026-05-23T08:02:23.212075300+00:00",
       "note": "no events this run; existing report at C:\\Users\\Owner\\vox\\.claude\\worktrees\\jovial-buck-e93ac0\\contracts/reports/corpus-feedback\\2026-Q2.json is 0 days old (within 90-day window)",
       "reproducibility": {
         "attempts_per_fixture": 5,
@@ -47,7 +47,7 @@
       "corpus_hash": "blake3:08c60f00cd626681c359be138157469f2517ab928264ca56633710c4d26a012b",
       "corpus_size": 3,
       "llm_panel": [],
-      "measured_at": "2026-05-23T07:52:52.389724500+00:00",
+      "measured_at": "2026-05-23T08:02:23.210548900+00:00",
       "note": "doctor leg: 3/3 marquee fixtures green (0.01s). new leg: ok (0.00s). deploy --dry-run leg: ok (0.00s). scaffold doctor leg: ok (0.00s). new+deploy+doctor trio: 0.00s vs 120s CR-P3 budget. total: 0.01s.",
       "reproducibility": {
         "attempts_per_fixture": 5,
@@ -113,7 +113,7 @@
       "corpus_hash": "blake3:reusing-cr-l1-corpus-164",
       "corpus_size": 164,
       "llm_panel": [],
-      "measured_at": "2026-05-23T07:52:52.343930300+00:00",
+      "measured_at": "2026-05-23T08:02:23.168230300+00:00",
       "note": "corpus-routing mode: CR-L2 reuses the CR-L1 corpus (164 fixture(s)). On-distribution rate (the 95% bar) requires --llm-panel + MENS sampling via the `mens-current` panel member. Without those, this runner reports corpus inventory only, not a real on-distribution number.",
       "reproducibility": {
         "attempts_per_fixture": 5,
@@ -224,7 +224,7 @@
       "corpus_hash": "blake3:3b29aaad06f0eb7d1cc0a627e0e48de2495281cb515768e9cd1bbdf49373a888",
       "corpus_size": 16,
       "llm_panel": [],
-      "measured_at": "2026-05-23T07:52:52.378445800+00:00",
+      "measured_at": "2026-05-23T08:02:23.200504+00:00",
       "reproducibility": {
         "attempts_per_fixture": 5,
         "seed": 42,
@@ -277,6 +277,6 @@
       }
     }
   },
-  "measured_at": "2026-05-23T07:52:52.400559600+00:00",
+  "measured_at": "2026-05-23T08:02:23.219353300+00:00",
   "schema_version": 1
 }
