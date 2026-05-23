@@ -372,8 +372,21 @@ pub fn emit_db_setup(module: &HirModule) -> String {
     out.push_str(
         "    let codex = vox_db::Codex::connect(cfg).await.expect(\"Failed to open Codex database\");\n",
     );
+    // PRAGMA setup. `journal_mode=WAL` returns a result row (the
+    // mode that ended up being set), which turso's `execute_batch`
+    // can't consume — it panics with "Misuse: unexpected row during
+    // execution". Run it as a query and drain the rows, then exec
+    // the row-less PRAGMAs in a batch. Per the 2026-05-23 slot-2
+    // todo-auth runtime bring-up.
     out.push_str(
-        "    codex.connection().execute_batch(\"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\").await.expect(\"PRAGMA failed\");\n",
+        "    {\n\
+        \x20       let mut __vox_jm = codex.connection().query(\"PRAGMA journal_mode=WAL;\", ()).await\n\
+        \x20           .expect(\"PRAGMA journal_mode failed\");\n\
+        \x20       while __vox_jm.next().await.expect(\"PRAGMA journal_mode row\").is_some() {}\n\
+        \x20   }\n",
+    );
+    out.push_str(
+        "    codex.connection().execute_batch(\"PRAGMA foreign_keys=ON;\").await.expect(\"PRAGMA foreign_keys failed\");\n",
     );
     out.push_str("    codex.connection().execute_batch(r#\"\n");
     for table in &module.tables {
@@ -384,7 +397,11 @@ pub fn emit_db_setup(module: &HirModule) -> String {
         out.push_str(&emit_index_ddl(index));
         out.push('\n');
     }
-    out.push_str("#\"#).await.expect(\"schema migration failed\");\n");
+    // Raw-string close: `"#` ends `r#"..."#`. The previous code
+    // emitted a stray `#` before the close, producing `#"#)` which
+    // SQLite parsed as "bad variable name '#'". Per the 2026-05-23
+    // slot-2 todo-auth runtime bring-up.
+    out.push_str("\"#).await.expect(\"schema migration failed\");\n");
     out.push_str("    let db = Arc::new(codex);\n\n");
     out
 }
