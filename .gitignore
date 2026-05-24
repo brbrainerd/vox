@@ -207,3 +207,4 @@ docs/src/architecture/architecture-index.md
 
 # insta pending-review snapshots — local-only, regenerated each test run
 **/*.snap.new
+_bundle_ai_fixture_*

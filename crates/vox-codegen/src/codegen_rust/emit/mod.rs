@@ -444,6 +444,11 @@ vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
 vox-oratio = {{ path = "../../../crates/vox-oratio" }}
 vox-tauri-sherpa = {{ path = "../../../crates/vox-tauri-sherpa", features = ["tauri-plugin"] }}
+# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
+# (Tauri main.rs does not yet emit the prelude; deps added for symmetry +
+# so future Tauri-side durable wiring is unblocked.)
+vox-compiler = {{ path = "../../../crates/vox-compiler" }}
+vox-workflow-runtime = {{ path = "../../../crates/vox-workflow-runtime", default-features = false }}
 {fixture_deps}{rust_import_deps}
 
 [dev-dependencies]
@@ -541,6 +546,11 @@ vox-db = {{ path = "../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}
 vox-oratio = {{ path = "../../crates/vox-oratio" }}
+# P9 (2026-05-24): durable boot prelude in main.rs references both — see
+# crates/vox-codegen/src/codegen_rust/emit/main_boot.rs (HirModule embed
+# + scheduled runner + set_current_hir_module).
+vox-compiler = {{ path = "../../crates/vox-compiler" }}
+vox-workflow-runtime = {{ path = "../../crates/vox-workflow-runtime", default-features = false }}
 {fixture_deps}{rust_import_deps}{mcp_bin}"#,
         features_section = features_section,
         fixture_deps = fixture_deps,

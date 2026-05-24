@@ -181,8 +181,15 @@ pub fn emit_durable_boot_prelude(
     if include_db_connect {
         let connect_await = propagation.await_suffix("VoxDb::connect");
         out.push_str("    // 1. Initialize the durable database.\n");
+        out.push_str(
+            "    //    Uses `DbConfig::resolve_canonical()` so the binary picks up\n\
+             \x20   //    `VOX_DB_URL`/`VOX_DB_PATH` env vars (matches `emit_db_setup`).\n",
+        );
         out.push_str(&format!(
-            "    let {db_var_name} = std::sync::Arc::new(::vox_db::VoxDb::connect(::vox_db::DbConfig::default()).{connect_await});\n\n",
+            "    let {db_var_name} = std::sync::Arc::new(::vox_db::VoxDb::connect(\n\
+             \x20       ::vox_db::DbConfig::resolve_canonical()\n\
+             \x20           .expect(\"vox durable boot: resolve VoxDb config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)\"),\n\
+             \x20   ).{connect_await});\n\n",
         ));
     } else {
         out.push_str(&format!(

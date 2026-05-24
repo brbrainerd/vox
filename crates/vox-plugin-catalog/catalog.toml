@@ -26,6 +26,15 @@ requires-tag = "nvidia-gpu"
 default-source = "github:vox-foundation/vox-plugin-mens-candle-cuda"
 bundled-in = ["vox-ml", "vox-dev"]
 
+[[plugin]]
+id = "mens-candle-metal"
+payload-kind = "code"
+description = "ML training backend using Candle with Metal acceleration."
+extension-points = ["MlBackend"]
+requires-tag = "apple-silicon"
+default-source = "local:crates/vox-plugin-mens-candle-metal"
+bundled-in = ["vox-ml-metal", "vox-dev"]
+
 
 [[plugin]]
 id = "oratio"
@@ -199,6 +208,12 @@ extends = "vox-fullstack"
 plugins = ["mens-candle-cuda", "nvml-probe"]
 
 [[bundle]]
+id = "vox-ml-metal"
+description = "Fullstack plus ML/GPU code plugins (Apple Metal stack)."
+extends = "vox-fullstack"
+plugins = ["mens-candle-metal"]
+
+[[bundle]]
 id = "vox-mesh"
 description = "Server-side mesh deployment with cloud sync."
 extends = "vox-base"
@@ -227,7 +242,7 @@ id = "vox-dev"
 description = "Contributor / power-user development environment: fullstack + ML + mesh + audio."
 extends = "vox-fullstack"
 plugins = [
-    "mens-candle-cuda", "nvml-probe",
+    "mens-candle-cuda", "nvml-probe", "mens-candle-metal",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
     "browser", "webhook",
 ]

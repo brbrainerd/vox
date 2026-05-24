@@ -43,7 +43,7 @@ pub enum CiCmd {
     /// Documentation SSOT guard (required pages, doc-inventory schema, orphan inventory crate list).
     #[command(name = "check-docs-ssot")]
     CheckDocsSsot,
-    /// Enforces that no new crates are added outside of the 10 Frozen Core crates in `crates/_frozen.md`.
+    /// No-op since `crates/_frozen.md` was superseded by `layers.toml` and `contracts/db/data-storage-policy.v1.yaml`. Kept for backwards-compatibility.
     #[command(name = "check-frozen")]
     CheckFrozen,
     /// Codex / Arca SSOT file and OpenAPI substring guard.

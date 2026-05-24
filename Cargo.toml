@@ -102,7 +102,7 @@ vox-mesh-types            = { path = "crates/vox-mesh-types" }
 vox-distributed-training  = { path = "crates/vox-distributed-training" }
 vox-inference             = { path = "crates/vox-inference" }
 
-vox-mesh               = { path = "crates/vox-mesh" }
+vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }

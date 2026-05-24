@@ -18,7 +18,7 @@ To reach a stable v1.0, the Vox foundation must satisfy the following machine-ve
 ## 2. Architectural Integrity
 - **[CR-A1] K-Complexity Freeze**: The core compiler (`vox-compiler`) must maintain a cyclomatic complexity threshold under 15 for all primary lowering paths.
 - **[CR-A2] Non-Null Boundary**: 100% of internal FFI and IPC interfaces must use non-null, machine-verified schemas (VoxProto v1).
-- **[CR-A3] Crate Decoupling**: The workspace must maintain zero circular dependencies across the 10 core crates defined in `crates/_frozen.md`.
+- **[CR-A3] Crate Decoupling**: The workspace must maintain zero circular dependencies across the frozen-core crates defined in `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates` (canonical list; `crates/_frozen.md` was retired).
 - **[CR-A4] Lifecycle Metadata Parity**: All orchestration contracts that affect model routing/providers must declare lifecycle metadata (`experimental`/`stable`/`deprecated`) and a migration window, with CI parity checks.
 
 ## 3. Performance & Efficiency

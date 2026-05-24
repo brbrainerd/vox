@@ -135,7 +135,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-webhook`](../../../crates/vox-webhook/) | HTTP webhook gateway for the Vox agent system. |
 | [`vox-wire-format-validator`](../../../crates/vox-wire-format-validator/) | CI guard: enforces Wire Format v1 SSOT and Contract IR implementation parity. |
 | [`vox-workflow-runtime`](../../../crates/vox-workflow-runtime/) | Interpreted workflow execution MVP (local + mens activity hooks). |
-| [`vox-mesh`](../../../crates/vox-mesh/) | Distributed service mesh models and policies. |
+| [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Parses and pretty-prints `donations.vox` mesh policy files; defines `WorkerDonationPolicy`. |
 | [`vox-tauri-sherpa`](../../../crates/vox-tauri-sherpa/) | Tauri mobile sherpa components. |
 
 ### L5 — surfaces
