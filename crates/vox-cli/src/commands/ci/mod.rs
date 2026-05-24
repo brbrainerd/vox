@@ -40,6 +40,7 @@ mod mens_scorecard;
 mod model_routing_check;
 pub(crate) mod nomenclature_guard;
 mod no_tauri_in_core;
+mod no_plugin_cdylib_as_compile_dep;
 mod openclaw_contract;
 mod operations_catalog;
 mod parse_check;

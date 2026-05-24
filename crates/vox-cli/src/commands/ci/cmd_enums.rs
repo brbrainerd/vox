@@ -754,6 +754,9 @@ pub enum CiCmd {
     /// Enforce no-tauri-in-core architectural boundary.
     #[command(name = "no-tauri-in-core")]
     NoTauriInCore,
+    /// Guard that no non-plugin crate takes a compile-time dep on a cdylib plugin (D-2).
+    #[command(name = "no-plugin-cdylib-as-compile-dep")]
+    NoPluginCdylibAsCompileDep,
     /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
     #[command(name = "plugin-abi-parity")]
     PluginAbiParity,
