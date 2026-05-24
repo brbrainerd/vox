@@ -14294,11 +14294,24 @@ dependencies = [
  "vox-orchestrator-queue",
  "vox-package",
  "vox-plugin-host",
+ "vox-populi-types",
  "vox-publisher",
  "vox-repository",
  "vox-secrets",
  "vox-tensor",
  "wiremock",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-populi-types"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "vox-mesh-types",
+ "vox-repository",
  "workspace-hack",
 ]
 

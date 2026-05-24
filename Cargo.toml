@@ -98,6 +98,7 @@ vox-lsp                   = { path = "crates/vox-lsp" }
 vox-gamify                 = { path = "crates/vox-gamify" }
 vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
+vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
 vox-distributed-training  = { path = "crates/vox-distributed-training" }

@@ -107,6 +107,7 @@ vox-telemetry         = { layer = 1 }                            # L1 telemetry 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
 vox-repository          = { layer = 2 }
+vox-populi-types        = { layer = 2, max_loc = 1_000 }  # ADR-042: NodeRecord + PopuliRegistryFile (pure-data, no async)
 vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2 }
 
