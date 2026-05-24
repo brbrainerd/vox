@@ -2,11 +2,12 @@
 //!
 //! The generated binary must:
 //! 1. Initialize the DB.
-//! 2. Register every `@scheduled` function with the runtime scheduler and start it.
-//! 3. (Phase-5 follow-up) Set the process-global `HirModule` so workflow bodies
-//!    can look up activity bodies via `current_hir_module()`. Today `HirModule`
-//!    serializes via serde, but the embedding format + deserialization helper
-//!    is not yet stabilized in the runtime, so we emit a TODO placeholder.
+//! 2. Register the process-global `HirModule` so workflow bodies can look up
+//!    activity bodies via `current_hir_module()`. The HirModule is serialized
+//!    to JSON at codegen time and embedded as a `const &str` in the generated
+//!    binary (ADR-041 §6(b); HirModule already derives `Serialize` +
+//!    `Deserialize`).
+//! 3. Register every `@scheduled` function with the runtime scheduler and start it.
 //! 4. (Phase-5 follow-up) Boot an HTTP server for `@query` / `@mutation` /
 //!    `@server` endpoints. The workspace does not currently ship a
 //!    `vox-http-runtime` crate exposing a `serve(db) -> Handle` entry point
@@ -61,12 +62,13 @@ pub fn emit_main_boot(module: &HirModule) -> String {
         "    let db = std::sync::Arc::new(::vox_db::VoxDb::connect(::vox_db::DbConfig::default()).await?);\n\n",
     );
 
-    // 2. HIR module registration (TODO).
+    // 2. HIR module registration (ADR-041 §6(b)).
     out.push_str("    // 2. Register the process-global HirModule for workflow body lookup.\n");
-    out.push_str("    // TODO(phase5-followup): embed serialized HirModule (HirModule already derives\n");
-    out.push_str("    // serde::{Serialize, Deserialize}); generated code should call\n");
-    out.push_str("    //   ::vox_workflow_runtime::workflow::set_current_hir_module(load_hir_module_from_embedded());\n");
-    out.push_str("    // once the embedding format + decoder are stabilized in vox-workflow-runtime.\n\n");
+    out.push_str("    //    The HirModule is serialized to JSON at codegen time and embedded\n");
+    out.push_str("    //    as a `const &str` (see `load_hir_module_from_embedded` below).\n");
+    out.push_str("    ::vox_workflow_runtime::workflow::set_current_hir_module(\n");
+    out.push_str("        load_hir_module_from_embedded()\n");
+    out.push_str("    );\n\n");
 
     // 3. Scheduler.
     if scheduled_fns.is_empty() {
@@ -113,19 +115,78 @@ pub fn emit_main_boot(module: &HirModule) -> String {
     out.push_str("}\n\n");
 
     out.push_str(PARSE_DURATION_LITERAL);
+    out.push('\n');
+    out.push_str(&emit_hir_embed_helper(module));
 
+    out
+}
+
+/// Emit the `load_hir_module_from_embedded()` helper.
+///
+/// The HirModule is serialized to JSON at codegen time and embedded into the
+/// generated binary as a raw-string `const &str`. At boot, `main()` decodes
+/// the JSON via `::serde_json::from_str(...)` and hands the resulting
+/// `HirModule` to `::vox_workflow_runtime::workflow::set_current_hir_module`.
+///
+/// The raw-string delimiter is chosen dynamically: we start with `r#"…"#`
+/// and bump the hash count whenever the serialized JSON contains a matching
+/// closing delimiter that would prematurely terminate the literal. JSON
+/// escapes `"` as `\"`, so in practice `"#` cannot appear and a single-hash
+/// delimiter suffices — but the loop guarantees correctness for any input.
+fn emit_hir_embed_helper(module: &HirModule) -> String {
+    let serialized = serde_json::to_string(module)
+        .expect("HirModule serializes to JSON (Serialize derive guaranteed at decl.rs:29)");
+
+    // Pick the smallest `#`-count whose closing delimiter (`"` + N hashes)
+    // does not appear inside the serialized JSON. Start at 1 and grow.
+    let mut hash_count: usize = 1;
+    loop {
+        let mut closer = String::with_capacity(1 + hash_count);
+        closer.push('"');
+        for _ in 0..hash_count {
+            closer.push('#');
+        }
+        if !serialized.contains(&closer) {
+            break;
+        }
+        hash_count += 1;
+        // Sanity: bound the search so a pathological input cannot infinite-loop.
+        // 16 hashes is absurdly more than any real input would need.
+        debug_assert!(hash_count <= 16, "raw-string delimiter escalation exceeded 16 hashes");
+        if hash_count > 16 {
+            break;
+        }
+    }
+    let hashes: String = std::iter::repeat('#').take(hash_count).collect();
+
+    let mut out = String::new();
+    out.push_str(
+        "/// Decode the codegen-time-embedded HirModule JSON back into a runtime\n\
+         /// `HirModule`. Called once from `main()` to register the process-global\n\
+         /// module for `current_hir_module()` lookups (ADR-041 §6(b)).\n",
+    );
+    out.push_str("fn load_hir_module_from_embedded() -> ::vox_compiler::hir::HirModule {\n");
+    out.push_str(&format!(
+        "    const EMBEDDED_HIR: &str = r{hashes}\"{serialized}\"{hashes};\n"
+    ));
+    out.push_str(
+        "    ::serde_json::from_str(EMBEDDED_HIR)\n\
+         \x20       .expect(\"embedded HirModule deserializes (codegen wrote it; should round-trip)\")\n",
+    );
+    out.push_str("}\n");
     out
 }
 
 /// File-level doc comment + uses for the generated `main.rs`.
 const MAIN_BOOT_HEADER: &str = "\
 // Generated by Vox Compiler — durable-binary main() boot routine.
-// See docs/superpowers/plans/2026-05-23-durable-functions-completion.md (Task 5.1).
+// See docs/superpowers/plans/2026-05-23-durable-functions-completion.md (Task 5.1)
+// and docs/src/adr/041-durable-functions-completion-2026.md §6(b).
 //
-// This file is intentionally minimal: every concern that requires more than a
-// few lines (workflow body lookup, HTTP serving) is delegated via TODO to a
-// follow-up crate. The contract here is purely:
-//   DB init  →  scheduler register+start  →  ctrl-C  →  graceful shutdown.
+// The contract here is:
+//   DB init  →  HIR register  →  scheduler register+start  →  ctrl-C  →  graceful shutdown.
+// HTTP serving still lives in the per-route emit (http.rs); factoring that
+// into a reusable vox-http-runtime crate is tracked under §6(c).
 
 ";
 

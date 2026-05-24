@@ -40,8 +40,9 @@ Between 2026-05-01 and 2026-05-23, the implementation work was completed:
   via a `scheduled_runs` DB table (Phase 4).
 - Actor handlers auto-wire from generated `main()` via a new
   `ActorRegistry` (Phase 5.2) and the `emit_main_boot` codegen
-  (Phase 5.1) — note: `emit_main_boot` carries `phase5-followup` TODOs
-  for HIR embedding and HTTP server boot that remain future work.
+  (Phase 5.1). HIR embedding is now real (§6(b), landed 2026-05-23);
+  HTTP server boot remains the one outstanding `phase5-followup`
+  (§6(c)).
 - A determinism lint blocks non-deterministic ops
   (`std.time.now_ms`, `std.random`, `std.uuid`, `std.process.spawn`)
   in workflow bodies (Phase 6).
@@ -66,7 +67,7 @@ Between 2026-05-01 and 2026-05-23, the implementation work was completed:
 
    a. **[Landed 2026-05-23]** **Scheduler restart deadline derivation.** When `vox-workflow-runtime/src/scheduled/runner.rs` (lines 88-116) restarts and a registered function's persisted `next_due_at_ms` is in the future, the in-memory `Instant` deadline was seeded to `now + interval` instead of `now + (next_due_at_ms - now)`. A crash 23 hours into a `@scheduled("1d")` interval re-armed a full day instead of firing in ~1 hour. Resolved by adding `VoxDb::scheduled_runs_next_due_at_ms(name)` and having the runner seed `now_inst + clamp(persisted - wall_now, 0, interval)`. Clamping at `interval` defends against clock-skew jumps. Regression test: `crates/vox-workflow-runtime/tests/scheduled_basic.rs::scheduler_restart_preserves_partial_interval_wait`.
 
-   b. **HIR embedding for `current_hir_module()`.** `emit_main_boot` currently emits the registration as a TODO comment, not a real call. Generated binaries link but workflow bodies panic at runtime calling `current_hir_module()` (the OnceLock is unset). Interpreter path (`vox mens workflow run`) is unaffected. The tier-table row in the README scopes the Stable claim to the interpreter path until this lands.
+   b. **[Landed 2026-05-23]** **HIR embedding for `current_hir_module()`.** `emit_main_boot` now serializes the `HirModule` to JSON at codegen time (HirModule derives `Serialize` + `Deserialize`), embeds it as a raw-string `const &str` in the generated binary, and emits a `set_current_hir_module(load_hir_module_from_embedded())` call as step 2 of the boot routine — before the scheduler starts or any workflow body runs. Generated binaries now resolve `current_hir_module()` lookups at runtime instead of panicking on an unset `OnceLock`. The raw-string delimiter is chosen dynamically (starts at `r#"…"#`, escalates hash count if the serialized JSON contains a closing match). Regression test: `crates/vox-codegen/tests/main_boot_hir_roundtrip.rs::embedded_hir_roundtrips_through_json`. Snapshot lock: `crates/vox-codegen/tests/main_boot_snapshot.rs`. The Stable tier claim in the README now extends to the codegen-to-compiled-binary path as well as the interpreter path.
 
    c. **HTTP server boot in generated `main()`.** No `vox-http-runtime::serve()` symbol exists today; the HTTP wiring still lives inside `emit_main` in `http.rs`. Factoring this into a reusable runtime function is the path forward.
 
@@ -79,9 +80,8 @@ These follow-ups do NOT block this ADR's acceptance.
   subset (Tasks 7.2 and 7.4).
 - The "Durable Runtime" stability tier moves from 🟡 Preview to 🔵 Stable
   for the supported subset (Task 7.2 reflects this in the tier table).
-- Future durability work (HIR embedding so generated workflows can call
-  `current_hir_module()` for activity body lookup; HTTP server-runtime
-  integration for combined boot; unrestricted control-flow replay;
+- Future durability work (HTTP server-runtime integration for combined
+  boot; unrestricted control-flow replay;
   mesh-distributed workflow dispatch) is tracked under separate ADRs
   and follow-up plans.
 
