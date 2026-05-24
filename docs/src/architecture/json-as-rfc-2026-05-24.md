@@ -2,7 +2,8 @@
 title: "RFC: @json_as(MyType) — typed JSON deserialization decorator"
 description: "Schema-typed JSON parsing built atop the strict-Option Json surface; the 80→99% ergonomic close for known-schema JSON in Vox."
 last_updated: "2026-05-24"
-status: ratified
+category: "Architecture SSOTs"
+status: approved
 ---
 
 # RFC: `@json_as(MyType)` — typed JSON deserialization decorator
@@ -66,6 +67,7 @@ support the common attributes (`default`, `rename`, `rename_all`,
 ### 4.1 Type definition
 
 ```vox
+// vox:skip — @json_as decorator is the subject of this RFC; not yet implemented.
 @json_as(Product)
 type Product {
     id: int,
@@ -101,6 +103,7 @@ free function (and a sibling `Product::to_json(p: Product) → Json` for symmetr
 ### 4.4 Tagged enums
 
 ```vox
+// vox:skip — @json_as + struct-shape variants are RFC-only.
 @json_as(ToolCall, tag: "kind")
 type ToolCall =
     | Search { query: str }
@@ -115,6 +118,7 @@ from structure) are a v2 concern; require explicit `tag:` for v1.
 ### 4.5 Call sites
 
 ```vox
+// vox:skip — Uses Product::from_json synthesized by the RFC; not yet emitted.
 fn handle_response(body: str) to Result[Product] {
     let json_res = json.parse(body)
     if json_res.is_err() { return Err("bad JSON: " + json_res.unwrap_err()) }

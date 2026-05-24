@@ -1,3 +1,11 @@
+---
+title: "HTTP runtime extraction — ADR-041 §6(c) deferral & design"
+description: "Why factoring `vox-http-runtime::serve(...)` out of `emit_main_boot` is a multi-week refactor of route codegen, and the design constraints we want preserved when it lands."
+last_updated: "2026-05-23"
+category: "Architecture SSOTs"
+status: research
+---
+
 # HTTP runtime extraction — ADR-041 §6(c) deferral & design
 
 **Status:** Deferred (research / design constraints recorded).

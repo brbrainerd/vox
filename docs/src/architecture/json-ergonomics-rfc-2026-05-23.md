@@ -2,7 +2,8 @@
 title: "RFC: JSON ergonomics — strict-Option + pointer"
 description: "Vox's typed Json surface, why we diverge from serde_json::Value::Index, and the canonical traversal idioms."
 last_updated: "2026-05-23"
-status: ratified
+category: "Architecture SSOTs"
+status: approved
 ---
 
 # RFC: JSON ergonomics — strict-Option + pointer
@@ -123,11 +124,13 @@ back-compat shims):
 
 ### Shallow, single field
 ```vox
+// vox:skip — idiom fragment; `data` is not in scope.
 let kind = data.get("kind").and_then(fn(j: Json) to Option[str] { j.as_str() })
 ```
 
 ### Deep, known path
 ```vox
+// vox:skip — idiom fragment; `data` is not in scope.
 let name = data.pointer("/products/0/name")
                .and_then(fn(j: Json) to Option[str] { j.as_str() })
                .unwrap_or("anonymous")
@@ -135,6 +138,7 @@ let name = data.pointer("/products/0/name")
 
 ### Membership check before navigation
 ```vox
+// vox:skip — idiom fragment; `data` is not in scope.
 if data.has("action") {
     let action = data.get("action").unwrap()
     // ...
@@ -143,6 +147,7 @@ if data.has("action") {
 
 ### Walking an array
 ```vox
+// vox:skip — idiom fragment; `data` is not in scope.
 let products = data.get("products").and_then(fn(j: Json) to Option[list[Json]] { j.as_array() }).unwrap_or([])
 for p in products {
     let n = p.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
@@ -152,6 +157,7 @@ for p in products {
 
 ### Exhaustive handling (when "I genuinely care about the error" — e.g. parse)
 ```vox
+// vox:skip — fragment; `input`/`process`/`log` not in scope.
 match json.parse(input) {
     Ok(data) => process(data),
     Error(msg) => log.error("bad json: " + msg)

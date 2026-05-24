@@ -1,8 +1,8 @@
 ---
 title: "RFC: Intra-project imports (Phase J)"
 description: "Cross-file `import \"./helpers.vox\"` + `pub fn` for sharing declarations within a single project. The minimum-viable module system for Vox."
-category: "architecture"
-status: "rfc"
+category: "Architecture SSOTs"
+status: "research"
 last_updated: "2026-05-23"
 training_eligible: false
 training_rationale: "RFC in design phase; promote to training_eligible once status reaches 'current' after implementation lands."
@@ -29,6 +29,7 @@ audit found that 4 scripts under `examples/aspirational/intra-project-imports/`
 (formerly `scripts/mens-corpus/`) want to import helpers:
 
 ```vox
+// vox:skip — illustrative; the imported helpers don't exist as files.
 // scripts/mens-corpus/harvest.vox (today)
 // — has to re-inline walk_docs/walk_sources/jsonl_writer logic
 
@@ -123,6 +124,7 @@ the importer must use `as` to disambiguate.
 With `as alias`, exported names live under `alias.name`:
 
 ```vox
+// vox:skip — illustrative; the imported helper doesn't exist as a file.
 import "./helpers/walk_docs.vox" as docs
 
 fn main() {
