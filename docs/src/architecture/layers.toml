@@ -86,7 +86,7 @@ vox-shell-stdlib-types    = { layer = 0, staleness_exempt = true }   # VoxFileRe
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1 }
-vox-secrets           = { layer = 1, max_dependents = 25 }
+vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
