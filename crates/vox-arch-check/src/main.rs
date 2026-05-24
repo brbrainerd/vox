@@ -45,9 +45,14 @@
 //!      workspace crate whose output is a `cdylib`. Plugin cdylibs are loaded
 //!      dynamically at runtime via `vox-plugin-host`; linking them statically
 //!      breaks the plugin boundary and bloats the binary.
+//!  15. **Workspace-dep budget** (warn) — caps how many workspace-member
+//!      crates a given crate may take as normal (compile-time) dependencies.
+//!      Set `max_workspace_deps` in `layers.toml` per-crate. Useful for
+//!      detecting "kitchen-sink" aggregator crates before they hit the hard
+//!      fan-in / LoC ceilings (e.g. `vox-cli = 60`).
 //!
 //! Layer ordering is the only rule that fails the build by default; the other
-//! thirteen rules are warn-only unless promoted via `[guards]` in `layers.toml`.
+//! fourteen rules are warn-only unless promoted via `[guards]` in `layers.toml`.
 //!
 //! Modes:
 //!   default        — strict layer-ordering; warn-only on the other eight
@@ -131,6 +136,9 @@ struct CrateEntry {
     /// code or Tauri app scaffolding that has no in-tree Rust dep edge.
     #[serde(default)]
     orphan_exempt: bool,
+    /// Rule 15: cap on normal workspace-member deps for this crate.
+    #[serde(default)]
+    max_workspace_deps: Option<usize>,
 }
 
 fn default_kind() -> String {
@@ -186,6 +194,9 @@ struct GuardsConfig {
     /// Rule 14: cdylib-as-normal-dep guard (default: error).
     #[serde(default)]
     cdylib_dep: Option<String>,
+    /// Rule 15: workspace-dep budget guard (default: warn).
+    #[serde(default)]
+    workspace_deps: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -233,6 +244,8 @@ struct Report {
     loc_delta_warns: Vec<(String, usize, usize, f64)>,
     /// Rule 14: (consumer, cdylib_dep) pairs where a normal dep links a cdylib.
     cdylib_dep_warns: Vec<(String, String)>,
+    /// Rule 15: (crate, ws_dep_count, budget) tuples over the workspace-dep budget.
+    workspace_dep_warns: Vec<(String, usize, usize)>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -248,6 +261,7 @@ struct Report {
     strict_wtl_parity: bool,
     strict_loc_delta: bool,
     strict_cdylib_dep: bool,
+    strict_workspace_deps: bool,
 }
 
 impl Report {
@@ -266,6 +280,7 @@ impl Report {
             || (self.strict_wtl_parity && !self.wtl_parity_warns.is_empty())
             || (self.strict_loc_delta && !self.loc_delta_warns.is_empty())
             || (self.strict_cdylib_dep && !self.cdylib_dep_warns.is_empty())
+            || (self.strict_workspace_deps && !self.workspace_dep_warns.is_empty())
     }
 
     fn print_summary(&self) {
@@ -481,6 +496,17 @@ impl Report {
                 eprintln!("  {consumer} → {plugin}  (cdylib must be loaded dynamically, not linked)");
             }
         }
+        if !self.workspace_dep_warns.is_empty() {
+            any = true;
+            let label = if self.strict_workspace_deps { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] workspace-dep budget exceeded ({}):",
+                self.workspace_dep_warns.len()
+            );
+            for (name, count, budget) in &self.workspace_dep_warns {
+                eprintln!("  {name}: {count} workspace deps (budget {budget})");
+            }
+        }
         if !any {
             println!(
                 "vox-arch-check {}: clean ✓",
@@ -667,11 +693,13 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         strict_wtl_parity: parse_strictness(layers.guards.wtl_parity.as_ref(), false),
         strict_loc_delta: parse_strictness(layers.guards.loc_delta.as_ref(), false),
         strict_cdylib_dep: parse_strictness(layers.guards.cdylib_dep.as_ref(), true),
+        strict_workspace_deps: parse_strictness(layers.guards.workspace_deps.as_ref(), false),
         ..Report::default()
     };
 
-    // ── Rule 1: Layer ordering + Rule 2: Fan-in (single pass) ──
+    // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 15: Workspace-dep budget (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
+    let mut workspace_dep_count: HashMap<String, usize> = HashMap::new();
     let mut unlisted: Vec<String> = Vec::new();
 
     for pkg in metadata_full.workspace_packages() {
@@ -689,6 +717,9 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 continue;
             }
             *dependent_count.entry(to_name.to_string()).or_insert(0) += 1;
+            if dep.kind == cargo_metadata::DependencyKind::Normal {
+                *workspace_dep_count.entry(from_name.to_string()).or_insert(0) += 1;
+            }
 
             let to_layer = match layers.crates.get(to_name) {
                 Some(e) => e.layer,
@@ -1005,6 +1036,17 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             report.cdylib_dep_warns.dedup();
         }
     }
+
+    // ── Rule 15: Workspace-dep budget ──
+    for (name, entry) in &layers.crates {
+        if let Some(budget) = entry.max_workspace_deps {
+            let count = workspace_dep_count.get(name).copied().unwrap_or(0);
+            if count > budget {
+                report.workspace_dep_warns.push((name.clone(), count, budget));
+            }
+        }
+    }
+    report.workspace_dep_warns.sort_by(|a, b| b.1.cmp(&a.1));
 
     Ok(report)
 }
