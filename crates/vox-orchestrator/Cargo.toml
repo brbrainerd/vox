@@ -51,7 +51,7 @@ futures-util = { workspace = true }
 sysinfo = { workspace = true, optional = true }
 sha3 = { workspace = true }
 xxhash-rust = { workspace = true }
-hmac = "0.12.1"
+hmac = { workspace = true }
 sha2 = { workspace = true }
 tiktoken-rs = { workspace = true }
 hex = { workspace = true }
@@ -96,11 +96,11 @@ vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
 blake3.workspace = true
-crossbeam-queue = "0.3.12"
+crossbeam-queue = { workspace = true }
 workspace-hack = { workspace = true }
 axum = { workspace = true, features = ["tokio", "http1", "json"] }
 glob.workspace = true
-ignore = "0.4.25"
+ignore = { workspace = true }
 rand_distr = { workspace = true }
 async-stream.workspace = true
 

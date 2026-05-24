@@ -21,8 +21,8 @@ thiserror = { workspace = true }
 miette = { workspace = true }
 sha3 = { workspace = true }
 flate2 = "1.1.9"
-bzip2 = "0.6.1"
-zstd = "0.13.3"
+bzip2 = { workspace = true }
+zstd = { workspace = true }
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
 vox-secrets.workspace = true

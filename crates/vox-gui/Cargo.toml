@@ -21,7 +21,7 @@ toml = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
-tauri = { version = "2", features = [] }
+tauri = { workspace = true }
 tauri-plugin-shell = { version = "2" }
 rmp-serde = "1.1"
 serde_bytes = "0.11"

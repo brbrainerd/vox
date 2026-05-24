@@ -21,7 +21,7 @@ tauri-plugin = ["dep:tauri"]
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri = { version = "2", optional = true }
+tauri = { workspace = true, optional = true }
 
 [lints.rust]
 unsafe_code = "warn"

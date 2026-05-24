@@ -276,6 +276,10 @@ quick-xml          = "0.31"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 bzip2              = "0.6.1"
 zstd               = "0.13.3"
+hmac               = "0.12.1"
+crossbeam-queue    = "0.3.12"
+ignore             = "0.4.25"
+tauri              = { version = "2", features = [] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = { version = "0.5.4", default-features = false }
