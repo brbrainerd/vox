@@ -1,6 +1,8 @@
 //! Shared library for CLI primitives.
 
+pub mod artifact_policy;
 pub mod benchmark_telemetry;
+pub mod build_service;
 pub mod cli_actions;
 pub mod cli_args;
 pub mod constants;

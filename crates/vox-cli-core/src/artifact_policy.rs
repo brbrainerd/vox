@@ -40,7 +40,7 @@ fn temp_vox_slot(root: &Path) -> PathBuf {
 }
 
 /// Isolated Cargo target dirs for this repo under OS temp (`…/vox-targets/<hash>/…`).
-pub(crate) fn transient_lane_roots(root: &Path) -> [PathBuf; 2] {
+pub fn transient_lane_roots(root: &Path) -> [PathBuf; 2] {
     let base = temp_vox_slot(root);
     [base.join("nested-ci"), base.join("mens-gate-safe")]
 }

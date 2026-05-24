@@ -9,7 +9,7 @@
 pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
 mod build_lock;
-pub mod build_service;
+pub use vox_cli_core::build_service;
 pub mod cli_actions;
 pub mod cli_args;
 mod cli_dispatch;
@@ -17,7 +17,7 @@ mod codex_cmd;
 mod command_contract;
 pub mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
-pub mod artifact_policy;
+pub use vox_cli_core::artifact_policy;
 pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
