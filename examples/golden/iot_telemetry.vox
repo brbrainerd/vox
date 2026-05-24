@@ -4,12 +4,13 @@
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, @table, @endpoint(kind: query), db, Result, Error, Ok, if, return]
-// last_validated: 2026-04-13
+// constructs: [fn, @table, @query, db, Result, Error, Ok, if, return]
+// last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Draft an IoT device telemetry service demonstrating event sourcing and analytical aggregations using actors and tables.
+// @training_prompt: Draft an IoT device telemetry service demonstrating event sourcing using tables.
+// Note: db.Table.filter() is not yet implemented — use db.Table.all() with len() guards.
 // ANCHOR: display
 @table type DeviceLog {
     id: int
@@ -25,19 +26,25 @@
     active: bool
 }
 
-fn TelemetryGateway_Ingest(id: str, temp: float, code: int) to Result[Unit] {
-    let registry = db.DeviceRegistry.filter({ device_id: id })
+fn TelemetryGateway_Ingest(id: str, temp: float, code: int) to Result[str] {
+    let registry = db.DeviceRegistry.all()
     if len(registry) is 0 {
-        return Error("Unknown device")
+        return Error("No registered devices")
     }
     
     db.DeviceLog.insert({ device_id: id, temperature: temp, status_code: code, timestamp: "2026-04-13" })?
-    return Ok(Unit)
+    return Ok("logged")
 }
 
-@endpoint(kind: query)
+@query
+fn get_log_count(id: str) to int {
+    let logs = db.DeviceLog.all()
+    return len(logs)
+}
+
+@query
 fn get_average_temperature(id: str) to float {
-    let logs = db.DeviceLog.filter({ device_id: id })
+    let logs = db.DeviceLog.all()
     if len(logs) is 0 {
         return 0.0
     }

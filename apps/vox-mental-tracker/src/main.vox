@@ -1,4 +1,4 @@
-// vox-mental-tracker — append-only HealthEventLog SSOT, exports (see src/ts/export_contract.ts for row projection), on-device STT via Capacitor.
+// vox-mental-tracker — append-only HealthEventLog SSOT, exports (see src/ts/export_contract.ts for row projection), on-device STT via Tauri 2.
 import std.mobile
 
 /// Structured parser output. Mirrors apps/vox-mental-tracker/src/ts/intent_parser.ts.
@@ -31,14 +31,14 @@ type ParsedVoice {
     confidence: float
 }
 
-@endpoint(kind: query) fn health_event_count() to int {
+@query fn health_event_count() to int {
     match db.HealthEventLog.all() {
         Ok(rows) => len(rows)
         Error(_) => 0
     }
 }
 
-@endpoint(kind: mutation) fn record_health_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+@mutation fn record_health_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     let eid = std.crypto.uuid()
     let rec_ms = std.time.now_ms()
     db.HealthEventLog.insert({
@@ -58,15 +58,15 @@ type ParsedVoice {
     return Ok(eid)
 }
 
-@endpoint(kind: mutation) fn record_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+@mutation fn record_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     return record_health_event(event_kind, payload_json, event_at, source, raw_transcript_id, correction_of, tz_iana, tz_offset_minutes)
 }
 
-@endpoint(kind: mutation) fn record_correction(of_event_id: str, event_kind: str, payload_json: str, event_at: str, source: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+@mutation fn record_correction(of_event_id: str, event_kind: str, payload_json: str, event_at: str, source: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     return record_health_event(event_kind, payload_json, event_at, source, "", of_event_id, tz_iana, tz_offset_minutes)
 }
 
-@endpoint(kind: mutation) fn record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
+@mutation fn record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
     let tid = std.crypto.uuid()
     let ms = std.time.now_ms()
     db.RawTranscript.insert({
@@ -150,7 +150,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Authoritative voice classifier (mirrors src/ts/intent_parser.ts). Returns a
 /// structured ParsedVoice; the UI / save flow pulls each field directly.
-@endpoint(kind: query) fn parse_voice(transcript: str) to ParsedVoice {
+@query fn parse_voice(transcript: str) to ParsedVoice {
     let t = transcript.trim().to_lower()
 
     // Mood: "I feel like a 3" / "mood is 4"
@@ -214,14 +214,14 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Backward-compatible string facade over parse_voice. Kept so older UI /
 /// fixture consumers don't break; new code should call parse_voice directly.
-@endpoint(kind: query) fn preview_voice_parse(transcript: str) to str {
+@query fn preview_voice_parse(transcript: str) to str {
     let p = parse_voice(transcript)
     return "{\"kind\":\"" + p.kind + "\",\"payload\":" + p.payload_json + ",\"confidence\":" + str(p.confidence) + "}"
 }
 
 /// Per-kind weekly rollup over effective (non-superseded) events.
 /// Ported correction-chain collapse from src/ts/materializer.ts (§3.A).
-@endpoint(kind: query) fn weekly_summary_json() to str {
+@query fn weekly_summary_json() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
             let mut total = 0
@@ -250,7 +250,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Effective HealthEventLog rows as JSON — superseded rows excluded, is_backdated included.
 /// Replaces the TS materializer client-side pass (§3.A); payload_json is JSON-escaped.
-@endpoint(kind: query) fn timeline_events_json() to str {
+@query fn timeline_events_json() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
             let mut out = "["
@@ -271,7 +271,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 
 /// Full CSV export — header + one row per effective (non-superseded) event.
 /// Ported from export_contract.ts `buildHealthCsv` (§3.B).
-@endpoint(kind: query) fn export_health_csv() to str {
+@query fn export_health_csv() to str {
     let header = "event_id,event_kind,schema_version,payload_json,event_at,recorded_at,recorded_at_monotonic,tz_iana,tz_offset_minutes,source,raw_transcript_id,correction_of,is_backdated"
     match db.HealthEventLog.all() {
         Ok(rows) => {
@@ -294,7 +294,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 }
 
 /// JSON bundle metadata with content SHA-256 of the full CSV export (§3.B).
-@endpoint(kind: query) fn export_health_json_bundle() to str {
+@query fn export_health_json_bundle() to str {
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
     match db.HealthEventLog.all() {
@@ -304,7 +304,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 }
 
 /// Clinician-shareable HTML report — full CSV + weekly summary (§3.C).
-@endpoint(kind: query) fn export_clinical_html() to str {
+@query fn export_clinical_html() to str {
     let summary = weekly_summary_json()
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
@@ -317,11 +317,11 @@ fn test_csv_quote_inner_quotes() to Unit {
     return body
 }
 
-@endpoint(kind: server) fn health() to Result[str] {
+@server fn health() to Result[str] {
     return Ok("ok")
 }
 
-@endpoint(kind: mutation) fn save_mood(score: int, note: str) to Result[str] {
+@mutation fn save_mood(score: int, note: str) to Result[str] {
     let payload = "{\"mood_score\":" + str(score) + ",\"note\":\"" + note.replace("\"", "'") + "\"}"
     return record_health_event(
         "mood_recorded", payload, str(std.time.now_ms()), "form", "", "", "UTC", 0
@@ -357,7 +357,7 @@ component Home() {
     view: column(raw_class="mh-root") {
         NavBar()
         heading(level=1) { "Mental Health Tracker" }
-        text(raw_class="mh-sub") { "Local-first • append-only log • corrections via record_correction • on-device STT when the Capacitor plugin is registered" }
+        text(raw_class="mh-sub") { "Local-first • append-only log • corrections via record_correction • on-device STT via Tauri 2 plugin" }
         row(raw_class="mh-actions") {
             button(on_click={fn() {
                 let ms = std.time.now_ms()
@@ -532,7 +532,7 @@ component VoicePage() {
     }
 }
 
-@endpoint(kind: mutation) fn record_crash_report(json: str) to int { return 0 }
+@mutation fn record_crash_report(json: str) to int { return 0 }
 
 @table type CrashReport {
     id: int
@@ -542,13 +542,13 @@ component VoicePage() {
     route: str
 }
 
-@endpoint(kind: mutation) fn store_push_token(token: str) to int {
+@mutation fn store_push_token(token: str) to int {
     return record_push_token_internal(token)
 }
 
-@endpoint(kind: mutation) fn handle_push_payload(json: str) to int { return 0 }
+@mutation fn handle_push_payload(json: str) to int { return 0 }
 
-@endpoint(kind: mutation) fn handle_push_tap(json: str) to int { return 0 }
+@mutation fn handle_push_tap(json: str) to int { return 0 }
 
 @push {
     on_register: store_push_token

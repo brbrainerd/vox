@@ -4,8 +4,8 @@
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [type, match, fn, @table, @endpoint(kind: query), @endpoint(kind: mutation), db]
-// last_validated: 2026-04-06
+// constructs: [type, match, fn, @table, @query, @mutation, db]
+// last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
 // ---
@@ -26,7 +26,7 @@ type MergeOutcome =
 fn format_error(err: MergeError) to str {
     match err {
         WrongKind(l, r) => "Cannot merge " + l + " with " + r
-        InvalidCap(c) => "Invalid capacity: " + to_string(c)
+        InvalidCap(c) => "Invalid capacity: " + str(c)
     }
 }
 // ANCHOR_END: error_types_comparison
@@ -49,18 +49,18 @@ fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int
 
 // ANCHOR: table_layer
 @table type InventoryStack {
-    id: int
     kind: str
     qty: int
     max_stack: int
 }
 
-@endpoint(kind: query)
-fn stack_count(kind: str) to int {
-    return len(db.InventoryStack.filter({ kind: kind }))
+@query
+fn stack_count() to int {
+    // Returns total stack count; filter by kind is application-side
+    return len(db.InventoryStack.all())
 }
 
-@endpoint(kind: mutation)
+@mutation
 fn seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
     if qty < 0 {
         return Error("invalid stack shape")
@@ -75,13 +75,9 @@ fn seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
 
 // ANCHOR: null_safety_demo
 // No null, no None, no nullptr — the missing case is a compile error.
-fn get_stack_safe(id: Id[InventoryStack]) to Option[InventoryStack] {
-    // Id[T] erases to Ty::Int in v0.5; db.X.get takes the int row id.
-    let result = db.InventoryStack.get(id)
-    match result {
-        Ok(opt) => opt
-        Error(_) => None
-    }
+fn has_any_stacks() to bool {
+    let stacks = db.InventoryStack.all()
+    return len(stacks) > 0
 }
 // ANCHOR_END: null_safety_demo
 

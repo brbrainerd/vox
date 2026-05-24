@@ -1,28 +1,38 @@
 // ---
-// title: "JSON parse + access (std.json)"
-// description: "Parse a JSON string and walk the resulting opaque Json value with typed accessors (added 2026-05)."
+// title: "JSON parse + access (std.json, strict-Option API)"
+// description: "Parse a JSON string and walk the resulting Json value with the strict-Option API (RFC 2026-05-23)."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [std.json, json, get_str, get_int]
-// last_validated: 2026-05-08
+// constructs: [std.json, json, get, pointer, as_str, as_int, has]
+// last_validated: 2026-05-23
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Use std.json.parse and typed accessors to read fields from a JSON string
-fn read_kind(payload_json: str) to Result[str] {
+// @training_prompt: Use std.json.parse and chainable Option-returning accessors to read fields from a JSON string
+
+// CANONICAL FORM — get + and_then + as_X at the leaf.
+// This is the recommended idiom for shallow access.
+fn read_kind(payload_json: str) to Option[str] {
     return match std.json.parse(payload_json) {
-        Ok(j) => j.get_str("kind")
-        Error(m) => Error("parse failed: " + m)
+        Ok(data) => data.get("kind").and_then(fn(j: Json) to Option[str] { j.as_str() })
+        Error(_) => None
     }
 }
 
-fn read_score(payload_json: str) to Result[int] {
+// CANONICAL FORM (deep paths) — pointer + and_then + as_X.
+// `pointer` collapses N-hop chains to a single RFC 6901 path string.
+fn read_mood_score(payload_json: str) to Option[int] {
     return match std.json.parse(payload_json) {
-        Ok(j) => match j.get_object("payload") {
-            Ok(p) => p.get_int("mood_score")
-            Error(m) => Error(m)
-        }
-        Error(m) => Error("parse: " + m)
+        Ok(data) => data.pointer("/payload/mood_score").and_then(fn(j: Json) to Option[int] { j.as_int() })
+        Error(_) => None
+    }
+}
+
+// CANONICAL FORM (membership check) — has() returns bool, no Option wrap.
+fn has_payload(payload_json: str) to bool {
+    return match std.json.parse(payload_json) {
+        Ok(data) => data.has("payload")
+        Error(_) => false
     }
 }

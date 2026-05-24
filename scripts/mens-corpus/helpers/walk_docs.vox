@@ -1,0 +1,15 @@
+// walk_docs.vox — list `.md` files under a project's `docs/src/` tree.
+// Returns the flat path list; empty when the tree is missing. Real callers
+// pipe this into corpus-harvesting and JSONL writers.
+
+pub fn walk_docs(root: str) to list[str] {
+    let docs_dir = root + "/docs/src"
+    if not fs.exists(docs_dir) {
+        return []
+    }
+    let found = fs.glob(docs_dir + "/**/*.md")
+    if found.is_err() {
+        return []
+    }
+    return found.unwrap()
+}

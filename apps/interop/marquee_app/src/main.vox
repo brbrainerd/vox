@@ -9,14 +9,14 @@
     created_at: str,
 }
 
-@endpoint(kind: query) fn list_items() to list[Item] {
+@query fn list_items() to list[Item] {
     return []
 }
 
 type AddItemError =
     | Message(text: str)
 
-@endpoint(kind: mutation) fn add_item(name: str, value: int) to Result[str, AddItemError] {
+@mutation fn add_item(name: str, value: int) to Result[str, AddItemError] {
     return Ok("Added: {name}")
 }
 

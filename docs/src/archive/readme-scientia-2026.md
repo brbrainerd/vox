@@ -19,7 +19,7 @@ schema_type: "TechArticle"
   <br><br>
 
   <p><strong>A unified language designed for human intent and machine execution—empowering developers and intelligent models to build complex systems and accelerate discovery together.</strong></p>
-  <p><a href="https://voxlang.org"><strong>vox-lang.org</strong></a></p>
+  <p><a href="https://voxlang.org"><strong>voxlang.org</strong></a></p>
 
 </div>
 
@@ -468,7 +468,7 @@ Vox is licensed under **Apache 2.0**. You can use it to build commercial or clos
 Vox Scientia is a publication pipeline for aggregating and surfacing community research — pulling from wherever developers are talking, not constraining where they talk. Roadmap decisions and architectural questions are tracked in GitHub Discussions because that's the format our tooling can index, parse, and feed back into the system. Come wherever you are.
 
 - **[GitHub Discussions](https://github.com/vox-foundation/vox/issues)**: Architecture questions, language design feedback, and roadmap input.
-- **RSS Feed**: [`vox-lang.org/feed.xml`](https://voxlang.org/feed.xml) — changelogs and architectural decision records.
+- **RSS Feed**: [`voxlang.org/feed.xml`](https://voxlang.org/feed.xml) — changelogs and architectural decision records.
 <!-- ANCHOR_END: community_license -->
 
 ---

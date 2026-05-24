@@ -356,39 +356,15 @@ impl<'a> Checker<'a> {
             }
         }
 
-        self.check_reactive_members_second_pass(
-            &c.members,
-            &state_vars,
-            &derived_vars,
-        );
-
-        if let Some(view) = &c.view {
-            let _ = self.check_expr(view, None);
-        }
-
-        self.env.pop_scope();
-    }
-
-    /// Type-check each reactive member in `members` against its pre-declared
-    /// type variable, then check effects, mounts, cleanups, and stmts.
-    ///
-    /// CR-A1: extracted from `check_reactive_component` — the second
-    /// for-loop + 6-arm match + inner State/Derived if-let chains
-    /// contributed ~8 decision points inline.
-    fn check_reactive_members_second_pass(
-        &mut self,
-        members: &[crate::hir::HirReactiveMember],
-        state_vars: &[(String, Ty)],
-        derived_vars: &[(String, Ty)],
-    ) {
         let mut state_idx = 0usize;
         let mut derived_idx = 0usize;
-        for m in members {
+        for m in &c.members {
             match m {
                 crate::hir::HirReactiveMember::State(s) => {
-                    let expected = state_vars.get(state_idx).map(|(_, ty)| ty.clone());
-                    let init_ty = self.check_expr(&s.init, expected.as_ref());
+                    let init_ty = self.check_expr(&s.init, None);
                     if let Some((_, decl_ty)) = state_vars.get(state_idx) {
+                        // `any` is an escape hatch — skip unification and accept
+                        // any initializer value (mirrors TypeScript `any` semantics).
                         let resolved_decl = self.uf.resolve(decl_ty);
                         let is_any = matches!(&resolved_decl, Ty::Named(n) if n == "any");
                         if !is_any {
@@ -411,10 +387,7 @@ impl<'a> Checker<'a> {
                     if let Some((_, decl_ty)) = derived_vars.get(derived_idx) {
                         if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
                             self.diags.push(Diagnostic::error(
-                                format!(
-                                    "Type mismatch in `derived {}` expression: {msg}",
-                                    d.name
-                                ),
+                                format!("Type mismatch in `derived {}` expression: {msg}", d.name),
                                 d.span,
                                 self.source,
                             ));
@@ -436,6 +409,12 @@ impl<'a> Checker<'a> {
                 }
             }
         }
+
+        if let Some(view) = &c.view {
+            let _ = self.check_expr(view, None);
+        }
+
+        self.env.pop_scope();
     }
 
     fn enforce_query_read_only(&mut self, sf: &HirEndpointFn) {
@@ -592,15 +571,9 @@ impl<'a> Checker<'a> {
                 mutable,
                 ..
             } => {
-                // Pass the type annotation as the expected type to
-                // check_expr so context-sensitive inference (e.g.
-                // ObjectLit-as-Map per 2026-05-18 P2.3) can specialize
-                // the value's shape. Without this hint, `let m: Map[...] =
-                // {a: 1, b: 2}` infers the literal as Record and then
-                // fails the post-hoc unify against Map.
-                let ann_ty_opt = type_ann.as_ref().map(|ann| resolve_hir_type(ann, self.env));
-                let val_ty = self.check_expr(value, ann_ty_opt.as_ref());
-                let target_ty = if let Some(ann_ty) = ann_ty_opt {
+                let val_ty = self.check_expr(value, None);
+                let target_ty = if let Some(ann) = type_ann {
+                    let ann_ty = resolve_hir_type(ann, self.env);
                     if let Err(msg) = self.uf.unify(&val_ty, &ann_ty) {
                         self.diags.push(Diagnostic::error(
                             format!("Type mismatch in `let`: {msg}"),
@@ -758,8 +731,18 @@ impl<'a> Checker<'a> {
                                     }
                                     progress = true;
                                 } else {
+                                    // Use the human-readable type renderer
+                                    // instead of the `{other:?}` Debug repr so
+                                    // error messages don't leak internal
+                                    // TypeVar IDs to script authors. See
+                                    // closures-rfc-2026-05-23.md §11 Q4.
+                                    let pretty = pretty_print_unresolved_type(other);
                                     self.diags.push(Diagnostic::error(
-                                        format!("Method '{method}' not found on {other:?}"),
+                                        format!(
+                                            "Method `{method}` not found on {pretty}.\n\
+                                             If `{pretty}` looks unexpected, the receiver may need an \
+                                             explicit type annotation upstream."
+                                        ),
                                         span,
                                         self.source,
                                     ));
@@ -773,16 +756,74 @@ impl<'a> Checker<'a> {
         }
 
         for constraint in queue {
-            let span = match constraint {
-                crate::typeck::unify::PendingConstraint::HasField { span, .. } => span,
-                crate::typeck::unify::PendingConstraint::HasMethod { span, .. } => span,
+            let (span, msg) = match &constraint {
+                crate::typeck::unify::PendingConstraint::HasField { span, target, field, .. } => {
+                    let target_str = pretty_print_unresolved_type(target);
+                    (*span, format!(
+                        "Cannot infer the type of this value to access field `{field}`.\n\
+                         Inferred so far: {target_str}.\n\
+                         Add an explicit type annotation to the variable that produced this value \
+                         (e.g. `let x: <Type> = ...`)."
+                    ))
+                }
+                crate::typeck::unify::PendingConstraint::HasMethod { span, target, method, .. } => {
+                    // Per closures-rfc-2026-05-23.md §11 Q4: when a method call
+                    // can't be resolved because the receiver type is still a
+                    // TypeVar, the diagnostic MUST name the method, show
+                    // what's been inferred about the receiver, and suggest
+                    // an annotation. The prior message dumped the raw
+                    // `{constraint:?}` Debug repr, which was unactionable.
+                    let target_str = pretty_print_unresolved_type(target);
+                    // Heuristic: if this looks like a closure param's type
+                    // (TypeVar with no constraints), tilt the suggestion
+                    // toward the closure-annotation form RFC §4 specifies.
+                    let suggestion = if matches!(target, Ty::TypeVar(_)) {
+                        format!(
+                            "Add an explicit type to the binding that produced this value. \
+                             For closures, that's `fn(x: <Type>) {{ ... }}` per the closures RFC §11."
+                        )
+                    } else {
+                        format!(
+                            "Add an explicit type annotation upstream so the receiver's type can be resolved."
+                        )
+                    };
+                    (*span, format!(
+                        "Cannot infer the type of this value to call `.{method}()`.\n\
+                         Inferred so far: {target_str}.\n\
+                         {suggestion}"
+                    ))
+                }
             };
-            self.diags.push(Diagnostic::error(
-                format!("Type inference requires more type annotations. Unsolved constraint: {constraint:?}"),
-                span,
-                self.source
-            ));
+            self.diags.push(Diagnostic::error(msg, span, self.source));
         }
+    }
+}
+
+/// Render an unresolved typeck type for error messages. Plain `Ty::TypeVar(N)`
+/// shows as `<unknown>` so users don't see the internal-id-of-the-day; named
+/// types pretty-print themselves; everything else falls back to Debug.
+///
+/// Exposed crate-wide so per-construct diagnostics in `checker/expr.rs`
+/// and `checker/expr_field.rs` can use it for consistent formatting.
+pub(crate) fn pretty_print_unresolved_type(ty: &Ty) -> String {
+    match ty {
+        Ty::TypeVar(_) => "<unknown>".to_string(),
+        Ty::Named(n) => n.clone(),
+        Ty::Int => "Int".to_string(),
+        Ty::Float => "Float".to_string(),
+        Ty::Str => "Str".to_string(),
+        Ty::Bool => "Bool".to_string(),
+        Ty::Unit => "Unit".to_string(),
+        Ty::Never => "Never".to_string(),
+        Ty::List(inner) => format!("List[{}]", pretty_print_unresolved_type(inner)),
+        Ty::Option(inner) => format!("Option[{}]", pretty_print_unresolved_type(inner)),
+        Ty::Result(inner, err) => format!(
+            "Result[{}, {}]",
+            pretty_print_unresolved_type(inner),
+            pretty_print_unresolved_type(err)
+        ),
+        Ty::Fn(_, _) => "fn(...)".to_string(),
+        _ => format!("{ty:?}"),
     }
 }
 

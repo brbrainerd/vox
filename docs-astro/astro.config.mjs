@@ -38,6 +38,7 @@ export default defineConfig({
           llmsFullTxt: true,
         }),
       ],
+      lastUpdated: true,
       pagefind: true,
     }),
   ],

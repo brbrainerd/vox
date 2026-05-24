@@ -5,7 +5,7 @@ import { db, fs, compiler } from "vox";
 
 fn main() {
     let repo_root = fs.cwd();
-    println("Indexing symbols in {}...", repo_root);
+    print("Indexing symbols in " + repo_root + "...");
 
     let mut symbol_count = 0;
     
@@ -39,5 +39,5 @@ fn main() {
         }
     }
     
-    println!("Indexed {} symbols into vox-db.", symbol_count);
+    print("Indexed " + symbol_count.to_string() + " symbols into vox-db.");
 }

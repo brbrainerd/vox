@@ -104,6 +104,13 @@ pub enum Token {
     Or,
     #[token("not")]
     Not,
+    /// The bare `!` character. Vox uses phonetic operators (`not`, `and`, `or`,
+    /// `is`, `isnt`), so `!` is NOT a valid negation operator. This token exists
+    /// only so the parser can emit a clear error pointing the user at `not`.
+    /// Prior to this token's existence, `!` was silently dropped by the lexer
+    /// — see docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md §2.
+    #[token("!")]
+    BangInvalid,
     #[token("is")]
     Is,
     #[token("isnt")]
@@ -134,6 +141,24 @@ pub enum Token {
     AtExample,
     #[token("@endpoint")]
     AtEndpoint,
+    /// `@query` — first-class GET-style endpoint, replacing
+    /// `@endpoint(kind: query)`. Lower K-complexity (~65 % per call site)
+    /// and matches the conceptual hierarchy (the verb is the head, not the
+    /// modifier). Added 2026-05-23 per
+    /// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §11.2.
+    /// `@endpoint(kind: query)` remains accepted during the deprecation
+    /// window; corpus migration via `vox fmt` lands in a separate pass.
+    #[token("@query")]
+    AtQuery,
+    /// `@mutation` — first-class POST/PUT/DELETE-style endpoint, replacing
+    /// `@endpoint(kind: mutation)`. See `@query` above.
+    #[token("@mutation")]
+    AtMutation,
+    /// `@server` — first-class server-only endpoint (no client emit),
+    /// replacing `@endpoint(kind: server)`. Same K-complexity argument as
+    /// `@query`/`@mutation`.
+    #[token("@server")]
+    AtServer,
     #[token("@table")]
     AtTable,
     #[token("@index")]
@@ -339,6 +364,27 @@ pub enum Token {
     #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     IntLit(i64),
 
+    // Raw string literal: `r"..."` — no escape processing at all. Closing
+    // delimiter is the first unescaped `"`; backslashes are preserved
+    // verbatim. Use this for regex patterns, Windows paths, and any
+    // string where `\n`/`\t`/`\"` shouldn't get interpreted.
+    //
+    // Priority 6 so `r"text"` is captured here before the `r` is mis-lexed
+    // as an Ident followed by a StringLit. The pattern uses `[^"]*?` (lazy)
+    // so the first `"` after the opening `"` closes the literal. For
+    // strings containing a `"`, use the regular `"..."` form with `\"`.
+    //
+    // Added 2026-05-23 to unblock regex-heavy corpus scripts (Phase L.4
+    // bucket: extract_table_names.vox, migrate-arrows.vox) that were
+    // running their `(...)` capture groups into Vox's `{...}` template
+    // regex friction.
+    #[regex(r#"r"[^"]*""#, priority = 6, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        // Drop leading `r"` and trailing `"`.
+        Some(s[2..s.len()-1].to_string())
+    })]
+    RawStringLit(String),
+
     // Double-quoted string: any run of non-quote / non-backslash bytes, or standard escapes.
     // Backticks (U+0060) are literal — markdown-style `cmd` fragments do not close the string.
     #[regex(r#""([^"\\]|\\.)*""#, allow_greedy = true, callback = |lex| {
@@ -366,6 +412,26 @@ pub enum Token {
         Some(out)
     })]
     StringLit(String),
+
+    // Template string: double-quoted string with {expr} interpolation.
+    // The regex *requires* at least one `{...}` segment, so plain strings without
+    // interpolation are matched by `StringLit` instead. (Earlier attempts let the
+    // regex match any `"..."` and returned `None` for non-templates, but Logos
+    // emits a lexer error on `None` rather than falling through to a lower-priority
+    // pattern — which silently swallowed every plain string literal.)
+    //
+    // The `{...}` segment must START with an identifier character (letter or
+    // underscore, optionally preceded by whitespace) — this excludes JSON
+    // literals like `"{\"key\":1}"` which have `{` followed by `\"` / `"`.
+    // Without this guard, every embedded JSON string was misclassified as a
+    // template, producing "Complex expressions in template strings not yet
+    // supported" parse errors. (RFC json-ergonomics-rfc-2026-05-23 §10
+    // migration impact — discovered while migrating audit-dependency-layers.)
+    #[regex(r#""([^"\\]|\\.)*\{\s*[a-zA-Z_]([^"\\]|\\.)*\}([^"\\]|\\.)*""#, priority = 5, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[1..s.len()-1].to_string())
+    })]
+    TemplateStringLit(String),
 
     #[regex(r#"'([^'\\]|\\.)*'"#, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
@@ -461,6 +527,10 @@ impl std::fmt::Display for Token {
             Token::And => write!(f, "and"),
             Token::Or => write!(f, "or"),
             Token::Not => write!(f, "not"),
+            Token::BangInvalid => write!(f, "!"),
+            Token::AtQuery => write!(f, "@query"),
+            Token::AtMutation => write!(f, "@mutation"),
+            Token::AtServer => write!(f, "@server"),
             Token::Is => write!(f, "is"),
             Token::Isnt => write!(f, "isnt"),
             Token::True => write!(f, "true"),
@@ -552,7 +622,9 @@ impl std::fmt::Display for Token {
             Token::IntLit(v) => write!(f, "{v}"),
             Token::FloatLit(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),
+            Token::TemplateStringLit(s) => write!(f, "\"{s}\""),
             Token::SingleStringLit(s) => write!(f, "'{s}'"),
+            Token::RawStringLit(s) => write!(f, "r\"{s}\""),
             Token::DecLit(s) => write!(f, "{s}dec"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),

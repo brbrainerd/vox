@@ -43,14 +43,14 @@ fn main() {
     }
 
     match proc {
-        Some(res) -> {
+        Some(res) => {
             if res.code == 0 {
                 print("✓ Gate complete.")
             } else {
                 print("✗ Gate failed with code: " + str(res.code))
             }
         }
-        None -> {
+        None => {
             print("✗ Failed to execute process.")
         }
     }

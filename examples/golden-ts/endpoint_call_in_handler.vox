@@ -1,4 +1,4 @@
-@endpoint(kind: query) fn get_count() to int { return 42 }
+@query fn get_count() to int { return 42 }
 
 component Counter() {
     state count: int = 0

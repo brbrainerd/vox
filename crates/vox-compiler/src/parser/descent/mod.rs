@@ -229,6 +229,9 @@ impl Parser {
                     | Token::AtExample
                     | Token::AtV0
                     | Token::AtEndpoint
+                    | Token::AtQuery
+                    | Token::AtMutation
+                    | Token::AtServer
                     | Token::AtForall
                     | Token::AtScheduled
                     | Token::AtTool
@@ -396,6 +399,9 @@ impl Parser {
                 | Token::AtTest
                 | Token::AtExample
                 | Token::AtEndpoint
+                | Token::AtQuery
+                | Token::AtMutation
+                | Token::AtServer
                 | Token::AtTable
                 | Token::TypeKw
                 | Token::Agent
@@ -467,6 +473,9 @@ impl Parser {
             Token::AtTest => self.parse_test(),
             Token::AtExample => self.parse_example(),
             Token::AtEndpoint => self.parse_endpoint(),
+            Token::AtQuery => self.parse_query(),
+            Token::AtMutation => self.parse_mutation(),
+            Token::AtServer => self.parse_server_endpoint(),
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),
             Token::AtTool | Token::AtMcpTool => self.parse_mcp_tool(),

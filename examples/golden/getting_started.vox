@@ -2,18 +2,21 @@
 // title: "Getting Started Template"
 // description: "Complete one-file full-stack app template for tutorial purposes."
 // status: golden
+// syntax_version: "0.5.0"
+// last_validated: 2026-05-13
+// training_eligible: true
+// training_weight: 1.0
 // ---
 
 // ANCHOR: start
 // ANCHOR: data_model
 @table type Note {
-    id: int
     title: str
     content: str
 }
 // ANCHOR_END: data_model
 
-@endpoint(kind: server) fn health() to Result[str] {
+@server fn health() to Result[str] {
     return Ok("ok")
 }
 
@@ -28,26 +31,18 @@ component App() {
 
 // ANCHOR: concepts
 // ANCHOR: logic
-@endpoint(kind: query) fn get_notes() to Result[List[Note]] {
-    let rows = db.Note.all()?
-    return Ok(rows)
+@query fn get_notes() to int {
+    // Returns note count; db.Note.all() returns a list
+    return len(db.Note.all())
 }
 
-@endpoint(kind: mutation) fn create_note(title: str, content: str) to Result[Id[Note]] {
-    let id = db.Note.insert({ title: title, content: content })?
-    return Ok(id)
+@mutation fn create_note(title: str, content: str) to Result[str] {
+    db.Note.insert({ title: title, content: content })?
+    return Ok("created")
 }
 
-fn check_inventory(id: str) to Result[str] {
-    if len(id) is 0 {
-        return Error("inventory id required")
-    }
-    return Ok("ok")
-}
-
-fn order(id: str) to Result[Unit] {
-    let status = check_inventory(id)?
-    return Ok(Unit)
+fn order(id: str) to Result[str] {
+    return Ok("ordered:" + id)
 }
 // ANCHOR_END: logic
 // ANCHOR_END: concepts

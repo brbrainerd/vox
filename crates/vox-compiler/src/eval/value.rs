@@ -33,6 +33,22 @@ pub enum VoxValue {
     _Return(Box<VoxValue>),
     _Break,
     _Continue,
+    /// Builtin-method panic sentinel — produced by `unwrap()` on `None` /
+    /// `Err`, `expect(msg)` on `None` / `Err`, `unwrap_err()` on `Ok`, and
+    /// the rare other "this is a programmer error, halt loudly" cases.
+    /// Caught by the method-call handler in
+    /// [`crate::eval::expr`] and converted to
+    /// [`crate::eval::EvalError::AssertionFailed`].
+    ///
+    /// This sentinel exists because `call_builtin_method` returns
+    /// `Option<VoxValue>`, where `None` means "method not found". To
+    /// signal "method ran but the program should halt", we need an
+    /// in-band marker. Without it, `unwrap` on `None` would either
+    /// silently return `Null` (the prior behavior — a footgun) or
+    /// surface as the misleading "Method unwrap not found" diagnostic.
+    /// See `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10.4
+    /// for the design discussion.
+    _Panic(String),
 }
 
 impl PartialEq for VoxValue {

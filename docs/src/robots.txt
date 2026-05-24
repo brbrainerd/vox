@@ -20,5 +20,5 @@ Disallow: /architecture/research-ts-hallucination-
 # Archived crate docs — prevent duplicate authority dilution
 Disallow: /api/*-ARCHIVED.html
 
-Sitemap: https://vox-lang.org/sitemap.xml
+Sitemap: https://voxlang.org/sitemap.xml
 Sitemap: https://vox.foundation/.well-known/llms.txt

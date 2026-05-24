@@ -43,6 +43,15 @@ pub enum ImportPathKind {
     },
     /// Rust crate import (`import rust:serde_json`).
     RustCrate(RustCrateImport),
+    /// Intra-project Vox file import (`import "./helpers/walk_docs.vox"`).
+    /// Path is resolved relative to the importing file's directory. Only `pub`
+    /// declarations from the target file are made available; bare names merge
+    /// into the importing file's scope (with an optional `as alias` namespace).
+    /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
+    LocalFile {
+        /// Source path string exactly as written (e.g. `./helpers/walk_docs.vox`).
+        path: String,
+    },
 }
 
 /// Rust crate import metadata.

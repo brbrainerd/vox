@@ -207,6 +207,7 @@ pub async fn interpret_workflow_durable(
     journal.push(versioned_event(json!({
         "event": "WorkflowCompleted",
         "workflow": workflow_name,
+        "return_value": null,
     })));
     Ok(journal)
 }

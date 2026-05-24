@@ -4,16 +4,17 @@ import process;
 fn main() {
     print("Running Nightly Model Discovery...");
     
-    let res = process.run("vox", ["model", "discover"]);
-    if res is not null {
+    let res_opt = process.run("vox", ["model", "discover"]);
+    if res_opt isnt null {
+        let res = res_opt.unwrap();
         if res.code == 0 {
-            print("✅ Model discovery completed successfully.");
+            print("Model discovery completed successfully.");
         } else {
-            print("❌ Model discovery failed with code: " + res.code);
+            print("Model discovery failed with code: " + str(res.code));
             process.exit(1);
         }
     } else {
-        print("❌ Failed to spawn vox process.");
+        print("Failed to spawn vox process.");
         process.exit(1);
     }
 }

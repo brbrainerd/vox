@@ -2,14 +2,19 @@
 title: "ADR-028: Remove Stub Durability/Scheduling Grammar from Public API"
 description: "Proposes removing @scheduled, @durable, workflow, and activity from the public Vox grammar, retaining actor with documented limitations, following the 2026-05-01 durability runtime audit."
 category: "Architecture Decisions (ADRs)"
-status: "experimental"
-last_updated: "2026-05-01"
+status: "deprecated"
+last_updated: "2026-05-23"
 training_eligible: true
 ---
 # ADR 028: Remove Stub Durability/Scheduling Grammar from Public API
 
 ## Status
-Proposed (2026-05-01)
+
+**Superseded by [ADR-041](041-durable-functions-completion-2026.md) (2026-05-23).**
+
+The 2026-05-01 audit found `@durable`/`workflow`/`activity` were parse-only stubs. Subsequent implementation work (Phases 1–6 of `docs/superpowers/plans/2026-05-23-durable-functions-completion.md`, completed 2026-05-23) closed the gap: codegen emits runtime calls; the runtime executes them with journal-backed replay; @scheduled has a persistent scheduler loop; actors auto-wire via main_boot. The grammar features are retained as public API. The original "Proposed" recommendation to remove them from the grammar is withdrawn.
+
+The audit findings below remain historically accurate as of 2026-05-01 and are preserved for the record.
 
 ## Relationship to AGENTS.md (non-normative clarity)
 

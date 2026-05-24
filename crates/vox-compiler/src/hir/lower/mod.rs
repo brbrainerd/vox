@@ -103,7 +103,69 @@ impl LowerCtx {
         for decl in &module.declarations {
             match decl {
                 Decl::Import(imp) => {
-                    lower_import_paths(imp, &mut hir);
+                    for path in &imp.paths {
+                        match &path.kind {
+                            ImportPathKind::SymbolPath { segments } => {
+                                let (mod_path, item) = if segments.len() > 1 {
+                                    let item = segments.last().expect("segments non-empty").clone();
+                                    let mod_path = segments[..segments.len() - 1].to_vec();
+                                    (mod_path, item)
+                                } else {
+                                    (vec![], segments[0].clone())
+                                };
+                                hir.imports.push(HirImport {
+                                    module_path: mod_path,
+                                    item: path.alias.clone().unwrap_or(item),
+                                    es_module_specifier: None,
+                                    local_file_path: None,
+                                    local_file_alias: None,
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::RustCrate(spec) => {
+                                let alias = path
+                                    .alias
+                                    .clone()
+                                    .unwrap_or_else(|| spec.crate_name.clone());
+                                hir.rust_imports.push(HirRustImport {
+                                    crate_name: spec.crate_name.clone(),
+                                    alias,
+                                    version: spec.version.clone(),
+                                    path: spec.path.clone(),
+                                    git: spec.git.clone(),
+                                    rev: spec.rev.clone(),
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::ReactComponent {
+                                local_name,
+                                module_specifier,
+                            } => {
+                                hir.imports.push(HirImport {
+                                    module_path: Vec::new(),
+                                    item: local_name.clone(),
+                                    es_module_specifier: Some(module_specifier.clone()),
+                                    local_file_path: None,
+                                    local_file_alias: None,
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::LocalFile { path: file_path } => {
+                                // Intra-project Vox file import (RFC 2026-05-23).
+                                // Resolution + cycle detection happens at
+                                // `Interpreter::run_module` time via
+                                // `local_file_path`.
+                                hir.imports.push(HirImport {
+                                    module_path: Vec::new(),
+                                    item: String::new(),
+                                    es_module_specifier: None,
+                                    local_file_path: Some(file_path.clone()),
+                                    local_file_alias: path.alias.clone(),
+                                    span: path.span,
+                                });
+                            }
+                        }
+                    }
                 }
                 Decl::Function(f) => {
                     hir.functions.push(self.lower_fn(f));
@@ -522,59 +584,6 @@ impl LowerCtx {
     }
 }
 
-/// Lower all import paths from one `ImportDecl` into the HIR module's
-/// import/rust-import lists.
-///
-/// CR-A1: the for-loop + match-on-3-arms + SymbolPath if-else contributed
-/// ~5 decision points inline in `LowerCtx::lower`; moving them here drops
-/// `lower` to ~7 CC.
-fn lower_import_paths(imp: &ImportDecl, hir: &mut HirModule) {
-    for path in &imp.paths {
-        match &path.kind {
-            ImportPathKind::SymbolPath { segments } => {
-                let (mod_path, item) = if segments.len() > 1 {
-                    let item = segments.last().expect("segments non-empty").clone();
-                    let mod_path = segments[..segments.len() - 1].to_vec();
-                    (mod_path, item)
-                } else {
-                    (vec![], segments[0].clone())
-                };
-                hir.imports.push(HirImport {
-                    module_path: mod_path,
-                    item: path.alias.clone().unwrap_or(item),
-                    es_module_specifier: None,
-                    span: path.span,
-                });
-            }
-            ImportPathKind::RustCrate(spec) => {
-                let alias = path
-                    .alias
-                    .clone()
-                    .unwrap_or_else(|| spec.crate_name.clone());
-                hir.rust_imports.push(HirRustImport {
-                    crate_name: spec.crate_name.clone(),
-                    alias,
-                    version: spec.version.clone(),
-                    path: spec.path.clone(),
-                    git: spec.git.clone(),
-                    rev: spec.rev.clone(),
-                    span: path.span,
-                });
-            }
-            ImportPathKind::ReactComponent {
-                local_name,
-                module_specifier,
-            } => {
-                hir.imports.push(HirImport {
-                    module_path: Vec::new(),
-                    item: local_name.clone(),
-                    es_module_specifier: Some(module_specifier.clone()),
-                    span: path.span,
-                });
-            }
-        }
-    }
-}
 
 /// GA-09a: Derive a typed `HirRouteId` from a single `RouteEntry`.
 ///

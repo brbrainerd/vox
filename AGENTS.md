@@ -161,18 +161,20 @@ Decorators compose with bare-keyword blocks:
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (2026-05-19, ADR-028 revision).** `actor`, `workflow`,
-and `activity` are all fully supported bare keywords. `actor` lowers to runtime
-mailbox dispatch (`vox-actor-runtime`); `workflow` and `activity` lower to
-journal-backed durable execution (`vox-workflow-runtime`) with replay-on-restart
-semantics via `interpret_workflow_durable`. The codegen lives in
-`crates/vox-codegen/src/codegen_rust/emit/durability_lower.rs`.
-`@durable` and `@scheduled` remain **reserved per ADR-028** and **rejected at
-parse time** with error code `E028` — see
-[`crates/vox-compiler/src/pipeline.rs`](crates/vox-compiler/src/pipeline.rs)
-function `check_adr028_reserved_keywords`. They target a "decorator-on-plain-fn"
-surface the runtime doesn't yet provide; use a `workflow` declaration until
-they land.
+**Implementation status (2026-05-23, ADR-041 supersedes ADR-028).** `actor`,
+`workflow`, `activity`, `@durable`, and `@scheduled` are **stable public-grammar
+features** backed by a real durable runtime for the supported subset (see
+[ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
+[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), and
+[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md)). The earlier
+`check_adr028_reserved_keywords` source-text gate in `crates/vox-compiler/src/pipeline.rs`
+that emitted error code `E028` has been **removed**; E028 is retired.
+Out-of-subset behavior (arbitrary `match` replay, unbounded loops, non-deterministic
+ops in workflow bodies) is still policed — but by the determinism lint pass, not
+the old reservation gate. The 2026-05-01 stub-only state described in
+[`durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md)
+was closed by Phases 1–6 of
+[`docs/superpowers/plans/2026-05-23-durable-functions-completion.md`](docs/superpowers/plans/2026-05-23-durable-functions-completion.md).
 
 The `vox ci retirement-audit` gate (planned per
 [CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3)

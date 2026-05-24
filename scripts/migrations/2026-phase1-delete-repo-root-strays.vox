@@ -4,20 +4,20 @@ fn main() {
         "test_lexer.rs",
         "error.vox",
         "prototype_vox_tokenizer.json",
-    ];
+    ]
     for stray in strays {
-        if fs::is_file(stray) {
-            fs::remove_file(stray);
-            print("Removed stray file: " + stray);
+        if fs.is_file(stray) {
+            let _ = fs.remove(stray)
+            print("Removed stray file: " + stray)
         }
     }
-    
-    // Check for codex-cutover-*.sidecar.json
-    // Using basic directory iteration since we don't have full glob yet
-    for entry in fs::read_dir(".") {
-        if entry.name().starts_with("codex-cutover-") && entry.name().ends_with(".sidecar.json") {
-            fs::remove_file(entry.name());
-            print("Removed stray sidecar: " + entry.name());
+
+    // Check for codex-cutover-*.sidecar.json at repo root.
+    let glob_res = fs.glob("./codex-cutover-*.sidecar.json")
+    if glob_res.is_ok() {
+        for path in glob_res.unwrap() {
+            let _ = fs.remove(path)
+            print("Removed stray sidecar: " + path)
         }
     }
 }

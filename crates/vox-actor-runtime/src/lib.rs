@@ -63,7 +63,7 @@ pub use llm_result::{LlmError, LlmResult, StdLlmResult};
 pub use mailbox::{Envelope, Message, MessagePayload, Request};
 pub use pid::Pid;
 pub use process::{CallError, ProcessContext, ProcessHandle, spawn_process};
-pub use registry::{ProcessRegistry, RegistryError};
+pub use registry::{ActorHandler, ActorRegistry, ProcessRegistry, RegistryError};
 pub use resilient_http::RetryPolicy;
 pub use retrieval::{ContextBudget, ProvenanceRecord, RetrievedChunk, apply_context_budget};
 pub use subscription::SubscriptionManager;

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vox-lang.org/schemas/ir/vox-ir.schema.json",
+  "$id": "https://voxlang.org/schemas/ir/vox-ir.schema.json",
   "title": "Vox Intermediate Representation (VoxIrModule)",
   "description": "Structural contract for JSON emitted by `vox check <file>.vox --emit-ir` (full VoxIrModule). HIR element shapes are intentionally loose; this schema enforces top-level and module field presence for CI/tooling.",
   "type": "object",

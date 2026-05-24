@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/dashboard/dashboard_layout.v1.schema.json",
+  "title": "dashboard_layout.v1",
+  "description": "Persisted composable-card dashboard layout for the HTTP gateway /dashboard/grid UI and /api/v2/dashboard/layout.",
+  "type": "object",
+  "required": ["version", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "workspace_id": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "x", "y", "w", "h"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "type": {
+            "type": "string",
+            "description": "Card kind: speak, mesh, forge, code, models, runs, settings, routing, …"
+          },
+          "x": { "type": "integer", "minimum": 0 },
+          "y": { "type": "integer", "minimum": 0 },
+          "w": { "type": "integer", "minimum": 1, "maximum": 12 },
+          "h": { "type": "integer", "minimum": 1, "maximum": 24 },
+          "props": { "type": "object" }
+        }
+      }
+    }
+  }
+}

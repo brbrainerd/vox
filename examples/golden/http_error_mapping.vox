@@ -10,7 +10,7 @@
 // training_weight: 1.0
 // ---
 // ANCHOR: http_result_region
-@endpoint(kind: query) fn handler() to Result[str] {
+@query fn handler() to Result[str] {
     let mode = "ok"
     if mode is "err" {
         return Error("mapped_failure")

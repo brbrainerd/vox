@@ -238,6 +238,22 @@ subcommands:
     cost_metered: false
 
 # ----------------------------------------------------------------------------
+# Tooling gates (non-CR-L) — share the canonical report shape and CLI surface,
+# but do not block GA. Added 2026-05-23 (per
+# `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10).
+# ----------------------------------------------------------------------------
+  - name: "vox audit stdlib-coverage"
+    gate: Tooling                         # not a CR-L; ToolingStdlibCoverage variant
+    corpus: "scripts/"                    # default corpus root (override with --corpus)
+    block_ga: false                       # tooling gate; blocks PRs introducing drift only
+    cost_metered: false                   # static analysis; no LLM calls
+    inputs:
+      - "crates/vox-compiler/src/eval/builtins.rs"   # binary side (syn parse)
+      - "docs/src/reference/ref-builtins-stdlib.md"  # docs side (markdown tables)
+      - "scripts/**/*.vox"                            # corpus side (regex over call sites)
+    detector: "vox_code_audit::stdlib_parity::check_parity_at_paths"
+
+# ----------------------------------------------------------------------------
 # Umbrella subcommand
 # ----------------------------------------------------------------------------
 umbrella:

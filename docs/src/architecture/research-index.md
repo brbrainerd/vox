@@ -46,6 +46,7 @@ This file tracks the single source of truth for Vox architecture, research findi
 - [ADR 036 — WebIR vs HIR unification (compare-both)](../adr/036-webir-hir-unification-compare-both.md) — Scored decision: **HIR semantic core + WebIR projection**; platform capability projection wiring.
 - [Tauri audit (2026-05-11)](tauri-audit-2026.md) — Codebase-wide reality check of Tauri usage vs SSOT claims: current desktop/mobile compile paths, capability projection wiring, build/CI cost implications, and a strategy-independent retire list for dead/misleading seams.
 - [Tauri convergence migration plan (2026-Q2)](tauri-convergence-migration-plan-2026.md) — Executable ADR-037 follow-through plan for moving generated desktop/mobile apps to Tauri 2, porting Sherpa, retiring Capacitor, and enforcing Axum-as-app guardrails.
+- [Mobile E2E Testing Strategy Plan (2026-Q2)](mobile-e2e-testing-strategy-2026.md) — Implementation plan outlining the transition to Tauri 2 mobile E2E testing, build pipelines, deployment automation, and mobile-specific features.
 - [Vox Speech Surface Inventory 2026](vox-speech-surface-inventory-2026.md) — Repository-audited map of speech capture and speech-to-code surfaces: editor mic/file commands, Vox app Web Speech and mobile plugins, dashboard Loquela gap, CLI/MCP/streaming paths, and missing HTTP ingress.
 - [Vox Speech Audit Findings 2026](vox-speech-audit-findings-2026.md) — ASR-primary speech-to-code audit findings, KPI scorecard model, runtime matrix status, and verified gap list.
 - [Vox Speech Improvement Backlog 2026](vox-speech-improvement-backlog-2026.md) — Prioritized backlog for closing speech accuracy, surface parity, capture-format, mobile parity, and CI coverage gaps.
@@ -196,7 +197,7 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md) — Concrete `vox ci data-storage-guard` subcommand, clippy denies, `deny.toml` bans, grep rules, Cursor rule, and CI wiring that enforce the SSOT.
 - [RCICD coverage and cost matrix (2026)](../ci/rcicd-coverage-cost-matrix-2026.md) — Workflow-to-risk mapping, shift-left vs CI boundaries, golden strict-parse alignment, and applied cost optimizations (`guards-fast` dedupe, WebIR single lane, mobile path filters).
 - [Coolify Deployment Contract](../ci/deploy-contract.md) — Automated CI/CD pipeline definition for the Hetzner VPS including LLM auto-healing loops.
-- [Eval sandbox deployment (Coolify)](eval-sandbox-deployment.md) — `eval.vox-lang.org` MCP HTTP gateway: GHCR image, compose SSOT, DNS, **`vox ci coolify-eval`**, Gate 3 alignment.
+- [Eval sandbox deployment (Coolify)](eval-sandbox-deployment.md) — `eval.voxlang.org` MCP HTTP gateway: GHCR image, compose SSOT, DNS, **`vox ci coolify-eval`**, Gate 3 alignment.
 
 ## Documentation Platform
 

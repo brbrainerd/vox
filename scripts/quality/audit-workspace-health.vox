@@ -1,139 +1,185 @@
 // vox:caps fs process env
+// audit-workspace-health.vox — workspace-wide dependency-sprawl + telemetry
+// audit. Migrated to the strict-Option Json API
+// (json-ergonomics-rfc-2026-05-23): every JSON traversal is `.get(...)
+// .and_then(... .as_X())` with explicit defaults at the leaves.
 import fs;
 import process;
 import json;
 
-fn main() {
-    print("Vox Dynamic Workspace Health Audit (2026-04-21)");
-    
-    // 0. Load Policy
-    let policy_path = "docs/ci/workspace-health-policy.json";
-    if not fs.exists(policy_path) {
-        print("❌ Policy file not found: " + policy_path);
-        process.exit(1);
-    }
-    
-    let policy_content = fs.read(policy_path).unwrap();
-    let policy = json.parse(policy_content);
-    let reg_threshold = policy.regressions.threshold_ratio;
-    
-    let vox_bin = "target\\debug\\vox.exe";
-    
-    // 1. Build Regression Audit
-    print("Checking build regressions via VoxDB...");
-    let mut violations = 0;
-    let reg_res = process.run("cmd", ["/c", vox_bin + " db build-regressions --threshold " + str(reg_threshold) + " --json"]);
+// ── helpers ─────────────────────────────────────────────────────────────
 
-    if reg_res is not null {
-        if reg_res.code == 0 {
-            let regressions = json.parse(reg_res.stdout);
-            if len(regressions) > 0 {
-                print("❌ REGRESSIONS DETECTED (Threshold: " + str(reg_threshold) + "x):");
-                for r in regressions {
-                    print("  - " + r.name + ": " + str(r.elapsed_ms) + "ms (ratio: " + str(r.ratio) + "x)");
-                    violations = violations + 1;
-                }
-            } else {
-                print("  ✅ No build regressions detected.");
-            }
+fn pointer_str(j: Json, path: str, default: str) to str {
+    return j.pointer(path).and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or(default)
+}
+
+fn pointer_int(j: Json, path: str, default: int) to int {
+    return j.pointer(path).and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(default)
+}
+
+fn pointer_float(j: Json, path: str, default: float) to float {
+    return j.pointer(path).and_then(fn(x: Json) to Option[float] { x.as_float() }).unwrap_or(default)
+}
+
+fn pointer_bool(j: Json, path: str, default: bool) to bool {
+    return j.pointer(path).and_then(fn(x: Json) to Option[bool] { x.as_bool() }).unwrap_or(default)
+}
+
+fn pointer_array(j: Json, path: str) to list[Json] {
+    return j.pointer(path).and_then(fn(x: Json) to Option[list[Json]] { x.as_array() }).unwrap_or([])
+}
+
+fn name_matches_any(name: str, patterns: list[Json]) to bool {
+    for p in patterns {
+        let pat = p.as_str().unwrap_or("")
+        if pat != "" {
+            if name.contains(pat) { return true }
         }
     }
+    return false
+}
 
-    // 2. Dependency Sprawl Audit (using cargo metadata)
-    print("\nAuditing dependency sprawl via cargo metadata...");
-    let meta_res = process.run("cargo", ["metadata", "--format-version", "1", "--no-deps"]);
-    if meta_res is null or meta_res.code != 0 {
-        print("❌ Failed to run cargo metadata.");
-        process.exit(1);
+// ── main ────────────────────────────────────────────────────────────────
+
+fn main() {
+    print("Vox Dynamic Workspace Health Audit (2026-05-23, JSON-RFC API)")
+
+    // 0. Load policy
+    let policy_path = "docs/ci/workspace-health-policy.json"
+    if not fs.exists(policy_path) {
+        print("❌ Policy file not found: " + policy_path)
+        process.exit(1)
     }
-    
-    let metadata = json.parse(meta_res.stdout);
-    let packages = metadata.packages;
-    
-    for pkg in packages {
-        let name = pkg.name;
-        if pkg.manifest_path.contains("crates") {
-            let direct_deps = pkg.dependencies;
-            let dcount = len(direct_deps);
-            
-            let mut has_ml = false;
-            for dep in direct_deps {
-                let dname = dep.name;
-                if dname.contains("burn") or dname.contains("candle") or dname.contains("vox-mens") {
-                    has_ml = true;
-                }
-            }
-            
-            // Determine tier
-            let mut tier_name = "unknown";
-            
-            for p in policy.tiers.foundational.patterns {
-                if name.contains(p) { tier_name = "foundational"; }
-            }
-            
-            if tier_name == "unknown" {
-                for p in policy.tiers.runtime.patterns {
-                    if name.contains(p) { tier_name = "runtime"; }
-                }
-            }
-            
-            if tier_name == "unknown" {
-                for p in policy.tiers.leaf.patterns {
-                    if name.contains(p) { tier_name = "leaf"; }
-                }
-            }
-            
-            // Apply rules based on tier
-            if tier_name == "foundational" {
-                let limit = policy.tiers.foundational.limit_direct_deps;
-                if dcount > limit {
-                    print("⚠️  BLOAT: Foundational crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(limit) + ").");
-                    violations = violations + 1;
-                }
-                if has_ml {
-                    if not policy.tiers.foundational.allow_ml {
-                        print("❌ LEAK: Foundational crate '" + name + "' pulls in ML dependencies.");
-                        violations = violations + 1;
-                    }
-                }
-            } else {
-                if tier_name == "runtime" {
-                    let limit = policy.tiers.runtime.limit_direct_deps;
-                    if dcount > limit {
-                        print("⚠️  BLOAT: Runtime crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(limit) + ").");
-                        violations = violations + 1;
+    let policy_content = fs.read(policy_path).unwrap()
+    let policy_res = json.parse(policy_content)
+    if policy_res.is_err() {
+        print("❌ Bad JSON in policy: " + policy_res.unwrap_err())
+        process.exit(1)
+    }
+    let policy = policy_res.unwrap()
+    let reg_threshold = pointer_float(policy, "/regressions/threshold_ratio", 2.0)
+
+    let vox_bin = "target\\debug\\vox.exe"
+    let mut violations = 0
+
+    // 1. Build-regression audit
+    print("Checking build regressions via VoxDB...")
+    let reg_opt = process.run("cmd", ["/c", vox_bin + " db build-regressions --threshold " + str(reg_threshold) + " --json"])
+    if reg_opt isnt null {
+        let reg_res = reg_opt.unwrap()
+        if reg_res.code == 0 {
+            let regressions_res = json.parse(reg_res.stdout)
+            if regressions_res.is_ok() {
+                let regressions = regressions_res.unwrap().as_array().unwrap_or([])
+                if regressions.len() > 0 {
+                    print("REGRESSIONS DETECTED (Threshold: " + str(reg_threshold) + "x):")
+                    for r in regressions {
+                        let rname = r.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+                        let elapsed = r.get("elapsed_ms").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(0)
+                        let ratio = r.get("ratio").and_then(fn(j: Json) to Option[float] { j.as_float() }).unwrap_or(0.0)
+                        print("  - " + rname + ": " + str(elapsed) + "ms (ratio: " + str(ratio) + "x)")
+                        violations = violations + 1
                     }
                 } else {
-                    if tier_name == "leaf" {
-                        let limit = policy.tiers.leaf.limit_direct_deps;
-                        if dcount > limit {
-                            print("⚠️  SPRAWL: Leaf crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(limit) + ").");
-                            violations = violations + 1;
-                        }
-                    }
+                    print("  No build regressions detected.")
                 }
             }
         }
     }
-    
-    // 3. Telemetry Freshness Audit
-    print("\nAuditing telemetry scoreboard freshness...");
-    let scoreboard_res = process.run("cmd", ["/c", vox_bin + " model scoreboard --format json"]);
-    if scoreboard_res is not null {
+
+    // 2. Dependency-sprawl audit
+    print("\nAuditing dependency sprawl via cargo metadata...")
+    let meta_opt = process.run("cargo", ["metadata", "--format-version", "1", "--no-deps"])
+    if meta_opt is null {
+        print("Failed to spawn cargo metadata.")
+        process.exit(1)
+    }
+    let meta_res = meta_opt.unwrap()
+    if meta_res.code != 0 {
+        print("Failed to run cargo metadata.")
+        process.exit(1)
+    }
+    let metadata_res = json.parse(meta_res.stdout)
+    if metadata_res.is_err() {
+        print("Bad JSON from cargo metadata.")
+        process.exit(1)
+    }
+    let metadata = metadata_res.unwrap()
+    let packages = metadata.get("packages").and_then(fn(j: Json) to Option[list[Json]] { j.as_array() }).unwrap_or([])
+
+    let foundational_patterns = pointer_array(policy, "/tiers/foundational/patterns")
+    let runtime_patterns = pointer_array(policy, "/tiers/runtime/patterns")
+    let leaf_patterns = pointer_array(policy, "/tiers/leaf/patterns")
+    let foundational_limit = pointer_int(policy, "/tiers/foundational/limit_direct_deps", 5)
+    let runtime_limit = pointer_int(policy, "/tiers/runtime/limit_direct_deps", 15)
+    let leaf_limit = pointer_int(policy, "/tiers/leaf/limit_direct_deps", 30)
+    let foundational_allow_ml = pointer_bool(policy, "/tiers/foundational/allow_ml", false)
+
+    for pkg in packages {
+        let name = pkg.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
+        let manifest_path = pkg.get("manifest_path").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
+        if not manifest_path.contains("crates") { continue }
+
+        let direct_deps = pkg.get("dependencies").and_then(fn(j: Json) to Option[list[Json]] { j.as_array() }).unwrap_or([])
+        let dcount = direct_deps.len()
+
+        let mut has_ml = false
+        for dep in direct_deps {
+            let dname = dep.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
+            if dname.contains("burn") or dname.contains("candle") or dname.contains("vox-mens") {
+                has_ml = true
+            }
+        }
+
+        let mut tier_name = "unknown"
+        if name_matches_any(name, foundational_patterns) { tier_name = "foundational" }
+        if tier_name == "unknown" and name_matches_any(name, runtime_patterns) { tier_name = "runtime" }
+        if tier_name == "unknown" and name_matches_any(name, leaf_patterns) { tier_name = "leaf" }
+
+        if tier_name == "foundational" {
+            if dcount > foundational_limit {
+                print("⚠️  BLOAT: Foundational crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(foundational_limit) + ").")
+                violations = violations + 1
+            }
+            if has_ml and not foundational_allow_ml {
+                print("❌ LEAK: Foundational crate '" + name + "' pulls in ML dependencies.")
+                violations = violations + 1
+            }
+        } else if tier_name == "runtime" {
+            if dcount > runtime_limit {
+                print("⚠️  BLOAT: Runtime crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(runtime_limit) + ").")
+                violations = violations + 1
+            }
+        } else if tier_name == "leaf" {
+            if dcount > leaf_limit {
+                print("⚠️  SPRAWL: Leaf crate '" + name + "' has " + str(dcount) + " direct dependencies (limit: " + str(leaf_limit) + ").")
+                violations = violations + 1
+            }
+        }
+    }
+
+    // 3. Telemetry freshness
+    print("\nAuditing telemetry scoreboard freshness...")
+    let scoreboard_opt = process.run("cmd", ["/c", vox_bin + " model scoreboard --format json"])
+    if scoreboard_opt isnt null {
+        let scoreboard_res = scoreboard_opt.unwrap()
         if scoreboard_res.code == 0 {
-            let rows = json.parse(scoreboard_res.stdout);
-            if len(rows) > 0 {
-                print("  ✅ Scoreboard has " + str(len(rows)) + " active model profiles.");
-            } else {
-                print("  ⚠️ Scoreboard is empty. Model routing will fall back to static defaults.");
+            let rows_res = json.parse(scoreboard_res.stdout)
+            if rows_res.is_ok() {
+                let rows = rows_res.unwrap().as_array().unwrap_or([])
+                if rows.len() > 0 {
+                    print("  ✅ Scoreboard has " + str(rows.len()) + " active model profiles.")
+                } else {
+                    print("  ⚠️ Scoreboard is empty. Model routing will fall back to static defaults.")
+                }
             }
         }
     }
 
     if violations > 0 {
-        print("\n❌ Workspace Health Audit failed with " + str(violations) + " issues.");
-        process.exit(1);
+        print("\n❌ Workspace Health Audit failed with " + str(violations) + " issues.")
+        process.exit(1)
     } else {
-        print("\n✅ Workspace health check passed.");
+        print("\n✅ Workspace health check passed.")
     }
 }

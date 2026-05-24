@@ -29,9 +29,18 @@ pub enum EvalError {
 
 pub struct Interpreter {
     pub scope: Scope,
+    pub module_scope: Scope,
     pub step_limit: usize,
     pub steps: usize,
     pub caps: Option<std::collections::HashSet<String>>,
+    /// Absolute path of the file currently being run, used as the resolution
+    /// base for intra-project `import "./helpers/foo.vox"` directives.
+    /// When `None`, local-file imports are reported as an error.
+    pub source_path: Option<std::path::PathBuf>,
+    /// Set of canonicalized paths already loaded — guards against import
+    /// cycles. A re-entrant resolve sees the path here and aborts with
+    /// `EvalError::AssertionFailed` naming the cycle.
+    pub loaded_imports: std::collections::HashSet<std::path::PathBuf>,
 }
 
 impl Interpreter {
@@ -79,6 +88,34 @@ impl Interpreter {
             VoxValue::Object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("json".to_string()),
+            )]),
+        );
+        scope.set(
+            "regex".to_string(),
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("regex".to_string()),
+            )]),
+        );
+        scope.set(
+            "log".to_string(),
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("log".to_string()),
+            )]),
+        );
+        scope.set(
+            "time".to_string(),
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("time".to_string()),
+            )]),
+        );
+        scope.set(
+            "io".to_string(),
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("io".to_string()),
             )]),
         );
 
@@ -154,35 +191,86 @@ impl Interpreter {
                     VoxValue::Str("io".to_string()),
                 )]),
             ),
+            (
+                "log".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("log".to_string()),
+                )]),
+            ),
+            (
+                "time".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("time".to_string()),
+                )]),
+            ),
+            (
+                "http".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("http".to_string()),
+                )]),
+            ),
+            (
+                "regex".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("regex".to_string()),
+                )]),
+            ),
         ]);
         scope.set("std".to_string(), std_ns);
 
         Self {
-            scope,
+            scope: scope.clone(),
+            module_scope: scope,
             step_limit,
             steps: 0,
             caps: None,
+            source_path: None,
+            loaded_imports: std::collections::HashSet::new(),
         }
     }
 
     pub fn run_module(&mut self, module: &HirModule) -> Result<(), EvalError> {
-        // Register ADT variant constructors so `Applied(x, y)` etc. work in tests.
-        for ty in &module.types {
-            for variant in &ty.variants {
-                self.scope.set(
-                    variant.name.clone(),
-                    VoxValue::Constructor(variant.name.clone()),
-                );
+        // Seed built-in Option/Result constructors so scripts can write
+        // `return Ok("...")` / `Err(msg)` / `Some(v)` / `None` directly.
+        // Per closures-and-stdlib alignment 2026-05-23 (corpus run-mode parity).
+        for ctor in ["Ok", "Err", "Error", "Some", "None"] {
+            let val = VoxValue::Constructor(ctor.to_string());
+            self.scope.set(ctor.to_string(), val.clone());
+            self.module_scope.set(ctor.to_string(), val);
+        }
+
+        // Resolve intra-project Vox-file imports before binding this module's
+        // own decls, so a `pub fn` in the importer can shadow an imported one
+        // (defining the function in your own file wins).
+        // RFC: docs/src/architecture/intra-project-imports-rfc-2026-05-23.md.
+        for imp in &module.imports {
+            if let Some(rel_path) = imp.local_file_path.as_ref() {
+                self.resolve_local_file_import(rel_path, imp.local_file_alias.as_deref())?;
             }
         }
 
+        // Register ADT variant constructors
+        for t in &module.types {
+            for variant in &t.variants {
+                let val = VoxValue::Constructor(variant.name.clone());
+                self.scope.set(variant.name.clone(), val.clone());
+                self.module_scope.set(variant.name.clone(), val);
+            }
+        }
+
+        // Register all functions in both scopes
         for f in &module.functions {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
                 env: self.scope.clone(),
             };
-            self.scope.set(f.name.clone(), val);
+            self.scope.set(f.name.clone(), val.clone());
+            self.module_scope.set(f.name.clone(), val);
         }
 
         for f in &module.tests {
@@ -191,10 +279,145 @@ impl Interpreter {
                 body: f.body.clone(),
                 env: self.scope.clone(),
             };
-            self.scope.set(f.name.clone(), val);
+            self.scope.set(f.name.clone(), val.clone());
+            self.module_scope.set(f.name.clone(), val);
         }
 
         Ok(())
+    }
+
+    /// Resolve one intra-project `import "./helpers/foo.vox" [as alias]`.
+    /// Reads the file relative to `self.source_path`, parses and lowers it,
+    /// then merges its `pub fn`s into the current interpreter's scope (or
+    /// namespaces them under `alias` when provided). Cycle-safe via
+    /// `self.loaded_imports`.
+    fn resolve_local_file_import(
+        &mut self,
+        rel_path: &str,
+        alias: Option<&str>,
+    ) -> Result<(), EvalError> {
+        let base = self.source_path.clone().ok_or_else(|| {
+            EvalError::AssertionFailed(format!(
+                "Intra-project import `{rel_path}` requires a known source-file location \
+                 (interpreter was constructed without a source_path; supply it via \
+                 `Interpreter::set_source_path` before calling run_module). \
+                 See RFC §4."
+            ))
+        })?;
+        let base_dir = base.parent().unwrap_or(std::path::Path::new("."));
+        let joined = base_dir.join(rel_path);
+        let canonical = std::fs::canonicalize(&joined).map_err(|e| {
+            EvalError::AssertionFailed(format!(
+                "Intra-project import `{rel_path}` could not be resolved relative to `{}`: {e}",
+                base.display()
+            ))
+        })?;
+
+        if !self.loaded_imports.insert(canonical.clone()) {
+            // Already loaded — idempotent re-import is OK (diamond pattern).
+            // Cycle detection is handled by the recursive descent: if we are
+            // *currently* in the middle of loading this file, the per-call
+            // visited set below catches it before this insertion.
+            return Ok(());
+        }
+
+        let source = std::fs::read_to_string(&canonical).map_err(|e| {
+            EvalError::AssertionFailed(format!(
+                "Intra-project import `{rel_path}` (resolved to `{}`): read failed: {e}",
+                canonical.display()
+            ))
+        })?;
+
+        let tokens = crate::lexer::lex(&source);
+        let module = crate::parser::parse_script(tokens).map_err(|errs| {
+            EvalError::AssertionFailed(format!(
+                "Intra-project import `{rel_path}`: parse failed with {} error(s)",
+                errs.len()
+            ))
+        })?;
+        let lowered = crate::hir::lower::lower_module(&module);
+
+        // Recurse into the imported file's own imports first, so deeply-nested
+        // dependencies are loaded before we register the top-level pubs.
+        let saved_source = self.source_path.replace(canonical.clone());
+        for imp in &lowered.imports {
+            if let Some(nested) = imp.local_file_path.as_ref() {
+                // Re-entrancy on the same path here means a real cycle:
+                // we are currently mid-resolving `canonical`, and one of its
+                // transitive imports points back at it.
+                let nested_joined = canonical
+                    .parent()
+                    .unwrap_or(std::path::Path::new("."))
+                    .join(nested);
+                if let Ok(nested_canon) = std::fs::canonicalize(&nested_joined) {
+                    if nested_canon == canonical {
+                        return Err(EvalError::AssertionFailed(format!(
+                            "Intra-project import cycle: `{}` imports itself (via `{}`)",
+                            canonical.display(),
+                            nested
+                        )));
+                    }
+                }
+                self.resolve_local_file_import(nested, imp.local_file_alias.as_deref())?;
+            }
+        }
+        self.source_path = saved_source;
+
+        // Register only `pub fn`s from the imported file.
+        let mut alias_bindings: Vec<(String, VoxValue)> = Vec::new();
+        for f in &lowered.functions {
+            if !f.is_pub {
+                continue;
+            }
+            let val = VoxValue::Fn {
+                params: f.params.iter().map(|p| p.name.clone()).collect(),
+                body: f.body.clone(),
+                env: self.scope.clone(),
+            };
+            match alias {
+                None => {
+                    self.scope.set(f.name.clone(), val.clone());
+                    self.module_scope.set(f.name.clone(), val);
+                }
+                Some(_) => {
+                    alias_bindings.push((f.name.clone(), val));
+                }
+            }
+        }
+        // Also bring in any `pub` ADT variant constructors so the importing
+        // file can construct values of types defined in the imported module.
+        for t in &lowered.types {
+            if !t.is_pub {
+                continue;
+            }
+            for variant in &t.variants {
+                let val = VoxValue::Constructor(variant.name.clone());
+                match alias {
+                    None => {
+                        self.scope.set(variant.name.clone(), val.clone());
+                        self.module_scope.set(variant.name.clone(), val);
+                    }
+                    Some(_) => {
+                        alias_bindings.push((variant.name.clone(), val));
+                    }
+                }
+            }
+        }
+
+        if let Some(name) = alias {
+            // Build a namespace object exposing `alias.fn_name` access.
+            let ns = VoxValue::Object(alias_bindings.into_iter().collect());
+            self.scope.set(name.to_string(), ns.clone());
+            self.module_scope.set(name.to_string(), ns);
+        }
+
+        Ok(())
+    }
+
+    /// Set the on-disk path of the file being interpreted; required for
+    /// intra-project imports (`import "./relative/path.vox"`).
+    pub fn set_source_path(&mut self, path: impl Into<std::path::PathBuf>) {
+        self.source_path = Some(path.into());
     }
 
     pub fn call(&mut self, name: &str, args: Vec<VoxValue>) -> Result<VoxValue, EvalError> {

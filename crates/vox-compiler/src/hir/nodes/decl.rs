@@ -229,6 +229,18 @@ pub struct HirImport {
     /// When `Some`, emit `import <item> from "<spec>"` for external React components (Phase 5).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub es_module_specifier: Option<String>,
+    /// When `Some(path)`, this is an intra-project Vox-file import
+    /// (`import "./helpers/foo.vox"`). The path is resolved relative to the
+    /// importing file at run-module time; `pub fn`s from the target are
+    /// merged into the importer's scope (with optional `as alias` namespace).
+    /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_file_path: Option<String>,
+    /// When `Some(name)`, exported pubs from a local-file import are namespaced
+    /// under this name (e.g. `import "./util.vox" as u` → `u.fn_name(...)`).
+    /// When `None`, exported pubs merge directly into the importer's scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_file_alias: Option<String>,
     /// Span in source.
     pub span: Span,
 }

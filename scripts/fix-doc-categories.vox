@@ -118,23 +118,23 @@ fn classify_path(rel: str) to str {
 // returns [-1, -1].
 // ---------------------------------------------------------------------------
 fn find_frontmatter_range(lines: list[str]) to list[int] {
-    let n = len(lines);
+    let n = lines.len()
     if n < 2 {
-        return [-1, -1];
+        return [-1, -1]
     }
-    let first = lines[0].trim();
+    let first = lines.get(0).unwrap_or("").trim()
     if first != "---" {
-        return [-1, -1];
+        return [-1, -1]
     }
-    let mut i = 1;
+    let mut i = 1
     while i < n {
-        let t = lines[i].trim();
+        let t = lines.get(i).unwrap_or("").trim()
         if t == "---" {
-            return [0, i];
+            return [0, i]
         }
-        i = i + 1;
+        i = i + 1
     }
-    return [-1, -1];
+    return [-1, -1]
 }
 
 // ---------------------------------------------------------------------------
@@ -142,46 +142,46 @@ fn find_frontmatter_range(lines: list[str]) to list[int] {
 // Returns the new content, or "" if no `category:` line was found.
 // ---------------------------------------------------------------------------
 fn replace_category_line(content: str, new_category: str) to str {
-    let lines = content.split("\n");
-    let range = find_frontmatter_range(lines);
-    let fm_start = range[0];
-    let fm_end = range[1];
+    let lines = content.split("\n")
+    let range = find_frontmatter_range(lines)
+    let fm_start = range.get(0).unwrap_or(-1)
+    let fm_end = range.get(1).unwrap_or(-1)
     if fm_start < 0 {
-        return "";
+        return ""
     }
 
-    let mut found_idx = -1;
-    let mut i = fm_start + 1;
+    let mut found_idx = -1
+    let mut i = fm_start + 1
     while i < fm_end {
-        let trimmed = lines[i].trim();
+        let trimmed = lines.get(i).unwrap_or("").trim()
         if trimmed.starts_with("category:") {
-            found_idx = i;
-            i = fm_end;
+            found_idx = i
+            i = fm_end
         } else {
-            i = i + 1;
+            i = i + 1
         }
     }
 
     if found_idx < 0 {
-        return "";
+        return ""
     }
 
-    let new_line = "category: \"" + new_category + "\"";
-    let n = len(lines);
-    let mut out = "";
-    let mut k = 0;
+    let new_line = "category: \"" + new_category + "\""
+    let n = lines.len()
+    let mut out = ""
+    let mut k = 0
     while k < n {
         if k == found_idx {
-            out = out + new_line;
+            out = out + new_line
         } else {
-            out = out + lines[k];
+            out = out + lines.get(k).unwrap_or("")
         }
         if k < n - 1 {
-            out = out + "\n";
+            out = out + "\n"
         }
-        k = k + 1;
+        k = k + 1
     }
-    return out;
+    return out
 }
 
 // ---------------------------------------------------------------------------
@@ -189,43 +189,39 @@ fn replace_category_line(content: str, new_category: str) to str {
 // stripped), or "" if the frontmatter has no `category:` line.
 // ---------------------------------------------------------------------------
 fn current_category_value(content: str) to str {
-    let lines = content.split("\n");
-    let range = find_frontmatter_range(lines);
-    let fm_start = range[0];
-    let fm_end = range[1];
+    let lines = content.split("\n")
+    let range = find_frontmatter_range(lines)
+    let fm_start = range.get(0).unwrap_or(-1)
+    let fm_end = range.get(1).unwrap_or(-1)
     if fm_start < 0 {
-        return "";
+        return ""
     }
-    let mut i = fm_start + 1;
+    let mut i = fm_start + 1
     while i < fm_end {
-        let trimmed = lines[i].trim();
+        let trimmed = lines.get(i).unwrap_or("").trim()
         if trimmed.starts_with("category:") {
-            // Strip the "category:" key by splitting on it (no slice() builtin).
-            let parts = trimmed.split("category:");
-            if len(parts) < 2 {
-                return "";
+            let parts = trimmed.split("category:")
+            if parts.len() < 2 {
+                return ""
             }
-            // Rejoin in case "category:" appears in the value (unlikely).
-            let mut after = parts[1];
-            let mut k = 2;
-            while k < len(parts) {
-                after = after + "category:" + parts[k];
-                k = k + 1;
+            let mut after = parts.get(1).unwrap_or("")
+            let mut k = 2
+            while k < parts.len() {
+                after = after + "category:" + parts.get(k).unwrap_or("")
+                k = k + 1
             }
-            let val = after.trim();
-            // Strip wrapping double quotes by splitting on `"`.
+            let val = after.trim()
             if val.starts_with("\"") and val.ends_with("\"") {
-                let qparts = val.split("\"");
-                if len(qparts) >= 3 {
-                    // qparts[0] = "", qparts[1] = inner, qparts[2..] = trailing
-                    return qparts[1];
+                let qparts = val.split("\"")
+                if qparts.len() >= 3 {
+                    return qparts.get(1).unwrap_or("")
                 }
             }
-            return val;
+            return val
         }
-        i = i + 1;
+        i = i + 1
     }
-    return "";
+    return ""
 }
 
 // ---------------------------------------------------------------------------
@@ -267,13 +263,13 @@ fn main() {
         print("Error: fs.glob failed for docs/src/**/*.md");
         return;
     }
-    let all_files = glob_res.unwrap();
-    let n_files = len(all_files);
+    let all_files = glob_res.unwrap()
+    let n_files = all_files.len()
 
-    let mut idx = 0;
+    let mut idx = 0
     while idx < n_files {
-        let f = all_files[idx];
-        idx = idx + 1;
+        let f = all_files.get(idx).unwrap_or("")
+        idx = idx + 1
 
         let rel = rel_under_docs_src(f);
         let tag = classify_path(rel);

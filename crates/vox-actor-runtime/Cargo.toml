@@ -43,6 +43,7 @@ tracing-subscriber = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 regex = { workspace = true }
 bytes = { workspace = true }
+anyhow = { workspace = true }
 
 [lints]
 workspace = true
