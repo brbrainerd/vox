@@ -13038,6 +13038,17 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tracing",
+ "vox-container-types",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-container-types"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "thiserror 1.0.69",
  "workspace-hack",
 ]
 
@@ -13134,7 +13145,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tracing",
- "vox-container",
+ "vox-container-types",
  "workspace-hack",
 ]
 
@@ -14540,7 +14551,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-tauri-sherpa"
+name = "vox-tauri-stt"
 version = "0.5.0"
 dependencies = [
  "serde",
