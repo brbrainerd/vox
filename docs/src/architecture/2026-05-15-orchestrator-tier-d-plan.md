@@ -130,21 +130,21 @@ Not all of these need to co-move — some can be extracted as `vox-orchestrator-
 | `vox-orchestrator-core` | ~35,000 | suggest `max_loc = 40_000` |
 | `vox-orchestrator` | ~32,000 | suggest `max_loc = 35_000` (down from 70K) |
 
-The split roughly halves both crates and leaves `vox-orchestrator` holding: `orch_daemon/`, `dei_shim/`, `a2a/`, `runtime.rs`, `preregistration/`, `session/`, `hopper/`, `routing/`, `legacy/`, and the integration glue.
+The split roughly halves both crates and leaves `vox-orchestrator` holding: `orch_daemon/`, `a2a/`, `runtime.rs`, `preregistration/`, `session/`, `hopper/`, `routing/`, `legacy/`, and the integration glue. (Note: `dei_shim/` was removed by A-12 on 2026-05-24 — see §4.)
 
 ---
 
-## 4. Interim option: `dei_shim/` extraction
+## 4. Interim option: `dei_shim/` extraction — **COMPLETE (A-12, 2026-05-24)**
 
-If C5 is too large to scope right now, `dei_shim/` (5,005 LoC) is a viable intermediate:
+> **Outcome:** This interim shipped as audit task A-12 on 2026-05-24, before Rule 13 fired. `dei_shim/` was extracted to a new `vox-dei-shim` crate (L3, 5,016 LoC). `vox-orchestrator` went from 65,560 → 60,681 LoC (13.3% headroom vs 7%). Consumers (`vox-cli`, `vox-orchestrator-mcp`) updated to import from `vox_dei_shim::` directly. See [`crate-audit-and-plan-2026.md`](./crate-audit-and-plan-2026.md) §7 session 9 for details.
+
+Historical justification (kept for context):
 
 - It is the research pipeline shim (`vox dei`, MENS pipeline dispatch, `pipeline.rs` at 930 LoC).
-- Its main consumer is `orch_daemon/dei_dispatch.rs` (323 LoC).
-- Probable dep set: `vox-orchestrator` types, `vox-db`, `vox-ml-cli`, `vox-compiler`.
-- If it can accept `Orchestrator` via a thin trait (5–10 methods: task_submit, attention_report, etc.), it becomes extractable without moving the struct.
-- Estimated gain: −5K LoC from `vox-orchestrator`, buying ~3 more months of headroom at the observed growth rate.
-
-**Recommended:** do `dei_shim/` extraction **only if** Rule 13 fires before C5 is staffed, as a holding action.
+- Its main consumer is `orch_daemon/dei_dispatch.rs` (323 LoC) — *actual* external consumers turned out to be only `vox-cli`, `vox-orchestrator-mcp`, and tests; no orchestrator code outside `dei_shim/` called into it.
+- Dep set turned out to be: `vox-orchestrator` (for `models`/`mode`/`config`/`types` re-exports), `vox-orchestrator-types`, `vox-actor-runtime`, `vox-secrets`, `vox-db`, `vox-research-events`, `vox-search`.
+- Extraction did **not** require a thin trait facade — the wedge-crate pattern (`vox-dei-shim → vox-orchestrator`) worked because nothing inside `vox-orchestrator` calls back into the shim.
+- Actual gain: −4,879 LoC from `vox-orchestrator`. Extended C5 runway from 7% to 13.3% headroom.
 
 ---
 
