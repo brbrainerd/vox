@@ -1,3 +1,12 @@
+---
+title: "vox deploy CLI reference"
+description: "Ship a Vox app via container, compose, kubernetes, bare-metal, fly, or coolify targets configured in Vox.toml."
+category: "Language Reference"
+status: "current"
+last_updated: "2026-05-24"
+schema_type: "TechArticle"
+---
+
 # `vox deploy` — ship a Vox app to a runtime
 
 `vox deploy` reads the `[deploy]` section of your project's `Vox.toml`, builds
@@ -69,7 +78,7 @@ runtime = "auto"                    # "auto" | "docker" | "podman"
 ```
 
 **Dry-run output:**
-```
+```text
 Deploying environment `production` via container target
   [dry-run] would build OCI image: my-app:production
   [dry-run] would push: ghcr.io/your-org/my-app:production
