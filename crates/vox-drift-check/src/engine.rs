@@ -1,6 +1,8 @@
 use crate::cache::FeatureCache;
 use crate::extractor::LanguageExtractor;
-use crate::extractors::{rust::RustExtractor, typescript::TypeScriptExtractor, vox::VoxExtractor};
+#[cfg(feature = "drift-typescript")]
+use crate::extractors::typescript::TypeScriptExtractor;
+use crate::extractors::{rust::RustExtractor, vox::VoxExtractor};
 use crate::features::ExtractedFeatures;
 use anyhow::Result;
 use rayon::prelude::*;
@@ -34,6 +36,7 @@ impl DriftEngine {
                 let lang = detect_language(p);
                 let extractor: &dyn LanguageExtractor = match lang {
                     Language::Rust => &RustExtractor,
+                    #[cfg(feature = "drift-typescript")]
                     Language::TypeScript => &TypeScriptExtractor,
                     Language::Vox => &VoxExtractor,
                     _ => return None,
