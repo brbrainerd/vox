@@ -6600,12 +6600,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lz4_flex"
-version = "0.11.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "373f5eceeeab7925e0c1098212f2fbc4d416adec9d35051a6ab251e824c1854a"
-
-[[package]]
 name = "lzma-rs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11047,7 +11041,6 @@ dependencies = [
  "levenshtein_automata",
  "log",
  "lru 0.12.5",
- "lz4_flex",
  "measure_time",
  "memmap2",
  "num_cpus",
@@ -13074,7 +13067,6 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "glob",
- "governor",
  "hex",
  "hyper-util",
  "insta",
@@ -13284,6 +13276,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "sha3",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
@@ -13392,10 +13385,8 @@ dependencies = [
  "blake3",
  "chrono",
  "data-encoding",
- "futures-util",
  "keyring",
  "regex",
- "reqwest 0.12.28",
  "serde",
  "serde_json",
  "sha3",
@@ -13404,18 +13395,28 @@ dependencies = [
  "tokio",
  "tracing",
  "turso",
- "urlencoding",
  "uuid",
  "vox-codegen",
  "vox-compiler",
  "vox-config",
+ "vox-db-types",
  "vox-mesh-types",
  "vox-orchestrator-types",
  "vox-plugin-types",
  "vox-repository",
  "vox-secrets",
  "vox-telemetry",
+ "vox-test-harness",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-db-types"
+version = "0.5.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -13615,7 +13616,6 @@ dependencies = [
 name = "vox-gui"
 version = "0.5.0"
 dependencies = [
- "anyhow",
  "rmp-serde",
  "serde",
  "serde_bytes",
@@ -13626,17 +13626,13 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "toml 0.8.23",
- "turso",
  "vox-build-meta",
  "vox-cli",
  "vox-cli-core",
- "vox-db",
  "vox-foundation",
- "vox-gamify",
  "vox-orchestrator",
  "vox-package-types",
  "vox-repository",
- "vox-search",
 ]
 
 [[package]]
@@ -13788,7 +13784,6 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "vox-compiler",
  "vox-mesh-types",
 ]
 
@@ -13947,7 +13942,6 @@ dependencies = [
  "getrandom 0.2.17",
  "glob",
  "globset",
- "governor",
  "hex",
  "hmac",
  "ignore",
@@ -14238,20 +14232,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-plugin-grammar-export"
-version = "0.1.0"
-dependencies = [
- "abi_stable",
- "anyhow",
- "serde",
- "serde_json",
- "tracing",
- "vox-grammar-export",
- "vox-plugin-api",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-plugin-host"
 version = "0.5.0"
 dependencies = [
@@ -14300,7 +14280,6 @@ dependencies = [
  "tracing",
  "vox-compiler",
  "vox-db",
- "vox-distributed-training",
  "vox-eval",
  "vox-hf-layout",
  "vox-plugin-api",
@@ -14473,14 +14452,6 @@ dependencies = [
  "wasmtime",
  "wasmtime-wasi",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-plugin-script-execution"
-version = "0.1.0"
-dependencies = [
- "abi_stable",
- "vox-plugin-api",
 ]
 
 [[package]]
@@ -14722,6 +14693,7 @@ dependencies = [
  "uuid",
  "vox-crypto",
  "vox-db",
+ "vox-db-types",
  "vox-research-events",
  "vox-search",
 ]
@@ -14869,7 +14841,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "vox-actor-runtime",
- "vox-compiler",
  "workspace-hack",
 ]
 

@@ -40,9 +40,14 @@
 //!      last tagged release (`v{version}` from `CHANGELOG.md`). Only fires for
 //!      crates >2000 LoC to avoid noise. Catches regrowth at PR time rather
 //!      than at the hard ceiling.
+//!  14. **No-cdylib-as-normal-dep** (error by default) — a workspace crate
+//!      must not take a non-optional, non-dev compile-time dependency on a
+//!      workspace crate whose output is a `cdylib`. Plugin cdylibs are loaded
+//!      dynamically at runtime via `vox-plugin-host`; linking them statically
+//!      breaks the plugin boundary and bloats the binary.
 //!
 //! Layer ordering is the only rule that fails the build by default; the other
-//! twelve other rules are warn-only unless promoted via `[guards]` in `layers.toml`.
+//! thirteen rules are warn-only unless promoted via `[guards]` in `layers.toml`.
 //!
 //! Modes:
 //!   default        — strict layer-ordering; warn-only on the other eight
@@ -122,6 +127,10 @@ struct CrateEntry {
     /// Opt out of Rule 8 staleness check for intentionally stable crates.
     #[serde(default)]
     staleness_exempt: bool,
+    /// Opt out of Rule 4 orphan check — for libraries consumed by generated
+    /// code or Tauri app scaffolding that has no in-tree Rust dep edge.
+    #[serde(default)]
+    orphan_exempt: bool,
 }
 
 fn default_kind() -> String {
@@ -174,6 +183,9 @@ struct GuardsConfig {
     /// Rule 13: LoC delta regression check.
     #[serde(default)]
     loc_delta: Option<String>,
+    /// Rule 14: cdylib-as-normal-dep guard (default: error).
+    #[serde(default)]
+    cdylib_dep: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -219,6 +231,8 @@ struct Report {
     wtl_parity_warns: Vec<String>,
     /// Rule 13: (crate, current_loc, baseline_loc, pct_growth).
     loc_delta_warns: Vec<(String, usize, usize, f64)>,
+    /// Rule 14: (consumer, cdylib_dep) pairs where a normal dep links a cdylib.
+    cdylib_dep_warns: Vec<(String, String)>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -233,6 +247,7 @@ struct Report {
     strict_forbidden_pattern: bool,
     strict_wtl_parity: bool,
     strict_loc_delta: bool,
+    strict_cdylib_dep: bool,
 }
 
 impl Report {
@@ -250,6 +265,7 @@ impl Report {
             || (self.strict_forbidden_pattern && !self.forbidden_pattern_hits.is_empty())
             || (self.strict_wtl_parity && !self.wtl_parity_warns.is_empty())
             || (self.strict_loc_delta && !self.loc_delta_warns.is_empty())
+            || (self.strict_cdylib_dep && !self.cdylib_dep_warns.is_empty())
     }
 
     fn print_summary(&self) {
@@ -454,6 +470,17 @@ impl Report {
             }
             eprintln!("  → Large deltas indicate scope creep. Consider extracting a sub-crate.");
         }
+        if !self.cdylib_dep_warns.is_empty() {
+            any = true;
+            let label = if self.strict_cdylib_dep { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] cdylib linked as normal compile-time dep ({}) — use vox-plugin-host instead:",
+                self.cdylib_dep_warns.len()
+            );
+            for (consumer, plugin) in &self.cdylib_dep_warns {
+                eprintln!("  {consumer} → {plugin}  (cdylib must be loaded dynamically, not linked)");
+            }
+        }
         if !any {
             println!(
                 "vox-arch-check {}: clean ✓",
@@ -639,6 +666,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         strict_forbidden_pattern: parse_strictness(layers.guards.forbidden_pattern.as_ref(), false),
         strict_wtl_parity: parse_strictness(layers.guards.wtl_parity.as_ref(), false),
         strict_loc_delta: parse_strictness(layers.guards.loc_delta.as_ref(), false),
+        strict_cdylib_dep: parse_strictness(layers.guards.cdylib_dep.as_ref(), true),
         ..Report::default()
     };
 
@@ -726,7 +754,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
 
     // ── Rule 4: Orphan detector ──
     for (name, entry) in &layers.crates {
-        if entry.kind != "library" {
+        if entry.kind != "library" || entry.orphan_exempt {
             continue;
         }
         let count = dependent_count.get(name).copied().unwrap_or(0);
@@ -942,6 +970,40 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             }
         }
         report.loc_delta_warns.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+    }
+
+    // ── Rule 14: No cdylib-as-normal-dep ──
+    // Plugin cdylibs are loaded dynamically at runtime via vox-plugin-host.
+    // Linking them statically as a normal compile-time dep breaks the plugin
+    // boundary. Only non-optional, non-dev deps are checked.
+    {
+        let cdylib_pkg_names: HashSet<&str> = metadata_full
+            .workspace_packages()
+            .iter()
+            .filter(|p| p.targets.iter().any(|t| t.kind.iter().any(|k| k == "cdylib")))
+            .map(|p| p.name.as_str())
+            .collect();
+
+        if !cdylib_pkg_names.is_empty() {
+            for pkg in metadata_full.workspace_packages() {
+                if pkg.targets.iter().any(|t| t.kind.iter().any(|k| k == "cdylib")) {
+                    continue; // cdylib can depend on another cdylib (rare but not our concern here)
+                }
+                for dep in &pkg.dependencies {
+                    if dep.kind != cargo_metadata::DependencyKind::Normal || dep.optional {
+                        continue;
+                    }
+                    if cdylib_pkg_names.contains(dep.name.as_str()) {
+                        report.cdylib_dep_warns.push((
+                            pkg.name.clone(),
+                            dep.name.clone(),
+                        ));
+                    }
+                }
+            }
+            report.cdylib_dep_warns.sort();
+            report.cdylib_dep_warns.dedup();
+        }
     }
 
     Ok(report)

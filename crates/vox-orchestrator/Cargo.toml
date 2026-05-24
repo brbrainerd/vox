@@ -1,6 +1,6 @@
 [package]
 name = "vox-orchestrator"
-description = "Slim coordinator for the multi-agent file-affinity router; queue/lock/oplog live in vox-orchestrator-queue, MCP tools in vox-orchestrator-mcp."
+description = "Multi-agent file-affinity task router. Queue/lock/oplog in vox-orchestrator-queue; MCP protocol tools in vox-orchestrator-mcp."
 version.workspace = true
 edition.workspace = true
 
@@ -76,7 +76,6 @@ async-trait = { workspace = true }
 anyhow.workspace = true
 serde_yaml.workspace = true
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
-governor = { workspace = true }
 regex = { workspace = true }
 vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
@@ -104,7 +103,6 @@ glob.workspace = true
 ignore = "0.4.25"
 rand_distr = { workspace = true }
 async-stream.workspace = true
-tempfile.workspace = true
 
 # Daemon binary moved to crates/vox-orchestrator-d/ in 2026-05-08 reorg Phase 4.
 

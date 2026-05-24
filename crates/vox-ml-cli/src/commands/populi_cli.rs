@@ -1565,7 +1565,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
 
                         #[cfg(feature = "extras-ludus")]
                         {
-                            vox_cli_core::ludus_shim::record_cli_event_fire_and_forget(
+                            vox_cli_core::gamify_shim::record_cli_event_fire_and_forget(
                                 "mens_flywheel_triggered",
                                 true,
                                 Some("mens-corpus"),

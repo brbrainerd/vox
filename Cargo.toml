@@ -99,6 +99,8 @@ vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
+vox-distributed-training  = { path = "crates/vox-distributed-training" }
+vox-inference             = { path = "crates/vox-inference" }
 
 vox-mesh               = { path = "crates/vox-mesh" }
 
@@ -238,7 +240,7 @@ governor           = "0.10"
 strum              = { version = "0.26", features = ["derive"] }
 serial_test        = "3"
 wiremock           = "0.6"
-tantivy            = "0.22"
+tantivy            = { version = "0.22", default-features = false }
 scraper            = "0.20"
 html2text          = "0.12"
 # Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).

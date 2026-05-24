@@ -71,7 +71,7 @@ fn emit_generated_extra_deps(module: &HirModule) -> String {
 
 pub use client::{emit_api_client, emit_mcp_server};
 pub use http::emit_main;
-pub use main_boot::emit_main_boot;
+pub use main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, emit_main_boot};
 pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
     emit_index_ddl, emit_table_ddl, emit_table_struct, validate_db_projection_suffixes_unique,

@@ -60,13 +60,6 @@ exposes-tools = ["vox_populi_join", "vox_populi_dispatch"]
 default-source = "github:vox-foundation/vox-plugin-populi-mesh"
 bundled-in = ["vox-mesh", "vox-server", "vox-dev"]
 
-[[plugin]]
-id = "script-execution"
-payload-kind = "code"
-description = "Script execution sandbox for `.vox run` and similar."
-extension-points = ["ScriptExecutor"]
-default-source = "github:vox-foundation/vox-plugin-script-execution"
-bundled-in = ["vox-dev"]
 
 # execution-api and stub-check removed 2026-05-08: no crate exists for either;
 # placeholder entries with bundled-in=[] provided no value and pointed to non-existent repos.
@@ -176,13 +169,6 @@ extension-points = ["Publication"]
 default-source = "local:crates/vox-plugin-publication"
 bundled-in = []
 
-[[plugin]]
-id = "grammar-export"
-payload-kind = "code"
-description = "Export Vox grammar in standard formats (Lark, EBNF, JSON Schema, XGrammar-2, SSOT-Markdown)."
-extension-points = ["GrammarExport"]
-default-source = "local:crates/vox-plugin-grammar-export"
-bundled-in = ["vox-dev"]
 
 [[plugin]]
 id = "noop-skill"
@@ -243,6 +229,5 @@ extends = "vox-fullstack"
 plugins = [
     "mens-candle-cuda", "nvml-probe",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
-    "script-execution", "browser", "webhook",
-    "grammar-export",
+    "browser", "webhook",
 ]

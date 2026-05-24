@@ -76,6 +76,7 @@ fn login_profile_path() -> PathBuf {
     vox_config::paths::dot_vox_user_dir().join(LOGIN_PROFILE_BASENAME)
 }
 
+#[cfg(feature = "keyring-store")]
 fn keyring_has_vault_config() -> bool {
     let url_ok = keyring::Entry::new("vox-secrets-env", "turso-url")
         .ok()
@@ -88,6 +89,11 @@ fn keyring_has_vault_config() -> bool {
         .filter(|s| !s.trim().is_empty())
         .is_some();
     url_ok && tok_ok
+}
+
+#[cfg(not(feature = "keyring-store"))]
+fn keyring_has_vault_config() -> bool {
+    false
 }
 
 fn read_login_profile_toml() -> Option<LoginProfileToml> {
@@ -213,17 +219,27 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
         anyhow::bail!("Vault URL and token must be non-empty");
     }
 
-    let keyring = keyring::Entry::new("vox-secrets-env", "turso-url")
-        .context("Failed to instantiate keyring for turso-url. Keyring may not be available.")?;
-    keyring
-        .set_password(url)
-        .context("Failed to set turso-url in keyring.")?;
+    #[cfg(feature = "keyring-store")]
+    {
+        let keyring = keyring::Entry::new("vox-secrets-env", "turso-url")
+            .context("Failed to instantiate keyring for turso-url. Keyring may not be available.")?;
+        keyring
+            .set_password(url)
+            .context("Failed to set turso-url in keyring.")?;
 
-    let keyring_token = keyring::Entry::new("vox-secrets-env", "turso-token")
-        .context("Failed to instantiate keyring for turso-token.")?;
-    keyring_token
-        .set_password(token)
-        .context("Failed to set turso-token in keyring.")?;
+        let keyring_token = keyring::Entry::new("vox-secrets-env", "turso-token")
+            .context("Failed to instantiate keyring for turso-token.")?;
+        keyring_token
+            .set_password(token)
+            .context("Failed to set turso-token in keyring.")?;
+    }
+    #[cfg(not(feature = "keyring-store"))]
+    {
+        anyhow::bail!(
+            "This build was compiled without keyring support. \
+             Set VOX_DB_URL and VOX_DB_TOKEN environment variables instead."
+        );
+    }
 
     if let Err(e) = validate_vault_handshake() {
         tracing::warn!(error = %e, "post-login Secrets vault handshake failed (vault may still be usable)");
@@ -238,6 +254,7 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
 
 /// Best-effort logout: clear keyring entries and remove `login.toml`.
 pub async fn run_logout() -> Result<()> {
+    #[cfg(feature = "keyring-store")]
     for (service, user) in [
         ("vox-secrets-env", "turso-url"),
         ("vox-secrets-env", "turso-token"),

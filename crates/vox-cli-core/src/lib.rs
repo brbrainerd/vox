@@ -8,7 +8,7 @@ pub mod daemon_ipc;
 pub mod db_types;
 pub mod diagnostics;
 pub mod fs_utils;
-pub mod ludus_shim;
+pub mod gamify_shim;
 pub mod scientia;
 pub mod workflow_journal_codex;
 

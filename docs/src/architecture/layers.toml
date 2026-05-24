@@ -87,10 +87,10 @@ vox-crypto            = { layer = 1 }
 vox-secrets           = { layer = 1, max_dependents = 25 }
 
 vox-jsonschema-util   = { layer = 1 }
-vox-foundation        = { layer = 1, staleness_exempt = true }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
+vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
 
 vox-identity          = { layer = 1 }
-vox-http-client  = { layer = 1, staleness_exempt = true }
+vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 20 }
 vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
 vox-openai       = { layer = 1, staleness_exempt = true }
 
@@ -103,7 +103,7 @@ vox-research-events    = { layer = 1 }                            # SCIENTIA typ
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
-vox-config              = { layer = 2 }
+vox-config              = { layer = 2, max_dependents = 20 }
 vox-repository          = { layer = 2 }
 vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2 }
@@ -125,7 +125,7 @@ vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
 vox-codegen         = { layer = 3, max_loc = 25_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
-vox-tauri-sherpa        = { layer = 3, kind = "plugin" }
+vox-tauri-sherpa        = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
 
 
 vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               # offline SCIENTIA JSON Schema → Rust (typify)
@@ -175,7 +175,6 @@ vox-plugin-catalog      = { layer = 3 }
 # exempt from this file. They are validated separately.
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
 vox-plugin-cloud             = { layer = 4, kind = "plugin" }
-vox-plugin-grammar-export    = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin" }
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
@@ -185,7 +184,6 @@ vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
 vox-plugin-publication       = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-container = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-wasm      = { layer = 4, kind = "plugin" }
-vox-plugin-script-execution  = { layer = 4, kind = "plugin" }
 vox-plugin-webhook           = { layer = 4, kind = "plugin" }
 
 # ── L5 — surfaces ─────────────────────────────────────────────────────────────
@@ -361,8 +359,7 @@ vox-release-artifacts    = { plan = "docs/src/architecture/crate-structure-audit
 vox-assets               = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
 vox-exec-grammar         = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
 vox-http-envelope        = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
-vox-openai-sse           = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
-vox-openai-wire          = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+# vox-openai-sse, vox-openai-wire — retired 2026-05-23; vox-openai already contains both (sse.rs + chat_completion.rs)
 vox-share                = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }

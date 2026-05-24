@@ -77,6 +77,11 @@ mens-cloud = [
 mesh-discovery-publish = [
     "dep:vox-publisher",
 ]
+# Wedge features for the MENS distributed-AI track (Mn-T1, Mn-T2).
+# These establish the consumer edge for vox-arch-check Rule 4 (orphan).
+# Source wiring lands incrementally via the mesh-mens-distributed-training-and-execution-plan-2026.md.
+distributed-training = ["dep:vox-distributed-training"]
+inference = ["dep:vox-inference"]
 
 [dependencies]
 async-trait = { workspace = true }
@@ -139,6 +144,9 @@ futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
 vox-publisher = { workspace = true, optional = true }
+# MENS distributed-AI track wedges (Mn-T1, Mn-T2). Pulled only when corresponding features enabled.
+vox-distributed-training = { workspace = true, optional = true }
+vox-inference = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 hex = { workspace = true }
 sha3.workspace = true

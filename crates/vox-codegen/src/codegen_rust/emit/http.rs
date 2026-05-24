@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{DurabilityKind, HirEndpointFn, HirEndpointKind, HirModule, HirType};
 
+use super::main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, BootPropagation};
 use super::stmt_expr::emit_stmt;
 use super::tables::emit_db_setup;
 
@@ -302,6 +303,29 @@ pub fn emit_main(
         out.push_str(&emit_db_setup(module));
     }
 
+    // P9 (2026-05-24): Durable boot prelude — connects `vox_durable_db`
+    // (Arc<vox_db::VoxDb>, distinct from the `db: Arc<Codex>` produced by
+    // `emit_db_setup`), registers the process-global HirModule so
+    // `current_hir_module()` resolves in workflow bodies (ADR-041 §6(b)),
+    // and registers + starts every `@scheduled` function. Must run BEFORE
+    // the VOX_RUN_WORKFLOW dispatch branch because that branch calls
+    // workflow functions which rely on `current_hir_module()`.
+    //
+    // Uses `BootPropagation::Expect` because the production `main()`
+    // signature is `async fn main()` (no `Result` return) today. P10
+    // will migrate `emit_main` to `Result<()>` so the prelude can use
+    // `Try` everywhere — see ADR-041 §6(c) /
+    // http-runtime-extraction-2026.md.
+    //
+    // The companion `load_hir_module_from_embedded` fn is appended below,
+    // after `main()` closes. See `emit_durable_boot_helpers`.
+    out.push_str(&emit_durable_boot_prelude(
+        module,
+        "vox_durable_db",
+        /* include_db_connect = */ true,
+        BootPropagation::Expect,
+    ));
+
     if module
         .functions
         .iter()
@@ -447,6 +471,11 @@ pub fn emit_main(
             }
         }
     }
+
+    // P9 (2026-05-24): Append the durable boot helpers (currently just
+    // `load_hir_module_from_embedded()`) so the prelude injected into
+    // `main()` above has a callable companion. Must live at file scope.
+    out.push_str(&emit_durable_boot_helpers(module));
 
     out
 }
