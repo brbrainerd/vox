@@ -1,7 +1,7 @@
 ---
 title: "Vox v1.0 Readiness Snapshot — 2026-05-22"
 description: "Canonical measured state of every CR-L / CR-P / CR-E / CR-A / CR-D gate. Block-GA umbrella exits 0; 5/5 block-GA criteria met; CR-L1 0.939; CR-L3 0.800; CR-A2 100% with enforce=true; CR-E2 + CR-D3 + CR-L4(60%) closed in fix-all session."
-category: architecture
+category: "Architecture SSOTs"
 status: current
 captured_at: "2026-05-22T03:00:00Z"
 ---
