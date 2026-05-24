@@ -524,13 +524,16 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
         ("env", "get") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
         ("env", "args") => Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
         ("env", "set") => Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Unit)),
-        ("regex", "replace") => Ty::Fn(
-            vec![Ty::Str, Ty::Str, Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Str))),
-        ),
+        // Match the typeck/builtins.rs RegexModule shape AND the eval
+        // behavior (bare Str; compile errors silently discarded). The
+        // actor-runtime wrapper landed in Phase K returns Result, but
+        // since corpus convention is "discard the error" we keep typeck
+        // aligned to Str — change all three sides together if this
+        // semantics ever evolves.
+        ("regex", "replace") => Ty::Fn(vec![Ty::Str, Ty::Str, Ty::Str], Box::new(Ty::Str)),
         ("regex", "find") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Option(Box::new(Ty::Str))))),
+            Box::new(Ty::Option(Box::new(Ty::Str))),
         ),
         ("process", "which") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
         ("process", "run") => Ty::Fn(

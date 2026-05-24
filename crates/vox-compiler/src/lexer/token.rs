@@ -367,7 +367,31 @@ pub enum Token {
     // bucket: extract_table_names.vox, migrate-arrows.vox) that were
     // running their `(...)` capture groups into Vox's `{...}` template
     // regex friction.
-    #[regex(r#"r"[^"]*""#, priority = 6, allow_greedy = true, callback = |lex| {
+    // Hash-padded raw strings — Rust-style `r#"..."#`, `r##"..."##`,
+    // `r###"..."###`. Higher priority than the bare `r"..."` so the
+    // explicit-delimiter forms are tried first. Bodies can embed `"` as
+    // long as it isn't followed by the matching `#`-count. Three levels
+    // cover every realistic use (regex with quotes, SQL with quotes, etc.);
+    // Rust technically allows arbitrary `#` depth but practical code never
+    // exceeds three. Added 2026-05-24 to support patterns like
+    // `r#"\)\s*->\s*([A-Z][a-zA-Z0-9_\[\]]*)"#` that the bare form can't
+    // express. See audit doc §Phase L.4.
+    // For N=3: body allows `"` followed by 0–2 `#`s then non-`#`-non-`"`.
+    #[regex(r#####"r###"(?:[^"]|"+([^#"]|#[^#"]|##[^#"]))*"+###"#####, priority = 8, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[5..s.len()-4].to_string())
+    })]
+    // For N=2: body allows `"` followed by 0–1 `#` then non-`#`-non-`"`.
+    #[regex(r#####"r##"(?:[^"]|"+([^#"]|#[^#"]))*"+##"#####, priority = 7, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[4..s.len()-3].to_string())
+    })]
+    // For N=1: body allows `"` followed by non-`#`-non-`"`.
+    #[regex(r####"r#"(?:[^"]|"+[^#"])*"+#"####, priority = 6, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[3..s.len()-2].to_string())
+    })]
+    #[regex(r#"r"[^"]*""#, priority = 5, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
         // Drop leading `r"` and trailing `"`.
         Some(s[2..s.len()-1].to_string())

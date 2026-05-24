@@ -23,6 +23,7 @@ scripts/mens-corpus/harvest_small.vox
 scripts/mens-corpus/helpers/jsonl_writer.vox
 scripts/mens-corpus/helpers/walk_docs.vox
 scripts/mens-corpus/helpers/walk_sources.vox
+scripts/migrate-arrows.vox
 scripts/migrate-corpus.vox
 scripts/migrations/2026-phase1-contract-headers.vox
 scripts/migrations/2026-phase1-delete-empty-schemas-dir.vox

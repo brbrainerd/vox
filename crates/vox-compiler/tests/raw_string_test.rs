@@ -71,3 +71,49 @@ fn ident_starting_with_r_is_not_swallowed() {
         other => panic!("expected Ident(\"rate\"), got {other:?}"),
     }
 }
+
+// ── Hash-padded raw strings (added 2026-05-24) ───────────────────────
+
+#[test]
+fn hash_padded_raw_string_allows_embedded_quote() {
+    // Bare `r"..."` cannot embed `"`; `r#"..."#` can. The body holds
+    // a literal `\"` (regex char-class with a quoted char) without
+    // terminating early.
+    let src = r####"r#"a"b"#"####;
+    match first_token(src) {
+        Token::RawStringLit(s) => assert_eq!(s, r#"a"b"#),
+        other => panic!("expected RawStringLit, got {other:?}"),
+    }
+}
+
+#[test]
+fn hash_padded_holds_regex_with_embedded_quote() {
+    // The exact pattern from Phase L.4 (`migrate-arrows.vox` line 17 —
+    // a regex matching string-literal-followed-by-arrow). Was untenable
+    // in the bare form.
+    let src = r####"r#"\"\s*->\s*"#"####;
+    match first_token(src) {
+        Token::RawStringLit(s) => assert_eq!(s, r#"\"\s*->\s*"#),
+        other => panic!("expected RawStringLit, got {other:?}"),
+    }
+}
+
+#[test]
+fn double_hash_padded_allows_single_hash_in_body() {
+    // `r##"..."##` lets the body contain `"#` as long as there's only
+    // ONE `#` — the close requires `"##`.
+    let src = r####"r##"foo"#bar"##"####;
+    match first_token(src) {
+        Token::RawStringLit(s) => assert_eq!(s, r##"foo"#bar"##),
+        other => panic!("expected RawStringLit, got {other:?}"),
+    }
+}
+
+#[test]
+fn empty_hash_padded_raw_string() {
+    let src = r####"r#""#"####;
+    match first_token(src) {
+        Token::RawStringLit(s) => assert_eq!(s, ""),
+        other => panic!("expected RawStringLit, got {other:?}"),
+    }
+}
