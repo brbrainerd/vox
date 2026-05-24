@@ -23,10 +23,10 @@ news-publish = [
 ]
 # JSON Schema generation for repository types (consumed by vox-orchestrator-mcp).
 json-schema = ["vox-repository/json-schema"]
-runtime = ["vox-actor-runtime", "vox-populi/mens"]
-toestub-gate = ["vox-code-audit", "vox-lsp"]
-# Reserved for future LSP-only toggles (tower-lsp-server is always linked for shared types).
-lsp = []
+runtime = ["vox-actor-runtime", "vox-populi/mens", "lsp"]
+toestub-gate = ["vox-code-audit", "vox-lsp", "lsp"]
+# LSP diagnostic integration (tower-lsp-server types). Enabled transitively by toestub-gate and runtime.
+lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]
 # Enable jj-lib as VCS backend. Pure Rust, no C. Pin to exact version for stability.
 # All jj-lib calls are confined to src/jj_backend.rs — swap here if APIs break.
@@ -63,7 +63,7 @@ vox-foundation.workspace = true
 vox-actor-runtime = { workspace = true, optional = true }
 vox-code-audit = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
-tower-lsp-server = { workspace = true }
+tower-lsp-server = { workspace = true, optional = true }
 vox-db.workspace = true
 vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape", "tavily"] }
 vox-orchestrator-types.workspace = true
