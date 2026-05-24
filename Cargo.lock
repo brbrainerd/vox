@@ -14141,6 +14141,7 @@ dependencies = [
  "serde_json",
  "tracing",
  "vox-container",
+ "vox-container-types",
  "vox-plugin-api",
  "vox-skill-runtime",
  "workspace-hack",

@@ -3,7 +3,7 @@
 //! Skill-runtime plugin providing Docker and Podman backends.
 //!
 //! Implements [`vox_skill_runtime::SkillRuntime`] for both Docker and Podman,
-//! and also implements [`vox_container::ContainerRuntime`] (OCI build/push/tag/login)
+//! and also implements [`vox_container_types::ContainerRuntime`] (OCI build/push/tag/login)
 //! for use by `vox deploy`.
 //!
 //! Registered as a Vox plugin; loaded by the plugin host on demand.
@@ -13,7 +13,7 @@ use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_f
 use std::io::{BufRead as _, BufReader};
 use std::process::{Command, Stdio};
 use std::time::Instant;
-use vox_container::ContainerRuntime;
+use vox_container_types::ContainerRuntime;
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
 use vox_plugin_api::host::VoxHost_TO;
@@ -136,7 +136,7 @@ impl SkillRuntime for docker::DockerRuntime {
     }
 
     fn build(&self, opts: &SkillBuildOpts) -> anyhow::Result<()> {
-        let build_opts = vox_container::BuildOpts {
+        let build_opts = vox_container_types::BuildOpts {
             context_dir: opts.context_dir.clone(),
             dockerfile: opts.artifact_path.clone(),
             tag: opts.tag.clone(),
@@ -161,7 +161,7 @@ impl SkillRuntime for podman::PodmanRuntime {
     }
 
     fn build(&self, opts: &SkillBuildOpts) -> anyhow::Result<()> {
-        let build_opts = vox_container::BuildOpts {
+        let build_opts = vox_container_types::BuildOpts {
             context_dir: opts.context_dir.clone(),
             dockerfile: opts.artifact_path.clone(),
             tag: opts.tag.clone(),

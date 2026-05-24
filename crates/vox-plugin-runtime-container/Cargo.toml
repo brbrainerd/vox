@@ -14,6 +14,8 @@ workspace = true
 [dependencies]
 vox-plugin-api.workspace = true
 vox-skill-runtime.workspace = true
+# D-9-rescope step 3: pure types from L0; runtime functions (log_exec_risk, detect_runtime) still from vox-container (L3).
+vox-container-types.workspace = true
 vox-container.workspace = true
 abi_stable.workspace = true
 anyhow.workspace = true

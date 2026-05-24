@@ -4,7 +4,7 @@
 //! without requiring elevated privileges or a daemon process.
 
 use std::process::Command;
-use vox_container::{BuildOpts, ContainerRuntime, RunOpts};
+use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts};
 
 /// Podman-backed container runtime.
 ///

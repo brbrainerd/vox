@@ -4,7 +4,7 @@
 //! code, wrap `build` / `run` in `tokio::task::spawn_blocking` so the runtime thread is not blocked.
 
 use std::process::Command;
-use vox_container::{BuildOpts, ContainerRuntime, RunOpts};
+use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts};
 
 /// Docker-backed container runtime.
 ///
