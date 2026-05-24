@@ -9,7 +9,8 @@ expression: main_rs
 // The contract here is:
 //   DB init  →  HIR register  →  scheduler register+start  →  ctrl-C  →  graceful shutdown.
 // HTTP serving still lives in the per-route emit (http.rs); factoring that
-// into a reusable vox-http-runtime crate is tracked under §6(c).
+// into a reusable vox-http-runtime crate is DEFERRED under §6(c) — see
+// docs/src/architecture/http-runtime-extraction-2026.md for constraints.
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

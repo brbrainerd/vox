@@ -40,9 +40,12 @@ Between 2026-05-01 and 2026-05-23, the implementation work was completed:
   via a `scheduled_runs` DB table (Phase 4).
 - Actor handlers auto-wire from generated `main()` via a new
   `ActorRegistry` (Phase 5.2) and the `emit_main_boot` codegen
-  (Phase 5.1). HIR embedding is now real (§6(b), landed 2026-05-23);
-  HTTP server boot remains the one outstanding `phase5-followup`
-  (§6(c)).
+  (Phase 5.1). HIR embedding is now real (§6(b), landed 2026-05-23).
+  HTTP server boot in `emit_main_boot` is **deferred** (§6(c),
+  2026-05-23) pending a route-emission refactor — see
+  `docs/src/architecture/http-runtime-extraction-2026.md`. The
+  production `main()` (`emit_main` in `http.rs`) still serves HTTP
+  inline, so this affects no user-facing behavior.
 - A determinism lint blocks non-deterministic ops
   (`std.time.now_ms`, `std.random`, `std.uuid`, `std.process.spawn`)
   in workflow bodies (Phase 6).
@@ -69,7 +72,7 @@ Between 2026-05-01 and 2026-05-23, the implementation work was completed:
 
    b. **[Landed 2026-05-23]** **HIR embedding for `current_hir_module()`.** `emit_main_boot` now serializes the `HirModule` to JSON at codegen time (HirModule derives `Serialize` + `Deserialize`), embeds it as a raw-string `const &str` in the generated binary, and emits a `set_current_hir_module(load_hir_module_from_embedded())` call as step 2 of the boot routine — before the scheduler starts or any workflow body runs. Generated binaries now resolve `current_hir_module()` lookups at runtime instead of panicking on an unset `OnceLock`. The raw-string delimiter is chosen dynamically (starts at `r#"…"#`, escalates hash count if the serialized JSON contains a closing match). Regression test: `crates/vox-codegen/tests/main_boot_hir_roundtrip.rs::embedded_hir_roundtrips_through_json`. Snapshot lock: `crates/vox-codegen/tests/main_boot_snapshot.rs`. The Stable tier claim in the README now extends to the codegen-to-compiled-binary path as well as the interpreter path.
 
-   c. **HTTP server boot in generated `main()`.** No `vox-http-runtime::serve()` symbol exists today; the HTTP wiring still lives inside `emit_main` in `http.rs`. Factoring this into a reusable runtime function is the path forward.
+   c. **[Deferred 2026-05-23 — see design doc]** **HTTP server boot in generated `main()`.** Recon (P8.c) found that the HTTP wiring in `emit_main` (`crates/vox-codegen/src/codegen_rust/emit/http.rs`) is tied to per-handler code generation: each `@query` / `@mutation` / `@server` emits a *named* free function, plus per-route static items (rate-limit governors) and inlined CORS layers. A `vox_http_runtime::serve(db, hir_module) -> Handle` cannot register those without either (i) interpreting HIR at runtime or (ii) reshaping emit so handlers register themselves via `Box<dyn Fn>` closures. Crucially, `emit_main_boot` (the durable-only `main()` that carries the §6(c) TODO) is **not yet on the production codegen path** — production still uses `emit_main`, which serves HTTP just fine inline. The TODO is therefore harmless today. Full constraints and the two-phase plan to do this properly are in [`docs/src/architecture/http-runtime-extraction-2026.md`](../architecture/http-runtime-extraction-2026.md). Status: **DEFERRED** pending route-emission refactor or `emit_main` ↔ `emit_main_boot` convergence.
 
 These follow-ups do NOT block this ADR's acceptance.
 
