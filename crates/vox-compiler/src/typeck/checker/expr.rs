@@ -150,7 +150,7 @@ impl<'a> Checker<'a> {
         let ty = match expr {
             HirExpr::IntLit(_, _) => Ty::Int,
             HirExpr::FloatLit(_, _) => Ty::Float,
-            HirExpr::StringLit(_, _) => Ty::Str,
+            HirExpr::StringLit(_, _) | HirExpr::StringInterp { .. } => Ty::Str,
             HirExpr::BoolLit(_, _) => Ty::Bool,
             HirExpr::DecimalLit(_, _) => Ty::Decimal,
             HirExpr::TupleLit(exprs, _) => {
@@ -393,6 +393,7 @@ impl<'a> Checker<'a> {
                         "StdTomlNs" => Some("toml"),
                         "StdYamlNs" => Some("yaml"),
                         "StdIoNs" => Some("io"),
+                        "StdPathNs" => Some("path"),
                         _ => None,
                     };
                     if let Some(ns) = ns {
@@ -407,27 +408,15 @@ impl<'a> Checker<'a> {
                                 Ty::Error
                             }
                         } else {
-                            self.diags.push(Diagnostic::error(
-                                format!("Method '{method}' not found on {obj_ty:?}"),
-                                *span,
-                                self.source,
-                            ));
+                            self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
                             Ty::Error
                         }
                     } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Method '{method}' not found on {obj_ty:?}"),
-                            *span,
-                            self.source,
-                        ));
+                        self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
                         Ty::Error
                     }
                 } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Method '{method}' not found on {obj_ty:?}"),
-                        *span,
-                        self.source,
-                    ));
+                    self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
                     Ty::Error
                 }
             }
@@ -733,4 +722,34 @@ impl<'a> Checker<'a> {
         self.inferred_types.insert(super::hir_expr_span(expr), hir_ty);
         ty
     }
+}
+
+/// Build a "method not found" diagnostic that uses the human-readable
+/// type renderer instead of the `{ty:?}` Debug repr. Mirrors the form
+/// established in `mod.rs` (closures-rfc-2026-05-23.md §11 Q4):
+/// no internal TypeVar IDs leak into user-facing error messages.
+fn method_not_found_diag(
+    method: &str,
+    obj_ty: &Ty,
+    span: crate::ast::span::Span,
+    source: &str,
+) -> Diagnostic {
+    let pretty = super::pretty_print_unresolved_type(obj_ty);
+    let hint = if pretty == "<unknown>" {
+        format!(
+            "Add an explicit type annotation upstream so the receiver type \
+             can be resolved. For closure params use `fn(x: <Type>) {{ ... }}` \
+             per the closures RFC §11."
+        )
+    } else {
+        format!(
+            "If `{pretty}` is unexpected, check whether the value came from \
+             an `Option` or `Result` you forgot to `.unwrap()`."
+        )
+    };
+    Diagnostic::error(
+        format!("Method `{method}` not found on {pretty}.\n{hint}"),
+        span,
+        source,
+    )
 }

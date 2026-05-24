@@ -5,7 +5,7 @@ import std/regex
 import std/string
 
 let path = std.env.args().get(1).expect("usage: extract_table_names.vox <inventory-path>")
-let raw = std.io.read_file(path)
+let raw = fs.read(path).unwrap()
 let re = std.regex.compile(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z_][a-zA-Z0-9_]*)")
 let names = []
 for line in std.string.split(raw, "\n") {
@@ -15,5 +15,5 @@ for line in std.string.split(raw, "\n") {
 }
 let unique = std.string.sort(std.string.unique(names))
 for n in unique {
-    std.io.println(n)
+    print(n)
 }

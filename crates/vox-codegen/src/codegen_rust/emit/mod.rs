@@ -14,6 +14,7 @@ mod ai_fixture;
 mod client;
 mod durability_lower;
 mod http;
+mod main_boot;
 mod method_emit;
 pub(super) mod ownership;
 mod state_machine;
@@ -70,6 +71,7 @@ fn emit_generated_extra_deps(module: &HirModule) -> String {
 
 pub use client::{emit_api_client, emit_mcp_server};
 pub use http::emit_main;
+pub use main_boot::emit_main_boot;
 pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
     emit_index_ddl, emit_table_ddl, emit_table_struct, validate_db_projection_suffixes_unique,
@@ -177,7 +179,11 @@ fn generate_axum_local_server(
 
 /// Tauri 2 desktop/mobile shell: workspace root + `src-tauri/` binary crate (no Axum in `main`).
 ///
-/// HTTP `@endpoint` functions are not lowered to Tauri commands yet — use [`RustAppShell::AxumLocalServer`].
+/// `@endpoint` functions are lowered to `#[tauri::command]` handlers in `src-tauri/src/main.rs`
+/// (see [`emit_tauri_main_rs`]). The browser/TS side uses Contract-IR [`crate::codegen_ts::vox_client`]
+/// (`vox-client.ts`), which branches on `isTauri()` and calls `invoke` instead of `fetch`.
+/// [`CodegenOutput::api_client_ts`] stays empty: legacy Rust-path `api.ts` emit is retired
+/// ([`emit_api_client`]); consumers must import generated `vox-client.ts`.
 fn generate_tauri_workspace(
     module: &HirModule,
     package_name: &str,
@@ -251,6 +257,7 @@ fn generate_tauri_workspace(
 
     Ok(CodegenOutput {
         files,
+        // Intentionally empty — see module comment on [`generate_tauri_workspace`].
         api_client_ts: String::new(),
     })
 }

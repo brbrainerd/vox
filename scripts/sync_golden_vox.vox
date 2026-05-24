@@ -1,0 +1,62 @@
+// scripts/sync_golden_vox.vox
+// Synchronizes examples/golden/*.vox into mens/data/mix_sources/golden.jsonl
+
+fn main() {
+    let golden_dir = "examples/golden";
+    let output_file = "mens/data/mix_sources/golden.jsonl";
+    
+    match std.fs.mkdir("mens/data/mix_sources") {
+        Ok(_) => {}
+        Error(m) => {
+            std.log.error("Failed to create directory: " + m);
+            return;
+        }
+    }
+    
+    let mut count = 0;
+    let mut all_jsonl = "";
+    
+    match std.fs.list_dir(golden_dir) {
+        Ok(entries) => {
+            for entry in entries {
+                if entry.ends_with(".vox") {
+                    let path = golden_dir + "/" + entry;
+                    match std.fs.read(path) {
+                        Ok(content) => {
+                            let prompt = "Explain and implement the following pattern in Vox: " + entry;
+                            let row = {
+                                "prompt": prompt,
+                                "response": content,
+                                "category": "golden",
+                                "origin": "human",
+                                "source": "examples/golden/" + entry
+                            };
+                            
+                            match std.json.render(row) {
+                                Ok(json_str) => {
+                                    all_jsonl = all_jsonl + json_str + "\n";
+                                    count = count + 1;
+                                }
+                                Error(m) => std.log.warn("Failed to render JSON for " + entry + ": " + m)
+                            }
+                        }
+                        Error(m) => std.log.warn("Failed to read " + path + ": " + m)
+                    }
+                }
+            }
+        }
+        Error(m) => {
+            std.log.error("Failed to list directory " + golden_dir + ": " + m);
+            return;
+        }
+    }
+    
+    match std.fs.write(output_file, all_jsonl) {
+        Ok(_) => {
+            std.log.info("  🔄 Synchronized " + count.to_string() + " golden examples to " + output_file);
+        }
+        Error(m) => {
+            std.log.error("Failed to write output file: " + m);
+        }
+    }
+}

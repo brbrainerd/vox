@@ -76,6 +76,10 @@ enum CliCommand {
     Deploy,
     /// CR-L8: corpus-feedback artifact freshness.
     CorpusFeedback,
+    /// Tooling gate (non-CR-L): three-way stdlib drift detector
+    /// (eval/builtins.rs ↔ ref-builtins-stdlib.md ↔ scripts/).
+    /// Does NOT block GA; blocks PRs introducing drift.
+    StdlibCoverage,
     /// Run every registered subcommand and aggregate the exit code.
     All,
     /// List every registered subcommand with its gate and description.
@@ -94,6 +98,7 @@ impl CliCommand {
             CliCommand::Retirement => Some("retirement"),
             CliCommand::Deploy => Some("deploy"),
             CliCommand::CorpusFeedback => Some("corpus-feedback"),
+            CliCommand::StdlibCoverage => Some("stdlib-coverage"),
             CliCommand::All | CliCommand::List => None,
         }
     }
@@ -117,7 +122,10 @@ fn main() -> ProcessExitCode {
         corpus: cli.corpus,
         llm_panel: cli.llm_panel,
         dry_run: cli.dry_run,
-        write_canonical_report: !cli.no_canonical_report,
+        // Dry-run reports carry sentinel values (e.g. `corpus_hash: "blake3:dry-run"`,
+        // `overall_pass_rate: 0.0`); writing them to the canonical dated path would
+        // clobber the real artifact from the most recent non-dry-run.
+        write_canonical_report: !cli.no_canonical_report && !cli.dry_run,
     };
 
     match cli.command {

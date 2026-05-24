@@ -1,4 +1,4 @@
 // SCIENTIA probe runner — runs a measurement probe against a provider.
 // Usage: vox run scripts/scientia/probe-run.vox --provider <name> --probe <id>
 // Phase 9: wire to vox-inspect-bridge and telemetry pipeline.
-println("probe-run: Phase 9 stub — not yet implemented")
+print("probe-run: Phase 9 stub — not yet implemented")

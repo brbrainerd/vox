@@ -17,6 +17,7 @@ pub mod async_exhaustiveness;
 mod async_handler_lint;
 pub mod boilerplate_grafts;
 pub mod contrast;
+pub mod determinism_lint;
 mod effect_deps_lint;
 pub mod form_check;
 pub mod layer;
@@ -73,11 +74,47 @@ pub use ty::ty_display;
 ///   phase 2 is reduced from O(N·lint_count) to O(max(lint_time)) on multi-core machines.
 #[must_use]
 pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic> {
+    typecheck_hir_module_with_path(source, hir, None)
+}
+
+/// Like [`typecheck_hir_module`] but also resolves intra-project
+/// `import "./foo.vox"` directives against disk, registering each imported
+/// file's `pub fn`s into the type environment before checking the main
+/// module. `source_path` is the absolute path of the file being checked —
+/// imports are resolved relative to its parent directory.
+///
+/// Cycle-safe: a per-call visited set prevents re-entering a file already
+/// in the middle of being typechecked. Idempotent re-imports of the same
+/// file are no-ops.
+///
+/// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
+#[must_use]
+pub fn typecheck_hir_module_with_path(
+    source: &str,
+    hir: &mut HirModule,
+    source_path: Option<&std::path::Path>,
+) -> Vec<Diagnostic> {
     use rayon::prelude::*;
 
     // ── Phase 1: mutating type-inference pass (sequential) ────────────────
     let mut env = TypeEnv::new();
     let builtins = BuiltinTypes::register_all(&mut env);
+
+    // Pre-register pub signatures from any intra-project local-file imports
+    // so call sites in the main module type-check against real types
+    // rather than `ImportPlaceholder`.
+    if let Some(path) = source_path {
+        let mut visited: std::collections::HashSet<std::path::PathBuf> =
+            std::collections::HashSet::new();
+        if let Ok(canon) = std::fs::canonicalize(path) {
+            visited.insert(canon);
+        }
+        for imp in &hir.imports {
+            if let Some(rel) = imp.local_file_path.as_ref() {
+                resolve_imported_pubs_into_env(&mut env, rel, path, imp.local_file_alias.as_deref(), &mut visited);
+            }
+        }
+    }
     let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
 
     // ── Phase 2: read-only lint passes (parallel fan-out) ─────────────────
@@ -95,6 +132,8 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
         Box::new(|| state_machine_check::check_state_machines(hir, source)),
         Box::new(|| effect_deps_lint::check_effect_deps(hir, source)),
         Box::new(|| stale_capture_lint::check_stale_captures(hir, source)),
+        // Task 6.1: reject non-deterministic stdlib calls inside `workflow` bodies (ADR-019 §5).
+        Box::new(|| determinism_lint::check_workflow_determinism(hir, source)),
         Box::new(|| async_handler_lint::check_async_handlers(hir, source)),
         Box::new(|| form_check::check_forms(hir, source)),
         // GA-20 / CC-23: contrast-ratio validation for design token color pairs.
@@ -172,6 +211,122 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
         }
     }
     diags
+}
+
+/// Resolve one intra-project local-file import for typecheck. Loads the
+/// referenced file from disk, lexes + parses + lowers it, then registers
+/// only its `pub fn` signatures into `env`. Recursively resolves the
+/// imported file's own local-file imports first so transitive pubs are
+/// visible. Cycle-safe via `visited` (per-call set of canonicalized paths).
+///
+/// Errors (file not found, parse failure) are silent here — the eval-time
+/// resolver already produces clear diagnostics for runtime failures, and
+/// the typecheck pre-pass should not block check on transient IO issues.
+/// A missing pub fn will surface naturally as an Unknown-name diagnostic
+/// from the regular typecheck pass, which is the right place for that
+/// signal.
+fn resolve_imported_pubs_into_env(
+    env: &mut env::TypeEnv,
+    rel_path: &str,
+    importer_path: &std::path::Path,
+    alias: Option<&str>,
+    visited: &mut std::collections::HashSet<std::path::PathBuf>,
+) {
+    let base_dir = importer_path
+        .parent()
+        .unwrap_or(std::path::Path::new("."));
+    let joined = base_dir.join(rel_path);
+    let canonical = match std::fs::canonicalize(&joined) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    if !visited.insert(canonical.clone()) {
+        return;
+    }
+    let source = match std::fs::read_to_string(&canonical) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    let tokens = crate::lexer::lex(&source);
+    let module = match crate::parser::parse_script(tokens) {
+        Ok(m) => m,
+        Err(_) => return,
+    };
+    let imported_hir = crate::hir::lower::lower_module(&module);
+
+    // Recurse into transitive imports first.
+    for imp in &imported_hir.imports {
+        if let Some(nested_rel) = imp.local_file_path.as_ref() {
+            resolve_imported_pubs_into_env(
+                env,
+                nested_rel,
+                &canonical,
+                imp.local_file_alias.as_deref(),
+                visited,
+            );
+        }
+    }
+
+    // Register pub fn signatures.
+    if let Some(name) = alias {
+        // Alias form: build a Ty::Record where each field is the pub fn's
+        // signature. MethodCall typecheck routes `alias.field(args)` through
+        // the Record-method dispatch arm in typeck/checker/expr.rs.
+        let mut fields: Vec<(String, ty::Ty)> = Vec::new();
+        for f in &imported_hir.functions {
+            if !f.is_pub {
+                continue;
+            }
+            let param_tys: Vec<ty::Ty> = f
+                .params
+                .iter()
+                .map(|p| {
+                    p.type_ann
+                        .as_ref()
+                        .map(|t| registration::resolve_hir_type(t, env))
+                        .unwrap_or(ty::Ty::Infer)
+                })
+                .collect();
+            let ret_ty = f
+                .return_type
+                .as_ref()
+                .map(|t| registration::resolve_hir_type(t, env))
+                .unwrap_or(ty::Ty::Unit);
+            fields.push((
+                f.name.clone(),
+                ty::Ty::Fn(param_tys, Box::new(ret_ty)),
+            ));
+        }
+        if env.lookup(name).is_none() {
+            env.define(
+                name.to_string(),
+                env::Binding::new(
+                    ty::Ty::Record(fields),
+                    false,
+                    env::BindingKind::Variable,
+                ),
+            );
+        }
+    } else {
+        for f in &imported_hir.functions {
+            if !f.is_pub {
+                continue;
+            }
+            if env.lookup(&f.name).is_some() {
+                // Importer-defined name wins per RFC §3.
+                continue;
+            }
+            registration::register_hir_function(env, f, None);
+        }
+        // Pub ADT variants: register the types so resolve_hir_type can find
+        // them and so variant constructors are callable.
+        for t in &imported_hir.types {
+            if !t.is_pub {
+                continue;
+            }
+            registration::register_hir_typedef(env, t);
+        }
+    }
 }
 
 

@@ -12,6 +12,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         HirExpr::Ident(name, _) => {
             if let Some(val) = interp.scope.get(name) {
                 Ok(val.clone())
+            } else if let Some(val) = interp.module_scope.get(name) {
+                Ok(val.clone())
             } else if matches!(
                 name.as_str(),
                 "print" | "range" | "str" | "int" | "float" | "len" | "assert"
@@ -71,11 +73,52 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
             let r = eval_expr(interp, right)?;
             match (op, l, r) {
-                (HirBinOp::Add, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Int(a + b)),
-                (HirBinOp::Sub, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Int(a - b)),
-                (HirBinOp::Mul, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Int(a * b)),
-                (HirBinOp::Div, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Int(a / b)),
-                (HirBinOp::Mod, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Int(a % b)),
+                // Integer arithmetic — use checked_* to convert
+                // overflow / div-by-zero / mod-by-zero into clean EvalError
+                // halts instead of Rust panics that take down the
+                // whole interpreter process. Matches the
+                // "no silent-wrong-output, no opaque crashes" health
+                // commitment from audit doc §10.4.
+                (HirBinOp::Add, VoxValue::Int(a), VoxValue::Int(b)) => a
+                    .checked_add(b)
+                    .map(VoxValue::Int)
+                    .ok_or_else(|| EvalError::AssertionFailed(format!(
+                        "integer overflow: {a} + {b}"
+                    ))),
+                (HirBinOp::Sub, VoxValue::Int(a), VoxValue::Int(b)) => a
+                    .checked_sub(b)
+                    .map(VoxValue::Int)
+                    .ok_or_else(|| EvalError::AssertionFailed(format!(
+                        "integer underflow: {a} - {b}"
+                    ))),
+                (HirBinOp::Mul, VoxValue::Int(a), VoxValue::Int(b)) => a
+                    .checked_mul(b)
+                    .map(VoxValue::Int)
+                    .ok_or_else(|| EvalError::AssertionFailed(format!(
+                        "integer overflow: {a} * {b}"
+                    ))),
+                (HirBinOp::Div, VoxValue::Int(_), VoxValue::Int(0)) => {
+                    Err(EvalError::AssertionFailed(
+                        "integer division by zero".to_string(),
+                    ))
+                }
+                (HirBinOp::Div, VoxValue::Int(a), VoxValue::Int(b)) => a
+                    .checked_div(b)
+                    .map(VoxValue::Int)
+                    .ok_or_else(|| EvalError::AssertionFailed(format!(
+                        "integer division overflow: {a} / {b}"
+                    ))),
+                (HirBinOp::Mod, VoxValue::Int(_), VoxValue::Int(0)) => {
+                    Err(EvalError::AssertionFailed(
+                        "integer modulo by zero".to_string(),
+                    ))
+                }
+                (HirBinOp::Mod, VoxValue::Int(a), VoxValue::Int(b)) => a
+                    .checked_rem(b)
+                    .map(VoxValue::Int)
+                    .ok_or_else(|| EvalError::AssertionFailed(format!(
+                        "integer modulo overflow: {a} % {b}"
+                    ))),
                 (HirBinOp::Is, a, b) => Ok(VoxValue::Bool(a == b)),
                 (HirBinOp::Isnt, a, b) => Ok(VoxValue::Bool(a != b)),
                 (HirBinOp::Lt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a < b)),
@@ -112,7 +155,17 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Float(b)) => {
                     Ok(VoxValue::Bool(a >= b))
                 }
-                _ => Ok(VoxValue::Null),
+                // Mixed Int + Float (or any other type pair the arms above
+                // didn't catch) used to silently return Null — a health
+                // foot-gun (audit doc §10.4 health-corrections section). An
+                // explicit `to_float()` conversion is required if the user
+                // wants mixed-arithmetic semantics; the error message names
+                // both operand types so the diagnostic is actionable.
+                (op, l, r) => Err(EvalError::AssertionFailed(format!(
+                    "unsupported binary op `{op:?}` for operands {} and {}",
+                    crate::eval::builtins::vox_value_type_name(&l),
+                    crate::eval::builtins::vox_value_type_name(&r),
+                ))),
             }
         }
         HirExpr::Unary(op, inner, _) => {
@@ -121,7 +174,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirUnOp::Not, VoxValue::Bool(b)) => Ok(VoxValue::Bool(!b)),
                 (HirUnOp::Neg, VoxValue::Int(n)) => Ok(VoxValue::Int(-n)),
                 (HirUnOp::Neg, VoxValue::Float(f)) => Ok(VoxValue::Float(-f)),
-                _ => Ok(VoxValue::Null),
+                (op, other) => Err(EvalError::AssertionFailed(format!(
+                    "unsupported unary op `{op:?}` for operand {}",
+                    crate::eval::builtins::vox_value_type_name(&other),
+                ))),
             }
         }
         HirExpr::If(cond, then_b, else_b, _) => {
@@ -236,15 +292,52 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
         }
         HirExpr::MethodCall(obj, method, args, _, _) => {
+            // Detect the `str.method(receiver, ...)` / `list.method(receiver, ...)`
+            // free-function-style call. These were never valid in Vox — string and
+            // list operations are method-only — but the previous error message
+            // ("Method foo not found") was confusing because the call site is
+            // syntactically a free function, not a method on a value.
+            // See: docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md §6 #9.
+            if let HirExpr::Ident(ns_name, _) = obj.as_ref() {
+                if (ns_name == "str" || ns_name == "list") && !args.is_empty() {
+                    return Err(EvalError::AssertionFailed(format!(
+                        "`{ns}.{m}(receiver, ...)` is not a valid call form in Vox; \
+                         use the method form `receiver.{m}(...)` instead. \
+                         (Vox makes string and list operations method-only \
+                         per K-complexity policy.)",
+                        ns = ns_name,
+                        m = method,
+                    )));
+                }
+            }
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {
                 eval_args.push(eval_expr(interp, &a.value)?);
             }
+
+            // Closure-taking method dispatch — handled here (not in
+            // `call_builtin_method`) because applying a closure requires
+            // mutable interp access (the closure body is evaluated against
+            // the captured scope chain). Mirrors the eval impl plan in
+            // closures-rfc-2026-05-23.md §9.5.
+            if let Some(result) = apply_closure_method(interp, &o, method, &eval_args)? {
+                return Ok(result);
+            }
+
             if let Some(r) =
                 super::builtins::call_builtin_method(&o, method, eval_args, interp.caps.as_ref())
             {
-                Ok(r)
+                // Catch the _Panic sentinel produced by `unwrap()`/`expect()`
+                // and friends and turn it into a proper EvalError. This
+                // replaces the prior silent-Null behavior with a halt that
+                // carries the offender's message. See eval/value.rs
+                // `_Panic` variant docstring for rationale.
+                if let crate::eval::value::VoxValue::_Panic(msg) = r {
+                    Err(EvalError::AssertionFailed(msg))
+                } else {
+                    Ok(r)
+                }
             } else {
                 Err(EvalError::AssertionFailed(format!(
                     "Method {} not found",
@@ -329,5 +422,193 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
         }
         _ => Ok(VoxValue::Null),
+    }
+}
+
+/// Apply a `VoxValue::Fn` closure to a list of argument values. The
+/// closure captures the scope at the point of creation (see
+/// `HirExpr::Lambda` arm above); calling it pushes a frame, binds the
+/// args to the param names, runs the body, and restores the prior
+/// interp scope.
+///
+/// Returns the closure's body return value. Honors `_Return` (early-exit
+/// from inside the closure) and `_Panic` (propagated up as `EvalError`).
+///
+/// Per closures RFC §11: `return` inside a closure body returns from the
+/// closure, NOT from the enclosing function — the only `_Return` we
+/// honor here is one produced inside this closure's body.
+fn apply_closure(
+    interp: &mut crate::eval::Interpreter,
+    closure: &VoxValue,
+    args: Vec<VoxValue>,
+) -> Result<VoxValue, EvalError> {
+    let (params, body, env) = match closure {
+        VoxValue::Fn { params, body, env } => (params.clone(), body.clone(), env.clone()),
+        other => {
+            return Err(EvalError::TypeError {
+                expected: "function",
+                found: super::builtins::vox_value_type_name(other).into(),
+            });
+        }
+    };
+
+    let mut new_env = env;
+    new_env.push_frame();
+    for (p, arg) in params.iter().zip(args) {
+        new_env.set(p.clone(), arg);
+    }
+
+    let old_scope = std::mem::replace(&mut interp.scope, new_env);
+    let mut val = VoxValue::Null;
+    for stmt in &body {
+        val = super::stmt::eval_stmt(interp, stmt)?;
+        if let VoxValue::_Return(v) = val {
+            val = *v;
+            break;
+        }
+        if matches!(val, VoxValue::_Break | VoxValue::_Continue) {
+            break;
+        }
+    }
+    interp.scope = old_scope;
+
+    if let VoxValue::_Panic(msg) = val {
+        return Err(EvalError::AssertionFailed(msg));
+    }
+    Ok(val)
+}
+
+/// Dispatch closure-taking collection methods. Returns `Ok(Some(result))`
+/// when this site handled the call, `Ok(None)` when the method isn't
+/// closure-taking (caller falls through to `call_builtin_method`).
+fn apply_closure_method(
+    interp: &mut crate::eval::Interpreter,
+    obj: &VoxValue,
+    method: &str,
+    args: &[VoxValue],
+) -> Result<Option<VoxValue>, EvalError> {
+    // Only dispatch when the last arg is a closure — otherwise let the
+    // non-closure-aware path handle the call (e.g. `List.contains(v)` is
+    // not a closure method).
+    let closure = match args.last() {
+        Some(c @ VoxValue::Fn { .. }) => c.clone(),
+        _ => return Ok(None),
+    };
+
+    match (obj, method) {
+        // ── List ────────────────────────────────────────────────────
+        (VoxValue::List(items), "map") => {
+            let mut out = Vec::with_capacity(items.len());
+            for item in items.iter().cloned() {
+                out.push(apply_closure(interp, &closure, vec![item])?);
+            }
+            Ok(Some(VoxValue::List(out)))
+        }
+        (VoxValue::List(items), "filter") => {
+            let mut out = Vec::new();
+            for item in items.iter().cloned() {
+                let keep = apply_closure(interp, &closure, vec![item.clone()])?;
+                if matches!(keep, VoxValue::Bool(true)) {
+                    out.push(item);
+                }
+            }
+            Ok(Some(VoxValue::List(out)))
+        }
+        (VoxValue::List(items), "for_each") => {
+            for item in items.iter().cloned() {
+                apply_closure(interp, &closure, vec![item])?;
+            }
+            Ok(Some(VoxValue::Null))
+        }
+        (VoxValue::List(items), "any") => {
+            for item in items.iter().cloned() {
+                let r = apply_closure(interp, &closure, vec![item])?;
+                if matches!(r, VoxValue::Bool(true)) {
+                    return Ok(Some(VoxValue::Bool(true)));
+                }
+            }
+            Ok(Some(VoxValue::Bool(false)))
+        }
+        (VoxValue::List(items), "all") => {
+            for item in items.iter().cloned() {
+                let r = apply_closure(interp, &closure, vec![item])?;
+                if !matches!(r, VoxValue::Bool(true)) {
+                    return Ok(Some(VoxValue::Bool(false)));
+                }
+            }
+            Ok(Some(VoxValue::Bool(true)))
+        }
+        (VoxValue::List(items), "fold") => {
+            // fold(init, fn(acc, x) { ... }) — args = [init, closure]
+            if args.len() < 2 {
+                return Ok(None);
+            }
+            let mut acc = args[0].clone();
+            for item in items.iter().cloned() {
+                acc = apply_closure(interp, &closure, vec![acc, item])?;
+            }
+            Ok(Some(acc))
+        }
+        // ── Option ──────────────────────────────────────────────────
+        (VoxValue::Option(opt), "map") => match opt.as_ref() {
+            Some(v) => {
+                let mapped = apply_closure(interp, &closure, vec![(**v).clone()])?;
+                Ok(Some(VoxValue::Option(Some(Box::new(mapped)))))
+            }
+            None => Ok(Some(VoxValue::Option(None))),
+        },
+        (VoxValue::Option(opt), "and_then") => match opt.as_ref() {
+            Some(v) => {
+                let result = apply_closure(interp, &closure, vec![(**v).clone()])?;
+                // Closure should return Option; pass through directly.
+                Ok(Some(result))
+            }
+            None => Ok(Some(VoxValue::Option(None))),
+        },
+        (VoxValue::Option(opt), "filter") => match opt.as_ref() {
+            Some(v) => {
+                let keep = apply_closure(interp, &closure, vec![(**v).clone()])?;
+                if matches!(keep, VoxValue::Bool(true)) {
+                    Ok(Some(VoxValue::Option(opt.clone())))
+                } else {
+                    Ok(Some(VoxValue::Option(None)))
+                }
+            }
+            None => Ok(Some(VoxValue::Option(None))),
+        },
+        // ── Result ──────────────────────────────────────────────────
+        (VoxValue::Result(res), "map") => match res.as_ref() {
+            Ok(v) => {
+                let mapped = apply_closure(interp, &closure, vec![(**v).clone()])?;
+                Ok(Some(VoxValue::Result(Ok(Box::new(mapped)))))
+            }
+            Err(e) => Ok(Some(VoxValue::Result(Err(e.clone())))),
+        },
+        (VoxValue::Result(res), "map_err") => match res.as_ref() {
+            Ok(v) => Ok(Some(VoxValue::Result(Ok(v.clone())))),
+            Err(e) => {
+                let mapped = apply_closure(
+                    interp,
+                    &closure,
+                    vec![VoxValue::Str(e.clone())],
+                )?;
+                if let VoxValue::Str(new_msg) = mapped {
+                    Ok(Some(VoxValue::Result(Err(new_msg))))
+                } else {
+                    Err(EvalError::TypeError {
+                        expected: "str",
+                        found: super::builtins::vox_value_type_name(&mapped).into(),
+                    })
+                }
+            }
+        },
+        (VoxValue::Result(res), "and_then") => match res.as_ref() {
+            Ok(v) => {
+                let r = apply_closure(interp, &closure, vec![(**v).clone()])?;
+                Ok(Some(r))
+            }
+            Err(e) => Ok(Some(VoxValue::Result(Err(e.clone())))),
+        },
+        _ => Ok(None),
     }
 }

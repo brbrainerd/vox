@@ -234,4 +234,20 @@ CREATE TABLE IF NOT EXISTS plan_test_decisions (
     rationale TEXT NOT NULL,
     recorded_at_ms INTEGER NOT NULL
 );
+
+-- Phase 4.1: @scheduled function durable state.
+-- One row per scheduled function. interval_ms captured from
+-- HirFn::schedule_interval at boot (Phase 5 main_boot); next_due_at_ms is
+-- the timer state the scheduler runner (Task 4.2) consults.
+-- last_run_id/started/completed track the most recent invocation for
+-- crash-recovery visibility.
+CREATE TABLE IF NOT EXISTS scheduled_runs (
+    function_name TEXT NOT NULL PRIMARY KEY,
+    interval_ms INTEGER NOT NULL,
+    next_due_at_ms INTEGER NOT NULL,
+    last_run_id TEXT,
+    last_started_at_ms INTEGER,
+    last_completed_at_ms INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_scheduled_runs_next_due ON scheduled_runs(next_due_at_ms);
 ";

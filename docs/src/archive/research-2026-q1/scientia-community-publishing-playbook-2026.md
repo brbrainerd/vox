@@ -338,7 +338,7 @@ archived_date: 2026-04-18
 **Problem:** `templates.rs` references `DEFAULT_SITE_BASE_URL` from `contract.rs`. If this constant is `"https://voxlang.org"` it is correct (matching the repo-wide domain policy). If it contains `"https://voxlang.org"` (the incorrect domain), all syndicated content will contain broken canonical links. Additionally, `DEFAULT_GITHUB_REPO` must be `"vox-foundation/vox"` and `DEFAULT_OPENCOLLECTIVE_SLUG` must match the actual collective slug (which hasn't been publicly established yet).
 
 **Action required:** Read `contract.rs` and verify these three constants against:
-1. The codebase-enforced `vox-lang.org` domain
+1. The codebase-enforced `voxlang.org` domain
 2. The actual GitHub repository path
 3. The actual Open Collective slug (placeholder is acceptable until launch, but must be flagged)
 

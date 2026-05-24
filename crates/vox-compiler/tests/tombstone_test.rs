@@ -2,11 +2,13 @@ use vox_compiler::lexer::lex;
 use vox_compiler::parser::{ParseErrorClass, parse};
 
 // TASK-2.6 (commit 080b3f86) restored `actor`, `workflow`, and `activity` as parseable
-// bare-keyword blocks; they no longer produce parser-level tombstone errors. Rejection now
-// happens at pipeline level via ADR-028's `check_adr028_reserved_keywords`. The negative-path
-// contract for those keywords is covered by `pipeline::tests::test_reject_*_adr028`.
+// bare-keyword blocks; they no longer produce parser-level tombstone errors. ADR-041
+// (2026-05-23, supersedes ADR-028) confirms these keywords as public-grammar features
+// backed by a real durable runtime — the pipeline-level reservation gate that briefly
+// rejected them has also been removed. The acceptance contract now lives in
+// `pipeline::tests::test_accept_*_adr041`.
 #[test]
-#[ignore = "TASK-2.6 / ADR-028: `actor` parses; rejection moved to pipeline (see test_reject_*_adr028) — owner: compiler sunset: 2026-12-31"]
+#[ignore = "TASK-2.6 / ADR-041: `actor` parses and is a stable grammar feature; see test_accept_*_adr041 — owner: compiler sunset: 2026-12-31"]
 fn actor_is_tombstoned() {
     let src = "actor MyActor {}";
     let tokens = lex(src);
@@ -17,7 +19,7 @@ fn actor_is_tombstoned() {
 }
 
 #[test]
-#[ignore = "TASK-2.6 / ADR-028: `workflow` parses; rejection moved to pipeline — owner: compiler sunset: 2026-12-31"]
+#[ignore = "TASK-2.6 / ADR-041: `workflow` parses and is a stable grammar feature; see test_accept_*_adr041 — owner: compiler sunset: 2026-12-31"]
 fn workflow_is_tombstoned() {
     let src = "workflow MyWorkflow {}";
     let tokens = lex(src);

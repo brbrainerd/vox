@@ -508,6 +508,18 @@ fn collect_from_expr(
             out,
             branch_counter,
         )?,
+        // `?` operator: walk the inner expression so activity calls like
+        // `charge_card(amount)?` are not silently dropped from the plan.
+        // (The error-propagation semantics are interpreter-side; the planner
+        // only cares about which activities run.)
+        HirExpr::Try(t) => collect_from_expr(
+            workflow_name,
+            &t.target,
+            ctx,
+            activity_names,
+            out,
+            branch_counter,
+        )?,
         HirExpr::ListLit(items, _) => {
             for it in items {
                 collect_from_expr(workflow_name, it, ctx, activity_names, out, branch_counter)?;

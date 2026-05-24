@@ -38,6 +38,11 @@ anyhow.workspace = true
 insta = "1"
 proptest = { workspace = true }
 tempfile = { workspace = true }
+# Phase 1 closure test (`tests/durability_compiles.rs`) needs to `use` the
+# runtime symbols that codegen emits string references to, so that a rename
+# or removal breaks the test compile. Test-only — production codegen does
+# not link the runtime.
+vox-workflow-runtime = { workspace = true }
 
 [lints]
 workspace = true

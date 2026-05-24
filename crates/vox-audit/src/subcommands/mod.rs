@@ -13,4 +13,7 @@
 pub mod aci_default;
 pub mod corpus_feedback;
 pub mod retirement;
+/// Non-CR-L tooling gate: stdlib-coverage parity check. See
+/// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10 / §12.D.
+pub mod stdlib_coverage;
 pub mod stubs;

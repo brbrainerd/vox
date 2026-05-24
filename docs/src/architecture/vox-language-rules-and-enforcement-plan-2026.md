@@ -52,7 +52,7 @@ These are the cross-cutting decisions that the per-phase plans inherit.
 Every new lint, type rule, and runtime trap ships with a stable ID in the namespace `vox/<category>/<kebab-name>`. Examples: `vox/effect/unjustified-net`, `vox/llm/direct-provider-call`, `vox/secret/env-get-shape`, `vox/runtime/fuel-exhausted`.
 
 - IDs are *append-only*. Renaming a diagnostic requires a deprecation alias kept for two minor versions.
-- Every diagnostic has an `explain` page reachable via `vox check --explain <id>` *and* a stable URL `vox-lang.org/diag/<id>`.
+- Every diagnostic has an `explain` page reachable via `vox check --explain <id>` *and* a stable URL `voxlang.org/diag/<id>`.
 - Every diagnostic carries a `since:` version field and (where applicable) an `adr:` field pointing to the deciding ADR.
 - Catalog source: `crates/vox-code-audit/src/diagnostics/catalog.rs` — a single Rust enum with `#[diagnostic(...)]` attrs (Phase 2 Task 1). Generates the docs page, the `--explain` data, the LSP code-action map, and the Mens training-data schema.
 

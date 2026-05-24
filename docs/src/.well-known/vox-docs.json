@@ -2,47 +2,47 @@
   "project": "Vox",
   "version": "0.4",
   "license": "Apache-2.0",
-  "homepage": "https://vox-lang.org",
+  "homepage": "https://voxlang.org",
   "repository": "https://github.com/vox-foundation/vox",
-  "docs_root": "https://vox-lang.org",
-  "feed": "https://vox-lang.org/feed.xml",
-  "sitemap": "https://vox-lang.org/sitemap.xml",
+  "docs_root": "https://voxlang.org",
+  "feed": "https://voxlang.org/feed.xml",
+  "sitemap": "https://voxlang.org/sitemap.xml",
   "pillars": {
     "tutorials": {
-      "index_url": "https://vox-lang.org/tutorials/tut-getting-started.html",
+      "index_url": "https://voxlang.org/tutorials/tut-getting-started.html",
       "path_pattern": "tutorials/tut-*.html",
       "goal": "Learning-oriented, pedagogical steps for building apps with Vox"
     },
     "how_to": {
-      "index_url": "https://vox-lang.org/how-to/how-to-ai-agents.html",
+      "index_url": "https://voxlang.org/how-to/how-to-ai-agents.html",
       "path_pattern": "how-to/how-to-*.html",
       "goal": "Problem-solving, practical recipes for specific Vox tasks"
     },
     "explanations": {
-      "index_url": "https://vox-lang.org/explanation/why-vox-for-ai.html",
+      "index_url": "https://voxlang.org/explanation/why-vox-for-ai.html",
       "path_pattern": "explanation/expl-*.html",
       "goal": "Understanding-oriented, conceptual depth on the Vox compiler and runtime"
     },
     "reference": {
-      "index_url": "https://vox-lang.org/reference/ref-syntax.html",
+      "index_url": "https://voxlang.org/reference/ref-syntax.html",
       "path_pattern": "reference/ref-*.html",
       "goal": "Information-oriented, technical specifications for keywords, decorators, and CLI"
     },
     "api": {
-      "index_url": "https://vox-lang.org/api/decorators.html",
+      "index_url": "https://voxlang.org/api/decorators.html",
       "path_pattern": "api/*.html",
       "goal": "Per-crate API documentation for the Vox toolchain"
     }
   },
   "key_pages": {
-    "getting_started": "https://vox-lang.org/tutorials/tut-getting-started.html",
-    "syntax_reference": "https://vox-lang.org/reference/ref-syntax.html",
-    "type_system": "https://vox-lang.org/reference/ref-type-system.html",
-    "decorators": "https://vox-lang.org/reference/ref-decorators.html",
-    "faq": "https://vox-lang.org/explanation/faq.html",
-    "why_vox": "https://vox-lang.org/explanation/why-vox-for-ai.html",
-    "ai_agents": "https://vox-lang.org/how-to/how-to-ai-agents.html",
-    "changelog": "https://vox-lang.org/reference/changelog.html"
+    "getting_started": "https://voxlang.org/tutorials/tut-getting-started.html",
+    "syntax_reference": "https://voxlang.org/reference/ref-syntax.html",
+    "type_system": "https://voxlang.org/reference/ref-type-system.html",
+    "decorators": "https://voxlang.org/reference/ref-decorators.html",
+    "faq": "https://voxlang.org/explanation/faq.html",
+    "why_vox": "https://voxlang.org/explanation/why-vox-for-ai.html",
+    "ai_agents": "https://voxlang.org/how-to/how-to-ai-agents.html",
+    "changelog": "https://voxlang.org/reference/changelog.html"
   },
   "agent_hints": {
     "preferred_context": "Prioritize the 'reference' pillar for syntax queries and 'tutorials' for code structure queries. The 'explanations' pillar covers design philosophy and architectural decisions.",

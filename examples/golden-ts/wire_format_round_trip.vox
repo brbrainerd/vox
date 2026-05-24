@@ -15,11 +15,11 @@ type Price {
     currency: str
 }
 
-@endpoint(kind: query)
+@query
 fn get_price(item_id: str) to Price { return Price { amount: 0.0, currency: "USD" } }
 
-@endpoint(kind: query)
+@query
 fn list_prices(category: str, limit: Option[int]) to List[dec] { return [] }
 
-@endpoint(kind: mutation)
+@mutation
 fn record_payment(item_id: str, amount: dec, note: Option[str]) to bool { return true }

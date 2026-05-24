@@ -24,6 +24,10 @@
 pub mod db_tracker;
 /// `DurablePromise<T>` — the single awaitable primitive for distributed durable work (P1-T1).
 pub mod durable_promise;
+/// Activity-body journal wrapper used by codegen-emitted code (Task 1.3).
+pub mod journal;
+/// Persistent `@scheduled` runner (Phase 4.2) — DB-backed timer loop.
+pub mod scheduled;
 pub mod workflow;
 
 pub use db_tracker::VoxDbTracker;
@@ -31,6 +35,7 @@ pub use durable_promise::{DurablePromise, JournalError};
 #[cfg(feature = "mens")]
 pub use workflow::execute_populi_step;
 pub use workflow::{
-    DefaultTracker, PlannedActivity, PopuliActivity, PopuliHttpOp, WORKFLOW_JOURNAL_VERSION,
-    WorkflowTracker, interpret_workflow, interpret_workflow_durable, plan_workflow_activities,
+    DefaultTracker, InMemoryTracker, PlannedActivity, PopuliActivity, PopuliHttpOp,
+    WORKFLOW_JOURNAL_VERSION, WorkflowTracker, interpret_workflow, interpret_workflow_durable,
+    plan_workflow_activities,
 };

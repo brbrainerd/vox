@@ -48,6 +48,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         HirExpr::DecimalLit(_, s) => *s,
         HirExpr::AsyncView(v) => v.span,
         HirExpr::WorkflowVersion(v) => v.span,
+        HirExpr::StringInterp { span, .. } => *span,
     }
 }
 
@@ -550,6 +551,13 @@ impl<'a> Checker<'a> {
                 .iter()
                 .filter_map(|a| a.as_deref())
                 .any(Self::contains_db_write_or_unsafe_in_expr),
+            HirExpr::StringInterp { parts, .. } => parts.iter().any(|p| {
+                if let crate::hir::HirStringPart::Interpolation(e) = p {
+                    Self::contains_db_write_or_unsafe_in_expr(e)
+                } else {
+                    false
+                }
+            }),
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)
             | HirExpr::BoolLit(_, _)
@@ -731,8 +739,18 @@ impl<'a> Checker<'a> {
                                     }
                                     progress = true;
                                 } else {
+                                    // Use the human-readable type renderer
+                                    // instead of the `{other:?}` Debug repr so
+                                    // error messages don't leak internal
+                                    // TypeVar IDs to script authors. See
+                                    // closures-rfc-2026-05-23.md §11 Q4.
+                                    let pretty = pretty_print_unresolved_type(other);
                                     self.diags.push(Diagnostic::error(
-                                        format!("Method '{method}' not found on {other:?}"),
+                                        format!(
+                                            "Method `{method}` not found on {pretty}.\n\
+                                             If `{pretty}` looks unexpected, the receiver may need an \
+                                             explicit type annotation upstream."
+                                        ),
                                         span,
                                         self.source,
                                     ));
@@ -746,16 +764,70 @@ impl<'a> Checker<'a> {
         }
 
         for constraint in queue {
-            let span = match constraint {
-                crate::typeck::unify::PendingConstraint::HasField { span, .. } => span,
-                crate::typeck::unify::PendingConstraint::HasMethod { span, .. } => span,
+            let (span, msg) = match &constraint {
+                crate::typeck::unify::PendingConstraint::HasField { span, target, field, .. } => {
+                    let target_str = pretty_print_unresolved_type(target);
+                    (*span, format!(
+                        "Cannot infer the type of this value to access field `{field}`.\n\
+                         Inferred so far: {target_str}.\n\
+                         Add an explicit type annotation to the variable that produced this value \
+                         (e.g. `let x: <Type> = ...`)."
+                    ))
+                }
+                crate::typeck::unify::PendingConstraint::HasMethod { span, target, method, .. } => {
+                    // Per closures-rfc-2026-05-23.md §11 Q4: when a method call
+                    // can't be resolved because the receiver type is still a
+                    // TypeVar, the diagnostic MUST name the method, show
+                    // what's been inferred about the receiver, and suggest
+                    // an annotation. The prior message dumped the raw
+                    // `{constraint:?}` Debug repr, which was unactionable.
+                    let target_str = pretty_print_unresolved_type(target);
+                    // Heuristic: if this looks like a closure param's type
+                    // (TypeVar with no constraints), tilt the suggestion
+                    // toward the closure-annotation form RFC §4 specifies.
+                    let suggestion = if matches!(target, Ty::TypeVar(_)) {
+                        format!(
+                            "Add an explicit type to the binding that produced this value. \
+                             For closures, that's `fn(x: <Type>) {{ ... }}` per the closures RFC §11."
+                        )
+                    } else {
+                        format!(
+                            "Add an explicit type annotation upstream so the receiver's type can be resolved."
+                        )
+                    };
+                    (*span, format!(
+                        "Cannot infer the type of this value to call `.{method}()`.\n\
+                         Inferred so far: {target_str}.\n\
+                         {suggestion}"
+                    ))
+                }
             };
-            self.diags.push(Diagnostic::error(
-                format!("Type inference requires more type annotations. Unsolved constraint: {constraint:?}"),
-                span,
-                self.source
-            ));
+            self.diags.push(Diagnostic::error(msg, span, self.source));
         }
+    }
+}
+
+/// Render an unresolved typeck type for error messages. Plain `Ty::TypeVar(N)`
+/// shows as `<unknown>` so users don't see the internal-id-of-the-day; named
+/// types pretty-print themselves; everything else falls back to Debug.
+///
+/// Exposed crate-wide so per-construct diagnostics in `checker/expr.rs`
+/// and `checker/expr_field.rs` can use it for consistent formatting.
+pub(crate) fn pretty_print_unresolved_type(ty: &Ty) -> String {
+    match ty {
+        Ty::TypeVar(_) => "<unknown>".to_string(),
+        Ty::Named(n) => n.clone(),
+        Ty::Int => "Int".to_string(),
+        Ty::Float => "Float".to_string(),
+        Ty::Str => "Str".to_string(),
+        Ty::Bool => "Bool".to_string(),
+        Ty::Unit => "Unit".to_string(),
+        Ty::Never => "Never".to_string(),
+        Ty::List(inner) => format!("List[{}]", pretty_print_unresolved_type(inner)),
+        Ty::Option(inner) => format!("Option[{}]", pretty_print_unresolved_type(inner)),
+        Ty::Result(inner) => format!("Result[{}]", pretty_print_unresolved_type(inner)),
+        Ty::Fn(_, _) => "fn(...)".to_string(),
+        _ => format!("{ty:?}"),
     }
 }
 

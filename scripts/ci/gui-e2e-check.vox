@@ -7,30 +7,32 @@ import path;
 import process;
 
 fn main() {
-    println!("🚀 Running GUI E2E validation suite via Playwright...");
-    
+    print("Running GUI E2E validation suite via Playwright...");
+
     let ui_dir = "crates/vox-gui/ui";
-    if !fs.exists(ui_dir) {
-        println!("❌ GUI directory not found");
+    if not fs.exists(ui_dir) {
+        log.error("GUI directory not found");
         process.exit(1);
     }
     
-    // We execute pnpm exec playwright test to run the suite
-    println!("Installing playwright browsers...");
-    let install_res = process.run("pnpm", ["exec", "playwright", "install", "chromium"], { cwd: ui_dir });
+    // We execute pnpm exec playwright test to run the suite.
+    // process.run_ex(cmd, args, cwd) returns Result[Record] — the 3-arg form
+    // that supports a working directory. `process.run` is 2-arg only.
+    print("Installing playwright browsers...");
+    let install_res = process.run_ex("pnpm", ["exec", "playwright", "install", "chromium"], ui_dir).unwrap();
     if install_res.code isnt 0 {
-        println!("❌ Failed to install playwright browsers:");
-        println(install_res.stderr);
+        log.error("Failed to install playwright browsers:");
+        log.error(install_res.stderr);
     }
 
-    println!("Executing tests...");
-    let test_res = process.run("pnpm", ["run", "test:e2e"], { cwd: ui_dir });
+    print("Executing tests...");
+    let test_res = process.run_ex("pnpm", ["run", "test:e2e"], ui_dir).unwrap();
     if test_res.code isnt 0 {
-        println!("❌ Playwright suite failed:");
-        println(test_res.stdout);
-        println(test_res.stderr);
+        log.error("Playwright suite failed:");
+        print(test_res.stdout);
+        log.error(test_res.stderr);
         process.exit(1);
     }
-    
-    println!("✅ gui-e2e-check passed.");
+
+    print("gui-e2e-check passed.");
 }

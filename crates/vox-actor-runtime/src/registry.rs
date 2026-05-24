@@ -127,6 +127,87 @@ impl Default for ProcessRegistry {
     }
 }
 
+// ---------------------------------------------------------------------------
+// ActorRegistry — typed JSON-handler lookup table for @actor codegen
+// ---------------------------------------------------------------------------
+//
+// This is a higher-level abstraction over [`ProcessRegistry`] / [`spawn_process`]
+// used by Phase 5 main_boot to register actor handlers at binary startup and
+// route incoming messages by actor name. Unlike `ProcessRegistry` (which tracks
+// live `ProcessHandle`s and their mailboxes), `ActorRegistry` is a flat map from
+// actor name to an async closure that accepts JSON args and returns a JSON
+// result.
+//
+// Design choice (kept deliberately minimal):
+// - `register(name, handler)` simply stores the handler in the map.
+// - `dispatch(name, _message_name, args)` looks the handler up and invokes it
+//   directly. There is no per-call mailbox / back-pressure / ordering guarantee
+//   in this path — those semantics remain in `spawn_process`. The registry is
+//   just a typed dispatch table.
+// - `_message_name` is accepted but unused today. Actors currently expose one
+//   effective entry point per generated handler closure. The parameter is
+//   preserved so future per-message routing (`actor.on_xxx`) can fan out by
+//   message name without breaking the public signature.
+
+use std::future::Future;
+use std::pin::Pin;
+use tokio::sync::Mutex;
+
+/// Async actor message handler: JSON args in, JSON result out.
+pub type ActorHandler = Arc<
+    dyn Fn(serde_json::Value) -> Pin<Box<dyn Future<Output = anyhow::Result<serde_json::Value>> + Send>>
+        + Send
+        + Sync,
+>;
+
+/// Typed dispatch table mapping actor names to JSON message handlers.
+///
+/// Cheaply cloneable: the inner map is shared behind `Arc<Mutex<_>>` so multiple
+/// callers can register/dispatch concurrently. See module-level comment for the
+/// rationale on why this lives next to (not replacing) [`ProcessRegistry`].
+#[derive(Default, Clone)]
+pub struct ActorRegistry {
+    actors: Arc<Mutex<HashMap<String, ActorHandler>>>,
+}
+
+impl ActorRegistry {
+    /// Returns an empty registry.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Register `handler` under `actor_name`. Replaces any prior entry.
+    pub async fn register(&self, actor_name: &str, handler: ActorHandler) {
+        let mut actors = self.actors.lock().await;
+        actors.insert(actor_name.to_string(), handler);
+    }
+
+    /// Dispatch `args` to the handler registered under `actor_name`.
+    ///
+    /// `_message_name` is reserved for future per-message routing and is unused
+    /// today (see module-level comment).
+    ///
+    /// Returns the handler's `anyhow::Result<Value>` verbatim. Dispatching to an
+    /// unknown actor returns `Err`, never panics.
+    pub async fn dispatch(
+        &self,
+        actor_name: &str,
+        _message_name: &str,
+        args: serde_json::Value,
+    ) -> anyhow::Result<serde_json::Value> {
+        let handler = {
+            let actors = self.actors.lock().await;
+            actors.get(actor_name).cloned()
+        };
+        match handler {
+            Some(h) => h(args).await,
+            None => Err(anyhow::anyhow!(
+                "ActorRegistry: no actor registered under name '{actor_name}'"
+            )),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

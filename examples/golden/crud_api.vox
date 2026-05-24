@@ -1,37 +1,40 @@
 // ---
-// title: "Crud Api Example"
-// description: "Data layer: @table, @endpoint(kind: query), @endpoint(kind: mutation), db.* (canonical surface)."
+// title: "CRUD API Golden"
+// description: "Data layer: @table, @query, @mutation, db.* (canonical surface)."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [@table, @endpoint(kind: query), @endpoint(kind: mutation), db, fn]
-// last_validated: 2026-03-25
+// constructs: [@table, @query, @mutation, db, fn]
+// last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @endpoint(kind: query), @endpoint(kind: mutation), one query endpoint, and db.Table operations (get/find, all, insert).
+// @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @query, @mutation, one query endpoint, and db.Table operations (get/all, insert).
 // ANCHOR: display
 @table type User {
     name: str
     active: bool
 }
 
-@endpoint(kind: query)
+@query
 fn user_count() to int {
     return len(db.User.all())
 }
 
-@endpoint(kind: query)
-fn active_user_count() to int {
-    return len(db.User.filter({ active: true }))
+@query
+fn all_users() to int {
+    // Returns count of all users; filter by active is application-side logic
+    let users = db.User.all()
+    return len(users)
 }
 
-@endpoint(kind: mutation)
-fn seed_user(name: str) to Unit {
+@mutation
+fn seed_user(name: str) to str {
     db.User.insert({ name: name, active: true })
+    return "created"
 }
 
-@endpoint(kind: query) fn handler() to int {
+@query fn handler() to int {
     return len(db.User.all())
 }
 // ANCHOR_END: display

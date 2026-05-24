@@ -2,12 +2,33 @@
 
 use anyhow::Result;
 use owo_colors::OwoColorize;
+use vox_compiler::pipeline::PipelineOptions;
 
 /// Lex, parse, and type-check `file`; fail the process if any error-level diagnostic is reported.
 ///
 /// When the user passes global `--json`, [`crate::apply_global_opts`] sets `VOX_CLI_GLOBAL_JSON=1`;
 /// diagnostics are printed as JSON to stdout (parse failures already use JSON when `json` is true).
 use crate::cli_args::CheckArgs;
+
+/// Heuristic for "this file is a script-style entry point" — uses `parse_script`
+/// (which wraps top-level statements in a synthetic `fn main()`) instead of
+/// strict `parse`. Files containing `@page`, `@endpoint`, or `@component`
+/// decorators are definitely-not-scripts and use the strict path. Everything
+/// else (including library files with no top-level statements) is safe to
+/// route through `parse_script` — the synthetic-main wrapping is a no-op when
+/// there are no top-level statements to wrap.
+///
+/// Without this, `vox check` and `vox run` diverge on script-style files like
+/// [`scripts/scientia/atlas-draft.vox`](../../../../../scripts/scientia/atlas-draft.vox)
+/// — `vox run` works (it uses `parse_script` itself); `vox check` errors with
+/// "Unexpected token at top level". That divergence is itself a diagnostic-
+/// parity defect (see [`docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md`](../../../../../docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md) §5.4).
+fn is_script_like(source: &str) -> bool {
+    // Conservative: if it looks like an app surface (has decorators that
+    // belong in module-position only), don't treat as script.
+    let app_markers = ["@page", "@endpoint", "@component", "@table", "@workflow"];
+    !app_markers.iter().any(|m| source.contains(m))
+}
 
 /// Lex, parse, and type-check `file`; fail the process if any error-level diagnostic is reported.
 ///
@@ -40,7 +61,13 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
         return Ok(());
     }
 
-    let result = crate::pipeline::run_frontend(file, json).await?;
+    // Read once so we can both heuristic-classify and pass to the pipeline.
+    let source = vox_bounded_fs::read_utf8_path_capped(file)?;
+    let options = PipelineOptions {
+        script_mode: is_script_like(&source),
+        ..PipelineOptions::default()
+    };
+    let result = crate::pipeline::run_frontend_with_options(file, json, &options).await?;
     crate::pipeline::print_diagnostics(&result, file, json);
     let error_count = result.error_count();
     let warning_count = result.warning_count();

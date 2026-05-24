@@ -8,6 +8,7 @@ license.workspace = true
 [features]
 default = ["mens"]
 mens = ["dep:vox-populi", "vox-populi/transport"]
+test-support = []
 
 [dependencies]
 anyhow = { workspace = true }
@@ -18,6 +19,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
 vox-populi = { workspace = true, optional = true }

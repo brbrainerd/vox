@@ -42,7 +42,7 @@ fn emit_workflow_body(func: &HirFn) -> String {
         "    let mut __vox_tracker = ::vox_workflow_runtime::workflow::tracker::DefaultTracker;\n",
     );
     out.push_str(&format!(
-        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(&__vox_hir, \"{name}\", &mut __vox_tracker).await?;\n"
+        "    let __vox_journal = ::vox_workflow_runtime::workflow::interpret_workflow_durable(__vox_hir, \"{name}\", &mut __vox_tracker).await?;\n"
     ));
     if let Some(ret) = &func.return_type {
         out.push_str(&format!(

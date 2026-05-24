@@ -5,14 +5,14 @@
 
   <p><strong>One <code>.vox</code> file compiles to a database schema, a typed server, a browser app, and the artifacts to deploy them.</strong> Initiated by Bertrand Reyna-Brainerd.</p>
 
-  <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
+  <p><a href="https://voxlang.org"><strong>voxlang.org</strong></a></p>
 </div>
 
 <p align="center">
-  <a href="https://vox-lang.org"><img src="https://img.shields.io/badge/docs-vox--lang.org-blue?style=flat-square" alt="Documentation"/></a>
+  <a href="https://voxlang.org"><img src="https://img.shields.io/badge/docs-voxlang.org-blue?style=flat-square" alt="Documentation"/></a>
   <a href="https://github.com/vox-foundation/vox/commits/main"><img src="https://img.shields.io/github/last-commit/vox-foundation/vox?style=flat-square&label=updated" alt="Last Updated"/></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-green?style=flat-square" alt="License"/></a>
-  <a href="https://vox-lang.org/feed.xml"><img src="https://img.shields.io/badge/RSS-updates-orange?style=flat-square" alt="RSS Feed"/></a>
+  <a href="https://voxlang.org/feed.xml"><img src="https://img.shields.io/badge/RSS-updates-orange?style=flat-square" alt="RSS Feed"/></a>
 </p>
 
 ---
@@ -133,28 +133,28 @@ The declaration is the [schema](crates/vox-db/), the [wire format](crates/vox-pr
 ### Pillar 2: Errors in the type system
 
 ```vox
-@endpoint(kind: query)
+@query
 fn recent_tasks() to list[Task] {
     return db.Task.where({ done: false }).limit(10)
 }
 
-@endpoint(kind: mutation)
+@mutation
 fn add_task(title: str, owner: str) to Result[Id[Task]] {
-    if title == "" {
+    if title is "" {
         return Error("title required")
     }
-    
-    return Ok(db.insert(Task, { 
-        title: title, 
-        done: false, 
-        owner: owner 
+
+    return Ok(db.insert(Task, {
+        title: title,
+        done: false,
+        owner: owner
     }))
 }
 ```
 
 A `Result[T]` caller must handle both arms — no exceptions, no `null`, no implicit propagation. The compiler refuses to build code that drops `Error`. [`vox-lsp`](crates/vox-lsp/) surfaces the same diagnostics live in the editor.
 
-`@endpoint(kind: …)` is the structurally unified form of the legacy HTTP routing decorators.
+`@query`, `@mutation`, and `@server` are the three endpoint kinds. They replace the previous `@endpoint(kind: …)` form (deprecated 2026-05-23; auto-migrated by `vox fmt`).
 
 → [decorator reference](docs/src/reference/ref-decorators.md)
 
@@ -180,38 +180,38 @@ routes {
 
 → [external interop plan](docs/src/architecture/external-frontend-interop-plan-2026.md) · [deployment](docs/src/reference/deployment-compose.md)
 
-### Pillar 4: Durability, agents, skills
+### Pillar 4: Agents, MCP, and the orchestrator
 
-`@durable` lowers to checkpointed execution under [`vox-workflow-runtime`](crates/vox-workflow-runtime/) — retried on transient faults, restarted on node death.<sup>[1](#ref1), [2](#ref2)</sup> `@mcp.tool` exposes a function to any [Model Context Protocol](https://modelcontextprotocol.io) client.<sup>[3](#ref3)</sup>
+`@mcp.tool` and `@mcp.resource` expose typed functions to any [Model Context Protocol](https://modelcontextprotocol.io) client.<sup>[3](#ref3)</sup> The tool description, parameter schema, and return type are all derived from the function signature.
 
 ```vox
-@durable
-fn charge_card(amount: int) to Result[str] {
+@mcp.tool "Process a checkout for the given amount"
+fn checkout(amount: int) to Result[str] {
     if amount > 1000 {
         return Error("amount too large")
     }
     return Ok("tx_123")
 }
 
-@mcp.tool "Process a durable checkout"
-fn checkout(amount: int) to Result[str] {
-    return charge_card(amount)
+@mcp.resource("vox://orders/recent", "Recent orders this hour")
+fn recent_orders() to list[Order] {
+    return db.Order.where({ created_at: hour_ago() })
 }
 ```
 
+[`vox-orchestrator`](crates/vox-orchestrator/) routes work to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: dozens of first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
+
 <div align="center">
-  <img src="docs/src/assets/durable_essentialist_loop.webp" alt="Vox Durable Execution Loop" width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+  <img src="docs/src/assets/durable_essentialist_loop.webp" alt="A continuous ribbon with four checkpoint markers — the durability loop the workflow runtime executes." width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
   <div style="max-width: 600px; text-align: left; margin-top: 15px;">
-    <h3>Durable Execution and State Recovery</h3>
+    <h3>Durable execution</h3>
     <p>
-      Vox ensures that long-running workflows are resilient to infrastructure failures. By automatically checkpointing state at every await point, the runtime can resume execution on any available node without losing context, making it ideal for multi-step agentic processes that may take minutes or days to complete.
+      <code>workflow</code> and <code>activity</code> are keywords, not a library. The runtime in <a href="crates/vox-workflow-runtime/"><code>vox-workflow-runtime</code></a> checkpoints every <code>activity</code> result to a per-run journal (<a href="docs/src/adr/019-durable-workflow-journal-contract-v1.md">ADR-019, v1 contract</a>). A crash mid-run resumes on restart with the completed activities replayed from the journal; only the remaining steps re-execute. <code>@scheduled</code> functions run on a persistent scheduler loop with crash-safe state. Supported subset documented in <a href="docs/src/adr/021-generated-workflow-durability-parity.md">ADR-021</a>; completion ADR is <a href="docs/src/adr/041-durable-functions-completion-2026.md">ADR-041</a>. The supported subset ships today; unrestricted control-flow replay remains future work.<sup><a href="#ref1">1</a>, <a href="#ref2">2</a></sup>
     </p>
   </div>
 </div>
 
-The same primitives drive multi-agent work. [`vox-orchestrator`](crates/vox-orchestrator/) routes tasks to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: dozens of first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](crates/vox-plugin-host/) behind a stable ABI.
-
-→ [orchestration policy research](docs/src/architecture/autonomous-orchestration-policy-research-2026.md) · [`vox-skills`](crates/vox-skills/)
+→ [orchestration policy research](docs/src/architecture/autonomous-orchestration-policy-research-2026.md) · [`vox-skills`](crates/vox-skills/) · [ADR-041: durable functions completion](docs/src/adr/041-durable-functions-completion-2026.md)
 
 ### Pillar 5: Built for LLM authorship
 
@@ -222,6 +222,31 @@ The shape of the four pillars above is downstream of one decision: *design the l
 - **Local training.** Vox is new; mainstream languages saturate the public training corpus, Vox doesn't. `vox populi` runs QLoRA<sup>[4](#ref4)</sup> fine-tunes and OpenAI-compatible serving on detected CUDA / Metal / WebGPU — [Burn](https://github.com/tracel-ai/burn) + [Candle](https://github.com/huggingface/candle), no Python. Requires the `gpu` cargo feature.
 
 → [`examples/golden/`](examples/golden/) · [Rosetta comparison](docs/src/explanation/expl-rosetta-inventory.md) · [why Vox for AI](docs/src/explanation/why-vox-for-ai.md)
+
+---
+
+### Touches you'll see everywhere
+
+A few language-level decisions show up in almost every snippet:
+
+**Phonetic operators.** Vox spells comparisons and booleans as words: `is`, `isnt`, `and`, `or`, `not`. The bare `!=` form parses, but the lexer emits a diagnostic pointing at `isnt`. Words appear in language-model training data far more often than punctuation patterns — so a model is more likely to predict the word than the symbol, and a human reads it aloud unambiguously.
+
+```vox
+fn classify(score: int, override: bool) to str {
+    if override is true { return "admin" }
+    if score >= 90 and score isnt 100 { return "expert" }
+    if score < 50 or not is_calibrated() { return "novice" }
+    return "regular"
+}
+```
+
+**Opaque ID types.** `Id[User]` and `Id[Post]` are distinct types. Passing the wrong-table ID to `db.Post.find(user_id)` is a compile error, not a 4 AM runtime crash.
+
+**`?` propagation + `match` exhaustiveness.** The `?` postfix unwraps `Ok(value)` or short-circuits the function with the `Error`. The only way to consume a `Result` is `match`, and `match` arms must cover both `Ok` and `Error` — the compiler refuses to build silent error-swallowing code.
+
+**Sandboxed execution tiers.** `vox run --isolation wasm script.vox` runs untrusted scripts under [Wasmtime](https://wasmtime.dev/) ([`vox-wasm-engine`](crates/vox-wasm-engine/)). `--isolation container` runs them in an OCI sandbox via [`vox-container`](crates/vox-container/). [`vox-bounded-fs`](crates/vox-bounded-fs/) caps reads by size; [`vox-exec-grammar`](crates/vox-exec-grammar/) classifies shell-out risk before execution. Useful when an agent generates code you don't want to run on the host.
+
+**`vox audit`** runs the [rule pack](crates/vox-rule-pack/rules/rules.v1.yaml) — stub, hollow-fn, victory-claim, AI-laziness, secret, magic-value, deprecated-symbol, and effect-system detectors — each [F1-scored](https://en.wikipedia.org/wiki/F-score) against fixture corpora. Rules are calibrated, not vibes.
 
 ---
 
@@ -279,7 +304,7 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 | **Language Platform** | | |
 | Compiler Core | 🟣 Mature | Wave 2 complete: pure-HIR lowering and stable syntax grammar. |
 | LSP & IDE Tools | 🟣 Mature | Production-grade `vox-lsp` with full cross-reference support. |
-| Durable Runtime | 🟡 Preview | [Checkpointing](crates/vox-workflow-runtime/) functional; compaction scaling in flight. |
+| Durable Runtime | 🔵 Stable (interpreter) / 🟡 Preview (codegen) | Interpreter path: journal-backed replay for the supported subset ([ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md) / [ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md)) ships; `@scheduled` runs on a persistent scheduler with crash-safe state. Codegen path: generated binaries link but `current_hir_module()` registration in emitted `main()` is a tracked Phase-5 follow-up — see [ADR-041](docs/src/adr/041-durable-functions-completion-2026.md). Unrestricted control-flow replay is explicit non-goal. |
 | **Data & Foundation** | | |
 | Database Engine | 🔵 Stable | [vox-db](crates/vox-db/) with Turso integration and zero-downtime migrations. |
 | Secrets & Safety | 🔵 Stable | [Clavis](crates/vox-secrets/) hardened vault and [Rule Pack](crates/vox-rule-pack/) CI guards. |
@@ -350,7 +375,7 @@ Funded via [Open Collective](https://opencollective.com/vox-foundation) — ever
 
 [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0): commercial use, patent grant, modification with attribution. [`LICENSE`](https://github.com/vox-foundation/vox/blob/main/LICENSE).
 
-Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussions). Changelogs and ADRs: [RSS](https://vox-lang.org/feed.xml).
+Discussion: [GitHub Discussions](https://github.com/vox-foundation/vox/discussions). Changelogs and ADRs: [RSS](https://voxlang.org/feed.xml).
 <!-- ANCHOR_END: community_license -->
 
 ---

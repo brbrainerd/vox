@@ -421,9 +421,8 @@ pub mod codes {
         WORKFLOW_NON_DETERMINISTIC_CALL,
         WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW,
         EFFECT_MISSING_DECLARATION,
-        // Pipeline / parse / hygiene / ADR-028 reserved-keyword gate
+        // Pipeline / parse / hygiene (E028 retired by ADR-041 — durability grammar is stable)
         "E0001",
-        "E028",
         "E091",
         "W092",
         "W093",
