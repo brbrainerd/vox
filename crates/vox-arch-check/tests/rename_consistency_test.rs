@@ -15,8 +15,8 @@
 
 use std::collections::HashSet;
 
-use vox_compiler::lowering_shared::primitive_tags;
-use vox_compiler::parser::renames::{RenameKind, RenameRegistry};
+use vox_rename_registry::primitive_tags;
+use vox_rename_registry::renames::{RenameKind, RenameRegistry};
 
 #[test]
 fn registry_from_names_are_not_canonical_primitives() {

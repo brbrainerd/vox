@@ -79,6 +79,7 @@ vox-mesh-types         = { layer = 0 }
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
+vox-rename-registry   = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }
@@ -203,11 +204,6 @@ voxup                 = { layer = 5, kind = "binary" }
 from   = "vox-cli"
 to     = "vox-orchestrator"
 reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See build-time-log.md Phase 7 audit."
-
-[[known_inversions]]
-from   = "vox-arch-check"
-to     = "vox-compiler"
-reason = "dev-dependency only (rename-registry integration test added in feat(arch-check) VUV-9 task 8). The tool binary does not ship vox-compiler at runtime; remove once the test can be refactored to not need the full compiler crate."
 
 [[known_inversions]]
 from   = "vox-ml-cli"

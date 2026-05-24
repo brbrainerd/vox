@@ -67,6 +67,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
 | [`vox-http-client`](../../../crates/vox-http-client/) | Shared HTTP client presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
+| [`vox-rename-registry`](../../../crates/vox-rename-registry/) | Rename registry (`RenameKind`, `RenameRegistry`, `RegistryError`) and primitive-tag lookup (`primitive_tags::all_primitives`, `is_primitive`). L0 — zero workspace deps. Re-exported via `vox_compiler::parser::renames` and `vox_compiler::lowering_shared::primitive_tags`. |
 | [`vox-research-events`](../../../crates/vox-research-events/) | Typed SCIENTIA research event types and `PreregistrationV1`. |
 | [`vox-rule-pack`](../../../crates/vox-rule-pack/) | Declarative YAML rule-pack loader for code-audit detector patterns and Scientia heuristics. Zero heavy deps. |
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml). |

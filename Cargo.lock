@@ -12998,7 +12998,7 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "vox-build-meta",
- "vox-compiler",
+ "vox-rename-registry",
 ]
 
 [[package]]
@@ -14607,6 +14607,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-rename-registry"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "vox-repository"
 version = "0.5.0"
 dependencies = [
@@ -14684,6 +14693,7 @@ dependencies = [
  "sha2",
  "sha3",
  "tar",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
