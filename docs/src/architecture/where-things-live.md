@@ -126,6 +126,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-oratio`](../../../crates/vox-oratio/) | Speech-to-text (Oratio) — Candle Whisper (Rust) STT and transcript refinement. |
 | [`vox-plugin-catalog`](../../../crates/vox-plugin-catalog/) | SSOT catalog of all first-party Vox plugins and distribution bundles. |
 | [`vox-plugin-host`](../../../crates/vox-plugin-host/) | Host-side plugin discovery, loading, and registry. |
+| [`vox-plugin-test-harness`](../../../crates/vox-plugin-test-harness/) | Shared test utilities for plugin authors: fluent `Plugin.toml` manifest builders (`CodeManifestBuilder`, `SkillManifestBuilder`) and `PluginDir` temp-directory helper. |
 | [`vox-populi`](../../../crates/vox-populi/) | Vox Populi: multi-node worker registry, HTTP control plane, and Mens native ML (Burn / Candle QLoRA). |
 | [`vox-publisher`](../../../crates/vox-publisher/) | Unified news syndication and publishing for Vox. SCIENTIA mesh intake from orchestrator research events: `research_mesh.rs` (+ contract `contracts/scientia/research-mesh-intake.v1.schema.json`). |
 | [`vox-scientia`](../../../crates/vox-scientia/) | SCIENTIA cluster umbrella — all Phases A–H as sub-modules: `producers` (Phase A signal emitters), `replay` (Phase B re-executor), `manuscript` (Phases C+3+4 IMRaD/LaTeX scaffolders), `critic_gate` (Phase D gate), `class_routing` (Phase E venue routing), `findings_site` (Phase G HTML builder), `dashboard` (Phase H JSON builders). |

@@ -14153,6 +14153,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-test-harness"
+version = "0.5.0"
+dependencies = [
+ "tempfile",
+ "toml 0.8.23",
+ "vox-plugin-types",
+]
+
+[[package]]
 name = "vox-plugin-types"
 version = "0.5.0"
 dependencies = [
@@ -14238,14 +14247,12 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
- "vox-distributed-training",
  "vox-eval",
  "vox-foundation",
  "vox-grammar-export",
  "vox-hf-layout",
  "vox-http-client",
  "vox-identity",
- "vox-inference",
  "vox-mesh-types",
  "vox-orchestrator-queue",
  "vox-package",

@@ -161,6 +161,7 @@ vox-search              = { layer = 3 }
 
 
 vox-test-harness        = { layer = 3 }
+vox-plugin-test-harness = { layer = 3, kind = "test-only" }  # manifest fixture builders + PluginDir for plugin authors
 vox-doc-pipeline        = { layer = 3 }
 vox-deploy-codegen      = { layer = 3 }
 vox-package             = { layer = 3 }
