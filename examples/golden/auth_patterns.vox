@@ -27,7 +27,7 @@ fn verify_token(token: str) to Result[str] {
 }
 
 fn require_admin(is_admin: bool) to Result[str] {
-    if !is_admin {
+    if not is_admin {
         return Error("Forbidden: requires admin")
     }
     return Ok("authorized")

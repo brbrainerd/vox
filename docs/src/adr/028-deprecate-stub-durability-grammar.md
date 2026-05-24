@@ -2,7 +2,7 @@
 title: "ADR-028: Remove Stub Durability/Scheduling Grammar from Public API"
 description: "Proposes removing @scheduled, @durable, workflow, and activity from the public Vox grammar, retaining actor with documented limitations, following the 2026-05-01 durability runtime audit."
 category: "Architecture Decisions (ADRs)"
-status: "superseded"
+status: "deprecated"
 last_updated: "2026-05-23"
 training_eligible: true
 ---

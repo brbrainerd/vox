@@ -142,6 +142,8 @@ vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
+vox-distributed-training = { layer = 3 }     # promoted from [planned] 2026-05-23 — crate now on disk
+vox-inference           = { layer = 3 }      # promoted from [planned] 2026-05-23 — crate now on disk
 vox-mesh         = { layer = 3, kind = "plugin", staleness_exempt = true }
 vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 25_000 }
@@ -365,8 +367,7 @@ vox-share                = { plan = "docs/src/architecture/crate-structure-audit
 vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 vox-mesh-policy          = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 1 }
-vox-distributed-training = { plan = "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md", layer = 3 }
-vox-inference            = { plan = "docs/src/architecture/mesh-mens-distributed-training-and-execution-plan-2026.md", layer = 3 }
+# vox-distributed-training, vox-inference — promoted to [crates] (now on disk)
 vox-cli-ci               = { plan = "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", layer = 3 }
 vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }

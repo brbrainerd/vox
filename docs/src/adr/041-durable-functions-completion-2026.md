@@ -2,7 +2,7 @@
 title: "ADR 041: Durable functions completion (workflow, activity, actor, @scheduled)"
 description: "Records the closure of the parse-only stub gap identified in ADR-028. The grammar features are now backed by working runtime, codegen, journal-backed replay, and a scheduler loop."
 category: "Architecture Decisions (ADRs)"
-status: "accepted"
+status: "current"
 last_updated: "2026-05-23"
 training_eligible: true
 
