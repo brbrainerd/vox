@@ -43,12 +43,12 @@ impl VoxDb {
         name: &str,
         interval_ms: i64,
     ) -> Result<(), StoreError> {
-        let _conn = self.conn().await?;
+        let _conn = self.conn.clone();
         let name = name.to_string();
         let now = now_ms();
         let next_due = now.saturating_add(interval_ms.max(0));
         let breaker = self.breaker.clone();
-        let conn = self.conn().await?;
+        let conn = self.conn.clone();
         breaker
             .call(|| async move {
                 conn.execute(
@@ -79,9 +79,8 @@ impl VoxDb {
         name: &str,
     ) -> Result<Option<i64>, StoreError> {
         // Match the pattern used by `scheduled_runs_due_now` below.
-        let mut cursor = self
-            .conn()
-            .await?
+        let conn = self.conn.clone();
+        let mut cursor = conn
             .query(
                 "SELECT next_due_at_ms FROM scheduled_runs WHERE function_name = ?1",
                 (name.to_string(),),
@@ -98,9 +97,8 @@ impl VoxDb {
     /// Return all scheduled rows whose `next_due_at_ms <= now()`.
     pub async fn scheduled_runs_due_now(&self) -> Result<Vec<ScheduledRunRow>, StoreError> {
         let now = now_ms();
-        let mut cursor = self
-            .conn()
-            .await?
+        let conn = self.conn.clone();
+        let mut cursor = conn
             .query(
                 "SELECT function_name, interval_ms, next_due_at_ms, last_run_id
                  FROM scheduled_runs
@@ -133,12 +131,12 @@ impl VoxDb {
         name: &str,
         run_id: &str,
     ) -> Result<(), StoreError> {
-        let _conn = self.conn().await?;
+        let _conn = self.conn.clone();
         let name = name.to_string();
         let run_id = run_id.to_string();
         let now = now_ms();
         let breaker = self.breaker.clone();
-        let conn = self.conn().await?;
+        let conn = self.conn.clone();
         breaker
             .call(|| async move {
                 conn.execute(
@@ -166,12 +164,12 @@ impl VoxDb {
         run_id: &str,
         _success: bool,
     ) -> Result<(), StoreError> {
-        let _conn = self.conn().await?;
+        let _conn = self.conn.clone();
         let name = name.to_string();
         let run_id = run_id.to_string();
         let now = now_ms();
         let breaker = self.breaker.clone();
-        let conn = self.conn().await?;
+        let conn = self.conn.clone();
         breaker
             .call(|| async move {
                 conn.execute(
