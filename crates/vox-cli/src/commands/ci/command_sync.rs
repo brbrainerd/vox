@@ -36,7 +36,7 @@ fn render_generated_md(reg: &RegistryFile) -> String {
     out.push_str("---\n");
     out.push_str("title: \"CLI command surface (generated)\"\n");
     out.push_str("description: \"Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox ci operations-sync --target cli --write then vox ci command-sync --write.\"\n");
-    out.push_str("category: \"reference\"\n");
+    out.push_str("category: \"Language Reference\"\n");
     out.push_str("---\n\n");
     out.push_str(WARNING_BLOCK);
     out.push_str("\n\n# CLI command surface (generated)\n\n");
@@ -76,7 +76,7 @@ fn render_mens_train_defaults_md(default_base_model: &str) -> String {
     out.push_str("---\n");
     out.push_str("title: \"Mens train defaults (generated)\"\n");
     out.push_str("description: \"Auto-generated defaults snapshot for vox mens train from Rust constants and canonical command defaults.\"\n");
-    out.push_str("category: \"reference\"\n");
+    out.push_str("category: \"Language Reference\"\n");
     out.push_str("---\n\n");
     out.push_str(WARNING_BLOCK);
     out.push_str("\n\n# Mens train defaults (generated)\n\n");
