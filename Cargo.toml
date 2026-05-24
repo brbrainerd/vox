@@ -5,7 +5,7 @@ exclude = [
     "crates/vox-arch-check/tests/fixtures/missing-desc",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
-    "crates/vox-plugin-noop-skill",
+    "crates/vox-plugin-host/tests/fixtures/noop-skill",
     "crates/vox-plugin-skill-compiler",
     "crates/vox-plugin-skill-git",
     "crates/vox-plugin-skill-memory",
@@ -266,7 +266,7 @@ gix                = { version = "0.70", default-features = false }
 jj-lib             = { version = "=0.27.0", default-features = false }
 wasmtime           = "42.0.1"
 wasmtime-wasi      = "42.0.1"
-zip                = "8.4.0"
+
 self_update        = "0.43.1"
 landlock           = "0.4.4"
 win32job           = "2"
@@ -274,6 +274,8 @@ windows-sys        = "0.59"
 tavily             = "2.1.0"
 quick-xml          = "0.31"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
+bzip2              = "0.6.1"
+zstd               = "0.13.3"
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = { version = "0.5.4", default-features = false }
