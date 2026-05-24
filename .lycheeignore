@@ -96,3 +96,6 @@ file://.*docs/src/feed\.xml
 https://github\.com/wravery/webview2-rs/compare/.*
 # Nature.com uses cookie-auth redirects; lychee trips on the chain despite 200 final status
 .*nature\.com/.*
+
+# opencontainers.org returns transient connection failures from GitHub Actions runners
+.*opencontainers\.org/.*
