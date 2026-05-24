@@ -102,40 +102,57 @@ impl CrlGate {
 }
 
 /// Evidence-preservation guard for corpus-only / inventory-mode gate
-/// branches: if a same-day canonical artifact already carries a real
-/// LLM-panel measurement (non-empty `results.per_llm`), return it so
-/// the runner can echo it back rather than overwriting it with a
-/// poorer-quality inventory result.
+/// branches: if a recent canonical artifact (within the last 7 days)
+/// already carries a real LLM-panel measurement (non-empty
+/// `results.per_llm`), return it so the runner can echo it back rather
+/// than overwriting it with a poorer-quality inventory result.
 ///
 /// Used by gates that have both a corpus-inventory branch (no LLM,
 /// always runs) and an opt-in panel branch (`--llm-panel`). Without
 /// this, `vox audit --gate all` would clobber a fresh panel artifact
-/// every time the umbrella re-ran an unrelated inventory check.
+/// every time the umbrella re-ran an unrelated inventory check — even
+/// on the following day when there is no same-day file yet.
+///
+/// Looks back up to `MAX_LOOKBACK_DAYS` (7) days, most-recent-first,
+/// and returns the first file that (a) exists and (b) has a non-empty
+/// `results.per_llm`. A 7-day window is deliberately shorter than the
+/// corpus-feedback gate's 90-day window: LLM-panel measurements are
+/// more sensitive to corpus drift, so we re-measure at least weekly.
 ///
 /// Returns `None` when:
-///   - No same-day file exists.
-///   - The file isn't a valid `AuditReport`.
-///   - The file's `per_llm` is empty (= inventory mode wrote it; we
-///     are no worse off rewriting it).
+///   - No file within the lookback window exists.
+///   - No such file is a valid `AuditReport`.
+///   - All found files have empty `per_llm` (inventory-mode artifacts).
 pub fn same_day_canonical_with_panel(
     workspace_root: &std::path::Path,
     gate_thing_name: &str,
 ) -> Option<crate::report::AuditReport> {
-    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-    let path = workspace_root
+    const MAX_LOOKBACK_DAYS: i64 = 7;
+    let reports_dir = workspace_root
         .join("contracts")
         .join("reports")
-        .join(gate_thing_name)
-        .join(format!("{today}.json"));
-    if !path.exists() {
-        return None;
+        .join(gate_thing_name);
+    let now = chrono::Utc::now();
+    for days_ago in 0..=MAX_LOOKBACK_DAYS {
+        let date = (now - chrono::Duration::days(days_ago))
+            .format("%Y-%m-%d")
+            .to_string();
+        let path = reports_dir.join(format!("{date}.json"));
+        if !path.exists() {
+            continue;
+        }
+        let Ok(body) = std::fs::read_to_string(&path) else {
+            continue;
+        };
+        let Ok(report) = serde_json::from_str::<crate::report::AuditReport>(&body) else {
+            continue;
+        };
+        if report.results.per_llm.is_empty() {
+            continue;
+        }
+        return Some(report);
     }
-    let body = std::fs::read_to_string(&path).ok()?;
-    let report: crate::report::AuditReport = serde_json::from_str(&body).ok()?;
-    if report.results.per_llm.is_empty() {
-        return None;
-    }
-    Some(report)
+    None
 }
 
 /// Workspace-root locator: walks up from `CARGO_MANIFEST_DIR` looking for the

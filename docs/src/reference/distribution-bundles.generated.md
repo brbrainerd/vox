@@ -1,7 +1,7 @@
 ---
 title: "Distribution Bundles (Generated)"
 description: "Auto-generated authoritative list of Vox distribution bundles and their plugin composition."
-category: "Language Reference"
+category: "reference"
 status: "current"
 training_eligible: true
 ---

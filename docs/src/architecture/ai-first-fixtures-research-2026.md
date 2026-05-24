@@ -20,7 +20,7 @@ vox_relevance:
 
 ## Part 0 — Scope, prior art, and reading order
 
-This document is **research only**. It names what already ships, what is missing, and how a future implementation plan should thread author-time fixtures through compile-time checks, Rust codegen, the durable LLM layer, orchestrator policy, MCP tools, and ACI without adding bare keywords ([`AGENTS.md`](../../AGENTS.md) grammar unification).
+This document is **research only**. It names what already ships, what is missing, and how a future implementation plan should thread author-time fixtures through compile-time checks, Rust codegen, the durable LLM layer, orchestrator policy, MCP tools, and ACI without adding bare keywords ([`AGENTS.md`](../../../AGENTS.md) grammar unification).
 
 **Read next (mandatory prior art):** [`autonomous-orchestration-policy-research-2026.md`](autonomous-orchestration-policy-research-2026.md) (D1–D10), [`vox-language-rules-and-enforcement-plan-2026.md`](vox-language-rules-and-enforcement-plan-2026.md), [`mesh-mens-distributed-training-and-execution-plan-2026.md`](mesh-mens-distributed-training-and-execution-plan-2026.md) (MENS decorators), [`agentos-ssot-2026.md`](agentos-ssot-2026.md), [`search-retrieval-ssot-2026.md`](search-retrieval-ssot-2026.md), [`boilerplate-reduction-gap-analysis-2026.md`](boilerplate-reduction-gap-analysis-2026.md) (GA-21/22).
 
@@ -46,14 +46,14 @@ AI-first fixtures are **not** greenfield. The following already ship:
 
 | Constraint | Source | Enforcement |
 | --- | --- | --- |
-| New syntax is a **decorator** on a shipped block kind | [`AGENTS.md`](../../AGENTS.md) | Reject bare keywords (`agent`, `prompt`, `hole`, `search`, …) |
+| New syntax is a **decorator** on a shipped block kind | [`AGENTS.md`](../../../AGENTS.md) | Reject bare keywords (`agent`, `prompt`, `hole`, `search`, …) |
 | Diagnostics use `vox/<category>/<kebab>` | [`vox-language-rules-phase2-lint-extension-2026.md`](vox-language-rules-phase2-lint-extension-2026.md) | Catalog `diagnostic_ids` |
-| Secrets via `vox_secrets::resolve_secret` | [`AGENTS.md`](../../AGENTS.md) | No `env.get` in examples |
-| Retired symbols banned | [`AGENTS.md`](../../AGENTS.md) | Catalog + doc grep |
+| Secrets via `vox_secrets::resolve_secret` | [`AGENTS.md`](../../../AGENTS.md) | No `env.get` in examples |
+| Retired symbols banned | [`AGENTS.md`](../../../AGENTS.md) | Catalog + doc grep |
 | MCP names `vox_<verb>_<noun>` | `contracts/mcp/tool-registry.canonical.yaml` | `mcp_alignment` rows |
 | ACI `mutation_kind` when not pure | `contracts/aci/agent-computer-interface.v1.yaml` | Every catalog row with effects |
 | New contracts in [`contracts/index.yaml`](../../../contracts/index.yaml) | Policy | Discoverability |
-| Automation is `.vox` + `vox run` | [`AGENTS.md`](../../AGENTS.md) | No new shell/python glue in plan |
+| Automation is `.vox` + `vox run` | [`AGENTS.md`](../../../AGENTS.md) | No new shell/python glue in plan |
 
 ## Part 3 — Current-state inventory
 
@@ -737,7 +737,7 @@ fixtures:
 ## Appendix — Self-review checklist (plan §17)
 
 - [x] Every cited path in Parts 1–3 exists in the workspace (`Glob` / spot reads 2026-05-11).
-- [x] Catalog rows avoid retired symbols from [`AGENTS.md`](../../AGENTS.md).
+- [x] Catalog rows avoid retired symbols from [`AGENTS.md`](../../../AGENTS.md).
 - [x] No bare keyword proposals; proposed syntax uses `@decorator` or expression hole.
 - [x] Every fixture row lists `required_effects` and `aci_mutation_kind`.
 - [x] ADR drafts exist for `@subagent`, `@prompt`, `@hole`, `@search`.

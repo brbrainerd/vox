@@ -67,6 +67,6 @@ fn run(project_root, json):
 
 ## Follow-on (not in this commit)
 
-- Wire the deploy integration test once Marquee slots 2 (`todo-auth`) and 3 (`chat`) land their fixture apps (per [`contracts/marquee/manifest.v1.yaml`](contracts/marquee/manifest.v1.yaml)).
+- Wire the deploy integration test once Marquee slots 2 (`todo-auth`) and 3 (`chat`) land their fixture apps (per [`contracts/marquee/manifest.v1.yaml`](../../../contracts/marquee/manifest.v1.yaml)).
 - Add `--for-llm` to mirror `vox check`'s minimal-repro output mode for agent consumption.
 - Add a config-aware mode that reads `Vox.toml` to pick the source root rather than walking from `.`.

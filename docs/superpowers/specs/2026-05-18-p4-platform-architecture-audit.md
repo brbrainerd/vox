@@ -20,7 +20,7 @@ This audit reads directly off the tree. Every claim cites a file path. The two o
 | SSE *only* for LLM streaming | [`crates/vox-actor-runtime/src/llm/stream.rs`](crates/vox-actor-runtime/src/llm/stream.rs) | Internal LLM token-stream consumer (Axum SSE *receiver*, not server). Not exposed to user code. |
 | Axum + tower_http already universal | [`crates/vox-codegen/src/codegen_rust/emit/http.rs`](crates/vox-codegen/src/codegen_rust/emit/http.rs) | Existing endpoint emit uses `tower_http::cors::CorsLayer` and the same Axum primitives both SSE and WS need. Zero new deps required. |
 | Stream surface declared | [`crates/vox-compiler/src/parser/descent/decl/head.rs:942`](crates/vox-compiler/src/parser/descent/decl/head.rs:942) + [`crates/vox-compiler/src/hir/lower/mod.rs:211`](crates/vox-compiler/src/hir/lower/mod.rs:211) | `@endpoint(kind: stream)` parses + lowers to HIR (currently aliased to `Server` until codegen lands). |
-| Marquee Slot 3 use case | [`apps/marquee/chat/src/main.vox`](apps/marquee/chat/src/main.vox) | `actor ChatRoom { on join, on leave, on send_msg }` + companion `watch_room()` stream endpoint. The first consumer for whatever we ship. |
+| Marquee Slot 3 use case | [`apps/marquee/chat/src/main.vox`](../../../apps/marquee/chat/src/main.vox) | `actor ChatRoom { on join, on leave, on send_msg }` + companion `watch_room()` stream endpoint. The first consumer for whatever we ship. |
 | Wire format SSOT (silent on streaming) | [`docs/src/architecture/wire-format-v1-ssot.md`](docs/src/architecture/wire-format-v1-ssot.md) §2 | Transport conventions cover query/mutation/server only. Streaming will add a new §X. |
 
 ### §1.2 What the codebase has decided
@@ -87,7 +87,7 @@ Total ≈ 16 hr, matching the plan's original P4.1 budget but with two clearer d
 | Dockerfile generator | [`crates/vox-deploy-codegen/src/generate.rs`](crates/vox-deploy-codegen/src/generate.rs) | `EnvironmentSpec` → OCI-compatible Dockerfile. Drives the Container target. |
 | Fly executor | [`crates/vox-deploy-codegen/src/deploy_target.rs:411`](crates/vox-deploy-codegen/src/deploy_target.rs:411) (`execute_fly`) | Invokes `flyctl launch` when no `fly.toml` exists; reuses an existing `fly.toml` otherwise. |
 | `vox deploy` CLI surface (90 + 265 LoC partial) | [`crates/vox-cli/src/commands/deploy.rs`](crates/vox-cli/src/commands/deploy.rs) | Skeleton CLI ready to dispatch into `DeployTarget`. The integration is what's missing, not the platform layer. |
-| Marquee manifest already references deploy targets | [`contracts/marquee/manifest.v1.yaml`](contracts/marquee/manifest.v1.yaml) | Slot 1 (`marquee-app`) declares `deploy_target: container`, `deploy_runtime: auto`, `deploy_registry: "ghcr.io/owner"`. The contract presumes container-first. |
+| Marquee manifest already references deploy targets | [`contracts/marquee/manifest.v1.yaml`](../../../contracts/marquee/manifest.v1.yaml) | Slot 1 (`marquee-app`) declares `deploy_target: container`, `deploy_runtime: auto`, `deploy_registry: "ghcr.io/owner"`. The contract presumes container-first. |
 | CR-P3 budget | [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md) | `vox new web → vox deploy` ≤ 120 seconds. Achievable for OCI build+push of a small Vox app; tight but reachable. |
 | CR-L7 integration test fixture | [`crates/vox-audit/src/subcommands/deploy.rs`](crates/vox-audit/src/subcommands/deploy.rs) | Already drives the doctor leg against status:real marquee apps; the deploy leg front-stacks here. |
 
