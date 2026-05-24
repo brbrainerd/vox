@@ -12,5 +12,5 @@ pub fn as_string<T: serde::Serialize>(v: &T) -> String {
 
 fn f() -> i64 {
     let x = vox_actor_runtime::execute_activity_result("activity", &vox_actor_runtime::ActivityOptions::new().with_retries(5 as u32).with_timeout(vox_actor_runtime::ActivityOptions::parse_duration("30s").expect("vox codegen: activity timeout duration")).with_activity_id("unique-xyz".to_string()).with_backoff_multiplier(2 as f64), || async { 1 }).await;
-    return x.clone();
+    return x;
 }
