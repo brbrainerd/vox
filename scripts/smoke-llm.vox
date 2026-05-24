@@ -4,12 +4,13 @@ import process;
 
 fn main() {
     print("smoke-llm: running `vox doctor --probe` …");
-    let res = process.run("vox", ["doctor", "--probe"]);
-    if res is not null {
+    let res_opt = process.run("vox", ["doctor", "--probe"]);
+    if res_opt isnt null {
+        let res = res_opt.unwrap();
         if res.code == 0 {
             print("smoke-llm: OK");
         } else {
-            print("smoke-llm: doctor failed, code=", res.code);
+            print("smoke-llm: doctor failed, code=" + str(res.code));
             process.exit(1);
         }
     } else {

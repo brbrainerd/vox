@@ -1,17 +1,17 @@
 // ---
 // title: "Web routing fullstack golden"
-// description: "Nested routes { }, @endpoint(kind: query) loader, pending, not_found, error — surfaces covered by routes.manifest.ts."
+// description: "Nested routes { }, @query loader, pending, not_found, error — surfaces covered by routes.manifest.ts."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [component, routes, @endpoint(kind: query), @loading, nested_routes]
+// constructs: [component, routes, @query, @loading, nested_routes]
 // last_validated: 2026-04-07
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Model a small app with nested routes, a @endpoint(kind: query) route loader, pending UI, and not_found/error boundaries.
+// @training_prompt: Model a small app with nested routes, a @query route loader, pending UI, and not_found/error boundaries.
 
-@endpoint(kind: query) fn load_section() to int {
+@query fn load_section() to int {
     return 1
 }
 

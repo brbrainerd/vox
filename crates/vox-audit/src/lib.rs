@@ -41,6 +41,12 @@ pub enum CrlGate {
     L6Retirement,
     L7Deploy,
     L8CorpusFeedback,
+    /// Non-CR-L tooling gate: stdlib-coverage parity (eval/builtins.rs ↔
+    /// ref-builtins-stdlib.md ↔ scripts/). Doesn't block GA, but blocks PRs
+    /// that introduce three-way drift. Lives in the same registry so it
+    /// reuses the canonical report shape and CI wiring. See
+    /// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10/§12.D.
+    ToolingStdlibCoverage,
 }
 
 impl CrlGate {
@@ -56,10 +62,14 @@ impl CrlGate {
             CrlGate::L6Retirement => "retirement",
             CrlGate::L7Deploy => "deploy",
             CrlGate::L8CorpusFeedback => "corpus-feedback",
+            CrlGate::ToolingStdlibCoverage => "stdlib-coverage",
         }
     }
 
     /// Per-contract: does failure of this gate block GA?
+    ///
+    /// Tooling gates (non-CR-L) always return false — they exist to keep
+    /// the corpus healthy during development, not to gate release.
     pub fn block_ga(self) -> bool {
         matches!(
             self,
@@ -95,6 +105,7 @@ impl CrlGate {
             CrlGate::L6Retirement,
             CrlGate::L7Deploy,
             CrlGate::L8CorpusFeedback,
+            CrlGate::ToolingStdlibCoverage,
         ]
         .into_iter()
     }
@@ -181,10 +192,10 @@ pub trait Subcommand: Send + Sync {
     fn run(&self, args: &CommonArgs) -> RunOutcome;
 }
 
-/// Build the canonical registry of all 9 subcommands.
+/// Build the canonical registry of subcommands (9 CR-L gates + 1 tooling gate).
 ///
 /// Order matches `CrlGate::all()` and `contracts/ci/vox-audit-contract.v1.yaml`
-/// §subcommands.
+/// §subcommands. Tooling gates appear after the CR-L block.
 pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
         Box::new(subcommands::stubs::SpecToAppStub),
@@ -197,6 +208,8 @@ pub fn registry() -> Vec<Box<dyn Subcommand>> {
         Box::new(subcommands::stubs::DeployStub),
         // P2.2: CR-L8 stub replaced by real aggregator-backed impl.
         Box::new(subcommands::corpus_feedback::CorpusFeedbackSubcommand),
+        // Non-CR-L tooling gate (does not block GA).
+        Box::new(subcommands::stdlib_coverage::StdlibCoverageSubcommand),
     ]
 }
 
@@ -357,7 +370,11 @@ mod tests {
     #[test]
     fn registry_size_matches_gate_count() {
         assert_eq!(registry().len(), CrlGate::all().count());
-        assert_eq!(registry().len(), 9, "9 CR-L gates expected");
+        assert_eq!(
+            registry().len(),
+            10,
+            "9 CR-L gates + 1 tooling gate (stdlib-coverage) expected"
+        );
     }
 
     #[test]

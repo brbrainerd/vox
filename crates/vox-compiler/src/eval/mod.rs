@@ -29,6 +29,7 @@ pub enum EvalError {
 
 pub struct Interpreter {
     pub scope: Scope,
+    pub module_scope: Scope,
     pub step_limit: usize,
     pub steps: usize,
     pub caps: Option<std::collections::HashSet<String>>,
@@ -79,6 +80,13 @@ impl Interpreter {
             VoxValue::Object(vec![(
                 "__namespace__".to_string(),
                 VoxValue::Str("json".to_string()),
+            )]),
+        );
+        scope.set(
+            "regex".to_string(),
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str("regex".to_string()),
             )]),
         );
 
@@ -154,11 +162,40 @@ impl Interpreter {
                     VoxValue::Str("io".to_string()),
                 )]),
             ),
+            (
+                "log".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("log".to_string()),
+                )]),
+            ),
+            (
+                "time".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("time".to_string()),
+                )]),
+            ),
+            (
+                "http".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("http".to_string()),
+                )]),
+            ),
+            (
+                "regex".to_string(),
+                VoxValue::Object(vec![(
+                    "__namespace__".to_string(),
+                    VoxValue::Str("regex".to_string()),
+                )]),
+            ),
         ]);
         scope.set("std".to_string(), std_ns);
 
         Self {
-            scope,
+            scope: scope.clone(),
+            module_scope: scope,
             step_limit,
             steps: 0,
             caps: None,
@@ -166,23 +203,24 @@ impl Interpreter {
     }
 
     pub fn run_module(&mut self, module: &HirModule) -> Result<(), EvalError> {
-        // Register ADT variant constructors so `Applied(x, y)` etc. work in tests.
-        for ty in &module.types {
-            for variant in &ty.variants {
-                self.scope.set(
-                    variant.name.clone(),
-                    VoxValue::Constructor(variant.name.clone()),
-                );
+        // Register ADT variant constructors
+        for t in &module.types {
+            for variant in &t.variants {
+                let val = VoxValue::Constructor(variant.name.clone());
+                self.scope.set(variant.name.clone(), val.clone());
+                self.module_scope.set(variant.name.clone(), val);
             }
         }
 
+        // Register all functions in both scopes
         for f in &module.functions {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),
                 body: f.body.clone(),
                 env: self.scope.clone(),
             };
-            self.scope.set(f.name.clone(), val);
+            self.scope.set(f.name.clone(), val.clone());
+            self.module_scope.set(f.name.clone(), val);
         }
 
         for f in &module.tests {
@@ -191,7 +229,8 @@ impl Interpreter {
                 body: f.body.clone(),
                 env: self.scope.clone(),
             };
-            self.scope.set(f.name.clone(), val);
+            self.scope.set(f.name.clone(), val.clone());
+            self.module_scope.set(f.name.clone(), val);
         }
 
         Ok(())

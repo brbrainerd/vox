@@ -29,8 +29,12 @@ fn main() {
         let nvcc_args = "-ptx -O3 -std=c++17 -arch=sm_80 --expt-relaxed-constexpr " + input + " -o " + output
         let full_cmd = "set PATH=" + msvc_bin + ";%PATH% && nvcc " + nvcc_args
         
-        let res = process.run("cmd", ["/c", full_cmd])
-        
+        let res_opt = process.run("cmd", ["/c", full_cmd])
+        if res_opt is null {
+            print("Failed to spawn nvcc for " + k)
+            process.exit(1)
+        }
+        let res = res_opt.unwrap()
         if res.code isnt 0 {
             print("Error compiling " + k)
             print("STDERR: " + res.stderr)

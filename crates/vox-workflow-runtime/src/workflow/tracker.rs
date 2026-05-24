@@ -1,6 +1,8 @@
 //! Durable workflow execution tracker trait and no-op default.
 
 use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// An engine tracker that allows the interpreted runner to persist durable states.
 pub trait WorkflowTracker: Send + Sync {
@@ -152,3 +154,74 @@ pub trait WorkflowTracker: Send + Sync {
 pub struct DefaultTracker;
 
 impl WorkflowTracker for DefaultTracker {}
+
+/// An in-memory [`WorkflowTracker`] for unit tests.
+///
+/// Stores activity completions in a process-local `HashMap` keyed by
+/// `(workflow_name, activity_id)`. Avoids the `vox-db` dependency required by
+/// [`crate::VoxDbTracker`] so workflow-runtime tests can exercise replay /
+/// recording semantics without booting a database.
+///
+/// All other [`WorkflowTracker`] hooks (attempts, leases, patches, cache) fall
+/// through to the trait's no-op defaults.
+#[derive(Default)]
+pub struct InMemoryTracker {
+    /// `(workflow_name, activity_id) -> result_value`
+    results: Mutex<HashMap<(String, String), Value>>,
+}
+
+impl InMemoryTracker {
+    /// Create an empty in-memory tracker.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl WorkflowTracker for InMemoryTracker {
+    fn is_activity_completed(
+        &self,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<bool>> + Send {
+        let key = (workflow_name.to_string(), activity_id.to_string());
+        let hit = self
+            .results
+            .lock()
+            .map(|m| m.contains_key(&key))
+            .unwrap_or(false);
+        async move { Ok(hit) }
+    }
+
+    fn load_activity_result(
+        &self,
+        workflow_name: &str,
+        activity_id: &str,
+    ) -> impl std::future::Future<Output = anyhow::Result<Option<Value>>> + Send {
+        let key = (workflow_name.to_string(), activity_id.to_string());
+        let value = self
+            .results
+            .lock()
+            .ok()
+            .and_then(|m| m.get(&key).cloned());
+        async move { Ok(value) }
+    }
+
+    fn on_activity_completed(
+        &mut self,
+        workflow_name: &str,
+        _activity_name: &str,
+        activity_id: &str,
+        result: &Value,
+    ) -> impl std::future::Future<Output = anyhow::Result<()>> + Send {
+        let key = (workflow_name.to_string(), activity_id.to_string());
+        let value = result.clone();
+        let outcome: anyhow::Result<()> = match self.results.lock() {
+            Ok(mut m) => {
+                m.insert(key, value);
+                Ok(())
+            }
+            Err(e) => Err(anyhow::anyhow!("InMemoryTracker mutex poisoned: {e}")),
+        };
+        async move { outcome }
+    }
+}

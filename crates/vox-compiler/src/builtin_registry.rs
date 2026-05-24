@@ -473,13 +473,20 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
 #[must_use]
 pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
     Some(match (namespace, method) {
-        ("fs", "read") | ("fs", "remove") | ("fs", "mkdir") => {
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str))))
-        }
+        ("fs", "read")
+        | ("fs", "read_file")
+        | ("fs", "read_to_string")
+        | ("fs", "remove")
+        | ("fs", "mkdir") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         ("fs", "read_bytes") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
-        ("fs", "write") => Ty::Fn(
+        ("fs", "write") | ("fs", "write_file") | ("fs", "write_to_file") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::Unit))),
+        ),
+        ("fs", "cwd") => Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        ("fs", "walk") | ("fs", "list_recursive") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
         ),
         ("fs", "exists") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
         ("fs", "is_file") | ("fs", "is_dir") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
@@ -580,7 +587,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
         ),
         ("toml", "render") => Ty::Fn(
-            vec![Ty::Named("Json".into())],
+            vec![Ty::GenericParam(0)],
             Box::new(Ty::Result(Box::new(Ty::Str))),
         ),
         ("yaml", "parse") => Ty::Fn(
@@ -588,7 +595,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
         ),
         ("yaml", "render") => Ty::Fn(
-            vec![Ty::Named("Json".into())],
+            vec![Ty::GenericParam(0)],
             Box::new(Ty::Result(Box::new(Ty::Str))),
         ),
         ("io", "open") => Ty::Fn(
@@ -596,8 +603,12 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
         ),
         ("io", "save") => Ty::Fn(
-            vec![Ty::Str, Ty::Named("Json".into())],
+            vec![Ty::Str, Ty::GenericParam(0)],
             Box::new(Ty::Result(Box::new(Ty::Unit))),
+        ),
+        ("json", "render") => Ty::Fn(
+            vec![Ty::GenericParam(0)],
+            Box::new(Ty::Result(Box::new(Ty::Str))),
         ),
         ("json", "parse") => Ty::Fn(
             vec![Ty::Str],
@@ -698,7 +709,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("fs", "mkdir") if !args.is_empty() => Some(format!(
-            "::std::fs::create_dir_all({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)",
+            "::vox_actor_runtime::builtins::vox_fs_mkdir(({}).as_str())",
             args[0]
         )),
         ("fs", "glob") if !args.is_empty() => Some(format!(
@@ -855,6 +866,10 @@ pub fn std_namespace_runtime_call(
         ("io", "save") if args.len() >= 2 => Some(format!(
             "(match ::vox_actor_runtime::builtins::vox_io_save(({}).as_str(), &({})) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
             args[0], args[1]
+        )),
+        ("json", "render") if !args.is_empty() => Some(format!(
+            "(match vox_actor_runtime::builtins::vox_json_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            args[0]
         )),
         ("json", "parse") if !args.is_empty() => Some(format!(
             "(match vox_actor_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Error(m) }})",

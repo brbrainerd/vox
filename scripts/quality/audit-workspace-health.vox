@@ -22,28 +22,34 @@ fn main() {
     // 1. Build Regression Audit
     print("Checking build regressions via VoxDB...");
     let mut violations = 0;
-    let reg_res = process.run("cmd", ["/c", vox_bin + " db build-regressions --threshold " + str(reg_threshold) + " --json"]);
+    let reg_opt = process.run("cmd", ["/c", vox_bin + " db build-regressions --threshold " + str(reg_threshold) + " --json"]);
 
-    if reg_res is not null {
+    if reg_opt isnt null {
+        let reg_res = reg_opt.unwrap();
         if reg_res.code == 0 {
             let regressions = json.parse(reg_res.stdout);
             if len(regressions) > 0 {
-                print("❌ REGRESSIONS DETECTED (Threshold: " + str(reg_threshold) + "x):");
+                print("REGRESSIONS DETECTED (Threshold: " + str(reg_threshold) + "x):");
                 for r in regressions {
                     print("  - " + r.name + ": " + str(r.elapsed_ms) + "ms (ratio: " + str(r.ratio) + "x)");
                     violations = violations + 1;
                 }
             } else {
-                print("  ✅ No build regressions detected.");
+                print("  No build regressions detected.");
             }
         }
     }
 
     // 2. Dependency Sprawl Audit (using cargo metadata)
     print("\nAuditing dependency sprawl via cargo metadata...");
-    let meta_res = process.run("cargo", ["metadata", "--format-version", "1", "--no-deps"]);
-    if meta_res is null or meta_res.code != 0 {
-        print("❌ Failed to run cargo metadata.");
+    let meta_opt = process.run("cargo", ["metadata", "--format-version", "1", "--no-deps"]);
+    if meta_opt is null {
+        print("Failed to spawn cargo metadata.");
+        process.exit(1);
+    }
+    let meta_res = meta_opt.unwrap();
+    if meta_res.code != 0 {
+        print("Failed to run cargo metadata.");
         process.exit(1);
     }
     

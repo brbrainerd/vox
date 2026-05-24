@@ -3,13 +3,15 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 
 test.setTimeout(120_000);
 
-test('baseline: capture current vox-lang.org state', async ({ page, request }) => {
+test('baseline: capture current voxlang.org state', async ({ page, request }) => {
+  const BASE = process.env.BASE_URL ?? 'https://voxlang.org';
+
   // Direct response headers (no redirect follow, short timeout)
-  const headResp = await request.get('https://vox-lang.org/', { maxRedirects: 0, timeout: 10_000 });
+  const headResp = await request.get(`${BASE}/`, { maxRedirects: 0, timeout: 10_000 });
   const head = `Status: ${headResp.status()}\nHeaders: ${JSON.stringify(headResp.headers(), null, 2)}`;
 
   // Page render — wait for DOM ready, not full network idle (pagefind keeps requesting)
-  await page.goto('https://vox-lang.org/', { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
   const title = await page.title();
 
   // Starlight uses <starlight-toc> + <nav class="sidebar"> structures.

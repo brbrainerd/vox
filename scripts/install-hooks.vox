@@ -5,18 +5,23 @@
 // hook that auto-regenerates .generated.md files and ignore-file sync on commit.
 
 fn main() {
-  let result = exec("lefthook", ["install"]);
-  if result.exit_code != 0 {
-    println("lefthook not found. Install it first:");
-    println("  Windows:  winget install evilmartians.lefthook");
-    println("  macOS:    brew install lefthook");
-    println("  Linux:    cargo install lefthook");
-    println("  All:      https://github.com/evilmartians/lefthook#installation");
-    exit(1);
+  let result_opt = process.run("lefthook", ["install"]);
+  if result_opt is null {
+    log.error("Failed to spawn lefthook. Install it first:");
+    log.error("  Windows:  winget install evilmartians.lefthook");
+    log.error("  macOS:    brew install lefthook");
+    log.error("  Linux:    cargo install lefthook");
+    log.error("  All:      https://github.com/evilmartians/lefthook#installation");
+    process.exit(1);
   }
-  println("Pre-commit hooks installed.");
-  println("Generators will run automatically on commit:");
-  println("  - vox ci sync-ignore-files   (when .voxignore changes)");
-  println("  - vox ci command-sync        (when CLI commands change)");
-  println("  - vox ci generate-plugin-catalog-docs  (when catalog.toml changes)");
+  let result = result_opt.unwrap();
+  if result.code != 0 {
+    log.error("lefthook install failed with exit code " + str(result.code));
+    process.exit(1);
+  }
+  print("Pre-commit hooks installed.");
+  print("Generators will run automatically on commit:");
+  print("  - vox ci sync-ignore-files   (when .voxignore changes)");
+  print("  - vox ci command-sync        (when CLI commands change)");
+  print("  - vox ci generate-plugin-catalog-docs  (when catalog.toml changes)");
 }

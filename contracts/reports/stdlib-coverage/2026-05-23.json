@@ -1,0 +1,21 @@
+{
+  "thing": "stdlib-coverage",
+  "schema_version": 1,
+  "measured_at": "2026-05-23T23:16:41.217689200+00:00",
+  "corpus_hash": "blake3:e4da7957578d17a478bd748c1c1ab28ec986ee0a80871b2441446b6349923f7c",
+  "corpus_size": 262,
+  "llm_panel": [],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 1.0
+  },
+  "threshold": {
+    "target": 1.0,
+    "met": true
+  },
+  "note": "stdlib coverage clean (error_count=0 (info: documented_but_unused=36 registered_but_undocumented=104))"
+}

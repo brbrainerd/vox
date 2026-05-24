@@ -4,21 +4,23 @@ import process;
 fn main() {
     print("Running Nightly Scoreboard Rollup...");
     
-    let res = process.run("vox", ["model", "rollup", "--windows", "7,30,90"]);
-    if res != null {
+    let res_opt = process.run("vox", ["model", "rollup", "--windows", "7,30,90"]);
+    if res_opt isnt null {
+        let res = res_opt.unwrap();
         if res.code == 0 {
-            print("✅ Scoreboard rollup completed successfully.");
+            print("Scoreboard rollup completed successfully.");
         } else {
-            print("❌ Scoreboard rollup failed with code: " + res.code);
+            print("Scoreboard rollup failed with code: " + str(res.code));
         }
     }
 
-    let price_res = process.run("vox", ["model", "pricing", "rollup"]);
-    if price_res != null {
+    let price_opt = process.run("vox", ["model", "pricing", "rollup"]);
+    if price_opt isnt null {
+        let price_res = price_opt.unwrap();
         if price_res.code == 0 {
-            print("✅ Pricing catalog rollup completed successfully.");
+            print("Pricing catalog rollup completed successfully.");
         } else {
-            print("❌ Pricing catalog rollup failed with code: " + price_res.code);
+            print("Pricing catalog rollup failed with code: " + str(price_res.code));
         }
     }
 }

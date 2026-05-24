@@ -7,7 +7,9 @@ fn main() {
     let files = fs.list_dir(docs_dir).unwrap();
     let mut i = 0;
     while i < files.len() {
-        let file_name = files.get(i);
+        let file_name_opt = files.get(i);
+        if file_name_opt.is_none() { i = i + 1; continue }
+        let file_name = file_name_opt.unwrap();
         if file_name.ends_with(".md") {
             let path = docs_dir + "/" + file_name;
             let content = fs.read(path).unwrap();

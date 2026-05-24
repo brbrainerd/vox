@@ -10,26 +10,19 @@
 // Source of truth: docs/src/architecture/layers.toml
 
 fn main() {
-    println("Running vox-arch-check (layer + fan-in + LoC + orphan + docstring)...");
+    print("Running vox-arch-check (layer + fan-in + LoC + orphan + docstring)...")
 
-    let result = std::process::Command::new("cargo")
-        .args(["run", "-p", "vox-arch-check", "--quiet"])
-        .status();
+    let proc = process.run("cargo", ["run", "-p", "vox-arch-check", "--quiet"])
+    if proc is null {
+        log.error("vox-arch-check: could not spawn cargo")
+        process.exit(1)
+    }
 
-    match result {
-        Ok(status) => {
-            if status.success() {
-                println("vox-arch-check: clean ✓");
-                std::process::exit(0);
-            } else {
-                let code = status.code().unwrap_or(1);
-                eprintln("vox-arch-check: FAILED (exit {})", code);
-                std::process::exit(code);
-            }
-        }
-        Err(e) => {
-            eprintln("vox-arch-check: could not spawn cargo: {}", e);
-            std::process::exit(1);
-        }
+    let res = proc.unwrap()
+    if res.code == 0 {
+        print("vox-arch-check: clean")
+    } else {
+        log.error("vox-arch-check: FAILED (exit " + str(res.code) + ")")
+        process.exit(res.code)
     }
 }

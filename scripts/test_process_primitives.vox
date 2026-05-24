@@ -6,14 +6,18 @@ fn main() {
     // We'll spawn a simple 'ping' or 'echo' in the background (Windows)
     let res = process.spawn_background("cmd", ["/c", "echo background-alive"])
     match res {
-        Ok(id) => print("Spawned background process with ID:", id)
-        Err(e) => print("Failed to spawn background process:", e)
+        Ok(id) => print("Spawned background process with ID: " + str(id))
+        Err(e) => print("Failed to spawn background process: " + e)
     }
 
     // Test register_exit_command
     // This should run when the script finishes or is interrupted
-    process.register_exit_command("cmd", ["/c", "echo exit-command-executed"])
-    print("Registered exit command.")
+    let reg_res = process.register_exit_command("cmd", ["/c", "echo exit-command-executed"])
+    if reg_res.is_ok() {
+        print("Registered exit command.")
+    } else {
+        print("Failed to register exit command: " + reg_res.unwrap_err())
+    }
 
     print("Finishing script. Exit command should run now.")
 }

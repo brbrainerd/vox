@@ -3,8 +3,8 @@
 
 fn main() {
     let ts_file = "crates/vox-gui/ui/src/transport.ts";
-    if !std.fs.exists(ts_file) {
-        println!("❌ Could not find " + ts_file);
+    if not std.fs.exists(ts_file) {
+        log.error("Could not find " + ts_file);
         std.process.exit(1);
     }
 
@@ -22,16 +22,16 @@ fn main() {
 
     let mut missing = false;
     for field in required_fields {
-        if !ts_content.contains(field) {
-            println!("❌ Missing field in TS RegistryOperation: " + field);
+        if not ts_content.contains(field) {
+            log.error("Missing field in TS RegistryOperation: " + field);
             missing = true;
         }
     }
 
     if missing {
-        println!("❌ gui-registry-check failed: TS interface drifted from RegistryFile SSoT.");
+        log.error("gui-registry-check failed: TS interface drifted from RegistryFile SSoT.");
         std.process.exit(1);
     }
 
-    println!("✅ gui-registry-check passed.");
+    print("gui-registry-check passed.");
 }

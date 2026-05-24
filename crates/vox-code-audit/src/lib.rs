@@ -33,6 +33,14 @@ pub mod suppression;
 /// `vox ci retirement-audit` CLI command.
 pub mod retirement_parity;
 
+/// Stdlib-coverage parity check (non-CR-L tooling gate). Three-way diff
+/// between binary registrations in `crates/vox-compiler/src/eval/builtins.rs`,
+/// doc claims in `docs/src/reference/ref-builtins-stdlib.md`, and corpus
+/// call sites under `scripts/`. Library home of the
+/// `vox audit stdlib-coverage` subcommand. See
+/// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10 / §12.D.
+pub mod stdlib_parity;
+
 /// Runs configured detectors over a [`scanner::Scanner`] snapshot and aggregates [`rules::Finding`]s.
 pub mod engine;
 /// Renders findings to the terminal, JSON, or Markdown for CI and local CLI output.

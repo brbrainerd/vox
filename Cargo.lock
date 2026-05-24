@@ -12956,6 +12956,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 name = "vox-actor-runtime"
 version = "0.5.0"
 dependencies = [
+ "anyhow",
  "async-stream",
  "blake3",
  "bytes",
@@ -13200,6 +13201,7 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
+ "glob",
  "globset",
  "miette",
  "owo-colors",
@@ -13251,6 +13253,7 @@ dependencies = [
  "vox-repository",
  "vox-secrets",
  "vox-tauri-codegen",
+ "vox-workflow-runtime",
  "walkdir",
  "workspace-hack",
  "zstd",
@@ -13273,6 +13276,7 @@ dependencies = [
  "miette",
  "proptest",
  "rayon",
+ "regex",
  "rust_decimal",
  "secrecy",
  "serde",
@@ -13283,6 +13287,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
+ "tracing",
  "vox-codegen",
  "vox-config",
  "vox-deploy-codegen",
@@ -13387,8 +13392,10 @@ dependencies = [
  "blake3",
  "chrono",
  "data-encoding",
+ "futures-util",
  "keyring",
  "regex",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "sha3",
@@ -13397,28 +13404,18 @@ dependencies = [
  "tokio",
  "tracing",
  "turso",
+ "urlencoding",
  "uuid",
  "vox-codegen",
  "vox-compiler",
  "vox-config",
- "vox-db-types",
  "vox-mesh-types",
  "vox-orchestrator-types",
  "vox-plugin-types",
  "vox-repository",
  "vox-secrets",
  "vox-telemetry",
- "vox-test-harness",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-db-types"
-version = "0.5.0"
-dependencies = [
- "chrono",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -13431,6 +13428,27 @@ dependencies = [
  "thiserror 1.0.69",
  "tracing",
  "vox-container",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-distributed-training"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha3",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
+ "vox-crypto",
+ "vox-orchestrator-queue",
+ "vox-package",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -13597,6 +13615,7 @@ dependencies = [
 name = "vox-gui"
 version = "0.5.0"
 dependencies = [
+ "anyhow",
  "rmp-serde",
  "serde",
  "serde_bytes",
@@ -13607,13 +13626,17 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "toml 0.8.23",
+ "turso",
  "vox-build-meta",
  "vox-cli",
  "vox-cli-core",
+ "vox-db",
  "vox-foundation",
+ "vox-gamify",
  "vox-orchestrator",
  "vox-package-types",
  "vox-repository",
+ "vox-search",
 ]
 
 [[package]]
@@ -13656,6 +13679,23 @@ dependencies = [
  "serde_json",
  "vox-crypto",
  "zeroize",
+]
+
+[[package]]
+name = "vox-inference"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "vox-mesh-types",
+ "vox-package",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -14260,6 +14300,7 @@ dependencies = [
  "tracing",
  "vox-compiler",
  "vox-db",
+ "vox-distributed-training",
  "vox-eval",
  "vox-hf-layout",
  "vox-plugin-api",
@@ -14521,12 +14562,14 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-distributed-training",
  "vox-eval",
  "vox-foundation",
  "vox-grammar-export",
  "vox-hf-layout",
  "vox-http-client",
  "vox-identity",
+ "vox-inference",
  "vox-mesh-types",
  "vox-orchestrator-queue",
  "vox-package",
@@ -14679,7 +14722,6 @@ dependencies = [
  "uuid",
  "vox-crypto",
  "vox-db",
- "vox-db-types",
  "vox-research-events",
  "vox-search",
 ]
@@ -14902,6 +14944,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "uuid",
  "vox-compiler",
  "vox-db",
  "vox-populi",

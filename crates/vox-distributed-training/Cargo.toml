@@ -1,0 +1,25 @@
+[package]
+name = "vox-distributed-training"
+description = "MENS Distributed Training: gradient synchronization, rank coordination, and signed checkpoint exchanges."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha3 = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["v4", "serde"] }
+vox-crypto = { workspace = true }
+vox-orchestrator-queue = { workspace = true }
+vox-package = { workspace = true }
+vox-secrets = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]

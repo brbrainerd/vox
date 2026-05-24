@@ -27,7 +27,7 @@ fn main() {
     }
 
     match proc {
-        Some(res) -> {
+        Some(res) => {
             if res.code == 0 {
                 print("✓ Training spawned. Starting telemetry watch...")
                 
@@ -52,7 +52,7 @@ fn main() {
                 print("✗ Training failed to spawn with code: " + str(res.code))
             }
         }
-        None -> {
+        None => {
             print("✗ Failed to execute training process.")
         }
     }

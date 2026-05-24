@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 66; // +1 for publication_approvals.{approver_role,critic_fingerprint_json,critic_report_uri} (Phase D wiring)
+pub const BASELINE_VERSION: i64 = 67; // +1 for scheduled_runs table (Phase 4.1: @scheduled durable persistence)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

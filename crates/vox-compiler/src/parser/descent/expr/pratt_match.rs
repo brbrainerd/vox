@@ -2,7 +2,7 @@
 
 use super::super::Parser;
 use crate::ast::expr::{
-    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp, WorkflowVersionCall,
+    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, StringPart, UnOp, WorkflowVersionCall,
 };
 use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
@@ -30,6 +30,15 @@ impl Parser {
                 self.advance();
                 Expr::StringLit {
                     value: s,
+                    span: start,
+                }
+            }
+            Token::TemplateStringLit(s) => {
+                self.advance();
+                // Parse template string with interpolation
+                let parts = self.parse_template_string_parts(s, start)?;
+                Expr::StringInterp {
+                    parts,
                     span: start,
                 }
             }
@@ -63,6 +72,22 @@ impl Parser {
                     operand: Box::new(operand),
                     span: start.merge(self.span()),
                 }
+            }
+            Token::BangInvalid => {
+                // `!` is not a valid Vox operator. Vox uses phonetic operators
+                // (`not`, `and`, `or`, `is`, `isnt`). Emit a clear error pointing
+                // at the canonical form, then advance past the `!` so the parser
+                // can keep going and report any other issues in the same pass.
+                self.errors.push(ParseError::classified(
+                    start,
+                    "`!` is not a valid operator in Vox; use `not` instead. \
+                     (Vox uses phonetic operators: `not`, `and`, `or`, `is`, `isnt`.)",
+                    vec!["not".to_string()],
+                    Some("!".to_string()),
+                    ParseErrorClass::Expression,
+                ));
+                self.advance();
+                return Err(());
             }
             Token::Minus => {
                 self.advance();
@@ -833,5 +858,83 @@ impl super::super::Parser {
             self.skip_newlines();
         }
         Ok(children)
+    }
+
+    /// Parse template string parts from a raw string with {expr} interpolation markers.
+    /// This is a simple parser that splits on { and } and parses expressions between them.
+    fn parse_template_string_parts(&mut self, s: String, start_span: crate::ast::span::Span) -> Result<Vec<StringPart>, ()> {
+        let mut parts = Vec::new();
+        let mut current = String::new();
+        let mut chars = s.chars().peekable();
+        let mut in_interp = false;
+
+        while let Some(c) = chars.next() {
+            if c == '{' && !in_interp {
+                // Start of interpolation
+                if !current.is_empty() {
+                    parts.push(StringPart::Literal(current));
+                    current = String::new();
+                }
+                in_interp = true;
+            } else if c == '}' && in_interp {
+                // End of interpolation - parse the expression
+                in_interp = false;
+                let expr_str = current.clone();
+                current = String::new();
+
+                // Parse the expression from the string
+                // For now, we'll use a simple approach: tokenize and parse the expression
+                // This is a simplified implementation - a full implementation would need
+                // to properly handle nested braces and other edge cases
+                let expr = self.parse_expression_from_string(&expr_str)?;
+                parts.push(StringPart::Interpolation(Box::new(expr)));
+            } else {
+                current.push(c);
+            }
+        }
+
+        // Add remaining literal part
+        if !current.is_empty() {
+            parts.push(StringPart::Literal(current));
+        }
+
+        // If we're still in interpolation at the end, that's an error
+        if in_interp {
+            self.errors.push(ParseError::classified(
+                start_span,
+                "Unclosed interpolation in template string",
+                vec!["}".into()],
+                None,
+                ParseErrorClass::Expression,
+            ));
+            return Err(());
+        }
+
+        Ok(parts)
+    }
+
+    /// Parse an expression from a string (simplified for template string interpolation).
+    /// This is a temporary implementation - a full implementation would need to handle
+    /// the token stream properly rather than parsing from a string.
+    fn parse_expression_from_string(&mut self, s: &str) -> Result<Expr, ()> {
+        // For now, treat simple identifiers as expressions
+        // A full implementation would need to tokenize and parse the expression properly
+        if s.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            Ok(Expr::Ident {
+                name: s.to_string(),
+                span: self.span(),
+            })
+        } else {
+            // For more complex expressions, we'd need to tokenize and parse properly
+            // For now, return an error
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "Complex expressions in template strings not yet supported",
+                vec!["identifier".into()],
+                Some(s.to_string()),
+                ParseErrorClass::Expression,
+            ));
+            Err(())
+        }
     }
 }

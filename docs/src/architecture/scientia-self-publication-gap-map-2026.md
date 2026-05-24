@@ -91,7 +91,7 @@ Steps marked **(gap N)** are not yet served by a single command or surface.
 12. **Right-of-reply, peer review, revisions, retraction.** ✅
 13. **"Where does the published artifact live for readers?"** → **(gap G)**
     Zenodo + arXiv host the deposit; `vox-plugin-publication` syndicates
-    outward. A Vox-native landing surface (`findings.vox-lang.org/<trusty-uri>`
+    outward. A Vox-native landing surface (`findings.voxlang.org/<trusty-uri>`
     or analogous in the docs site / dashboard) that is the publication's
     canonical home is not yet in evidence.
 14. **"What's in my queue?"** → **(gap H)** No dashboard panel surfacing

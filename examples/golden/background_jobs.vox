@@ -5,7 +5,7 @@
 // status: golden
 // category: example
 // constructs: [fn, @endpoint, Result, Ok, Error, match, return]
-// last_validated: 2026-04-13
+// last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
 // ---
@@ -16,17 +16,17 @@ fn process_batch(batch_id: str) to Result[int] {
     return Ok(100)
 }
 
-fn notify_completion(batch_id: str, count: int) to Result[Unit] {
+fn notify_completion(batch_id: str, count: int) to Result[str] {
     // External API call mock
-    return Ok(Unit)
+    return Ok("sent")
 }
 
-fn handle_batch(batch_id: str, count: int) to Result[Unit] {
+fn handle_batch(batch_id: str, count: int) to Result[str] {
     let ignore = notify_completion(batch_id, count)
-    return Ok(Unit)
+    return Ok("handled")
 }
 
-fn async_batch_job(batch_id: str) to Result[Unit] {
+fn async_batch_job(batch_id: str) to Result[str] {
     let process_res = process_batch(batch_id)
     match process_res {
         Error(e) => Error("fail")
@@ -34,7 +34,7 @@ fn async_batch_job(batch_id: str) to Result[Unit] {
     }
 }
 
-@endpoint(kind: mutation) fn handler() to str {
+@mutation fn handler() to str {
     // Normally parses incoming JSON payload for batch_id
     let simulated_batch_id = "batch_789"
     // Fire and forget triggering of the durable workflow

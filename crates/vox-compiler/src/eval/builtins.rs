@@ -326,23 +326,103 @@ pub fn call_builtin_method(
         VoxValue::Option(opt) => match method {
             "is_some" => Some(VoxValue::Bool(opt.is_some())),
             "is_none" => Some(VoxValue::Bool(opt.is_none())),
-            "unwrap" => Some(
+            // `unwrap()` panics on None. The _Panic sentinel is caught
+            // upstream in `eval/expr.rs` and converted to an EvalError.
+            // Prior behavior (returning Null on None) was a silent-wrong-
+            // output footgun; see audit doc §10.4.
+            "unwrap" => Some(match opt.as_ref() {
+                Some(v) => (**v).clone(),
+                None => VoxValue::_Panic(
+                    "called `Option.unwrap()` on a None value".to_string(),
+                ),
+            }),
+            // `unwrap_or(default)` — never panics; this is the "safe" form.
+            "unwrap_or" => {
+                let default = args.into_iter().next().unwrap_or(VoxValue::Null);
+                Some(
+                    opt.as_ref()
+                        .map(|v| (**v).clone())
+                        .unwrap_or(default),
+                )
+            }
+            // `unwrap_or_default` — interp uses Null as the universal default
+            // since we don't track per-type Default impls. Safe form.
+            "unwrap_or_default" => Some(
                 opt.as_ref()
                     .map(|v| (**v).clone())
                     .unwrap_or(VoxValue::Null),
             ),
+            // `expect(msg)` — like `unwrap` but uses the supplied message
+            // in the panic. The whole point of `expect` is to give the
+            // programmer a chance to explain WHY they're unwrapping.
+            "expect" => Some(match opt.as_ref() {
+                Some(v) => (**v).clone(),
+                None => {
+                    let msg = match args.into_iter().next() {
+                        Some(VoxValue::Str(s)) => s,
+                        _ => "expected Some, found None".to_string(),
+                    };
+                    VoxValue::_Panic(format!("Option.expect: {msg}"))
+                }
+            }),
             _ => None,
         },
         // ── Result ───────────────────────────────────────────────────
         VoxValue::Result(res) => match method {
             "is_ok" => Some(VoxValue::Bool(res.is_ok())),
             "is_err" => Some(VoxValue::Bool(res.is_err())),
-            "unwrap" => Some(
+            // `ok()` — returns Some(value) for Ok, None for Err.
+            "ok" => Some(VoxValue::Option(
+                res.as_ref().ok().map(|v| Box::new((**v).clone())),
+            )),
+            // `err()` — returns Some(err_msg) for Err, None for Ok.
+            "err" => Some(VoxValue::Option(
+                res.as_ref()
+                    .err()
+                    .map(|e| Box::new(VoxValue::Str(e.clone()))),
+            )),
+            // `unwrap()` panics on Err with the Err message. The _Panic
+            // sentinel is caught upstream and converted to an EvalError.
+            "unwrap" => Some(match res.as_ref() {
+                Ok(v) => (**v).clone(),
+                Err(e) => VoxValue::_Panic(format!(
+                    "called `Result.unwrap()` on an Err value: {e}"
+                )),
+            }),
+            // `unwrap_err()` panics on Ok — the inverse of unwrap. Prior
+            // impl returned empty Str on Ok, masking the misuse silently.
+            "unwrap_err" => Some(match res.as_ref() {
+                Err(e) => VoxValue::Str(e.clone()),
+                Ok(_) => VoxValue::_Panic(
+                    "called `Result.unwrap_err()` on an Ok value".to_string(),
+                ),
+            }),
+            "unwrap_or" => {
+                let default = args.into_iter().next().unwrap_or(VoxValue::Null);
+                Some(
+                    res.as_ref()
+                        .ok()
+                        .map(|v| (**v).clone())
+                        .unwrap_or(default),
+                )
+            }
+            "unwrap_or_default" => Some(
                 res.as_ref()
                     .ok()
                     .map(|v| (**v).clone())
                     .unwrap_or(VoxValue::Null),
             ),
+            // `expect(msg)` panics on Err with the supplied context.
+            "expect" => Some(match res.as_ref() {
+                Ok(v) => (**v).clone(),
+                Err(e) => {
+                    let ctx = match args.into_iter().next() {
+                        Some(VoxValue::Str(s)) => s,
+                        _ => "expected Ok, found Err".to_string(),
+                    };
+                    VoxValue::_Panic(format!("Result.expect: {ctx} ({e})"))
+                }
+            }),
             _ => None,
         },
 
@@ -362,14 +442,19 @@ pub fn call_builtin_method(
             if ns.is_none() && method == "get" {
                 let key = match args.into_iter().next() {
                     Some(VoxValue::Str(s)) => s,
-                    _ => return Some(VoxValue::Null),
+                    _ => return Some(VoxValue::Option(None)),
                 };
+                // Record/Object.get returns Option[T] — matches the typecheck
+                // signature so corpus scripts that call `.unwrap()` on the
+                // result type-check AND run consistently. Prior to 2026-05-23
+                // this returned the bare value (or Null on miss), which
+                // typecheck-eval'd inconsistently.
                 return Some(
                     fields
                         .iter()
                         .find(|(k, _)| k == &key)
-                        .map(|(_, v)| v.clone())
-                        .unwrap_or(VoxValue::Null),
+                        .map(|(_, v)| VoxValue::Option(Some(Box::new(v.clone()))))
+                        .unwrap_or(VoxValue::Option(None)),
                 );
             }
 
@@ -391,7 +476,10 @@ pub fn call_builtin_method(
 
             match ns {
                 Some("fs") => match method {
-                    "read" | "read_file" => {
+                    // `read_to_string` is the Rust-style alias; `read` and
+                    // `read_file` are the canonical Vox names. All three
+                    // share the same impl per audit doc §10.4.
+                    "read" | "read_file" | "read_to_string" => {
                         let path = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Null),
@@ -402,7 +490,8 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(res))
                     }
-                    "write" | "write_file" => {
+                    // `write_to_file` is the Rust-style alias of write/write_file.
+                    "write" | "write_file" | "write_to_file" => {
                         let mut it = args.into_iter();
                         let path = match it.next() {
                             Some(VoxValue::Str(s)) => s,
@@ -417,6 +506,77 @@ pub fn call_builtin_method(
                             Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
+                    }
+                    // `cwd` — current working directory. Mirrors
+                    // `std::env::current_dir()`. Returns a Result because
+                    // the OS can deny access to the cwd (unlikely but
+                    // surfaceable).
+                    "cwd" => {
+                        let res = match std::env::current_dir() {
+                            Ok(p) => Ok(Box::new(VoxValue::Str(
+                                p.to_string_lossy().to_string(),
+                            ))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    // `copy(src, dst)` — copies a file. Audit doc §10
+                    // confirmed this as a needed primitive (no good substitute).
+                    "copy" => {
+                        let mut it = args.into_iter();
+                        let src = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let dst = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match std::fs::copy(&src, &dst) {
+                            Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    // `remove(path)` — deletes a file. For directories use
+                    // `remove_dir_all` (already registered).
+                    "remove" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match std::fs::remove_file(&path) {
+                            Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    // `walk(dir)` — recursive lister. Eval delegates to
+                    // the glob impl via `**/*` since fs.walk and fs.glob are
+                    // the same operation conceptually (audit doc §11).
+                    // Kept as an alias rather than dropped because two
+                    // scripts in `mens-corpus/` already use this name; the
+                    // alias avoids unnecessary corpus churn.
+                    "walk" | "list_recursive" => {
+                        let root = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let pattern = format!("{root}/**/*");
+                        let mut entries: Vec<VoxValue> = Vec::new();
+                        match glob::glob(&pattern) {
+                            Ok(it) => {
+                                for entry in it.flatten() {
+                                    if entry.is_file() {
+                                        entries.push(VoxValue::Str(
+                                            entry.to_string_lossy().to_string(),
+                                        ));
+                                    }
+                                }
+                                Some(VoxValue::Result(Ok(Box::new(VoxValue::List(entries)))))
+                            }
+                            Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                        }
                     }
                     "exists" => {
                         let path = match args.into_iter().next() {
@@ -597,6 +757,60 @@ pub fn call_builtin_method(
                         let joined = std::path::Path::new(&a).join(b);
                         Some(VoxValue::Str(joined.to_string_lossy().to_string()))
                     }
+                    "extension" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str(String::new())),
+                        };
+                        let ext = std::path::Path::new(&p)
+                            .extension()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string();
+                        Some(VoxValue::Str(ext))
+                    }
+                    "parent" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str(String::new())),
+                        };
+                        let parent = std::path::Path::new(&p)
+                            .parent()
+                            .map(|s| s.to_string_lossy().to_string())
+                            .unwrap_or_default();
+                        Some(VoxValue::Str(parent))
+                    }
+                    "file_name" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str(String::new())),
+                        };
+                        let name = std::path::Path::new(&p)
+                            .file_name()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string();
+                        Some(VoxValue::Str(name))
+                    }
+                    "stem" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str(String::new())),
+                        };
+                        let stem = std::path::Path::new(&p)
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string();
+                        Some(VoxValue::Str(stem))
+                    }
+                    "is_absolute" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Bool(false)),
+                        };
+                        Some(VoxValue::Bool(std::path::Path::new(&p).is_absolute()))
+                    }
                     _ => None,
                 },
                 Some("secrets") => match method {
@@ -663,9 +877,16 @@ pub fn call_builtin_method(
                                         VoxValue::Int(out.status.code().unwrap_or(0) as i64),
                                     ),
                                 ];
-                                Some(VoxValue::Object(res))
+                                // Wrap in Option(Some(...)) to match the
+                                // typecheck signature `Option[Record]`.
+                                // Prior to 2026-05-23 this returned the bare
+                                // Object, causing scripts that followed the
+                                // typeck contract (`proc.unwrap()`) to fail
+                                // at eval with "Method unwrap not found"
+                                // even though their `vox check` passed.
+                                Some(VoxValue::Option(Some(Box::new(VoxValue::Object(res)))))
                             }
-                            Err(_) => Some(VoxValue::Null),
+                            Err(_) => Some(VoxValue::Option(None)),
                         }
                     }
                     "run_ex" => {
@@ -693,12 +914,37 @@ pub fn call_builtin_method(
                         };
                         let _env_list = it.next();
 
-                        let status = std::process::Command::new(&cmd_name)
+                        // Match the typeck signature `Result[Record]` —
+                        // return the full {stdout, stderr, code} record so
+                        // callers can inspect all three without a second
+                        // shell-out. Prior impl returned bare Int (exit code
+                        // only), which created a typeck/eval mismatch that
+                        // surfaced as either "type error" at check OR
+                        // "Cannot access field 'code'" at run depending on
+                        // which side was authoritative.
+                        let output = std::process::Command::new(&cmd_name)
                             .args(&cmd_args)
                             .current_dir(&cwd)
-                            .status();
-                        let res = match status {
-                            Ok(st) => Ok(Box::new(VoxValue::Int(st.code().unwrap_or(0) as i64))),
+                            .output();
+                        let res = match output {
+                            Ok(out) => Ok(Box::new(VoxValue::Object(vec![
+                                (
+                                    "stdout".to_string(),
+                                    VoxValue::Str(
+                                        String::from_utf8_lossy(&out.stdout).to_string(),
+                                    ),
+                                ),
+                                (
+                                    "stderr".to_string(),
+                                    VoxValue::Str(
+                                        String::from_utf8_lossy(&out.stderr).to_string(),
+                                    ),
+                                ),
+                                (
+                                    "code".to_string(),
+                                    VoxValue::Int(out.status.code().unwrap_or(0) as i64),
+                                ),
+                            ]))),
                             Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
@@ -870,6 +1116,36 @@ pub fn call_builtin_method(
                             Err(e) => Err(e),
                         }))
                     }
+                    // `process.cwd` — same op as `fs.cwd`, aliased here for the
+                    // call sites that reach for it under the `process` namespace.
+                    // Both resolve via `std::env::current_dir`.
+                    "cwd" => {
+                        let res = match std::env::current_dir() {
+                            Ok(p) => Ok(Box::new(VoxValue::Str(
+                                p.to_string_lossy().to_string(),
+                            ))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    // `process.which(cmd)` — locate a binary on PATH, returning
+                    // its absolute path or None if not found. Cross-platform —
+                    // uses the `which` crate which handles `.exe` extension on
+                    // Windows and PATHEXT lookups correctly. Audit doc §10
+                    // confirmed this as a needed primitive over the
+                    // platform-specific `process.run("which", ...)` workaround.
+                    "which" => {
+                        let cmd = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Option(None)),
+                        };
+                        match ::which::which(&cmd) {
+                            Ok(p) => Some(VoxValue::Option(Some(Box::new(VoxValue::Str(
+                                p.to_string_lossy().to_string(),
+                            ))))),
+                            Err(_) => Some(VoxValue::Option(None)),
+                        }
+                    }
                     _ => None,
                 },
                 Some("agentos") => match method {
@@ -1013,16 +1289,140 @@ pub fn call_builtin_method(
                             Err(_) => Some(VoxValue::Null),
                         }
                     }
-                    "stringify" | "encode" => {
+                    "render" | "stringify" | "encode" => {
                         let v = match args.into_iter().next() {
                             Some(v) => v,
                             _ => return Some(VoxValue::Null),
                         };
                         let j = vox_to_json(v);
-                        Some(VoxValue::Str(serde_json::to_string(&j).unwrap_or_default()))
+                        let res = serde_json::to_string(&j).map_err(|e| e.to_string());
+                        Some(VoxValue::Result(match res {
+                            Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                            Err(e) => Err(e),
+                        }))
                     }
                     _ => None,
                 },
+                Some("regex") => {
+                    // regex.replace(haystack, pattern, replacement) -> str
+                    // regex.is_match(haystack, pattern) -> bool
+                    // regex.captures(haystack, pattern) -> Option[List[str]]
+                    //
+                    // Patterns that fail to compile yield: empty string (replace),
+                    // false (is_match), or None (captures). Loud-error variants
+                    // can be added later if needed — the current corpus uses
+                    // patterns that are statically known to compile.
+                    let mut it = args.into_iter();
+                    match method {
+                        "replace" => {
+                            let haystack = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Str(String::new())),
+                            };
+                            let pattern = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Str(haystack)),
+                            };
+                            let replacement = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Str(haystack)),
+                            };
+                            match regex::Regex::new(&pattern) {
+                                Ok(re) => Some(VoxValue::Str(
+                                    re.replace_all(&haystack, replacement.as_str()).to_string(),
+                                )),
+                                Err(_) => Some(VoxValue::Str(haystack)),
+                            }
+                        }
+                        "is_match" => {
+                            let haystack = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Bool(false)),
+                            };
+                            let pattern = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Bool(false)),
+                            };
+                            Some(VoxValue::Bool(
+                                regex::Regex::new(&pattern)
+                                    .map(|re| re.is_match(&haystack))
+                                    .unwrap_or(false),
+                            ))
+                        }
+                        "captures" => {
+                            let haystack = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Option(None)),
+                            };
+                            let pattern = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Option(None)),
+                            };
+                            let re = match regex::Regex::new(&pattern) {
+                                Ok(re) => re,
+                                Err(_) => return Some(VoxValue::Option(None)),
+                            };
+                            match re.captures(&haystack) {
+                                Some(caps) => {
+                                    let groups: Vec<VoxValue> = caps
+                                        .iter()
+                                        .map(|m| {
+                                            VoxValue::Str(
+                                                m.map(|x| x.as_str().to_string())
+                                                    .unwrap_or_default(),
+                                            )
+                                        })
+                                        .collect();
+                                    Some(VoxValue::Option(Some(Box::new(VoxValue::List(groups)))))
+                                }
+                                None => Some(VoxValue::Option(None)),
+                            }
+                        }
+                        // `regex.compile(pattern) -> Result[Regex]` — pre-compile
+                        // a pattern for repeated use in hot loops. We don't have
+                        // a dedicated `Regex` runtime value yet; for the
+                        // interp tier the compiled-regex use case is rare and
+                        // the existing `regex.replace`/`is_match`/`captures`
+                        // already compile on each call. So we return the
+                        // pattern string back wrapped in Ok — callers that
+                        // pass this to subsequent calls will recompile (no
+                        // perf win), but the symbol resolves cleanly. A real
+                        // compiled-Regex value type can land later if hot-loop
+                        // regex shows up in profiles.
+                        "compile" => {
+                            let pattern = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => {
+                                    return Some(VoxValue::Result(Err(
+                                        "regex.compile expected a string pattern".to_string(),
+                                    )))
+                                }
+                            };
+                            match regex::Regex::new(&pattern) {
+                                Ok(_) => Some(VoxValue::Result(Ok(Box::new(VoxValue::Str(
+                                    pattern,
+                                ))))),
+                                Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+                Some("log") => {
+                    let msg = args
+                        .iter()
+                        .map(vox_value_display)
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    match method {
+                        "debug" => tracing::debug!("{msg}"),
+                        "info" => tracing::info!("{msg}"),
+                        "warn" => tracing::warn!("{msg}"),
+                        "error" => tracing::error!("{msg}"),
+                        _ => {}
+                    }
+                    Some(VoxValue::Null)
+                }
                 _ => {
                     if ns.is_none() {
                         interp_json_object_methods(fields, method, args.as_slice())
@@ -1294,6 +1694,30 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
             Some(VoxValue::Str(t.to_string()))
         }
         _ => None,
+    }
+}
+
+/// Short human-readable name of a VoxValue's runtime type. Used in
+/// error messages for binary/unary op type mismatches (eval/expr.rs).
+pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
+    match v {
+        VoxValue::Int(_) => "Int",
+        VoxValue::Float(_) => "Float",
+        VoxValue::Str(_) => "Str",
+        VoxValue::Bool(_) => "Bool",
+        VoxValue::List(_) => "List",
+        VoxValue::Object(_) => "Object",
+        VoxValue::Tuple(_) => "Tuple",
+        VoxValue::Null => "Null",
+        VoxValue::Fn { .. } => "Fn",
+        VoxValue::Option(_) => "Option",
+        VoxValue::Result(_) => "Result",
+        VoxValue::Constructor(_) => "Constructor",
+        VoxValue::Tagged { .. } => "Tagged",
+        VoxValue::_Return(_) => "_Return",
+        VoxValue::_Break => "_Break",
+        VoxValue::_Continue => "_Continue",
+        VoxValue::_Panic(_) => "_Panic",
     }
 }
 

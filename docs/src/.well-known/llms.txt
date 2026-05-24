@@ -3,26 +3,26 @@
 > It is designed first as a target for large language models, then for human developers.
 
 ## Agent Policy Entry Points
-- [AGENTS.md](https://vox-lang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
-- [GEMINI.md](https://vox-lang.org/GEMINI.md): Antigravity-specific overlay
-- [CLAUDE.md](https://vox-lang.org/CLAUDE.md): Claude Code overlay
+- [AGENTS.md](https://voxlang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
+- [GEMINI.md](https://voxlang.org/GEMINI.md): Antigravity-specific overlay
+- [CLAUDE.md](https://voxlang.org/CLAUDE.md): Claude Code overlay
 
 ## Core Documentation
-- [Getting Started](https://vox-lang.org/tutorials/tut-getting-started/): Install the toolchain and build your first app
-- [Language Syntax Reference](https://vox-lang.org/reference/ref-syntax/): Full syntax specification
-- [CLI Reference](https://vox-lang.org/reference/cli/): All vox subcommands
-- [Environment Variables SSOT](https://vox-lang.org/reference/env-vars/): Configuration surface
-- [Secrets (Secret Management)](https://vox-lang.org/reference/secrets-ssot/): API keys and credentials
+- [Getting Started](https://voxlang.org/tutorials/tut-getting-started/): Install the toolchain and build your first app
+- [Language Syntax Reference](https://voxlang.org/reference/ref-syntax/): Full syntax specification
+- [CLI Reference](https://voxlang.org/reference/cli/): All vox subcommands
+- [Environment Variables SSOT](https://voxlang.org/reference/env-vars/): Configuration surface
+- [Secrets (Secret Management)](https://voxlang.org/reference/secrets-ssot/): API keys and credentials
 
 ## Architecture Authority
-- [Research Index](https://vox-lang.org/architecture/research-index/): Architecture and research document map (hand-maintained)
-- [Where things live](https://vox-lang.org/architecture/where-things-live/): Concept → crate lookup table
-- [Classification SSOT](https://vox-lang.org/architecture/classification-ssot-2026/): Canonical surface classifications
+- [Research Index](https://voxlang.org/architecture/research-index/): Architecture and research document map (hand-maintained)
+- [Where things live](https://voxlang.org/architecture/where-things-live/): Concept → crate lookup table
+- [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/): Canonical surface classifications
 
 ## Contributor Hub
-- [Contributor Hub](https://vox-lang.org/contributors/contributor-hub/): Entry point for contributors
-- [Documentation Governance](https://vox-lang.org/contributors/documentation-governance/): Doc authority map
-- [Agent Instruction Architecture](https://vox-lang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo
+- [Contributor Hub](https://voxlang.org/contributors/contributor-hub/): Entry point for contributors
+- [Documentation Governance](https://voxlang.org/contributors/documentation-governance/): Doc authority map
+- [Agent Instruction Architecture](https://voxlang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo
 
 ## AI Coding-Assistant Integration
-- [How-to: wire AI assistants to vox_validate_source MCP](https://vox-lang.org/how-to/how-to-mcp-vox-validate/): Configure Claude Desktop / Cursor to validate AI-generated Vox source against the real compiler with structured autofix suggestions; documents the diagnostic shape (`code` + `fixes`), the iterate-against-the-compiler loop, and the most useful diagnostic-code namespaces.
+- [How-to: wire AI assistants to vox_validate_source MCP](https://voxlang.org/how-to/how-to-mcp-vox-validate/): Configure Claude Desktop / Cursor to validate AI-generated Vox source against the real compiler with structured autofix suggestions; documents the diagnostic shape (`code` + `fixes`), the iterate-against-the-compiler loop, and the most useful diagnostic-code namespaces.

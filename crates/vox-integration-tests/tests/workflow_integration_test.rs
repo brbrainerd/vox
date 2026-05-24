@@ -26,56 +26,65 @@ fn warnings(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
         .collect()
 }
 
-// ── Tombstone tests (TASK-2.6) ────────────────────────────────────────────────
-// `activity` and `workflow` keywords are reserved (ADR-028). The pipeline
-// rejects them with E028 diagnostics. Tests use `run_frontend_str` to go
-// through the full pipeline rather than the bare parser, which accepts the
-// tokens so it can produce a more helpful diagnostic.
+// ── Durability grammar acceptance (ADR-041, supersedes ADR-028) ───────────────
+// `activity` and `workflow` are stable public-grammar keywords backed by a real
+// durable runtime (ADR-019 + ADR-041). The pipeline must NOT emit ADR-028-style
+// reservation errors for them. These tests guard against regression of the gate
+// lift that landed alongside ADR-041's enactment.
+
+fn has_e028_reservation_error(result: &vox_compiler::pipeline::FrontendResult) -> bool {
+    result.diagnostics.iter().any(|d| {
+        d.code.as_deref() == Some("E028") || d.message.contains("reserved for a future release")
+    })
+}
 
 #[test]
-fn tombstoned_activity_keyword_produces_parse_error() {
+fn activity_keyword_accepted_by_pipeline_adr041() {
     let src = r#"
 activity send_email(recipient: str, subject: str) to Result[str] {
-    Ok("ok")
+    return Ok("ok")
 }
 "#;
     let result = run_frontend_str(src, "test.vox").expect("pipeline should not hard-fail");
     assert!(
-        result.has_errors(),
-        "tombstoned `activity` keyword should produce a pipeline error diagnostic"
+        !has_e028_reservation_error(&result),
+        "ADR-041: `activity` is a stable keyword; no E028 reservation error expected. diags: {:?}",
+        result.diagnostics
     );
 }
 
 #[test]
-fn tombstoned_workflow_keyword_produces_parse_error() {
+fn workflow_keyword_accepted_by_pipeline_adr041() {
     let src = r#"
 workflow main_flow() to Result[str] {
-    Ok("done")
+    return Ok("done")
 }
 "#;
     let result = run_frontend_str(src, "test.vox").expect("pipeline should not hard-fail");
     assert!(
-        result.has_errors(),
-        "tombstoned `workflow` keyword should produce a pipeline error diagnostic"
+        !has_e028_reservation_error(&result),
+        "ADR-041: `workflow` is a stable keyword; no E028 reservation error expected. diags: {:?}",
+        result.diagnostics
     );
 }
 
 #[test]
-fn tombstoned_activity_and_workflow_together_produce_parse_error() {
+fn activity_and_workflow_together_accepted_by_pipeline_adr041() {
     let src = r#"
 activity process_data(data: str) to Result[str] {
-    Ok(data)
+    return Ok(data)
 }
 
-workflow pipeline() to Result[str] {
-    let result = process_data("test") with { retries: 3 }
-    result
+workflow run_pipeline() to Result[str] {
+    let result = process_data("test")
+    return result
 }
 "#;
     let result = run_frontend_str(src, "test.vox").expect("pipeline should not hard-fail");
     assert!(
-        result.has_errors(),
-        "tombstoned `activity` + `workflow` should produce pipeline error diagnostics"
+        !has_e028_reservation_error(&result),
+        "ADR-041: `activity` + `workflow` are stable keywords; no E028 reservation error expected. diags: {:?}",
+        result.diagnostics
     );
 }
 

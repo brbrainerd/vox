@@ -25,7 +25,7 @@
 //   actor Name { on H(...) -> T }  →  fn Name_H(state: T, ...) to T { }
 //   workflow name() -> Result[T]   →  fn name() to Result[T] { }
 //   activity name() -> Result[T]   →  fn name() to Result[T] { }
-//   http post "/path" to T         →  @endpoint(kind: mutation) fn h() to T { }
+//   http post "/path" to T         →  @mutation fn h() to T { }
 //   @component fn Name()           →  component Name() { view: ... }
 
 import fs
@@ -71,12 +71,12 @@ fn tombstoned_patterns() to list[str] {
 fn has_tombstoned_syntax(line: str) to bool {
     let patterns = tombstoned_patterns()
     for p in patterns {
-        if str.starts_with_pattern(line, p) {
-            return true
-        }
-        if str.contains(line, p) {
-            return true
-        }
+        // `starts_with_pattern` (regex form) was never implemented; for the
+        // tombstone list a plain `starts_with` of the literal prefix suffices
+        // since the regex anchors are either `^` or trivial char classes.
+        let needle = if p.starts_with("^") { p.replace("^", "") } else { p }
+        if line.starts_with(needle) { return true }
+        if line.contains(needle) { return true }
     }
     return false
 }
@@ -87,11 +87,11 @@ fn is_skip_annotated(lines: list[str], line_idx: int) to bool {
     let start = if line_idx > 5 { line_idx - 5 } else { 0 }
     let mut i = line_idx
     while i >= start {
-        let l = str.trim(lines[i])
-        if str.starts_with(l, "// vox:skip") {
+        let l = lines[i].trim()
+        if l.starts_with("// vox:skip") {
             return true
         }
-        if str.starts_with(l, "```") && i < line_idx {
+        if l.starts_with("```") and i < line_idx {
             // Hit a fence above but no vox:skip found
             return false
         }
@@ -102,16 +102,16 @@ fn is_skip_annotated(lines: list[str], line_idx: int) to bool {
 
 fn scan_file(file_path: str) to list[str] {
     let content = fs.read_to_string(file_path)
-    let lines = str.split_lines(content)
+    let lines = content.split("\n")
     let mut violations = []
     let mut line_num = 0
 
     for line in lines {
         line_num = line_num + 1
         if has_tombstoned_syntax(line) {
-            if !is_skip_annotated(lines, line_num - 1) {
-                let msg = file_path + ":" + str(line_num) + ": tombstoned syntax — " + str.trim(line)
-                violations = list.push(violations, msg)
+            if not is_skip_annotated(lines, line_num - 1) {
+                let msg = file_path + ":" + str(line_num) + ": tombstoned syntax — " + line.trim()
+                violations.push(msg)
             }
         }
     }
@@ -132,12 +132,12 @@ fn should_scan(file_path: str) to bool {
 
 fn scan_root(root: str) to list[str] {
     let mut all_violations = []
-    let files = fs.list_recursive(root)
+    let files = fs.glob(root + "/**/*")
     for f in files {
         if should_scan(f) {
             let violations = scan_file(f)
             for v in violations {
-                all_violations = list.push(all_violations, v)
+                all_violations.push(v)
             }
         }
     }
@@ -152,17 +152,17 @@ fn main() {
         if fs.exists(root) {
             let violations = scan_root(root)
             for v in violations {
-                total_violations = list.push(total_violations, v)
+                total_violations.push(v)
             }
         }
     }
 
-    if list.len(total_violations) == 0 {
-        print("✓ Corpus migration clean — no tombstoned syntax found outside vox:skip blocks.")
+    if total_violations.len() == 0 {
+        print("Corpus migration clean — no tombstoned syntax found outside vox:skip blocks.")
         process.exit(0)
     }
 
-    print("✗ Tombstoned syntax found (" + str(list.len(total_violations)) + " violations):")
+    print("Tombstoned syntax found (" + str(total_violations.len()) + " violations):")
     print("")
     for v in total_violations {
         print("  " + v)
