@@ -1,4 +1,4 @@
-//! Resolve research pipeline stage models from the canonical [`crate::models::ModelRegistry`].
+//! Resolve research pipeline stage models from the canonical [`vox_orchestrator::models::ModelRegistry`].
 //!
 //! Phase 0a: returns static fallback model IDs. Phase 1+ wires this to the
 //! full `InferenceConfig`/`selection` machinery once those modules are activated.
@@ -13,10 +13,10 @@ pub(crate) use vox_config::REVIEW_PREMIUM_FALLBACK as FALLBACK_REVIEW_PREMIUM_MO
 /// Opaque inference config passed to model resolution.
 ///
 /// Phase 0a STUB: carries only the model override strings used by `pipeline.rs`.
-/// Phase 1 replaces this with the full `crate::mode::InferenceConfig`.
+/// Phase 1 replaces this with the full `vox_orchestrator::mode::InferenceConfig`.
 #[derive(Debug, Clone, Default)]
 pub struct InferenceConfig {
-    // PHASE_0a_STUB: placeholder struct. Phase 1 merges with crate::mode::InferenceConfig.
+    // PHASE_0a_STUB: placeholder struct. Phase 1 merges with vox_orchestrator::mode::InferenceConfig.
     pub quality: QualityLevel,
 }
 
@@ -50,7 +50,7 @@ pub struct ResolvedResearchModels {
 /// `_base_inference` is accepted for API compatibility with future live resolution.
 #[must_use]
 pub fn resolve_research_models(
-    _registry: &crate::models::ModelRegistry,
+    _registry: &vox_orchestrator::models::ModelRegistry,
     _base_inference: &InferenceConfig,
 ) -> ResolvedResearchModels {
     // PHASE_0a_STUB: static fallbacks. Phase 1 wires to resolve_model_with_registry_fallbacks.

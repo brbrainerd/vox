@@ -1,4 +1,4 @@
-use vox_orchestrator::dei_shim::research::provider::{ProviderConfig, ProviderRegistry};
+use vox_dei_shim::research::provider::{ProviderConfig, ProviderRegistry};
 
 #[test]
 fn provider_registry_default_primary_name() {

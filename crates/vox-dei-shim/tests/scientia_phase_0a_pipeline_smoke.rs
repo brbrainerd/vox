@@ -1,7 +1,7 @@
 //! Phase 0a — `run_research` is callable; web hits flow through `vox-search` when scope allows.
 
-use vox_orchestrator::dei_shim::research::types::{ResearchQuery, ResearchScope};
-use vox_orchestrator::dei_shim::research::{BroadcastEmitter, ResearchConfig, run_research};
+use vox_dei_shim::research::types::{ResearchQuery, ResearchScope};
+use vox_dei_shim::research::{BroadcastEmitter, ResearchConfig, run_research};
 
 #[tokio::test]
 async fn run_research_returns_coherent_metadata() {

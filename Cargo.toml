@@ -107,6 +107,7 @@ vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
+vox-dei-shim              = { path = "crates/vox-dei-shim" }
 
 vox-orchestrator-test-helpers = { path = "crates/vox-orchestrator-test-helpers" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }

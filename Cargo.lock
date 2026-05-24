@@ -12820,6 +12820,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-dei-shim",
  "vox-deploy-codegen",
  "vox-doc-inventory",
  "vox-doc-pipeline",
@@ -13134,6 +13135,26 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "vox-dei-shim"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "vox-actor-runtime",
+ "vox-config",
+ "vox-db",
+ "vox-orchestrator",
+ "vox-orchestrator-types",
+ "vox-research-events",
+ "vox-search",
+ "vox-secrets",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -13791,6 +13812,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-dei-shim",
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",
@@ -14105,6 +14127,7 @@ dependencies = [
  "vox-db",
  "vox-foundation",
  "vox-http-client",
+ "vox-identity",
  "vox-mesh-types",
  "vox-plugin-api",
  "vox-populi",

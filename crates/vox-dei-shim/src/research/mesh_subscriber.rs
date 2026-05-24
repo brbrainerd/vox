@@ -3,7 +3,7 @@
 //! MCP tools attach a [`tokio::sync::broadcast`] sender; hosts spawn this subscriber from
 //! [`ServerState::spawn_scientia_research_mesh_background_jobs`] without requiring Codex.
 //! When `news-publish` is enabled and [`ScientiaMeshSubscriberOptions::publisher_mesh_intake_enabled`]
-//! is true (from [`OrchestratorConfig::research_mesh_intake_writer_active`](crate::config::OrchestratorConfig::research_mesh_intake_writer_active)),
+//! is true (from [`OrchestratorConfig::research_mesh_intake_writer_active`](vox_orchestrator::config::OrchestratorConfig::research_mesh_intake_writer_active)),
 //! finding and publication events are mirrored into `vox-publisher` mesh intake files under the repo root.
 
 use std::path::PathBuf;

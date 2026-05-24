@@ -1,4 +1,4 @@
-use vox_orchestrator::dei_shim::research::{
+use vox_dei_shim::research::{
     claims::Claim,
     gate::{GateConfig, GateInput, score_with_config},
     types::RoutingTier,

@@ -1,6 +1,6 @@
 //! Phase 0a — types must round-trip through serde for telemetry persistence.
 
-use vox_orchestrator::dei_shim::research::types::*;
+use vox_dei_shim::research::types::*;
 
 #[test]
 fn research_query_default_constructs() {

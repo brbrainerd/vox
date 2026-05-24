@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
-use crate::services::embeddings::EmbeddingService;
+use vox_orchestrator::services::embeddings::EmbeddingService;
 
 /// Progress reporting callback for research operations.
 pub type ProgressCallback = dyn Fn(String, Option<f32>) + Send + Sync + 'static;
@@ -87,7 +87,7 @@ pub struct ResearchConfig {
     /// Optional snapshot of workspace inference policy for registry stage picks.
     ///
     /// Phase 0a STUB: uses `super::super::model_select::InferenceConfig` (static fallbacks).
-    /// Phase 1 replaces with `crate::mode::InferenceConfig` when that module is activated.
+    /// Phase 1 replaces with `vox_orchestrator::mode::InferenceConfig` when that module is activated.
     pub model_pick_inference: Option<super::super::model_select::InferenceConfig>,
 }
 
@@ -114,7 +114,7 @@ impl Default for ResearchConfig {
     /// Phase 0a STUB: uses static fallback model IDs from vox-config constants.
     /// Phase 1 wires to live ModelRegistry resolution via InferenceConfig.
     fn default() -> Self {
-        let reg = crate::models::ModelRegistry::new();
+        let reg = vox_orchestrator::models::ModelRegistry::new();
         let base = super::super::model_select::InferenceConfig::default();
         let r = super::super::model_select::resolve_research_models(&reg, &base);
         let verifier = super::super::config::VerifierConfig {

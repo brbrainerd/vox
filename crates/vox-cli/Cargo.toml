@@ -163,6 +163,7 @@ vox-drift-check = { workspace = true }
 
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
+vox-dei-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
 vox-plugin-catalog = { workspace = true }

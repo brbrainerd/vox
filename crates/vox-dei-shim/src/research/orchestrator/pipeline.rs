@@ -77,7 +77,7 @@ pub async fn run_research_with_context_and_session(
     let _ = web_enabled; // used above
 
     let registry = ProviderRegistry::from_env_with_config(config.provider.clone());
-    let llm_model_registry = crate::models::ModelRegistry::new();
+    let llm_model_registry = vox_orchestrator::models::ModelRegistry::new();
     let base_inference = config.model_pick_inference.clone().unwrap_or_default();
     let resolved_llm =
         super::super::model_select::resolve_research_models(&llm_model_registry, &base_inference);
@@ -609,7 +609,7 @@ fn emit_research_event(config: &ResearchConfig, db: Option<&Codex>, event: Resea
         emitter.emit(event.clone());
     }
     if let Some(db) = db {
-        crate::dei_shim::research::spawn_persist_research_event_for_metrics(db.clone(), event);
+        crate::research::spawn_persist_research_event_for_metrics(db.clone(), event);
     }
 }
 
@@ -621,7 +621,7 @@ async fn resolved_search_policy_for_research_run(
     let feedback = if let Some(fb) = config.search_policy_feedback {
         Some(fb)
     } else if let Some(db) = db {
-        crate::dei_shim::research::load_rolling_search_policy_feedback(db).await
+        crate::research::load_rolling_search_policy_feedback(db).await
     } else {
         None
     };

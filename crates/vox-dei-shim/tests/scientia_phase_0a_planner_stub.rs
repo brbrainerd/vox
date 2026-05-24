@@ -1,4 +1,4 @@
-use vox_orchestrator::dei_shim::research::{
+use vox_dei_shim::research::{
     planner::{decompose_query_with_config, plan_to_json},
     types::{ResearchPlan, ResearchQuery, ResearchScope},
 };
