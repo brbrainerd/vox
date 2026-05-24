@@ -1,16 +1,16 @@
 [package]
-name = "vox-tauri-sherpa"
+name = "vox-tauri-stt"
 version = "0.5.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
 repository = "https://github.com/vox-foundation/vox.git"
 rust-version = "1.92"
-description = "Speech transcription bridge types + guest JS + Android/iOS sources for Tauri 2 apps (register the plugin in your app's src-tauri)."
+description = "Speech-to-text bridge types + guest JS + Android/iOS sources for Tauri 2 apps (register the plugin in your app's src-tauri)."
 publish = false
 
 [lib]
-name = "vox_tauri_sherpa"
+name = "vox_tauri_stt"
 path = "src/lib.rs"
 
 [features]

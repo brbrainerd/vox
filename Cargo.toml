@@ -67,6 +67,7 @@ vox-compiler              = { path = "crates/vox-compiler" }
 vox-codegen         = { path = "crates/vox-codegen" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
+vox-container-types       = { path = "crates/vox-container-types" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
 vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
 
@@ -156,7 +157,7 @@ vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
-vox-tauri-sherpa          = { path = "crates/vox-tauri-sherpa" }
+vox-tauri-stt             = { path = "crates/vox-tauri-stt" }
 
 
 

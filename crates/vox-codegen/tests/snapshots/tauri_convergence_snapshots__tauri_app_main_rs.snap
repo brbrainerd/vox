@@ -8,7 +8,7 @@ expression: main
 
 fn main() {
     tauri::Builder::default()
-        .plugin(vox_tauri_sherpa::plugin::init())
+        .plugin(vox_tauri_stt::plugin::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

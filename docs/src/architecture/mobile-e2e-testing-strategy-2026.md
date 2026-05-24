@@ -381,7 +381,7 @@ This plan outlines the implementation of a comprehensive mobile end-to-end (E2E)
 **Internal Dependencies:**
 - Vox CLI with mobile target support
 - vox-tauri-codegen
-- vox-tauri-sherpa
+- vox-tauri-stt
 - Mobile primitive decorators
 - Capability contracts
 

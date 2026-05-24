@@ -1,6 +1,6 @@
-# vox-tauri-sherpa
+# vox-tauri-stt
 
-On-device speech transcription for **Tauri 2** apps:
+On-device speech-to-text for **Tauri 2** apps:
 
 - **`guest-js/index.ts`** — `transcribe()` via `@tauri-apps/api/core` `invoke`.
 - **`android/.../SpeechRecognizerBridge.kt`** — `SpeechRecognizer` + `EXTRA_PREFER_OFFLINE` (ported from the mental-tracker Capacitor plugin; **no Capacitor**).
@@ -15,7 +15,7 @@ Embed in generated `src-tauri` / app crate:
 
 ```rust,ignore
 tauri::Builder::default()
-    .plugin(vox_tauri_sherpa::plugin::init())
+    .plugin(vox_tauri_stt::plugin::init())
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 ```
@@ -23,14 +23,14 @@ tauri::Builder::default()
 `Cargo.toml`:
 
 ```toml
-vox-tauri-sherpa = { path = "../crates/vox-tauri-sherpa", features = ["tauri-plugin"] }
+vox-tauri-stt = { path = "../crates/vox-tauri-stt", features = ["tauri-plugin"] }
 ```
 
-`build.rs` should register an **inlined** ACL plugin named `vox-sherpa` with command `transcribe` (Vox codegen emits this). Wire JNI (Android) and Swift glue per [Tauri mobile plugins](https://v2.tauri.app/develop/plugins/develop-mobile/).
+`build.rs` should register an **inlined** ACL plugin named `vox-stt` with command `transcribe` (Vox codegen emits this). Wire JNI (Android) and Swift glue per [Tauri mobile plugins](https://v2.tauri.app/develop/plugins/develop-mobile/).
 
 ## JS
 
 ```ts
-import { transcribe } from "vox-tauri-sherpa/guest-js"; // path alias or copy
+import { transcribe } from "vox-tauri-stt/guest-js"; // path alias or copy
 await transcribe();
 ```

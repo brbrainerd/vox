@@ -1,4 +1,4 @@
-//! Wire format and identifiers for **`vox-tauri-sherpa`** — on-device speech transcription
+//! Wire format and identifiers for **`vox-tauri-stt`** — on-device speech-to-text transcription
 //! (Android [`SpeechRecognizer`](https://developer.android.com/reference/android/speech/SpeechRecognizer),
 //! Apple [`SFSpeechRecognizer`](https://developer.apple.com/documentation/speech/sfspeechrecognizer)).
 //!
@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "tauri-plugin")]
 pub mod plugin;
 
-/// Tauri plugin identifier (must match guest JS `plugin:vox-sherpa|…`).
-pub const PLUGIN_ID: &str = "vox-sherpa";
+/// Tauri plugin identifier (must match guest JS `plugin:vox-stt|…`).
+pub const PLUGIN_ID: &str = "vox-stt";
 
 /// Invoke command name registered on the plugin.
 pub const TRANSCRIBE_COMMAND: &str = "transcribe";
@@ -46,7 +46,7 @@ mod tests {
 
     #[test]
     fn constants_are_stable_for_guest_js() {
-        assert_eq!(PLUGIN_ID, "vox-sherpa");
+        assert_eq!(PLUGIN_ID, "vox-stt");
         assert_eq!(TRANSCRIBE_COMMAND, "transcribe");
     }
 

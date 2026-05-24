@@ -243,7 +243,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
 | `@capacitor/*`, `npx cap sync` | `@tauri-apps/plugin-*`, `cargo tauri build` |
 | `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
-| `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-sherpa` (native Tauri plugin) |
+| `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-stt` (native Tauri STT plugin) |
 
 ### Deprecation Annotations
 

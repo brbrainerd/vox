@@ -230,7 +230,7 @@ surfaces:
 
   - id: vox-sherpa-transcribe-plugin
     retired_pattern: "vox-sherpa-transcribe"
-    canonical: "vox-tauri-sherpa"
+    canonical: "vox-tauri-stt"
     agents_md_row: "vox-sherpa-transcribe (Capacitor plugin)"
     enforcement:
       kind: detector

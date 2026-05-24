@@ -10,7 +10,7 @@ training_eligible: true
 
 ## 1) Executive summary
 
-**Status (2026-05-11 update):** ADR 037 implementation is **in progress on `main`**: `vox compile --target desktop|mobile-*` emits a real Tauri 2 workspace under `target/generated/` (`src-tauri/`, `tauri.conf.json`); `native-binary` keeps the Axum + embedded SPA path. `apps/vox-mental-tracker` consumes **`vox-tauri-sherpa-guest`** instead of Capacitor. Historical evidence below is retained; treat numbered findings as a **time-capsule** unless the surrounding paragraph says *current*.
+**Status (2026-05-11 update):** ADR 037 implementation is **in progress on `main`**: `vox compile --target desktop|mobile-*` emits a real Tauri 2 workspace under `target/generated/` (`src-tauri/`, `tauri.conf.json`); `native-binary` keeps the Axum + embedded SPA path. `apps/vox-mental-tracker` consumes **`vox-tauri-stt-guest`** instead of Capacitor. Historical evidence below is retained; treat numbered findings as a **time-capsule** unless the surrounding paragraph says *current*.
 
 **Canonical decision:** [ADR 037 — Tauri Convergence](../adr/037-tauri-convergence.md). Execution checklist: [Tauri convergence migration plan (2026-Q2)](tauri-convergence-migration-plan-2026.md).
 

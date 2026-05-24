@@ -274,7 +274,7 @@ fn emit_tauri_build_rs() -> String {
     r#"fn main() {
     tauri_build::try_build(
         tauri_build::Attributes::new().plugin(
-            "vox-sherpa",
+            "vox-stt",
             tauri_build::InlinedPlugin::new()
                 .commands(&["transcribe"])
                 .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
@@ -346,7 +346,7 @@ use {}::*;
 
     out.push_str("fn main() {\n");
     out.push_str("    tauri::Builder::default()\n");
-    out.push_str("        .plugin(vox_tauri_sherpa::plugin::init())\n");
+    out.push_str("        .plugin(vox_tauri_stt::plugin::init())\n");
 
     if !command_names.is_empty() {
         out.push_str(&format!(
@@ -379,7 +379,7 @@ fn emit_tauri_default_capability_json() -> String {
   "identifier": "default",
   "description": "Default permissions for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "vox-sherpa:default"]
+  "permissions": ["core:default", "vox-stt:default"]
 }
 "#
     .to_string()
@@ -443,7 +443,7 @@ vox-db = {{ path = "../../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
 vox-oratio = {{ path = "../../../crates/vox-oratio" }}
-vox-tauri-sherpa = {{ path = "../../../crates/vox-tauri-sherpa", features = ["tauri-plugin"] }}
+vox-tauri-stt = {{ path = "../../../crates/vox-tauri-stt", features = ["tauri-plugin"] }}
 # P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
 # (Tauri main.rs does not yet emit the prelude; deps added for symmetry +
 # so future Tauri-side durable wiring is unblocked.)

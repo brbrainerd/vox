@@ -127,7 +127,7 @@ vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
 vox-codegen         = { layer = 3, max_loc = 25_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
-vox-tauri-sherpa        = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
+vox-tauri-stt           = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
 
 
 vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               # offline SCIENTIA JSON Schema → Rust (typify)
