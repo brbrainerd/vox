@@ -74,6 +74,7 @@ pub fn discover(root: &Path) -> Result<Registry, LoadError> {
                     version: manifest.plugin.version.clone(),
                     description: manifest.plugin.description.clone(),
                     tools: exposed_tools.clone(),
+                    ..Default::default()
                 },
                 body,
                 exposed_tools,
