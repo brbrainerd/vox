@@ -246,7 +246,12 @@
       "Bash(dir \"C:\\\\Users\\\\Owner\\\\vox\\\\crates\\\\vox-plugin-oratio-mic\\\\src\")",
       "Bash(dir \"C:\\\\Users\\\\Owner\\\\vox\\\\crates\\\\vox-plugin-oratio\\\\src\")",
       "Bash(dir \"C:\\\\Users\\\\Owner\\\\vox\\\\crates\")",
-      "Bash(findstr /i oratio)"
+      "Bash(findstr /i oratio)",
+      "Bash(grep -v \"//.*crate::\")",
+      "Bash(dir \"C:\\\\Users\\\\Owner\\\\vox\\\\crates\\\\vox-orchestrator\\\\src\\\\dei_shim\" /s /b)",
+      "Bash(dir \"C:\\\\Users\\\\Owner\\\\vox\\\\crates\\\\vox-orchestrator\\\\src\" /b)",
+      "Bash(findstr /i \"model\")",
+      "Bash(rm \"C:/Users/Owner/vox/crates/vox-orchestrator/tests/scientia_phase_0a_\"*.rs && echo \"Removed scientia tests from vox-orchestrator\")"
     ]
   }
 }
