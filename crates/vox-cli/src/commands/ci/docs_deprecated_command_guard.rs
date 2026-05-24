@@ -16,7 +16,11 @@ fn scan_file(root: &Path, path: &Path, failures: &mut Vec<String>) -> Result<()>
                 line_no
             ));
         }
-        if line.contains("vox-compiler") && line.contains("parity_test") {
+        // Match only the BARE retired test name `parity_test`, not its descendants
+        // like `projection_parity_test`, `voxdb_schema_hir_parity_test`, or
+        // `rust_ecosystem_support_parity_test` — all of which are real,
+        // currently-shipping tests in `crates/vox-compiler/tests/`.
+        if line.contains("vox-compiler") && contains_bare_parity_test(line) {
             failures.push(format!(
                 "{}:{}: wrong integration test name for vox-compiler strict-parse; use `--test golden_examples_strict_parse`",
                 rel.display(),
@@ -25,6 +29,27 @@ fn scan_file(root: &Path, path: &Path, failures: &mut Vec<String>) -> Result<()>
         }
     }
     Ok(())
+}
+
+/// Returns true iff `line` contains `parity_test` *not* preceded by an identifier
+/// character (i.e. as a standalone token). Cheap left-boundary check avoids
+/// pulling in `regex` for one detector.
+fn contains_bare_parity_test(line: &str) -> bool {
+    const NEEDLE: &str = "parity_test";
+    let bytes = line.as_bytes();
+    let mut search_from = 0usize;
+    while let Some(rel_off) = line[search_from..].find(NEEDLE) {
+        let start = search_from + rel_off;
+        let prev_is_ident = start > 0 && {
+            let b = bytes[start - 1];
+            b.is_ascii_alphanumeric() || b == b'_'
+        };
+        if !prev_is_ident {
+            return true;
+        }
+        search_from = start + NEEDLE.len();
+    }
+    false
 }
 
 /// Scan markdown under `docs/` plus selected agent/script registries for stale cargo-test snippets.
@@ -102,5 +127,42 @@ mod tests {
         let mut failures = Vec::new();
         scan_file(tmp.path(), &md, &mut failures).expect("scan");
         assert!(!failures.is_empty());
+    }
+
+    #[test]
+    fn does_not_flag_projection_parity_test() {
+        // `projection_parity_test` is a real, current test in
+        // `crates/vox-compiler/tests/`; the guard must not flag it.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let md = tmp.path().join("docs").join("z.md");
+        fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
+        let mut f = fs::File::create(&md).expect("create");
+        writeln!(
+            f,
+            "`cargo test -p vox-compiler --test projection_parity_test`"
+        )
+        .expect("write");
+        let mut failures = Vec::new();
+        scan_file(tmp.path(), &md, &mut failures).expect("scan");
+        assert!(
+            failures.is_empty(),
+            "projection_parity_test must not be flagged: {failures:?}"
+        );
+    }
+
+    #[test]
+    fn does_not_flag_voxdb_schema_hir_parity_test() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let md = tmp.path().join("docs").join("z2.md");
+        fs::create_dir_all(md.parent().unwrap()).expect("mkdir");
+        let mut f = fs::File::create(&md).expect("create");
+        writeln!(
+            f,
+            "`cargo test -p vox-compiler --test voxdb_schema_hir_parity_test`"
+        )
+        .expect("write");
+        let mut failures = Vec::new();
+        scan_file(tmp.path(), &md, &mut failures).expect("scan");
+        assert!(failures.is_empty(), "voxdb_schema_hir_parity_test must not be flagged: {failures:?}");
     }
 }
