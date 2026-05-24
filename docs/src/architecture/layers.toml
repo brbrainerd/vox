@@ -181,7 +181,6 @@ vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin" }
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
 vox-plugin-oratio            = { layer = 4, kind = "plugin" }
-vox-plugin-oratio-mic        = { layer = 4, kind = "plugin" }
 vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
 vox-plugin-publication       = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-container = { layer = 4, kind = "plugin" }

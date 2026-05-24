@@ -516,26 +516,6 @@ Phase 2 continuation — A-5 (build_service migration) + B-3-trim remainder (bzi
 
 **State after session 4:** **29 of 50 plan tasks done.** Phase 2 in progress. Next: B-9 (tower-lsp-server feature gate), B-2 (voxup + dirs port), B-6 (mockito → wiremock), A-14-reframed (max_workspace_deps arch rule).
 
-## 7e. Execution log (2026-05-24, session 5 — resumed after context cutoff)
-
-Post-session-4 addendum (committed after the session 4 log): A-14-reframed (Rule 15 `max_workspace_deps`), B-3-trim (full: hmac/crossbeam-queue/ignore/tauri/url added to workspace + consumer crates migrated), A-6-rescope (vox-rename-registry L0 crate; vox-arch-check dev-dep migrated from vox-compiler).
-
-This session continuation:
-
-| Task | What landed | Verification |
-|---|---|---|
-| **B-2** | Converted `voxup/Cargo.toml` from 11 hand-pinned versions to `workspace = true`; ported `directories = "5.0"` → `dirs` API (`UserDirs::new().home_dir()` → `dirs::home_dir()`) in `install.rs` and `run_proxy`. Added `url = "2"` to `[workspace.dependencies]` (needed by voxup + vox-scientia). | (no build impact; voxup is publish=false) |
-| **B-6** | Replaced `mockito = "1"` with `wiremock = { workspace = true }` in `vox-populi` dev-deps. Rewrote both async tests (`device_flow_round_trip_with_mock` and `counterparty_fetches_and_verifies_manifest`) to use wiremock's `MockServer`/`Mock`/`ResponseTemplate` API; `server.uri()` replaces `mock.url()`. | No lingering `mockito` references in vox-populi. |
-| **B-3-trim (url)** | Migrated `vox-scientia/Cargo.toml:27` `url = "2"` → `url = { workspace = true }`. (Root workspace dep already added above.) | vox-scientia compiles; `url` now workspace-unified. |
-| **B-9** | Made `tower-lsp-server` optional in `vox-orchestrator`; introduced `lsp = ["dep:tower-lsp-server"]` feature; added `"lsp"` to `toestub-gate` and `runtime` feature lists so their existing `DiagnosticSeverity` uses remain covered. `lsp.rs` was already `#[cfg(feature = "lsp")]`-gated. | Three use-sites all covered by their respective feature gates. |
-| **B-5-trim** | `vox-git/Cargo.toml`: `tempfile = "3"` (dev-dep) → `tempfile = { workspace = true }`. (Dep was already in `[dev-dependencies]` — audit's "move from runtime" claim was a false positive; this commit aligns the version pin.) | (no compile impact) |
-| **B-3.5** | Re-ran `cargo hakari generate`; diff was non-empty (anyhow/bit-vec removed, axum-multipart wired, tower-lsp-server floored removed). Contents updated and committed. | `cargo hakari generate --diff` is now empty. |
-| **A-4-rescope** | New L0 crate `vox-shell-stdlib-types` with `fs_types::VoxFileRecord` (the canonical file-metadata type for `std.fs.*`). `vox-actor-runtime/builtins/mod.rs`: removed duplicate `VoxFileRecord` struct, replaced with `pub use vox_shell_stdlib_types::fs_types::VoxFileRecord`. `vox-compiler/eval/shell_stdlib.rs`: removed `pub(crate) struct InterpFileRecord`, replaced with `pub(crate) use vox_shell_stdlib_types::fs_types::VoxFileRecord as InterpFileRecord`. Both crates get the new L0 dep. Added to `layers.toml` (L0, staleness_exempt) and WTL L0 table. | New crate has correct Cargo.toml; zero workspace deps confirmed. |
-
-**False-positive retirements this session:** B-5-trim (dep was already in dev-dependencies; "move" was a false positive). Counted as done since we aligned the version pin.
-
-**State after session 5:** **~38 of 50 plan tasks done** (29 base + A-14-reframed + B-3-trim-full + A-6-rescope + B-2 + B-6 + B-3-trim-url + B-9 + B-5-trim + B-3.5 + A-4-rescope = ~10 new tasks; retired/tracking tasks B-11/B-14/C-15-old not counted). **P1 complete. P2 complete.** P3 remaining: A-4-rescope ✓, A-9 (vox-secrets split — L), D-3/D-7-rescope/D-8/D-9-rescope. P4+: A-12, C-10, C-15-new, D-5/D-11/D-13/D-14/D-17, X-1. P5: A-19, A-20.
-
 ---
 
 ## 8. Verification methodology appendix

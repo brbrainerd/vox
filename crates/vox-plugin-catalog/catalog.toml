@@ -44,13 +44,6 @@ extension-points = ["AudioCapture", "SpeechToText"]
 default-source = "github:vox-foundation/vox-plugin-oratio"
 bundled-in = ["vox-dev"]
 
-[[plugin]]
-id = "oratio-mic"
-payload-kind = "code"
-description = "Microphone input adapter for Oratio."
-extension-points = ["AudioCapture"]
-default-source = "github:vox-foundation/vox-plugin-oratio-mic"
-bundled-in = ["vox-dev"]
 
 [[plugin]]
 id = "cloud"
@@ -236,6 +229,6 @@ description = "Contributor / power-user development environment: fullstack + ML 
 extends = "vox-fullstack"
 plugins = [
     "mens-candle-cuda", "nvml-probe", "mens-candle-metal",
-    "populi-mesh", "cloud", "oratio", "oratio-mic",
+    "populi-mesh", "cloud", "oratio",
     "browser", "webhook",
 ]

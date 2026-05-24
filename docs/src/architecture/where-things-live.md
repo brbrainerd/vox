@@ -238,8 +238,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-mens-candle-cuda`](../../../crates/vox-plugin-mens-candle-cuda/) | ML training backend plugin: Candle + CUDA. Implements MlBackend. |
 | [`vox-plugin-mens-candle-metal`](../../../crates/vox-plugin-mens-candle-metal/) | MENS Apple Silicon Metal execution plugin. |
 | [`vox-plugin-nvml-probe`](../../../crates/vox-plugin-nvml-probe/) | Hardware probe plugin: NVML for NVIDIA GPU introspection. |
-| [`vox-plugin-oratio`](../../../crates/vox-plugin-oratio/) | Speech-to-text plugin: Candle Whisper backend extracted from vox-oratio. |
-| [`vox-plugin-oratio-mic`](../../../crates/vox-plugin-oratio-mic/) | AudioCapture plugin stub: Oratio microphone device backend. |
+| [`vox-plugin-oratio`](../../../crates/vox-plugin-oratio/) | Speech-to-text + AudioCapture plugin: Candle Whisper backend + mic capture surface (both extensions in one plugin). |
 | [`vox-plugin-populi-mesh`](../../../crates/vox-plugin-populi-mesh/) | Populi mesh transport plugin (composite: code + skill). |
 | [`vox-plugin-publication`](../../../crates/vox-plugin-publication/) | Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube publish, scholarly job feeds. |
 | [`vox-plugin-runtime-container`](../../../crates/vox-plugin-runtime-container/) | Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime. |
