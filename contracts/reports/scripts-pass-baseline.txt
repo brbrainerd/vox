@@ -37,6 +37,7 @@ scripts/quality/audit-telemetry.vox
 scripts/quality/audit-workspace-health.vox
 scripts/quality/doc-policy-lint.vox
 scripts/quality/generate-matrix-doc.vox
+scripts/render-durable-animation.vox
 scripts/scientia/acceptance-matrix.vox
 scripts/scientia/atlas-draft.vox
 scripts/scientia/atlas-publish.vox
