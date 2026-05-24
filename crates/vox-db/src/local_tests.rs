@@ -478,6 +478,7 @@ async fn unified_llm_turn_writes_llm_and_socrates() {
     let outcome = crate::store::types::ModelOutcome {
         session_id: "s-unified",
         user_id: None,
+        tenant_id: None,
         prompt: "p",
         response: "r",
         model_id: "openai/gpt-test",

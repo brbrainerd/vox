@@ -50,7 +50,7 @@ pub fn atlas_gate_applies_to(class: FindingClass) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::defaults::builtin_class_defaults;
+    use super::super::defaults::builtin_class_defaults;
 
     #[test]
     fn algorithmic_improvement_routes_to_swe_venues() {

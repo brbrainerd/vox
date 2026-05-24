@@ -9,7 +9,7 @@ async fn retention_ms_count_and_prune_agent_session_events() {
     let store = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
 
     store
-        .create_session("s_ret", "agent_r", None)
+        .create_session("s_ret", "agent_r", None, None)
         .await
         .unwrap();
     store

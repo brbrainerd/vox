@@ -284,7 +284,7 @@ fn write_competing_interests(out: &mut String, ci: Option<&str>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::section_tree::AuthorEntry;
+    use super::super::section_tree::AuthorEntry;
 
     fn sample_input() -> ScaffoldInput {
         ScaffoldInput {

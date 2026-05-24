@@ -39,7 +39,7 @@ pub fn build_highwire_meta_tags(page: &FindingPage) -> HighwireMetaTags {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::page::{Author, RetractionNotice};
+    use super::super::page::{Author, RetractionNotice};
 
     fn sample_page() -> FindingPage {
         FindingPage {
