@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
-          cargo run -p vox-cli -- run scripts/setup.vox
+          cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
 
       - name: Run setup.vox (Second run - Idempotency)
         # Timeout on Unix, on Windows we can use PowerShell timeout or just let it run.
@@ -48,7 +48,7 @@ jobs:
         run: |
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            timeout 10s cargo run -p vox-cli -- run scripts/setup.vox
+            timeout 10s cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
           else
-            cargo run -p vox-cli -- run scripts/setup.vox
+            cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
           fi
