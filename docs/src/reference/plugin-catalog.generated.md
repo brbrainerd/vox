@@ -1,7 +1,7 @@
 ---
 title: "Plugin Catalog (Generated)"
 description: "Auto-generated authoritative list of all first-party Vox plugins."
-category: "Language Reference"
+category: "reference"
 status: "current"
 training_eligible: true
 ---
@@ -20,16 +20,14 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 |----|------------------|----------------|------------|
 | `nvml-probe` | `HardwareProbe` | `local:crates/vox-plugin-nvml-probe` | `vox-ml`, `vox-dev` |
 | `mens-candle-cuda` | `MlBackend` | `github:vox-foundation/vox-plugin-mens-candle-cuda` | `vox-ml`, `vox-dev` |
+| `mens-candle-metal` | `MlBackend` | `local:crates/vox-plugin-mens-candle-metal` | `vox-ml-metal`, `vox-dev` |
 | `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox-plugin-oratio` | `vox-dev` |
-| `oratio-mic` | `AudioCapture` | `github:vox-foundation/vox-plugin-oratio-mic` | `vox-dev` |
 | `cloud` | `CloudSync` | `github:vox-foundation/vox-plugin-cloud` | `vox-mesh`, `vox-cloud-only`, `vox-dev` |
-| `script-execution` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-script-execution` | `vox-dev` |
 | `webhook` | `HttpListener` | `local:crates/vox-plugin-webhook` | `vox-server`, `vox-dev` |
 | `browser` | `BrowserAutomation` | `github:vox-foundation/vox-plugin-browser` | `vox-dev` |
 | `runtime-wasm` | `SkillRuntime` | `local:crates/vox-plugin-runtime-wasm` | `vox-fullstack`, `vox-edge`, `vox-dev` |
 | `runtime-container` | `SkillRuntime` | `local:crates/vox-plugin-runtime-container` | — |
 | `publication` | `Publication` | `local:crates/vox-plugin-publication` | — |
-| `grammar-export` | `GrammarExport` | `local:crates/vox-plugin-grammar-export` | `vox-dev` |
 
 ## Skill-payload plugins
 
@@ -43,7 +41,6 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `skill-testing` | `vox_test_run`, `vox_test_select` | `github:vox-foundation/vox-plugin-skill-testing` | `vox-fullstack`, `vox-dev` |
 | `skill-testing-validate` | `vox_test_validate` | `github:vox-foundation/vox-plugin-skill-testing-validate` | `vox-fullstack`, `vox-dev` |
 | `skill-v0` | `vox_v0_compat` | `github:vox-foundation/vox-plugin-skill-v0` | `vox-fullstack`, `vox-edge` |
-| `noop-skill` | `noop_tool` | `local:crates/vox-plugin-noop-skill` | — |
 
 ## Composite plugins
 
