@@ -1,11 +1,18 @@
 use anyhow::{Context, Result};
 use tracing::{info, warn};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs;
 
+/// Resolve the user home directory using env vars (cross-platform, no `dirs` dep).
+fn home_dir() -> PathBuf {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
 pub async fn run_install(_profile: &str) -> Result<()> {
-    let home = dirs::home_dir().expect("Failed to determine home directory");
-    let vox_dir = home.join(".vox");
+    let vox_dir = home_dir().join(".vox");
     let toolchains_dir = vox_dir.join("toolchains");
     let bin_dir = vox_dir.join("bin");
 
@@ -20,23 +27,40 @@ pub async fn run_install(_profile: &str) -> Result<()> {
     }
 
     info!("Parsing local manifest for stable channel...");
-    let manifest_path = std::env::current_dir()?.join("contracts").join("toolchain").join("workspace-toolchain.v1.yaml");
+    let manifest_path = std::env::current_dir()?
+        .join("contracts")
+        .join("toolchain")
+        .join("workspace-toolchain.v1.yaml");
 
     let mut expected_rust_version = String::from("1.92.0");
 
     if manifest_path.exists() {
         let content = fs::read_to_string(&manifest_path)?;
         let manifest = crate::manifest::WorkspaceToolchain::parse(&content)?;
-        expected_rust_version = manifest.versions.get("rust").unwrap_or(&expected_rust_version).to_string();
-        info!("Successfully parsed toolchain manifest matching Rust version: {}", expected_rust_version);
+        expected_rust_version = manifest
+            .versions
+            .get("rust")
+            .unwrap_or(&expected_rust_version)
+            .to_string();
+        info!(
+            "Successfully parsed toolchain manifest matching Rust version: {}",
+            expected_rust_version
+        );
     } else {
-        warn!("Could not locate workspace-toolchain.v1.yaml locally. Falling back to default: {}", expected_rust_version);
+        warn!(
+            "Could not locate workspace-toolchain.v1.yaml locally. \
+             Falling back to default: {}",
+            expected_rust_version
+        );
     }
 
     info!("Installing vox CLI proxy into ~/.vox/bin/vox...");
     install_proxy_binary(&bin_dir)?;
 
-    info!("Provisioning isolated WASM sysroots targeting Rust {}...", expected_rust_version);
+    info!(
+        "Provisioning isolated WASM sysroots targeting Rust {}...",
+        expected_rust_version
+    );
     provision_wasm_sysroots(&toolchains_dir, &expected_rust_version).await?;
 
     info!("Installation complete! Add ~/.vox/bin to your PATH.");
@@ -77,13 +101,16 @@ async fn provision_wasm_sysroots(toolchains_dir: &Path, rust_version: &str) -> R
 
 pub async fn run_proxy(args: &[String]) -> Result<()> {
     info!("Proxy execution intercept. Setting up hermetic environment...");
-    let vox_dir = dirs::home_dir()
-        .expect("Failed to determine home directory")
-        .join(".vox");
+    let vox_dir = home_dir().join(".vox");
 
     let old_path = std::env::var("PATH").unwrap_or_default();
-    let new_path = format!("{}:{}", vox_dir.join("toolchains").join("bin").display(), old_path);
-    unsafe { std::env::set_var("PATH", new_path); }
+    let new_path = format!(
+        "{}:{}",
+        vox_dir.join("toolchains").join("bin").display(),
+        old_path
+    );
+    // SAFETY: single-threaded at this point; proxy entrypoint runs before any thread is spawned.
+    unsafe { std::env::set_var("PATH", new_path) };
 
     info!("Forwarding args to target: {:?}", args);
     Ok(())

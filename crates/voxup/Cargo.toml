@@ -1,9 +1,11 @@
 [package]
 name = "voxup"
-version = "0.1.0"
-edition = "2024"
-description = "The Vox toolchain multiplexer and hermetic installer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 publish = false
+description = "The Vox toolchain multiplexer and hermetic installer"
 
 [dependencies]
 clap = { workspace = true }
@@ -15,5 +17,5 @@ serde_yaml = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
-dirs = { workspace = true }
 url = { workspace = true }
+workspace-hack = { workspace = true }
