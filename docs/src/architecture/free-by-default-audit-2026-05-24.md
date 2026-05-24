@@ -103,8 +103,8 @@ New `Free` and `Fast` models also benefit from exploration (Thompson exploration
 
 ## 6. Next Steps
 
-| Item | Priority | Effort |
-|------|----------|--------|
-| `QualityLevel::Balanced → Economy` | Medium | 1 line + test impact analysis |
-| Exploration bonus parity (Pro/Fast/Free) | Low | 3-line change |
-| Update where-things-live.md to document `RoutingProfile` | Low | 1 row |
+| Item | Priority | Effort | Status |
+|------|----------|--------|--------|
+| `QualityLevel::Balanced → Economy` | Medium | 1 line | ✅ Done — `mode.rs` Flash+Balanced→Economy, Premium→Performance |
+| Exploration bonus parity (Pro/Fast/Free) | Low | 3 lines | ✅ Done — `engine.rs` novelty bonus extended to Fast+Free |
+| Update where-things-live.md to document `RoutingProfile` | Low | 1 row | ✅ Already present (vox-dei-shim + vox-orchestrator rows) |

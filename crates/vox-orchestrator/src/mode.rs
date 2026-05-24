@@ -20,11 +20,16 @@ pub enum QualityLevel {
 }
 
 impl QualityLevel {
+    /// Map quality level to a cost preference for model selection.
+    ///
+    /// Free-by-default policy: `Flash` and `Balanced` both resolve to `Economy`
+    /// so that the two most common quality tiers prefer free/cheap models.
+    /// Only `Premium` opts in to `Performance` (paid-model-preferred) routing.
     #[must_use]
     pub fn to_cost_preference(self) -> CostPreference {
         match self {
-            Self::Flash => CostPreference::Economy,
-            Self::Balanced | Self::Premium => CostPreference::Performance,
+            Self::Flash | Self::Balanced => CostPreference::Economy,
+            Self::Premium => CostPreference::Performance,
         }
     }
 }
