@@ -94,12 +94,14 @@ fn engine_emits_lint_finding_event_per_finding() {
     let (_guard, recorder) = enter_test();
 
     let tmp = tempfile::tempdir().expect("tempdir");
-    // Three retired patterns on three lines → expect 3 LintFinding events.
+    // 2026-05-24 direction flip: retired-endpoint form is now
+    // `@endpoint(kind: ...)`, not `@server`. Three retired patterns on
+    // three lines → expect 3 LintFinding events.
     write_fixture(
         &tmp,
         "fixture.vox",
         "@component fn Dashboard() {}\n\
-         @server fn list() {}\n\
+         @endpoint(kind: server) fn list() {}\n\
          @py.import os\n",
     );
 
@@ -108,7 +110,7 @@ fn engine_emits_lint_finding_event_per_finding() {
 
     assert!(
         result.findings.len() >= 3,
-        "expected at least 3 findings (component + server + py.import), got {}",
+        "expected at least 3 findings (component + endpoint(kind:server) + py.import), got {}",
         result.findings.len()
     );
 
@@ -164,11 +166,13 @@ fn engine_emits_no_events_when_no_findings() {
     let (_guard, recorder) = enter_test();
 
     let tmp = tempfile::tempdir().expect("tempdir");
+    // 2026-05-24 direction flip: canonical fixture uses bare-form decorators
+    // (`@server`), not the now-retired `@endpoint(kind: server)`.
     write_fixture(
         &tmp,
         "clean.vox",
         "component Dashboard() {}\n\
-         @endpoint(kind: server) fn list_items() {}\n",
+         @server fn list_items() {}\n",
     );
 
     let engine = ToestubEngine::new(config_for(vec![tmp.path().to_path_buf()]));

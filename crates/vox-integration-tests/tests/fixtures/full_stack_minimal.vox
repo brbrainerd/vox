@@ -9,6 +9,6 @@ routes {
     "/" to Home
 }
 
-@endpoint(kind: server) fn echo(x: str) to str {
+@server fn echo(x: str) to str {
     return x
 }

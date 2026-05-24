@@ -46,6 +46,6 @@ routes {
     "/" to Chat
 }
 
-@endpoint(kind: mutation) fn api_chat(prompt: str) to ChatResult {
+@mutation fn api_chat(prompt: str) to ChatResult {
     return Success("Hello from Vox! You said: " + prompt)
 }

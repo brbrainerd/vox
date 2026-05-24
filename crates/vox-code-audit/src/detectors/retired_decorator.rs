@@ -15,19 +15,29 @@ use regex::Regex;
 ///
 /// Patterns covered by this detector:
 ///
-/// | Retired form               | Canonical replacement                  |
-/// |----------------------------|----------------------------------------|
-/// | `@component fn Name()`     | `component Name() { ... }`             |
-/// | `@server fn ...`           | `@endpoint(kind: server) fn ...`       |
-/// | `@query fn ...`            | `@endpoint(kind: query) fn ...`        |
-/// | `@mutation fn ...`         | `@endpoint(kind: mutation) fn ...`     |
-/// | `@py.import ...`           | (removed; Python interop retired)      |
+/// | Retired form                       | Canonical replacement                  |
+/// |------------------------------------|----------------------------------------|
+/// | `@component fn Name()`             | `component Name() { ... }`             |
+/// | `@endpoint(kind: server) fn ...`   | `@server fn ...`                       |
+/// | `@endpoint(kind: query) fn ...`    | `@query fn ...`                        |
+/// | `@endpoint(kind: mutation) fn ...` | `@mutation fn ...`                     |
+/// | `@py.import ...`                   | (removed; Python interop retired)      |
+///
+/// **2026-05-23 direction flip:** an earlier version of this detector had
+/// the endpoint direction backwards (treating `@server`/`@query`/`@mutation`
+/// as retired). Phase B of the decorator audit
+/// ([vox-stdlib-gap-audit-2026-05-23.md](../../../../../docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md)
+/// §11.2 / commit f8dc41a9f1) introduced the three bare-form decorators as
+/// the canonical surface and retired `@endpoint(kind: ...)` to the
+/// deprecation queue (Phase H). The corpus migration in that same commit
+/// rewrote 76 of 76 call sites. This detector was updated 2026-05-24 to
+/// match the post-Phase-B reality.
 ///
 /// Severity is `Warning` at land; the [vox-language-rules Phase 2 plan](../../../../../docs/src/architecture/vox-language-rules-phase2-lint-extension-2026.md)
 /// describes the escalation path to `Error` after one minor version.
 pub struct RetiredDecoratorDetector {
     component_fn: Regex,
-    server_query_mutation_fn: Regex,
+    endpoint_kind: Regex,
     py_import: Regex,
     supported_langs: Vec<Language>,
 }
@@ -42,7 +52,10 @@ impl RetiredDecoratorDetector {
     pub fn new() -> Self {
         Self {
             component_fn: Regex::new(r"@component\s+fn\b").expect("valid regex"),
-            server_query_mutation_fn: Regex::new(r"@(server|query|mutation)\s+fn\b")
+            // Match `@endpoint(kind: server|query|mutation)`. Whitespace is
+            // tolerated around the colon. Captures the kind for the
+            // suggestion message.
+            endpoint_kind: Regex::new(r"@endpoint\s*\(\s*kind\s*:\s*(server|query|mutation)\s*\)")
                 .expect("valid regex"),
             py_import: Regex::new(r"@py\.import\b").expect("valid regex"),
             supported_langs: vec![Language::Vox],
@@ -107,13 +120,16 @@ impl DetectionRule for RetiredDecoratorDetector {
 canonical alternatives. LLMs trained on pre-2026 corpora may emit these; this lint \
 catches them at audit time so the agent can rewrite to the canonical form.\n\n\
 Retired → Canonical:\n\
-  @component fn Name() {...}  →  component Name() {...}\n\
-  @server fn ...              →  @endpoint(kind: server) fn ...\n\
-  @query fn ...               →  @endpoint(kind: query) fn ...\n\
-  @mutation fn ...            →  @endpoint(kind: mutation) fn ...\n\
-  @py.import ...               →  Python interop retired; use Vox-native or external HTTP.\n\n\
-This detector is part of the CR-L6 retirement-guard parity gate; council ratified \
-2026-05-15. Severity escalates to Error one minor version after land."
+  @component fn Name() {...}        →  component Name() {...}\n\
+  @endpoint(kind: server) fn ...    →  @server fn ...\n\
+  @endpoint(kind: query) fn ...     →  @query fn ...\n\
+  @endpoint(kind: mutation) fn ...  →  @mutation fn ...\n\
+  @py.import ...                    →  Python interop retired; use Vox-native or external HTTP.\n\n\
+This detector is part of the CR-L6 retirement-guard parity gate. The \
+endpoint-direction was flipped 2026-05-24 to match Phase B (commit \
+f8dc41a9f1) which introduced the bare-form decorators as canonical. \
+Severity escalates to Error one minor version after Phase H @endpoint \
+retirement lands."
     }
 
     fn detect(
@@ -152,7 +168,7 @@ This detector is part of the CR-L6 retirement-guard parity gate; council ratifie
                 ));
             }
 
-            if let Some(caps) = self.server_query_mutation_fn.captures(line) {
+            if let Some(caps) = self.endpoint_kind.captures(line) {
                 let kind = caps
                     .get(1)
                     .map(|m| m.as_str())
@@ -165,16 +181,17 @@ This detector is part of the CR-L6 retirement-guard parity gate; council ratifie
                     line_num,
                     full.start() + 1,
                     format!(
-                        "Retired form `@{kind} fn` — use `@endpoint(kind: {kind}) fn ...` instead."
+                        "Retired form `@endpoint(kind: {kind})` — use bare `@{kind}` decorator instead."
                     ),
                     format!(
-                        "Replace `@{kind} fn` with `@endpoint(kind: {kind}) fn`. The unified \
-                         `@endpoint(kind: server | query | mutation)` decorator subsumed the \
-                         three separate forms."
+                        "Replace `@endpoint(kind: {kind})` with `@{kind}`. The bare-form \
+                         decorators introduced in Phase B (audit doc §11.2) are the canonical \
+                         surface; `@endpoint(kind: ...)` is queued for retirement in Phase H."
                     ),
-                    "AGENTS.md §Retired Surfaces: `@server`, `@query`, and `@mutation` were \
-                     collapsed into the unified `@endpoint(kind: ...)` decorator for grammar \
-                     parsimony and to centralize endpoint policy (auth, CORS, rate limits).",
+                    "AGENTS.md §Retired Surfaces: `@endpoint(kind: server|query|mutation)` was \
+                     superseded by the bare `@server` / `@query` / `@mutation` decorators in \
+                     Phase B (2026-05-23, commit f8dc41a9f1). The bare forms produce the same \
+                     `EndpointDecl` AST node — pure grammar simplification, no behavior change.",
                 ));
             }
 
@@ -233,63 +250,72 @@ mod tests {
         );
     }
 
-    #[test]
-    fn flags_at_server_fn() {
-        let d = RetiredDecoratorDetector::new();
-        let f = source("@server fn list_items() {}");
-        let findings = d.detect(&f, None);
-        assert_eq!(findings.len(), 1, "should flag `@server fn`");
-        assert!(findings[0].message.contains("@server fn"));
-        assert!(
-            findings[0]
-                .suggestion
-                .as_ref()
-                .unwrap()
-                .contains("kind: server")
-        );
-    }
+    // 2026-05-24: detector direction flipped to match Phase B reality.
+    // `@server` / `@query` / `@mutation` are canonical; `@endpoint(kind: ...)`
+    // is the retired form.
 
     #[test]
-    fn flags_at_query_fn() {
-        let d = RetiredDecoratorDetector::new();
-        let f = source("@query fn list_items() {}");
-        let findings = d.detect(&f, None);
-        assert_eq!(findings.len(), 1, "should flag `@query fn`");
-        assert!(findings[0].message.contains("@query fn"));
-        assert!(
-            findings[0]
-                .suggestion
-                .as_ref()
-                .unwrap()
-                .contains("kind: query")
-        );
-    }
-
-    #[test]
-    fn flags_at_mutation_fn() {
-        let d = RetiredDecoratorDetector::new();
-        let f = source("@mutation fn add_item() {}");
-        let findings = d.detect(&f, None);
-        assert_eq!(findings.len(), 1, "should flag `@mutation fn`");
-        assert!(findings[0].message.contains("@mutation fn"));
-        assert!(
-            findings[0]
-                .suggestion
-                .as_ref()
-                .unwrap()
-                .contains("kind: mutation")
-        );
-    }
-
-    #[test]
-    fn does_not_flag_canonical_endpoint_with_kind() {
+    fn flags_endpoint_kind_server() {
         let d = RetiredDecoratorDetector::new();
         let f = source("@endpoint(kind: server) fn list_items() {}");
         let findings = d.detect(&f, None);
-        assert!(
-            findings.is_empty(),
-            "canonical `@endpoint(kind: ...)` form should not fire"
-        );
+        assert_eq!(findings.len(), 1, "should flag `@endpoint(kind: server)`");
+        assert!(findings[0].message.contains("@endpoint(kind: server)"));
+        assert!(findings[0].suggestion.as_ref().unwrap().contains("@server"));
+    }
+
+    #[test]
+    fn flags_endpoint_kind_query() {
+        let d = RetiredDecoratorDetector::new();
+        let f = source("@endpoint(kind: query) fn list_items() {}");
+        let findings = d.detect(&f, None);
+        assert_eq!(findings.len(), 1, "should flag `@endpoint(kind: query)`");
+        assert!(findings[0].message.contains("@endpoint(kind: query)"));
+        assert!(findings[0].suggestion.as_ref().unwrap().contains("@query"));
+    }
+
+    #[test]
+    fn flags_endpoint_kind_mutation() {
+        let d = RetiredDecoratorDetector::new();
+        let f = source("@endpoint(kind: mutation) fn add_item() {}");
+        let findings = d.detect(&f, None);
+        assert_eq!(findings.len(), 1, "should flag `@endpoint(kind: mutation)`");
+        assert!(findings[0].message.contains("@endpoint(kind: mutation)"));
+        assert!(findings[0].suggestion.as_ref().unwrap().contains("@mutation"));
+    }
+
+    #[test]
+    fn does_not_flag_bare_decorators() {
+        // The bare-form decorators are canonical post-Phase B.
+        let d = RetiredDecoratorDetector::new();
+        for src in ["@server fn x() {}", "@query fn y() {}", "@mutation fn z() {}"] {
+            let f = source(src);
+            let findings = d.detect(&f, None);
+            assert!(
+                findings.is_empty(),
+                "bare-form decorator should be canonical, not retired: {src}",
+            );
+        }
+    }
+
+    #[test]
+    fn does_not_flag_canonical_bare_decorators() {
+        // 2026-05-24 direction flip: bare-form decorators are canonical
+        // post-Phase B. The legacy `@endpoint(kind: ...)` form is the
+        // retired one (Phase H queue).
+        let d = RetiredDecoratorDetector::new();
+        for src in [
+            "@server fn list_items() {}",
+            "@query fn get_count() {}",
+            "@mutation fn add_one() {}",
+        ] {
+            let f = source(src);
+            let findings = d.detect(&f, None);
+            assert!(
+                findings.is_empty(),
+                "canonical bare-form decorator should not fire: {src}",
+            );
+        }
     }
 
     #[test]
@@ -333,12 +359,16 @@ mod tests {
     #[test]
     fn flags_all_three_endpoint_kinds_independently() {
         let d = RetiredDecoratorDetector::new();
-        let f = source("@server fn a() {}\n@query fn b() {}\n@mutation fn c() {}");
+        let f = source(
+            "@endpoint(kind: server) fn a() {}\n\
+             @endpoint(kind: query) fn b() {}\n\
+             @endpoint(kind: mutation) fn c() {}",
+        );
         let findings = d.detect(&f, None);
         assert_eq!(
             findings.len(),
             3,
-            "should flag all three retired endpoint forms independently"
+            "should flag all three retired `@endpoint(kind: ...)` forms independently"
         );
     }
 
@@ -347,14 +377,14 @@ mod tests {
         let d = RetiredDecoratorDetector::new();
         let f = source(
             "@component fn Dashboard() {}\n\
-             @server fn list() {}\n\
+             @endpoint(kind: server) fn list() {}\n\
              @py.import os",
         );
         let findings = d.detect(&f, None);
         assert_eq!(
             findings.len(),
             3,
-            "should flag component + server + py.import on three separate lines"
+            "should flag component + endpoint(kind:server) + py.import on three separate lines"
         );
     }
 

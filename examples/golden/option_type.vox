@@ -31,7 +31,7 @@ fn display_age(profile: UserProfile) to str {
     }
 }
 
-@endpoint(kind: query)
+@query
 fn find_user(name: str) to Option[str] {
     let users = db.UserProfile.filter({ name: name })
     // If len > 0, we can return Some(name), simplified for AST
