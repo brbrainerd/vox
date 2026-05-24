@@ -13,12 +13,16 @@ pub enum OverflowStrategy {
 }
 
 /// Preference for balancing model quality vs operational cost.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Default is [`Economy`](CostPreference::Economy) — free-by-default product directive.
+/// Callers that genuinely need the best model available should pass `Performance` explicitly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum CostPreference {
     /// Prioritize model performance/quality over cost.
     Performance,
-    /// Prioritize lower cost models even if quality is slightly reduced.
+    /// Prioritize lower-cost models; zero-cost and free-tier models are first-class choices.
+    #[default]
     Economy,
 }
 

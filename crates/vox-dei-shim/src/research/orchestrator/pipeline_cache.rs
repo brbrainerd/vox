@@ -54,7 +54,7 @@ fn current_unix_secs() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dei_shim::research::types::ResearchScope;
+    use crate::research::types::ResearchScope;
 
     fn query(text: &str, scope: ResearchScope) -> ResearchQuery {
         ResearchQuery {

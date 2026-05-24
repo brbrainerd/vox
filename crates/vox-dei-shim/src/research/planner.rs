@@ -125,7 +125,7 @@ fn passthrough_plan(query: &ResearchQuery) -> ResearchPlan {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dei_shim::research::types::ResearchScope;
+    use crate::research::types::ResearchScope;
 
     fn query() -> ResearchQuery {
         ResearchQuery {

@@ -301,7 +301,7 @@ pub(super) async fn gather_local_hits_for_plan(
 #[cfg(test)]
 mod tests {
     use super::{gather_local_hits_for_plan, host_matches_site_scope};
-    use crate::dei_shim::research::types::{ResearchPlan, ResearchQuery, ResearchScope};
+    use crate::research::types::{ResearchPlan, ResearchQuery, ResearchScope};
     use vox_search::{SearchPolicy, SearchRuntimeContext};
 
     #[test]

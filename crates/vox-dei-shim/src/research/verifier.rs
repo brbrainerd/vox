@@ -299,7 +299,7 @@ fn evidence_context(hits: &[ResearchHit], limit: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dei_shim::research::types::ResearchHit;
+    use crate::research::types::ResearchHit;
 
     fn claim() -> Claim {
         Claim {

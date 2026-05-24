@@ -13142,8 +13142,10 @@ name = "vox-dei-shim"
 version = "0.5.0"
 dependencies = [
  "anyhow",
+ "jsonschema",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "vox-actor-runtime",

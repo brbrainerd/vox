@@ -7,9 +7,11 @@
 pub mod agent_frontmatter;
 pub mod research;
 pub mod route_telemetry;
-// selection/ (WIP model-scoring code) was not wired into the original dei_shim module tree.
-// It requires ModelTier::Fast/Free, RoutingProfile, and other types not yet promoted to
-// vox-orchestrator-types. Wire it back in during Tier-D Phase 1.
+/// Model-selection sub-system: task→strength mapping, pluggable scoring, free-tier routing.
+///
+/// Previously deferred (WIP) because it required `ModelTier::Fast/Free` and `RoutingProfile`
+/// which are now available (added 2026-05-24, F-F track).
+pub mod selection;
 
 pub mod research_policy {
     pub use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
