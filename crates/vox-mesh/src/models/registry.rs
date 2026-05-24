@@ -100,7 +100,7 @@ impl ModelRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::ModelKind;
+    use crate::models::types::ModelKind;
 
     fn model(tag: &str, kind: ModelKind) -> ModelEntry {
         ModelEntry {
