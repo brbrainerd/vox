@@ -54,6 +54,7 @@ vox-test-harness = { path = "../vox-test-harness" }
 insta = { workspace = true }
 criterion = { workspace = true }
 proptest = { workspace = true }
+tempfile = { workspace = true }
 
 [[bench]]
 name = "compiler_pipeline"

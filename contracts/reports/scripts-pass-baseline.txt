@@ -3,7 +3,9 @@ scripts/check_dashboard_ssot.vox
 scripts/ci/compile_kernels.vox
 scripts/ci/corpus_prep.vox
 scripts/ci/gui-e2e-check.vox
+scripts/ci/gui-registry-check.vox
 scripts/ci/script-hygiene.vox
+scripts/ci/test.vox
 scripts/ci-proximity-drift.vox
 scripts/clean-build-artifacts.vox
 scripts/docs-reality-audit-cycle.vox
@@ -34,6 +36,7 @@ scripts/quality/audit-telemetry.vox
 scripts/quality/audit-workspace-health.vox
 scripts/quality/doc-policy-lint.vox
 scripts/quality/generate-matrix-doc.vox
+scripts/scientia/acceptance-matrix.vox
 scripts/scientia/atlas-draft.vox
 scripts/scientia/atlas-publish.vox
 scripts/scientia/probe-run.vox

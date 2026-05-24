@@ -150,7 +150,7 @@ impl<'a> Checker<'a> {
         let ty = match expr {
             HirExpr::IntLit(_, _) => Ty::Int,
             HirExpr::FloatLit(_, _) => Ty::Float,
-            HirExpr::StringLit(_, _) | HirExpr::StringInterp { .. } => Ty::Str,
+            HirExpr::StringLit(_, _) => Ty::Str,
             HirExpr::BoolLit(_, _) => Ty::Bool,
             HirExpr::DecimalLit(_, _) => Ty::Decimal,
             HirExpr::TupleLit(exprs, _) => {

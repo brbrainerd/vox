@@ -38,7 +38,7 @@ fn file_name_from_path(file_path: str) to str {
     let parts = normalized.split("/");
     let n = parts.len();
     if n > 0 {
-        return parts[n - 1];
+        return parts.get(n - 1).unwrap_or(file_path);
     }
     return file_path;
 }

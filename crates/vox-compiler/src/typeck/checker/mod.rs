@@ -48,7 +48,6 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         HirExpr::DecimalLit(_, s) => *s,
         HirExpr::AsyncView(v) => v.span,
         HirExpr::WorkflowVersion(v) => v.span,
-        HirExpr::StringInterp { span, .. } => *span,
     }
 }
 
@@ -551,13 +550,6 @@ impl<'a> Checker<'a> {
                 .iter()
                 .filter_map(|a| a.as_deref())
                 .any(Self::contains_db_write_or_unsafe_in_expr),
-            HirExpr::StringInterp { parts, .. } => parts.iter().any(|p| {
-                if let crate::hir::HirStringPart::Interpolation(e) = p {
-                    Self::contains_db_write_or_unsafe_in_expr(e)
-                } else {
-                    false
-                }
-            }),
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)
             | HirExpr::BoolLit(_, _)

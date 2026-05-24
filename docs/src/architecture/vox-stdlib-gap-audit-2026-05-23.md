@@ -1744,6 +1744,14 @@ Concrete punchlist — **all 14 landed in `crates/vox-actor-runtime/src/builtins
 13. `vox_regex_replace(pattern: &str, haystack: &str, replacement: &str) -> Result<String, String>`
 14. `vox_regex_find(pattern: &str, haystack: &str) -> Result<Option<String>, String>`
 
+**Codegen wire-up landed 2026-05-24:** the 12 new `path.*`/`env.*`/
+`regex.*` methods now have dispatch entries in
+`crates/vox-compiler/src/builtin_registry.rs` (both
+`std_namespace_runtime_call` for the `--mode script` lowering and the
+typeck signature table). `--mode interp` and `--mode script` reach the
+same surface for everything Phase K added; no `vox check` regressions
+on the corpus baseline (46/59 holds).
+
 **Also tracked separately:** intra-project-import resolver
 (`Interpreter::resolve_local_file_import` from §11.7) needs an
 equivalent in the actor-runtime emit path for `--mode script` to honor
@@ -1777,6 +1785,47 @@ where Option/Result types are flowing.
 **Quickest wins (per LoC): L.1, L.3, L.2, L.5** — all mechanical, each
 under 10 minutes per script. Estimated +6 PASS to 47/55 (~85%) for one
 afternoon of work.
+
+**Progress 2026-05-23 → 2026-05-24:**
+
+- ✅ **L.3 landed.** Both `migrations/2026-phase1-delete-empty-schemas-dir.vox`
+  and `migrations/2026-phase1-delete-repo-root-strays.vox` now pass
+  (mechanical `fs::` → `fs.` rewrite; the second also moved from
+  `fs::read_dir` iterator pattern to `fs.glob("./codex-cutover-*.sidecar.json")`).
+- ✅ **L.4 raw-string syntax landed** — `r"..."` lexer token (Rust-style;
+  basic single-`"`-terminated form) + parser arm + Display. Test suite
+  at `crates/vox-compiler/tests/raw_string_test.rs` (6/6). Note: hash-padded
+  `r#"..."#` form (which would let regex patterns embed `"`) is NOT
+  yet supported, so the L.4 scripts (`extract_table_names.vox`,
+  `migrate-arrows.vox`) were retired to
+  `examples/aspirational/regex-heavy/` and
+  `examples/aspirational/historical-migrators/` instead of migrated.
+  The migrate-arrows script was the migration tool itself — already
+  done its job; retiring it removed a contradiction.
+- ✅ **L.5 landed via retirement.** `index_symbols.vox` was aspirational
+  pseudocode for a `compiler` stdlib namespace that doesn't exist;
+  moved to `examples/aspirational/compiler-as-stdlib/` with a README
+  documenting what would need to land first.
+- ✅ **L.6 landed.** Both `fix-doc-categories.vox` and `migrate-corpus.vox`
+  now pass. The root cause turned out to be subscript + Result-unwrap
+  rather than untyped closures — `lines[i]` typed as `<unknown>` and
+  `fs.read_to_string` returning Result not unwrapped. Now both use
+  `lines.get(i).unwrap_or("")` and `content_res.unwrap()` patterns.
+- ✅ **Typed list subscript landed** — `list[T] [i]` returns
+  `Option[T]`; out-of-bounds and wrong-receiver-type both yield `None`.
+  Honors no-silent-failure; eval + typeck aligned. Test suite at
+  `crates/vox-compiler/tests/typed_subscript_test.rs` (4/4).
+- ⏸ **L.1 partial.** `gui-build.vox` and `setup.vox` migrated to
+  `process.run_ex` + `.code` + Option/Result discipline (more than
+  L.1's "`!` → `not`" framing suggested). Both pass `vox check`.
+- ⏸ **L.7 deferred.** 3 scripts still need per-site Result/Option
+  unwrap insertions (`ci/gui-registry-check.vox`, `ci/test.vox`,
+  `scientia/acceptance-matrix.vox`).
+
+**Corpus result: 41/55 (triage start, 75%) → 46/59 (post-recovery, 78%).**
+Denominator grew because helpers/ + harvest_small + restored
+aspirational scripts came back into `scripts/`. Zero regressions vs
+the refreshed baseline.
 
 ### Phase H — `@endpoint` retirement (after Phase B + C settle, ~3 days)
 

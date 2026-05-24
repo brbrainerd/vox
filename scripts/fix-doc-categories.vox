@@ -45,10 +45,10 @@ fn rel_under_docs_src(p: str) to str {
         if len(parts) >= 2 {
             // Rejoin everything after the first split point in case the
             // path coincidentally contains "docs/src/" deeper down.
-            let mut out = parts[1];
+            let mut out = parts.get(1).unwrap_or("");
             let mut i = 2;
-            while i < len(parts) {
-                out = out + prefix + parts[i];
+            while i < parts.len() {
+                out = out + prefix + parts.get(i).unwrap_or("");
                 i = i + 1;
             }
             return out;

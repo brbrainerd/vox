@@ -19,7 +19,7 @@
 //! Task 6.1 for context.
 
 use crate::hir::nodes::durability::DurabilityKind;
-use crate::hir::{HirArg, HirExpr, HirModule, HirStmt, HirStringPart};
+use crate::hir::{HirArg, HirExpr, HirModule, HirStmt};
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 
 /// Stdlib call paths that are non-deterministic and therefore forbidden
@@ -214,13 +214,10 @@ fn walk_expr(expr: &HirExpr, diags: &mut Vec<Diagnostic>) {
             walk_expr(iter, diags);
             walk_expr(body, diags);
         }
-        HirExpr::StringInterp { parts, .. } => {
-            for p in parts {
-                if let HirStringPart::Interpolation(e) = p {
-                    walk_expr(e, diags);
-                }
-            }
-        }
+        // Note: HIR's lowering collapses `Expr::StringInterp` into a chain of
+        // `HirExpr::Binary(Add, ...)` nodes (see `hir/lower/expr.rs:298`),
+        // so there is no `HirExpr::StringInterp` variant to walk here — the
+        // recursive Binary walk below covers interpolation expressions.
         // Leaves and JSX shapes — no sub-expressions worth walking for
         // determinism (JSX bodies are not durable workflow surfaces).
         HirExpr::IntLit(..)

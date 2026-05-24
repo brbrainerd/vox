@@ -513,7 +513,25 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
         ("path", "basename") | ("path", "dirname") | ("path", "extension") => {
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Str))
         }
+        // Phase K typeck signatures (2026-05-23) — match the actor-runtime
+        // Option-returning wrappers landed in vox-actor-runtime. Strict-Option
+        // discipline keeps the interp + script surfaces aligned.
+        ("path", "parent") | ("path", "file_name") | ("path", "stem") => {
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str))))
+        }
+        ("path", "is_absolute") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        ("path", "resolve") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         ("env", "get") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        ("env", "args") => Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+        ("env", "set") => Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Unit)),
+        ("regex", "replace") => Ty::Fn(
+            vec![Ty::Str, Ty::Str, Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Str))),
+        ),
+        ("regex", "find") => Ty::Fn(
+            vec![Ty::Str, Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Option(Box::new(Ty::Str))))),
+        ),
         ("process", "which") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
         ("process", "run") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
@@ -732,9 +750,47 @@ pub fn std_namespace_runtime_call(
             "std::path::Path::new(&{}).extension().unwrap_or_default().to_string_lossy().to_string()",
             args[0]
         )),
+        // Phase K codegen wire-up (2026-05-23) — dispatches the remaining
+        // path/env/regex primitives landed in actor-runtime so --mode script
+        // reaches feature parity with --mode interp. These map to the
+        // `vox_*` functions in `crates/vox-actor-runtime/src/builtins/mod.rs`
+        // (Phase K block right after `vox_fs_mkdir`).
+        ("path", "parent") if !args.is_empty() => Some(format!(
+            "(vox_actor_runtime::builtins::vox_path_parent(({}).as_str()))",
+            args[0]
+        )),
+        ("path", "file_name") if !args.is_empty() => Some(format!(
+            "(vox_actor_runtime::builtins::vox_path_file_name(({}).as_str()))",
+            args[0]
+        )),
+        ("path", "stem") if !args.is_empty() => Some(format!(
+            "(vox_actor_runtime::builtins::vox_path_stem(({}).as_str()))",
+            args[0]
+        )),
+        ("path", "is_absolute") if !args.is_empty() => Some(format!(
+            "(vox_actor_runtime::builtins::vox_path_is_absolute(({}).as_str()))",
+            args[0]
+        )),
+        ("path", "resolve") if !args.is_empty() => Some(format!(
+            "(vox_actor_runtime::builtins::vox_path_resolve(({}).as_str()))",
+            args[0]
+        )),
         ("env", "get") if !args.is_empty() => Some(format!(
             "(vox_actor_runtime::builtins::vox_env_get(({}).as_str()))",
             args[0]
+        )),
+        ("env", "args") => Some("vox_actor_runtime::builtins::vox_env_args()".to_string()),
+        ("env", "set") if args.len() >= 2 => Some(format!(
+            "{{ vox_actor_runtime::builtins::vox_env_set(({}).as_str(), ({}).as_str()); }}",
+            args[0], args[1]
+        )),
+        ("regex", "replace") if args.len() >= 3 => Some(format!(
+            "(vox_actor_runtime::builtins::vox_regex_replace(({}).as_str(), ({}).as_str(), ({}).as_str()))",
+            args[0], args[1], args[2]
+        )),
+        ("regex", "find") if args.len() >= 2 => Some(format!(
+            "(vox_actor_runtime::builtins::vox_regex_find(({}).as_str(), ({}).as_str()))",
+            args[0], args[1]
         )),
         ("process", "which") if !args.is_empty() => Some(format!(
             "(vox_actor_runtime::builtins::vox_process_which(({}).as_str()))",
