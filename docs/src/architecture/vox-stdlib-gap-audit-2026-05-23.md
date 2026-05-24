@@ -1829,11 +1829,49 @@ the refreshed baseline.
 
 ### Phase H — `@endpoint` retirement (after Phase B + C settle, ~3 days)
 
-16. Once `@query`/`@mutation` have been in the corpus for one minor
-    release and no `@endpoint(kind: …)` regressions surface in
-    real-world usage, retire `@endpoint`. Add to
-    `AGENTS.md §Retired Surfaces`. CR-L6 retirement-guard gate keeps it
-    permanent.
+**Retirement audit 2026-05-24:** **DO NOT RETIRE YET.** Per
+`feedback_verify_audit_retirement_claims.md` (memory: "5/10 audit
+retirements were wrong on 2026-05-16, one nearly cost 9,670 lines of
+integration tests"), I scanned `tests/`, `crates/`, `examples/`,
+`.github/workflows/`, `contracts/`, and `docs/` for `@endpoint` usage
+before any code change. Live use sites:
+
+| File | Line | Form | Risk class |
+|---|---|---|---|
+| `examples/golden/option_type.vox` | 34 | `@endpoint(kind: query)` | Golden — must migrate before retire |
+| `crates/vox-integration-tests/tests/fixtures/chatbot.vox` | 49 | `@endpoint(kind: mutation) fn api_chat(...)` | **Integration test fixture** — exactly the high-risk category |
+| `crates/vox-integration-tests/tests/fixtures/full_stack_minimal.vox` | 12 | `@endpoint(kind: server) fn echo(...)` | **Integration test fixture** |
+| `crates/vox-integration-tests/tests/fixtures/greaterfool_reference.vox` | 81 | `@endpoint(kind: server) fn chat(...)` | **Integration test fixture** |
+
+(Other `@endpoint` mentions in `examples/golden/{auth_patterns,background_jobs}.vox`
+are documentation frontmatter — `constructs: [..., @endpoint, ...]` — not
+live usage. Build artifacts under `docs/book/` are auto-generated and ignored.)
+
+**Code-side `@endpoint` handlers** that must stay until retirement:
+`vox-cli/commands/{check,compile,db/*}.rs`,
+`vox-code-audit/detectors/{auth_endpoint,effect_net_decl,id_at_boundary,
+retired_decorator}.rs`, and `vox-code-audit/diagnostics/catalog.rs`. Each
+parses or reports on `@endpoint` — the implementation is alive.
+
+**Revised retirement path:**
+
+16. **(prereq)** Migrate the 4 live use sites to `@query` / `@mutation` /
+    `@server`. The integration-test fixtures need golden-output snapshot
+    refreshes after migration. Estimated 1-2 hours of careful work +
+    snapshot review.
+17. Run the full corpus + `cargo test --workspace` after each fixture
+    migration to ensure no behavior change.
+18. Once the migration commit is on `main` for one minor release and
+    no `@endpoint(kind: …)` regressions surface in real-world usage,
+    THEN retire `@endpoint`. Add to `AGENTS.md §Retired Surfaces`.
+    CR-L6 retirement-guard gate keeps it permanent.
+
+**Why not retire now:** the integration test fixtures are exactly the
+class of usage that the prior 2026-05-16 incident nearly broke (almost
+9,670 LoC of tests). Retiring `@endpoint` without first migrating these
+would cascade: parsing errors → fixture HIR mismatch → test failures →
+revert cascade. The 1-2 hours of migration work is mandatory before
+removing the surface.
 
 ### Total session-count estimate (as of 2026-05-23)
 

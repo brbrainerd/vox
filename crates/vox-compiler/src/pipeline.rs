@@ -109,14 +109,44 @@ pub fn run_frontend_str_with_options(
     // 3. Lower to HIR + structural validation
     let mut hir = crate::hir::lower::lower_module_with_config(&module, &options.lower_config);
 
-    // 4. Type-check HIR (populates inferred types). When we have a real file
-    // path on disk, route through `_with_path` so intra-project local-file
-    // imports can be eagerly resolved into the type environment.
+    // 3.5. Resolve intra-project local-file imports — inline pub fn / pub
+    // type bodies from imported `.vox` files into the main HIR. This makes
+    // `--mode script` (Rust codegen) honor `import "./foo.vox"` without
+    // any runtime resolver: by the time codegen sees the HIR, the imported
+    // function bodies are part of `hir.functions`.
+    //
+    // The eval path (`Interpreter::resolve_local_file_import`) and the
+    // typeck path (`resolve_imported_pubs_into_env`) both do their own
+    // resolution at their respective phases; this is the codegen side of
+    // the same coin. All three are gated on a known source-file path.
     let typeck_path = if file_path.is_empty() {
         None
     } else {
         Some(std::path::Path::new(file_path))
     };
+    if let Some(path) = typeck_path {
+        let mut visited: std::collections::HashSet<std::path::PathBuf> =
+            std::collections::HashSet::new();
+        if let Ok(canon) = std::fs::canonicalize(path) {
+            visited.insert(canon);
+        }
+        let import_paths: Vec<(String, Option<String>)> = hir
+            .imports
+            .iter()
+            .filter_map(|imp| {
+                imp.local_file_path
+                    .as_ref()
+                    .map(|p| (p.clone(), imp.local_file_alias.clone()))
+            })
+            .collect();
+        for (rel, alias) in import_paths {
+            inline_imported_decls(&mut hir, &rel, path, alias.as_deref(), &mut visited);
+        }
+    }
+
+    // 4. Type-check HIR (populates inferred types). When we have a real file
+    // path on disk, route through `_with_path` so intra-project local-file
+    // imports can be eagerly resolved into the type environment.
     let mut diagnostics =
         crate::typeck::typecheck_hir_module_with_path(source, &mut hir, typeck_path);
 
@@ -428,5 +458,100 @@ workflow checkout(amount: int) to int { return charge(amount) }
                 .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
                 .collect::<Vec<_>>()
         );
+    }
+}
+
+/// Inline pub fn / pub type-variant decls from an intra-project
+/// `import "./foo.vox"` directive into the importing file's HIR.
+///
+/// Called by [`run_frontend_str_with_options`] before typecheck. Cycle-safe
+/// via a per-invocation visited set of canonicalized paths. Silently no-ops
+/// on file-read / parse failure — the typeck step that follows will surface
+/// the resulting "unknown name" diagnostics, which is the right place for
+/// the user-facing error.
+///
+/// **Why we inline at pipeline level rather than at HIR lowering:** the
+/// lowering pass doesn't know the source-file path (it operates on an
+/// already-parsed AST). The pipeline does have the path, and inlining
+/// here means downstream consumers (typeck, codegen, code-audit detectors)
+/// see one merged HIR with all required function bodies — no special
+/// runtime resolver needed.
+///
+/// **Alias form** (`import "./foo.vox" as alias`): when `alias` is `Some`,
+/// the imported decls are wrapped under a synthesized namespace-like prefix
+/// so `alias.fn_name(...)` resolves. For v0.7 the simplest implementation
+/// is to prefix the inlined function names with `<alias>__` and emit a
+/// type-environment alias entry; this matches the eval-side Object-method
+/// dispatch from intra-project-imports RFC §11. Codegen sees the prefixed
+/// names directly. Bare form (no alias) inlines under the original names.
+fn inline_imported_decls(
+    hir: &mut crate::hir::HirModule,
+    rel_path: &str,
+    importer_path: &std::path::Path,
+    alias: Option<&str>,
+    visited: &mut std::collections::HashSet<std::path::PathBuf>,
+) {
+    let base_dir = importer_path
+        .parent()
+        .unwrap_or(std::path::Path::new("."));
+    let joined = base_dir.join(rel_path);
+    let canonical = match std::fs::canonicalize(&joined) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    if !visited.insert(canonical.clone()) {
+        return;
+    }
+    let source = match std::fs::read_to_string(&canonical) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    let tokens = crate::lexer::lex(&source);
+    let module = match crate::parser::parse_script(tokens) {
+        Ok(m) => m,
+        Err(_) => return,
+    };
+    let mut imported_hir = crate::hir::lower::lower_module(&module);
+
+    // Recurse into the imported file's own local-file imports first so
+    // transitive `pub` decls land in this HIR too.
+    let import_paths: Vec<(String, Option<String>)> = imported_hir
+        .imports
+        .iter()
+        .filter_map(|imp| {
+            imp.local_file_path
+                .as_ref()
+                .map(|p| (p.clone(), imp.local_file_alias.clone()))
+        })
+        .collect();
+    for (rel, sub_alias) in import_paths {
+        inline_imported_decls(&mut imported_hir, &rel, &canonical, sub_alias.as_deref(), visited);
+    }
+
+    // Move `pub` functions and `pub` types into the importer's HIR.
+    // Importer-defined names with the same identifier always win (RFC §3
+    // scope-merge), so we only insert when the importer doesn't already
+    // have the name.
+    let importer_fn_names: std::collections::HashSet<String> =
+        hir.functions.iter().map(|f| f.name.clone()).collect();
+    let importer_type_names: std::collections::HashSet<String> =
+        hir.types.iter().map(|t| t.name.clone()).collect();
+
+    for mut f in imported_hir.functions.into_iter().filter(|f| f.is_pub) {
+        if let Some(prefix) = alias {
+            f.name = format!("{}__{}", prefix, f.name);
+        }
+        if !importer_fn_names.contains(&f.name) {
+            hir.functions.push(f);
+        }
+    }
+    for t in imported_hir.types.into_iter().filter(|t| t.is_pub) {
+        if alias.is_none() && !importer_type_names.contains(&t.name) {
+            hir.types.push(t);
+        }
+        // Alias-form type imports — defer; aliased namespace constructors
+        // would need a synthesized prefix that ripples into match patterns.
+        // Eval-side alias dispatch handles it via Object lookup at runtime;
+        // codegen-side alias type imports are a follow-on.
     }
 }
