@@ -65,6 +65,36 @@ impl VoxDb {
             .await
     }
 
+    /// Return the persisted `next_due_at_ms` for one scheduled function, or
+    /// `None` if no row exists yet.
+    ///
+    /// Used by the [`vox_workflow_runtime::scheduled`] runner's restart-seed
+    /// loop (ADR-041 §6(a)): the in-memory `Instant` deadline is derived from
+    /// `clamp(persisted_next_due_at_ms - wall_now, 0, interval)` so a crash
+    /// 23 hours into a `@scheduled("1d")` interval fires in ~1 hour, not in
+    /// a fresh full day. The DB row is the crash-recovery anchor; this read
+    /// is how the runner consults it.
+    pub async fn scheduled_runs_next_due_at_ms(
+        &self,
+        name: &str,
+    ) -> Result<Option<i64>, StoreError> {
+        // Match the pattern used by `scheduled_runs_due_now` below.
+        let mut cursor = self
+            .conn()
+            .await?
+            .query(
+                "SELECT next_due_at_ms FROM scheduled_runs WHERE function_name = ?1",
+                (name.to_string(),),
+            )
+            .await?;
+        if let Some(row) = cursor.next().await? {
+            let value: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            Ok(Some(value))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Return all scheduled rows whose `next_due_at_ms <= now()`.
     pub async fn scheduled_runs_due_now(&self) -> Result<Vec<ScheduledRunRow>, StoreError> {
         let now = now_ms();

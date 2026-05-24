@@ -102,16 +102,33 @@ pub async fn start(db: Arc<VoxDb>) -> anyhow::Result<ScheduledHandle> {
             now_inst + Duration::from_millis(delta_ms),
         );
     }
-    // Also seed deadlines from registered entries (covers freshly upserted
-    // rows that didn't appear in due_now because next_due_at_ms is in the
-    // future). For each registered entry not yet in deadlines, assume the
-    // upsert set next_due_at_ms = now + interval.
+    // Also seed deadlines from registered entries (covers rows whose
+    // persisted next_due_at_ms is in the future and so didn't appear in
+    // due_now). ADR-041 §6(a): consult the persisted next_due_at_ms so a
+    // crash 23 hours into a `@scheduled("1d")` interval fires in ~1 hour,
+    // not in a fresh full day. The persisted wall-clock is the recovery
+    // anchor; we just translate it into an Instant offset here.
     {
         let r = reg.lock().await;
         for (name, entry) in r.entries.iter() {
-            deadlines
-                .entry(name.clone())
-                .or_insert_with(|| now_inst + entry.interval);
+            if deadlines.contains_key(name) {
+                continue;
+            }
+            let inst = match db.scheduled_runs_next_due_at_ms(name).await {
+                Ok(Some(due_ms)) => {
+                    let delta_ms = (due_ms - now_ms).max(0) as u64;
+                    // Clamp at `interval` so a clock jump backward (or a
+                    // corrupted next_due_at_ms farther out than one
+                    // interval) cannot extend the wait beyond the user's
+                    // configured cadence.
+                    let bounded = Duration::from_millis(delta_ms).min(entry.interval);
+                    now_inst + bounded
+                }
+                // No row (shouldn't happen post-upsert, but be defensive)
+                // or DB error: fall back to a fresh interval.
+                Ok(None) | Err(_) => now_inst + entry.interval,
+            };
+            deadlines.insert(name.clone(), inst);
         }
     }
 
