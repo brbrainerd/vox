@@ -1,9 +1,7 @@
-//! # vox-webhook — HTTP Webhook Gateway
+//! # webhook — HTTP Webhook Gateway (inlined from vox-webhook)
 //!
 //! Provides an inbound webhook receiver, outbound delivery with retry/signing,
 //! and a `Channel` abstraction for Discord/Slack/WebSocket integrations.
-//!
-//! Public re-exports are thin facades; see submodule files for behavior.
 
 /// Bridge: routes broadcast webhook events into a WebhookEventSink.
 pub mod bridge;

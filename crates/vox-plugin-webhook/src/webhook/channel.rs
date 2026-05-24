@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use crate::WebhookError;
+use super::WebhookError;
 
 /// Channel kind discriminant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -7,12 +7,12 @@
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::handler::WebhookEvent;
+use super::handler::WebhookEvent;
 
 /// Abstract surface that a webhook bridge dispatches validated events to.
 ///
 /// Implement this trait on your consumer (e.g. `Orchestrator`) and pass an
-/// `Arc<dyn WebhookEventSink>` to the bridge constructor in `crate::bridge`.
+/// `Arc<dyn WebhookEventSink>` to the bridge constructor in `super::bridge`.
 #[async_trait]
 pub trait WebhookEventSink: Send + Sync {
     /// Dispatch a validated webhook event.

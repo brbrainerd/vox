@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::WebhookError;
+use super::WebhookError;
 
 /// A normalized inbound webhook payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +106,7 @@ impl WebhookHandler {
         if let Some(ref secret) = self.secret {
             let raw_body = serde_json::to_string(&payload.body)?;
             match &payload.signature {
-                Some(sig) => crate::signing::verify_payload(
+                Some(sig) => super::signing::verify_payload(
                     secret,
                     raw_body.as_bytes(),
                     sig,
@@ -173,7 +173,7 @@ mod tests {
         let signing_key = "test-secret";
         let body = serde_json::json!({"ref": "refs/heads/main"});
         let body_str = serde_json::to_string(&body).unwrap();
-        let sig = crate::signing::sign_hmac_sha256(signing_key, body_str.as_bytes());
+        let sig = super::signing::sign_hmac_sha256(signing_key, body_str.as_bytes());
 
         let h = WebhookHandler::new().with_secret(signing_key);
         let p = InboundPayload {

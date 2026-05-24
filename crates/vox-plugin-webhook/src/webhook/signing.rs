@@ -5,7 +5,7 @@ use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use sha2::{Digest as _, Sha256};
 use sha3::Sha3_256;
 
-use crate::WebhookError;
+use super::WebhookError;
 
 /// A webhook signature — an HMAC-SHA3-256 or HMAC-SHA256 hex digest.
 #[derive(Debug, Clone, PartialEq, Eq)]

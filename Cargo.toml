@@ -88,7 +88,6 @@ vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
 
 vox-test-harness          = { path = "crates/vox-test-harness" }
-vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }

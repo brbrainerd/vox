@@ -19,8 +19,8 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{debug, error, warn};
 
-use crate::handler::WebhookEvent;
-use crate::sink::WebhookEventSink;
+use super::handler::WebhookEvent;
+use super::sink::WebhookEventSink;
 
 /// A task dispatched from an inbound webhook event.
 ///
@@ -132,7 +132,7 @@ impl WebhookOrchestratorBridge {
 
 #[cfg(test)]
 mod tests {
-    use crate::handler::{InboundPayload, WebhookEvent};
+    use super::handler::{InboundPayload, WebhookEvent};
 
     use super::*;
 

@@ -147,7 +147,6 @@ vox-workflow-runtime    = { layer = 3 }
 vox-distributed-training = { layer = 3 }     # promoted from [planned] 2026-05-23 — crate now on disk
 vox-inference           = { layer = 3 }      # promoted from [planned] 2026-05-23 — crate now on disk
 vox-mesh-policy  = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
-vox-webhook             = { layer = 3 }
 vox-code-audit          = { layer = 3, max_loc = 25_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
 vox-wire-format-validator    = { layer = 3, kind = "binary", max_loc = 4_000 }

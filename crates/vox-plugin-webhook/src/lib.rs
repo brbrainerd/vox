@@ -3,15 +3,15 @@
 //! Plugin entry point for the Vox webhook HTTP listener gateway.
 //!
 //! On `init()` the plugin spawns a Tokio task that runs the Axum webhook
-//! server (via [`vox_webhook::serve`]) on the address configured by the
-//! `VOX_WEBHOOK_ADDR` environment variable (default: `0.0.0.0:9080`).
+//! server on the address configured by the `VOX_WEBHOOK_ADDR` environment
+//! variable (default: `0.0.0.0:9080`).
 //!
 //! ## Event routing
 //!
 //! The plugin uses a no-op [`WebhookEventSink`] by default. For production use,
 //! the host should wire an `Arc<dyn WebhookEventSink>` backed by the Orchestrator
-//! (see `WebhookOrchestratorBridge` in vox-webhook). The orchestrator-side wiring
-//! is deferred — tracked as Step 8 of the extraction plan.
+//! (see `WebhookOrchestratorBridge` in `webhook::bridge`). The orchestrator-side
+//! wiring is deferred — tracked as Step 8 of the extraction plan.
 //!
 //! ## Plugin trait
 //!
@@ -19,6 +19,8 @@
 //! background tokio task started from `init()`. There is no dedicated
 //! "start-service" lifecycle hook in ABI v11 — this matches the pattern used
 //! by other long-running plugins (e.g. vox-plugin-cloud).
+
+mod webhook;
 
 use abi_stable::{
     erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,
@@ -30,7 +32,7 @@ use tracing::{info, warn};
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
 use vox_plugin_api::host::VoxHost_TO;
-use vox_webhook::{
+use webhook::{
     WebhookEvent, WebhookEventSink, WebhookHandler,
     router::{WebhookState, serve},
 };

@@ -31,7 +31,7 @@ impl OutboundWebhook {
         }
     }
 
-    /// Signs outbound bodies with [`crate::signing::sign_payload`].
+    /// Signs outbound bodies with [`super::signing::sign_payload`].
     pub fn with_secret(mut self, secret: impl Into<String>) -> Self {
         self.secret = Some(secret.into());
         self
@@ -104,7 +104,7 @@ impl WebhookDelivery {
 
             // Sign if secret configured
             if let Some(ref secret) = webhook.secret {
-                let sig = crate::signing::sign_payload(secret, body.as_bytes());
+                let sig = super::signing::sign_payload(secret, body.as_bytes());
                 req = req.header("X-Vox-Signature", sig.to_string());
             }
 

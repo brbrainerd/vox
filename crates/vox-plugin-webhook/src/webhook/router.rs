@@ -19,7 +19,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tracing::{info, warn};
 
-use crate::{
+use super::{
     WebhookError,
     channel::ChannelManager,
     handler::{InboundPayload, WebhookHandler},
@@ -31,7 +31,7 @@ pub struct WebhookState {
     pub handler: Arc<WebhookHandler>,
     pub channels: Arc<ChannelManager>,
     /// Sink for processed events (e.g. tokio broadcast channel)
-    pub event_sink: Arc<tokio::sync::broadcast::Sender<crate::handler::WebhookEvent>>,
+    pub event_sink: Arc<tokio::sync::broadcast::Sender<super::handler::WebhookEvent>>,
     /// Optional bearer token for inbound request authentication.
     /// Resolved from Clavis `WebhookIngressToken` at startup.
     /// When `None`, auth is skipped with a warning (degraded mode).
@@ -153,7 +153,7 @@ async fn health_check() -> Json<HealthResponse> {
 
 #[derive(Serialize)]
 struct ChannelListResponse {
-    channels: Vec<crate::channel::Channel>,
+    channels: Vec<super::channel::Channel>,
 }
 
 async fn list_channels(State(state): State<WebhookState>) -> Json<ChannelListResponse> {
