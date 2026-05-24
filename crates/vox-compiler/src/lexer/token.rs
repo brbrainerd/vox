@@ -153,6 +153,18 @@ pub enum Token {
     /// `@query`/`@mutation`.
     #[token("@server")]
     AtServer,
+    // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)` decorator on
+    // type definitions. Lowering synthesizes `T::from_json` / `T::to_json`
+    // functions per the RFC §6 plan.
+    #[token("@json_as")]
+    AtJsonAs,
+    // Per-field attributes inside `@json_as`-annotated types (RFC §4.3).
+    #[token("@field_name")]
+    AtFieldName,
+    #[token("@default")]
+    AtDefault,
+    #[token("@skip_if_none")]
+    AtSkipIfNone,
     #[token("@table")]
     AtTable,
     #[token("@index")]
@@ -555,6 +567,10 @@ impl std::fmt::Display for Token {
             Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
             Token::AtEndpoint => write!(f, "@endpoint"),
+            Token::AtJsonAs => write!(f, "@json_as"),
+            Token::AtFieldName => write!(f, "@field_name"),
+            Token::AtDefault => write!(f, "@default"),
+            Token::AtSkipIfNone => write!(f, "@skip_if_none"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtNative => write!(f, "@native"),

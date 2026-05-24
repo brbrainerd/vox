@@ -688,6 +688,11 @@ impl Parser {
                 }
             }
             Token::AtTable => self.parse_table(),
+            // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)`
+            // immediately precedes a `type` definition. parse_json_as parses
+            // the decorator block, then delegates to parse_typedef and
+            // attaches the annotation to the produced TypeDefDecl.
+            Token::AtJsonAs => self.parse_json_as(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
                 self.errors.push(ParseError::classified(

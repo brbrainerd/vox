@@ -105,7 +105,8 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-compiler/src/eval/shell_stdlib.rs`](../../../crates/vox-compiler/src/eval/shell_stdlib.rs) | Interpreter (`--interp`) mirror of shell‑tier `std.*` builtins — **must stay aligned** with `vox-actor-runtime` (Cargo cycle prevents a direct dep; shared types extracted to `vox-shell-stdlib-types`). See [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md). |
 | [`vox-actor-runtime/src/builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) | SSOT Rust lowering targets for `std.fs` / `std.process` / structured formats (`std.csv`, `std.toml`, `std.yaml`, `std.io`) used by native codegen. |
 | [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md) | Architecture SSOT: argv‑first shell‑tier stdlib vs host shells / `vox_run_shell`. |
-| [`vox-container`](../../../crates/vox-container/) | OCI container runtime abstraction — supports Docker and Podman. |
+| [`vox-container-types`](../../../crates/vox-container-types/) | Pure OCI types: `ContainerRuntime` trait, `BuildOpts`/`RunOpts`, `RuntimePreference`, `exec_grammar` parser. L0; no I/O. |
+| [`vox-container`](../../../crates/vox-container/) | OCI container runtime backends (Docker + Podman CLI) and `detect_runtime`. L3; re-exports all types from `vox-container-types`. |
 | [`vox-corpus`](../../../crates/vox-corpus/) | Training data contracts, preflight, corpus SSOT, and Mens dataset metadata. |
 | [`vox-db`](../../../crates/vox-db/) | Codex / VoxDb facade: schema migrations, store ops, Turso/libSQL access for the Vox workspace. |
 | [`vox-deploy-codegen`](../../../crates/vox-deploy-codegen/) | Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation. |

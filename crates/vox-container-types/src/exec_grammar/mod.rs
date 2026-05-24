@@ -7,7 +7,7 @@
 //! # Quick start
 //!
 //! ```rust
-//! use vox_container::exec_grammar::{parse, ExecPolicy, RiskLevel, risk};
+//! use vox_container_types::exec_grammar::{parse, ExecPolicy, RiskLevel, risk};
 //!
 //! let mut ast = parse("cargo build --release").unwrap();
 //! let policy = ExecPolicy::default();

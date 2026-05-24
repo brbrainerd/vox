@@ -53,9 +53,6 @@ impl Default for RunOpts {
 }
 
 /// Unified interface for OCI-compatible container runtimes.
-///
-/// Implementations exist for Docker ([`crate::docker::DockerRuntime`]) and
-/// Podman ([`crate::podman::PodmanRuntime`]).
 pub trait ContainerRuntime: Send + Sync {
     /// Human-readable runtime name (`"docker"` or `"podman"`).
     fn name(&self) -> &str;

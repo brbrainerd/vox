@@ -139,6 +139,7 @@ vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
 vox-oratio              = { layer = 3 }
 vox-wasm-engine         = { layer = 3 }
+vox-container-types     = { layer = 0 }              # pure types: ContainerRuntime trait, BuildOpts/RunOpts, RuntimePreference, exec_grammar (D-9-rescope step 1)
 vox-container           = { layer = 3 }
 vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
