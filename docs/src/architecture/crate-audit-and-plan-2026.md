@@ -501,6 +501,21 @@ Phase 1 completion sweep + Phase 2 start:
 
 **State after session 3:** **27 of 50 plan tasks done.** Phase 1 fully complete. B-3-trim partial (zip removed; workspace.dependencies additions deferred — need version confirmation). Phase 2 next: B-3-trim remainder, B-9 (tower-lsp-server feature gate — M effort), B-2 (voxup + dirs code port — S+M effort), A-5 (build_service.rs migration — M effort).
 
+## 7d. Execution log (2026-05-24, session 4)
+
+Phase 2 continuation — A-5 (build_service migration) + B-3-trim remainder (bzip2/zstd):
+
+| Task | What landed | Verification |
+|---|---|---|
+| **A-5 (re-scoped)** | Moved `build_service.rs` (552 LoC) + `artifact_policy.rs` (135 LoC) from `crates/vox-cli/src/` to `crates/vox-cli-core/src/`. Added both to `vox-cli-core/src/lib.rs` as `pub mod`. In `vox-cli/src/lib.rs`: replaced `pub mod build_service;` + `pub mod artifact_policy;` with `pub use vox_cli_core::build_service;` + `pub use vox_cli_core::artifact_policy;` — all existing callers (`vox_cli::build_service::*`, `vox_cli::artifact_policy::*`, `crate::build_service::*`) continue to resolve. Fixed one visibility issue: `transient_lane_roots` was `pub(crate)` in the original; promoted to `pub` since `vox-cli/src/commands/ci/workspace_artifacts/` calls it across the crate boundary. The `vox-ml-cli` known_inversion still exists (it calls `vox_cli::commands::build::run`, `vox_cli::cli_args::BuildMode::App`, `vox_cli::fs_utils::run_target_dir_for_workspace` in addition to build_service) — the `[[known_inversions]]` entry is reduced in scope but not yet removable. | `cargo check -p vox-cli-core -p vox-cli -p vox-ml-cli` passes clean. |
+| **B-3-trim (bzip2/zstd)** | Added `bzip2 = "0.6.1"` + `zstd = "0.13.3"` to root `Cargo.toml [workspace.dependencies]` (near `flate2`). Updated `crates/vox-compiler/Cargo.toml`: `bzip2 = "0.6.1"` → `bzip2 = { workspace = true }`, `zstd = "0.13.3"` → `zstd = { workspace = true }`. Same in `crates/vox-codegen/Cargo.toml`. Both had identical versions — no conflict. | `cargo check -p vox-compiler -p vox-codegen` passes clean. |
+
+**Notes:**
+- A-5 known_inversion: three other vox-cli surfaces (`commands::build::run`, `cli_args::BuildMode::App`, `fs_utils::run_target_dir_for_workspace`) still tie vox-ml-cli to vox-cli. The `[[known_inversion]]` reason in `layers.toml` remains accurate. Full removal is a larger P3 task (A-20 scope).
+- B-3-trim remainder still open: `hmac`, `crossbeam-queue`, `ignore`, `url`, `tauri` need consumer verification before adding to workspace deps.
+
+**State after session 4:** **29 of 50 plan tasks done.** Phase 2 in progress. Next: B-9 (tower-lsp-server feature gate), B-2 (voxup + dirs port), B-6 (mockito → wiremock), A-14-reframed (max_workspace_deps arch rule).
+
 ---
 
 ## 8. Verification methodology appendix
