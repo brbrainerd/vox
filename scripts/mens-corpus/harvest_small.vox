@@ -1,0 +1,42 @@
+// harvest_small.vox — minimal mens-corpus harvester demonstrating
+// intra-project Vox-file imports (RFC 2026-05-23). Walks docs + sources
+// for the current repo and writes a JSONL index of file paths.
+//
+// Run: `vox run scripts/mens-corpus/harvest_small.vox --mode interp`
+//
+// Unlike `harvest.vox` (which is self-contained), this script splits the
+// walkers and writer into helper modules under `./helpers/` to prove the
+// `import "./..."` + `pub fn` surface end-to-end.
+
+import "./helpers/walk_docs.vox"
+import "./helpers/walk_sources.vox"
+import "./helpers/jsonl_writer.vox"
+
+fn main() {
+    let root = "."
+    let docs = walk_docs(root)
+    let sources = walk_sources(root)
+
+    print("[harvest_small] docs: " + str(docs.len()))
+    print("[harvest_small] sources: " + str(sources.len()))
+
+    let mut lines = []
+    for d in docs {
+        lines = lines.push("{\"kind\":\"doc\",\"path\":\"" + d + "\"}")
+    }
+    for s in sources {
+        lines = lines.push("{\"kind\":\"source\",\"path\":\"" + s + "\"}")
+    }
+
+    let out = "mens/runs/latest/corpus_index.jsonl"
+    if not fs.exists("mens/runs/latest") {
+        print("[harvest_small] skipping write — `mens/runs/latest` not present")
+        return
+    }
+    let ok = write_jsonl(out, lines)
+    if ok {
+        print("[harvest_small] wrote " + str(lines.len()) + " entries to " + out)
+    } else {
+        print("[harvest_small] write failed: " + out)
+    }
+}

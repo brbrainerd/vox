@@ -64,6 +64,11 @@ async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
     if has_caps_directive {
         interpreter.caps = Some(caps);
     }
+    if let Ok(abs) = std::fs::canonicalize(file) {
+        interpreter.set_source_path(abs);
+    } else {
+        interpreter.set_source_path(file.to_path_buf());
+    }
 
     interpreter
         .run_module(&lowered)

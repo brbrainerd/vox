@@ -327,6 +327,23 @@ impl<'a> Checker<'a> {
                 }
                 let obj_ty = self.check_expr(object, None);
                 let obj_ty = self.uf.resolve(&obj_ty);
+
+                // Namespace-method dispatch on Record-typed receivers — used
+                // by alias-form intra-project imports
+                // (`import "./util.vox" as u` → `u.fn_name(...)`). When the
+                // receiver is a Ty::Record whose field with this method name
+                // is itself a Ty::Fn, route through that signature.
+                // See RFC §11 and audit §11.7.
+                if let Ty::Record(fields) = &obj_ty {
+                    if let Some((_, field_ty)) = fields.iter().find(|(k, _)| k == method) {
+                        let field_ty = self.uf.resolve(field_ty);
+                        if let Ty::Fn(params, ret) = field_ty {
+                            self.check_arguments(&params, args, *span);
+                            return ret.as_ref().clone();
+                        }
+                    }
+                }
+
                 if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
                     let bindings = match &obj_ty {
                         Ty::List(inner)
@@ -641,9 +658,34 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Index(object, index, _) => {
-                let _ = self.check_expr(object.as_ref(), None);
+                // Strict-Option subscript per the typed-subscript decision
+                // 2026-05-23. `list[T] [i]` returns `Option[T]` (None on
+                // out-of-bounds), matching the no-silent-failure principle
+                // and the `Json.at(i)` / `Json.get(k)` strict-Option idiom.
+                // Map[K, V] subscript returns Option[V]; Str subscript
+                // returns Option[Str] (single-char slice). Unknown receivers
+                // still fall back to a fresh inference variable so legacy
+                // code without type info doesn't degrade.
+                let obj_ty = self.check_expr(object.as_ref(), None);
                 let _ = self.check_expr(index.as_ref(), None);
-                self.uf.fresh_var()
+                let obj_ty = self.uf.resolve(&obj_ty);
+                match obj_ty {
+                    Ty::List(elem) => Ty::Option(elem),
+                    Ty::Map(_, val) => Ty::Option(val),
+                    Ty::Str => Ty::Option(Box::new(Ty::Str)),
+                    Ty::Tuple(elems) => {
+                        // For literal-index tuple access we'd want the
+                        // element type, but at this level we don't know the
+                        // index. Return a fresh var — the caller will
+                        // unify against whatever follows.
+                        if let Some(first) = elems.into_iter().next() {
+                            first
+                        } else {
+                            self.uf.fresh_var()
+                        }
+                    }
+                    _ => self.uf.fresh_var(),
+                }
             }
 
             HirExpr::AsyncView(v) => {

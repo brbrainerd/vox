@@ -155,23 +155,22 @@ fn parse_retries(expr: &HirExpr) -> anyhow::Result<u32> {
     }
 }
 
+/// Adapt the shared SSOT duration parser to the `u64`-millisecond shape the
+/// planner stores. Delegates to
+/// [`crate::duration_literal::parse_duration_str`] so the runtime and the
+/// `vox-codegen` emit agree on every unit (ms / s / m / h / d) and on error
+/// messages (ADR-041 M-7).
+///
+/// **Behavior note (post-M-7 consolidation, 2026-05-24):** a bare integer like
+/// `workflow_wait(30)` is now interpreted as 30 **seconds** (the cron-style
+/// ergonomic default the shared parser uses), where the legacy local parser
+/// here interpreted it as 30 **milliseconds**. No golden uses the bare-integer
+/// form so blast radius is zero, but if a workflow author wants milliseconds
+/// they must write `workflow_wait("30ms")` explicitly.
 fn parse_duration_ms_str(s: &str) -> anyhow::Result<u64> {
-    let s = s.trim();
-    if let Ok(n) = s.parse::<u64>() {
-        return Ok(n);
-    }
-    if let Some(rest) = s.strip_suffix("ms") {
-        return Ok(rest.trim().parse()?);
-    }
-    if let Some(rest) = s.strip_suffix('s') {
-        let n: u64 = rest.trim().parse()?;
-        return Ok(n.saturating_mul(1000));
-    }
-    if let Some(rest) = s.strip_suffix('m') {
-        let n: u64 = rest.trim().parse()?;
-        return Ok(n.saturating_mul(60_000));
-    }
-    anyhow::bail!("expected duration like 5000, \"30s\", \"500ms\", \"2m\"");
+    crate::duration_literal::parse_duration_str(s)
+        .map(|d| d.as_millis().min(u64::MAX as u128) as u64)
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 fn parse_populi_control_op(s: &str) -> anyhow::Result<PopuliHttpOp> {

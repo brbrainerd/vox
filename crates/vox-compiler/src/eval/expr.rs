@@ -281,10 +281,30 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     interp.scope = old_scope;
                     Ok(val)
                 }
-                VoxValue::Constructor(name) => Ok(VoxValue::Tagged {
-                    name,
-                    fields: eval_args,
-                }),
+                VoxValue::Constructor(name) => match name.as_str() {
+                    // Built-in Option/Result constructors lower directly to
+                    // VoxValue::Option / ::Result so downstream method dispatch
+                    // (`.is_ok()`, `.unwrap()`, `.is_none()`) and pattern
+                    // matching on Result/Option both work.
+                    "Some" if eval_args.len() == 1 => {
+                        Ok(VoxValue::Option(Some(Box::new(eval_args.into_iter().next().unwrap()))))
+                    }
+                    "None" if eval_args.is_empty() => Ok(VoxValue::Option(None)),
+                    "Ok" if eval_args.len() == 1 => {
+                        Ok(VoxValue::Result(Ok(Box::new(eval_args.into_iter().next().unwrap()))))
+                    }
+                    "Err" | "Error" if eval_args.len() == 1 => {
+                        let msg = match eval_args.into_iter().next().unwrap() {
+                            VoxValue::Str(s) => s,
+                            other => format!("{other:?}"),
+                        };
+                        Ok(VoxValue::Result(Err(msg)))
+                    }
+                    _ => Ok(VoxValue::Tagged {
+                        name,
+                        fields: eval_args,
+                    }),
+                },
                 _ => Err(EvalError::TypeError {
                     expected: "function",
                     found: "other".into(),
@@ -323,6 +343,33 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             // closures-rfc-2026-05-23.md §9.5.
             if let Some(result) = apply_closure_method(interp, &o, method, &eval_args)? {
                 return Ok(result);
+            }
+
+            // Namespace-method dispatch: `alias.fn_name(...)` where `alias`
+            // is the namespace object produced by an
+            // `import "./util.vox" as alias` (RFC §3 scope-merge / alias form).
+            // Field is looked up; if it's a callable (Fn or Constructor) it
+            // is applied with the call arguments. Falls through to builtin
+            // dispatch otherwise so things like `process.run(...)` still work.
+            if let VoxValue::Object(fields) = &o {
+                if let Some((_, val)) = fields.iter().find(|(k, _)| k == method) {
+                    match val.clone() {
+                        VoxValue::Fn { .. } => {
+                            return apply_closure(interp, &val.clone(), eval_args);
+                        }
+                        VoxValue::Constructor(name) => {
+                            return Ok(VoxValue::Tagged {
+                                name,
+                                fields: eval_args,
+                            });
+                        }
+                        _ => {
+                            // A non-callable field with the method's name — fall
+                            // through so builtin namespace dispatch (e.g.
+                            // `process.run`) still gets a chance.
+                        }
+                    }
+                }
             }
 
             if let Some(r) =
@@ -407,18 +454,35 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
         }
         HirExpr::Index(object, index, _) => {
+            // Strict-Option subscript per typed-subscript decision
+            // 2026-05-23: list[int] / map[K] / str[int] return Option[T];
+            // out-of-bounds and wrong-receiver-type both produce None.
+            // Matches the typeck signature in checker/expr.rs Index arm.
             let obj_val = eval_expr(interp, object)?;
             let idx_val = eval_expr(interp, index)?;
             match (obj_val, idx_val) {
                 (VoxValue::List(items), VoxValue::Int(i)) => {
-                    let idx = if i < 0 {
-                        items.len().saturating_sub((-i) as usize)
-                    } else {
-                        i as usize
-                    };
-                    Ok(items.into_iter().nth(idx).unwrap_or(VoxValue::Null))
+                    if i < 0 {
+                        return Ok(VoxValue::Option(None));
+                    }
+                    Ok(VoxValue::Option(
+                        items
+                            .into_iter()
+                            .nth(i as usize)
+                            .map(Box::new),
+                    ))
                 }
-                _ => Ok(VoxValue::Null),
+                (VoxValue::Str(s), VoxValue::Int(i)) => {
+                    if i < 0 {
+                        return Ok(VoxValue::Option(None));
+                    }
+                    Ok(VoxValue::Option(
+                        s.chars()
+                            .nth(i as usize)
+                            .map(|c| Box::new(VoxValue::Str(c.to_string()))),
+                    ))
+                }
+                _ => Ok(VoxValue::Option(None)),
             }
         }
         _ => Ok(VoxValue::Null),

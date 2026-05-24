@@ -410,6 +410,11 @@ impl Printer {
                     self.out.push_str(module_specifier);
                     self.out.push('"');
                 }
+                ImportPathKind::LocalFile { path } => {
+                    self.out.push('"');
+                    self.out.push_str(path);
+                    self.out.push('"');
+                }
                 ImportPathKind::RustCrate(spec) => {
                     self.out.push_str("rust:");
                     self.out.push_str(&spec.crate_name);

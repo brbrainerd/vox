@@ -79,10 +79,19 @@ pub fn emit_main_boot(module: &HirModule) -> String {
     } else {
         out.push_str("    // 3. Register every `@scheduled` function and start the runner.\n");
         for (name, interval) in &scheduled_fns {
+            // Each duration literal is delegated to the runtime SSOT parser
+            // (`::vox_workflow_runtime::parse_duration_str`), which returns a
+            // structured DurationParseError on bad input — see ADR-041 M-3.
+            // We `.expect()` here intentionally: the only way to reach this
+            // line is if the user wrote `@scheduled("..bad..")` and the
+            // boot-time panic surfaces a clean error pointing at the literal.
+            // The previous inline parser silently fell back to 60s on parse
+            // failure, which was M-3's footgun.
             out.push_str(&format!(
                 "    ::vox_workflow_runtime::scheduled::register(\n\
                  \x20       {name_lit},\n\
-                 \x20       parse_duration_literal({interval_lit}),\n\
+                 \x20       ::vox_workflow_runtime::parse_duration_str({interval_lit})\n\
+                 \x20           .unwrap_or_else(|e| panic!(\"@scheduled({interval_lit}) on fn `{fn_call}`: {{e}}\")),\n\
                  \x20       std::sync::Arc::new(|| Box::pin(async {{\n\
                  \x20           let _ = {fn_call}().await;\n\
                  \x20           Ok(())\n\
@@ -120,8 +129,10 @@ pub fn emit_main_boot(module: &HirModule) -> String {
     out.push_str("    Ok(())\n");
     out.push_str("}\n\n");
 
-    out.push_str(PARSE_DURATION_LITERAL);
-    out.push('\n');
+    // (PARSE_DURATION_LITERAL helper retired 2026-05-24 — ADR-041 M-3/M-7.
+    // The generated `main()` now calls `::vox_workflow_runtime::parse_duration_str`
+    // directly so the codegen and runtime share one parser and bad literals
+    // surface as a structured error rather than a silent 60s fallback.)
     out.push_str(&emit_hir_embed_helper(module));
 
     out
@@ -197,16 +208,15 @@ const MAIN_BOOT_HEADER: &str = "\
 
 ";
 
-/// Inline helper emitted alongside `main()` so the binary has no extra runtime
-/// dependency on a duration-parsing crate.
-const PARSE_DURATION_LITERAL: &str = "\
-/// Parse a `@scheduled(\"…\")` interval literal into a `std::time::Duration`.
-///
-/// Accepts: `\"500ms\"`, `\"5s\"`, `\"1m\"`, `\"2h\"`, `\"1d\"`. A bare integer is
-/// interpreted as seconds (`\"30\"` → 30s) for ergonomic parity with cron-ish
-/// schedulers. Falls back to `Duration::from_secs(60)` on parse failure to
-/// avoid a panic at boot — the runtime will log the bad literal once the
-/// scheduler tracing is wired up.
+// PARSE_DURATION_LITERAL retired 2026-05-24 (ADR-041 M-3 + M-7). The emit now
+// calls `::vox_workflow_runtime::parse_duration_str` directly — one parser, no
+// silent fallback. Keeping a comment here so future maintainers can find the
+// rename via grep.
+
+#[allow(dead_code)]
+const _PARSE_DURATION_LITERAL_RETIRED_2026_05_24: &str = "\
+/// (RETIRED) replaced by ::vox_workflow_runtime::parse_duration_str — see
+/// crates/vox-workflow-runtime/src/duration_literal.rs.
 fn parse_duration_literal(s: &str) -> std::time::Duration {
     let s = s.trim();
     let (digits, unit_secs): (&str, u64) = if let Some(rest) = s.strip_suffix(\"ms\") {

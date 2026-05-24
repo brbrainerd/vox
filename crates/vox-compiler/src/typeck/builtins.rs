@@ -704,57 +704,85 @@ impl BuiltinTypes {
             "stringify".into(),
             Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
         );
+        // RFC json-ergonomics-rfc-2026-05-23 §4.1: parse returns a typed
+        // `Result[Json]` so the chainable Json method surface (`get`, `at`,
+        // `pointer`, `as_str`, ...) actually dispatches at typecheck.
         json_methods.insert(
             "parse".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::GenericParam(0))),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            ),
         );
         methods.insert("JsonModule".into(), json_methods);
 
         // Json opaque value type — produced by std.json.parse and walked via
-        // typed accessors (object-shape methods + array methods + scalar reads).
+        // typed accessors. Strict-Option API per
+        // json-ergonomics-rfc-2026-05-23. Every fallible access returns
+        // Option[T]; coercion at leaves and navigation at intermediates
+        // share one discipline.
         let mut json_value_methods = std::collections::HashMap::new();
+        let json_ty = Ty::Named("Json".into());
+
+        // Navigation (single hop) — all Option[Json].
         json_value_methods.insert(
-            "get_str".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            "get".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(json_ty.clone())))),
         );
-        json_value_methods.insert(
-            "get_int".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Int)))),
-        );
-        json_value_methods.insert(
-            "get_float".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Float)))),
-        );
-        json_value_methods.insert(
-            "get_bool".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
-        );
-        json_value_methods.insert(
-            "get_object".into(),
-            Ty::Fn(
-                vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
-            ),
-        );
-        json_value_methods.insert(
-            "get_array".into(),
-            Ty::Fn(
-                vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
-            ),
-        );
-        json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
-        json_value_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         json_value_methods.insert(
             "at".into(),
+            Ty::Fn(vec![Ty::Int], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+        );
+        json_value_methods.insert(
+            "pointer".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+        );
+
+        // Leaf coercion — Option[T]; None on wrong type OR is-null.
+        json_value_methods.insert(
+            "as_str".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        json_value_methods.insert(
+            "as_int".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Int)))),
+        );
+        json_value_methods.insert(
+            "as_float".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Float)))),
+        );
+        json_value_methods.insert(
+            "as_bool".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Bool)))),
+        );
+        json_value_methods.insert(
+            "as_array".into(),
             Ty::Fn(
-                vec![Ty::Int],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::List(Box::new(json_ty.clone()))))),
             ),
+        );
+        json_value_methods.insert(
+            "as_object".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+        );
+
+        // Inspection (no Option).
+        json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        json_value_methods.insert(
+            "has".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
+        json_value_methods.insert(
+            "length".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Int)))),
         );
         json_value_methods.insert(
             "keys".into(),
-            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::List(Box::new(Ty::Str))))),
+            ),
         );
         json_value_methods.insert("to_string".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         methods.insert("Json".into(), json_value_methods);

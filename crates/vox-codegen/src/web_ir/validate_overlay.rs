@@ -147,10 +147,13 @@ mod tests {
 
     #[test]
     fn overlay_unique_z_no_warning() {
+        // Named Z-tiers (ADR 034) — numeric z-indexes now trigger
+        // `loose_z_index` warnings regardless of uniqueness, so this
+        // test was updated to use the named-tier vocabulary.
         let m = module_with_nodes(vec![
             elem(0, vec![("data-vox-overlay", "true")], vec![1, 2]),
-            elem(1, vec![("data-vox-z", "100")], vec![]),
-            elem(2, vec![("data-vox-z", "90")], vec![]),
+            elem(1, vec![("data-vox-z", "content")], vec![]),
+            elem(2, vec![("data-vox-z", "popover")], vec![]),
         ]);
         let mut out = Vec::new();
         validate_overlay(&m, &mut out);

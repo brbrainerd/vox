@@ -95,6 +95,43 @@ pub fn call_builtin_method(
     args: Vec<VoxValue>,
     caps: Option<&std::collections::HashSet<String>>,
 ) -> Option<VoxValue> {
+    // ── Json leaf coercion on scalar receivers ─────────────────────────
+    // Json values flow through Vox as plain scalars (a JSON string is
+    // VoxValue::Str, a JSON number is Int/Float, etc.). The strict-Option
+    // leaf accessors (`as_str`, `as_int`, ...) need to work uniformly on
+    // any scalar so chains like `data.get("k").and_then(fn(j) { j.as_str() })`
+    // resolve cleanly regardless of the actual JSON shape. Per RFC
+    // json-ergonomics-rfc-2026-05-23 §4.3: None on wrong-type or null.
+    match method {
+        "as_str" => {
+            return Some(VoxValue::Option(match obj {
+                VoxValue::Str(s) => Some(Box::new(VoxValue::Str(s.clone()))),
+                _ => None,
+            }));
+        }
+        "as_int" => {
+            return Some(VoxValue::Option(match obj {
+                VoxValue::Int(i) => Some(Box::new(VoxValue::Int(*i))),
+                VoxValue::Float(f) => Some(Box::new(VoxValue::Int(*f as i64))),
+                _ => None,
+            }));
+        }
+        "as_float" => {
+            return Some(VoxValue::Option(match obj {
+                VoxValue::Float(f) => Some(Box::new(VoxValue::Float(*f))),
+                VoxValue::Int(i) => Some(Box::new(VoxValue::Float(*i as f64))),
+                _ => None,
+            }));
+        }
+        "as_bool" => {
+            return Some(VoxValue::Option(match obj {
+                VoxValue::Bool(b) => Some(Box::new(VoxValue::Bool(*b))),
+                _ => None,
+            }));
+        }
+        _ => {} // fall through to per-type dispatch below
+    }
+
     match obj {
         // ── List ──────────────────────────────────────────────────────
         VoxValue::List(v) => match method {
@@ -141,41 +178,58 @@ pub fn call_builtin_method(
                 Some(VoxValue::List(owned))
             }
             // Json-shaped arrays (`std.json.parse`, `std.csv.parse`, …) use these names in typecheck + native `VoxJson`.
-            "length" => Some(VoxValue::Int(v.len() as i64)),
+            // Strict-Option API per json-ergonomics-rfc-2026-05-23.
+            "length" => Some(VoxValue::Option(Some(Box::new(VoxValue::Int(v.len() as i64))))),
             "at" => {
                 let idx = match args.first().cloned() {
                     Some(VoxValue::Int(i)) => i,
-                    _ => {
-                        return Some(VoxValue::Result(Err(
-                            "json: invalid array index".into(),
-                        )));
-                    }
+                    _ => return Some(VoxValue::Option(None)),
                 };
                 if idx < 0 {
-                    return Some(VoxValue::Result(Err(format!(
-                        "json: negative array index {idx}"
-                    ))));
+                    return Some(VoxValue::Option(None));
                 }
                 let i = idx as usize;
                 match v.get(i) {
-                    Some(el) => Some(VoxValue::Result(Ok(Box::new(el.clone())))),
-                    None => Some(VoxValue::Result(Err(format!(
-                        "json: index {idx} out of bounds (len={})",
-                        v.len()
-                    )))),
+                    Some(el) => Some(VoxValue::Option(Some(Box::new(el.clone())))),
+                    None => Some(VoxValue::Option(None)),
                 }
             }
+            "pointer" => {
+                let path = match args.first() {
+                    Some(VoxValue::Str(s)) => s.clone(),
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                let serde_val = vox_to_json(VoxValue::List(v.clone()));
+                match serde_val.pointer(&path) {
+                    Some(found) => Some(VoxValue::Option(Some(Box::new(json_to_vox(found.clone()))))),
+                    None => Some(VoxValue::Option(None)),
+                }
+            }
+            "as_array" => Some(VoxValue::Option(Some(Box::new(VoxValue::List(v.clone()))))),
+            "as_object" | "as_str" | "as_int" | "as_float" | "as_bool" => Some(VoxValue::Option(None)),
             "is_null" => Some(VoxValue::Bool(false)),
-            "keys" => Some(VoxValue::List(vec![])),
+            "has" => Some(VoxValue::Bool(false)),
+            // Note: list's `get(int)` (line ~152) handles the int-indexed
+            // case; the json-API `get(str)` doesn't apply on a list receiver.
+            "keys" => Some(VoxValue::Option(None)),
             "to_string" => {
                 let j = vox_to_json(VoxValue::List(v.clone()));
                 Some(VoxValue::Str(serde_json::to_string(&j).unwrap_or_default()))
             }
-            "get_str" | "get_int" | "get_float" | "get_bool" | "get_object" | "get_array" => {
-                Some(VoxValue::Result(Err(
-                    "json: receiver is not an object".into(),
-                )))
+            _ => None,
+        },
+
+        // ── Null (JSON null literal) ──────────────────────────────────
+        // Json-RFC strict-Option API: a null receiver answers `is_null`
+        // affirmatively, has no fields, and produces None for any
+        // navigation/coercion. Total methods only.
+        VoxValue::Null => match method {
+            "is_null" => Some(VoxValue::Bool(true)),
+            "has" => Some(VoxValue::Bool(false)),
+            "get" | "at" | "pointer" | "as_object" | "as_array" | "length" | "keys" => {
+                Some(VoxValue::Option(None))
             }
+            "to_string" => Some(VoxValue::Str("null".to_string())),
             _ => None,
         },
 
@@ -836,6 +890,12 @@ pub fn call_builtin_method(
                 },
                 Some("process") => match method {
                     "spawn" | "run" => {
+                        // `process.run(cmd, args)` — cwd-less variant. For a
+                        // command run in a specific directory, use
+                        // `process.run_ex(cmd, args, cwd)` (Result-returning).
+                        // Keeping these as distinct methods rather than
+                        // overloading `run` matches the K-complexity-low
+                        // policy (one method, one arity).
                         let mut it = args.into_iter();
                         let cmd_name = match it.next() {
                             Some(VoxValue::Str(s)) => s,
@@ -1280,13 +1340,20 @@ pub fn call_builtin_method(
                 },
                 Some("json") => match method {
                     "parse" => {
+                        // Strict-Option JSON RFC 2026-05-23: parse returns
+                        // Result[Json] so callers can branch on parse failure
+                        // and then use the chainable typed accessors on Ok.
                         let s = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Null),
+                            _ => return Some(VoxValue::Result(Err(
+                                "json.parse: expected string argument".into(),
+                            ))),
                         };
                         match serde_json::from_str::<serde_json::Value>(&s) {
-                            Ok(v) => Some(json_to_vox(v)),
-                            Err(_) => Some(VoxValue::Null),
+                            Ok(v) => Some(VoxValue::Result(Ok(Box::new(json_to_vox(v))))),
+                            Err(e) => Some(VoxValue::Result(Err(format!(
+                                "json.parse: {e}"
+                            )))),
                         }
                     }
                     "render" | "stringify" | "encode" => {
@@ -1445,99 +1512,68 @@ fn lookup_json_field<'a>(
 }
 
 /// Json accessor surface for plain `Object` values produced by `json_to_vox` (no `__namespace__`).
-/// Matches [`vox_actor_runtime::builtins::VoxJson`] behavior for scripts running in the interpreter.
+/// Strict-Option API per json-ergonomics-rfc-2026-05-23: every fallible
+/// access returns `Option[T]`; only `to_string`/`is_null`/`has` are total.
+/// Matches [`vox_actor_runtime::builtins::VoxJson`] behavior for the
+/// `--mode interp` path.
 fn interp_json_object_methods(
     fields: &[(String, VoxValue)],
     method: &str,
     args: &[VoxValue],
 ) -> Option<VoxValue> {
-    let res_ok = |v: VoxValue| Some(VoxValue::Result(Ok(Box::new(v))));
-    let res_err = |msg: String| Some(VoxValue::Result(Err(msg)));
+    let opt_some = |v: VoxValue| Some(VoxValue::Option(Some(Box::new(v))));
+    let opt_none = || Some(VoxValue::Option(None));
+
+    // Treat absent fields as JSON-null-equivalent for `is_null` and friends,
+    // following serde_json's convention that a missing key and an explicit
+    // null both produce `None` at the navigation layer.
+    let lookup = |key: &str| lookup_json_field(fields, key);
+    let arg_key = || -> Option<&str> {
+        match args.first() {
+            Some(VoxValue::Str(s)) => Some(s.as_str()),
+            _ => None,
+        }
+    };
 
     match method {
-        "get_str" => {
-            let key = match args.first() {
-                Some(VoxValue::Str(s)) => s.as_str(),
-                Some(_) => return res_err("json: expected string key".into()),
-                None => return res_err("json: missing key argument".into()),
-            };
-            match lookup_json_field(fields, key) {
-                Some(VoxValue::Str(s)) => res_ok(VoxValue::Str(s.clone())),
-                Some(_) => res_err(format!("json: key '{key}' is not a string")),
-                None => res_err(format!("json: missing key '{key}'")),
+        // ── Navigation (Option[Json]) ─────────────────────────────────
+        "get" => {
+            let Some(key) = arg_key() else { return opt_none() };
+            match lookup(key) {
+                Some(v) => opt_some(v.clone()),
+                None => opt_none(),
             }
         }
-        "get_int" => {
-            let key = match args.first() {
-                Some(VoxValue::Str(s)) => s.as_str(),
-                Some(_) => return res_err("json: expected string key".into()),
-                None => return res_err("json: missing key argument".into()),
-            };
-            match lookup_json_field(fields, key) {
-                Some(VoxValue::Int(i)) => res_ok(VoxValue::Int(*i)),
-                Some(VoxValue::Float(f)) => res_ok(VoxValue::Int(*f as i64)),
-                Some(_) => res_err(format!("json: key '{key}' is not an integer")),
-                None => res_err(format!("json: missing key '{key}'")),
+        "at" => opt_none(), // object receiver has no integer index
+        "pointer" => {
+            let Some(path) = arg_key() else { return opt_none() };
+            // Delegate to serde_json::Value::pointer for RFC 6901 semantics.
+            let serde_val = vox_to_json(VoxValue::Object(fields.to_vec()));
+            match serde_val.pointer(path) {
+                Some(v) => opt_some(json_to_vox(v.clone())),
+                None => opt_none(),
             }
         }
-        "get_float" => {
-            let key = match args.first() {
-                Some(VoxValue::Str(s)) => s.as_str(),
-                Some(_) => return res_err("json: expected string key".into()),
-                None => return res_err("json: missing key argument".into()),
-            };
-            match lookup_json_field(fields, key) {
-                Some(VoxValue::Int(i)) => res_ok(VoxValue::Float(*i as f64)),
-                Some(VoxValue::Float(f)) => res_ok(VoxValue::Float(*f)),
-                Some(_) => res_err(format!("json: key '{key}' is not a number")),
-                None => res_err(format!("json: missing key '{key}'")),
-            }
-        }
-        "get_bool" => {
-            let key = match args.first() {
-                Some(VoxValue::Str(s)) => s.as_str(),
-                Some(_) => return res_err("json: expected string key".into()),
-                None => return res_err("json: missing key argument".into()),
-            };
-            match lookup_json_field(fields, key) {
-                Some(VoxValue::Bool(b)) => res_ok(VoxValue::Bool(*b)),
-                Some(_) => res_err(format!("json: key '{key}' is not a bool")),
-                None => res_err(format!("json: missing key '{key}'")),
-            }
-        }
-        "get_object" => {
-            let key = match args.first() {
-                Some(VoxValue::Str(s)) => s.as_str(),
-                Some(_) => return res_err("json: expected string key".into()),
-                None => return res_err("json: missing key argument".into()),
-            };
-            match lookup_json_field(fields, key) {
-                Some(VoxValue::Object(o)) => res_ok(VoxValue::Object(o.clone())),
-                Some(_) => res_err(format!("json: key '{key}' is not an object")),
-                None => res_err(format!("json: missing key '{key}'")),
-            }
-        }
-        "get_array" => {
-            let key = match args.first() {
-                Some(VoxValue::Str(s)) => s.as_str(),
-                Some(_) => return res_err("json: expected string key".into()),
-                None => return res_err("json: missing key argument".into()),
-            };
-            match lookup_json_field(fields, key) {
-                Some(VoxValue::List(l)) => res_ok(VoxValue::List(l.clone())),
-                Some(_) => res_err(format!("json: key '{key}' is not an array")),
-                None => res_err(format!("json: missing key '{key}'")),
-            }
-        }
+
+        // ── Leaf coercion on Object receiver: object IS object; nothing
+        // else matches. ───────────────────────────────────────────────
+        "as_object" => opt_some(VoxValue::Object(fields.to_vec())),
+        "as_str" | "as_int" | "as_float" | "as_bool" | "as_array" => opt_none(),
+
+        // ── Inspection ────────────────────────────────────────────────
         "is_null" => Some(VoxValue::Bool(false)),
-        "length" => Some(VoxValue::Int(0)),
-        "at" => res_err("json: receiver is not an array".into()),
+        "has" => {
+            let Some(key) = arg_key() else { return Some(VoxValue::Bool(false)) };
+            Some(VoxValue::Bool(lookup(key).is_some()))
+        }
+        "length" => opt_some(VoxValue::Int(fields.len() as i64)),
         "keys" => {
             let ks: Vec<VoxValue> = fields
                 .iter()
+                .filter(|(k, _)| k != "__namespace__")
                 .map(|(k, _)| VoxValue::Str(k.clone()))
                 .collect();
-            Some(VoxValue::List(ks))
+            opt_some(VoxValue::List(ks))
         }
         "to_string" => {
             let j = vox_to_json(VoxValue::Object(fields.to_vec()));

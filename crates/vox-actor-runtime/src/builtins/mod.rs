@@ -200,102 +200,97 @@ pub fn vox_regex_compile(pattern: &str) -> Result<VoxRegex, String> {
 pub struct VoxJson(pub serde_json::Value);
 
 impl VoxJson {
-    pub fn get_str(&self, key: String) -> Result<String, String> {
-        let obj = self
-            .0
+    // ── Navigation (single hop, returns Option) ─────────────────────────
+    // RFC json-ergonomics-rfc-2026-05-23 §4.2.
+
+    /// Object key access. `None` if receiver is not an object or key is absent.
+    pub fn get(&self, key: String) -> Option<VoxJson> {
+        self.0
             .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_str()
-            .map(|s| s.to_string())
-            .ok_or_else(|| format!("json: key '{key}' is not a string"))
+            .and_then(|o| o.get(&key))
+            .map(|v| VoxJson(v.clone()))
     }
-    pub fn get_int(&self, key: String) -> Result<i64, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_i64()
-            .ok_or_else(|| format!("json: key '{key}' is not an integer"))
+
+    /// Array index access. `None` if receiver is not an array or index is OOB.
+    /// Negative indices are not supported and yield `None`.
+    pub fn at(&self, idx: i64) -> Option<VoxJson> {
+        if idx < 0 {
+            return None;
+        }
+        self.0
+            .as_array()
+            .and_then(|a| a.get(idx as usize))
+            .map(|v| VoxJson(v.clone()))
     }
-    pub fn get_float(&self, key: String) -> Result<f64, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_f64()
-            .ok_or_else(|| format!("json: key '{key}' is not a number"))
+
+    /// RFC 6901 JSON Pointer navigation. `None` if the path does not resolve.
+    /// `data.pointer("/products/0/name")` is the canonical deep-access tool.
+    pub fn pointer(&self, path: String) -> Option<VoxJson> {
+        self.0.pointer(&path).map(|v| VoxJson(v.clone()))
     }
-    pub fn get_bool(&self, key: String) -> Result<bool, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_bool()
-            .ok_or_else(|| format!("json: key '{key}' is not a bool"))
+
+    // ── Leaf coercion (returns Option[T]) ───────────────────────────────
+    // RFC §4.3. None on wrong type OR is-null (mirrors serde_json's `as_*`).
+
+    pub fn as_str(&self) -> Option<String> {
+        self.0.as_str().map(|s| s.to_string())
     }
-    pub fn get_object(&self, key: String) -> Result<VoxJson, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        if v.is_object() {
-            Ok(VoxJson(v.clone()))
+    pub fn as_int(&self) -> Option<i64> {
+        self.0.as_i64()
+    }
+    pub fn as_float(&self) -> Option<f64> {
+        self.0.as_f64()
+    }
+    pub fn as_bool(&self) -> Option<bool> {
+        self.0.as_bool()
+    }
+    pub fn as_array(&self) -> Option<Vec<VoxJson>> {
+        self.0
+            .as_array()
+            .map(|a| a.iter().map(|v| VoxJson(v.clone())).collect())
+    }
+    /// Asserts the receiver is a JSON object. Returns the receiver itself so
+    /// chains continue navigating; use `keys()` / `has()` to inspect.
+    pub fn as_object(&self) -> Option<VoxJson> {
+        if self.0.is_object() {
+            Some(VoxJson(self.0.clone()))
         } else {
-            Err(format!("json: key '{key}' is not an object"))
+            None
         }
     }
-    pub fn get_array(&self, key: String) -> Result<VoxJson, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        if v.is_array() {
-            Ok(VoxJson(v.clone()))
-        } else {
-            Err(format!("json: key '{key}' is not an array"))
-        }
-    }
+
+    // ── Inspection (no Option) ──────────────────────────────────────────
+    // RFC §4.4.
+
+    /// True iff the value is the JSON `null` literal (the *value*; not absence).
     pub fn is_null(&self) -> bool {
         self.0.is_null()
     }
-    pub fn length(&self) -> i64 {
-        self.0.as_array().map(|a| a.len() as i64).unwrap_or(0)
+
+    /// Convenience for `self.get(key).is_some()`. Sugar shipped by user
+    /// request 2026-05-23.
+    pub fn has(&self, key: String) -> bool {
+        self.0.as_object().is_some_and(|o| o.contains_key(&key))
     }
-    pub fn at(&self, idx: i64) -> Result<VoxJson, String> {
-        if idx < 0 {
-            return Err(format!("json: negative array index {idx}"));
+
+    /// `Some(n)` when receiver is an array (n=len) or object (n=#keys);
+    /// `None` for scalars/null. Changed from `i64` to `Option[i64]` in the
+    /// strict-Option API — scalar receivers have no length.
+    pub fn length(&self) -> Option<i64> {
+        if let Some(a) = self.0.as_array() {
+            Some(a.len() as i64)
+        } else if let Some(o) = self.0.as_object() {
+            Some(o.len() as i64)
+        } else {
+            None
         }
-        let arr = self
-            .0
-            .as_array()
-            .ok_or_else(|| "json: receiver is not an array".to_string())?;
-        arr.get(idx as usize)
-            .map(|v| VoxJson(v.clone()))
-            .ok_or_else(|| format!("json: index {idx} out of bounds (len={})", arr.len()))
     }
-    pub fn keys(&self) -> Vec<String> {
+
+    /// `Some(keys)` when receiver is an object; `None` otherwise.
+    pub fn keys(&self) -> Option<Vec<String>> {
         self.0
             .as_object()
             .map(|o| o.keys().cloned().collect())
-            .unwrap_or_default()
     }
 }
 
@@ -310,6 +305,11 @@ pub fn vox_json_parse(s: &str) -> Result<VoxJson, String> {
     serde_json::from_str::<serde_json::Value>(s)
         .map(VoxJson)
         .map_err(|e| e.to_string())
+}
+
+/// Render a `VoxJson` value to a JSON string.
+pub fn vox_json_render(v: &VoxJson) -> Result<String, String> {
+    serde_json::to_string(&v.0).map_err(|e| e.to_string())
 }
 
 /// Read a process environment variable (`std.env.get` in Vox scripts).
@@ -1386,6 +1386,128 @@ pub fn vox_fs_read(path: &str) -> Result<String, String> {
 
 pub fn vox_fs_write(path: &str, content: &str) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
+/// Create a directory recursively (`std.fs.mkdir`).
+pub fn vox_fs_mkdir(path: &str) -> Result<(), String> {
+    std::fs::create_dir_all(path).map_err(|e| e.to_string())
+}
+
+// ── Phase K stdlib parity (2026-05-23) ──────────────────────────────────
+// 14 primitives bringing `--mode script` (actor-runtime) up to parity with
+// `--mode interp` (eval). Punchlist source:
+// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §Phase K.
+
+/// `std.fs.exists(path) -> bool` — does the path exist on disk?
+pub fn vox_fs_exists(path: &str) -> bool {
+    std::path::Path::new(path).exists()
+}
+
+/// `std.fs.is_file(path) -> bool` — exists AND is a regular file.
+pub fn vox_fs_is_file(path: &str) -> bool {
+    std::path::Path::new(path).is_file()
+}
+
+/// `std.fs.is_dir(path) -> bool` — exists AND is a directory.
+pub fn vox_fs_is_dir(path: &str) -> bool {
+    std::path::Path::new(path).is_dir()
+}
+
+/// `std.fs.remove(path) -> Result[Unit]` — delete a file (NOT a directory;
+/// use `vox_fs_remove_dir_all` for trees).
+pub fn vox_fs_remove(path: &str) -> Result<(), String> {
+    std::fs::remove_file(path).map_err(|e| e.to_string())
+}
+
+/// `std.path.extension(p) -> Option[str]` — file extension without the dot;
+/// `None` if the path has no extension.
+pub fn vox_path_extension(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.parent(p) -> Option[str]` — parent directory of a path; `None`
+/// for the root or empty path.
+pub fn vox_path_parent(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .parent()
+        .and_then(|p| p.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.file_name(p) -> Option[str]` — final component of a path,
+/// including extension; `None` if the path ends in `..`.
+pub fn vox_path_file_name(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.stem(p) -> Option[str]` — final component without the extension.
+pub fn vox_path_stem(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.is_absolute(p) -> bool` — true when the path is absolute on the
+/// current platform (drive letter on Windows, leading `/` on Unix).
+pub fn vox_path_is_absolute(p: &str) -> bool {
+    std::path::Path::new(p).is_absolute()
+}
+
+/// `std.path.resolve(p) -> Result[str]` — canonicalize the path against the
+/// current working directory. Errors when the path does not exist.
+pub fn vox_path_resolve(p: &str) -> Result<String, String> {
+    std::fs::canonicalize(p)
+        .map_err(|e| e.to_string())
+        .and_then(|pb| {
+            pb.to_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| "vox_path_resolve: non-utf8 path".to_string())
+        })
+}
+
+/// `std.env.args() -> list[str]` — process command-line arguments
+/// (including the program name at index 0, matching `std::env::args` Rust
+/// behavior).
+pub fn vox_env_args() -> Vec<String> {
+    std::env::args().collect()
+}
+
+/// `std.env.set(key, value)` — set an environment variable for the current
+/// process and its children. Unconditional; matches `std::env::set_var`.
+#[allow(unsafe_code)]
+pub fn vox_env_set(key: &str, value: &str) {
+    // SAFETY: `set_var` was marked unsafe in Rust 2024 due to multithreaded
+    // hazards. Vox scripts call this from the main thread before spawning
+    // subprocesses, matching the documented safe pattern.
+    unsafe { std::env::set_var(key, value); }
+}
+
+/// `std.regex.replace(pattern, haystack, replacement) -> Result[str]` —
+/// replace all matches of `pattern` in `haystack` with `replacement`.
+pub fn vox_regex_replace(
+    pattern: &str,
+    haystack: &str,
+    replacement: &str,
+) -> Result<String, String> {
+    let re = regex::Regex::new(pattern).map_err(|e| e.to_string())?;
+    Ok(re.replace_all(haystack, replacement).to_string())
+}
+
+/// `std.regex.find(pattern, haystack) -> Result[Option[str]]` — first match
+/// substring; `Ok(None)` when no match, `Err(msg)` only on bad pattern.
+pub fn vox_regex_find(
+    pattern: &str,
+    haystack: &str,
+) -> Result<Option<String>, String> {
+    let re = regex::Regex::new(pattern).map_err(|e| e.to_string())?;
+    Ok(re.find(haystack).map(|m| m.as_str().to_string()))
 }
 
 /// Convert a `dec` value to a string (`std.dec.to_string`).

@@ -3,14 +3,20 @@
 
 fn main() {
     print("--- Prep MENS Mix Inputs ---")
-    
+
     let data_dir = "mens/data"
-    // fs.mkdir is not in builtins/mod.rs yet? 
-    // Wait, let's check fs builtins.
-    
+
+    // Create the data directory if it doesn't exist
+    match std.fs.mkdir(data_dir) {
+        Ok(_) => {}
+        Error(m) => {
+            print("Failed to create directory: " + m)
+        }
+    }
+
     let one_pair = "{\"prompt\":\"CI mix smoke: hello\",\"response\":\"ok\",\"rating\":4}"
     let tool_trace = "{\"task_prompt\":\"CI tool supervision\",\"tool_name\":\"noop\",\"arguments_json\":\"{}\",\"result_json\":\"{\\\"ok\\\":true}\",\"success\":true}"
-    
+
     // Create files
     fs.write(data_dir + "/train_full_backup.jsonl", one_pair + "\n")
     fs.write(data_dir + "/tool_traces.example.jsonl", tool_trace + "\n")
@@ -18,6 +24,18 @@ fn main() {
     fs.write(data_dir + "/golden_pairs.jsonl", one_pair + "\n")
     fs.write(data_dir + "/synthetic_search.jsonl", one_pair + "\n")
     fs.write(data_dir + "/golden_validated.jsonl", one_pair + "\n")
-    
+
     print("prep_mens_mix_inputs: wrote minimal lines under " + data_dir)
+
+    // Extract golden examples to ensure training data stays synchronized
+    print("Extracting golden examples from examples/golden/...")
+    let extract_result = process.run("cargo", ["run", "-p", "vox-cli", "--", "populi", "corpus", "extract", "--input", "examples/golden"])
+    if extract_result isnt null {
+        let res = extract_result.unwrap()
+        if res.code == 0 {
+            print("  ✓ Golden examples extracted successfully")
+        } else {
+            print("  ⚠ Golden examples extraction failed (non-blocking for CI)")
+        }
+    }
 }

@@ -1475,6 +1475,59 @@ Net effect: the decorator surface shrinks from 45+ to roughly **18–22**
 canonical decorators — a 50–60 % K-complexity reduction with zero
 expressive-power loss.
 
+### 11.7 Imports / Modules / FFI audit (2026-05-23 health-corrections session)
+
+Triggered by the question: "could we extend our plugin system to use
+modules or imports or FFI? Audit what we have."
+
+**What exists today (verified by code-read 2026-05-23):**
+
+- **Symbol imports** (`import lib.chrome.StateChip`,
+  `import std.fs`) — first-class. AST: `ImportPathKind::SymbolPath`.
+- **React component imports** (`import react MyButton from "./MyButton.tsx"`)
+  — first-class for Phase 5 frontend interop.
+  AST: `ImportPathKind::ReactComponent`.
+- **Rust-crate imports** (`import rust:serde_json(version: "1.0")`) —
+  full metadata-bearing surface for declaring Rust deps inline.
+  AST: `ImportPathKind::RustCrate`.
+- **Plugin catalog** (`crates/vox-plugins-*`) — a *compile-time* registry
+  for inference / training / publication / mesh backends. Conceptually
+  separate from module imports; loaded via Cargo features.
+
+**What does NOT exist (the actual gap):**
+
+- **Intra-project Vox-file imports** (`import "./helpers/walk_docs.vox"`)
+  — file A in a project cannot `import` file B and call its `pub fn`s.
+  The lexer already has `Token::Pub` (line 73) and the AST has
+  `ImportDecl` / `ImportPathKind`, but there is no lowering or
+  resolution pipeline. **Update 2026-05-23:** the feature landed
+  end-to-end for `vox run --mode interp` AND `vox check`; real helper
+  modules now live at `scripts/mens-corpus/helpers/`
+  (`walk_docs.vox`, `walk_sources.vox`, `jsonl_writer.vox`), exercised
+  by `scripts/mens-corpus/harvest_small.vox`. The original
+  `examples/aspirational/intra-project-imports/` directory was retired;
+  its placeholder CommonJS-style pseudocode was replaced rather than
+  translated. **Original aspirational layout (kept for archival):**
+  4 files —
+  `walk_docs.vox`, `walk_sources.vox`, `emit_diagnostics.vox`,
+  `jsonl_writer.vox` — currently using CommonJS
+  `module.exports = …` as placeholder syntax pending real imports).
+
+**Decision (2026-05-23): add intra-project imports, NOT a separate
+plugin-bridge FFI.** Rationale:
+
+1. The plugin system is the right surface for compile-time backend
+   selection (CUDA vs Metal, etc.); coupling it to runtime module
+   imports would muddy two distinct concerns.
+2. The aspirational corpus *only* needs intra-project imports —
+   `harvest.vox` wants to call `walk_docs(...)` from the same project,
+   not load a binary plugin.
+3. K-complexity wins: one new import form, reuses existing `pub fn`
+   semantics, no new effect-row machinery, no FFI ABI debate.
+
+**RFC:** [`docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`](./intra-project-imports-rfc-2026-05-23.md).
+Implementation tracked as **Phase J** in §12 below.
+
 ---
 
 ## 12. Revised implementation ordering (incorporating §11)
@@ -1558,7 +1611,17 @@ failing scripts split into:
   patterns, `?` on Str, missing method dispatch on TypeVars).
 
 Items remaining:
-10. **Bucket-B per-script fixes** for the ~5 mechanical issues. Cost: ~1 day.
+10. **Bucket-B per-script fixes** — 2 of 5 landed (`run_4080_cycles.vox`
+    join-order; `generate-grammars.vox` SSOT-via-params + `.unwrap()`).
+    The other 3 (`audit-workspace-health`,
+    `audit-dependency-layers`, `generate-matrix-doc`) were re-triaged
+    on 2026-05-23 and **moved out of Bucket-B**: all three depend on
+    dynamic JSON traversal where every `.get` returns `Option[T]` and
+    adding type annotations triggers a cascade of Option-unwrap
+    errors. Real fix needs either (a) a `dynamic`/`json` value type
+    that suppresses `Option` wrapping on field access, or (b) an
+    `?` operator equivalent for Option/Result propagation. Both are
+    language-level work tracked under Phase G alongside closures.
 11. **Move closure-needing scripts** to `examples/aspirational/closures/`
     with banner headers. Cost: ~half day.
 12. **Final re-tally** after Phase G lands to merge the Bucket-A scripts back.
@@ -1575,6 +1638,145 @@ Items remaining:
 14. **Closures** (RFC + impl + tests) — unblocks ~25 scripts.
 15. **Option/Result method completion** (`.map`, `.and_then`, `.map_err`
     with closures) — couples with closures.
+
+### Phase J — intra-project Vox-file imports (~9 days; depends on closures landing in Phase G)
+
+Tracked separately from G because the language-feature concern is
+file-resolution, not lambda semantics.
+
+Status (2026-05-23): **landed end-to-end for `--mode interp`**.
+Typecheck integration + aspirational corpus migration remain.
+
+- ✅ RFC: [`intra-project-imports-rfc-2026-05-23.md`](./intra-project-imports-rfc-2026-05-23.md)
+- ✅ AST: `ImportPathKind::LocalFile { path }` variant
+  (`crates/vox-compiler/src/ast/decl/types.rs`).
+- ✅ Parser: `try_parse_local_file_import` accepts
+  `import "./path.vox" [as alias]`, rejects non-`.vox` extensions
+  (`crates/vox-compiler/src/parser/descent/decl/head.rs`).
+- ✅ HIR: `HirImport.local_file_path` / `local_file_alias` carry the
+  resolution intent forward (`crates/vox-compiler/src/hir/nodes/decl.rs`).
+- ✅ Eval resolver: `Interpreter::resolve_local_file_import` walks the
+  importer's directory, parses + lowers the target, registers `pub`
+  fns and `pub` type variants. Cycle-safe via
+  `Interpreter::loaded_imports` (idempotent re-import) plus an explicit
+  self-cycle check during transitive descent
+  (`crates/vox-compiler/src/eval/mod.rs`).
+- ✅ Scope-merge form (bare `import "./foo.vox"`): pubs land directly
+  in the importer's scope (with importer-defined names shadowing).
+- ✅ Alias form (`import "./foo.vox" as alias`): pubs land in a
+  namespace object; `alias.fn_name(args)` dispatches via new
+  Object-method routing in `eval/expr.rs` (Fn fields applied via
+  `apply_closure`; Constructor fields produce Tagged values).
+- ✅ Privacy: non-`pub` functions stay file-private (verified by manual
+  test producing `UndefinedVariable("private_helper")`).
+- ✅ CLI wiring: `vox run --mode interp` sets `Interpreter::source_path`
+  to the canonicalized file path so relative imports resolve correctly
+  (`crates/vox-cli/src/commands/run.rs`).
+
+Landed since first draft:
+- ✅ **Typecheck integration** (`typecheck_hir_module_with_path`):
+  pre-pass eagerly loads + lowers each imported `.vox` and registers
+  its `pub fn` signatures into the importer's `TypeEnv` (cycle-safe via
+  per-call visited set). Pipeline passes the importer's path through;
+  `vox check` now succeeds on bare-form imports. (Alias-form `import
+  "./x.vox" as alias` runs correctly but namespace-method typecheck
+  still treats `alias.fn(...)` as `ImportPlaceholder` — eval resolves
+  it, typecheck does not yet. Tracked separately.)
+- ✅ **Aspirational corpus retired**: the 4 placeholder files at
+  `examples/aspirational/intra-project-imports/` were pseudocode
+  (CommonJS-style `module.exports`), not working Vox. Replaced by
+  real helper modules at `scripts/mens-corpus/helpers/`
+  (`walk_docs.vox`, `walk_sources.vox`, `jsonl_writer.vox`) and an
+  entry-point pipeline at `scripts/mens-corpus/harvest_small.vox`
+  that imports all three and writes a 3,781-entry JSONL corpus
+  index against the live repo.
+
+Remaining work:
+17. **Alias-form typecheck**: extend `TypeEnv` so
+    `alias.fn_name(...)` (where `alias` came from
+    `import "./x.vox" as alias`) resolves at typecheck. Today eval
+    routes it correctly via Object-method dispatch; typecheck still
+    falls back to `ImportPlaceholder`.
+19. **CR-L gate**: a `vox-code-audit::import_cycles` detector that
+    statically warns on cycles (eval already catches them at run
+    time; the CR-L gate makes it visible in CI).
+20. **Script-mode (vox-actor-runtime) parity**: the
+    actor-runtime/native build path needs the same resolver so
+    `--mode script` works equivalently. Deferred — `--mode interp`
+    is the canonical script-execution mode today.
+
+### Phase K — vox-actor-runtime stdlib parity ✅ LANDED 2026-05-23
+
+Bring `vox-actor-runtime` (script-mode / compiled-app surface) up to
+parity with `--mode interp` so a script that runs cleanly under interp
+also runs under `--mode script` after codegen. Today the interpreter
+is canonical for scripts; this Phase closes the divergence for the
+compiled path.
+
+**Pre-flight survey (manual diff of `crates/vox-compiler/src/eval/builtins.rs`
+namespace dispatches vs `crates/vox-actor-runtime/src/builtins/mod.rs`
+`pub fn vox_*` exports, 2026-05-23):**
+
+Missing in actor-runtime, present in interp:
+
+| Namespace | Missing primitive(s) | Why it matters |
+|---|---|---|
+| `fs` | `exists`, `is_file`, `is_dir`, `remove` | Every corpus script uses `fs.exists`; compiled mode silently lacks it. |
+| `path` | `extension`, `parent`, `file_name`, `stem`, `is_absolute`, `resolve` | All present in interp. Only `path.join` (`vox_path_join_many`) exists in runtime. |
+| `env` | `args`, `set` | `env.args()` used by several scripts to pull CLI args; `env.set` rare. |
+| `regex` | `replace`, `find`, `captures` | Runtime has `vox_regex_compile` only — useless without dispatch wrappers. |
+| `time` | (none beyond `now_ms`) | Verify; interp `time.*` surface is also small. |
+
+Concrete punchlist — **all 14 landed in `crates/vox-actor-runtime/src/builtins/mod.rs`** as of 2026-05-23 (the `// ── Phase K stdlib parity` block immediately after `vox_fs_mkdir`). Codegen wire-up in the `--mode script` lowering path remains a follow-up; the native functions are ready for it.
+
+1. `vox_fs_exists(path: &str) -> bool`
+2. `vox_fs_is_file(path: &str) -> bool`
+3. `vox_fs_is_dir(path: &str) -> bool`
+4. `vox_fs_remove(path: &str) -> Result<(), String>`
+5. `vox_path_extension(p: &str) -> Option<String>`
+6. `vox_path_parent(p: &str) -> Option<String>`
+7. `vox_path_file_name(p: &str) -> Option<String>`
+8. `vox_path_stem(p: &str) -> Option<String>`
+9. `vox_path_is_absolute(p: &str) -> bool`
+10. `vox_path_resolve(p: &str) -> Result<String, String>`
+11. `vox_env_args() -> Vec<String>`
+12. `vox_env_set(k: &str, v: &str)`
+13. `vox_regex_replace(pattern: &str, haystack: &str, replacement: &str) -> Result<String, String>`
+14. `vox_regex_find(pattern: &str, haystack: &str) -> Result<Option<String>, String>`
+
+**Also tracked separately:** intra-project-import resolver
+(`Interpreter::resolve_local_file_import` from §11.7) needs an
+equivalent in the actor-runtime emit path for `--mode script` to honor
+`import "./foo.vox"`. Today only `--mode interp` resolves them.
+
+### Phase L — Corpus failing-script triage (2026-05-23, post-JSON-RFC)
+
+After landing intra-project imports + strict-Option JSON API + Phase K
+parity, the corpus stands at **41/55 passing (75%)**. Triage of the 13
+remaining failures, grouped by root cause (so fixes batch cleanly):
+
+| Bucket | Scripts | Root cause | Fix path |
+|---|---|---|---|
+| **L.1 Phonetic-operator mechanical** (`!` → `not`) | `gui-build.vox`, `setup.vox` | Pre-phonetic-operator legacy code | Sed-style 1-line fix per script |
+| **L.2 Arrow-syntax mechanical** (`->` return type → `to`) | `render-durable-animation.vox` | Pre-arrow-deprecation legacy | `vox fmt`-style rewrite (`scripts/migrate-arrows.vox` exists for exactly this — once the migrator itself parses) |
+| **L.3 Rust-path syntax** (`fs::is_dir` → `fs.is_dir`) | `migrations/2026-phase1-delete-empty-schemas-dir.vox`, `migrations/2026-phase1-delete-repo-root-strays.vox` | Authored with Rust syntax in mind | Mechanical: `::` → `.` in callsites |
+| **L.4 Regex-in-string-literal lexer interaction** | `extract_table_names.vox`, `migrate-arrows.vox` | Vox templates `{...}` clash with regex literals containing `(...)` capture groups; parser stops mid-string | Investigate: parser may need raw-string syntax (`r"..."` Rust-style), OR these scripts should embed regex via a helper |
+| **L.5 Old import syntax** (`import x from "y"`) | `index_symbols.vox` | Uses ES-module-style for non-React imports | Migrate to `import "./y.vox"` (now that intra-project imports exist!) |
+| **L.6 Closures without type annotations** | `fix-doc-categories.vox`, `migrate-corpus.vox` | Closure params typed as `<unknown>` | Add `fn(x: <Type>)` per closures RFC §11 |
+| **L.7 Result/Option not-unwrapped** | `ci/gui-registry-check.vox`, `ci/test.vox`, `scientia/acceptance-matrix.vox` | `process.run().code` accessed without `.unwrap()` (now caught by tighter typeck) | Insert `.unwrap()` or `match` on the Result |
+
+**Most-leveraged next bucket: L.4** (raw-string syntax) — would let
+multiple regex-heavy scripts pass at once, and is a small parser feature
+(probably 20-50 LoC). Worth proposing as a mini-RFC: `r"raw text"`
+matching Rust's raw-string syntax. Without it, every regex pattern in
+Vox has to dodge `{`/`}` and shell metacharacters.
+
+**Least-leveraged: L.7** — three scripts, each needs hand-inspection of
+where Option/Result types are flowing.
+
+**Quickest wins (per LoC): L.1, L.3, L.2, L.5** — all mechanical, each
+under 10 minutes per script. Estimated +6 PASS to 47/55 (~85%) for one
+afternoon of work.
 
 ### Phase H — `@endpoint` retirement (after Phase B + C settle, ~3 days)
 

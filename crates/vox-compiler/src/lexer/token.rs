@@ -353,6 +353,27 @@ pub enum Token {
     #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     IntLit(i64),
 
+    // Raw string literal: `r"..."` — no escape processing at all. Closing
+    // delimiter is the first unescaped `"`; backslashes are preserved
+    // verbatim. Use this for regex patterns, Windows paths, and any
+    // string where `\n`/`\t`/`\"` shouldn't get interpreted.
+    //
+    // Priority 6 so `r"text"` is captured here before the `r` is mis-lexed
+    // as an Ident followed by a StringLit. The pattern uses `[^"]*?` (lazy)
+    // so the first `"` after the opening `"` closes the literal. For
+    // strings containing a `"`, use the regular `"..."` form with `\"`.
+    //
+    // Added 2026-05-23 to unblock regex-heavy corpus scripts (Phase L.4
+    // bucket: extract_table_names.vox, migrate-arrows.vox) that were
+    // running their `(...)` capture groups into Vox's `{...}` template
+    // regex friction.
+    #[regex(r#"r"[^"]*""#, priority = 6, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        // Drop leading `r"` and trailing `"`.
+        Some(s[2..s.len()-1].to_string())
+    })]
+    RawStringLit(String),
+
     // Double-quoted string: any run of non-quote / non-backslash bytes, or standard escapes.
     // Backticks (U+0060) are literal — markdown-style `cmd` fragments do not close the string.
     #[regex(r#""([^"\\]|\\.)*""#, allow_greedy = true, callback = |lex| {
@@ -387,7 +408,15 @@ pub enum Token {
     // regex match any `"..."` and returned `None` for non-templates, but Logos
     // emits a lexer error on `None` rather than falling through to a lower-priority
     // pattern — which silently swallowed every plain string literal.)
-    #[regex(r#""([^"\\]|\\.)*\{([^"\\]|\\.)*\}([^"\\]|\\.)*""#, priority = 5, allow_greedy = true, callback = |lex| {
+    //
+    // The `{...}` segment must START with an identifier character (letter or
+    // underscore, optionally preceded by whitespace) — this excludes JSON
+    // literals like `"{\"key\":1}"` which have `{` followed by `\"` / `"`.
+    // Without this guard, every embedded JSON string was misclassified as a
+    // template, producing "Complex expressions in template strings not yet
+    // supported" parse errors. (RFC json-ergonomics-rfc-2026-05-23 §10
+    // migration impact — discovered while migrating audit-dependency-layers.)
+    #[regex(r#""([^"\\]|\\.)*\{\s*[a-zA-Z_]([^"\\]|\\.)*\}([^"\\]|\\.)*""#, priority = 5, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
         Some(s[1..s.len()-1].to_string())
     })]
@@ -582,6 +611,7 @@ impl std::fmt::Display for Token {
             Token::StringLit(s) => write!(f, "\"{s}\""),
             Token::TemplateStringLit(s) => write!(f, "\"{s}\""),
             Token::SingleStringLit(s) => write!(f, "'{s}'"),
+            Token::RawStringLit(s) => write!(f, "r\"{s}\""),
             Token::DecLit(s) => write!(f, "{s}dec"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),

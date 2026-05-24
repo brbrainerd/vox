@@ -115,6 +115,8 @@ impl LowerCtx {
                                     module_path: mod_path,
                                     item: path.alias.clone().unwrap_or(item),
                                     es_module_specifier: None,
+                                    local_file_path: None,
+                                    local_file_alias: None,
                                     span: path.span,
                                 });
                             }
@@ -141,6 +143,22 @@ impl LowerCtx {
                                     module_path: Vec::new(),
                                     item: local_name.clone(),
                                     es_module_specifier: Some(module_specifier.clone()),
+                                    local_file_path: None,
+                                    local_file_alias: None,
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::LocalFile { path: file_path } => {
+                                // Intra-project Vox file import (RFC 2026-05-23).
+                                // Resolution + cycle detection happens at
+                                // `Interpreter::run_module` time via
+                                // `local_file_path`.
+                                hir.imports.push(HirImport {
+                                    module_path: Vec::new(),
+                                    item: String::new(),
+                                    es_module_specifier: None,
+                                    local_file_path: Some(file_path.clone()),
+                                    local_file_alias: path.alias.clone(),
                                     span: path.span,
                                 });
                             }

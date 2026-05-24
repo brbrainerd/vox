@@ -83,16 +83,18 @@ fn has_tombstoned_syntax(line: str) to bool {
 
 fn is_skip_annotated(lines: list[str], line_idx: int) to bool {
     // Check if the enclosing code block has // vox:skip
-    // Walk backwards up to 5 lines to find the opening fence
+    // Walk backwards up to 5 lines to find the opening fence.
+    // Uses `.get(i).unwrap_or("")` for safe list access — Vox does not
+    // type subscript `lines[i]` (returns <unknown>); the strict-Option
+    // accessor closes that hole.
     let start = if line_idx > 5 { line_idx - 5 } else { 0 }
     let mut i = line_idx
     while i >= start {
-        let l = lines[i].trim()
+        let l = lines.get(i).unwrap_or("").trim()
         if l.starts_with("// vox:skip") {
             return true
         }
         if l.starts_with("```") and i < line_idx {
-            // Hit a fence above but no vox:skip found
             return false
         }
         i = i - 1
@@ -101,7 +103,9 @@ fn is_skip_annotated(lines: list[str], line_idx: int) to bool {
 }
 
 fn scan_file(file_path: str) to list[str] {
-    let content = fs.read_to_string(file_path)
+    let content_res = fs.read_to_string(file_path)
+    if content_res.is_err() { return [] }
+    let content = content_res.unwrap()
     let lines = content.split("\n")
     let mut violations = []
     let mut line_num = 0

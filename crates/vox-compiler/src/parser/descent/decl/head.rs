@@ -18,6 +18,12 @@ impl Parser {
         self.advance(); // eat 'import'
         let mut paths = Vec::new();
         loop {
+            if self.try_parse_local_file_import(&mut paths)? {
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+                continue;
+            }
             if self.try_parse_react_component_import(&mut paths)? {
                 if !self.eat(&Token::Comma) {
                     break;
@@ -42,6 +48,47 @@ impl Parser {
             paths,
             span: start.merge(self.span()),
         }))
+    }
+
+    /// `import "./helpers/walk_docs.vox" [as alias]` — intra-project Vox file
+    /// import. Returns `Ok(false)` without consuming input when the next token
+    /// isn't a string literal. Rejects strings that don't end in `.vox` so
+    /// authors don't confuse this with arbitrary asset imports.
+    /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
+    fn try_parse_local_file_import(
+        &mut self,
+        paths: &mut Vec<ImportPath>,
+    ) -> Result<bool, ()> {
+        let seg_start = self.span();
+        let path = match self.peek().clone() {
+            Token::StringLit(s) | Token::SingleStringLit(s) => s,
+            _ => return Ok(false),
+        };
+        self.advance();
+        if !path.ends_with(".vox") {
+            self.errors.push(ParseError::classified(
+                seg_start,
+                format!(
+                    "Intra-project import path must end with `.vox` (got `{path}`). Use `import \"./helpers/foo.vox\"`."
+                ),
+                vec!["\"./relative/path.vox\"".into()],
+                Some(path.clone()),
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        }
+        let alias = if matches!(self.peek(), Token::Ident(w) if w == "as") {
+            self.advance();
+            Some(self.parse_ident_name()?)
+        } else {
+            None
+        };
+        paths.push(ImportPath {
+            kind: ImportPathKind::LocalFile { path },
+            alias,
+            span: seg_start.merge(self.span()),
+        });
+        Ok(true)
     }
 
     /// `import react LocalName from "./Component.tsx"` — Phase 5 React interop.

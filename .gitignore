@@ -203,3 +203,7 @@ crates/vox-dashboard/dist/
 docs/src/SUMMARY.md
 docs/src/feed.xml
 docs/src/architecture/architecture-index.md
+
+
+# insta pending-review snapshots — local-only, regenerated each test run
+**/*.snap.new

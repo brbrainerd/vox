@@ -7,7 +7,7 @@ fn main() {
     print("📦 Building Vox GUI Frontend...");
     
     // 1. Install dependencies if node_modules is missing
-    if !std.fs.exists(ui_dir + "/node_modules") {
+    if not std.fs.exists(ui_dir + "/node_modules") {
         print("  - Installing NPM dependencies...");
         let install_res = std.process.run("pnpm", ["install"], { cwd: ui_dir });
         if install_res.exit_code != 0 {

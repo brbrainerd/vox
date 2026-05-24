@@ -26,7 +26,7 @@ impl Parser {
                     span: start,
                 }
             }
-            Token::StringLit(s) | Token::SingleStringLit(s) => {
+            Token::StringLit(s) | Token::SingleStringLit(s) | Token::RawStringLit(s) => {
                 self.advance();
                 Expr::StringLit {
                     value: s,
