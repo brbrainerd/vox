@@ -1,18 +1,10 @@
 //! Interpreter-only implementations for structured shell-tier stdlib (`std.fs.*`, `std.csv`, etc.).
 //!
-//! Codegen lowers the same surface to `vox_actor_runtime::builtins`. This module exists only to
-//! avoid a Cargo cycle (`vox-compiler` → `vox-actor-runtime` → … → `vox-compiler`).
+//! Codegen lowers the same surface to `vox_actor_runtime::builtins`.
+//! The shared file-record type lives in `vox-shell-stdlib-types` to avoid the
+//! Cargo cycle (`vox-compiler` → `vox-actor-runtime` → … → `vox-compiler`).
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct InterpFileRecord {
-    pub name: String,
-    pub path: String,
-    pub size: i64,
-    pub modified_ms: i64,
-    pub is_dir: bool,
-    pub is_file: bool,
-    pub is_symlink: bool,
-}
+pub(crate) use vox_shell_stdlib_types::fs_types::VoxFileRecord as InterpFileRecord;
 
 fn file_record_from_meta(
     full_path: &str,

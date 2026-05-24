@@ -142,6 +142,7 @@ vox-research-events       = { path = "crates/vox-research-events" }
 
 vox-rename-registry       = { path = "crates/vox-rename-registry" }
 vox-repository            = { path = "crates/vox-repository" }
+vox-shell-stdlib-types    = { path = "crates/vox-shell-stdlib-types" }
 vox-rule-pack             = { path = "crates/vox-rule-pack" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }

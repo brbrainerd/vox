@@ -79,7 +79,8 @@ vox-mesh-types         = { layer = 0 }
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
-vox-rename-registry   = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
+vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
+vox-shell-stdlib-types    = { layer = 0, staleness_exempt = true }   # VoxFileRecord + std.fs types; shared between compiler interp path and actor-runtime codegen path
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }

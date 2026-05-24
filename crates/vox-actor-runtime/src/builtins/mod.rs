@@ -328,17 +328,7 @@ pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// One directory entry with structured metadata (`std.fs.list_dir_detailed` / `std.fs.stat`).
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct VoxFileRecord {
-    pub name: String,
-    pub path: String,
-    pub size: i64,
-    pub modified_ms: i64,
-    pub is_dir: bool,
-    pub is_file: bool,
-    pub is_symlink: bool,
-}
+pub use vox_shell_stdlib_types::fs_types::VoxFileRecord;
 
 fn vox_file_record_from_meta(
     full_path: &str,
