@@ -81,52 +81,27 @@ impl BuiltinTypes {
             fields: vec![],
         });
 
-        // Ok(value: T) → Result[T, E]
-        // Polymorphic in both T and E so two-param Result[T, E] surfaces unify.
+        // Ok(value: T) → Result[T]
         env.define(
             "Ok".into(),
             Binding {
                 ty: Ty::Fn(
                     vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Result(
-                        Box::new(Ty::GenericParam(0)),
-                        Box::new(Ty::GenericParam(1)),
-                    )),
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
                 is_deprecated: false,
             },
         );
-        // Error(payload: E) → Result[T, E]
-        // Polymorphic; before two-param Result landed this was fixed to
-        // Error(str), which is why the marquee fixtures had to fall back
-        // to string error payloads.
+        // Error(message: str) → Result[T]
         env.define(
             "Error".into(),
             Binding {
                 ty: Ty::Fn(
-                    vec![Ty::GenericParam(1)],
-                    Box::new(Ty::Result(
-                        Box::new(Ty::GenericParam(0)),
-                        Box::new(Ty::GenericParam(1)),
-                    )),
-                ),
-                mutable: false,
-                kind: BindingKind::Constructor,
-                is_deprecated: false,
-            },
-        );
-        // Err is an alias of Error for Rust-familiar source.
-        env.define(
-            "Err".into(),
-            Binding {
-                ty: Ty::Fn(
-                    vec![Ty::GenericParam(1)],
-                    Box::new(Ty::Result(
-                        Box::new(Ty::GenericParam(0)),
-                        Box::new(Ty::GenericParam(1)),
-                    )),
+                    vec![Ty::Str],
+                    // Error returns Result[T]
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
@@ -156,14 +131,11 @@ impl BuiltinTypes {
 
         // ── Standard library functions ────────────────────────
 
-        // print(value: any) → Unit
-        // Polymorphic — eval-side prints via the Str-conversion helper,
-        // so accepting any type at typecheck matches runtime behavior
-        // and unblocks `print(i)` for non-string i (the Vox source idiom).
+        // print(value: str) → Unit
         env.define(
             "print".into(),
             Binding {
-                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Unit)),
+                ty: Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)),
                 mutable: false,
                 kind: BindingKind::Function,
                 is_deprecated: false,
@@ -205,18 +177,6 @@ impl BuiltinTypes {
             },
         );
 
-        // to_string(value: any) → str — common alias for str() that
-        // shows up in golden examples like inventory_rosetta_core.
-        env.define(
-            "to_string".into(),
-            Binding {
-                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
-                mutable: false,
-                kind: BindingKind::Function,
-                is_deprecated: false,
-            },
-        );
-
         // int(value: any) → int
         env.define(
             "int".into(),
@@ -250,85 +210,6 @@ impl BuiltinTypes {
             },
         );
 
-        // ── Streaming primitives ───────────────────────────────────────────
-        //
-        // `subscribe(actor_type) -> Stream[str]` subscribes to an actor's
-        // broadcast channel. Used inside `@endpoint(kind: stream)` bodies
-        // to wire the SSE handler to actor-emitted events:
-        //
-        // ```vox
-        // @endpoint(kind: stream)
-        // fn watch_room() to Stream[str] {
-        //     return subscribe(ChatRoom)
-        // }
-        // ```
-        //
-        // The runtime side is `vox_actor_runtime::SubscriptionManager`. For
-        // v1.0 the broadcast payload type is `str`; per-actor message types
-        // land in a follow-up (currently the actor's `on broadcast(...)` is
-        // not threaded through the type-checker as the stream element type).
-        //
-        // The first argument is an actor type name — passed by-name like a
-        // type, not as a value. We type it as `GenericParam(0)` and
-        // postpone the strict shape check until the per-actor message
-        // type lands.
-        env.define(
-            "subscribe".into(),
-            Binding {
-                ty: Ty::Fn(
-                    vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Stream(Box::new(Ty::Str))),
-                ),
-                mutable: false,
-                kind: BindingKind::Function,
-                is_deprecated: false,
-            },
-        );
-
-        // `broadcast(msg)` — called from inside an actor handler body to
-        // push a message to every active `subscribe(...)` receiver. The
-        // codegen lowers this to `vox_actor_runtime::SubscriptionManager::notify`
-        // keyed by the actor name (the channel keys are shared between
-        // `subscribe` and `broadcast` in the runtime). For v1.0 the
-        // payload is opaque (any element type) since the broadcast
-        // channel itself currently signals only — the actual message
-        // payload flows back to clients via the SSE re-fetch convention
-        // (Convex-style invalidation).
-        env.define(
-            "broadcast".into(),
-            Binding {
-                ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Unit)),
-                mutable: false,
-                kind: BindingKind::Function,
-                is_deprecated: false,
-            },
-        );
-
-        // ── Capability tokens (capability-grants-ssot) ─────────────────────
-        //
-        // `cap` is an opaque named type. Users obtain a `cap` value from a
-        // capability grant and pass it through to operations that need
-        // proof of authorization. The only operation defined directly on
-        // a `cap` value today is `has_capability(c)` → bool, which the
-        // runtime uses to verify the token is still active.
-        //
-        // Registering `cap` here means callers can write
-        // `fn import_csv(c: cap, path: str)` and the type-checker resolves
-        // `cap` to this opaque Named instead of falling through to the
-        // "Undefined type" diagnostic. The implementation surface
-        // (capability tables, grant lifecycle, revocation) lives in
-        // the runtime layer and is opaque to the type system.
-        env.define_type("cap".into(), Ty::Named("cap".into()));
-        env.define(
-            "has_capability".into(),
-            Binding {
-                ty: Ty::Fn(vec![Ty::Named("cap".into())], Box::new(Ty::Bool)),
-                mutable: false,
-                kind: BindingKind::Function,
-                is_deprecated: false,
-            },
-        );
-
         // range(start: int, end: int) → List[int]
         env.define(
             "range".into(),
@@ -350,33 +231,6 @@ impl BuiltinTypes {
                 ty: Ty::Option(Box::new(Ty::GenericParam(0))),
                 mutable: false,
                 kind: BindingKind::Constructor,
-                is_deprecated: false,
-            },
-        );
-
-        // Unit → Ty::Unit. Used as the payload of `Ok(Unit)` and
-        // `Result[Unit]` returns. eval/expr.rs already resolves the
-        // ident; this is the typecheck-side binding so source like
-        // `fn send() to Result[Unit] { return Ok(Unit) }` typechecks.
-        env.define(
-            "Unit".into(),
-            Binding {
-                ty: Ty::Unit,
-                mutable: false,
-                kind: BindingKind::Constructor,
-                is_deprecated: false,
-            },
-        );
-
-        // panic(msg: str) → Never. Canonical Vox surface but missing
-        // from the typecheck builtin set; eval-side raises
-        // EvalError::Panic when invoked.
-        env.define(
-            "panic".into(),
-            Binding {
-                ty: Ty::Fn(vec![Ty::Str], Box::new(Ty::Never)),
-                mutable: false,
-                kind: BindingKind::Function,
                 is_deprecated: false,
             },
         );
@@ -443,6 +297,31 @@ impl BuiltinTypes {
             "secrets".into(),
             Binding {
                 ty: Ty::Named("SecretsModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // regex module (eval-side registered 2026-05-23). The compiled-Regex
+        // value is a separate Ty::Named("Regex") that already has methods —
+        // this binding is the namespace for the free-function calls
+        // `regex.replace` / `regex.is_match` / `regex.captures`.
+        env.define(
+            "regex".into(),
+            Binding {
+                ty: Ty::Named("RegexModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // log module (level-tagged stderr-channel diagnostics).
+        env.define(
+            "log".into(),
+            Binding {
+                ty: Ty::Named("LogModule".into()),
                 mutable: false,
                 kind: BindingKind::Import,
                 is_deprecated: false,
@@ -636,23 +515,111 @@ impl BuiltinTypes {
             "contains".into(),
             Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Bool)),
         );
+        // Closure-taking iterator methods (eval impls in apply_closure_method).
+        // Per closures RFC §9.6 — typeck registers Ty::Fn closure params so
+        // `xs.any(fn(x) { ... })` etc. typechecks.
+        list_methods.insert(
+            "any".into(),
+            Ty::Fn(
+                vec![Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Bool))],
+                Box::new(Ty::Bool),
+            ),
+        );
+        list_methods.insert(
+            "all".into(),
+            Ty::Fn(
+                vec![Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Bool))],
+                Box::new(Ty::Bool),
+            ),
+        );
+        list_methods.insert(
+            "for_each".into(),
+            Ty::Fn(
+                vec![Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Unit))],
+                Box::new(Ty::Unit),
+            ),
+        );
+        // `fold(init, fn(acc, item) { ... })` — accumulator + closure.
+        list_methods.insert(
+            "fold".into(),
+            Ty::Fn(
+                vec![
+                    Ty::GenericParam(1),
+                    Ty::Fn(
+                        vec![Ty::GenericParam(1), Ty::GenericParam(0)],
+                        Box::new(Ty::GenericParam(1)),
+                    ),
+                ],
+                Box::new(Ty::GenericParam(1)),
+            ),
+        );
         methods.insert("List".into(), list_methods);
 
-        // Fs module methods
+        // Fs module methods. Every entry mirrors a registered arm in
+        // `crates/vox-compiler/src/eval/builtins.rs`. Adding methods here without
+        // a matching eval impl will cause typecheck to pass and runtime to fail
+        // — the stdlib-coverage gate at `vox audit stdlib-coverage` catches this
+        // direction of drift (registered_but_undocumented warns + corpus runs).
         let mut fs_methods = std::collections::HashMap::new();
+        // `fs.read` / `fs.read_file` / `fs.read_to_string` share an or-pattern.
+        for name in ["read", "read_file", "read_to_string"] {
+            fs_methods.insert(
+                name.into(),
+                Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+            );
+        }
+        // `fs.write` / `fs.write_file` / `fs.write_to_file` are or-pattern aliases.
+        for name in ["write", "write_file", "write_to_file"] {
+            fs_methods.insert(
+                name.into(),
+                Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
+            );
+        }
+        // `fs.cwd` — current working directory.
         fs_methods.insert(
-            "read_file".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+            "cwd".into(),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
+        // `fs.copy(src, dst)` — copy a file. Eval impl uses `std::fs::copy`.
         fs_methods.insert(
-            "write_file".into(),
-            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool)),
+            "copy".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
         );
+        // `fs.remove(path)` — remove a file. For directories use remove_dir_all.
+        fs_methods.insert(
+            "remove".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
+        );
+        // `fs.walk(dir)` / `fs.list_recursive(dir)` — recursive lister; eval
+        // aliases both to a `**/*` glob expansion.
+        for name in ["walk", "list_recursive"] {
+            fs_methods.insert(
+                name.into(),
+                Ty::Fn(
+                    vec![Ty::Str],
+                    Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
+                ),
+            );
+        }
+        fs_methods.insert("exists".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
+        fs_methods.insert("is_file".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
+        fs_methods.insert("is_dir".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
         fs_methods.insert(
             "list_dir".into(),
             Ty::Fn(
                 vec![Ty::Str],
                 Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
+            ),
+        );
+        fs_methods.insert(
+            "list_dir_detailed".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Record(vec![
+                    ("name".into(), Ty::Str),
+                    ("path".into(), Ty::Str),
+                    ("is_dir".into(), Ty::Bool),
+                ])))), Box::new(Ty::Str))),
             ),
         );
         fs_methods.insert(
@@ -662,15 +629,74 @@ impl BuiltinTypes {
                 Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
             ),
         );
+        fs_methods.insert(
+            "mkdir".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str)))),
+        );
+        fs_methods.insert(
+            "remove_dir_all".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str)))),
+        );
+        fs_methods.insert(
+            "stat".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Record(vec![
+                    ("is_dir".into(), Ty::Bool),
+                    ("is_file".into(), Ty::Bool),
+                    ("size".into(), Ty::Int),
+                ])), Box::new(Ty::Str))),
+            ),
+        );
         methods.insert("FsModule".into(), fs_methods);
 
-        // Path module methods
+        // Path module methods. `extension` / `parent` / `file_name` / `stem` /
+        // `is_absolute` registered alongside `path.join` 2026-05-23 (audit doc §10).
         let mut path_methods = std::collections::HashMap::new();
         path_methods.insert(
             "join".into(),
             Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
         );
+        for name in ["extension", "parent", "file_name", "stem"] {
+            path_methods.insert(name.into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)));
+        }
+        path_methods.insert("is_absolute".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
         methods.insert("PathModule".into(), path_methods);
+
+        // Regex module methods (the free-function namespace, distinct from
+        // `Ty::Named("Regex")` which is the compiled-Regex value type with its
+        // own method set below). Eval-side registered 2026-05-23.
+        let mut regex_module_methods = std::collections::HashMap::new();
+        regex_module_methods.insert(
+            "replace".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str, Ty::Str], Box::new(Ty::Str)),
+        );
+        regex_module_methods.insert(
+            "is_match".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool)),
+        );
+        regex_module_methods.insert(
+            "captures".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::Str],
+                Box::new(Ty::Option(Box::new(Ty::List(Box::new(Ty::Str))))),
+            ),
+        );
+        // `regex.compile(pattern) -> Result[Regex]` — pre-validate pattern.
+        // Returns the pattern string back on success (no dedicated compiled-
+        // Regex value type in interp yet; see audit doc §10 for rationale).
+        regex_module_methods.insert(
+            "compile".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+        );
+        methods.insert("RegexModule".into(), regex_module_methods);
+
+        // Log module methods (level-tagged stderr-channel output).
+        let mut log_methods = std::collections::HashMap::new();
+        for name in ["debug", "info", "warn", "error"] {
+            log_methods.insert(name.into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)));
+        }
+        methods.insert("LogModule".into(), log_methods);
 
         // Json module methods
         let mut json_methods = std::collections::HashMap::new();
@@ -678,62 +704,94 @@ impl BuiltinTypes {
             "stringify".into(),
             Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
         );
+        // RFC json-ergonomics-rfc-2026-05-23 §4.1: parse returns a typed
+        // `Result[Json]` so the chainable Json method surface (`get`, `at`,
+        // `pointer`, `as_str`, ...) actually dispatches at typecheck.
         json_methods.insert(
             "parse".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::GenericParam(0))),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
+            ),
         );
         methods.insert("JsonModule".into(), json_methods);
 
         // Json opaque value type — produced by std.json.parse and walked via
-        // typed accessors (object-shape methods + array methods + scalar reads).
+        // typed accessors. Strict-Option API per
+        // json-ergonomics-rfc-2026-05-23. Every fallible access returns
+        // Option[T]; coercion at leaves and navigation at intermediates
+        // share one discipline.
         let mut json_value_methods = std::collections::HashMap::new();
+        let json_ty = Ty::Named("Json".into());
+
+        // Navigation (single hop) — all Option[Json].
         json_value_methods.insert(
-            "get_str".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+            "get".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(json_ty.clone())))),
         );
-        json_value_methods.insert(
-            "get_int".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str)))),
-        );
-        json_value_methods.insert(
-            "get_float".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Float), Box::new(Ty::Str)))),
-        );
-        json_value_methods.insert(
-            "get_bool".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
-        );
-        json_value_methods.insert(
-            "get_object".into(),
-            Ty::Fn(
-                vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
-            ),
-        );
-        json_value_methods.insert(
-            "get_array".into(),
-            Ty::Fn(
-                vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
-            ),
-        );
-        json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
-        json_value_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         json_value_methods.insert(
             "at".into(),
+            Ty::Fn(vec![Ty::Int], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+        );
+        json_value_methods.insert(
+            "pointer".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+        );
+
+        // Leaf coercion — Option[T]; None on wrong type OR is-null.
+        json_value_methods.insert(
+            "as_str".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        json_value_methods.insert(
+            "as_int".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Int)))),
+        );
+        json_value_methods.insert(
+            "as_float".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Float)))),
+        );
+        json_value_methods.insert(
+            "as_bool".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Bool)))),
+        );
+        json_value_methods.insert(
+            "as_array".into(),
             Ty::Fn(
-                vec![Ty::Int],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::List(Box::new(json_ty.clone()))))),
             ),
+        );
+        json_value_methods.insert(
+            "as_object".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+        );
+
+        // Inspection (no Option).
+        json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        json_value_methods.insert(
+            "has".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
+        json_value_methods.insert(
+            "length".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Int)))),
         );
         json_value_methods.insert(
             "keys".into(),
-            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::List(Box::new(Ty::Str))))),
+            ),
         );
         json_value_methods.insert("to_string".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         methods.insert("Json".into(), json_value_methods);
 
-        // Process module methods
+        // Process module methods. `run` / `spawn` return `Option[Record]`
+        // matching the eval impl (Some(Object) on success, None on spawn
+        // failure). Corpus scripts that access `.code` directly without
+        // unwrapping the Option are bugs and surface as type errors here —
+        // that's the diagnostic doing its job.
         let mut process_methods = std::collections::HashMap::new();
         let process_output = Ty::Record(vec![
             ("stdout".into(), Ty::Str),
@@ -760,6 +818,33 @@ impl BuiltinTypes {
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
                 Box::new(Ty::Option(Box::new(process_output.clone()))),
             ),
+        );
+        // `run_ex` — variant of `run` that also takes a cwd + env map. Same
+        // return shape. The 3-arg form matches the corpus call sites.
+        process_methods.insert(
+            "run_ex".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str)), Ty::Str],
+                Box::new(Ty::Result(Box::new(process_output.clone()), Box::new(Ty::Str))),
+            ),
+        );
+        // `run_capture_lines` — stdout split on newlines.
+        process_methods.insert(
+            "run_capture_lines".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
+            ),
+        );
+        // `process.cwd` — same as `fs.cwd`, aliased under process namespace.
+        process_methods.insert(
+            "cwd".into(),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+        );
+        // `process.which(cmd)` — locate binary on PATH; cross-platform.
+        process_methods.insert(
+            "which".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
         );
         process_methods.insert(
             "exec".into(),
@@ -802,21 +887,33 @@ impl BuiltinTypes {
         );
         methods.insert("SecretsModule".into(), secrets_methods);
 
-        // String methods
+        // String methods. Mirror the eval-side method dispatch on
+        // `VoxValue::Str`. The `to_lowercase` / `to_uppercase` aliases match
+        // eval's or-pattern arms.
         let mut str_methods = std::collections::HashMap::new();
         str_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        str_methods.insert("len".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        str_methods.insert("chars_count".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        str_methods.insert("is_empty".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
         str_methods.insert("contains".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
         str_methods.insert(
             "split".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::List(Box::new(Ty::Str)))),
         );
-        str_methods.insert("trim".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
-        str_methods.insert("to_upper".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
-        str_methods.insert("to_lower".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        for name in ["trim", "trim_start", "trim_end"] {
+            str_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        }
+        for name in ["to_upper", "to_uppercase", "to_lower", "to_lowercase"] {
+            str_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        }
+        for name in ["to_str", "to_string"] {
+            str_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        }
         str_methods.insert(
             "replace".into(),
             Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
         );
+        str_methods.insert("repeat".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Str)));
         str_methods.insert(
             "ends_with".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
@@ -967,14 +1064,57 @@ impl BuiltinTypes {
         req_methods.insert("text".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         methods.insert("Request".into(), req_methods);
 
-        // Option methods
+        // Option methods. `unwrap_or` / `unwrap_or_default` / `expect` mirror
+        // the eval-side dispatch arms on `VoxValue::Option`. The closure-taking
+        // methods (`map`, `and_then`) are deferred until closures land per
+        // audit doc §11/§12 Phase G.
         let mut option_methods = std::collections::HashMap::new();
         option_methods.insert(
             "unwrap".into(),
             Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
         );
+        option_methods.insert(
+            "unwrap_or".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::GenericParam(0))),
+        );
+        option_methods.insert(
+            "unwrap_or_default".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        option_methods.insert(
+            "expect".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::GenericParam(0))),
+        );
         option_methods.insert("is_some".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
         option_methods.insert("is_none".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        // Closure-taking Option methods (eval in apply_closure_method).
+        option_methods.insert(
+            "map".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::GenericParam(1)),
+                )],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(1)))),
+            ),
+        );
+        option_methods.insert(
+            "and_then".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::Option(Box::new(Ty::GenericParam(1)))),
+                )],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(1)))),
+            ),
+        );
+        option_methods.insert(
+            "filter".into(),
+            Ty::Fn(
+                vec![Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Bool))],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
         methods.insert("Option".into(), option_methods);
 
         // Response methods
@@ -987,49 +1127,119 @@ impl BuiltinTypes {
         resp_methods.insert("status".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         methods.insert("Response".into(), resp_methods);
 
-        // Result methods
+        // Result methods. Mirrors the eval-side dispatch on
+        // `VoxValue::Result(Ok(_) | Err(_))`. Closure-taking methods (`map`,
+        // `map_err`, `and_then`) are deferred until closures land per
+        // audit doc §11/§12 Phase G.
         let mut result_methods = std::collections::HashMap::new();
         result_methods.insert(
             "unwrap".into(),
             Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
         );
+        result_methods.insert(
+            "unwrap_or".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::GenericParam(0))),
+        );
+        result_methods.insert(
+            "unwrap_or_default".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        result_methods.insert(
+            "expect".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::GenericParam(0))),
+        );
         result_methods.insert("is_ok".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
         result_methods.insert("is_err".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        result_methods.insert("unwrap_err".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        result_methods.insert(
+            "ok".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
+        );
+        result_methods.insert(
+            "err".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        // Closure-taking Result methods (eval in apply_closure_method).
+        result_methods.insert(
+            "map".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::GenericParam(1)),
+                )],
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
+            ),
+        );
+        result_methods.insert(
+            "map_err".into(),
+            Ty::Fn(
+                vec![Ty::Fn(vec![Ty::Str], Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
+            ),
+        );
+        result_methods.insert(
+            "and_then".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
+                )],
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
+            ),
+        );
         methods.insert("Result".into(), result_methods);
+
+        // Int methods (scalar, no namespace marker — looked up via
+        // `Ty::Int` → `"Int"` key per `lookup_method` fallback chain).
+        let mut int_methods = std::collections::HashMap::new();
+        for name in ["to_str", "to_string"] {
+            int_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        }
+        int_methods.insert("abs".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        int_methods.insert("min".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Int)));
+        int_methods.insert("max".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Int)));
+        methods.insert("Int".into(), int_methods);
+
+        // Float methods.
+        let mut float_methods = std::collections::HashMap::new();
+        for name in ["to_str", "to_string"] {
+            float_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        }
+        for name in ["abs", "floor", "ceil", "round", "sqrt"] {
+            float_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Float)));
+        }
+        methods.insert("Float".into(), float_methods);
+
+        // Bool methods (used as `b.to_string()` in scripts). Eval-side has
+        // both `to_str` and `to_string`; `to_s` (Ruby-style) is intentionally
+        // absent — see audit doc §2 issue-set.
+        let mut bool_methods = std::collections::HashMap::new();
+        for name in ["to_str", "to_string"] {
+            bool_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        }
+        methods.insert("Bool".into(), bool_methods);
 
         Self { methods }
     }
 
     /// Look up a method on a given type.
     pub fn lookup_method(&self, obj_ty: &Ty, method: &str) -> Option<Ty> {
-        if let Ty::Table(name, fields) = obj_ty {
-            // Row type: use the Named alias of the @table so callers writing
-            // `fn list_todos() to List[Todo]` unify with what db.Todo.all()
-            // returns. The Record-shape form is kept as a fallback for the
-            // insert input (so { ... } object literals still type-check
-            // against the column shape).
-            let row_ty = Ty::Named(name.clone());
-            let record_ty = Ty::Record(fields.clone());
+        if let Ty::Table(_, fields) = obj_ty {
             return match method {
                 "insert" => {
-                    // insert(item: Record) -> Result[Id[T]] / Result[int]
-                    // The input is still Record-shaped so { title: ... }
-                    // literals match. The output is the row's Named type
-                    // wrapped — callers expecting Result[Id[T]] need a
-                    // follow-on for the Id[T] codepath; today the int
-                    // return matches the existing examples (blog_fullstack
-                    // returns `Result[Id[Post]]` against Result[int] —
-                    // that's a separate gap).
+                    // insert(item: Record) -> Result[i64]
+                    let item_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
-                        vec![record_ty.clone()],
+                        vec![item_ty],
                         Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
                     ))
                 }
                 "get" => {
-                    // get(id: int) -> Result[Option[Row]]
+                    // get(id: int) -> Result[Option[Record]]
+                    let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 "delete" => {
@@ -1040,49 +1250,26 @@ impl BuiltinTypes {
                     ))
                 }
                 "query" => {
-                    // query(sql: str) -> Result[List[Row]]
+                    // query(sql: str) -> Result[List[Record]] (Simplified params)
+                    let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Str],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 "all" => {
-                    // all() -> Result[List[Row]]
+                    let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))))),
                 "find" => {
-                    // find(id: int) -> Result[Option[Row]]
+                    let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
-                    ))
-                }
-                "filter" => {
-                    // filter({ field: value, ... }) -> Result[List[Row]]
-                    // The predicate input mirrors the row column shape so
-                    // partial-match object literals (`{ name: "x" }`) type-
-                    // check against the table's columns.
-                    Some(Ty::Fn(
-                        vec![record_ty.clone()],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(row_ty.clone()))), Box::new(Ty::Str))),
-                    ))
-                }
-                "update" => {
-                    // update(id: int, { field: value, ... }) -> Result[Unit]
-                    Some(Ty::Fn(
-                        vec![Ty::Int, record_ty.clone()],
-                        Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
-                    ))
-                }
-                "first" => {
-                    // first() -> Result[Option[Row]]
-                    Some(Ty::Fn(
-                        vec![],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(row_ty))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 _ => None,
@@ -1110,6 +1297,9 @@ impl BuiltinTypes {
             Ty::Named(n) => n.as_str(),
             Ty::List(_) => "List",
             Ty::Str => "Str",
+            Ty::Int => "Int",
+            Ty::Float => "Float",
+            Ty::Bool => "Bool",
             Ty::Result(_, _) => "Result",
             Ty::Option(_) => "Option",
             _ => return None,
