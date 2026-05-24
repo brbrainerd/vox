@@ -58,6 +58,6 @@ symbols:
     replacement: "sync_to_db()"
     rationale: "Renamed to sync_to_db() for clarity."
   - id: vox-ml-cli-standalone
-    pattern: "\\bvox-ml-cli\\b"
-    replacement: "vox-populi"
-    rationale: "Now part of vox-populi."
+    pattern: "\\bvox-ml-cli-standalone\\b"
+    replacement: "vox-ml-cli"
+    rationale: "The `-standalone` suffix dates to when the binary was split from the workspace; the canonical crate name is now `vox-ml-cli` (which itself depends on vox-populi). Only the literal old name is retired."
