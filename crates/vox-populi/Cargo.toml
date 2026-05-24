@@ -173,7 +173,7 @@ data-encoding = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
-mockito = "1"
+wiremock = { workspace = true }
 
 [[test]]
 name = "http_control_plane"

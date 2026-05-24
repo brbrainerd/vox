@@ -24,7 +24,7 @@ gix = { workspace = true }
 turso = { workspace = true }
 
 anyhow = { workspace = true }
-url = "2"
+url = { workspace = true }
 chrono = { workspace = true }
 base64 = { workspace = true }
 regex = { workspace = true }
@@ -37,3 +37,6 @@ tokio-stream = { workspace = true }
 scraper = { workspace = true }
 vox-search.workspace = true
 feed-rs = "2.3.1"
+
+[dev-dependencies]
+tempfile = { workspace = true }

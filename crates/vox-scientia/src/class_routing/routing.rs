@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn unknown_class_in_user_yaml_falls_back_to_defaults() {
         // Empty defaults map — every lookup returns the safe fallback.
-        let empty = super::defaults::ClassDefaults {
+        let empty = super::super::defaults::ClassDefaults {
             by_class: Default::default(),
         };
         assert_eq!(
