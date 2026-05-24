@@ -106,3 +106,9 @@ https://github\.com/wravery/webview2-rs/compare/.*
 # gradio-app GitHub issues/PRs return transient 502 Bad Gateway from CI runners; links are valid
 https://github\.com/gradio-app/gradio/issues/9463
 https://github\.com/gradio-app/gradio/pull/3370
+
+# blueprism.com returns 415 to bots; link is valid
+.*blueprism\.com/.*
+
+# strata.io returns 415 to bots; link is valid
+.*strata\.io/.*
