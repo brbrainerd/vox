@@ -487,6 +487,20 @@ Continued P1 sweep — all mechanical, all verified against current code before 
 
 **State after session 2 (complete):** arch-check green (only pre-existing `vox-secrets: 26/25` fan-in warn). **24 of 50 plan tasks done.** All three P0 decisions resolved. Next: P1 tasks A-9, A-5, D-1, B-9, B-10-rescope, C-15.
 
+## 7c. Execution log (2026-05-24, session 3)
+
+Phase 1 completion sweep + Phase 2 start:
+
+| Task | What landed | Verification |
+|---|---|---|
+| **D-1** | `git mv crates/vox-plugin-noop-skill crates/vox-plugin-host/tests/fixtures/noop-skill/`; updated `vox-plugin-host/tests/load_noop_skill.rs:17-18` path (now `.join("vox-plugin-host").join("tests").join("fixtures").join("noop-skill")`); removed `[[plugin]] id = "noop-skill"` catalog entry; updated `vox-cli/tests/plugin_commands_smoke.rs`: `contains("noop-skill")` → `contains("skill-compiler")`; noop_skill_path → new fixture location; `WTL` row updated. Also fixed C-2 regression: `"8 bundle(s) defined."` → `"9 bundle(s) defined."` (vox-ml-metal bundle added by C-2). | Paths verified; catalog.toml valid; no layers.toml entry needed (no Cargo.toml). |
+| **B-10-rescope** | Added `[features] drift-typescript = ["dep:swc_ecma_parser", "dep:swc_ecma_ast", "dep:swc_ecma_visit", "dep:swc_common"]` to `vox-drift-check/Cargo.toml`; marked all 4 swc_ecma_* deps `optional = true`; gated `pub mod typescript;` in `extractors/mod.rs` with `#[cfg(feature = "drift-typescript")]`; gated import + match arm in `engine.rs`. Without feature: TS files are collected but fall to `_ => return None` (skipped cleanly). `drift-typescript` is NOT in default features — enabling it opts in. | `cargo check -p vox-drift-check` passes (base config, no swc compile cost) |
+| **B-3-trim (zip)** | Deleted dead `zip = "8.4.0"` workspace dep from root `Cargo.toml:269`. No consumer crates used this via `workspace = true` (vox-cli has its own local `zip = "2"` pin). | Zero downstream Cargo.toml changes needed |
+
+**False-positive retirements discovered this session:** A-16 (already done session 1), A-21 (already done session 1), B-13 (already done session 1), C-7/C-9/C-13 (all done session 1). C-15 retired (current descriptions are accurate; cosmetic change is unjustified). B-11/B-14 retired (plan doc is the tracking artifact).
+
+**State after session 3:** **27 of 50 plan tasks done.** Phase 1 fully complete. B-3-trim partial (zip removed; workspace.dependencies additions deferred — need version confirmation). Phase 2 next: B-3-trim remainder, B-9 (tower-lsp-server feature gate — M effort), B-2 (voxup + dirs code port — S+M effort), A-5 (build_service.rs migration — M effort).
+
 ---
 
 ## 8. Verification methodology appendix

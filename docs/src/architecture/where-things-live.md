@@ -269,7 +269,7 @@ host, not compiled as Rust library crates.
 
 | Dir | Purpose |
 |---|---|
-| `crates/vox-plugin-noop-skill/` | No-op stub skill used in plugin-host integration tests. |
+| `crates/vox-plugin-host/tests/fixtures/noop-skill/` | No-op stub skill fixture for plugin-host integration tests (not a workspace crate). |
 | `crates/vox-plugin-skill-compiler/` | Compiler skill — wraps `vox compile` as a Vox skill. |
 | `crates/vox-plugin-skill-git/` | Git skill — wraps common git operations as Vox skills. |
 | `crates/vox-plugin-skill-memory/` | Memory skill — CLAUDE.md / MEMORY.md management as a Vox skill. |
