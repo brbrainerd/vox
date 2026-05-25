@@ -14683,11 +14683,10 @@ dependencies = [
 
 [[package]]
 name = "voxup"
-version = "0.1.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
- "dirs",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -14696,6 +14695,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "workspace-hack",
 ]
 
 [[package]]

@@ -26,6 +26,7 @@ mod contracts;
 mod db_select_normalize;
 mod decl;
 mod expr_db;
+mod json_as;
 #[path = "expr.rs"]
 mod lowering_expr;
 #[path = "stmt.rs"]
@@ -170,6 +171,12 @@ impl LowerCtx {
                 }
                 Decl::TypeDef(t) => {
                     hir.types.push(self.lower_typedef(t));
+                    // RFC json-as-rfc-2026-05-24 §6: synthesise from_json / to_json for
+                    // `@json_as`-annotated types. The synthesised HirFns are collected here
+                    // and drained into hir.functions (below) so typeck / eval / codegen see
+                    // them as ordinary top-level functions — no special-casing needed.
+                    hir.functions
+                        .extend(json_as::synthesise_json_as_fns(self, t));
                 }
 
                 Decl::McpTool(m) => {

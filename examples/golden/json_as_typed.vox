@@ -1,0 +1,106 @@
+// Golden example: @json_as(TypeName) typed JSON deserialization.
+// RFC: docs/src/architecture/json-as-rfc-2026-05-24.md
+// Phase M — Steps 1-6 (complete).
+//
+// Demonstrates:
+//   1. Basic struct with required and optional fields
+//   2. camelCase naming convention
+//   3. @field_name per-field override
+//   4. from_json error on missing required field
+//   5. to_json round-trip
+
+// ── 1. Basic struct ───────────────────────────────────────────────────────────
+
+@json_as(Product)
+type Product {
+    id: int,
+    name: str,
+    price: float,
+    description: Option[str],
+}
+
+// ── 2. camelCase naming ───────────────────────────────────────────────────────
+
+@json_as(ApiEvent, naming: "camelCase")
+type ApiEvent {
+    event_type: str,
+    created_at: str,
+    payload_size: int,
+}
+
+// ── 3. @field_name override ───────────────────────────────────────────────────
+
+@json_as(Order)
+type Order {
+    @field_name("order_id") id: str,
+    @field_name("line_count") count: int,
+}
+
+// ── 4. defaults: true ─────────────────────────────────────────────────────────
+
+@json_as(Config, defaults: true)
+type Config {
+    host: str,
+    port: int,
+    retries: int,
+}
+
+// ── Demo functions ─────────────────────────────────────────────────────────────
+
+fn parse_product(raw: str) to str {
+    let r = json.parse(raw)
+    if r.is_err() { return "parse_error: " + r.unwrap_err() }
+    let res = Product_from_json(r.unwrap())
+    if res.is_err() { return "decode_error: " + res.unwrap_err() }
+    let p = res.unwrap()
+    let name = p.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+    return "ok: " + name
+}
+
+fn round_trip_product(raw: str) to str {
+    let r = json.parse(raw)
+    if r.is_err() { return "parse_error" }
+    let res = Product_from_json(r.unwrap())
+    if res.is_err() { return "decode_error" }
+    let p = res.unwrap()
+    let out = Product_to_json(p)
+    let name = out.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+    return "round_trip: " + name
+}
+
+fn parse_event(raw: str) to str {
+    let r = json.parse(raw)
+    if r.is_err() { return "parse_error" }
+    let res = ApiEvent_from_json(r.unwrap())
+    if res.is_err() { return "decode_error" }
+    let e = res.unwrap()
+    return e.get("event_type").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+}
+
+fn parse_order(raw: str) to str {
+    let r = json.parse(raw)
+    if r.is_err() { return "parse_error" }
+    let res = Order_from_json(r.unwrap())
+    if res.is_err() { return "decode_error: " + res.unwrap_err() }
+    let o = res.unwrap()
+    return o.get("id").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+}
+
+fn main() to str {
+    // 1. Successful parse
+    let product_json = "{\"id\":1,\"name\":\"widget\",\"price\":9.99}"
+    let r1 = parse_product(product_json)
+
+    // 2. Round-trip
+    let r2 = round_trip_product(product_json)
+
+    // 3. camelCase — keys in JSON are camelCase
+    let event_json = "{\"eventType\":\"click\",\"createdAt\":\"2026-01-01\",\"payloadSize\":128}"
+    let r3 = parse_event(event_json)
+
+    // 4. @field_name override — JSON uses "order_id" even though Vox field is "id"
+    let order_json = "{\"order_id\":\"ORD-001\",\"line_count\":3}"
+    let r4 = parse_order(order_json)
+
+    return r1 + " | " + r2 + " | event:" + r3 + " | order:" + r4
+}

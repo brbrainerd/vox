@@ -249,6 +249,8 @@ impl Parser {
                     | Token::AtTable
                     | Token::AtIndex
                     | Token::Async
+                    // Phase M (json-as-rfc-2026-05-24): `@json_as(...)` always precedes `type`.
+                    | Token::AtJsonAs
             ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
 
             let is_tombstoned = matches!(

@@ -9,9 +9,8 @@ impl Parser {
     /// Parse `@json_as(TypeName, naming: "...", strict: true, ...)`
     /// followed by a `type` declaration. Attaches the parsed annotation to
     /// the produced TypeDefDecl. Per-field attributes (`@field_name`,
-    /// `@default`, `@skip_if_none`) are NOT yet parsed in this Step-1 pass
-    /// — they require restructuring the struct-field parser, which lands
-    /// with the rest of Phase M.
+    /// `@default`, `@skip_if_none`) are parsed in `parse_typedef`'s field
+    /// loops (Phase M Step 1 completion).
     ///
     /// RFC: docs/src/architecture/json-as-rfc-2026-05-24.md §4.
     pub(crate) fn parse_json_as(&mut self) -> Result<Decl, ()> {
@@ -195,13 +194,16 @@ impl Parser {
                     break;
                 }
                 let fstart = self.span();
+                // Phase M Step 1 (completed): per-field @json_as attributes.
+                // RFC §4.3: @field_name("key"), @default(expr), @skip_if_none.
+                let json_as_attr = self.parse_json_as_field_attrs()?;
                 let fname = self.parse_ident_name()?;
                 self.expect(&Token::Colon)?;
                 let ftype = self.parse_type_expr()?;
                 struct_fields.push(VariantField {
                     name: fname,
                     type_ann: ftype,
-                    json_as_attr: Default::default(),
+                    json_as_attr,
                     span: fstart.merge(self.span()),
                 });
                 self.eat(&Token::Comma);
@@ -232,18 +234,40 @@ impl Parser {
             let vstart = self.span();
             let vname = self.parse_ident_name()?;
             let mut fields = Vec::new();
-            if self.eat(&Token::LParen) {
+            if self.eat(&Token::LBrace) {
+                // Struct-shaped variant: `| Search { query: str }` (RFC §4.4).
                 loop {
-                    if matches!(self.peek(), Token::RParen) {
+                    self.skip_newlines();
+                    if matches!(self.peek(), Token::RBrace | Token::Eof) {
                         break;
                     }
+                    let json_as_attr = self.parse_json_as_field_attrs()?;
                     let fname = self.parse_ident_name()?;
                     self.expect(&Token::Colon)?;
                     let ftype = self.parse_type_expr()?;
                     fields.push(VariantField {
                         name: fname,
                         type_ann: ftype,
-                        json_as_attr: Default::default(),
+                        json_as_attr,
+                        span: vstart.merge(self.span()),
+                    });
+                    self.eat(&Token::Comma);
+                }
+                self.expect(&Token::RBrace)?;
+            } else if self.eat(&Token::LParen) {
+                // Tuple-style variant: `| Compute(expr: str, precision: int)`.
+                loop {
+                    if matches!(self.peek(), Token::RParen) {
+                        break;
+                    }
+                    let json_as_attr = self.parse_json_as_field_attrs()?;
+                    let fname = self.parse_ident_name()?;
+                    self.expect(&Token::Colon)?;
+                    let ftype = self.parse_type_expr()?;
+                    fields.push(VariantField {
+                        name: fname,
+                        type_ann: ftype,
+                        json_as_attr,
                         span: vstart.merge(self.span()),
                     });
                     if !self.eat(&Token::Comma) {
@@ -272,6 +296,87 @@ impl Parser {
             span: start.merge(self.span()),
         }))
     }
+    /// Parse zero or more per-field `@json_as` attributes that may precede a
+    /// field name inside an `@json_as`-annotated type definition (RFC §4.3).
+    ///
+    /// Supported attributes:
+    /// - `@field_name("key")` — override the JSON key name for this field
+    /// - `@default(expr)` — source-text default expression when key is absent
+    /// - `@skip_if_none` — omit this field when serialising and the value is None
+    ///
+    /// Returns the accumulated [`JsonAsFieldAttr`]. All attrs default to their
+    /// zero values (`None` / `false`) when none are present.
+    fn parse_json_as_field_attrs(
+        &mut self,
+    ) -> Result<crate::ast::decl::typedef::JsonAsFieldAttr, ()> {
+        use crate::ast::decl::typedef::JsonAsFieldAttr;
+
+        let mut attr = JsonAsFieldAttr::default();
+
+        loop {
+            if self.eat(&Token::AtFieldName) {
+                // @field_name("json_key")
+                self.expect(&Token::LParen)?;
+                let name_str = match self.peek().clone() {
+                    Token::StringLit(s) => {
+                        self.advance();
+                        s
+                    }
+                    other => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            format!(
+                                "`@field_name` expects a string literal, got `{other}`"
+                            ),
+                            vec!["\"json_key\"".into()],
+                            Some(other.to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                };
+                self.expect(&Token::RParen)?;
+                attr.field_name = Some(name_str);
+            } else if self.eat(&Token::AtDefault) {
+                // @default(expr) — capture the source text between the parens.
+                // We count paren depth to handle nested calls like @default(foo(1)).
+                self.expect(&Token::LParen)?;
+                let mut depth: usize = 0;
+                let mut text = String::new();
+                loop {
+                    match self.peek().clone() {
+                        Token::Eof => break,
+                        Token::RParen if depth == 0 => break,
+                        Token::LParen => {
+                            depth += 1;
+                            text.push('(');
+                            self.advance();
+                        }
+                        Token::RParen => {
+                            depth -= 1;
+                            text.push(')');
+                            self.advance();
+                        }
+                        tok => {
+                            text.push_str(&tok.to_string());
+                            self.advance();
+                        }
+                    }
+                }
+                self.expect(&Token::RParen)?;
+                attr.default_expr = Some(text.trim().to_string());
+            } else if self.eat(&Token::AtSkipIfNone) {
+                // @skip_if_none — no arguments
+                attr.skip_if_none = true;
+            } else {
+                break;
+            }
+            // Allow optional newline between consecutive field attrs
+            self.skip_newlines();
+        }
+        Ok(attr)
+    }
+
     pub(crate) fn parse_table(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @table
