@@ -156,6 +156,15 @@ pub struct VoxCompilerDiagnosticPayload {
     /// (e.g. in deserialized payloads from older tool versions).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub excerpt: Option<DiagnosticExcerpt>,
+    /// Stable URL for the human/LLM-readable explanation page for this diagnostic.
+    ///
+    /// Only present when `error_code` follows the `vox/<category>/<name>` scheme.
+    /// Legacy numeric codes (`E0001`, `W092`, etc.) do not have docs pages yet
+    /// and are omitted rather than pointing at a 404.
+    ///
+    /// Part of the Phase 2 `vox check --for-llm` contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explain_url: Option<String>,
 }
 
 impl VoxCompilerDiagnosticPayload {
@@ -207,8 +216,17 @@ impl VoxCompilerDiagnosticPayload {
             3, // ±3 lines context — matches the Phase 2 --for-llm spec
         );
 
+        let error_code = diag.code.clone().unwrap_or_else(|| "E0000".to_string());
+        // Derive the explain URL only for stable `vox/<category>/<name>` codes.
+        // Legacy numeric codes (E0001, W092, …) don't have docs pages yet.
+        let explain_url = if error_code.starts_with("vox/") {
+            Some(format!("https://vox-lang.org/diag/{error_code}"))
+        } else {
+            None
+        };
+
         Self {
-            error_code: diag.code.clone().unwrap_or_else(|| "E0000".to_string()),
+            error_code,
             severity: diag.severity,
             message: diag.message.clone(),
             file_path: file_path.to_string(),
@@ -229,6 +247,7 @@ impl VoxCompilerDiagnosticPayload {
                 .collect(),
             related_spans: vec![],
             excerpt,
+            explain_url,
         }
     }
 }
@@ -656,5 +675,72 @@ mod excerpt_tests {
             text_line_count,
             "lines vec length should match actual text line count"
         );
+    }
+}
+
+// ── explain_url unit tests ────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod explain_url_tests {
+    use crate::ast::span::Span;
+    use super::{Diagnostic, DiagnosticCategory, VoxCompilerDiagnosticPayload};
+
+    fn make_diag(code: Option<&str>) -> Diagnostic {
+        Diagnostic {
+            severity: super::TypeckSeverity::Error,
+            message: "test".to_string(),
+            span: Span { start: 0, end: 0 },
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![],
+            category: DiagnosticCategory::Typecheck,
+            code: code.map(str::to_string),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        }
+    }
+
+    #[test]
+    fn vox_prefixed_code_produces_explain_url() {
+        let diag = make_diag(Some("vox/llm/direct-provider-call"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/llm/direct-provider-call")
+        );
+    }
+
+    #[test]
+    fn numeric_code_produces_no_explain_url() {
+        let diag = make_diag(Some("E0001"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert!(payload.explain_url.is_none(), "numeric codes have no docs URL");
+    }
+
+    #[test]
+    fn legacy_lint_code_produces_no_explain_url() {
+        let diag = make_diag(Some("lint.theme_contrast"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert!(payload.explain_url.is_none(), "lint. prefix has no docs URL");
+    }
+
+    #[test]
+    fn missing_code_defaults_to_no_explain_url() {
+        let diag = make_diag(None);
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(payload.error_code, "E0000");
+        assert!(payload.explain_url.is_none());
+    }
+
+    #[test]
+    fn explain_url_uses_vox_lang_org_domain() {
+        let diag = make_diag(Some("vox/effect/pure-violated"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "fn f() {}");
+        let url = payload.explain_url.expect("vox/ code should have explain_url");
+        assert!(url.starts_with("https://vox-lang.org/diag/vox/"), "URL: {url}");
+        assert!(url.ends_with("vox/effect/pure-violated"), "URL: {url}");
     }
 }
