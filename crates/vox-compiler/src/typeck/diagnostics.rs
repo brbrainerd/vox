@@ -88,6 +88,51 @@ pub struct SuggestedFix {
     pub span: SpanPayload,
 }
 
+/// Source-code excerpt attached to a diagnostic for LLM consumers.
+///
+/// Included in `VoxCompilerDiagnosticPayload` when source text is available.
+/// Solves the "LLM agent doesn't have the file open" problem:
+/// the excerpt delivers the surrounding code lines inline so the agent
+/// can propose a fix without fetching the file again.
+///
+/// Per the `vox check --for-llm` spec in
+/// [`vox-language-rules-phase2-lint-extension-2026.md`](../../../../docs/src/architecture/vox-language-rules-phase2-lint-extension-2026.md)
+/// Task 5.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DiagnosticExcerpt {
+    /// 1-based line numbers included in `text` (one entry per line).
+    pub lines: Vec<usize>,
+    /// Source lines joined with `'\n'`. No trailing newline.
+    pub text: String,
+}
+
+impl DiagnosticExcerpt {
+    /// Extract ±`context` lines around `[start_line, end_line]` (1-based) from `source`.
+    ///
+    /// Returns `None` if `source` is empty or `start_line == 0`.
+    #[must_use]
+    pub fn from_source(
+        source: &str,
+        start_line: usize,
+        end_line: usize,
+        context: usize,
+    ) -> Option<Self> {
+        let all_lines: Vec<&str> = source.lines().collect();
+        let total = all_lines.len();
+        if total == 0 || start_line == 0 {
+            return None;
+        }
+        let from = start_line.saturating_sub(context).max(1);
+        let to = (end_line + context).min(total);
+        let line_numbers: Vec<usize> = (from..=to).collect();
+        let text = all_lines[(from - 1)..to].join("\n");
+        Some(Self {
+            lines: line_numbers,
+            text,
+        })
+    }
+}
+
 /// Structured diagnostic payload for machine consumers (LLM healing loops).
 ///
 /// Research proves that exact, localized, structured errors are the single
@@ -106,6 +151,11 @@ pub struct VoxCompilerDiagnosticPayload {
     pub correction_hints: Vec<String>,
     pub suggested_fixes: Vec<SuggestedFix>,
     pub related_spans: Vec<SpanPayload>,
+    /// Source-code excerpt around the diagnostic span. Present when
+    /// `from_diagnostic` is called with non-empty `source`; absent otherwise
+    /// (e.g. in deserialized payloads from older tool versions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub excerpt: Option<DiagnosticExcerpt>,
 }
 
 impl VoxCompilerDiagnosticPayload {
@@ -147,12 +197,22 @@ impl VoxCompilerDiagnosticPayload {
             }
         };
 
+        // Compute the span payload first so we can extract line numbers for
+        // the excerpt without re-traversing the source.
+        let span_payload = compute(diag.span);
+        let excerpt = DiagnosticExcerpt::from_source(
+            source,
+            span_payload.start_line,
+            span_payload.end_line,
+            3, // ±3 lines context — matches the Phase 2 --for-llm spec
+        );
+
         Self {
             error_code: diag.code.clone().unwrap_or_else(|| "E0000".to_string()),
             severity: diag.severity,
             message: diag.message.clone(),
             file_path: file_path.to_string(),
-            span: compute(diag.span),
+            span: span_payload,
             ast_node_kind: diag.ast_node_kind.clone(),
             missing_cases: diag.missing_cases.clone(),
             expected_type: diag.expected_type.clone(),
@@ -168,6 +228,7 @@ impl VoxCompilerDiagnosticPayload {
                 })
                 .collect(),
             related_spans: vec![],
+            excerpt,
         }
     }
 }
@@ -507,5 +568,93 @@ pub mod codes {
                 );
             }
         }
+    }
+}
+
+// ── DiagnosticExcerpt unit tests ──────────────────────────────────────────────
+
+#[cfg(test)]
+mod excerpt_tests {
+    use super::DiagnosticExcerpt;
+
+    fn source_10() -> String {
+        (1..=10).map(|n| format!("line{n}")).collect::<Vec<_>>().join("\n")
+    }
+
+    #[test]
+    fn excerpt_middle_of_file_with_full_context() {
+        let src = source_10();
+        let ex = DiagnosticExcerpt::from_source(&src, 5, 5, 3).unwrap();
+        // Expected: lines 2..=8 (5-3=2 .. 5+3=8)
+        assert_eq!(ex.lines, (2..=8).collect::<Vec<_>>());
+        assert!(ex.text.contains("line2"));
+        assert!(ex.text.contains("line8"));
+    }
+
+    #[test]
+    fn excerpt_clips_to_start_of_file() {
+        let src = source_10();
+        // start_line=1, context=3 → from=max(1-3,1)=1
+        let ex = DiagnosticExcerpt::from_source(&src, 1, 1, 3).unwrap();
+        assert_eq!(ex.lines[0], 1);
+        assert!(ex.text.starts_with("line1"));
+    }
+
+    #[test]
+    fn excerpt_clips_to_end_of_file() {
+        let src = source_10();
+        // start_line=10, end_line=10, context=3 → to=min(13,10)=10
+        let ex = DiagnosticExcerpt::from_source(&src, 10, 10, 3).unwrap();
+        assert_eq!(*ex.lines.last().unwrap(), 10);
+        assert!(ex.text.contains("line10"));
+    }
+
+    #[test]
+    fn excerpt_multi_line_span() {
+        let src = source_10();
+        // Span covers lines 3-5, context ±1 → from=2, to=6
+        let ex = DiagnosticExcerpt::from_source(&src, 3, 5, 1).unwrap();
+        assert_eq!(ex.lines, vec![2, 3, 4, 5, 6]);
+        assert!(ex.text.contains("line3"));
+        assert!(ex.text.contains("line5"));
+    }
+
+    #[test]
+    fn excerpt_empty_source_returns_none() {
+        assert!(DiagnosticExcerpt::from_source("", 1, 1, 3).is_none());
+    }
+
+    #[test]
+    fn excerpt_zero_start_line_returns_none() {
+        // start_line=0 means line info was not computed (e.g. span at byte 0
+        // in a file that doesn't advance the counter).
+        assert!(DiagnosticExcerpt::from_source("line1\nline2", 0, 0, 3).is_none());
+    }
+
+    #[test]
+    fn excerpt_single_line_file() {
+        let src = "single line only";
+        let ex = DiagnosticExcerpt::from_source(src, 1, 1, 3).unwrap();
+        assert_eq!(ex.lines, vec![1]);
+        assert_eq!(ex.text, "single line only");
+    }
+
+    #[test]
+    fn excerpt_text_has_no_trailing_newline() {
+        let src = source_10();
+        let ex = DiagnosticExcerpt::from_source(&src, 5, 5, 1).unwrap();
+        assert!(!ex.text.ends_with('\n'));
+    }
+
+    #[test]
+    fn excerpt_line_count_matches_text_lines() {
+        let src = source_10();
+        let ex = DiagnosticExcerpt::from_source(&src, 4, 6, 2).unwrap();
+        let text_line_count = ex.text.lines().count();
+        assert_eq!(
+            ex.lines.len(),
+            text_line_count,
+            "lines vec length should match actual text line count"
+        );
     }
 }
