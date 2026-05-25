@@ -39,6 +39,11 @@ struct DiagnosticPayload {
     span: SpanPayload,
     correction_hints: Vec<String>,
     suggested_fixes: Vec<SuggestedFix>,
+    /// Stable docs URL (present for `vox/<category>/<name>` codes).
+    /// Included in the repair prompt so the LLM can reference the rule's
+    /// canonical explanation without fetching the source file.
+    #[serde(default)]
+    explain_url: Option<String>,
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -281,8 +286,11 @@ pub async fn run(args: RepairArgs) -> Result<()> {
                 "- [{}] Line {}: {}\n",
                 d.error_code, d.span.start_line, d.message
             ));
+            if let Some(ref url) = d.explain_url {
+                error_summary.push_str(&format!("  Docs: {url}\n"));
+            }
             for hint in &d.correction_hints {
-                error_summary.push_str(&format!("  Hint: {}\n", hint));
+                error_summary.push_str(&format!("  Hint: {hint}\n"));
             }
         }
 
