@@ -167,6 +167,19 @@ impl DetectionRule for CryptoBanDetector {
          GOOD:\n  chacha20poly1305 = \"0.10\"\n  # or: vox-crypto = { path = \"crates/vox-crypto\" }"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "# VIOLATION — banned crypto crate in Cargo.toml\n\
+             [dependencies]\n\
+             ring = \"0.17\"  # banned: drags in cmake/nasm, fails on Windows CI\n\
+             \n\
+             # FIX — use a pure-Rust crate or vox-crypto\n\
+             [dependencies]\n\
+             chacha20poly1305 = \"0.10\"\n\
+             # or: vox-crypto = { path = \"crates/vox-crypto\" }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

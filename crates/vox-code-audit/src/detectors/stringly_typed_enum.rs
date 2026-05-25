@@ -183,6 +183,23 @@ impl DetectionRule for StringlyTypedEnumDetector {
         ]
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — stringly-typed field with enum alternatives in a comment\n\
+             struct OrderStatus {\n\
+             \x20   status: String,  // \"pending\" | \"confirmed\" | \"shipped\" | \"delivered\"\n\
+             }\n\
+             \n\
+             // FIX — use a proper ADT/enum\n\
+             enum OrderStatus {\n\
+             \x20   Pending,\n\
+             \x20   Confirmed,\n\
+             \x20   Shipped,\n\
+             \x20   Delivered,\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,
