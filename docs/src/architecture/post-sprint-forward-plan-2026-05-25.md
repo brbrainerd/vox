@@ -454,6 +454,8 @@ Commits added after Hp-T3 in this continued session:
 |---|---|
 | `5b8a932f65` | `release: bump workspace to v0.6.0, enable ACI envelope by default (CR-L5)` |
 | `fe2b05a051` | `feat(compiler): add DiagnosticExcerpt to --for-llm payload (Phase 2 LLM-target gap)` |
+| `c8945f60e9` | `docs(arch): update forward plan + LLM-target audit to reflect session-15 completions` |
+| `bca186355c` | `feat(vox-compiler): add explain_url to VoxCompilerDiagnosticPayload (Phase 2 --for-llm)` |
 
 **CR-L5 (ACI default):** `OrchestratorConfig::agentos_aci_envelope_enabled` now defaults to `true`.
 `vox.orchestrator.agentos.aci_envelope.enabled` in feature-flags.v1.yaml updated to match.
@@ -465,11 +467,34 @@ span. This closes the "single biggest delta between Vox-as-LLM-target and a typi
 `vox-language-rules-phase2-lint-extension-2026.md` Task 5 — an LLM consuming `vox check --for-llm`
 no longer needs an additional file fetch to propose a fix. 9 unit tests + 2 snapshot updates.
 
-**CR-L status after this session:**
+**Phase 2 LLM-target gap (explain_url):** `VoxCompilerDiagnosticPayload` now includes
+`explain_url: Option<String>`, populated when `error_code` follows the `vox/<category>/<name>`
+scheme. URL format: `https://vox-lang.org/diag/<error_code>`. Legacy numeric codes (E0001, W092,
+lint.*) are `None` to avoid 404s. 5 new unit tests. Zero snapshot changes (test fixtures use E0000
+which produces no URL). Closes the `explain_url` requirement from the Phase 2 `--for-llm` spec.
+
+**CR-L status after session-15 (including continuation):**
 - CR-L5 ✅ (default flipped in v0.6)
 - CR-L6 ✅ (all retirement detectors + retired-surfaces.v1.yaml + vox ci retirement-audit — landed earlier)
 - CR-L8 ✅ (corpus-feedback pipeline — landed in session-13)
 - CR-L1/L2/L3/L4/L7 → corpus-stub (P2/P3 corpus engineering required)
+
+**Phase 2 `--for-llm` diagnostic payload coverage (post-session-15):**
+
+| Field | Status |
+|---|---|
+| `error_code` | ✅ always present |
+| `severity` | ✅ always present |
+| `message` | ✅ always present |
+| `span` | ✅ always present |
+| `excerpt` | ✅ landed session-15 (DiagnosticExcerpt, ±3 lines) |
+| `explain_url` | ✅ landed session-15 continuation (vox/ codes only) |
+| `correction_hints` | ✅ already present (from `Diagnostic.suggestions`) |
+| `suggested_fixes` | ✅ already present (machine-applicable edits) |
+| `rationale` | ⏳ Phase 2 — requires lint findings in --for-llm envelope |
+| `confidence` | ⏳ Phase 2 — requires lint findings in --for-llm envelope |
+| `alternatives` | ⏳ Phase 2 — requires lint findings in --for-llm envelope |
+| `minimal_repro` | ⏳ Phase 2 — requires per-rule minimal reproduction |
 
 ---
 

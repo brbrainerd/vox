@@ -77,7 +77,11 @@ This is not an aspiration list. Every row below names code or contracts on the v
 | **Golden snapshot tests for diagnostics** | [vox-compiler/tests/diagnostic_snapshots.rs](crates/vox-compiler/tests/diagnostic_snapshots.rs) — `insta::assert_json_snapshot!` per diagnostic class. |
 | **Doctest pipeline strict** | [vox-doc-pipeline/src/pipeline/doctest.rs:6](crates/vox-doc-pipeline/src/pipeline/doctest.rs:6)-66. Every ` ```vox ` block in docs goes through `vox_compiler::pipeline::check_file()` at line 50; LintError raised on any diagnostic. `// vox:skip` opt-out at line 32. |
 
-**Coverage assessment.** Diagnostic shape is LLM-ready. **2026-05-25 update:** `VoxCompilerDiagnosticPayload` now includes `excerpt: Option<DiagnosticExcerpt>` — ±3 source lines around each diagnostic span, inline in the `--for-llm` JSON output. This closes the "LLM agent doesn't have the file open" gap per Phase 2 plan Task 5 (commit `fe2b05a051`). What remains from Task 5 is `minimal_repro` (standalone program that reproduces the diagnostic), `rationale`, `confidence`, `alternatives`, and `explain_url` fields — medium-effort Phase 2 follow-ons.
+**Coverage assessment.** Diagnostic shape is LLM-ready. **2026-05-25 update (session-15):**
+- `excerpt: Option<DiagnosticExcerpt>` — ±3 source lines around each diagnostic span, inline in the `--for-llm` JSON output (commit `fe2b05a051`). Closes the "LLM agent doesn't have the file open" gap.
+- `explain_url: Option<String>` — stable `https://vox-lang.org/diag/<id>` URL for diagnostics with `vox/<category>/<name>` codes (commit `bca186355c`). Closes the `explain_url` field from Task 5.
+
+What remains from Phase 2 Task 5: `minimal_repro` (standalone program reproducing the diagnostic), `rationale`, `confidence`, and `alternatives` — these require surfacing TOESTUB lint findings inside the `--for-llm` envelope (medium-effort; requires feature-gated lint pipeline integration).
 
 ### §2.3 Self-repair surface
 
