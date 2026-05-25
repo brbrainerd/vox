@@ -498,6 +498,72 @@ which produces no URL). Closes the `explain_url` requirement from the Phase 2 `-
 
 ---
 
+## 11. Session-16 (2026-05-25) breadcrumb
+
+**explain_url hit-rate boost + STUB-4 fix + repair loop wiring**
+
+Commits added this session:
+
+| SHA | Subject |
+|---|---|
+| `335bb457b8` | `docs: record explain_url completion in forward plan and LLM-target audit` |
+| `1dde2ea12b` | `feat(compiler): add stable vox/types/* codes to common type errors` |
+| `76ea641f70` | `fix(webhook): convert WebSocket channel silent-drop to explicit error (STUB-4)` |
+| `e7126e4123` | `test(compiler): add explain_url regression tests for vox/types/* codes` |
+| `83608ae193` | `feat(repair): include explain_url in LLM repair prompt when available` |
+
+**Work completed:**
+
+**`vox/types/*` stable codes (commit `1dde2ea12b`):**
+Added `Diagnostic::with_code()` builder and 7 new stable codes to the most common
+compiler type errors: `vox/types/type-mismatch`, `vox/types/undefined-variable`,
+`vox/types/arg-count-mismatch`, `vox/types/arg-type-mismatch`, `vox/types/field-not-found`,
+`vox/types/method-not-found`, `vox/types/unresolved-type`. Applied at ~12 call sites across
+`checker/mod.rs`, `checker/expr.rs`, and `checker/expr_ops.rs`. Mirrored in
+`vox-code-audit/catalog.rs` + `ALL_KNOWN_IDS`. `explain_url` now fires for all common
+type errors instead of being limited to `vox-code-audit` TOESTUB rules.
+
+Also: updated `check_rust_import_lowering` golden file to include `excerpt` fields
+missed in `fe2b05a051`; improved integration test assertions in `agent_mcp_roundtrip_test.rs`
+to use typed JSON comparison instead of fragile `contains()` checks.
+
+**STUB-4 fix (commit `76ea641f70`):**
+`ChannelKind::WebSocket` in `vox-plugin-webhook` silently dropped messages with only a
+`warn!` log. Now returns `Err(WebhookError::Channel(...))` with an actionable message
+directing users to `ChannelKind::Webhook` for outbound calls. New test verifies the error.
+Also documented the STUB-5 (`StreamTransport::WebSocket`) v1.x codegen wiring path.
+
+**Repair loop explain_url wiring (commit `83608ae193`):**
+`DiagnosticPayload` in `repair.rs` now deserializes `explain_url`. The COMPILER ERRORS
+block sent to the LLM now includes `Docs: https://vox-lang.org/diag/<code>` for diagnostics
+with stable `vox/<category>/<name>` codes. With the new `vox/types/*` codes, every common
+type error now produces a docs URL in the repair prompt.
+
+**Post-session state:**
+- `cargo test -p vox-compiler` → 303 lib tests + integration tests, 0 failures
+- `cargo test -p vox-code-audit no_duplicate_ids all_ids_have_correct_prefix` → pass
+- `cargo test -p vox-plugin-webhook` → 25 tests, 0 failures (incl. new WS error test)
+- `git rev-list --count origin/main..HEAD == 0` (all 5 commits pushed)
+
+**CR-L / explain_url status after session-16:**
+- `explain_url` now fires for 7 common type errors + all `vox-code-audit` TOESTUB rules
+- STUB-4: **DONE** (WebSocket drop → explicit error)
+- STUB-5: doc-only update (v1.x context added, no code change needed)
+- STUB-2/3 (SP7 scaffold) and STUB-6 (Wave 3 backlog): unchanged, gated on their waves
+- STUB-1 (microvm firecracker): v1.x, no change
+
+**Next highest-value work (in priority order):**
+1. **(M) Phase 2 TOESTUB→`--for-llm` integration** — surface TOESTUB lint findings
+   (`rationale`, `confidence`, `alternatives`) inside the `--for-llm` envelope. Requires
+   feature-gated lint pipeline integration; medium effort.
+2. **(L) CR-L7 `vox deploy` / `vox doctor` CLI** — `vox-deploy-codegen` exists, no CLI
+   dispatch yet. Required for the V4 "LLM can drive whole project" claim.
+3. **(L) CR-L1 HumanEval-Vox corpus + eval harness** — 200-program benchmark from
+   `examples/golden/**`. Requires `@example` decorator wiring and eval harness.
+4. **(XL) CR-L3 `vox repair` multi-file** — extend repair loop to project scope.
+
+---
+
 ## 8. Session-12 (2026-05-25) breadcrumb
 
 **Tagged-enum ADT integration tests + script migration + pre-existing test fixes**
