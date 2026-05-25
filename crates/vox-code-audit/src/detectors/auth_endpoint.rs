@@ -52,6 +52,23 @@ impl DetectionRule for AuthEndpointDetector {
         An endpoint without either decorator defaults to no access control, which is a security risk."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — @endpoint without @auth or @public\n\
+             @endpoint\n\
+             fn get_users() -> List[User] {\n\
+             \x20   db.query_all()\n\
+             }\n\
+             \n\
+             // FIX — add @auth or @public\n\
+             @auth(\"users.read\")\n\
+             @endpoint\n\
+             fn get_users() -> List[User] {\n\
+             \x20   db.query_all()\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

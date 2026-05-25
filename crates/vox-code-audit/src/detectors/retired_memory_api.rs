@@ -73,6 +73,16 @@ This detector fires on call shapes only (`recall(` / `recall_async(`); identifie
 mentions in comments or unrelated local-variable names are not flagged."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — retired memory API call\n\
+             let fact = recall(\"user.preference.theme\");\n\
+             \n\
+             // FIX — use MemoryManager\n\
+             let fact = memory_manager.lookup_fact_by_key(\"user.preference.theme\").await?;",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

@@ -243,6 +243,16 @@ pub trait DetectionRule: Send + Sync {
     fn explain(&self) -> &'static str {
         ""
     }
+
+    /// Minimal code snippet that reproduces a typical finding from this rule (≤ 8 lines).
+    ///
+    /// Included in [`vox_cli::pipeline::LintFindingPayload::minimal_repro`] when present,
+    /// so LLM repair agents can understand the violation without needing the original file.
+    ///
+    /// Rules that detect something self-evident from the `message` field may return `None`.
+    fn minimal_repro(&self) -> Option<&'static str> {
+        None
+    }
 }
 
 // ---------------------------------------------------------------------------

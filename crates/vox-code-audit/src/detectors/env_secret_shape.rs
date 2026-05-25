@@ -143,6 +143,16 @@ impl DetectionRule for EnvSecretShapeDetector {
          GOOD:\n  let token = vox_secrets::resolve_secret(SecretId::OpenAiApiKey)?;"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — reading secret-shaped env var directly\n\
+             let api_key = env.get(\"OPENAI_API_KEY\")\n\
+             \n\
+             // FIX — use the Clavis secret manager\n\
+             let api_key = vox_secrets::resolve_secret(SecretId::OpenAiApiKey)?",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

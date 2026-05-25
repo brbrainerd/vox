@@ -137,3 +137,57 @@ fn health() -> Status {
         "clean file should not trigger auth-endpoint lint (found {findings_count} total findings)"
     );
 }
+
+/// Verify that `minimal_repro` is populated on lint findings where the detector
+/// provides a reproduction snippet.
+///
+/// `AuthEndpointDetector` ships a `minimal_repro()` implementation, so any
+/// finding from that rule must carry the field in the JSON envelope.
+#[cfg(feature = "stub-check")]
+#[test]
+fn lint_finding_includes_minimal_repro_when_detector_provides_one() {
+    let source = r#"
+@endpoint
+fn get_orders() -> List[Order] {
+    db.query_all()
+}
+"#;
+    let file = std::path::Path::new("test_repro.vox");
+    let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
+    let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
+
+    let lint_findings = v
+        .get("lint_findings")
+        .and_then(|f| f.as_array())
+        .expect("lint_findings array must be present");
+
+    // Locate the auth-endpoint finding.
+    let auth_finding = lint_findings
+        .iter()
+        .find(|f| {
+            f.get("rule_id")
+                .and_then(|r| r.as_str())
+                .map(|r| r.contains("auth"))
+                .unwrap_or(false)
+        })
+        .expect("expected an auth-endpoint finding for @endpoint without @auth");
+
+    // The `minimal_repro` field must be present and non-empty.
+    let repro = auth_finding
+        .get("minimal_repro")
+        .and_then(|r| r.as_str())
+        .unwrap_or("");
+    assert!(
+        !repro.is_empty(),
+        "auth-endpoint finding must carry a minimal_repro snippet; got empty/absent"
+    );
+    // The snippet should mention both the violation and the fix keyword.
+    assert!(
+        repro.contains("@endpoint"),
+        "minimal_repro snippet should show @endpoint usage; got: {repro}"
+    );
+    assert!(
+        repro.contains("@auth") || repro.contains("@public"),
+        "minimal_repro snippet should show the fix (@auth or @public); got: {repro}"
+    );
+}

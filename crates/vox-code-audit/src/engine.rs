@@ -252,6 +252,18 @@ impl ToestubEngine {
         findings
     }
 
+    /// Build a `rule_id → minimal_repro` lookup table for all registered rules.
+    ///
+    /// Used by `vox check --for-llm` to attach per-rule minimal reproduction snippets
+    /// to [`LintFindingPayload`] without modifying the [`Finding`] struct (which would
+    /// require updating every detector constructor).
+    pub fn minimal_repro_table(&self) -> HashMap<&'static str, &'static str> {
+        self.rules
+            .iter()
+            .filter_map(|r| r.minimal_repro().map(|mr| (r.id(), mr)))
+            .collect()
+    }
+
     /// Run the full analysis pipeline and return findings.
     pub fn run(&self) -> AnalysisResult {
         let roots = self.get_roots();

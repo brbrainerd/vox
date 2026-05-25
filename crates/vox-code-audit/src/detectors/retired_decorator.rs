@@ -132,6 +132,20 @@ Severity escalates to Error one minor version after Phase H @endpoint \
 retirement lands."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — retired @component fn syntax\n\
+             @component fn Counter() {\n\
+             \x20   return <div>0</div>\n\
+             }\n\
+             \n\
+             // FIX — use bare component declaration\n\
+             component Counter() {\n\
+             \x20   return <div>0</div>\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

@@ -184,6 +184,11 @@ pub struct LintFindingPayload {
     /// Only present when `rule_id` follows the `vox/<category>/<name>` scheme.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub explain_url: Option<String>,
+    /// Minimal code snippet (≤ 8 lines) that reproduces a typical violation for this rule,
+    /// together with the canonical fix. Provided by the detector's `DetectionRule::minimal_repro()`
+    /// implementation; absent when the detector does not supply one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub minimal_repro: Option<String>,
 }
 
 /// Stable JSON envelope for `vox check --for-llm` (machine / LLM consumers).
@@ -235,6 +240,7 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
                 ..ToestubConfig::default()
             };
             let engine = ToestubEngine::new(config);
+            let repro_table = engine.minimal_repro_table();
             engine
                 .check_source_file(&source_file)
                 .into_iter()
@@ -259,6 +265,9 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
                         Severity::Critical => "critical",
                     }
                     .to_string();
+                    let minimal_repro = repro_table
+                        .get(f.rule_id.as_str())
+                        .map(|s| s.to_string());
                     LintFindingPayload {
                         rule_id: f.rule_id,
                         severity,
@@ -270,6 +279,7 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
                         suggestion: f.suggestion,
                         alternatives: f.alternatives,
                         explain_url,
+                        minimal_repro,
                     }
                 })
                 .collect()
