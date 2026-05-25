@@ -150,11 +150,19 @@ impl<'a> Checker<'a> {
 
     pub(super) fn check_arguments(&mut self, expected: &[Ty], actual: &[HirArg], span: Span) {
         if expected.len() != actual.len() {
-            self.diags.push(Diagnostic::error(
-                crate::typeck::diagnostics::msg_arg_count_mismatch(expected.len(), actual.len()),
-                span,
-                self.source,
-            ));
+            self.diags.push(
+                Diagnostic::error(
+                    crate::typeck::diagnostics::msg_arg_count_mismatch(
+                        expected.len(),
+                        actual.len(),
+                    ),
+                    span,
+                    self.source,
+                )
+                .with_code(
+                    crate::typeck::diagnostics::codes::TYPES_ARG_COUNT_MISMATCH,
+                ),
+            );
             for arg in actual {
                 let _ = self.check_expr(&arg.value, None);
             }
@@ -173,7 +181,9 @@ impl<'a> Checker<'a> {
                     context: Some(Diagnostic::capture_context(self.source, arg_span)),
                     suggestions: vec![],
                     category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
-                    code: Some("typecheck.arg_mismatch".into()),
+                    code: Some(
+                        crate::typeck::diagnostics::codes::TYPES_ARG_TYPE_MISMATCH.into(),
+                    ),
                     fixes: vec![],
                     line_col: None,
                     missing_cases: vec![],

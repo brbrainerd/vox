@@ -181,11 +181,14 @@ impl<'a> Checker<'a> {
                 } else if let Some(ty) = self.builtins.lookup_var(name) {
                     ty
                 } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Undefined variable: {name}"),
-                        *span,
-                        self.source,
-                    ));
+                    self.diags.push(
+                        Diagnostic::error(
+                            format!("Undefined variable: {name}"),
+                            *span,
+                            self.source,
+                        )
+                        .with_code(crate::typeck::diagnostics::codes::TYPES_UNDEFINED_VARIABLE),
+                    );
                     Ty::Error
                 }
             }
@@ -378,19 +381,29 @@ impl<'a> Checker<'a> {
                                 Ty::Error
                             }
                         } else {
-                            self.diags.push(Diagnostic::error(
-                                format!("Method '{method}' not found on actor '{actor_name}'"),
-                                *span,
-                                self.source,
-                            ));
+                            self.diags.push(
+                                Diagnostic::error(
+                                    format!("Method '{method}' not found on actor '{actor_name}'"),
+                                    *span,
+                                    self.source,
+                                )
+                                .with_code(
+                                    crate::typeck::diagnostics::codes::TYPES_METHOD_NOT_FOUND,
+                                ),
+                            );
                             Ty::Error
                         }
                     } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Unknown actor '{actor_name}' for method call"),
-                            *span,
-                            self.source,
-                        ));
+                        self.diags.push(
+                            Diagnostic::error(
+                                format!("Unknown actor '{actor_name}' for method call"),
+                                *span,
+                                self.source,
+                            )
+                            .with_code(
+                                crate::typeck::diagnostics::codes::TYPES_UNDEFINED_VARIABLE,
+                            ),
+                        );
                         Ty::Error
                     }
                 } else if let Ty::Named(n) = &obj_ty {
@@ -794,4 +807,5 @@ fn method_not_found_diag(
         span,
         source,
     )
+    .with_code(crate::typeck::diagnostics::codes::TYPES_METHOD_NOT_FOUND)
 }

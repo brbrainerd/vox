@@ -321,6 +321,17 @@ impl Diagnostic {
         self.suggestions.push(hint.into());
         self
     }
+
+    /// Attach a stable diagnostic code (e.g. `"vox/types/type-mismatch"`).
+    ///
+    /// Prefer constants from [`codes`] over bare string literals so the
+    /// compiler catches typos and `ALL_COMPILER_DIAGNOSTIC_CODES` stays in sync.
+    #[must_use]
+    pub fn with_code(mut self, code: impl Into<String>) -> Self {
+        self.code = Some(code.into());
+        self
+    }
+
     /// Build a simple error diagnostic (no type diff).
     #[must_use]
     pub fn error(message: String, span: Span, source: &str) -> Self {
@@ -455,6 +466,23 @@ impl Diagnostic {
 /// Use these instead of raw string literals so that IDs are greppable,
 /// typo-proof, and covered by the namespace guard test.
 pub mod codes {
+    // ── Core type-checking errors (most common LLM-target hits) ──────────────
+    /// Type mismatch in `let`, `return`, `state`, `derived`, or assignment.
+    pub const TYPES_TYPE_MISMATCH: &str = "vox/types/type-mismatch";
+    /// Undefined variable referenced in expression position.
+    pub const TYPES_UNDEFINED_VARIABLE: &str = "vox/types/undefined-variable";
+    /// Wrong number of arguments at a call site.
+    pub const TYPES_ARG_COUNT_MISMATCH: &str = "vox/types/arg-count-mismatch";
+    /// Argument type does not match the callee's declared parameter type.
+    pub const TYPES_ARG_TYPE_MISMATCH: &str = "vox/types/arg-type-mismatch";
+    /// Field access on a type that does not have that field.
+    pub const TYPES_FIELD_NOT_FOUND: &str = "vox/types/field-not-found";
+    /// Method call on a type that does not have that method.
+    pub const TYPES_METHOD_NOT_FOUND: &str = "vox/types/method-not-found";
+    /// Type of an expression could not be fully resolved (unresolved type variable).
+    pub const TYPES_UNRESOLVED_TYPE: &str = "vox/types/unresolved-type";
+
+    // ── Existing codes ────────────────────────────────────────────────────────
     pub const TYPES_DURABLE_PROMISE_ARITY: &str = "vox/types/durable-promise-arity";
     pub const TYPES_FUTURE_DEPRECATED: &str = "vox/types/future-deprecated";
     pub const TYPES_PROMISE_DEPRECATED: &str = "vox/types/promise-deprecated";
@@ -473,6 +501,15 @@ pub mod codes {
 
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
+        // Core type errors (v0.6, LLM-target CR-L criteria)
+        TYPES_TYPE_MISMATCH,
+        TYPES_UNDEFINED_VARIABLE,
+        TYPES_ARG_COUNT_MISMATCH,
+        TYPES_ARG_TYPE_MISMATCH,
+        TYPES_FIELD_NOT_FOUND,
+        TYPES_METHOD_NOT_FOUND,
+        TYPES_UNRESOLVED_TYPE,
+        // Existing Phase-1 codes
         TYPES_DURABLE_PROMISE_ARITY,
         TYPES_FUTURE_DEPRECATED,
         TYPES_PROMISE_DEPRECATED,
@@ -491,6 +528,14 @@ pub mod codes {
     /// When adding a new stable diagnostic code in `vox-compiler`, append it here and run
     /// `cargo test -p vox-code-audit no_audit_rule_collides_with_compiler_diagnostic_code`.
     pub const ALL_COMPILER_DIAGNOSTIC_CODES: &[&str] = &[
+        // Core type errors (v0.6, LLM-target CR-L criteria)
+        TYPES_TYPE_MISMATCH,
+        TYPES_UNDEFINED_VARIABLE,
+        TYPES_ARG_COUNT_MISMATCH,
+        TYPES_ARG_TYPE_MISMATCH,
+        TYPES_FIELD_NOT_FOUND,
+        TYPES_METHOD_NOT_FOUND,
+        TYPES_UNRESOLVED_TYPE,
         TYPES_DURABLE_PROMISE_ARITY,
         TYPES_FUTURE_DEPRECATED,
         TYPES_PROMISE_DEPRECATED,
@@ -532,9 +577,9 @@ pub mod codes {
         "lint.form.unknown_endpoint",
         "lint.form.field_unmatched",
         "lint.form.field_type_mismatch",
-        // Typecheck namespace
+        // Typecheck namespace (legacy codes — superseded by vox/types/* in v0.6)
         "typecheck.deprecated_ident",
-        "typecheck.arg_mismatch",
+        "typecheck.arg_mismatch", // superseded by TYPES_ARG_COUNT_MISMATCH + TYPES_ARG_TYPE_MISMATCH
         // vox/* semantic checks
         "vox/auth/capability-leak",
         "vox/effect/pure-violation",
