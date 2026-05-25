@@ -12,9 +12,19 @@ golden_roots:
 
 sandbox_roots:
   - examples/sandboxes
+  # compile-suite: a multi-package (desktop+server) sample project used for
+  # end-to-end compile testing. Added 2026-05-25.
+  - examples/compile-suite
 
 negative_roots:
   - examples/parser-inventory
+
+# aspirational_roots: in-progress / planned-feature examples that are not yet
+# part of the golden corpus. Files here must parse without panicking but may
+# not evaluate correctly against the current runtime. Added 2026-05-25 to cover
+# examples/aspirational/** (intra-project-imports, regex-heavy, …).
+aspirational_roots:
+  - examples/aspirational
 
 doc_roots:
   - docs/src
