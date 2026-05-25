@@ -144,7 +144,7 @@ impl Default for OrchestratorConfig {
             exec_time_timeout_rate_alert: default_exec_time_timeout_rate_alert(),
             exec_time_default_budget_ms: default_exec_time_default_budget_ms(),
             exec_time_history_window_days: default_exec_time_history_window_days(),
-            agentos_aci_envelope_enabled: default_false(),
+            agentos_aci_envelope_enabled: default_true(), // CR-L5: on by default since v0.6
             agentos_guardrail_kernel_enabled: default_false(),
             agentos_checkpoint_hints_enabled: default_false(),
             local_breakeven_tokens: super::defaults::default_local_breakeven_tokens(),

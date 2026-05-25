@@ -23,6 +23,27 @@ All notable changes to the Vox project are documented here.
 - **`ErrorEvent`:** emitted at HTTP 429 (infer.rs), non-2xx HTTP (actor-runtime chat.rs), and circuit-breaker trips.
 - **Trace propagation:** `RemoteTaskEnvelope` extended with `parent_task_id`, `caller_agent_id`, `trace_id`, `span_depth`; MCP dispatch wraps sub-agent calls in `TRACE_CTX::scope`; `SubAgentDispatchEvent` enriched with `parent_task_id` and `span_depth`.
 
+## [0.6.0] - 2026-05-25
+
+**Release theme:** Single-machine multi-agent with no data loss. All Phase 0 (foundations), Phase 1 (language spine), Phase 3 (VCS gossip), and Hopper Hp-T1..T4 (unified task intake) deliverables from the mesh SSOT.
+
+### Added
+
+- **Unified Task Hopper — Option A (Hp-T1..T4):** `InMemoryHopper` in `vox-orchestrator` implements the `HopperIntake` trait. Items progress through `Inbox → Assigned → Done / Overridden` states. HTTP intake endpoints surface the hopper at `/api/v2/hopper/{inbox,assigned,history,submit,reprioritize,assign,complete}`.
+- **`PrioritySource` typed partial order (Hp-T3):** Canonical `PrioritySource` enum (`Developer(2) > Orchestrator(1) > LearningPolicy(0)`) in `vox-orchestrator-types`; dominance encoded via `Ord` so policy checks are a one-liner (`source.dominates(other)`). `ReprioritizationActor` is now a backward-compat type alias pointing at `PrioritySource`.
+- **`DeveloperOverride` capability token (Hp-T4):** `reprioritize` requires a token minted by `DeveloperOverrideMint`. Each override is stamped with actor, reason, audit-id, and timestamp in `override_history`; after a developer override `priority_source` flips from `Orchestrator` to `Developer` and subsequent automated policy must not overwrite it without a new `Developer`-level cap.
+- **Intra-project imports (Phase 1 — P1-T1):** `import "./foo.vox"` + `pub fn` resolution works under `--mode interp`. Typecheck and `--mode script` parity tracked in Phase 2.
+- **JSON ergonomics (Phase 1 — P1-T2):** Strict-Option `Json` API — `get` / `at` / `pointer` + `as_str` / `as_int` / `has`; legacy `get_str` / `get_int` retired. Corpus pass rate 41/55.
+- **Two-daemon lock-contention guard (Phase 3 — P3-T4):** Integration test `two_daemon_lock_contention` verifies that a second orchestrator daemon on the same repository correctly loses the exclusive lock and exits cleanly rather than corrupting shared state.
+- **Effect-row enum extensions (P1-T6):** `GpuCompute` and `Mutate` variants added to the effect-row enum; supports MENS distributed-training capability tagging (Mn-T1/Mn-T2 prerequisite).
+- **ACI envelope on by default — CR-L5:** `OrchestratorConfig::agentos_aci_envelope_enabled` defaults to `true` starting in v0.6. The `attach_aci_envelope()` path in `vox-orchestrator-mcp` adds the `aci` JSON block to tool responses (purely additive; gracefully skips non-JSON outputs). Feature flag `vox.orchestrator.agentos.aci_envelope.enabled` updated to match.
+- **`vox audit aci-default` gate (CR-L5):** `CrlGate::L5AciDefault` in `vox-audit` reads the workspace version; passes when v0.5.x has `false` and v0.6+ has `true`. Prevents accidental rollback.
+
+### Changed
+
+- **Workspace version:** `0.5.0` → `0.6.0`. All published crates inherit the bumped version via `[workspace.package]`.
+- **vox-db schema:** `BASELINE_VERSION = 67` (all P3-T1 schema migrations applied). Dashboard route convention (`/api/v2/<surface>` REST + `/v1/ws` topic-multiplex WS) in effect per SSOT §5.6.
+
 ## [0.5.0] - 2026-04-18
 
 ### Added
