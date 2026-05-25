@@ -85,13 +85,18 @@ This is not an aspiration list. Every row below names code or contracts on the v
 
 **Phase 2 Task 5 is now complete.** All fields — `rationale`, `confidence`, `alternatives`, `explain_url`, and `minimal_repro` — are surfaced in the `--for-llm` envelope via the TOESTUB lint pipeline.
 
+**2026-05-25 session-17 additions:**
+- `minimal_repro` now implemented on 18 of 52 detectors (up from 7 at session-16 close). Added to: `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `no_test_for_pub_fn`, `id_at_boundary`, `anonymous_error`, `unwrap_call`, `crypto_ban`, `pure_fn_impure`, `stringly_typed_enum`.
+- `vox check --explain <id>` now shows the `minimal_repro` snippet in the terminal output (under an "Example:" heading).
+- `vox repair` now includes TOESTUB lint findings (with `suggestion` + `minimal_repro` snippets) in the LLM prompt under `#[cfg(feature = "stub-check")]`, making the 3-attempt repair loop aware of Vox policy violations that compile without error.
+
 ### §2.3 Self-repair surface
 
 | Feature | Evidence |
 |---|---|
-| **`vox repair` MVP** (3-attempt loop) | [vox-cli/src/commands/repair.rs](crates/vox-cli/src/commands/repair.rs). Loop: `vox check --format json` → parse `DiagnosticPayload` → LLM call (OpenRouter, temp 0.1, system prompt "expert Vox language repair agent") → extract code block → `fs::write()` → re-check. Max 3 attempts. |
+| **`vox repair` MVP** (3-attempt loop) | [vox-cli/src/commands/repair.rs](crates/vox-cli/src/commands/repair.rs). Loop: `vox check --format json` → parse `DiagnosticPayload` → LLM call (OpenRouter, temp 0.1, system prompt "expert Vox language repair agent") → extract code block → `fs::write()` → re-check. Max 3 attempts. **session-17:** loop now also feeds `LintFindingPayload` (with `minimal_repro` snippets) for policy violations when `stub-check` feature is on. |
 | **`vox stub-check`** | [vox-cli/src/commands/diagnostics/stub_check/](crates/vox-cli/src/commands/diagnostics/stub_check/) — catches `todo!()`, `unimplemented!()`, `panic!("not implemented")`, hollow returns, AI placeholder patterns. TOML suppressions supported. |
-| **47 vox-code-audit detectors** including LLM-specific: | `id_at_boundary`, `anonymous_error`, `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `pure_fn_impure`, `workflow_nondeterministic`, `unresolved_ast`, `unresolved_ref` — listed in [vox-code-audit/src/detectors/mod.rs](crates/vox-code-audit/src/detectors/mod.rs). |
+| **52 vox-code-audit detectors** including LLM-specific: | `id_at_boundary`, `anonymous_error`, `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `pure_fn_impure`, `workflow_nondeterministic`, `unresolved_ast`, `unresolved_ref` — listed in [vox-code-audit/src/detectors/mod.rs](crates/vox-code-audit/src/detectors/mod.rs). 18/52 now carry `minimal_repro` snippets. |
 | **Test-first enforcement** (pre-commit) | [`AGENTS.md` §Test-First Policy](AGENTS.md). `tdd-guard` lefthook hook rejects commits introducing `pub fn` without an adjacent `#[test]` or `@test`. Reason given: tests are MENS training reward signal (planned `r_test` = 30% of GRPO reward). |
 
 **Coverage assessment.** The closed-loop scaffold exists for **single files**. What's missing is project scope, a measurement methodology, and the back-edge from repair outcomes into the corpus aggregator.
