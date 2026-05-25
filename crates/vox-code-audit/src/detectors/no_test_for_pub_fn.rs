@@ -57,6 +57,26 @@ impl DetectionRule for NoTestForPubFnDetector {
         &[Language::Vox]
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — public fn with no @test annotation anywhere in the file\n\
+             pub fn parse_invoice(raw: str) -> Invoice {\n\
+             \x20   Invoice::from_json(raw)\n\
+             }\n\
+             \n\
+             // FIX — add a @test block\n\
+             pub fn parse_invoice(raw: str) -> Invoice {\n\
+             \x20   Invoice::from_json(raw)\n\
+             }\n\
+             \n\
+             @test\n\
+             fn test_parse_invoice_roundtrip() {\n\
+             \x20   let inv = parse_invoice('{\"id\":\"1\",\"amount\":42}')\n\
+             \x20   assert(inv.amount == 42)\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

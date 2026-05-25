@@ -172,6 +172,20 @@ impl DetectionRule for UnwrapCallDetector {
         &[Language::Rust]
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — .unwrap() can panic at runtime\n\
+             fn get_user(id: UserId) -> User {\n\
+             \x20   db.users.find(id).unwrap()  // panics if user is None\n\
+             }\n\
+             \n\
+             // FIX — propagate the error or handle it explicitly\n\
+             fn get_user(id: UserId) -> Result<User, DbError> {\n\
+             \x20   db.users.find(id)?.ok_or(DbError::UserNotFound(id))\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

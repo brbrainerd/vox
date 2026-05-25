@@ -57,6 +57,24 @@ impl DetectionRule for AnonymousErrorDetector {
         "Functions returning `Result[T, str]` use an anonymous error type; define a named error enum or struct to preserve error context and enable exhaustive handling."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — anonymous error type (str) loses error context\n\
+             fn load_config(path: str) -> Result[Config, str] {\n\
+             \x20   parse_file(path).map_err(|e| e.to_string())\n\
+             }\n\
+             \n\
+             // FIX — named error type with meaningful variants\n\
+             enum ConfigError {\n\
+             \x20   NotFound(str),\n\
+             \x20   ParseFailure(str),\n\
+             }\n\
+             fn load_config(path: str) -> Result[Config, ConfigError] {\n\
+             \x20   parse_file(path).map_err(|e| ConfigError::ParseFailure(e.to_string()))\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

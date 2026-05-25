@@ -67,6 +67,22 @@ impl DetectionRule for IdAtBoundaryDetector {
         "ID parameters at API boundaries must use typed wrappers (e.g. `Id[User]`) instead of bare `str` to prevent accidental ID confusion across entity types."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — bare str with _id suffix at an @endpoint boundary\n\
+             @endpoint\n\
+             fn get_order(order_id: str) -> Order {\n\
+             \x20   db.orders.get(order_id)\n\
+             }\n\
+             \n\
+             // FIX — use a typed ID wrapper\n\
+             @endpoint\n\
+             fn get_order(order_id: Id[Order]) -> Order {\n\
+             \x20   db.orders.get(order_id)\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,
