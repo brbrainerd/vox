@@ -144,6 +144,48 @@ pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> S
     serde_json::to_string_pretty(&output).unwrap_or_default()
 }
 
+/// A lint finding from `vox-code-audit` surfaced in the `vox check --for-llm` envelope.
+///
+/// This is a separate type from [`VoxCompilerDiagnosticPayload`] because lint findings
+/// originate from pattern-based static analysis (not the type-checker) and carry
+/// additional metadata — `rationale`, `confidence`, `alternatives` — that does not
+/// apply to compiler diagnostics.
+///
+/// Present in [`CheckForLlmEnvelope::lint_findings`] when the `stub-check` feature
+/// is compiled in; the field is omitted from JSON (via `skip_serializing_if`) when
+/// the feature is absent so the envelope schema stays stable.
+#[derive(serde::Serialize)]
+pub struct LintFindingPayload {
+    /// Stable `vox/<category>/<name>` rule identifier.
+    pub rule_id: String,
+    /// Normalized severity: `"info"` | `"warning"` | `"error"` | `"critical"`.
+    pub severity: String,
+    /// Short description of the specific problem found at this location.
+    pub message: String,
+    /// 1-based line number within the file.
+    pub line: usize,
+    /// 1-based column within the line (0 if unknown).
+    pub column: usize,
+    /// Prose explaining *why* this rule exists — constant per rule, useful for
+    /// LLM rationale and `vox check --explain <id>`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rationale: Option<String>,
+    /// Detector-estimated confidence in the finding: `"high"` | `"medium"` | `"low"`.
+    /// Absent when the detector does not assign a confidence level.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<String>,
+    /// Primary fix suggestion (the single most likely correct approach).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion: Option<String>,
+    /// Alternative fix approaches when multiple valid strategies exist.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alternatives: Vec<String>,
+    /// Stable URL for the human/LLM-readable explanation page (`vox-lang.org/diag/<id>`).
+    /// Only present when `rule_id` follows the `vox/<category>/<name>` scheme.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub explain_url: Option<String>,
+}
+
 /// Stable JSON envelope for `vox check --for-llm` (machine / LLM consumers).
 #[derive(serde::Serialize)]
 pub struct CheckForLlmEnvelope {
@@ -153,9 +195,19 @@ pub struct CheckForLlmEnvelope {
     pub error_count: usize,
     pub warning_count: usize,
     pub diagnostics: Vec<vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload>,
+    /// Static-analysis (TOESTUB) lint findings for this file.
+    ///
+    /// Populated when the `stub-check` feature is compiled in; absent from the
+    /// serialized JSON when empty so the schema stays stable across feature configs.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lint_findings: Vec<LintFindingPayload>,
 }
 
 /// Full frontend diagnostics as one JSON object (`check_file`), including parse failures.
+///
+/// When the `stub-check` feature is enabled the envelope also includes
+/// [`CheckForLlmEnvelope::lint_findings`] from `vox-code-audit`'s Vox-language
+/// detectors (auth, decorator-position, retired APIs, security rules, …).
 #[must_use]
 pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
     let file_path = file.to_string_lossy().to_string();
@@ -168,6 +220,67 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
         .iter()
         .filter(|d| d.severity == TypeckSeverity::Warning)
         .count();
+
+    #[cfg(feature = "stub-check")]
+    let lint_findings: Vec<LintFindingPayload> = {
+        use vox_code_audit::engine::{ToestubConfig, ToestubEngine};
+        use vox_code_audit::rules::{FindingConfidence, Language, Severity, SourceFile};
+
+        let source_file = SourceFile::new(file.to_path_buf(), source.to_string());
+        // Only Vox files produce useful lint findings here; Rust/Unknown files go
+        // through the full engine scan path (vox stub-check), not --for-llm.
+        if matches!(source_file.language, Language::Vox | Language::Unknown) {
+            let config = ToestubConfig {
+                min_severity: Severity::Warning,
+                ..ToestubConfig::default()
+            };
+            let engine = ToestubEngine::new(config);
+            engine
+                .check_source_file(&source_file)
+                .into_iter()
+                .map(|f| {
+                    let explain_url = f
+                        .diagnostic_id
+                        .as_deref()
+                        .filter(|id| id.starts_with("vox/"))
+                        .map(|id| format!("https://vox-lang.org/diag/{id}"));
+                    let confidence = f.confidence.map(|c| {
+                        match c {
+                            FindingConfidence::High => "high",
+                            FindingConfidence::Medium => "medium",
+                            FindingConfidence::Low => "low",
+                        }
+                        .to_string()
+                    });
+                    let severity = match f.severity {
+                        Severity::Info => "info",
+                        Severity::Warning => "warning",
+                        Severity::Error => "error",
+                        Severity::Critical => "critical",
+                    }
+                    .to_string();
+                    LintFindingPayload {
+                        rule_id: f.rule_id,
+                        severity,
+                        message: f.message,
+                        line: f.line,
+                        column: f.column,
+                        rationale: f.rationale,
+                        confidence,
+                        suggestion: f.suggestion,
+                        alternatives: f.alternatives,
+                        explain_url,
+                    }
+                })
+                .collect()
+        } else {
+            vec![]
+        }
+    };
+
+    #[cfg(not(feature = "stub-check"))]
+    let lint_findings: Vec<LintFindingPayload> = vec![];
+
     let env = CheckForLlmEnvelope {
         envelope_version: 1,
         file_path,
@@ -175,6 +288,7 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
         error_count,
         warning_count,
         diagnostics,
+        lint_findings,
     };
     serde_json::to_string_pretty(&env).unwrap_or_default()
 }

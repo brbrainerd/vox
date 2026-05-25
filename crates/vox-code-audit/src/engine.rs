@@ -200,6 +200,58 @@ impl ToestubEngine {
         Self { rules, config }
     }
 
+    /// Run lint rules on a single pre-loaded source file without a filesystem scan.
+    ///
+    /// This is a lightweight alternative to [`run`] for `vox check --for-llm` and
+    /// similar single-file consumers that already have source in memory.  Unlike
+    /// [`run`], this method:
+    /// - Skips the [`Scanner`] (no directory walk).
+    /// - Does **not** emit telemetry (no CR-L8 corpus events).
+    /// - Does **not** apply suppression rules.
+    /// - Sets up a default [`RunContext`] (safe for single-file Vox linting; some
+    ///   Rust-specific rules that depend on workspace cross-refs will produce no
+    ///   findings on Vox files regardless).
+    ///
+    /// Severity filtering and deterministic sort are still applied so callers
+    /// receive findings in the same order as a full [`run`].
+    ///
+    /// # Thread safety
+    /// [`RunContext`] uses a process-global mutex.  Concurrent calls to this method
+    /// (or to [`run`]) will serialize; do not hold the returned `Vec<Finding>` across
+    /// a second call on a different thread without copying first.
+    pub fn check_source_file(&self, file: &crate::rules::SourceFile) -> Vec<Finding> {
+        let _guard = crate::run_context::RunContextGuard::new(
+            crate::run_context::RunContext::default(),
+        );
+
+        let rust_ctx_owned = if file.language == crate::rules::Language::Rust {
+            Some(RustFileContext::parse(&file.content))
+        } else {
+            None
+        };
+        let rust_ctx = rust_ctx_owned.as_ref();
+
+        let mut findings: Vec<Finding> = Vec::new();
+        for rule in &self.rules {
+            if !rule.languages().contains(&file.language) {
+                continue;
+            }
+            findings.extend(rule.detect(file, rust_ctx));
+        }
+
+        // Apply severity filter (same as full run).
+        findings.retain(|f| f.severity >= self.config.min_severity);
+
+        // Deterministic sort: critical first, then stable tie-breakers.
+        findings.sort_by(|a, b| {
+            b.severity
+                .cmp(&a.severity)
+                .then_with(|| a.deterministic_key().cmp(&b.deterministic_key()))
+        });
+
+        findings
+    }
+
     /// Run the full analysis pipeline and return findings.
     pub fn run(&self) -> AnalysisResult {
         let roots = self.get_roots();

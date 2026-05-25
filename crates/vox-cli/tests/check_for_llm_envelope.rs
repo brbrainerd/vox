@@ -19,3 +19,121 @@ fn check_for_llm_envelope_shape_rust_import_fixture() {
 
     insta::assert_json_snapshot!(v);
 }
+
+// ---------------------------------------------------------------------------
+// Lint findings integration (requires `stub-check` feature)
+// ---------------------------------------------------------------------------
+
+/// Verify that `format_check_for_llm_json` surfaces `lint_findings` for a Vox
+/// file that contains a known lint violation when the `stub-check` feature is on.
+///
+/// The fixture uses an `@endpoint` without `@auth` or `@public`, which is caught
+/// by `AuthEndpointDetector` (`vox/auth/endpoint-missing-decorator`).
+#[cfg(feature = "stub-check")]
+#[test]
+fn lint_findings_populated_for_auth_endpoint_violation() {
+    // Minimal Vox file: @endpoint without @auth or @public is a lint violation.
+    let source = r#"
+@endpoint
+fn get_users() -> List[User] {
+    db.query_all()
+}
+"#;
+    let file = Path::new("test_auth_check.vox");
+    let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
+    let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
+
+    let lint_findings = v
+        .get("lint_findings")
+        .and_then(|f| f.as_array())
+        .expect("lint_findings array must be present in stub-check build");
+
+    assert!(
+        !lint_findings.is_empty(),
+        "expected at least one lint finding for @endpoint without @auth; got none"
+    );
+
+    // At least one finding should be from the auth-endpoint detector.
+    let auth_finding = lint_findings.iter().find(|f| {
+        f.get("rule_id")
+            .and_then(|r| r.as_str())
+            .map(|r| r.contains("auth"))
+            .unwrap_or(false)
+    });
+    assert!(
+        auth_finding.is_some(),
+        "expected an auth-related lint finding; rule_ids present: {:?}",
+        lint_findings
+            .iter()
+            .filter_map(|f| f.get("rule_id").and_then(|r| r.as_str()))
+            .collect::<Vec<_>>()
+    );
+
+    let f = auth_finding.unwrap();
+
+    // Finding should carry a rationale string.
+    assert!(
+        f.get("rationale").and_then(|r| r.as_str()).is_some(),
+        "auth finding must include a rationale field"
+    );
+
+    // Finding should carry an explain_url.
+    let explain_url = f.get("explain_url").and_then(|u| u.as_str()).unwrap_or("");
+    assert!(
+        explain_url.starts_with("https://vox-lang.org/diag/vox/auth/"),
+        "explain_url should point to the auth diagnostic page; got: {explain_url}"
+    );
+
+    // Severity must be a recognized string.
+    let severity = f.get("severity").and_then(|s| s.as_str()).unwrap_or("");
+    assert!(
+        matches!(severity, "info" | "warning" | "error" | "critical"),
+        "unexpected severity value: {severity}"
+    );
+}
+
+/// When `stub-check` is compiled in but the source has no lint violations,
+/// the `lint_findings` field should be absent (omitted by `skip_serializing_if`).
+#[cfg(feature = "stub-check")]
+#[test]
+fn lint_findings_absent_when_no_violations() {
+    // Clean Vox file: @public @endpoint satisfies the auth-endpoint rule.
+    let source = r#"
+@public
+@endpoint
+fn health() -> Status {
+    Status::Ok
+}
+"#;
+    let file = Path::new("test_clean.vox");
+    let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
+    let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
+
+    // `lint_findings` should either be absent or empty when there are no violations.
+    let findings_count = v
+        .get("lint_findings")
+        .and_then(|f| f.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+
+    // The clean file may still trigger other warnings (e.g. magic-value, line-endings)
+    // so we can't assert exactly zero.  What we CAN assert is that any auth finding
+    // is absent for this file.
+    let auth_violation = v
+        .get("lint_findings")
+        .and_then(|f| f.as_array())
+        .map(|arr| {
+            arr.iter().any(|f| {
+                f.get("rule_id")
+                    .and_then(|r| r.as_str())
+                    .map(|r| r.contains("auth"))
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false);
+
+    assert!(
+        !auth_violation,
+        "clean file should not trigger auth-endpoint lint (found {findings_count} total findings)"
+    );
+}
