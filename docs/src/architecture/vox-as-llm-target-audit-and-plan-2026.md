@@ -77,7 +77,7 @@ This is not an aspiration list. Every row below names code or contracts on the v
 | **Golden snapshot tests for diagnostics** | [vox-compiler/tests/diagnostic_snapshots.rs](crates/vox-compiler/tests/diagnostic_snapshots.rs) — `insta::assert_json_snapshot!` per diagnostic class. |
 | **Doctest pipeline strict** | [vox-doc-pipeline/src/pipeline/doctest.rs:6](crates/vox-doc-pipeline/src/pipeline/doctest.rs:6)-66. Every ` ```vox ` block in docs goes through `vox_compiler::pipeline::check_file()` at line 50; LintError raised on any diagnostic. `// vox:skip` opt-out at line 32. |
 
-**Coverage assessment.** Diagnostic shape is LLM-ready. What's missing is the `--for-llm` JSON mode with minimal-repro (per Phase 2 plan, [vox-language-rules-phase2-lint-extension-2026.md](vox-language-rules-phase2-lint-extension-2026.md)) — the *single biggest delta* per its own spec.
+**Coverage assessment.** Diagnostic shape is LLM-ready. **2026-05-25 update:** `VoxCompilerDiagnosticPayload` now includes `excerpt: Option<DiagnosticExcerpt>` — ±3 source lines around each diagnostic span, inline in the `--for-llm` JSON output. This closes the "LLM agent doesn't have the file open" gap per Phase 2 plan Task 5 (commit `fe2b05a051`). What remains from Task 5 is `minimal_repro` (standalone program that reproduces the diagnostic), `rationale`, `confidence`, `alternatives`, and `explain_url` fields — medium-effort Phase 2 follow-ons.
 
 ### §2.3 Self-repair surface
 
@@ -99,9 +99,9 @@ This is not an aspiration list. Every row below names code or contracts on the v
 | **Plan mode** with iterative refinement | [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs) — rounds, loop_status, stop_reason; expansion-first refinement ("add work, do not paraphrase away detail"); task dependency validation. |
 | **Telemetry of agent activity** — rich | [vox-telemetry/src/types.rs](crates/vox-telemetry/src/types.rs) — `METRIC_TYPE_PLAN_MODE_DECISION` (D2), `METRIC_TYPE_MODEL_TIER_ROUTE` (D1), `METRIC_TYPE_SUBAGENT_DISPATCH` (D4), `METRIC_TYPE_CIRCUIT_BREAKER_TRIP` (D6, doom-loop), `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` (S1), `METRIC_TYPE_DRIFT_ALERT` (D10). |
 | **VoxScript-first glue** | [`AGENTS.md` §VoxScript-First Glue Code](AGENTS.md). All project automation as `.vox` files runnable via `vox run`; banned `.ps1`/`.sh`/`.py` glue. Single command shape; type-checked; observable via `vox.script.*`. |
-| **ACI v1 envelope** schema | [`contracts/aci/agent-computer-interface.v1.yaml`](contracts/aci/agent-computer-interface.v1.yaml) + JSON schema. Mutation classification (`read_only` / `local_mutation` / `external_side_effect` / `unknown`). Implementation at [vox-orchestrator-mcp/src/aci/envelope.rs](crates/vox-orchestrator-mcp/src/aci/envelope.rs). **Opt-in** — default `agentos_aci_envelope_enabled: false`. |
+| **ACI v1 envelope** schema | [`contracts/aci/agent-computer-interface.v1.yaml`](contracts/aci/agent-computer-interface.v1.yaml) + JSON schema. Mutation classification (`read_only` / `local_mutation` / `external_side_effect` / `unknown`). Implementation at [vox-orchestrator-mcp/src/aci/envelope.rs](crates/vox-orchestrator-mcp/src/aci/envelope.rs). **On by default since v0.6** — `agentos_aci_envelope_enabled: true` (CR-L5, 2026-05-25). |
 
-**Coverage assessment.** Discovery, MCP dispatch, planning, and telemetry are real. Two gaps stand out: ACI envelopes are **opt-in** rather than the default, and there is no end-to-end deploy-and-health flow exposed via CLI (see §3.4).
+**Coverage assessment.** Discovery, MCP dispatch, planning, telemetry, and ACI envelope (v0.6+) are real. One gap remains: there is no end-to-end deploy-and-health flow exposed via CLI (see §3.4 / CR-L7).
 
 ### §2.5 Concrete net achievements (the unsung list)
 
@@ -233,9 +233,14 @@ So an LLM reading `AGENTS.md` thinks `workflow` is fully supported, writes one, 
 
 ---
 
-### §3.7 🟠 Major — ACI envelope is opt-in
+### §3.7 ~~🟠 Major — ACI envelope is opt-in~~ ✅ RESOLVED in v0.6
 
-**Symptom.** Per [`agentos-ssot-2026.md`](agentos-ssot-2026.md), `OrchestratorConfig::agentos_aci_envelope_enabled` defaults to `false`. Mutation classification, guardrail kernel, and `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` are all live but dormant unless the agent's host opts in.
+> **2026-05-25 update:** CR-L5 landed in v0.6.0 (commit `5b8a932f65`).
+> `OrchestratorConfig::agentos_aci_envelope_enabled` now defaults to `true`.
+> `vox audit aci-default` CI gate passes and `feature-flags.v1.yaml` updated.
+> Remainder of this section preserved for historical context.
+
+**Symptom (v0.5 — resolved).** Per [`agentos-ssot-2026.md`](agentos-ssot-2026.md), `OrchestratorConfig::agentos_aci_envelope_enabled` defaulted to `false`. Mutation classification, guardrail kernel, and `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` were all live but dormant unless the agent's host opted in.
 
 **Why it matters for V4.** If a remote agent cannot reliably tell whether a tool call mutates the working tree, it cannot reason about safety. Opt-in defaults push that responsibility to humans configuring each IDE — the opposite of the orchestrator model.
 

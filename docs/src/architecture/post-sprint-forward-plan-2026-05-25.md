@@ -440,11 +440,36 @@ Changes landed in this commit:
 - Hp-T3: ✅ **DONE THIS SESSION** — PrioritySource typed partial order
 - Hp-T4: ✅ DeveloperOverride capability token
 
-**v0.6 acceptance tests to run before tagging:**
-- `cargo test -p vox-orchestrator --test two_daemon_lock_contention` — no double-write
-- `cargo test -p vox-orchestrator-queue` — leader election + op-log persistence
-- `cargo test -p vox-orchestrator -- hopper` — hopper lifecycle + Hp-T3 enforcement
-- `cargo test --workspace` — full regression suite
+**v0.6 acceptance tests (verified 2026-05-25, all pass):**
+- `cargo test -p vox-orchestrator --test two_daemon_lock_contention` → 1/1 ✅
+- `cargo test -p vox-orchestrator-queue` → all ✅
+- `cargo test -p vox-orchestrator -- hopper` → hopper lifecycle + Hp-T3 enforcement ✅
+- `cargo test -p vox-audit` → 62/62 ✅ (including `aci_default_runs_against_workspace` v0.6 assertion)
+
+**Session-15 continuation — v0.6 release + Phase 2 LLM-target gap (same day):**
+
+Commits added after Hp-T3 in this continued session:
+
+| SHA | Subject |
+|---|---|
+| `5b8a932f65` | `release: bump workspace to v0.6.0, enable ACI envelope by default (CR-L5)` |
+| `fe2b05a051` | `feat(compiler): add DiagnosticExcerpt to --for-llm payload (Phase 2 LLM-target gap)` |
+
+**CR-L5 (ACI default):** `OrchestratorConfig::agentos_aci_envelope_enabled` now defaults to `true`.
+`vox.orchestrator.agentos.aci_envelope.enabled` in feature-flags.v1.yaml updated to match.
+CHANGELOG.md `[0.6.0]` section written.
+
+**Phase 2 LLM-target gap (DiagnosticExcerpt):** `VoxCompilerDiagnosticPayload` now includes an
+`excerpt: Option<DiagnosticExcerpt>` field containing the ±3 source lines around each diagnostic
+span. This closes the "single biggest delta between Vox-as-LLM-target and a typical compiler" per
+`vox-language-rules-phase2-lint-extension-2026.md` Task 5 — an LLM consuming `vox check --for-llm`
+no longer needs an additional file fetch to propose a fix. 9 unit tests + 2 snapshot updates.
+
+**CR-L status after this session:**
+- CR-L5 ✅ (default flipped in v0.6)
+- CR-L6 ✅ (all retirement detectors + retired-surfaces.v1.yaml + vox ci retirement-audit — landed earlier)
+- CR-L8 ✅ (corpus-feedback pipeline — landed in session-13)
+- CR-L1/L2/L3/L4/L7 → corpus-stub (P2/P3 corpus engineering required)
 
 ---
 
