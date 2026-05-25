@@ -542,6 +542,31 @@ This session continuation:
 
 **State after session 9 (2026-05-24):** arch-check **clean ✓** (`vox-arch-check 0.5.0+build.1227`). **A-12 complete**: extracted `vox-orchestrator/src/dei_shim/` (~3,500 LoC research pipeline) as new `vox-dei-shim` crate (L3, 5,016 LoC). `selection/` WIP code excluded (not in original module tree; needs types not yet promoted). Consumers updated; 8 scientia tests migrated. **D-7-rescope Step 1 complete**: `envelope.rs` + `auth_ed25519.rs` ported to `vox-plugin-populi-mesh`; Step 2 deferred — requires migrating NodeRecord to vox-mesh-types. **X-1 superseded**: working directly on `main` branch (39 commits ahead of origin/main); tracking artifact = commit history linking to this doc. **All P0–P4 tasks complete.** Remaining: D-7-rescope Step 2 (deferred, ML), P5 XLs A-19/A-20 (plan-doc-owned, future sprints).
 
+## 7f. Execution log (2026-05-25, session 10 — free-by-default sprint + D-7 Step 2 + retirement pass)
+
+Free-by-default sprint, D-7-rescope Step 2 completion, A-9 official retirement, B-2 re-fix, and verification pass confirming 7 previously-logged closures:
+
+| Task | What landed | Verification |
+|---|---|---|
+| **F-F sprint** | Added `ModelTier::Free` + `ModelTier::Fast` variants; `CostPreference::Economy` is `#[default]`; `default_cost_preference()` → `Economy`; `QualityLevel::Flash | Balanced → Economy` (completes free-by-default); exploration bonus in `engine.rs` extended to `ModelTier::Pro | Fast | Free` (parity). `vox-dei-shim/src/selection/` re-activated (7 files, 10 tests passing). Bootstrap catalog: 9 models reclassified to `Free`/`Fast` tier. | Documented in `free-by-default-audit-2026-05-24.md` + `free-by-default-and-residual-work-plan-2026.md §9`. All three audit follow-ups closed in commit `7f2edd8e7e`. |
+| **D-7-rescope Step 2** | New L2 crate `vox-populi-types` (ADR-042): `NodeRecord`, `PopuliRegistryFile`, `PopuliRegistryError`, and three helper fns (`filter_registry_by_max_stale_ms`, `node_maintenance_blocks_new_work`, `sweep_expired_maintenance_on_nodes`) extracted from `vox-populi/src/node_registry.rs`. `node_registry.rs` refactored to re-exports + `LocalRegistry` (file I/O) only. `vox-populi/Cargo.toml`, `layers.toml`, and WTL updated. NodeRecord could not go to L0 (`vox-mesh-types`) because it contains `vox_repository::TaskCapabilityHints` (L2 dep). | `cargo check -p vox-populi-types -p vox-populi` clean. `cargo run -p vox-arch-check` exits 0. Commit `a0a236ee44`. |
+| **B-2 re-fix** | Session 5 had ported `voxup` from `directories = "5.0"` to `dirs::home_dir()` — still a crate dep. Sprint replaced with env-var pattern: `std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."))` in `voxup/src/install.rs`. Removes `dirs` dep from voxup entirely. | `cargo check -p voxup` clean. Commit `e83a29e9a8`. |
+| **A-9 retirement (documented deferral)** | Fan-in analysis (session 7) confirmed all 26 consumers of `vox-secrets` call resolution fns (`resolve_secret`, `get_secret_or_prompt`, etc.) — zero type-only consumers. Splitting `vox-secrets-types` (L0) would produce no fan-in reduction while requiring a 26-crate migration. Official deferral: `layers.toml` comment updated to record the analysis; cross-reference added to `post-sprint-forward-plan-2026-05-25.md §2/R-G`. | No compile changes. Fan-in warn (`26/25`) remains; deferral is the documented decision. |
+
+**Verification-confirmed closures (re-verified 2026-05-25; no code changes needed):**
+
+| ID | Confirmed status | Evidence |
+|---|---|---|
+| **A-22** | ✅ Done (session 2 §7b) | `orphan_exempt = true` present in `layers.toml` for both `vox-distributed-training` and `vox-inference`; Rule 4 `orphan_exempt` flag implemented in `vox-arch-check/src/main.rs:124`. |
+| **B-13** | ✅ Done (session 1 §7) | `crates/vox-orchestrator/Cargo.toml`: single `tempfile.workspace = true` entry in `[dev-dependencies]`; runtime duplicate at L107 was removed in session 1. |
+| **D-17** | ✅ Done (sessions 6–7) | Commit `33f912a4258` unified three `SkillManifest` shapes; `promote_manifest`/`demote_manifest` deleted; `vox-plugin-api::skill::SkillManifest` replaced by re-export of canonical rich type from `vox-plugin-types`. |
+| **D-3** | ✅ Retired / FALSE | `vox-webhook` library crate never existed on disk; only `vox-plugin-webhook` (plugin) is present. Task had no source material. Session 8 verified FALSE. |
+| **D-8** | ✅ Retired / FALSE | `vox-plugin-oratio-mic` never existed; only `vox-plugin-oratio`. Session 8 verified FALSE. |
+| **B-1** | ✅ Done (session 2 §7b) | `crates/vox-search/Cargo.toml:31` `tantivy default-features = false, features = ["mmap"]`; root workspace pin aligned. |
+| **B-6** | ✅ Done (session 5 §7e) | `mockito` absent from all workspace `Cargo.toml` files; `vox-populi` dev-deps migrated to `wiremock = { workspace = true }`. |
+
+**State after session 10 (2026-05-25):** arch-check exits **0** (`build.1237`). `cargo check --workspace` clean. **All 50 audit tasks complete or retired with documented rationale.** D-7-rescope Steps 3+ (L, requires MeshDriver design decision — tracked R-E), A-9 (retired deferral — R-G), A-19/A-20 (P5 XLs, plan-doc-owned — R-H/R-I) are the only residuals; each carries an explicit gate condition. Free-by-default is live. `main` was pushed to `origin/main` at `+51` commits.
+
 ---
 
 ## 8. Verification methodology appendix
