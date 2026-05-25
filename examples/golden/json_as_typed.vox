@@ -52,6 +52,16 @@ type ToolCall =
     | Search { query: str }
     | Fetch { url: str }
 
+// ── 6. ADT edge cases: second variant, missing tag, unknown tag ───────────────
+//
+// These four functions mirror the four adt_tagged_enum_* integration tests
+// in crates/vox-compiler/tests/json_as_test.rs (Phase M, RFC §4.4).
+
+@json_as(Shape, tag: "type")
+type Shape =
+    | Circle { radius: int }
+    | Square { side: int }
+
 // ── Demo functions ─────────────────────────────────────────────────────────────
 
 fn parse_product(raw: str) to str {
@@ -107,6 +117,46 @@ fn parse_tool(raw: str) to str {
     return "search:" + query.unwrap()
 }
 
+// 6a. First variant of Shape ADT (Circle)
+fn parse_shape_circle(raw: str) to str {
+    let r = json.parse(raw)
+    if r.is_err() { return "parse_error" }
+    let res = Shape_from_json(r.unwrap())
+    if res.is_err() { return "decode_error: " + res.unwrap_err() }
+    let s = res.unwrap()
+    let radius = s.get("radius").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
+    return "circle:radius=" + str(radius)
+}
+
+// 6b. Second variant of Shape ADT (Square)
+fn parse_shape_square(raw: str) to str {
+    let r = json.parse(raw)
+    if r.is_err() { return "parse_error" }
+    let res = Shape_from_json(r.unwrap())
+    if res.is_err() { return "decode_error: " + res.unwrap_err() }
+    let s = res.unwrap()
+    let side = s.get("side").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
+    return "square:side=" + str(side)
+}
+
+// 6c. Missing "type" tag field → Shape_from_json returns Err
+fn check_shape_missing_tag() to str {
+    let r = json.parse("{\"radius\":5}")
+    if r.is_err() { return "parse_error" }
+    let res = Shape_from_json(r.unwrap())
+    if res.is_ok() { return "unexpected_ok" }
+    return "missing_tag"
+}
+
+// 6d. Unknown tag value ("Triangle" not in Shape) → Shape_from_json returns Err
+fn check_shape_unknown_tag() to str {
+    let r = json.parse("{\"type\":\"Triangle\",\"radius\":5}")
+    if r.is_err() { return "parse_error" }
+    let res = Shape_from_json(r.unwrap())
+    if res.is_ok() { return "unexpected_ok" }
+    return "unknown_tag"
+}
+
 fn main() to str {
     // 1. Successful parse
     let product_json = "{\"id\":1,\"name\":\"widget\",\"price\":9.99}"
@@ -127,5 +177,11 @@ fn main() to str {
     let tool_json = "{\"kind\":\"Search\",\"query\":\"find widgets\"}"
     let r5 = parse_tool(tool_json)
 
-    return r1 + " | " + r2 + " | event:" + r3 + " | order:" + r4 + " | tool:" + r5
+    // 6. Shape ADT: first variant, second variant, missing tag, unknown tag
+    let r6a = parse_shape_circle("{\"type\":\"Circle\",\"radius\":5}")
+    let r6b = parse_shape_square("{\"type\":\"Square\",\"side\":7}")
+    let r6c = check_shape_missing_tag()
+    let r6d = check_shape_unknown_tag()
+
+    return r1 + " | " + r2 + " | event:" + r3 + " | order:" + r4 + " | tool:" + r5 + " | " + r6a + " | " + r6b + " | " + r6c + " | " + r6d
 }
