@@ -788,4 +788,58 @@ mod explain_url_tests {
         assert!(url.starts_with("https://vox-lang.org/diag/vox/"), "URL: {url}");
         assert!(url.ends_with("vox/effect/pure-violated"), "URL: {url}");
     }
+
+    // ── vox/types/* codes (v0.6 LLM-target, commit 1dde2ea12b) ──────────────
+
+    #[test]
+    fn type_mismatch_code_produces_explain_url() {
+        let diag = make_diag(Some(super::codes::TYPES_TYPE_MISMATCH));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/type-mismatch")
+        );
+    }
+
+    #[test]
+    fn undefined_variable_code_produces_explain_url() {
+        let diag = make_diag(Some(super::codes::TYPES_UNDEFINED_VARIABLE));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/undefined-variable")
+        );
+    }
+
+    #[test]
+    fn method_not_found_code_produces_explain_url() {
+        let diag = make_diag(Some(super::codes::TYPES_METHOD_NOT_FOUND));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/method-not-found")
+        );
+    }
+
+    #[test]
+    fn with_code_builder_attaches_stable_code() {
+        use crate::ast::span::Span;
+        let diag = Diagnostic::error(
+            "Type mismatch in `let`: expected Int, found Str".into(),
+            Span { start: 0, end: 5 },
+            "let x: Int = \"hi\"",
+        )
+        .with_code(super::codes::TYPES_TYPE_MISMATCH);
+        assert_eq!(diag.code.as_deref(), Some("vox/types/type-mismatch"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(
+            &diag,
+            "test.vox",
+            "let x: Int = \"hi\"",
+        );
+        assert_eq!(payload.error_code, "vox/types/type-mismatch");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/type-mismatch")
+        );
+    }
 }
