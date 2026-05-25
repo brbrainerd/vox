@@ -390,3 +390,90 @@ fn multi_field_struct_all_fields_extracted() {
     "#);
     assert_eq!(n, 102);
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Tagged-enum ADT (RFC §4.4): build_from_json_adt code path
+// ──────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn adt_tagged_enum_dispatches_on_tag_field() {
+    let s = run_str(r#"
+        @json_as(Shape, tag: "type")
+        type Shape =
+            | Circle { radius: int }
+            | Square { side: int }
+
+        fn main() to str {
+            let payload = "{" + "\"type\":\"Circle\"" + ",\"radius\":5" + "}"
+            let r = json.parse(payload)
+            if r.is_err() { return "parse_error" }
+            let res = Shape_from_json(r.unwrap())
+            if res.is_err() { return "from_json_error: " + res.unwrap_err() }
+            let shape = res.unwrap()
+            let radius = shape.get("radius").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
+            return "radius:" + str(radius)
+        }
+    "#);
+    assert_eq!(s, "radius:5");
+}
+
+#[test]
+fn adt_tagged_enum_second_variant_dispatches_correctly() {
+    let s = run_str(r#"
+        @json_as(Shape, tag: "type")
+        type Shape =
+            | Circle { radius: int }
+            | Square { side: int }
+
+        fn main() to str {
+            let payload = "{" + "\"type\":\"Square\"" + ",\"side\":7" + "}"
+            let r = json.parse(payload)
+            if r.is_err() { return "parse_error" }
+            let res = Shape_from_json(r.unwrap())
+            if res.is_err() { return "from_json_error: " + res.unwrap_err() }
+            let shape = res.unwrap()
+            let side = shape.get("side").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
+            return "side:" + str(side)
+        }
+    "#);
+    assert_eq!(s, "side:7");
+}
+
+#[test]
+fn adt_tagged_enum_missing_tag_returns_err() {
+    let s = run_str(r#"
+        @json_as(Shape, tag: "type")
+        type Shape =
+            | Circle { radius: int }
+
+        fn main() to str {
+            let payload = "{" + "\"radius\":5" + "}"
+            let r = json.parse(payload)
+            if r.is_err() { return "parse_error" }
+            let res = Shape_from_json(r.unwrap())
+            if res.is_ok() { return "unexpected_ok" }
+            return "missing_tag"
+        }
+    "#);
+    assert_eq!(s, "missing_tag");
+}
+
+#[test]
+fn adt_tagged_enum_unknown_tag_returns_err() {
+    let s = run_str(r#"
+        @json_as(Shape, tag: "type")
+        type Shape =
+            | Circle { radius: int }
+            | Square { side: int }
+
+        fn main() to str {
+            let payload = "{" + "\"type\":\"Triangle\"" + ",\"radius\":5" + "}"
+            let r = json.parse(payload)
+            if r.is_err() { return "parse_error" }
+            let res = Shape_from_json(r.unwrap())
+            if res.is_ok() { return "unexpected_ok" }
+            return "unknown_tag"
+        }
+    "#);
+    assert_eq!(s, "unknown_tag");
+}

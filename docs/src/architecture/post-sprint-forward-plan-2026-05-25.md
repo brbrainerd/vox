@@ -372,3 +372,26 @@ Steps 3–5 (typeck / eval / codegen) required no code: synthesised HirFns auto-
 - Codegen step: `--mode script` Rust emit of synthesised fns (typeck parity) — the synthesised `_from_json`/`_to_json` fns already appear in `hir.functions` and flow through `emit_fn`; however the Rust codegen for `VoxValue::Object` field access and `Result`/`Option` wrappers may need spot-checking against a `--mode script` compile.
 - Extend `json_as_typed.vox` golden example to include the tagged-enum (ADT) path once ADT test coverage is added.
 - The 10-test migration win: `generate-matrix-doc.vox` / `audit-workspace-health.vox` collapse from ~40 lines of `pointer + and_then` to struct definitions + `T::from_json(data)` — post-Phase-M cleanup, not a blocker.
+
+## 8. Session-12 (2026-05-25) breadcrumb
+
+**Tagged-enum ADT integration tests + script migration + pre-existing test fixes**
+
+Changes landed (not yet committed):
+
+- `crates/vox-compiler/tests/json_as_test.rs`: +4 ADT integration tests (`adt_tagged_enum_dispatches_on_tag_field`, `adt_tagged_enum_second_variant_dispatches_correctly`, `adt_tagged_enum_missing_tag_returns_err`, `adt_tagged_enum_unknown_tag_returns_err`). Verifies the `build_from_json_adt` code path (tag dispatch, field extraction, missing-tag error, unknown-tag error). All 17 `json_as_test` pass.
+- `scripts/quality/generate-matrix-doc.vox`: Added `@json_as(MatrixProduct)` and `@json_as(MatrixFeature)` type definitions. `find_product_name` and the feature rows loop now call `MatrixProduct_from_json` / `MatrixFeature_from_json` to validate required fields at the call site; malformed entries are skipped via `is_err() { continue }`.
+- `examples/golden/control_flow_if.vox`: Fixed `!active` → `not active` (pre-existing `!` operator violation; `all_golden_vox_examples_parse_and_lower` was failing).
+- `examples/golden/inventory_rosetta_platform.vox`: Fixed `!has_capability(...)` → `not has_capability(...)` (same pre-existing violation, same test).
+- `docs/src/reference/vox-ir.schema.json`: Removed `routes` from `module.required` array. The `VoxIrContent` Rust struct never serialises a `routes` key; the schema was stale. Fixes `test_ir_emission_with_hashing_and_inference` (pre-existing).
+- `crates/vox-compiler/tests/ir_emission_test.rs`: Removed `#[ignore]` from `test_ir_emission_includes_scheduled_jobs_in_web_ir`; updated comment to explain schema fix. Both IR emission tests now pass (was 1 ignored, 1 failing).
+- `crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_with_web_ir_canonical_view.snap`: Accepted `.snap.new` (string interpolation codegen changed to `"literal " + var` form; pre-existing drift).
+
+**Post-session state:**
+- 558 tests passing, 0 failing in `vox-compiler` (was: 2 ignored + 2 failing from pre-existing issues; all fixed or accepted).
+- `json_as_test.rs`: 17 tests (was 13 after Session-11, +4 ADT).
+
+**Next unblocked work (if continuing):**
+- CR-L5 is correctly handled: `aci_default` audit passes on v0.5.x by design; `false` default is the expected baseline until v0.6 ships. No action needed.
+- Extend `json_as_typed.vox` golden example to add a tagged-enum ADT section mirroring the new integration tests.
+- CR-L8 (corpus feedback observability, ~4 weeks): structured JSON from `vox run` failures. This is the next high-value LLM-target metric after Phase M.

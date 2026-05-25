@@ -60,12 +60,9 @@ fn test_ir_emission_with_hashing_and_inference() {
 
 /// Per ADR-041 (durable functions completion), `@scheduled` is back in the public grammar
 /// and the scheduler runtime ships — the pipeline no longer rejects it at the front-end.
-/// However, the `docs vox-ir.schema.json` validator currently treats `routes` as a required
-/// top-level property, so a `@scheduled`-only module without an explicit `routes {}` block
-/// fails schema validation. Re-enable after the schema is relaxed (or after this test gains
-/// a no-op `routes {}` block once `@scheduled` integrates with the routing layer).
+/// `routes` was removed from the vox-ir.schema.json `required` list (2026-05-25) because
+/// `VoxIrContent` never serialises that key; schema now correctly treats it as optional.
 #[test]
-#[ignore = "ADR-041 lifted @scheduled; vox-ir.schema still requires `routes` — re-enable when the schema accepts @scheduled-only modules"]
 fn test_ir_emission_includes_scheduled_jobs_in_web_ir() {
     let source = r#"
 @scheduled("1h")

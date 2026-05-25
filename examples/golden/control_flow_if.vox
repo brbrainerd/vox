@@ -28,7 +28,7 @@ fn classify_score(score: int) to str {
 }
 
 fn access_level(role: str, active: bool) to str {
-    if !active {
+    if not active {
         return "suspended"
     }
     if role is "admin" {
