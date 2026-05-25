@@ -148,6 +148,14 @@ Going back over the conversation:
 4. **Optionally update task #39** to add a "(prereqs only; surface alive)" suffix so future agents reading the task list don't assume the surface is gone.
 5. **Worktree cleanup** — the parallel-agent audit (`work-loss-audit-and-handoff-2026-05-24.md §7.6`) lists several "prunable" worktree directories (`dashboard-vuv-port`, `share-s2-s9`, `zealous-ardinghelli-b01e11`, plus a half-dozen `lang-*`); run `git worktree prune` after confirming no uncommitted work in those directories.
 
+## 11. Postscript (2026-05-25 ~15:56Z)
+
+State changed during/after this doc landed. Updates verified at HEAD = `cd14080df6`:
+
+- **Hp-T3 PrioritySource committed** at `4ea6f8d71c` (15:52Z, 2026-05-25) by parallel agent. The "at risk" warning in §5 resolved within minutes of writing this doc. Task #47 closed. §5 and §9 item 1 are now historical, not actionable.
+- **Phase H surface retirement (task #46) remains gate-blocked.** Verified gate condition per `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`: "Once the migration commit is on main for one minor release …". Prereqs landed at `df14322b87` on 2026-05-24 01:29Z (~38 h ago). Workspace version is still `0.5.0`; `git tag` shows no semver tags at all (only recovery markers). No "one minor release" boundary has occurred — the gate is unambiguously not met. Task #46 stays pending.
+- **Actionable open work right now:** none, unless the user wants to (a) tag a v0.6.0 release (which would open the Phase H gate) or (b) override the soak-gate and execute Phase H retirement now anyway. Both are policy decisions, not engineering ones.
+
 ## 10. Related
 
 - `session-handoff-2026-05-24-lost-work-audit.md` — prior session's forensic recovery doc.
