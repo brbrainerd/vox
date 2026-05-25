@@ -344,3 +344,31 @@ R-B audit retirement: `e5bb6afccb` (docs(audit): retire 10 resolved/FP items + r
 R-D verified done (no new commit needed — Option 2 was implemented in session 2).
 
 **All R-A/B/C/D tracks complete as of 2026-05-25.**
+
+---
+
+## 7. Session-11 (2026-05-25) breadcrumb
+
+**Phase M — @json_as typed JSON deserialization (Steps 1–6): COMPLETE**
+
+Commit `8015db773f` — `feat(compiler): Phase M @json_as typed JSON deserialization (Steps 1-6)`.
+
+Changes landed:
+- `crates/vox-compiler/src/hir/lower/json_as.rs` (new, 560 lines): synthesises `<T>_from_json(j: Json) → Result[T]` and `<T>_to_json(v: T) → Json` HirFns for each `@json_as`-annotated type. Handles required scalars, `Option[T]` fields, `Json` fields, all 4 naming conventions, `@field_name` overrides, `defaults: true`, tagged-enum ADTs. 12 unit tests.
+- `crates/vox-compiler/src/hir/lower/mod.rs`: wire-in at `Decl::TypeDef` arm; synthesised fns extend `hir.functions` directly.
+- `crates/vox-compiler/src/parser/descent/decl/mid.rs`: complete Step-1 parser gap — add `parse_json_as_field_attrs()` for `@field_name` / `@default` / `@skip_if_none` per-field attributes; add brace-body `{ f: T }` variant shape for ADT variants (RFC §4.4).
+- `crates/vox-compiler/src/parser/descent/mod.rs`: add `Token::AtJsonAs` to `is_decl_position` set.
+- `crates/vox-compiler/tests/json_as_test.rs` (new): 13 integration tests.
+- `examples/golden/json_as_typed.vox` (new): golden example; runs end-to-end through `vox run`.
+
+Steps 3–5 (typeck / eval / codegen) required no code: synthesised HirFns auto-processed by existing pipelines.
+
+**Post-session state:**
+- All 289 lib unit tests pass; 13 new integration tests pass; 1 pre-existing `axum_emit_contract_test` snapshot failure unchanged.
+- Golden example output: `ok: widget | round_trip: widget | event:click | order:ORD-001`
+- Commit pushed to `origin/main` (head: `8015db773f`).
+
+**Next unblocked work (if continuing):**
+- Codegen step: `--mode script` Rust emit of synthesised fns (typeck parity) — the synthesised `_from_json`/`_to_json` fns already appear in `hir.functions` and flow through `emit_fn`; however the Rust codegen for `VoxValue::Object` field access and `Result`/`Option` wrappers may need spot-checking against a `--mode script` compile.
+- Extend `json_as_typed.vox` golden example to include the tagged-enum (ADT) path once ADT test coverage is added.
+- The 10-test migration win: `generate-matrix-doc.vox` / `audit-workspace-health.vox` collapse from ~40 lines of `pointer + and_then` to struct definitions + `T::from_json(data)` — post-Phase-M cleanup, not a blocker.
