@@ -3,7 +3,7 @@ title: "ADR-042: Extract NodeRecord into vox-populi-types (L2)"
 description: "NodeRecord cannot live in vox-mesh-types (L0) because it depends on vox-repository::TaskCapabilityHints (L2). A new L2 crate resolves this without a layering violation."
 last_updated: "2026-05-24"
 category: "Architecture SSOTs"
-status: accepted
+status: "current"
 ---
 
 # ADR-042: Extract NodeRecord into vox-populi-types (L2)

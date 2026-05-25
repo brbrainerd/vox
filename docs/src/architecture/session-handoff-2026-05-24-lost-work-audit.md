@@ -2,8 +2,8 @@
 title: "Handoff: 2026-05-24 lost-work forensic audit + recovery plan"
 description: "Post-incident audit of what was orphaned during the 2026-05-23/24 parallel-agent commit storm. Identifies the jj-keep snapshot containing the four unfinished work products and gives exact recovery commands."
 last_updated: "2026-05-24"
-category: "Session handoffs"
-status: active
+category: "Architecture SSOTs"
+status: "current"
 ---
 
 # Handoff: lost-work forensic audit (2026-05-23/24)

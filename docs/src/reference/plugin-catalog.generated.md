@@ -1,7 +1,7 @@
 ---
 title: "Plugin Catalog (Generated)"
 description: "Auto-generated authoritative list of all first-party Vox plugins."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 ---
