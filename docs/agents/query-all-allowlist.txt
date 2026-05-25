@@ -10,3 +10,4 @@ crates/vox-cli/src/commands/review/coderabbit/
 crates/vox-mcp/src/dei_tools/
 crates/vox-workflow-runtime/tests/
 crates/vox-code-audit/src/detectors/
+crates/vox-cli/tests/
