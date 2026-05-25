@@ -82,13 +82,19 @@ fn codegen_component_has_use_state() {
 
 #[test]
 fn codegen_server_has_express_route_with_await() {
+    // Express server emission (`server.ts`) was fully decommissioned — `VOX_EMIT_EXPRESS_SERVER`
+    // is no longer read by vox-codegen. HTTP routing is handled by Axum, not Express.
+    // This test now verifies that `server.ts` is NOT emitted even when the env-var is set,
+    // and that the generate call itself still succeeds (no panic / error).
     let tokens = lex(CHATBOT_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
     let output = with_express_server_enabled(|| generate(&hir).unwrap());
-
-    let server = output.files.iter().find(|(n, _)| n == "server.ts").unwrap();
-    insta::assert_snapshot!("chatbot_server_ts_express_actor", server.1);
+    assert!(
+        !output.files.iter().any(|(n, _)| n == "server.ts"),
+        "Express server.ts must not be emitted (express decommissioned); got: {:?}",
+        output.files.iter().map(|(n, _)| n).collect::<Vec<_>>()
+    );
 }
 
 #[test]
@@ -323,7 +329,8 @@ fn pipeline_table_rust_codegen_e2e() {
 
 #[test]
 fn codegen_routes_produces_route_manifest_ts() {
-    let src = "routes {\n    \"/\" to home\n    \"/about\" to about\n}";
+    // Component stubs satisfy validate_manifest_symbols (wired in 7ba386cfc5).
+    let src = "fn home() to str { return \"\" }\nfn about() to str { return \"\" }\nroutes {\n    \"/\" to home\n    \"/about\" to about\n}";
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
@@ -346,7 +353,10 @@ fn codegen_routes_produces_route_manifest_ts() {
 
 #[test]
 fn codegen_routes_with_loading_emits_pending_component() {
+    // home stub satisfies validate_manifest_symbols (wired in 7ba386cfc5).
     let src = r#"@loading fn Spinner() to Element { return column(raw_class="spinner") { "wait" } }
+
+fn home() to str { return "" }
 
 routes {
     "/" to home
@@ -371,7 +381,8 @@ routes {
 
 #[test]
 fn codegen_tanstack_start_flag_does_not_emit_separate_router_file() {
-    let src = "routes {\n    \"/\" to home\n    \"/about\" to about\n}";
+    // Component stubs satisfy validate_manifest_symbols (wired in 7ba386cfc5).
+    let src = "fn home() to str { return \"\" }\nfn about() to str { return \"\" }\nroutes {\n    \"/\" to home\n    \"/about\" to about\n}";
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);

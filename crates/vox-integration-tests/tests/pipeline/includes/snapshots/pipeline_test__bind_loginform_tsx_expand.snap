@@ -1,5 +1,6 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+assertion_line: 497
 expression: component.1
 ---
 import React, { useState } from "react";
@@ -7,6 +8,6 @@ import React, { useState } from "react";
 export function LoginForm(): React.ReactElement {
     const [email, set_email] = useState("");
   return (
-<input className={"email-field"} value={email} onChange={(e) => set_email(e.target.value)} />
+    <input className={"email-field"} onChange={(e) => set_email(e.target.value)} value={email} />
   );
 }
