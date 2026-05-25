@@ -395,14 +395,16 @@ Three route-only test sources (`codegen_routes_produces_route_manifest_ts`, `cod
 - `speech_pipeline_stage_probe_test`: 1 pre-existing failure (`probe_dashboard_speak_surface_has_no_microphone_path`) — unrelated.
 - No stale `.snap.new` files.
 
-**Remaining pre-existing failures (not introduced by Sessions 11–13):**
-1. `tauri_emit_registers_sherpa_acl_in_build_rs` — Sherpa ACL not in Tauri capability JSON
-2. `tauri_convergence_snapshots` — Tauri convergence snapshot drift
-3. `probe_dashboard_speak_surface_has_no_microphone_path` — speak surface microphone path check
+**Remaining pre-existing failures — all resolved in Session-14 (`e9fa9ece8e`):**
+1. ✅ `tauri_emit_registers_sherpa_acl_in_build_rs` — assertion updated to `vox-stt:default` after STT plugin rename
+2. ✅ `tauri_convergence_snapshots` — snapshot accepted (`use tauri::Manager; use pkg::*;`)
+3. ✅ `probe_dashboard_speak_surface_has_no_microphone_path` — test skips gracefully when `vox-dashboard` not present on disk
+
+**Post-Session-14 state: `cargo test --workspace` → 237 binaries, 0 failures, 0 warnings.**
 
 **Next unblocked work:**
-1. **(S)** Investigate and fix the 3 remaining pre-existing failures in vox-codegen (Tauri/speech surface)
-2. **(M)** CR-L8 corpus feedback observability (~4 weeks; structured JSON from `vox run` failures)
+1. **(M)** CR-L8 corpus feedback observability (~4 weeks; structured JSON from `vox run` failures)
+2. **(S)** Extend `json_as_typed.vox` golden example with tagged-enum ADT section
 3. **(L, design-gated)** R-E: D-7-rescope Step 3+ MeshDriver routing
 
 ---
