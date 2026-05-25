@@ -191,3 +191,58 @@ fn get_orders() -> List[Order] {
         "minimal_repro snippet should show the fix (@auth or @public); got: {repro}"
     );
 }
+
+/// Verify the lint finding JSON structure matches what `vox repair` parses.
+///
+/// The repair loop reads `rule_id`, `line`, `message`, `suggestion`, and
+/// `minimal_repro` directly from the `serde_json::Value` envelope.  This
+/// test pins those field names so a breaking rename is caught immediately.
+#[cfg(feature = "stub-check")]
+#[test]
+fn lint_finding_json_fields_match_repair_loop_expectations() {
+    let source = r#"
+@endpoint
+fn get_billing() -> List[Invoice] {
+    db.query_all()
+}
+"#;
+    let file = std::path::Path::new("billing.vox");
+    let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
+    let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
+
+    let findings = v
+        .get("lint_findings")
+        .and_then(|f| f.as_array())
+        .expect("lint_findings present");
+
+    let f = findings
+        .iter()
+        .find(|f| {
+            f.get("rule_id")
+                .and_then(|r| r.as_str())
+                .map(|r| r.contains("auth"))
+                .unwrap_or(false)
+        })
+        .expect("auth-endpoint finding");
+
+    // Fields the repair loop accesses via .get("field") + .as_str()/.as_u64():
+    assert!(
+        f.get("rule_id").and_then(|v| v.as_str()).is_some(),
+        "rule_id must be a string"
+    );
+    assert!(
+        f.get("line").and_then(|v| v.as_u64()).is_some(),
+        "line must be a non-negative integer"
+    );
+    assert!(
+        f.get("message").and_then(|v| v.as_str()).is_some(),
+        "message must be a string"
+    );
+    // suggestion and minimal_repro are optional but when present must be strings
+    if let Some(s) = f.get("suggestion") {
+        assert!(s.as_str().is_some(), "suggestion must be a string when present");
+    }
+    if let Some(r) = f.get("minimal_repro") {
+        assert!(r.as_str().is_some(), "minimal_repro must be a string when present");
+    }
+}
