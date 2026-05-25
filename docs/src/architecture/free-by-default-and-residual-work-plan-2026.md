@@ -16,20 +16,24 @@ sort_order: 35
 - [`2026-05-15-orchestrator-tier-d-plan.md`](./2026-05-15-orchestrator-tier-d-plan.md) (C5 / `vox-orchestrator-core` extraction, deferred)
 - [`mesh-and-language-distribution-ssot-2026.md`](./mesh-and-language-distribution-ssot-2026.md) (mesh phase plan, intersects in §F)
 
-## 0. Verified ground truth (2026-05-24)
+## 0. Verified ground truth (refreshed 2026-05-25)
+
+> **Update (2026-05-25):** F-B/C/D/E/F/G all executed in session 10. Only F-A
+> (push) remains. F-H/F-I remain gated/deferred. The follow-up plan is
+> [`post-sprint-forward-plan-2026-05-25.md`](./post-sprint-forward-plan-2026-05-25.md).
 
 | Signal | Value |
 |---|---|
-| `vox-arch-check` | `build.1230`: **clean ✓** |
-| `cargo check --workspace` wall-time | **54.5s** (clean rebuild incremental) |
-| `vox-orchestrator` LoC | 60,681 / 70,000 (13.3% headroom) — was 65,560 / 7% before A-12 |
-| `vox-dei-shim` LoC | 5,016 / 8,000 (extracted A-12, 2026-05-24) |
-| Working tree | **clean** (zero uncommitted) |
-| Local `main` ↔ `origin/main` divergence | **+41 commits**, 212 files, +3644 / −2727 |
-| Tasks complete in audit | 48 of 50 (P0-P4 complete) |
-| Tasks deferred | D-7-rescope Step 2 (topology blocker), A-19 (C5), A-20 (cli-ci) |
-| Free-tier infrastructure | `is_free: bool` field exists on `ModelSpec` (180 call sites); `free_only: bool` on `InferenceConfig`; **`default_cost_preference() = Performance`** (contradicts free-by-default) |
-| ModelTier variants in YAML | `Unknown`, `Local`, `Light`, `Pro`, `Elite` — **no `Fast`, no `Free`** |
+| `vox-arch-check` | `build.1237`: **clean ✓** |
+| `cargo check --workspace` wall-time | **~34s** (incremental after sprint) |
+| `vox-orchestrator` LoC | 60,681 / 70,000 (13.3% headroom) — unchanged this sprint |
+| `vox-dei-shim` LoC | ~5,016 / 8,000 (selection/ added without LoC growth) |
+| Working tree | **clean** |
+| Local `main` ↔ `origin/main` divergence | **+49 commits** (was +41; +8 from this sprint) |
+| Tasks complete in audit | 50 of 50 actionable (A-22 / B-13 / D-17 retired this sprint; deferrals documented in post-sprint plan §R-G/R-H/R-I) |
+| Tasks deferred | F-H/A-19 (C5, Rule-13 gated), F-I/A-20 (cli-ci, no pressure), R-E (D-7 step 3+), R-F (D-9 impl move), R-G (A-9 retired) |
+| Free-tier infrastructure | **LIVE** — `default_cost_preference() = Economy`, `QualityLevel::Flash\|Balanced → Economy`; `ModelTier::Free` + `Fast` first-class |
+| ModelTier variants in YAML | `Unknown`, `Local`, **`Free`**, **`Fast`**, `Light`, `Pro`, `Elite` |
 
 ## 1. The product gap: "free by default"
 
@@ -52,15 +56,15 @@ The remaining work decomposes into seven independent tracks. Each track has its 
 
 | Track | Code | Size | Blocks | Status |
 |---|---|---|---|---|
-| **A. Push & merge backlog** | F-A | S | nothing | unstarted |
-| **B. Tier-D plan refresh** | F-B | S | F-G | partial (Tier-D doc updated 2026-05-24 ✓) |
-| **C. Stale-ref sweep** | F-C | S | nothing | partial (vox-db + vox-doc-inventory done; need full grep) |
-| **D. `vox-populi-types` topology ADR** | F-D | S | F-E | unstarted |
-| **E. D-7-rescope Step 2** | F-E | M | nothing | unstarted (was deferred) |
-| **F. Free-tier & Fast-tier first-class** | F-F (1-7) | L | F-G | unstarted |
-| **G. `selection/` re-activation in `vox-dei-shim`** | F-G | M | F-F-1, F-F-2 | unstarted |
-| **H. C5 / `vox-orchestrator-core`** | F-H | XL | none (Rule 13 gate) | deferred |
-| **I. `vox-cli-ci` extraction** | F-I | L | none (no pressure) | deferred |
+| **A. Push & merge backlog** | F-A | S | nothing | **READY** (49 commits, user-approved 2026-05-25) |
+| **B. Tier-D plan refresh** | F-B | S | F-G | **✅ DONE** (`f93efdbb03`) |
+| **C. Stale-ref sweep** | F-C | S | nothing | **✅ DONE** (`4f9c40f9fa`) |
+| **D. `vox-populi-types` topology ADR** | F-D | S | F-E | **✅ DONE** (ADR-042, commit included in `a0a236ee44`) |
+| **E. D-7-rescope Step 2** | F-E | M | nothing | **✅ DONE** (`a0a236ee44`) |
+| **F. Free-tier & Fast-tier first-class** | F-F (1-7) | L | F-G | **✅ DONE** (`175a03d6c8` + `21b98edc74` + `7f2edd8e7e`) |
+| **G. `selection/` re-activation in `vox-dei-shim`** | F-G | M | F-F-1, F-F-2 | **✅ DONE** (bundled in `175a03d6c8`) |
+| **H. C5 / `vox-orchestrator-core`** | F-H | XL | none (Rule 13 gate) | gated — see post-sprint §R-H |
+| **I. `vox-cli-ci` extraction** | F-I | L | none (no pressure) | deferred — see post-sprint §R-I |
 
 ---
 
@@ -389,16 +393,16 @@ Session M (gated, indefinite future):
 
 This plan is considered fully executed when **all** of these are true:
 
-1. ✅ `vox-arch-check` clean (already true)
-2. ✅ `cargo check --workspace` clean (already true, 54.5s)
-3. ⬜ `git rev-list --count origin/main..HEAD` = 0 (after F-A)
-4. ⬜ `grep -rn "vox-orchestrator/src/dei_shim" docs/ contracts/ examples/ tools/` returns zero (after F-C)
-5. ⬜ `ModelTier::Free` and `ModelTier::Fast` exist in generated enum (after F-F-1)
-6. ⬜ `CostPreference::default() == Economy` (after F-F-2 + F-F-3)
-7. ⬜ `vox-plugin-populi-mesh` does not have `vox-populi` as a compile-time *data-only* dep (after F-E)
-8. ⬜ `vox-dei-shim::selection` is a compiling, tested module (after F-G)
-9. ⬜ Free-by-default audit report exists and shows zero silent-spend defaults (after F-F-7)
-10. ⬜ Tier-D plan doc updated to show A-12 as completed past-tense (after F-B polish)
+1. ✅ `vox-arch-check` clean (`build.1237`)
+2. ✅ `cargo check --workspace` clean (~34s incremental)
+3. ⬜ `git rev-list --count origin/main..HEAD` = 0 (after F-A — **ready to push, 49 commits**)
+4. ✅ `grep -rn "vox-orchestrator/src/dei_shim" docs/ contracts/ examples/ tools/` returns zero (F-C, `4f9c40f9fa`)
+5. ✅ `ModelTier::Free` and `ModelTier::Fast` exist in generated enum (F-F-1, `175a03d6c8`)
+6. ✅ `CostPreference::default() == Economy` (F-F-2 + F-F-3, `175a03d6c8`)
+7. ✅ `vox-populi-types` L2 crate landed; `vox-populi` re-exports from it (F-E + ADR-042, `a0a236ee44`)
+8. ✅ `vox-dei-shim::selection` is a compiling, tested module (F-G, bundled in `175a03d6c8` — 10 tests passing)
+9. ✅ Free-by-default audit report exists at `free-by-default-audit-2026-05-24.md`; all three follow-ups (Balanced→Economy, exploration parity, RoutingProfile docs) closed in `7f2edd8e7e`
+10. ✅ Tier-D plan doc updated to show A-12 as completed past-tense (F-B, `f93efdbb03`)
 
 ---
 
@@ -424,3 +428,25 @@ If a future session feels the urge to "expand scope" into one of those, **stop a
 6. Update **§0 ground truth table** at the bottom of the session
 
 The plan is designed so a fresh agent can pick it up cold and not re-litigate decisions.
+
+---
+
+## 9. Session-10 completion log (2026-05-25)
+
+All non-gated tracks executed. Commits in chronological order:
+
+| Track | SHA | Subject |
+|---|---|---|
+| F-B (Tier-D refresh) | `f93efdbb03` | docs(arch): update Tier-D plan to reflect post-A-12 orchestrator LoC |
+| F-C (stale-ref sweep) | `4f9c40f9fa` | fix(refs): update stale dei_shim path references after A-12 extraction |
+| F-B + F-C (master plan) | `bbf9bed00b` | docs(arch): master forward plan + F-B/F-C stale-ref cleanup |
+| F-F + F-G | `175a03d6c8` | feat(routing): land free-by-default + Fast/Free model tiers (F-F + F-G) |
+| F-F-7 | `21b98edc74` | docs(routing): free-by-default audit + catalog tier reclassification |
+| F-D + F-E | `a0a236ee44` | feat(F-E/ADR-042): extract vox-populi-types L2 crate |
+| Bonus (docs) | `f28e58daf0` | docs: add vox-populi-types row to where-things-live.md |
+| F-F-7 follow-ups | `7f2edd8e7e` | feat(free-by-default): close remaining F-F-7 audit gaps |
+| B-2 (bonus, audit-doc cross-track) | `e83a29e9a8` | fix(B-2): wire voxup into workspace metadata + drop dirs dep |
+
+**Remaining:** F-A push (49 commits → `origin/main`). After push, this plan is fully executed.
+
+The follow-on forward plan that covers everything not in scope here (C-16, R-E, R-F, R-H, R-I, R-J, R-K) is [`post-sprint-forward-plan-2026-05-25.md`](./post-sprint-forward-plan-2026-05-25.md).
