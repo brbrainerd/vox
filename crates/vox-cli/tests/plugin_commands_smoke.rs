@@ -38,7 +38,7 @@ fn bundle_list_prints_bundles() {
         "expected vox-fullstack in bundle list output, got:\n{stdout}"
     );
     assert!(
-        stdout.contains("9 bundle(s) defined."),
+        stdout.contains("10 bundle(s) defined."),
         "expected bundle count line, got:\n{stdout}"
     );
 }

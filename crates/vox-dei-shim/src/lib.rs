@@ -4,6 +4,10 @@
 //! The public surface is intentionally identical to the old `vox_orchestrator::dei_shim::*`
 //! path — consumers need only update their import root.
 
+// Many items are only active under the `runtime` or `news-publish` features.
+// Suppress until those features are enabled by consuming crates.
+#![allow(dead_code, unused_variables)]
+
 pub mod agent_frontmatter;
 pub mod research;
 pub mod route_telemetry;

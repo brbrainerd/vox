@@ -7,6 +7,12 @@ license.workspace = true
 publish = false
 description = "DEI research pipeline and model-selection sub-systems (extracted from vox-orchestrator as an A-12 wedge crate)."
 
+[features]
+## Enable live LLM inference calls (disabled in test/stub builds).
+runtime = []
+## Enable Populi news-publish routing in the mesh subscriber.
+news-publish = []
+
 [dependencies]
 vox-orchestrator = { workspace = true }
 vox-orchestrator-types = { workspace = true }

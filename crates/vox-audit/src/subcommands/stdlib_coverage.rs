@@ -133,7 +133,19 @@ impl Subcommand for StdlibCoverageSubcommand {
                 // corpus cleanup per the audit doc §10 CI-wiring section).
                 // Without a baseline, the gate fails on any error mismatch.
                 let exit_code = match (parity.is_clean(), args.baseline.as_ref()) {
-                    (true, _) => ExitCode::Ok,
+                    (true, Some(baseline_path)) => {
+                        // Clean run with baseline: annotate "no regression" so the CI gate
+                        // and tests can confirm the comparison path ran to completion.
+                        if let Some(baseline_errors) = read_baseline_error_count(baseline_path) {
+                            let prior = report.note.clone().unwrap_or_default();
+                            report.note = Some(format!(
+                                "{prior} (baseline error_count={baseline_errors}; \
+                                 no regression — gate passes)"
+                            ));
+                        }
+                        ExitCode::Ok
+                    }
+                    (true, None) => ExitCode::Ok,
                     (false, None) => ExitCode::BarMissed,
                     (false, Some(baseline_path)) => {
                         match read_baseline_error_count(baseline_path) {

@@ -7,6 +7,10 @@
 //! The plugin owns the HTTP control plane; vox-cli and others dispatch through
 //! the MeshDriver trait rather than calling vox-populi::transport directly.
 
+// Transport infrastructure ported from vox-populi; not all paths are exercised
+// through the FFI entry points yet. Suppress until mesh integration is complete.
+#![allow(dead_code)]
+
 pub(crate) mod http_client;
 mod mesh;
 pub(crate) mod transport;

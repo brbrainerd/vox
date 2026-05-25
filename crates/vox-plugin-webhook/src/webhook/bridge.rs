@@ -132,7 +132,8 @@ impl WebhookOrchestratorBridge {
 
 #[cfg(test)]
 mod tests {
-    use super::handler::{InboundPayload, WebhookEvent};
+    // super here is `bridge`; handler lives in the parent `webhook` module.
+    use super::super::handler::{InboundPayload, WebhookEvent};
 
     use super::*;
 

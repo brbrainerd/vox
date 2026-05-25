@@ -110,6 +110,7 @@ ci/mens-scorecard/verify
 ci/mesh-gate
 ci/model-routing-check
 ci/no-dei-import
+ci/no-plugin-cdylib-as-compile-dep
 ci/no-tauri-in-core
 ci/nomenclature-guard
 ci/openclaw-contract
@@ -341,6 +342,7 @@ plugin/install
 plugin/list
 plugin/publish
 plugin/remove
+plugin/scaffold
 pm
 pm/cache
 pm/cache/clear

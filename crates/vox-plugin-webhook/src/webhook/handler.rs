@@ -173,7 +173,8 @@ mod tests {
         let signing_key = "test-secret";
         let body = serde_json::json!({"ref": "refs/heads/main"});
         let body_str = serde_json::to_string(&body).unwrap();
-        let sig = super::signing::sign_hmac_sha256(signing_key, body_str.as_bytes());
+        // super here is `handler`; signing lives in the parent `webhook` module.
+        let sig = super::super::signing::sign_hmac_sha256(signing_key, body_str.as_bytes());
 
         let h = WebhookHandler::new().with_secret(signing_key);
         let p = InboundPayload {

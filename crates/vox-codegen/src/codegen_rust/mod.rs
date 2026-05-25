@@ -489,8 +489,8 @@ mod tests {
             .get("src-tauri/capabilities/default.json")
             .expect("default capability");
         assert!(
-            cap.contains("vox-sherpa:default"),
-            "expected Sherpa default permission in capability: {cap}"
+            cap.contains("vox-stt:default"),
+            "expected vox-stt default permission in capability: {cap}"
         );
     }
 

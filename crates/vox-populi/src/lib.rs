@@ -261,6 +261,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             caps.labels.push(lab);
         }
     }
+    #[cfg_attr(not(feature = "mens"), allow(unused_mut))]
     let mut rec = NodeRecord {
         id: node_id,
         capabilities: caps,

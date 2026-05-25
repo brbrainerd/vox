@@ -508,7 +508,7 @@ impl Report {
             }
         }
         if !any {
-            println!(
+            eprintln!(
                 "vox-arch-check {}: clean ✓",
                 concat!(
                     env!("CARGO_PKG_VERSION"),

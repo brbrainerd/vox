@@ -13,3 +13,10 @@ crates/vox-gamify/
 # vox-codegen emits .connection().query/execute strings as code-generation output,
 # not as live SQL calls. The guard regex false-positives on these string literals.
 crates/vox-codegen/src/codegen_rust/emit/tables/
+# vox-scientia producers aggregate raw benchmark/telemetry data by reading
+# across table joins that have no single-model ops_* equivalent yet. Migrate
+# to typed ops once the scientia store layer (vox-db ops_scientia.rs) is added.
+crates/vox-scientia/src/producers/
+# vox-workflow-runtime integration tests seed and verify DB state directly.
+# Test-only usage; production code paths go through the typed ops layer.
+crates/vox-workflow-runtime/tests/

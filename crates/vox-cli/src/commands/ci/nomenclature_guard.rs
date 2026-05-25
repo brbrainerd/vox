@@ -48,7 +48,9 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-schola",  // grandfathered — being migrated to vox-tutorial
     "vox-codex-api", // grandfathered — database abstraction layer
     "vox-ml-cli",  // grandfathered — ML subsystem
-    "vox-mens-eval", // grandfathered — Mn-T11 eval harness crate; pending english-core naming convergence
+    "vox-mens-eval",   // grandfathered — Mn-T11 eval harness crate; pending english-core naming convergence
+    "vox-dei-shim",    // grandfathered — A-12 wedge crate extracted from vox-orchestrator; retains `dei` prefix during migration phase
+    "vox-populi-types", // grandfathered — shared types crate for the vox-populi ecosystem; naming cohesion during migration to vox-ml
 ];
 
 #[derive(Serialize)]

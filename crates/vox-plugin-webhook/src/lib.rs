@@ -20,6 +20,10 @@
 //! "start-service" lifecycle hook in ABI v11 — this matches the pattern used
 //! by other long-running plugins (e.g. vox-plugin-cloud).
 
+// Public types are designed for orchestrator wiring (Step 8). Suppress dead-code
+// lint until the bridge is wired — these are real implementations, not stubs.
+#![allow(dead_code, unused_imports)]
+
 mod webhook;
 
 use abi_stable::{
