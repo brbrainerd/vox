@@ -44,10 +44,10 @@ Each track below is self-contained: pick one, read §2 for its prescription, exe
 
 | Track | Code | Size | Gate | Status |
 |---|---|---|---|---|
-| **A. Push 49 commits** | **R-A** | S | user approval ✓ (this session) | **READY** |
-| **B. Retire resolved/FP audit IDs** | **R-B** | XS | none | **READY** |
-| **C. Reconcile master forward plan** | **R-C** | S | none | **READY** |
-| **D. C-16: `_frozen.md` decision** | **R-D** | M | owner sign-off | blocks v1.0 |
+| **A. Push 49 commits** | **R-A** | S | user approval ✓ (this session) | **✅ DONE** (`5f1e9f1cd9` + R-B push `e5bb6afccb`) |
+| **B. Retire resolved/FP audit IDs** | **R-B** | XS | none | **✅ DONE** (commit `e5bb6afccb`) |
+| **C. Reconcile master forward plan** | **R-C** | S | none | **✅ DONE** (sprint §9 log, commit `7f2edd8e7e` etc.) |
+| **D. C-16: `_frozen.md` decision** | **R-D** | M | owner sign-off | **✅ DONE** (Option 2 implemented in session 2: CR-A3 updated, `frozen_crates.rs` redirects to `data-storage-policy.v1.yaml`) |
 | **E. D-7-rescope Step 3+ (MeshDriver routing)** | **R-E** | L | design decision needed | deferred |
 | **F. D-9-rescope (vox-container impls → plugin)** | **R-F** | M+ | none, but no current pressure | deferred |
 | **G. A-9: vox-secrets split** | **R-G** | L | won't reduce fan-in (documented in layers.toml) | **retired** (informational) |
@@ -284,11 +284,11 @@ These are stubs/scaffolds that exist with explicit "not yet implemented" returns
 
 This forward plan is "fully executed" when:
 
-1. ⬜ R-A: `git rev-list --count origin/main..HEAD == 0`.
-2. ⬜ R-B: audit doc has ≤ 6 truly-open items.
-3. ⬜ R-C: master forward plan §6 has only R-A unchecked (then flips after push).
-4. ⬜ R-D: C-16 decision landed; `_frozen.md` grep is historical-only.
-5. ☑ R-G: A-9 retired in audit doc (no action other than B-step).
+1. ✅ R-A: `git rev-list --count origin/main..HEAD == 0` (52 commits pushed, head `e5bb6afccb`).
+2. ✅ R-B: audit doc §7f added; 10 items retired/verified; ≤ 6 open items confirmed (R-E/F/H/I/J/K all gated).
+3. ✅ R-C: master forward plan §9 session-10 log complete; all 10 acceptance boxes ✅.
+4. ✅ R-D: C-16 Option 2 implemented in session 2 (`frozen_crates.rs` redirects; CR-A3 updated); verified 2026-05-25.
+5. ✅ R-G: A-9 retired in audit doc §7f (documented deferral; fan-in split won't reduce dependents).
 6. ⏸ R-E, R-F, R-H, R-I, R-J, R-K: gated/deferred; tracked here for visibility.
 
 **This plan does not require any of the gated/deferred items to ship.** They are documented so future sessions don't waste cycles re-discovering them.
@@ -339,4 +339,8 @@ Commits added by the sprint that produced this plan:
 | `7f2edd8e7e` | feat(free-by-default): close remaining F-F-7 audit gaps |
 | `e83a29e9a8` | fix(B-2): wire voxup into workspace metadata + drop dirs dep |
 
-Plus the audit-retirement + plan-reconciliation commits that R-B/R-C will produce.
+R-B audit retirement: `e5bb6afccb` (docs(audit): retire 10 resolved/FP items + record session-10 completions)
+
+R-D verified done (no new commit needed — Option 2 was implemented in session 2).
+
+**All R-A/B/C/D tracks complete as of 2026-05-25.**
