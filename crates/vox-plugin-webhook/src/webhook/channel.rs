@@ -141,13 +141,15 @@ impl ChannelManager {
                 self.send_generic_webhook(&ch, content).await
             }
             ChannelKind::WebSocket => {
-                // WebSocket send would require an active connection registry;
-                // for now log and no-op (future: store active WS senders in Arc<DashMap>)
-                warn!(
-                    channel_id,
-                    "WebSocket send not yet implemented, message dropped"
-                );
-                Ok(())
+                // WebSocket channels require an active connection registry (e.g. Arc<DashMap>
+                // of sender halves keyed by connection ID).  That infrastructure ships in v1.x.
+                // Return an explicit error so callers know the message was NOT delivered.
+                // Use ChannelKind::Webhook for outbound server→server calls in the meantime.
+                warn!(channel_id, "WebSocket channel send rejected (not implemented — use ChannelKind::Webhook for outbound calls)");
+                Err(WebhookError::Channel(format!(
+                    "WebSocket channel '{channel_id}' cannot send: active connection registry \
+                     is not implemented yet (v1.x). Use ChannelKind::Webhook for outbound webhooks."
+                )))
             }
         }
     }
@@ -239,6 +241,23 @@ mod tests {
         assert_eq!(
             ChannelKind::Custom("teams".into()).to_string(),
             "custom:teams"
+        );
+    }
+
+    #[tokio::test]
+    async fn websocket_channel_send_returns_error_not_silently_dropped() {
+        let mgr = ChannelManager::new();
+        let ch = Channel::new("ws-alerts", ChannelKind::WebSocket, "ws://localhost:9999");
+        mgr.register(ch);
+        let result = mgr.send("ws-alerts", "hello").await;
+        assert!(
+            result.is_err(),
+            "WebSocket send must return Err, not silently drop the message"
+        );
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("WebSocket"),
+            "error message should mention WebSocket: {err_msg}"
         );
     }
 }
