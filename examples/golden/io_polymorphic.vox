@@ -19,10 +19,7 @@ fn io_open_reads_json_under_target_tmp() to Unit {
     }
     assert(match std.fs.write("target/io_golden_tmp/wiring.json", "{\"x\":1}") {
         Ok(_) => match std.io.open("target/io_golden_tmp/wiring.json") {
-            Ok(j) => match j.get_int("x") {
-                Ok(n) => n is 1
-                Error(_) => false
-            }
+            Ok(j) => j.get("x").and_then(fn(jv: Json) to Option[int] { jv.as_int() }).unwrap_or(-1) is 1
             Error(_) => false
         }
         Error(_) => false
