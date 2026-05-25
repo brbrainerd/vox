@@ -439,6 +439,8 @@ async fn connect_default_errors_when_primary_legacy_schema_chain() {
 
 #[test]
 fn resolve_canonical_matches_resolve_standalone() {
+    // Serialise against config::tests which mutate VOX_DB_URL / VOX_DB_TOKEN.
+    let _guard = crate::TEST_ENV_LOCK.lock().expect("env lock");
     let a = DbConfig::resolve_canonical().expect("canonical");
     let b = DbConfig::resolve_standalone().expect("standalone");
     assert_eq!(format!("{a:?}"), format!("{b:?}"));

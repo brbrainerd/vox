@@ -21,7 +21,7 @@ fn default_config_values() {
     assert!(cfg.fallback_to_single_agent);
     assert_eq!(cfg.min_agents, 1);
     assert!(!cfg.scaling_enabled);
-    assert_eq!(cfg.cost_preference, CostPreference::Performance);
+    assert_eq!(cfg.cost_preference, CostPreference::Economy);
     assert_eq!(cfg.repo_shard_specialization_weight, 1.5);
     assert_eq!(cfg.repo_shard_validation_failure_penalty, 0.8);
     assert_eq!(cfg.repo_reduce_conflict_cooldown_penalty, 2.5);

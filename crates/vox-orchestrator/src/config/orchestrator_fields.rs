@@ -139,7 +139,7 @@ pub struct OrchestratorConfig {
     /// Whether dynamic scaling is enabled (default: false).
     #[serde(default = "default_false")]
     pub scaling_enabled: bool,
-    /// Preference for cost vs performance (default: Performance).
+    /// Preference for cost vs performance (default: Economy — free-by-default product directive).
     #[serde(default = "default_cost_preference")]
     pub cost_preference: CostPreference,
     /// Number of ticks to look back for predictive scaling (default: 5).

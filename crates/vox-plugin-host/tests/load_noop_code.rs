@@ -1,7 +1,8 @@
-//! End-to-end: build noop-code (assumed pre-built), copy artifact + manifest
+//! End-to-end: build noop-code (auto-built on demand), copy artifact + manifest
 //! to a tempdir, discover, load, exercise the trait object.
 
 use std::path::PathBuf;
+use std::process::Command;
 use vox_plugin_host::{Loader, discover};
 
 fn workspace_root() -> PathBuf {
@@ -21,8 +22,12 @@ fn dylib_filename(crate_name: &str) -> String {
     }
 }
 
-fn built_dylib(crate_name: &str) -> PathBuf {
-    // Try debug then release (cargo test usually uses debug).
+/// Returns the path to the built dylib, building it on-demand if absent.
+///
+/// The fixture is excluded from the workspace so it does not participate in
+/// the main workspace build. Tests run after cargo releases the compile lock,
+/// so a nested cargo invocation here does not deadlock.
+fn built_dylib(crate_name: &str, fixture_rel: &str) -> PathBuf {
     let root = workspace_root();
     let filename = dylib_filename(crate_name);
     for profile in ["debug", "release"] {
@@ -31,14 +36,32 @@ fn built_dylib(crate_name: &str) -> PathBuf {
             return p;
         }
     }
-    panic!(
-        "build {crate_name} first: `cargo build --manifest-path crates/vox-plugin-host/tests/fixtures/noop-code/Cargo.toml`. Looked for {filename} in target/debug and target/release.",
-    );
+    // Build on-demand.
+    let manifest_path = root.join(fixture_rel).join("Cargo.toml");
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".into());
+    let target_dir = root.join("target");
+    let status = Command::new(cargo)
+        .args(["build", "--manifest-path", manifest_path.to_str().unwrap()])
+        .env("CARGO_TARGET_DIR", target_dir.to_str().unwrap())
+        .status()
+        .expect("failed to spawn cargo");
+    assert!(status.success(), "fixture build failed: {}", manifest_path.display());
+
+    for profile in ["debug", "release"] {
+        let p = root.join("target").join(profile).join(&filename);
+        if p.exists() {
+            return p;
+        }
+    }
+    panic!("fixture dylib not found after build: {filename}");
 }
 
 #[test]
 fn end_to_end_load_noop_code() {
-    let dylib_src = built_dylib("vox-plugin-noop-code");
+    let dylib_src = built_dylib(
+        "vox-plugin-noop-code",
+        "crates/vox-plugin-host/tests/fixtures/noop-code",
+    );
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let plugin_dir = tmp.path().join("noop-code").join("0.1.0");

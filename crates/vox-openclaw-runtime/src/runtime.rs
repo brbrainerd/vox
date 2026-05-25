@@ -65,16 +65,27 @@ impl ArsRuntime {
         {
             for req in req_secrets {
                 if let Some(sec_str) = req.as_str() {
-                    if let Ok(id) = sec_str.parse::<vox_secrets::spec::SecretId>() {
-                        let res = vox_secrets::resolve_secret(id);
-                        if res.is_present() {
-                            if let Some(val) = res.expose() {
-                                _injected_secrets.insert(sec_str.to_string(), val.to_string());
+                    match sec_str.parse::<vox_secrets::spec::SecretId>() {
+                        Ok(id) => {
+                            let res = vox_secrets::resolve_secret(id);
+                            if res.is_present() {
+                                if let Some(val) = res.expose() {
+                                    _injected_secrets
+                                        .insert(sec_str.to_string(), val.to_string());
+                                }
+                            } else {
+                                // Deny-by-default: known secret ID but value not present.
+                                return Err(ArsRuntimeError::InvalidRun(format!(
+                                    "missing required secret: {}",
+                                    sec_str
+                                )));
                             }
-                        } else {
-                            // Deny-by-default logic for OpenClaw
+                        }
+                        Err(_) => {
+                            // Deny-by-default: unrecognised secret name — cannot be
+                            // resolved, so treat as unavailable.
                             return Err(ArsRuntimeError::InvalidRun(format!(
-                                "missing required secret: {}",
+                                "unrecognised requested secret: {}",
                                 sec_str
                             )));
                         }

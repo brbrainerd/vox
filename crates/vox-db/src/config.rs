@@ -275,10 +275,10 @@ impl DbConfig {
 #[cfg(test)]
 mod tests {
     use super::{DbConfig, try_remote_from_compat_env};
-    use std::sync::Mutex;
     use vox_secrets::SecretId;
 
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    // Re-use the crate-level env lock so local_tests can also serialise against us.
+    use crate::TEST_ENV_LOCK as ENV_LOCK;
 
     #[test]
     #[allow(unsafe_code)]

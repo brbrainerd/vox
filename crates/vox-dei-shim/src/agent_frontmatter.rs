@@ -116,7 +116,10 @@ pub fn parse_agent_frontmatter(content: &str) -> Option<AgentFrontmatter> {
             continue;
         }
 
-        if let Some(val) = line.strip_prefix("model:") {
+        if let Some(val) = line
+            .strip_prefix("model:")
+            .or_else(|| line.strip_prefix("model :"))
+        {
             let val = val.trim().trim_matches('"').trim_matches('\'');
             if !val.is_empty() {
                 model = Some(val.to_string());
