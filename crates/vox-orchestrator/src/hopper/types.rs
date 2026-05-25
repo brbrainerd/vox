@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use crate::types::TaskPriority;
+use crate::types::{PrioritySource, TaskPriority};
 
 // ── Identifiers ───────────────────────────────────────────────────────────────
 
@@ -124,6 +124,14 @@ pub struct IntakeItem {
     pub session_id: Option<String>,
     /// Classified priority assigned by the intake classifier.
     pub classified_priority: TaskPriority,
+    /// Who last set `classified_priority` (Hp-T3 typed partial order).
+    ///
+    /// Defaults to `Orchestrator` on initial intake. Set to `Developer` when
+    /// a `DeveloperOverride` capability token is used in `reprioritize`. A
+    /// `Developer`-sourced priority MUST NOT be mutated by any automated
+    /// policy without a new `DeveloperOverride` cap.
+    #[serde(default = "default_priority_source")]
+    pub priority_source: PrioritySource,
     /// Classifier confidence 0–1.
     pub confidence: f32,
     /// Privacy class derived from context (mirrors `vox.mesh.privacy_class`).
@@ -134,6 +142,10 @@ pub struct IntakeItem {
     pub submitted_at: u64,
     /// Full override history (each `DeveloperOverride` appends here).
     pub override_history: Vec<PriorityOverrideRecord>,
+}
+
+fn default_priority_source() -> PrioritySource {
+    PrioritySource::Orchestrator
 }
 
 impl IntakeItem {
@@ -156,6 +168,7 @@ impl IntakeItem {
             source,
             session_id,
             classified_priority: classified,
+            priority_source: PrioritySource::Orchestrator,
             confidence: 0.85,
             privacy_class: "local-only".into(),
             state: ItemState::Inbox,

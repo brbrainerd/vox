@@ -403,9 +403,48 @@ Three route-only test sources (`codegen_routes_produces_route_manifest_ts`, `cod
 **Post-Session-14 state: `cargo test --workspace` → 237 binaries, 0 failures, 0 warnings.**
 
 **Next unblocked work:**
-1. **(M)** CR-L8 corpus feedback observability (~4 weeks; structured JSON from `vox run` failures)
-2. **(S)** Extend `json_as_typed.vox` golden example with tagged-enum ADT section
+1. ~~**(M)** CR-L8 corpus feedback observability~~ — already fully implemented; e2e test passes.
+2. ~~**(S)** Extend `json_as_typed.vox` golden example~~ — done in Session-12.
 3. **(L, design-gated)** R-E: D-7-rescope Step 3+ MeshDriver routing
+
+---
+
+## 10. Session-15 (2026-05-25) breadcrumb
+
+**Hp-T3: `PrioritySource` typed partial order — COMPLETE**
+
+v0.6 survey revealed all Phase 0, Phase 1 (T1–T5), Phase 3 (T1–T4), Hp-T1/T2/T4 already
+implemented. The single remaining gap was Hp-T3 (typed `PrioritySource` partial order).
+
+Changes landed in this commit:
+
+| File | Change |
+|---|---|
+| `crates/vox-orchestrator-types/src/agent_types/priority_source.rs` | **New**: `PrioritySource` enum with `Ord` encoding `Developer(2) > Orchestrator(1) > LearningPolicy(0)`; `dominates()` helper; 6 unit tests |
+| `crates/vox-orchestrator-types/src/agent_types/mod.rs` | Wire `priority_source` mod, re-export `PrioritySource` |
+| `crates/vox-orchestrator-types/src/lib.rs` | Re-export `PrioritySource` at crate root |
+| `crates/vox-orchestrator/src/types/mod.rs` | Re-export `PrioritySource` via `crate::types::PrioritySource` |
+| `crates/vox-orchestrator/src/events.rs` | `ReprioritizationActor` becomes a type alias for `PrioritySource`; import updated |
+| `crates/vox-orchestrator/src/hopper/types.rs` | `IntakeItem` gains `priority_source: PrioritySource` field (serde default `Orchestrator`) |
+| `crates/vox-orchestrator/src/hopper/store.rs` | `reprioritize` sets `priority_source = Developer` on cap use; 2 new Hp-T3 acceptance tests |
+| `crates/vox-orchestrator/src/hopper/mod.rs` | Re-export `PrioritySource` from hopper module |
+
+**Post-session state:** `cargo test -p vox-orchestrator-types -p vox-orchestrator -- hopper priority_source` → 12/12 pass, 0 fail. `cargo check --workspace` clean.
+
+**v0.6 scope status (verified 2026-05-25):**
+- Phase 0 (P0-T1..T8): ✅ ALL IMPLEMENTED
+- Phase 1 (T1–T5): ✅ ALL IMPLEMENTED
+- Phase 3 (T1–T4): ✅ ALL IMPLEMENTED
+- Hp-T1: ✅ hopper module + InMemoryHopper
+- Hp-T2: ✅ AgentEvent variants (TaskReprioritized, HopperItemAdmitted, HopperItemOverridden)
+- Hp-T3: ✅ **DONE THIS SESSION** — PrioritySource typed partial order
+- Hp-T4: ✅ DeveloperOverride capability token
+
+**v0.6 acceptance tests to run before tagging:**
+- `cargo test -p vox-orchestrator --test two_daemon_lock_contention` — no double-write
+- `cargo test -p vox-orchestrator-queue` — leader election + op-log persistence
+- `cargo test -p vox-orchestrator -- hopper` — hopper lifecycle + Hp-T3 enforcement
+- `cargo test --workspace` — full regression suite
 
 ---
 

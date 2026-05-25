@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::broadcast;
 
-use crate::types::{AgentId, TaskId, TaskPriority};
+use crate::types::{AgentId, PrioritySource, TaskId, TaskPriority};
 
 /// Opaque identifier for a hopper intake item (Hp-T1).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -19,16 +19,10 @@ pub struct HopperItemId(pub String);
 /// Source of authority for a reprioritization event (Hp-T2, SSOT §3.5).
 ///
 /// `Developer` dominates `Orchestrator` dominates `LearningPolicy`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ReprioritizationActor {
-    /// A human developer issued an explicit priority override.
-    Developer,
-    /// The orchestrator's scheduling policy triggered a reprioritization.
-    Orchestrator,
-    /// An automated learning policy adjusted priority based on observed patterns.
-    LearningPolicy,
-}
+///
+/// **Deprecated alias.** Use [`PrioritySource`] from `vox-orchestrator-types`
+/// directly. This alias is retained for backward compatibility.
+pub type ReprioritizationActor = PrioritySource;
 
 // ---------------------------------------------------------------------------
 // Event types

@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::events::{AgentEventKind, EventBus, HopperItemId};
-use crate::types::TaskPriority;
+use crate::types::{PrioritySource, TaskPriority};
 
 use super::capability::DeveloperOverride;
 use super::types::{
@@ -177,6 +177,10 @@ impl HopperIntake for InMemoryHopper {
 
         let old_priority = item.classified_priority;
         item.classified_priority = new_priority;
+        // DeveloperOverride cap was presented — record that this priority is
+        // now Developer-sourced. Any subsequent automated policy must not
+        // overwrite it without another Developer-level cap (Hp-T3).
+        item.priority_source = PrioritySource::Developer;
         item.override_history.push(PriorityOverrideRecord {
             ts_micros: now_micros(),
             actor: cap.actor.clone(),
@@ -272,6 +276,45 @@ mod tests {
         assert_eq!(updated.classified_priority, TaskPriority::Urgent);
         assert_eq!(updated.override_history.len(), 1);
         assert_eq!(updated.override_history[0].audit_id, "audit-123");
+    }
+
+    /// Hp-T3 acceptance: initial intake is `Orchestrator`-sourced; after a
+    /// `DeveloperOverride` cap the source flips to `Developer`.
+    #[tokio::test]
+    async fn priority_source_starts_orchestrator_then_flips_to_developer(
+    ) {
+        let h = InMemoryHopper::headless();
+        let item = h
+            .submit(
+                "some work".into(),
+                vec![],
+                PriorityHint::Normal,
+                IntakeSource::Developer,
+                None,
+            )
+            .await;
+
+        // Fresh item: orchestrator classified it.
+        assert_eq!(item.priority_source, PrioritySource::Orchestrator);
+
+        // After a DeveloperOverride, priority_source becomes Developer.
+        let cap = mint().mint("alice", "critical path", "audit-999");
+        let updated = h
+            .reprioritize(&item.item_id, TaskPriority::Urgent, cap)
+            .await
+            .unwrap();
+        assert_eq!(updated.priority_source, PrioritySource::Developer);
+    }
+
+    /// Hp-T3 acceptance: `PrioritySource` partial order — `Developer > Orchestrator
+    /// > LearningPolicy`.
+    #[test]
+    fn priority_source_partial_order_holds() {
+        assert!(PrioritySource::Developer.dominates(PrioritySource::Orchestrator));
+        assert!(PrioritySource::Developer.dominates(PrioritySource::LearningPolicy));
+        assert!(PrioritySource::Orchestrator.dominates(PrioritySource::LearningPolicy));
+        assert!(!PrioritySource::Orchestrator.dominates(PrioritySource::Developer));
+        assert!(!PrioritySource::LearningPolicy.dominates(PrioritySource::Developer));
     }
 
     #[tokio::test]

@@ -24,3 +24,4 @@ pub use tasks::{
     PopuliRemoteDelegate, TaskCategory, TaskDescriptor, TaskEnqueueHints, TaskPhase, TaskPriority,
     TaskStatus, TaskTurn,
 };
+pub use vox_orchestrator_types::PrioritySource;
