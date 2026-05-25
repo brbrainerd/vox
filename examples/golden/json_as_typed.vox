@@ -6,8 +6,8 @@
 //   1. Basic struct with required and optional fields
 //   2. camelCase naming convention
 //   3. @field_name per-field override
-//   4. from_json error on missing required field
-//   5. to_json round-trip
+//   4. defaults: true (missing field uses zero value)
+//   5. Tagged-enum ADT (tag: "kind") dispatch
 
 // ── 1. Basic struct ───────────────────────────────────────────────────────────
 
@@ -44,6 +44,13 @@ type Config {
     port: int,
     retries: int,
 }
+
+// ── 5. Tagged-enum ADT (tag: "kind") ─────────────────────────────────────────
+
+@json_as(ToolCall, tag: "kind")
+type ToolCall =
+    | Search { query: str }
+    | Fetch { url: str }
 
 // ── Demo functions ─────────────────────────────────────────────────────────────
 
@@ -86,6 +93,20 @@ fn parse_order(raw: str) to str {
     return o.get("id").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
 }
 
+fn parse_tool(raw: str) to str {
+    let r = json.parse(raw)
+    if r.is_err() { return "parse_error" }
+    let res = ToolCall_from_json(r.unwrap())
+    if res.is_err() { return "decode_error: " + res.unwrap_err() }
+    let t = res.unwrap()
+    let query = t.get("query").and_then(fn(j: Json) to Option[str] { j.as_str() })
+    if query.is_none() {
+        let url = t.get("url").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+        return "fetch:" + url
+    }
+    return "search:" + query.unwrap()
+}
+
 fn main() to str {
     // 1. Successful parse
     let product_json = "{\"id\":1,\"name\":\"widget\",\"price\":9.99}"
@@ -102,5 +123,9 @@ fn main() to str {
     let order_json = "{\"order_id\":\"ORD-001\",\"line_count\":3}"
     let r4 = parse_order(order_json)
 
-    return r1 + " | " + r2 + " | event:" + r3 + " | order:" + r4
+    // 5. Tagged-enum ADT — "kind" tag dispatches to the Search variant
+    let tool_json = "{\"kind\":\"Search\",\"query\":\"find widgets\"}"
+    let r5 = parse_tool(tool_json)
+
+    return r1 + " | " + r2 + " | event:" + r3 + " | order:" + r4 + " | tool:" + r5
 }
