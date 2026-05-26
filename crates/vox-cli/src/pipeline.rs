@@ -65,6 +65,11 @@ impl FrontendResult {
     pub fn has_errors(&self) -> bool {
         self.error_count() > 0
     }
+
+    /// Returns `true` if any warning-severity diagnostic was produced.
+    pub fn has_warnings(&self) -> bool {
+        self.warning_count() > 0
+    }
 }
 
 /// Run the frontend pipeline on a source file.

@@ -84,6 +84,13 @@ pub struct CheckArgs {
     /// Implies machine-readable output on stdout; does not change rustc-style stderr for parse failures.
     #[arg(long)]
     pub for_llm: bool,
+
+    /// Treat **warnings** as errors — exit non-zero if any warning-severity diagnostic is produced.
+    ///
+    /// Required by CR-L2: `vox check --strict` is the gate used by `vox audit mens-on-distribution`
+    /// to measure on-distribution quality of MENS-emitted programs.
+    #[arg(long)]
+    pub strict: bool,
 }
 
 /// `vox test` / `vox fabrica test`

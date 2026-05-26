@@ -351,6 +351,7 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
         emit_ir: false,
         output_format: "text".to_string(),
         for_llm: false,
+        strict: false,
     };
     crate::commands::check::run(&args)
         .await
