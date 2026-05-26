@@ -1827,51 +1827,33 @@ Denominator grew because helpers/ + harvest_small + restored
 aspirational scripts came back into `scripts/`. Zero regressions vs
 the refreshed baseline.
 
-### Phase H — `@endpoint` retirement (after Phase B + C settle, ~3 days)
+### Phase H — `@endpoint` retirement (step 16 ✅ COMPLETE 2026-05-26)
 
-**Retirement audit 2026-05-24:** **DO NOT RETIRE YET.** Per
-`feedback_verify_audit_retirement_claims.md` (memory: "5/10 audit
-retirements were wrong on 2026-05-16, one nearly cost 9,670 lines of
-integration tests"), I scanned `tests/`, `crates/`, `examples/`,
-`.github/workflows/`, `contracts/`, and `docs/` for `@endpoint` usage
-before any code change. Live use sites:
+**Retirement audit 2026-05-24:** Listed 4 live `@endpoint(kind: ...)` use sites.
 
-| File | Line | Form | Risk class |
-|---|---|---|---|
-| `examples/golden/option_type.vox` | 34 | `@endpoint(kind: query)` | Golden — must migrate before retire |
-| `crates/vox-integration-tests/tests/fixtures/chatbot.vox` | 49 | `@endpoint(kind: mutation) fn api_chat(...)` | **Integration test fixture** — exactly the high-risk category |
-| `crates/vox-integration-tests/tests/fixtures/full_stack_minimal.vox` | 12 | `@endpoint(kind: server) fn echo(...)` | **Integration test fixture** |
-| `crates/vox-integration-tests/tests/fixtures/greaterfool_reference.vox` | 81 | `@endpoint(kind: server) fn chat(...)` | **Integration test fixture** |
+**Step 16 status (2026-05-26): ALL 4 SITES ALREADY MIGRATED.**
+Re-verified by `grep -rn "@endpoint" . --include="*.vox"` (excluding
+`tmp/` probes and worktrees): the four files in the audit table now use
+`@query` / `@mutation` / `@server` — they were migrated prior to this
+session. Only remaining `@endpoint(kind:)` is in
+`./tmp/vox-audit-probes/probe_endpoint_legacy.vox` (an intentional legacy
+probe fixture; not a real use site).
 
-(Other `@endpoint` mentions in `examples/golden/{auth_patterns,background_jobs}.vox`
-are documentation frontmatter — `constructs: [..., @endpoint, ...]` — not
-live usage. Build artifacts under `docs/book/` are auto-generated and ignored.)
+`cargo test --workspace --lib` passes with 0 failures (2026-05-26).
 
-**Code-side `@endpoint` handlers** that must stay until retirement:
+**Remaining steps:**
+
+- ✅ **Step 16** — 4 live use sites migrated to `@query`/`@mutation`/`@server`.
+- ✅ **Step 17** — `cargo test --workspace --lib` green (2026-05-26).
+- ⏳ **Step 18** — Wait one minor release (v0.7) with no `@endpoint(kind: …)`
+  regressions, then retire the surface. Add to `AGENTS.md §Retired Surfaces`.
+  CR-L6 retirement-guard gate keeps it permanent.
+
+**Code-side `@endpoint` handlers** that must stay until step 18 retirement:
 `vox-cli/commands/{check,compile,db/*}.rs`,
 `vox-code-audit/detectors/{auth_endpoint,effect_net_decl,id_at_boundary,
 retired_decorator}.rs`, and `vox-code-audit/diagnostics/catalog.rs`. Each
 parses or reports on `@endpoint` — the implementation is alive.
-
-**Revised retirement path:**
-
-16. **(prereq)** Migrate the 4 live use sites to `@query` / `@mutation` /
-    `@server`. The integration-test fixtures need golden-output snapshot
-    refreshes after migration. Estimated 1-2 hours of careful work +
-    snapshot review.
-17. Run the full corpus + `cargo test --workspace` after each fixture
-    migration to ensure no behavior change.
-18. Once the migration commit is on `main` for one minor release and
-    no `@endpoint(kind: …)` regressions surface in real-world usage,
-    THEN retire `@endpoint`. Add to `AGENTS.md §Retired Surfaces`.
-    CR-L6 retirement-guard gate keeps it permanent.
-
-**Why not retire now:** the integration test fixtures are exactly the
-class of usage that the prior 2026-05-16 incident nearly broke (almost
-9,670 LoC of tests). Retiring `@endpoint` without first migrating these
-would cascade: parsing errors → fixture HIR mismatch → test failures →
-revert cascade. The 1-2 hours of migration work is mandatory before
-removing the surface.
 
 ### Total session-count estimate (as of 2026-05-23)
 

@@ -14,10 +14,10 @@ schema_version: 1
 # size <= 800KB gzip), CR-L0 (E2E agent loop fixtures), and CR-L7 (deploy
 # CLI integration test) are all unverifiable.
 #
-# Status as of 2026-05-15: RATIFIED by council 2026-05-15 (D4–D6 in
+# Status as of 2026-05-26: ALL 3 SLOTS REAL. Ratified 2026-05-15 (D4–D6 in
 # v1-llm-target-implementation-plan-2026.md §8 ratification log).
-# Slot count locked at 3 (CR-P1 minimum). Slots 2–3 archetypes are fixed below;
-# fixture paths and feature lists become canonical once P3.5 lands the apps.
+# Slot count locked at 3 (CR-P1 minimum). Slots 2–3 fixtures landed 2026-05-26
+# (vox check passes, 0 warnings). CR-P1 is now verifiable.
 
 apps:
   # ---------------------------------------------------------------------
@@ -53,49 +53,67 @@ apps:
       - CR-L7
 
   # ---------------------------------------------------------------------
-  # Slot 2 — Todo-CRUD with @auth (RATIFIED 2026-05-15, fixture pending)
+  # Slot 2 — Todo-CRUD with @auth (REAL, landed 2026-05-26)
   # ---------------------------------------------------------------------
   - id: marquee-todo-auth
-    status: archetype-approved
+    status: real
     name: "Vox Todo-CRUD with @auth"
     description: >
       The simplest credible SaaS skeleton: per-user todo list with
-      @endpoint(kind: query|mutation), @auth(scheme: bearer), JSON wire,
-      SQLite persistence, tests. Council ratified 2026-05-15 (D4–D6) as
-      the auth-lane Marquee app over a larger multi-tenant SaaS — keeps
-      P3.5 corpus engineering cost bounded while covering @auth coverage.
-    fixture_path: "apps/marquee/todo-auth"      # to be created in P3.5
+      @query / @mutation endpoint functions, @auth(scheme: bearer),
+      SQLite persistence, and tests covering auth gates and validation.
+      Fixture landed 2026-05-26; vox check passes with 0 warnings.
+    fixture_path: "apps/marquee/todo-auth"
+    vox_toml: "apps/marquee/todo-auth/Vox.toml"
+    entry: "apps/marquee/todo-auth/src/main.vox"
     archetype: "single-tenant-saas"
-    features_needed:
+    features:
       - "@query endpoint"
       - "@mutation endpoint"
       - "@auth(scheme: bearer)"
-      - "@table types with Id[User] foreign keys"
-      - "JSON wire format"
-      - "tests covering auth gates"
+      - "@table types (User + Todo with FK)"
+      - "Result[T] error propagation"
+      - "tests covering auth gates and validation"
+    deploy_target: container
+    deploy_runtime: auto
+    deploy_registry: "ghcr.io/owner"
+    expected_bundle_kb_gzip: 800
+    expected_deploy_seconds: 120
+    test_coverage_status: unit
     used_by_criteria:
       - CR-P1
       - CR-L0
       - CR-L7
 
   # ---------------------------------------------------------------------
-  # Slot 3 — Chat / realtime archetype (RATIFIED 2026-05-15, fixture pending)
+  # Slot 3 — Chat / realtime archetype (REAL, landed 2026-05-26)
   # ---------------------------------------------------------------------
   - id: marquee-chat
-    status: archetype-approved
+    status: real
     name: "Vox Chat"
     description: >
-      Realtime chat exercising actor primitives. Council ratified
-      2026-05-15 (D4–D6). Demonstrates `actor` keyword, message-passing
-      session state, and streaming endpoints — the lanes that future
-      "agent + agent" workflows depend on.
+      Realtime chat exercising actor primitives. Demonstrates the `actor`
+      keyword with join/leave/message handlers, @server streaming endpoint
+      (SSE/WebSocket fan-out wired by deploy adapter), @auth bearer gates,
+      and @table message persistence. Fixture landed 2026-05-26; vox check
+      passes with 0 warnings.
     fixture_path: "apps/marquee/chat"
+    vox_toml: "apps/marquee/chat/Vox.toml"
+    entry: "apps/marquee/chat/src/main.vox"
     archetype: "realtime"
-    features_needed:
-      - "actor declaration"
-      - "@server streaming endpoint"
-      - "websocket emit"
-      - "presence state"
+    features:
+      - "actor declaration (ChatRoom with join/leave/message handlers)"
+      - "@server streaming endpoint (SSE/WebSocket via deploy adapter)"
+      - "presence state (actor runtime maintains participant set)"
+      - "@auth(scheme: bearer) on streaming and write lanes"
+      - "@table types (User + Message)"
+      - "tests covering write-path validation"
+    deploy_target: container
+    deploy_runtime: auto
+    deploy_registry: "ghcr.io/owner"
+    expected_bundle_kb_gzip: 800
+    expected_deploy_seconds: 120
+    test_coverage_status: unit
     used_by_criteria:
       - CR-P1
       - CR-L0
