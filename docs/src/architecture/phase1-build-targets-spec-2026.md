@@ -96,7 +96,7 @@ has zero mandatory runtime dependencies.
 <out>/
   package.json        # name, version, "type":"module", exports, devDependencies (TS only)
   index.ts            # re-exports everything; barrel file
-  types.ts            # shared request/response types, generated from @table + @endpoint signatures
+  types.ts            # shared request/response types, generated from @table + @server/@query/@mutation signatures
   client.ts           # VoxClient class (fetch wrapper, see below)
   schemas.ts          # (optional, --zod flag) zod validators for each type
 ```
@@ -136,14 +136,14 @@ export class VoxClient {
     this.fetch = options.fetch ?? globalThis.fetch;
   }
 
-  // For each @endpoint(kind: query) fn user_count() to int:
+  // For each @query fn user_count() to int:
   async userCount(): Promise<number> {
     const res = await this.fetch(`${this.baseUrl}/user_count`);
     if (!res.ok) throw new Error(`userCount failed: ${res.status}`);
     return res.json();
   }
 
-  // For each @endpoint(kind: mutation) fn seed_user(name: str) to Unit:
+  // For each @mutation fn seed_user(name: str) to Unit:
   async seedUser(name: string): Promise<void> {
     const res = await this.fetch(`${this.baseUrl}/seed_user`, {
       method: "POST",
@@ -189,7 +189,7 @@ existing `UnlabeledCodeFence` lint) should enforce this over the output dir.
 my-api/
   Vox.toml            # [build] target = "server"
   src/
-    main.vox          # @endpoint stubs, no @page declarations
+    main.vox          # @query/@mutation/@server stubs, no @page declarations
   .gitignore
   README.md
 ```
@@ -197,7 +197,7 @@ my-api/
 `main.vox` stub:
 
 ```vox
-@endpoint(kind: query)
+@query
 fn hello() to str {
     return "hello from vox backend"
 }
