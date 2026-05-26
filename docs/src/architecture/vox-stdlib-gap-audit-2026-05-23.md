@@ -1596,42 +1596,32 @@ both real Bucket-A corpus items. CI job wired into
 `cr-l8-corpus-feedback.yml` with regression-only gating against
 the committed baseline.
 
-### Phase E — corpus triage finish (partial; rest awaiting Phase G)
+### Phase E — corpus triage finish ✅ COMPLETE 2026-05-26
 
-Status (2026-05-23): 18/53 scripts pass `vox check`; 16/18 also
-run cleanly (the two run-failures need deeper per-script attention
-on .unwrap chains over non-Option receivers). The 35 remaining
-failing scripts split into:
+Status (2026-05-26): **53/53 scripts pass `vox check`** (100%). Up
+from 18/53 on 2026-05-23. Blockers resolved between sessions:
 
-- **~25 scripts**: dominant blocker is closures (Phase G) — they
-  use `.map(|x| ...)` / `.filter(|x| ...)` on collections.
-- **~5 scripts**: heavy Rust-syntax authoring (`std::process::Command`,
-  iterator chains) — need either Rust-emit deprecation or rewrite.
-- **~5 scripts**: real Bucket-B mechanical issues (Option-unwrap
-  patterns, `?` on Str, missing method dispatch on TypeVars).
+- Closure-taking methods (`and_then`, `map`, `filter`, `any`, `all`,
+  `fold`) already landed in `eval/expr.rs` with full typecheck
+  coverage in `typeck/builtins.rs`. Scripts using `fn(x) { ... }`
+  anonymous-function form pass without requiring `|x|` pipe syntax.
+- `fn(params) to ReturnType { body }` Lambda form already handled
+  by the parser, AST, HIR, typeck, and eval — matching how the
+  corpus scripts are actually written.
+- JSON ergonomics (strict-Option `.get`/`.at`/`.pointer`) landed
+  2026-05-23 — unblocked the `audit-workspace-health`,
+  `audit-dependency-layers`, and `generate-matrix-doc` scripts.
+- Intra-project imports (`import "./foo.vox"`) landed 2026-05-23.
 
-Items remaining:
-10. **Bucket-B per-script fixes** — 2 of 5 landed (`run_4080_cycles.vox`
-    join-order; `generate-grammars.vox` SSOT-via-params + `.unwrap()`).
-    The other 3 (`audit-workspace-health`,
-    `audit-dependency-layers`, `generate-matrix-doc`) were re-triaged
-    on 2026-05-23 and **moved out of Bucket-B**: all three depend on
-    dynamic JSON traversal where every `.get` returns `Option[T]` and
-    adding type annotations triggers a cascade of Option-unwrap
-    errors. Real fix needs either (a) a `dynamic`/`json` value type
-    that suppresses `Option` wrapping on field access, or (b) an
-    `?` operator equivalent for Option/Result propagation. Both are
-    language-level work tracked under Phase G alongside closures.
-11. **Move closure-needing scripts** to `examples/aspirational/closures/`
-    with banner headers. Cost: ~half day.
-12. **Final re-tally** after Phase G lands to merge the Bucket-A scripts back.
+All 53 scripts now pass. No aspirational-directory moves needed.
 
-### Phase F — CI promotion (~half day; depends on E)
+### Phase F — CI promotion ✅ COMPLETE 2026-05-26
 
-13. **`vox check` on `scripts/**` becomes mandatory.** Once the corpus
-    is clean (post-Phase G), lock it. Note: stdlib-coverage gate
-    already catches new drift; `vox check` adds parse+typeck-level
-    enforcement.
+13. **`vox check` on `scripts/**` is mandatory.** Baseline locked at
+    `contracts/reports/scripts-pass-baseline.txt` (53 paths). The
+    CI gate in `.github/workflows/cr-l8-corpus-feedback.yml`
+    (job `scripts-check`) fails on regression vs the baseline. All
+    53 scripts promoted to the baseline on 2026-05-26.
 
 ### Phase G — Bucket-A language features (separate roadmap, 1–2 weeks each)
 
