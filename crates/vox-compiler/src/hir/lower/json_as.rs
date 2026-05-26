@@ -592,10 +592,12 @@ fn expr_ok(val: HirExpr, span: Span) -> HirExpr {
     )
 }
 
-/// `Err("msg")` — wraps a string message in the `Err` result constructor.
+/// `Error("msg")` — wraps a string message in the `Error` result constructor.
+///
+/// The Vox builtin is `Error(message: str) → Result[T]`, **not** `Err`.
 fn expr_err(msg: &str, span: Span) -> HirExpr {
     HirExpr::Call(
-        Box::new(expr_ident("Err", span)),
+        Box::new(expr_ident("Error", span)),
         vec![HirArg {
             name: None,
             value: HirExpr::StringLit(msg.to_string(), span),

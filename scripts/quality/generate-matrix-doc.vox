@@ -29,9 +29,8 @@ fn find_product_name(products: Json, id: str) to str {
         let prod_res = MatrixProduct_from_json(p)
         if prod_res.is_err() { continue }
         let prod = prod_res.unwrap()
-        let pid = prod.get("id").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
-        if pid == id {
-            return prod.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+        if prod.id == id {
+            return prod.name
         }
     }
     return ""
@@ -98,8 +97,8 @@ fn main() {
         let feat_res = MatrixFeature_from_json(f)
         if feat_res.is_err() { continue }
         let feat = feat_res.unwrap()
-        let fname = feat.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
-        let importance = feat.get("importance_1_to_5").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(0)
+        let fname = feat.name
+        let importance = feat.importance_1_to_5
         md = md + "| **" + fname + "** | " + str(importance) + "/5 |"
 
         let support = f.get("product_support").unwrap_or(f)

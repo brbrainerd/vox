@@ -205,6 +205,15 @@ impl<'a> Checker<'a> {
                             }
                         }
                         Ty::Named(n) => {
+                            if n == "Json" || n == "JsonBody" {
+                                // An object literal `{ k: v, ... }` is a valid JSON object.
+                                // Type-check all field values independently and return `Json`
+                                // rather than an anonymous Record so the return type matches.
+                                for (_fname, fexpr) in fields {
+                                    self.check_expr(fexpr, Some(&Ty::Named("Json".to_string())));
+                                }
+                                return Ty::Named(n.clone());
+                            }
                             // Struct type: pull declared fields from the env so an anonymous
                             // record literal `{ f: e, ... }` ascribed to `Named(Foo)` checks
                             // against the struct's shape and unifies with `Named(Foo)`.
@@ -303,6 +312,16 @@ impl<'a> Checker<'a> {
                 let callee_ty = self.uf.instantiate(&callee_ty);
                 match callee_ty {
                     Ty::Fn(params, ret) => {
+                        // Pre-bind generic type variables by unifying the declared return type
+                        // with the expected type *before* checking arguments.  This lets
+                        // `Ok(ObjectLit)` propagate `Result[T] ~ Result[MatrixProduct]` →
+                        // `T = MatrixProduct` into the argument expected-type context so that
+                        // the `ObjectLit` is checked against `Named("MatrixProduct")` rather
+                        // than an unresolved fresh variable.  Unification failure is silently
+                        // ignored here; the outer Return/Assign site will report the mismatch.
+                        if let Some(exp) = expected {
+                            let _ = self.uf.unify(ret.as_ref(), exp);
+                        }
                         self.check_arguments(&params, args, *span);
                         ret.as_ref().clone()
                     }
