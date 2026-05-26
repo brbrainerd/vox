@@ -222,6 +222,8 @@ impl Parser {
             let is_decl_position = matches!(
                 self.peek(),
                 Token::Import
+                    | Token::Extern
+                    | Token::Fragment
                     | Token::AtComponent
                     | Token::Component
                     | Token::AtLoading
@@ -250,6 +252,33 @@ impl Parser {
                     | Token::Async
                     // Phase M (json-as-rfc-2026-05-24): `@json_as(...)` always precedes `type`.
                     | Token::AtJsonAs
+                    // Function-level effect/purity/deprecation decorators that precede `fn`.
+                    | Token::AtRequire
+                    | Token::AtEnsure
+                    | Token::AtInvariant
+                    | Token::AtFuzz
+                    | Token::AtPure
+                    | Token::AtReactive
+                    | Token::AtRemote
+                    | Token::AtAi
+                    | Token::AtPrompt
+                    | Token::AtSubagent
+                    | Token::AtSearch
+                    | Token::AtHole
+                    | Token::AtInference
+                    | Token::AtTrainingStep
+                    | Token::AtDeprecated
+                    | Token::AtNative
+                    | Token::AtUses
+                    | Token::AtAuth
+                    | Token::AtCors
+                    | Token::AtRateLimit
+                    | Token::AtPii
+                    | Token::AtEmbed
+                    | Token::AtWebhook
+                    | Token::AtOfflineCapable
+                    | Token::AtCollaborative
+                    | Token::AtLayer
             ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
 
             let is_tombstoned = matches!(

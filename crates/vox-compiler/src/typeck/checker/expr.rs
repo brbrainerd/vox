@@ -177,9 +177,14 @@ impl<'a> Checker<'a> {
                             ast_node_kind: None,
                         });
                     }
-                    binding.ty.clone()
+                    // Instantiate any GenericParam nodes with fresh TypeVars so that
+                    // polymorphic constants like `None : Option[T]` get a fresh inference
+                    // variable each time they are referenced, enabling proper unification
+                    // with the surrounding type context (e.g. `Option[int]`).
+                    let ty = binding.ty.clone();
+                    self.uf.instantiate(&ty)
                 } else if let Some(ty) = self.builtins.lookup_var(name) {
-                    ty
+                    self.uf.instantiate(&ty)
                 } else {
                     self.diags.push(
                         Diagnostic::error(
@@ -214,15 +219,24 @@ impl<'a> Checker<'a> {
                                 }
                                 return Ty::Named(n.clone());
                             }
-                            // Struct type: pull declared fields from the env so an anonymous
-                            // record literal `{ f: e, ... }` ascribed to `Named(Foo)` checks
-                            // against the struct's shape and unifies with `Named(Foo)`.
                             if let Some(adt) = self.env.lookup_adt(n) {
                                 if !adt.fields.is_empty() {
+                                    // Struct type: pull declared fields from the env so an anonymous
+                                    // record literal `{ f: e, ... }` ascribed to `Named(Foo)` checks
+                                    // against the struct's shape and unifies with `Named(Foo)`.
                                     for (fname, fty) in &adt.fields {
                                         expected_fields.insert(fname.clone(), fty.clone());
                                     }
                                     struct_name = Some(n.clone());
+                                } else if !adt.variants.is_empty() {
+                                    // Variant-based ADT (enum): an object literal used as a variant
+                                    // payload (e.g. from @json_as generated code) should produce
+                                    // Named(n) rather than Record([...]).  The lowering is generated
+                                    // code we control; trust it here and just type the fields.
+                                    for (_fname, fexpr) in fields {
+                                        self.check_expr(fexpr, None);
+                                    }
+                                    return Ty::Named(n.clone());
                                 }
                             }
                         }

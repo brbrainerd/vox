@@ -225,6 +225,33 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
+            // `@table type Foo { f: T }` registers a Table binding. A function
+            // parameter `p: Foo` resolves to `Ty::Named("Foo")` during registration
+            // (tables are registered after functions in Pass 1). In Pass 2 body
+            // checking, the Table binding is live — look up its fields directly.
+            Ty::Named(n)
+                if self
+                    .env
+                    .lookup(n)
+                    .is_some_and(|b| b.kind == BindingKind::Table) =>
+            {
+                let table_ty = self.env.lookup(n).unwrap().ty.clone();
+                if let Ty::Table(_, fields) | Ty::Collection(_, fields) = table_ty {
+                    if let Some((_, ft)) = fields.iter().find(|(fn_, _)| fn_ == field) {
+                        ft.clone()
+                    } else {
+                        self.diags.push(Diagnostic::error(
+                            format!("Field '{field}' not found on table type {n}"),
+                            span,
+                            self.source,
+                        ));
+                        Ty::Error
+                    }
+                } else {
+                    // Should not happen: Table binding has non-Table type.
+                    Ty::Error
+                }
+            }
             Ty::Database => {
                 if let Some(binding) = self.env.lookup(field) {
                     if binding.kind == BindingKind::Table {

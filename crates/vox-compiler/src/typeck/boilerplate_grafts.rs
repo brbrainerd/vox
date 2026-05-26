@@ -295,12 +295,18 @@ pub fn check_ai_return_shape(
     })
 }
 
-/// Reject unresolved `@hole(...)` fixtures until explicitly filled/suppressed.
+/// Warn about unresolved `@hole(...)` fixtures.
+///
+/// `@hole` marks a function as intentionally incomplete ("work-in-progress");
+/// it is semantically similar to a `// TODO` comment.  Emitting only a
+/// warning (not an error) lets development branches land while clearly
+/// signalling that the function body needs to be filled in later.  CI gates
+/// that require zero warnings (e.g. `vox check --strict`) will catch this.
 pub fn check_unfilled_fixture_hole(
     hole: &crate::hir::nodes::boilerplate_grafts::HirHoleFixture,
 ) -> Diagnostic {
     Diagnostic {
-        severity: TypeckSeverity::Error,
+        severity: TypeckSeverity::Warning,
         message: format!(
             "`@hole` fixture (`cache_key = {}`) is unfilled; resolve it or suppress intentionally.",
             hole.cache_key

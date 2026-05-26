@@ -128,6 +128,19 @@ impl BuiltinTypes {
                 is_deprecated: false,
             },
         );
+        // Unit — the sole inhabitant of the unit type. Used in `return Unit`,
+        // `Ok(Unit)`, and `Result[Unit]` patterns to signal "no meaningful
+        // payload." Registered alongside `true`/`false` as a zero-argument
+        // constructor constant.
+        env.define(
+            "Unit".into(),
+            Binding {
+                ty: Ty::Unit,
+                mutable: false,
+                kind: BindingKind::Constructor,
+                is_deprecated: false,
+            },
+        );
 
         // ── Standard library functions ────────────────────────
 
@@ -147,6 +160,33 @@ impl BuiltinTypes {
             "assert".into(),
             Binding {
                 ty: Ty::Fn(vec![Ty::Bool], Box::new(Ty::Unit)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // panic(message: str) → Unit
+        // Terminates the current execution with an error message. Return type is
+        // Unit rather than Never so that callers in void-returning functions don't
+        // trigger return-type mismatches.
+        env.define(
+            "panic".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // has_capability(token: cap) → bool
+        // Runtime predicate that checks whether the supplied capability token is
+        // valid and has not been revoked. Used in the platform capability model.
+        env.define(
+            "has_capability".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Named("cap".into())], Box::new(Ty::Bool)),
                 mutable: false,
                 kind: BindingKind::Function,
                 is_deprecated: false,
