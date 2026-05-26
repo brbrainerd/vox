@@ -3,6 +3,7 @@ title: "Changelog"
 description: "All notable changes to the Vox project are documented here."
 category: "ci"
 status: "current"
+last_updated: "2026-05-26"
 training_eligible: true
 training_rationale: "Maintains a history of project changes, useful for understanding evolution and bug fixes."
 ---
@@ -11,6 +12,25 @@ training_rationale: "Maintains a history of project changes, useful for understa
 All notable changes to the Vox project are documented here.
 
 ## [Unreleased]
+
+(Empty — v0.6.0 just tagged.  Next-release content lands here.)
+
+## [0.6.0] - 2026-05-26
+
+**Release theme:** Single-machine multi-agent with no data loss; `@endpoint` decorator surface retired; language hardening. All Phase 0 (foundations), Phase 1 (language spine), Phase 3 (VCS gossip), Hopper Hp-T1..T4 (unified task intake), and Telemetry unification Phases A–D deliverables from the mesh SSOT.
+
+### Language surface changes
+
+- **`@endpoint(kind: server|query|mutation)` retired** — the canonical bare-form decorators `@server` / `@query` / `@mutation` (introduced in Phase B, audit doc §11.2, 2026-05-23) are now the only endpoint declaration surface.  See [the v0.5 → v0.6 migration guide](docs/src/reference/migration-0.5-to-0.6.md).
+- Other language surface changes (typed list subscript `Option[T]`, strict-Option `Json` API, `@json_as`, raw strings, intra-project imports) are detailed in the same migration guide.
+
+### Removed
+
+- **Lexer:** `AtEndpoint` token + `#[token("@endpoint")]` annotation deleted from `crates/vox-compiler/src/lexer/token.rs`.  Any remaining `@endpoint` text in user source now fails to lex.
+- **Parser:** `parse_endpoint` function deleted from `crates/vox-compiler/src/parser/descent/decl/head.rs`; `Token::AtEndpoint` removed from the two decl-leading token sets and the dispatch arm in `descent/mod.rs`.
+- **Detector severity escalation:** `retired/decorator-usage` raises `@endpoint(kind: …)` findings from `Severity::Warning` to `Severity::Error` per the CR-L6 retirement-guard parity gate (`vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`).
+
+Deliberately not removed (still alive in production for the canonical bare-form decorators): `EndpointDecl` AST node, `EndpointKind` enum, `parse_query` / `parse_mutation` / `parse_server_endpoint`, all codegen handlers for `Decl::Endpoint`, and the `auth_endpoint` / `effect_net_decl` / `id_at_boundary` detectors.
 
 ### Added
 
@@ -22,13 +42,6 @@ All notable changes to the Vox project are documented here.
 - **`BuildSummaryEvent`:** emitted after `vox ci build-timings` with wall time and compiled-crate count.
 - **`ErrorEvent`:** emitted at HTTP 429 (infer.rs), non-2xx HTTP (actor-runtime chat.rs), and circuit-breaker trips.
 - **Trace propagation:** `RemoteTaskEnvelope` extended with `parent_task_id`, `caller_agent_id`, `trace_id`, `span_depth`; MCP dispatch wraps sub-agent calls in `TRACE_CTX::scope`; `SubAgentDispatchEvent` enriched with `parent_task_id` and `span_depth`.
-
-## [0.6.0] - 2026-05-25
-
-**Release theme:** Single-machine multi-agent with no data loss. All Phase 0 (foundations), Phase 1 (language spine), Phase 3 (VCS gossip), and Hopper Hp-T1..T4 (unified task intake) deliverables from the mesh SSOT.
-
-### Added
-
 - **Unified Task Hopper — Option A (Hp-T1..T4):** `InMemoryHopper` in `vox-orchestrator` implements the `HopperIntake` trait. Items progress through `Inbox → Assigned → Done / Overridden` states. HTTP intake endpoints surface the hopper at `/api/v2/hopper/{inbox,assigned,history,submit,reprioritize,assign,complete}`.
 - **`PrioritySource` typed partial order (Hp-T3):** Canonical `PrioritySource` enum (`Developer(2) > Orchestrator(1) > LearningPolicy(0)`) in `vox-orchestrator-types`; dominance encoded via `Ord` so policy checks are a one-liner (`source.dominates(other)`). `ReprioritizationActor` is now a backward-compat type alias pointing at `PrioritySource`.
 - **`DeveloperOverride` capability token (Hp-T4):** `reprioritize` requires a token minted by `DeveloperOverrideMint`. Each override is stamped with actor, reason, audit-id, and timestamp in `override_history`; after a developer override `priority_source` flips from `Orchestrator` to `Developer` and subsequent automated policy must not overwrite it without a new `Developer`-level cap.

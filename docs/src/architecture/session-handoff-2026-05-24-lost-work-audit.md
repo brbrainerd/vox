@@ -155,6 +155,17 @@ The root cause is uncommitted edits sitting in the working tree while parallel a
 2. **For multi-step features, commit a WIP commit at every green checkpoint** (`cargo check -p <crate>` passes), then squash before push if desired.
 3. **Before starting work, capture `git rev-parse HEAD`.** If it changes mid-session without your action, the harness sync'd to a parallel-agent commit — `git stash` your edits before continuing.
 
+#### T-FIN-1 addendum: the same risk applies to test-fix conflicts (added 2026-05-26)
+
+Observed twice in the 2026-05-25 finalization pass:
+
+1. **Golden rebless collision.**  Parallel agent A added an `excerpt` field to `Diagnostic` (commit `fe2b05a051`) and re-blessed two snapshot files but missed `crates/vox-cli/tests/golden/check_rust_import_lowering.json`.  This session re-blessed it via `BLESS=1`, then parallel agent B re-blessed the same file as part of a wider `vox/types/*` codes change (commit `1dde2ea12b`).  B's commit superseded this session's.  Net effect: zero data lost, but the work was done twice.
+2. **JSON-format compat fix collision.**  MCP responses switched from pretty-printed JSON to compact JSON; `agent_mcp_roundtrip_test`'s `contains("\"success\": true")` assertions broke.  This session rewrote three assertions to parse JSON and check `as_bool()`; parallel agent B landed the equivalent rewrite in commit `1dde2ea12b` minutes later.
+
+Mitigation is the same as for feature work: commit + push atomically after a test fix.  If two agents land equivalent fixes the second push will be rejected and the second agent can rebase or fold its changes into the merge.  The danger case is when the second agent's branch sweeps the first's *uncommitted* working-tree edits into a wider commit; if both fixes ship together unchanged the second agent's commit message will be misleading.
+
+**Rule of thumb:** treat a green test run that wasn't already green at session start the same way you treat a fresh feature commit — push immediately, then continue.
+
 ## 5. Items deliberately not included in recovery
 
 - 31 other files in `cea30891cb`'s diff are now superseded by parallel-agent commits (`d5ae8e59ba`, `c3ae1ffc4c`, `b9390e1fe7`, `017e05dd3b`, `92760761ef`, `ec5b7bb747`, `3054a88dbb`, `dcbddaf6e3`, `3ef863c862`, `9c83a0d4d0`, `dc25d46e42`). Pulling those back would regress crate-audit progress. Confirmed by spot-comparing diff hunks against `git log -p main -- <path>`.
