@@ -3,11 +3,17 @@
 # Policy: arbitrary SQL belongs in `crates/vox-db/src/store/ops_*.rs` (see database-nomenclature.md).
 # Built-in allowlist always includes: `crates/vox-db/`.
 #
-# Add a `crates/<crate>/` or file-prefix line only while migrating that path off `query_all(`.
+# Syntax:
+#   crates/<crate>/                       — all .rs files under this directory tree (trailing / required)
+#   crates/<crate>/path/to/exact_file.rs  — exactly this one file (no trailing /)
+#
+# Add an entry here only while migrating that path off `query_all(`, or when a
+# test file embeds a `query_all()` fixture string and should not be subject to the guard.
 crates/vox-secrets/
 crates/vox-corpus/
 crates/vox-cli/src/commands/review/coderabbit/
 crates/vox-mcp/src/dei_tools/
 crates/vox-workflow-runtime/tests/
 crates/vox-code-audit/src/detectors/
-crates/vox-cli/tests/
+# check_for_llm_envelope.rs embeds a Vox fixture string containing `db.query_all()` — exact-file allowance.
+crates/vox-cli/tests/check_for_llm_envelope.rs
