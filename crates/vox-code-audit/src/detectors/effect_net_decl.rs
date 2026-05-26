@@ -24,7 +24,7 @@ impl EffectNetDeclDetector {
     pub fn new() -> Self {
         Self {
             fn_decl: Regex::new(
-                r"(?:^|\s)(?:pub\s+fn|@endpoint\s+fn)\s+\w+",
+                r"(?:^|\s)(?:pub\s+fn|@query\s+fn|@mutation\s+fn|@server\s+fn)\s+\w+",
             )
             .expect("valid regex"),
             uses_net: Regex::new(
@@ -217,14 +217,14 @@ mod tests {
     }
 
     #[test]
-    fn flags_endpoint_fn_calling_fetch() {
+    fn flags_query_fn_calling_fetch() {
         let d = EffectNetDeclDetector::new();
-        let code = "@endpoint fn get_data(req: Request) -> Response {\n    let result = fetch(\"/api/data\");\n    return result;\n}";
+        let code = "@query fn get_data(req: Request) -> Response {\n    let result = fetch(\"/api/data\");\n    return result;\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
         assert!(
             !findings.is_empty(),
-            "should flag @endpoint fn calling fetch() without @uses(net)"
+            "should flag @query fn calling fetch() without @uses(net)"
         );
     }
 

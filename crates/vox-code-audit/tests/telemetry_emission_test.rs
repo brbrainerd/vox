@@ -137,7 +137,17 @@ fn engine_emits_lint_finding_event_per_finding() {
             "unexpected rule_id: {}",
             ev.rule_id
         );
-        assert_eq!(ev.severity, "warning");
+        // Severity varies by pattern: `@component fn` and `@py.import` are
+        // Warning; `@endpoint(kind: ...)` is escalated to Error in v0.6.0
+        // because the `@endpoint` lexer keyword was removed and the parser
+        // rejects it outright — the lint runs first as a friendly migration
+        // hint.  Both are valid telemetry payloads for this detector.
+        assert!(
+            ev.severity == "warning" || ev.severity == "error",
+            "severity must be 'warning' or 'error', got '{}' for rule {}",
+            ev.severity,
+            ev.rule_id
+        );
         assert_eq!(
             ev.diagnostic_id.as_deref(),
             Some("vox/retired/decorator-usage"),

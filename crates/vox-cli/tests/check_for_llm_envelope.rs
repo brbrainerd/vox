@@ -24,22 +24,21 @@ fn check_for_llm_envelope_shape_rust_import_fixture() {
 // Lint findings integration (requires `stub-check` feature)
 // ---------------------------------------------------------------------------
 
-/// Verify that `format_check_for_llm_json` surfaces `lint_findings` for a Vox
+/// Verify that `format_check_for_llm_json` surfaces `lint_findings` for a Rust
 /// file that contains a known lint violation when the `stub-check` feature is on.
 ///
-/// The fixture uses an `@endpoint` without `@auth` or `@public`, which is caught
-/// by `AuthEndpointDetector` (`vox/auth/endpoint-missing-decorator`).
+/// The fixture uses `.unwrap()` in production Rust code, caught by
+/// `UnwrapCallDetector` (`rust/unwrap-call`).
 #[cfg(feature = "stub-check")]
 #[test]
-fn lint_findings_populated_for_auth_endpoint_violation() {
-    // Minimal Vox file: @endpoint without @auth or @public is a lint violation.
+fn lint_findings_populated_for_unwrap_violation() {
+    // Minimal Rust file with .unwrap() — caught by UnwrapCallDetector.
     let source = r#"
-@endpoint
-fn get_users() -> List[User] {
-    db.query_all()
+fn get_user(id: u64) -> User {
+    db.users.find(id).unwrap()
 }
 "#;
-    let file = Path::new("test_auth_check.vox");
+    let file = Path::new("crates/demo/src/lib.rs");
     let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
     let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
 
@@ -50,39 +49,26 @@ fn get_users() -> List[User] {
 
     assert!(
         !lint_findings.is_empty(),
-        "expected at least one lint finding for @endpoint without @auth; got none"
+        "expected at least one lint finding for .unwrap() in Rust; got none"
     );
 
-    // At least one finding should be from the auth-endpoint detector.
-    let auth_finding = lint_findings.iter().find(|f| {
+    // At least one finding should be from the unwrap detector.
+    let unwrap_finding = lint_findings.iter().find(|f| {
         f.get("rule_id")
             .and_then(|r| r.as_str())
-            .map(|r| r.contains("auth"))
+            .map(|r| r.contains("unwrap"))
             .unwrap_or(false)
     });
     assert!(
-        auth_finding.is_some(),
-        "expected an auth-related lint finding; rule_ids present: {:?}",
+        unwrap_finding.is_some(),
+        "expected an unwrap lint finding; rule_ids present: {:?}",
         lint_findings
             .iter()
             .filter_map(|f| f.get("rule_id").and_then(|r| r.as_str()))
             .collect::<Vec<_>>()
     );
 
-    let f = auth_finding.unwrap();
-
-    // Finding should carry a rationale string.
-    assert!(
-        f.get("rationale").and_then(|r| r.as_str()).is_some(),
-        "auth finding must include a rationale field"
-    );
-
-    // Finding should carry an explain_url.
-    let explain_url = f.get("explain_url").and_then(|u| u.as_str()).unwrap_or("");
-    assert!(
-        explain_url.starts_with("https://vox-lang.org/diag/vox/auth/"),
-        "explain_url should point to the auth diagnostic page; got: {explain_url}"
-    );
+    let f = unwrap_finding.unwrap();
 
     // Severity must be a recognized string.
     let severity = f.get("severity").and_then(|s| s.as_str()).unwrap_or("");
@@ -97,62 +83,59 @@ fn get_users() -> List[User] {
 #[cfg(feature = "stub-check")]
 #[test]
 fn lint_findings_absent_when_no_violations() {
-    // Clean Vox file: @public @endpoint satisfies the auth-endpoint rule.
+    // Clean Vox file with no lint violations.
     let source = r#"
-@public
-@endpoint
-fn health() -> Status {
-    Status::Ok
+fn greet(name: str) to str {
+    return "Hello, " + name
 }
 "#;
-    let file = Path::new("test_clean.vox");
+    let file = Path::new("crates/demo/src/greet.vox");
     let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
     let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
 
     // `lint_findings` should either be absent or empty when there are no violations.
-    let findings_count = v
-        .get("lint_findings")
-        .and_then(|f| f.as_array())
-        .map(|a| a.len())
-        .unwrap_or(0);
-
-    // The clean file may still trigger other warnings (e.g. magic-value, line-endings)
-    // so we can't assert exactly zero.  What we CAN assert is that any auth finding
-    // is absent for this file.
-    let auth_violation = v
+    // The clean file may trigger warnings from other heuristic rules; what we assert
+    // is that no `unwrap` violation fires on this clean Vox file.
+    let unwrap_violation = v
         .get("lint_findings")
         .and_then(|f| f.as_array())
         .map(|arr| {
             arr.iter().any(|f| {
                 f.get("rule_id")
                     .and_then(|r| r.as_str())
-                    .map(|r| r.contains("auth"))
+                    .map(|r| r.contains("unwrap"))
                     .unwrap_or(false)
             })
         })
         .unwrap_or(false);
 
+    let findings_count = v
+        .get("lint_findings")
+        .and_then(|f| f.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
+
     assert!(
-        !auth_violation,
-        "clean file should not trigger auth-endpoint lint (found {findings_count} total findings)"
+        !unwrap_violation,
+        "clean Vox file should not trigger unwrap lint (found {findings_count} total findings)"
     );
 }
 
 /// Verify that `minimal_repro` is populated on lint findings where the detector
 /// provides a reproduction snippet.
 ///
-/// `AuthEndpointDetector` ships a `minimal_repro()` implementation, so any
+/// `UnwrapCallDetector` ships a `minimal_repro()` implementation, so any
 /// finding from that rule must carry the field in the JSON envelope.
 #[cfg(feature = "stub-check")]
 #[test]
 fn lint_finding_includes_minimal_repro_when_detector_provides_one() {
     let source = r#"
-@endpoint
-fn get_orders() -> List[Order] {
-    db.query_all()
+fn load_config() -> Config {
+    let raw = std::fs::read_to_string("cfg.json").unwrap();
+    serde_json::from_str(&raw).unwrap()
 }
 "#;
-    let file = std::path::Path::new("test_repro.vox");
+    let file = std::path::Path::new("crates/demo/src/config.rs");
     let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
     let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
 
@@ -161,34 +144,30 @@ fn get_orders() -> List[Order] {
         .and_then(|f| f.as_array())
         .expect("lint_findings array must be present");
 
-    // Locate the auth-endpoint finding.
-    let auth_finding = lint_findings
+    // Locate the unwrap finding.
+    let unwrap_finding = lint_findings
         .iter()
         .find(|f| {
             f.get("rule_id")
                 .and_then(|r| r.as_str())
-                .map(|r| r.contains("auth"))
+                .map(|r| r.contains("unwrap"))
                 .unwrap_or(false)
         })
-        .expect("expected an auth-endpoint finding for @endpoint without @auth");
+        .expect("expected an unwrap finding for .unwrap() in production Rust");
 
     // The `minimal_repro` field must be present and non-empty.
-    let repro = auth_finding
+    let repro = unwrap_finding
         .get("minimal_repro")
         .and_then(|r| r.as_str())
         .unwrap_or("");
     assert!(
         !repro.is_empty(),
-        "auth-endpoint finding must carry a minimal_repro snippet; got empty/absent"
+        "unwrap finding must carry a minimal_repro snippet; got empty/absent"
     );
-    // The snippet should mention both the violation and the fix keyword.
+    // The snippet should mention .unwrap() and the fix.
     assert!(
-        repro.contains("@endpoint"),
-        "minimal_repro snippet should show @endpoint usage; got: {repro}"
-    );
-    assert!(
-        repro.contains("@auth") || repro.contains("@public"),
-        "minimal_repro snippet should show the fix (@auth or @public); got: {repro}"
+        repro.contains(".unwrap()"),
+        "minimal_repro snippet should show .unwrap() usage; got: {repro}"
     );
 }
 
@@ -201,12 +180,11 @@ fn get_orders() -> List[Order] {
 #[test]
 fn lint_finding_json_fields_match_repair_loop_expectations() {
     let source = r#"
-@endpoint
-fn get_billing() -> List[Invoice] {
-    db.query_all()
+fn parse_id(s: &str) -> u64 {
+    s.parse::<u64>().unwrap()
 }
 "#;
-    let file = std::path::Path::new("billing.vox");
+    let file = std::path::Path::new("crates/demo/src/parse.rs");
     let raw = vox_cli::pipeline::format_check_for_llm_json(source, file);
     let v: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
 
@@ -220,10 +198,10 @@ fn get_billing() -> List[Invoice] {
         .find(|f| {
             f.get("rule_id")
                 .and_then(|r| r.as_str())
-                .map(|r| r.contains("auth"))
+                .map(|r| r.contains("unwrap"))
                 .unwrap_or(false)
         })
-        .expect("auth-endpoint finding");
+        .expect("unwrap finding");
 
     // Fields the repair loop accesses via .get("field") + .as_str()/.as_u64():
     assert!(

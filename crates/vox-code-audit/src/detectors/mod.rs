@@ -71,8 +71,6 @@ pub mod require_justification;
 /// Panicking builtins inside actor handlers or workflow activities.
 pub mod panicking_builtin;
 
-/// `@endpoint` fn without `@auth(...)` or `@public` in Vox files.
-pub mod auth_endpoint;
 /// Variables defined and last-used more than 80 lines apart.
 pub mod long_range_coupling;
 /// Option/Result match patterns that can use combinators (`.map`, `.unwrap_or`, etc.).
@@ -82,7 +80,7 @@ pub mod secret_span;
 /// Declared states in `state_machine` blocks with no outgoing `->` transitions.
 pub mod state_machine_unreachable;
 
-/// `str`-typed ID parameters at API boundaries (`@endpoint`, `@activity`, actor message handlers).
+/// `str`-typed ID parameters at API boundaries (`@query`, `@mutation`, `@server`, `@activity`, actor message handlers).
 pub mod id_at_boundary;
 
 /// `Result[T, str]` or anonymous error type on a public function boundary in Vox files.
@@ -105,7 +103,7 @@ pub mod llm_provider_call;
 /// Non-deterministic builtins (`time.now`, `random.*`, `uuid()`, etc.) inside a `workflow` body.
 pub mod workflow_nondeterministic;
 
-/// `pub fn` or `@endpoint fn` calling HTTP/net builtins without `@uses(net)` decorator.
+/// `pub fn` or `@query`/`@mutation`/`@server fn` calling HTTP/net builtins without `@uses(net)` decorator.
 pub mod effect_net_decl;
 
 /// `@pure fn` that calls an impure builtin (HTTP, I/O, random, log, etc.).
@@ -172,7 +170,6 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(panicking_builtin::PanickingBuiltinDetector::new()),
         Box::new(option_combinator::OptionCombinatorDetector::new()),
         Box::new(secret_span::SecretSpanDetector::new()),
-        Box::new(auth_endpoint::AuthEndpointDetector::new()),
         Box::new(state_machine_unreachable::StateMachineUnreachableDetector::new()),
         Box::new(long_range_coupling::LongRangeCouplingDetector::new()),
         Box::new(id_at_boundary::IdAtBoundaryDetector::new()),
@@ -194,7 +191,7 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    51
+    50
 }
 
 #[cfg(test)]
