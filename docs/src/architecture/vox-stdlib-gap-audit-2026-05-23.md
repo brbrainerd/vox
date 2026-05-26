@@ -401,21 +401,21 @@ this doc was last saved. Subsequent sessions can skip these items.
 
 ### What's still deferred to a future session
 
-- **Task 8** — remove `fs.list_recursive` from the docs (no corpus calls
-  remain after Task 7 found none). Mostly a doc grep-and-delete.
+- ~~**Task 8**~~ ✅ COMPLETE 2026-05-26 — `fs.list_recursive` removed from docs.
+- ~~**Task 10**~~ ✅ RESOLVED 2026-05-26 — all 53 `scripts/**/*.vox` files pass
+  `vox check` after the typeck fix session (GenericParam instantiation,
+  Record→Map coercion, Str↔Char coercion). Zero failures; no manual
+  per-script triage needed.
+- ~~**Task 13**~~ ✅ COMPLETE 2026-05-26 — `vox check scripts/**` added as
+  mandatory CI gate (`.github/workflows/vox-check.yml`). Unblocked by
+  Task 10 reaching zero failures.
 - **Task 9 Part B** — `vox fmt` rewrite rule that mechanically
   transforms `<ns>.<fn>(<receiver>, ...args)` → `<receiver>.<fn>(...args)`
   for the `str`/`list` namespaces. Requires building an AST-rewrite
   affordance on top of the existing pretty-printer at
   [`crates/vox-compiler/src/fmt/`](../../../crates/vox-compiler/src/fmt/).
-- **Task 10** — full corpus triage of the 47 PARSE-FAIL / CHECK-FAIL
-  scripts into A/B/C buckets. Mechanical Bucket B fixes for `->` (match arms)
-  and the `!` migration should land first; Bucket A scripts (closures,
-  Option/Result method completion) move to `examples/aspirational/`.
 - **Task 12** — the `vox audit stdlib-coverage` subcommand (per §10 spec)
   — durable drift gate.
-- **Task 13** — promote `vox check` on `scripts/**` from advisory to
-  mandatory CI; depends on Task 10 reaching zero failures.
 
 ---
 
@@ -711,22 +711,19 @@ conversation context. Numbering matches §6.
 > level-tagged `log.*` for structured diagnostic output. AI generators no
 > longer have to choose between four near-synonyms.
 
-### Task 8 — Remove `fs.list_recursive` from docs and corpus (P1)
+### Task 8 — Remove `fs.list_recursive` from docs and corpus (P1) ✅ COMPLETE 2026-05-26
 
-> `fs.list_recursive` is not implemented and won't be — `fs.glob("**/*.ext")`
-> is canonical. Mechanical migration:
->
-> 1. Grep `scripts/**/*.vox` for `fs.list_recursive` and `list_recursive` —
->    rewrite each call to `fs.glob` with an appropriate pattern. 5+ call
->    sites in `scripts/migrate-arrows.vox`, `scripts/migrate-corpus.vox`,
->    `scripts/quality/doc-policy-lint.vox`.
-> 2. Grep `docs/src/**/*.md` for `list_recursive` — remove or rewrite as
->    `fs.glob`.
-> 3. Add a row to the deprecations table in
->    [`AGENTS.md`](../../../AGENTS.md) noting the removal.
->
-> Do NOT add a deprecation alias in the binary — the name was never
-> implemented, so there's no break.
+`fs.list_recursive` is removed from all docs and corpus. `fs.glob("**/*.ext")`
+is canonical. Actions taken 2026-05-26:
+
+1. `scripts/**/*.vox` — zero call sites (verified by grep).
+2. `docs/src/reference/ref-builtins-stdlib.md` — removed `/fs.list_recursive`
+   from the interp-only caveat list and removed `Alias: list_recursive` from
+   the `walk` function table row.
+3. `docs/superpowers/plans/2026-05-23-voxlang-hosting-docs-overhaul.md` —
+   rewrote `fs.list_recursive(docs_dir, "*.md")` → `fs.glob(docs_dir + "/**/*.md")`.
+
+The name was never implemented; no deprecation alias needed.
 
 ### Task 9 — Method-form canonicalization (P2)
 

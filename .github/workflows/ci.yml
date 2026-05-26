@@ -185,6 +185,24 @@ jobs:
       - name: Vox script check (clean-build-artifacts reference automation)
         run: cargo run -p vox-cli --quiet -- check scripts/clean-build-artifacts.vox
 
+      - name: Vox script corpus check (all scripts/**/*.vox pass vox check)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VOX_BIN="./target/debug/vox"
+          failed=0
+          while IFS= read -r f; do
+            if ! "$VOX_BIN" check "$f" 2>&1; then
+              echo "FAIL: $f"
+              failed=$((failed + 1))
+            fi
+          done < <(find scripts -name "*.vox" | sort)
+          if [ "$failed" -gt 0 ]; then
+            echo "ERROR: $failed script(s) failed vox check. All scripts/**/*.vox must pass."
+            exit 1
+          fi
+          echo "OK: all scripts/**/*.vox pass vox check."
+
       - name: Workflow scripts allowlist
         run: cargo run -p vox-cli --quiet -- ci workflow-scripts
 

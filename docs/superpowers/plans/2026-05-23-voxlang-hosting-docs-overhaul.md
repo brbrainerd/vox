@@ -234,7 +234,7 @@ fn update_category_line(content: str, new_cat: str) -> str {
 fn main() {
     let dry_run = env.get("DRY_RUN") == "1"
     let docs_dir = "docs/src"
-    let files = fs.list_recursive(docs_dir, "*.md")
+    let files = fs.glob(docs_dir + "/**/*.md")
 
     let mut changed = 0
     let mut skipped = 0
