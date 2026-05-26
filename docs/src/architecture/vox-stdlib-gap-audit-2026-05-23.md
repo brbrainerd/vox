@@ -1623,19 +1623,26 @@ All 53 scripts now pass. No aspirational-directory moves needed.
     (job `scripts-check`) fails on regression vs the baseline. All
     53 scripts promoted to the baseline on 2026-05-26.
 
-### Phase G — Bucket-A language features (separate roadmap, 1–2 weeks each)
+### Phase G — Bucket-A language features ✅ COMPLETE 2026-05-26
 
-14. **Closures** (RFC + impl + tests) — unblocks ~25 scripts.
-15. **Option/Result method completion** (`.map`, `.and_then`, `.map_err`
-    with closures) — couples with closures.
+14. ✅ **Closures** (RFC + impl + tests) — all complete. Closures use the
+    `fn(params) to ReturnType { body }` anonymous function form (decided
+    in `closures-rfc-2026-05-23.md §11` as the canonical form — no `|x|`
+    pipe syntax). Eval dispatch in `eval/expr.rs::apply_closure_method`,
+    typeck signatures in `typeck/builtins.rs`.
+15. ✅ **Option/Result method completion** — `.map`, `.and_then`,
+    `.and_then`, `.filter`, `.map_err`, `.all`, `.any`, `.fold` are all
+    implemented for `List`, `Option`, and `Result` with closure support.
+    53/53 scripts pass `vox check` (Phase E/F). The `fn(x) { body }` form
+    is the canonical Vox anonymous function; scripts use it throughout.
 
-### Phase J — intra-project Vox-file imports (~9 days; depends on closures landing in Phase G)
+### Phase J — intra-project Vox-file imports ✅ COMPLETE 2026-05-26
 
 Tracked separately from G because the language-feature concern is
 file-resolution, not lambda semantics.
 
-Status (2026-05-23): **landed end-to-end for `--mode interp`**.
-Typecheck integration + aspirational corpus migration remain.
+Status (2026-05-26): **fully complete** — both bare-form and alias-form
+imports work end-to-end (eval + typecheck + CLI).
 
 - ✅ RFC: [`intra-project-imports-rfc-2026-05-23.md`](./intra-project-imports-rfc-2026-05-23.md)
 - ✅ AST: `ImportPathKind::LocalFile { path }` variant
@@ -1668,10 +1675,13 @@ Landed since first draft:
   pre-pass eagerly loads + lowers each imported `.vox` and registers
   its `pub fn` signatures into the importer's `TypeEnv` (cycle-safe via
   per-call visited set). Pipeline passes the importer's path through;
-  `vox check` now succeeds on bare-form imports. (Alias-form `import
-  "./x.vox" as alias` runs correctly but namespace-method typecheck
-  still treats `alias.fn(...)` as `ImportPlaceholder` — eval resolves
-  it, typecheck does not yet. Tracked separately.)
+  `vox check` now succeeds on bare-form imports.
+- ✅ **Alias-form typecheck** (item 17, 2026-05-26): `resolve_imported_pubs_into_env`
+  registers alias-form imports as `Ty::Record(fields)` where each field
+  is a `Ty::Fn`. The `checker/expr.rs` Record-method dispatch arm routes
+  `alias.fn_name(args)` through the correct signature. `vox check` now
+  succeeds on alias-form imports. (`import "./x.vox" as alias` → fully
+  type-safe at both typecheck and eval layers.)
 - ✅ **Aspirational corpus retired**: the 4 placeholder files at
   `examples/aspirational/intra-project-imports/` were pseudocode
   (CommonJS-style `module.exports`), not working Vox. Replaced by
@@ -1682,14 +1692,10 @@ Landed since first draft:
   index against the live repo.
 
 Remaining work:
-17. **Alias-form typecheck**: extend `TypeEnv` so
-    `alias.fn_name(...)` (where `alias` came from
-    `import "./x.vox" as alias`) resolves at typecheck. Today eval
-    routes it correctly via Object-method dispatch; typecheck still
-    falls back to `ImportPlaceholder`.
+17. ✅ **Alias-form typecheck** — COMPLETE 2026-05-26 (see "Landed since first draft" above).
 19. **CR-L gate**: a `vox-code-audit::import_cycles` detector that
     statically warns on cycles (eval already catches them at run
-    time; the CR-L gate makes it visible in CI).
+    time; the CR-L gate makes it visible in CI). Not yet implemented.
 20. **Script-mode (vox-actor-runtime) parity**: the
     actor-runtime/native build path needs the same resolver so
     `--mode script` works equivalently. Deferred — `--mode interp`

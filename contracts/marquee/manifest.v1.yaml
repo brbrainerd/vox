@@ -28,15 +28,15 @@ apps:
     name: "Vox Marquee Demo"
     description: >
       Existing public demo: data-table dashboard with @table types,
-      @endpoint(kind: query|mutation) functions, and a Vox component view.
+      @query / @mutation endpoint functions, and a Vox component view.
     fixture_path: "apps/interop/marquee_app"
     vox_toml: "apps/interop/marquee_app/Vox.toml"
     entry: "apps/interop/marquee_app/src/main.vox"
     archetype: "dashboard"
     features:
       - "@table types"
-      - "@endpoint(kind: query)"
-      - "@endpoint(kind: mutation)"
+      - "@query endpoint"
+      - "@mutation endpoint"
       - "Vox component view"
       - "route parameters"
     deploy_target: container
@@ -67,8 +67,8 @@ apps:
     fixture_path: "apps/marquee/todo-auth"      # to be created in P3.5
     archetype: "single-tenant-saas"
     features_needed:
-      - "@endpoint(kind: query)"
-      - "@endpoint(kind: mutation)"
+      - "@query endpoint"
+      - "@mutation endpoint"
       - "@auth(scheme: bearer)"
       - "@table types with Id[User] foreign keys"
       - "JSON wire format"
@@ -93,7 +93,7 @@ apps:
     archetype: "realtime"
     features_needed:
       - "actor declaration"
-      - "@endpoint(kind: stream)"
+      - "@server streaming endpoint"
       - "websocket emit"
       - "presence state"
     used_by_criteria:
