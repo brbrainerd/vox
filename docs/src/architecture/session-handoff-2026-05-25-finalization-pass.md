@@ -19,10 +19,10 @@ This doc records the **finalization pass** triggered by your instruction "Audit 
 
 | Signal | Value | Evidence |
 |---|---|---|
-| `HEAD` | `fd3713519c` | `git rev-parse HEAD` |
+| `HEAD` | `13020e9729` | `git rev-parse HEAD` (updated: T-FIN-2 + T-FIN-3 landed) |
 | `origin/main..HEAD` | **0** | fully pushed |
 | Workspace version | **`0.6.0`** | `Cargo.toml`; bumped in `5b8a932f65` |
-| `cargo test --workspace` | **590 test groups OK, 0 failures** | run at HEAD `fd3713519c` |
+| `cargo test --workspace` | **0 failures** | green at `741566a186`; targeted recheck at `13020e9729` |
 | Working tree | clean except `.claude/settings.local.json` (sandbox) | `git status` |
 | `vox-arch-check` | clean (verified earlier this session) | `cargo run -p vox-arch-check` |
 
@@ -74,15 +74,13 @@ Unchanged from `session-handoff-2026-05-25-state-of-the-work.md §3.2`:
 - **R-J** Stub remediation backlog — per-release-wave
 - **R-K** C-2 vox-plugin-mens-candle-metal — hardware-gated
 
-### 3.3 New small items surfaced by this finalization pass
+### 3.3 Small items surfaced by this finalization pass
 
-These are tracked here in lieu of the task system since they're either tiny or off the critical path. Open as TaskCreate items if you want them on the dashboard.
-
-| ID | Description | Effort |
+| ID | Status | Description |
 |---|---|---|
-| **T-FIN-1** | The two-author golden/test-fix collisions (`golden_rust_import_lowering_diagnostic_json` reblessing + `agent_mcp_roundtrip_test` JSON-parse rewrite) both demonstrate that the harness can't distinguish "tests I just ran and fixed" from "tests a parallel agent fixed differently." If both parties commit, the wider commit wins. Worth a follow-up in `session-handoff-2026-05-24-lost-work-audit.md` discipline section — note that the same applies to test-fix conflicts, not just feature work. | XS docs |
-| **T-FIN-2** | `query-all-allowlist.txt` matcher treats every entry as a directory prefix (auto-appends `/` if missing), so file-level allowlisting is impossible. Today's fix used `crates/vox-cli/tests/` which is a broader grant than ideal. Consider extending the loader to accept exact-file paths (no trailing slash) so a single test file can be allowlisted without granting the whole directory. | S, ~30 min |
-| **T-FIN-3** | `vox-plugin-host::tests::built_dylib` uses file-existence as its cache key, so workspace version bumps create silent ABI-mismatch test failures until `target/debug/vox_plugin_*.{dll,so,dylib}` is deleted. Fix: embed the host's `vox-plugin-api` version in the cache check (read from `Cargo.toml` or `env!("CARGO_PKG_VERSION")`) and rebuild on mismatch. Or — simpler — just always rebuild (cost: ~10s per test run). | S, ~1 h |
+| **T-FIN-1** | **open** | The two-author golden/test-fix collisions (`golden_rust_import_lowering_diagnostic_json` reblessing + `agent_mcp_roundtrip_test` JSON-parse rewrite) both demonstrate that the harness can't distinguish "tests I just ran and fixed" from "tests a parallel agent fixed differently." If both parties commit, the wider commit wins. Worth a follow-up in `session-handoff-2026-05-24-lost-work-audit.md` discipline section — note that the same applies to test-fix conflicts, not just feature work. XS docs only. |
+| **T-FIN-2** | ✅ **done** (`13020e9729`) | `load_query_all_allowlist` no longer auto-appends `/`; entries without trailing slash are exact-file allowances. `query_all_path_allowed` dispatches on entry suffix (prefix vs. exact). Allowlist narrowed from `crates/vox-cli/tests/` directory grant to single file `crates/vox-cli/tests/check_for_llm_envelope.rs`. Two new unit tests. |
+| **T-FIN-3** | ✅ **done** (`13020e9729`) | `built_dylib()` in `load_noop_code.rs` and `abi_mismatch.rs` now compares dylib mtime against workspace root `Cargo.toml` mtime; stale dylibs (those older than a version-bump-triggered `Cargo.toml` touch) are rebuilt automatically. Both plugin-host integration tests confirmed passing. |
 
 ## 4. What blocks a v0.6.0 release tag
 
@@ -138,9 +136,10 @@ From the conversation:
 
 ## 7. Suggested next-session priorities
 
-1. **If you want to tag v0.6.0:** run the §4 pre-tag spot check, then `git tag -a v0.6.0 -m "Single-machine multi-agent, no data loss"` + `git push --tags`. Optionally action task #46 immediately after (or open a CR-L6-style soak window of N days first).
-2. **If you want to defer the tag:** action **T-FIN-3** (the dylib-cache bug) so this same failure doesn't re-bite at the eventual tag. Action **T-FIN-2** (allowlist matcher gets exact-file support) if you want stricter allowlisting hygiene.
-3. **Either way:** the documented audit-handoff trilogy (2026-05-24-lost-work + 2026-05-25-state-of-the-work + this doc) is the canonical post-incident record. Future agents diagnosing similar parallel-commit churn should read all three.
+1. **If you want to tag v0.6.0:** run the §4 pre-tag spot check (updated HEAD is now `13020e9729`), then `git tag -a v0.6.0 -m "Single-machine multi-agent, no data loss"` + `git push --tags`. Optionally action task #46 immediately after (or open a CR-L6-style soak window of N days first).
+2. ~~T-FIN-2 / T-FIN-3~~ — both landed in `13020e9729`. No pending infra work blocks a tag.
+3. **T-FIN-1 still open:** add a note to `session-handoff-2026-05-24-lost-work-audit.md §discipline` that the same parallel-commit sweep pattern that can steal feature work can also steal test-fix work. XS docs, no code needed.
+4. **Either way:** the documented audit-handoff trilogy (2026-05-24-lost-work + 2026-05-25-state-of-the-work + this doc) is the canonical post-incident record. Future agents diagnosing similar parallel-commit churn should read all three.
 
 ## 8. Related
 
