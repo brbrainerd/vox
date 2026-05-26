@@ -21,7 +21,7 @@ fn demo_flow(val: int) {
     }
 
     for i in [1, 2, 3] {
-        print(i);
+        print(str(i));
     }
 
     while false {

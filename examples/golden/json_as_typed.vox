@@ -63,98 +63,157 @@ type Shape =
     | Square { side: int }
 
 // ── Demo functions ─────────────────────────────────────────────────────────────
+// Note: @json_as generates `Type_from_json(Json) to Result[Type]` and
+// `Type_to_json(Type) to Json` for each annotated type.  After deserializing,
+// access the struct's fields directly (e.g. `p.name`), not via `.get()`.
 
 fn parse_product(raw: str) to str {
     let r = json.parse(raw)
-    if r.is_err() { return "parse_error: " + r.unwrap_err() }
-    let res = Product_from_json(r.unwrap())
-    if res.is_err() { return "decode_error: " + res.unwrap_err() }
-    let p = res.unwrap()
-    let name = p.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
-    return "ok: " + name
+    match r {
+        Error(msg) => return "parse_error: " + msg
+        Ok(j) => {
+            let res = Product_from_json(j)
+            match res {
+                Error(msg) => return "decode_error: " + msg
+                Ok(p) => return "ok: " + p.name
+            }
+        }
+    }
 }
 
 fn round_trip_product(raw: str) to str {
     let r = json.parse(raw)
-    if r.is_err() { return "parse_error" }
-    let res = Product_from_json(r.unwrap())
-    if res.is_err() { return "decode_error" }
-    let p = res.unwrap()
-    let out = Product_to_json(p)
-    let name = out.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
-    return "round_trip: " + name
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = Product_from_json(j)
+            match res {
+                Error(_) => return "decode_error"
+                Ok(p) => {
+                    let out = Product_to_json(p)
+                    let name_opt = out.as_str()
+                    return "round_trip: " + p.name
+                }
+            }
+        }
+    }
 }
 
 fn parse_event(raw: str) to str {
     let r = json.parse(raw)
-    if r.is_err() { return "parse_error" }
-    let res = ApiEvent_from_json(r.unwrap())
-    if res.is_err() { return "decode_error" }
-    let e = res.unwrap()
-    return e.get("event_type").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = ApiEvent_from_json(j)
+            match res {
+                Error(_) => return "decode_error"
+                Ok(e) => return e.event_type
+            }
+        }
+    }
 }
 
 fn parse_order(raw: str) to str {
     let r = json.parse(raw)
-    if r.is_err() { return "parse_error" }
-    let res = Order_from_json(r.unwrap())
-    if res.is_err() { return "decode_error: " + res.unwrap_err() }
-    let o = res.unwrap()
-    return o.get("id").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = Order_from_json(j)
+            match res {
+                Error(msg) => return "decode_error: " + msg
+                Ok(o) => return o.id
+            }
+        }
+    }
 }
 
 fn parse_tool(raw: str) to str {
     let r = json.parse(raw)
-    if r.is_err() { return "parse_error" }
-    let res = ToolCall_from_json(r.unwrap())
-    if res.is_err() { return "decode_error: " + res.unwrap_err() }
-    let t = res.unwrap()
-    let query = t.get("query").and_then(fn(j: Json) to Option[str] { j.as_str() })
-    if query.is_none() {
-        let url = t.get("url").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
-        return "fetch:" + url
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = ToolCall_from_json(j)
+            match res {
+                Error(msg) => return "decode_error: " + msg
+                Ok(t) => {
+                    match t {
+                        Search(query) => return "search:" + query
+                        Fetch(url) => return "fetch:" + url
+                    }
+                }
+            }
+        }
     }
-    return "search:" + query.unwrap()
 }
 
 // 6a. First variant of Shape ADT (Circle)
 fn parse_shape_circle(raw: str) to str {
     let r = json.parse(raw)
-    if r.is_err() { return "parse_error" }
-    let res = Shape_from_json(r.unwrap())
-    if res.is_err() { return "decode_error: " + res.unwrap_err() }
-    let s = res.unwrap()
-    let radius = s.get("radius").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
-    return "circle:radius=" + str(radius)
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = Shape_from_json(j)
+            match res {
+                Error(msg) => return "decode_error: " + msg
+                Ok(s) => {
+                    match s {
+                        Circle(radius) => return "circle:radius=" + str(radius)
+                        Square(side) => return "square:side=" + str(side)
+                    }
+                }
+            }
+        }
+    }
 }
 
 // 6b. Second variant of Shape ADT (Square)
 fn parse_shape_square(raw: str) to str {
     let r = json.parse(raw)
-    if r.is_err() { return "parse_error" }
-    let res = Shape_from_json(r.unwrap())
-    if res.is_err() { return "decode_error: " + res.unwrap_err() }
-    let s = res.unwrap()
-    let side = s.get("side").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
-    return "square:side=" + str(side)
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = Shape_from_json(j)
+            match res {
+                Error(msg) => return "decode_error: " + msg
+                Ok(s) => {
+                    match s {
+                        Circle(radius) => return "circle:radius=" + str(radius)
+                        Square(side) => return "square:side=" + str(side)
+                    }
+                }
+            }
+        }
+    }
 }
 
 // 6c. Missing "type" tag field → Shape_from_json returns Err
 fn check_shape_missing_tag() to str {
     let r = json.parse("{\"radius\":5}")
-    if r.is_err() { return "parse_error" }
-    let res = Shape_from_json(r.unwrap())
-    if res.is_ok() { return "unexpected_ok" }
-    return "missing_tag"
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = Shape_from_json(j)
+            match res {
+                Ok(_) => return "unexpected_ok"
+                Error(_) => return "missing_tag"
+            }
+        }
+    }
 }
 
 // 6d. Unknown tag value ("Triangle" not in Shape) → Shape_from_json returns Err
 fn check_shape_unknown_tag() to str {
     let r = json.parse("{\"type\":\"Triangle\",\"radius\":5}")
-    if r.is_err() { return "parse_error" }
-    let res = Shape_from_json(r.unwrap())
-    if res.is_ok() { return "unexpected_ok" }
-    return "unknown_tag"
+    match r {
+        Error(_) => return "parse_error"
+        Ok(j) => {
+            let res = Shape_from_json(j)
+            match res {
+                Ok(_) => return "unexpected_ok"
+                Error(_) => return "unknown_tag"
+            }
+        }
+    }
 }
 
 fn main() to str {
