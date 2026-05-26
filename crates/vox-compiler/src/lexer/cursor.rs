@@ -145,17 +145,20 @@ mod tests {
     /// `@query` and `@mutation` are first-class decorators replacing the
     /// awkward `@endpoint(kind: query)` / `@endpoint(kind: mutation)`
     /// spellings — ~65 % K-complexity reduction per call site (audit doc
-    /// §11.2). The legacy `@endpoint` token stays registered during the
-    /// deprecation window.
+    /// §11.2). The legacy `@endpoint` token was retired in v0.6.0 per
+    /// `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`; `@endpoint`
+    /// text no longer lexes as a known decorator and the parser reports
+    /// it as an unknown token (the `retired/decorator-usage` lint surfaces
+    /// a friendly migration suggestion before that point).
     #[test]
     fn test_query_and_mutation_lex_as_distinct_tokens() {
-        let tokens = lex_tokens("@query @mutation @endpoint");
+        let tokens = lex_tokens("@query @mutation @server");
         assert_eq!(
             tokens,
             vec![
                 Token::AtQuery,
                 Token::AtMutation,
-                Token::AtEndpoint,
+                Token::AtServer,
                 Token::Eof,
             ],
         );

@@ -900,12 +900,16 @@ fn f() to Unit {
         );
     }
 
+    /// `@query` and `@mutation` are the canonical replacements for the
+    /// v0.5-era `@endpoint(kind: query)` / `@endpoint(kind: mutation)`
+    /// forms (retired in v0.6.0 per Phase H step 18).  Both produce
+    /// `HirEndpointFn` entries with the same `route_path` prefix.
     #[test]
     fn hir_lowering_maps_endpoint_query_and_mutation_decls() {
         let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q1() to int { return 0 }
-@endpoint(kind: mutation) fn m1() to Unit {
+@query fn q1() to int { return 0 }
+@mutation fn m1() to Unit {
     db.User.insert({ name: "a", active: true })
 }
 "#;

@@ -67,6 +67,7 @@ impl RetiredDecoratorDetector {
         file: &SourceFile,
         line: usize,
         column: usize,
+        severity: Severity,
         message: String,
         suggestion: String,
         rationale: &'static str,
@@ -75,7 +76,7 @@ impl RetiredDecoratorDetector {
             rule_id: self.id().to_string(),
             diagnostic_id: self.diagnostic_id().map(str::to_string),
             rule_name: self.name().to_string(),
-            severity: Severity::Warning,
+            severity,
             file: file.path.clone(),
             line,
             column,
@@ -120,16 +121,18 @@ impl DetectionRule for RetiredDecoratorDetector {
 canonical alternatives. LLMs trained on pre-2026 corpora may emit these; this lint \
 catches them at audit time so the agent can rewrite to the canonical form.\n\n\
 Retired → Canonical:\n\
-  @component fn Name() {...}        →  component Name() {...}\n\
-  @endpoint(kind: server) fn ...    →  @server fn ...\n\
-  @endpoint(kind: query) fn ...     →  @query fn ...\n\
-  @endpoint(kind: mutation) fn ...  →  @mutation fn ...\n\
-  @py.import ...                    →  Python interop retired; use Vox-native or external HTTP.\n\n\
+  @component fn Name() {...}        →  component Name() {...}                          (Warning)\n\
+  @endpoint(kind: server) fn ...    →  @server fn ...                                  (Error — v0.6.0+)\n\
+  @endpoint(kind: query) fn ...     →  @query fn ...                                   (Error — v0.6.0+)\n\
+  @endpoint(kind: mutation) fn ...  →  @mutation fn ...                                (Error — v0.6.0+)\n\
+  @py.import ...                    →  Python interop retired; use Vox-native or HTTP. (Warning)\n\n\
 This detector is part of the CR-L6 retirement-guard parity gate. The \
 endpoint-direction was flipped 2026-05-24 to match Phase B (commit \
-f8dc41a9f1) which introduced the bare-form decorators as canonical. \
-Severity escalates to Error one minor version after Phase H @endpoint \
-retirement lands."
+f8dc41a9f1) which introduced the bare-form decorators as canonical, and \
+the `@endpoint` lexer keyword was removed in v0.6.0 per Phase H step 18 \
+of `vox-stdlib-gap-audit-2026-05-23.md`.  This lint runs before the \
+parser and surfaces the friendly migration suggestion as an Error; the \
+parser would otherwise report the literal text as an unknown token."
     }
 
     fn minimal_repro(&self) -> Option<&'static str> {
@@ -171,6 +174,7 @@ retirement lands."
                     file,
                     line_num,
                     m.start() + 1,
+                    Severity::Warning,
                     "Retired form `@component fn` — use the bare `component` keyword instead."
                         .to_string(),
                     "Replace `@component fn Name()` with `component Name() { ... }`. The bare \
@@ -194,18 +198,24 @@ retirement lands."
                     file,
                     line_num,
                     full.start() + 1,
+                    // v0.6.0 escalation: `@endpoint` no longer lexes as a keyword.
+                    // The parser will reject this text outright; the lint runs first
+                    // and surfaces the friendly migration suggestion as an Error.
+                    Severity::Error,
                     format!(
-                        "Retired form `@endpoint(kind: {kind})` — use bare `@{kind}` decorator instead."
+                        "Retired form `@endpoint(kind: {kind})` — `@endpoint` was removed in v0.6.0; use bare `@{kind}` decorator instead."
                     ),
                     format!(
-                        "Replace `@endpoint(kind: {kind})` with `@{kind}`. The bare-form \
-                         decorators introduced in Phase B (audit doc §11.2) are the canonical \
-                         surface; `@endpoint(kind: ...)` is queued for retirement in Phase H."
+                        "Replace `@endpoint(kind: {kind})` with `@{kind}`.  The bare-form \
+                         decorators introduced in Phase B (audit doc §11.2) are now the only \
+                         surface; `@endpoint(kind: ...)` was retired in Phase H step 18 \
+                         (v0.6.0) and the `@endpoint` lexer token was deleted."
                     ),
                     "AGENTS.md §Retired Surfaces: `@endpoint(kind: server|query|mutation)` was \
                      superseded by the bare `@server` / `@query` / `@mutation` decorators in \
-                     Phase B (2026-05-23, commit f8dc41a9f1). The bare forms produce the same \
-                     `EndpointDecl` AST node — pure grammar simplification, no behavior change.",
+                     Phase B (2026-05-23, commit f8dc41a9f1) and the lexer keyword removed in \
+                     v0.6.0 per `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`.  The \
+                     bare-form decorators continue to produce the same `EndpointDecl` AST node.",
                 ));
             }
 
@@ -214,6 +224,7 @@ retirement lands."
                     file,
                     line_num,
                     m.start() + 1,
+                    Severity::Warning,
                     "Retired form `@py.import` — Python interop has been removed.".to_string(),
                     "Replace with a Vox-native equivalent or call the upstream service via HTTP. \
                      If Python automation glue is needed, port the script to `.vox` per AGENTS.md \

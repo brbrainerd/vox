@@ -628,9 +628,13 @@ fn test_parse_v0_component_from_image() {
 
 // WebIR blueprint G1: parser-truth coverage for server fns, routes, reactive surface.
 
+/// `@server fn ...` is the canonical replacement for the v0.5-era
+/// `@endpoint(kind: server) fn ...` form (retired in v0.6.0 per
+/// `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`).  Both
+/// produced the same `Decl::Endpoint(EndpointKind::Server)` AST.
 #[test]
-fn test_parse_endpoint_server_fn_brace_shape() {
-    let m = parse_str("@endpoint(kind: server) fn echo(x: str) to str {\n    return x\n}");
+fn test_parse_server_decorator_fn_brace_shape() {
+    let m = parse_str("@server fn echo(x: str) to str {\n    return x\n}");
     if let Decl::Endpoint(e) = &m.declarations[0] {
         assert_eq!(e.func.name, "echo");
         assert_eq!(e.func.params.len(), 1);

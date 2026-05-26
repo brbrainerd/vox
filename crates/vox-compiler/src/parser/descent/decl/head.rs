@@ -989,52 +989,14 @@ impl Parser {
         }))
     }
 
-    pub(crate) fn parse_endpoint(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat @endpoint
-        self.expect(&Token::LParen)?;
-        let mut kind = None;
-        if let Token::Ident(k) = self.peek().clone()
-            && k == "kind"
-        {
-            self.advance();
-            self.expect(&Token::Colon)?;
-            if let Token::Ident(v) = self.peek().clone() {
-                match v.as_str() {
-                    "query" => kind = Some(EndpointKind::Query),
-                    "mutation" => kind = Some(EndpointKind::Mutation),
-                    "server" => kind = Some(EndpointKind::Server),
-                    _ => {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            "Unknown endpoint kind. Expected query, mutation, or server.",
-                            vec!["query".into(), "mutation".into(), "server".into()],
-                            Some(v),
-                            ParseErrorClass::Declaration,
-                        ));
-                        return Err(());
-                    }
-                }
-                self.advance();
-            }
-        }
-        self.expect(&Token::RParen)?;
-        if kind.is_none() {
-            self.errors.push(ParseError::classified(
-                self.span(),
-                "Expected `kind: query`, `kind: mutation`, or `kind: server` inside `@endpoint(...)`.",
-                vec!["kind: query".into()],
-                Some(self.peek().to_string()),
-                ParseErrorClass::Declaration,
-            ));
-            return Err(());
-        }
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Endpoint(EndpointDecl {
-            kind: kind.unwrap(),
-            func: f,
-        }))
-    }
+    // `parse_endpoint` (the `@endpoint(kind: …)` decorator parser) was retired
+    // in v0.6.0 per `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`.
+    // The canonical bare-form decorators `@query` / `@mutation` / `@server`
+    // — parsed by `parse_query`, `parse_mutation`, `parse_server_endpoint`
+    // above — produce the same `EndpointDecl` AST node.  Any remaining
+    // `@endpoint` text in user source fails to lex; the
+    // `retired/decorator-usage` lint surfaces a friendly migration
+    // suggestion before that point.
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
         let start = self.span();

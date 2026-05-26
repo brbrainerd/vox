@@ -133,24 +133,25 @@ pub enum Token {
     AtMcpResource,
     #[token("@test")]
     AtTest,
-    #[token("@endpoint")]
-    AtEndpoint,
-    /// `@query` — first-class GET-style endpoint, replacing
-    /// `@endpoint(kind: query)`. Lower K-complexity (~65 % per call site)
-    /// and matches the conceptual hierarchy (the verb is the head, not the
-    /// modifier). Added 2026-05-23 per
+    // `@endpoint(kind: …)` was the original endpoint decorator form; the
+    // bare-form `@query` / `@mutation` / `@server` decorators superseded it
+    // in Phase B (audit doc §11.2, 2026-05-23) and the lexer token was
+    // retired in v0.6.0 (Phase H step 18).  Any remaining `@endpoint` text
+    // in user source now fails to lex; the `retired/decorator-usage` lint
+    // surfaces a friendly suggestion before the parser reports the failure.
+    /// `@query` — first-class GET-style endpoint, canonical form.
+    /// Lower K-complexity (~65 % per call site vs the retired
+    /// `@endpoint(kind: query)`) and matches the conceptual hierarchy
+    /// (the verb is the head, not the modifier).  Added 2026-05-23 per
     /// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §11.2.
-    /// `@endpoint(kind: query)` remains accepted during the deprecation
-    /// window; corpus migration via `vox fmt` lands in a separate pass.
     #[token("@query")]
     AtQuery,
-    /// `@mutation` — first-class POST/PUT/DELETE-style endpoint, replacing
-    /// `@endpoint(kind: mutation)`. See `@query` above.
+    /// `@mutation` — first-class POST/PUT/DELETE-style endpoint, canonical form.
+    /// See `@query` above.
     #[token("@mutation")]
     AtMutation,
     /// `@server` — first-class server-only endpoint (no client emit),
-    /// replacing `@endpoint(kind: server)`. Same K-complexity argument as
-    /// `@query`/`@mutation`.
+    /// canonical form.  Same K-complexity argument as `@query`/`@mutation`.
     #[token("@server")]
     AtServer,
     // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)` decorator on
@@ -566,7 +567,6 @@ impl std::fmt::Display for Token {
             Token::AtResource => write!(f, "@resource"),
             Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
-            Token::AtEndpoint => write!(f, "@endpoint"),
             Token::AtJsonAs => write!(f, "@json_as"),
             Token::AtFieldName => write!(f, "@field_name"),
             Token::AtDefault => write!(f, "@default"),

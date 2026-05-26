@@ -227,7 +227,6 @@ impl Parser {
                     | Token::AtLoading
                     | Token::AtTest
                     | Token::AtV0
-                    | Token::AtEndpoint
                     | Token::AtQuery
                     | Token::AtMutation
                     | Token::AtServer
@@ -398,7 +397,6 @@ impl Parser {
                 | Token::Workflow
                 | Token::Http
                 | Token::AtTest
-                | Token::AtEndpoint
                 | Token::AtQuery
                 | Token::AtMutation
                 | Token::AtServer
@@ -471,7 +469,6 @@ impl Parser {
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
-            Token::AtEndpoint => self.parse_endpoint(),
             Token::AtQuery => self.parse_query(),
             Token::AtMutation => self.parse_mutation(),
             Token::AtServer => self.parse_server_endpoint(),
