@@ -1,4 +1,4 @@
-//! VUV / full-stack seam: `@endpoint` lowers to Tauri Rust commands and to `vox-client.ts`
+//! VUV / full-stack seam: `@query`/`@mutation`/`@server` lower to Tauri Rust commands and to `vox-client.ts`
 //! invoke transport (Contract IR), while `CodegenOutput::api_client_ts` stays empty.
 //!
 //! Dashboard and `native-binary` remain Axum per ADR 024 / ADR 037; this test pins the
@@ -10,7 +10,7 @@ use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 
-const ENDPOINT_VOX: &str = r#"@endpoint(kind: query) fn get_count() to int { return 0 }"#;
+const ENDPOINT_VOX: &str = r#"@query fn get_count() to int { return 0 }"#;
 
 #[test]
 fn tauri_rust_commands_match_vox_client_invoke() {

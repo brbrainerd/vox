@@ -7,7 +7,7 @@ fn test_ir_emission_with_hashing_and_inference() {
             a + b
         }
 
-        @endpoint(kind: server)
+        @server
         fn greet(name: str) {
             "Hello " + name
         }

@@ -6,7 +6,7 @@ fn async_handler_with_setstate_warns() {
     // Handler calls an @endpoint fn and then assigns to a state variable.
     // The lint should fire because the lambda is not @cancellable.
     let src = r#"
-@endpoint(kind: query) fn slow_fetch() to int { return 1 }
+@query fn slow_fetch() to int { return 1 }
 component C() {
     state n: int = 0
     view: column(raw_class="c") {
@@ -33,7 +33,7 @@ component C() {
 fn cancellable_handler_passes() {
     // Same handler but annotated @cancellable — lint should be silent.
     let src = r#"
-@endpoint(kind: query) fn slow_fetch() to int { return 1 }
+@query fn slow_fetch() to int { return 1 }
 component C() {
     state n: int = 0
     view: column(raw_class="c") {

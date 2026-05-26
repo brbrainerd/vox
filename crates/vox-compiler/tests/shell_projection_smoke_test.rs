@@ -15,7 +15,7 @@ fn lower_src(src: &str) -> vox_compiler::hir::TypedCoreIR_v2 {
 #[test]
 fn shell_projection_canonical_bytes_are_deterministic() {
     let src = r#"
-@endpoint(kind: query) fn on_back() to bool { return true }
+@query fn on_back() to bool { return true }
 @back_button {
     on_press: on_back
 }

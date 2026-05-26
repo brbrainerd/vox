@@ -124,7 +124,7 @@ fn codegen_jsx_text_content_not_interpolated() {
 // --- TS codegen for activities (tombstoned: activity construct removed) ---
 
 #[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @endpoint(kind: mutation) fn"]
+#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn"]
 fn codegen_ts_activity_produces_activities_file() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
@@ -147,7 +147,7 @@ activity send_email(recipient: str, subject: str) to Result[str] {
 }
 
 #[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @endpoint(kind: mutation) fn"]
+#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn"]
 fn codegen_ts_activity_has_async_function() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
@@ -170,7 +170,7 @@ activity fetch_data(url: str) to Result[str] {
 }
 
 #[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @endpoint(kind: mutation) fn"]
+#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn"]
 fn codegen_ts_activity_has_runtime_helper() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
@@ -519,7 +519,7 @@ fn codegen_use_effect_maps_to_react_hook() {
 
 #[test]
 fn dashboard_full_pipeline_e2e() {
-    let src = "type Message = | User(text: str) | Bot(text: str)\n\ncomponent Dashboard() {\n    state n: int = 0\n    view: column(raw_class=\"dash\") { n }\n}\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: column(raw_class=\"chat\") {\n        input(bind=input, raw_class=\"chat-input\", aria_label=\"Chat message\")\n        button(raw_class=\"send-btn\", on_click={fn(e) set_input(\"\")}) { \"Send\" }\n    }\n}\n\n@endpoint(kind: query) fn api_stats() to str {\n    return \"[]\"\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
+    let src = "type Message = | User(text: str) | Bot(text: str)\n\ncomponent Dashboard() {\n    state n: int = 0\n    view: column(raw_class=\"dash\") { n }\n}\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: column(raw_class=\"chat\") {\n        input(bind=input, raw_class=\"chat-input\", aria_label=\"Chat message\")\n        button(raw_class=\"send-btn\", on_click={fn(e) set_input(\"\")}) { \"Send\" }\n    }\n}\n\n@query fn api_stats() to str {\n    return \"[]\"\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
 
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -648,7 +648,7 @@ routes {
     "/" to Dash
 }
 
-@endpoint(kind: mutation) fn api_x() to str {
+@mutation fn api_x() to str {
     return "ok"
 }
 "#;

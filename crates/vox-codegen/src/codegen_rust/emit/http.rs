@@ -627,7 +627,7 @@ mod tests {
     #[test]
     fn emit_main_omits_workflow_dispatch_without_workflows() {
         let src = r#"
-@endpoint(kind: query) fn health() to str {
+@query fn health() to str {
     return "ok"
 }
 "#;

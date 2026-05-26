@@ -115,11 +115,11 @@ component Chat() {
     }
 }
 
-@endpoint(kind: server) fn claude_send(msg: str) to ChatResult {
+@server fn claude_send(msg: str) to ChatResult {
     Ok("ok")
 }
 
-@endpoint(kind: mutation) fn api_chat(prompt: str) to ChatResult {
+@mutation fn api_chat(prompt: str) to ChatResult {
     return Ok("ok")
 }
 "#;

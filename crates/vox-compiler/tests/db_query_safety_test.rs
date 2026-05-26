@@ -13,7 +13,7 @@ fn diagnostics_for(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 fn db_table_query_clause_is_lint_error() {
     let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q() to int {
+@query fn q() to int {
     db.User.query("active = 1")
     return 0
 }
@@ -30,7 +30,7 @@ fn db_table_query_clause_is_lint_error() {
 fn query_decl_rejects_insert_write_ops() {
     let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q() to int {
+@query fn q() to int {
     db.User.insert({ name: "a", active: true })
     return 0
 }
