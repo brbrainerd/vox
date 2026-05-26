@@ -176,6 +176,23 @@ pub struct DevArgs {
     pub open: bool,
 }
 
+/// `vox emit openapi` — standalone OpenAPI 3.1 JSON from a Vox source file.
+#[derive(Args, Clone, Debug)]
+pub struct EmitOpenapiArgs {
+    /// Vox source file to compile.
+    #[arg(required = true)]
+    pub file: PathBuf,
+    /// Write OpenAPI JSON to this file (default: `openapi.json`).
+    #[arg(short, long, default_value = "openapi.json")]
+    pub out: PathBuf,
+    /// Package name for the `info.title` field.
+    #[arg(long, default_value = "vox-api")]
+    pub package_name: String,
+    /// Package version for the `info.version` field.
+    #[arg(long, default_value = "0.1.0")]
+    pub package_version: String,
+}
+
 /// `vox emit client` — Library-shaped TypeScript SDK only.
 #[derive(Args, Clone, Debug)]
 pub struct EmitClientArgs {

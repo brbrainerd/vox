@@ -228,6 +228,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `query-all-guard [--all]` | Fails if sources call the Codex `query_all` facade escape hatch outside [`docs/agents/query-all-allowlist.txt`](../../../docs/agents/query-all-allowlist.txt) plus `crates/vox-db/` (same nomenclature doc). |
 | `turso-import-guard [--all]` | Fails if sources use the Turso crate path prefix outside [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt) plus built-in `vox-db` / `vox-package` / `vox-compiler` prefixes ([codex-turso-allowlist](../archive/research-2026-q1/codex-turso-allowlist.md)). |
 | `policy-allowlist-parity` | Verifies `allow_direct_access` in `contracts/db/data-storage-policy.v1.yaml` matches [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt). |
+| `retirement-audit` | Enforces removal of `vox-deprecated-since` markers whose `retire-by` version has been reached. Scans workspace Rust sources; fails when any marker's `retire-by` semver ≤ current workspace version. |
 | `secrets-parity` | Verifies Secrets SSOT parity between managed secret specs and [`secrets-ssot.md`](secrets-ssot.md). Visible alias: **`clavis-parity`**. |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, script duals, and **`contracts/operations/completion-policy.v1.yaml`** (JSON Schema) — blocks orphan CLI drift |
@@ -365,6 +366,22 @@ Emits the **client** (Library) artifact set only: `vox-client.ts`, `openapi.json
 | `-o`, `--out-dir` | `dist` | Output directory |
 | `--mobile-target` | — | Same as `vox build --mobile-target` when needed |
 | `--emit-ir` | `false` | Write `web-ir.v1.json` into the output dir |
+
+### `vox emit openapi <file>`
+
+Emits a **standalone OpenAPI 3.1 JSON spec** from the `@query`/`@mutation`/`@server` endpoints in a single Vox source file — no TypeScript, no npm directory. Conforms to the [wire-format-v1 SSOT](../architecture/wire-format-v1-ssot.md):
+- `Decimal` / `BigInt` → `type: string`
+- `DateTime` → `type: string, format: date-time`
+- `Option<T>` → property absent from `required`
+- Sum types → `oneOf` + shared `_tag` discriminant
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-o`, `--out` | `openapi.json` | Output file path |
+| `--package-name` | `vox-api` | OpenAPI `info.title` |
+| `--package-version` | `0.1.0` | OpenAPI `info.version` |
+
+The output is byte-identical for identical inputs (canonical JSON, `BTreeMap`-sorted keys). Integrate with `openapi-typescript`, Orval, RTK Query, Postman, or any OpenAPI 3.1 consumer.
 
 ### `vox live`
 
