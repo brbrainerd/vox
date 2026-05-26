@@ -63,6 +63,23 @@ impl DetectionRule for SyntaxVersionDetector {
         "Vox source files may declare `// syntax_version = \"X.Y\"` at the top; the version must be in `\\d+\\.\\d+` format and must not conflict if declared more than once."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION 1 — invalid version format (must be digits.digits)\n\
+             // syntax_version = \"v0.6\"   // bad: has 'v' prefix\n\
+             // syntax_version = \"latest\" // bad: not a version number\n\
+             \n\
+             // VIOLATION 2 — conflicting declarations in the same file\n\
+             // syntax_version = \"0.5\"\n\
+             // ... (more code) ...\n\
+             // syntax_version = \"0.6\"    // bad: conflicts with first declaration\n\
+             \n\
+             // FIX — single declaration at the top with correct format\n\
+             // syntax_version = \"0.6\"\n\
+             fn my_function() { ... }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

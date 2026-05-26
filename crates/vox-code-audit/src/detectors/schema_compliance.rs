@@ -48,6 +48,18 @@ impl DetectionRule for SchemaComplianceDetector {
         Severity::Error
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — file placed outside its authorized path_pattern in vox-schema.json\n\
+             // vox-schema.json declares:\n\
+             //   \"vox-payments\": { \"path_pattern\": \"crates/vox-payments/src/**\" }\n\
+             // but file is at: crates/shared/src/payment_handler.rs  ← wrong location!\n\
+             \n\
+             // FIX — move the file to its authorized location\n\
+             // crates/vox-payments/src/payment_handler.rs  ← matches path_pattern",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[
             Language::Rust,

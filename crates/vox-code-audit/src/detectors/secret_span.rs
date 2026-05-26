@@ -99,6 +99,17 @@ impl DetectionRule for SecretSpanDetector {
         Redact secrets before logging, or avoid logging them entirely."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — token value logged directly to a tracing span\n\
+             tracing::info!(user = %user_id, token = %auth_token, \"request processed\");\n\
+             \n\
+             // FIX — omit the secret field entirely, or use a redacted placeholder\n\
+             tracing::info!(user = %user_id, \"request processed\");  // omit token\n\
+             // or: tracing::info!(user = %user_id, token = \"[REDACTED]\", \"request processed\");",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

@@ -34,6 +34,24 @@ impl DetectionRule for FileOrganizationDetector {
         Severity::Warning
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — lib.rs with many direct struct/enum/trait definitions\n\
+             // crates/my-crate/src/lib.rs contains:\n\
+             pub struct Config { ... }       // should be in config.rs\n\
+             pub enum Status { ... }         // should be in status.rs\n\
+             pub trait Processor { ... }     // should be in processor.rs\n\
+             pub fn calculate(...) { ... }   // should be in a submodule\n\
+             \n\
+             // FIX — lib.rs should only re-export from submodules\n\
+             // lib.rs:\n\
+             pub mod config;\n\
+             pub mod status;\n\
+             pub use config::Config;\n\
+             pub use status::Status;",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[Language::Rust, Language::TypeScript]
     }

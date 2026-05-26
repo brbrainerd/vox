@@ -94,6 +94,18 @@ compatibility is required, wire it through `vox-secrets` rather than reading \
 the legacy env-var directly."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — reading from retired TURSO_* env-var names\n\
+             let db_url   = std::env::var(\"TURSO_URL\")?;      // retired\n\
+             let db_token = std::env::var(\"VOX_TURSO_TOKEN\")?; // retired\n\
+             \n\
+             // FIX — use the canonical VOX_DB_* names\n\
+             let db_url   = std::env::var(\"VOX_DB_URL\")?;   // canonical\n\
+             let db_token = std::env::var(\"VOX_DB_TOKEN\")?; // canonical",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

@@ -35,6 +35,20 @@ impl DetectionRule for WorkspaceDriftDetector {
         Severity::Error
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "# VIOLATION — sub-crate Cargo.toml using path/version directly (workspace drift)\n\
+             [dependencies]\n\
+             serde = { version = \"1\", features = [\"derive\"] }  # bad: duplicates root version\n\
+             tokio = { path = \"../../tokio\" }                   # bad: use workspace = true\n\
+             \n\
+             # FIX — inherit from workspace\n\
+             [dependencies]\n\
+             serde = { workspace = true }\n\
+             tokio = { workspace = true }",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         // We evaluate Cargo.toml layout files in the context of TOESTUB
         &[Language::Rust, Language::Vox, Language::TypeScript]

@@ -57,6 +57,23 @@ impl DetectionRule for VictoryClaimDetector {
         ]
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — TODO/FIXME markers and premature completion comment\n\
+             fn apply_discount(price: f64, user: &User) -> f64 {\n\
+             \x20   // TODO: apply loyalty tier discount\n\
+             \x20   // HACK: just return full price for now\n\
+             \x20   price  // Done! (not actually done)\n\
+             }\n\
+             \n\
+             // FIX — implement fully and remove markers\n\
+             fn apply_discount(price: f64, user: &User) -> f64 {\n\
+             \x20   let rate = user.loyalty_tier.discount_rate();\n\
+             \x20   price * (1.0 - rate)\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

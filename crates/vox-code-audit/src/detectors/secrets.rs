@@ -169,6 +169,21 @@ impl DetectionRule for SecretDetector {
         Severity::Error
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — hardcoded API key in source code\n\
+             fn connect() {\n\
+             \x20   let client = ApiClient::new(\"sk-live-abc123xyz789\");  // NEVER hardcode secrets\n\
+             }\n\
+             \n\
+             // FIX — read from environment variable\n\
+             fn connect() -> Result<ApiClient, ConfigError> {\n\
+             \x20   let key = std::env::var(\"API_KEY\")?;\n\
+             \x20   Ok(ApiClient::new(key))\n\
+             }",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         const LANGS: &[Language] = &[
             Language::Rust,

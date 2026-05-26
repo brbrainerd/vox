@@ -93,6 +93,22 @@ The Tauri convergence is tracked in \
 during migration MUST carry a `// vox-deprecated-since=...` annotation."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — importing from retired @capacitor/* namespace\n\
+             import { Camera } from '@capacitor/camera';        // retired\n\
+             import { Filesystem } from '@capacitor/filesystem'; // retired\n\
+             \n\
+             // VIOLATION — using retired npx cap CLI\n\
+             // npx cap sync\n\
+             \n\
+             // FIX — use Tauri 2 equivalents\n\
+             import { camera } from '@tauri-apps/plugin-camera';      // current\n\
+             import { fs }     from '@tauri-apps/plugin-fs';          // current\n\
+             // Build: cargo tauri build   (not npx cap sync)",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

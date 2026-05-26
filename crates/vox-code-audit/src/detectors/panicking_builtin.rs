@@ -70,6 +70,24 @@ impl DetectionRule for PanickingBuiltinDetector {
         Good:               let x = value?;  // or value.map_err(|e| ...)?;"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — .unwrap() inside @handler crashes the whole actor on None/Err\n\
+             @handler\n\
+             fn on_payment(msg: PaymentMsg) -> Result<(), Err> {\n\
+             \x20   let record = db.find(msg.id).unwrap();  // panics if not found → kills actor\n\
+             \x20   Ok(())\n\
+             }\n\
+             \n\
+             // FIX — propagate with ? so the handler returns Err gracefully\n\
+             @handler\n\
+             fn on_payment(msg: PaymentMsg) -> Result<(), DbError> {\n\
+             \x20   let record = db.find(msg.id)?;\n\
+             \x20   Ok(())\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

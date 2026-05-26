@@ -502,6 +502,23 @@ impl DetectionRule for ScalingSurfacesDetector {
         Severity::Warning
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — blocking I/O call inside an async function\n\
+             async fn fetch_user_data(id: UserId) -> UserData {\n\
+             \x20   let raw = std::fs::read_to_string(\"/var/data/users.json\") // blocking!\n\
+             \x20       .unwrap();\n\
+             \x20   parse_user(id, &raw)\n\
+             }\n\
+             \n\
+             // FIX — use async I/O\n\
+             async fn fetch_user_data(id: UserId) -> Result<UserData, Error> {\n\
+             \x20   let raw = tokio::fs::read_to_string(\"/var/data/users.json\").await?;\n\
+             \x20   Ok(parse_user(id, &raw))\n\
+             }",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[Language::Rust]
     }

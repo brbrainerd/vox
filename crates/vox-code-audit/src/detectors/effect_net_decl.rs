@@ -74,6 +74,21 @@ impl DetectionRule for EffectNetDeclDetector {
         Good:  @uses(net)\n       pub fn fetch_user(id: UserId) -> User { http.get(\"/users/\" + id) }"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — pub fn calls http.get but lacks @uses(net)\n\
+             pub fn fetch_prices(symbol: str) -> List[Price] {\n\
+             \x20   http.get(\"/prices/\" + symbol)  // network call not declared!\n\
+             }\n\
+             \n\
+             // FIX — add @uses(net) before the function\n\
+             @uses(net)\n\
+             pub fn fetch_prices(symbol: str) -> List[Price] {\n\
+             \x20   http.get(\"/prices/\" + symbol)\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

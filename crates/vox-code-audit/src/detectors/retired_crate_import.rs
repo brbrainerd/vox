@@ -101,6 +101,18 @@ Retired → Canonical:\n\
 For `vox-dei`, `vox-ars`, and the merged-compiler crates, see the markdown text guard."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — importing a retired Vox crate\n\
+             use vox_ludus::achievement::Achievement;   // retired: vox-ludus\n\
+             use vox_sherpa_transcribe::Transcriber;    // retired: vox-sherpa-transcribe\n\
+             \n\
+             // FIX — use the canonical replacements\n\
+             use vox_gamify::achievement::Achievement;  // current: vox-gamify\n\
+             use vox_tauri_stt::Transcriber;            // current: vox-tauri-stt",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

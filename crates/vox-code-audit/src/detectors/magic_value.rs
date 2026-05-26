@@ -99,6 +99,19 @@ impl DetectionRule for MagicValueDetector {
     fn severity(&self) -> Severity {
         Severity::Warning
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — hardcoded port and database path\n\
+             let server = Server::bind(\"0.0.0.0:8080\");\n\
+             let db = Database::open(\"/var/data/app.db\");\n\
+             \n\
+             // FIX — read from config or environment\n\
+             let port: u16 = config.server_port;        // from Config struct\n\
+             let server = Server::bind((\"0.0.0.0\", port));\n\
+             let db_path = std::env::var(\"DB_PATH\")?;  // from environment\n\
+             let db = Database::open(&db_path);",
+        )
+    }
     fn languages(&self) -> &[Language] {
         &[
             Language::Rust,

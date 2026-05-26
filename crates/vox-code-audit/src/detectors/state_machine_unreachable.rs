@@ -60,6 +60,30 @@ impl DetectionRule for StateMachineUnreachableDetector {
         transition logic or a mistyped state name."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — Reviewing state has no outgoing -> transition (terminal sink)\n\
+             state_machine OrderFlow {\n\
+             \x20   Pending {\n\
+             \x20       on submit -> Reviewing\n\
+             \x20   }\n\
+             \x20   Reviewing {    // no -> transition: stuck here forever!\n\
+             \x20   }\n\
+             }\n\
+             \n\
+             // FIX — add transitions from Reviewing\n\
+             state_machine OrderFlow {\n\
+             \x20   Pending {\n\
+             \x20       on submit -> Reviewing\n\
+             \x20   }\n\
+             \x20   Reviewing {\n\
+             \x20       on approve -> Fulfilled\n\
+             \x20       on reject  -> Cancelled\n\
+             \x20   }\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

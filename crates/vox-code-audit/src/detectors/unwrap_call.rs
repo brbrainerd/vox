@@ -231,6 +231,23 @@ impl DetectionRule for ExpectCallDetector {
         self.rule.severity.into()
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — .expect() panics with a message at runtime\n\
+             fn load_config() -> Config {\n\
+             \x20   let data = std::fs::read_to_string(\"config.json\")\n\
+             \x20       .expect(\"config.json must exist\");  // panics in production!\n\
+             \x20   serde_json::from_str(&data).expect(\"invalid JSON\")\n\
+             }\n\
+             \n\
+             // FIX — propagate errors with ?\n\
+             fn load_config() -> Result<Config, Error> {\n\
+             \x20   let data = std::fs::read_to_string(\"config.json\")?;\n\
+             \x20   Ok(serde_json::from_str(&data)?)\n\
+             }",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[Language::Rust]
     }
@@ -278,6 +295,25 @@ impl DetectionRule for PanicCallDetector {
 
     fn severity(&self) -> Severity {
         self.rule.severity.into()
+    }
+
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — explicit panic! crashes the process\n\
+             fn get_config_value(key: &str) -> String {\n\
+             \x20   match config.get(key) {\n\
+             \x20       Some(v) => v.clone(),\n\
+             \x20       None => panic!(\"missing required config key: {key}\"),  // crashes!\n\
+             \x20   }\n\
+             }\n\
+             \n\
+             // FIX — return a Result instead\n\
+             fn get_config_value(key: &str) -> Result<String, ConfigError> {\n\
+             \x20   config.get(key)\n\
+             \x20       .cloned()\n\
+             \x20       .ok_or_else(|| ConfigError::MissingKey(key.to_string()))\n\
+             }",
+        )
     }
 
     fn languages(&self) -> &[Language] {

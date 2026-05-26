@@ -40,6 +40,19 @@ impl DetectionRule for SprawlDetector {
         Severity::Error
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — generic 'junk drawer' module name\n\
+             // src/utils.rs  ← forbidden: too generic, no clear boundary\n\
+             // src/helpers.ts ← forbidden: catch-all for unrelated logic\n\
+             \n\
+             // FIX — name modules after what they actually do\n\
+             // src/date_formatting.rs  ← clear responsibility\n\
+             // src/currency_math.rs    ← clear responsibility\n\
+             // src/auth_tokens.rs      ← clear responsibility",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[
             Language::Rust,
