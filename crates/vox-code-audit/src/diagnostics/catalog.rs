@@ -206,6 +206,11 @@ pub const RETIRED_MEMORY_API: &str = "vox/retired/memory-api";
 /// Covers the `capacitor-imports` and `cap-sync-cli` rows. Phase 1.4 detector.
 pub const RETIRED_CAPACITOR: &str = "vox/retired/capacitor";
 
+/// A Vox file contains a circular `import` dependency (self-import or multi-file cycle).
+/// Phase J.19 / CR-L gate.  Multi-file cycles are detected by
+/// `detectors::import_cycles::detect_import_cycles_in_batch`.
+pub const IMPORT_CYCLE: &str = "vox/import/cycle";
+
 // ---------------------------------------------------------------------------
 // Codegen (Phase 1)
 // ---------------------------------------------------------------------------
@@ -320,6 +325,7 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     RETIRED_ENV_VAR,
     RETIRED_MEMORY_API,
     RETIRED_CAPACITOR,
+    IMPORT_CYCLE,
 ];
 
 /// Find the explain URL for a given diagnostic ID.

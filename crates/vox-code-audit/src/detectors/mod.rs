@@ -125,6 +125,11 @@ pub mod retired_memory_api;
 /// Retired `@capacitor/*` imports + `npx cap sync` CLI invocations. P1.4 detector.
 pub mod retired_capacitor;
 
+/// Static import-cycle detector for Vox files.
+/// Per-file: detects self-imports. Batch: [`import_cycles::detect_import_cycles_in_batch`]
+/// detects multi-file cycles across a full workspace scan.  Phase J.19 / CR-L gate.
+pub mod import_cycles;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.
@@ -186,12 +191,15 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(retired_env_var::RetiredEnvVarDetector::new()),
         Box::new(retired_memory_api::RetiredMemoryApiDetector::new()),
         Box::new(retired_capacitor::RetiredCapacitorDetector::new()),
+        // Phase J.19 — static import-cycle detection (per-file; see also
+        // `import_cycles::detect_import_cycles_in_batch` for multi-file cycles).
+        Box::new(import_cycles::ImportCyclesDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    50
+    51
 }
 
 #[cfg(test)]

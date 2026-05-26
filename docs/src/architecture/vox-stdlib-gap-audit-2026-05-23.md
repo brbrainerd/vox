@@ -1693,9 +1693,13 @@ Landed since first draft:
 
 Remaining work:
 17. ✅ **Alias-form typecheck** — COMPLETE 2026-05-26 (see "Landed since first draft" above).
-19. **CR-L gate**: a `vox-code-audit::import_cycles` detector that
-    statically warns on cycles (eval already catches them at run
-    time; the CR-L gate makes it visible in CI). Not yet implemented.
+19. ✅ **CR-L gate** — COMPLETE 2026-05-26. `crates/vox-code-audit/src/detectors/import_cycles.rs`
+    ships as rule 51 (`"import/cycle"`, `vox/import/cycle`). The `ImportCyclesDetector`
+    per-file `detect()` catches direct self-imports; the public
+    `detect_import_cycles_in_batch(files)` function builds the full directed
+    import graph and runs iterative DFS cycle detection for multi-file cycles
+    (A→B→A, chains of any length, diamonds excluded). Both the `all_rules_instantiate`
+    registry gate and 11 dedicated unit tests pass.
 20. **Script-mode (vox-actor-runtime) parity**: the
     actor-runtime/native build path needs the same resolver so
     `--mode script` works equivalently. Deferred — `--mode interp`
