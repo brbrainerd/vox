@@ -164,6 +164,77 @@ pub fn call_builtin_method(
                 let target = args.into_iter().next().unwrap_or(VoxValue::Null);
                 Some(VoxValue::Bool(v.contains(&target)))
             }
+            // index(val) → int: first index of val, or -1 if absent.
+            "index" | "find_index" => {
+                let target = args.into_iter().next().unwrap_or(VoxValue::Null);
+                let idx = v.iter().position(|x| x == &target).map(|i| i as i64).unwrap_or(-1);
+                Some(VoxValue::Int(idx))
+            }
+            // count(val) → int: number of occurrences.
+            "count" => {
+                let target = args.into_iter().next().unwrap_or(VoxValue::Null);
+                let n = v.iter().filter(|x| *x == &target).count() as i64;
+                Some(VoxValue::Int(n))
+            }
+            // extend(other) → List[T]: append all elements of other.
+            "extend" => {
+                let mut owned = v.clone();
+                if let Some(VoxValue::List(other)) = args.into_iter().next() {
+                    owned.extend(other);
+                }
+                Some(VoxValue::List(owned))
+            }
+            // remove(val) → List[T]: new list with first occurrence of val removed.
+            "remove" => {
+                let target = args.into_iter().next().unwrap_or(VoxValue::Null);
+                let mut owned = v.clone();
+                if let Some(pos) = owned.iter().position(|x| x == &target) {
+                    owned.remove(pos);
+                }
+                Some(VoxValue::List(owned))
+            }
+            // remove_at(i) → List[T]: new list without element at index i.
+            "remove_at" => {
+                let mut owned = v.clone();
+                if let Some(VoxValue::Int(i)) = args.into_iter().next() {
+                    if i >= 0 && (i as usize) < owned.len() {
+                        owned.remove(i as usize);
+                    }
+                }
+                Some(VoxValue::List(owned))
+            }
+            // zip(other) → List[List[T]]: pairs of [a, b] elements.
+            "zip" => {
+                let other = match args.into_iter().next() {
+                    Some(VoxValue::List(o)) => o,
+                    _ => return Some(VoxValue::List(Vec::new())),
+                };
+                let pairs: Vec<VoxValue> = v.iter().cloned().zip(other).map(|(a, b)| {
+                    VoxValue::List(vec![a, b])
+                }).collect();
+                Some(VoxValue::List(pairs))
+            }
+            // enumerate() → List[List[T]]: [[0, a], [1, b], ...].
+            "enumerate" => {
+                let pairs: Vec<VoxValue> = v.iter().cloned().enumerate().map(|(i, x)| {
+                    VoxValue::List(vec![VoxValue::Int(i as i64), x])
+                }).collect();
+                Some(VoxValue::List(pairs))
+            }
+            // slice(start, end?) → List[T]: sub-list from start to end (exclusive).
+            "slice_list" => {
+                let mut it = args.into_iter();
+                let start = match it.next() {
+                    Some(VoxValue::Int(i)) => i.max(0) as usize,
+                    _ => 0,
+                };
+                let end = match it.next() {
+                    Some(VoxValue::Int(i)) => i.min(v.len() as i64) as usize,
+                    _ => v.len(),
+                };
+                let slice = v.get(start..end.min(v.len())).unwrap_or(&[]).to_vec();
+                Some(VoxValue::List(slice))
+            }
             "join" => {
                 let sep = match args.into_iter().next() {
                     Some(VoxValue::Str(s)) => s,
@@ -340,6 +411,34 @@ pub fn call_builtin_method(
                 Some(VoxValue::Str(s.repeat(n)))
             }
             "chars_count" => Some(VoxValue::Int(s.chars().count() as i64)),
+            // count(sub) → int: number of non-overlapping occurrences.
+            "count" => {
+                let sub = match args.into_iter().next() {
+                    Some(VoxValue::Str(p)) => p,
+                    _ => return Some(VoxValue::Int(0)),
+                };
+                if sub.is_empty() {
+                    // Python semantics: "" matches between every char + at ends
+                    return Some(VoxValue::Int(s.chars().count() as i64 + 1));
+                }
+                let mut count = 0i64;
+                let mut start = 0;
+                while let Some(pos) = s[start..].find(&*sub) {
+                    count += 1;
+                    start += pos + sub.len();
+                }
+                Some(VoxValue::Int(count))
+            }
+            // is_alpha() — all chars are alphabetic
+            "is_alpha" => Some(VoxValue::Bool(!s.is_empty() && s.chars().all(|c| c.is_alphabetic()))),
+            // is_digit() — all chars are ASCII digits
+            "is_digit" => Some(VoxValue::Bool(!s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))),
+            // is_alnum() — all chars are alphanumeric
+            "is_alnum" => Some(VoxValue::Bool(!s.is_empty() && s.chars().all(|c| c.is_alphanumeric()))),
+            // is_upper() — all cased chars are uppercase
+            "is_upper" => Some(VoxValue::Bool(!s.is_empty() && s.chars().any(|c| c.is_alphabetic()) && s.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()))),
+            // is_lower() — all cased chars are lowercase
+            "is_lower" => Some(VoxValue::Bool(!s.is_empty() && s.chars().any(|c| c.is_alphabetic()) && s.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()))),
             "ord" => {
                 // Return the Unicode code point of the first character.
                 Some(VoxValue::Int(
@@ -561,23 +660,116 @@ pub fn call_builtin_method(
                     }
                 });
 
-            if ns.is_none() && method == "get" {
-                let key = match args.into_iter().next() {
-                    Some(VoxValue::Str(s)) => s,
-                    _ => return Some(VoxValue::Option(None)),
-                };
-                // Record/Object.get returns Option[T] — matches the typecheck
-                // signature so corpus scripts that call `.unwrap()` on the
-                // result type-check AND run consistently. Prior to 2026-05-23
-                // this returned the bare value (or Null on miss), which
-                // typecheck-eval'd inconsistently.
-                return Some(
-                    fields
-                        .iter()
-                        .find(|(k, _)| k == &key)
-                        .map(|(_, v)| VoxValue::Option(Some(Box::new(v.clone()))))
-                        .unwrap_or(VoxValue::Option(None)),
-                );
+            if ns.is_none() {
+                match method {
+                    // ── dict / map methods ─────────────────────────────────
+                    "get" | "get_or" => {
+                        let mut it = args.into_iter();
+                        let key = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Option(None)),
+                        };
+                        let found = fields.iter().find(|(k, _)| k == &key).map(|(_, v)| v.clone());
+                        if method == "get" {
+                            // Returns Option[T]
+                            return Some(VoxValue::Option(found.map(Box::new)));
+                        } else {
+                            // get_or(key, default) → T
+                            let default = it.next().unwrap_or(VoxValue::Null);
+                            return Some(found.unwrap_or(default));
+                        }
+                    }
+                    "contains_key" | "has_key" | "has" => {
+                        let key = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Bool(false)),
+                        };
+                        return Some(VoxValue::Bool(fields.iter().any(|(k, _)| k == &key)));
+                    }
+                    "len" => {
+                        return Some(VoxValue::Int(
+                            fields.iter().filter(|(k, _)| k != "__namespace__").count() as i64,
+                        ));
+                    }
+                    "is_empty" => {
+                        return Some(VoxValue::Bool(
+                            fields.iter().all(|(k, _)| k == "__namespace__"),
+                        ));
+                    }
+                    "keys" => {
+                        let keys: Vec<VoxValue> = fields
+                            .iter()
+                            .filter(|(k, _)| k != "__namespace__")
+                            .map(|(k, _)| VoxValue::Str(k.clone()))
+                            .collect();
+                        return Some(VoxValue::List(keys));
+                    }
+                    "values" => {
+                        let vals: Vec<VoxValue> = fields
+                            .iter()
+                            .filter(|(k, _)| k != "__namespace__")
+                            .map(|(_, v)| v.clone())
+                            .collect();
+                        return Some(VoxValue::List(vals));
+                    }
+                    "items" | "entries" => {
+                        // Returns list of [key, value] 2-element lists (tuples
+                        // would be ideal but list is simpler to destructure
+                        // in for-loops with the current interpreter).
+                        let items: Vec<VoxValue> = fields
+                            .iter()
+                            .filter(|(k, _)| k != "__namespace__")
+                            .map(|(k, v)| {
+                                VoxValue::List(vec![VoxValue::Str(k.clone()), v.clone()])
+                            })
+                            .collect();
+                        return Some(VoxValue::List(items));
+                    }
+                    "insert" | "set" => {
+                        // Returns new Object with key set (for statement-level
+                        // auto-reassignment to work, the caller's variable is
+                        // updated by the same kind-match heuristic used for List).
+                        let mut it = args.into_iter();
+                        let key = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                        };
+                        let val = it.next().unwrap_or(VoxValue::Null);
+                        let mut owned = fields.to_vec();
+                        if let Some(entry) = owned.iter_mut().find(|(k, _)| k == &key) {
+                            entry.1 = val;
+                        } else {
+                            owned.push((key, val));
+                        }
+                        return Some(VoxValue::Object(owned));
+                    }
+                    "remove" | "delete" => {
+                        let key = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                        };
+                        let owned: Vec<_> =
+                            fields.iter().filter(|(k, _)| k != &key).cloned().collect();
+                        return Some(VoxValue::Object(owned));
+                    }
+                    "update" => {
+                        // Merge another Object (right wins on duplicate keys).
+                        let other = match args.into_iter().next() {
+                            Some(VoxValue::Object(o)) => o,
+                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                        };
+                        let mut owned = fields.to_vec();
+                        for (k, v) in other {
+                            if let Some(entry) = owned.iter_mut().find(|(ek, _)| ek == &k) {
+                                entry.1 = v;
+                            } else {
+                                owned.push((k, v));
+                            }
+                        }
+                        return Some(VoxValue::Object(owned));
+                    }
+                    _ => {}
+                }
             }
 
             if let Some(ns_str) = ns

@@ -494,6 +494,13 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                             .map(|c| Box::new(VoxValue::Str(c.to_string()))),
                     ))
                 }
+                // dict / Object subscript: dict["key"] → Option[V]
+                (VoxValue::Object(fields), VoxValue::Str(key)) => Ok(VoxValue::Option(
+                    fields
+                        .into_iter()
+                        .find(|(k, _)| k == &key)
+                        .map(|(_, v)| Box::new(v)),
+                )),
                 _ => Ok(VoxValue::Option(None)),
             }
         }
@@ -595,6 +602,48 @@ fn apply_closure_method(
                 apply_closure(interp, &closure, vec![item])?;
             }
             Ok(Some(VoxValue::Null))
+        }
+        // sorted_by_key(fn) / sort_by_key(fn) — sort using a key function.
+        (VoxValue::List(items), "sorted_by_key" | "sort_by_key") => {
+            let mut owned: Vec<VoxValue> = items.clone();
+            // Compute keys eagerly to avoid repeated closure calls during sort.
+            let mut keyed: Vec<(VoxValue, VoxValue)> = owned
+                .iter()
+                .cloned()
+                .map(|item| {
+                    let key = apply_closure(interp, &closure, vec![item.clone()])?;
+                    Ok((key, item))
+                })
+                .collect::<Result<Vec<_>, EvalError>>()?;
+            keyed.sort_by(|(ka, _), (kb, _)| super::builtins::vox_value_cmp(ka, kb));
+            owned = keyed.into_iter().map(|(_, v)| v).collect();
+            Ok(Some(VoxValue::List(owned)))
+        }
+        // sorted_by(fn) / sort_by(fn) — sort using a comparator fn(a, b) -> int.
+        (VoxValue::List(items), "sorted_by" | "sort_by") => {
+            let pairs: Vec<(usize, &VoxValue)> = items.iter().enumerate().collect();
+            // Collect comparator results into a matrix for stable sort.
+            let mut owned = items.clone();
+            // Use insertion sort so we can call the async-free closure.
+            for i in 1..owned.len() {
+                let mut j = i;
+                while j > 0 {
+                    let cmp = apply_closure(
+                        interp,
+                        &closure,
+                        vec![owned[j - 1].clone(), owned[j].clone()],
+                    )?;
+                    let is_gt = matches!(cmp, VoxValue::Int(n) if n > 0);
+                    if is_gt {
+                        owned.swap(j - 1, j);
+                        j -= 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            let _ = pairs; // suppress unused warning
+            Ok(Some(VoxValue::List(owned)))
         }
         (VoxValue::List(items), "any") => {
             for item in items.iter().cloned() {

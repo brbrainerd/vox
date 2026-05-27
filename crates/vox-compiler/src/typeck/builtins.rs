@@ -696,6 +696,110 @@ impl BuiltinTypes {
             "pop".into(),
             Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
         );
+        // index(val) / find_index(val) → int (-1 if absent)
+        list_methods.insert(
+            "index".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
+        );
+        list_methods.insert(
+            "find_index".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
+        );
+        // count(val) → int — occurrences of val
+        list_methods.insert(
+            "count".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
+        );
+        // extend(other) → List[T] — append all elements from other
+        list_methods.insert(
+            "extend".into(),
+            Ty::Fn(
+                vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // remove(val) → List[T] — new list with first occurrence of val removed
+        list_methods.insert(
+            "remove".into(),
+            Ty::Fn(
+                vec![Ty::GenericParam(0)],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // remove_at(i) → List[T] — new list without element at index i
+        list_methods.insert(
+            "remove_at".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // zip(other) → List[List[T]] — list of [a,b] pairs
+        list_methods.insert(
+            "zip".into(),
+            Ty::Fn(
+                vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                Box::new(Ty::List(Box::new(Ty::List(Box::new(Ty::GenericParam(0)))))),
+            ),
+        );
+        // enumerate() → List[List[T]] — [[0, a], [1, b], ...]
+        list_methods.insert(
+            "enumerate".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::List(Box::new(Ty::List(Box::new(Ty::GenericParam(0)))))),
+            ),
+        );
+        // slice_list(start, end?) → List[T]
+        list_methods.insert(
+            "slice_list".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // sorted_by_key(fn) → List[T] — closure key sort
+        list_methods.insert(
+            "sorted_by_key".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::GenericParam(1)),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        list_methods.insert(
+            "sort_by_key".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::GenericParam(1)),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // sorted_by / sort_by — comparator closure
+        list_methods.insert(
+            "sorted_by".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0), Ty::GenericParam(0)],
+                    Box::new(Ty::Int),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        list_methods.insert(
+            "sort_by".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0), Ty::GenericParam(0)],
+                    Box::new(Ty::Int),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
         methods.insert("List".into(), list_methods);
 
         // Fs module methods. Every entry mirrors a registered arm in
@@ -1100,6 +1204,12 @@ impl BuiltinTypes {
             "to_float".into(),
             Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Float)))),
         );
+        // count(sub) → int — non-overlapping occurrences of substring
+        str_methods.insert("count".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Int)));
+        // is_alpha / is_digit / is_alnum / is_upper / is_lower
+        for name in ["is_alpha", "is_digit", "is_alnum", "is_upper", "is_lower"] {
+            str_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        }
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods
@@ -1455,6 +1565,55 @@ impl BuiltinTypes {
                     // keys() -> List[str]
                     Some(Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))))
                 }
+                _ => None,
+            };
+        }
+
+        // ── Map[K, V] methods ─────────────────────────────────────────────
+        // GenericParam(0) = K (key type), GenericParam(1) = V (value type).
+        // Bindings are resolved in the MethodCall arm of check_expr via the
+        // `Ty::Map(k, v) => vec![k, v]` branch.
+        if let Ty::Map(_, _) = obj_ty {
+            let k = Ty::GenericParam(0);
+            let v = Ty::GenericParam(1);
+            let map_ty = Ty::Map(Box::new(k.clone()), Box::new(v.clone()));
+            return match method {
+                "len" => Some(Ty::Fn(vec![], Box::new(Ty::Int))),
+                "is_empty" => Some(Ty::Fn(vec![], Box::new(Ty::Bool))),
+                "keys" => Some(Ty::Fn(
+                    vec![],
+                    Box::new(Ty::List(Box::new(k.clone()))),
+                )),
+                "values" => Some(Ty::Fn(
+                    vec![],
+                    Box::new(Ty::List(Box::new(v.clone()))),
+                )),
+                "items" | "entries" => Some(Ty::Fn(
+                    vec![],
+                    Box::new(Ty::List(Box::new(Ty::List(Box::new(k.clone()))))),
+                )),
+                "get" => Some(Ty::Fn(
+                    vec![k.clone()],
+                    Box::new(Ty::Option(Box::new(v.clone()))),
+                )),
+                "get_or" => Some(Ty::Fn(
+                    vec![k.clone(), v.clone()],
+                    Box::new(v.clone()),
+                )),
+                "contains_key" | "has_key" | "has" => {
+                    Some(Ty::Fn(vec![k.clone()], Box::new(Ty::Bool)))
+                }
+                "insert" | "set" => Some(Ty::Fn(
+                    vec![k.clone(), v.clone()],
+                    Box::new(map_ty.clone()),
+                )),
+                "remove" | "delete" => {
+                    Some(Ty::Fn(vec![k.clone()], Box::new(map_ty.clone())))
+                }
+                "update" => Some(Ty::Fn(
+                    vec![map_ty.clone()],
+                    Box::new(map_ty),
+                )),
                 _ => None,
             };
         }
