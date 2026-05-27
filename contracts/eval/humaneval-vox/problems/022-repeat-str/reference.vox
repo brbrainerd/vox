@@ -1,9 +1,7 @@
 fn repeat_str(s: str, n: int) to str {
     let mut result: str = ""
-    let mut i: int = 0
-    while i < n {
+    for _ in range(0, n) {
         result = result + s
-        i = i + 1
     }
     return result
 }

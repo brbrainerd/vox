@@ -718,10 +718,19 @@ impl Parser {
     pub(crate) fn parse_for(&mut self) -> Result<Expr, ()> {
         let start = self.span();
         self.advance(); // eat 'for'
-        let binding = self.parse_ident_name()?;
+        // Accept `_` as a wildcard binding (e.g. `for _ in range(0, n)`)
+        let binding = if self.eat(&Token::Underscore) {
+            "_".to_string()
+        } else {
+            self.parse_ident_name()?
+        };
         // Optional index variable: `for x, i in ...`
         let index = if self.eat(&Token::Comma) {
-            Some(self.parse_ident_name()?)
+            if self.eat(&Token::Underscore) {
+                Some("_".to_string())
+            } else {
+                Some(self.parse_ident_name()?)
+            }
         } else {
             None
         };

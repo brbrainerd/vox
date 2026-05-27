@@ -1,7 +1,6 @@
 fn fizzbuzz(n: int) to list[str] {
     let mut result: list[str] = []
-    let mut i: int = 1
-    while i <= n {
+    for i in range(1, n + 1) {
         if i % 15 == 0 {
             result.push("FizzBuzz")
         } else {
@@ -15,7 +14,6 @@ fn fizzbuzz(n: int) to list[str] {
                 }
             }
         }
-        i = i + 1
     }
     return result
 }
