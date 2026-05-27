@@ -61,9 +61,11 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
             let cfg = vox_telemetry::TelemetryConfig::from_env();
             let recorder_active = vox_telemetry::global_recorder().is_some();
             let master = vox_telemetry::is_master_enabled();
+            let org_disabled = vox_telemetry::org_policy_disabled();
 
             println!("vox telemetry doctor");
             println!("─────────────────────────────────────");
+            println!("org_policy_disabled:   {}", org_disabled);
             println!("master_enabled:        {}", master);
             println!("enabled:               {}", cfg.enabled);
             println!("remote_upload:         {}", cfg.remote_upload);

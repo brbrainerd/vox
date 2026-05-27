@@ -234,6 +234,24 @@ pub async fn bench_build_run(
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
+        // Phase D: emit failure summary so the telemetry stream has a complete record.
+        {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let build_id = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_millis().to_string())
+                .unwrap_or_else(|_| "0".into());
+            vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::BuildSummary(
+                vox_telemetry::BuildSummaryEvent {
+                    build_id,
+                    outcome: "failure".into(),
+                    wall_time_ms: total_ms as u64,
+                    crates_compiled: 0,
+                    error_count: 1,
+                    invocation_context: Some("local".into()),
+                }
+            ));
+        }
         anyhow::bail!("cargo build failed:\n{stderr}");
     }
 

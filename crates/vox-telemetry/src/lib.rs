@@ -30,7 +30,7 @@ pub mod types;
 // ── Public re-exports ─────────────────────────────────────────────────────
 
 pub use aggregator::{fill_task_root_summary, record_task_started};
-pub use config::{TelemetryConfig, is_master_enabled};
+pub use config::{TelemetryConfig, is_master_enabled, org_policy_disabled};
 pub use no_op::NoOpRecorder;
 pub use recorder::{CompositeRecorder, TelemetryRecorder, global_recorder, set_global_recorder};
 pub use span::{TRACE_CTX, TraceContext, current_trace_ctx};
