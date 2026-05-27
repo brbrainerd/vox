@@ -1,17 +1,10 @@
 fn count_vowels(s: str) to int {
     let vowels: list[str] = ["a", "e", "i", "o", "u", "A", "E", "I", "O", "U"]
     let mut count: int = 0
-    let mut i: int = 0
-    while i < s.len() {
-        match s.char_at(i) {
-            Some(c) => {
-                if vowels.contains(c) {
-                    count = count + 1
-                }
-            }
-            None => {}
+    for ch in s.chars() {
+        if vowels.contains(ch) {
+            count = count + 1
         }
-        i = i + 1
     }
     return count
 }

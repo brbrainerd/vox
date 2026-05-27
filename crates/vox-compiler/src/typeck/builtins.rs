@@ -180,6 +180,19 @@ impl BuiltinTypes {
             },
         );
 
+        // chr(code: int) → str
+        // Returns the single-character string for a Unicode code point.
+        // Complement of s.ord().
+        env.define(
+            "chr".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int], Box::new(Ty::Str)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // has_capability(token: cap) → bool
         // Runtime predicate that checks whether the supplied capability token is
         // valid and has not been revoked. Used in the platform capability model.
@@ -973,6 +986,19 @@ impl BuiltinTypes {
         str_methods.insert(
             "index_of".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Int)))),
+        );
+        // chars() — iterate over the string as a list of single-character strings.
+        // This is the primary Vox idiom for character-level string processing.
+        str_methods.insert(
+            "chars".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+        );
+        // ord() — Unicode code point of a single character (str).
+        str_methods.insert("ord".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        // bytes() — UTF-8 byte list.
+        str_methods.insert(
+            "bytes".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Int)))),
         );
         methods.insert("Str".into(), str_methods);
 

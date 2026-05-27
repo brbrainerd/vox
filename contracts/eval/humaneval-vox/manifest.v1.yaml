@@ -20,7 +20,7 @@ corpus:
   held_out_target: 30                       # 30 of 164 must be training_eligible:false
   count_current: 50
   held_out_current: 10
-  corpus_hash: "sha256:eeeb54a37875c6441ae17094a022f93784ac7231833f99e35b605bca03671662"
+  corpus_hash: "sha256:5761e9f07ce03560f2037e3775f980033cf9ea374f1d805ff6d6690179db3a74"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
 # Fixtures (50 problems: 40 training-eligible, 10 held-out).

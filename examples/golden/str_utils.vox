@@ -1,15 +1,15 @@
 // ---
 // title: "String utility methods"
-// description: "Demonstrates slice, char_at, and index_of on str (added 2026-05)."
-// syntax_version: "0.5.0"
+// description: "Demonstrates chars, char_at, slice, index_of, ord, and chr on str."
+// syntax_version: "0.6.0"
 // status: golden
 // category: example
-// constructs: [fn, str, slice, char_at, index_of]
-// last_validated: 2026-05-08
+// constructs: [fn, str, chars, char_at, slice, index_of, ord, chr]
+// last_validated: 2026-05-26
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Use Vox string utility methods slice, char_at, and index_of
+// @training_prompt: Use Vox string utility methods chars, char_at, slice, index_of, ord, chr
 fn first_three(s: str) to str {
     return s.slice(0, 3)
 }
@@ -20,4 +20,23 @@ fn at(s: str, i: int) to Option[str] {
 
 fn find(haystack: str, needle: str) to Option[int] {
     return haystack.index_of(needle)
+}
+
+// chars() returns a list of single-character strings — primary idiom for
+// character-level string processing.
+fn count_vowels(s: str) to int {
+    let vowels: list[str] = ["a", "e", "i", "o", "u", "A", "E", "I", "O", "U"]
+    let mut count: int = 0
+    for ch in s.chars() {
+        if vowels.contains(ch) {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+// ord() returns the Unicode code point of a single-char string.
+// chr(n) returns the single-char string for a Unicode code point.
+fn shift_char(c: str, shift: int) to str {
+    return chr(c.ord() + shift)
 }

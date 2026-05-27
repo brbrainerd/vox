@@ -1,16 +1,9 @@
 fn count_chars(s: str, ch: str) to int {
     let mut count: int = 0
-    let mut i: int = 0
-    while i < s.len() {
-        match s.char_at(i) {
-            Some(c) => {
-                if c == ch {
-                    count = count + 1
-                }
-            }
-            None => {}
+    for c in s.chars() {
+        if c == ch {
+            count = count + 1
         }
-        i = i + 1
     }
     return count
 }

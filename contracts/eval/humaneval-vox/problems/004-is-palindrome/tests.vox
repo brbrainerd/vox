@@ -1,10 +1,11 @@
 fn is_palindrome(s: str) to bool {
-    let n: int = s.len()
+    let chars: list[str] = s.chars()
+    let n: int = chars.len()
     let mut i: int = 0
     while i < n / 2 {
-        match s.char_at(i) {
+        match chars[i] {
             Some(c1) => {
-                match s.char_at(n - 1 - i) {
+                match chars[n - 1 - i] {
                     Some(c2) => {
                         if c1 != c2 {
                             return false

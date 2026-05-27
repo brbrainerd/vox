@@ -1,23 +1,16 @@
 fn is_balanced_parens(s: str) to bool {
     let mut depth: int = 0
-    let mut i: int = 0
-    while i < s.len() {
-        match s.char_at(i) {
-            Some(ch) => {
-                if ch == "(" {
-                    depth = depth + 1
-                } else {
-                    if ch == ")" {
-                        depth = depth - 1
-                        if depth < 0 {
-                            return false
-                        }
-                    }
+    for ch in s.chars() {
+        if ch == "(" {
+            depth = depth + 1
+        } else {
+            if ch == ")" {
+                depth = depth - 1
+                if depth < 0 {
+                    return false
                 }
             }
-            None => {}
         }
-        i = i + 1
     }
     return depth == 0
 }

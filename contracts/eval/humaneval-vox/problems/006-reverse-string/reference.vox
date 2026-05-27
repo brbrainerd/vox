@@ -1,9 +1,10 @@
 fn reverse_string(s: str) to str {
-    let n: int = s.len()
+    let chars: list[str] = s.chars()
+    let n: int = chars.len()
     let mut result: str = ""
     let mut i: int = n - 1
     while i >= 0 {
-        match s.char_at(i) {
+        match chars[i] {
             Some(c) => {
                 result = result + c
             }
