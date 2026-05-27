@@ -369,9 +369,6 @@ mod tests {
         let h = empty_blake3_hash();
         assert!(h.starts_with("blake3:"));
         // BLAKE3 of empty input is deterministic; the prefix is stable.
-        assert_eq!(
-            h,
-            format!("blake3:{}", blake3::hash(b"").to_hex())
-        );
+        assert_eq!(h, format!("blake3:{}", blake3::hash(b"").to_hex()));
     }
 }

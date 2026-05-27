@@ -199,7 +199,8 @@ pub trait Subcommand: Send + Sync {
 pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
         Box::new(subcommands::stubs::SpecToAppStub),
-        Box::new(subcommands::stubs::HumanEvalStub),
+        // P2.3: CR-L1 stub replaced by real vox-check-based impl.
+        Box::new(subcommands::humaneval::HumanEvalSubcommand),
         Box::new(subcommands::stubs::MensOnDistributionStub),
         Box::new(subcommands::stubs::RepairCorpusStub),
         Box::new(subcommands::stubs::PlanFidelityStub),
@@ -267,11 +268,7 @@ pub fn run_all(args: &CommonArgs) -> Vec<RunOutcome> {
 /// `contracts/ci/vox-audit-contract.v1.yaml` §telemetry, every `vox audit
 /// <thing>` run must produce an event carrying `corpus_hash`, `outcome`,
 /// `duration_seconds`, etc. Council ratified 2026-05-15 (A11).
-fn emit_audit_run_event(
-    outcome: &RunOutcome,
-    started: std::time::Instant,
-    umbrella_run: bool,
-) {
+fn emit_audit_run_event(outcome: &RunOutcome, started: std::time::Instant, umbrella_run: bool) {
     use vox_telemetry::{AuditRunEvent, TelemetryEvent, record_event};
 
     let outcome_label = match outcome.exit_code {
@@ -306,11 +303,7 @@ fn emit_audit_run_event(
             .iter()
             .filter_map(|r| r.unreachable_count)
             .sum::<u32>(),
-        panel_version: outcome
-            .report
-            .llm_panel
-            .first()
-            .map(|m| m.version.clone()),
+        panel_version: outcome.report.llm_panel.first().map(|m| m.version.clone()),
         umbrella_run,
         repository_id: None, // populated when CommonArgs threads a repo id (A2-style follow-on)
     });
@@ -381,11 +374,7 @@ mod tests {
     fn thing_names_are_unique() {
         let names: Vec<&'static str> = CrlGate::all().map(|g| g.thing_name()).collect();
         let unique: std::collections::HashSet<&&'static str> = names.iter().collect();
-        assert_eq!(
-            names.len(),
-            unique.len(),
-            "thing_name collision: {names:?}"
-        );
+        assert_eq!(names.len(), unique.len(), "thing_name collision: {names:?}");
     }
 
     #[test]
@@ -478,7 +467,10 @@ mod tests {
     #[test]
     fn workspace_root_contains_marker_files() {
         let root = workspace_root();
-        assert!(root.join("Cargo.toml").exists(), "Cargo.toml at workspace root");
+        assert!(
+            root.join("Cargo.toml").exists(),
+            "Cargo.toml at workspace root"
+        );
         assert!(
             root.join("AGENTS.md").exists(),
             "AGENTS.md at workspace root"
@@ -505,7 +497,10 @@ mod tests {
             ExitCode::InfrastructureError
         );
         assert_eq!(
-            aggregate_exit_code(&[mk(ExitCode::InfrastructureError), mk(ExitCode::InvalidInput)]),
+            aggregate_exit_code(&[
+                mk(ExitCode::InfrastructureError),
+                mk(ExitCode::InvalidInput)
+            ]),
             ExitCode::InvalidInput
         );
         assert_eq!(aggregate_exit_code(&[]), ExitCode::Ok);

@@ -65,10 +65,7 @@ impl Subcommand for HumanEvalStub {
     }
 
     fn run(&self, _args: &CommonArgs) -> RunOutcome {
-        corpus_stub_outcome(
-            self.gate(),
-            "contracts/eval/humaneval-vox/manifest.v1.yaml",
-        )
+        corpus_stub_outcome(self.gate(), "contracts/eval/humaneval-vox/manifest.v1.yaml")
     }
 }
 
@@ -89,10 +86,7 @@ impl Subcommand for MensOnDistributionStub {
 
     fn run(&self, _args: &CommonArgs) -> RunOutcome {
         // Reuses CR-L1 corpus per contract §subcommands.
-        corpus_stub_outcome(
-            self.gate(),
-            "contracts/eval/humaneval-vox/manifest.v1.yaml",
-        )
+        corpus_stub_outcome(self.gate(), "contracts/eval/humaneval-vox/manifest.v1.yaml")
     }
 }
 
@@ -112,10 +106,7 @@ impl Subcommand for RepairCorpusStub {
     }
 
     fn run(&self, _args: &CommonArgs) -> RunOutcome {
-        corpus_stub_outcome(
-            self.gate(),
-            "contracts/eval/repair-corpus/manifest.v1.yaml",
-        )
+        corpus_stub_outcome(self.gate(), "contracts/eval/repair-corpus/manifest.v1.yaml")
     }
 }
 
@@ -135,10 +126,7 @@ impl Subcommand for PlanFidelityStub {
     }
 
     fn run(&self, _args: &CommonArgs) -> RunOutcome {
-        corpus_stub_outcome(
-            self.gate(),
-            "contracts/eval/plan-fidelity/manifest.v1.yaml",
-        )
+        corpus_stub_outcome(self.gate(), "contracts/eval/plan-fidelity/manifest.v1.yaml")
     }
 }
 
@@ -158,10 +146,7 @@ impl Subcommand for DeployStub {
     }
 
     fn run(&self, _args: &CommonArgs) -> RunOutcome {
-        corpus_stub_outcome(
-            self.gate(),
-            "contracts/marquee/manifest.v1.yaml",
-        )
+        corpus_stub_outcome(self.gate(), "contracts/marquee/manifest.v1.yaml")
     }
 }
 
@@ -181,9 +166,10 @@ mod tests {
 
     #[test]
     fn every_stub_returns_infrastructure_error_with_incomplete_report() {
+        // Note: HumanEvalStub is no longer in the registry (replaced by real
+        // impl in P2.3). Only the remaining stubs are tested here.
         let stubs: Vec<Box<dyn Subcommand>> = vec![
             Box::new(SpecToAppStub),
-            Box::new(HumanEvalStub),
             Box::new(MensOnDistributionStub),
             Box::new(RepairCorpusStub),
             Box::new(PlanFidelityStub),
@@ -214,9 +200,9 @@ mod tests {
 
     #[test]
     fn stub_thing_names_match_gate_names() {
+        // HumanEvalStub retired in P2.3 — real impl lives in humaneval.rs.
         let stubs: Vec<(Box<dyn Subcommand>, &'static str)> = vec![
             (Box::new(SpecToAppStub), "spec-to-app"),
-            (Box::new(HumanEvalStub), "humaneval"),
             (Box::new(MensOnDistributionStub), "mens-on-distribution"),
             (Box::new(RepairCorpusStub), "repair-corpus"),
             (Box::new(PlanFidelityStub), "plan-fidelity"),

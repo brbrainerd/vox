@@ -201,10 +201,18 @@ impl ScratchRollup {
 /// rollups never silently drop data.
 fn event_repository_key(event: &TelemetryEvent) -> &str {
     match event {
-        TelemetryEvent::LintFinding(p) => p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY),
-        TelemetryEvent::LintAutofix(p) => p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY),
-        TelemetryEvent::RepairAttempt(p) => p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY),
-        TelemetryEvent::RepairOutcome(p) => p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY),
+        TelemetryEvent::LintFinding(p) => {
+            p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY)
+        }
+        TelemetryEvent::LintAutofix(p) => {
+            p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY)
+        }
+        TelemetryEvent::RepairAttempt(p) => {
+            p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY)
+        }
+        TelemetryEvent::RepairOutcome(p) => {
+            p.repository_id.as_deref().unwrap_or(UNATTRIBUTED_REPO_KEY)
+        }
         _ => UNATTRIBUTED_REPO_KEY,
     }
 }
@@ -347,16 +355,28 @@ mod tests {
     #[test]
     fn counts_lint_findings_per_rule() {
         let events = vec![
-            lint("retired/decorator-usage", Some("vox/retired/decorator-usage")),
-            lint("retired/decorator-usage", Some("vox/retired/decorator-usage")),
-            lint("retired/decorator-usage", Some("vox/retired/decorator-usage")),
+            lint(
+                "retired/decorator-usage",
+                Some("vox/retired/decorator-usage"),
+            ),
+            lint(
+                "retired/decorator-usage",
+                Some("vox/retired/decorator-usage"),
+            ),
+            lint(
+                "retired/decorator-usage",
+                Some("vox/retired/decorator-usage"),
+            ),
             lint("retired/crate-import", Some("vox/retired/crate-import")),
         ];
         let report = aggregate(&events, fixed_now());
         assert_eq!(report.total_lint_findings, 4);
         assert_eq!(report.top_50_diagnostics.len(), 2);
         // Higher count comes first.
-        assert_eq!(report.top_50_diagnostics[0].rule_id, "retired/decorator-usage");
+        assert_eq!(
+            report.top_50_diagnostics[0].rule_id,
+            "retired/decorator-usage"
+        );
         assert_eq!(report.top_50_diagnostics[0].finding_count, 3);
         assert_eq!(report.top_50_diagnostics[1].rule_id, "retired/crate-import");
         assert_eq!(report.top_50_diagnostics[1].finding_count, 1);

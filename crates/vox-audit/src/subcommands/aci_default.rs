@@ -74,10 +74,7 @@ impl Subcommand for AciDefaultSubcommand {
                 return RunOutcome {
                     report: AuditReport::infra_error(
                         gate_thing_name(),
-                        format!(
-                            "failed to read {}: {err}",
-                            impl_path.display()
-                        ),
+                        format!("failed to read {}: {err}", impl_path.display()),
                     ),
                     exit_code: ExitCode::InfrastructureError,
                 };
@@ -187,9 +184,7 @@ fn parse_workspace_version(cargo_toml: &str) -> Option<String> {
         if trimmed.starts_with('[') && in_workspace_package {
             break;
         }
-        if in_workspace_package
-            && let Some(rest) = trimmed.strip_prefix("version")
-        {
+        if in_workspace_package && let Some(rest) = trimmed.strip_prefix("version") {
             let rest = rest.trim_start().trim_start_matches('=').trim();
             return Some(rest.trim_matches('"').to_string());
         }

@@ -274,8 +274,7 @@ mod tests {
     #[test]
     fn stdlib_coverage_baseline_no_regression_exits_ok() {
         let workspace = workspace_root();
-        let baseline = workspace
-            .join("contracts/reports/stdlib-coverage/2026-05-23.json");
+        let baseline = workspace.join("contracts/reports/stdlib-coverage/2026-05-23.json");
         if !baseline.exists() {
             // First run after the gate lands — skip rather than depend on a
             // freshly-checked-in baseline (which a separate run wrote).
