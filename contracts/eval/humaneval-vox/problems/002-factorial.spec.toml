@@ -1,0 +1,11 @@
+[problem]
+id = "002"
+title = "factorial"
+prompt = """
+Return the factorial of n (n >= 0). factorial(0) = 1.
+"""
+signature = "fn factorial(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

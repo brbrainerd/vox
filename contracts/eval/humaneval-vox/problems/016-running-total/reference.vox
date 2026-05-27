@@ -1,0 +1,9 @@
+fn running_total(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut total: int = 0
+    for x in xs {
+        total = total + x
+        result.push(total)
+    }
+    return result
+}

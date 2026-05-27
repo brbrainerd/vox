@@ -1,0 +1,11 @@
+[problem]
+id = "007"
+title = "sum_digits"
+prompt = """
+Return the sum of the decimal digits of a non-negative integer.
+"""
+signature = "fn sum_digits(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

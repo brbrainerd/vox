@@ -1,0 +1,11 @@
+[problem]
+id = "050"
+title = "selection_sort"
+prompt = """
+Sort a list of integers in non-decreasing order using selection sort. Return the sorted list (do not modify the input).
+"""
+signature = "fn selection_sort(xs: list[int]) to list[int]"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

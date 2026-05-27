@@ -1,0 +1,13 @@
+fn collatz_length(n: int) to int {
+    let mut steps: int = 0
+    let mut x: int = n
+    while x != 1 {
+        if x % 2 == 0 {
+            x = x / 2
+        } else {
+            x = 3 * x + 1
+        }
+        steps = steps + 1
+    }
+    return steps
+}

@@ -1,0 +1,24 @@
+fn count_chars(s: str, ch: str) to int {
+    let mut count: int = 0
+    let mut i: int = 0
+    while i < s.len() {
+        match s.char_at(i) {
+            Some(c) => {
+                if c == ch {
+                    count = count + 1
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_chars("hello", "l") == 2)
+    assert(count_chars("aaa", "a") == 3)
+    assert(count_chars("", "x") == 0)
+    assert(count_chars("abc", "d") == 0)
+    return "ok"
+}

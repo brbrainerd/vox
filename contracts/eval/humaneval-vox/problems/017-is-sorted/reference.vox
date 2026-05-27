@@ -1,0 +1,10 @@
+fn is_sorted(xs: list[int]) to bool {
+    let mut i: int = 0
+    while i < xs.len() - 1 {
+        if xs[i] > xs[i + 1] {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "020"
+title = "flatten_one_level"
+prompt = """
+Given a list of lists of integers, flatten it by one level (concatenate the inner lists).
+"""
+signature = "fn flatten_one_level(xss: list[list[int]]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

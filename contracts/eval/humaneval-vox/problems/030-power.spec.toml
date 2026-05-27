@@ -1,0 +1,11 @@
+[problem]
+id = "030"
+title = "power"
+prompt = """
+Return base raised to the exp power (exp >= 0). power(x, 0) returns 1.
+"""
+signature = "fn power(base: int, exp: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

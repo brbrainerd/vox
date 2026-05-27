@@ -1,0 +1,11 @@
+fn remove_duplicates(xs: list[int]) to list[int] {
+    let mut seen: list[int] = []
+    let mut result: list[int] = []
+    for x in xs {
+        if not seen.contains(x) {
+            seen.push(x)
+            result.push(x)
+        }
+    }
+    return result
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "036"
+title = "double_list"
+prompt = """
+Return a new list where each integer has been doubled.
+"""
+signature = "fn double_list(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

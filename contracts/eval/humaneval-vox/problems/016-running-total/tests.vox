@@ -1,0 +1,17 @@
+fn running_total(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut total: int = 0
+    for x in xs {
+        total = total + x
+        result.push(total)
+    }
+    return result
+}
+
+fn main() to str {
+    assert(running_total([1, 2, 3]) == [1, 3, 6])
+    assert(running_total([]) == [])
+    assert(running_total([5]) == [5])
+    assert(running_total([1, -1, 1]) == [1, 0, 1])
+    return "ok"
+}

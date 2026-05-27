@@ -1,0 +1,11 @@
+[problem]
+id = "046"
+title = "count_primes_up_to"
+prompt = """
+Return the count of prime numbers in the range [2, n] inclusive. Return 0 if n < 2.
+"""
+signature = "fn count_primes_up_to(n: int) to int"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

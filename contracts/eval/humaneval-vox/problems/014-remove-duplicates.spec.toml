@@ -1,0 +1,11 @@
+[problem]
+id = "014"
+title = "remove_duplicates"
+prompt = """
+Return a new list with duplicate integers removed, preserving first-occurrence order.
+"""
+signature = "fn remove_duplicates(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

@@ -1,0 +1,15 @@
+fn double_list(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    for x in xs {
+        result.push(x * 2)
+    }
+    return result
+}
+
+fn main() to str {
+    assert(double_list([1, 2, 3]) == [2, 4, 6])
+    assert(double_list([]) == [])
+    assert(double_list([0]) == [0])
+    assert(double_list([-1, 5]) == [-2, 10])
+    return "ok"
+}

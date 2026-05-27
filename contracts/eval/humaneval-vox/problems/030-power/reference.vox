@@ -1,0 +1,9 @@
+fn power(base: int, exp: int) to int {
+    let mut result: int = 1
+    let mut i: int = 0
+    while i < exp {
+        result = result * base
+        i = i + 1
+    }
+    return result
+}

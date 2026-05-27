@@ -1,0 +1,11 @@
+fn is_even(n: int) to bool {
+    return n % 2 == 0
+}
+
+fn main() to str {
+    assert(is_even(4) == true)
+    assert(is_even(3) == false)
+    assert(is_even(0) == true)
+    assert(is_even(-2) == true)
+    return "ok"
+}

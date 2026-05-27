@@ -1,0 +1,11 @@
+fn starts_with_capital(s: str) to bool {
+    match s.char_at(0) {
+        Some(c) => {
+            let uppers: list[str] = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+            return uppers.contains(c)
+        }
+        None => {
+            return false
+        }
+    }
+}

@@ -1,0 +1,19 @@
+fn gcd(a: int, b: int) to int {
+    let mut x = a
+    let mut y = b
+    while y != 0 {
+        let temp = y
+        y = x % y
+        x = temp
+    }
+    return x
+}
+
+fn main() to str {
+    assert(gcd(1, 1) == 1)
+    assert(gcd(12, 8) == 4)
+    assert(gcd(100, 75) == 25)
+    assert(gcd(7, 3) == 1)
+    assert(gcd(48, 18) == 6)
+    return "ok"
+}

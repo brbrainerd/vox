@@ -1,0 +1,11 @@
+[problem]
+id = "047"
+title = "partition_by_sign"
+prompt = """
+Partition a list of integers into two lists: the first contains non-negative integers (>= 0) in original order, the second contains negative integers in original order. Return as a list of two lists.
+"""
+signature = "fn partition_by_sign(xs: list[int]) to list[list[int]]"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

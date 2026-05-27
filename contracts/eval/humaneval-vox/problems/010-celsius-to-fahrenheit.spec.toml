@@ -1,0 +1,11 @@
+[problem]
+id = "010"
+title = "celsius_to_fahrenheit"
+prompt = """
+Convert a temperature in Celsius to Fahrenheit. Formula: F = C * 9.0 / 5.0 + 32.0.
+"""
+signature = "fn celsius_to_fahrenheit(c: float) to float"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

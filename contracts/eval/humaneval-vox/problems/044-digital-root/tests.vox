@@ -1,0 +1,28 @@
+fn sum_digits(n: int) to int {
+    let mut total: int = 0
+    let mut x: int = n
+    while x > 0 {
+        total = total + x % 10
+        x = x / 10
+    }
+    return total
+}
+
+fn digital_root(n: int) to int {
+    if n == 0 {
+        return 0
+    }
+    let mut x: int = n
+    while x >= 10 {
+        x = sum_digits(x)
+    }
+    return x
+}
+
+fn main() to str {
+    assert(digital_root(0) == 0)
+    assert(digital_root(9) == 9)
+    assert(digital_root(942) == 6)
+    assert(digital_root(493) == 7)
+    return "ok"
+}

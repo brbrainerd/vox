@@ -1,0 +1,21 @@
+fn is_palindrome(s: str) to bool {
+    let n: int = s.len()
+    let mut i: int = 0
+    while i < n / 2 {
+        match s.char_at(i) {
+            Some(c1) => {
+                match s.char_at(n - 1 - i) {
+                    Some(c2) => {
+                        if c1 != c2 {
+                            return false
+                        }
+                    }
+                    None => { return false }
+                }
+            }
+            None => { return false }
+        }
+        i = i + 1
+    }
+    return true
+}

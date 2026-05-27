@@ -1,0 +1,15 @@
+fn sum_list(xs: list[int]) to int {
+    let mut total: int = 0
+    for x in xs {
+        total = total + x
+    }
+    return total
+}
+
+fn main() to str {
+    assert(sum_list([1, 2, 3]) == 6)
+    assert(sum_list([]) == 0)
+    assert(sum_list([-1, 1]) == 0)
+    assert(sum_list([10, 20, 30]) == 60)
+    return "ok"
+}

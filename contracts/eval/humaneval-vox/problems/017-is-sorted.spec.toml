@@ -1,0 +1,11 @@
+[problem]
+id = "017"
+title = "is_sorted"
+prompt = """
+Return true if the list of integers is sorted in non-decreasing order. An empty list is sorted.
+"""
+signature = "fn is_sorted(xs: list[int]) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

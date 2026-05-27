@@ -1,0 +1,25 @@
+fn is_prime(x: int) to bool {
+    if x < 2 {
+        return false
+    }
+    let mut i: int = 2
+    while i * i <= x {
+        if x % i == 0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn count_primes_up_to(n: int) to int {
+    let mut count: int = 0
+    let mut i: int = 2
+    while i <= n {
+        if is_prime(i) {
+            count = count + 1
+        }
+        i = i + 1
+    }
+    return count
+}

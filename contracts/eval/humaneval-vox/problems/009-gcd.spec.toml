@@ -1,0 +1,11 @@
+[problem]
+id = "009"
+title = "gcd"
+prompt = """
+Return the greatest common divisor of two positive integers using the Euclidean algorithm.
+"""
+signature = "fn gcd(a: int, b: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

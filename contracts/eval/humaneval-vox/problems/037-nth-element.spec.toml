@@ -1,0 +1,11 @@
+[problem]
+id = "037"
+title = "nth_element"
+prompt = """
+Return the element at index n in a list (0-indexed). If n is out of bounds, return 0.
+"""
+signature = "fn nth_element(xs: list[int], n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

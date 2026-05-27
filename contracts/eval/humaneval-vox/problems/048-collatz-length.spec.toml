@@ -1,0 +1,11 @@
+[problem]
+id = "048"
+title = "collatz_length"
+prompt = """
+Return the number of steps in the Collatz sequence starting from n until reaching 1. n is a positive integer. collatz_length(1) = 0.
+"""
+signature = "fn collatz_length(n: int) to int"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

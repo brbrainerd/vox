@@ -1,0 +1,50 @@
+fn find_in(xs: list[str], c: str) to int {
+    let mut i: int = 0
+    while i < xs.len() {
+        match xs[i] {
+            Some(v) => {
+                if v == c {
+                    return i
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+fn caesar_shift(s: str, k: int) to str {
+    let lowers: list[str] = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"]
+    let uppers: list[str] = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]
+    let mut result: str = ""
+    let mut i: int = 0
+    while i < s.len() {
+        match s.char_at(i) {
+            Some(c) => {
+                let li: int = find_in(lowers, c)
+                if li >= 0 {
+                    let ni: int = ((li + k) % 26 + 26) % 26
+                    match lowers[ni] {
+                        Some(nc) => { result = result + nc }
+                        None => {}
+                    }
+                } else {
+                    let ui: int = find_in(uppers, c)
+                    if ui >= 0 {
+                        let ni: int = ((ui + k) % 26 + 26) % 26
+                        match uppers[ni] {
+                            Some(nc) => { result = result + nc }
+                            None => {}
+                        }
+                    } else {
+                        result = result + c
+                    }
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}

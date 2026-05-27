@@ -1,0 +1,7 @@
+fn sum_list(xs: list[int]) to int {
+    let mut total: int = 0
+    for x in xs {
+        total = total + x
+    }
+    return total
+}

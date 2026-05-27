@@ -1,0 +1,23 @@
+fn longest_word(words: list[str]) to str {
+    if words.len() == 0 {
+        return ""
+    }
+    let mut best: str = ""
+    match words[0] {
+        Some(w) => { best = w }
+        None => {}
+    }
+    let mut i: int = 1
+    while i < words.len() {
+        match words[i] {
+            Some(w) => {
+                if w.len() > best.len() {
+                    best = w
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return best
+}

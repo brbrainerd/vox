@@ -1,0 +1,11 @@
+[problem]
+id = "003"
+title = "fibonacci"
+prompt = """
+Return the nth Fibonacci number (0-indexed). fibonacci(0) = 0, fibonacci(1) = 1.
+"""
+signature = "fn fibonacci(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

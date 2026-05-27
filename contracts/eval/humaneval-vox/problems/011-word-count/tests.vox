@@ -1,0 +1,31 @@
+fn word_count(s: str) to int {
+    let mut count: int = 0
+    let mut in_word: bool = false
+    let mut i: int = 0
+    while i < s.len() {
+        match s.char_at(i) {
+            Some(ch) => {
+                if ch == " " {
+                    in_word = false
+                } else {
+                    if not in_word {
+                        count = count + 1
+                        in_word = true
+                    }
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return count
+}
+
+fn main() to str {
+    assert(word_count("hello world") == 2)
+    assert(word_count("  hello   world  ") == 2)
+    assert(word_count("") == 0)
+    assert(word_count("one") == 1)
+    assert(word_count("a b c d e") == 5)
+    return "ok"
+}

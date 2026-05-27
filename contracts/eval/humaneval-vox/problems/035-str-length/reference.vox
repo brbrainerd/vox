@@ -1,0 +1,3 @@
+fn str_length(s: str) to int {
+    return s.len()
+}

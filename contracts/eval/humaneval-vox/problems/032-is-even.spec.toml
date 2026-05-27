@@ -1,0 +1,11 @@
+[problem]
+id = "032"
+title = "is_even"
+prompt = """
+Return true if the integer is even, false if it is odd.
+"""
+signature = "fn is_even(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

@@ -1,0 +1,20 @@
+fn partition_by_sign(xs: list[int]) to list[list[int]] {
+    let mut nonneg: list[int] = []
+    let mut neg: list[int] = []
+    for x in xs {
+        if x >= 0 {
+            nonneg.push(x)
+        } else {
+            neg.push(x)
+        }
+    }
+    return [nonneg, neg]
+}
+
+fn main() to str {
+    assert(partition_by_sign([1, -2, 3, -4]) == [[1, 3], [-2, -4]])
+    assert(partition_by_sign([]) == [[], []])
+    assert(partition_by_sign([0, -1]) == [[0], [-1]])
+    assert(partition_by_sign([5, 10]) == [[5, 10], []])
+    return "ok"
+}

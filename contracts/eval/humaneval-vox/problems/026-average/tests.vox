@@ -1,0 +1,14 @@
+fn average(xs: list[int]) to float {
+    let mut total: int = 0
+    for x in xs {
+        total = total + x
+    }
+    return float(total) / float(xs.len())
+}
+
+fn main() to str {
+    assert(average([1, 2, 3]) == 2.0)
+    assert(average([10]) == 10.0)
+    assert(average([0, 0]) == 0.0)
+    return "ok"
+}

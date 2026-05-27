@@ -1,0 +1,19 @@
+fn is_sorted(xs: list[int]) to bool {
+    let mut i: int = 0
+    while i < xs.len() - 1 {
+        if xs[i] > xs[i + 1] {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn main() to str {
+    assert(is_sorted([1, 2, 3]) == true)
+    assert(is_sorted([3, 2, 1]) == false)
+    assert(is_sorted([]) == true)
+    assert(is_sorted([1]) == true)
+    assert(is_sorted([1, 1, 2]) == true)
+    return "ok"
+}

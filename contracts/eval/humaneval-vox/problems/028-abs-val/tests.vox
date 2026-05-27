@@ -1,0 +1,13 @@
+fn abs_val(n: int) to int {
+    if n < 0 {
+        return 0 - n
+    }
+    return n
+}
+
+fn main() to str {
+    assert(abs_val(5) == 5)
+    assert(abs_val(-5) == 5)
+    assert(abs_val(0) == 0)
+    return "ok"
+}

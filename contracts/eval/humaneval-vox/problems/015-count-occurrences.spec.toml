@@ -1,0 +1,11 @@
+[problem]
+id = "015"
+title = "count_occurrences"
+prompt = """
+Count how many times a target integer appears in a list.
+"""
+signature = "fn count_occurrences(xs: list[int], target: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []
