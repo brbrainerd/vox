@@ -261,6 +261,7 @@ doctor
 drift-check
 emit
 emit/client
+emit/openapi
 ext
 ext/ars
 ext/ars/share
