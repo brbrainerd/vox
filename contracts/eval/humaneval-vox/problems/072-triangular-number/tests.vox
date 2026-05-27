@@ -1,0 +1,15 @@
+fn triangular_number(n: int) to int {
+    return n * (n + 1) / 2
+}
+
+fn main() to str {
+    assert(triangular_number(0) == 0)
+    assert(triangular_number(1) == 1)
+    assert(triangular_number(2) == 3)
+    assert(triangular_number(3) == 6)
+    assert(triangular_number(4) == 10)
+    assert(triangular_number(5) == 15)
+    assert(triangular_number(10) == 55)
+    assert(triangular_number(100) == 5050)
+    return "ok"
+}

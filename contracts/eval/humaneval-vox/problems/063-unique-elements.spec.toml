@@ -1,0 +1,12 @@
+[problem]
+id = "063"
+title = "unique_elements"
+prompt = """
+Return a list containing only the unique elements of xs, preserving their first-occurrence order.
+Duplicate values after the first occurrence are dropped.
+"""
+signature = "fn unique_elements(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

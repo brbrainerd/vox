@@ -1,0 +1,23 @@
+fn count_set_bits(n: int) to int {
+    let mut count: int = 0
+    let mut x: int = n
+    while x > 0 {
+        if x % 2 == 1 {
+            count = count + 1
+        }
+        x = x / 2
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_set_bits(0) == 0)
+    assert(count_set_bits(1) == 1)
+    assert(count_set_bits(2) == 1)
+    assert(count_set_bits(3) == 2)
+    assert(count_set_bits(5) == 2)
+    assert(count_set_bits(7) == 3)
+    assert(count_set_bits(255) == 8)
+    assert(count_set_bits(1024) == 1)
+    return "ok"
+}

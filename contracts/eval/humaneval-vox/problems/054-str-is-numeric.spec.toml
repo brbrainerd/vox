@@ -1,0 +1,12 @@
+[problem]
+id = "054"
+title = "str_is_numeric"
+prompt = """
+Return true if every character in the string is a digit (0-9), and the string is non-empty.
+Return false for an empty string or any string containing a non-digit character.
+"""
+signature = "fn str_is_numeric(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

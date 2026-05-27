@@ -1,0 +1,30 @@
+fn bubble_sort(xs: list[int]) to list[int] {
+    let n: int = xs.len()
+    let mut arr: list[int] = []
+    for x in xs {
+        arr.push(x)
+    }
+    let mut i: int = 0
+    while i < n {
+        let mut j: int = 0
+        while j < n - 1 - i {
+            match arr[j] {
+                Some(vj) => {
+                    match arr[j + 1] {
+                        Some(vj1) => {
+                            if vj > vj1 {
+                                arr[j] = vj1
+                                arr[j + 1] = vj
+                            }
+                        }
+                        None => {}
+                    }
+                }
+                None => {}
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return arr
+}

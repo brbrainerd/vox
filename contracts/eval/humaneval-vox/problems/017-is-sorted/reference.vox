@@ -1,8 +1,22 @@
 fn is_sorted(xs: list[int]) to bool {
+    let n: int = xs.len()
+    if n <= 1 {
+        return true
+    }
     let mut i: int = 0
-    while i < xs.len() - 1 {
-        if xs[i] > xs[i + 1] {
-            return false
+    while i < n - 1 {
+        match xs[i] {
+            Some(a) => {
+                match xs[i + 1] {
+                    Some(b) => {
+                        if a > b {
+                            return false
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
         }
         i = i + 1
     }

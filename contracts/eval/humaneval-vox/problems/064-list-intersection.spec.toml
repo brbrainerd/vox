@@ -1,0 +1,13 @@
+[problem]
+id = "064"
+title = "list_intersection"
+prompt = """
+Return a list of elements that appear in both a and b, in the order they appear in a,
+without duplicates. Each value is included at most once even if it appears multiple times
+in both lists.
+"""
+signature = "fn list_intersection(a: list[int], b: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

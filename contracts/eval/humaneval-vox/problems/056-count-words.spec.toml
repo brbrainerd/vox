@@ -1,0 +1,13 @@
+[problem]
+id = "056"
+title = "count_words"
+prompt = """
+Count the number of words in a string. Words are separated by spaces.
+Non-empty parts after splitting on single spaces are counted as words.
+An empty string has 0 words.
+"""
+signature = "fn count_words(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

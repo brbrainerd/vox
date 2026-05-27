@@ -1,0 +1,25 @@
+fn is_perfect(n: int) to bool {
+    if n <= 1 {
+        return false
+    }
+    let mut total: int = 0
+    let mut i: int = 1
+    while i < n {
+        if n % i == 0 {
+            total = total + i
+        }
+        i = i + 1
+    }
+    return total == n
+}
+
+fn main() to str {
+    assert(is_perfect(6) == true)
+    assert(is_perfect(28) == true)
+    assert(is_perfect(496) == true)
+    assert(is_perfect(1) == false)
+    assert(is_perfect(0) == false)
+    assert(is_perfect(12) == false)
+    assert(is_perfect(2) == false)
+    return "ok"
+}

@@ -425,7 +425,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     if let Some(idx_name) = index {
                         interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
                     }
-                    results.push(eval_expr(interp, body)?);
+                    let val = eval_expr(interp, body)?;
+                    match val {
+                        // Propagate early-exit signals out of the for loop.
+                        VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {
+                            interp.scope.pop_frame();
+                            return Ok(val);
+                        }
+                        VoxValue::_Continue => {
+                            // skip pushing this iteration's result, continue loop
+                        }
+                        other => results.push(other),
+                    }
                 }
                 interp.scope.pop_frame();
                 Ok(VoxValue::List(results))

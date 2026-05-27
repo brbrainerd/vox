@@ -103,7 +103,43 @@ pub fn eval_pattern(
 pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
     match stmt {
-        HirStmt::Expr { expr, .. } => super::expr::eval_expr(interp, expr),
+        HirStmt::Expr { expr, .. } => {
+            // Auto-reassignment for mutable-receiver method calls.
+            //
+            // In Vox's value-based scope model, `arr.push(x)` as a statement
+            // would normally discard the returned new list — leaving `arr`
+            // unchanged.  We detect this pattern and write the result back to
+            // the variable so that common Vox idioms (`arr.push(x)`,
+            // `arr.reverse()`, etc.) behave intuitively.
+            //
+            // Rule: if a method call is made on a plain identifier and the
+            // returned value has the same runtime kind as the receiver, the
+            // result is written back to that identifier via `set_mut`.
+            //
+            // This only affects statement-level method calls (i.e. where the
+            // return value would otherwise be thrown away).  Expressions used
+            // in let/assign/return still get the original return value as
+            // normal.
+            if let HirExpr::MethodCall(obj_expr, _, _, _, _) = expr {
+                if let HirExpr::Ident(name, _) = obj_expr.as_ref() {
+                    let result = super::expr::eval_expr(interp, expr)?;
+                    let should_reassign = match &result {
+                        VoxValue::List(_) => {
+                            matches!(interp.scope.get(name), Some(VoxValue::List(_)))
+                        }
+                        VoxValue::Str(_) => {
+                            matches!(interp.scope.get(name), Some(VoxValue::Str(_)))
+                        }
+                        _ => false,
+                    };
+                    if should_reassign {
+                        interp.scope.set_mut(name, result.clone());
+                    }
+                    return Ok(result);
+                }
+            }
+            super::expr::eval_expr(interp, expr)
+        }
         HirStmt::Return { value, .. } => {
             if let Some(val) = value {
                 let v = super::expr::eval_expr(interp, val)?;
@@ -121,8 +157,28 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
         }
         HirStmt::Assign { target, value, .. } => {
             let v = super::expr::eval_expr(interp, value)?;
-            if let HirExpr::Ident(name, _) = target {
-                interp.scope.set_mut(name, v);
+            match target {
+                HirExpr::Ident(name, _) => {
+                    interp.scope.set_mut(name, v);
+                }
+                // Index assignment: `arr[i] = value`.
+                HirExpr::Index(obj_expr, idx_expr, _) => {
+                    if let HirExpr::Ident(name, _) = obj_expr.as_ref() {
+                        let idx_val = super::expr::eval_expr(interp, idx_expr)?;
+                        if let VoxValue::Int(i) = idx_val {
+                            if let Some(list_val) = interp.scope.get(name).cloned() {
+                                if let VoxValue::List(mut items) = list_val {
+                                    let ui = i as usize;
+                                    if i >= 0 && ui < items.len() {
+                                        items[ui] = v;
+                                        interp.scope.set_mut(name, VoxValue::List(items));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
             Ok(VoxValue::Null)
         }

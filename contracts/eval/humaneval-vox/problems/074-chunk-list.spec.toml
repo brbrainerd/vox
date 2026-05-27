@@ -1,0 +1,13 @@
+[problem]
+id = "074"
+title = "chunk_list"
+prompt = """
+Return the first chunk of up to k elements from xs.
+If xs has fewer than k elements, return all of them.
+If k <= 0 or xs is empty, return an empty list.
+"""
+signature = "fn chunk_list(xs: list[int], k: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

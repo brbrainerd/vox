@@ -8,6 +8,7 @@ schema_version: 1
 #   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.1, §3
 #
 # Landed: 2026-05-26 (minimum-viable: 50 problems, 10 held-out)
+# Expanded: 2026-05-26 (75 problems, 20 held-out)
 
 corpus:
   id: humaneval-vox
@@ -18,12 +19,12 @@ corpus:
     sub_bar_block_demote: 0.60              # < 60% -> demote CR-L1 to v1.1
   count_target: 164                         # anchored to HumanEval-Python
   held_out_target: 30                       # 30 of 164 must be training_eligible:false
-  count_current: 50
-  held_out_current: 10
-  corpus_hash: "sha256:f785a4ec8f63ad5d68f70635328e26c222242e66c0a7191766ead5d3c8727645"
+  count_current: 75
+  held_out_current: 20
+  corpus_hash: "sha256:137c0b1a815e396f04d0b25d343c6ba32d91cbf4d412229964b4320935a04a98"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
-# Fixtures (50 problems: 40 training-eligible, 10 held-out).
+# Fixtures (75 problems: 55 training-eligible, 20 held-out).
 fixtures:
   - id: "001"
     slug: "001-fizzbuzz"
@@ -475,6 +476,231 @@ fixtures:
       spec: "problems/050-selection-sort.spec.toml"
       reference: "problems/050-selection-sort/reference.vox"
       tests: "problems/050-selection-sort/tests.vox"
+  - id: "051"
+    slug: "051-is-leap-year"
+    title: "is_leap_year"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/051-is-leap-year.spec.toml"
+      reference: "problems/051-is-leap-year/reference.vox"
+      tests: "problems/051-is-leap-year/tests.vox"
+  - id: "052"
+    slug: "052-title-case"
+    title: "title_case"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/052-title-case.spec.toml"
+      reference: "problems/052-title-case/reference.vox"
+      tests: "problems/052-title-case/tests.vox"
+  - id: "053"
+    slug: "053-is-anagram"
+    title: "is_anagram"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/053-is-anagram.spec.toml"
+      reference: "problems/053-is-anagram/reference.vox"
+      tests: "problems/053-is-anagram/tests.vox"
+  - id: "054"
+    slug: "054-str-is-numeric"
+    title: "str_is_numeric"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/054-str-is-numeric.spec.toml"
+      reference: "problems/054-str-is-numeric/reference.vox"
+      tests: "problems/054-str-is-numeric/tests.vox"
+  - id: "055"
+    slug: "055-remove-vowels"
+    title: "remove_vowels"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/055-remove-vowels.spec.toml"
+      reference: "problems/055-remove-vowels/reference.vox"
+      tests: "problems/055-remove-vowels/tests.vox"
+  - id: "056"
+    slug: "056-count-words"
+    title: "count_words"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/056-count-words.spec.toml"
+      reference: "problems/056-count-words/reference.vox"
+      tests: "problems/056-count-words/tests.vox"
+  - id: "057"
+    slug: "057-sum-of-squares"
+    title: "sum_of_squares"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/057-sum-of-squares.spec.toml"
+      reference: "problems/057-sum-of-squares/reference.vox"
+      tests: "problems/057-sum-of-squares/tests.vox"
+  - id: "058"
+    slug: "058-is-armstrong"
+    title: "is_armstrong"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/058-is-armstrong.spec.toml"
+      reference: "problems/058-is-armstrong/reference.vox"
+      tests: "problems/058-is-armstrong/tests.vox"
+  - id: "059"
+    slug: "059-count-divisors"
+    title: "count_divisors"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/059-count-divisors.spec.toml"
+      reference: "problems/059-count-divisors/reference.vox"
+      tests: "problems/059-count-divisors/tests.vox"
+  - id: "060"
+    slug: "060-int-to-binary"
+    title: "int_to_binary"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/060-int-to-binary.spec.toml"
+      reference: "problems/060-int-to-binary/reference.vox"
+      tests: "problems/060-int-to-binary/tests.vox"
+  - id: "061"
+    slug: "061-binary-to-int"
+    title: "binary_to_int"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/061-binary-to-int.spec.toml"
+      reference: "problems/061-binary-to-int/reference.vox"
+      tests: "problems/061-binary-to-int/tests.vox"
+  - id: "062"
+    slug: "062-is-power-of-two"
+    title: "is_power_of_two"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/062-is-power-of-two.spec.toml"
+      reference: "problems/062-is-power-of-two/reference.vox"
+      tests: "problems/062-is-power-of-two/tests.vox"
+  - id: "063"
+    slug: "063-unique-elements"
+    title: "unique_elements"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/063-unique-elements.spec.toml"
+      reference: "problems/063-unique-elements/reference.vox"
+      tests: "problems/063-unique-elements/tests.vox"
+  - id: "064"
+    slug: "064-list-intersection"
+    title: "list_intersection"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/064-list-intersection.spec.toml"
+      reference: "problems/064-list-intersection/reference.vox"
+      tests: "problems/064-list-intersection/tests.vox"
+  - id: "065"
+    slug: "065-rotate-right"
+    title: "rotate_right"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/065-rotate-right.spec.toml"
+      reference: "problems/065-rotate-right/reference.vox"
+      tests: "problems/065-rotate-right/tests.vox"
+  - id: "066"
+    slug: "066-max-subarray-sum"
+    title: "max_subarray_sum"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/066-max-subarray-sum.spec.toml"
+      reference: "problems/066-max-subarray-sum/reference.vox"
+      tests: "problems/066-max-subarray-sum/tests.vox"
+  - id: "067"
+    slug: "067-bubble-sort"
+    title: "bubble_sort"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/067-bubble-sort.spec.toml"
+      reference: "problems/067-bubble-sort/reference.vox"
+      tests: "problems/067-bubble-sort/tests.vox"
+  - id: "068"
+    slug: "068-insertion-sort"
+    title: "insertion_sort"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/068-insertion-sort.spec.toml"
+      reference: "problems/068-insertion-sort/reference.vox"
+      tests: "problems/068-insertion-sort/tests.vox"
+  - id: "069"
+    slug: "069-binary-search"
+    title: "binary_search"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/069-binary-search.spec.toml"
+      reference: "problems/069-binary-search/reference.vox"
+      tests: "problems/069-binary-search/tests.vox"
+  - id: "070"
+    slug: "070-count-set-bits"
+    title: "count_set_bits"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/070-count-set-bits.spec.toml"
+      reference: "problems/070-count-set-bits/reference.vox"
+      tests: "problems/070-count-set-bits/tests.vox"
+  - id: "071"
+    slug: "071-is-perfect"
+    title: "is_perfect"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/071-is-perfect.spec.toml"
+      reference: "problems/071-is-perfect/reference.vox"
+      tests: "problems/071-is-perfect/tests.vox"
+  - id: "072"
+    slug: "072-triangular-number"
+    title: "triangular_number"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/072-triangular-number.spec.toml"
+      reference: "problems/072-triangular-number/reference.vox"
+      tests: "problems/072-triangular-number/tests.vox"
+  - id: "073"
+    slug: "073-two-sum-exists"
+    title: "two_sum_exists"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/073-two-sum-exists.spec.toml"
+      reference: "problems/073-two-sum-exists/reference.vox"
+      tests: "problems/073-two-sum-exists/tests.vox"
+  - id: "074"
+    slug: "074-chunk-list"
+    title: "chunk_list"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/074-chunk-list.spec.toml"
+      reference: "problems/074-chunk-list/reference.vox"
+      tests: "problems/074-chunk-list/tests.vox"
+  - id: "075"
+    slug: "075-sum-even-squares"
+    title: "sum_even_squares"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/075-sum-even-squares.spec.toml"
+      reference: "problems/075-sum-even-squares/reference.vox"
+      tests: "problems/075-sum-even-squares/tests.vox"
 
 # Provenance taxonomy enforced when fixtures land.
 provenance_kinds:
@@ -530,3 +756,15 @@ council_ratification_log:
       Minimum-viable corpus enables CI gate to flip from exit 2 to 0/1.
       Problems cover core Vox idioms: list/str manipulation, arithmetic,
       algorithmic patterns (sort, merge, Collatz, Caesar cipher).
+  - id: humaneval-vox-expansion-75-2026-05-26
+    decision: "75 problems (55 training, 20 held-out) landed 2026-05-26."
+    ratified_at: "2026-05-26"
+    rationale: >
+      Batch-2 expansion adds 25 problems covering: leap-year, title-case,
+      anagram, numeric-string, char-level operations (ord/chars), binary
+      conversion, Armstrong numbers, unique/intersection/rotate, Kadane,
+      bubble/insertion sort, binary search, set-bit count, perfect numbers,
+      two-sum, chunk, sum-even-squares.  All 75 pass vox check (typecheck)
+      and vox run (runtime assertions).  Interpreter fixed: return-in-for-loop
+      now propagates correctly; list.push() as statement auto-reassigns
+      receiver; arr[i]=v index assignment implemented.

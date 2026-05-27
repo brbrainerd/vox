@@ -1,0 +1,23 @@
+fn binary_search(xs: list[int], target: int) to int {
+    let mut lo: int = 0
+    let mut hi: int = xs.len() - 1
+    while lo <= hi {
+        let mid: int = lo + (hi - lo) / 2
+        match xs[mid] {
+            Some(v) => {
+                if v == target {
+                    return mid
+                }
+                if v < target {
+                    lo = mid + 1
+                } else {
+                    hi = mid - 1
+                }
+            }
+            None => {
+                return -1
+            }
+        }
+    }
+    return -1
+}

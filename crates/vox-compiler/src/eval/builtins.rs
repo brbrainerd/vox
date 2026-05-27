@@ -340,6 +340,16 @@ pub fn call_builtin_method(
                 Some(VoxValue::Str(s.repeat(n)))
             }
             "chars_count" => Some(VoxValue::Int(s.chars().count() as i64)),
+            "ord" => {
+                // Return the Unicode code point of the first character.
+                Some(VoxValue::Int(
+                    s.chars().next().map(|c| c as i64).unwrap_or(0),
+                ))
+            }
+            "chars" => {
+                let list: Vec<VoxValue> = s.chars().map(|c| VoxValue::Str(c.to_string())).collect();
+                Some(VoxValue::List(list))
+            }
             "to_str" | "to_string" => Some(VoxValue::Str(s.clone())),
             "slice" => {
                 let mut it = args.into_iter();

@@ -1,0 +1,12 @@
+[problem]
+id = "061"
+title = "binary_to_int"
+prompt = """
+Convert a binary string (containing only '0' and '1' characters) to its integer value.
+For example: "101" -> 5, "1000" -> 8, "0" -> 0.
+"""
+signature = "fn binary_to_int(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

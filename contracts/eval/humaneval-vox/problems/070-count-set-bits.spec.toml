@@ -1,0 +1,13 @@
+[problem]
+id = "070"
+title = "count_set_bits"
+prompt = """
+Count the number of 1 bits (set bits) in the binary representation of non-negative integer n.
+For example: count_set_bits(5) = 2 because 5 = 0b101 has two 1 bits.
+count_set_bits(0) = 0.
+"""
+signature = "fn count_set_bits(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

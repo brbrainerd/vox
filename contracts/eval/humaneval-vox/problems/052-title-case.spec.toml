@@ -1,0 +1,12 @@
+[problem]
+id = "052"
+title = "title_case"
+prompt = """
+Convert a string to title case: capitalize the first letter of each word.
+Words are separated by single spaces. If the string is empty, return "".
+"""
+signature = "fn title_case(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []
