@@ -2,6 +2,26 @@ use super::value::VoxValue;
 use super::{EvalError, Interpreter};
 use crate::hir::nodes::{HirBinOp, HirExpr, HirUnOp};
 
+/// Normalize a bare constructor value into its canonical runtime form.
+///
+/// Zero-arg constructors (`None`) and the ADT constructor names (`Ok`, `Err`,
+/// `Some`) are stored in scope as `Constructor("None")` etc. because they
+/// can also appear as callables.  When used as a *value* (in `return None`,
+/// `let x = None`, `?` operator, etc.) we need the real runtime shape.
+///
+/// One-arg constructors (`Some`, `Ok`, `Err`) are NOT normalized here because
+/// they still need their inner value; only the zero-arg `None` case is safe
+/// to resolve.
+///
+/// Call sites: `HirStmt::Return`, `HirExpr::Try`, and any place where a bare
+/// Constructor would otherwise be passed downstream without being applied.
+pub(crate) fn normalize_constructor(val: VoxValue) -> VoxValue {
+    match val {
+        VoxValue::Constructor(ref n) if n == "None" => VoxValue::Option(None),
+        other => other,
+    }
+}
+
 pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
     match expr {
@@ -502,6 +522,38 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         .map(|(_, v)| Box::new(v)),
                 )),
                 _ => Ok(VoxValue::Option(None)),
+            }
+        }
+        // `?` / try operator — propagate early-return on Err/None, unwrap on Ok/Some.
+        //
+        // On `Result(Ok(v))` or `Option(Some(v))`: evaluate to `v` (the unwrapped inner).
+        // On `Result(Err(e))`: signal early return by producing `_Return(Result(Err(e)))`.
+        // On `Option(None)`:   signal early return by producing `_Return(Option(None))`.
+        //
+        // The `_Return` sentinel is caught at every function-call boundary (in both
+        // the function-call handler above and the closures runner below), so the
+        // enclosing function's return value becomes the Err/None that was propagated.
+        //
+        // Callers that assign the result of `eval_expr` to a variable (e.g.
+        // `HirStmt::Let`) must check for `_Return` before destructuring the value;
+        // see `eval/stmt.rs`.
+        HirExpr::Try(hir_try) => {
+            let raw = eval_expr(interp, &hir_try.target)?;
+            // Normalize zero-arg constructors: `return None` produces
+            // `Constructor("None")`; normalize to `Option(None)` before matching.
+            let val = normalize_constructor(raw);
+            match val {
+                VoxValue::Result(Ok(v)) => Ok(*v),
+                VoxValue::Result(Err(e)) => {
+                    Ok(VoxValue::_Return(Box::new(VoxValue::Result(Err(e)))))
+                }
+                VoxValue::Option(Some(v)) => Ok(*v),
+                VoxValue::Option(None) => {
+                    Ok(VoxValue::_Return(Box::new(VoxValue::Option(None))))
+                }
+                // Non-Result/Option: pass through unchanged (shouldn't happen in
+                // well-typed programs; typechecker rejects the expression first).
+                other => Ok(other),
             }
         }
         _ => Ok(VoxValue::Null),

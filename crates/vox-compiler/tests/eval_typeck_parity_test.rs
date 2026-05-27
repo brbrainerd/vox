@@ -444,6 +444,71 @@ fn int_div_by_zero_produces_clean_error() {
     );
 }
 
+// ── `?` operator (try / error-propagation) ──────────────────────────────────
+
+/// `?` on `Result` — unwraps `Ok` inline, or early-returns with the `Err`.
+/// Landed 2026-05-27: `HirExpr::Try` eval arm was missing; the
+/// `_ => VoxValue::Null` catch-all silently returned Null instead of
+/// propagating the error. Now properly implemented.
+#[test]
+fn try_operator_on_result_propagates_err_and_unwraps_ok() {
+    // Helper that returns `Ok("success")` on truthy input, `Err("fail")` otherwise.
+    let source = r#"
+    fn maybe_ok(flag: bool) to Result[str] {
+        if flag { return Ok("success") }
+        return Err("fail")
+    }
+    fn main() to bool {
+        // ? on Ok: unwraps to the inner string.
+        let val = maybe_ok(true)?
+        let ok_case = val == "success"
+        return ok_case
+    }
+    "#;
+    let res = run_probe(source).expect("? on Ok should evaluate cleanly");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
+/// `?` on `Result(Err)` early-returns the enclosing function with Err.
+#[test]
+fn try_operator_on_err_causes_early_return() {
+    let source = r#"
+    fn failing() to Result[str] {
+        return Err("oops")
+    }
+    fn caller() to Result[str] {
+        let _ = failing()?
+        return Ok("unreachable")
+    }
+    fn main() to bool {
+        let r = caller()
+        return r.is_err()
+    }
+    "#;
+    let res = run_probe(source).expect("? on Err should propagate to caller");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
+/// `?` on `Option(None)` early-returns the enclosing function with None.
+#[test]
+fn try_operator_on_none_causes_early_return() {
+    let source = r#"
+    fn returns_none() to Option[str] {
+        return None
+    }
+    fn caller() to Option[str] {
+        let _ = returns_none()?
+        return Some("unreachable")
+    }
+    fn main() to bool {
+        let r = caller()
+        return r.is_none()
+    }
+    "#;
+    let res = run_probe(source).expect("? on None should propagate to caller");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
 /// Negation must use `not`, not `!`. Lock the phonetic-only choice
 /// (audit doc §8).
 #[test]

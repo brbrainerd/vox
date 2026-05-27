@@ -181,6 +181,10 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
         HirStmt::Return { value, .. } => {
             if let Some(val) = value {
                 let v = super::expr::eval_expr(interp, val)?;
+                // Normalize zero-arg constructors: `return None` produces
+                // `Constructor("None")`; normalize to `Option(None)` so callers
+                // can call `.is_none()` etc. on the returned value.
+                let v = super::expr::normalize_constructor(v);
                 Ok(VoxValue::_Return(Box::new(v)))
             } else {
                 Ok(VoxValue::_Return(Box::new(VoxValue::Null)))
@@ -190,6 +194,12 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
         HirStmt::Continue { .. } => Ok(VoxValue::_Continue),
         HirStmt::Let { pattern, value, .. } => {
             let v = super::expr::eval_expr(interp, value)?;
+            // Propagate early-return from the `?` operator in the RHS expression.
+            // `HirExpr::Try` on Err/None produces `VoxValue::_Return(...)` which
+            // must bubble up through the statement loop, not be bound to the pattern.
+            if matches!(v, VoxValue::_Return(_)) {
+                return Ok(v);
+            }
             eval_pattern(interp, pattern, v)?;
             // If the RHS was `list_var.pop()`, shrink the list variable.
             apply_pop_side_effect(interp, value);
@@ -197,6 +207,10 @@ pub fn eval_stmt(interp: &mut Interpreter, stmt: &HirStmt) -> Result<VoxValue, E
         }
         HirStmt::Assign { target, value, .. } => {
             let v = super::expr::eval_expr(interp, value)?;
+            // Propagate early-return from `?` on RHS.
+            if matches!(v, VoxValue::_Return(_)) {
+                return Ok(v);
+            }
             match target {
                 HirExpr::Ident(name, _) => {
                     interp.scope.set_mut(name, v);
