@@ -486,6 +486,11 @@ pub async fn mcp_infer_tool_completion(
                     None => (estimated_usd, "estimated"),
                 };
                 let infer_latency_ms = infer_start.elapsed().as_millis() as u64;
+                // Phase C: populate trace fields from the ambient TRACE_CTX set by
+                // dispatch::handle_tool_call's TRACE_CTX::scope wrapper.  Outside any
+                // dispatch scope the default context still provides a fresh UUID trace_id,
+                // which preserves the prior per-call behavior for orphan callers.
+                let trace_ctx = vox_telemetry::current_trace_ctx();
 
                 vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::ModelCall(
                     vox_telemetry::ModelCallEvent {
@@ -501,10 +506,10 @@ pub async fn mcp_infer_tool_completion(
                         cost_source: cost_source.to_string(),
                         error_class: None,
                         retry_attempt: 0,
-                        task_id: None,
-                        parent_task_id: None,
-                        trace_id: None,
-                        caller_agent_id: None,
+                        task_id: trace_ctx.task_id,
+                        parent_task_id: trace_ctx.parent_task_id,
+                        trace_id: Some(trace_ctx.trace_id.to_string()),
+                        caller_agent_id: trace_ctx.caller_agent_id,
                     }
                 ));
 
