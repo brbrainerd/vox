@@ -158,8 +158,8 @@ pub fn call_builtin_method(
                     Some(VoxValue::Option(None))
                 }
             }
-            "first" => Some(v.first().cloned().unwrap_or(VoxValue::Null)),
-            "last" => Some(v.last().cloned().unwrap_or(VoxValue::Null)),
+            "first" => Some(VoxValue::Option(v.first().cloned().map(Box::new))),
+            "last" => Some(VoxValue::Option(v.last().cloned().map(Box::new))),
             "contains" => {
                 let target = args.into_iter().next().unwrap_or(VoxValue::Null);
                 Some(VoxValue::Bool(v.contains(&target)))
@@ -176,6 +176,52 @@ pub fn call_builtin_method(
                 let mut owned = v.clone();
                 owned.reverse();
                 Some(VoxValue::List(owned))
+            }
+            "reversed" => {
+                let mut owned = v.clone();
+                owned.reverse();
+                Some(VoxValue::List(owned))
+            }
+            "sorted" => {
+                let mut owned = v.clone();
+                owned.sort_by(|a, b| vox_value_cmp(a, b));
+                Some(VoxValue::List(owned))
+            }
+            "sum" => {
+                let mut int_sum: i64 = 0;
+                let mut float_sum: f64 = 0.0;
+                let mut is_float = false;
+                for item in v.iter() {
+                    match item {
+                        VoxValue::Int(n) => { int_sum += n; float_sum += *n as f64; }
+                        VoxValue::Float(f) => { is_float = true; float_sum += f; }
+                        _ => {}
+                    }
+                }
+                if is_float {
+                    Some(VoxValue::Float(float_sum))
+                } else {
+                    Some(VoxValue::Int(int_sum))
+                }
+            }
+            "max" if args.is_empty() => {
+                let result = v.iter().max_by(|a, b| vox_value_cmp(a, b)).cloned();
+                Some(VoxValue::Option(result.map(Box::new)))
+            }
+            "min" if args.is_empty() => {
+                let result = v.iter().min_by(|a, b| vox_value_cmp(a, b)).cloned();
+                Some(VoxValue::Option(result.map(Box::new)))
+            }
+            "flatten" => {
+                let mut flat = Vec::new();
+                for item in v.iter() {
+                    if let VoxValue::List(inner) = item {
+                        flat.extend(inner.iter().cloned());
+                    } else {
+                        flat.push(item.clone());
+                    }
+                }
+                Some(VoxValue::List(flat))
             }
             // Json-shaped arrays (`std.json.parse`, `std.csv.parse`, …) use these names in typecheck + native `VoxJson`.
             // Strict-Option API per json-ergonomics-rfc-2026-05-23.
@@ -336,6 +382,18 @@ pub fn call_builtin_method(
                     None => Some(VoxValue::Option(None)),
                 }
             }
+            "to_int" => Some(VoxValue::Option(
+                s.trim()
+                    .parse::<i64>()
+                    .ok()
+                    .map(|n| Box::new(VoxValue::Int(n))),
+            )),
+            "to_float" => Some(VoxValue::Option(
+                s.trim()
+                    .parse::<f64>()
+                    .ok()
+                    .map(|f| Box::new(VoxValue::Float(f))),
+            )),
             _ => None,
         },
 
@@ -1729,6 +1787,35 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
             };
             Some(VoxValue::Str(t.to_string()))
         }
+        "abs" => match args.into_iter().next()? {
+            VoxValue::Int(n) => Some(VoxValue::Int(n.abs())),
+            VoxValue::Float(f) => Some(VoxValue::Float(f.abs())),
+            _ => None,
+        },
+        "max" => {
+            let mut it = args.into_iter();
+            match (it.next(), it.next()) {
+                (Some(VoxValue::Int(a)), Some(VoxValue::Int(b))) => {
+                    Some(VoxValue::Int(a.max(b)))
+                }
+                (Some(VoxValue::Float(a)), Some(VoxValue::Float(b))) => {
+                    Some(VoxValue::Float(a.max(b)))
+                }
+                _ => None,
+            }
+        }
+        "min" => {
+            let mut it = args.into_iter();
+            match (it.next(), it.next()) {
+                (Some(VoxValue::Int(a)), Some(VoxValue::Int(b))) => {
+                    Some(VoxValue::Int(a.min(b)))
+                }
+                (Some(VoxValue::Float(a)), Some(VoxValue::Float(b))) => {
+                    Some(VoxValue::Float(a.min(b)))
+                }
+                _ => None,
+            }
+        }
         _ => None,
     }
 }
@@ -1754,6 +1841,19 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
         VoxValue::_Break => "_Break",
         VoxValue::_Continue => "_Continue",
         VoxValue::_Panic(_) => "_Panic",
+    }
+}
+
+/// Total ordering for comparable VoxValues. Used by `sorted()`, list
+/// `max()`, and list `min()`. Mixed types compare as equal to avoid panics.
+pub(super) fn vox_value_cmp(a: &VoxValue, b: &VoxValue) -> std::cmp::Ordering {
+    match (a, b) {
+        (VoxValue::Int(x), VoxValue::Int(y)) => x.cmp(y),
+        (VoxValue::Float(x), VoxValue::Float(y)) => {
+            x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
+        }
+        (VoxValue::Str(x), VoxValue::Str(y)) => x.cmp(y),
+        _ => std::cmp::Ordering::Equal,
     }
 }
 

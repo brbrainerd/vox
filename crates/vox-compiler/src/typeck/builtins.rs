@@ -193,6 +193,39 @@ impl BuiltinTypes {
             },
         );
 
+        // abs(n: int) → int   (global convenience — also available as n.abs())
+        env.define(
+            "abs".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int], Box::new(Ty::Int)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // max(a: int, b: int) → int   (two-arg global)
+        env.define(
+            "max".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::Int)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // min(a: int, b: int) → int   (two-arg global)
+        env.define(
+            "min".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::Int)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // has_capability(token: cap) → bool
         // Runtime predicate that checks whether the supplied capability token is
         // valid and has not been revoked. Used in the platform capability model.
@@ -606,6 +639,60 @@ impl BuiltinTypes {
                 Box::new(Ty::GenericParam(1)),
             ),
         );
+        // sorted() — returns a new sorted copy of the list.
+        list_methods.insert(
+            "sorted".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::GenericParam(0))))),
+        );
+        // reversed() — returns a new reversed copy of the list.
+        list_methods.insert(
+            "reversed".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::GenericParam(0))))),
+        );
+        // reverse() — in-place reverse, returns unit (mutation variant).
+        list_methods.insert("reverse".into(), Ty::Fn(vec![], Box::new(Ty::Unit)));
+        // sum() — sums numeric elements; registered as T→T for both int and float lists.
+        list_methods.insert(
+            "sum".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        // max() → Option[T] — largest element.
+        list_methods.insert(
+            "max".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // min() → Option[T] — smallest element.
+        list_methods.insert(
+            "min".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // flatten() → List[T] — flattens one level (list[list[T]] → list[T]).
+        list_methods.insert(
+            "flatten".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::GenericParam(0))))),
+        );
+        // first() → Option[T] and last() → Option[T] — safe head/tail.
+        list_methods.insert(
+            "first".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
+        );
+        list_methods.insert(
+            "last".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
+        );
+        // is_empty() → bool
+        list_methods.insert("is_empty".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        // pop() → Option[T] — removes and returns last element.
+        list_methods.insert(
+            "pop".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
+        );
         methods.insert("List".into(), list_methods);
 
         // Fs module methods. Every entry mirrors a registered arm in
@@ -999,6 +1086,16 @@ impl BuiltinTypes {
         str_methods.insert(
             "bytes".into(),
             Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Int)))),
+        );
+        // to_int() → Option[int] — parse string as integer (None on failure).
+        str_methods.insert(
+            "to_int".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Int)))),
+        );
+        // to_float() → Option[float] — parse string as float (None on failure).
+        str_methods.insert(
+            "to_float".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Float)))),
         );
         methods.insert("Str".into(), str_methods);
 
