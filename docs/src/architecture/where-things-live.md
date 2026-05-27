@@ -65,7 +65,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
-| [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
+| [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro, `TelemetryConfig` (Phase D: org-policy hard-off + `VOX_TELEMETRY=on/off/debug`), per-task `TaskAggregate`, `record_task_started`. Zero domain dependencies. |
 | [`vox-http-client`](../../../crates/vox-http-client/) | Shared HTTP client presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
 | [`vox-rename-registry`](../../../crates/vox-rename-registry/) | Rename registry (`RenameKind`, `RenameRegistry`, `RegistryError`) and primitive-tag lookup (`primitive_tags::all_primitives`, `is_primitive`). L0 — zero workspace deps. Re-exported via `vox_compiler::parser::renames` and `vox_compiler::lowering_shared::primitive_tags`. |
 | [`vox-shell-stdlib-types`](../../../crates/vox-shell-stdlib-types/) | Shared data types for the Vox shell stdlib surface (`std.fs.*`). `VoxFileRecord` — the canonical file-metadata type used by both the compiler interpreter path and `vox-actor-runtime` codegen path. L0 — only `serde` dep. |
@@ -195,6 +195,10 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Calibration — drift detection + bandit (D10) | `crates/vox-orchestrator/src/calibration.rs` |
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
 | Orchestrator policy metric_type constants | `crates/vox-telemetry/src/types.rs` — `METRIC_TYPE_*` constants |
+| Telemetry master switch + org-policy hard-off | `crates/vox-telemetry/src/config.rs` — `TelemetryConfig::from_env()`, `org_policy_disabled()` (reads `/etc/vox/telemetry-policy.toml`), `is_master_enabled()`. Resolution order: org policy → `VOX_TELEMETRY` env var → per-category vars → default. |
+| Telemetry debug sink (stderr JSON dump) | `crates/vox-cli/src/lib.rs` — `StderrDebugSink`; registered when `VOX_TELEMETRY=debug`. |
+| Telemetry sink backed by VoxDb | `crates/vox-db/src/telemetry_sink.rs` — `ResearchMetricsSink`; handles `ModelCall`, `TaskRootSummary`, `BuildSummary`, `Error`, `AiFixture`. |
+| LLM retry-loop error events | `crates/vox-orchestrator-mcp/src/llm_bridge/infer.rs` — `emit_llm_error_event()` helper + `retry_attempt` counter; emitted at each fallback site and terminal failure. |
 | Orchestrator feature flags | `contracts/orchestration/feature-flags.v1.yaml` |
 | AgentOS MCP → `mutation_kind` SSOT (orchestrator + `std.agentos` in Vox) | `crates/vox-agentos-mutation/` |
 | AgentOS ACI envelope + mutation classification (MCP) | `crates/vox-orchestrator-mcp/src/aci/` |
