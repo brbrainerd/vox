@@ -17,7 +17,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             } else if matches!(
                 name.as_str(),
                 "print" | "range" | "str" | "int" | "float" | "len" | "assert" | "chr"
-                | "abs" | "max" | "min"
+                | "abs" | "max" | "min" | "sorted" | "sum" | "bool" | "type_of"
             ) {
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {

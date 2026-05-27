@@ -229,6 +229,34 @@ impl BuiltinTypes {
             },
         );
 
+        // sorted(list: list[T]) → list[T]  (free-function form of list.sorted())
+        env.define(
+            "sorted".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                    Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+                ),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // sum(list: list[T]) → T  (free-function form of list.sum())
+        env.define(
+            "sum".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                    Box::new(Ty::GenericParam(0)),
+                ),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // has_capability(token: cap) → bool
         // Runtime predicate that checks whether the supplied capability token is
         // valid and has not been revoked. Used in the platform capability model.

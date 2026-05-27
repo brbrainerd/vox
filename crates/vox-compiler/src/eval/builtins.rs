@@ -1997,11 +1997,16 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
         "max" => {
             let mut it = args.into_iter();
             match (it.next(), it.next()) {
+                // max(a, b) — two-argument form
                 (Some(VoxValue::Int(a)), Some(VoxValue::Int(b))) => {
                     Some(VoxValue::Int(a.max(b)))
                 }
                 (Some(VoxValue::Float(a)), Some(VoxValue::Float(b))) => {
                     Some(VoxValue::Float(a.max(b)))
+                }
+                // max(list) — single list argument
+                (Some(VoxValue::List(items)), None) => {
+                    items.into_iter().max_by(|a, b| vox_value_cmp(a, b))
                 }
                 _ => None,
             }
@@ -2009,13 +2014,51 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
         "min" => {
             let mut it = args.into_iter();
             match (it.next(), it.next()) {
+                // min(a, b) — two-argument form
                 (Some(VoxValue::Int(a)), Some(VoxValue::Int(b))) => {
                     Some(VoxValue::Int(a.min(b)))
                 }
                 (Some(VoxValue::Float(a)), Some(VoxValue::Float(b))) => {
                     Some(VoxValue::Float(a.min(b)))
                 }
+                // min(list) — single list argument
+                (Some(VoxValue::List(items)), None) => {
+                    items.into_iter().min_by(|a, b| vox_value_cmp(a, b))
+                }
                 _ => None,
+            }
+        }
+        // sorted(list) → List[T] — ascending sort (free-function form)
+        "sorted" => {
+            let v = args.into_iter().next()?;
+            if let VoxValue::List(mut items) = v {
+                items.sort_by(|a, b| vox_value_cmp(a, b));
+                Some(VoxValue::List(items))
+            } else {
+                None
+            }
+        }
+        // sum(list) → int | float — sum of numeric list (free-function form)
+        "sum" => {
+            let v = args.into_iter().next()?;
+            if let VoxValue::List(items) = v {
+                let mut int_sum: i64 = 0;
+                let mut float_sum: f64 = 0.0;
+                let mut is_float = false;
+                for item in &items {
+                    match item {
+                        VoxValue::Int(n) => { int_sum += n; float_sum += *n as f64; }
+                        VoxValue::Float(f) => { is_float = true; float_sum += f; }
+                        _ => {}
+                    }
+                }
+                if is_float {
+                    Some(VoxValue::Float(float_sum))
+                } else {
+                    Some(VoxValue::Int(int_sum))
+                }
+            } else {
+                None
             }
         }
         // chr(code: int) → str  — complement of s.ord()
