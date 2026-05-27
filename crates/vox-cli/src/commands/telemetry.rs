@@ -67,6 +67,7 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
             println!("master_enabled:        {}", master);
             println!("enabled:               {}", cfg.enabled);
             println!("remote_upload:         {}", cfg.remote_upload);
+            println!("debug_to_stderr:       {}", cfg.debug_to_stderr);
             println!("─────────────────────────────────────");
             println!("categories:");
             println!("  research_metrics:    {}", cfg.research_metrics);
@@ -86,6 +87,8 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
                 std::process::exit(1);
             } else if !recorder_active {
                 println!("STATUS: WARNING   (no recorder registered — events are no-ops)");
+            } else if cfg.debug_to_stderr {
+                println!("STATUS: DEBUG     (VOX_TELEMETRY=debug — events printed to stderr)");
             } else {
                 println!("STATUS: OK");
             }

@@ -468,7 +468,7 @@ jobs:
 
       - name: Mesh transport + workflow-runtime + CLI feature matrix slice
         run: |
-          cargo nextest run -p vox-populi --features transport
+          cargo nextest run -p vox-populi --features transport,mens
           cargo nextest run -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 

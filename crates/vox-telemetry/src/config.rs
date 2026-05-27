@@ -27,6 +27,10 @@ pub struct TelemetryConfig {
     pub build: bool,
     /// Gather subsystem error events (Phase D).
     pub errors: bool,
+    /// When true (`VOX_TELEMETRY=debug`), emit every event as JSON to stderr for
+    /// developer inspection. The CLI registers a `StdoutSink` (writing to stderr)
+    /// when this flag is set. Default: false.
+    pub debug_to_stderr: bool,
 }
 
 impl TelemetryConfig {
@@ -40,6 +44,7 @@ impl TelemetryConfig {
             agent_orchestration: true,
             build: true,
             errors: true,
+            debug_to_stderr: false,
         }
     }
 
@@ -53,6 +58,7 @@ impl TelemetryConfig {
             agent_orchestration: false,
             build: false,
             errors: false,
+            debug_to_stderr: false,
         }
     }
 
@@ -71,6 +77,7 @@ impl TelemetryConfig {
             _ => {}
         }
 
+        let debug_to_stderr = matches!(master.as_deref(), Some("debug"));
         let benchmark_legacy = env_flag("VOX_BENCHMARK_TELEMETRY");
         let mcp_cost_legacy = env_flag("VOX_MCP_LLM_COST_EVENTS");
 
@@ -82,6 +89,7 @@ impl TelemetryConfig {
             agent_orchestration: true,
             build: true,
             errors: true,
+            debug_to_stderr,
         }
     }
 
@@ -144,6 +152,21 @@ mod tests {
         assert!(cfg.research_metrics);
         assert!(cfg.model_calls);
         assert!(cfg.build);
+        assert!(!cfg.debug_to_stderr);
+    }
+
+    #[test]
+    #[serial]
+    fn debug_mode_sets_debug_to_stderr_and_stays_enabled() {
+        unsafe {
+            std::env::set_var("VOX_TELEMETRY", "debug");
+        }
+        let cfg = TelemetryConfig::from_env();
+        assert!(cfg.enabled, "debug mode should keep telemetry enabled");
+        assert!(cfg.debug_to_stderr, "debug mode should set debug_to_stderr");
+        unsafe {
+            std::env::remove_var("VOX_TELEMETRY");
+        }
     }
 
     #[test]
