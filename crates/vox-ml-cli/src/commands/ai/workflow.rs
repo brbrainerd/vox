@@ -292,7 +292,8 @@ pub async fn run_workflow(
             None,
             false,
             false,
-            vox_cli::cli_args::BuildMode::App,
+            vox_cli_core::cli_args::BuildMode::App,
+            vox_cli::RustAppShell::default(),
         )
         .await?;
 
@@ -305,13 +306,13 @@ pub async fn run_workflow(
             ("VOX_WORKFLOW_ARGS".to_string(), args_json.to_string()),
         ];
 
-        let req = vox_cli::build_service::CargoRequest::run(
+        let req = vox_cli_core::build_service::CargoRequest::run(
             generated_dir,
             Some(shared_target),
             vec!["--".to_string()],
             extra_env,
         );
-        let output = vox_cli::build_service::run_cargo(&req)
+        let output = vox_cli_core::build_service::run_cargo(&req)
             .context("Failed to execute workflow (cargo run in generated directory)")?;
 
         if !output.status.success() {

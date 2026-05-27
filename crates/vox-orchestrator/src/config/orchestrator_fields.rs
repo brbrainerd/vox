@@ -439,8 +439,9 @@ pub struct OrchestratorConfig {
     pub exec_time_history_window_days: u32,
 
     // ── AgentOS (ACI envelopes + guardrails) ─────────────────────────────────
-    /// When true, MCP tool JSON responses include a validated sibling `aci` block. Default: false.
-    #[serde(default = "default_false")]
+    /// When true, MCP tool JSON responses include a validated sibling `aci` block.
+    /// Default: `true` since v0.6 (CR-L5; council D20, 2026-05-15).
+    #[serde(default = "default_true")]
     pub agentos_aci_envelope_enabled: bool,
     /// When true, [`crate::agentos::guardrail_kernel`] runs before mutating / dangerous tools.
     #[serde(default = "default_false")]

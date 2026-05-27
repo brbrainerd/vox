@@ -12,6 +12,9 @@ mod build_lock;
 pub use vox_cli_core::build_service;
 pub mod cli_actions;
 pub mod cli_args;
+/// Re-exported from `vox-codegen` for callers that drive the build pipeline
+/// without taking a direct `vox-codegen` dependency.
+pub use vox_codegen::codegen_rust::RustAppShell;
 mod cli_dispatch;
 mod codex_cmd;
 mod command_contract;
