@@ -145,6 +145,9 @@ impl BuiltinTypes {
         // ── Standard library functions ────────────────────────
 
         // print(value: str) → Unit
+        // NOTE: The call checker special-cases `print` to accept any single
+        // argument type, so `print(42)`, `print(true)`, etc. all type-check.
+        // The Str param here is a nominal fallback for signature display only.
         env.define(
             "print".into(),
             Binding {

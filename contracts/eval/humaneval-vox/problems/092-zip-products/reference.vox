@@ -1,0 +1,23 @@
+fn zip_products(a: list[int], b: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut i: int = 0
+    while i < a.len() {
+        let mut va: int = 0
+        let mut vb: int = 0
+        match a[i] {
+            Some(v) => {
+                va = v
+            }
+            None => {}
+        }
+        match b[i] {
+            Some(v) => {
+                vb = v
+            }
+            None => {}
+        }
+        result.push(va * vb)
+        i = i + 1
+    }
+    return result
+}

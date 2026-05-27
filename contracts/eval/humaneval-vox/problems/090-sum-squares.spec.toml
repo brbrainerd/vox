@@ -1,0 +1,11 @@
+[problem]
+id = "090"
+title = "sum-squares"
+prompt = """
+Write a Vox function sum_squares(items: list[int]) to int that returns the sum of squares (n^2) of all integers in the list.
+"""
+signature = "fn sum_squares(items: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

@@ -1,0 +1,31 @@
+fn digit_product(n: int) to int {
+    let s: str = str(n)
+    let chars: list[str] = s.chars()
+    let mut product: int = 1
+    let mut i: int = 0
+    while i < chars.len() {
+        match chars[i] {
+            Some(c) => {
+                match c.to_int() {
+                    Some(d) => {
+                        product = product * d
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return product
+}
+
+fn main() to str {
+    assert(digit_product(234) == 24)
+    assert(digit_product(111) == 1)
+    assert(digit_product(9) == 9)
+    assert(digit_product(23) == 6)
+    assert(digit_product(999) == 729)
+    assert(digit_product(123) == 6)
+    return "ok"
+}

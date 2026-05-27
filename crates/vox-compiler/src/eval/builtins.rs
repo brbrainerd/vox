@@ -169,7 +169,7 @@ pub fn call_builtin_method(
                     Some(VoxValue::Str(s)) => s,
                     _ => String::new(),
                 };
-                let strings: Vec<String> = v.iter().map(|x| format!("{x:?}")).collect();
+                let strings: Vec<String> = v.iter().map(|x| vox_value_display(x)).collect();
                 Some(VoxValue::Str(strings.join(&sep)))
             }
             "reverse" => {

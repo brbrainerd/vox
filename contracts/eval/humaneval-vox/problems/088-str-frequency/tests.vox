@@ -1,0 +1,27 @@
+fn char_frequency(s: str, ch: str) to int {
+    let chars: list[str] = s.chars()
+    let mut count: int = 0
+    let mut i: int = 0
+    while i < chars.len() {
+        match chars[i] {
+            Some(c) => {
+                if c == ch {
+                    count = count + 1
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return count
+}
+
+fn main() to str {
+    assert(char_frequency("hello", "l") == 2)
+    assert(char_frequency("banana", "a") == 3)
+    assert(char_frequency("abc", "z") == 0)
+    assert(char_frequency("", "a") == 0)
+    assert(char_frequency("aaa", "a") == 3)
+    assert(char_frequency("mississippi", "s") == 4)
+    return "ok"
+}

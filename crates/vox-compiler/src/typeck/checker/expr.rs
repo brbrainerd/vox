@@ -338,6 +338,21 @@ impl<'a> Checker<'a> {
                             let _ = self.uf.unify(&Ty::Int, &arg_ty);
                             return ret.as_ref().clone();
                         }
+                        // Special case: `print(value)` accepts any type.  The
+                        // stdlib registers print as `(str) → Unit` for the common
+                        // case but LLM-generated code frequently calls
+                        // `print(42)`, `print(true)`, `print(list)`, etc.  Rather
+                        // than force every caller to `print(str(x))`, we skip the
+                        // strict Str constraint when the callee is the builtin
+                        // `print` and there is exactly one argument.
+                        let is_print_call = args.len() == 1
+                            && matches!(callee.as_ref(), HirExpr::Ident(name, _) if name == "print");
+                        if is_print_call {
+                            // Type-check the argument (so inner errors are still caught)
+                            // but don't enforce the Str param constraint.
+                            let _ = self.check_expr(&args[0].value, None);
+                            return Ty::Unit;
+                        }
                         // Pre-bind generic type variables by unifying the declared return type
                         // with the expected type *before* checking arguments.  This lets
                         // `Ok(ObjectLit)` propagate `Result[T] ~ Result[MatrixProduct]` →

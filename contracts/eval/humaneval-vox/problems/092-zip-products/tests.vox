@@ -1,0 +1,32 @@
+fn zip_products(a: list[int], b: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut i: int = 0
+    while i < a.len() {
+        let mut va: int = 0
+        let mut vb: int = 0
+        match a[i] {
+            Some(v) => {
+                va = v
+            }
+            None => {}
+        }
+        match b[i] {
+            Some(v) => {
+                vb = v
+            }
+            None => {}
+        }
+        result.push(va * vb)
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(zip_products([1, 2, 3], [4, 5, 6]) == [4, 10, 18])
+    assert(zip_products([2, 3], [3, 4]) == [6, 12])
+    assert(zip_products([], []) == [])
+    assert(zip_products([5], [7]) == [35])
+    assert(zip_products([1, 0, 3], [9, 9, 9]) == [9, 0, 27])
+    return "ok"
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "086"
+title = "is-square"
+prompt = """
+Write a Vox function is_square(n: int) to bool that returns true if n is a perfect square (n >= 0). Uses integer square root check.
+"""
+signature = "fn is_square(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math"]

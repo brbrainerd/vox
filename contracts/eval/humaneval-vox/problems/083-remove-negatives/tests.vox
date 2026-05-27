@@ -1,0 +1,25 @@
+fn remove_negatives(items: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut i: int = 0
+    while i < items.len() {
+        match items[i] {
+            Some(v) => {
+                if v >= 0 {
+                    result.push(v)
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(remove_negatives([-1, 2, -3, 4]) == [2, 4])
+    assert(remove_negatives([1, 2, 3]) == [1, 2, 3])
+    assert(remove_negatives([-1, -2, -3]) == [])
+    assert(remove_negatives([]) == [])
+    assert(remove_negatives([0, -5, 10]) == [0, 10])
+    return "ok"
+}

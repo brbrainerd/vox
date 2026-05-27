@@ -1,0 +1,18 @@
+fn repeat_list(items: list[int], n: int) to list[int] {
+    let mut result: list[int] = []
+    let mut i: int = 0
+    while i < n {
+        let mut j: int = 0
+        while j < items.len() {
+            match items[j] {
+                Some(v) => {
+                    result.push(v)
+                }
+                None => {}
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return result
+}

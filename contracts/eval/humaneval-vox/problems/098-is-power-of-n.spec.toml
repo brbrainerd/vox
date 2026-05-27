@@ -1,0 +1,11 @@
+[problem]
+id = "098"
+title = "is-power-of-n"
+prompt = """
+Write a Vox function is_power_of_n(x: int, base: int) to bool that returns true if x is a power of base (base >= 2, x >= 1). For example, is_power_of_n(8, 2) == true because 2^3 = 8.
+"""
+signature = "fn is_power_of_n(x: int, base: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["math"]

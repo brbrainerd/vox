@@ -1,0 +1,27 @@
+fn repeat_list(items: list[int], n: int) to list[int] {
+    let mut result: list[int] = []
+    let mut i: int = 0
+    while i < n {
+        let mut j: int = 0
+        while j < items.len() {
+            match items[j] {
+                Some(v) => {
+                    result.push(v)
+                }
+                None => {}
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(repeat_list([1, 2], 3) == [1, 2, 1, 2, 1, 2])
+    assert(repeat_list([5], 4) == [5, 5, 5, 5])
+    assert(repeat_list([1, 2, 3], 1) == [1, 2, 3])
+    assert(repeat_list([7, 8], 0) == [])
+    assert(repeat_list([], 5) == [])
+    return "ok"
+}

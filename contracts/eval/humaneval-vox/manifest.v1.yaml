@@ -9,6 +9,7 @@ schema_version: 1
 #
 # Landed: 2026-05-26 (minimum-viable: 50 problems, 10 held-out)
 # Expanded: 2026-05-26 (75 problems, 20 held-out)
+# Expanded: 2026-05-27 (100 problems, 25 held-out)
 
 corpus:
   id: humaneval-vox
@@ -19,12 +20,12 @@ corpus:
     sub_bar_block_demote: 0.60              # < 60% -> demote CR-L1 to v1.1
   count_target: 164                         # anchored to HumanEval-Python
   held_out_target: 30                       # 30 of 164 must be training_eligible:false
-  count_current: 75
-  held_out_current: 20
-  corpus_hash: "sha256:137c0b1a815e396f04d0b25d343c6ba32d91cbf4d412229964b4320935a04a98"
+  count_current: 100
+  held_out_current: 25
+  corpus_hash: "sha256:pending-rehash-after-expansion-to-100"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
-# Fixtures (75 problems: 55 training-eligible, 20 held-out).
+# Fixtures (100 problems: 75 training-eligible, 25 held-out).
 fixtures:
   - id: "001"
     slug: "001-fizzbuzz"
@@ -701,6 +702,231 @@ fixtures:
       spec: "problems/075-sum-even-squares.spec.toml"
       reference: "problems/075-sum-even-squares/reference.vox"
       tests: "problems/075-sum-even-squares/tests.vox"
+  - id: "076"
+    slug: "076-is-palindrome-int"
+    title: "is_palindrome_int"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/076-is-palindrome-int.spec.toml"
+      reference: "problems/076-is-palindrome-int/reference.vox"
+      tests: "problems/076-is-palindrome-int/tests.vox"
+  - id: "077"
+    slug: "077-sum-of-digits"
+    title: "sum_of_digits"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/077-sum-of-digits.spec.toml"
+      reference: "problems/077-sum-of-digits/reference.vox"
+      tests: "problems/077-sum-of-digits/tests.vox"
+  - id: "078"
+    slug: "078-count-uppercase"
+    title: "count_uppercase"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/078-count-uppercase.spec.toml"
+      reference: "problems/078-count-uppercase/reference.vox"
+      tests: "problems/078-count-uppercase/tests.vox"
+  - id: "079"
+    slug: "079-count-lowercase"
+    title: "count_lowercase"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/079-count-lowercase.spec.toml"
+      reference: "problems/079-count-lowercase/reference.vox"
+      tests: "problems/079-count-lowercase/tests.vox"
+  - id: "080"
+    slug: "080-capitalize-first"
+    title: "capitalize_first"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/080-capitalize-first.spec.toml"
+      reference: "problems/080-capitalize-first/reference.vox"
+      tests: "problems/080-capitalize-first/tests.vox"
+  - id: "081"
+    slug: "081-repeat-list"
+    title: "repeat_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/081-repeat-list.spec.toml"
+      reference: "problems/081-repeat-list/reference.vox"
+      tests: "problems/081-repeat-list/tests.vox"
+  - id: "082"
+    slug: "082-list-min-max"
+    title: "list_min_max"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/082-list-min-max.spec.toml"
+      reference: "problems/082-list-min-max/reference.vox"
+      tests: "problems/082-list-min-max/tests.vox"
+  - id: "083"
+    slug: "083-remove-negatives"
+    title: "remove_negatives"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/083-remove-negatives.spec.toml"
+      reference: "problems/083-remove-negatives/reference.vox"
+      tests: "problems/083-remove-negatives/tests.vox"
+  - id: "084"
+    slug: "084-sum-odd"
+    title: "sum_odd"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/084-sum-odd.spec.toml"
+      reference: "problems/084-sum-odd/reference.vox"
+      tests: "problems/084-sum-odd/tests.vox"
+  - id: "085"
+    slug: "085-count-even"
+    title: "count_even"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/085-count-even.spec.toml"
+      reference: "problems/085-count-even/reference.vox"
+      tests: "problems/085-count-even/tests.vox"
+  - id: "086"
+    slug: "086-is-square"
+    title: "is_square"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/086-is-square.spec.toml"
+      reference: "problems/086-is-square/reference.vox"
+      tests: "problems/086-is-square/tests.vox"
+  - id: "087"
+    slug: "087-int-reverse"
+    title: "int_reverse"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/087-int-reverse.spec.toml"
+      reference: "problems/087-int-reverse/reference.vox"
+      tests: "problems/087-int-reverse/tests.vox"
+  - id: "088"
+    slug: "088-str-frequency"
+    title: "char_frequency"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/088-str-frequency.spec.toml"
+      reference: "problems/088-str-frequency/reference.vox"
+      tests: "problems/088-str-frequency/tests.vox"
+  - id: "089"
+    slug: "089-flatten-nested"
+    title: "flatten_nested"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/089-flatten-nested.spec.toml"
+      reference: "problems/089-flatten-nested/reference.vox"
+      tests: "problems/089-flatten-nested/tests.vox"
+  - id: "090"
+    slug: "090-sum-squares"
+    title: "sum_squares"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/090-sum-squares.spec.toml"
+      reference: "problems/090-sum-squares/reference.vox"
+      tests: "problems/090-sum-squares/tests.vox"
+  - id: "091"
+    slug: "091-is-sorted-desc"
+    title: "is_sorted_desc"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/091-is-sorted-desc.spec.toml"
+      reference: "problems/091-is-sorted-desc/reference.vox"
+      tests: "problems/091-is-sorted-desc/tests.vox"
+  - id: "092"
+    slug: "092-zip-products"
+    title: "zip_products"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/092-zip-products.spec.toml"
+      reference: "problems/092-zip-products/reference.vox"
+      tests: "problems/092-zip-products/tests.vox"
+  - id: "093"
+    slug: "093-last-n"
+    title: "last_n"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/093-last-n.spec.toml"
+      reference: "problems/093-last-n/reference.vox"
+      tests: "problems/093-last-n/tests.vox"
+  - id: "094"
+    slug: "094-first-n"
+    title: "first_n"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/094-first-n.spec.toml"
+      reference: "problems/094-first-n/reference.vox"
+      tests: "problems/094-first-n/tests.vox"
+  - id: "095"
+    slug: "095-range-sum"
+    title: "range_sum"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/095-range-sum.spec.toml"
+      reference: "problems/095-range-sum/reference.vox"
+      tests: "problems/095-range-sum/tests.vox"
+  - id: "096"
+    slug: "096-reverse-words"
+    title: "reverse_words"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/096-reverse-words.spec.toml"
+      reference: "problems/096-reverse-words/reference.vox"
+      tests: "problems/096-reverse-words/tests.vox"
+  - id: "097"
+    slug: "097-digit-product"
+    title: "digit_product"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/097-digit-product.spec.toml"
+      reference: "problems/097-digit-product/reference.vox"
+      tests: "problems/097-digit-product/tests.vox"
+  - id: "098"
+    slug: "098-is-power-of-n"
+    title: "is_power_of_n"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/098-is-power-of-n.spec.toml"
+      reference: "problems/098-is-power-of-n/reference.vox"
+      tests: "problems/098-is-power-of-n/tests.vox"
+  - id: "099"
+    slug: "099-hamming-distance"
+    title: "hamming_distance"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/099-hamming-distance.spec.toml"
+      reference: "problems/099-hamming-distance/reference.vox"
+      tests: "problems/099-hamming-distance/tests.vox"
+  - id: "100"
+    slug: "100-pangram-check"
+    title: "is_pangram"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/100-pangram-check.spec.toml"
+      reference: "problems/100-pangram-check/reference.vox"
+      tests: "problems/100-pangram-check/tests.vox"
 
 # Provenance taxonomy enforced when fixtures land.
 provenance_kinds:
@@ -756,6 +982,20 @@ council_ratification_log:
       Minimum-viable corpus enables CI gate to flip from exit 2 to 0/1.
       Problems cover core Vox idioms: list/str manipulation, arithmetic,
       algorithmic patterns (sort, merge, Collatz, Caesar cipher).
+  - id: humaneval-vox-expansion-100-2026-05-27
+    decision: "100 problems (75 training, 25 held-out) landed 2026-05-27."
+    ratified_at: "2026-05-27"
+    rationale: >
+      Batch-3 expansion adds 25 problems (076-100) covering: palindrome integer,
+      digit sum via str conversion, uppercase/lowercase counting, capitalize-first,
+      repeat-list, list min-max, remove-negatives, sum-odd, count-even,
+      perfect-square check, digit-reverse, char-frequency, nested flatten,
+      sum-of-squares, descending sort check, zip-products, last-n/first-n slices,
+      range-sum, reverse-words, digit-product, power-of-n, Hamming distance,
+      pangram check.  All 100 pass vox check (typecheck) and vox run (runtime
+      assertions).  Bug fixed: list.join() was using debug format ({x:?}) for
+      elements; now uses vox_value_display.  Fix: print() now accepts any type
+      in typechecker (was str-only, breaking LLM-generated programs).
   - id: humaneval-vox-expansion-75-2026-05-26
     decision: "75 problems (55 training, 20 held-out) landed 2026-05-26."
     ratified_at: "2026-05-26"

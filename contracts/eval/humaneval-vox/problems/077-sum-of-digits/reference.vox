@@ -1,0 +1,21 @@
+fn sum_of_digits(n: int) to int {
+    let s: str = str(abs(n))
+    let chars: list[str] = s.chars()
+    let mut total: int = 0
+    let mut i: int = 0
+    while i < chars.len() {
+        match chars[i] {
+            Some(c) => {
+                match c.to_int() {
+                    Some(d) => {
+                        total = total + d
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return total
+}

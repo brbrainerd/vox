@@ -1,0 +1,11 @@
+[problem]
+id = "100"
+title = "pangram-check"
+prompt = """
+Write a Vox function is_pangram(s: str) to bool that returns true if the string contains every letter of the alphabet at least once (case-insensitive).
+"""
+signature = "fn is_pangram(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["strings"]

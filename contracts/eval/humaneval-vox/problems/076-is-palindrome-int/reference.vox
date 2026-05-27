@@ -1,0 +1,33 @@
+fn is_palindrome_int(n: int) to bool {
+    if n < 0 {
+        return false
+    }
+    let s: str = str(n)
+    let chars: list[str] = s.chars()
+    let mut i: int = 0
+    let mut j: int = chars.len() - 1
+    while i < j {
+        let ci: str = ""
+        let cj: str = ""
+        match chars[i] {
+            Some(c) => {
+                match chars[j] {
+                    Some(d) => {
+                        if c != d {
+                            return false
+                        }
+                    }
+                    None => {
+                        return false
+                    }
+                }
+            }
+            None => {
+                return false
+            }
+        }
+        i = i + 1
+        j = j - 1
+    }
+    return true
+}

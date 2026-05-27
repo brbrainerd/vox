@@ -1,0 +1,11 @@
+[problem]
+id = "085"
+title = "count-even"
+prompt = """
+Write a Vox function count_even(items: list[int]) to int that returns the count of even numbers in the list.
+"""
+signature = "fn count_even(items: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

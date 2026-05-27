@@ -1,0 +1,11 @@
+[problem]
+id = "082"
+title = "list-min-max"
+prompt = """
+Write a Vox function list_min_max(items: list[int]) to list[int] that returns a two-element list [min, max] from a non-empty list of integers.
+"""
+signature = "fn list_min_max(items: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

@@ -1,0 +1,9 @@
+fn range_sum(a: int, b: int) to int {
+    let mut total: int = 0
+    let mut i: int = a
+    while i <= b {
+        total = total + i
+        i = i + 1
+    }
+    return total
+}

@@ -1,0 +1,25 @@
+fn is_power_of_n(x: int, base: int) to bool {
+    if x < 1 {
+        return false
+    }
+    let mut n: int = x
+    while n > 1 {
+        if n % base != 0 {
+            return false
+        }
+        n = n / base
+    }
+    return true
+}
+
+fn main() to str {
+    assert(is_power_of_n(8, 2) == true)
+    assert(is_power_of_n(1, 2) == true)
+    assert(is_power_of_n(16, 2) == true)
+    assert(is_power_of_n(6, 2) == false)
+    assert(is_power_of_n(27, 3) == true)
+    assert(is_power_of_n(9, 3) == true)
+    assert(is_power_of_n(10, 3) == false)
+    assert(is_power_of_n(25, 5) == true)
+    return "ok"
+}

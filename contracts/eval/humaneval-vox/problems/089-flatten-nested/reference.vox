@@ -1,0 +1,23 @@
+fn flatten_nested(lists: list[list[int]]) to list[int] {
+    let mut result: list[int] = []
+    let mut i: int = 0
+    while i < lists.len() {
+        match lists[i] {
+            Some(inner) => {
+                let mut j: int = 0
+                while j < inner.len() {
+                    match inner[j] {
+                        Some(v) => {
+                            result.push(v)
+                        }
+                        None => {}
+                    }
+                    j = j + 1
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}

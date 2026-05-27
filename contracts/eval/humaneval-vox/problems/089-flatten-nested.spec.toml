@@ -1,0 +1,11 @@
+[problem]
+id = "089"
+title = "flatten-nested"
+prompt = """
+Write a Vox function flatten_nested(lists: list[list[int]]) to list[int] that flattens one level of nesting, concatenating all inner lists into a single list.
+"""
+signature = "fn flatten_nested(lists: list[list[int]]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]
