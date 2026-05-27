@@ -99,6 +99,36 @@ fn regex_namespace_methods_dispatch() {
     assert_eq!(res, VoxValue::Bool(true));
 }
 
+/// `regex.find` — returns Option[str] with first match, or None on no match.
+/// Added 2026-05-27 (CR-L fix: "find" was missing from RegexModule methods map
+/// in typeck/builtins.rs; it was only in builtin_registry.rs for the std.regex path).
+#[test]
+fn regex_find_dispatch() {
+    let source = r#"
+    fn main() to bool {
+        let hit = regex.find("hello 42 world", "[0-9]+")
+        let miss = regex.find("no digits here", "[0-9]+")
+        return hit.is_some() and miss.is_none()
+    }
+    "#;
+    let res = run_probe(source).expect("should evaluate cleanly");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
+/// `regex.captures` — returns Option[list[str]] with all capture groups (incl. full match).
+#[test]
+fn regex_captures_dispatch() {
+    let source = r#"
+    fn main() to bool {
+        let caps = regex.captures("2026-05-27", r"(\d{4})-(\d{2})-(\d{2})")
+        let miss = regex.captures("not a date", r"(\d{4})-(\d{2})-(\d{2})")
+        return caps.is_some() and miss.is_none()
+    }
+    "#;
+    let res = run_probe(source).expect("should evaluate cleanly");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
 /// `fs.cwd` / `fs.exists` — both should dispatch.
 #[test]
 fn fs_cwd_and_exists_dispatch() {

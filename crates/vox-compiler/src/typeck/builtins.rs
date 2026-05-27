@@ -946,6 +946,14 @@ impl BuiltinTypes {
             "replace".into(),
             Ty::Fn(vec![Ty::Str, Ty::Str, Ty::Str], Box::new(Ty::Str)),
         );
+        // regex.find(haystack, pattern) → Option[str]  — first match substring.
+        regex_module_methods.insert(
+            "find".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::Str],
+                Box::new(Ty::Option(Box::new(Ty::Str))),
+            ),
+        );
         regex_module_methods.insert(
             "is_match".into(),
             Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool)),
