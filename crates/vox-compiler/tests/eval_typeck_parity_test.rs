@@ -509,6 +509,25 @@ fn try_operator_on_none_causes_early_return() {
     assert_eq!(res, VoxValue::Bool(true));
 }
 
+// ── Tuple literals ───────────────────────────────────────────────────────────
+
+/// Tuple literal `(a, b, c)` must parse, lower, and evaluate to `VoxValue::Tuple`.
+/// Added 2026-05-27: `HirExpr::TupleLit` was hitting the `_ => VoxValue::Null`
+/// catch-all in the evaluator.
+#[test]
+fn tuple_literal_evaluates_to_vox_tuple() {
+    let source = r#"
+    fn main() to int {
+        let t = (1, 2, 3)
+        match t {
+            (a, b, c) => return a + b + c
+        }
+    }
+    "#;
+    let res = run_probe(source).expect("tuple eval should succeed");
+    assert_eq!(res, VoxValue::Int(6));
+}
+
 /// Negation must use `not`, not `!`. Lock the phonetic-only choice
 /// (audit doc §8).
 #[test]

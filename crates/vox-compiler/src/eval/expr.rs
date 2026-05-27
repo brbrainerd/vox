@@ -56,6 +56,20 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
             Ok(VoxValue::List(list))
         }
+        HirExpr::TupleLit(elems, _) => {
+            let mut items = Vec::with_capacity(elems.len());
+            for e in elems {
+                items.push(eval_expr(interp, e)?);
+            }
+            Ok(VoxValue::Tuple(items))
+        }
+        // DecimalLit: fixed-point decimal literal — interp approximates as Float.
+        // Exact decimal arithmetic is a future enhancement; for now the corpus
+        // programs only use integer arithmetic or float literals.
+        HirExpr::DecimalLit(s, _) => {
+            let f: f64 = s.parse().unwrap_or(0.0);
+            Ok(VoxValue::Float(f))
+        }
         HirExpr::ObjectLit(fields, _) => {
             let mut obj = Vec::new();
             for (k, v) in fields {
