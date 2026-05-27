@@ -1,0 +1,20 @@
+fn count_distinct(xs: list[int]) to int {
+    let mut seen: list[int] = []
+    for x in xs {
+        if not seen.contains(x) {
+            seen.push(x)
+        }
+    }
+    return seen.len()
+}
+
+fn main() to str {
+    assert(count_distinct([1, 2, 3]) == 3)
+    assert(count_distinct([1, 1, 1]) == 1)
+    assert(count_distinct([1, 2, 1, 3, 2]) == 3)
+    assert(count_distinct([]) == 0)
+    assert(count_distinct([5]) == 1)
+    assert(count_distinct([1, 2, 3, 4, 5]) == 5)
+    assert(count_distinct([0, 0, 0, 1]) == 2)
+    return "ok"
+}

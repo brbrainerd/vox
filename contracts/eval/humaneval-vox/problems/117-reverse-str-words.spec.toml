@@ -1,0 +1,11 @@
+[problem]
+id = "117"
+title = "reverse_str_words"
+prompt = """
+Given a space-separated string, reverse each individual word (not the order of words). Return the result as a space-separated string.
+"""
+signature = "fn reverse_str_words(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

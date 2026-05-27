@@ -1,0 +1,11 @@
+[problem]
+id = "155"
+title = "str_count_words_unique"
+prompt = """
+Count the number of unique words in a space-separated string. The comparison is case-insensitive. An empty string has 0 unique words.
+"""
+signature = "fn str_count_words_unique(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "counting"]

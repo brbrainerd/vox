@@ -1,0 +1,11 @@
+[problem]
+id = "161"
+title = "to_hex"
+prompt = """
+Convert a non-negative integer to its lowercase hexadecimal string representation (without "0x" prefix). For example, 255 -> "ff", 0 -> "0".
+"""
+signature = "fn to_hex(n: int) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["math", "strings"]

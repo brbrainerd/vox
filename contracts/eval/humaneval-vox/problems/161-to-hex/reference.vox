@@ -1,0 +1,18 @@
+fn to_hex(n: int) to str {
+    if n == 0 {
+        return "0"
+    }
+    let hex_chars: list[str] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+    let mut digits: list[str] = []
+    let mut val: int = n
+    while val > 0 {
+        let rem: int = val % 16
+        match hex_chars[rem] {
+            Some(c) => { digits.push(c) }
+            None => {}
+        }
+        val = val / 16
+    }
+    let reversed: list[str] = digits.reversed()
+    return reversed.join("")
+}

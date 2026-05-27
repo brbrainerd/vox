@@ -1,0 +1,18 @@
+fn sum_list_float(xs: list[float]) to float {
+    let mut total: float = 0.0
+    for x in xs {
+        total = total + x
+    }
+    return total
+}
+
+fn main() to str {
+    assert(sum_list_float([1.0, 2.0, 3.0]) == 6.0)
+    assert(sum_list_float([]) == 0.0)
+    assert(sum_list_float([0.5, 0.5]) == 1.0)
+    assert(sum_list_float([1.5, 2.5, 3.0]) == 7.0)
+    assert(sum_list_float([-1.0, 1.0]) == 0.0)
+    assert(sum_list_float([10.0]) == 10.0)
+    assert(sum_list_float([0.25, 0.25, 0.5]) == 1.0)
+    return "ok"
+}

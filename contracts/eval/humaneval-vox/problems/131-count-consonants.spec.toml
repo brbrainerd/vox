@@ -1,0 +1,11 @@
+[problem]
+id = "131"
+title = "count_consonants"
+prompt = """
+Count the number of consonants (non-vowel letters) in a string. The check is case-insensitive. Non-letter characters are ignored.
+"""
+signature = "fn count_consonants(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "iteration"]

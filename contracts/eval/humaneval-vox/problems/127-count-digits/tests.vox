@@ -1,0 +1,21 @@
+fn count_digits(s: str) to int {
+    let mut count: int = 0
+    let chars: list[str] = s.chars()
+    for c in chars {
+        let code: int = c.ord()
+        if code >= 48 and code <= 57 {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_digits("abc123") == 3)
+    assert(count_digits("no digits here") == 0)
+    assert(count_digits("9876543210") == 10)
+    assert(count_digits("") == 0)
+    assert(count_digits("h3ll0 w0rld") == 3)
+    assert(count_digits("42") == 2)
+    return "ok"
+}

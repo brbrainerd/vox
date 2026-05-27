@@ -1,0 +1,23 @@
+fn int_to_digits(n: int) to list[int] {
+    let s: str = str(n)
+    let chars: list[str] = s.chars()
+    let mut result: list[int] = []
+    for c in chars {
+        match c.to_int() {
+            Some(d) => { result.push(d) }
+            None => {}
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(int_to_digits(123) == [1, 2, 3])
+    assert(int_to_digits(0) == [0])
+    assert(int_to_digits(9) == [9])
+    assert(int_to_digits(100) == [1, 0, 0])
+    assert(int_to_digits(42) == [4, 2])
+    assert(int_to_digits(1000) == [1, 0, 0, 0])
+    assert(int_to_digits(999) == [9, 9, 9])
+    return "ok"
+}

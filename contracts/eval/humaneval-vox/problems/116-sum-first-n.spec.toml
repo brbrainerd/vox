@@ -1,0 +1,11 @@
+[problem]
+id = "116"
+title = "sum_first_n"
+prompt = """
+Sum the first n elements of a list of ints. If n >= len(xs), sum all elements. If n <= 0 or the list is empty, return 0.
+"""
+signature = "fn sum_first_n(xs: list[int], n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

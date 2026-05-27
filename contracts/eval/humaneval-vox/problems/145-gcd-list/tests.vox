@@ -1,0 +1,35 @@
+fn gcd(a: int, b: int) to int {
+    let mut x: int = a
+    let mut y: int = b
+    while y != 0 {
+        let t: int = y
+        y = x % y
+        x = t
+    }
+    return x
+}
+
+fn gcd_list(xs: list[int]) to int {
+    let mut result: int = 0
+    let mut first: bool = true
+    for v in xs {
+        if first {
+            result = v
+            first = false
+        } else {
+            result = gcd(result, v)
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(gcd_list([12, 8, 4]) == 4)
+    assert(gcd_list([6, 9, 3]) == 3)
+    assert(gcd_list([5]) == 5)
+    assert(gcd_list([100, 75, 50]) == 25)
+    assert(gcd_list([7, 14, 21]) == 7)
+    assert(gcd_list([1, 2, 3]) == 1)
+    assert(gcd_list([48, 36]) == 12)
+    return "ok"
+}

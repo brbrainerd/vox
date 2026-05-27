@@ -1,0 +1,46 @@
+fn second_largest(xs: list[int]) to int {
+    if xs.len() == 0 { return -1 }
+    let sorted: list[int] = xs.sorted()
+    match sorted.last() {
+        Some(v) => {
+            let mut max_val: int = v
+            let mut second: int = -1
+            let mut found_second: bool = false
+            let mut i: int = 0
+            while i < sorted.len() {
+                match sorted[i] {
+                    Some(x) => {
+                        if x != max_val {
+                            if not found_second {
+                                second = x
+                                found_second = true
+                            } else {
+                                if x > second {
+                                    second = x
+                                }
+                            }
+                        }
+                    }
+                    None => {}
+                }
+                i = i + 1
+            }
+            if found_second {
+                return second
+            }
+            return -1
+        }
+        None => { return -1 }
+    }
+}
+
+fn main() to str {
+    assert(second_largest([1, 2, 3, 4]) == 3)
+    assert(second_largest([5, 5, 5]) == -1)
+    assert(second_largest([3, 1]) == 1)
+    assert(second_largest([]) == -1)
+    assert(second_largest([10]) == -1)
+    assert(second_largest([1, 2, 2, 3]) == 2)
+    assert(second_largest([100, 50, 75]) == 75)
+    return "ok"
+}

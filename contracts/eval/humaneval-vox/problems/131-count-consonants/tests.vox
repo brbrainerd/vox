@@ -1,0 +1,27 @@
+fn count_consonants(s: str) to int {
+    let lower: str = s.to_lower()
+    let chars: list[str] = lower.chars()
+    let vowels: list[str] = ["a", "e", "i", "o", "u"]
+    let mut count: int = 0
+    for c in chars {
+        let code: int = c.ord()
+        if code >= 97 and code <= 122 {
+            if not vowels.contains(c) {
+                count = count + 1
+            }
+        }
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_consonants("hello") == 3)
+    assert(count_consonants("aeiou") == 0)
+    assert(count_consonants("bcdfg") == 5)
+    assert(count_consonants("Hello World") == 7)
+    assert(count_consonants("") == 0)
+    assert(count_consonants("HELLO") == 3)
+    assert(count_consonants("rhythm") == 6)
+    assert(count_consonants("abc123") == 2)
+    return "ok"
+}

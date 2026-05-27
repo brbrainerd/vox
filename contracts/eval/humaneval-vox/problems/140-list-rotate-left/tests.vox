@@ -1,0 +1,36 @@
+fn list_rotate_left(xs: list[int], n: int) to list[int] {
+    let len: int = xs.len()
+    if len == 0 {
+        return xs
+    }
+    let shift: int = n % len
+    let mut result: list[int] = []
+    let mut i: int = shift
+    while i < len {
+        match xs[i] {
+            Some(v) => { result.push(v) }
+            None => {}
+        }
+        i = i + 1
+    }
+    let mut j: int = 0
+    while j < shift {
+        match xs[j] {
+            Some(v) => { result.push(v) }
+            None => {}
+        }
+        j = j + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(list_rotate_left([1, 2, 3, 4, 5], 2) == [3, 4, 5, 1, 2])
+    assert(list_rotate_left([1, 2, 3], 0) == [1, 2, 3])
+    assert(list_rotate_left([1, 2, 3], 3) == [1, 2, 3])
+    assert(list_rotate_left([], 5) == [])
+    assert(list_rotate_left([1, 2, 3, 4], 1) == [2, 3, 4, 1])
+    assert(list_rotate_left([1, 2, 3], 6) == [1, 2, 3])
+    assert(list_rotate_left([10, 20, 30], 2) == [30, 10, 20])
+    return "ok"
+}

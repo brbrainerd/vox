@@ -1,0 +1,17 @@
+fn int_pow(base: int, exp: int) to int {
+    let mut result: int = 1
+    let mut i: int = 0
+    while i < exp {
+        result = result * base
+        i = i + 1
+    }
+    return result
+}
+
+fn power_sum(xs: list[int], k: int) to int {
+    let mut total: int = 0
+    for x in xs {
+        total = total + int_pow(x, k)
+    }
+    return total
+}

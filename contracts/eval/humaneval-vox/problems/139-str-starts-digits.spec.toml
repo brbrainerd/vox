@@ -1,0 +1,11 @@
+[problem]
+id = "139"
+title = "str_starts_digits"
+prompt = """
+Check if a string starts with at least one digit character (0-9). Return true if the first character is a digit, false otherwise (including empty strings).
+"""
+signature = "fn str_starts_digits(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

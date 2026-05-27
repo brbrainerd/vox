@@ -1,0 +1,30 @@
+fn to_hex(n: int) to str {
+    if n == 0 {
+        return "0"
+    }
+    let hex_chars: list[str] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+    let mut digits: list[str] = []
+    let mut val: int = n
+    while val > 0 {
+        let rem: int = val % 16
+        match hex_chars[rem] {
+            Some(c) => { digits.push(c) }
+            None => {}
+        }
+        val = val / 16
+    }
+    let reversed: list[str] = digits.reversed()
+    return reversed.join("")
+}
+
+fn main() to str {
+    assert(to_hex(0) == "0")
+    assert(to_hex(15) == "f")
+    assert(to_hex(16) == "10")
+    assert(to_hex(255) == "ff")
+    assert(to_hex(256) == "100")
+    assert(to_hex(10) == "a")
+    assert(to_hex(4096) == "1000")
+    assert(to_hex(171) == "ab")
+    return "ok"
+}

@@ -1,0 +1,15 @@
+fn nth_fibonacci(n: int) to int {
+    if n < 0 { return 0 }
+    if n == 0 { return 0 }
+    if n == 1 { return 1 }
+    let mut a: int = 0
+    let mut b: int = 1
+    let mut i: int = 2
+    while i <= n {
+        let tmp: int = a + b
+        a = b
+        b = tmp
+        i = i + 1
+    }
+    return b
+}

@@ -1,0 +1,28 @@
+fn gcd(a: int, b: int) to int {
+    let mut x: int = a
+    let mut y: int = b
+    while y != 0 {
+        let t: int = y
+        y = x % y
+        x = t
+    }
+    return x
+}
+
+fn lcm(a: int, b: int) to int {
+    return (a / gcd(a, b)) * b
+}
+
+fn lcm_list(xs: list[int]) to int {
+    let mut result: int = 1
+    let mut first: bool = true
+    for v in xs {
+        if first {
+            result = v
+            first = false
+        } else {
+            result = lcm(result, v)
+        }
+    }
+    return result
+}

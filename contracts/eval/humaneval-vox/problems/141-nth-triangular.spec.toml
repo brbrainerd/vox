@@ -1,0 +1,11 @@
+[problem]
+id = "141"
+title = "nth_triangular"
+prompt = """
+Return the nth triangular number, which is 1 + 2 + ... + n = n*(n+1)/2. For n=0, return 0.
+"""
+signature = "fn nth_triangular(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math"]

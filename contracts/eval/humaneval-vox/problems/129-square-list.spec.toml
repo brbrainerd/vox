@@ -1,0 +1,11 @@
+[problem]
+id = "129"
+title = "square_list"
+prompt = """
+Return a new list with each integer in the input list squared.
+"""
+signature = "fn square_list(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

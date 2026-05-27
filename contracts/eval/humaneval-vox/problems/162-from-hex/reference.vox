@@ -1,0 +1,16 @@
+fn hex_digit_val(c: str) to int {
+    let code: int = c.ord()
+    if code >= 48 and code <= 57 {
+        return code - 48
+    }
+    return code - 87
+}
+
+fn from_hex(s: str) to int {
+    let chars: list[str] = s.chars()
+    let mut result: int = 0
+    for c in chars {
+        result = result * 16 + hex_digit_val(c)
+    }
+    return result
+}

@@ -1,0 +1,42 @@
+fn str_decompress(s: str) to str {
+    let chars: list[str] = s.chars()
+    let n: int = chars.len()
+    let mut result: list[str] = []
+    let mut i: int = 0
+    while i < n - 1 {
+        let mut ch: str = ""
+        let mut digit_str: str = ""
+        match chars[i] {
+            Some(c) => { ch = c }
+            None => {}
+        }
+        match chars[i + 1] {
+            Some(c) => { digit_str = c }
+            None => {}
+        }
+        let mut count: int = 1
+        match digit_str.to_int() {
+            Some(d) => { count = d }
+            None => {}
+        }
+        let mut k: int = 0
+        while k < count {
+            result.push(ch)
+            k = k + 1
+        }
+        i = i + 2
+    }
+    return result.join("")
+}
+
+fn main() to str {
+    assert(str_decompress("a3b2c1") == "aaabbc")
+    assert(str_decompress("a1b1c1") == "abc")
+    assert(str_decompress("a4") == "aaaa")
+    assert(str_decompress("a2b2") == "aabb")
+    assert(str_decompress("a1") == "a")
+    assert(str_decompress("a2b2c2") == "aabbcc")
+    assert(str_decompress("a1b2a1") == "abba")
+    assert(str_decompress("") == "")
+    return "ok"
+}

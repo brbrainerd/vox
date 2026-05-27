@@ -1826,6 +1826,14 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
                 _ => None,
             }
         }
+        // chr(code: int) → str  — complement of s.ord()
+        "chr" => match args.into_iter().next()? {
+            VoxValue::Int(n) => {
+                let ch = char::from_u32(n as u32).unwrap_or(char::REPLACEMENT_CHARACTER);
+                Some(VoxValue::Str(ch.to_string()))
+            }
+            _ => None,
+        },
         _ => None,
     }
 }

@@ -1,0 +1,20 @@
+fn product_of_odds(xs: list[int]) to int {
+    let mut product: int = 1
+    for x in xs {
+        if x % 2 != 0 {
+            product = product * x
+        }
+    }
+    return product
+}
+
+fn main() to str {
+    assert(product_of_odds([1, 2, 3, 4, 5]) == 15)
+    assert(product_of_odds([2, 4, 6]) == 1)
+    assert(product_of_odds([3, 5, 7]) == 105)
+    assert(product_of_odds([]) == 1)
+    assert(product_of_odds([1]) == 1)
+    assert(product_of_odds([2, 3]) == 3)
+    assert(product_of_odds([1, 3, 5, 7]) == 105)
+    return "ok"
+}

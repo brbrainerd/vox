@@ -1,0 +1,33 @@
+fn capitalize_words(s: str) to str {
+    let words: list[str] = s.split(" ")
+    let mut result: list[str] = []
+    for word in words {
+        if word.len() == 0 {
+            result.push(word)
+        } else {
+            let chars: list[str] = word.chars()
+            let mut cap_word: str = ""
+            let mut first: bool = true
+            for c in chars {
+                if first {
+                    cap_word = cap_word + c.to_upper()
+                    first = false
+                } else {
+                    cap_word = cap_word + c
+                }
+            }
+            result.push(cap_word)
+        }
+    }
+    return result.join(" ")
+}
+
+fn main() to str {
+    assert(capitalize_words("hello world") == "Hello World")
+    assert(capitalize_words("the quick brown fox") == "The Quick Brown Fox")
+    assert(capitalize_words("vox") == "Vox")
+    assert(capitalize_words("") == "")
+    assert(capitalize_words("already Capitalized") == "Already Capitalized")
+    assert(capitalize_words("one two three") == "One Two Three")
+    return "ok"
+}

@@ -1,0 +1,15 @@
+fn count_consonants(s: str) to int {
+    let lower: str = s.to_lower()
+    let chars: list[str] = lower.chars()
+    let vowels: list[str] = ["a", "e", "i", "o", "u"]
+    let mut count: int = 0
+    for c in chars {
+        let code: int = c.ord()
+        if code >= 97 and code <= 122 {
+            if not vowels.contains(c) {
+                count = count + 1
+            }
+        }
+    }
+    return count
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "109"
+title = "max_gap"
+prompt = """
+Given a sorted list of distinct ints, find the maximum gap between consecutive elements. Return 0 if the list has 0 or 1 elements.
+"""
+signature = "fn max_gap(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

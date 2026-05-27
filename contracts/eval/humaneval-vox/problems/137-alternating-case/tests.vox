@@ -1,0 +1,26 @@
+fn alternating_case(s: str) to str {
+    let chars: list[str] = s.chars()
+    let mut result: list[str] = []
+    let mut i: int = 0
+    for c in chars {
+        if i % 2 == 0 {
+            result.push(c.to_upper())
+        } else {
+            result.push(c.to_lower())
+        }
+        i = i + 1
+    }
+    return result.join("")
+}
+
+fn main() to str {
+    assert(alternating_case("hello") == "HeLlO")
+    assert(alternating_case("world") == "WoRlD")
+    assert(alternating_case("") == "")
+    assert(alternating_case("a") == "A")
+    assert(alternating_case("ab") == "Ab")
+    assert(alternating_case("abc") == "AbC")
+    assert(alternating_case("HELLO") == "HeLlO")
+    assert(alternating_case("12345") == "12345")
+    return "ok"
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "135"
+title = "list_spread"
+prompt = """
+Given a list of ints, return the difference between the largest and smallest element (i.e., max - min). Return 0 for an empty list.
+"""
+signature = "fn list_spread(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

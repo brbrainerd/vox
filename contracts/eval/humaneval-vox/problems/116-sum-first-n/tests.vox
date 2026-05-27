@@ -1,0 +1,22 @@
+fn sum_first_n(xs: list[int], n: int) to int {
+    let mut total: int = 0
+    let mut i: int = 0
+    while i < n and i < xs.len() {
+        match xs[i] {
+            Some(v) => { total = total + v }
+            None => {}
+        }
+        i = i + 1
+    }
+    return total
+}
+
+fn main() to str {
+    assert(sum_first_n([1, 2, 3, 4, 5], 3) == 6)
+    assert(sum_first_n([1, 2, 3], 10) == 6)
+    assert(sum_first_n([1, 2, 3], 0) == 0)
+    assert(sum_first_n([], 5) == 0)
+    assert(sum_first_n([10, 20, 30], 2) == 30)
+    assert(sum_first_n([5], 1) == 5)
+    return "ok"
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "130"
+title = "product_of_odds"
+prompt = """
+Return the product of all odd numbers in a list. Return 1 if there are no odd numbers (empty product).
+"""
+signature = "fn product_of_odds(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

@@ -1,0 +1,11 @@
+fn count_digits(s: str) to int {
+    let mut count: int = 0
+    let chars: list[str] = s.chars()
+    for c in chars {
+        let code: int = c.ord()
+        if code >= 48 and code <= 57 {
+            count = count + 1
+        }
+    }
+    return count
+}

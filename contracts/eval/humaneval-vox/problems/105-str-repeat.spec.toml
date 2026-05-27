@@ -1,0 +1,11 @@
+[problem]
+id = "105"
+title = "str_repeat"
+prompt = """
+Given a string s and an integer n, return the string repeated n times. If n <= 0, return an empty string.
+"""
+signature = "fn str_repeat(s: str, n: int) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

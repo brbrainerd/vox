@@ -1,0 +1,15 @@
+fn insert_sorted(xs: list[int], val: int) to list[int] {
+    let mut result: list[int] = []
+    let mut inserted: bool = false
+    for x in xs {
+        if not inserted and val <= x {
+            result.push(val)
+            inserted = true
+        }
+        result.push(x)
+    }
+    if not inserted {
+        result.push(val)
+    }
+    return result
+}

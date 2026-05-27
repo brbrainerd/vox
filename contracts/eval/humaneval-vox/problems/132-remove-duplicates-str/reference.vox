@@ -1,0 +1,12 @@
+fn remove_duplicates_str(s: str) to str {
+    let chars: list[str] = s.chars()
+    let mut seen: list[str] = []
+    let mut result: list[str] = []
+    for c in chars {
+        if not seen.contains(c) {
+            seen.push(c)
+            result.push(c)
+        }
+    }
+    return result.join("")
+}

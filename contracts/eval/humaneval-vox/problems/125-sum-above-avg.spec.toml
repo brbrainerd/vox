@@ -1,0 +1,11 @@
+[problem]
+id = "125"
+title = "sum_above_avg"
+prompt = """
+Sum the elements in a list of ints that are strictly greater than the list's average. Return 0 for an empty list.
+"""
+signature = "fn sum_above_avg(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["lists", "math"]

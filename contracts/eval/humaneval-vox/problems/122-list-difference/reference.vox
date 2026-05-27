@@ -1,0 +1,9 @@
+fn list_difference(a: list[int], b: list[int]) to list[int] {
+    let mut result: list[int] = []
+    for x in a {
+        if not b.contains(x) and not result.contains(x) {
+            result.push(x)
+        }
+    }
+    return result
+}

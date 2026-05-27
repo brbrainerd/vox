@@ -1,0 +1,3 @@
+fn str_to_list(s: str) to list[str] {
+    return s.chars()
+}

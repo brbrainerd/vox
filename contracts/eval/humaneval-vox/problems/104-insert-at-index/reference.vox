@@ -1,0 +1,27 @@
+fn insert_at_index(xs: list[int], i: int, v: int) to list[int] {
+    let mut insert_pos: int = i
+    if insert_pos < 0 {
+        insert_pos = 0
+    }
+    if insert_pos > xs.len() {
+        insert_pos = xs.len()
+    }
+    let mut result: list[int] = []
+    let mut j: int = 0
+    while j < insert_pos {
+        match xs[j] {
+            Some(val) => { result.push(val) }
+            None => {}
+        }
+        j = j + 1
+    }
+    result.push(v)
+    while j < xs.len() {
+        match xs[j] {
+            Some(val) => { result.push(val) }
+            None => {}
+        }
+        j = j + 1
+    }
+    return result
+}

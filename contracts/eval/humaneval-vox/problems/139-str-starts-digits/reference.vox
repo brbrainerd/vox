@@ -1,0 +1,16 @@
+fn str_starts_digits(s: str) to bool {
+    if s.len() == 0 {
+        return false
+    }
+    let chars: list[str] = s.chars()
+    let mut first: str = ""
+    let mut found: bool = false
+    for c in chars {
+        if not found {
+            first = c
+            found = true
+        }
+    }
+    let code: int = first.ord()
+    return code >= 48 and code <= 57
+}

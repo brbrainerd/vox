@@ -1,0 +1,8 @@
+fn median_of_three(a: int, b: int, c: int) to int {
+    let xs: list[int] = [a, b, c]
+    let sorted: list[int] = xs.sorted()
+    match sorted[1] {
+        Some(v) => { return v }
+        None => { return a }
+    }
+}

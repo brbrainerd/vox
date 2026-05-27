@@ -1,0 +1,11 @@
+[problem]
+id = "132"
+title = "remove_duplicates_str"
+prompt = """
+Remove duplicate characters from a string, keeping only the first occurrence of each character. The result preserves the original order of first appearances.
+"""
+signature = "fn remove_duplicates_str(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "iteration"]

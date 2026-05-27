@@ -1,0 +1,11 @@
+[problem]
+id = "107"
+title = "nth_fibonacci"
+prompt = """
+Return the nth Fibonacci number (0-indexed): fib(0)=0, fib(1)=1, fib(n)=fib(n-1)+fib(n-2). Return 0 for n < 0.
+"""
+signature = "fn nth_fibonacci(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math", "fibonacci"]

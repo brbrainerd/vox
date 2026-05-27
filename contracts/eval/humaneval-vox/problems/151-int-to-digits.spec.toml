@@ -1,0 +1,11 @@
+[problem]
+id = "151"
+title = "int_to_digits"
+prompt = """
+Convert a non-negative integer to a list of its decimal digits, most significant first. For example, 123 -> [1, 2, 3], 0 -> [0].
+"""
+signature = "fn int_to_digits(n: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math", "strings", "lists"]

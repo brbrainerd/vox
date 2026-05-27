@@ -1,0 +1,10 @@
+fn reverse_str_words(s: str) to str {
+    let words: list[str] = s.split(" ")
+    let mut result: list[str] = []
+    for word in words {
+        let chars: list[str] = word.chars()
+        let rev: list[str] = chars.reversed()
+        result.push(rev.join(""))
+    }
+    return result.join(" ")
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "106"
+title = "count_words_long"
+prompt = """
+Count words in a string that have more than k characters. Words are separated by spaces.
+"""
+signature = "fn count_words_long(s: str, k: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "counting"]

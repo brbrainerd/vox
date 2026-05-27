@@ -1,0 +1,19 @@
+fn str_repeat(s: str, n: int) to str {
+    let mut result: str = ""
+    let mut i: int = 0
+    while i < n {
+        result = result + s
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(str_repeat("ab", 3) == "ababab")
+    assert(str_repeat("x", 5) == "xxxxx")
+    assert(str_repeat("hello", 1) == "hello")
+    assert(str_repeat("hi", 0) == "")
+    assert(str_repeat("go", -1) == "")
+    assert(str_repeat("", 10) == "")
+    return "ok"
+}

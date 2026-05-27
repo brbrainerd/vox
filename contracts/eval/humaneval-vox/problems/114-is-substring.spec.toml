@@ -1,0 +1,11 @@
+[problem]
+id = "114"
+title = "is_substring"
+prompt = """
+Check if the string needle appears as a substring of haystack. Return true if it does, false otherwise.
+"""
+signature = "fn is_substring(haystack: str, needle: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

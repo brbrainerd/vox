@@ -1,0 +1,11 @@
+[problem]
+id = "142"
+title = "is_prime_string"
+prompt = """
+Check if the length of a string is a prime number. Return true if the length is prime, false otherwise (lengths 0 and 1 are not prime).
+"""
+signature = "fn is_prime_string(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "math"]

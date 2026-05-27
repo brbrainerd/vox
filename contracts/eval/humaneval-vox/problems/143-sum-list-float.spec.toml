@@ -1,0 +1,11 @@
+[problem]
+id = "143"
+title = "sum_list_float"
+prompt = """
+Given a list of floats, return their sum as a float. Return 0.0 for an empty list.
+"""
+signature = "fn sum_list_float(xs: list[float]) to float"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

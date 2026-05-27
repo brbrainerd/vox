@@ -1,0 +1,11 @@
+[problem]
+id = "127"
+title = "count_digits"
+prompt = """
+Count the number of digit characters (0-9) in a string.
+"""
+signature = "fn count_digits(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "counting"]
