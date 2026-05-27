@@ -178,6 +178,35 @@ fn google_direct_fallback_for_gemini(
     .get(&targets.google_direct_model)
 }
 
+/// Phase D telemetry helper: emit one `ErrorEvent` for a failed LLM call.
+///
+/// `retry_attempt` is the 0-based count of retries already attempted before this
+/// error. `retried` is `true` when the caller is about to switch to a fallback model
+/// (`continue` in the retry loop), `false` when the error is terminal.
+fn emit_llm_error_event(
+    error_class: &str,
+    http_status: Option<u16>,
+    retry_attempt: u32,
+    retried: bool,
+    model_id: &str,
+    provider: &str,
+) {
+    let trace_ctx = vox_telemetry::current_trace_ctx();
+    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+        vox_telemetry::ErrorEvent {
+            subsystem: "llm.http".into(),
+            error_class: error_class.into(),
+            http_status,
+            retry_attempt,
+            retried,
+            model: Some(model_id.to_owned()),
+            provider: Some(provider.to_owned()),
+            task_id: trace_ctx.task_id,
+            trace_id: Some(trace_ctx.trace_id.to_string()),
+        }
+    ));
+}
+
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.).
 pub async fn mcp_infer_completion(
     state: &ServerState,
@@ -241,6 +270,8 @@ pub async fn mcp_infer_tool_completion(
     let mut tried_local_fallback = false;
     let mut tried_google_direct_fallback = false;
     let mut tried_secondary_cloud = false;
+    // Phase D: track how many fallback retries have occurred for telemetry.
+    let mut retry_attempt: u32 = 0;
 
     let mut first_pass = true;
 
@@ -505,7 +536,7 @@ pub async fn mcp_infer_tool_completion(
                         cost_usd: reconciled_usd,
                         cost_source: cost_source.to_string(),
                         error_class: None,
-                        retry_attempt: 0,
+                        retry_attempt,
                         task_id: trace_ctx.task_id,
                         parent_task_id: trace_ctx.parent_task_id,
                         trace_id: Some(trace_ctx.trace_id.to_string()),
@@ -603,6 +634,7 @@ pub async fn mcp_infer_tool_completion(
                     }
                 }
 
+                // Persist rate-limit state for budget tracking (unchanged).
                 if e.status == 429 {
                     if let Some(db) = state.db.as_ref() {
                         let tracker = if let Some(user_id) = routing.user_id {
@@ -614,25 +646,39 @@ pub async fn mcp_infer_tool_completion(
                             .mark_rate_limited(&usage.provider, &usage.model)
                             .await;
                     }
-                    let trace_ctx = vox_telemetry::current_trace_ctx();
-                    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
-                        vox_telemetry::ErrorEvent {
-                            subsystem: "llm.http".into(),
-                            error_class: "rate-limited".into(),
-                            http_status: Some(429),
-                            retry_attempt: 0,
-                            retried: true,
-                            model: Some(model.id.clone()),
-                            provider: Some(format!("{:?}", model.provider_type)),
-                            task_id: trace_ctx.task_id,
-                            trace_id: Some(trace_ctx.trace_id.to_string()),
-                        }
-                    ));
                 }
+
+                // Phase D: classify error once, then emit at each decision branch so
+                // `retried` accurately reflects whether a fallback is actually taken.
+                let error_class: &str = if e.status == 429 {
+                    "rate-limited"
+                } else if e.status == 408
+                    || e.status == 504
+                    || e.message.to_ascii_lowercase().contains("timeout")
+                {
+                    "connection-timeout"
+                } else if e.status == 0 {
+                    "transport-error"
+                } else {
+                    "llm-api-error"
+                };
+                let http_status_opt: Option<u16> =
+                    if e.status > 0 { Some(e.status) } else { None };
+                let provider_str = format!("{:?}", model.provider_type);
+
                 if !tried_google_direct_fallback {
                     if let Some(fb) = google_direct_fallback_for_gemini(state, &model) {
+                        emit_llm_error_event(
+                            error_class,
+                            http_status_opt,
+                            retry_attempt,
+                            true,
+                            &model.id,
+                            &provider_str,
+                        );
                         model = fb;
                         tried_google_direct_fallback = true;
+                        retry_attempt += 1;
                         continue;
                     }
                 }
@@ -641,18 +687,45 @@ pub async fn mcp_infer_tool_completion(
                     && !matches!(model.provider_type, ProviderType::Ollama)
                 {
                     if let Some(fb) = best_ollama_model(state).await {
+                        emit_llm_error_event(
+                            error_class,
+                            http_status_opt,
+                            retry_attempt,
+                            true,
+                            &model.id,
+                            &provider_str,
+                        );
                         model = fb;
                         tried_local_fallback = true;
+                        retry_attempt += 1;
                         continue;
                     }
                 }
                 if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud {
                     if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                        emit_llm_error_event(
+                            error_class,
+                            http_status_opt,
+                            retry_attempt,
+                            true,
+                            &model.id,
+                            &provider_str,
+                        );
                         model = fb;
                         tried_secondary_cloud = true;
+                        retry_attempt += 1;
                         continue;
                     }
                 }
+                // No fallback available — terminal failure.
+                emit_llm_error_event(
+                    error_class,
+                    http_status_opt,
+                    retry_attempt,
+                    false,
+                    &model.id,
+                    &provider_str,
+                );
                 return Err(e.to_string());
             }
         }
