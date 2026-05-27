@@ -1661,6 +1661,23 @@ pub fn call_builtin_method(
                                 Err(_) => Some(VoxValue::Str(haystack)),
                             }
                         }
+                        "find" => {
+                            // regex.find(haystack, pattern) → Option[str]
+                            let haystack = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Option(None)),
+                            };
+                            let pattern = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Option(None)),
+                            };
+                            match regex::Regex::new(&pattern) {
+                                Ok(re) => Some(VoxValue::Option(
+                                    re.find(&haystack).map(|m| Box::new(VoxValue::Str(m.as_str().to_string()))),
+                                )),
+                                Err(_) => Some(VoxValue::Option(None)),
+                            }
+                        }
                         "is_match" => {
                             let haystack = match it.next() {
                                 Some(VoxValue::Str(s)) => s,

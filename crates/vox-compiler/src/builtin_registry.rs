@@ -530,10 +530,21 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
         // since corpus convention is "discard the error" we keep typeck
         // aligned to Str — change all three sides together if this
         // semantics ever evolves.
+        // regex.replace(haystack, pattern, replacement) → str
         ("regex", "replace") => Ty::Fn(vec![Ty::Str, Ty::Str, Ty::Str], Box::new(Ty::Str)),
+        // regex.find(haystack, pattern) → Option[str]  (first match substring)
         ("regex", "find") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
             Box::new(Ty::Option(Box::new(Ty::Str))),
+        ),
+        // regex.is_match(haystack, pattern) → bool
+        ("regex", "is_match") => {
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool))
+        }
+        // regex.captures(haystack, pattern) → Option[list[str]]
+        ("regex", "captures") => Ty::Fn(
+            vec![Ty::Str, Ty::Str],
+            Box::new(Ty::Option(Box::new(Ty::List(Box::new(Ty::Str))))),
         ),
         ("process", "which") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
         ("process", "run") => Ty::Fn(
@@ -787,12 +798,24 @@ pub fn std_namespace_runtime_call(
             "{{ vox_actor_runtime::builtins::vox_env_set(({}).as_str(), ({}).as_str()); }}",
             args[0], args[1]
         )),
+        // regex.replace(haystack, pattern, replacement) → str
         ("regex", "replace") if args.len() >= 3 => Some(format!(
-            "(vox_actor_runtime::builtins::vox_regex_replace(({}).as_str(), ({}).as_str(), ({}).as_str()))",
+            "(vox_actor_runtime::builtins::vox_regex_replace(({}).as_str(), ({}).as_str(), ({}).as_str()).unwrap_or_default())",
             args[0], args[1], args[2]
         )),
+        // regex.find(haystack, pattern) → Option[str]
         ("regex", "find") if args.len() >= 2 => Some(format!(
-            "(vox_actor_runtime::builtins::vox_regex_find(({}).as_str(), ({}).as_str()))",
+            "(vox_actor_runtime::builtins::vox_regex_find(({}).as_str(), ({}).as_str()).ok().flatten())",
+            args[0], args[1]
+        )),
+        // regex.is_match(haystack, pattern) → bool
+        ("regex", "is_match") if args.len() >= 2 => Some(format!(
+            "(vox_actor_runtime::builtins::vox_regex_is_match(({}).as_str(), ({}).as_str()))",
+            args[0], args[1]
+        )),
+        // regex.captures(haystack, pattern) → Option[list[str]]
+        ("regex", "captures") if args.len() >= 2 => Some(format!(
+            "(vox_actor_runtime::builtins::vox_regex_captures(({}).as_str(), ({}).as_str()))",
             args[0], args[1]
         )),
         ("process", "which") if !args.is_empty() => Some(format!(
