@@ -326,6 +326,18 @@ impl<'a> Checker<'a> {
                 let callee_ty = self.uf.instantiate(&callee_ty);
                 match callee_ty {
                     Ty::Fn(params, ret) => {
+                        // Special case: `range(n)` is the single-arg shorthand for
+                        // `range(0, n)`.  The runtime already handles it; the typechecker
+                        // would otherwise raise a spurious arg-count error because `range` is
+                        // registered as `(int, int) → list[int]`.
+                        let is_range_one_arg = args.len() == 1
+                            && params.len() == 2
+                            && matches!(callee.as_ref(), HirExpr::Ident(name, _) if name == "range");
+                        if is_range_one_arg {
+                            let arg_ty = self.check_expr(&args[0].value, Some(&Ty::Int));
+                            let _ = self.uf.unify(&Ty::Int, &arg_ty);
+                            return ret.as_ref().clone();
+                        }
                         // Pre-bind generic type variables by unifying the declared return type
                         // with the expected type *before* checking arguments.  This lets
                         // `Ok(ObjectLit)` propagate `Result[T] ~ Result[MatrixProduct]` →
