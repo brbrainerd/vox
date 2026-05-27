@@ -318,7 +318,6 @@ These will be folded into `vox-scientia` sub-modules when implemented (Phase I o
 | Planned crate | Notes |
 |---|---|
 | `vox-mesh-models` | Mesh model registry aggregation types. |
-| `vox-mesh-policy` | Parse/print `donations.vox` and mesh donation policy fragments. |
 | `vox-agentos-mutation` | AgentOS mutation-kind SSOT — code currently lives in `vox-primitives::agentos_mutation`. Extract when fan-in ≥ 3. |
 | `vox-checksum-manifest` | SHA-256 release asset verification. |
 | `vox-release-artifacts` | `.tar.gz`/`.zip` packaging helpers for `vox compile`. |
