@@ -66,6 +66,14 @@ pub fn verify(root: &Path) -> Result<()> {
                 let entry = entry?;
                 let p = entry.path();
                 if p.is_dir() {
+                    // Skip docs/superpowers/ — internal team plans, specs, and handoff
+                    // notes that describe guard logic and would otherwise trigger the
+                    // very rules they document.
+                    let rel = p.strip_prefix(root).unwrap_or(&p);
+                    let rel_str = rel.to_string_lossy().replace('\\', "/");
+                    if rel_str == "docs/superpowers" || rel_str.starts_with("docs/superpowers/") {
+                        continue;
+                    }
                     stack.push(p);
                 } else if p.extension().and_then(|e| e.to_str()) == Some("md") {
                     let name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
