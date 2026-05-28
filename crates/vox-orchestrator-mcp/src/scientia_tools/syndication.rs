@@ -68,15 +68,11 @@ pub struct VoxScientiaPublicationPublishParams {
     pub publication_id: String,
     #[serde(default)]
     pub channels: Option<Vec<String>>,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub dry_run: bool,
     /// When true, emit compact JSON in the tool text payload (single line).
     #[serde(default)]
     pub json: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 pub async fn vox_scientia_publication_publish(
@@ -226,7 +222,7 @@ pub struct VoxScientiaPublicationRetryFailedParams {
     pub publication_id: String,
     #[serde(default)]
     pub channel: Option<String>,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub dry_run: bool,
     /// When true, emit compact JSON (including nested publish responses).
     #[serde(default)]

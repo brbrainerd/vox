@@ -174,6 +174,39 @@ pub fn repo_scientia_research_mesh_promoted_dir(repo_root: &Path) -> PathBuf {
 /// Basename for MCP session dirs (`.vox/sessions/<repository_id>` under repo root).
 pub const MCP_SESSIONS_DIR_BASENAME: &str = ".vox/sessions";
 
+// ─── repo-relative path string constants (consumed by globbers / config loaders) ───
+//
+// These are *raw path strings* — most callers should compose them via `PathBuf::join`,
+// but globbers, manifest readers, and config keys need them as `&str`. Keeping them
+// in one place lets `drift/vox-path-literal` flag stragglers.
+
+/// `.vox/` repo subdirectory (root of all repo-scoped Vox state).
+pub const REPO_DOT_VOX_DIR: &str = ".vox";
+/// `.vox-cache` repo subdirectory (compiler / package cache).
+pub const REPO_DOT_VOX_CACHE_DIR: &str = ".vox-cache";
+/// `.vox/agents` glob — agent scope discovery.
+pub const REPO_AGENTS_DIR: &str = ".vox/agents";
+/// `.vox/agents/**` glob — recursive agent discovery.
+pub const REPO_AGENTS_GLOB: &str = ".vox/agents/**";
+/// `.vox/cache/` repo subdirectory.
+pub const REPO_CACHE_DIR: &str = ".vox/cache";
+/// `.vox/cache/drift` — drift-check cache root.
+pub const REPO_DRIFT_CACHE_DIR: &str = ".vox/cache/drift";
+/// `.vox/cache/drift/baseline.json` — drift-check baseline snapshot.
+pub const REPO_DRIFT_BASELINE_FILE: &str = ".vox/cache/drift/baseline.json";
+/// `.vox/memory` directory.
+pub const REPO_MEMORY_DIR: &str = ".vox/memory";
+/// `.vox/MEMORY.md` user-edited memory index.
+pub const REPO_MEMORY_INDEX_FILE: &str = ".vox/MEMORY.md";
+/// `.vox/ludus` ludus pack directory.
+pub const REPO_LUDUS_DIR: &str = ".vox/ludus";
+/// `.vox/ludus/lex-pack.toml` ludus manifest.
+pub const REPO_LUDUS_PACK_FILE: &str = ".vox/ludus/lex-pack.toml";
+/// `.vox/speech_lexicon.json` oratio lexicon override.
+pub const REPO_SPEECH_LEXICON_FILE: &str = ".vox/speech_lexicon.json";
+/// `.vox/toolchain-upgrade-rollback.json` repo upgrade rollback snapshot.
+pub const REPO_TOOLCHAIN_ROLLBACK_FILE: &str = ".vox/toolchain-upgrade-rollback.json";
+
 /// MCP session persistence: `.vox/sessions/<repository_id>` (relative to repository root).
 pub fn mcp_sessions_dir(repository_id: &str) -> PathBuf {
     PathBuf::from(MCP_SESSIONS_DIR_BASENAME).join(repository_id)

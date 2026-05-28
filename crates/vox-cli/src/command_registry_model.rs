@@ -30,7 +30,7 @@ pub struct RegistryOperation {
     /// UX grouping for `vox commands` when it differs from `latin_ns` (e.g. `oratio` lane).
     #[serde(default)]
     pub catalog_group: Option<String>,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub ref_cli_required: bool,
     #[serde(default)]
     pub reachability_required: Option<bool>,
@@ -46,8 +46,4 @@ pub struct ScriptDual {
 
 fn default_status() -> String {
     "active".to_string()
-}
-
-fn default_true() -> bool {
-    true
 }

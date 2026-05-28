@@ -23,7 +23,7 @@ pub struct PopuliAdapterManifestV3 {
     pub version: u32,
     pub adapter_method: String,
     pub base_quant: String,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub double_quant: bool,
     pub base_key_map: std::collections::HashMap<String, String>,
     pub layer_order: Vec<String>,
@@ -35,10 +35,6 @@ pub struct PopuliAdapterManifestV3 {
     pub base_model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provenance: Option<serde_json::Value>,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 pub fn run_merge_qlora(

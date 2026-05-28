@@ -32,10 +32,6 @@ pub enum PricingSource {
     Telemetry,
 }
 
-fn default_true() -> bool {
-    true
-}
-
 use super::generated::{ModelTier, StrengthTag};
 
 /// Rich capabilities for a model, imported from DeI and the OpenRouter /models catalog.
@@ -43,7 +39,7 @@ use super::generated::{ModelTier, StrengthTag};
 pub struct ModelCapabilities {
     pub supports_json: bool,
     pub supports_vision: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub supports_native_tools: bool,
     #[serde(default)]
     pub supports_tool_use: bool,

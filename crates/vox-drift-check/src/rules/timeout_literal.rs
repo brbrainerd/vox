@@ -7,6 +7,10 @@ pub struct TimeoutLiteralRule;
 const COMMON_TIMEOUTS_SECS: &[u64] = &[5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600];
 const COMMON_TIMEOUTS_MS: &[u64] = &[100, 250, 500, 1000, 5000, 10000, 30000, 60000];
 
+// SSOT crates: where the named constants themselves live, and the drift-check
+// rule code (test fixtures intentionally use common timeout values).
+const ALLOWED_CRATES: &[&str] = &["vox-config", "vox-http-client", "vox-drift-check"];
+
 impl DriftRule for TimeoutLiteralRule {
     fn id(&self) -> &'static str {
         "drift/timeout-literal"
@@ -19,6 +23,10 @@ impl DriftRule for TimeoutLiteralRule {
     }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
+        let crate_name = features.crate_name.as_deref().unwrap_or("");
+        if ALLOWED_CRATES.contains(&crate_name) {
+            return vec![];
+        }
         features.numeric_literals.iter()
             .filter(|n| match &n.unit {
                 Some(UnitHint::Seconds) => COMMON_TIMEOUTS_SECS.contains(&(n.value as u64)),

@@ -38,12 +38,8 @@ pub struct OrchestrationMigrationFlags {
     #[serde(default)]
     pub orchestration_v2_enabled: bool,
     /// When true, allow falling back to legacy handlers if v2 fails.
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub legacy_orchestration_fallback: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 impl Default for OrchestrationMigrationFlags {

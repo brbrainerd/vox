@@ -503,12 +503,8 @@ pub struct OpenClawImportParams {
     /// Skill slug to import.
     pub slug: String,
     /// Whether to install into local skill registry (default true).
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub install: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 /// Open a Chromium tab (CDP via `chromiumoxide`; no Playwright/Node required).

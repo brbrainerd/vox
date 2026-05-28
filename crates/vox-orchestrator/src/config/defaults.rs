@@ -1,13 +1,14 @@
 use super::enums::CostPreference;
 
+// SSOT bool defaults (see vox_config::serde_defaults) — re-exported as pub(super)
+// so existing `#[serde(default = "default_true")]` annotations keep working.
+pub(super) use vox_config::serde_defaults::{default_false, default_true};
+
 pub(super) fn default_heartbeat_interval() -> u64 {
     5_000
 }
 pub(super) fn default_stale_threshold() -> u64 {
     60_000
-}
-pub(super) fn default_true() -> bool {
-    true
 }
 pub(super) fn default_continuation_cooldown() -> u64 {
     30_000
@@ -26,9 +27,6 @@ pub(super) fn default_scaling_threshold() -> usize {
 }
 pub(super) fn default_idle_retirement() -> u64 {
     300_000
-}
-pub(super) fn default_false() -> bool {
-    false
 }
 pub(super) fn default_cost_preference() -> CostPreference {
     // Free-by-default: economy is the baseline; callers must opt-in to Performance explicitly.

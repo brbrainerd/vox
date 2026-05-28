@@ -35,7 +35,7 @@ pub struct AdapterMethodFields {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantFields {
     pub base_quant: BaseQuantMode,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub double_quant: bool,
 }
 
@@ -49,10 +49,6 @@ pub struct AdapterProvenanceFields {
     pub license_class: Option<String>,
     #[serde(default)]
     pub attribution_required: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 impl PopuliAdapterManifestV3 {

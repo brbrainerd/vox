@@ -191,10 +191,6 @@ fn default_rss() -> bool {
     true
 }
 
-fn default_true() -> bool {
-    true
-}
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "PascalCase")]
 pub enum ForgePostType {
@@ -249,7 +245,7 @@ pub struct RedditConfig {
     pub nsfw: bool,
     #[serde(default)]
     pub spoiler: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub send_replies: bool,
 }
 
@@ -290,7 +286,7 @@ pub struct RedditTarget {
     pub nsfw: bool,
     #[serde(default)]
     pub spoiler: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub send_replies: bool,
 }
 
