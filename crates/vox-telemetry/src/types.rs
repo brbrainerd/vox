@@ -92,6 +92,29 @@ pub const METRIC_TYPE_BUILD_SUMMARY_EVENT: &str = "build.summary";
 /// S1 — Generic subsystem error / retry event. (Phase D)
 pub const METRIC_TYPE_ERROR_EVENT: &str = "telemetry.error";
 
+/// S1 — `vox-plugin-host` failed to load a cdylib plugin (missing symbol, ABI
+/// mismatch, panic at init). Emitted via `ResearchMetric` envelope; payload
+/// shape is documented at the emit site in `vox-plugin-host::loader`.
+pub const METRIC_TYPE_PLUGIN_LOAD_FAILURE: &str = "plugin.load_failure";
+
+/// S1 — `vox-actor-runtime` sandbox / activity terminated a run after exceeding
+/// its configured timeout. Distinct from `agent_exec_time` (which only tracks
+/// successful-or-failed durations, not timeout-terminated runs). Emitted via
+/// `ResearchMetric` envelope; payload shape is documented at the emit site
+/// in `vox-actor-runtime::activity`.
+pub const METRIC_TYPE_SANDBOX_TIMEOUT_KILL: &str = "sandbox.timeout_kill";
+
+/// S1 — LLM-provider prompt-cache lookup missed (the call ran without a cache
+/// hit). Counterpart to `cache_read_input_tokens` on `ModelCallEvent` so miss
+/// rates can be computed online instead of offline. Emitted via `ResearchMetric`
+/// envelope from `vox-orchestrator-mcp::llm_bridge::infer`.
+pub const METRIC_TYPE_ORCH_CACHE_MISS: &str = "orch.cache.miss";
+
+/// S1 — A task was explicitly cancelled mid-execution (user interrupt, parent
+/// timeout, lease loss, etc.). Emitted via `ResearchMetric` envelope from
+/// `vox-orchestrator::orchestrator::agent::lifecycle_ops::cancel_task`.
+pub const METRIC_TYPE_ORCH_TASK_CANCELLED: &str = "orch.task.cancelled";
+
 /// S1 — AI-first `@ai` fixture: intent routing metadata (task category, strengths).
 pub const METRIC_TYPE_FIXTURE_MODEL_INTENT: &str = "fixture.model.intent_resolved";
 /// S1 — AI-first `@prompt` fixture: cascade dispatch observation.
@@ -840,6 +863,10 @@ mod tests {
             METRIC_TYPE_FIXTURE_PROMPT_DISPATCH,
             METRIC_TYPE_FIXTURE_SEARCH_DISPATCH,
             METRIC_TYPE_FIXTURE_HOLE_OBSERVED,
+            METRIC_TYPE_PLUGIN_LOAD_FAILURE,
+            METRIC_TYPE_SANDBOX_TIMEOUT_KILL,
+            METRIC_TYPE_ORCH_CACHE_MISS,
+            METRIC_TYPE_ORCH_TASK_CANCELLED,
         ] {
             assert!(
                 validate_research_metric_row("sess", mt, None).is_ok(),

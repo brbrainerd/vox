@@ -12707,6 +12707,7 @@ dependencies = [
  "toml 0.8.23",
  "vox-build-meta",
  "vox-rename-registry",
+ "vox-test-harness",
 ]
 
 [[package]]
@@ -14006,6 +14007,7 @@ dependencies = [
  "tracing-test",
  "vox-plugin-api",
  "vox-plugin-types",
+ "vox-telemetry",
  "walkdir",
  "workspace-hack",
 ]
