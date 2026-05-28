@@ -328,9 +328,7 @@ pub fn run_training_loop(
                         {
                             const TRIM_EVERY_OPT_STEPS: u32 = 16;
                             if optimizer_step_count.is_multiple_of(TRIM_EVERY_OPT_STEPS) {
-                                if let Err(e) =
-                                    crate::device::mem_pool::trim_default_pool(0)
-                                {
+                                if let Err(e) = crate::device::mem_pool::trim_default_pool(0) {
                                     tracing::warn!(
                                         error = %e,
                                         step = optimizer_step_count,
