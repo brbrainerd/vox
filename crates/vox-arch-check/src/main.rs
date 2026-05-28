@@ -649,12 +649,11 @@ fn git_paths_touched_since(repo: &Path, release_date: &str) -> Option<HashSet<St
 }
 
 fn run(warn_only_flag: bool) -> Result<Report> {
-    let metadata = MetadataCommand::new()
-        .no_deps()
+    let metadata_full = MetadataCommand::new()
         .exec()
         .context("cargo metadata failed")?;
 
-    let workspace_root: PathBuf = metadata.workspace_root.clone().into();
+    let workspace_root: PathBuf = metadata_full.workspace_root.clone().into();
     let layers_path = workspace_root.join("docs/src/architecture/layers.toml");
 
     let layers_text = std::fs::read_to_string(&layers_path)
@@ -663,15 +662,11 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         .with_context(|| format!("parsing {}", layers_path.display()))?;
     let prune_dirs = walk_prune_dir_names(&layers);
 
-    let workspace_members: HashSet<&str> = metadata
+    let workspace_members: HashSet<&str> = metadata_full
         .workspace_packages()
         .iter()
         .map(|p| p.name.as_str())
         .collect();
-
-    let metadata_full = MetadataCommand::new()
-        .exec()
-        .context("cargo metadata (with deps) failed")?;
 
     // Layer ordering is strict by default; the others default to warn-only.
     // --warn-only flag downgrades layer ordering to warn too.
