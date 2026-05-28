@@ -32,6 +32,114 @@
       "title": "Ars"
     },
     {
+      "capability_id": "cli.audit",
+      "cli_path": [
+        "audit"
+      ],
+      "curated": true,
+      "description_model": "Run quality gates from contracts/ci/check-targets.v1.yaml; umbrella for lint, test, audit, doc, and arch checks.",
+      "implicit": false,
+      "title": "Audit"
+    },
+    {
+      "capability_id": "cli.auth",
+      "cli_path": [
+        "auth"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth`",
+      "implicit": false,
+      "title": "Auth"
+    },
+    {
+      "capability_id": "cli.auth.connect",
+      "cli_path": [
+        "auth",
+        "connect"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth connect`",
+      "implicit": false,
+      "title": "Auth Connect"
+    },
+    {
+      "capability_id": "cli.auth.init",
+      "cli_path": [
+        "auth",
+        "init"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth init`",
+      "implicit": false,
+      "title": "Auth Init"
+    },
+    {
+      "capability_id": "cli.auth.login",
+      "cli_path": [
+        "auth",
+        "login"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth login`",
+      "implicit": false,
+      "title": "Auth Login"
+    },
+    {
+      "capability_id": "cli.auth.trust",
+      "cli_path": [
+        "auth",
+        "trust"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth trust`",
+      "implicit": false,
+      "title": "Auth Trust"
+    },
+    {
+      "capability_id": "cli.auth.trust-list",
+      "cli_path": [
+        "auth",
+        "trust-list"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth trust-list`",
+      "implicit": false,
+      "title": "Auth Trust-list"
+    },
+    {
+      "capability_id": "cli.auth.unlock",
+      "cli_path": [
+        "auth",
+        "unlock"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth unlock`",
+      "implicit": false,
+      "title": "Auth Unlock"
+    },
+    {
+      "capability_id": "cli.auth.untrust",
+      "cli_path": [
+        "auth",
+        "untrust"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth untrust`",
+      "implicit": false,
+      "title": "Auth Untrust"
+    },
+    {
+      "capability_id": "cli.auth.whoami",
+      "cli_path": [
+        "auth",
+        "whoami"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox auth whoami`",
+      "implicit": false,
+      "title": "Auth Whoami"
+    },
+    {
       "capability_id": "cli.build",
       "cli_path": [
         "build"
@@ -47,9 +155,9 @@
         "bundle"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox bundle`",
+      "description_model": "CLI operation `vox bundle` — plugin distribution bundles (`list`, `build`, `apply`)",
       "implicit": false,
-      "title": "Bundle"
+      "title": "Bundle (plugins)"
     },
     {
       "capability_id": "cli.check",
@@ -70,6 +178,17 @@
       "description_model": "CLI operation `vox ci`",
       "implicit": false,
       "title": "Ci"
+    },
+    {
+      "capability_id": "cli.ci.ai-fixtures-coverage",
+      "cli_path": [
+        "ci",
+        "ai-fixtures-coverage"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci ai-fixtures-coverage`",
+      "implicit": false,
+      "title": "Ci Ai-fixtures-coverage"
     },
     {
       "capability_id": "cli.ci.artifact-audit",
@@ -182,17 +301,6 @@
       "title": "Ci Check-summary-drift"
     },
     {
-      "capability_id": "cli.ci.secrets-parity",
-      "cli_path": [
-        "ci",
-        "secrets-parity"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox ci secrets-parity`",
-      "implicit": false,
-      "title": "Ci Secrets-parity"
-    },
-    {
       "capability_id": "cli.ci.command-compliance",
       "cli_path": [
         "ci",
@@ -213,6 +321,17 @@
       "description_model": "CLI operation `vox ci command-sync`",
       "implicit": false,
       "title": "Ci Command-sync"
+    },
+    {
+      "capability_id": "cli.ci.compile-matrix",
+      "cli_path": [
+        "ci",
+        "compile-matrix"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)",
+      "implicit": false,
+      "title": "Ci Compile-matrix"
     },
     {
       "capability_id": "cli.ci.completion-audit",
@@ -259,6 +378,17 @@
       "title": "Ci Contracts-index"
     },
     {
+      "capability_id": "cli.ci.coolify-eval",
+      "cli_path": [
+        "ci",
+        "coolify-eval"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci coolify-eval`",
+      "implicit": false,
+      "title": "Ci Coolify-eval"
+    },
+    {
       "capability_id": "cli.ci.coverage-gates",
       "cli_path": [
         "ci",
@@ -303,6 +433,28 @@
       "title": "Ci Data-ssot-guards"
     },
     {
+      "capability_id": "cli.ci.db-schema-coverage",
+      "cli_path": [
+        "ci",
+        "db-schema-coverage"
+      ],
+      "curated": true,
+      "description_model": "Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.",
+      "implicit": false,
+      "title": "Ci Db-schema-coverage"
+    },
+    {
+      "capability_id": "cli.ci.dev-loop-audit",
+      "cli_path": [
+        "ci",
+        "dev-loop-audit"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci dev-loop-audit`",
+      "implicit": false,
+      "title": "Ci Dev-loop-audit"
+    },
+    {
       "capability_id": "cli.ci.doc-inventory",
       "cli_path": [
         "ci",
@@ -312,6 +464,17 @@
       "description_model": "CLI operation `vox ci doc-inventory`",
       "implicit": false,
       "title": "Ci Doc-inventory"
+    },
+    {
+      "capability_id": "cli.ci.docs-reality-audit",
+      "cli_path": [
+        "ci",
+        "docs-reality-audit"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci docs-reality-audit`",
+      "implicit": false,
+      "title": "Ci Docs-reality-audit"
     },
     {
       "capability_id": "cli.ci.eval-matrix",
@@ -371,6 +534,17 @@
       "title": "Ci Feature-matrix"
     },
     {
+      "capability_id": "cli.ci.flake-budget",
+      "cli_path": [
+        "ci",
+        "flake-budget"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci flake-budget`",
+      "implicit": false,
+      "title": "Ci Flake-budget"
+    },
+    {
       "capability_id": "cli.ci.grammar-drift",
       "cli_path": [
         "ci",
@@ -391,6 +565,17 @@
       "description_model": "CLI operation `vox ci gui-smoke`",
       "implicit": false,
       "title": "Ci Gui-smoke"
+    },
+    {
+      "capability_id": "cli.ci.ignored-test-age",
+      "cli_path": [
+        "ci",
+        "ignored-test-age"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci ignored-test-age`",
+      "implicit": false,
+      "title": "Ci Ignored-test-age"
     },
     {
       "capability_id": "cli.ci.line-endings",
@@ -558,6 +743,17 @@
       "title": "Ci Operations-verify"
     },
     {
+      "capability_id": "cli.ci.parse-status",
+      "cli_path": [
+        "ci",
+        "parse-status"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci parse-status`",
+      "implicit": false,
+      "title": "Ci Parse-status"
+    },
+    {
       "capability_id": "cli.ci.pm-provenance",
       "cli_path": [
         "ci",
@@ -567,6 +763,17 @@
       "description_model": "CLI operation `vox ci pm-provenance`",
       "implicit": false,
       "title": "Ci Pm-provenance"
+    },
+    {
+      "capability_id": "cli.ci.policy-allowlist-parity",
+      "cli_path": [
+        "ci",
+        "policy-allowlist-parity"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci policy-allowlist-parity`",
+      "implicit": false,
+      "title": "Ci Policy-allowlist-parity"
     },
     {
       "capability_id": "cli.ci.policy-smoke",
@@ -624,6 +831,28 @@
       "title": "Ci Repo-guards"
     },
     {
+      "capability_id": "cli.ci.retirement-audit",
+      "cli_path": [
+        "ci",
+        "retirement-audit"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver",
+      "implicit": false,
+      "title": "Ci Retirement-audit"
+    },
+    {
+      "capability_id": "cli.ci.runtime-regress",
+      "cli_path": [
+        "ci",
+        "runtime-regress"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci runtime-regress`",
+      "implicit": false,
+      "title": "Ci Runtime-regress"
+    },
+    {
       "capability_id": "cli.ci.rust-ecosystem-policy",
       "cli_path": [
         "ci",
@@ -633,6 +862,17 @@
       "description_model": "CLI operation `vox ci rust-ecosystem-policy`",
       "implicit": false,
       "title": "Ci Rust-ecosystem-policy"
+    },
+    {
+      "capability_id": "cli.ci.safety-inventory",
+      "cli_path": [
+        "ci",
+        "safety-inventory"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci safety-inventory`",
+      "implicit": false,
+      "title": "Ci Safety-inventory"
     },
     {
       "capability_id": "cli.ci.scaling-audit",
@@ -703,6 +943,28 @@
       "title": "Ci Secret-env-guard"
     },
     {
+      "capability_id": "cli.ci.secrets-parity",
+      "cli_path": [
+        "ci",
+        "secrets-parity"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci secrets-parity`",
+      "implicit": false,
+      "title": "Ci Secrets-parity"
+    },
+    {
+      "capability_id": "cli.ci.speech-runtime-suite",
+      "cli_path": [
+        "ci",
+        "speech-runtime-suite"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci speech-runtime-suite`",
+      "implicit": false,
+      "title": "Ci Speech-runtime-suite"
+    },
+    {
       "capability_id": "cli.ci.sql-surface-guard",
       "cli_path": [
         "ci",
@@ -723,6 +985,28 @@
       "description_model": "CLI operation `vox ci ssot-drift`",
       "implicit": false,
       "title": "Ci Ssot-drift"
+    },
+    {
+      "capability_id": "cli.ci.test-inventory",
+      "cli_path": [
+        "ci",
+        "test-inventory"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci test-inventory`",
+      "implicit": false,
+      "title": "Ci Test-inventory"
+    },
+    {
+      "capability_id": "cli.ci.test-runtime-report",
+      "cli_path": [
+        "ci",
+        "test-runtime-report"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci test-runtime-report`",
+      "implicit": false,
+      "title": "Ci Test-runtime-report"
     },
     {
       "capability_id": "cli.ci.toestub-scoped",
@@ -767,71 +1051,6 @@
       "description_model": "CLI operation `vox ci workflow-scripts`",
       "implicit": false,
       "title": "Ci Workflow-scripts"
-    },
-    {
-      "capability_id": "cli.secrets",
-      "cli_path": [
-        "secrets"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox secrets`",
-      "implicit": false,
-      "title": "Secrets"
-    },
-    {
-      "capability_id": "cli.secrets.backend-status",
-      "cli_path": [
-        "secrets",
-        "backend-status"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox secrets backend-status`",
-      "implicit": false,
-      "title": "Secrets Backend-status"
-    },
-    {
-      "capability_id": "cli.secrets.get",
-      "cli_path": [
-        "secrets",
-        "get"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox secrets get`",
-      "implicit": false,
-      "title": "Secrets Get"
-    },
-    {
-      "capability_id": "cli.secrets.migrate-auth-store",
-      "cli_path": [
-        "secrets",
-        "migrate-auth-store"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox secrets migrate-auth-store`",
-      "implicit": false,
-      "title": "Secrets Migrate-auth-store"
-    },
-    {
-      "capability_id": "cli.secrets.set",
-      "cli_path": [
-        "secrets",
-        "set"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox secrets set`",
-      "implicit": false,
-      "title": "Secrets Set"
-    },
-    {
-      "capability_id": "cli.secrets.status",
-      "cli_path": [
-        "secrets",
-        "status"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox secrets status`",
-      "implicit": false,
-      "title": "Secrets Status"
     },
     {
       "capability_id": "cli.codex",
@@ -940,6 +1159,16 @@
       "description_model": "CLI operation `vox commands`",
       "implicit": false,
       "title": "Commands"
+    },
+    {
+      "capability_id": "cli.compile",
+      "cli_path": [
+        "compile"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox compile` — native / Tauri / script / workspace packaging umbrella",
+      "implicit": false,
+      "title": "Compile"
     },
     {
       "capability_id": "cli.completions",
@@ -1291,6 +1520,26 @@
       "title": "Lock"
     },
     {
+      "capability_id": "cli.login",
+      "cli_path": [
+        "login"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox login`",
+      "implicit": false,
+      "title": "Login"
+    },
+    {
+      "capability_id": "cli.logout",
+      "cli_path": [
+        "logout"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox logout`",
+      "implicit": false,
+      "title": "Logout"
+    },
+    {
       "capability_id": "cli.lsp",
       "cli_path": [
         "lsp"
@@ -1320,6 +1569,17 @@
       "description_model": "CLI operation `vox ludus hud`",
       "implicit": false,
       "title": "Ludus Hud"
+    },
+    {
+      "capability_id": "cli.memory.search",
+      "cli_path": [
+        "memory",
+        "search"
+      ],
+      "curated": true,
+      "description_model": "Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).",
+      "implicit": false,
+      "title": "Memory Search"
     },
     {
       "capability_id": "cli.mens",
@@ -1589,6 +1849,74 @@
       "title": "Migrate Web Sources"
     },
     {
+      "capability_id": "cli.model.costs",
+      "cli_path": [
+        "model",
+        "costs"
+      ],
+      "curated": true,
+      "description_model": "Show detailed cost reporting.",
+      "implicit": false,
+      "title": "Model Costs"
+    },
+    {
+      "capability_id": "cli.model.discover",
+      "cli_path": [
+        "model",
+        "discover"
+      ],
+      "curated": true,
+      "description_model": "Refresh the model catalog from all sources (discovery).",
+      "implicit": false,
+      "title": "Model Discover"
+    },
+    {
+      "capability_id": "cli.model.explain",
+      "cli_path": [
+        "model",
+        "explain"
+      ],
+      "curated": true,
+      "description_model": "Explain model selection for a given task description.",
+      "implicit": false,
+      "title": "Model Explain"
+    },
+    {
+      "capability_id": "cli.model.list",
+      "cli_path": [
+        "model",
+        "list"
+      ],
+      "curated": true,
+      "description_model": "List model ids from the local catalog cache.",
+      "implicit": false,
+      "title": "Model List"
+    },
+    {
+      "capability_id": "cli.model.preferences.reset",
+      "cli_path": [
+        "model",
+        "preferences",
+        "reset"
+      ],
+      "curated": true,
+      "description_model": "Clear all VOX_CAPABILITY_* vault entries (best-effort).",
+      "implicit": false,
+      "title": "Model Preferences Reset"
+    },
+    {
+      "capability_id": "cli.model.preferences.set",
+      "cli_path": [
+        "model",
+        "preferences",
+        "set"
+      ],
+      "curated": true,
+      "description_model": "Set a Clavis capability routing preference or pinned model id in the vault.",
+      "implicit": false,
+      "title": "Model Preferences Set"
+    },
+    {
       "capability_id": "cli.model.pricing.check",
       "cli_path": [
         "model",
@@ -1635,6 +1963,39 @@
       "description_model": "Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.",
       "implicit": false,
       "title": "Model Pricing Show"
+    },
+    {
+      "capability_id": "cli.model.rollup",
+      "cli_path": [
+        "model",
+        "rollup"
+      ],
+      "curated": true,
+      "description_model": "Perform batch aggregation of telemetry into the scoreboard.",
+      "implicit": false,
+      "title": "Model Rollup"
+    },
+    {
+      "capability_id": "cli.model.scoreboard",
+      "cli_path": [
+        "model",
+        "scoreboard"
+      ],
+      "curated": true,
+      "description_model": "Show the model scoreboard (latency, success rate, cost).",
+      "implicit": false,
+      "title": "Model Scoreboard"
+    },
+    {
+      "capability_id": "cli.model.show",
+      "cli_path": [
+        "model",
+        "show"
+      ],
+      "curated": true,
+      "description_model": "Show JSON for one model from the cache.",
+      "implicit": false,
+      "title": "Model Show"
     },
     {
       "capability_id": "cli.openclaw",
@@ -2071,6 +2432,17 @@
       "title": "Repo Status"
     },
     {
+      "capability_id": "cli.research.run",
+      "cli_path": [
+        "research",
+        "run"
+      ],
+      "curated": true,
+      "description_model": "CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).",
+      "implicit": false,
+      "title": "Research Run"
+    },
+    {
       "capability_id": "cli.review",
       "cli_path": [
         "review"
@@ -2439,6 +2811,82 @@
       "description_model": "CLI operation `vox script`",
       "implicit": false,
       "title": "Script"
+    },
+    {
+      "capability_id": "cli.secrets",
+      "cli_path": [
+        "secrets"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox secrets`",
+      "implicit": false,
+      "title": "Secrets"
+    },
+    {
+      "capability_id": "cli.secrets.backend-status",
+      "cli_path": [
+        "secrets",
+        "backend-status"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox secrets backend-status`",
+      "implicit": false,
+      "title": "Secrets Backend-status"
+    },
+    {
+      "capability_id": "cli.secrets.get",
+      "cli_path": [
+        "secrets",
+        "get"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox secrets get`",
+      "implicit": false,
+      "title": "Secrets Get"
+    },
+    {
+      "capability_id": "cli.secrets.login",
+      "cli_path": [
+        "secrets",
+        "login"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox secrets login`",
+      "implicit": false,
+      "title": "Secrets Login"
+    },
+    {
+      "capability_id": "cli.secrets.migrate-auth-store",
+      "cli_path": [
+        "secrets",
+        "migrate-auth-store"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox secrets migrate-auth-store`",
+      "implicit": false,
+      "title": "Secrets Migrate-auth-store"
+    },
+    {
+      "capability_id": "cli.secrets.set",
+      "cli_path": [
+        "secrets",
+        "set"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox secrets set`",
+      "implicit": false,
+      "title": "Secrets Set"
+    },
+    {
+      "capability_id": "cli.secrets.status",
+      "cli_path": [
+        "secrets",
+        "status"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox secrets status`",
+      "implicit": false,
+      "title": "Secrets Status"
     },
     {
       "capability_id": "cli.share",
@@ -3025,12 +3473,12 @@
       "title": "Claim File"
     },
     {
-      "capability_id": "mcp.vox_secrets_doctor",
+      "capability_id": "mcp.vox_code_audit_findings_upsert",
       "curated": true,
-      "description_model": "Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.",
+      "description_model": "Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).",
       "implicit": false,
-      "mcp_tool": "vox_secrets_doctor",
-      "title": "Secrets Doctor"
+      "mcp_tool": "vox_code_audit_findings_upsert",
+      "title": "Toestub Findings Upsert"
     },
     {
       "capability_id": "mcp.vox_compaction_status",
@@ -3305,6 +3753,86 @@
       "title": "File Graph"
     },
     {
+      "capability_id": "mcp.vox_gamify_battle_start",
+      "curated": true,
+      "description_model": "Start a bug battle from a synthetic finding (companion name + rule + message).",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_battle_start",
+      "title": "Ludus Battle Start"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_battle_submit",
+      "curated": true,
+      "description_model": "Submit code for the active bug battle for a companion (success flag).",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_battle_submit",
+      "title": "Ludus Battle Submit"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_collegium_join",
+      "curated": true,
+      "description_model": "Join a collegium and emit a Ludus collegium_joined policy event.",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_collegium_join",
+      "title": "Ludus Collegium Join"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_notification_ack",
+      "curated": true,
+      "description_model": "Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_notification_ack",
+      "title": "Ludus Notification Ack"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_notifications_ack_all",
+      "curated": true,
+      "description_model": "Mark all unread Ludus notifications as read for the canonical user.",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_notifications_ack_all",
+      "title": "Ludus Notifications Ack All"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_notifications_list",
+      "curated": true,
+      "description_model": "List unread Ludus (gamification) notifications for the current canonical user from Codex.",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_notifications_list",
+      "title": "Ludus Notifications List"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_progress_snapshot",
+      "curated": true,
+      "description_model": "Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_progress_snapshot",
+      "title": "Ludus Progress Snapshot"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_quest_list",
+      "curated": true,
+      "description_model": "List Ludus quests for the canonical user (read-only).",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_quest_list",
+      "title": "Ludus Quest List"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_shop_buy",
+      "curated": true,
+      "description_model": "Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_shop_buy",
+      "title": "Ludus Shop Buy"
+    },
+    {
+      "capability_id": "mcp.vox_gamify_shop_catalog",
+      "curated": true,
+      "description_model": "Crystal shop catalog with effective prices for the current gamify mode.",
+      "implicit": false,
+      "mcp_tool": "vox_gamify_shop_catalog",
+      "title": "Ludus Shop Catalog"
+    },
+    {
       "capability_id": "mcp.vox_generate_code",
       "curated": true,
       "description_model": "Generate validated Vox code from a prompt; optional `output_path` (repo-relative) writes UTF-8 and returns `meta.file_outcomes`; optional `vcs_agent_id` captures a post-write snapshot id in `meta.file_outcomes.post_write_snapshot_id`.",
@@ -3477,86 +4005,6 @@
       "title": "Lock Status"
     },
     {
-      "capability_id": "mcp.vox_ludus_battle_start",
-      "curated": true,
-      "description_model": "Start a bug battle from a synthetic finding (companion name + rule + message).",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_battle_start",
-      "title": "Ludus Battle Start"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_battle_submit",
-      "curated": true,
-      "description_model": "Submit code for the active bug battle for a companion (success flag).",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_battle_submit",
-      "title": "Ludus Battle Submit"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_collegium_join",
-      "curated": true,
-      "description_model": "Join a collegium and emit a Ludus collegium_joined policy event.",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_collegium_join",
-      "title": "Ludus Collegium Join"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_notification_ack",
-      "curated": true,
-      "description_model": "Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_notification_ack",
-      "title": "Ludus Notification Ack"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_notifications_ack_all",
-      "curated": true,
-      "description_model": "Mark all unread Ludus notifications as read for the canonical user.",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_notifications_ack_all",
-      "title": "Ludus Notifications Ack All"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_notifications_list",
-      "curated": true,
-      "description_model": "List unread Ludus (gamification) notifications for the current canonical user from Codex.",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_notifications_list",
-      "title": "Ludus Notifications List"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_progress_snapshot",
-      "curated": true,
-      "description_model": "Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_progress_snapshot",
-      "title": "Ludus Progress Snapshot"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_quest_list",
-      "curated": true,
-      "description_model": "List Ludus quests for the canonical user (read-only).",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_quest_list",
-      "title": "Ludus Quest List"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_shop_buy",
-      "curated": true,
-      "description_model": "Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_shop_buy",
-      "title": "Ludus Shop Buy"
-    },
-    {
-      "capability_id": "mcp.vox_ludus_shop_catalog",
-      "curated": true,
-      "description_model": "Crystal shop catalog with effective prices for the current gamify mode.",
-      "implicit": false,
-      "mcp_tool": "vox_ludus_shop_catalog",
-      "title": "Ludus Shop Catalog"
-    },
-    {
       "capability_id": "mcp.vox_map_agent_session",
       "curated": true,
       "description_model": "Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session).",
@@ -3607,7 +4055,7 @@
     {
       "capability_id": "mcp.vox_memory_search",
       "curated": true,
-      "description_model": "Search daily logs and MEMORY.md for a keyword query.",
+      "description_model": "Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).",
       "implicit": false,
       "mcp_tool": "vox_memory_search",
       "title": "Memory Search"
@@ -4133,6 +4581,38 @@
       "title": "Repo Status"
     },
     {
+      "capability_id": "mcp.vox_research_get",
+      "curated": true,
+      "description_model": "MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.",
+      "implicit": false,
+      "mcp_tool": "vox_research_get",
+      "title": "Research Session Result"
+    },
+    {
+      "capability_id": "mcp.vox_research_run",
+      "curated": true,
+      "description_model": "CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).",
+      "implicit": false,
+      "mcp_tool": "vox_research_run",
+      "title": "Research Run"
+    },
+    {
+      "capability_id": "mcp.vox_research_start",
+      "curated": true,
+      "description_model": "MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).",
+      "implicit": false,
+      "mcp_tool": "vox_research_start",
+      "title": "Research Start (async MCP)"
+    },
+    {
+      "capability_id": "mcp.vox_research_status",
+      "curated": true,
+      "description_model": "MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.",
+      "implicit": false,
+      "mcp_tool": "vox_research_status",
+      "title": "Research Session Status"
+    },
+    {
       "capability_id": "mcp.vox_resolve_conflict",
       "curated": true,
       "description_model": "Resolve a file conflict.",
@@ -4413,6 +4893,22 @@
       "title": "Scientia Worthiness Evaluate"
     },
     {
+      "capability_id": "mcp.vox_secrets_doctor",
+      "curated": true,
+      "description_model": "Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.",
+      "implicit": false,
+      "mcp_tool": "vox_secrets_doctor",
+      "title": "Secrets Doctor"
+    },
+    {
+      "capability_id": "mcp.vox_semantic_fs_discover",
+      "curated": true,
+      "description_model": "Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).",
+      "implicit": false,
+      "mcp_tool": "vox_semantic_fs_discover",
+      "title": "Semantic filesystem discover"
+    },
+    {
       "capability_id": "mcp.vox_session_cleanup",
       "curated": true,
       "description_model": "Tick lifecycle and remove archived sessions.",
@@ -4631,14 +5127,6 @@
       "implicit": false,
       "mcp_tool": "vox_test_decision",
       "title": "Test Decision"
-    },
-    {
-      "capability_id": "mcp.vox_toestub_findings_upsert",
-      "curated": true,
-      "description_model": "Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).",
-      "implicit": false,
-      "mcp_tool": "vox_toestub_findings_upsert",
-      "title": "Toestub Findings Upsert"
     },
     {
       "capability_id": "mcp.vox_transfer_file",

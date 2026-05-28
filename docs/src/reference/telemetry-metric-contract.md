@@ -64,6 +64,10 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `task.root_summary` | producer-defined | Optional | High-level task / conversation rollup for dashboards. |
 | `build.summary` | `bench:` | Optional | Build or CI lane rollup (`METRIC_TYPE_BUILD_SUMMARY_EVENT`). |
 | `telemetry.error` | producer-defined | Optional | Structured error / fault envelope (`METRIC_TYPE_ERROR_EVENT`); use for HTTP failures, rate limits, and similar fault paths. |
+| `fixture.model.intent_resolved` | producer-defined | Optional | AI-first `@ai` fixture: intent routing metadata (task category, strengths) (`METRIC_TYPE_FIXTURE_MODEL_INTENT`). |
+| `fixture.prompt.dispatch` | producer-defined | Optional | AI-first `@prompt` fixture: cascade dispatch observation (`METRIC_TYPE_FIXTURE_PROMPT_DISPATCH`). |
+| `fixture.search.dispatch` | producer-defined | Optional | AI-first `@search` fixture: retrieval dispatch observation (`METRIC_TYPE_FIXTURE_SEARCH_DISPATCH`). |
+| `fixture.hole.observed` | producer-defined | Optional | AI-first `@hole` fixture: compile-time hole observed (`METRIC_TYPE_FIXTURE_HOLE_OBSERVED`). |
 | `orch.circuit_breaker.trip` | `route:<repository_id>` or orchestrator session key | Optional counter / trip marker | Emitted when the orchestrator doom-loop circuit breaker transitions to **Open** (`METRIC_TYPE_CIRCUIT_BREAKER_TRIP`). |
 | `orch.socrates.fusion` | orchestrator / MCP session | Optional | Socrates eval fusion rollup (`METRIC_TYPE_SOCRATES_FUSION`). |
 | `orch.routing.tier` | `route:<repository_id>` | Optional | Tier routing decision telemetry (`METRIC_TYPE_MODEL_TIER_ROUTE`). |
@@ -79,6 +83,16 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `orch.subagent.dispatch` | orchestrator session | Optional | Sub-agent dispatch (`METRIC_TYPE_SUBAGENT_DISPATCH`). |
 | `orch.subagent.chain_depth_alert` | orchestrator session | Optional | Deep sub-agent chain warning (`METRIC_TYPE_CHAIN_DEPTH_ALERT`). |
 | `orch.agentos.guardrail_deny` | orchestrator session | Optional | AgentOS guardrail denial (`METRIC_TYPE_AGENTOS_GUARDRAIL_DENY`). |
+| `vox.lint.finding` | `lint:<repository_id>` | Optional | CR-L8 corpus-feedback: one lint rule firing at a specific location (`METRIC_TYPE_LINT_FINDING`). |
+| `vox.lint.autofix_applied` | `lint:<repository_id>` | Optional | CR-L8 corpus-feedback: an autofix was accepted and applied (`METRIC_TYPE_LINT_AUTOFIX_APPLIED`). |
+| `vox.lint.autofix_rejected` | `lint:<repository_id>` | Optional | CR-L8 corpus-feedback: an autofix was rejected by the user (`METRIC_TYPE_LINT_AUTOFIX_REJECTED`). |
+| `vox.repair.attempt` | `repair:<session_id>` | Optional | CR-L8 corpus-feedback: one LLM repair attempt (`METRIC_TYPE_REPAIR_ATTEMPT`). |
+| `vox.repair.outcome` | `repair:<session_id>` | Optional | CR-L8 corpus-feedback: terminal outcome of a `vox repair` session (`METRIC_TYPE_REPAIR_OUTCOME`). |
+| `vox.audit.run` | `audit:<thing>` | Optional | Per-`vox audit <thing>` run observation (corpus hash, duration, outcome) (`METRIC_TYPE_AUDIT_RUN`). |
+| `vox.model.selection_decision` | `model_autonomic:<id>` | Optional | Model-autonomic L0: one `select(intent, registry)` decision (`METRIC_TYPE_SELECTION_DECISION`). |
+| `vox.model.discovery` | `model_autonomic:<id>` | Optional | Model-autonomic L1: new model id discovered in upstream catalog (`METRIC_TYPE_MODEL_DISCOVERY`). |
+| `vox.model.classification` | `model_autonomic:<id>` | Optional | Model-autonomic L2: classifier tagged a model with tier/strengths/confidence (`METRIC_TYPE_MODEL_CLASSIFICATION`). |
+| `vox.model.confidence_promotion` | `model_autonomic:<id>` | Optional | Model-autonomic L2/L3: model crossed a confidence-state boundary (`METRIC_TYPE_CONFIDENCE_PROMOTION`). |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 

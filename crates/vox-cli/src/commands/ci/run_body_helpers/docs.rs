@@ -303,10 +303,11 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
     const WORKFLOW_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
     const DOC_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
     // Retired crate paths / broken SSOT links — see `docs/src/archive/research-2026-q1/nomenclature-migration-map.md`.
+    // Note: "crates/vox-ml-cli/" is intentionally NOT banned here — vox-ml-cli is a
+    // grandfathered real crate and implementation plan docs legitimately reference its file paths.
     const NOMENCLATURE_DOC_BANNED: &[&str] = &[
         "reference/mens.md",
         "reference/mens-ssot.md",
-        "crates/vox-ml-cli/",
         "crates/vox-codex-api/",
     ];
     const DOC_PATH_BANNED: &[&str] = &["docs/how-to-ai-agents.md", "docs/src/how-to-ai-agents.md"];

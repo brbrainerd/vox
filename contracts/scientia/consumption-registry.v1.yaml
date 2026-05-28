@@ -50,7 +50,7 @@ entries:
     consumption_required: true
     consumer_paths:
       - crates/vox-publisher/src/research_mesh.rs
-      - crates/vox-orchestrator/src/dei_shim/research/mesh_subscriber.rs
+      - crates/vox-orchestrator/src/config/scientia_research_mesh.rs
     test_targets:
       - cargo test -p vox-publisher research_mesh
 

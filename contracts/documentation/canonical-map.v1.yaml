@@ -128,7 +128,6 @@ domains:
     generated_docs: []
     aliases: []
     owning_crate_globs:
-      - crates/vox-dashboard/**
       - apps/experimental/visualizer/**
       - apps/interop/marquee_app/**
       - tests/fixtures/frontend/test_app_bundle/**

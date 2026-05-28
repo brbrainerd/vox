@@ -2,6 +2,8 @@
 title: "Claude Design Dashboard Assets (May 2026)"
 category: "archive"
 status: "deprecated"
+training_eligible: false
+archived_date: 2026-05-28
 ---
 
 # Claude Design Dashboard Assets (May 2026)
