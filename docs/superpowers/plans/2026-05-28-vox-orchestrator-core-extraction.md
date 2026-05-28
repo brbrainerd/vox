@@ -79,7 +79,7 @@ If you see commits from a MENS or mesh feature sprint in the last two weeks, **d
 
 This task is **read-only**: it produces a markdown table classifying each candidate module. No code changes. Safe to run today.
 
-- [ ] **Step 1: Enumerate sibling modules of `src/orchestrator/`**
+- [x] **Step 1: Enumerate sibling modules of `src/orchestrator/`**
 
 Run:
 ```powershell
@@ -88,7 +88,7 @@ Get-ChildItem crates/vox-orchestrator/src -Directory | Where-Object { $_.Name -n
 
 Expected: ~24 directory names. Record this set as `CANDIDATES`.
 
-- [ ] **Step 2: For each candidate, count `crate::<mod>` imports from `src/orchestrator/`**
+- [x] **Step 2: For each candidate, count `crate::<mod>` imports from `src/orchestrator/`**
 
 Run (PowerShell):
 ```powershell
@@ -101,7 +101,7 @@ foreach ($mod in $candidates) {
 
 Expected output: one line per candidate with its import-frequency from inside `src/orchestrator/`. Sort by descending count.
 
-- [ ] **Step 3: For each candidate, count `impl Orchestrator` blocks in its files**
+- [x] **Step 3: For each candidate, count `impl Orchestrator` blocks in its files**
 
 Run:
 ```powershell
@@ -113,7 +113,7 @@ foreach ($mod in $candidates) {
 
 Modules with `impls > 0` are forced-move (Rust coherence).
 
-- [ ] **Step 4: For each candidate, check whether it's an `Orchestrator` struct field**
+- [x] **Step 4: For each candidate, check whether it's an `Orchestrator` struct field**
 
 Run:
 ```powershell
@@ -127,7 +127,7 @@ foreach ($mod in $candidates) {
 
 Modules whose types appear in the struct field list are forced-move.
 
-- [ ] **Step 5: Classify each candidate**
+- [x] **Step 5: Classify each candidate**
 
 Apply the rules from the spec (§4-D1):
 
@@ -135,7 +135,7 @@ Apply the rules from the spec (§4-D1):
 - **Trait-inject** if: imported by 1–5 files, no `impl Orchestrator`, not a struct field, and the public interface is ≤5 methods (count with `grep -c "^\s*pub fn" crates/vox-orchestrator/src/<mod>/mod.rs`)
 - **Stay** if: imported by 0 files in `src/orchestrator/`
 
-- [ ] **Step 6: Append the manifest to the spec doc**
+- [x] **Step 6: Append the manifest to the spec doc**
 
 Edit `docs/superpowers/specs/2026-05-28-vox-orchestrator-core-extraction-design.md`. After §4-D1, append a new section:
 
@@ -151,7 +151,7 @@ Edit `docs/superpowers/specs/2026-05-28-vox-orchestrator-core-extraction-design.
 
 Fill the table with measurements from Steps 2–5. One row per candidate.
 
-- [ ] **Step 7: Commit the manifest**
+- [x] **Step 7: Commit the manifest**
 
 ```powershell
 cd C:\Users\Owner\vox
