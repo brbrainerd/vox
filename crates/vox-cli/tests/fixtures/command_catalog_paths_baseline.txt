@@ -154,6 +154,7 @@ ci/string-id-lint
 ci/sync-ignore-files
 ci/test-inventory
 ci/test-runtime-report
+ci/tier-budget-check
 ci/toestub-budget
 ci/toestub-scoped
 ci/toestub-self-apply
