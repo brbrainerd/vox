@@ -37,7 +37,7 @@ impl BuildProgress {
         let pb = ProgressBar::new_spinner();
         pb.set_style(build_style());
         pb.set_prefix(stage.to_string());
-        pb.enable_steady_tick(Duration::from_millis(80));
+        pb.enable_steady_tick(vox_config::timeouts::D_80MS);
         Self { pb }
     }
 
@@ -70,7 +70,7 @@ impl SpinnerProgress {
         let pb = ProgressBar::new_spinner();
         pb.set_style(spinner_style());
         pb.set_message(msg.to_string());
-        pb.enable_steady_tick(Duration::from_millis(80));
+        pb.enable_steady_tick(vox_config::timeouts::D_80MS);
         Self { pb }
     }
 

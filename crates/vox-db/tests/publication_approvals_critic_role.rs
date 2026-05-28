@@ -118,7 +118,7 @@ async fn list_orders_by_approved_at_ascending() {
         .await
         .unwrap();
     // Small sleep to ensure distinct ts; mesh-locks tests use this pattern.
-    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    tokio::time::sleep(vox_config::timeouts::D_10MS).await;
     db.record_publication_approval_for_digest("pub-4", "d2", "bob")
         .await
         .unwrap();

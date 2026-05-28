@@ -5,6 +5,7 @@ use std::time::Duration;
 #[test]
 fn populi_middleware_client_builds_with_and_without_retry() {
     let inner = vox_http_client::client_builder()
+        // drift-allow(timeout-literal): SSOT crate's own smoke test
         .timeout(Duration::from_secs(5))
         .build()
         .expect("inner reqwest client");

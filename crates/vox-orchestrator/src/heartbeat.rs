@@ -350,7 +350,7 @@ mod tests {
         monitor.register(agent);
         let stale = monitor.check_stale(&bus);
         assert!(stale.is_empty());
-        std::thread::sleep(Duration::from_millis(20));
+        std::thread::sleep(vox_config::timeouts::D_20MS);
         let stale = monitor.check_stale(&bus);
         assert_eq!(stale.len(), 1);
         assert_eq!(stale[0].0, agent);
@@ -362,7 +362,7 @@ mod tests {
         let bus = EventBus::new(16);
         let agent = AgentId(1);
         monitor.register(agent);
-        std::thread::sleep(Duration::from_millis(20));
+        std::thread::sleep(vox_config::timeouts::D_20MS);
         let stale = monitor.check_stale(&bus);
         assert_eq!(stale.len(), 1);
         monitor.heartbeat(agent, AgentActivity::Thinking);
@@ -396,7 +396,7 @@ mod tests {
         let bus = EventBus::new(16);
         let agent = AgentId(99);
         monitor.register(agent);
-        std::thread::sleep(Duration::from_millis(20));
+        std::thread::sleep(vox_config::timeouts::D_20MS);
         monitor.check_stale(&bus);
         let warns = monitor.at_or_above(StalenessLevel::Warn);
         assert!(warns.contains(&agent));

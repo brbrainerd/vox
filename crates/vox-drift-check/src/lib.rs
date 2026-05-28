@@ -9,6 +9,7 @@ pub mod engine;
 pub mod extractor;
 pub mod extractors;
 pub mod features;
+pub mod layers_manifest;
 pub mod report;
 pub mod rules;
 pub mod sweep;

@@ -25,6 +25,242 @@ use crate::models::{ModelRegistry, ModelSpec, ProviderType, TaskCategory};
 use vox_config::AutoRoutingPriority;
 use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
 
+
+// ─── Canonical request/response (SSOT API) ─────────────────────────────────
+
+/// Rich model-selection request consumed by the canonical selector.
+#[derive(Debug, Clone)]
+pub struct ModelSelectionRequest {
+    pub intent: SelectionIntent,
+    pub required_capabilities: Vec<super::generated::Capability>,
+    pub candidate_scope: CandidateScope,
+}
+
+/// Where candidate models may be drawn from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CandidateScope {
+    #[default]
+    AllProviders,
+    LocalOnly,
+    CloudOnly,
+}
+
+/// Decision envelope returned by the canonical selector (extends [`SelectionOutcome`]).
+#[derive(Debug, Clone)]
+pub struct ModelSelectionDecision {
+    pub selected_model: String,
+    pub provider_route: super::ModelRouteBackend,
+    pub score_breakdown: ScoreBreakdown,
+    pub alternatives: Vec<String>,
+    pub rejection_reasons: Vec<String>,
+    pub pricing_confidence: super::spec::PricingSource,
+    pub discovery_state: super::autonomic::ModelConfidence,
+    pub outcome: SelectionOutcome,
+}
+
+/// Lightweight score transparency for dashboard + `vox model explain`.
+#[derive(Debug, Clone)]
+pub struct ScoreBreakdown {
+    pub effective_axes: AutoRoutingPriority,
+    pub reason: SelectionReason,
+    pub capability_match_count: usize,
+    pub candidate_count: usize,
+    pub intelligence_score: f64,
+    pub efficiency_score: f64,
+    pub latency_score: f64,
+    pub telemetry_quality_score: Option<f64>,
+}
+
+impl ModelSelectionRequest {
+    #[must_use]
+    pub fn from_intent(intent: SelectionIntent) -> Self {
+        Self {
+            intent,
+            required_capabilities: Vec::new(),
+            candidate_scope: CandidateScope::AllProviders,
+        }
+    }
+}
+
+/// Canonical selector entry point with structured decision envelope.
+#[must_use]
+pub fn decide(request: &ModelSelectionRequest, registry: &ModelRegistry) -> Option<ModelSelectionDecision> {
+    use std::collections::HashSet;
+
+    let all = registry.list_models();
+    let mut rejection_reasons: Vec<String> = Vec::new();
+    let mut candidates: Vec<ModelSpec> = Vec::new();
+
+    for m in all {
+        if !scope_allows(m.provider_type.clone(), request.candidate_scope) {
+            rejection_reasons.push(format!("{} rejected: outside candidate_scope", m.id));
+            continue;
+        }
+        if !request
+            .required_capabilities
+            .iter()
+            .all(|cap| m.capabilities.supports(*cap))
+        {
+            rejection_reasons.push(format!("{} rejected: missing required capability", m.id));
+            continue;
+        }
+        if !supports_intent_constraints(&m, &request.intent) {
+            rejection_reasons.push(format!("{} rejected: intent constraints", m.id));
+            continue;
+        }
+        let conf = confidence_state_for_model(&m);
+        if !is_routing_eligible(conf) {
+            rejection_reasons.push(format!("{} gated: confidence_state={}", m.id, conf.as_str()));
+            continue;
+        }
+        candidates.push(m);
+    }
+
+    if candidates.is_empty() {
+        // Controlled exploration fallback for unconfirmed models when explicitly enabled.
+        if exploration_enabled() {
+            for m in registry.list_models() {
+                if !scope_allows(m.provider_type.clone(), request.candidate_scope) {
+                    continue;
+                }
+                if !request
+                    .required_capabilities
+                    .iter()
+                    .all(|cap| m.capabilities.supports(*cap))
+                {
+                    continue;
+                }
+                if !supports_intent_constraints(&m, &request.intent) {
+                    continue;
+                }
+                let conf = confidence_state_for_model(&m);
+                if conf == super::autonomic::ModelConfidence::Deprecated {
+                    continue;
+                }
+                if exploration_budget_exhausted()
+                    && m.pricing_source == super::spec::PricingSource::Unknown
+                {
+                    continue;
+                }
+                candidates.push(m);
+            }
+        }
+    }
+
+    if candidates.is_empty() {
+        return None;
+    }
+
+    let candidate_ids: HashSet<String> = candidates.iter().map(|m| m.id.clone()).collect();
+    let intent = &request.intent;
+
+    let selected = select(intent, registry).and_then(|o| {
+        if candidate_ids.contains(&o.model_id) {
+            Some(o)
+        } else {
+            None
+        }
+    }).or_else(|| {
+        // Scoped fallback through registry scorer constrained to candidate set.
+        let model = registry.best_for_with_filter(
+            intent.task,
+            intent.complexity,
+            intent.axes.to_cost_preference(),
+            |m| candidate_ids.contains(&m.id),
+            None,
+        )?;
+        Some(SelectionOutcome {
+            model_id: model.id.clone(),
+            model_spec: model,
+            reason: SelectionReason::Scored,
+            effective_axes: intent.axes.to_routing_priority(intent.prefer_local),
+        })
+    })?;
+
+    let alternatives: Vec<String> = candidates
+        .iter()
+        .filter(|m| m.id != selected.model_id)
+        .take(5)
+        .map(|m| m.id.clone())
+        .collect();
+
+    let cap_match = request
+        .required_capabilities
+        .iter()
+        .filter(|cap| selected.model_spec.capabilities.supports(**cap))
+        .count();
+
+    Some(ModelSelectionDecision {
+        selected_model: selected.model_id.clone(),
+        provider_route: super::route_backend_for_model(&selected.model_spec),
+        score_breakdown: ScoreBreakdown {
+            effective_axes: selected.effective_axes,
+            reason: selected.reason.clone(),
+            capability_match_count: cap_match,
+            candidate_count: candidates.len(),
+            intelligence_score: super::scoring::quality_score(&selected.model_spec),
+            efficiency_score: super::scoring::efficiency_score(&selected.model_spec),
+            latency_score: super::scoring::latency_score(&selected.model_spec),
+            telemetry_quality_score: registry
+                .scoreboard_snapshot()
+                .get(&selected.model_id)
+                .map(|s| s.quality_score),
+        },
+        alternatives,
+        rejection_reasons,
+        pricing_confidence: selected.model_spec.pricing_source.clone(),
+        discovery_state: confidence_state_for_model(&selected.model_spec),
+        outcome: selected,
+    })
+}
+
+fn scope_allows(provider_type: ProviderType, scope: CandidateScope) -> bool {
+    match scope {
+        CandidateScope::AllProviders => true,
+        CandidateScope::LocalOnly => matches!(
+            provider_type,
+            ProviderType::Ollama | ProviderType::VoxLocal | ProviderType::PopuliMesh
+        ),
+        CandidateScope::CloudOnly => !matches!(
+            provider_type,
+            ProviderType::Ollama | ProviderType::VoxLocal | ProviderType::PopuliMesh
+        ),
+    }
+}
+
+fn confidence_state_for_model(m: &ModelSpec) -> super::autonomic::ModelConfidence {
+    let pins = vox_config::load_model_pins_config().unwrap_or_default();
+    if pins.retired_ids.iter().any(|id| id == &m.id) {
+        return super::autonomic::ModelConfidence::Deprecated;
+    }
+    match m.pricing_source {
+        super::spec::PricingSource::Telemetry | super::spec::PricingSource::UserConfig => {
+            super::autonomic::ModelConfidence::Confirmed
+        }
+        super::spec::PricingSource::LiteLLM => super::autonomic::ModelConfidence::Shadowed,
+        super::spec::PricingSource::Unknown => super::autonomic::ModelConfidence::Provisional,
+        super::spec::PricingSource::OpenRouter
+        | super::spec::PricingSource::AnthropicDirect
+        | super::spec::PricingSource::Bootstrap => super::autonomic::ModelConfidence::Shadowed,
+    }
+}
+
+fn exploration_enabled() -> bool {
+    std::env::var("VOX_ROUTING_ENABLE_EXPLORATION")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn exploration_budget_exhausted() -> bool {
+    std::env::var("VOX_EXPLORATION_BUDGET_EXHAUSTED")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn is_routing_eligible(conf: super::autonomic::ModelConfidence) -> bool {
+    conf.eligible_for_routing()
+}
+
 // ─── User-facing axes ──────────────────────────────────────────────────────
 
 /// Three-axis user-facing model-selection knob, 0-100 per axis.
@@ -643,6 +879,85 @@ mod tests {
         let i = SelectionIntent::ide_autocomplete();
         assert!(i.prefer_local);
         assert_eq!(i.axes, SelectionAxes::FAST);
+    }
+
+
+    #[test]
+    fn decide_respects_candidate_scope_cloud_only() {
+        let registry = ModelRegistry::new();
+        let req = ModelSelectionRequest {
+            intent: SelectionIntent::for_task(TaskCategory::CodeGen),
+            required_capabilities: vec![],
+            candidate_scope: CandidateScope::CloudOnly,
+        };
+        if let Some(decision) = decide(&req, &registry) {
+            assert!(!matches!(
+                decision.outcome.model_spec.provider_type,
+                ProviderType::Ollama | ProviderType::VoxLocal | ProviderType::PopuliMesh
+            ));
+        }
+    }
+
+    #[test]
+    fn decide_populates_non_placeholder_fields() {
+        let registry = ModelRegistry::new();
+        let req = ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        if let Some(decision) = decide(&req, &registry) {
+            assert!(decision.score_breakdown.candidate_count > 0);
+            assert!(!decision.selected_model.is_empty());
+            assert!(!decision.discovery_state.as_str().is_empty());
+        }
+    }
+
+    #[test]
+    fn confidence_state_tracks_pricing_source() {
+        let registry = ModelRegistry::new();
+        let mut model = registry
+            .list_models()
+            .into_iter()
+            .next()
+            .expect("at least one model");
+        model.pricing_source = super::super::spec::PricingSource::Unknown;
+        assert_eq!(
+            confidence_state_for_model(&model),
+            super::super::autonomic::ModelConfidence::Provisional
+        );
+        model.pricing_source = super::super::spec::PricingSource::Telemetry;
+        assert_eq!(
+            confidence_state_for_model(&model),
+            super::super::autonomic::ModelConfidence::Confirmed
+        );
+    }
+
+    #[test]
+    fn exploration_budget_gate_blocks_unknown_when_exhausted() {
+        let prior_enable = std::env::var("VOX_ROUTING_ENABLE_EXPLORATION").ok();
+        let prior_budget = std::env::var("VOX_EXPLORATION_BUDGET_EXHAUSTED").ok();
+        unsafe {
+            std::env::set_var("VOX_ROUTING_ENABLE_EXPLORATION", "1");
+            std::env::set_var("VOX_EXPLORATION_BUDGET_EXHAUSTED", "1");
+        }
+        assert!(exploration_enabled());
+        assert!(exploration_budget_exhausted());
+        let mut m = ModelRegistry::new()
+            .list_models()
+            .into_iter()
+            .next()
+            .expect("at least one model");
+        m.pricing_source = super::super::spec::PricingSource::Unknown;
+        let blocked =
+            exploration_budget_exhausted() && m.pricing_source == super::super::spec::PricingSource::Unknown;
+        assert!(blocked);
+        unsafe {
+            match prior_enable {
+                Some(v) => std::env::set_var("VOX_ROUTING_ENABLE_EXPLORATION", v),
+                None => std::env::remove_var("VOX_ROUTING_ENABLE_EXPLORATION"),
+            }
+            match prior_budget {
+                Some(v) => std::env::set_var("VOX_EXPLORATION_BUDGET_EXHAUSTED", v),
+                None => std::env::remove_var("VOX_EXPLORATION_BUDGET_EXHAUSTED"),
+            }
+        }
     }
 
     #[test]

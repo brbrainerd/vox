@@ -21,7 +21,11 @@ impl SweepRule for CallShapeRule {
         Severity::Info
     }
 
-    fn sweep(&self, files: &[ExtractedFeatures]) -> Vec<Finding> {
+    fn sweep(
+        &self,
+        files: &[ExtractedFeatures],
+        _ctx: &crate::rules::WorkspaceContext,
+    ) -> Vec<Finding> {
         let mut index: HashMap<String, Vec<(std::path::PathBuf, usize)>> = HashMap::new();
         for f in files {
             for cs in &f.call_sites {

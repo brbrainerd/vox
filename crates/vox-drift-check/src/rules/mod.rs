@@ -1,4 +1,5 @@
 use crate::features::ExtractedFeatures;
+use crate::layers_manifest::LayersManifest;
 use std::path::PathBuf;
 use vox_code_audit::rules::{Finding, Language, Severity};
 
@@ -12,6 +13,10 @@ pub mod vox_path_literal;
 pub struct WorkspaceContext {
     pub workspace_version: String,
     pub workspace_root: PathBuf,
+    /// Parsed `docs/src/architecture/layers.toml` — single source of truth for
+    /// per-crate attributes like `sibling_of`. Empty when the file is missing
+    /// (rules degrade gracefully to "no siblings declared").
+    pub layers: LayersManifest,
 }
 
 pub trait DriftRule: Send + Sync {

@@ -178,7 +178,7 @@ impl BrowserEngine {
             }
             match resolve_element(&page, target).await {
                 Ok(_) => return Ok(()),
-                Err(_) => tokio::time::sleep(Duration::from_millis(200)).await,
+                Err(_) => tokio::time::sleep(vox_config::timeouts::D_200MS).await,
             }
         }
     }

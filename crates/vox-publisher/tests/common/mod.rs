@@ -13,6 +13,6 @@ pub async fn wait_for_local_server(addr: SocketAddr, label: &str) {
         if tokio::time::Instant::now() >= deadline {
             panic!("{label}: local server did not accept connections on {addr}");
         }
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        tokio::time::sleep(vox_config::timeouts::D_10MS).await;
     }
 }

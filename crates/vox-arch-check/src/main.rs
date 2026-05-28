@@ -145,6 +145,13 @@ struct CrateEntry {
     /// Rule 15: cap on normal workspace-member deps for this crate.
     #[serde(default)]
     max_workspace_deps: Option<usize>,
+    /// Other crates this one is structurally a sibling of. Consumed by
+    /// `vox-drift-check`'s `sweep/duplicate-body` rule to tolerate intentional
+    /// code duplication across vendor splits and extraction migrations. Edges
+    /// are undirected (closure over the declared graph).
+    #[serde(default)]
+    #[allow(dead_code)]
+    sibling_of: Vec<String>,
 }
 
 fn default_kind() -> String {

@@ -71,7 +71,7 @@ pub async fn vox_visus_audit(_state: &ServerState, args: serde_json::Value) -> S
     };
 
     // Wait for JS hydration
-    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    tokio::time::sleep(vox_config::timeouts::D_3S).await;
 
     let ax_tree: serde_json::Value =
         serde_json::from_str(&ax_tree_str).unwrap_or(json!({ "raw": ax_tree_str }));
@@ -132,7 +132,7 @@ pub async fn vox_visus_baseline(state: &ServerState, args: serde_json::Value) ->
     };
 
     // Wait for JS hydration
-    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    tokio::time::sleep(vox_config::timeouts::D_3S).await;
 
     let screenshot_cas = blake3::hash(&screenshot_bytes).to_string();
     let ax_tree_cas = blake3::hash(ax_tree_str.as_bytes()).to_string();

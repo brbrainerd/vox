@@ -258,7 +258,7 @@ mod tests {
 
         mgr.notify("users").await; // different table
 
-        let result = tokio::time::timeout(std::time::Duration::from_millis(50), rx.recv()).await;
+        let result = tokio::time::timeout(vox_config::timeouts::D_50MS, rx.recv()).await;
 
         assert!(
             result.is_err(),

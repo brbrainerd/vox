@@ -29,7 +29,7 @@ pub async fn run(json_output: bool) -> Result<()> {
 
     let ollama_up = std::net::TcpStream::connect_timeout(
         &std::net::SocketAddr::from(([127, 0, 0, 1], 11434)),
-        std::time::Duration::from_millis(300),
+        vox_config::timeouts::D_300MS,
     )
     .is_ok();
 

@@ -357,12 +357,12 @@ mod tests {
         let opts = ActivityOptions::new()
             .with_retries(3)
             .with_timeout_secs(10)
-            .with_initial_backoff(Duration::from_millis(200))
+            .with_initial_backoff(vox_config::timeouts::D_200MS)
             .with_activity_id("test-123".to_string());
 
         assert_eq!(opts.retries, 3);
         assert_eq!(opts.timeout, Some(vox_config::timeouts::D_10S));
-        assert_eq!(opts.initial_backoff, Duration::from_millis(200));
+        assert_eq!(opts.initial_backoff, vox_config::timeouts::D_200MS);
         assert_eq!(opts.activity_id, Some("test-123".to_string()));
     }
 
@@ -419,7 +419,7 @@ mod tests {
         let counter = Arc::new(AtomicU32::new(0));
         let opts = ActivityOptions::new()
             .with_retries(3)
-            .with_initial_backoff(Duration::from_millis(1)); // fast for tests
+            .with_initial_backoff(vox_config::timeouts::D_1MS); // fast for tests
 
         let counter_clone = counter.clone();
         let result = execute_activity("retry-test", &opts, move || {
@@ -446,7 +446,7 @@ mod tests {
     async fn test_execute_activity_all_retries_exhausted() {
         let opts = ActivityOptions::new()
             .with_retries(2)
-            .with_initial_backoff(Duration::from_millis(1));
+            .with_initial_backoff(vox_config::timeouts::D_1MS);
 
         let result = execute_activity("fail-test", &opts, || async {
             Err::<(), _>("always fails")
@@ -467,7 +467,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_activity_timeout() {
-        let opts = ActivityOptions::new().with_timeout(Duration::from_millis(10));
+        let opts = ActivityOptions::new().with_timeout(vox_config::timeouts::D_10MS);
 
         let result = execute_activity("timeout-test", &opts, || async {
             tokio::time::sleep(vox_config::timeouts::D_10S).await;

@@ -3,7 +3,7 @@ title: "research-index"
 description: "Curated index of Vox architecture SSOT pages, mesh plans, language enforcement phases, and research artifacts."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-15"
+last_updated: "2026-05-28"
 training_eligible: false
 ---
 # Vox Architecture & Research Index (2026)
@@ -206,6 +206,7 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 
 ## User Interface & Dashboard
 
+- [Vox GUI Capability Audit (2026-05-28)](vox-gui-capability-audit-2026.md) — Reality audit of `crates/vox-gui`, CLI-driven discovery, Tauri/mobile compatibility, real vs scaffolded dashboard surfaces, and the path to a CLI-shaped code harness.
 - [Vox Dashboard Migration Research (2026-04-22)](dashboard-migration-research-2026.md) — Architectural decisions and prerequisites for migrating the Vox orchestration UI from an editor-bound VS Code webview to a standalone Axum-served SPA. Superseded by [ADR 024](../adr/024-dashboard-axum-spa.md).
 
 ## Gamification & Identity

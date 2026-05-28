@@ -34,7 +34,7 @@ async fn twitter_and_opencollective_use_configured_bases_only() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    tokio::time::sleep(Duration::from_millis(80)).await;
+    tokio::time::sleep(vox_config::timeouts::D_80MS).await;
 
     let base = format!("http://{}", addr);
     let item = UnifiedNewsItem {
@@ -97,7 +97,7 @@ async fn partial_channel_failure_is_reported_without_short_circuiting() {
     let _guard = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(80)).await;
+    tokio::time::sleep(vox_config::timeouts::D_80MS).await;
 
     let base = format!("http://{}", addr);
     let item = UnifiedNewsItem {

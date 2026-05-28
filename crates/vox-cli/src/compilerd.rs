@@ -326,7 +326,7 @@ async fn handle_run(req: &DispatchRequest) -> anyhow::Result<()> {
     if p.open {
         let url = format!("http://127.0.0.1:{}/", p.port);
         tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            tokio::time::sleep(vox_config::timeouts::D_2S).await;
             crate::fs_utils::open_browser(&url).await;
         });
     }
@@ -423,7 +423,7 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
     if p.open {
         let url = format!("http://127.0.0.1:{}/", p.port);
         tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            tokio::time::sleep(vox_config::timeouts::D_2S).await;
             crate::fs_utils::open_browser(&url).await;
         });
     }

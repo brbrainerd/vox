@@ -68,6 +68,13 @@ task_categories:
   - Visus
 
 # VOX_AUTO_ROUTING_PRIORITY env var is the SSOT for weight distributions (efficiency, precision, etc).
+quality_weights:
+  socrates_factuality: 0.25
+  contradiction_inverse: 0.15
+  success_rate: 0.25
+  p50_latency_inverse: 0.15
+  cost_inverse: 0.2
+
 latency_bands:
   excellent_ms: 500
   poor_ms: 8000

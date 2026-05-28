@@ -270,7 +270,7 @@ async fn wait_for_port(port: u16, timeout: std::time::Duration) -> anyhow::Resul
                 port
             );
         }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(vox_config::timeouts::D_200MS).await;
     }
 }
 

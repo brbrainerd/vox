@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import type { CommandCatalog, CommandCatalogEntry } from '../types/catalog';
+import { voxTransport } from '../transport';
 
 export interface ExecuteOutput {
     exit_code: number;
@@ -26,34 +26,20 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
     const handleExecute = async () => {
         if (!selectedPath) return;
         try {
-            // Very naive argument parser for flags (just splitting by space for now, to avoid `{ extra: "..." }` issue)
-            // A more robust solution would be needed in reality, but this fulfills the plan's requirement to stop using `{ extra: raw }`.
             const parsedArgs = argsInput.trim().split(/\s+/).filter(Boolean);
-            let argsObj: Record<string, string> = {};
+            const argsObj: Record<string, string | boolean> = {};
             
             // Map structured argValues
             for (const [key, val] of Object.entries(argValues)) {
                 if (typeof val === 'boolean') {
-                    if (val) argsObj[key] = ''; // present flag
+                    if (val) argsObj[key] = true;
                 } else if (val) {
                     argsObj[key] = String(val);
                 }
             }
-
-            let currentFlag = '';
-            for (const token of parsedArgs) {
-                if (token.startsWith('--')) {
-                    currentFlag = token.substring(2);
-                    argsObj[currentFlag] = ''; // default empty value for boolean flags
-                } else if (currentFlag) {
-                    argsObj[currentFlag] = token;
-                    currentFlag = '';
-                }
-            }
-
-            const res = await invoke<ExecuteOutput>('execute_command', { 
-                path: selectedPath.split(' '), 
-                args: argsObj 
+            const res = await voxTransport.callTool(selectedPath.replace(/ /g, '_'), {
+                ...argsObj,
+                __argv: parsedArgs,
             });
             setOutput({ success: true, data: res });
         } catch (err) {

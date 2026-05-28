@@ -835,7 +835,7 @@ impl AgentFleet {
             }
 
             // 4. Wait until next tick
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            tokio::time::sleep(vox_config::timeouts::D_1S).await;
         }
     }
 }

@@ -59,6 +59,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => super::frozen_crates::check_frozen_crates(&root),
         CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
+        CiCmd::GuiVersionSync { write } => super::gui_version_sync::run(&root, write),
+        CiCmd::GuiSurfaceCoverage { write } => super::gui_surface_coverage::run(&root, write),
         CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),

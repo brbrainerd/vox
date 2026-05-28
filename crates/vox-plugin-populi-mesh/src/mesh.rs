@@ -172,7 +172,7 @@ impl MeshDriver for PopuliMeshPlugin {
         });
 
         // Brief wait so the OnceLock is populated before we read it.
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::thread::sleep(vox_config::timeouts::D_50MS);
         let bound = bound_addr_cell.get().copied().unwrap_or(addr);
         let client_base = format!("http://{bound}");
 

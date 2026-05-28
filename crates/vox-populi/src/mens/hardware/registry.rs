@@ -112,10 +112,10 @@ mod tests {
 
     #[tokio::test]
     async fn expired_cache_re_probes() {
-        let registry = HardwareRegistryV2::new(Duration::from_millis(1));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_1MS);
         let first = registry.probe().await;
         // Sleep past the 1ms TTL
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        tokio::time::sleep(vox_config::timeouts::D_10MS).await;
         let second = registry.probe().await;
         // A fresh probe may return the same model name, but it must be a new Arc.
         assert!(

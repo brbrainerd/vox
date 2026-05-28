@@ -49,7 +49,7 @@ pub async fn get_memory_status() -> Result<MemoryStatusPayload, String> {
     let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true).await
         .ok_or_else(|| "No workspace db found".to_string())?;
 
-    let conn = db.conn().await.map_err(|e| e.to_string())?;
+    let conn = db.connection();
 
     macro_rules! count_query {
         ($sql:expr) => {{
@@ -148,7 +148,7 @@ pub async fn mnemosyne_recall(query: String, _scope: String, limit: usize) -> Re
     
     // Index the local workspace memory if possible
     let memory_manager = MemoryManager::new(build.config.memory).map_err(|e| e.to_string())?;
-    let _memory_content = memory_manager.read_all_long_term().unwrap_or_default();
+    let _memory_content = memory_manager.bootstrap_context();
     
     // Perform hybrid search
     // Note: hybrid_search is async and takes an optional embedding service

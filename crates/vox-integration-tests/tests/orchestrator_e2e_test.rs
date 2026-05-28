@@ -44,7 +44,7 @@ const E2E_TEST_TIMEOUT: Duration = vox_config::timeouts::D_60S;
 /// Per-phase await timeout (pinpoints stall before whole-test timeout).
 const PHASE_TIMEOUT: Duration = vox_config::timeouts::D_30S;
 /// Watchdog interval (~3s per user preference).
-const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
+const WATCHDOG_INTERVAL: Duration = vox_config::timeouts::D_3S;
 
 const MAX_DRAIN_INNER_ITERS_PER_AGENT: usize = 50_000;
 const MAX_COMPLETIONS_PER_DRAIN_CALL: usize = 100_000;

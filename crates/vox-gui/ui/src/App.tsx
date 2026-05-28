@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { decode } from '@msgpack/msgpack';
 import { Backdrop } from './components/ui/Backdrop';
 import { Sidebar, SidebarMode } from './components/layout/Sidebar';
@@ -14,13 +13,31 @@ import { Matrix } from './components/surfaces/Matrix/Matrix';
 import { AgentFlow } from './components/surfaces/Flow/AgentFlow';
 import { MemoryView } from './components/surfaces/Memory/MemoryView';
 import { SettingsView } from './components/surfaces/Settings/SettingsView';
+import { ModelsView } from './components/surfaces/Models/ModelsView';
+import { RunsView } from './components/surfaces/Runs/RunsView';
+import { RepositoryView } from './components/surfaces/Repository/RepositoryView';
+import { MeshView } from './components/surfaces/Mesh/MeshView';
+import { GamifyView } from './components/surfaces/Gamify/GamifyView';
+import { HarnessView } from './components/surfaces/Harness/HarnessView';
 import { voxTransport } from './transport';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
 import { DashboardData, Agent, StreamItem, LudusAlert } from './types/dashboard';
 import { INITIAL_DATA, INITIAL_KPIS } from './data/initialState';
 
-type View = 'dashboard' | 'flow' | 'catalog' | 'matrix' | 'memory' | 'settings';
+type View =
+  | 'dashboard'
+  | 'flow'
+  | 'catalog'
+  | 'matrix'
+  | 'memory'
+  | 'models'
+  | 'runs'
+  | 'repository'
+  | 'mesh'
+  | 'gamify'
+  | 'harness'
+  | 'settings';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
 function mapAgent(a: any): Agent {
@@ -64,6 +81,7 @@ export default function App() {
   const [activeSkill, setActiveSkill] = useState<any>(null);
   const [deployedSet, setDeployedSet] = useState(new Set<string>());
   const [selectedAgentId, setSelectedAgentId] = useState('ROOT');
+  const [appVersion, setAppVersion] = useState<string>('loading…');
 
   // ── 5-minute rolling sparkline windows ──────────────────────────────────
   // Each hook persists its window to localStorage under a namespaced key.
@@ -127,16 +145,19 @@ export default function App() {
     voxTransport.getCatalog().then((catalog: any) => {
       if (catalog?.entries) setData(prev => ({ ...prev, skills: catalog.entries }));
     });
+    invoke<{ display?: string; version?: string }>('get_build_info')
+      .then((info) => setAppVersion(info.display ?? info.version ?? 'unknown'))
+      .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'settings'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'settings'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Reactive EventBus — zero-copy IPC polling path ────────────────────────
+  // ── Polling status refresh (event stream integration pending) ─────────────
   // We use `get_orchestrator_status_bin` to fetch raw MessagePack payloads,
   // bypassing Tauri's default JSON string-escaping overhead for large states.
   useEffect(() => {
@@ -153,12 +174,74 @@ export default function App() {
     };
 
     poll();
-    fallbackInterval = setInterval(poll, 500);
+    fallbackInterval = setInterval(poll, 2000);
 
     return () => {
       if (fallbackInterval !== undefined) clearInterval(fallbackInterval);
     };
   }, [applyStatus]);
+
+  const executeWithRun = useCallback(async (operationName: string, payload: any, workflowName: string) => {
+    const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await invoke('start_gui_run', {
+      input: {
+        run_id: runId,
+        workflow_name: workflowName,
+        planned_steps: 1,
+      }
+    });
+    try {
+      const result = await voxTransport.callTool(operationName, payload);
+      const success = result.exit_code === 0;
+      await invoke('finish_gui_run', {
+        run_id: runId,
+        success,
+        completed_steps: success ? 1 : 0,
+        error: success ? null : (result.stderr || `exit_code=${result.exit_code}`)
+      });
+      if (!success) {
+        throw new Error(result.stderr || `Command failed with exit code ${result.exit_code}`);
+      }
+      return result;
+    } catch (err) {
+      await invoke('finish_gui_run', {
+        run_id: runId,
+        success: false,
+        completed_steps: 0,
+        error: String(err),
+      }).catch(() => {});
+      throw err;
+    }
+  }, []);
+
+  const executeIpcWithRun = useCallback(async <T,>(command: string, payload: any, workflowName: string): Promise<T> => {
+    const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await invoke('start_gui_run', {
+      input: {
+        run_id: runId,
+        workflow_name: workflowName,
+        planned_steps: 1,
+      }
+    });
+    try {
+      const result = await invoke<T>(command, payload);
+      await invoke('finish_gui_run', {
+        run_id: runId,
+        success: true,
+        completed_steps: 1,
+        error: null
+      });
+      return result;
+    } catch (err) {
+      await invoke('finish_gui_run', {
+        run_id: runId,
+        success: false,
+        completed_steps: 0,
+        error: String(err),
+      }).catch(() => {});
+      throw err;
+    }
+  }, []);
 
   // ── Global keybinds ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -178,40 +261,84 @@ export default function App() {
   // ── Action handlers ───────────────────────────────────────────────────────
   const handleLoquelaSubmit = useCallback(async (payload: any) => {
     pushToast({ tone: 'info', title: 'Task Dispatched', body: payload.description, cmd: 'vox submit-task' });
-    await voxTransport.callTool('vox_submit_task', payload)
+    await executeIpcWithRun('submit_orchestrator_task', {
+      input: {
+        description: payload.description,
+        files: payload.files ?? [],
+        priority: payload.priority ?? null,
+        session_id: payload.session_id ?? 'gui-loquela',
+      }
+    }, 'gui.loquela.submit')
       .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
-  }, [pushToast]);
+  }, [executeIpcWithRun, pushToast]);
 
   const handlePause = useCallback(async (a: Agent) => {
     setData(prev => ({ ...prev, agents: prev.agents.map(x => x.id === a.id ? { ...x, phase: 'Paused' } : x) }));
-    pushToast({ tone: 'warn', title: `${a.codename} paused`, cmd: `vox dei pause-agent ${a.id}` });
-    await voxTransport.callTool('vox_pause_agent', { agent_id: a.id.replace('A-', '') })
-      .catch(() => {});
-  }, [pushToast]);
+    pushToast({ tone: 'warn', title: `${a.codename} paused`, cmd: `vox pause-agent ${a.id}` });
+    const id = Number(a.id.replace('A-', ''));
+    if (!Number.isFinite(id)) {
+      pushToast({ tone: 'warn', title: 'Pause unavailable', body: 'Selected agent has non-numeric id; cannot route pause command.' });
+      return;
+    }
+    await executeIpcWithRun('pause_orchestrator_agent', { agentId: id }, 'gui.agent.pause')
+      .catch((err) => pushToast({ tone: 'warn', title: 'Pause failed', body: String(err) }));
+  }, [executeIpcWithRun, pushToast]);
 
   const handleResume = useCallback(async (a: Agent) => {
     setData(prev => ({ ...prev, agents: prev.agents.map(x => x.id === a.id ? { ...x, phase: 'Executing' } : x) }));
-    pushToast({ tone: 'ok', title: `${a.codename} resumed`, cmd: `vox dei resume-agent ${a.id}` });
-    await voxTransport.callTool('vox_resume_agent', { agent_id: a.id.replace('A-', '') })
-      .catch(() => {});
-  }, [pushToast]);
+    pushToast({ tone: 'ok', title: `${a.codename} resumed`, cmd: `vox resume-agent ${a.id}` });
+    const id = Number(a.id.replace('A-', ''));
+    if (!Number.isFinite(id)) {
+      pushToast({ tone: 'warn', title: 'Resume unavailable', body: 'Selected agent has non-numeric id; cannot route resume command.' });
+      return;
+    }
+    await executeIpcWithRun('resume_orchestrator_agent', { agentId: id }, 'gui.agent.resume')
+      .catch((err) => pushToast({ tone: 'warn', title: 'Resume failed', body: String(err) }));
+  }, [executeIpcWithRun, pushToast]);
 
   const handleDoubt = useCallback(async (item: StreamItem) => {
     setData(prev => ({ ...prev, stream: prev.stream.map(x => x.id === item.id ? { ...x, kind: 'doubted' } : x) }));
     pushToast({ tone: 'warn', title: 'Doubt injected', body: item.title, cmd: `vox doubt-task ${item.id}` });
-    await voxTransport.callTool('vox_doubt_task', { task_id: item.id }).catch(() => {});
-  }, [pushToast]);
+    const taskId = Number(String(item.id).replace(/\D+/g, ''));
+    if (!Number.isFinite(taskId) || taskId <= 0) {
+      pushToast({
+        tone: 'warn',
+        title: 'Doubt unavailable',
+        body: 'This stream event has no numeric task id, so orchestrator doubt cannot be applied.',
+      });
+      return;
+    }
+    await executeIpcWithRun('doubt_orchestrator_task', {
+      taskId,
+      reason: `GUI doubt on stream event ${item.id}`,
+    }, 'gui.stream.doubt')
+      .catch((err) => pushToast({ tone: 'warn', title: 'Doubt failed', body: String(err) }));
+  }, [executeIpcWithRun, pushToast]);
 
   const handleOverrule = useCallback(async (item: StreamItem) => {
     setData(prev => ({ ...prev, stream: prev.stream.map(x => x.id === item.id ? { ...x, kind: 'validated' } : x) }));
     pushToast({ tone: 'ok', title: 'Doubt overruled', body: item.title, cmd: `vox overrule-task ${item.id}` });
-    await voxTransport.callTool('vox_overrule_task', { task_id: item.id }).catch(() => {});
-  }, [pushToast]);
+    const taskId = Number(String(item.id).replace(/\D+/g, ''));
+    if (!Number.isFinite(taskId) || taskId <= 0) {
+      pushToast({
+        tone: 'warn',
+        title: 'Overrule unavailable',
+        body: 'This stream event has no numeric task id, so orchestrator overrule cannot be applied.',
+      });
+      return;
+    }
+    await executeIpcWithRun('overrule_orchestrator_task', {
+      taskId,
+      reason: `GUI overrule on stream event ${item.id}`,
+    }, 'gui.stream.overrule')
+      .catch((err) => pushToast({ tone: 'warn', title: 'Overrule failed', body: String(err) }));
+  }, [executeIpcWithRun, pushToast]);
 
   const handleAckAlert = useCallback(async (note: LudusAlert) => {
     setData(prev => ({ ...prev, alerts: prev.alerts.filter(x => x.id !== note.id) }));
-    await voxTransport.callTool('vox_gamify_notification_ack', { notification_id: note.id }).catch(() => {});
-  }, []);
+    await executeWithRun('vox_gamify_notification_ack', { notification_id: note.id }, 'gui.alert.ack')
+      .catch((err) => pushToast({ tone: 'warn', title: 'Alert ack failed', body: String(err) }));
+  }, [executeWithRun, pushToast]);
 
   const handleCommandAction = useCallback((cmd: any) => {
     if (cmd.id === 'submit') document.querySelector('textarea')?.focus();
@@ -269,14 +396,28 @@ export default function App() {
         return (
           <Matrix
             intentions={data.intentions}
-            onDoubt={(i: any) => voxTransport.callTool('vox_doubt_policy', { id: i.id }).catch(() => {})}
-            onOverrule={(i: any) => voxTransport.callTool('vox_promote_policy', { id: i.id }).catch(() => {})}
+            onDoubt={(i: any) => executeWithRun('vox_doubt_policy', { id: i.id }, 'gui.policy.doubt')
+              .catch((err: any) => pushToast({ tone: 'warn', title: 'Policy doubt failed', body: String(err) }))}
+            onOverrule={(i: any) => executeWithRun('vox_promote_policy', { id: i.id }, 'gui.policy.promote')
+              .catch((err: any) => pushToast({ tone: 'warn', title: 'Policy promote failed', body: String(err) }))}
           />
         );
       case 'memory':
         return <MemoryView pushToast={pushToast} />;
+      case 'models':
+        return <ModelsView pushToast={pushToast} />;
+      case 'runs':
+        return <RunsView pushToast={pushToast} />;
       case 'settings':
         return <SettingsView pushToast={pushToast} />;
+      case 'repository':
+        return <RepositoryView pushToast={pushToast} />;
+      case 'mesh':
+        return <MeshView pushToast={pushToast} />;
+      case 'gamify':
+        return <GamifyView pushToast={pushToast} />;
+      case 'harness':
+        return <HarnessView pushToast={pushToast} />;
       default:
         return null;
     }
@@ -294,6 +435,7 @@ export default function App() {
         mode={sidebarMode}
         setMode={setSidebarMode}
         pushToast={pushToast}
+        appVersion={appVersion}
       />
 
       <main className="flex-1 flex flex-col min-w-0 relative">

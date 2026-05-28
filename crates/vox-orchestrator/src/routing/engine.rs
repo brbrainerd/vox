@@ -8,6 +8,7 @@ use rand::rngs::StdRng;
 
 use crate::config::CostPreference;
 use crate::models::ModelSpec;
+use crate::models::ModelScore;
 use crate::models::ModelTier;
 use crate::models::scoring::auto_score_model;
 use crate::types::TaskCategory;
@@ -74,6 +75,7 @@ impl ModelSelectionEngine {
         preference: CostPreference,
         availability_hint: Option<&[RemainingBudget]>,
         arm_stats: &HashMap<String, (u32, u32)>,
+        scoreboard: &HashMap<String, ModelScore>,
         novel_explores_so_far: u32,
     ) -> Option<ModelSpec> {
         if candidates.is_empty() {
@@ -87,6 +89,7 @@ impl ModelSelectionEngine {
         let mut best_score = f64::NEG_INFINITY;
         let mut any_explore = false;
         for (i, m) in candidates.iter().enumerate() {
+            let sb = scoreboard.get(&m.id);
             let mut base = auto_score_model(
                 m,
                 complexity,
@@ -94,6 +97,7 @@ impl ModelSelectionEngine {
                 context_fill_ratio,
                 preference,
                 availability_hint,
+                sb,
             );
             if prefer_reasoning_from_secrets() && m.capabilities.supports_reasoning {
                 base += 0.02;
@@ -210,6 +214,7 @@ mod tests {
                 CostPreference::Performance,
                 None,
                 &stats,
+                &HashMap::new(),
                 0,
             )
             .expect("pick");

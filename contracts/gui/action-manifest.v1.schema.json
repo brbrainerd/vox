@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GUI Action Manifest v1",
+  "type": "object",
+  "required": ["x_vox_version", "schema_version", "generated_from", "actions"],
+  "properties": {
+    "x_vox_version": { "type": "integer" },
+    "schema_version": { "const": 1 },
+    "generated_from": { "type": "string", "minLength": 1 },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "handler_kind",
+          "safety_class",
+          "capability_id",
+          "scope_kind",
+          "requires_repo",
+          "reversible",
+          "confirmation_policy",
+          "execution_mode",
+          "output_kind",
+          "status",
+          "platform"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "description": { "type": "string", "minLength": 1 },
+          "handler_kind": { "enum": ["cli", "mcp", "ipc"] },
+          "cli_path": {
+            "type": ["array", "null"],
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "mcp_name": { "type": ["string", "null"] },
+          "command": { "type": ["string", "null"] },
+          "safety_class": { "enum": ["read_only", "mutating", "destructive", "unknown"] },
+          "feature_gate": { "type": ["string", "null"] },
+          "capability_id": { "type": "string", "minLength": 1 },
+          "scope_kind": { "type": "string", "minLength": 1 },
+          "requires_repo": { "type": "boolean" },
+          "reversible": { "type": "boolean" },
+          "confirmation_policy": { "enum": ["none", "recommended", "required"] },
+          "execution_mode": { "enum": ["sync", "async"] },
+          "output_kind": { "enum": ["text", "json", "msgpack", "mixed"] },
+          "status": { "type": "string", "minLength": 1 },
+          "product_lane": { "type": ["string", "null"] },
+          "platform": {
+            "type": "object",
+            "required": ["desktop", "mobile"],
+            "properties": {
+              "desktop": { "type": "boolean" },
+              "mobile": { "type": "boolean" }
+            }
+          },
+          "arguments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "required", "takes_value"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "short": { "type": ["string", "null"] },
+                "long": { "type": ["string", "null"] },
+                "help": { "type": ["string", "null"] },
+                "required": { "type": "boolean" },
+                "takes_value": { "type": "boolean" }
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "handler_kind": { "const": "cli" } } },
+            "then": { "required": ["cli_path", "command"] }
+          },
+          {
+            "if": { "properties": { "handler_kind": { "const": "mcp" } } },
+            "then": { "required": ["mcp_name"] }
+          },
+          {
+            "if": { "properties": { "handler_kind": { "const": "ipc" } } },
+            "then": { "required": ["command"] }
+          }
+        ]
+      }
+    }
+  }
+}

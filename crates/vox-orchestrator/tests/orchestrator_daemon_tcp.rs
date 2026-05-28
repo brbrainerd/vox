@@ -71,7 +71,7 @@ async fn orchestrator_daemon_ping_and_task_status_inner() {
     wait_until_async(
         "orchestrator daemon TCP accepting (`orch.ping`)",
         vox_config::timeouts::D_15S,
-        Duration::from_millis(5),
+        vox_config::timeouts::D_5MS,
         || {
             let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
             async move { c.ping().await.is_ok() }
@@ -130,7 +130,7 @@ async fn orchestrator_daemon_task_and_agent_write_methods_inner() {
     wait_until_async(
         "orchestrator daemon TCP accepting (`orch.ping`)",
         vox_config::timeouts::D_15S,
-        Duration::from_millis(5),
+        vox_config::timeouts::D_5MS,
         || {
             let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
             async move { c.ping().await.is_ok() }

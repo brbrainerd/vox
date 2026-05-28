@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
+import { voxTransport } from '../../../transport';
 
 const LQ_MODES = [
   { id: "plan",   label: "Plan",   hint: "Augur drafts a plan, no side effects",       tone: "text-cyan-300   border-cyan-400/30   bg-cyan-400/[0.08]" },
@@ -125,6 +126,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   const [history,   setHistory]   = useState<string[]>([]);
   const [histIdx,   setHistIdx]   = useState(-1);
   const [expanded,  setExpanded]  = useState(false);
+  const [runtimeTiers, setRuntimeTiers] = useState(LQ_TIERS);
 
   const taRef = useRef<HTMLTextAreaElement>(null);
 
@@ -142,6 +144,26 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
     setSlashIdx(0);
   }, [text]);
 
+  useEffect(() => {
+    voxTransport.listModels(24).then((models: any) => {
+      if (!Array.isArray(models) || models.length === 0) return;
+      const dynamic = models.slice(0, 4).map((m: any, idx: number) => ({
+        id: m.model_id ?? `model-${idx}`,
+        label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
+        detail: m.provider ?? 'runtime',
+        cost: null,
+        lat: 'var',
+      }));
+      setRuntimeTiers([
+        ...dynamic,
+        { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: 'var' },
+      ]);
+      if (!dynamic.some((d: any) => d.id === tier) && tier !== 'auto') {
+        setTier(dynamic[0]?.id ?? 'auto');
+      }
+    }).catch(() => {});
+  }, []);
+
   const filteredSlash = useMemo(() => {
     const q = text.trimStart().toLowerCase();
     return LQ_SLASH.filter(s => s.cmd.startsWith(q));
@@ -153,7 +175,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   }, [text, agents]);
 
   const tokens = Math.ceil(text.length / 4) + chips.length * 80;
-  const tierObj = LQ_TIERS.find(t => t.id === tier) || LQ_TIERS[3];
+  const tierObj = runtimeTiers.find(t => t.id === tier) || runtimeTiers[runtimeTiers.length - 1];
   const estCost = tierObj?.cost == null ? null : (tokens / 1000) * tierObj.cost + 0.002;
 
   const insertSlash = (cmd: string) => { setText(cmd + " "); setSlashOpen(false); taRef.current?.focus(); };
@@ -277,7 +299,7 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
               <Icon.chevR className="size-2.5 text-zinc-500 rotate-90" />
             </button>
             <Popover open={tierOpen}>
-              {LQ_TIERS.map(t => (
+              {runtimeTiers.map(t => (
                 <button key={t.id} onClick={() => { setTier(t.id); setTierOpen(false); }} className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5 ${tier === t.id ? "bg-white/5" : ""}`}>
                   <div className="flex-1">
                     <div className="text-[11px] text-zinc-100">{t.label}</div>

@@ -1,4 +1,5 @@
 use crate::features::ExtractedFeatures;
+use crate::rules::WorkspaceContext;
 use vox_code_audit::rules::{Finding, Severity};
 
 pub mod body_hash;
@@ -9,7 +10,7 @@ pub mod numeric_dedup;
 pub trait SweepRule: Send + Sync {
     fn id(&self) -> &'static str;
     fn severity(&self) -> Severity;
-    fn sweep(&self, files: &[ExtractedFeatures]) -> Vec<Finding>;
+    fn sweep(&self, files: &[ExtractedFeatures], ctx: &WorkspaceContext) -> Vec<Finding>;
 }
 
 pub fn all_sweep_rules() -> Vec<Box<dyn SweepRule>> {

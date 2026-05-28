@@ -11,6 +11,8 @@
 use axum::Json;
 use axum::extract::{ConnectInfo, Path, State};
 use axum::http::HeaderMap;
+use axum::routing::{get, post, put};
+use axum::Router;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
@@ -70,6 +72,22 @@ fn live_runs_enabled() -> bool {
             .map(|s| s == "1" || s.eq_ignore_ascii_case("true")),
         Ok(true)
     )
+}
+
+fn confidence_state_for_model(m: &vox_orchestrator::models::ModelSpec) -> &'static str {
+    let pins = vox_config::load_model_pins_config().unwrap_or_default();
+    if pins.retired_ids.iter().any(|id| id == &m.id) {
+        return "deprecated";
+    }
+    match m.pricing_source {
+        vox_orchestrator::models::spec::PricingSource::Telemetry
+        | vox_orchestrator::models::spec::PricingSource::UserConfig => "confirmed",
+        vox_orchestrator::models::spec::PricingSource::Unknown => "provisional",
+        vox_orchestrator::models::spec::PricingSource::LiteLLM
+        | vox_orchestrator::models::spec::PricingSource::OpenRouter
+        | vox_orchestrator::models::spec::PricingSource::AnthropicDirect
+        | vox_orchestrator::models::spec::PricingSource::Bootstrap => "shadowed",
+    }
 }
 
 fn fixture_mesh_nodes() -> Value {
@@ -314,15 +332,51 @@ pub async fn get_routing_summary(
         }));
     }
     let models = gs.server_state.orchestrator.models_handle();
-    let arms = match poison_rw_read(models.read(), "model registry for routing viz") {
-        Ok(guard) => guard.arm_stats_snapshot().clone(),
+    let (arms, decision) = match poison_rw_read(models.read(), "model registry for routing viz") {
+        Ok(guard) => {
+            let arms = guard.arm_stats_snapshot().clone();
+            let req = vox_orchestrator::models::ModelSelectionRequest::from_intent(
+                vox_orchestrator::models::SelectionIntent::for_task(
+                    vox_orchestrator::types::TaskCategory::CodeGen,
+                ),
+            );
+            let decision = vox_orchestrator::models::decide(&req, &guard);
+            (arms, decision)
+        }
         Err(e) => return err("lock", &e.to_string()),
     };
     let arms_json: Value = serde_json::to_value(&arms).unwrap_or(json!({}));
+    let decision_json = decision.map(|d| {
+        json!({
+            "selected_model": d.selected_model,
+            "provider_route": format!("{:?}", d.provider_route),
+            "alternatives": d.alternatives,
+            "rejection_reasons": d.rejection_reasons,
+            "discovery_state": d.discovery_state.as_str(),
+            "score_breakdown": {
+                "reason": format!("{:?}", d.score_breakdown.reason),
+                "effective_axes": {
+                    "efficiency": d.score_breakdown.effective_axes.efficiency,
+                    "precision": d.score_breakdown.effective_axes.precision,
+                    "latency": d.score_breakdown.effective_axes.latency,
+                    "availability": d.score_breakdown.effective_axes.availability,
+                    "balance": d.score_breakdown.effective_axes.balance,
+                    "mobile": d.score_breakdown.effective_axes.mobile
+                },
+                "capability_match_count": d.score_breakdown.capability_match_count,
+                "candidate_count": d.score_breakdown.candidate_count,
+                "intelligence_score": d.score_breakdown.intelligence_score,
+                "efficiency_score": d.score_breakdown.efficiency_score,
+                "latency_score": d.score_breakdown.latency_score,
+                "telemetry_quality_score": d.score_breakdown.telemetry_quality_score
+            }
+        })
+    }).unwrap_or(json!(null));
     ok(json!({
         "source": "registry",
         "arm_stats": arms_json,
         "arm_count": arms.len(),
+        "decision_preview": decision_json,
     }))
 }
 
@@ -358,4 +412,49 @@ pub async fn post_mesh_node_kill(
         "node_id": id,
         "message": "Mesh kill is not wired to orchestrator dispatch in this build; use MCP vox_cancel_task / vox_emergency_stop or enable future mesh driver integration.",
     }))
+}
+
+/// GET /api/v2/models/catalog — registry snapshot for dashboard / vox-gui parity.
+pub async fn get_models_catalog(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    let models = gs.server_state.orchestrator.models_handle();
+    let snapshot = match poison_rw_read(models.read(), "model registry for catalog") {
+        Ok(guard) => guard.list_models(),
+        Err(e) => return err("lock", &e.to_string()),
+    };
+    let arm_stats = match poison_rw_read(models.read(), "arm stats for catalog") {
+        Ok(guard) => guard.arm_stats_snapshot().clone(),
+        Err(e) => return err("lock", &e.to_string()),
+    };
+    ok(json!({
+        "source": "registry",
+        "model_count": snapshot.len(),
+        "models": snapshot,
+        "confidence_state": snapshot
+            .iter()
+            .map(|m| (m.id.clone(), confidence_state_for_model(m)))
+            .collect::<std::collections::HashMap<_, _>>(),
+        "arm_stats": arm_stats,
+    }))
+}
+
+/// Build the dashboard sub-router nested at `/api/v2`.
+pub fn router() -> Router<GatewayState> {
+    Router::new()
+        .route("/mesh/nodes", get(get_mesh_nodes))
+        .route("/runs/recent", get(get_runs_recent))
+        .route(
+            "/dashboard/layout",
+            get(get_dashboard_layout).put(put_dashboard_layout),
+        )
+        .route("/routing/summary", get(get_routing_summary))
+        .route("/routing/manual-ssot", get(get_routing_manual_ssot))
+        .route("/models/catalog", get(get_models_catalog))
+        .route("/mesh/nodes/:id/kill", post(post_mesh_node_kill))
 }

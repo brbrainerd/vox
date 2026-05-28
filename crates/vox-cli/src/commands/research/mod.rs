@@ -258,7 +258,7 @@ pub async fn research_watch(session_id: i64) -> anyhow::Result<()> {
         if matches!(row.status.as_str(), "completed" | "failed" | "orphaned") {
             return Ok(());
         }
-        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        tokio::time::sleep(vox_config::timeouts::D_3S).await;
     }
 }
 

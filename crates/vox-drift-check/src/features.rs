@@ -37,6 +37,10 @@ pub struct NumericLoc {
     pub value: f64,
     pub unit: Option<UnitHint>,
     pub loc: Loc,
+    /// True when the literal is part of a `const` or `static` item's initializer.
+    /// SSOT timeout/string consts deliberately spell the literal — rules skip these.
+    #[serde(default)]
+    pub in_const: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +84,11 @@ pub struct ExtractedFeatures {
     pub body_signatures: Vec<BodySignature>,
     pub imports: Vec<ImportLoc>,
     pub fn_definitions: Vec<FnDef>,
+    /// Per-rule line allowlist parsed from `// drift-allow(rule-id[,rule-id…])`
+    /// source comments. A rule that emits a finding at one of these lines must
+    /// suppress it (see `ExtractedFeatures::is_allowed`).
+    #[serde(default)]
+    pub allowed_lines: std::collections::HashMap<String, std::collections::HashSet<usize>>,
 }
 
 impl ExtractedFeatures {
@@ -94,7 +103,18 @@ impl ExtractedFeatures {
             body_signatures: Vec::new(),
             imports: Vec::new(),
             fn_definitions: Vec::new(),
+            allowed_lines: std::collections::HashMap::new(),
         }
+    }
+
+    /// True when an in-source `// drift-allow(<rule_id>)` comment covers `line`.
+    /// Annotations cover the line they sit on AND the following line, so both
+    /// `Duration::from_secs(5); // drift-allow(timeout-literal): …` (trailing)
+    /// and the comment-above style are honored.
+    pub fn is_allowed(&self, rule_id: &str, line: usize) -> bool {
+        self.allowed_lines
+            .get(rule_id)
+            .is_some_and(|set| set.contains(&line))
     }
 }
 
@@ -122,6 +142,7 @@ mod tests {
             value: 30.0,
             unit: None,
             loc: Loc::default(),
+            in_const: false,
         };
         assert_eq!(n.value, 30.0);
         assert!(n.unit.is_none());

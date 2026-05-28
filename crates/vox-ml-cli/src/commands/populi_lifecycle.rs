@@ -515,7 +515,7 @@ async fn control_plane_health(control_url: &str) -> bool {
     let url = format!("{}/health", control_url.trim_end_matches('/'));
     vox_http_client::client()
         .get(url)
-        .timeout(std::time::Duration::from_secs(2))
+        .timeout(vox_config::timeouts::D_2S)
         .send()
         .await
         .is_ok_and(|r| r.status().is_success())

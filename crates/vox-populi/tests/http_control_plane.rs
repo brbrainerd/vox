@@ -45,7 +45,7 @@ async fn wait_populi_http_ready(base: &str) {
     wait_until_async(
         "Populi HTTP server accepting connections (/health)",
         vox_config::timeouts::D_15S,
-        Duration::from_millis(5),
+        vox_config::timeouts::D_5MS,
         || async {
             match reqwest::get(&url).await {
                 Ok(r) => r.status().is_success(),
@@ -252,7 +252,7 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     wait_until_async(
         "stale mesh nodes pruned from list (VOX_MESH_SERVER_STALE_PRUNE_MS)",
         vox_config::timeouts::D_5S,
-        Duration::from_millis(5),
+        vox_config::timeouts::D_5MS,
         || async { client.list_nodes().await.unwrap().nodes.is_empty() },
     )
     .await;
@@ -724,7 +724,7 @@ async fn maintenance_deadline_expires_and_claims_resume() {
     wait_until_async(
         "maintenance_for_ms elapsed; inbox claims resume",
         vox_config::timeouts::D_5S,
-        Duration::from_millis(10),
+        vox_config::timeouts::D_10MS,
         || async {
             let claimed: serde_json::Value = inbox_client
                 .post(format!("{base}/v1/populi/a2a/inbox"))

@@ -2,7 +2,7 @@
 
 use vox_actor_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
 use vox_orchestrator::Orchestrator;
-use vox_orchestrator::models::{ModelSpec, ProviderType};
+use vox_orchestrator::models::{CandidateScope, ModelSelectionRequest, ModelSpec, ProviderType, SelectionAxes, SelectionIntent, decide};
 use vox_orchestrator::route_policy::route_policy_allows_model;
 use vox_orchestrator::types::TaskCategory;
 use vox_orchestrator::usage::{RemainingBudget, UsageTracker};
@@ -11,10 +11,35 @@ use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed};
 use super::types::McpChatModelResolution;
 use crate::server_state::ServerState;
-use vox_orchestrator::routing::ModelSelectionEngine;
+
 
 fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
     route_policy_allows_model(model)
+}
+
+fn build_selection_request(
+    task: TaskCategory,
+    complexity: u8,
+    prefer_local: bool,
+    cacheable_workload: bool,
+    preference: vox_orchestrator::config::CostPreference,
+    required_capabilities: Vec<vox_orchestrator::models::Capability>,
+) -> ModelSelectionRequest {
+    let mut intent = SelectionIntent::for_task(task);
+    intent.complexity = complexity;
+    intent.prefer_local = prefer_local;
+    intent.cacheable_workload = cacheable_workload;
+    intent.axes = if preference == vox_orchestrator::config::CostPreference::Economy {
+        SelectionAxes::COST_FIRST
+    } else {
+        SelectionAxes::BALANCED
+    };
+
+    ModelSelectionRequest {
+        intent,
+        required_capabilities,
+        candidate_scope: CandidateScope::AllProviders,
+    }
 }
 
 #[inline]
@@ -241,41 +266,22 @@ pub fn resolve_mcp_chat_model_sync(
         }
     }
 
-    let candidates: Vec<ModelSpec> = registry
-        .list_models()
-        .into_iter()
-        .filter(caps_ok)
-        .filter(mcp_local_model_allowed)
-        .filter(|m| routing_allows(m))
-        .filter(|m| vox_local_route_preferred || !matches!(m.provider_type, ProviderType::VoxLocal))
-        .collect();
-    let arm_stats = registry.arm_stats_snapshot().clone();
-    let novel_trials = vox_orchestrator::sync_lock::rw_read(&*orch.budget_handle())
-        .novel_routing_explores(MCP_GLOBAL_LLM_AGENT);
-    let mut engine = ModelSelectionEngine::new(None);
-    if let Some(m) = engine.pick_with_auto_score_thompson(
-        &candidates,
+    let req = build_selection_request(
         task,
         res.complexity,
-        res.free_tier_latency_critical,
-        res.context_fill_ratio,
+        vox_local_route_preferred,
+        res.free_tier_fill_in_middle,
         preference,
-        availability_hint,
-        &arm_stats,
-        novel_trials,
-    ) {
-        let (s, f) = arm_stats.get(&m.id).copied().unwrap_or((0, 0));
-        let max_ne = routing_policy.exploration.max_concurrent_explorations;
-        if routing_policy.routing_objective.kind == "quality_first"
-            && s + f == 0
-            && novel_trials < max_ne
-        {
-            vox_orchestrator::sync_lock::rw_write(&*orch.budget_handle())
-                .record_novel_routing_explore(MCP_GLOBAL_LLM_AGENT);
+        required_capabilities.clone(),
+    );
+
+    if let Some(decision) = decide(&req, &registry) {
+        let mut m = decision.outcome.model_spec.clone();
+        if caps_ok(&m) && mcp_local_model_allowed(&m) && routing_allows(&m) {
+            m = apply_gemini_policy(&registry, m, false);
+            let m = enforce_free_tier_if_needed(&registry, &res, m)?;
+            return Ok((m.clone(), m.is_free));
         }
-        let m = apply_gemini_policy(&registry, m, false);
-        let m = enforce_free_tier_if_needed(&registry, &res, m)?;
-        return Ok((m.clone(), m.is_free));
     }
 
     if res.allow_cheapest_fallback {
@@ -347,4 +353,28 @@ pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, 
         | ProviderType::HuggingFaceRouter
         | ProviderType::Custom(_) => ChatRouteBackend::CascadeFallback,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use vox_orchestrator::models::Capability;
+
+    #[test]
+    fn build_selection_request_maps_economy_to_cost_first() {
+        let req = build_selection_request(
+            TaskCategory::CodeGen,
+            7,
+            true,
+            true,
+            vox_orchestrator::config::CostPreference::Economy,
+            vec![Capability::SupportsToolUse],
+        );
+        assert_eq!(req.intent.task, TaskCategory::CodeGen);
+        assert_eq!(req.intent.complexity, 7);
+        assert_eq!(req.intent.axes, SelectionAxes::COST_FIRST);
+        assert!(req.intent.prefer_local);
+        assert!(req.intent.cacheable_workload);
+        assert_eq!(req.required_capabilities, vec![Capability::SupportsToolUse]);
+    }
 }

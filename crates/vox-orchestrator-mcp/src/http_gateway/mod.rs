@@ -6,6 +6,7 @@
 
 mod status;
 use status::*;
+mod dashboard_api;
 mod rpc_tools;
 use rpc_tools::*;
 mod token;
@@ -218,6 +219,7 @@ pub fn build_app(state: GatewayState) -> Router {
     let app = Router::<GatewayState>::new()
         // /api/v2/* — versioned dashboard REST surface (envelope: { v, data } / { v, error })
         .merge(crate::services::routes::router())
+        .nest("/api/v2", dashboard_api::router())
         .route("/health", get(http_health))
         .route("/v1/info", get(http_info))
         .route("/v1/tools", get(http_tools))

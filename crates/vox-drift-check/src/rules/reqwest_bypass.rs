@@ -80,6 +80,7 @@ mod tests {
         WorkspaceContext {
             workspace_version: "0.5.0".into(),
             workspace_root: PathBuf::from("."),
+            layers: crate::layers_manifest::LayersManifest::default(),
         }
     }
 
@@ -109,8 +110,10 @@ mod tests {
     }
 
     #[test]
-    fn allows_client_new_inside_defaults_crate() {
-        let f = make("vox-reqwest-defaults", &[&["reqwest", "Client", "new"]]);
+    fn allows_client_new_inside_ssot_crate() {
+        // The SSOT crate (renamed from vox-reqwest-defaults → vox-http-client in
+        // 2026) is where the legitimate `reqwest::Client::new()` call lives.
+        let f = make("vox-http-client", &[&["reqwest", "Client", "new"]]);
         let rule = ReqwestBypassRule;
         assert!(rule.check(&f, &ctx()).is_empty());
     }

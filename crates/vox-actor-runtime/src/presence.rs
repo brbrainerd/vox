@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn snapshot_evicts_stale_entries() {
-        let map = PresenceMap::new(Duration::from_millis(1));
+        let map = PresenceMap::new(vox_config::timeouts::D_1MS);
         let past = SystemTime::now() - vox_config::timeouts::D_10S;
         map.upsert(snap("ghost", 0, 0, past));
         // Tiny sleep would be flaky; instead, give the snapshot a now that's

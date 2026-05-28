@@ -73,7 +73,7 @@ async fn test_dynamic_scaling_and_retirement() {
     // has time to process the retirement while the test thread remains responsive.
     let mut retired = false;
     for _ in 0..30 {
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
 
         fleet.check_scaling().await;
         let status = orch.status();

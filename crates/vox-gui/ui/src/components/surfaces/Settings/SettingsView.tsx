@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
+import { voxTransport } from '../../../transport';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
+  { id: 'routing',      icon: 'matrix',  label: 'Model routing' },
   { id: 'mesh',         icon: 'flow',    label: 'Mesh & peers' },
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
   { id: 'telemetry',    icon: 'scale',   label: 'Telemetry' },
@@ -93,6 +95,14 @@ interface SettingsViewProps {
 
 export function SettingsView({ pushToast }: SettingsViewProps) {
   const [section, setSection] = useState('orchestrator');
+  const [routing, setRouting] = useState({
+    efficiency: 25,
+    precision: 30,
+    latency: 20,
+    availability: 20,
+    balance: 5,
+    mobile: 0,
+  });
   const [vals, setVals] = useState<SettingsState>({
     doubt: true, autobudget: true, theme: 'arcane', concurrency: 7,
     capUsd: 5, doubtThresh: 0.6, sign: false, telemetry: 'local',
@@ -106,8 +116,50 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     // Attempt to push to Rust (fails gracefully if command not registered)
     try {
       await invoke('set_orchestrator_config', { config: next });
+      for (const [k, v] of Object.entries(patch)) {
+        if (['theme', 'telemetry', 'sign', 'checkpointMins'].includes(k)) {
+          await invoke('set_gui_preference', { key: `gui.${k}`, value: String(v) });
+        }
+      }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
+    }
+  };
+
+  useEffect(() => {
+    voxTransport.getRoutingSummaryLive().then((s: any) => {
+      if (s?.routing_priority) setRouting(s.routing_priority);
+    }).catch(() => {});
+    const hydrate = async () => {
+      try {
+        const [theme, telemetry, sign, checkpoint] = await Promise.all([
+          invoke<string | null>('get_gui_preference', { key: 'gui.theme' }),
+          invoke<string | null>('get_gui_preference', { key: 'gui.telemetry' }),
+          invoke<string | null>('get_gui_preference', { key: 'gui.sign' }),
+          invoke<string | null>('get_gui_preference', { key: 'gui.checkpointMins' }),
+        ]);
+        setVals((prev) => ({
+          ...prev,
+          theme: theme || prev.theme,
+          telemetry: telemetry || prev.telemetry,
+          sign: sign != null ? sign === 'true' : prev.sign,
+          checkpointMins: checkpoint != null ? Number(checkpoint) || prev.checkpointMins : prev.checkpointMins,
+        }));
+      } catch {
+        // keep default local state when preference DB isn't available
+      }
+    };
+    hydrate();
+  }, []);
+
+  const updateRouting = async (patch: Partial<typeof routing>) => {
+    const next = { ...routing, ...patch };
+    setRouting(next);
+    try {
+      await voxTransport.setRoutingPriority(next);
+      pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY updated for this session' });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err) });
     }
   };
 
@@ -174,6 +226,33 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               </Row>
               <Row label="Auto-budget per agent" hint="Derived from skill + recent burn">
                 <Toggle on={vals.autobudget} onClick={() => update({ autobudget: !vals.autobudget })} />
+              </Row>
+            </div>
+          </>
+        )}
+
+        {section === 'routing' && (
+          <>
+            <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Model routing</h2>
+            <p className="mt-0.5 text-[11px] text-zinc-500">Intelligence / efficiency / latency tradeoffs (maps to VOX_AUTO_ROUTING_PRIORITY)</p>
+            <div className="mt-4 space-y-3">
+              <Row label="Efficiency (cost)" hint="Prefer cheaper models when viable">
+                <RangeInline value={routing.efficiency} min={0} max={100} onChange={v => updateRouting({ efficiency: v })} />
+              </Row>
+              <Row label="Precision (intelligence)" hint="Prefer higher-capability models">
+                <RangeInline value={routing.precision} min={0} max={100} onChange={v => updateRouting({ precision: v })} />
+              </Row>
+              <Row label="Latency (responsiveness)" hint="Prefer faster p50 models">
+                <RangeInline value={routing.latency} min={0} max={100} onChange={v => updateRouting({ latency: v })} />
+              </Row>
+              <Row label="Availability" hint="Weight provider quota / uptime signals">
+                <RangeInline value={routing.availability} min={0} max={100} onChange={v => updateRouting({ availability: v })} />
+              </Row>
+              <Row label="Balance (context fill)" hint="Prefer models sized to prompt context">
+                <RangeInline value={routing.balance} min={0} max={100} onChange={v => updateRouting({ balance: v })} />
+              </Row>
+              <Row label="Mobile / local bias" hint="Prefer Ollama / mesh when set high">
+                <RangeInline value={routing.mobile} min={0} max={100} onChange={v => updateRouting({ mobile: v })} />
               </Row>
             </div>
           </>

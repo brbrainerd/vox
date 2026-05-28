@@ -193,7 +193,7 @@ mod tests {
     fn missed_buckets_computes_count() {
         use std::time::UNIX_EPOCH;
         let now = UNIX_EPOCH + Duration::from_secs(7200);
-        let last = UNIX_EPOCH + Duration::from_secs(0);
+        let last = UNIX_EPOCH + vox_config::timeouts::D_ZERO;
         assert_eq!(
             missed_buckets_since(Some(last), now, vox_config::timeouts::D_3600S),
             2

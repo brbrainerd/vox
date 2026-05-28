@@ -24,6 +24,11 @@ pre-commit:
       stage_fixed: true
       glob: "crates/vox-cli/src/commands/**/*.rs"
 
+    gui-version-sync:
+      run: cargo run -p vox-cli --quiet -- ci gui-version-sync --write
+      stage_fixed: true
+      glob: "{Cargo.toml,crates/vox-gui/tauri.conf.json,crates/vox-gui/ui/package.json,clients/runtime-types/package.json,clients/runtime-web/package.json}"
+
     plugin-catalog-docs:
       run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs
       stage_fixed: true

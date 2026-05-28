@@ -14,7 +14,7 @@ async fn build_stage_event_round_trips_through_bus() {
         diagnostic_count: 0,
     });
 
-    let received = timeout(Duration::from_secs(1), rx.recv())
+    let received = timeout(vox_config::timeouts::D_1S, rx.recv())
         .await
         .expect("timeout")
         .expect("recv");
@@ -39,7 +39,7 @@ async fn throughput_tick_event_round_trips() {
         active_runs: 3,
     });
 
-    let received = timeout(Duration::from_secs(1), rx.recv())
+    let received = timeout(vox_config::timeouts::D_1S, rx.recv())
         .await
         .expect("timeout")
         .expect("recv");
@@ -69,7 +69,7 @@ async fn cost_tick_event_round_trips() {
         model: "claude-sonnet-4-6".into(),
     });
 
-    let received = timeout(Duration::from_secs(1), rx.recv())
+    let received = timeout(vox_config::timeouts::D_1S, rx.recv())
         .await
         .expect("timeout")
         .expect("recv");
@@ -96,7 +96,7 @@ async fn file_diag_changed_event_round_trips() {
         warn_count: 5,
     });
 
-    let received = timeout(Duration::from_secs(1), rx.recv())
+    let received = timeout(vox_config::timeouts::D_1S, rx.recv())
         .await
         .expect("timeout")
         .expect("recv");
@@ -126,7 +126,7 @@ async fn mesh_topology_changed_event_round_trips() {
         changed_edges: 4,
     });
 
-    let received = timeout(Duration::from_secs(1), rx.recv())
+    let received = timeout(vox_config::timeouts::D_1S, rx.recv())
         .await
         .expect("timeout")
         .expect("recv");

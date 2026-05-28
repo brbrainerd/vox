@@ -927,8 +927,8 @@ mod tests {
             "two retries should sleep twice; got {sleeps:?}"
         );
         // Exponential: first wait base*2^0 = 1s; second base*2^1 = 2s.
-        assert_eq!(sleeps[0], std::time::Duration::from_secs(1));
-        assert_eq!(sleeps[1], std::time::Duration::from_secs(2));
+        assert_eq!(sleeps[0], vox_config::timeouts::D_1S);
+        assert_eq!(sleeps[1], vox_config::timeouts::D_2S);
     }
 
     #[test]

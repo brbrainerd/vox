@@ -12,7 +12,7 @@ async fn test_infinite_loop_actor_yields_to_scheduler() {
 
     let _control_task = tokio::spawn(async move {
         // Pretend this is our healthy system scheduler doing normal requests
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
         let _ = tx.send("Healthy interleave!".to_string());
     });
 
@@ -46,7 +46,7 @@ async fn test_infinite_loop_actor_yields_to_scheduler() {
 
     // 3. Await the control channel. If the preemption guard failed, the single thread
     // running the loop would block the control thread permanently until the test timed out.
-    let result = timeout(Duration::from_secs(2), rx).await;
+    let result = timeout(vox_config::timeouts::D_2S, rx).await;
 
     // Confirm that the control loop successfully fired, proving `yield_now` interleaved.
     assert!(

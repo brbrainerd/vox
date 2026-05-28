@@ -54,7 +54,7 @@ async fn verify_dispatch_results_persistence_across_restart() {
                 .unwrap();
         });
 
-        let client = PopuliHttpClient::new_with_timeout(&base_url, Duration::from_secs(2));
+        let client = PopuliHttpClient::new_with_timeout(&base_url, vox_config::timeouts::D_2S);
 
         // Let's poll for the dispatch wait
         let response = client

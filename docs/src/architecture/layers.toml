@@ -139,7 +139,7 @@ vox-dei-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true 
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
-vox-oratio              = { layer = 3 }
+vox-oratio              = { layer = 3, sibling_of = ["vox-plugin-oratio"] }                    # Unit-4 extraction migration: shared code with plugin variant tolerated by drift sweep
 vox-wasm-engine         = { layer = 3 }
 vox-container-types     = { layer = 0 }              # pure types: ContainerRuntime trait, BuildOpts/RunOpts, RuntimePreference, exec_grammar (D-9-rescope step 1)
 vox-container           = { layer = 3 }
@@ -180,8 +180,8 @@ vox-plugin-catalog      = { layer = 3 }
 # exempt from this file. They are validated separately.
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
 vox-plugin-cloud             = { layer = 4, kind = "plugin" }
-vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin" }
-vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin" }
+vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-metal", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
+vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin", sibling_of = ["vox-plugin-mens-candle-cuda", "vox-populi"] }  # vendor-split GPU backends; populi held the legacy MENS tensor copy mid-migration
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
 vox-plugin-oratio            = { layer = 4, kind = "plugin" }
 vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }

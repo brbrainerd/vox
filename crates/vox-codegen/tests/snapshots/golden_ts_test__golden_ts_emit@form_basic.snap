@@ -60,7 +60,6 @@ export function Item() {
       "wraps_db_transaction": false
     }
   ],
-  "stream_fns": [],
   "mcp_tools": [],
   "mcp_resources": [],
   "server_config": {

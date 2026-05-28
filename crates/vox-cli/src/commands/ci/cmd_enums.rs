@@ -61,6 +61,20 @@ pub enum CiCmd {
     /// Enforce GUI / CLI synchronization (Taure configuration parity and command descriptions).
     #[command(name = "gui-catalog-parity")]
     GuiCatalogParity,
+    /// Sync or verify GUI/runtime package versions against workspace.package.version.
+    #[command(name = "gui-version-sync")]
+    GuiVersionSync {
+        /// Write generated/synced versions. Without this flag, verify only.
+        #[arg(long)]
+        write: bool,
+    },
+    /// Generate or verify machine-readable GUI coverage classification report.
+    #[command(name = "gui-surface-coverage")]
+    GuiSurfaceCoverage {
+        /// Write/update report output. Without this flag, verify only.
+        #[arg(long)]
+        write: bool,
+    },
     /// Validate the YAML contract schema against the system's expected defaults.
     #[command(name = "model-routing-check")]
     ModelRoutingCheck,

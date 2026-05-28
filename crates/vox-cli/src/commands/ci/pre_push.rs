@@ -220,7 +220,7 @@ fn run_step_with_heartbeat(label: &str, f: impl FnOnce() -> Result<()>) -> Resul
     let bg = thread::spawn(move || {
         let t0 = Instant::now();
         loop {
-            thread::sleep(Duration::from_secs(3));
+            thread::sleep(vox_config::timeouts::D_3S);
             if stop_bg.load(Ordering::Relaxed) {
                 break;
             }

@@ -375,6 +375,34 @@ pub async fn dispatch_request(
                 Err(e) => response_err(&req.id, format!("{e}")),
             }
         }
+        orch_daemon_method::DOUBT_TASK => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            let reason = req
+                .params
+                .get("reason")
+                .and_then(|x| x.as_str())
+                .map(ToString::to_string);
+            match orch.doubt_task(TaskId(task_id), reason) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
+        orch_daemon_method::OVERRULE_TASK => {
+            let Some(task_id) = req.params.get("task_id").and_then(|x| x.as_u64()) else {
+                return response_err(&req.id, "params.task_id (u64) required");
+            };
+            let reason = req
+                .params
+                .get("reason")
+                .and_then(|x| x.as_str())
+                .map(ToString::to_string);
+            match orch.overrule_task(TaskId(task_id), reason) {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
         other => response_err(&req.id, format!("unknown method: {other}")),
     }
 }

@@ -190,6 +190,7 @@ pub fn resolve_model_with_registry_fallbacks(
         }
         let mut engine = crate::routing::ModelSelectionEngine::new(None);
         let arm_stats = models.arm_stats_snapshot().clone();
+        let scoreboard = models.scoreboard_snapshot().clone();
         engine.pick_with_auto_score_thompson(
             &candidates,
             params.task,
@@ -199,6 +200,7 @@ pub fn resolve_model_with_registry_fallbacks(
             preference,
             availability_hint,
             &arm_stats,
+            &scoreboard,
             0,
         )
     });

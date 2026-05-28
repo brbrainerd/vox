@@ -16,10 +16,22 @@ use std::time::Duration;
 // Plain "duration of X" constants. Use these only when the call site genuinely lacks a
 // stronger semantic meaning, or when defining a more specific alias below.
 
+pub const D_ZERO: Duration = Duration::ZERO;
+pub const D_1MS: Duration = Duration::from_millis(1);
+pub const D_5MS: Duration = Duration::from_millis(5);
+pub const D_10MS: Duration = Duration::from_millis(10);
+pub const D_20MS: Duration = Duration::from_millis(20);
+pub const D_25MS: Duration = Duration::from_millis(25);
+pub const D_50MS: Duration = Duration::from_millis(50);
+pub const D_80MS: Duration = Duration::from_millis(80);
 pub const D_100MS: Duration = Duration::from_millis(100);
+pub const D_200MS: Duration = Duration::from_millis(200);
 pub const D_250MS: Duration = Duration::from_millis(250);
+pub const D_300MS: Duration = Duration::from_millis(300);
 pub const D_500MS: Duration = Duration::from_millis(500);
 pub const D_1S: Duration = Duration::from_secs(1);
+pub const D_2S: Duration = Duration::from_secs(2);
+pub const D_3S: Duration = Duration::from_secs(3);
 pub const D_5S: Duration = Duration::from_secs(5);
 pub const D_10S: Duration = Duration::from_secs(10);
 pub const D_15S: Duration = Duration::from_secs(15);

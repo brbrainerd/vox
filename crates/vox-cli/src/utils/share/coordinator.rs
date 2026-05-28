@@ -166,7 +166,7 @@ impl ShareSession {
         // exit on the next send attempt (already completed or about to be dropped).
         drop(self.duration_done_rx);
         let _ = self.proxy_shutdown.send(());
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        tokio::time::sleep(vox_config::timeouts::D_50MS).await;
     }
 
     /// Wait for the session to end: either Ctrl+C or duration elapsed.

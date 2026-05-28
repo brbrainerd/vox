@@ -17,6 +17,10 @@ pub struct RustExtractor;
 
 struct RustVisitor {
     features: ExtractedFeatures,
+    /// Depth counter incremented on entry to `const`/`static` items so nested
+    /// literals can be tagged `in_const` / `LiteralContext::ConstDecl`. A counter
+    /// (not a bool) tolerates pathological nesting like `const A: [u32; N] = …`.
+    in_const_depth: u32,
 }
 
 impl RustVisitor {
@@ -30,13 +34,30 @@ impl RustVisitor {
 }
 
 impl<'ast> Visit<'ast> for RustVisitor {
+    fn visit_item_const(&mut self, node: &'ast syn::ItemConst) {
+        self.in_const_depth += 1;
+        syn::visit::visit_item_const(self, node);
+        self.in_const_depth -= 1;
+    }
+
+    fn visit_item_static(&mut self, node: &'ast syn::ItemStatic) {
+        self.in_const_depth += 1;
+        syn::visit::visit_item_static(self, node);
+        self.in_const_depth -= 1;
+    }
+
     fn visit_expr_lit(&mut self, node: &'ast ExprLit) {
+        let in_const = self.in_const_depth > 0;
         match &node.lit {
             Lit::Str(s) => {
                 self.features.string_literals.push(LiteralLoc {
                     value: s.value(),
                     loc: Self::span_to_loc(s.span()),
-                    ctx: LiteralContext::Code,
+                    ctx: if in_const {
+                        LiteralContext::ConstDecl
+                    } else {
+                        LiteralContext::Code
+                    },
                 });
             }
             Lit::Int(i) => {
@@ -45,6 +66,7 @@ impl<'ast> Visit<'ast> for RustVisitor {
                         value: v as f64,
                         unit: None,
                         loc: Self::span_to_loc(i.span()),
+                        in_const,
                     });
                 }
             }
@@ -91,6 +113,7 @@ impl<'ast> Visit<'ast> for RustVisitor {
                     value: v as f64,
                     unit: Some(unit),
                     loc,
+                    in_const: self.in_const_depth > 0,
                 });
             }
 
@@ -164,11 +187,13 @@ impl LanguageExtractor for RustExtractor {
     fn extract(&self, path: &Path, content: &str) -> Result<ExtractedFeatures> {
         let mut visitor = RustVisitor {
             features: ExtractedFeatures::new(path.to_path_buf(), Language::Rust),
+            in_const_depth: 0,
         };
         if let Ok(file) = syn::parse_file(content) {
             visitor.visit_file(&file);
         }
         visitor.features.crate_name = crate::extractor::crate_name_from_path(path);
+        visitor.features.allowed_lines = crate::extractor::parse_drift_allow_comments(content);
         Ok(visitor.features)
     }
 }

@@ -13,6 +13,7 @@ pub mod preferences;
 pub mod pricing;
 pub mod rollup;
 pub mod scoreboard;
+pub mod shadow;
 pub mod show;
 
 /// Manage models: discovery, scoreboard, and explainability.
@@ -49,6 +50,8 @@ pub enum ModelCmd {
     Pricing(pricing::PricingArgs),
     /// L2 — Build/inspect the classifier prompt for a model id (autonomic system).
     Classify(classify::ClassifyArgs),
+    /// L2.5 — Shadow-eval a provisional model (telemetry + promotion scaffold).
+    Shadow(shadow::ShadowArgs),
     /// L3 — Render the quarterly model-council report (autonomic system).
     CouncilReport(council_report::CouncilReportArgs),
 }
@@ -66,6 +69,7 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Costs(args) => costs::run(args).await,
         ModelCmd::Pricing(args) => pricing::run(args).await,
         ModelCmd::Classify(args) => classify::run(args).await,
+        ModelCmd::Shadow(args) => shadow::run(args).await,
         ModelCmd::CouncilReport(args) => council_report::run(args).await,
     }
 }

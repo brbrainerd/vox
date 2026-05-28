@@ -14,7 +14,7 @@ impl FeatureCache {
     }
 
     pub fn from_workspace(root: &std::path::Path) -> Self {
-        Self::new(root.join(".vox/cache/drift"))
+        Self::new(root.join(vox_config::paths::REPO_DRIFT_CACHE_DIR))
     }
 
     pub fn hash_file(content: &str) -> String {
@@ -25,7 +25,10 @@ impl FeatureCache {
 
     pub fn store(&self, key: &str, features: &ExtractedFeatures) -> Result<()> {
         let path = self.dir.join(format!("{}.bin", &key[..16.min(key.len())]));
-        let bytes = bincode::serde::encode_to_vec(features, bincode::config::standard())?;
+        let mut bytes = Vec::with_capacity(64);
+        bytes.extend_from_slice(CACHE_MAGIC);
+        bytes.push(CACHE_VERSION);
+        bincode::serde::encode_into_std_write(features, &mut bytes, bincode::config::standard())?;
         std::fs::write(path, bytes)?;
         Ok(())
     }
@@ -33,14 +36,34 @@ impl FeatureCache {
     pub fn load(&self, key: &str) -> Option<ExtractedFeatures> {
         let path = self.dir.join(format!("{}.bin", &key[..16.min(key.len())]));
         let bytes = std::fs::read(path).ok()?;
+        // Schema-mismatched cache entries previously caused bincode to decode
+        // garbage past the end (capacity_overflow panic on Vec allocation).
+        // Now: magic-byte + version prefix; older or differently-shaped entries
+        // are treated as cache misses rather than re-extracted into nonsense.
+        if bytes.len() < CACHE_MAGIC.len() + 1
+            || &bytes[..CACHE_MAGIC.len()] != CACHE_MAGIC
+            || bytes[CACHE_MAGIC.len()] != CACHE_VERSION
+        {
+            return None;
+        }
+        let payload = &bytes[CACHE_MAGIC.len() + 1..];
         bincode::serde::decode_from_slice::<ExtractedFeatures, _>(
-            &bytes,
+            payload,
             bincode::config::standard(),
         )
         .ok()
         .map(|(f, _)| f)
     }
 }
+
+/// 8-byte magic so old (pre-2026-05) raw-bincode cache entries are detected as
+/// schema-mismatched and re-extracted instead of panicking on garbage decode.
+const CACHE_MAGIC: &[u8; 8] = b"VOXDRIFT";
+
+/// Bump on any change to the on-disk shape of `ExtractedFeatures`:
+/// - 1: initial format
+/// - 2 (2026-05-28): NumericLoc.in_const + ExtractedFeatures.allowed_lines
+const CACHE_VERSION: u8 = 2;
 
 #[cfg(test)]
 mod tests {

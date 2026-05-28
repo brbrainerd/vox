@@ -82,6 +82,60 @@ fn resolve_chat_provider_route_impl(
     hf_token_present: bool,
 ) -> ChatProviderRouteKind {
     let policy = RouteCapabilityPolicySnapshot::from_env();
+
+    // Canonical selector-first contract:
+    // when upstream selector has already made a routing decision, honor it.
+    if input.manual_model.is_none() {
+        if let Ok(selected) = std::env::var("VOX_SELECTOR_MODEL") {
+            let selected = selected.trim().to_string();
+            if !selected.is_empty() {
+                if selected.starts_with("mesh/") && policy.allow_local_model_http {
+                    return ChatProviderRouteKind::PopuliMesh {
+                        model: selected,
+                        base_url: vox_config::local_ollama_populi_base_url(),
+                    };
+                }
+                if selected.starts_with("mens/") && policy.allow_local_model_http {
+                    return ChatProviderRouteKind::PopuliLocal {
+                        model: selected,
+                        base_url: vox_config::local_ollama_populi_base_url(),
+                    };
+                }
+                if policy.allow_provider_network && policy.allow_net {
+                    return ChatProviderRouteKind::OpenRouter { model: selected };
+                }
+            }
+        }
+    }
+
+    // Canonical SSOT: active model pin from orchestrator/dashboard (`VOX_MODEL` / Clavis).
+    if input.manual_model.is_none() {
+        if let Some(active) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string)
+        {
+            if active.starts_with("mesh/") {
+                if policy.allow_local_model_http {
+                    return ChatProviderRouteKind::PopuliMesh {
+                        model: active,
+                        base_url: vox_config::local_ollama_populi_base_url(),
+                    };
+                }
+            } else if active.starts_with("mens/") {
+                if policy.allow_local_model_http {
+                    return ChatProviderRouteKind::PopuliLocal {
+                        model: active.clone(),
+                        base_url: vox_config::local_ollama_populi_base_url(),
+                    };
+                }
+            } else if policy.allow_provider_network && policy.allow_net {
+                return ChatProviderRouteKind::OpenRouter { model: active };
+            }
+        }
+    }
+
     if let Some(ref m) = input.manual_model {
         if let Some(ref base) = input.manual_base_url {
             if !policy.allow_net {
@@ -501,5 +555,38 @@ mod tests {
             model: "llama3.2".into(),
         };
         assert_eq!(route_backend_for_chat_route(&r), ChatRouteBackend::Ollama);
+    }
+
+    #[test]
+    fn selector_model_env_precedes_default_cascade() {
+        let prior = std::env::var("VOX_SELECTOR_MODEL").ok();
+        unsafe { std::env::set_var("VOX_SELECTOR_MODEL", "openai/gpt-4o-mini") };
+        let r = resolve_chat_provider_route_impl(
+            &RouteResolutionInput {
+                manual_model: None,
+                manual_base_url: None,
+                manual_bearer: None,
+                prefer_populi_when_gpu: false,
+                populi_probe: None,
+                mens_chat_model: "mens/default".into(),
+                hf_dedicated_chat_url: None,
+                hf_dedicated_chat_model: None,
+                hf_router_model: None,
+                openrouter_model: "openrouter/auto".into(),
+            },
+            false,
+        );
+        match r {
+            ChatProviderRouteKind::OpenRouter { model } => {
+                assert_eq!(model, "openai/gpt-4o-mini");
+            }
+            other => panic!("expected selector openrouter route, got {other:?}"),
+        }
+        unsafe {
+            match prior {
+                Some(v) => std::env::set_var("VOX_SELECTOR_MODEL", v),
+                None => std::env::remove_var("VOX_SELECTOR_MODEL"),
+            }
+        }
     }
 }
