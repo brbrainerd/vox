@@ -2,6 +2,30 @@ use crate::orchestrator::OrchestratorError;
 use crate::services::MessageGateway;
 use crate::types::{AgentId, AgentTask, TaskId, TaskPriority, TaskStatus};
 
+/// Emit one `orch.task.cancelled` telemetry event when a task is explicitly
+/// cancelled mid-execution (user interrupt, parent timeout, lease loss, etc.).
+///
+/// Cancellation paths previously left no row in `research_metrics`, making
+/// it impossible to distinguish a quiet cancel from a stalled task offline.
+/// `path` disambiguates the queue branch: `"populi_remote"` (Populi remote
+/// delegate) or `"queue"` (locally-queued task).
+fn emit_task_cancelled(task_id: TaskId, agent_id: AgentId, path: &'static str) {
+    let metadata_json = serde_json::json!({
+        "task_id": task_id.0,
+        "agent_id": agent_id.0,
+        "path": path,
+    })
+    .to_string();
+    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::ResearchMetric(
+        vox_telemetry::ResearchMetricEvent {
+            session_id: format!("orch:task:{}", task_id.0),
+            metric_type: vox_telemetry::METRIC_TYPE_ORCH_TASK_CANCELLED.into(),
+            metric_value: None,
+            metadata_json: Some(metadata_json),
+        }
+    ));
+}
+
 impl crate::orchestrator::Orchestrator {
     /// Retire an agent: release all locks/affinity/scope, drain its queue, and return remaining tasks.
     pub async fn retire_agent(
@@ -130,6 +154,7 @@ impl crate::orchestrator::Orchestrator {
                 task_id,
                 agent_id
             );
+            emit_task_cancelled(task_id, agent_id, "populi_remote");
             #[cfg(feature = "populi-transport")]
             if let (Some(key), Ok(handle)) =
                 (idempotency_key, tokio::runtime::Handle::try_current())
@@ -223,6 +248,7 @@ impl crate::orchestrator::Orchestrator {
             }
             crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
             tracing::info!("Cancelled task {} from agent {}", task_id, agent_id);
+            emit_task_cancelled(task_id, agent_id, "queue");
             Ok(())
         } else {
             Err(OrchestratorError::TaskNotFound(task_id))

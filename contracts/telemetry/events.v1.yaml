@@ -366,15 +366,23 @@ metric_types:
       be computed online. Emitted via `ResearchMetric` envelope from
       `vox_orchestrator_mcp::llm_bridge::emit_cache_miss_if_applicable`.
 
+  - id: orch.task.cancelled
+    constant: METRIC_TYPE_ORCH_TASK_CANCELLED
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: >-
+      A task was explicitly cancelled mid-execution (user interrupt, parent
+      timeout, lease loss, etc.). Cancellation paths previously emitted no
+      ResearchMetric row, leaving cancels indistinguishable from stalls.
+      Emitted via `ResearchMetric` envelope from
+      `vox_orchestrator::orchestrator::agent::lifecycle_ops::cancel_task` on
+      both the Populi remote-delegate and locally-queued branches; the
+      `path` field in metadata_json disambiguates.
+
 # ─────────────────────────────────────────────────────────────────────────────
 # blind_spots — failure modes the workspace cares about that emit NO event
 # today. Each entry is a tracked gap. When a metric_type is added to address
 # one, move the entry here into `metric_types` above and delete it from this
 # list.
 # ─────────────────────────────────────────────────────────────────────────────
-blind_spots:
-  - failure_mode: task_cancellation
-    description: "A task was explicitly cancelled mid-execution (user interrupt, parent timeout, etc.)."
-    owner_crate: vox-orchestrator
-    proposed_metric_type: orch.task.cancelled
-    notes: "No ErrorEvent fires on cancel today; cancellation paths are invisible in research_metrics."
+blind_spots: []
