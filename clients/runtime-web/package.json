@@ -1,0 +1,20 @@
+{
+  "name": "@vox/runtime",
+  "version": "0.6.0",
+  "description": "Vox runtime for desktop targets — Tauri 2 backed implementation of @vox/runtime-types. Used by every emitted Vox app that runs on a Tauri shell (Windows, macOS, Linux).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@vox/runtime-types": "0.6.0"
+  },
+  "license": "Apache-2.0"
+}

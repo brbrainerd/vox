@@ -288,8 +288,14 @@ pub fn generate_with_options(
         files.push(("forms.tsx".into(), format!("{header}\n{forms_content}")));
     }
 
-    // Emit mobile Capacitor setup (Tasks D2-D4: @back_button, `@deep_link`, `@push`).
-    if let Some(mobile_content) = super::mobile_emit::emit_mobile_setup(&bundle.shell) {
+    // Emit `mobile.ts` for @back_button / @deep_link / @push. Target-agnostic — calls
+    // go through the `@vox/runtime` adapter contract so the same emitted source runs
+    // on desktop (Tauri) and mobile (RN + Expo). The `target` string selects which
+    // npm package the runtime is imported from (`@vox/runtime` vs `@vox/runtime-rn`).
+    if let Some(mobile_content) = super::mobile_emit::emit_mobile_setup_for_target(
+        &bundle.shell,
+        options.target.as_deref(),
+    ) {
         files.push(("mobile.ts".into(), mobile_content));
     }
 
