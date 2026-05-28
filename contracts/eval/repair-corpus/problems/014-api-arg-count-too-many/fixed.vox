@@ -1,0 +1,12 @@
+// Fix: remove the extra third argument.
+fn repeat_greeting(name: str, times: int) to str {
+    let mut result: str = ""
+    for i in range(0, times) {
+        result = result + "Hello, " + name + "! "
+    }
+    return result
+}
+
+fn main() to str {
+    return repeat_greeting("Alice", 3)
+}

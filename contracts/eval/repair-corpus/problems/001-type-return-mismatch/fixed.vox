@@ -1,0 +1,7 @@
+// Fix: return int values matching the annotated return type.
+fn status_code(success: bool) to int {
+    if success {
+        return 0
+    }
+    return 1
+}

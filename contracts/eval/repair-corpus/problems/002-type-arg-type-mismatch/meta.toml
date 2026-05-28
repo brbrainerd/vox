@@ -1,0 +1,15 @@
+id = "002"
+title = "Argument type mismatch: str passed where int expected"
+description = """
+triple() declares its parameter n as int, but main() calls it with
+the string literal "7". The fix is to remove the quotes so that 7 is
+an integer literal.
+"""
+bug_class = "type-error"
+difficulty = "easy"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/types/arg-type-mismatch"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

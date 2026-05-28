@@ -1,0 +1,9 @@
+// Fix: add @uses(net) to declare the Net effect.
+@uses(net)
+fn check_health(url: str) to str {
+    let response = std.http.get_text(url)
+    if len(response) > 0 {
+        return "ok"
+    }
+    return "empty"
+}

@@ -1,0 +1,13 @@
+// Bug: workflow body calls std.time.now_ms() — a non-deterministic builtin
+// forbidden in workflow scope. Workflow replay would produce different
+// timestamps on each run, breaking deterministic-replay guarantees.
+activity store_entry(key: str, value: str) to Result[str] {
+    return Ok(key + "=" + value)
+}
+
+workflow log_with_timestamp(msg: str) to Result[str] {
+    // BUG: std.time.now_ms() is non-deterministic — forbidden inside workflow.
+    let ts = std.time.now_ms()
+    let key = "log:" + str(ts)
+    return store_entry(key, msg)
+}

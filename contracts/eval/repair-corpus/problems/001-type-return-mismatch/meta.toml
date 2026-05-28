@@ -1,0 +1,15 @@
+id = "001"
+title = "Return type mismatch: annotated int but returns str"
+description = """
+Function status_code is annotated to return int but every branch
+returns a string literal ("ok" / "fail"). The fix is to return integer
+values (0 / 1) instead.
+"""
+bug_class = "type-error"
+difficulty = "easy"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/types/type-mismatch"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

@@ -1,0 +1,17 @@
+id = "005"
+title = "Workflow calls std.time.now_ms() — non-deterministic builtin"
+description = """
+The workflow body calls std.time.now_ms() directly. Vox workflow bodies
+must be deterministic so they can be replayed from the journal after a
+crash. Non-deterministic builtins (time, random) are forbidden inside
+workflow scope. The fix is to extract the timestamp call into an
+activity, which is journaled and therefore safe for replay.
+"""
+bug_class = "effect-violation"
+difficulty = "medium"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["lint.workflow.non_deterministic"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

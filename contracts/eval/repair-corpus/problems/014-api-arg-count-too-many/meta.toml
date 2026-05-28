@@ -1,0 +1,16 @@
+id = "014"
+title = "API misuse: repeat_greeting called with 3 args, takes 2"
+description = """
+repeat_greeting(name, times) is a two-parameter function. The call site
+passes three arguments: repeat_greeting("Alice", 3, "loudly"). The
+extra string "loudly" has no corresponding parameter. The fix is to
+drop the third argument.
+"""
+bug_class = "api-misuse"
+difficulty = "medium"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/types/arg-count-mismatch"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

@@ -1,0 +1,17 @@
+id = "015"
+title = "Wrong effect declared: @uses(fs) instead of @uses(net)"
+description = """
+fetch_config calls std.http.get_text, which carries the Net effect, but
+the function is annotated @uses(fs) (filesystem). The compiler sees the
+Net call as undeclared. This is a common LLM mistake — confusing the
+network effect with the filesystem effect. The fix is to change the
+annotation from @uses(fs) to @uses(net).
+"""
+bug_class = "api-misuse"
+difficulty = "hard"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/effect/missing-net-decl"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

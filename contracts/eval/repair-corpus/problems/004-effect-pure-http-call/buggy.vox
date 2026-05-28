@@ -1,0 +1,7 @@
+// Bug: @pure fn calls std.http.get_text, which carries a Net effect.
+// @pure functions must not perform any I/O or network operations.
+@pure
+fn fetch_price(symbol: str) to str {
+    // BUG: std.http.get_text is a Net-effect call — forbidden inside @pure.
+    return std.http.get_text("https://api.example.com/price/" + symbol)
+}

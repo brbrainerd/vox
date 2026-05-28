@@ -1,0 +1,7 @@
+// Fix: add the `false` arm so the match is exhaustive.
+fn describe_flag(enabled: bool) to str {
+    match enabled {
+        true => "feature is on"
+        false => "feature is off"
+    }
+}

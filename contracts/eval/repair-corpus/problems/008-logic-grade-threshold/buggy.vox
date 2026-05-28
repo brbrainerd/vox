@@ -1,0 +1,29 @@
+// Bug: grade boundaries use strict `>` instead of `>=`, so scores of
+// exactly 90, 80, 70, and 60 get the wrong grade (e.g., score 90 → "B"
+// instead of "A").
+fn letter_grade(score: int) to str {
+    if score > 90 {     // BUG: should be >= 90; score of exactly 90 falls through to "B"
+        return "A"
+    }
+    if score > 80 {     // BUG: should be >= 80
+        return "B"
+    }
+    if score > 70 {     // BUG: should be >= 70
+        return "C"
+    }
+    if score > 60 {     // BUG: should be >= 60
+        return "D"
+    }
+    return "F"
+}
+
+fn main() to str {
+    assert(letter_grade(95) == "A")
+    assert(letter_grade(90) == "A")   // fails: returns "B"
+    assert(letter_grade(85) == "B")
+    assert(letter_grade(80) == "B")   // fails: returns "C"
+    assert(letter_grade(70) == "C")   // fails: returns "D"
+    assert(letter_grade(60) == "D")   // fails: returns "F"
+    assert(letter_grade(55) == "F")
+    return "ok"
+}

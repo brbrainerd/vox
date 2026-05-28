@@ -1,0 +1,16 @@
+id = "012"
+title = "Non-exhaustive match on TaskState: Blocked and Done missing"
+description = """
+TaskState has four variants: Pending, Running, Blocked(reason), and
+Done(result). The match in priority_label covers only Pending and
+Running; both Blocked and Done are absent. Two new match arms must be
+added to make the match exhaustive.
+"""
+bug_class = "exhaustiveness"
+difficulty = "hard"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["E0301"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only
