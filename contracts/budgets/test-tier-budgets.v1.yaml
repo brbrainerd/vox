@@ -1,0 +1,40 @@
+# contracts/budgets/test-tier-budgets.v1.yaml
+# Generated from: docs/superpowers/specs/2026-05-27-test-suite-baseline-measurements.md
+# Regenerate via: vox run scripts/perf/test-baseline.vox
+schema_version: 1
+generated_at: "2026-05-27"
+
+# Budget semantics:
+#   warn_ms: log a warning if a tier exceeds this
+#   fail_ms: fail CI if a tier exceeds this
+# Thresholds: warn = 1.2x measured, fail = 1.5x measured (pre-fix baselines)
+# After Phase 2+3 land, re-run harness and lower these to 1.2x/1.5x of new baselines.
+
+tiers:
+  fast:
+    measured_ms: 215000   # 215s warm (arch-check dominates at 165s)
+    warn_ms: 258000        # 1.2x
+    fail_ms: 323000        # 1.5x
+    note: "Arch-check speedup (Phase 2) will drop this to ~60s; budgets will be tightened then"
+
+  complete:
+    measured_ms: 325000
+    warn_ms: 390000
+    fail_ms: 488000
+
+  full:
+    measured_ms: 495000
+    warn_ms: 594000
+    fail_ms: 743000
+    note: "After Phase 3 (slow partition), full should drop to ~120s"
+
+  full_cov:
+    measured_ms: 590000
+    warn_ms: 708000
+    fail_ms: 885000
+    note: "Target post-Phase-2+3: <=260s"
+
+  doctests:
+    measured_ms: 51000
+    warn_ms: 61000
+    fail_ms: 77000
