@@ -1,0 +1,8 @@
+id = "humaneval-vox-031-abs-int"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `abs_int(n: int) to int` returning the absolute value of n.
+"""

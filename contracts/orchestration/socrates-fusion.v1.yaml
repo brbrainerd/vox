@@ -1,6 +1,11 @@
 # contracts/orchestration/socrates-fusion.v1.yaml
 # Composite confidence fusion thresholds for D3 Socrates invocation decision.
 # Mirrored by `crates/vox-orchestrator/src/confidence_fusion.rs::FusionConfig::default`.
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
 version: 1
 x-vox-version: 1
 description: "Composite confidence fusion for Socrates invocation decision (D3)"

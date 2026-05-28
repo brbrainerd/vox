@@ -260,10 +260,25 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         PopuliAction::TrainStub { .. }
         | PopuliAction::DogfoodStub { .. }
         | PopuliAction::ServeStub { .. } => {
+            // This `gpu` is a vox-ml-cli **cargo feature**, not a runtime
+            // plugin. Old wording told users to `vox plugin install
+            // tensor-burn-wgpu`, which doesn't fix anything — the binary
+            // itself was compiled without the gpu feature, so the dispatch
+            // arm above never gets reached. The real fix is to rebuild.
+            //
+            // Auto-installing a runtime plugin can't help here either: the
+            // training code path is `#[cfg]`-gated out of this binary.
             anyhow::bail!(
-                "This Vox capability requires the 'gpu' plugin, which is not installed.\n\n\
-                 To install it, run:\n\n  vox plugin install tensor-burn-wgpu\n\n\
-                 See: docs/src/reference/plugins.md"
+                "vox mens {{train, dogfood, serve}} requires the `gpu` cargo feature, \
+                 which was not enabled when this binary was built.\n\n\
+                 To enable, rebuild from the workspace root with:\n\n  \
+                 cargo build -p vox-ml-cli --release --features gpu,mens-candle-cuda\n\n\
+                 Then re-install the runtime CUDA plugin (catalog or workspace):\n\n  \
+                 vox plugin install mens-candle-cuda\n\
+                 or, from this workspace:\n  \
+                 vox plugin install --path crates/vox-plugin-mens-candle-cuda --yes\n\n\
+                 See: docs/src/reference/plugins.md and \
+                 docs/src/reference/mens-training.md"
             );
         }
 

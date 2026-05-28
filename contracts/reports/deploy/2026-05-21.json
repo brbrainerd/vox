@@ -1,0 +1,21 @@
+{
+  "thing": "deploy",
+  "schema_version": 1,
+  "measured_at": "2026-05-21T23:43:08.399897100+00:00",
+  "corpus_hash": "blake3:08c60f00cd626681c359be138157469f2517ab928264ca56633710c4d26a012b",
+  "corpus_size": 3,
+  "llm_panel": [],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 1.0
+  },
+  "threshold": {
+    "target": 1.0,
+    "met": true
+  },
+  "note": "doctor leg: 3/3 marquee fixtures green (0.01s). new leg: ok (0.00s). deploy --dry-run leg: ok (0.00s). scaffold doctor leg: ok (0.00s). new+deploy+doctor trio: 0.00s vs 120s CR-P3 budget. total: 0.01s."
+}

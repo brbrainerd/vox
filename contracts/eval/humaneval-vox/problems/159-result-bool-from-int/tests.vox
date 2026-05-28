@@ -1,0 +1,31 @@
+fn result_bool_from_int(n: int) to Result[bool] {
+    if n < 0 {
+        return Error("negative")
+    }
+    if n > 0 {
+        return Ok(true)
+    }
+    return Ok(false)
+}
+
+@test
+fn t_positive() to Unit {
+    match result_bool_from_int(5) {
+        Ok(b)    => assert(b is true)
+        Error(_) => assert(false)
+    }
+}
+@test
+fn t_zero() to Unit {
+    match result_bool_from_int(0) {
+        Ok(b)    => assert(b is false)
+        Error(_) => assert(false)
+    }
+}
+@test
+fn t_neg() to Unit {
+    match result_bool_from_int(-3) {
+        Ok(_)    => assert(false)
+        Error(_) => assert(true)
+    }
+}

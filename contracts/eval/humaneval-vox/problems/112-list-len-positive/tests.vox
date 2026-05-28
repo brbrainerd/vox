@@ -1,0 +1,10 @@
+fn list_len_positive(xs: list[int]) to bool {
+    return len(xs) > 0
+}
+
+@test
+fn t_empty() to Unit { assert(list_len_positive([]) is false) }
+@test
+fn t_one() to Unit { assert(list_len_positive([1]) is true) }
+@test
+fn t_many() to Unit { assert(list_len_positive([1, 2, 3]) is true) }

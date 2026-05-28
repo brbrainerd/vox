@@ -1,0 +1,55 @@
+id = "plan-048-deduplicate-across-fns"
+wave = "wave_3"
+description = "Extract a 3-line block duplicated across three endpoints."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The endpoints `add_todo`, `rename_todo`, and `tag_todo` each duplicate
+the same 3-line title-validation block (empty-check + length-cap
+check returning `Error(TitleEmpty(...))` or `Error(TitleTooLong(...))`).
+Extract the duplicated block into a single helper
+`validate_title(s: str) to Result[str, TodoError]` and call it from
+all three endpoints. Endpoint signatures must not change.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `TitleEmpty("...")`),
+    not as `TodoError.TitleEmpty(...)`.
+  - Use `match` on the helper's Result in each endpoint to forward
+    `Error(...)` and proceed on `Ok(_)`.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the duplicated validation in the three endpoints."
+
+[[steps]]
+step = 2
+verb = "extract"
+description = "Add the validate_title helper fn."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Replace the duplicated blocks with calls to validate_title."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+helper_fn_added = true
+duplicate_logic_removed = true
+endpoint_signatures_unchanged = true
+existing_tests_pass = true

@@ -1,0 +1,36 @@
+id = "plan-006-add-doc-comment"
+wave = "wave_1"
+description = "Add a Vox doc comment above an existing fn without changing its body."
+max_steps = 3
+max_cost_usd = 0.50
+
+prompt = """
+The file declares fn `square(n: int) to int`. Add a Vox doc comment
+(lines starting with `///`) immediately above the fn that describes
+what it returns. Do not change the fn signature or body. Do not add
+or remove other items.
+
+Vox conventions to honor:
+  - Doc comments use `///` (triple slash) above the item they document.
+  - Return arrow is `to T`, not `->`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Insert a `///` doc comment block above the fn."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes; fn body is byte-identical."
+
+[success_criteria]
+vox_check_passes = true
+doc_comment_added = true
+existing_fn_body_unchanged = true

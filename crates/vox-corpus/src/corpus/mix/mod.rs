@@ -44,12 +44,30 @@ pub const ASR_REFINE_INSTRUCTION: &str = "Correct the following noisy transcript
 /// Instruction prefix for speech-to-code SFT rows (`record_format: speech_to_code`).
 pub const SPEECH_TO_CODE_INSTRUCTION: &str = "Given the following spoken request, emit valid Vox source that satisfies it. Preserve identifiers and paths mentioned in the transcript.\n\nTranscript:\n";
 
-/// One JSONL source file and its repeat weight for [`run_mix`].
+/// One JSONL source file and its weight for [`run_mix`].
+///
+/// ## Weight semantics
+///
+/// Historically `weight` was applied as a literal line-repeat factor —
+/// `weight=6.0` produced 6 physical copies of each row in the output
+/// JSONL. That destroys uniqueness (the SFT corpus ended up 99% duplicate
+/// lines, see audit at docs/src/architecture/2026-05-22-v1-readiness-snapshot.md)
+/// without adding training signal, since the trainer already shuffles
+/// and iterates over multiple epochs.
+///
+/// The current default is **emit each row exactly once** and stamp the
+/// source's `weight` onto the row as a `mix_weight` field so downstream
+/// samplers (DataLoader / WeightedRandomSampler) can honor the proportion
+/// at batch-construction time. Set [`MixSource::physical_repeats`] to
+/// `true` to opt in to the legacy duplication behavior.
 #[derive(Debug, Deserialize)]
 pub struct MixSource {
     /// Path to the JSONL file, relative to the process cwd unless absolute.
     pub path: String,
-    /// Repeat factor: each line is emitted `ceil(max(weight,0)).max(1)` times.
+    /// Sampling weight for this source. Stamped onto each emitted row as
+    /// `mix_weight: <weight>` so a downstream weighted sampler can use it.
+    /// When [`MixSource::physical_repeats`] is `true` the legacy behavior
+    /// (each row emitted `ceil(max(weight,0)).max(1)` times) is restored.
     #[serde(default = "default_weight")]
     pub weight: f64,
     /// When `asr_refine`, parse each line as ASR refinement JSON and emit `prompt`/`response` training rows.
@@ -61,6 +79,12 @@ pub struct MixSource {
     /// Probability (0.0 to 1.0) of including a row in the output.
     #[serde(default)]
     pub sample_rate: Option<f64>,
+    /// Opt-in to the legacy "weight = literal line repeats" behavior.
+    /// Default `false` (each row emitted once, weight stamped on row).
+    /// Set `true` only when a downstream consumer doesn't honor
+    /// `mix_weight` and you need pre-expanded duplicates. See struct docs.
+    #[serde(default)]
+    pub physical_repeats: bool,
 }
 
 fn default_weight() -> f64 {
@@ -387,14 +411,25 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
     let obj = v
         .as_object_mut()
         .ok_or_else(|| "training row must be JSON object".to_string())?;
-    let lane = obj
+    let existing = obj
         .get("lane")
         .and_then(|x| x.as_str())
-        .map(str::to_string)
-        .unwrap_or(inferred_lane);
-    if !obj.contains_key("lane") {
-        obj.insert("lane".to_string(), serde_json::Value::String(lane.clone()));
-    }
+        .map(str::to_string);
+    // Lane override rule: if the row carries an explicit, non-default lane
+    // label, trust it. If the row's lane is the generic catch-all
+    // (`vox_codegen`) BUT the row's category suggests a more specific lane
+    // (e.g. `documentation` → `vox_docs_qa`, `tool_trace` → `vox_tooling`),
+    // override with the specific lane. This fixes the upstream-tagging bug
+    // where `validated_mixed.jsonl` stamps every row `lane: vox_codegen`
+    // regardless of its category, causing `include_lanes` filters in
+    // mix.yaml to never emit `vox_docs_qa` / `vox_tooling` rows.
+    let lane = match existing {
+        Some(ref tag) if tag != "vox_codegen" => tag.clone(),
+        Some(_) if inferred_lane != "vox_codegen" => inferred_lane.clone(),
+        Some(tag) => tag,
+        None => inferred_lane.clone(),
+    };
+    obj.insert("lane".to_string(), serde_json::Value::String(lane.clone()));
     if !obj.contains_key("response_mode") {
         obj.insert(
             "response_mode".to_string(),
@@ -460,6 +495,33 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
         .map_err(|e| e.to_string())
 }
 
+/// Stamp the source's `weight` onto a normalized training row as a top-level
+/// `mix_weight: f64` field so a downstream weighted sampler can honor the
+/// requested source-mix proportions without us physically duplicating rows.
+///
+/// No-op if `weight == 1.0` (the default; keeps the JSONL diff minimal for
+/// the common single-source case). Existing `mix_weight` is preserved if
+/// already set — caller intent wins over mix-time defaults.
+fn stamp_mix_weight(line: &str, weight: f64) -> Result<String, String> {
+    if (weight - 1.0).abs() < f64::EPSILON {
+        return Ok(line.to_string());
+    }
+    let mut v: serde_json::Value =
+        serde_json::from_str(line).map_err(|e| format!("invalid training row json: {e}"))?;
+    let obj = v
+        .as_object_mut()
+        .ok_or_else(|| "training row must be JSON object".to_string())?;
+    if !obj.contains_key("mix_weight") {
+        obj.insert(
+            "mix_weight".to_string(),
+            serde_json::Number::from_f64(weight)
+                .map(serde_json::Value::Number)
+                .unwrap_or(serde_json::Value::Null),
+        );
+    }
+    serde_json::to_string(&v).map_err(|e| e.to_string())
+}
+
 /// Calculate a fingerprint for a source file based on path, mtime, and size.
 fn calculate_file_fingerprint(p: &Path) -> String {
     let Ok(meta) = std::fs::metadata(p) else {
@@ -498,6 +560,11 @@ fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
             s.push_str(&sr.to_string());
         }
         s.push_str(&src.optional.to_string());
+        // Include physical_repeats so toggling weight semantics invalidates
+        // the incremental-skip cache (otherwise the stale 6× duplicated
+        // train_mixed.jsonl would be reused even after switching to
+        // emit-once mode).
+        s.push_str(&src.physical_repeats.to_string());
     }
     format!("{:x}", xxh3_64(s.as_bytes()))
 }
@@ -617,7 +684,16 @@ pub fn run_mix_with_options(
             continue;
         }
 
-        let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
+        // Repeat semantics: default `physical_repeats = false` → emit once,
+        // stamp `mix_weight` on the row for downstream samplers. Set
+        // `physical_repeats: true` per-source to restore the legacy
+        // duplication behavior. See `MixSource` docs for the rationale.
+        let repeats = if src.physical_repeats {
+            (src.weight.max(0.0)).ceil().max(1.0) as usize
+        } else {
+            1
+        };
+        let row_weight = src.weight.max(0.0);
         let sample_rate = src.sample_rate.unwrap_or(1.0).clamp(0.0, 1.0);
 
         // Use a persistent reader for the source
@@ -687,6 +763,17 @@ pub fn run_mix_with_options(
                     if !include_lanes.contains(&lane) || exclude_lanes.contains(&lane) {
                         return None;
                     }
+
+                    // Stamp `mix_weight` so a downstream WeightedRandomSampler
+                    // can honor source-mix proportions without us inflating
+                    // the JSONL via line duplication.
+                    let normalized = match stamp_mix_weight(&normalized, row_weight) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            eprintln!("  [mix] skip line stamp error: {e}");
+                            return None;
+                        }
+                    };
 
                     let mut counts = lane_counts.lock().unwrap();
                     *counts.entry(lane).or_insert(0) += 1;

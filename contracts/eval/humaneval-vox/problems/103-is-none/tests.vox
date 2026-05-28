@@ -1,0 +1,13 @@
+fn is_none(o: Option[int]) to bool {
+    match o {
+        Some(_) => return false
+        None    => return true
+    }
+}
+
+@test
+fn t_none() to Unit { assert(is_none(None) is true) }
+@test
+fn t_some() to Unit { assert(is_none(Some(5)) is false) }
+@test
+fn t_some_zero() to Unit { assert(is_none(Some(0)) is false) }

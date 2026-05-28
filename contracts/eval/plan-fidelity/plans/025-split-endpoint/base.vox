@@ -1,0 +1,20 @@
+// Base source for plan-025-split-endpoint.
+//
+// `upsert_todo` is a multi-purpose mutation that branches on whether
+// `id` is empty. The plan asks the model to split it into
+// `create_todo` and `update_todo`.
+
+type TodoError =
+    | Empty(text: str)
+    | MissingId(text: str)
+
+@endpoint(kind: mutation)
+fn upsert_todo(id: str, title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    if len(id) is 0 {
+        return Ok(title)
+    }
+    return Ok(title)
+}

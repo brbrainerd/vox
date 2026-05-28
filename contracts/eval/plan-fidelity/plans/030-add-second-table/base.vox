@@ -1,0 +1,20 @@
+// Base source for plan-030-add-second-table.
+//
+// A single @table type User. The plan asks the model to add a sibling
+// @table type Note.
+
+@table type User {
+    id: str,
+    name: str
+}
+
+@endpoint(kind: query)
+fn list_users() to List[User] {
+    return []
+}
+
+@test
+fn test_list_users_empty() to Unit {
+    let users = list_users()
+    assert(len(users) is 0)
+}

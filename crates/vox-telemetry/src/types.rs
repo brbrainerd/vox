@@ -289,6 +289,11 @@ pub enum TelemetryEvent {
     /// L2/L3 of the model-autonomic system.
     /// `metric_type = METRIC_TYPE_CONFIDENCE_PROMOTION`.
     ConfidencePromotion(ConfidencePromotionEvent),
+    /// One `vox doctor --project <path>` health-check run.
+    /// `metric_type = METRIC_TYPE_DOCTOR_PROJECT_CHECK`.
+    /// CR-L7's third leg (after `vox new` + `vox deploy`): the doctor mode
+    /// invoked by the deploy integration test to verify post-deploy health.
+    DoctorProjectCheck(DoctorProjectCheckEvent),
 }
 
 /// Payload aligned with `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json`.
@@ -676,6 +681,39 @@ pub const METRIC_TYPE_CONFIDENCE_PROMOTION: &str = "vox.model.confidence_promoti
 
 /// Session-ID prefix for `vox.model.*` autonomic-system events.
 pub const SESSION_PREFIX_MODEL_AUTONOMIC: &str = "model_autonomic:";
+
+// ─── vox doctor — project-health events (CR-L7) ───────────────────────────
+
+/// Per-`vox doctor --project <path>` health-check observation.
+///
+/// CR-L7 names `vox doctor` as the third leg of `vox new → vox deploy →
+/// vox doctor` and asks for `vox.doctor.*` telemetry alongside structured
+/// JSON output. This is the project-scope health-check event; the existing
+/// `vox doctor` (environment / cross-compile preflight) is a separate
+/// surface and does not emit this event.
+pub const METRIC_TYPE_DOCTOR_PROJECT_CHECK: &str = "vox.doctor.project_check";
+
+/// Payload for [`crate::types::TelemetryEvent::DoctorProjectCheck`].
+///
+/// `PartialEq` only (no `Eq`) because `duration_seconds: f64` does not
+/// implement `Eq`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct DoctorProjectCheckEvent {
+    /// Absolute or workspace-relative project root that was scanned.
+    pub project_root: String,
+    /// Total `.vox` files discovered under `project_root`.
+    pub files_total: u32,
+    /// Files that produced zero error-severity diagnostics.
+    pub files_passing: u32,
+    /// Files that produced at least one error-severity diagnostic.
+    pub files_failing: u32,
+    /// `"green"` | `"red"` | `"infra_error"`.
+    pub outcome: String,
+    /// Wall-clock duration of the entire check run.
+    pub duration_seconds: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
 
 /// One `select()` decision. Carries enough context to reconstruct *why* this
 /// model was chosen for this caller at this moment without re-running the

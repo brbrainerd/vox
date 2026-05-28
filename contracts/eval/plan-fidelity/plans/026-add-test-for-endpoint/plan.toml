@@ -1,0 +1,50 @@
+id = "plan-026-add-test-for-endpoint"
+wave = "wave_2"
+description = "Add a @test that exercises an endpoint's error path via match dispatch."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file's `add_todo` endpoint validates emptiness via the
+`TitleEmpty` variant of `TodoError`, but no @test covers it. Add a
+`@test fn test_add_todo_empty_returns_error() to Unit` that calls
+`add_todo("")` and `match`-dispatches on the Result with one
+`assert(true)` arm for `Error(TitleEmpty(_))` and `assert(false)`
+arms for every other variant. The @test must run + pass under the
+in-process interpreter.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `TitleEmpty("...")`),
+    not as `TodoError.TitleEmpty(...)`.
+  - Tests use `@test\\nfn name() to Unit { ... }`.
+  - Use `match result { Error(Variant(_)) => assert(...), ... }`.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the `TodoError` ADT and `add_todo` body."
+
+[[steps]]
+step = 2
+verb = "write-test"
+description = "Append the new @test block."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-test"
+description = "The new @test runs clean via the in-process interpreter."
+
+[success_criteria]
+vox_check_passes = true
+new_test_added = true
+new_test_passes = true
+match_arms_exhaustive = true

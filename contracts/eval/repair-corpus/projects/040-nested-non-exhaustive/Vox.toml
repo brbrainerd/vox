@@ -1,0 +1,5 @@
+[package]
+name = "repair-040-nested-non-exhaustive"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: exhaustiveness bug class. Nested ADT match on Box[Outcome] covers only Wrap(Success(_))."

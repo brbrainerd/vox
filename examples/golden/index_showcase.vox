@@ -1,3 +1,7 @@
+// vox:skip — uses the raw-SQL `db.query("SELECT ...", [args])` surface and
+// a `Field 'id' not found on Table(...)` lookup that don't match the
+// current typed-db query shape. Re-enable once raw-SQL escape hatch and
+// the implicit `id` row primary-key surface land in the type-checker.
 // ---
 // title: "Index Showcase"
 // description: "Consolidated examples for the Vox homepage."

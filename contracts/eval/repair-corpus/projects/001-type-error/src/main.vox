@@ -1,0 +1,11 @@
+// Repair-corpus fixture 001 — type-error bug class.
+// The fn signature says `to int` but the body returns "zero" (str).
+// Expected repair: either change the return type to `str` or change
+// the body to return 0.
+
+fn compute(n: int) to int {
+    if n is 0 {
+        return "zero"
+    }
+    return n * 2
+}

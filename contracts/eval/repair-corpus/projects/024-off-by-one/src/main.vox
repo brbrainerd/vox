@@ -1,0 +1,20 @@
+// Repair-corpus fixture 024 — logic bug class.
+// `sum_to(n)` is supposed to return 1 + 2 + ... + n, but the loop
+// uses `i < n` and skips the final term. Expected repair: change
+// `i < n` to `i <= n`, OR initialize `i = 0` and accumulate after
+// increment.
+
+fn sum_to(n: int) to int {
+    let mut s = 0
+    let mut i = 1
+    while i < n {
+        s = s + i
+        i = i + 1
+    }
+    return s
+}
+
+@test
+fn test_sum_to_five() to Unit {
+    assert(sum_to(5) is 15)
+}

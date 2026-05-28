@@ -1,0 +1,8 @@
+id = "humaneval-vox-130-equivalence"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `equivalence(p: bool, q: bool) to bool` returning the logical biconditional (true exactly when p and q have the same value).
+"""

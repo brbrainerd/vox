@@ -1,0 +1,20 @@
+// Base source for plan-020-add-stream-endpoint.
+//
+// One query and one mutation endpoint are defined. The plan asks the
+// model to add a stream endpoint with bearer auth.
+
+type LogError =
+    | Empty(text: str)
+
+@endpoint(kind: query)
+fn count_logs() to int {
+    return 0
+}
+
+@endpoint(kind: mutation)
+fn append_log(line: str) to Result[str, LogError] {
+    if len(line) is 0 {
+        return Error(Empty("line must not be empty"))
+    }
+    return Ok(line)
+}

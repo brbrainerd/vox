@@ -1,0 +1,35 @@
+// Base source for plan-047-introduce-pure-marker.
+//
+// `clamp_age` is side-effect free (pure arithmetic + comparison) but
+// lacks the `@pure` annotation. The plan asks the model to add it.
+
+fn clamp_age(n: int) to int {
+    if n < 0 {
+        return 0
+    }
+    if n > 120 {
+        return 120
+    }
+    return n
+}
+
+@endpoint(kind: query) @auth(scheme: bearer)
+fn normalize_age(input: int) to Result[int] {
+    let clamped = clamp_age(input)
+    return Ok(clamped)
+}
+
+@test
+fn test_clamp_age_negative() to Unit {
+    assert(clamp_age(-5) is 0)
+}
+
+@test
+fn test_clamp_age_over() to Unit {
+    assert(clamp_age(200) is 120)
+}
+
+@test
+fn test_clamp_age_inrange() to Unit {
+    assert(clamp_age(42) is 42)
+}

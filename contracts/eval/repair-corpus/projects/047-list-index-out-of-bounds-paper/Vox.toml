@@ -1,0 +1,5 @@
+[package]
+name = "repair-047-list-index-out-of-bounds-paper"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. The List.get index API is called with a str instead of an int — the static analogue of an out-of-bounds list access."

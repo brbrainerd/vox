@@ -1,0 +1,5 @@
+[package]
+name = "repair-048-string-concat-without-coerce"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. path.join (a string-builder API) is passed an int second argument without coercing it to str first."

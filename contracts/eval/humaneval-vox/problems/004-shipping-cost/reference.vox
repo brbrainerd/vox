@@ -1,0 +1,5 @@
+fn shipping_cost(weight: int, express: bool) to int {
+    let base = if weight > 10 { 20 } else { 5 }
+    let surcharge = if express { 15 } else { 0 }
+    return base + surcharge
+}

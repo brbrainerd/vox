@@ -1,0 +1,16 @@
+// Repair-corpus fixture 043 — api-misuse bug class.
+// db.Todo.insert expects a record carrying every column
+// (`{ id, title, done }`), but the caller passes a bare str title.
+// Expected repair: wrap the title in a record literal that supplies
+// the missing `id` and `done` fields, e.g.
+// `db.Todo.insert({ id: 0, title: title, done: false })`.
+
+@table type Todo {
+    id: int,
+    title: str,
+    done: bool
+}
+
+fn add(title: str) to Result[int] {
+    return db.Todo.insert(title)
+}

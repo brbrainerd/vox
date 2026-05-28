@@ -1,0 +1,18 @@
+// Repair-corpus fixture 038 — exhaustiveness bug class.
+// The Priority ADT has four variants; the match lists three explicit arms
+// (Low, Mid, High) but no catch-all wildcard or `Critical` arm.
+// Expected repair: add a `Critical => "critical"` arm (or a `_` default).
+
+type Priority =
+    | Low
+    | Mid
+    | High
+    | Critical
+
+fn label(p: Priority) to str {
+    match p {
+        Low  => "low"
+        Mid  => "mid"
+        High => "high"
+    }
+}

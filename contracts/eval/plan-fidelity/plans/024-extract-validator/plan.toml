@@ -1,0 +1,49 @@
+id = "plan-024-extract-validator"
+wave = "wave_2"
+description = "Extract duplicated three-step validation into a helper fn."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+Three @endpoint mutation fns each duplicate the SAME three-line
+validation sequence (empty + length-cap + whitespace-only check using
+the `WhitespaceOnly` variant) returning Error variants from the
+`TodoError` ADT. Extract the duplicated logic into a single helper
+`validate_title(s: str) to Result[str, TodoError]` and call it from
+all three endpoints. The endpoint signatures must not change. This is
+harder than plan-004-refactor-loop because there are three (not two)
+call sites and three (not two) error branches per site.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `Empty("...")`),
+    not as `TodoError.Empty(...)`.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the duplicated validation in all three endpoints."
+
+[[steps]]
+step = 2
+verb = "extract"
+description = "Add the helper fn `validate_title`."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Replace each duplicated block with a call to the helper."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes and the existing @test blocks still run."
+
+[success_criteria]
+vox_check_passes = true
+helper_fn_added = true
+duplicate_logic_removed = true
+endpoint_signatures_unchanged = true

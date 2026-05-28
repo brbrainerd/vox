@@ -1,0 +1,5 @@
+[package]
+name = "repair-027-swapped-args"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Division dividend and divisor are swapped."

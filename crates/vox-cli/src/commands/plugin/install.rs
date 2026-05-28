@@ -148,6 +148,29 @@ async fn install_from_catalog(id: &str, yes: bool) -> Result<()> {
 
     let source = &entry.default_source;
 
+    // Workspace-local fallback: if the caller is running from a vox checkout
+    // that contains `crates/vox-plugin-<id>/Plugin.toml`, install from there
+    // and skip the GitHub download entirely. Saves the contributor a `--path`
+    // copy-paste step and avoids needing GitHub release artifacts during
+    // local development. Catalog `local:` entries already do this; this
+    // extends the same treatment to `github:` defaults when a matching
+    // workspace crate is on disk.
+    if !source.starts_with("local:") {
+        if let Some(local) = vox_plugin_host::workspace_local_plugin_source(id) {
+            println!(
+                "ℹ Found local workspace source for plugin '{}' at {} — installing from there \
+                 instead of the catalog default ('{}'). Set VOX_NO_LOCAL_PLUGIN_FALLBACK=1 \
+                 to disable.",
+                id,
+                local.display(),
+                source
+            );
+            if std::env::var("VOX_NO_LOCAL_PLUGIN_FALLBACK").is_err() {
+                return install_from_path(&local, yes);
+            }
+        }
+    }
+
     // Resolve source to a URL or local path.
     if let Some(rel) = source.strip_prefix("local:") {
         let local_path = std::path::Path::new(rel);

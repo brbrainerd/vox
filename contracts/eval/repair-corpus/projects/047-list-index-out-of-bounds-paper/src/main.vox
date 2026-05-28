@@ -1,0 +1,8 @@
+// Repair-corpus fixture 047 — api-misuse bug class.
+// `List.get` takes an int index, but the caller passes the str
+// literal "zero" — the static analogue of an out-of-bounds list
+// access. Expected repair: pass an int index (e.g. 0).
+
+fn first_or_default(xs: List[int]) to Option[int] {
+    return xs.get("zero")
+}

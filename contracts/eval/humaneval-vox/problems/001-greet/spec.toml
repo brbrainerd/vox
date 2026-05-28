@@ -1,0 +1,13 @@
+id = "humaneval-vox-001-greet"
+training_eligible = false
+provenance = "examples-golden-lift"
+derived_from = "examples/golden/hello.vox"
+
+prompt = """
+Write a Vox function `greet(name: str) to str` that returns
+`"Hello "` followed by the given name and a trailing `"!"`.
+
+Use a plain `fn`. No decorators required. Examples:
+  greet("Ada") == "Hello Ada!"
+  greet("")    == "Hello !"
+"""

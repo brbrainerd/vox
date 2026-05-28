@@ -1,0 +1,13 @@
+fn result_is_error(r: Result[int]) to bool {
+    match r {
+        Ok(_)    => return false
+        Error(_) => return true
+    }
+}
+
+@test
+fn t_err() to Unit { assert(result_is_error(Error("boom")) is true) }
+@test
+fn t_ok() to Unit { assert(result_is_error(Ok(5)) is false) }
+@test
+fn t_ok_zero() to Unit { assert(result_is_error(Ok(0)) is false) }

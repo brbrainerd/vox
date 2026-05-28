@@ -1,0 +1,5 @@
+[package]
+name = "repair-037-missing-variant-three"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: exhaustiveness bug class. 3-variant Status ADT matched on only 2 variants."

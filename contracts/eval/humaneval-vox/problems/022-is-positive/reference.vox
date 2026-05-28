@@ -1,0 +1,3 @@
+fn is_positive(n: int) to bool {
+    return n > 0
+}

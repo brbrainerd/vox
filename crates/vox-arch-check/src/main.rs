@@ -74,6 +74,11 @@ mod cache;
 mod forbidden_patterns;
 use forbidden_patterns::{ForbiddenPatternRule, scan_all as scan_forbidden_patterns_all};
 
+/// Rule 14: evidence-ledger integrity check.
+/// See `evidence_ledger.rs` for the contract.
+mod evidence_ledger;
+use evidence_ledger::{EvidenceFinding, FindingKind};
+
 #[derive(Debug, Deserialize)]
 struct LayersConfig {
     crates: HashMap<String, CrateEntry>,
@@ -247,6 +252,8 @@ struct Report {
     cdylib_dep_warns: Vec<(String, String)>,
     /// Rule 15: (crate, ws_dep_count, budget) tuples over the workspace-dep budget.
     workspace_dep_warns: Vec<(String, usize, usize)>,
+    /// Rule 16: evidence-ledger integrity findings (missing / stale artifacts).
+    evidence_findings: Vec<EvidenceFinding>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -263,6 +270,11 @@ struct Report {
     strict_loc_delta: bool,
     strict_cdylib_dep: bool,
     strict_workspace_deps: bool,
+    /// Rule 16 strictness. Default: false — ledger is freshly seeded and many
+    /// rows point at not-yet-existing artifacts. Flip to true once
+    /// `vox audit --gate all --strict-block-ga` exits 0 (i.e. when block-GA
+    /// gates are met by real measurements rather than corpus-inventory).
+    strict_evidence_ledger: bool,
 }
 
 impl Report {
@@ -282,6 +294,11 @@ impl Report {
             || (self.strict_loc_delta && !self.loc_delta_warns.is_empty())
             || (self.strict_cdylib_dep && !self.cdylib_dep_warns.is_empty())
             || (self.strict_workspace_deps && !self.workspace_dep_warns.is_empty())
+            || (self.strict_evidence_ledger
+                && self
+                    .evidence_findings
+                    .iter()
+                    .any(|f| f.kind.severity() == "ERROR"))
     }
 
     fn print_summary(&self) {
@@ -507,6 +524,33 @@ impl Report {
             for (name, count, budget) in &self.workspace_dep_warns {
                 eprintln!("  {name}: {count} workspace deps (budget {budget})");
             }
+        }
+        if !self.evidence_findings.is_empty() {
+            any = true;
+            let strict_label = if self.strict_evidence_ledger { "ERROR" } else { "warn" };
+            eprintln!(
+                "[evidence-ledger] {} finding(s) — claims in `docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md` point at:",
+                self.evidence_findings.len()
+            );
+            for f in &self.evidence_findings {
+                let kind_label = match &f.kind {
+                    FindingKind::MissingArtifact => "missing".to_string(),
+                    FindingKind::DirectoryHasNoDatedReports => "no dated reports".to_string(),
+                    FindingKind::Stale { age_days, max_age_days } => {
+                        format!("stale ({age_days}d > {max_age_days}d budget)")
+                    }
+                    FindingKind::UnknownArtifactKind(k) => format!("unknown kind `{k}`"),
+                };
+                let sev = f.kind.severity();
+                let row_label = if sev == "ERROR" { strict_label } else { sev };
+                eprintln!(
+                    "  [{row_label}] {claim} → {kind} @ {path}",
+                    claim = f.claim_id,
+                    kind = kind_label,
+                    path = f.artifact_path.display(),
+                );
+            }
+            eprintln!("  → See contracts/reports/evidence-ledger.v1.json and the honest plan at docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §1.2.");
         }
         if !any {
             eprintln!(
@@ -1123,6 +1167,30 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             profile_start.elapsed().as_millis()
         );
     }
+
+    // ── Rule 14: evidence-ledger integrity ─────────────────────────────────
+    // Runs against `contracts/reports/evidence-ledger.v1.json`; emits
+    // findings about missing/stale artifacts. Defaults to warn-only — the
+    // strict flip happens once block-GA gates are all met (per the honest
+    // plan §10). The lint is `strict_evidence_ledger = false` until then.
+    if workspace_root
+        .join("contracts/reports/evidence-ledger.v1.json")
+        .exists()
+    {
+        match evidence_ledger::check_evidence_ledger(&workspace_root) {
+            Ok(findings) => {
+                report.evidence_findings = findings;
+            }
+            Err(e) => {
+                eprintln!(
+                    "[evidence-ledger] WARN: failed to load ledger: {e:#}"
+                );
+            }
+        }
+    }
+    // Default strictness: false. Tighten via `--strict-evidence` flag once
+    // §10 acceptance fires.
+    report.strict_evidence_ledger = std::env::args().any(|a| a == "--strict-evidence");
 
     Ok(report)
 }

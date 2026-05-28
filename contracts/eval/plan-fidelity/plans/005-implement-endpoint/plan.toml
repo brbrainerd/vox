@@ -1,0 +1,58 @@
+id = "plan-005-implement-endpoint"
+wave = "wave_3"
+description = "Implement a new @endpoint end-to-end (effects + auth + ADT error)."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+Add a new endpoint
+`@endpoint(kind: mutation) @auth(scheme: bearer) fn archive_todo(id:
+str) to Result[str, TodoError]` to the marquee todo-auth project.
+- Validates that the id is non-empty (`len(id) is 0` rejects);
+  on failure return `Error(EmptyId("id must not be empty"))`.
+- Returns `Ok("archived")` on success.
+- Append a @test that exercises the empty-id path and matches
+  `Error(EmptyId(_))` via the existing `TodoError` ADT (see the
+  existing test in the base for the pattern).
+
+Vox conventions (the base source already uses them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the two Result constructors.
+  - Variant constructors are referenced bare (e.g. `EmptyId("...")`),
+    not as `TodoError.EmptyId(...)`.
+  - Use a `match` block in the @test to discriminate Result variants;
+    each arm should call `assert(true)` or `assert(false)`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing TodoError ADT + add_todo as reference."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Append the new endpoint."
+
+[[steps]]
+step = 3
+verb = "write-test"
+description = "Append the @test covering the EmptyId variant."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "The @test runs clean via the in-process interpreter."
+
+[success_criteria]
+vox_check_passes = true
+new_endpoint_added = true
+new_test_passes = true
+adt_error_variant_used = true
+auth_decorator_present = true

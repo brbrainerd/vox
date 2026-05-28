@@ -1,0 +1,5 @@
+[package]
+name = "repair-045-result-without-match"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. A fn returning Result[int] is bound to an int-typed let directly, skipping the required match/unwrap."

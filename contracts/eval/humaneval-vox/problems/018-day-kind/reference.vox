@@ -1,0 +1,9 @@
+fn day_kind(day: str) to str {
+    if day is "saturday" {
+        return "weekend"
+    }
+    if day is "sunday" {
+        return "weekend"
+    }
+    return "weekday"
+}

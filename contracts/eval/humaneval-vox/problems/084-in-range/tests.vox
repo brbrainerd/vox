@@ -1,0 +1,20 @@
+fn in_range(n: int, lo: int, hi: int) to bool {
+    if n < lo {
+        return false
+    }
+    if n > hi {
+        return false
+    }
+    return true
+}
+
+@test
+fn t_inside() to Unit { assert(in_range(5, 0, 10) is true) }
+@test
+fn t_lo_edge() to Unit { assert(in_range(0, 0, 10) is true) }
+@test
+fn t_hi_edge() to Unit { assert(in_range(10, 0, 10) is true) }
+@test
+fn t_below() to Unit { assert(in_range(-1, 0, 10) is false) }
+@test
+fn t_above() to Unit { assert(in_range(11, 0, 10) is false) }

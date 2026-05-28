@@ -6,49 +6,49 @@
   "description": "Versioned metadata embedded in structured chat turns and aligned across MCP / CLI / orchestrator surfaces.",
   "type": "object",
   "additionalProperties": true,
-  "properties": 
-    "envelope_version": 
+  "properties": {
+    "envelope_version": {
       "type": "integer",
       "const": 1,
       "description": "Increment when breaking field semantics; keep in sync with vox-mcp journey_envelope builder."
     },
-    "journey_id": 
+    "journey_id": {
       "type": "string",
       "minLength": 1,
       "maxLength": 2048,
       "description": "Stable id for this user request across routing, storage, and telemetry."
     },
-    "session_id": 
+    "session_id": {
       "type": "string",
       "maxLength": 2048,
       "description": "Chat / workflow session partition (may default to 'default' in MCP)."
     },
-    "thread_id": 
+    "thread_id": {
       "type": ["string", "null"],
       "maxLength": 2048,
       "description": "Editor or branch thread id when distinct from session_id."
     },
-    "trace_id": 
+    "trace_id": {
       "type": ["string", "null"],
       "maxLength": 256,
       "description": "End-to-end trace for retrieval / HTTP sidecars."
     },
-    "correlation_id": 
+    "correlation_id": {
       "type": ["string", "null"],
       "maxLength": 256,
       "description": "Fallback correlation when trace_id is unset."
     },
-    "repository_id": 
+    "repository_id": {
       "type": "string",
       "maxLength": 512,
       "description": "Vox repository id from workspace discovery."
     },
-    "origin_surface": 
+    "origin_surface": {
       "type": "string",
       "enum": ["mcp", "cli", "orchestrator", "daemon"],
       "description": "Writer surface for joins with routing_decisions.surface"
     },
-    "cognitive_profile": 
+    "cognitive_profile": {
       "type": ["string", "null"],
       "maxLength": 64,
       "description": "Optional MCP chat routing hint (fast | reasoning | creative)."

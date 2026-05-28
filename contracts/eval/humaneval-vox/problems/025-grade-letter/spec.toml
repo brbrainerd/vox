@@ -1,0 +1,9 @@
+id = "humaneval-vox-025-grade-letter"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `grade(score: int) to str` returning "P" if score >= 60
+otherwise "F".
+"""

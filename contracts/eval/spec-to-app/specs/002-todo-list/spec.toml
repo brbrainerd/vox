@@ -1,0 +1,30 @@
+id = "spec-to-app-002-todo-list"
+tier = "T2"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a per-user todo list as a Vox single-tenant SaaS skeleton:
+
+  - @table type User { email: str }
+  - @table type Todo { owner: str, title: str, done: bool }
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      list_todos() to List[Todo] returning an empty literal list.
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      add_todo(title: str) to Result[str, TodoError]
+        validating empty + too-long titles via a TodoError ADT.
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      complete_todo(id: str) to Result[str, TodoError].
+
+Include two @test blocks covering the validation paths.
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 2
+auth_decorator_required = true
+endpoint_kind_required = true

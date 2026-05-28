@@ -1,0 +1,6 @@
+fn option_default_neg_one(o: Option[int]) to int {
+    match o {
+        Some(n) => return n
+        None    => return -1
+    }
+}

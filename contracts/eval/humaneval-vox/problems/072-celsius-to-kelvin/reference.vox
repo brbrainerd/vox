@@ -1,0 +1,3 @@
+fn celsius_to_kelvin(c: int) to int {
+    return c + 273
+}

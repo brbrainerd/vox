@@ -132,6 +132,77 @@ These are real foundations. The audit is honest about gaps below; that should no
 
 ## §3 Audit: Gaps Between Current State and the Vision
 
+> **State-of-the-world update 2026-05-21 (honest-audit revision).** The
+> "CLOSED" / "PARTIAL" words below now obey the meta-rule established in
+> `docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md` §1.2:
+> a status stronger than "OPEN" must cite a `claim_id` resolvable in
+> `contracts/reports/evidence-ledger.v1.json`. The `vox-arch-check`
+> evidence-ledger lint enforces this in CI.
+>
+> | Gap | Status | claim_id |
+> |---|---|---|
+> | §3.1 Self-repair measurement (CR-L3) | **PARTIAL — code real, measurement absent** | `audit.cr_l3.repair_panel` (blocked) — runner exists at `crates/vox-audit/src/subcommands/repair_corpus.rs` + Tarjan-SCC toposort lands; LLM-panel × `vox repair --project` execution unwired per honest plan §3.5. Corpus is 5 of 50–100. |
+> | §3.2 Corpus-feedback closed loop (CR-L8) | **NOT CLOSED — pipeline unwired** | `audit.cr_l8.feedback_loop` (blocked) — the gate self-reports `incomplete: true` ("the corpus-feedback pipeline has not been wired into any emitting workflow yet"). Honest plan §3.1 wires it. |
+> | §3.3 Plan-mode fidelity (CR-L4) | **PARTIAL — code real, measurement absent** | `audit.cr_l4.plan_loop` (blocked) — corpus is 5 of 50–100; orchestrator-driven plan-loop measurement harness not wired. Honest plan §3.6 + §4.3. |
+> | §3.4 Deploy/health CLI gap (CR-L7) | **PARTIAL — doctor leg only** | `audit.cr_l7.deploy_doctor_leg` (claims) — doctor-leg gate green on `contracts/reports/deploy/<UTC>.json`. Full new + deploy legs deferred per honest plan §3.2; the gate's own `note` field documents this. |
+> | §3.5 Retirement guards (CR-L6) | **CLOSED** | `audit.cr_l6.retirement` — gate green on `contracts/reports/retirement/<UTC>.json` with 16/16 detectors. |
+> | §3.6 MENS on-distribution (CR-L2) | **PARTIAL — code real, measurement absent** | `audit.cr_l2.mens_sampling` (blocked) — runner reuses CR-L1 corpus; MENS sampling not wired. Honest plan §3.4. |
+> | §3.7 ACI envelope opt-in (CR-L5) | **CLOSED** | `audit.cr_l5.aci_default` — gate green on `contracts/reports/aci-default/<UTC>.json`. |
+> | §3.8 Codegen IR unification | Unchanged — separate multi-quarter track | n/a |
+> | §3.9 Inference hosting | Out of scope per audit (mesh Phase 5–6) | n/a |
+> | §3.10 Mesh chaos testing | Out of scope per audit | n/a |
+>
+> **Reading the cells.** Every CLOSED cell has a `claim_id` that resolves
+> to a fresh artifact under `contracts/reports/`. Every PARTIAL or NOT
+> CLOSED cell has a `claim_id` of the form `<area>.<gate>` that resolves
+> to a `blocked_claims` row pointing at the honest-plan §X.Y that closes
+> it. The arch-check evidence-ledger lint fails CI if either invariant
+> drifts.
+>
+> Additional closures not in the original audit table:
+> - HumanEvalRunner + 30 seed fixtures (was 18)
+> - In-process `@test` execution via `vox_compiler::eval::Interpreter`
+> - LLM-panel client + cache + retry layers
+> - Two-parameter `Result[T, E]`
+> - `@example`, `@public`, `@endpoint(kind: stream)` decorators
+> - `HirEndpointKind::Stream` as first-class HIR variant (threads through HIR validate, ContractEndpointKind, route_ir, web_ir, codegen)
+> - `minimal_repro` field on diagnostic envelope
+> - Held-out contamination guard
+> - Named↔Table unify + row-type fix + `Id[T]` alias
+> - Marquee slots 2 & 3 (todo-auth, chat)
+> - examples/golden corpus 36 → 50 doctor-green + 4 skipped-with-reason (P2 typecheck depth)
+> - **HM-style let-polymorphism for identifier references** — `binding.ty.clone()` → `uf.instantiate(...)`, so `let x: Option[Str] = None` and analogous constructors specialize against the annotation
+> - **Expected-type propagation through `state` initializers** — same shape as the let-binding fix, restores `state last_photo: Option[Str] = None`
+> - **`cap` opaque type + `has_capability(c: cap) -> bool` builtin** wired in `typeck::builtins` (capability-grants-ssot first-light), with positive + negative regression tests
+> - **Tarjan-SCC toposort over project import graph** for `vox repair --project` ordering — replaces "fewest imports first" heuristic with proper deps-before-dependents ordering
+> - **`examples/golden/` + `apps/marquee/*/src/main.vox` doctor-green CI guards** (`crates/vox-audit/tests/examples_golden_doctor_green.rs`)
+>
+> Additional closures from the 2026-05-19 second pass (post-audit, full execution):
+> - **`HirEndpointKind::Stream` restored as first-class HIR variant.** Threads through ContractEndpointKind, route_ir, web_ir, validate, and codegen. Stream endpoints route as GET under `/api/stream/<name>`.
+> - **SSE response-shape codegen lands.** `crates/vox-codegen/src/codegen_rust/emit/http.rs::emit_sse_handler` emits an Axum `Sse<...>` handler that ticks at the parsed `every:` interval (default 1000ms), wraps each tick in an SSE `Event::default().data(...)`, and sets `KeepAlive::default()` so proxies don't drop idle connections. Generated `Cargo.toml` carries `tokio-stream` + `futures-util`. Configurable per-app via `VOX_STREAM_INTERVAL_MS`.
+> - **`AppContractModule.stream_fns`** added alongside `server_fns` / `query_fns` / `mutation_fns` so the codegen routing pass and downstream contract consumers see streams as a distinct slice.
+> - **Actor handler registration.** `register_hir_actors` walks `module.functions` for `durability = Actor` declarations and registers per-handler `ActorHandlerSig`s in the typeck env — this fixes a real prior gap where `lookup_actor` always returned `None` for user-declared actors.
+> - **Per-actor `subscribe(Actor)` broadcast type (B3).** `subscribe(c)` where `c: ActorRef(Counter)` or `c: Named("Counter")` now returns `Stream[T]` where T is the actor's `on broadcast(...) to T` return type — falls back to `Stream[str]` when the actor declares no broadcast handler.
+> - **If-expression expected-type propagation (B4).** `let r: Result[T, MyErr] = if cond { Ok(...) } else { Error(...) }` now specializes both constructor arms against `MyErr` via the `expected` thread + Ident-instantiation chain.
+> - **HumanEval-Vox corpus 30 → 164.** **100% of the HumanEval-Python anchor reached.** Batches: 031-060 numeric primitives, 061-090 extended numeric/conditional, 091-120 string/Option/Result/list, 121-144 comparisons + boolean algebra + nested matches, 145-164 conditional bands + roundtrips + leap-year + grading. Held-out: 10/30 (the original examples-golden-lift fixtures); 154/164 are training-eligible. All 164 compile clean AND pass the embedded `@test` interpreter. `corpus_hash: blake3:feaf32ed39b465f134bc1e4af700374361091fa6190d940ad4ed34efbbc59d2a`.
+> - **B7 — real broadcast payload on the wire.** `SubscriptionManager` now carries a second channel pool (`payload_channels: HashMap<String, broadcast::Sender<String>>`) keyed by actor name. `notify_payload(channel, payload)` pushes the broadcast string; `subscribe_payload(channel)` returns a `Receiver<String>`. The SSE codegen pulls via `subscribe_payload` + `BroadcastStream`, filters out `Lagged` errors silently so the connection survives, and writes the actual payload into the SSE `data:` field — replaces the literal actor-name placeholder.
+> - **Actor `broadcast(msg)` lowering.** Special-cased in `codegen_rust::emit::stmt_expr::HirExpr::Call` to emit `SubscriptionManager::default().notify_payload(&env::var("VOX_BROADCAST_CHANNEL").unwrap_or_default(), as_string(&msg)).await` so handler bodies can fan out payloads to subscribers.
+> - **Overlay validator test fix.** The session-long `overlay_unique_z_no_warning` failure was stale test fixture (the test was written before ADR-034 added the `loose_z_index` lint). Updated to use canonical named tiers (`"content"` / `"popover"`) and added a companion test that asserts the `loose_z_index` lint correctly fires per numeric z-index value without spuriously triggering `duplicate_z`.
+> - **SSE actor-subscribe bridge (B5).** When a stream endpoint's body is `return subscribe(ActorName)`, the SSE handler now wraps `vox_actor_runtime::SubscriptionManager::subscribe(actor_name)` with `tokio_stream::wrappers::BroadcastStream` so each `broadcast(msg)` from the actor's body fans out as an SSE event. Replaces the IntervalStream tick path on subscribe-tail bodies. Generated `Cargo.toml` carries the `tokio-stream` `sync` feature.
+> - **`broadcast(msg)` builtin (B6).** Registered in `typeck::builtins` as `fn(T) -> Unit` so actor handler bodies can emit events that fan out to subscribers.
+> - **Codegen drift fixes** for the new `stream_interval` + `primary_key` fields across `vox-codegen`, `vox-test-harness`, and `vox-compiler::typeck::effect_check`'s test helpers.
+>
+> Additional closures from the 2026-05-19 audit-then-execute pass:
+> - **`workflow` + `activity` are public.** ADR-028 revised — `vox-workflow-runtime` (2,285 LoC) is the existing journal-replay engine; the only gate was a text-level reject in `pipeline.rs::check_adr028_reserved_keywords`. Removing `workflow`/`activity` from the RESERVED list lit up the full stack. `@scheduled`/`@durable` remain reserved.
+> - **Retired-decorator migration hints.** `@server`/`@query`/`@mutation`/`@health`/`@metric` at the text level now emit `E040` with the canonical replacement (e.g. "Replace `@server` with `@endpoint(kind: server)`"), instead of falling through the lexer to a useless "Unexpected token at top level: query".
+> - **`@table` primary key is explicit.** Council-ratified 2026-05-19. `@table type Foo {}` errors with `E1042` unless an `id` field is present; `@table(pk: <field>)` errors with `E1041` if the named field is missing. No magic auto-id, no headless tables.
+> - **Streaming language surface.** `@endpoint(kind: stream, every: "<duration>")` parses + lowers through HIR. `subscribe(Actor) -> Stream[str]` builtin registered for actor-driven streams. (Real SSE response-shape codegen is the remaining work — labeled below.)
+> - **`vox deploy` reference docs** at `docs/src/reference/cli-vox-deploy.md` covering all 6 DeployTarget variants.
+> - **CR-L2 + CR-L4 runners are real**, not stubs (audit-confirmed): `MensOnDistributionRunner` reuses CR-L1 corpus with check+lint+retirement gate; `PlanFidelityRunner` does real corpus enumeration with opt-in panel routing.
+>
+> The gap narrative below is preserved unchanged for historical context;
+> the scorecard above is the canonical "what's still open" view.
+
 Severity tiers used below:
 
 - **🔴 Blocker** — must close to credibly claim v1.0 ships "LLMs can author Vox."

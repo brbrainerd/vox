@@ -1,0 +1,8 @@
+id = "humaneval-vox-070-is-divisible-three-or-five"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `is_divisible_three_or_five(n: int) to bool` returning true when 3 OR 5 divides n evenly. (FizzBuzz precursor.)
+"""

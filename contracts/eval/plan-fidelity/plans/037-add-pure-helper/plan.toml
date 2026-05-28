@@ -1,0 +1,44 @@
+id = "plan-037-add-pure-helper"
+wave = "wave_2"
+description = "Add a pure formatting helper to a project."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+Add a pure helper `fn fmt_money(cents: int) to str` that returns
+something like `"cents:" + ...` (a deterministic, simple formatting —
+any non-trivial body that vox-checks is acceptable). The function
+must be top-level and pure. Append a @test that asserts the helper
+returns a non-empty string for `fmt_money(199)`.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Note the existing project shape."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Add the `fmt_money` helper."
+
+[[steps]]
+step = 3
+verb = "write-test"
+description = "Append the @test exercising the helper."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes and the @test runs clean."
+
+[success_criteria]
+vox_check_passes = true
+helper_fn_added = true
+new_test_passes = true

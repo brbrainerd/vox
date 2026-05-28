@@ -1,0 +1,31 @@
+// Base source for plan-004-refactor-loop.
+//
+// Two @endpoint mutations duplicate the same 4-line validation
+// sequence. The plan asks the model to extract a `validate_title`
+// helper and call it from both. Endpoint signatures must not change.
+
+type TodoError =
+    | Empty(text: str)
+    | TooLong(text: str)
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    if len(title) > 100 {
+        return Error(TooLong("title exceeds 100 chars"))
+    }
+    return Ok(title)
+}
+
+@endpoint(kind: mutation)
+fn rename_todo(id: str, new_title: str) to Result[str, TodoError] {
+    if len(new_title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    if len(new_title) > 100 {
+        return Error(TooLong("title exceeds 100 chars"))
+    }
+    return Ok(new_title)
+}

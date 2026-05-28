@@ -1,0 +1,37 @@
+id = "plan-012-add-default-branch"
+wave = "wave_1"
+description = "Add a default wildcard arm to a partial match expression."
+max_steps = 3
+max_cost_usd = 0.50
+
+prompt = """
+The file declares fn `describe(day: str) to str` which uses a `match`
+expression with arms for `"mon"`, `"tue"`, and `"wed"`. Add a default
+wildcard arm `_ => "unknown"` so the match is total. Do not change
+the existing arms or the fn signature.
+
+Vox conventions to honor:
+  - Match wildcard is `_`.
+  - Match arms use `=>` between the pattern and the expression.
+  - Return arrow is `to T`, not `->`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Append the `_ => \"unknown\"` arm inside the match block."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes; existing arms unchanged."
+
+[success_criteria]
+vox_check_passes = true
+default_arm_added = true
+existing_arms_unchanged = true

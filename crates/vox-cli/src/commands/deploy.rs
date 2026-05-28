@@ -48,8 +48,14 @@ pub async fn run(args: DeployArgs) -> Result<()> {
                 .unwrap_or("auto")
                 .parse()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
-            runtime_holder =
-                Some(detect_runtime(pref).context("container runtime detection / availability")?);
+            // `--dry-run` describes the planned actions without invoking a
+            // container runtime — required for CI (CR-L7) and air-gapped
+            // contributors who have no docker/podman installed.
+            if !args.dry_run {
+                runtime_holder = Some(
+                    detect_runtime(pref).context("container runtime detection / availability")?,
+                );
+            }
 
             let build_args: Vec<(String, String)> = deploy
                 .container

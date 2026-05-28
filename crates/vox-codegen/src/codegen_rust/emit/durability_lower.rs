@@ -75,38 +75,48 @@ fn emit_activity_body(func: &HirFn, inferred_types: Option<&HashMap<Span, HirTyp
 
 fn emit_actor_body(
     func: &HirFn,
-    _inferred_types: Option<&HashMap<Span, HirType>>,
-    _usage: Option<&super::usage::UsageTracker>,
-    handlers: &[&HirFn],
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+    _handlers: &[&HirFn],
 ) -> String {
+    // An actor "handler" function has a name like "ChatRoom::join" and
+    // carries the executable handler body lowered from the `on event(...)`
+    // declaration. It is NOT a process-spawn site — it's a plain function
+    // that the runtime dispatcher calls when it receives a matching
+    // envelope. So emit it like any other function. Per the 2026-05-23
+    // slot-3 chat bring-up: the prior implementation re-emitted the
+    // spawn_process loop inside every handler body, referencing
+    // bogus types like `ChatRoom::joinState`.
+    if func.name.contains("::") {
+        return emit_plain_body(func, inferred_types, usage);
+    }
+
+    // Actor SHELL: spawn the process loop. State struct is emitted as
+    // a sibling by `emit_actor_state_structs` in workflow.rs; here we
+    // just instantiate it. The Envelope dispatch is left as a no-op
+    // for now — vox_actor_runtime::Envelope is a tagged enum
+    // (`Message(Message) | Request(Request) | Signal(Signal)`), not a
+    // struct with a `.payload` field, so a real dispatch table needs
+    // a `match envelope { Envelope::Message(m) => ..., ... }` over
+    // the inner MessagePayload. Until that wire shape is settled,
+    // consume the envelope without routing — the binary compiles
+    // and serves /health, which is what CR-P1 measures.
     let actor_name = &func.name;
     let state_struct = format!("{}State", actor_name);
     let mut out = String::new();
-    out.push_str("    // P2-T7: actor handler lowered to spawn_process\n");
+    out.push_str("    // actor shell — spawn the mailbox loop. Envelope\n");
+    out.push_str("    // dispatch is a no-op pending the wire-shape decision\n");
+    out.push_str("    // (see emit_actor_body comment in durability_lower.rs).\n");
     out.push_str(&format!(
-        "    let mut state = {}::default();\n",
-        state_struct
+        "    let _state = {state_struct}::default();\n"
     ));
-    out.push_str("    ::vox_actor_runtime::spawn_process(move |mut ctx| async move {\n");
+    out.push_str(
+        "    let _handle = ::vox_actor_runtime::spawn_process(move |mut ctx| async move {\n",
+    );
     out.push_str("        while let Some(envelope) = ctx.receive().await {\n");
-    out.push_str("            match envelope.payload.as_str() {\n");
-    for h in handlers {
-        let event_name = h.name.split("::").last().unwrap();
-        let sanitized_name = h.name.replace("::", "_");
-        out.push_str(&format!("                {:?} => {{\n", event_name));
-        out.push_str(&format!(
-            "                    let args = serde_json::from_value(envelope.args).unwrap_or_default();\n"
-        ));
-        out.push_str(&format!(
-            "                    {}(&mut state, args).await;\n",
-            sanitized_name
-        ));
-        out.push_str("                }\n");
-    }
-    out.push_str("                _ => {}\n");
-    out.push_str("            }\n");
+    out.push_str("            let _ = envelope; // dispatch not yet wired\n");
     out.push_str("        }\n");
-    out.push_str("    })\n");
+    out.push_str("    });\n");
     out
 }
 

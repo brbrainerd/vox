@@ -1,0 +1,21 @@
+{
+  "thing": "mens-on-distribution",
+  "schema_version": 1,
+  "measured_at": "2026-05-22T09:29:35.643465600+00:00",
+  "corpus_hash": "blake3:reusing-cr-l1-corpus-164",
+  "corpus_size": 164,
+  "llm_panel": [],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 1.0
+  },
+  "threshold": {
+    "target": 0.95,
+    "met": false
+  },
+  "note": "corpus-routing mode: CR-L2 reuses the CR-L1 corpus (164 fixture(s)). On-distribution rate (the 95% bar) requires --llm-panel + MENS sampling via the `mens-current` panel member. Without those, this runner reports corpus inventory only, not a real on-distribution number."
+}

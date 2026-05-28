@@ -149,7 +149,11 @@ fn incremental_skip_works() {
 }
 
 #[test]
-fn mix_processes_repeats_and_multiple_sources() {
+fn mix_emits_once_with_weight_stamp_by_default() {
+    // Default semantics (post-2026-05-23 fix): weight is stamped onto each
+    // row as `mix_weight` and each row is emitted exactly once. Previously
+    // weight=2 produced 2 literal copies, which destroyed uniqueness for
+    // SFT corpora (audit measured 99.2% duplication on 6× weight).
     let dir = tempfile::tempdir().expect("tempdir");
     let cfg_path = dir.path().join("mix.yaml");
     let s1_path = dir.path().join("s1.jsonl");
@@ -189,9 +193,88 @@ fn mix_processes_repeats_and_multiple_sources() {
     let mixed = std::fs::read_to_string(&out_path).unwrap();
     let lines: Vec<&str> = mixed.lines().filter(|l| !l.is_empty()).collect();
 
-    // s1 repeated 2 times, s2 once = 3 lines
-    assert_eq!(lines.len(), 3);
-    assert!(lines[0].contains("s1"));
-    assert!(lines[1].contains("s1"));
-    assert!(lines[2].contains("s2"));
+    // New semantics: each source emits once → 2 lines, not 3.
+    assert_eq!(lines.len(), 2, "expected emit-once: got {lines:#?}");
+    let l0: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
+    let l1: serde_json::Value = serde_json::from_str(lines[1]).unwrap();
+    assert_eq!(l0["prompt"].as_str(), Some("s1"));
+    assert_eq!(l1["prompt"].as_str(), Some("s2"));
+    // weight=2 is stamped; weight=1 (default) is omitted to keep diffs minimal.
+    assert_eq!(l0["mix_weight"].as_f64(), Some(2.0));
+    assert!(
+        l1.get("mix_weight").is_none() || l1["mix_weight"].as_f64() == Some(1.0),
+        "weight=1 should be no-op or 1.0, got {}",
+        l1["mix_weight"]
+    );
+}
+
+#[test]
+fn mix_physical_repeats_opt_in_restores_legacy_duplication() {
+    // Setting `physical_repeats: true` per-source restores the pre-fix
+    // behavior: weight=N emits each row N times. Kept as an escape hatch
+    // for downstream consumers that don't honor `mix_weight`.
+    let dir = tempfile::tempdir().expect("tempdir");
+    let cfg_path = dir.path().join("mix.yaml");
+    let s1_path = dir.path().join("s1.jsonl");
+    let out_path = dir.path().join("out.jsonl");
+    std::fs::write(
+        &s1_path,
+        "{\"lane\":\"vox_codegen\",\"prompt\":\"s1\",\"response\":\"r1\"}\n",
+    )
+    .unwrap();
+    let p1 = s1_path.to_string_lossy().replace('\\', "/");
+    let p_out = out_path.to_string_lossy().replace('\\', "/");
+    std::fs::write(
+        &cfg_path,
+        format!("sources:\n  - path: \"{p1}\"\n    weight: 3\n    physical_repeats: true\noutput: \"{p_out}\"\ninclude_lanes: [\"vox_codegen\"]\n"),
+    )
+    .unwrap();
+    run_mix_with_options(
+        &cfg_path,
+        None,
+        MixRunOptions {
+            strict: true,
+            write_report: true,
+        },
+    )
+    .expect("run");
+    let mixed = std::fs::read_to_string(&out_path).unwrap();
+    let n = mixed.lines().filter(|l| !l.is_empty()).count();
+    assert_eq!(n, 3, "physical_repeats:true with weight=3 → 3 lines");
+}
+
+#[test]
+fn lane_override_promotes_documentation_category_above_generic_codegen() {
+    // Regression test for 2026-05-23 audit: validated_mixed.jsonl tags
+    // every row `lane: vox_codegen` regardless of its category, so an
+    // `include_lanes: [vox_docs_qa]` filter never emitted documentation
+    // rows. The fix: when the row's lane is the generic catch-all
+    // (`vox_codegen`) AND the category-derived lane is more specific
+    // (e.g. `documentation` → `vox_docs_qa`), promote the specific lane.
+    let raw = r#"{"lane":"vox_codegen","category":"documentation","prompt":"p","response":"r"}"#;
+    let (out, lane) = enrich_lane_metadata(raw).expect("enrich ok");
+    assert_eq!(lane, "vox_docs_qa", "specific category should win");
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["lane"].as_str(), Some("vox_docs_qa"));
+}
+
+#[test]
+fn lane_override_preserves_explicit_non_default_lane() {
+    // If the row already has an explicit non-default lane (e.g. an
+    // upstream tagger really meant `vox_tooling`), trust it even if the
+    // category would also imply something else.
+    let raw = r#"{"lane":"vox_tooling","category":"documentation","prompt":"p","response":"r"}"#;
+    let (_out, lane) = enrich_lane_metadata(raw).expect("enrich ok");
+    assert_eq!(lane, "vox_tooling", "explicit specific lane wins");
+}
+
+#[test]
+fn stamp_mix_weight_skips_default_weight() {
+    let raw = r#"{"prompt":"p","response":"r"}"#;
+    // weight=1.0 → no-op, returns the input unchanged.
+    assert_eq!(stamp_mix_weight(raw, 1.0).unwrap(), raw);
+    // weight=2.5 → adds the field.
+    let out = stamp_mix_weight(raw, 2.5).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(v["mix_weight"].as_f64(), Some(2.5));
 }

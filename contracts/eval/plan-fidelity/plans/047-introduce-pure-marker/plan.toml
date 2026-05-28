@@ -1,0 +1,45 @@
+id = "plan-047-introduce-pure-marker"
+wave = "wave_3"
+description = "Add @pure to a helper that is already side-effect free."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The helper `clamp_age(n: int) to int` performs only pure arithmetic
+and a comparison — no I/O, no print, no side effects. Add the `@pure`
+annotation to its declaration to document this contract. Do not
+change the function signature or body. Do not add `@pure` to any
+other function in the file.
+
+Vox conventions to honor (the base source already follows them):
+  - `@pure` marks a function with no side effects.
+  - The `@pure` annotation precedes the `fn` keyword on its own line
+    (or chained with other decorators).
+  - `len(s)` (builtin), not `s.len()`.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the clamp_age helper."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Add the @pure annotation directly above the fn."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-test"
+description = "Existing @test still runs clean."
+
+[success_criteria]
+vox_check_passes = true
+pure_annotation_added = true
+signature_unchanged = true
+existing_tests_pass = true

@@ -179,7 +179,16 @@ fn check_diagnostics(file_path: &std::path::Path) -> Result<Vec<DiagnosticPayloa
 }
 
 pub async fn run(args: RepairArgs) -> Result<()> {
-    let file_path = &args.file;
+    // Project-scope mode (CR-L3): walk a directory of `.vox` files and run
+    // the single-file repair loop on each one that has errors.
+    if let Some(project_root) = args.project.clone() {
+        return run_project(&project_root, args.json).await;
+    }
+
+    let file_path = args
+        .file
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("vox repair: either FILE or --project must be provided"))?;
     if !file_path.exists() {
         anyhow::bail!("File not found: {}", file_path.display());
     }
@@ -449,6 +458,382 @@ colon blocks, @auth on all non-public endpoints).";
     }
 }
 
+// ─── Project-scope repair (CR-L3) ──────────────────────────────────────────
+
+#[derive(Debug, serde::Serialize)]
+pub struct ProjectFileOutcome {
+    pub path: String,
+    /// `"clean"` (no diagnostics on first scan)
+    /// `"repaired"` (file had errors but the single-file loop converged)
+    /// `"residual"` (file had errors, loop ran, errors still present)
+    /// `"infra_error"` (loop bailed before producing a result)
+    pub status: String,
+    pub initial_error_count: u32,
+    pub residual_error_count: u32,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ProjectRepairReport {
+    pub schema_version: u32,
+    pub project_root: String,
+    pub files_total: u32,
+    pub files_initially_clean: u32,
+    pub files_repaired: u32,
+    pub files_residual: u32,
+    pub files_infra_error: u32,
+    pub outcome: String,
+    pub duration_seconds: f64,
+    pub per_file: Vec<ProjectFileOutcome>,
+}
+
+/// Walk `project_root` for `.vox` files, identify those with errors, and
+/// run the single-file [`run`] loop on each. Aggregate to a structured
+/// report. CR-L3 measurement consumes the JSON form.
+///
+/// Honest scope: this lands the project-walker + per-file dispatch + the
+/// aggregate report. It does NOT yet do cross-file reasoning (coordinated
+/// fix sets, dependency ordering); the per-file loop is the existing
+/// 3-attempt OpenRouter flow unchanged. Cross-file is P4.1's deeper lift.
+pub async fn run_project(project_root: &std::path::Path, json: bool) -> Result<()> {
+    let started = Instant::now();
+    let canonical_root = project_root
+        .canonicalize()
+        .unwrap_or_else(|_| project_root.to_path_buf());
+    if !canonical_root.exists() {
+        anyhow::bail!(
+            "vox repair --project: path does not exist: {}",
+            canonical_root.display()
+        );
+    }
+
+    let files = discover_vox_files(&canonical_root);
+    let mut per_file: Vec<ProjectFileOutcome> = Vec::with_capacity(files.len());
+    let mut clean = 0u32;
+    let mut repaired = 0u32;
+    let mut residual = 0u32;
+    let mut infra_err = 0u32;
+
+    for path in &files {
+        let initial = check_diagnostics(path).unwrap_or_default();
+        let initial_error_count = initial.len() as u32;
+        if initial.is_empty() {
+            clean += 1;
+            per_file.push(ProjectFileOutcome {
+                path: path.display().to_string(),
+                status: "clean".into(),
+                initial_error_count: 0,
+                residual_error_count: 0,
+            });
+            continue;
+        }
+
+        // Dispatch to the existing single-file repair loop. It writes the
+        // repaired file in place; we re-check afterwards to record the
+        // residual count.
+        let single_args = RepairArgs {
+            file: Some(path.clone()),
+            project: None,
+            json: false,
+        };
+        let single_result = Box::pin(run(single_args)).await;
+        let residual_diags = check_diagnostics(path).unwrap_or_default();
+        let residual_count = residual_diags.len() as u32;
+        let status = match (single_result, residual_count) {
+            (Ok(_), 0) => {
+                repaired += 1;
+                "repaired"
+            }
+            (Ok(_), _) => {
+                residual += 1;
+                "residual"
+            }
+            (Err(_), _) => {
+                infra_err += 1;
+                "infra_error"
+            }
+        };
+        per_file.push(ProjectFileOutcome {
+            path: path.display().to_string(),
+            status: status.into(),
+            initial_error_count,
+            residual_error_count: residual_count,
+        });
+    }
+
+    let outcome = if files.is_empty() || (residual == 0 && infra_err == 0) {
+        "green"
+    } else if infra_err > 0 && repaired == 0 && residual == 0 {
+        "infra_error"
+    } else {
+        "red"
+    };
+
+    let report = ProjectRepairReport {
+        schema_version: 1,
+        project_root: canonical_root.display().to_string(),
+        files_total: files.len() as u32,
+        files_initially_clean: clean,
+        files_repaired: repaired,
+        files_residual: residual,
+        files_infra_error: infra_err,
+        outcome: outcome.into(),
+        duration_seconds: started.elapsed().as_secs_f64(),
+        per_file,
+    };
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        println!(
+            "vox repair --project {} → {} ({} clean / {} repaired / {} residual / {} infra-error, {:.2}s)",
+            report.project_root,
+            outcome.to_uppercase(),
+            report.files_initially_clean,
+            report.files_repaired,
+            report.files_residual,
+            report.files_infra_error,
+            report.duration_seconds,
+        );
+        for f in &report.per_file {
+            if f.status != "clean" {
+                println!("  [{}] {}", f.status, f.path);
+            }
+        }
+    }
+
+    if residual > 0 || infra_err > 0 {
+        anyhow::bail!(
+            "vox repair --project: {} residual / {} infra-error of {} files",
+            residual,
+            infra_err,
+            files.len()
+        );
+    }
+    Ok(())
+}
+
+/// Walk `root` for `.vox` files; skips build/cache/vcs directories so that
+/// generated or transient files don't surface as repair work. Mirrors the
+/// skip list used by `vox doctor --project`.
+fn discover_vox_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    for entry in walkdir::WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| !is_skipped_dir_for_repair(e.path()))
+        .filter_map(|r| r.ok())
+    {
+        let p = entry.path();
+        if p.is_file() && p.extension().is_some_and(|x| x == "vox") {
+            out.push(p.to_path_buf());
+        }
+    }
+    // Order files so that **dependencies repair first**: if A imports B,
+    // repair B before A so that when A's repair runs, B is already clean.
+    // Uses Tarjan's SCC over the project-local import graph to handle
+    // mutual / cyclic imports without infinite recursion. Files inside an
+    // SCC are emitted in lex order; std.* and external imports are ignored
+    // (they're not in the discovered set, so they don't participate).
+    order_by_import_graph(&out, root)
+}
+
+/// Project-local import graph topological order with Tarjan SCC handling.
+///
+/// Returns files such that every file appears AFTER all the project files
+/// it imports (depth-first). Cycles are collapsed into SCCs and emitted
+/// as one unit, lex-ordered within. Unknown imports (stdlib, externals,
+/// or unresolved paths) are silently ignored — only project-local edges
+/// affect the order, which is the right behavior for repair: we only need
+/// to order the files we're about to rewrite.
+fn order_by_import_graph(
+    files: &[std::path::PathBuf],
+    project_root: &std::path::Path,
+) -> Vec<std::path::PathBuf> {
+    use std::collections::HashMap;
+
+    // Index: canonical path → index in `files`. We canonicalize both
+    // the discovered files and the candidate import paths so they match
+    // even when one side carries a `\\?\` prefix (Windows) or a relative
+    // walk-root prefix.
+    let path_index: HashMap<std::path::PathBuf, usize> = files
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let key = p.canonicalize().unwrap_or_else(|_| p.clone());
+            (key, i)
+        })
+        .collect();
+
+    // Adjacency: file_idx → indices of project-local files it imports.
+    let mut adj: Vec<Vec<usize>> = vec![Vec::new(); files.len()];
+    for (i, path) in files.iter().enumerate() {
+        for dotted in parse_imports(path) {
+            for cand in candidate_import_paths(project_root, &dotted) {
+                if let Some(&j) = path_index.get(&cand) {
+                    if j != i {
+                        adj[i].push(j);
+                    }
+                    break;
+                }
+            }
+        }
+        adj[i].sort_unstable();
+        adj[i].dedup();
+    }
+
+    // Tarjan's SCC (iterative). Produces SCCs in reverse topological order:
+    // sinks first → leaves of the DAG → exactly what we want for repair
+    // (deps before dependents).
+    let sccs = tarjan_scc(&adj);
+
+    let mut out: Vec<std::path::PathBuf> = Vec::with_capacity(files.len());
+    for mut scc in sccs {
+        // Stable within-SCC order: lex by file path.
+        scc.sort_by(|&a, &b| files[a].cmp(&files[b]));
+        for idx in scc {
+            out.push(files[idx].clone());
+        }
+    }
+    out
+}
+
+/// Extract `import <dotted.path>` declarations from a `.vox` source file.
+/// Returns the dotted path string (e.g. `"std.mobile"`, `"app.routes.api"`).
+/// Pure text scan — robust enough for the repair-ordering use case without
+/// requiring a full parse.
+fn parse_imports(path: &std::path::Path) -> Vec<String> {
+    let Ok(src) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for line in src.lines() {
+        let t = line.trim_start();
+        let rest = if let Some(r) = t.strip_prefix("import ") {
+            r
+        } else if let Some(r) = t.strip_prefix("import\t") {
+            r
+        } else {
+            continue;
+        };
+        // Take until whitespace or `as` (alias clause). Strip trailing
+        // comments / commas / semicolons defensively.
+        let dotted: String = rest
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .trim_end_matches([',', ';'])
+            .to_string();
+        if !dotted.is_empty() {
+            out.push(dotted);
+        }
+    }
+    out
+}
+
+/// Map a dotted import like `app.routes.api` to candidate filesystem
+/// paths inside `project_root`. Tries both `app/routes/api.vox` and
+/// `app/routes/api/mod.vox`. Returns canonical paths when they exist on
+/// disk (so they match the entries in `discover_vox_files`).
+fn candidate_import_paths(
+    project_root: &std::path::Path,
+    dotted: &str,
+) -> Vec<std::path::PathBuf> {
+    let segments: Vec<&str> = dotted.split('.').collect();
+    if segments.is_empty() {
+        return Vec::new();
+    }
+    let mut candidates = Vec::with_capacity(4);
+    // Two common roots: project_root/ and project_root/src/.
+    for base in [project_root.to_path_buf(), project_root.join("src")] {
+        let mut leaf = base.clone();
+        for seg in &segments {
+            leaf.push(seg);
+        }
+        let direct = leaf.with_extension("vox");
+        let module = leaf.join("mod.vox");
+        for p in [direct, module] {
+            if let Ok(canon) = p.canonicalize() {
+                candidates.push(canon);
+            }
+        }
+    }
+    candidates
+}
+
+/// Iterative Tarjan's strongly-connected-components algorithm.
+/// Returns SCCs in reverse topological order — sinks first — which is the
+/// natural order for repair (dependencies before dependents).
+fn tarjan_scc(adj: &[Vec<usize>]) -> Vec<Vec<usize>> {
+    let n = adj.len();
+    let mut index_counter: usize = 0;
+    let mut stack: Vec<usize> = Vec::new();
+    let mut on_stack = vec![false; n];
+    let mut index = vec![usize::MAX; n];
+    let mut lowlink = vec![0usize; n];
+    let mut sccs: Vec<Vec<usize>> = Vec::new();
+
+    // Iterative DFS frame: (node, next-child-iter-position).
+    for start in 0..n {
+        if index[start] != usize::MAX {
+            continue;
+        }
+        let mut work: Vec<(usize, usize)> = vec![(start, 0)];
+        index[start] = index_counter;
+        lowlink[start] = index_counter;
+        index_counter += 1;
+        stack.push(start);
+        on_stack[start] = true;
+
+        while let Some(&(v, i)) = work.last() {
+            if i < adj[v].len() {
+                let w = adj[v][i];
+                work.last_mut().unwrap().1 = i + 1;
+                if index[w] == usize::MAX {
+                    index[w] = index_counter;
+                    lowlink[w] = index_counter;
+                    index_counter += 1;
+                    stack.push(w);
+                    on_stack[w] = true;
+                    work.push((w, 0));
+                } else if on_stack[w] {
+                    lowlink[v] = lowlink[v].min(index[w]);
+                }
+            } else {
+                // Post-visit: roll up lowlink to parent, and if v is a
+                // root, pop its SCC.
+                if lowlink[v] == index[v] {
+                    let mut comp = Vec::new();
+                    loop {
+                        let w = stack.pop().expect("scc stack underflow");
+                        on_stack[w] = false;
+                        comp.push(w);
+                        if w == v {
+                            break;
+                        }
+                    }
+                    sccs.push(comp);
+                }
+                work.pop();
+                if let Some(&(parent, _)) = work.last() {
+                    lowlink[parent] = lowlink[parent].min(lowlink[v]);
+                }
+            }
+        }
+    }
+
+    sccs
+}
+
+fn is_skipped_dir_for_repair(path: &std::path::Path) -> bool {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    matches!(
+        name,
+        "target" | "node_modules" | ".git" | ".cargo" | "dist" | "build" | "archive"
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -456,6 +841,94 @@ mod tests {
     /// Build a session, simulate one open→close cycle, and prove the event
     /// shape lines up. We don't actually emit (no recorder registered in lib
     /// tests), but the construction path itself exercises the field plumbing.
+    /// `parse_imports` should pick up both `import x` and `import x.y.z`
+    /// while ignoring lookalikes (comments, inline strings).
+    #[test]
+    fn parse_imports_extracts_dotted_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let f = tmp.path().join("a.vox");
+        std::fs::write(
+            &f,
+            "import std.mobile\nimport app.routes.api\n// import not.an.import\nfn x() to int { return 0 }\n",
+        )
+        .unwrap();
+        let imports = parse_imports(&f);
+        assert_eq!(imports, vec!["std.mobile", "app.routes.api"]);
+    }
+
+    /// Tarjan SCC on a simple DAG should produce sinks-first ordering.
+    #[test]
+    fn tarjan_scc_orders_dag_sinks_first() {
+        // 0 -> 1 -> 2 (2 is the sink)
+        let adj = vec![vec![1], vec![2], vec![]];
+        let sccs = tarjan_scc(&adj);
+        // Expected order: [2], [1], [0]
+        assert_eq!(sccs, vec![vec![2], vec![1], vec![0]]);
+    }
+
+    /// Tarjan SCC on a cycle should collapse into one component.
+    #[test]
+    fn tarjan_scc_collapses_cycle() {
+        // 0 -> 1 -> 0 (mutual import)
+        let adj = vec![vec![1], vec![0]];
+        let sccs = tarjan_scc(&adj);
+        assert_eq!(sccs.len(), 1);
+        let mut comp = sccs.into_iter().next().unwrap();
+        comp.sort();
+        assert_eq!(comp, vec![0, 1]);
+    }
+
+    /// End-to-end: a project where `app.vox` imports `lib.vox` should
+    /// repair `lib.vox` first.
+    #[test]
+    fn order_by_import_graph_places_dependencies_first() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(
+            root.join("src/app.vox"),
+            "import lib\nfn main() to int { return 0 }\n",
+        )
+        .unwrap();
+        std::fs::write(root.join("src/lib.vox"), "fn helper() to int { return 0 }\n").unwrap();
+
+        let files = discover_vox_files(root);
+        // discover_vox_files already returns import-graph order.
+        assert_eq!(files.len(), 2);
+        assert!(
+            files[0].ends_with("lib.vox"),
+            "lib.vox (dep) should come first; got: {:?}",
+            files
+        );
+        assert!(files[1].ends_with("app.vox"));
+    }
+
+    /// External / unresolved imports (std.*, missing files) must not
+    /// affect order — they're not in the discovered set.
+    #[test]
+    fn order_by_import_graph_ignores_external_imports() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        // Two siblings, both importing std.* — they're independent in the
+        // project-local graph and should fall back to lex order.
+        std::fs::write(
+            root.join("src/b.vox"),
+            "import std.io\nfn b() to int { return 0 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("src/a.vox"),
+            "import std.io\nfn a() to int { return 0 }\n",
+        )
+        .unwrap();
+
+        let files = discover_vox_files(root);
+        assert_eq!(files.len(), 2);
+        assert!(files[0].ends_with("a.vox"));
+        assert!(files[1].ends_with("b.vox"));
+    }
+
     #[test]
     fn repair_session_open_and_close_attempt_does_not_panic() {
         let mut s = RepairSession::new(3, Some("openrouter/claude-sonnet-4-7".into()));
@@ -502,6 +975,61 @@ mod tests {
 
         let repo = RepairSession::discover_repository_id(&project);
         assert_eq!(repo.as_deref(), Some("dir-proj"));
+    }
+
+    #[tokio::test]
+    async fn run_project_on_clean_tempdir_returns_ok_zero_repaired() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::write(
+            tmp.path().join("src/ok.vox"),
+            "fn add(a: int, b: int) to int { return a + b }\n",
+        )
+        .unwrap();
+        let result = run_project(tmp.path(), true).await;
+        assert!(
+            result.is_ok(),
+            "clean project should produce no repair work: {result:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_project_skipped_dirs_are_not_walked() {
+        let tmp = tempfile::tempdir().unwrap();
+        // Real source.
+        std::fs::create_dir_all(tmp.path().join("src")).unwrap();
+        std::fs::write(
+            tmp.path().join("src/ok.vox"),
+            "fn id(n: int) to int { return n }\n",
+        )
+        .unwrap();
+        // Broken file inside target/ — should be skipped.
+        std::fs::create_dir_all(tmp.path().join("target")).unwrap();
+        std::fs::write(
+            tmp.path().join("target/debris.vox"),
+            "this is broken vox ###\n",
+        )
+        .unwrap();
+        let result = run_project(tmp.path(), true).await;
+        assert!(
+            result.is_ok(),
+            "target/ debris should not surface as repair work"
+        );
+    }
+
+    #[tokio::test]
+    async fn run_project_with_missing_root_bails() {
+        let tmp = tempfile::tempdir().unwrap();
+        let nope = tmp.path().join("does-not-exist");
+        let result = run_project(&nope, true).await;
+        assert!(result.is_err());
+        assert!(
+            result
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("does not exist")
+        );
     }
 
     #[test]

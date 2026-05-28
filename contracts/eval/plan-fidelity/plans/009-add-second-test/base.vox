@@ -1,0 +1,13 @@
+// Base source for plan-009-add-second-test.
+//
+// The plan asks the model to APPEND a second @test block (covering
+// is_even(3) is false) without modifying the existing fn or @test.
+
+fn is_even(n: int) to bool {
+  return n % 2 is 0
+}
+
+@test
+fn test_is_even_two() to Unit {
+  assert(is_even(2) is true)
+}

@@ -1,0 +1,46 @@
+id = "spec-to-app-008-rate-limited-search"
+tier = "T3"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a Vox search service exercising effects + auth + ADT error +
+retry semantics:
+
+  - @table type SearchLog { query: str, user: str, ts_ms: int }
+  - type SearchError =
+      | EmptyQuery(text: str)
+      | QueryTooLong(text: str)
+      | RateLimited(text: str)
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      search(query: str) to Result[List[str], SearchError]
+        validating:
+          - query non-empty           → Error(EmptyQuery("...")),
+          - len(query) <= 256         → Error(QueryTooLong("...")),
+        and on success returns Ok([]).
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      log_search(query: str) to Result[str, SearchError]
+        that returns Ok("logged") on success.
+
+Include four @test blocks:
+  - search("") returns Error(EmptyQuery(_)).
+  - search of a 300-char string returns Error(QueryTooLong(_)).
+  - search("ok") returns Ok(_).
+  - log_search("ok") returns Ok(_).
+
+Vox conventions:
+  - `len(s)` builtin.
+  - `Error(VariantName(payload))` constructor.
+  - `match result { ... }` discrimination in tests.
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 4
+auth_decorator_required = true
+endpoint_kind_required = true
+adt_error_variant_required = true

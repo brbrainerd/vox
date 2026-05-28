@@ -1,0 +1,12 @@
+fn access_level(role: str, active: bool) to str {
+    if active is false {
+        return "suspended"
+    }
+    if role is "admin" {
+        return "full"
+    }
+    if role is "editor" {
+        return "write"
+    }
+    return "read"
+}

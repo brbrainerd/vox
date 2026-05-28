@@ -1,0 +1,58 @@
+{
+  "contracts_dir": "C:\\Users\\Owner\\vox\\.claude\\worktrees\\jovial-buck-e93ac0\\contracts",
+  "criterion": "CR-A2",
+  "enforce": false,
+  "excluded_as_data": [
+    "contracts/eval/repair-corpus/projects/001-type-error/expected.json",
+    "contracts/eval/repair-corpus/projects/002-effect-violation/expected.json",
+    "contracts/eval/repair-corpus/projects/003-logic/expected.json",
+    "contracts/eval/repair-corpus/projects/004-exhaustiveness/expected.json",
+    "contracts/eval/repair-corpus/projects/005-api-misuse/expected.json",
+    "contracts/mcp/tool-registry.canonical.yaml",
+    "contracts/openclaw/discovery/well-known.minimal.json",
+    "contracts/openclaw/discovery/well-known.response.json",
+    "contracts/openclaw/protocol/connect.challenge.json",
+    "contracts/openclaw/protocol/connect.hello-ok.json",
+    "contracts/openclaw/protocol/connect.request.operator.json",
+    "contracts/openclaw/protocol/subscriptions.list.response.json",
+    "contracts/orchestration/context-lifecycle-telemetry.fixtures.json",
+    "contracts/repository/repo-catalog.example.yaml",
+    "contracts/speech-to-code/canary_policy.example.json",
+    "contracts/terminal/exec-policy.test-corpus.yaml",
+    "contracts/toestub/suppressions.v1.example.json"
+  ],
+  "malformed_json": [
+    "contracts/db/data-storage-guard-report.v1.schema.json",
+    "contracts/eval/complexity-budget.v1.json",
+    "contracts/eval/gui_visual_rubric.v1.schema.json",
+    "contracts/eval/vision_rubric.v1.schema.json",
+    "contracts/journeys/canonical-journey-definition.v1.schema.json",
+    "contracts/journeys/canonical-journey-step.v1.schema.json",
+    "contracts/journeys/journey-limitation.v1.schema.json",
+    "contracts/orchestration/journey-envelope.v1.schema.json",
+    "contracts/telemetry/completion-detector-snapshot.v1.schema.json",
+    "contracts/telemetry/completion-finding.v1.schema.json",
+    "contracts/telemetry/completion-run.v1.schema.json",
+    "contracts/toestub/toestub-run-json.v1.schema.json"
+  ],
+  "measured_at": "2026-05-21T23:59:04.575815400+00:00",
+  "out_of_scope_for_v1_0": [
+    "Rust extern \"C\" declarations are not enumerated (no voxproto/ schemas exist yet).",
+    "MCP tool surfaces are owned by vox-cli-mcp and have their own contract."
+  ],
+  "parity_pct": 98.38709677419355,
+  "schema_version": 1,
+  "threshold": {
+    "gate_blocks": false,
+    "met": false,
+    "target_parity_pct": 100.0
+  },
+  "total_contracts": 186,
+  "unparseable": [],
+  "with_schema_version_count": 183,
+  "without_schema_version": [
+    "contracts/db/retention-policy.yaml",
+    "contracts/mens/golden_decl_expectations.yaml",
+    "contracts/scientia/distribution.default.yaml"
+  ]
+}

@@ -1,0 +1,45 @@
+id = "plan-045-convert-to-stream"
+wave = "wave_3"
+description = "Convert an N-event mutation endpoint into a stream endpoint."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The `tick_metrics` endpoint is declared `@endpoint(kind: mutation)`
+but conceptually emits N tick events. Rewrite it as
+`@endpoint(kind: stream) @auth(scheme: bearer) fn tick_metrics() to str`
+so the kind: argument matches its streaming intent. The body should
+return `"tick"` (single-event placeholder is fine — the surface change
+is the point). The `@auth(scheme: bearer)` decorator must be preserved.
+
+Vox conventions to honor (the base source already follows them):
+  - `@endpoint(kind: query|mutation|stream)` selects the surface kind.
+  - `@auth(scheme: bearer)` requires a bearer token.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the tick_metrics endpoint."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Change kind: mutation to kind: stream and update body to return str."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-test"
+description = "Existing @test still runs clean."
+
+[success_criteria]
+vox_check_passes = true
+stream_kind_used = true
+auth_decorator_preserved = true
+existing_tests_pass = true

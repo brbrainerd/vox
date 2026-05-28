@@ -1,0 +1,54 @@
+id = "plan-046-replace-retired-decorator"
+wave = "wave_3"
+description = "Migrate a @deprecated helper's callers to a new @pure replacement."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The helper `format_status(active: bool) to str` is annotated
+`@deprecated` and is still called from the `status_label` endpoint.
+Add a new replacement helper
+`@pure fn render_status(active: bool) to str` with the same body
+(returning `"online"` when active, `"offline"` otherwise), and update
+`status_label` to call `render_status` instead of `format_status`.
+The old `format_status` fn must remain in place (other callers may
+exist outside this file), but its lone in-file caller must move to
+the new helper. Endpoint signatures must not change.
+
+Vox conventions to honor (the base source already follows them):
+  - `@pure` marks a function with no side effects.
+  - `@deprecated` marks a function whose usage should migrate.
+  - `len(s)` (builtin), not `s.len()`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the @deprecated helper and its in-file caller."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Add the @pure render_status helper."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Update status_label to call render_status."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "Existing @test still runs clean."
+
+[success_criteria]
+vox_check_passes = true
+replacement_helper_added = true
+caller_migrated = true
+existing_tests_pass = true

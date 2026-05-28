@@ -37,61 +37,25 @@ where
             )
         }
         HirExpr::Block(stmts, _) => {
-            let mut s = String::from("{\n");
-            for stmt in stmts {
-                s.push_str(&super::stmt_expr::emit_stmt(
-                    stmt,
-                    1,
-                    is_route,
-                    is_actor,
-                    mutation_tx,
-                    inferred_types,
-                    usage,
-                    None,
-                ));
-            }
-            s.push('}');
-            s
+            emit_block_tail(stmts, is_route, is_actor, mutation_tx, inferred_types, usage)
         }
-        HirExpr::If(cond, then_b, else_b, _) => {
-            let mut s = format!("if {} {{\n", emit(cond, OwnershipMode::Owned));
-            for stmt in then_b {
-                s.push_str(&super::stmt_expr::emit_stmt(
-                    stmt,
-                    1,
-                    is_route,
-                    is_actor,
-                    mutation_tx,
-                    inferred_types,
-                    usage,
-                    None,
-                ));
-            }
-            s.push_str("    }");
-            if let Some(eb) = else_b {
-                s.push_str(" else {\n");
-                for stmt in eb {
-                    s.push_str(&super::stmt_expr::emit_stmt(
-                        stmt,
-                        1,
-                        is_route,
-                        is_actor,
-                        mutation_tx,
-                        inferred_types,
-                        usage,
-                        None,
-                    ));
-                }
-                s.push_str("    }");
-            }
-            s
-        }
+        HirExpr::If(cond, then_b, else_b, _) => emit_if_tail(
+            cond,
+            then_b,
+            else_b.as_deref(),
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            emit,
+        ),
         HirExpr::FieldAccess(obj, field, _) => {
             let o = emit(obj, OwnershipMode::Owned);
             if o == "std" && field == "args" {
                 "std::env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>()"
                     .to_string()
-            } else if o == "fs" || o == "path" || o == "env" || o == "process" || o == "csv" || o == "toml" || o == "yaml" || o == "io" || o == "json" || o == "http" || o == "crypto" || o == "time" || o == "log" || o == "mobile" || o == "regex" || o == "agentos" {
+            } else if is_vox_namespace_ident(&o) {
                 format!("{}::{}", o, field)
             } else {
                 format!("{}.{}", o, field)
@@ -158,4 +122,107 @@ where
 
         _ => return None,
     })
+}
+
+// Per-variant tail emitters extracted from `try_emit_expr_tail` per CR-A1
+// refactor pass — the inline blocks each carry their own stmt loop +
+// option handling, contributing ~4-6 decision points apiece.
+
+fn emit_block_tail(
+    stmts: &[vox_compiler::hir::HirStmt],
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> String {
+    let mut s = String::from("{\n");
+    for stmt in stmts {
+        s.push_str(&super::stmt_expr::emit_stmt(
+            stmt,
+            1,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            None,
+        ));
+    }
+    s.push('}');
+    s
+}
+
+#[allow(clippy::too_many_arguments)]
+fn emit_if_tail<F>(
+    cond: &HirExpr,
+    then_b: &[vox_compiler::hir::HirStmt],
+    else_b: Option<&[vox_compiler::hir::HirStmt]>,
+    is_route: bool,
+    is_actor: bool,
+    mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+    emit: &F,
+) -> String
+where
+    F: Fn(&HirExpr, OwnershipMode) -> String,
+{
+    let mut s = format!("if {} {{\n", emit(cond, OwnershipMode::Owned));
+    for stmt in then_b {
+        s.push_str(&super::stmt_expr::emit_stmt(
+            stmt,
+            1,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            None,
+        ));
+    }
+    s.push_str("    }");
+    if let Some(eb) = else_b {
+        s.push_str(" else {\n");
+        for stmt in eb {
+            s.push_str(&super::stmt_expr::emit_stmt(
+                stmt,
+                1,
+                is_route,
+                is_actor,
+                mutation_tx,
+                inferred_types,
+                usage,
+                None,
+            ));
+        }
+        s.push_str("    }");
+    }
+    s
+}
+
+/// Returns `true` when the identifier is a Vox namespace module that should
+/// be lowered to Rust path syntax (`fs::read` rather than `fs.read`).
+///
+/// Extracted from the `FieldAccess` arm of `try_emit_expr_tail` per CR-A1:
+/// the original `||` chain contributed 16 decision points to the caller.
+fn is_vox_namespace_ident(name: &str) -> bool {
+    matches!(
+        name,
+        "fs" | "path"
+            | "env"
+            | "process"
+            | "csv"
+            | "toml"
+            | "yaml"
+            | "io"
+            | "json"
+            | "http"
+            | "crypto"
+            | "time"
+            | "log"
+            | "mobile"
+            | "regex"
+            | "agentos"
+    )
 }

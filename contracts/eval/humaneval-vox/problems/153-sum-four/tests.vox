@@ -1,0 +1,10 @@
+fn sum_four(a: int, b: int, c: int, d: int) to int {
+    return a + b + c + d
+}
+
+@test
+fn t_simple() to Unit { assert(sum_four(1, 2, 3, 4) is 10) }
+@test
+fn t_zero() to Unit { assert(sum_four(0, 0, 0, 0) is 0) }
+@test
+fn t_neg() to Unit { assert(sum_four(-1, -2, -3, -4) is -10) }

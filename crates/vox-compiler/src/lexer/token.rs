@@ -133,6 +133,12 @@ pub enum Token {
     AtMcpResource,
     #[token("@test")]
     AtTest,
+    /// `@example` — corpus-eligible reference fn for HumanEval-Vox / doctest
+    /// mining. Same surface as `@test` (no params, returns Unit, body uses
+    /// `assert(...)`); the semantic delta is that examples are harvested as
+    /// authored solutions, not as regression tests.
+    #[token("@example")]
+    AtExample,
     // `@endpoint(kind: …)` was the original endpoint decorator form; the
     // bare-form `@query` / `@mutation` / `@server` decorators superseded it
     // in Phase B (audit doc §11.2, 2026-05-23) and the lexer token was
@@ -243,6 +249,11 @@ pub enum Token {
     /// `@webhook` — verified-inbound-webhook decorator (CC-04 / GA-16).
     #[token("@webhook")]
     AtWebhook,
+    /// `@public` — opts an `@endpoint` out of `@auth` requirement
+    /// (Phase-3 HTTP-ergonomics; one half of the
+    /// `@public XOR @auth(...)` rule). Composes after `@endpoint(...)`.
+    #[token("@public")]
+    AtPublic,
     /// `@auth` — OAuth/OIDC auth flow decorator (GA-04).
     #[token("@auth")]
     AtAuth,
@@ -567,6 +578,8 @@ impl std::fmt::Display for Token {
             Token::AtResource => write!(f, "@resource"),
             Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
+            Token::AtExample => write!(f, "@example"),
+            Token::AtPublic => write!(f, "@public"),
             Token::AtJsonAs => write!(f, "@json_as"),
             Token::AtFieldName => write!(f, "@field_name"),
             Token::AtDefault => write!(f, "@default"),

@@ -1,0 +1,25 @@
+// Base source for plan-027-tighten-result-error.
+//
+// `add_todo` returns `Result[str, str]` today. The plan asks the
+// model to introduce a `TodoError` ADT and switch the return type +
+// callers.
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, str] {
+    if len(title) is 0 {
+        return Error("title must not be empty")
+    }
+    if len(title) > 100 {
+        return Error("title exceeds 100 chars")
+    }
+    return Ok(title)
+}
+
+@test
+fn test_add_todo_empty_returns_error() to Unit {
+    let result = add_todo("")
+    match result {
+        Error(_) => assert(true)
+        Ok(_)    => assert(false)
+    }
+}

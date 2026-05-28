@@ -369,6 +369,10 @@ struct DoctorSecretRow {
     remediation: Option<String>,
     deprecated_alias_in_use: Option<String>,
     feature_gate_missing: bool,
+    /// Informational note from the resolver — e.g. an env var shadowing
+    /// an `auth.json` value stored via `vox secrets set`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<String>,
 }
 
 fn emit_doctor_json_v1(
@@ -457,6 +461,7 @@ fn emit_doctor_json_v1(
                 resolved.status,
                 vox_secrets::ResolutionStatus::BackendUnavailable
             ),
+            detail: resolved.detail.clone(),
         });
     }
 

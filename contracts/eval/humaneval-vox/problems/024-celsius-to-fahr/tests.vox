@@ -1,0 +1,10 @@
+fn c_to_f(c: int) to int {
+    return c * 9 / 5 + 32
+}
+
+@test
+fn t_freezing() to Unit { assert(c_to_f(0) is 32) }
+@test
+fn t_boiling() to Unit { assert(c_to_f(100) is 212) }
+@test
+fn t_body() to Unit { assert(c_to_f(37) is 98) }

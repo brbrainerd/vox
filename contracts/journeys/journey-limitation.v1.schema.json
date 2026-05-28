@@ -6,12 +6,12 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "title", "category", "severity"],
-  "properties": 
-    "id":  "type": "string", "pattern": "^L-[0-9]3}$" },
-    "title":  "type": "string" },
-    "category":  "type": "string" },
-    "severity":  "type": "string", "enum": ["info", "warn", "blocker"] },
-    "mitigation_wave":  "type": "string" },
-    "code_pointer":  "type": "string" }
+  "properties": {
+    "id": { "type": "string", "pattern": "^L-[0-9]3}$" },
+    "title": { "type": "string" },
+    "category": { "type": "string" },
+    "severity": { "type": "string", "enum": ["info", "warn", "blocker"] },
+    "mitigation_wave": { "type": "string" },
+    "code_pointer": { "type": "string" }
   }
 }

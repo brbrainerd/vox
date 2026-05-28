@@ -1,0 +1,5 @@
+[package]
+name = "repair-018-pure-calls-now"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: effect-violation bug class. @pure fn reads the clock via clock.now()."

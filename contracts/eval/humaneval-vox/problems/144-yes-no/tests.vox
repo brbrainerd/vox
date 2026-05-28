@@ -1,0 +1,11 @@
+fn yes_no(b: bool) to str {
+    if b {
+        return "yes"
+    }
+    return "no"
+}
+
+@test
+fn t_true() to Unit { assert(yes_no(true) is "yes") }
+@test
+fn t_false() to Unit { assert(yes_no(false) is "no") }

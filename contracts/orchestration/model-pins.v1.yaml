@@ -15,6 +15,11 @@
 #
 # See docs/src/architecture/model-autonomic-system-2026.md §3.1 for design rationale.
 
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
 schema: vox.orchestration.pins/v1
 
 # Premium-alias map: task-category → pinned model id.

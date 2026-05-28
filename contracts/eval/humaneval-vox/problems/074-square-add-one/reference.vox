@@ -1,0 +1,3 @@
+fn square_add_one(n: int) to int {
+    return n * n + 1
+}

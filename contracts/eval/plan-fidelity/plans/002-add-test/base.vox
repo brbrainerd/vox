@@ -1,0 +1,17 @@
+// Base source for plan-002-add-test.
+//
+// The plan asks the model to ADD three @test blocks (one per passing
+// grade A/B/C) WITHOUT modifying classify_score.
+
+fn classify_score(score: int) to str {
+  if score >= 90 {
+    return "A"
+  }
+  if score >= 80 {
+    return "B"
+  }
+  if score >= 70 {
+    return "C"
+  }
+  return "F"
+}

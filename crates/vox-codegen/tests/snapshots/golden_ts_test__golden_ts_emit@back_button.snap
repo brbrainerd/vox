@@ -36,6 +36,7 @@ export function installBackButtonHandler() {
     }
   ],
   "mutation_fns": [],
+  "stream_fns": [],
   "mcp_tools": [],
   "mcp_resources": [],
   "server_config": {

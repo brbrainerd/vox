@@ -1,0 +1,29 @@
+fn day_kind(day: str) to str {
+    if day is "saturday" {
+        return "weekend"
+    }
+    if day is "sunday" {
+        return "weekend"
+    }
+    return "weekday"
+}
+
+@test
+fn test_saturday() to Unit {
+    assert(day_kind("saturday") is "weekend")
+}
+
+@test
+fn test_sunday() to Unit {
+    assert(day_kind("sunday") is "weekend")
+}
+
+@test
+fn test_monday() to Unit {
+    assert(day_kind("monday") is "weekday")
+}
+
+@test
+fn test_unknown() to Unit {
+    assert(day_kind("not-a-day") is "weekday")
+}

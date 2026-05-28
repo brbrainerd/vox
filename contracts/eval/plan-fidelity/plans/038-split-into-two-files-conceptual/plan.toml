@@ -1,0 +1,44 @@
+id = "plan-038-split-into-two-files-conceptual"
+wave = "wave_2"
+description = "Rename a fn and annotate a conceptual module split via a comment."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base has `fn process(x: int) to int`. Rename it to
+`process_event(x: int) to int` and add a short comment immediately
+above it indicating that the function has been conceptually extracted
+to module `events` (still a single .vox file — no actual file split).
+The comment text must mention "extracted to module".
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Find every `process` reference."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Rename the fn and update its single caller in the @test."
+
+[[steps]]
+step = 3
+verb = "annotate"
+description = "Insert the `// extracted to module events` comment."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes and the @test still runs clean."
+
+[success_criteria]
+vox_check_passes = true
+fn_renamed = true
+comment_annotation_present = true

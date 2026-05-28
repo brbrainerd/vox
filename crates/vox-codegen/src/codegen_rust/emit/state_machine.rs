@@ -73,40 +73,50 @@ fn emit_one(sm: &HirStateMachineDecl, out: &mut String) {
         out.push_str("}\n\n");
 
         // ── Reducer Function ───────────────────────────────────────────────
-        let reducer_name = to_snake_case(name);
-        out.push_str(&format!(
-            "pub fn {}_reducer(state: {}, event: {}Event) -> {} {{\n",
-            reducer_name, name, name, name
-        ));
-        out.push_str("    match state {\n");
-        for st in &sm.states {
-            if st.is_terminal {
-                out.push_str(&format!("        {}::{} {{ .. }} => state,\n", name, st.name));
-                continue;
-            }
-            let fields_suffix = if st.fields.is_empty() { "" } else { " { .. }" };
-            out.push_str(&format!("        {}::{}{} => match event {{\n", name, st.name, fields_suffix));
-            
-            let state_transitions: Vec<_> = sm
-                .transitions
-                .iter()
-                .filter(|tr| {
-                    matches!(&tr.from, HirSmFrom::Named(n) if n == &st.name)
-                        || matches!(&tr.from, HirSmFrom::Any)
-                })
-                .collect();
-            
-            for tr in &state_transitions {
-                let has_params = !tr.event_params.is_empty();
-                let event_fields_suffix = if has_params { " { .. }" } else { "" };
-                out.push_str(&format!("            {}Event::{}{} => {}::{},\n", name, tr.event_name, event_fields_suffix, name, tr.to_state));
-            }
-            out.push_str("            _ => state,\n");
-            out.push_str("        },\n");
-        }
-        out.push_str("    }\n");
-        out.push_str("}\n");
+        emit_reducer_fn(out, sm, name);
     }
+}
+
+/// Emit the `{name}_reducer(state, event) -> {name}` function.
+/// Extracted from `emit_one` per CR-A1: the match-state + nested match-event
+/// loops contributed ~10 DPs inline.
+fn emit_reducer_fn(out: &mut String, sm: &HirStateMachineDecl, name: &str) {
+    let reducer_name = to_snake_case(name);
+    out.push_str(&format!(
+        "pub fn {}_reducer(state: {}, event: {}Event) -> {} {{\n",
+        reducer_name, name, name, name
+    ));
+    out.push_str("    match state {\n");
+    for st in &sm.states {
+        if st.is_terminal {
+            out.push_str(&format!("        {}::{} {{ .. }} => state,\n", name, st.name));
+            continue;
+        }
+        let fields_suffix = if st.fields.is_empty() { "" } else { " { .. }" };
+        out.push_str(&format!(
+            "        {}::{}{} => match event {{\n",
+            name, st.name, fields_suffix
+        ));
+        let state_transitions: Vec<_> = sm
+            .transitions
+            .iter()
+            .filter(|tr| {
+                matches!(&tr.from, HirSmFrom::Named(n) if n == &st.name)
+                    || matches!(&tr.from, HirSmFrom::Any)
+            })
+            .collect();
+        for tr in &state_transitions {
+            let event_fields_suffix = if tr.event_params.is_empty() { "" } else { " { .. }" };
+            out.push_str(&format!(
+                "            {}Event::{}{} => {}::{},\n",
+                name, tr.event_name, event_fields_suffix, name, tr.to_state
+            ));
+        }
+        out.push_str("            _ => state,\n");
+        out.push_str("        },\n");
+    }
+    out.push_str("    }\n");
+    out.push_str("}\n");
 }
 
 fn to_snake_case(s: &str) -> String {

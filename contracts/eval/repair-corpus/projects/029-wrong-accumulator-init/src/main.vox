@@ -1,0 +1,17 @@
+// Repair-corpus fixture 029 — logic bug class.
+// `sum_list(xs)` accumulates a running total but the accumulator
+// is initialized to 1 instead of 0, so the result is always one
+// more than the true sum. Expected repair: initialize `total` to 0.
+
+fn sum_list(xs: List[int]) to int {
+    let mut total = 1
+    for v in xs {
+        total = total + v
+    }
+    return total
+}
+
+@test
+fn test_sum_list_one_two_three() to Unit {
+    assert(sum_list([1, 2, 3]) is 6)
+}

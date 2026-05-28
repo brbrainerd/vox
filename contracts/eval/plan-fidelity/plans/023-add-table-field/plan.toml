@@ -1,0 +1,45 @@
+id = "plan-023-add-table-field"
+wave = "wave_2"
+description = "Add a new field to an @table and propagate it to the constructor."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file's `@table type Todo { id: str, title: str }` is missing
+a `done: bool` column. Add it as the third field. There is no
+explicit constructor — Vox synthesizes one from the table fields — so
+no callsite update is needed, but ensure `vox check` stays clean and
+the existing @test still passes.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+  - Tables use `@table type Name { field: T, ... }` syntax.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the `Todo` @table definition."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Add `done: bool` as the third field."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+new_field_added = true
+existing_tests_pass = true

@@ -10,49 +10,52 @@ const CHATBOT_TEMPLATE: &str = r#"# Vox Chatbot — OpenRouter-powered chat app
 # Edit OPENROUTER_API_KEY in .env to enable live LLM responses.
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Conversation:
+@table type Conversation {
+    id: int
     user_id: str
     started_at: str
+}
 
-@table type MessageTrace:
+@table type MessageTrace {
+    id: int
     conversation_id: str
     role: str
     content: str
     request_id: str
+}
 
-@query fn recent_messages(conversation_id: str) to list[MessageTrace]:
+@endpoint(kind: query) fn recent_messages(conversation_id: str) to list[MessageTrace] {
     return []
+}
 
-@mutation fn log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool]:
+@endpoint(kind: mutation) fn log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool] {
     return Ok(true)
+}
 
-activity call_provider(prompt: str) to Result[str]:
-    Ok("stub-response: " + prompt)
+// `activity` = a side-effecting step recorded in the workflow journal so
+// retries/replays don't re-execute it. `workflow` = a deterministic
+// orchestration of activities; on crash/restart it replays from the journal.
+// ADR-028 revision 2026-05-19 made both keywords public.
+activity call_provider(prompt: str) to Result[str] {
+    return Ok("stub-response: " + prompt)
+}
 
-workflow chat_pipeline(prompt: str) to Result[str]:
-    let response = call_provider(prompt) with { retries: 3, timeout: "30s", activity_id: "provider-call" }
-    response
+workflow chat_pipeline(prompt: str) to Result[str] {
+    return call_provider(prompt)
+}
 
-@server fn chat(prompt: str, request_id: str) to Result[str]:
-    let response = chat_pipeline(prompt) with { retries: 2, timeout: "45s" }
+@endpoint(kind: server) fn chat(prompt: str, request_id: str) to Result[str] {
+    let response = chat_pipeline(prompt)
     let _ = log_message("conv-default", "user", prompt, request_id)
     let _ = log_message("conv-default", "assistant", "ok", request_id)
     return response
+}
 
 component Chat() {
-    state messages: list[str] = []
-    state input: str = ""
-    view: <div class="chat-root">
-        <h1>"Chat"</h1>
-        <div class="messages">
-            for msg in messages:
-                <div class="message">{msg.content}</div>
-        </div>
-        <input value={input} on_change={set_input} placeholder="Type a message..." />
-        <button on_click={fn():
-            let _ = chat(input, "req-1")
-        }>"Send"</button>
-    </div>
+    view: column(raw_class="chat-root") {
+        heading(level=1) { "Chat" }
+        text() { "Edit src/main.vox to wire your chat UI to chat(...)." }
+    }
 }
 
 routes {
@@ -65,36 +68,32 @@ const DASHBOARD_TEMPLATE: &str = r#"# Vox Dashboard — data table with route pa
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
 @table type Item {
-    id: str
+    id: int
     name: str
     value: int
     created_at: str
 }
 
-@query fn list_items() to list[Item] {
+@endpoint(kind: query) fn list_items() to list[Item] {
     return []
 }
 
-@mutation fn add_item(name: str, value: int) to Result[str] {
-    return Ok("Added: {name}")
+@endpoint(kind: mutation) fn add_item(name: str, value: int) to Result[str] {
+    return Ok("Added: " + name)
 }
 
 component Dashboard() {
-    state items: list[str] = ["System active", "Data synchronized"]
-    view: <div class="dashboard">
-        <h1>"Dashboard"</h1>
-        <ul>
-            for item in items {
-                <li>{item}</li>
-            }
-        </ul>
-    </div>
+    view: column(raw_class="dashboard") {
+        heading(level=1) { "Dashboard" }
+        text() { "Edit src/main.vox to add data tables, queries, and mutations." }
+    }
 }
 
 component ItemDetail(id: str) {
-    view: <div>
-        <h2>"Item: {id}"</h2>
-    </div>
+    view: column(raw_class="item-detail") {
+        heading(level=2) { "Item" }
+        text() { id }
+    }
 }
 
 routes {
@@ -107,28 +106,64 @@ const API_TEMPLATE: &str = r#"# Vox API — server functions with health + metri
 #
 # Run with: vox build src/main.vox -o dist && vox run src/main.vox
 
-@table type Task:
+@table type Task {
+    id: int
     title: str
     done: bool
     created_at: str
+}
 
-@health fn health_check() to bool:
+fn health_check() to bool {
     return true
+}
 
-@metric fn tasks_created() to str:
+fn tasks_created() to str {
     return "ok"
+}
 
-@server fn create_task(title: str) to Result[str]:
+@endpoint(kind: server) fn create_task(title: str) to Result[str] {
     return Ok("Created: " + title)
+}
 
-@server fn list_tasks() to Result[list[Task]]:
+@endpoint(kind: server) fn list_tasks() to Result[list[Task]] {
     return Ok([])
+}
 
-@server fn complete_task(id: str) to Result[bool]:
+@endpoint(kind: server) fn complete_task(id: str) to Result[bool] {
     return Ok(true)
+}
 "#;
 
-const DEFAULT_FULL_STACK: &str = "# My Vox App — a full-stack starter\n#\n# Run with: vox build src/main.vox -o dist && vox run src/main.vox\n\n@table type Note {\n    title: str\n    content: str\n    created_at: str\n}\n\n@server fn add_note(title: str, content: str) -> Result[str] {\n    return Ok(\"Added: {title}\")\n}\n\n@server fn list_notes() -> Result[str] {\n    return Ok(\"[]\")\n}\n\ncomponent App() {\n    state notes: list[Note] = []\n    view: <div class=\"app\">\n        <h1>\"My Vox App\"</h1>\n        <p>\"Edit src/main.vox to get started\"</p>\n    </div>\n}\n\nroutes {\n    \"/\" to App\n}\n";
+const DEFAULT_FULL_STACK: &str = r#"# My Vox App — a full-stack starter
+#
+# Run with: vox build src/main.vox -o dist && vox run src/main.vox
+
+@table type Note {
+    id: int
+    title: str
+    content: str
+    created_at: str
+}
+
+@endpoint(kind: server) fn add_note(title: str, content: str) to Result[str] {
+    return Ok("Added: " + title)
+}
+
+@endpoint(kind: server) fn list_notes() to Result[str] {
+    return Ok("[]")
+}
+
+component App() {
+    view: column(raw_class="app") {
+        heading(level=1) { "My Vox App" }
+        text() { "Edit src/main.vox to get started" }
+    }
+}
+
+routes {
+    "/" to App
+}
+"#;
 
 const AGENT_KIND: &str = "# A Vox AI agent\n\n@agent_def fn MyAgent(query: str) -> str {\n    return \"Response to: {query}\"\n}\n";
 const WORKFLOW_KIND: &str =
@@ -139,6 +174,7 @@ const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile — web-first UI + native pack
 import std.mobile
 
 @table type Photo {
+    id: int
     url: str
     synced: bool
 }
@@ -370,8 +406,11 @@ pub fn scaffold_vox_project_at(
         .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     if template == Some("web") {
-        toml_content.push_str("\n[deploy]\ntarget = \"fly\"   # \"fly\" | \"coolify\" | \"bare-metal\"\nruntime = \"auto\"\n");
-        toml_content.push_str("\n[deploy.fly]\n# app_name = \"my-app\"\n");
+        // Default to a portable OCI container build; uncomment the [deploy.fly] block
+        // (or switch `target` to "coolify" / "bare-metal" / "compose" / "kubernetes")
+        // to target a specific platform. See `vox deploy --help`.
+        toml_content.push_str("\n[deploy]\ntarget = \"container\"   # \"container\" | \"compose\" | \"kubernetes\" | \"bare-metal\" | \"fly\" | \"coolify\"\nruntime = \"auto\"\n");
+        toml_content.push_str("\n# [deploy.fly]\n# app_name = \"my-app\"\n# region = \"iad\"\n");
         toml_content.push_str("\n# [deploy.coolify]\n# base_url = \"https://coolify.example.com\"\n# app_uuid = \"...\"\n");
     }
 

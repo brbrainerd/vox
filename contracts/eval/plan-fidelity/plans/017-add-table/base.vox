@@ -1,0 +1,20 @@
+// Base source for plan-017-add-table.
+//
+// A single-table bookmark service. The plan asks the model to add a
+// sibling @table for tags.
+
+@table type Bookmark {
+    id: str,
+    url: str
+}
+
+type BookmarkError =
+    | InvalidUrl(text: str)
+
+@endpoint(kind: mutation)
+fn add_bookmark(url: str) to Result[str, BookmarkError] {
+    if len(url) is 0 {
+        return Error(InvalidUrl("url must not be empty"))
+    }
+    return Ok(url)
+}

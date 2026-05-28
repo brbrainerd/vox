@@ -13,6 +13,7 @@
 // Note: db.Table.filter() is not yet implemented — use db.Table.all() with len() guards.
 // ANCHOR: display
 @table type DeviceLog {
+    id: int
     device_id: str
     temperature: float
     status_code: int
@@ -20,6 +21,7 @@
 }
 
 @table type DeviceRegistry {
+    id: int
     device_id: str
     active: bool
 }

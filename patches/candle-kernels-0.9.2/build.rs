@@ -29,14 +29,22 @@ fn main() {
     for name in &kernel_names {
         let ptx_file = ptx_src_dir.join(format!("{}.ptx", name));
         if ptx_file.is_file() {
+            // Use `pub static` (not `pub const`) so the string bytes are forced
+            // into a named memory location and survive LTO. With `pub const`,
+            // rustc treats the value as inlinable and `lto = "thin"` strips the
+            // string data when no direct use-site is visible through several
+            // layers of indirection (cudarc LoadingPolicy::Eager →
+            // Driver::compile_ptx → &Module.ptx()), leading to empty PTX at
+            // cuModuleLoadData and CUDA_ERROR_INVALID_IMAGE at first kernel
+            // launch. See evidence trail in PR #92.
             ptx_rs.push_str(&format!(
-                "pub const {}: &str = include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/src/ptx/{}.ptx\"));\n",
+                "pub static {}: &str = include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/src/ptx/{}.ptx\"));\n",
                 name.to_uppercase(), name
             ));
         } else {
             println!("cargo:warning=Missing pre-compiled PTX for kernel '{}' at {:?}", name, ptx_file);
             // Provide an empty string so downstream compiles but the kernel will be unusable.
-            ptx_rs.push_str(&format!("pub const {}: &str = \"\";\n", name.to_uppercase()));
+            ptx_rs.push_str(&format!("pub static {}: &str = \"\";\n", name.to_uppercase()));
             any_missing = true;
         }
     }

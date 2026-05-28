@@ -1,0 +1,24 @@
+// Base source for plan-045-convert-to-stream.
+//
+// `tick_metrics` is declared `@endpoint(kind: mutation)` but its
+// conceptual contract is to emit N tick events. The plan asks the
+// model to rewrite it as `@endpoint(kind: stream)`.
+
+@endpoint(kind: mutation) @auth(scheme: bearer)
+fn tick_metrics() to Result[str] {
+    return Ok("tick")
+}
+
+@endpoint(kind: query) @auth(scheme: bearer)
+fn list_metrics() to List[str] {
+    return []
+}
+
+@test
+fn test_tick_metrics_returns_ok() to Unit {
+    let r = tick_metrics()
+    match r {
+        Ok(s) => assert(s is "tick")
+        Error(_) => assert(false)
+    }
+}

@@ -8,11 +8,12 @@ description = "CI guard: enforces the workspace layered-architecture model. See 
 cargo_metadata = { workspace = true }
 toml = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
 anyhow.workspace = true
 regex = { workspace = true }
 globset = { workspace = true }
 sha2 = { workspace = true }
-serde_json = { workspace = true }
 
 [[bin]]
 name = "vox-arch-check"

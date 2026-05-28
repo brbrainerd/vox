@@ -1,0 +1,53 @@
+// Base source for plan-024-extract-validator.
+//
+// Three @endpoint mutations duplicate the same three-step validation
+// sequence (empty + length-cap + a stub `WhitespaceOnly` rejection
+// matching the literal " "). The plan asks the model to extract a
+// `validate_title` helper.
+
+type TodoError =
+    | Empty(text: str)
+    | TooLong(text: str)
+    | WhitespaceOnly(text: str)
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    if len(title) > 100 {
+        return Error(TooLong("title exceeds 100 chars"))
+    }
+    if title is " " {
+        return Error(WhitespaceOnly("title must not be whitespace"))
+    }
+    return Ok(title)
+}
+
+@endpoint(kind: mutation)
+fn rename_todo(id: str, new_title: str) to Result[str, TodoError] {
+    if len(new_title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    if len(new_title) > 100 {
+        return Error(TooLong("title exceeds 100 chars"))
+    }
+    if new_title is " " {
+        return Error(WhitespaceOnly("title must not be whitespace"))
+    }
+    return Ok(new_title)
+}
+
+@endpoint(kind: mutation)
+fn duplicate_todo(source_title: str) to Result[str, TodoError] {
+    if len(source_title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    if len(source_title) > 100 {
+        return Error(TooLong("title exceeds 100 chars"))
+    }
+    if source_title is " " {
+        return Error(WhitespaceOnly("title must not be whitespace"))
+    }
+    return Ok(source_title)
+}

@@ -1,0 +1,46 @@
+id = "plan-019-add-endpoint-validation"
+wave = "wave_2"
+description = "Add length-cap validation to an endpoint that only checks emptiness."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file's `add_todo` endpoint validates emptiness only. Add a
+second validation: if `len(title) > 100`, return
+`Error(TitleTooLong("title exceeds 100 chars"))`. The `TodoError` ADT
+already includes the `TitleTooLong` variant — do not modify it. The
+endpoint signature must not change.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `TitleTooLong("...")`),
+    not as `TodoError.TitleTooLong(...)`.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the existing emptiness check in `add_todo`."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Add the length-cap check after the emptiness check."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+validation_added = true
+endpoint_signature_unchanged = true
+existing_tests_pass = true

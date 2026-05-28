@@ -1,0 +1,13 @@
+fn grade(score: int) to str {
+    if score >= 60 {
+        return "P"
+    }
+    return "F"
+}
+
+@test
+fn t_pass() to Unit { assert(grade(60) is "P") }
+@test
+fn t_pass_high() to Unit { assert(grade(95) is "P") }
+@test
+fn t_fail() to Unit { assert(grade(59) is "F") }

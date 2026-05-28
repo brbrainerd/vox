@@ -1,0 +1,5 @@
+[package]
+name = "repair-024-off-by-one"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Sum-to-n loop terminates one iteration short."

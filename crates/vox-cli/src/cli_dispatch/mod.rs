@@ -146,9 +146,13 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         #[cfg(not(feature = "script-execution"))]
         Cli::ScriptStub { .. } => {
             anyhow::bail!(
-                "This Vox capability requires the 'script-execution' plugin, which is not installed.\n\n\
-                 To install it, run:\n\n  vox plugin install script-execution\n\n\
-                 See: docs/src/reference/plugins.md"
+                "{}\n\nThis binary was built without the `script-execution` cargo feature. \
+                 Resolve by either (a) installing the runtime plugin or (b) rebuilding with the feature:\n\n{}",
+                "vox script requires the 'script-execution' capability, which is not available in this build.",
+                vox_plugin_host::format_install_hint(
+                    "script-execution",
+                    Some("cargo build -p vox-cli --release --features script-execution")
+                )
             );
         }
         #[cfg(feature = "live")]

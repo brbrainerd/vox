@@ -1,0 +1,20 @@
+fn all_positive_three(a: int, b: int, c: int) to bool {
+    if a <= 0 {
+        return false
+    }
+    if b <= 0 {
+        return false
+    }
+    return c > 0
+}
+
+@test
+fn t_all_pos() to Unit { assert(all_positive_three(1, 2, 3) is true) }
+@test
+fn t_one_zero() to Unit { assert(all_positive_three(0, 2, 3) is false) }
+@test
+fn t_mid_zero() to Unit { assert(all_positive_three(1, 0, 3) is false) }
+@test
+fn t_last_zero() to Unit { assert(all_positive_three(1, 2, 0) is false) }
+@test
+fn t_negs() to Unit { assert(all_positive_three(-1, -2, -3) is false) }

@@ -1,0 +1,14 @@
+// Repair-corpus fixture 035 — exhaustiveness bug class.
+// Custom Outcome ADT matched only on Success; the Failure arm is missing.
+// (Mirrors the canonical Result-missing-Error bug shape.)
+// Expected repair: add a `Failure(_) => 0` arm.
+
+type Outcome =
+    | Success(value: int)
+    | Failure(reason: str)
+
+fn unwrap_or_zero(r: Outcome) to int {
+    match r {
+        Success(v) => v
+    }
+}

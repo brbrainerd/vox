@@ -1,0 +1,5 @@
+[package]
+name = "repair-005-api-misuse"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. Calls db.X.get with a str instead of Id[T]."

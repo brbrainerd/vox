@@ -4,22 +4,22 @@
   "title": "Vision Rubric",
   "description": "JSON schema for Remote VLM screenshot evaluation responses.",
   "type": "object",
-  "properties": 
-    "widget_list": 
+  "properties": {
+    "widget_list": {
       "type": "array",
       "description": "List of widgets identified in the layout.",
-      "items":  "type": "string" }
+      "items": { "type": "string" }
     },
-    "visible_errors": 
+    "visible_errors": {
       "type": "array",
       "description": "Any visible errors (e.g. 404 text overlap, unrendered placeholders).",
-      "items":  "type": "string" }
+      "items": { "type": "string" }
     },
-    "primary_cta_location": 
+    "primary_cta_location": {
       "type": "string",
       "description": "Description of where the primary Call To Action is located."
     },
-    "route_hint": 
+    "route_hint": {
       "type": "string",
       "description": "Hint for navigation or routing expected."
     }

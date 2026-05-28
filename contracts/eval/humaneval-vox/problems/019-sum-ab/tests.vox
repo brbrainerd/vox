@@ -1,0 +1,18 @@
+fn sum_ab(a: int, b: int) to int {
+    return a + b
+}
+
+@test
+fn t_positive() to Unit {
+    assert(sum_ab(2, 3) is 5)
+}
+
+@test
+fn t_zero() to Unit {
+    assert(sum_ab(0, 0) is 0)
+}
+
+@test
+fn t_negative() to Unit {
+    assert(sum_ab(-5, 3) is -2)
+}

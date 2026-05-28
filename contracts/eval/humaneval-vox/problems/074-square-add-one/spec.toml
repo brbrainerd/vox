@@ -1,0 +1,8 @@
+id = "humaneval-vox-074-square-add-one"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `square_add_one(n: int) to int` returning n*n + 1.
+"""

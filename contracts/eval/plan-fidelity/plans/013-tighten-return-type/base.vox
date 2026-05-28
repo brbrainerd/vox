@@ -1,0 +1,17 @@
+// Base source for plan-013-tighten-return-type.
+//
+// The plan asks the model to introduce an `AgeError` ADT and switch
+// `parse_age`'s return type from Result[int, str] to
+// Result[int, AgeError], replacing the bare-string errors with
+// proper variant constructors. The fn name and parameter list must
+// not change.
+
+fn parse_age(s: str) to Result[int, str] {
+  if len(s) is 0 {
+    return Error("empty")
+  }
+  if s is "-1" {
+    return Error("negative")
+  }
+  return Ok(0)
+}

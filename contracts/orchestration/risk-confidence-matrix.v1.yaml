@@ -1,6 +1,11 @@
 # contracts/orchestration/risk-confidence-matrix.v1.yaml
 # Four-dimension risk scorer + HITL escalation matrix for D5+D9.
 # Mirrored by `crates/vox-orchestrator/src/risk_matrix.rs::RiskMatrixConfig::default`.
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
 version: 1
 x-vox-version: 1
 description: "Four-dimension risk scorer and HITL escalation matrix (D5 + D9)"

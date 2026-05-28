@@ -12,6 +12,7 @@
 // @training_prompt: Show how to use Option[T] in Vox: Some, None, and match-based unwrapping.
 // ANCHOR: display
 @table type UserProfile {
+    id: int
     name: str
     bio: Option[str]
     age: Option[int]

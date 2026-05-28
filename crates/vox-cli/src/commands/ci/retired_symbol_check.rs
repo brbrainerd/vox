@@ -42,6 +42,71 @@ fn should_skip_rust_line(line: &str) -> bool {
     false
 }
 
+/// Docs that catalog codebase evolution (audits, findings, migration plans,
+/// dated snapshots, design specs) intentionally name retired symbols while
+/// explaining what replaced them. Treat these as documentation-of-history
+/// surfaces, not as user-facing guidance, and skip the policy check for them.
+///
+/// This is a principled carve-out: anything under `docs/src/architecture/` that
+/// is date-stamped or matches a known history-doc suffix, plus the entire
+/// `history/` subtree and the `docs/superpowers/{specs,plans}/` design-doc
+/// subtrees, qualifies.
+fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
+    let s = rel_path.to_string_lossy().replace('\\', "/");
+    let name = rel_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+
+    // Design specs, master plans, follow-ups — these document migrations.
+    if s.starts_with("docs/superpowers/specs/") || s.starts_with("docs/superpowers/plans/") {
+        return true;
+    }
+
+    if s.starts_with("docs/src/architecture/") {
+        // history/ subtree is by definition historical.
+        if s.starts_with("docs/src/architecture/history/") {
+            return true;
+        }
+        // Date-stamped architectural snapshots like `2026-05-08-workspace-reorg-*.md`.
+        if name.starts_with("2026-") || name.starts_with("2025-") {
+            return true;
+        }
+        // Known history-doc suffix patterns.
+        const HISTORY_SUFFIXES: &[&str] = &[
+            "-findings-2026.md",
+            "-audit-2026.md",
+            "-audit-2026-05-15.md",
+            "-audit-and-plan-2026.md",
+            "-backlog-2026.md",
+            "-research-2026.md",
+            "-redesign-2026.md",
+            "-classification-2026.md",
+            "-classification-2026-05-08.md",
+            "-coverage-2026.md",
+            "-ssot-2026.md",
+            "-convergence-2026.md",
+            "-fate-plan-2026-05-08.md",
+            "-implementation-plan-2026.md",
+        ];
+        if HISTORY_SUFFIXES.iter().any(|sfx| name.ends_with(sfx)) {
+            return true;
+        }
+        // Specific named history/criteria docs.
+        if matches!(name, "v1-release-criteria.md" | "build-time-log.md") {
+            return true;
+        }
+    }
+
+    // populi-quickstart.md explains the vox-ml-cli → vox-populi rename — a one-time
+    // migration footnote, not active guidance to a retired name.
+    if s == "docs/src/how-to/populi-quickstart.md" {
+        return true;
+    }
+
+    false
+}
+
 fn scan_source_lines(
     path: &Path,
     root: &Path,
@@ -50,6 +115,8 @@ fn scan_source_lines(
     cfg: ScanCfg,
 ) -> Vec<String> {
     let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let rel_path = path.strip_prefix(root).unwrap_or(path);
+    let is_history_doc = cfg.is_md && is_historical_or_audit_doc(rel_path);
     let mut failures = Vec::new();
     let mut in_frontmatter = false;
     let mut frontmatter_closed = false;
@@ -94,6 +161,14 @@ fn scan_source_lines(
             }
 
             if filename.contains("-ARCHIVED.md") {
+                continue;
+            }
+
+            // Documents that catalog codebase evolution (audits, migration
+            // plans, dated architectural snapshots) intentionally mention
+            // retired symbols while explaining what replaced them. Skip the
+            // policy check for those whole files.
+            if is_history_doc {
                 continue;
             }
 

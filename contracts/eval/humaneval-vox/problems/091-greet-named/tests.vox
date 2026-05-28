@@ -1,0 +1,10 @@
+fn greet_named(name: str) to str {
+    return "Hello, " + name
+}
+
+@test
+fn t_simple() to Unit { assert(greet_named("Ada") is "Hello, Ada") }
+@test
+fn t_empty() to Unit { assert(greet_named("") is "Hello, ") }
+@test
+fn t_punctuated() to Unit { assert(greet_named("Dr. Ada") is "Hello, Dr. Ada") }

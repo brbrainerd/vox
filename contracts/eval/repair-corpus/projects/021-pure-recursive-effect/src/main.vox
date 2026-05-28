@@ -1,0 +1,12 @@
+// Repair-corpus fixture 021 — effect-violation bug class.
+// @pure recursive fn performs a filesystem read in its base case (Fs capability).
+// Expected repair: drop @pure and declare `uses fs`, or factor the IO out of the recursion.
+
+@pure
+fn count_lines(remaining: int) to int {
+    if remaining is 0 {
+        fs.read("/var/log/app.log")
+        return 0
+    }
+    return 1 + count_lines(remaining - 1)
+}

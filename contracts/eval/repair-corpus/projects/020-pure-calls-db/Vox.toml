@@ -1,0 +1,5 @@
+[package]
+name = "repair-020-pure-calls-db"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: effect-violation bug class. @pure fn performs a database read via db.query()."

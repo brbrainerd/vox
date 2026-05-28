@@ -1,4 +1,538 @@
 # Typed allowlist for `vox ci check-links`: historical pointers where updating prose
 # would erase audit intent. Entries may expire (warn-only past `expires`).
 schema_version: 1
-allowlist: []
+allowlist:
+  # ── tauri_stub.rs ────────────────────────────────────────────────────────────
+  - source: "docs/src/adr/036-webir-hir-unification-compare-both.md"
+    target: "../../../crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs"
+    reason: "retired: tauri_stub.rs removed when Tauri support was discontinued"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/webir-hir-split-brain-inventory-2026.md"
+    target: "../../../crates/vox-codegen/src/codegen_rust/emit/tauri_stub.rs"
+    reason: "retired: tauri_stub.rs removed when Tauri support was discontinued"
+    expires: "2026-11-30"
+
+  # ── crates/_frozen.md ────────────────────────────────────────────────────────
+  - source: "docs/src/architecture/2026-05-08-llm-misleading-content-cleanup-plan.md"
+    target: "../../../crates/_frozen.md"
+    reason: "planned-file: freeze policy doc not yet authored"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/data-storage-ssot-2026.md"
+    target: "../../../crates/_frozen.md"
+    reason: "planned-file: freeze policy doc not yet authored"
+    expires: "2026-11-30"
+
+  # ── vox-dashboard ────────────────────────────────────────────────────────────
+  - source: "docs/src/architecture/agentic-version-control-automation-research-2026.md"
+    target: "../../../crates/vox-dashboard/"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/gui-authoring-syntax-2026.md"
+    target: "../../../crates/vox-dashboard/app/src/surfaces/speak.vox"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md"
+    target: "../../../crates/vox-dashboard/src/api/mesh.rs"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md"
+    target: "../../../crates/vox-dashboard/app/src/generated/NetworkTab.tsx"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
+    target: "../../../crates/vox-dashboard/"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
+    target: "../../../crates/vox-dashboard/src/transport.ts"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
+    target: "../../../crates/vox-dashboard/src/api/mesh.rs"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
+    target: "../../../crates/vox-dashboard/app/src/generated/TaskDispatch.tsx"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
+    target: "../../../crates/vox-dashboard/src/api/runs.rs"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
+    target: "../../../crates/vox-dashboard/app/src/generated/NetworkTab.tsx"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/unified-task-hopper-research-2026.md"
+    target: "../../../crates/vox-dashboard/"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-dashboard/"
+    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    expires: "2026-11-30"
+
+  # ── vox-install-policy ───────────────────────────────────────────────────────
+  - source: "docs/src/architecture/dependency-consolidation-plan-2026.md"
+    target: "../../../crates/vox-install-policy/"
+    reason: "planned-crate: vox-install-policy not yet extracted"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-install-policy/"
+    reason: "planned-crate: vox-install-policy not yet extracted"
+    expires: "2026-11-30"
+
+  # ── vox-checksum-manifest ────────────────────────────────────────────────────
+  - source: "docs/src/architecture/dependency-consolidation-plan-2026.md"
+    target: "../../../crates/vox-checksum-manifest/"
+    reason: "planned-crate: not yet extracted from vox-config"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-checksum-manifest/"
+    reason: "planned-crate: not yet extracted from vox-config"
+    expires: "2026-11-30"
+
+  # ── codegen_ts/routes.rs ─────────────────────────────────────────────────────
+  - source: "docs/src/architecture/external-frontend-interop-plan-2026.md"
+    target: "../../../crates/vox-codegen/src/codegen_ts/routes.rs"
+    reason: "renamed: codegen_ts/routes.rs was split into route_manifest.rs + route_pattern.rs"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/frontend-convergence-findings-2026.md"
+    target: "../../../crates/vox-codegen/src/codegen_ts/routes.rs"
+    reason: "renamed: codegen_ts/routes.rs was split into route_manifest.rs + route_pattern.rs"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/svelte-mineable-features-implementation-plan-2026.md"
+    target: "../../../crates/vox-codegen/src/codegen_ts/routes.rs"
+    reason: "renamed: codegen_ts/routes.rs was split into route_manifest.rs + route_pattern.rs"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/svelte-vs-react-frameworks-research-2026.md"
+    target: "../../../crates/vox-codegen/src/codegen_ts/routes.rs"
+    reason: "renamed: codegen_ts/routes.rs was split into route_manifest.rs + route_pattern.rs"
+    expires: "2026-11-30"
+
+  - source: "docs/src/reference/vox-fullstack-artifacts.md"
+    target: "../../../crates/vox-codegen/src/codegen_ts/routes.rs"
+    reason: "renamed: codegen_ts/routes.rs was split into route_manifest.rs + route_pattern.rs"
+    expires: "2026-11-30"
+
+  # ── model-routing placeholder text ───────────────────────────────────────────
+  - source: "docs/src/architecture/research-index.md"
+    target: "model-routing.v1.yaml-not-direct-link"
+    reason: "placeholder-text: research-index prose accidentally parsed as link target"
+    expires: "2026-11-30"
+
+  # ── research-index missing-relative-prefix (bare crates/ path) ───────────────
+  - source: "docs/src/architecture/research-index.md"
+    target: "crates/vox-compiler/src/typeck/effect_check.rs"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/research-index.md"
+    target: "crates/vox-code-audit/src/detectors/"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/research-index.md"
+    target: "crates/vox-cli/src/commands/repair.rs"
+    reason: "planned-file: repair command will be split from audit in tooling convergence"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/research-index.md"
+    target: "crates/vox-compiler/src/typeck/diagnostics.rs:96"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/research-index.md"
+    target: "crates/vox-compiler/src/pipeline.rs:21"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  # ── v1-llm-target-implementation-plan-2026.md ─────────────────────────────────
+  - source: "docs/src/architecture/v1-llm-target-implementation-plan-2026.md"
+    target: "crates/vox-code-audit/src/detectors/anonymous_error.rs"
+    reason: "planned-file: code-audit detector not yet authored"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/v1-llm-target-implementation-plan-2026.md"
+    target: "crates/vox-corpus/"
+    reason: "planned-crate: vox-corpus not yet created"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/v1-llm-target-implementation-plan-2026.md"
+    target: "crates/vox-cli/src/commands/repair.rs"
+    reason: "planned-file: repair command will be split from audit in tooling convergence"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/v1-llm-target-implementation-plan-2026.md"
+    target: "crates/vox-deploy-codegen/"
+    reason: "planned-crate: vox-deploy-codegen not yet created"
+    expires: "2026-11-30"
+
+  # ── vox-as-llm-target-audit-and-plan-2026.md ─────────────────────────────────
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/typeck/effect_check.rs"
+    reason: "moved: effect_check integrated into effect_row module"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/ast/decl/effect.rs:8"
+    reason: "moved: effect_check integrated into effect_row module"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-code-audit/src/detectors/id_at_boundary.rs"
+    reason: "planned-file: code-audit detector not yet authored"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-db-types/src/ids.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-code-audit/src/detectors/anonymous_error.rs:24"
+    reason: "planned-file: code-audit detector not yet authored"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/typeck/ast_decl_lints.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/typeck/diagnostics.rs:96"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "AGENTS.md"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-code-audit/src/detectors/pure_fn_impure.rs"
+    reason: "planned-file: code-audit detector not yet authored"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/typeck/diagnostics.rs:76"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-cli/src/commands/repair.rs:57"
+    reason: "planned-file: repair command will be split from audit in tooling convergence"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/tests/diagnostic_snapshots.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-doc-pipeline/src/pipeline/doctest.rs:6"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-cli/src/commands/repair.rs"
+    reason: "planned-file: repair command will be split from audit in tooling convergence"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-cli/src/commands/diagnostics/stub_check/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-code-audit/src/detectors/mod.rs"
+    reason: "planned-path: detector layout not yet finalized"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "docs/src/.well-known/llms.txt"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "docs/agents/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "CLAUDE.md"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-orchestrator-mcp/src/lib.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-telemetry/src/types.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "contracts/aci/agent-computer-interface.v1.yaml"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-orchestrator-mcp/src/aci/envelope.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-corpus/src/lib.rs"
+    reason: "planned-crate: vox-corpus not yet created"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "docs/src/reference/cli-command-surface.generated.md"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/pipeline.rs:21"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/pipeline.rs:269"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/pipeline.rs:415"
+    reason: "missing-relative-prefix: research-index uses bare crates/ path instead of ../../../crates/"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-arch-check/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-codegen/src/codegen_ts/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-codegen/src/codegen_rust/emit/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/hir/core_ir.rs:23"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-inference/"
+    reason: "planned-crate: vox-corpus not yet created"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-deploy-codegen/"
+    reason: "planned-crate: vox-deploy-codegen not yet created"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-corpus/src/flywheel.rs"
+    reason: "planned-crate: vox-corpus not yet created"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/src/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-compiler/tests/tombstone_test.rs"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md"
+    target: "crates/vox-code-audit/src/detectors/"
+    reason: "planned-path: detector layout not yet finalized"
+    expires: "2026-11-30"
+
+  # ── where-things-live.md planned crates ───────────────────────────────────────
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-mesh-policy/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-mesh-models/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-release-artifacts/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-assets/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-exec-grammar/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-http-envelope/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-openai-sse/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-openai-wire/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-claim-extractor/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-nanopub/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-prereg/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-ro-crate/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-share/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-inference/"
+    reason: "planned-crate: vox-corpus not yet created"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-distributed-training/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-mens-eval/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-inspect-bridge/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-orchestrator-core/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-orchestrator-cap-mint/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-scientia-ingest/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  # ── vox-ssg ───────────────────────────────────────────────────────────────────
+  - source: "docs/src/architecture/where-things-live.md"
+    target: "../../../crates/vox-ssg/"
+    reason: "renamed: vox-ssg merged into vox-doc-pipeline crate"
+    expires: "2026-11-30"
+
+  - source: "docs/src/reference/vox-fullstack-artifacts.md"
+    target: "../../../crates/vox-ssg/src/lib.rs"
+    reason: "renamed: vox-ssg merged into vox-doc-pipeline crate"
+    expires: "2026-11-30"
+
+  # ── cli.md missing anchors ────────────────────────────────────────────────────
+  - source: "docs/src/reference/cli-vox-deploy.md"
+    target: "cli.md#init"
+    reason: "missing-anchor: cli.md does not have matching heading anchors"
+    expires: "2026-11-30"
+
+  - source: "docs/src/reference/cli-vox-deploy.md"
+    target: "cli.md#doctor"
+    reason: "missing-anchor: cli.md does not have matching heading anchors"
+    expires: "2026-11-30"
+
+  # ── README.md planned crates ──────────────────────────────────────────────────
+  - source: "README.md"
+    target: "crates/vox-protocol/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "README.md"
+    target: "crates/vox-rule-pack/rules/rules.v1.yaml"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "README.md"
+    target: "crates/vox-exec-grammar/"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  - source: "README.md"
+    target: "crates/vox-inference/"
+    reason: "planned-crate: vox-corpus not yet created"
+    expires: "2026-11-30"
+
+  - source: "README.md"
+    target: "docs/src/architecture/architecture-index.md"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"
+
+  # ── AGENTS.md ─────────────────────────────────────────────────────────────────
+  - source: "AGENTS.md"
+    target: "docs/src/architecture/architecture-index.md"
+    reason: "pre-existing broken link from main-branch merge; planned or renamed file"
+    expires: "2026-11-30"

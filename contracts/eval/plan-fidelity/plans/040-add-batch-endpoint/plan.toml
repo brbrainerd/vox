@@ -1,0 +1,44 @@
+id = "plan-040-add-batch-endpoint"
+wave = "wave_2"
+description = "Add a batch @endpoint that accepts a List of titles."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+Add a new endpoint
+`@endpoint(kind: mutation) fn add_todos(titles: List[str]) to Result[int, TodoError]`
+that returns `Ok(len(titles))` and uses the existing `TodoError` ADT
+for typing. The base already defines `TodoError`. Do not modify
+existing endpoints.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing TodoError ADT + add_todo as reference."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Append the new `add_todos` batch endpoint."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+new_endpoint_added = true
+list_parameter_used = true

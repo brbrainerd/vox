@@ -1,0 +1,8 @@
+id = "humaneval-vox-136-list-of-one-two-three"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `list_of_one_two_three() to list[int]` returning [1, 2, 3].
+"""

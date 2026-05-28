@@ -1,0 +1,29 @@
+// Base source for plan-021-rename-endpoint.
+//
+// `create_todo` is an @endpoint, and `add_default_todo` is an
+// in-file helper that calls it. The plan asks the model to rename
+// `create_todo` -> `add_todo` everywhere.
+
+type TodoError =
+    | Empty(text: str)
+
+@endpoint(kind: mutation)
+fn create_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    return Ok(title)
+}
+
+fn add_default_todo() to Result[str, TodoError] {
+    return create_todo("untitled")
+}
+
+@test
+fn test_create_todo_empty_returns_error() to Unit {
+    let result = create_todo("")
+    match result {
+        Error(Empty(_)) => assert(true)
+        Ok(_)           => assert(false)
+    }
+}

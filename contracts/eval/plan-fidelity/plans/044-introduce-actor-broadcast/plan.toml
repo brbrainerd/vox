@@ -1,0 +1,53 @@
+id = "plan-044-introduce-actor-broadcast"
+wave = "wave_3"
+description = "Add a broadcast-style fanout handler to an existing actor."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The `ChatRoom` actor currently exposes request/response handlers
+(`join`, `leave`, `send_msg`). Add a new `on broadcast(text: str) to str`
+handler that returns a fanout-style ack of the form
+`"broadcast:" + text`. The existing handlers must be left intact and
+their signatures unchanged. Add a sibling `@endpoint(kind: mutation)
+@auth(scheme: bearer) fn broadcast_message(text: str) to Result[str]`
+that validates `len(text) is 0` (returning `Error("message must not be empty")`)
+and otherwise returns `Ok("broadcast")`.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Actor event handlers use `on event(arg: T) to U { body }`.
+  - Use `match` to discriminate Result variants in @tests.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing actor handlers as the shape reference."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Add the on broadcast handler inside ChatRoom."
+
+[[steps]]
+step = 3
+verb = "write"
+description = "Add the broadcast_message endpoint mirroring send_message."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+broadcast_handler_added = true
+broadcast_endpoint_added = true
+existing_tests_pass = true

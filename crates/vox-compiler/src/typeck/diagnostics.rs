@@ -88,6 +88,30 @@ pub struct SuggestedFix {
     pub span: SpanPayload,
 }
 
+/// Minimal reproducible excerpt for LLM repair loops.
+///
+/// The smallest contiguous source slice that contains the diagnostic span
+/// plus a small ring of surrounding context. The audit doc names this
+/// "the single biggest delta between Vox-as-LLM-target and a typical
+/// compiler" — without it, agents must ship the entire file to a model
+/// to fix a one-line error.
+///
+/// Coordinates in `local_span` are relative to `excerpt`, not the original
+/// file, so consumers can highlight the offending region without
+/// re-resolving file-absolute positions.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MinimalRepro {
+    /// Excerpt of source containing the diagnostic span plus surrounding
+    /// context lines.
+    pub excerpt: String,
+    /// 1-based line number in the original file of the first line in
+    /// `excerpt`. Lets consumers map back to the file when needed.
+    pub excerpt_first_line: usize,
+    /// Span of the offending region in coordinates relative to `excerpt`
+    /// (1-based line, 1-based column, like [`SpanPayload`]).
+    pub local_span: SpanPayload,
+}
+
 /// Source-code excerpt attached to a diagnostic for LLM consumers.
 ///
 /// Included in `VoxCompilerDiagnosticPayload` when source text is available.
@@ -98,6 +122,11 @@ pub struct SuggestedFix {
 /// Per the `vox check --for-llm` spec in
 /// [`vox-language-rules-phase2-lint-extension-2026.md`](../../../../docs/src/architecture/vox-language-rules-phase2-lint-extension-2026.md)
 /// Task 5.
+///
+/// Note: this is a richer "lines + text" view, complementary to the
+/// `MinimalRepro` struct above which captures a compact LLM-repair slice.
+/// Both are emitted on diagnostic payloads; consumers pick which best
+/// fits their workflow.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DiagnosticExcerpt {
     /// 1-based line numbers included in `text` (one entry per line).
@@ -151,6 +180,11 @@ pub struct VoxCompilerDiagnosticPayload {
     pub correction_hints: Vec<String>,
     pub suggested_fixes: Vec<SuggestedFix>,
     pub related_spans: Vec<SpanPayload>,
+    /// Minimal contiguous source excerpt around the diagnostic for LLM
+    /// repair consumption. `None` when source is empty or unavailable.
+    /// Forward-compat: omitted on serialize when `None`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub minimal_repro: Option<MinimalRepro>,
     /// Source-code excerpt around the diagnostic span. Present when
     /// `from_diagnostic` is called with non-empty `source`; absent otherwise
     /// (e.g. in deserialized payloads from older tool versions).
@@ -246,9 +280,194 @@ impl VoxCompilerDiagnosticPayload {
                 })
                 .collect(),
             related_spans: vec![],
+            minimal_repro: compute_minimal_repro(diag.span, source),
             excerpt,
             explain_url,
         }
+    }
+}
+
+/// Build a [`MinimalRepro`] for `span` from `source`.
+///
+/// Returns `None` when source is empty. Context window: 3 lines before
+/// the start line, 3 lines after the end line, clipped at file
+/// boundaries.
+pub(crate) fn compute_minimal_repro(span: Span, source: &str) -> Option<MinimalRepro> {
+    if source.is_empty() {
+        return None;
+    }
+    const CONTEXT_LINES: usize = 3;
+
+    // Resolve span to (start_line, start_col, end_line, end_col) in 1-based
+    // file coordinates. Mirrors `compute` inside from_diagnostic but stays
+    // independent so it can be called by other paths.
+    let (start_line, start_col, end_line, end_col) = resolve_line_col(span, source);
+
+    // Split source into lines, preserving 1-based indexing.
+    let lines: Vec<&str> = source.lines().collect();
+    if lines.is_empty() {
+        return None;
+    }
+    let total = lines.len();
+    // Clip start_line / end_line into [1, total] in case the span sits at the
+    // very end of input without a trailing newline.
+    let start_line_clamped = start_line.clamp(1, total);
+    let end_line_clamped = end_line.clamp(start_line_clamped, total);
+
+    let first = start_line_clamped.saturating_sub(CONTEXT_LINES).max(1);
+    let last = (end_line_clamped + CONTEXT_LINES).min(total);
+
+    let excerpt = lines[(first - 1)..last].join("\n");
+    let local_span = SpanPayload {
+        start_line: start_line_clamped + 1 - first,
+        start_col,
+        end_line: end_line_clamped + 1 - first,
+        end_col,
+    };
+
+    Some(MinimalRepro {
+        excerpt,
+        excerpt_first_line: first,
+        local_span,
+    })
+}
+
+fn resolve_line_col(span: Span, source: &str) -> (usize, usize, usize, usize) {
+    let mut line = 1usize;
+    let mut col = 1usize;
+    let byte = source
+        .char_indices()
+        .find_map(|(i, ch)| {
+            if i >= span.start {
+                Some(i)
+            } else {
+                if ch == '\n' {
+                    line += 1;
+                    col = 1;
+                } else {
+                    col += 1;
+                }
+                None
+            }
+        })
+        .unwrap_or(source.len());
+    let start_line = line;
+    let start_col = col;
+    for (i, ch) in source.char_indices().skip_while(|(i, _)| *i < byte) {
+        if i >= span.end {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+    (start_line, start_col, line, col)
+}
+
+#[cfg(test)]
+mod minimal_repro_tests {
+    use super::*;
+    use crate::ast::span::Span;
+
+    fn diag_at(start: usize, end: usize) -> Diagnostic {
+        Diagnostic {
+            severity: TypeckSeverity::Error,
+            message: "test".into(),
+            span: Span::new(start, end),
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![],
+            category: DiagnosticCategory::default(),
+            code: Some("E0001".into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        }
+    }
+
+    #[test]
+    fn minimal_repro_basic_window() {
+        let source = "line1\nline2\nline3\nline4_BAD\nline5\nline6\nline7\nline8\n";
+        // Span over "BAD" inside line4.
+        let bad_start = source.find("BAD").unwrap();
+        let bad_end = bad_start + 3;
+        let payload =
+            VoxCompilerDiagnosticPayload::from_diagnostic(&diag_at(bad_start, bad_end), "f.vox", source);
+        let mr = payload.minimal_repro.expect("repro present");
+        // 3 lines before line 4 + line 4 + 3 lines after = lines 1..=7.
+        assert_eq!(mr.excerpt_first_line, 1);
+        assert!(mr.excerpt.contains("line1"));
+        assert!(mr.excerpt.contains("line4_BAD"));
+        assert!(mr.excerpt.contains("line7"));
+        assert!(!mr.excerpt.contains("line8"), "tail clipped at context window");
+        assert_eq!(mr.local_span.start_line, 4);
+        assert_eq!(mr.local_span.end_line, 4);
+    }
+
+    #[test]
+    fn minimal_repro_near_start_no_underflow() {
+        let source = "BAD_line1\nline2\nline3\nline4\n";
+        let payload =
+            VoxCompilerDiagnosticPayload::from_diagnostic(&diag_at(0, 3), "f.vox", source);
+        let mr = payload.minimal_repro.expect("repro present");
+        assert_eq!(mr.excerpt_first_line, 1, "clipped to start of file");
+        assert_eq!(mr.local_span.start_line, 1);
+    }
+
+    #[test]
+    fn minimal_repro_near_end_no_overflow() {
+        let source = "line1\nline2\nline3\nline4\nBAD_line5\n";
+        let bad_start = source.find("BAD").unwrap();
+        let bad_end = bad_start + 3;
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(
+            &diag_at(bad_start, bad_end),
+            "f.vox",
+            source,
+        );
+        let mr = payload.minimal_repro.expect("repro present");
+        // Diagnostic on line 5 of a 5-line file; tail clipped at file end.
+        assert_eq!(mr.local_span.start_line, mr.excerpt.lines().count());
+    }
+
+    #[test]
+    fn minimal_repro_single_line_file() {
+        let source = "BAD";
+        let payload =
+            VoxCompilerDiagnosticPayload::from_diagnostic(&diag_at(0, 3), "f.vox", source);
+        let mr = payload.minimal_repro.expect("repro present");
+        assert_eq!(mr.excerpt, "BAD");
+        assert_eq!(mr.excerpt_first_line, 1);
+        assert_eq!(mr.local_span.start_line, 1);
+    }
+
+    #[test]
+    fn minimal_repro_empty_source_is_none() {
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag_at(0, 0), "f.vox", "");
+        assert!(payload.minimal_repro.is_none());
+    }
+
+    #[test]
+    fn minimal_repro_multi_line_span() {
+        let source = "line1\nline2\nfn foo() {\n    BAD\n    BAD2\n}\nline7\nline8\nline9\n";
+        let bad_start = source.find("    BAD").unwrap();
+        let bad_end = source.find("BAD2").unwrap() + 4;
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(
+            &diag_at(bad_start, bad_end),
+            "f.vox",
+            source,
+        );
+        let mr = payload.minimal_repro.expect("repro present");
+        // Span covers lines 4-5; window is lines 1..=8.
+        assert_eq!(mr.excerpt_first_line, 1);
+        assert!(mr.excerpt.contains("line8"));
+        assert!(!mr.excerpt.contains("line9"));
+        assert_eq!(mr.local_span.start_line, 4);
+        assert_eq!(mr.local_span.end_line, 5);
     }
 }
 

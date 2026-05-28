@@ -25,7 +25,7 @@ component Dashboard() {
     view: stack(raw_class="dashboard") {
         heading(level=1) { "Dashboard" }
         list() {
-            for item in items {
+            for item in items key=item {
                 list_item() { item }
             }
         }

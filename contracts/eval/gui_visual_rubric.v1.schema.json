@@ -5,22 +5,22 @@
   "description": "Standardized schema for VLM-driven GUI bug detection and grounding validation.",
   "type": "object",
   "required": ["bugs", "timestamp", "viewport"],
-  "properties": 
-    "timestamp": 
+  "properties": {
+    "timestamp": {
       "type": "string",
       "format": "date-time"
     },
-    "viewport": 
+    "viewport": {
       "type": "string",
       "description": "Viewport dimensions (e.g. 1280x800)"
     },
-    "bugs": 
+    "bugs": {
       "type": "array",
-      "items": 
+      "items": {
         "type": "object",
         "required": ["category", "severity", "coordinates", "description"],
-        "properties": 
-          "category": 
+        "properties": {
+          "category": {
             "type": "string",
             "enum": [
               "overlap",
@@ -33,29 +33,29 @@
               "cross_browser"
             ]
           },
-          "severity": 
+          "severity": {
             "type": "string",
             "enum": ["high", "medium", "low"]
           },
-          "coordinates": 
+          "coordinates": {
             "type": "object",
             "required": ["x", "y", "w", "h"],
-            "properties": 
-              "x":  "type": "number", "description": "X coordinate in pixels" },
-              "y":  "type": "number", "description": "Y coordinate in pixels" },
-              "w":  "type": "number", "description": "Width in pixels" },
-              "h":  "type": "number", "description": "Height in pixels" }
+            "properties": {
+              "x": { "type": "number", "description": "X coordinate in pixels" },
+              "y": { "type": "number", "description": "Y coordinate in pixels" },
+              "w": { "type": "number", "description": "Width in pixels" },
+              "h": { "type": "number", "description": "Height in pixels" }
             }
           },
-          "element_selector": 
+          "element_selector": {
             "type": "string",
             "description": "CSS selector or AXTree path of the offending element"
           },
-          "description": 
+          "description": {
             "type": "string",
             "description": "Human-readable description of the visual defect"
           },
-          "suggested_fix": 
+          "suggested_fix": {
             "type": "string",
             "description": "VLM-suggested CSS or structure fix (e.g. 'Use createPortal for this modal')"
           }

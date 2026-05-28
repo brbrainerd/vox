@@ -30,5 +30,8 @@ aes-gcm = { workspace = true }
 strum = { workspace = true, features = ["derive"] }
 workspace-hack = { workspace = true }
 
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [lints]
 workspace = true

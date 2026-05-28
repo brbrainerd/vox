@@ -1,0 +1,19 @@
+// Base source for plan-029-actor-rename-handler.
+//
+// A minimal Heartbeat actor with `on tick`. The plan asks the model
+// to rename the handler to `on heartbeat`.
+
+actor Heartbeat {
+    on tick() to str {
+        return "tick"
+    }
+}
+
+fn make_tick_label() to str {
+    return "tick"
+}
+
+@test
+fn test_tick_label() to Unit {
+    assert(make_tick_label() is "tick")
+}

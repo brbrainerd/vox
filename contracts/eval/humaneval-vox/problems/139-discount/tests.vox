@@ -1,0 +1,12 @@
+fn discount(price: int, percent_off: int) to int {
+    return price - price * percent_off / 100
+}
+
+@test
+fn t_none() to Unit { assert(discount(100, 0) is 100) }
+@test
+fn t_full() to Unit { assert(discount(100, 100) is 0) }
+@test
+fn t_half() to Unit { assert(discount(100, 50) is 50) }
+@test
+fn t_quarter() to Unit { assert(discount(80, 25) is 60) }

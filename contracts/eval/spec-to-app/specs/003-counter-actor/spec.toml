@@ -1,0 +1,30 @@
+id = "spec-to-app-003-counter-actor"
+tier = "T3"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a Vox chat-room actor with these handlers:
+
+  - actor ChatRoom { on join(user: str) to str ; on leave(user: str)
+    to str ; on send_msg(user: str, text: str) to str }
+  - @endpoint(kind: stream) @auth(scheme: bearer)
+      watch_room() to str returning an ack string.
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      send_message(text: str) to Result[str] validating empty
+      and >4096 char messages.
+
+Include four @test blocks covering message validity, presence
+state labels, and ack formatting.
+
+The deliverable is a single .vox file that passes `vox check`
+and whose @test blocks execute cleanly.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 4
+actor_required = true
+endpoint_kind_required = true
+streaming_decorator_required = true

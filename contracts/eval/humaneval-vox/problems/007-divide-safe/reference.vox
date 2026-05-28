@@ -1,0 +1,6 @@
+fn divide(a: int, b: int) to Result[int] {
+    if b is 0 {
+        return Error("division by zero")
+    }
+    return Ok(a / b)
+}

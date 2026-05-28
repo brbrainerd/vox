@@ -1,0 +1,8 @@
+// Repair-corpus fixture 018 — effect-violation bug class.
+// @pure fn reads the wall clock via `clock.now()` (Clock capability).
+// Expected repair: drop @pure and declare `uses clock`, or pass the timestamp in.
+
+@pure
+fn snapshot_now() to int {
+    clock.now()
+}

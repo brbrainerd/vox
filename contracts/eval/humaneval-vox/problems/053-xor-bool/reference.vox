@@ -1,0 +1,9 @@
+fn xor_bool(a: bool, b: bool) to bool {
+    if a {
+        if b {
+            return false
+        }
+        return true
+    }
+    return b
+}

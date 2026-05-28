@@ -1,0 +1,45 @@
+id = "plan-022-add-public-decorator"
+wave = "wave_2"
+description = "Add @public decorator to an endpoint for health-probe coverage."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file's `health_check` endpoint is currently behind
+`@auth(scheme: bearer)`. Add a `@public` decorator above the
+`@endpoint(...)` line so unauthenticated health probes can reach it,
+and REMOVE the `@auth(scheme: bearer)` decorator on this endpoint
+only. The other endpoint keeps its auth decorator unchanged.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the `health_check` endpoint."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Add `@public` decorator and drop `@auth(scheme: bearer)`."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+public_decorator_added = true
+auth_decorator_removed_from_target = true
+other_endpoints_unchanged = true

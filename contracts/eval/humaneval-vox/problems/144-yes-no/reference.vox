@@ -1,0 +1,6 @@
+fn yes_no(b: bool) to str {
+    if b {
+        return "yes"
+    }
+    return "no"
+}

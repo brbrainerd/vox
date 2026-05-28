@@ -1,0 +1,3 @@
+fn emphasize(s: str) to str {
+    return "*" + s + "*"
+}

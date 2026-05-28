@@ -1,0 +1,8 @@
+// Repair-corpus fixture 017 — effect-violation bug class.
+// @pure fn performs filesystem IO via `fs.read()` (Fs capability).
+// Expected repair: drop @pure and declare `uses fs`, or remove the file read.
+
+@pure
+fn load_config() to str {
+    fs.read("/etc/app/config.toml")
+}

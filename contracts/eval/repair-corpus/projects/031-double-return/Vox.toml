@@ -1,0 +1,5 @@
+[package]
+name = "repair-031-double-return"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Sign-classifier returns the same label on both branches."

@@ -1,0 +1,28 @@
+fn safe_sub(a: int, b: int) to Result[int] {
+    if a < b {
+        return Error("underflow")
+    }
+    return Ok(a - b)
+}
+
+@test
+fn t_ok() to Unit {
+    match safe_sub(10, 3) {
+        Ok(n)    => assert(n is 7)
+        Error(_) => assert(false)
+    }
+}
+@test
+fn t_zero() to Unit {
+    match safe_sub(5, 5) {
+        Ok(n)    => assert(n is 0)
+        Error(_) => assert(false)
+    }
+}
+@test
+fn t_underflow() to Unit {
+    match safe_sub(3, 10) {
+        Ok(_)    => assert(false)
+        Error(_) => assert(true)
+    }
+}

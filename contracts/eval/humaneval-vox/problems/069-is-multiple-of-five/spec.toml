@@ -1,0 +1,8 @@
+id = "humaneval-vox-069-is-multiple-of-five"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `is_multiple_of_five(n: int) to bool` returning true when 5 divides n evenly.
+"""

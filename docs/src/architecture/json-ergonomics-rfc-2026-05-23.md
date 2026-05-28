@@ -1,9 +1,9 @@
 ---
 title: "RFC: JSON ergonomics — strict-Option + pointer"
 description: "Vox's typed Json surface, why we diverge from serde_json::Value::Index, and the canonical traversal idioms."
-last_updated: "2026-05-23"
 category: "Architecture SSOTs"
-status: approved
+status: "current"
+last_updated: "2026-05-23"
 ---
 
 # RFC: JSON ergonomics — strict-Option + pointer
@@ -122,45 +122,59 @@ back-compat shims):
 
 ## 5. Canonical idioms
 
+Each idiom below is a real, compilable Vox function — modeled on
+[`examples/golden/json_stdlib.vox`](../../../examples/golden/json_stdlib.vox).
+The pattern `match std.json.parse(payload) { Ok(data) => …, Error(_) => default }`
+keeps each example self-contained: the caller supplies a JSON string, the
+function returns the typed result.
+
 ### Shallow, single field
 ```vox
-// vox:skip — idiom fragment; `data` is not in scope.
-let kind = data.get("kind").and_then(fn(j: Json) to Option[str] { j.as_str() })
+fn extract_kind(payload_json: str) to Option[str] {
+    return match std.json.parse(payload_json) {
+        Ok(data) => data.get("kind").and_then(fn(j: Json) to Option[str] { j.as_str() })
+        Error(_) => None
+    }
+}
 ```
 
 ### Deep, known path
 ```vox
-// vox:skip — idiom fragment; `data` is not in scope.
-let name = data.pointer("/products/0/name")
-               .and_then(fn(j: Json) to Option[str] { j.as_str() })
-               .unwrap_or("anonymous")
+fn first_product_name(payload_json: str) to str {
+    return match std.json.parse(payload_json) {
+        Ok(data) => data.pointer("/products/0/name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("anonymous")
+        Error(_) => "anonymous"
+    }
+}
 ```
 
 ### Membership check before navigation
 ```vox
-// vox:skip — idiom fragment; `data` is not in scope.
-if data.has("action") {
-    let action = data.get("action").unwrap()
-    // ...
+fn has_action(payload_json: str) to bool {
+    return match std.json.parse(payload_json) {
+        Ok(data) => data.has("action")
+        Error(_) => false
+    }
 }
 ```
 
 ### Walking an array
 ```vox
-// vox:skip — idiom fragment; `data` is not in scope.
-let products = data.get("products").and_then(fn(j: Json) to Option[list[Json]] { j.as_array() }).unwrap_or([])
-for p in products {
-    let n = p.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
-    print(n)
+fn product_names(payload_json: str) to list[str] {
+    return match std.json.parse(payload_json) {
+        Ok(data) => data.get("products").and_then(fn(j: Json) to Option[list[Json]] { j.as_array() }).unwrap_or([]).map(fn(p: Json) to str { return p.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?") })
+        Error(_) => []
+    }
 }
 ```
 
 ### Exhaustive handling (when "I genuinely care about the error" — e.g. parse)
 ```vox
-// vox:skip — fragment; `input`/`process`/`log` not in scope.
-match json.parse(input) {
-    Ok(data) => process(data),
-    Error(msg) => log.error("bad json: " + msg)
+fn classify_input(input: str) to str {
+    return match std.json.parse(input) {
+        Ok(_data) => "ok"
+        Error(msg) => "bad json: " + msg
+    }
 }
 ```
 

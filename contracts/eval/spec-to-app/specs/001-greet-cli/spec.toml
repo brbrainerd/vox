@@ -1,0 +1,18 @@
+id = "spec-to-app-001-greet-cli"
+tier = "T1"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a tiny Vox CLI app exposing a single function `greet(name: str)
+to str` that returns `"Hello "` + name + `"!"`. Include one @test
+that exercises greet("Ada") and asserts the result equals "Hello Ada!".
+The deliverable is a single .vox file that passes `vox check` and
+whose @test block executes cleanly under the in-process @test runner.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 1
+endpoint_kind_required = false

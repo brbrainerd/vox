@@ -1,0 +1,46 @@
+id = "plan-025-split-endpoint"
+wave = "wave_2"
+description = "Split a multi-purpose endpoint into two single-purpose endpoints."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file's `upsert_todo(id: str, title: str)` mutation acts as
+BOTH a create (when `id is ""`) and an update path. Split it into
+two endpoints:
+  - `@endpoint(kind: mutation) fn create_todo(title: str) to Result[str, TodoError]`
+  - `@endpoint(kind: mutation) fn update_todo(id: str, title: str) to Result[str, TodoError]`
+Each keeps only its own validation branch. Delete the original
+`upsert_todo` once both replacements compile.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the `upsert_todo` endpoint."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Add the two split endpoints."
+
+[[steps]]
+step = 3
+verb = "edit"
+description = "Delete the original `upsert_todo`."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[success_criteria]
+vox_check_passes = true
+endpoint_split = true
+original_endpoint_removed = true

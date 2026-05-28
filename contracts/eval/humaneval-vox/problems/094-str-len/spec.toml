@@ -1,0 +1,8 @@
+id = "humaneval-vox-094-str-len"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `str_len(s: str) to int` returning the length of s.
+"""

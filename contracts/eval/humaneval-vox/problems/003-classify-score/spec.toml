@@ -1,0 +1,13 @@
+id = "humaneval-vox-003-classify-score"
+training_eligible = false
+provenance = "examples-golden-lift"
+derived_from = "examples/golden/control_flow_if.vox"
+
+prompt = """
+Write a Vox function `classify_score(score: int) to str` that returns
+a letter grade:
+  - 90 or above: "A"
+  - 80-89:       "B"
+  - 70-79:       "C"
+  - below 70:    "F"
+"""

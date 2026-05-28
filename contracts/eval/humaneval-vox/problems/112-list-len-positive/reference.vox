@@ -1,0 +1,3 @@
+fn list_len_positive(xs: list[int]) to bool {
+    return len(xs) > 0
+}

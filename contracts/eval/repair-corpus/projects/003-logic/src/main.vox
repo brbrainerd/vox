@@ -1,0 +1,14 @@
+// Repair-corpus fixture 003 — logic bug class.
+// The fn `double(n)` mistakenly returns n + 2 instead of n * 2.
+// The @test asserts double(3) == 6, which fails.
+// Expected repair: change `n + 2` to `n * 2`, OR adjust the test
+// to match the (clearly wrong) implementation.
+
+fn double(n: int) to int {
+    return n + 2
+}
+
+@test
+fn test_double_three() to Unit {
+    assert(double(3) is 6)
+}

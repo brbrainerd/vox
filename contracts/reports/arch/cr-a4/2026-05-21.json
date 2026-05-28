@@ -1,0 +1,25 @@
+{
+  "coverage_pct": 100.0,
+  "criterion": "CR-A4",
+  "deprecated_missing_migration_window": [],
+  "measured_at": "2026-05-21T21:10:29.582229100+00:00",
+  "missing_metadata": [],
+  "orchestration_dir": "C:\\Users\\Owner\\vox\\.claude\\worktrees\\jovial-buck-e93ac0\\contracts\\orchestration",
+  "schema_version": 1,
+  "threshold": {
+    "met": true,
+    "target_coverage_pct": 100.0
+  },
+  "total_contracts": 9,
+  "with_lifecycle": [
+    "contracts/orchestration/circuit-breaker.v1.yaml",
+    "contracts/orchestration/feature-flags.v1.yaml",
+    "contracts/orchestration/model-pins.v1.yaml",
+    "contracts/orchestration/model-routing.v1.yaml",
+    "contracts/orchestration/plan-mode-trigger.v1.yaml",
+    "contracts/orchestration/providers.v1.yaml",
+    "contracts/orchestration/risk-confidence-matrix.v1.yaml",
+    "contracts/orchestration/socrates-fusion.v1.yaml",
+    "contracts/orchestration/tenant-budgets.v1.yaml"
+  ]
+}

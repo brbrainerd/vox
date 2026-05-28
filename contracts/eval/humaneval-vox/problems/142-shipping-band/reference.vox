@@ -1,0 +1,9 @@
+fn shipping_band(weight: int) to int {
+    if weight <= 10 {
+        return 5
+    }
+    if weight <= 50 {
+        return 10
+    }
+    return 25
+}

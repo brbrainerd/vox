@@ -1,0 +1,15 @@
+fn int_max(a: int, b: int) to int {
+    if a > b {
+        return a
+    }
+    return b
+}
+
+@test
+fn t_left() to Unit { assert(int_max(5, 1) is 5) }
+@test
+fn t_right() to Unit { assert(int_max(3, 7) is 7) }
+@test
+fn t_equal() to Unit { assert(int_max(4, 4) is 4) }
+@test
+fn t_neg() to Unit { assert(int_max(-1, -10) is -1) }

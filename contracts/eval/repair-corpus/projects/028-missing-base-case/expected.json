@@ -1,0 +1,6 @@
+{
+  "id": "repair-028-missing-base-case",
+  "bug_class": "logic",
+  "post_repair_criterion": "test_runs_clean",
+  "expected_diagnostic_count_before_min": 0
+}
