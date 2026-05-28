@@ -169,6 +169,11 @@ pub struct LoraTrainingConfig {
     pub chatml: ChatmlConfig,
     /// Optional dynamic hook for running code evaluations (e.g. "cargo_build")
     pub reward_hook: Option<String>,
+    /// Process argv captured at training start — written to the manifest so a failed
+    /// run can be relaunched with the exact same flags without operator memory.
+    /// Defaulted to empty for backward serde compatibility with older configs.
+    #[serde(default)]
+    pub launch_argv: Vec<String>,
 }
 
 impl Default for LoraTrainingConfig {
@@ -223,6 +228,7 @@ impl Default for LoraTrainingConfig {
             allow_cpu_fallback: true,
             chatml: ChatmlConfig::default(),
             reward_hook: None,
+            launch_argv: Vec::new(),
         }
     }
 }

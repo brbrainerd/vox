@@ -117,6 +117,11 @@ pub struct TrainingManifest {
     pub trajectory_quality_boost: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contamination_score: Option<f32>,
+    /// Process argv captured at training start (mirrors vox-populi's TrainingManifest).
+    /// Operators can replay a failed run with the exact same flags by reading this field.
+    /// Defaulted to empty for backward serde compatibility with older manifests.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub launch_argv: Vec<String>,
 }
 
 fn default_manifest_schema_v1() -> u32 {
@@ -164,6 +169,8 @@ pub struct InitialManifestRun {
     pub trajectory_quality_floor: Option<u8>,
     pub trajectory_quality_boost: f32,
     pub contamination_score: Option<f32>,
+    /// Process argv captured at training start; written verbatim into [`TrainingManifest`].
+    pub launch_argv: Vec<String>,
 }
 
 impl InitialManifestRun {
@@ -203,6 +210,7 @@ impl InitialManifestRun {
             trajectory_quality_floor: c.trajectory_quality_floor,
             trajectory_quality_boost: c.trajectory_quality_boost,
             contamination_score: None,
+            launch_argv: c.launch_argv.clone(),
         }
     }
 }
@@ -315,6 +323,7 @@ pub fn initial_training_manifest(
         trajectory_quality_floor: run.trajectory_quality_floor,
         trajectory_quality_boost: run.trajectory_quality_boost,
         contamination_score: run.contamination_score,
+        launch_argv: run.launch_argv,
     }
 }
 

@@ -319,6 +319,26 @@ pub fn run_training_loop(
                         optimizer_step_count += 1;
                         trainer.config.adapter_config.learning_rate = lr_next;
                         trainer.update_lr();
+
+                        // Periodic CUDA memory-pool trim: return freed VRAM to the
+                        // OS so long QLoRA runs do not balloon driver-held memory.
+                        // Best-effort — log + continue on driver error. Gated on
+                        // `cuda` feature so CPU/Metal builds compile cleanly.
+                        #[cfg(feature = "cuda")]
+                        {
+                            const TRIM_EVERY_OPT_STEPS: u32 = 16;
+                            if optimizer_step_count.is_multiple_of(TRIM_EVERY_OPT_STEPS) {
+                                if let Err(e) =
+                                    crate::device::mem_pool::trim_default_pool(0)
+                                {
+                                    tracing::warn!(
+                                        error = %e,
+                                        step = optimizer_step_count,
+                                        "cuMemPoolTrimTo failed (non-fatal)"
+                                    );
+                                }
+                            }
+                        }
                     }
                     Some(loss_scalar)
                 }

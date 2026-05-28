@@ -1,40 +1,53 @@
 # contracts/budgets/test-tier-budgets.v1.yaml
-# Generated from: docs/superpowers/specs/2026-05-27-test-suite-baseline-measurements.md
 # Regenerate via: vox run scripts/perf/test-baseline.vox
 schema_version: 1
-generated_at: "2026-05-27"
+generated_at: "2026-05-28"
 
 # Budget semantics:
 #   warn_ms: log a warning if a tier exceeds this
 #   fail_ms: fail CI if a tier exceeds this
-# Thresholds: warn = 1.2x measured, fail = 1.5x measured (pre-fix baselines)
-# After Phase 2+3 land, re-run harness and lower these to 1.2x/1.5x of new baselines.
+#
+# Thresholds: warn = 1.2x measured, fail = 1.5x measured
+#
+# Tightened 2026-05-28 after the arch-check 24x speedup (164s -> 6.7s) and the
+# coverage-run 10x speedup (263s -> ~27s) shipped. Prior budgets reflected the
+# pre-fix baselines and were ~4-5x looser than necessary. See
+# docs/superpowers/specs/2026-05-27-test-suite-baseline-measurements.md for the
+# pre-fix baseline and contracts/reports/test-baseline-*.json for the post-fix
+# measurements once the harness is re-run.
 
 tiers:
   fast:
-    measured_ms: 215000   # 215s warm (arch-check dominates at 165s)
-    warn_ms: 258000        # 1.2x
-    fail_ms: 323000        # 1.5x
-    note: "Arch-check speedup (Phase 2) will drop this to ~60s; budgets will be tightened then"
+    # fmt (~0s) + ssot (~15s) + toestub (~26s) + arch-check (~7s) = ~48s
+    measured_ms: 60000
+    warn_ms: 72000          # 1.2x
+    fail_ms: 90000          # 1.5x
+    note: "Arch-check went from 165s to ~7s (commit 760dae75da et al.)"
 
   complete:
-    measured_ms: 325000
-    warn_ms: 390000
-    fail_ms: 488000
+    # fast + clippy (~75s) = ~135s. Clippy is now the dominant fast-tier cost.
+    measured_ms: 140000
+    warn_ms: 168000
+    fail_ms: 210000
 
   full:
-    measured_ms: 495000
-    warn_ms: 594000
-    fail_ms: 743000
-    note: "After Phase 3 (slow partition), full should drop to ~120s"
+    # complete + nextest workspace (~27s, slow tests included since #[ignore]
+    # was removed) = ~165s
+    measured_ms: 170000
+    warn_ms: 204000
+    fail_ms: 255000
+    note: "Nextest workspace went from 170s to ~27s after arch-check fix"
 
   full_cov:
-    measured_ms: 590000
-    warn_ms: 708000
-    fail_ms: 885000
-    note: "Target post-Phase-2+3: <=260s"
+    # complete + llvm-cov nextest workspace (~27s) = ~165s. Coverage tax is now
+    # negligible since arch-check's dominance is gone.
+    measured_ms: 170000
+    warn_ms: 204000
+    fail_ms: 255000
+    note: "Coverage run went from 263s to ~27s. With the Windows arg-length fix in scripts/perf/coverage-report.vox, this is now a viable local-loop tier."
 
   doctests:
+    # Not re-measured this session; the doctest path was not touched.
     measured_ms: 51000
     warn_ms: 61000
     fail_ms: 77000

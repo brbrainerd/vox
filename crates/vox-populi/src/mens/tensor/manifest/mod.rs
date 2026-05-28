@@ -192,6 +192,11 @@ pub struct TrainingManifest {
     /// Overall dataset JSX/React contamination score (populated when vox_pure filter is active).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contamination_score: Option<f32>,
+    /// Process argv captured at training start. Operators can replay a failed run with
+    /// the exact same flags by reading this field. Defaulted to empty for backward
+    /// serde compatibility with manifests produced before launch_argv landed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub launch_argv: Vec<String>,
 }
 
 /// Snapshot of run settings for [`initial_training_manifest`].
@@ -228,6 +233,8 @@ pub struct InitialManifestRun {
     pub trajectory_quality_floor: Option<u8>,
     pub trajectory_quality_boost: f32,
     pub contamination_score: Option<f32>,
+    /// Process argv captured at training start; written verbatim into [`TrainingManifest`].
+    pub launch_argv: Vec<String>,
 }
 
 #[cfg(feature = "mens-train")]
@@ -268,6 +275,7 @@ impl InitialManifestRun {
             trajectory_quality_floor: c.trajectory_quality_floor,
             trajectory_quality_boost: c.trajectory_quality_boost,
             contamination_score: None, // Filled during preflight/training if vox_pure used
+            launch_argv: c.launch_argv.clone(),
         }
     }
 }

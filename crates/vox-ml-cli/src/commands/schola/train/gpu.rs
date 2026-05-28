@@ -295,6 +295,7 @@ pub(super) async fn run_gpu_training(
         curriculum_schedule,
         chatml,
         reward_hook: None,
+        launch_argv: std::env::args().collect(),
     };
     let model_name_for_stats = config
         .base_model
