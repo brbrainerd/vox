@@ -3,7 +3,7 @@ title: "Local CI parity (pre-push)"
 description: "Fast default `git push` hook via `vox ci pre-push`; full static gate with `--complete`; emergency `--no-verify` policy."
 category: "Contributors"
 status: "current"
-last_updated: "2026-05-11"
+last_updated: "2026-05-27"
 training_eligible: true
 schema_type: "TechArticle"
 ---
@@ -13,19 +13,34 @@ schema_type: "TechArticle"
 `vox ci pre-push` is the **`git push` hook** target (`cargo run -q -p vox-cli -- ci install-hooks`).
 It runs **before** the remote receives objects.
 
+> **Canonical tier table:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
+> **Budget thresholds:** `contracts/budgets/test-tier-budgets.v1.yaml`
+
 ## Profiles
 
-| Profile | Flags | What runs | Typical wall-clock |
+| Profile | Flags | What runs | Target wall-clock (post Phase 2+3) |
 | -------- | ----- | ----------- | ------------------- |
-| **Fast** (default) | _(none)_, or **`--quick`** | `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`** (includes **`contracts-index`**, **`docs-reality-audit verify`**, registry parity, …), **scoped** **`vox-doc-pipeline --lint-only`** + **`vox ci doctest-md --strict`** on changed `docs/src/**/*.md` (excludes **`docs/src/archive/`**), **`vox-drift-check`**. No workspace clippy / doc-inventory / scoped TOESTUB. | Often **under ~1–3 min** (depends on diff size and cold Cargo). |
-| **Complete** | **`--complete`** | Everything in **fast**, plus **full-tree** doc lint + doctest under **`docs/src/`**, **`vox ci doc-inventory verify`**, workspace **`cargo clippy … -D warnings`**, scoped TOESTUB on changed `crates/<pkg>`. Matches the historical pre-merge static gate (without integration tests). | **~2–8 min** typical. |
-| **Full** | **`--full`** | **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`**. | **~10–25+ min** typical. |
+| **Fast** (default) | _(none)_, or **`--quick`** | `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`** (includes **`contracts-index`**, **`docs-reality-audit verify`**, registry parity, …), **scoped** **`vox-doc-pipeline --lint-only`** + **`vox ci doctest-md --strict`** on changed `docs/src/**/*.md` (excludes **`docs/src/archive/`**), **`vox-drift-check`**. No workspace clippy / doc-inventory / scoped TOESTUB. | **≤60s** (arch-check cached). |
+| **Complete** | **`--complete`** | Everything in **fast**, plus **full-tree** doc lint + doctest under **`docs/src/`**, **`vox ci doc-inventory verify`**, workspace **`cargo clippy … -D warnings`**, scoped TOESTUB on changed `crates/<pkg>`. Matches the historical pre-merge static gate (without integration tests). | **≤180s** typical. |
+| **Full** | **`--full`** | **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`** (slow `#[ignore]` tests excluded). | **≤120s** (slow excluded). |
+| **Full+cov** | **`--full --with-coverage`** | **`--full`** but uses **`cargo llvm-cov nextest`** + emits lcov/HTML report under `target/llvm-cov/`. | **≤260s**. |
+| **Full+since** | **`--full --since <ref>`** | **`--full`** nextest step runs only for packages changed since `<ref>` + their reverse-deps. Falls back to workspace when > 20 packages impacted. | **3–20s** for 1–3 crate edits. |
+| **Full+cov+since** | **`--full --with-coverage --since <ref>`** | Combination of the above two. | **3–30s** typical. |
 
 **Legacy:** **`--quick`** is an alias for the default **fast** profile (it conflicts with **`--complete`** / **`--full`**).
 
 **Progress:** During slow subprocess steps, stderr prints a **heartbeat every ~3s** (`still running <step> (Xs elapsed)`) so a push never looks hung.
 
-**Telemetry:** **`--report-json <path>`** emits per-step durations — **`contracts/reports/pre-push-report.v1.schema.json`** (`schema_version` **2** adds **`profile`**: `fast` \| `complete` \| `full`). Env **`VOX_PREPUSH_AUDIT_LOG`** appends one JSON line per successful run (not **`--dry-run`**).
+**Telemetry:** **`--report-json <path>`** emits per-step durations — **`contracts/reports/pre-push-report.v1.schema.json`** (`schema_version` **3** adds `with_coverage` and extended profile values; v2 added `profile`). Env **`VOX_PREPUSH_AUDIT_LOG`** appends one JSON line per successful run (not **`--dry-run`**).
+
+### Extended `--full` flags
+
+| Flag | Effect |
+| ---- | ------ |
+| **`--include-slow`** | Also runs the slow `#[ignore]` partition (arch-check smoke, scientia timeout, codegen bundle check). Adds ~3–5 min. CI always sets this. |
+| **`--with-coverage`** | Substitutes `cargo llvm-cov nextest` for plain nextest and appends `cargo llvm-cov report`. Requires `cargo-llvm-cov` on PATH. |
+| **`--since <ref>`** | Narrows nextest to packages touched since `<ref>` (default: `origin/main`). Falls back to `--workspace` if > `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20) packages impacted. |
+| **`--enforce-budgets`** | After a successful real run (not `--dry-run`), compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml`. Warns at `warn_ms` (1.2× baseline); fails at `fail_ms` (1.5× baseline). No-op if budgets file is absent. |
 
 **Diagnostics:** **`vox ci dev-loop-audit`** surfaces **`CARGO_TARGET_DIR`** fragmentation that causes redundant compiles across terminals ([runner-contract §Cargo incremental cache](../ci/runner-contract.md#cargo-incremental-cache-troubleshooting-ai-multi-terminal)).
 
@@ -73,7 +88,7 @@ When **`--act`** is set, `vox ci pre-push` additionally runs workflows that targ
 
 ## Verification (smoke)
 
-- **Automated:** `cargo test -p vox-cli pre_push_dry_run` — asserts **`--dry-run`** step lists for fast / **`--complete`** / **`--full`**, report schema **v2**, and **`--act`** workflow flags.
+- **Automated:** `cargo test -p vox-cli pre_push_dry_run` — asserts **`--dry-run`** step lists for fast / **`--complete`** / **`--full`**, report schema **v3** (`with_coverage` + extended profile enum), **`--act`** workflow flags, and **`--enforce-budgets`** flag acceptance.
 - **Inspect planned steps:** `vox ci pre-push --dry-run` prints the exact subprocess sequence without executing them.
 - **`git push --dry-run`** still runs the real **`pre-push`** hook (unless **`--no-verify`**); use **`vox ci pre-push --dry-run`** to preview work without hook side effects.
 

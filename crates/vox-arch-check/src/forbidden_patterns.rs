@@ -45,12 +45,13 @@ pub struct ForbiddenPatternHit {
 ///
 /// `prune_dir_names` is the merged built-in + `layers.toml` directory-name skip set
 /// (see `walk_prune_dir_names` in `main.rs`).
+#[cfg(test)]
 pub fn scan(
     repo_root: &Path,
     rule: &ForbiddenPatternRule,
     prune_dir_names: &HashSet<String>,
 ) -> Result<Vec<ForbiddenPatternHit>> {
-    // Defer to the batched implementation — single rule is just N=1.
+    // Test-only single-rule wrapper around the batched implementation.
     scan_all(repo_root, std::slice::from_ref(rule), prune_dir_names)
 }
 
