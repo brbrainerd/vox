@@ -187,6 +187,12 @@ fn scan_source_lines(
                 continue;
             }
 
+            // `vox-dei-shim` is the current HITL crate — not the retired large
+            // orchestrator. Skip lines that mention only the shim.
+            if sym.id == "vox-dei-old-crate" && line.contains("vox-dei-shim") {
+                continue;
+            }
+
             if sym.id == "vox-dei-old-crate"
                 && (line.contains("no-vox-dei-import") || line.contains("no_vox_dei_import"))
             {
