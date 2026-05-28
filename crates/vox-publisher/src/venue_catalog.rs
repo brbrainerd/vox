@@ -264,9 +264,10 @@ venues:
 
     /// Build a `ClassDefaults` map where `algorithmic_improvement` has
     /// `imc` as its recommended venue. Verifies class-boost logic.
-    fn defaults_recommending(class: vox_scientia::class_routing::FindingClass, venue_id: &str)
-        -> vox_scientia::class_routing::ClassDefaults
-    {
+    fn defaults_recommending(
+        class: vox_scientia::class_routing::FindingClass,
+        venue_id: &str,
+    ) -> vox_scientia::class_routing::ClassDefaults {
         let mut d = vox_scientia::class_routing::builtin_class_defaults();
         d.by_class
             .entry(class.as_str().to_string())

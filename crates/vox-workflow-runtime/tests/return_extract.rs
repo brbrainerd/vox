@@ -15,9 +15,7 @@ fn extracts_return_value_from_workflow_completed_event() {
 
 #[test]
 fn extract_errors_if_no_terminal_event() {
-    let journal = vec![
-        json!({"event": "ActivityCompleted", "activity": "step1", "value": 7}),
-    ];
+    let journal = vec![json!({"event": "ActivityCompleted", "activity": "step1", "value": 7})];
     let result: Result<i64, _> = extract_terminal_return(&journal);
     assert!(result.is_err(), "expected error for missing terminal event");
 }
@@ -33,9 +31,10 @@ fn extract_errors_on_type_mismatch() {
 
 #[test]
 fn extract_errors_when_return_value_field_missing() {
-    let journal = vec![
-        json!({"event": "WorkflowCompleted", "workflow": "wf"}),
-    ];
+    let journal = vec![json!({"event": "WorkflowCompleted", "workflow": "wf"})];
     let result: Result<i64, _> = extract_terminal_return(&journal);
-    assert!(result.is_err(), "expected MissingReturnValue error when field absent");
+    assert!(
+        result.is_err(),
+        "expected MissingReturnValue error when field absent"
+    );
 }

@@ -16,11 +16,7 @@ fn line_value_after_key(line: &str, key: &str) -> Option<String> {
     if val.is_empty() {
         return None;
     }
-    Some(
-        val.trim_matches('"')
-            .trim_matches('\'')
-            .to_string(),
-    )
+    Some(val.trim_matches('"').trim_matches('\'').to_string())
 }
 
 /// Parsed agent frontmatter fields used by Dei and MCP tools.
@@ -75,9 +71,7 @@ pub fn parse_agent_frontmatter(content: &str) -> Option<AgentFrontmatter> {
             if let Some(stripped) = line.trim().strip_prefix('-') {
                 let pat = stripped.trim().trim_matches('"').trim_matches('\'');
                 if !pat.is_empty() {
-                    scope
-                        .get_or_insert_with(Vec::new)
-                        .push(pat.to_string());
+                    scope.get_or_insert_with(Vec::new).push(pat.to_string());
                 }
                 continue;
             }

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::inference::backend::{InferenceBackend, InferenceError, PromptInput, SamplingParams, Verdict};
+use crate::inference::backend::{
+    InferenceBackend, InferenceError, PromptInput, SamplingParams, Verdict,
+};
 use vox_package::ModelBundle;
 
 /// Chooses the first backend that returns [`Verdict::Yes`] for `can_serve`.

@@ -10,10 +10,7 @@ const REM_SESSION_ID: &str =
 /// Create a new session for an agent (async).
 pub async fn session_create(state: &ServerState, params: SessionCreateParams) -> String {
     let mut mgr = state.session_manager.lock().await;
-    match mgr.create(
-        vox_orchestrator::AgentId(params.agent_id),
-        params.tenant_id,
-    ) {
+    match mgr.create(vox_orchestrator::AgentId(params.agent_id), params.tenant_id) {
         Ok(id) => ToolResult::ok(id).to_json(),
         Err(e) => {
             ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SESSION_OP).to_json()

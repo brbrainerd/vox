@@ -159,8 +159,7 @@ pub fn node_maintenance_blocks_new_work(now_ms: u64, n: &NodeRecord) -> bool {
 /// Clear [`NodeRecord::maintenance`] / deadline when the deadline has passed.
 pub fn sweep_expired_maintenance_on_nodes(nodes: &mut [NodeRecord], now_ms: u64) {
     for n in nodes.iter_mut() {
-        if n.maintenance == Some(true) && n.maintenance_until_unix_ms.is_some_and(|u| now_ms >= u)
-        {
+        if n.maintenance == Some(true) && n.maintenance_until_unix_ms.is_some_and(|u| now_ms >= u) {
             n.maintenance = None;
             n.maintenance_until_unix_ms = None;
         }

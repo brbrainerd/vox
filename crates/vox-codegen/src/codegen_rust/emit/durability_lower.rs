@@ -55,7 +55,11 @@ fn emit_workflow_body(func: &HirFn) -> String {
     out
 }
 
-fn emit_activity_body(func: &HirFn, inferred_types: Option<&HashMap<Span, HirType>>, usage: Option<&super::usage::UsageTracker>) -> String {
+fn emit_activity_body(
+    func: &HirFn,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> String {
     let activity_id = func
         .generated_hash
         .clone()
@@ -107,9 +111,7 @@ fn emit_actor_body(
     out.push_str("    // actor shell — spawn the mailbox loop. Envelope\n");
     out.push_str("    // dispatch is a no-op pending the wire-shape decision\n");
     out.push_str("    // (see emit_actor_body comment in durability_lower.rs).\n");
-    out.push_str(&format!(
-        "    let _state = {state_struct}::default();\n"
-    ));
+    out.push_str(&format!("    let _state = {state_struct}::default();\n"));
     out.push_str(
         "    let _handle = ::vox_actor_runtime::spawn_process(move |mut ctx| async move {\n",
     );

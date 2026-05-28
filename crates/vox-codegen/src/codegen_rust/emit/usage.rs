@@ -31,12 +31,18 @@ impl UsageTracker {
                 }
             }
             HirStmt::Expr { expr, .. } => self.walk_expr(expr),
-            HirStmt::While { condition, body, .. } => {
+            HirStmt::While {
+                condition, body, ..
+            } => {
                 self.walk_expr(condition);
-                for s in body { self.walk_stmt(s); }
+                for s in body {
+                    self.walk_stmt(s);
+                }
             }
             HirStmt::Loop { body, .. } => {
-                for s in body { self.walk_stmt(s); }
+                for s in body {
+                    self.walk_stmt(s);
+                }
             }
             _ => {}
         }
@@ -54,32 +60,48 @@ impl UsageTracker {
             HirExpr::Unary(_, e, _) => self.walk_expr(e),
             HirExpr::Call(callee, args, _, _) => {
                 self.walk_expr(callee);
-                for arg in args { self.walk_expr(&arg.value); }
+                for arg in args {
+                    self.walk_expr(&arg.value);
+                }
             }
             HirExpr::MethodCall(obj, _, args, _, _) => {
                 self.walk_expr(obj);
-                for arg in args { self.walk_expr(&arg.value); }
+                for arg in args {
+                    self.walk_expr(&arg.value);
+                }
             }
             HirExpr::FieldAccess(obj, _, _) => self.walk_expr(obj),
             HirExpr::Match(obj, arms, _) => {
                 self.walk_expr(obj);
-                for arm in arms { self.walk_expr(&arm.body); }
+                for arm in arms {
+                    self.walk_expr(&arm.body);
+                }
             }
             HirExpr::If(cond, then_b, else_b, _) => {
                 self.walk_expr(cond);
-                for s in then_b { self.walk_stmt(s); }
+                for s in then_b {
+                    self.walk_stmt(s);
+                }
                 if let Some(eb) = else_b {
-                    for s in eb { self.walk_stmt(s); }
+                    for s in eb {
+                        self.walk_stmt(s);
+                    }
                 }
             }
             HirExpr::ListLit(elts, _) => {
-                for e in elts { self.walk_expr(e); }
+                for e in elts {
+                    self.walk_expr(e);
+                }
             }
             HirExpr::TupleLit(elts, _) => {
-                for e in elts { self.walk_expr(e); }
+                for e in elts {
+                    self.walk_expr(e);
+                }
             }
             HirExpr::Block(body, _) => {
-                for s in body { self.walk_stmt(s); }
+                for s in body {
+                    self.walk_stmt(s);
+                }
             }
             HirExpr::Index(obj, idx, _) => {
                 self.walk_expr(obj);

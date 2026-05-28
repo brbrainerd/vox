@@ -448,11 +448,7 @@ fn apply_order_by(args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
     Some(())
 }
 
-fn apply_limit(
-    ctx: &mut LowerCtx,
-    args: &[expr::Arg],
-    chain: &mut DbQueryChain,
-) -> Option<()> {
+fn apply_limit(ctx: &mut LowerCtx, args: &[expr::Arg], chain: &mut DbQueryChain) -> Option<()> {
     if args.len() != 1 {
         return None;
     }

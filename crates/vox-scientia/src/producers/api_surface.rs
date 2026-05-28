@@ -65,11 +65,7 @@ pub fn count_pub_symbols(source: &str) -> usize {
         .count()
 }
 
-fn scan(
-    crates_root: &std::path::Path,
-    now_ms: i64,
-    session_id: &str,
-) -> Vec<ResearchEvent> {
+fn scan(crates_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<ResearchEvent> {
     if !crates_root.is_dir() {
         return Vec::new();
     }

@@ -13,11 +13,11 @@
 //! claim_extractor, inspect_bridge, nanopub, prereg, ro_crate, scientia_ingest.
 
 // ── Pre-existing modules ──────────────────────────────────────────────────────
-pub mod nanopub;
-pub mod ro_crate;
-pub mod inspect_bridge;
 pub mod claim_extractor;
 pub mod ingest;
+pub mod inspect_bridge;
+pub mod nanopub;
+pub mod ro_crate;
 
 // ── Phase A: self-observation signal producers ────────────────────────────────
 pub mod producers;

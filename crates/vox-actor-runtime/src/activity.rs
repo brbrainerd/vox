@@ -256,11 +256,12 @@ where
                         name
                     );
                     time::sleep(current_backoff).await;
-                    current_backoff = vox_foundation::primitives::backoff::next_exponential_backoff_duration(
-                        current_backoff,
-                        options.backoff_multiplier,
-                        options.max_backoff,
-                    );
+                    current_backoff =
+                        vox_foundation::primitives::backoff::next_exponential_backoff_duration(
+                            current_backoff,
+                            options.backoff_multiplier,
+                            options.max_backoff,
+                        );
                 }
             }
         }

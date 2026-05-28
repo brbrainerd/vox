@@ -5,8 +5,8 @@ mod checks_codex;
 mod checks_standard;
 mod common;
 mod output;
-mod provider_policy;
 pub mod project_check;
+mod provider_policy;
 
 use anyhow::Result;
 

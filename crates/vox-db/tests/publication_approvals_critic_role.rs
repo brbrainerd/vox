@@ -15,7 +15,11 @@ async fn approvals_table_has_phase_d_columns() {
         .await
         .expect("query");
     let sql: String = rows.first().expect("row").get(0).expect("sql column");
-    for col in ["approver_role", "critic_fingerprint_json", "critic_report_uri"] {
+    for col in [
+        "approver_role",
+        "critic_fingerprint_json",
+        "critic_report_uri",
+    ] {
         assert!(sql.contains(col), "DDL missing column `{col}`; got:\n{sql}");
     }
 }

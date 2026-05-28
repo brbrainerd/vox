@@ -6,6 +6,7 @@ pub mod bootstrap_inference;
 pub mod config;
 pub mod env_parse;
 pub mod inference;
+pub mod model_routing;
 pub mod operator_registry;
 pub mod paths;
 pub mod policy;
@@ -16,15 +17,10 @@ pub mod routing_policy;
 pub mod scholarly;
 pub mod secrets;
 pub mod toml_config;
-pub mod model_routing;
 
 pub use bootstrap_inference::{
     NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,
     REVIEW_PREMIUM_FALLBACK,
-};
-pub use model_routing::{
-    ClassifierPinConfig, ExplorationConfig, LatencyBands, ModelPinsConfig, ModelRoutingConfig,
-    PromotionThresholds, SafetyConfig, load_model_pins_config, load_model_routing_config,
 };
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
@@ -38,6 +34,10 @@ pub use inference::{
     openai_tuning_temperature, openai_tuning_top_p, openrouter_api_key,
     openrouter_chat_model_preference, sanitize_chatml, together_tuning_temperature,
     together_tuning_top_p,
+};
+pub use model_routing::{
+    ClassifierPinConfig, ExplorationConfig, LatencyBands, ModelPinsConfig, ModelRoutingConfig,
+    PromotionThresholds, SafetyConfig, load_model_pins_config, load_model_routing_config,
 };
 pub use paths::{
     APP_DIR_NAME, DEFAULT_DB_FILENAME, MCP_SESSIONS_DIR_BASENAME, config_dir, data_dir,

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use super::stalls::{detect_stalls, StallEntry};
+use super::stalls::{StallEntry, detect_stalls};
 
 /// Single row of the candidate ledger, projected for dashboard display.
 /// Backend adapters lift this from `scientia_finding_candidates`.
@@ -148,7 +148,10 @@ mod tests {
             row("c", "telemetry_trust", 0.5, 150),
         ];
         let snap = build_queue_snapshot(&inputs(&rows));
-        assert_eq!(snap.candidates.by_class.get("algorithmic_improvement"), Some(&2));
+        assert_eq!(
+            snap.candidates.by_class.get("algorithmic_improvement"),
+            Some(&2)
+        );
         assert_eq!(snap.candidates.by_class.get("telemetry_trust"), Some(&1));
     }
 

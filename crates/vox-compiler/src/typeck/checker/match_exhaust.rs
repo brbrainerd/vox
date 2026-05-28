@@ -128,7 +128,10 @@ fn check_bool_exhaustiveness(
             missing.push("false".to_string());
         }
         let mut d = Diagnostic::error(
-            format!("Non-exhaustive match on bool. Missing: {}", missing.join(", ")),
+            format!(
+                "Non-exhaustive match on bool. Missing: {}",
+                missing.join(", ")
+            ),
             span,
             source,
         );

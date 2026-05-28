@@ -10,14 +10,14 @@ use crate::extensions::audio_capture::AudioCapture_TO;
 use crate::extensions::browser_automation::BrowserAutomation_TO;
 use crate::extensions::cloud_sync::CloudSync_TO;
 use crate::extensions::hardware_probe::HardwareProbe_TO;
+use crate::extensions::http_listener::HttpListener_TO;
 use crate::extensions::mesh_driver::MeshDriver_TO;
 use crate::extensions::ml_backend::MlBackend_TO;
 use crate::extensions::publication::Publication_TO;
 use crate::extensions::script_executor::ScriptExecutor_TO;
+use crate::extensions::skill_runtime::SkillRuntime_TO;
 use crate::extensions::speech_to_text::SpeechToText_TO;
 use crate::extensions::tensor_backend::TensorBackend_TO;
-use crate::extensions::http_listener::HttpListener_TO;
-use crate::extensions::skill_runtime::SkillRuntime_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
     StableAbi, library::RootModule, package_version_strings, sabi_trait,
@@ -122,7 +122,6 @@ pub trait VoxPlugin: Send + Sync {
     fn as_skill_runtime(&self) -> ROption<SkillRuntime_TO<'static, RBox<()>>> {
         ROption::RNone
     }
-
 }
 
 pub type VoxPluginRef = VoxPlugin_TO<'static, RBox<()>>;

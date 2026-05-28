@@ -17,7 +17,7 @@ pub async fn execute_command(
     args: serde_json::Value,
 ) -> Result<ExecuteOutput, String> {
     let mut shell_args = path;
-    
+
     if let serde_json::Value::Object(map) = args {
         for (k, v) in map {
             shell_args.push(format!("--{}", k));
@@ -29,7 +29,9 @@ pub async fn execute_command(
         }
     }
 
-    let output = app.shell().sidecar(VOX_SIDECAR_NAME)
+    let output = app
+        .shell()
+        .sidecar(VOX_SIDECAR_NAME)
         .map_err(|e| e.to_string())?
         .args(shell_args)
         .output()

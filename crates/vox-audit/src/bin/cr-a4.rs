@@ -55,7 +55,10 @@ fn main() {
             .to_string_lossy()
             .replace('\\', "/");
         match check_lifecycle(&body) {
-            LifecycleCheck::Present { value, has_migration_window } => {
+            LifecycleCheck::Present {
+                value,
+                has_migration_window,
+            } => {
                 with_lifecycle.push(rel.clone());
                 if value == "deprecated" && !has_migration_window {
                     missing_migration_window.push(rel);
@@ -231,7 +234,10 @@ fn check_lifecycle(body: &str) -> LifecycleCheck {
     let has_migration_window = body.contains("migration_window")
         || body.contains("migration-window")
         || body.contains("migrationWindow");
-    LifecycleCheck::Present { value, has_migration_window }
+    LifecycleCheck::Present {
+        value,
+        has_migration_window,
+    }
 }
 
 #[cfg(test)]
@@ -241,13 +247,17 @@ mod tests {
     #[test]
     fn yaml_lifecycle_stable() {
         let s = "name: foo\nlifecycle: stable\n";
-        assert!(matches!(check_lifecycle(s), LifecycleCheck::Present { ref value, .. } if value == "stable"));
+        assert!(
+            matches!(check_lifecycle(s), LifecycleCheck::Present { ref value, .. } if value == "stable")
+        );
     }
 
     #[test]
     fn yaml_quoted_lifecycle() {
         let s = "lifecycle: \"experimental\"\n";
-        assert!(matches!(check_lifecycle(s), LifecycleCheck::Present { ref value, .. } if value == "experimental"));
+        assert!(
+            matches!(check_lifecycle(s), LifecycleCheck::Present { ref value, .. } if value == "experimental")
+        );
     }
 
     #[test]
@@ -261,7 +271,10 @@ mod tests {
         let s = "lifecycle: deprecated\n";
         let r = check_lifecycle(s);
         match r {
-            LifecycleCheck::Present { value, has_migration_window } => {
+            LifecycleCheck::Present {
+                value,
+                has_migration_window,
+            } => {
                 assert_eq!(value, "deprecated");
                 assert!(!has_migration_window);
             }

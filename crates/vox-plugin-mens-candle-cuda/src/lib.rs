@@ -17,8 +17,6 @@ mod backend;
 // MoE link-only stubs: only needed when the `cuda` cargo feature is on, since
 // that's the only configuration where candle-nn's MoE entry-point references
 // reach the linker. See `moe_stubs.rs` for full rationale.
-#[cfg(feature = "cuda")]
-mod moe_stubs;
 pub mod candle_qlora_train;
 mod checkpoint;
 pub mod checkpoint_state;
@@ -33,6 +31,8 @@ pub mod manifest;
 pub mod merge;
 mod model;
 pub mod model_card;
+#[cfg(feature = "cuda")]
+mod moe_stubs;
 pub mod operator_messages;
 pub mod qlora_preflight;
 pub(crate) mod qlora_weights;

@@ -220,10 +220,7 @@ impl LanguageServer for Backend {
                 .client
                 .log_message(
                     MessageType::WARNING,
-                    format!(
-                        "did_save: cannot map URI to file path: {}",
-                        uri.as_str()
-                    ),
+                    format!("did_save: cannot map URI to file path: {}", uri.as_str()),
                 )
                 .await;
             return;

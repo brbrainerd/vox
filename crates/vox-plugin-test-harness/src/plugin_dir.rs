@@ -20,8 +20,8 @@ impl PluginDir {
     /// Parses the TOML eagerly so tests fail immediately on invalid manifests
     /// rather than only at loader call time.
     pub fn from_toml(toml_src: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let _manifest: PluginManifest = toml::from_str(toml_src)
-            .map_err(|e| format!("Plugin.toml parse error: {e}"))?;
+        let _manifest: PluginManifest =
+            toml::from_str(toml_src).map_err(|e| format!("Plugin.toml parse error: {e}"))?;
         let dir = TempDir::new()?;
         let plugin_toml_path = dir.path().join("Plugin.toml");
         std::fs::write(&plugin_toml_path, toml_src)?;
@@ -64,5 +64,6 @@ impl PluginDir {
 /// Panics with a readable error message on failure.
 #[track_caller]
 pub fn assert_manifest_parses(toml_src: &str) -> PluginManifest {
-    toml::from_str(toml_src).unwrap_or_else(|e| panic!("Plugin.toml failed to parse:\n{e}\n\nInput:\n{toml_src}"))
+    toml::from_str(toml_src)
+        .unwrap_or_else(|e| panic!("Plugin.toml failed to parse:\n{e}\n\nInput:\n{toml_src}"))
 }

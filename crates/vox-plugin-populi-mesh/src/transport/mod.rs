@@ -14,8 +14,8 @@
 //! **`VOX_MESH_HTTP_RATE_LIMIT_PER_SEC`** / **`VOX_MESH_HTTP_RATE_LIMIT_BURST`**.
 
 mod auth;
-pub mod auth_ed25519;  // D-7-rescope: ported from vox-populi/src/transport/auth_ed25519.rs
-pub mod envelope;      // D-7-rescope: ported from vox-populi/src/transport/envelope.rs
+pub mod auth_ed25519; // D-7-rescope: ported from vox-populi/src/transport/auth_ed25519.rs
+pub mod envelope; // D-7-rescope: ported from vox-populi/src/transport/envelope.rs
 mod handlers;
 mod mesh_replay;
 mod result_attestation;

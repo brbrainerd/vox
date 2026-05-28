@@ -163,6 +163,9 @@ mod tests {
         .expect("write");
         let mut failures = Vec::new();
         scan_file(tmp.path(), &md, &mut failures).expect("scan");
-        assert!(failures.is_empty(), "voxdb_schema_hir_parity_test must not be flagged: {failures:?}");
+        assert!(
+            failures.is_empty(),
+            "voxdb_schema_hir_parity_test must not be flagged: {failures:?}"
+        );
     }
 }

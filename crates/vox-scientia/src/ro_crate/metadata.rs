@@ -409,9 +409,9 @@ mod tests {
         // @context is an array; one of its entries must map "vox" to the
         // Vox prefix URL so the mainEntity predicates are valid JSON-LD.
         let ctx_arr = ctx.as_array().expect("@context must be an array");
-        let has_vox_prefix = ctx_arr.iter().any(|entry| {
-            entry.as_object().and_then(|o| o.get("vox")).is_some()
-        });
+        let has_vox_prefix = ctx_arr
+            .iter()
+            .any(|entry| entry.as_object().and_then(|o| o.get("vox")).is_some());
         assert!(has_vox_prefix, "expected @context to declare `vox:` prefix");
     }
 
@@ -421,7 +421,9 @@ mod tests {
         // declared alongside the base RO-Crate context. The first entry is
         // still the canonical RO-Crate 1.2 context URL.
         let json = build_ro_crate_json(&sample_metadata());
-        let ctx = json["@context"].as_array().expect("@context must be an array");
+        let ctx = json["@context"]
+            .as_array()
+            .expect("@context must be an array");
         assert_eq!(
             ctx.first().and_then(Value::as_str),
             Some("https://w3id.org/ro/crate/1.2/context")

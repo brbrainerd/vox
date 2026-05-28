@@ -105,10 +105,7 @@ async fn list_filtered_by_class() {
 #[tokio::test]
 async fn get_returns_none_when_absent() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("open db");
-    let got = db
-        .get_finding_candidate("nonexistent")
-        .await
-        .expect("get");
+    let got = db.get_finding_candidate("nonexistent").await.expect("get");
     assert!(got.is_none());
 }
 

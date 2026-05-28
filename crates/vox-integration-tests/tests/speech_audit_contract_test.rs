@@ -50,8 +50,10 @@ fn speech_audit_matrix_schema_and_yaml_validate() {
         "matrix must include a MUST dashboard-speak-gap confirmation cell"
     );
     assert!(
-        cells.iter().any(|c| c.get("tier") == Some(&json!("should"))
-            && c.get("compute") == Some(&json!("cuda"))),
+        cells
+            .iter()
+            .any(|c| c.get("tier") == Some(&json!("should"))
+                && c.get("compute") == Some(&json!("cuda"))),
         "matrix must include a SHOULD CUDA runtime decode cell"
     );
 }
@@ -97,7 +99,8 @@ fn speech_audit_docs_are_published_and_indexed() {
     for rel in required_docs {
         let abs = root.join(rel);
         assert!(abs.exists(), "missing speech audit doc: {}", abs.display());
-        let raw = fs::read_to_string(&abs).unwrap_or_else(|e| panic!("read {}: {e}", abs.display()));
+        let raw =
+            fs::read_to_string(&abs).unwrap_or_else(|e| panic!("read {}: {e}", abs.display()));
         assert!(raw.contains("title:"), "{rel} must have frontmatter title");
         assert!(
             raw.contains("last_updated:"),

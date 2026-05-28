@@ -37,12 +37,7 @@ static DOC_CATEGORY_POOL: &[&str] = &[
     "module-level items",
 ];
 
-static BUILD_CRATE_POOL: &[&str] = &[
-    "vox-compiler",
-    "vox-codegen-rust",
-    "vox-ssg",
-    "vox-cli",
-];
+static BUILD_CRATE_POOL: &[&str] = &["vox-compiler", "vox-codegen-rust", "vox-ssg", "vox-cli"];
 
 static TEST_MODULE_POOL: &[&str] = &[
     "the tokenizer",

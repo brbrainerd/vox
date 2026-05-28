@@ -71,9 +71,7 @@ async fn durable_checkout_workflow_executes_end_to_end() {
                     | "ActivityTask"
             );
             if is_activity_event {
-                e.get("activity")
-                    .and_then(|v| v.as_str())
-                    .map(String::from)
+                e.get("activity").and_then(|v| v.as_str()).map(String::from)
             } else {
                 None
             }

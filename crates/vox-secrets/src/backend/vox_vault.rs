@@ -757,10 +757,7 @@ fn path_to_vault_file_url(path: &str) -> String {
 /// drive letter and forward-slash separator after path normalization).
 fn is_windows_absolute_path(normalized: &str) -> bool {
     let bytes = normalized.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && bytes[2] == b'/'
+    bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
 }
 
 fn resolve_cloudless_db_url() -> String {

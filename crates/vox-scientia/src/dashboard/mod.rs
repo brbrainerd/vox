@@ -24,11 +24,9 @@ pub mod cost;
 pub mod queue;
 pub mod stalls;
 
-pub use cost::{
-    build_cost_rollup, CostByProvider, CostRollup, QuarterlyCostSummary,
-};
+pub use cost::{CostByProvider, CostRollup, QuarterlyCostSummary, build_cost_rollup};
 pub use queue::{
-    build_queue_snapshot, CandidateRow, ClaimsPendingSummary, DashboardInputs,
-    QueueSnapshot, ReplyWindowEntry,
+    CandidateRow, ClaimsPendingSummary, DashboardInputs, QueueSnapshot, ReplyWindowEntry,
+    build_queue_snapshot,
 };
-pub use stalls::{detect_stalls, StallEntry, STALE_THRESHOLD_MS};
+pub use stalls::{STALE_THRESHOLD_MS, StallEntry, detect_stalls};

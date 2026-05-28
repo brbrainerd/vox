@@ -168,7 +168,12 @@ pub fn emit_fn(
     } else {
         ""
     };
-    out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name.replace("::", "_")));
+    out.push_str(&format!(
+        "{}{}fn {}(",
+        pub_kw,
+        async_kw,
+        func.name.replace("::", "_")
+    ));
     if func.name.contains("::") {
         let actor_name = func.name.split("::").next().unwrap();
         out.push_str(&format!("state: &mut {}State, ", actor_name));
@@ -217,8 +222,8 @@ fn emit_actor_state_structs(module: &HirModule) -> String {
         // fields are optional in the Vox surface — when absent, emit
         // a unit-like struct so `::default()` still resolves. Per the
         // 2026-05-23 slot-3 chat bring-up.
-        let is_actor_shell = matches!(func.durability, Some(DurabilityKind::Actor))
-            && !func.name.contains("::");
+        let is_actor_shell =
+            matches!(func.durability, Some(DurabilityKind::Actor)) && !func.name.contains("::");
         if !is_actor_shell {
             continue;
         }

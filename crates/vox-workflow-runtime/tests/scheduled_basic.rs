@@ -26,7 +26,9 @@ async fn scheduled_function_fires_after_interval() {
     .await
     .unwrap();
 
-    let handle = vox_workflow_runtime::scheduled::start(db.clone()).await.unwrap();
+    let handle = vox_workflow_runtime::scheduled::start(db.clone())
+        .await
+        .unwrap();
 
     tokio::time::advance(std::time::Duration::from_secs(180)).await;
     // Yield enough times for the runner's tokio::select! loop to make progress.
@@ -36,7 +38,10 @@ async fn scheduled_function_fires_after_interval() {
     handle.shutdown().await;
 
     let runs = counter.load(Ordering::SeqCst);
-    assert!(runs >= 2, "expected >=2 fires in 180s with 60s interval; got {runs}");
+    assert!(
+        runs >= 2,
+        "expected >=2 fires in 180s with 60s interval; got {runs}"
+    );
 }
 
 /// ADR-041 §6(a) regression: on restart, the in-memory Instant deadline must
@@ -84,7 +89,9 @@ async fn scheduler_restart_preserves_partial_interval_wait() {
         .await
         .expect("UPDATE scheduled_runs succeeds");
 
-    let handle = vox_workflow_runtime::scheduled::start(db.clone()).await.unwrap();
+    let handle = vox_workflow_runtime::scheduled::start(db.clone())
+        .await
+        .unwrap();
 
     // Advance virtual time by 15 minutes. If the runner correctly seeded a
     // 10-minute deadline, the callback fires; if it fell back to `now +

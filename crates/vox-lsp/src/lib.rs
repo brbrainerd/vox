@@ -3,8 +3,8 @@
 //! Shared validation helpers used by the LSP binary and MCP / orchestrator quality gates.
 
 use tower_lsp_server::ls_types::{
-    CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticSeverity, NumberOrString,
-    Position, Range, TextEdit, Uri, WorkspaceEdit,
+    CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticSeverity,
+    NumberOrString, Position, Range, TextEdit, Uri, WorkspaceEdit,
 };
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
@@ -138,7 +138,10 @@ pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic> {
 /// Build quick-fix [`CodeAction`]s from diagnostics that carry structured `data.fixes`
 /// (parity with the stdio LSP `textDocument/codeAction` handler).
 #[must_use]
-pub fn quickfixes_for_diagnostics(uri: Uri, diagnostics: &[Diagnostic]) -> Vec<CodeActionOrCommand> {
+pub fn quickfixes_for_diagnostics(
+    uri: Uri,
+    diagnostics: &[Diagnostic],
+) -> Vec<CodeActionOrCommand> {
     let mut actions = Vec::new();
 
     for diagnostic in diagnostics {

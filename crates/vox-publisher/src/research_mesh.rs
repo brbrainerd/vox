@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use serde::Serialize;
-use serde_json::json;
 use serde_json::Value;
+use serde_json::json;
 
 fn received_at_ms() -> i64 {
     chrono::Utc::now().timestamp_millis()
@@ -204,7 +204,10 @@ fn unique_processed_path(processed_dir: &Path, original: &Path) -> PathBuf {
         return dest;
     }
     let ts = received_at_ms();
-    let stem = Path::new(name).file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+    let stem = Path::new(name)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("file");
     let ext = Path::new(name)
         .extension()
         .and_then(|e| e.to_str())
@@ -244,9 +247,7 @@ pub fn consume_pending_intake(repo_root: &Path) -> Result<ConsumeSummary> {
             let raw = match fs::read_to_string(&path) {
                 Ok(s) => s,
                 Err(e) => {
-                    summary
-                        .errors
-                        .push(format!("read {}: {e}", path.display()));
+                    summary.errors.push(format!("read {}: {e}", path.display()));
                     continue;
                 }
             };
@@ -259,11 +260,9 @@ pub fn consume_pending_intake(repo_root: &Path) -> Result<ConsumeSummary> {
                     continue;
                 }
             };
-            if let Err(e) = vox_jsonschema_util::validate(
-                &record,
-                &INTAKE_VALIDATOR,
-                path.display(),
-            ) {
+            if let Err(e) =
+                vox_jsonschema_util::validate(&record, &INTAKE_VALIDATOR, path.display())
+            {
                 summary.errors.push(format!("{e:#}"));
                 continue;
             }
@@ -280,8 +279,8 @@ pub fn consume_pending_intake(repo_root: &Path) -> Result<ConsumeSummary> {
                 "source_relative_path": rel,
                 "record": record,
             });
-            let encoded = serde_json::to_string(&line)
-                .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+            let encoded =
+                serde_json::to_string(&line).map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
             writeln!(ledger, "{encoded}").map_err(std::io::Error::other)?;
 
             let dest = unique_processed_path(&processed_dir, &path);
@@ -427,6 +426,7 @@ mod tests {
         let pv = jsonschema::validator_for(&promoted_schema).expect("compile promoted");
         pv.validate(&promoted).expect("promoted line validates");
 
-        vox_jsonschema_util::validate(&promoted["record"], &INTAKE_VALIDATOR, "record").expect("record");
+        vox_jsonschema_util::validate(&promoted["record"], &INTAKE_VALIDATOR, "record")
+            .expect("record");
     }
 }

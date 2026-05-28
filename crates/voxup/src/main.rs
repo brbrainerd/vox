@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use tracing::{info, Level};
+use tracing::{Level, info};
 
 mod install;
 mod manifest;

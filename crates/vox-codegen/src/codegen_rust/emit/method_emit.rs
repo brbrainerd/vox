@@ -269,10 +269,24 @@ where
             .map(|e| format!("Some(({}) as i64)", emit_expr(e.as_ref())))
             .unwrap_or_else(|| "None".to_string());
         emit_filter_where_order_limit(
-            table_name, &where_sql, &params, &order_sql, &limit_sql, proj.as_deref(), fallible, db,
+            table_name,
+            &where_sql,
+            &params,
+            &order_sql,
+            &limit_sql,
+            proj.as_deref(),
+            fallible,
+            db,
         )
     } else {
-        emit_filter_where(table_name, &where_sql, &params, proj.as_deref(), fallible, db)
+        emit_filter_where(
+            table_name,
+            &where_sql,
+            &params,
+            proj.as_deref(),
+            fallible,
+            db,
+        )
     }
 }
 
@@ -296,10 +310,7 @@ fn emit_filter_where_order_limit(
             params,
             order_sql,
             limit_sql,
-            await_or_expect_suffix(
-                fallible,
-                "vox codegen: db filter_where_order_limit_proj"
-            )
+            await_or_expect_suffix(fallible, "vox codegen: db filter_where_order_limit_proj")
         )
     } else {
         format!(
@@ -408,8 +419,12 @@ where
             }
             format!("{field} IN ({})", slots.join(", "))
         }
-        HirDbPredicate::And(parts) => combine_preds(_emit_expr, parts, _args, next_param, next_arg, " AND "),
-        HirDbPredicate::Or(parts) => combine_preds(_emit_expr, parts, _args, next_param, next_arg, " OR "),
+        HirDbPredicate::And(parts) => {
+            combine_preds(_emit_expr, parts, _args, next_param, next_arg, " AND ")
+        }
+        HirDbPredicate::Or(parts) => {
+            combine_preds(_emit_expr, parts, _args, next_param, next_arg, " OR ")
+        }
         HirDbPredicate::Not(inner) => format!(
             "NOT ({})",
             emit_predicate_sql_module(_emit_expr, inner, _args, next_param, next_arg)
@@ -417,7 +432,12 @@ where
     }
 }
 
-fn single_param_pred(field: &str, sql_op: &str, next_param: &mut usize, next_arg: &mut usize) -> String {
+fn single_param_pred(
+    field: &str,
+    sql_op: &str,
+    next_param: &mut usize,
+    next_arg: &mut usize,
+) -> String {
     let idx = *next_param;
     *next_param += 1;
     *next_arg += 1;
@@ -496,7 +516,11 @@ where
 
 /// Emit a `log.info/warn/error/debug(...)` tracing macro call.
 /// Returns `None` only when `args` is empty (caller guards this).
-fn emit_log_method_call<F>(emit_expr: &F, method: &str, args: &[vox_compiler::hir::HirArg]) -> Option<String>
+fn emit_log_method_call<F>(
+    emit_expr: &F,
+    method: &str,
+    args: &[vox_compiler::hir::HirArg],
+) -> Option<String>
 where
     F: Fn(&HirExpr) -> String,
 {
@@ -517,7 +541,12 @@ where
     if remaining.is_empty() {
         Some(format!("tracing::{}!(\"{{:?}}\", {})", macro_name, fmt))
     } else {
-        Some(format!("tracing::{}!({}, {})", macro_name, fmt, remaining.join(", ")))
+        Some(format!(
+            "tracing::{}!({}, {})",
+            macro_name,
+            fmt,
+            remaining.join(", ")
+        ))
     }
 }
 

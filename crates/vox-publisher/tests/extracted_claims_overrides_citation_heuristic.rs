@@ -6,7 +6,7 @@
 
 use vox_publisher::publication::PublicationManifest;
 use vox_publisher::publication_preflight::{
-    run_preflight, worthiness_inputs_from_manifest_and_preflight, PreflightProfile,
+    PreflightProfile, run_preflight, worthiness_inputs_from_manifest_and_preflight,
 };
 use vox_publisher::scientia_heuristics::ScientiaHeuristics;
 

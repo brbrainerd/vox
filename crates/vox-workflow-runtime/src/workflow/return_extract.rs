@@ -34,9 +34,7 @@ pub enum ExtractError {
 /// Scans backwards for the terminal `WorkflowCompleted` event and deserializes
 /// its `return_value` field into `T`. Returns [`ExtractError`] if the event is
 /// missing, the field is absent, or the value does not match `T`.
-pub fn extract_terminal_return<T: DeserializeOwned>(
-    journal: &[Value],
-) -> Result<T, ExtractError> {
+pub fn extract_terminal_return<T: DeserializeOwned>(journal: &[Value]) -> Result<T, ExtractError> {
     let completed = journal
         .iter()
         .rev()

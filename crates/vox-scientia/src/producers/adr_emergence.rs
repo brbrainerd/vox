@@ -80,11 +80,7 @@ pub fn is_adr_path(path: &std::path::Path) -> bool {
     false
 }
 
-fn scan(
-    repo_root: &std::path::Path,
-    now_ms: i64,
-    session_id: &str,
-) -> Vec<ResearchEvent> {
+fn scan(repo_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<ResearchEvent> {
     let docs_root = repo_root.join("docs");
     if !docs_root.is_dir() {
         return Vec::new();
@@ -142,7 +138,9 @@ mod tests {
 
     #[test]
     fn ancestor_named_decisions_matches() {
-        assert!(is_adr_path(std::path::Path::new("docs/decisions/2026-04-pick.md")));
+        assert!(is_adr_path(std::path::Path::new(
+            "docs/decisions/2026-04-pick.md"
+        )));
     }
 
     #[test]

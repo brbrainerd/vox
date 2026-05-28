@@ -55,7 +55,6 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
     }
 }
 
-
 /// Build a minimal [`HirTable`] with the given name and no fields.
 pub fn hir_table(name: impl Into<String>) -> HirTable {
     use vox_compiler::hir::DefId;

@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use super::ownership::OwnershipMode;
+use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
 use vox_compiler::hir::{HirArg, HirBinOp, HirExpr, HirPattern, HirStmt, HirType};
@@ -29,14 +29,30 @@ pub(super) fn emit_stmt(
                     "{pad}let {}{} = ctx.heap.allocate({});\n",
                     mut_kw,
                     emit_pattern(pattern, is_route, is_actor, mutation_tx),
-                    emit_expr_with(value, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+                    emit_expr_with(
+                        value,
+                        is_route,
+                        is_actor,
+                        mutation_tx,
+                        inferred_types,
+                        usage,
+                        OwnershipMode::Owned
+                    )
                 )
             } else {
                 format!(
                     "{pad}let {}{} = {};\n",
                     mut_kw,
                     emit_pattern(pattern, is_route, is_actor, mutation_tx),
-                    emit_expr_with(value, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+                    emit_expr_with(
+                        value,
+                        is_route,
+                        is_actor,
+                        mutation_tx,
+                        inferred_types,
+                        usage,
+                        OwnershipMode::Owned
+                    )
                 )
             }
         }
@@ -45,7 +61,15 @@ pub(super) fn emit_stmt(
             let lhs = emit_assign_target(target, inferred_types, usage);
             format!(
                 "{pad}{lhs} = {};\n",
-                emit_expr_with(value, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+                emit_expr_with(
+                    value,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                    inferred_types,
+                    usage,
+                    OwnershipMode::Owned
+                )
             )
         }
         HirStmt::Return { value, .. } => emit_return_stmt(
@@ -61,7 +85,15 @@ pub(super) fn emit_stmt(
         HirStmt::Expr { expr, .. } => {
             format!(
                 "{pad}{};\n",
-                emit_expr_with(expr, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+                emit_expr_with(
+                    expr,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                    inferred_types,
+                    usage,
+                    OwnershipMode::Owned
+                )
             )
         }
         HirStmt::While {
@@ -69,7 +101,15 @@ pub(super) fn emit_stmt(
         } => {
             let mut s = format!(
                 "{pad}while {} {{\n",
-                emit_expr_with(condition, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+                emit_expr_with(
+                    condition,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                    inferred_types,
+                    usage,
+                    OwnershipMode::Owned
+                )
             );
             if is_actor {
                 push_actor_loop_prelude(&mut s, &pad);
@@ -120,7 +160,16 @@ pub fn emit_main_stmt(
     indent: usize,
     inferred_types: Option<&HashMap<Span, HirType>>,
 ) -> String {
-    emit_stmt(stmt, indent, false, false, false, inferred_types, None, None)
+    emit_stmt(
+        stmt,
+        indent,
+        false,
+        false,
+        false,
+        inferred_types,
+        None,
+        None,
+    )
 }
 
 /// Emit an assignment l-value target without adding `.clone()`.
@@ -128,14 +177,30 @@ pub fn emit_main_stmt(
 /// The standard `emit_expr_with` appends `.clone()` to every identifier,
 /// which produces invalid Rust like `j.clone() = rhs`. This function emits
 /// a bare identifier or a simple field-access path instead.
-fn emit_assign_target(expr: &HirExpr, inferred_types: Option<&HashMap<Span, HirType>>, usage: Option<&super::usage::UsageTracker>) -> String {
+fn emit_assign_target(
+    expr: &HirExpr,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    usage: Option<&super::usage::UsageTracker>,
+) -> String {
     match expr {
         HirExpr::Ident(n, _) => n.clone(),
         HirExpr::FieldAccess(obj, field, _) => {
-            format!("{}.{}", emit_assign_target(obj, inferred_types, usage), field)
+            format!(
+                "{}.{}",
+                emit_assign_target(obj, inferred_types, usage),
+                field
+            )
         }
         // Fallback: use the generic emitter for complex lvalues (index ops etc.)
-        other => emit_expr_with(other, false, false, false, inferred_types, usage, OwnershipMode::Owned),
+        other => emit_expr_with(
+            other,
+            false,
+            false,
+            false,
+            inferred_types,
+            usage,
+            OwnershipMode::Owned,
+        ),
     }
 }
 
@@ -179,13 +244,29 @@ fn emit_return_stmt(
         if let Some(v) = value {
             format!(
                 "{pad}let _ = {}; // return ignored in actor; scaffolding only\n",
-                emit_expr_with(v, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+                emit_expr_with(
+                    v,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                    inferred_types,
+                    usage,
+                    OwnershipMode::Owned
+                )
             )
         } else {
             format!("{pad}// return ignored in actor; scaffolding only\n")
         }
     } else if let Some(v) = value {
-        let expr_str = emit_expr_with(v, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned);
+        let expr_str = emit_expr_with(
+            v,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            OwnershipMode::Owned,
+        );
         let rid_tok = http_error_rid.unwrap_or("None");
         let route_inference_safe_expr = if is_route {
             route_json_shortcut(v, is_route, is_actor, mutation_tx, inferred_types, usage)
@@ -225,7 +306,11 @@ where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {
     if matches!(op, HirBinOp::Pipe) {
-        return format!("{}({})", emit(r, OwnershipMode::Owned), emit(l, OwnershipMode::Owned));
+        return format!(
+            "{}({})",
+            emit(r, OwnershipMode::Owned),
+            emit(l, OwnershipMode::Owned)
+        );
     }
     let op_str = match op {
         HirBinOp::Add => "+",
@@ -243,10 +328,23 @@ where
         HirBinOp::Mod => "%",
         HirBinOp::Pipe => unreachable!("handled above"),
     };
-    if matches!(op, HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div) {
-        format!("({} {} &{})", emit(l, OwnershipMode::Owned), op_str, emit(r, OwnershipMode::Owned))
+    if matches!(
+        op,
+        HirBinOp::Add | HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div
+    ) {
+        format!(
+            "({} {} &{})",
+            emit(l, OwnershipMode::Owned),
+            op_str,
+            emit(r, OwnershipMode::Owned)
+        )
     } else {
-        format!("({} {} {})", emit(l, OwnershipMode::Owned), op_str, emit(r, OwnershipMode::Owned))
+        format!(
+            "({} {} {})",
+            emit(l, OwnershipMode::Owned),
+            op_str,
+            emit(r, OwnershipMode::Owned)
+        )
     }
 }
 
@@ -297,7 +395,15 @@ pub(super) fn emit_pattern(
     match pat {
         HirPattern::Ident(n, _) => n.clone(),
         HirPattern::Wildcard(_) => "_".into(),
-        HirPattern::Literal(lit, _) => emit_expr_with(lit, is_route, is_actor, mutation_tx, None, None, OwnershipMode::Owned),
+        HirPattern::Literal(lit, _) => emit_expr_with(
+            lit,
+            is_route,
+            is_actor,
+            mutation_tx,
+            None,
+            None,
+            OwnershipMode::Owned,
+        ),
         HirPattern::Tuple(pats, _) => format!(
             "({})",
             pats.iter()
@@ -360,15 +466,7 @@ pub(super) fn emit_expr_with(
 ) -> String {
     let fallible_db = mutation_tx;
     let emit = |e: &HirExpr, m: OwnershipMode| {
-        emit_expr_with(
-            e,
-            is_route,
-            is_actor,
-            mutation_tx,
-            inferred_types,
-            usage,
-            m,
-        )
+        emit_expr_with(e, is_route, is_actor, mutation_tx, inferred_types, usage, m)
     };
     if let Some(s) = super::stmt_expr_tail::try_emit_expr_tail(
         expr,
@@ -399,19 +497,23 @@ pub(super) fn emit_expr_with(
         }
         HirExpr::ListLit(elements, _) => format!(
             "vec![{}]",
-            elements.iter().map(|e| emit(e, OwnershipMode::Owned)).collect::<Vec<_>>().join(", ")
+            elements
+                .iter()
+                .map(|e| emit(e, OwnershipMode::Owned))
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
         HirExpr::TupleLit(elements, _) => format!(
             "({})",
-            elements.iter().map(|e| emit(e, OwnershipMode::Owned)).collect::<Vec<_>>().join(", ")
+            elements
+                .iter()
+                .map(|e| emit(e, OwnershipMode::Owned))
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
 
-        HirExpr::Ident(n, span) => {
-            emit_ident_expr(n, span, inferred_types, usage, mode)
-        }
-        HirExpr::Binary(op, l, r, _) => {
-            emit_binary_expr(op, l, r, &emit)
-        }
+        HirExpr::Ident(n, span) => emit_ident_expr(n, span, inferred_types, usage, mode),
+        HirExpr::Binary(op, l, r, _) => emit_binary_expr(op, l, r, &emit),
         HirExpr::Call(callee, args, is_await, _) => {
             if let HirExpr::Ident(n, _) = &**callee
                 && let Some(s) = emit_builtin_ident_call(n, args, &emit)
@@ -433,7 +535,10 @@ pub(super) fn emit_expr_with(
                 return s;
             }
             let c = emit(callee, OwnershipMode::Owned);
-            let a: Vec<_> = args.iter().map(|arg| emit(&arg.value, OwnershipMode::Owned)).collect();
+            let a: Vec<_> = args
+                .iter()
+                .map(|arg| emit(&arg.value, OwnershipMode::Owned))
+                .collect();
             if *is_await {
                 format!("{}({}).await", c, a.join(", "))
             } else {
@@ -441,7 +546,11 @@ pub(super) fn emit_expr_with(
             }
         }
         HirExpr::Index(obj, idx, _) => {
-            format!("{}[{} as usize]", emit(obj, OwnershipMode::Owned), emit(idx, OwnershipMode::Owned))
+            format!(
+                "{}[{} as usize]",
+                emit(obj, OwnershipMode::Owned),
+                emit(idx, OwnershipMode::Owned)
+            )
         }
         _ => unreachable!(
             "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
@@ -472,15 +581,17 @@ fn try_emit_namespace_call(
         return None;
     };
     let emit_owned = |e: &HirExpr| {
-        emit_expr_with(e, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+        emit_expr_with(
+            e,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            OwnershipMode::Owned,
+        )
     };
-    let with_await = |s: String| -> String {
-        if is_await {
-            format!("{}.await", s)
-        } else {
-            s
-        }
-    };
+    let with_await = |s: String| -> String { if is_await { format!("{}.await", s) } else { s } };
 
     // Shape 1: `Module.fn(args)` where Module is OpenClaw / Browser / fs.
     if let HirExpr::Ident(module_name, _) = namespace_expr.as_ref() {
@@ -596,7 +707,15 @@ fn route_json_shortcut(
     usage: Option<&super::usage::UsageTracker>,
 ) -> Option<String> {
     let emit = |e: &HirExpr| {
-        emit_expr_with(e, is_route, is_actor, mutation_tx, inferred_types, usage, OwnershipMode::Owned)
+        emit_expr_with(
+            e,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+            OwnershipMode::Owned,
+        )
     };
     match v {
         HirExpr::Call(callee, args, _await, _span) => {
@@ -632,11 +751,7 @@ fn route_json_shortcut(
 /// Extracted from `emit_expr_with` per CR-A1 plan §5.6 refactoring pass:
 /// the inline if-chain contributed ~16 decision points and obscured the
 /// dispatcher pattern.
-fn emit_builtin_ident_call<F>(
-    name: &str,
-    args: &[HirArg],
-    emit: &F,
-) -> Option<String>
+fn emit_builtin_ident_call<F>(name: &str, args: &[HirArg], emit: &F) -> Option<String>
 where
     F: Fn(&HirExpr, OwnershipMode) -> String,
 {

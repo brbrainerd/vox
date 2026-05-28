@@ -1,4 +1,4 @@
-﻿//! Automated evaluation helpers for MENS-trained emitters (Mn-T12).
+//! Automated evaluation helpers for MENS-trained emitters (Mn-T12).
 //!
 //! The production harness will drive `vox check` over emitted `.vox` snippets; this crate holds
 //! shared scoring types so CLI and CI can depend on one surface.
@@ -24,4 +24,3 @@ mod tests {
         assert_eq!(summarize_placeholder(), CompileVerdict::Pass);
     }
 }
-

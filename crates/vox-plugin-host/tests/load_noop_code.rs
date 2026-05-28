@@ -76,7 +76,11 @@ fn built_dylib(crate_name: &str, fixture_rel: &str) -> PathBuf {
         .env("CARGO_TARGET_DIR", target_dir.to_str().unwrap())
         .status()
         .expect("failed to spawn cargo");
-    assert!(status.success(), "fixture build failed: {}", manifest_path.display());
+    assert!(
+        status.success(),
+        "fixture build failed: {}",
+        manifest_path.display()
+    );
 
     for profile in ["debug", "release"] {
         let p = root.join("target").join(profile).join(&filename);

@@ -2,13 +2,13 @@
 
 use std::path::PathBuf;
 use tempfile::tempdir;
-use vox_populi::mens::tensor::finetune_contract::{
-    AdapterMethod, AdapterSpec, AdapterTargetMask, ArtifactSpec, DataSpec, ExecSpec,
-    FineTuneContract, ModelProvenanceSpec, ModelSpec, QuantSpec, BaseQuantMode,
-};
 use vox_populi::mens::tensor::execution_planner::ExecutionPlanner;
-use vox_populi::mens::tensor::training_config::MensTokenizerMode;
+use vox_populi::mens::tensor::finetune_contract::{
+    AdapterMethod, AdapterSpec, AdapterTargetMask, ArtifactSpec, BaseQuantMode, DataSpec, ExecSpec,
+    FineTuneContract, ModelProvenanceSpec, ModelSpec, QuantSpec,
+};
 use vox_populi::mens::tensor::hf_load::HfArchitecture;
+use vox_populi::mens::tensor::training_config::MensTokenizerMode;
 
 fn write_config(dir: &std::path::Path, model_type: &str) -> PathBuf {
     let p = dir.join("config.json");
@@ -24,7 +24,7 @@ fn write_config(dir: &std::path::Path, model_type: &str) -> PathBuf {
 fn plan_llama_model() {
     let dir = tempdir().expect("tempdir");
     let config_path = write_config(dir.path(), "llama");
-    
+
     let c = FineTuneContract {
         model: ModelSpec {
             hf_repo: None,
@@ -57,10 +57,13 @@ fn plan_llama_model() {
 
     let planner = ExecutionPlanner::default();
     let plan = planner.plan(&c).expect("plan llama");
-    
+
     // In preflight_model_bundle, we would check the architecture.
     // For now, let's just check the classification via the layout tool.
-    let layout = vox_populi::mens::tensor::hf_load::parse_transformer_layout(c.model.config_json.as_ref().unwrap()).expect("layout");
+    let layout = vox_populi::mens::tensor::hf_load::parse_transformer_layout(
+        c.model.config_json.as_ref().unwrap(),
+    )
+    .expect("layout");
     assert_eq!(layout.architecture, HfArchitecture::Llama);
 }
 
@@ -68,8 +71,9 @@ fn plan_llama_model() {
 fn plan_mistral_model() {
     let dir = tempdir().expect("tempdir");
     let config_path = write_config(dir.path(), "mistral");
-    
-    let layout = vox_populi::mens::tensor::hf_load::parse_transformer_layout(&config_path).expect("layout");
+
+    let layout =
+        vox_populi::mens::tensor::hf_load::parse_transformer_layout(&config_path).expect("layout");
     assert_eq!(layout.architecture, HfArchitecture::Mistral);
 }
 
@@ -77,7 +81,8 @@ fn plan_mistral_model() {
 fn plan_phi_model() {
     let dir = tempdir().expect("tempdir");
     let config_path = write_config(dir.path(), "phi");
-    
-    let layout = vox_populi::mens::tensor::hf_load::parse_transformer_layout(&config_path).expect("layout");
+
+    let layout =
+        vox_populi::mens::tensor::hf_load::parse_transformer_layout(&config_path).expect("layout");
     assert_eq!(layout.architecture, HfArchitecture::Phi);
 }

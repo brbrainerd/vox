@@ -75,7 +75,11 @@ impl ArchCheckFixture {
         fs::write(root.join("Cargo.lock"), "# workspace lock\n").unwrap();
 
         // CHANGELOG.md with one released version (for staleness rule)
-        fs::write(root.join("CHANGELOG.md"), "## [0.1.0] - 2020-01-01\n\n- initial\n").unwrap();
+        fs::write(
+            root.join("CHANGELOG.md"),
+            "## [0.1.0] - 2020-01-01\n\n- initial\n",
+        )
+        .unwrap();
 
         // .git stub — prevents git commands from walking up to the real repo
         fs::create_dir_all(root.join(".git")).unwrap();
@@ -83,20 +87,35 @@ impl ArchCheckFixture {
 
         // docs/src/architecture/
         fs::create_dir_all(root.join("docs/src/architecture")).unwrap();
-        fs::write(root.join("docs/src/architecture/layers.toml"), "[crates.vox-alpha]\nlayer = 0\n\n[crates.vox-beta]\nlayer = 1\n").unwrap();
+        fs::write(
+            root.join("docs/src/architecture/layers.toml"),
+            "[crates.vox-alpha]\nlayer = 0\n\n[crates.vox-beta]\nlayer = 1\n",
+        )
+        .unwrap();
         fs::write(
             root.join("docs/src/architecture/where-things-live.md"),
-            format!("# WTL\n\n`crates/vox-alpha/` — {long_desc}\n`crates/vox-beta/` — {beta_desc}\n"),
-        ).unwrap();
+            format!(
+                "# WTL\n\n`crates/vox-alpha/` — {long_desc}\n`crates/vox-beta/` — {beta_desc}\n"
+            ),
+        )
+        .unwrap();
 
         // vox-alpha
         fs::create_dir_all(root.join("crates/vox-alpha/src")).unwrap();
         fs::write(root.join("crates/vox-alpha/Cargo.toml"), format!("[package]\nname = \"vox-alpha\"\nversion = \"0.1.0\"\nedition = \"2021\"\ndescription = \"{long_desc}\"\n")).unwrap();
-        fs::write(root.join("crates/vox-alpha/src/lib.rs"), "//! Alpha crate.\npub fn alpha() {}\n").unwrap();
+        fs::write(
+            root.join("crates/vox-alpha/src/lib.rs"),
+            "//! Alpha crate.\npub fn alpha() {}\n",
+        )
+        .unwrap();
 
         // vox-beta
         fs::create_dir_all(root.join("crates/vox-beta/src")).unwrap();
         fs::write(root.join("crates/vox-beta/Cargo.toml"), format!("[package]\nname = \"vox-beta\"\nversion = \"0.1.0\"\nedition = \"2021\"\ndescription = \"{beta_desc}\"\n\n[dependencies]\nvox-alpha = {{ path = \"../vox-alpha\" }}\n")).unwrap();
-        fs::write(root.join("crates/vox-beta/src/lib.rs"), "//! Beta crate.\npub fn beta() {}\n").unwrap();
+        fs::write(
+            root.join("crates/vox-beta/src/lib.rs"),
+            "//! Beta crate.\npub fn beta() {}\n",
+        )
+        .unwrap();
     }
 }

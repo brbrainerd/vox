@@ -1,7 +1,7 @@
+use vox_config::{OPENROUTER_AUTO, OPENROUTER_FREE};
 use vox_orchestrator::models::{
     ModelCapabilities, ModelSpec, ModelTier, PricingSource, ProviderType, StrengthTag,
 };
-use vox_config::{OPENROUTER_AUTO, OPENROUTER_FREE};
 
 /// Virtual/synthetic models. Merged into registry when conditions are met.
 /// Single definition for openrouter/auto, openrouter/free, and any future virtual models.

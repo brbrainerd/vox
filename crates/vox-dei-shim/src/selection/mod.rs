@@ -12,14 +12,14 @@ mod virtual_models;
 mod weights;
 
 pub use free_tier::{FreeTierRouteRequest, FreeTierRouter, RouteCandidate};
-pub use vox_orchestrator::registry_model_resolve::{
-    infer_prompt_capability_hints, resolve_model_with_registry_fallbacks,
-    RegistryModelResolutionParams,
-};
-pub use scorer::{select_best_model, ModelScorer, ScoreParams};
+pub use scorer::{ModelScorer, ScoreParams, select_best_model};
 pub use task_routing::{
     config_to_routing_profile, model_matches_task, primary_strength, task_and_flags_to_profile,
     task_strengths,
 };
 pub use virtual_models::{openrouter_auto_model, openrouter_free_model, virtual_models};
+pub use vox_orchestrator::registry_model_resolve::{
+    RegistryModelResolutionParams, infer_prompt_capability_hints,
+    resolve_model_with_registry_fallbacks,
+};
 pub use weights::ScoringWeights;

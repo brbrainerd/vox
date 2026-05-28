@@ -116,8 +116,14 @@ mod tests {
         assert_eq!(
             r.by_provider,
             vec![
-                CostByProvider { provider: "anthropic".into(), usd: 7.0 },
-                CostByProvider { provider: "openai".into(), usd: 11.0 },
+                CostByProvider {
+                    provider: "anthropic".into(),
+                    usd: 7.0
+                },
+                CostByProvider {
+                    provider: "openai".into(),
+                    usd: 11.0
+                },
             ]
         );
     }

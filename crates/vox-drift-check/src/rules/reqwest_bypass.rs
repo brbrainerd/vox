@@ -30,11 +30,13 @@ impl DriftRule for ReqwestBypassRule {
             return vec![];
         }
 
-        features.call_sites.iter()
+        features
+            .call_sites
+            .iter()
             .filter(|cs| {
-                FORBIDDEN.iter().any(|f| {
-                    cs.path.iter().map(|s| s.as_str()).eq(f.iter().copied())
-                })
+                FORBIDDEN
+                    .iter()
+                    .any(|f| cs.path.iter().map(|s| s.as_str()).eq(f.iter().copied()))
             })
             .map(|cs| Finding {
                 rule_id: self.id().to_string(),

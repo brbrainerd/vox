@@ -738,10 +738,7 @@ fn parse_imports(path: &std::path::Path) -> Vec<String> {
 /// paths inside `project_root`. Tries both `app/routes/api.vox` and
 /// `app/routes/api/mod.vox`. Returns canonical paths when they exist on
 /// disk (so they match the entries in `discover_vox_files`).
-fn candidate_import_paths(
-    project_root: &std::path::Path,
-    dotted: &str,
-) -> Vec<std::path::PathBuf> {
+fn candidate_import_paths(project_root: &std::path::Path, dotted: &str) -> Vec<std::path::PathBuf> {
     let segments: Vec<&str> = dotted.split('.').collect();
     if segments.is_empty() {
         return Vec::new();
@@ -894,7 +891,11 @@ mod tests {
             "import lib\nfn main() to int { return 0 }\n",
         )
         .unwrap();
-        std::fs::write(root.join("src/lib.vox"), "fn helper() to int { return 0 }\n").unwrap();
+        std::fs::write(
+            root.join("src/lib.vox"),
+            "fn helper() to int { return 0 }\n",
+        )
+        .unwrap();
 
         let files = discover_vox_files(root);
         // discover_vox_files already returns import-graph order.
@@ -1026,13 +1027,7 @@ mod tests {
         let nope = tmp.path().join("does-not-exist");
         let result = run_project(&nope, true).await;
         assert!(result.is_err());
-        assert!(
-            result
-                .err()
-                .unwrap()
-                .to_string()
-                .contains("does not exist")
-        );
+        assert!(result.err().unwrap().to_string().contains("does not exist"));
     }
 
     #[test]

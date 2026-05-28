@@ -52,7 +52,9 @@ mod tests {
         let ids: Vec<&str> = out
             .iter()
             .filter_map(|e| match e {
-                ResearchEvent::FindingCandidateProposed { finding_id, .. } => Some(finding_id.as_str()),
+                ResearchEvent::FindingCandidateProposed { finding_id, .. } => {
+                    Some(finding_id.as_str())
+                }
                 _ => None,
             })
             .collect();

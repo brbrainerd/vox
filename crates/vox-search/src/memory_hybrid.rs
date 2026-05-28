@@ -73,17 +73,17 @@ pub fn git_latest_mtime_map(repo_root: &Path, under: &Path) -> Option<GitMtimeMa
         .replace('\\', "/");
     let output = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .current_dir(repo_root)
-        .args([
-            "log",
-            "--pretty=format:%ct",
-            "--name-only",
-            "--no-renames",
-            "--",
-            rel.trim_end_matches('/'),
-        ])
-        .output()
-        .ok()?;
+    .current_dir(repo_root)
+    .args([
+        "log",
+        "--pretty=format:%ct",
+        "--name-only",
+        "--no-renames",
+        "--",
+        rel.trim_end_matches('/'),
+    ])
+    .output()
+    .ok()?;
     if !output.status.success() {
         return None;
     }

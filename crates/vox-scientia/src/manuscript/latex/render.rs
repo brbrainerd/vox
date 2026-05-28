@@ -91,9 +91,7 @@ fn write_section_todo(out: &mut String, section: &str, facts: &[CitedFact]) {
     out.push_str("\\section{");
     out.push_str(&escape_latex(section));
     out.push_str("}\n");
-    out.push_str(
-        "% TODO(narrative): write the ",
-    );
+    out.push_str("% TODO(narrative): write the ");
     out.push_str(section);
     out.push_str(" yourself.\n");
     out.push_str(

@@ -5,7 +5,9 @@ use vox_package::Sha3_512;
 
 use crate::distributed_training::checkpoint::{CheckpointBundle, synthetic_weights_hash};
 use crate::distributed_training::gradient::GradientShard;
-use crate::distributed_training::session::{Batch, SessionId, StepResult, TrainingError, TrainingSession};
+use crate::distributed_training::session::{
+    Batch, SessionId, StepResult, TrainingError, TrainingSession,
+};
 
 /// Single-node / rank-local data-parallel session (world_size = 1 implemented).
 pub struct DataParallelSession {

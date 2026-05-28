@@ -84,10 +84,10 @@ impl GitExec {
         let started = Instant::now();
         let output = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .current_dir(&self.cwd)
-            .args(args)
-            .output()
-            .await?;
+        .current_dir(&self.cwd)
+        .args(args)
+        .output()
+        .await?;
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let code = output.status.code().unwrap_or(-1);

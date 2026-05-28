@@ -250,8 +250,8 @@ pub async fn delete_companion(db: &Codex, id: &str) -> Result<()> {
 
 #[cfg(test)]
 mod orchestrator_companion_migration_tests {
-    use super::orchestrator_companion_id_migration_plan;
     use super::OrchestratorCompanionIdMigration;
+    use super::orchestrator_companion_id_migration_plan;
 
     #[test]
     fn migrates_none_when_legacy_missing() {

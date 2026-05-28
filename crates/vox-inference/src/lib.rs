@@ -4,16 +4,16 @@
 //! dispatch across heterogeneous devices.
 
 mod backend;
-mod dispatcher;
 pub mod backends;
+mod dispatcher;
 pub mod swarm;
 
 pub use backend::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, LoadedModel, PromptInput,
     Quantization, SamplingParams, Verdict,
 };
-pub use dispatcher::InferenceDispatcher;
 pub use backends::{
     CandleCpuBackend, CandleCudaBackend, CandleMetalBackend, LlamaCppRpcBackend,
     OllamaSubprocessBackend,
 };
+pub use dispatcher::InferenceDispatcher;

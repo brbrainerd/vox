@@ -29,7 +29,10 @@ fn env_parse_helpers_without_mutating_env() {
 #[test]
 fn bootstrap_inference_pins_known_aliases() {
     assert_eq!(bootstrap_inference::OPENROUTER_AUTO, "openrouter/auto");
-    assert_eq!(bootstrap_inference::NLI_FALLBACK, "google/gemini-3.1-flash-lite");
+    assert_eq!(
+        bootstrap_inference::NLI_FALLBACK,
+        "google/gemini-3.1-flash-lite"
+    );
 }
 
 #[test]

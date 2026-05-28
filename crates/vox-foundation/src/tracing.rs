@@ -6,8 +6,7 @@ use tracing_subscriber::EnvFilter;
 
 /// CLI preset: honor `RUST_LOG` when valid; otherwise default filter **`info`**.
 pub fn try_init_cli_default_info_fallback() {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
     let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
 }
 

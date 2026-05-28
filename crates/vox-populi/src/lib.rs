@@ -420,6 +420,6 @@ mod normalize_http_control_base_tests {
 }
 
 #[allow(missing_docs)]
-pub mod inference;
-#[allow(missing_docs)]
 pub mod distributed_training;
+#[allow(missing_docs)]
+pub mod inference;

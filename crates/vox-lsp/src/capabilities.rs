@@ -6,9 +6,7 @@ use tower_lsp_server::ls_types::*;
 #[must_use]
 pub fn server_capabilities() -> ServerCapabilities {
     ServerCapabilities {
-        text_document_sync: Some(TextDocumentSyncCapability::Kind(
-            TextDocumentSyncKind::FULL,
-        )),
+        text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         semantic_tokens_provider: Some(
             SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(

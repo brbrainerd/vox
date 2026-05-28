@@ -81,10 +81,12 @@ impl ModelRegistry {
         let mut maps: Vec<NodeModelMap> = g
             .by_node
             .iter()
-            .map(|(node_id, models): (&String, &Vec<ModelEntry>)| NodeModelMap {
-                node_id: node_id.clone(),
-                models: models.clone(),
-            })
+            .map(
+                |(node_id, models): (&String, &Vec<ModelEntry>)| NodeModelMap {
+                    node_id: node_id.clone(),
+                    models: models.clone(),
+                },
+            )
             .collect();
         maps.sort_by(|a, b| a.node_id.cmp(&b.node_id));
         maps

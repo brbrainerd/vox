@@ -110,9 +110,9 @@ async fn workflow_resumes_seeded_activity_from_journal() {
 
     // The seeded result payload should be embedded back into the journal
     // verbatim (carrying the marker we planted at seed time).
-    let saw_seeded_marker = journal.iter().any(|e| {
-        e.get("seeded_marker").and_then(|v| v.as_str()) == Some("crash-replay-seed")
-    });
+    let saw_seeded_marker = journal
+        .iter()
+        .any(|e| e.get("seeded_marker").and_then(|v| v.as_str()) == Some("crash-replay-seed"));
     assert!(
         saw_seeded_marker,
         "expected seeded result payload to be embedded in resumed journal; full events={event_names:?}"

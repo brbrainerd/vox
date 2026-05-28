@@ -227,8 +227,6 @@ pub fn build_app(state: GatewayState) -> Router {
         .route("/v1/mobile", get(http_mobile_workspace))
         .route("/v1/mobile/status", get(http_mobile_status));
 
-
-
     let cors = tower_http::cors::CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
         .allow_methods(tower_http::cors::Any)
@@ -278,7 +276,6 @@ pub fn spawn_http_gateway_if_enabled(
         read_bool_env(vox_secrets::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
 
     let dashboard_token: Option<token::DashboardToken> = None;
-
 
     let public_eval_enabled =
         read_bool_env(vox_secrets::SecretId::VoxMcpHttpPublicEvalEnabled).unwrap_or(false);

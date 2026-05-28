@@ -368,4 +368,3 @@ pub struct ModelPricingCatalogRow {
     pub last_observed_at_ms: Option<i64>,
     pub updated_at_ms: i64,
 }
-

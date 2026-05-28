@@ -233,7 +233,10 @@ mod tests {
         mgr.notify_payload("ChatRoom", "payload".to_string()).await;
         assert_eq!(payload_rx.recv().await.unwrap(), "payload");
         // Signal channel must NOT have fired.
-        assert!(sig_rx.try_recv().is_err(), "signal channel must be independent");
+        assert!(
+            sig_rx.try_recv().is_err(),
+            "signal channel must be independent"
+        );
     }
 
     #[tokio::test]

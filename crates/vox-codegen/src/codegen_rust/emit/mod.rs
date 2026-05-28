@@ -336,8 +336,16 @@ use {}::*;
         }
 
         for stmt in &sf.body {
-            let emitted =
-                stmt_expr::emit_stmt(stmt, 1, false, false, false, Some(&module.inferred_types), None, None);
+            let emitted = stmt_expr::emit_stmt(
+                stmt,
+                1,
+                false,
+                false,
+                false,
+                Some(&module.inferred_types),
+                None,
+                None,
+            );
             out.push_str(&emitted);
         }
 

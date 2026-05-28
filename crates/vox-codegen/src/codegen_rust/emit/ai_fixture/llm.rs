@@ -97,9 +97,7 @@ fn emit_search_memory_body(out: &mut String, query: &str) {
     out.push_str("    let mem_hit = mgr.lookup_fact_by_key(search_query).await.expect(\"ai @search: lookup_fact_by_key\");\n");
     out.push_str("    let outcome = if mem_hit.as_ref().map(|s| !s.is_empty()).unwrap_or(false) { \"hit\" } else { \"miss\" };\n");
     out.push_str("    let content = mem_hit.unwrap_or_default();\n");
-    out.push_str(
-        "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
-    );
+    out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
     out.push_str("        vox_telemetry::AiFixtureEvent::SearchDispatch(vox_telemetry::SearchDispatchTelemetryEvent {\n");
     out.push_str("            corpus: \"memory\".into(),\n");
     out.push_str("            outcome: outcome.into(),\n");
@@ -114,9 +112,7 @@ fn emit_search_web_body(out: &mut String, query: &str, top_k: u32) {
     out.push_str(
         "    let route_input = vox_actor_runtime::model_resolution::RouteResolutionInput::default();\n",
     );
-    out.push_str(
-        "    let web_stage = vox_actor_runtime::llm::cascade::ResearchStage::Judge;\n",
-    );
+    out.push_str("    let web_stage = vox_actor_runtime::llm::cascade::ResearchStage::Judge;\n");
     out.push_str(
         "    let candidates = vox_actor_runtime::llm::cascade::cascade_with_optional_manual(web_stage, &route_input, None, None, None);\n",
     );
@@ -132,9 +128,7 @@ fn emit_search_web_body(out: &mut String, query: &str, top_k: u32) {
     out.push_str("        Ok(_) => (\"ok\", None),\n");
     out.push_str("        Err(e) => (\"error\", Some(e.clone())),\n");
     out.push_str("    };\n");
-    out.push_str(
-        "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
-    );
+    out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
     out.push_str("        vox_telemetry::AiFixtureEvent::SearchDispatch(vox_telemetry::SearchDispatchTelemetryEvent {\n");
     out.push_str("            corpus: \"web\".into(),\n");
     out.push_str("            outcome: outcome.into(),\n");
@@ -142,9 +136,7 @@ fn emit_search_web_body(out: &mut String, query: &str, top_k: u32) {
     out.push_str(&format!("            top_k: Some({}),\n", top_k));
     out.push_str("        })\n");
     out.push_str("    ));\n");
-    out.push_str(
-        "    let content = web_res.expect(\"ai @search web cascade\").content;\n",
-    );
+    out.push_str("    let content = web_res.expect(\"ai @search web cascade\").content;\n");
 }
 
 fn emit_search_docs_body(out: &mut String, query: &str, top_k: usize, top_k_telemetry: u32) {
@@ -165,9 +157,7 @@ fn emit_search_docs_body(out: &mut String, query: &str, top_k: usize, top_k_tele
         top_k
     ));
     out.push_str("    let content = format!(\"{:?}\", exec);\n");
-    out.push_str(
-        "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
-    );
+    out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
     out.push_str("        vox_telemetry::AiFixtureEvent::SearchDispatch(vox_telemetry::SearchDispatchTelemetryEvent {\n");
     out.push_str("            corpus: \"docs\".into(),\n");
     out.push_str("            outcome: \"ok\".into(),\n");
@@ -204,8 +194,14 @@ fn emit_subagent_distributed_body(
     out.push_str(
         "            let mut signal = vox_orchestrator::subagent_dispatch::DispatchSignal::default();\n",
     );
-    out.push_str(&format!("            signal.complexity = {};\n", sig_complexity));
-    out.push_str(&format!("            signal.chain_depth = {};\n", subagent.max_depth));
+    out.push_str(&format!(
+        "            signal.complexity = {};\n",
+        sig_complexity
+    ));
+    out.push_str(&format!(
+        "            signal.chain_depth = {};\n",
+        subagent.max_depth
+    ));
     out.push_str("            let decision = router.route_with_telemetry(&signal, None);\n");
     out.push_str("            let decision_str = decision.to_string();\n");
     out.push_str(
@@ -230,7 +226,10 @@ fn emit_subagent_local_body(
         "    let mut signal = vox_orchestrator::subagent_dispatch::DispatchSignal::default();\n",
     );
     out.push_str(&format!("    signal.complexity = {};\n", sig_complexity));
-    out.push_str(&format!("    signal.chain_depth = {};\n", subagent.max_depth));
+    out.push_str(&format!(
+        "    signal.chain_depth = {};\n",
+        subagent.max_depth
+    ));
     out.push_str("    let decision = router.route_with_telemetry(&signal, None);\n");
     out.push_str("    let decision_str = decision.to_string();\n");
     out.push_str(
@@ -379,11 +378,12 @@ fn emit_intent_telemetry(
     } else {
         format!("vec![{strengths_inner}]")
     };
-    out.push_str(
-        "    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n",
-    );
+    out.push_str("    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(\n");
     out.push_str("        vox_telemetry::AiFixtureEvent::ModelIntent(vox_telemetry::FixtureModelIntentResolvedEvent {\n");
-    out.push_str(&format!("            task_category: \"{}\".into(),\n", task));
+    out.push_str(&format!(
+        "            task_category: \"{}\".into(),\n",
+        task
+    ));
     out.push_str(&format!("            strengths: {},\n", strengths_vec));
     out.push_str(&format!("            tier_max: {},\n", tier));
     out.push_str("            resolved_model_hint: model.clone(),\n");

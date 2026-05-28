@@ -294,9 +294,7 @@ pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> Str
 
     let config = ResearchConfig {
         event_emitter: Some(std::sync::Arc::new(
-            vox_dei_shim::research::BroadcastEmitter::new(
-                state.research_events.clone(),
-            ),
+            vox_dei_shim::research::BroadcastEmitter::new(state.research_events.clone()),
         )),
         ..ResearchConfig::default()
     };
@@ -391,9 +389,7 @@ pub async fn research_start(state: &ServerState, params: ResearchStartParams) ->
         );
         let config = ResearchConfig {
             event_emitter: Some(std::sync::Arc::new(
-                vox_dei_shim::research::BroadcastEmitter::new(
-                    state.research_events.clone(),
-                ),
+                vox_dei_shim::research::BroadcastEmitter::new(state.research_events.clone()),
             )),
             ..ResearchConfig::default()
         };

@@ -79,7 +79,10 @@ fn code_lens_emits_for_at_test() {
     let module = parse(lex(src)).expect("parse");
     let lenses = vox_lsp::code_lens::code_lenses_for_module(&module, src);
     assert!(
-        lenses.iter().any(|l| l.command.as_ref().is_some_and(|c| c.command == "vox.runTest")),
+        lenses.iter().any(|l| l
+            .command
+            .as_ref()
+            .is_some_and(|c| c.command == "vox.runTest")),
         "expected run-test code lens"
     );
 }

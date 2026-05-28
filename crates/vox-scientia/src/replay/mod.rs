@@ -21,9 +21,9 @@ pub mod sandbox;
 
 pub use report::{ReplayError, ReplayOutcome, ReplayReport};
 
+use crate::ro_crate::MainEntity;
 use std::path::Path;
 use std::time::Duration;
-use crate::ro_crate::MainEntity;
 
 /// Execute `main_entity` in a fresh sandbox under `stage_dir` and produce a
 /// [`ReplayReport`].
@@ -69,10 +69,7 @@ pub async fn run_replay(
             },
             wall_ms: sandbox_outcome.wall_ms,
             measured_score: 0.0,
-            diagnostics: vec![format!(
-                "entry_point exited with code {:?}",
-                exit_code
-            )],
+            diagnostics: vec![format!("entry_point exited with code {:?}", exit_code)],
             stdout: truncate(&sandbox_outcome.stdout, main_entity.max_stdout_bytes),
             stderr: truncate(&sandbox_outcome.stderr, main_entity.max_stderr_bytes),
         });

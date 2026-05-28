@@ -62,10 +62,10 @@ pub async fn git_diff(state: &ServerState, path: Option<&str>) -> String {
 pub async fn git_status(state: &ServerState) -> String {
     let output = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .current_dir(git_cwd(state))
-        .args(["status", "--short"])
-        .output()
-        .await;
+    .current_dir(git_cwd(state))
+    .args(["status", "--short"])
+    .output()
+    .await;
 
     match output {
         Ok(o) => {
@@ -84,10 +84,10 @@ pub async fn git_status(state: &ServerState) -> String {
 pub async fn git_blame(state: &ServerState, path: &str) -> String {
     let output = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .current_dir(git_cwd(state))
-        .args(["blame", path])
-        .output()
-        .await;
+    .current_dir(git_cwd(state))
+    .args(["blame", path])
+    .output()
+    .await;
 
     match output {
         Ok(o) => {

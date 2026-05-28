@@ -693,4 +693,3 @@ pub struct VisusAuditLogRow {
     pub screenshot_cas: Option<String>,
     pub created_at: String,
 }
-

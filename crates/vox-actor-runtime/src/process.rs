@@ -2,8 +2,8 @@ use crate::mailbox::{
     DEFAULT_MAILBOX_CAPACITY, DEFAULT_MAX_REDUCTIONS, Envelope, MailboxReceiver, MailboxSender,
     MessagePayload, Request, new_mailbox,
 };
-use bytes::Bytes;
 use crate::pid::Pid;
+use bytes::Bytes;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 

@@ -161,8 +161,8 @@ fn emit_runtime_capabilities_projection(
     if !yaml_path.is_file() {
         return Ok(None);
     }
-    let raw = fs::read_to_string(&yaml_path)
-        .with_context(|| format!("read {}", yaml_path.display()))?;
+    let raw =
+        fs::read_to_string(&yaml_path).with_context(|| format!("read {}", yaml_path.display()))?;
     let doc: RuntimeCapabilitiesYaml =
         serde_yaml::from_str(&raw).with_context(|| format!("parse {}", yaml_path.display()))?;
 
@@ -196,7 +196,8 @@ fn emit_runtime_capabilities_projection(
     };
 
     let out_path = packaging_dir.join("runtime-capabilities.projection.json");
-    let json = serde_json::to_string_pretty(&projection).context("serialize runtime-capabilities.projection.json")?;
+    let json = serde_json::to_string_pretty(&projection)
+        .context("serialize runtime-capabilities.projection.json")?;
     fs::write(&out_path, json).with_context(|| format!("write {}", out_path.display()))?;
     Ok(Some(out_path))
 }
@@ -216,14 +217,9 @@ pub fn emit_tauri_packaging_hints(
     contracts_repo_root: Option<&Path>,
     required: Option<&vox_compiler::required_capabilities::RequiredRuntimeCapabilities>,
 ) -> Result<PathBuf> {
-    let required_ids: Option<BTreeSet<String>> = required
-        .map(|c| c.capability_ids.iter().cloned().collect());
-    emit_tauri_packaging_hints_inner(
-        out_root,
-        params,
-        contracts_repo_root,
-        required_ids.as_ref(),
-    )
+    let required_ids: Option<BTreeSet<String>> =
+        required.map(|c| c.capability_ids.iter().cloned().collect());
+    emit_tauri_packaging_hints_inner(out_root, params, contracts_repo_root, required_ids.as_ref())
 }
 
 fn emit_tauri_packaging_hints_inner(
@@ -324,7 +320,13 @@ capabilities:
         let body: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&proj).unwrap()).unwrap();
         assert_eq!(body["schema_version"], 1);
-        assert!(body["tauri_permission_allow_list"].as_array().unwrap().len() >= 2);
+        assert!(
+            body["tauri_permission_allow_list"]
+                .as_array()
+                .unwrap()
+                .len()
+                >= 2
+        );
     }
 
     #[test]
@@ -362,11 +364,11 @@ capabilities:
             frontend_dist_relative: "../public",
         };
         let required = vox_compiler::required_capabilities::RequiredRuntimeCapabilities {
-            schema_version: vox_compiler::required_capabilities::REQUIRED_CAPABILITIES_SCHEMA_VERSION,
+            schema_version:
+                vox_compiler::required_capabilities::REQUIRED_CAPABILITIES_SCHEMA_VERSION,
             capability_ids: vec!["net.http".to_string()],
         };
-        let out =
-            emit_tauri_packaging_hints(tmp.path(), &p, Some(&repo), Some(&required)).unwrap();
+        let out = emit_tauri_packaging_hints(tmp.path(), &p, Some(&repo), Some(&required)).unwrap();
         let proj = out.join("runtime-capabilities.projection.json");
         let body: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&proj).unwrap()).unwrap();
@@ -386,7 +388,11 @@ capabilities:
         let repo = tmp.path().join("monorepo");
         let cap = repo.join("contracts/capability");
         fs::create_dir_all(&cap).unwrap();
-        fs::write(cap.join("runtime-capabilities.v1.yaml"), "capabilities: []\n").unwrap();
+        fs::write(
+            cap.join("runtime-capabilities.v1.yaml"),
+            "capabilities: []\n",
+        )
+        .unwrap();
         let nested = repo.join("packages/app");
         fs::create_dir_all(&nested).unwrap();
         let got = find_contracts_repo_root(&nested).expect("root");

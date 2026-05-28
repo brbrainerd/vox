@@ -25,7 +25,8 @@ pub fn find_workspace_root(start: impl AsRef<Path>) -> Option<PathBuf> {
 
 /// Prefer [`vox_secrets::SecretId::VoxRepositoryRoot`] (`VOX_REPO_ROOT`) when it points at a checkout root; otherwise walk up from `start`.
 pub fn repo_root_for_tests(start: impl AsRef<Path>) -> PathBuf {
-    if let Some(raw) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose()
+    if let Some(raw) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose()
     {
         let p = PathBuf::from(raw.trim());
         if p.join("Cargo.toml").is_file() {

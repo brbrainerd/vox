@@ -481,7 +481,11 @@ impl Report {
         }
         if !self.wtl_parity_warns.is_empty() {
             any = true;
-            let label = if self.strict_wtl_parity { "ERROR" } else { "warn" };
+            let label = if self.strict_wtl_parity {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] WTL/layers.toml/disk parity violations ({}):",
                 self.wtl_parity_warns.len()
@@ -489,11 +493,17 @@ impl Report {
             for msg in &self.wtl_parity_warns {
                 eprintln!("  {msg}");
             }
-            eprintln!("  → Add missing entries to [planned] in layers.toml with a `plan =` pointer, or create the crate directory.");
+            eprintln!(
+                "  → Add missing entries to [planned] in layers.toml with a `plan =` pointer, or create the crate directory."
+            );
         }
         if !self.loc_delta_warns.is_empty() {
             any = true;
-            let label = if self.strict_loc_delta { "ERROR" } else { "warn" };
+            let label = if self.strict_loc_delta {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] LoC delta >15% since last release ({}) — review before merging:",
                 self.loc_delta_warns.len()
@@ -505,18 +515,28 @@ impl Report {
         }
         if !self.cdylib_dep_warns.is_empty() {
             any = true;
-            let label = if self.strict_cdylib_dep { "ERROR" } else { "warn" };
+            let label = if self.strict_cdylib_dep {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] cdylib linked as normal compile-time dep ({}) — use vox-plugin-host instead:",
                 self.cdylib_dep_warns.len()
             );
             for (consumer, plugin) in &self.cdylib_dep_warns {
-                eprintln!("  {consumer} → {plugin}  (cdylib must be loaded dynamically, not linked)");
+                eprintln!(
+                    "  {consumer} → {plugin}  (cdylib must be loaded dynamically, not linked)"
+                );
             }
         }
         if !self.workspace_dep_warns.is_empty() {
             any = true;
-            let label = if self.strict_workspace_deps { "ERROR" } else { "warn" };
+            let label = if self.strict_workspace_deps {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] workspace-dep budget exceeded ({}):",
                 self.workspace_dep_warns.len()
@@ -527,7 +547,11 @@ impl Report {
         }
         if !self.evidence_findings.is_empty() {
             any = true;
-            let strict_label = if self.strict_evidence_ledger { "ERROR" } else { "warn" };
+            let strict_label = if self.strict_evidence_ledger {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[evidence-ledger] {} finding(s) — claims in `docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md` point at:",
                 self.evidence_findings.len()
@@ -536,7 +560,10 @@ impl Report {
                 let kind_label = match &f.kind {
                     FindingKind::MissingArtifact => "missing".to_string(),
                     FindingKind::DirectoryHasNoDatedReports => "no dated reports".to_string(),
-                    FindingKind::Stale { age_days, max_age_days } => {
+                    FindingKind::Stale {
+                        age_days,
+                        max_age_days,
+                    } => {
                         format!("stale ({age_days}d > {max_age_days}d budget)")
                     }
                     FindingKind::UnknownArtifactKind(k) => format!("unknown kind `{k}`"),
@@ -550,7 +577,9 @@ impl Report {
                     path = f.artifact_path.display(),
                 );
             }
-            eprintln!("  → See contracts/reports/evidence-ledger.v1.json and the honest plan at docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §1.2.");
+            eprintln!(
+                "  → See contracts/reports/evidence-ledger.v1.json and the honest plan at docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §1.2."
+            );
         }
         if !any {
             eprintln!(
@@ -669,13 +698,7 @@ fn git_paths_touched_since(repo: &Path, release_date: &str) -> Option<HashSet<St
     let since = format!("{release_date}T00:00:00Z");
     let out = Command::new("git")
         .current_dir(repo)
-        .args([
-            "log",
-            "--since",
-            &since,
-            "--name-only",
-            "--pretty=format:",
-        ])
+        .args(["log", "--since", &since, "--name-only", "--pretty=format:"])
         .output()
         .ok()?;
     if !out.status.success() {
@@ -785,7 +808,9 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             }
             *dependent_count.entry(to_name.to_string()).or_insert(0) += 1;
             if dep.kind == cargo_metadata::DependencyKind::Normal {
-                *workspace_dep_count.entry(from_name.to_string()).or_insert(0) += 1;
+                *workspace_dep_count
+                    .entry(from_name.to_string())
+                    .or_insert(0) += 1;
             }
 
             let to_layer = match layers.crates.get(to_name) {
@@ -919,8 +944,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .as_ref()
             .and_then(|c| c.git_touched_paths.as_ref())
             .map(|paths| paths.iter().cloned().collect::<HashSet<String>>());
-        let touched_result = touched_from_cache
-            .or_else(|| git_paths_touched_since(&workspace_root, &release_date));
+        let touched_result =
+            touched_from_cache.or_else(|| git_paths_touched_since(&workspace_root, &release_date));
         if let Some(ref touched_paths) = touched_result {
             touched_paths_for_cache = Some(touched_paths.iter().cloned().collect());
         }
@@ -984,8 +1009,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
 
     prof("rule 8 (staleness/git, with cache)", &mut prof_last);
     // ── Rule 9: Generated-file drift ──
-    report.generated_file_drift_warns =
-        check_generated_file_drift(&workspace_root, &prune_dirs).unwrap_or_else(|e| {
+    report.generated_file_drift_warns = check_generated_file_drift(&workspace_root, &prune_dirs)
+        .unwrap_or_else(|e| {
             eprintln!("warn: generated-file-drift check skipped: {e:#}");
             Vec::new()
         });
@@ -1097,15 +1122,11 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 if baseline == 0 {
                     continue;
                 }
-                let growth =
-                    (*current_loc as f64 - baseline as f64) / baseline as f64 * 100.0;
+                let growth = (*current_loc as f64 - baseline as f64) / baseline as f64 * 100.0;
                 if growth > 15.0 {
-                    report.loc_delta_warns.push((
-                        name.clone(),
-                        *current_loc,
-                        baseline,
-                        growth,
-                    ));
+                    report
+                        .loc_delta_warns
+                        .push((name.clone(), *current_loc, baseline, growth));
                 }
             }
         }
@@ -1123,13 +1144,21 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         let cdylib_pkg_names: HashSet<&str> = metadata_full
             .workspace_packages()
             .iter()
-            .filter(|p| p.targets.iter().any(|t| t.kind.iter().any(|k| k == "cdylib")))
+            .filter(|p| {
+                p.targets
+                    .iter()
+                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+            })
             .map(|p| p.name.as_str())
             .collect();
 
         if !cdylib_pkg_names.is_empty() {
             for pkg in metadata_full.workspace_packages() {
-                if pkg.targets.iter().any(|t| t.kind.iter().any(|k| k == "cdylib")) {
+                if pkg
+                    .targets
+                    .iter()
+                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                {
                     continue; // cdylib can depend on another cdylib (rare but not our concern here)
                 }
                 for dep in &pkg.dependencies {
@@ -1137,10 +1166,9 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                         continue;
                     }
                     if cdylib_pkg_names.contains(dep.name.as_str()) {
-                        report.cdylib_dep_warns.push((
-                            pkg.name.clone(),
-                            dep.name.clone(),
-                        ));
+                        report
+                            .cdylib_dep_warns
+                            .push((pkg.name.clone(), dep.name.clone()));
                     }
                 }
             }
@@ -1155,17 +1183,16 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         if let Some(budget) = entry.max_workspace_deps {
             let count = workspace_dep_count.get(name).copied().unwrap_or(0);
             if count > budget {
-                report.workspace_dep_warns.push((name.clone(), count, budget));
+                report
+                    .workspace_dep_warns
+                    .push((name.clone(), count, budget));
             }
         }
     }
     report.workspace_dep_warns.sort_by(|a, b| b.1.cmp(&a.1));
     prof("rule 15 (workspace-dep budget)", &mut prof_last);
     if profile_on {
-        eprintln!(
-            "[profile] TOTAL: {}ms",
-            profile_start.elapsed().as_millis()
-        );
+        eprintln!("[profile] TOTAL: {}ms", profile_start.elapsed().as_millis());
     }
 
     // ── Rule 14: evidence-ledger integrity ─────────────────────────────────
@@ -1182,9 +1209,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 report.evidence_findings = findings;
             }
             Err(e) => {
-                eprintln!(
-                    "[evidence-ledger] WARN: failed to load ledger: {e:#}"
-                );
+                eprintln!("[evidence-ledger] WARN: failed to load ledger: {e:#}");
             }
         }
     }
@@ -1206,7 +1231,11 @@ fn count_lines_in_bytes(body: &[u8]) -> usize {
         return 0;
     }
     let nl = body.iter().filter(|&&b| b == b'\n').count();
-    if body.last() == Some(&b'\n') { nl } else { nl + 1 }
+    if body.last() == Some(&b'\n') {
+        nl
+    } else {
+        nl + 1
+    }
 }
 
 /// Rule 13 helper — count LoC in every budgeted crate's `src/` tree at the given
@@ -1633,7 +1662,9 @@ mod walk_and_staleness_tests {
             .map(|p| p.strip_prefix(root).unwrap().to_path_buf())
             .collect();
         assert!(
-            files.iter().any(|p| p == Path::new("crates/foo/src/lib.rs")),
+            files
+                .iter()
+                .any(|p| p == Path::new("crates/foo/src/lib.rs")),
             "{files:?}"
         );
         assert!(
@@ -1690,7 +1721,10 @@ extra_skip_dir_names = ["my_vendor"]
             "crates/vox-cli/src/main.rs",
             "crates/vox-cli"
         ));
-        assert!(git_path_touches_crate_root("crates/vox-cli/Cargo.toml", "crates/vox-cli"));
+        assert!(git_path_touches_crate_root(
+            "crates/vox-cli/Cargo.toml",
+            "crates/vox-cli"
+        ));
         assert!(!git_path_touches_crate_root(
             "crates/vox-other/src/lib.rs",
             "crates/vox-cli"

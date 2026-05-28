@@ -145,7 +145,10 @@ impl ChannelManager {
                 // of sender halves keyed by connection ID).  That infrastructure ships in v1.x.
                 // Return an explicit error so callers know the message was NOT delivered.
                 // Use ChannelKind::Webhook for outbound server→server calls in the meantime.
-                warn!(channel_id, "WebSocket channel send rejected (not implemented — use ChannelKind::Webhook for outbound calls)");
+                warn!(
+                    channel_id,
+                    "WebSocket channel send rejected (not implemented — use ChannelKind::Webhook for outbound calls)"
+                );
                 Err(WebhookError::Channel(format!(
                     "WebSocket channel '{channel_id}' cannot send: active connection registry \
                      is not implemented yet (v1.x). Use ChannelKind::Webhook for outbound webhooks."

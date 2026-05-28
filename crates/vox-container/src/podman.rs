@@ -3,8 +3,8 @@
 //! Podman runs rootless by default, making it ideal for userspace containers
 //! without requiring elevated privileges or a daemon process.
 
-use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts};
 use std::process::Command;
+use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts};
 
 /// Podman-backed container runtime.
 ///

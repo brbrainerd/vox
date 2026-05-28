@@ -4,8 +4,8 @@
 //! module wraps the JSON-loading path so callers don't have to know the
 //! RO-Crate `@graph` shape.
 
-use serde_json::Value;
 use crate::ro_crate::MainEntity;
+use serde_json::Value;
 
 /// Parse a `MainEntity` from raw `ro-crate-metadata.json` bytes.
 ///
@@ -14,8 +14,7 @@ use crate::ro_crate::MainEntity;
 /// JSON is valid but no mainEntity node exists (i.e., the artifact is not
 /// replay-eligible).
 pub fn parse_main_entity_from_json(bytes: &[u8]) -> Result<Option<MainEntity>, ParseError> {
-    let root: Value =
-        serde_json::from_slice(bytes).map_err(|e| ParseError::Json(e.to_string()))?;
+    let root: Value = serde_json::from_slice(bytes).map_err(|e| ParseError::Json(e.to_string()))?;
     let graph = root
         .get("@graph")
         .and_then(Value::as_array)
@@ -83,9 +82,7 @@ pub fn parse_main_entity_from_json(bytes: &[u8]) -> Result<Option<MainEntity>, P
                     let path = f
                         .get("path")
                         .and_then(Value::as_str)
-                        .ok_or_else(|| {
-                            ParseError::Schema(format!("figures[{idx}].path missing"))
-                        })?
+                        .ok_or_else(|| ParseError::Schema(format!("figures[{idx}].path missing")))?
                         .to_string();
                     let sha = f
                         .get("sha3_256_hex")
@@ -147,7 +144,7 @@ pub enum ParseError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ro_crate::{build_ro_crate_json, RoCrateMetadata};
+    use crate::ro_crate::{RoCrateMetadata, build_ro_crate_json};
 
     fn sample_with_main_entity() -> RoCrateMetadata {
         RoCrateMetadata {

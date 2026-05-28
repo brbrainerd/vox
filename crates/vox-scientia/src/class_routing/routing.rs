@@ -49,8 +49,8 @@ pub fn atlas_gate_applies_to(class: FindingClass) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::defaults::builtin_class_defaults;
+    use super::*;
 
     #[test]
     fn algorithmic_improvement_routes_to_swe_venues() {
@@ -58,7 +58,10 @@ mod tests {
         let v = recommended_venues_for(&d, FindingClass::AlgorithmicImprovement);
         assert!(v.contains(&"ICSE".to_string()));
         assert!(v.contains(&"FSE".to_string()));
-        assert!(!v.iter().any(|n| n.contains("IMC")), "SWE class must not route to IMC");
+        assert!(
+            !v.iter().any(|n| n.contains("IMC")),
+            "SWE class must not route to IMC"
+        );
     }
 
     #[test]
@@ -76,7 +79,9 @@ mod tests {
     #[test]
     fn atlas_gate_predicate_separates_atlas_from_micro() {
         assert!(atlas_gate_applies_to(FindingClass::ModelCapabilityAtlas));
-        assert!(atlas_gate_applies_to(FindingClass::ProviderReliabilityAtlas));
+        assert!(atlas_gate_applies_to(
+            FindingClass::ProviderReliabilityAtlas
+        ));
         for c in [
             FindingClass::AlgorithmicImprovement,
             FindingClass::ReproducibilityInfra,
@@ -114,7 +119,10 @@ mod tests {
             negative_result_quota_for(&empty, FindingClass::AlgorithmicImprovement),
             0
         );
-        assert!(!critic_allowed_for(&empty, FindingClass::AlgorithmicImprovement));
+        assert!(!critic_allowed_for(
+            &empty,
+            FindingClass::AlgorithmicImprovement
+        ));
         assert!(recommended_venues_for(&empty, FindingClass::AlgorithmicImprovement).is_empty());
     }
 }

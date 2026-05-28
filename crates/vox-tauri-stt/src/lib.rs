@@ -54,11 +54,7 @@ mod tests {
     fn guest_facade_uses_stable_plugin_invoke_string() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let guest = std::fs::read_to_string(root.join("guest-js/index.ts")).expect("read guest-js");
-        let expected = format!(
-            "plugin:{}|{}",
-            PLUGIN_ID.trim(),
-            TRANSCRIBE_COMMAND.trim()
-        );
+        let expected = format!("plugin:{}|{}", PLUGIN_ID.trim(), TRANSCRIBE_COMMAND.trim());
         assert!(
             guest.contains(&format!("invoke<TranscribeResult>(\"{expected}\"")),
             "guest-js must invoke `{expected}`"

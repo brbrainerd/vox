@@ -50,8 +50,7 @@ fn main() -> Result<()> {
     paths.sort();
 
     for path in &paths {
-        let raw =
-            fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+        let raw = fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
         let root_schema: RootSchema =
             serde_json::from_str(&raw).with_context(|| format!("parse {}", path.display()))?;
 

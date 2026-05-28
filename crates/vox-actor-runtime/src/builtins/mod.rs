@@ -288,9 +288,7 @@ impl VoxJson {
 
     /// `Some(keys)` when receiver is an object; `None` otherwise.
     pub fn keys(&self) -> Option<Vec<String>> {
-        self.0
-            .as_object()
-            .map(|o| o.keys().cloned().collect())
+        self.0.as_object().map(|o| o.keys().cloned().collect())
     }
 }
 
@@ -453,7 +451,8 @@ fn json_value_to_toml(j: &serde_json::Value) -> Result<toml::Value, String> {
                 toml::Value::Integer(i)
             } else if let Some(u) = n.as_u64() {
                 toml::Value::Integer(
-                    i64::try_from(u).map_err(|_| "json number too large for TOML Integer".to_string())?,
+                    i64::try_from(u)
+                        .map_err(|_| "json number too large for TOML Integer".to_string())?,
                 )
             } else {
                 toml::Value::Float(n.as_f64().unwrap_or(0.0))
@@ -1476,7 +1475,9 @@ pub fn vox_env_set(key: &str, value: &str) {
     // SAFETY: `set_var` was marked unsafe in Rust 2024 due to multithreaded
     // hazards. Vox scripts call this from the main thread before spawning
     // subprocesses, matching the documented safe pattern.
-    unsafe { std::env::set_var(key, value); }
+    unsafe {
+        std::env::set_var(key, value);
+    }
 }
 
 /// `std.regex.replace(pattern, haystack, replacement) -> Result[str]` —
@@ -1495,10 +1496,7 @@ pub fn vox_regex_replace(
 
 /// `std.regex.find(haystack, pattern) -> Result[Option[str]]` — first match
 /// substring; `Ok(None)` when no match, `Err(msg)` only on bad pattern.
-pub fn vox_regex_find(
-    haystack: &str,
-    pattern: &str,
-) -> Result<Option<String>, String> {
+pub fn vox_regex_find(haystack: &str, pattern: &str) -> Result<Option<String>, String> {
     let re = regex::Regex::new(pattern).map_err(|e| e.to_string())?;
     Ok(re.find(haystack).map(|m| m.as_str().to_string()))
 }

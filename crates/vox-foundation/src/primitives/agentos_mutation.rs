@@ -1,4 +1,4 @@
-﻿//! Canonical mapping from MCP tool names to coarse `mutation_kind` strings used by AgentOS
+//! Canonical mapping from MCP tool names to coarse `mutation_kind` strings used by AgentOS
 //! (orchestrator policy overlay, ACI envelopes, checkpoint hints).
 //!
 //! SSOT for [`mutation_kind_for_tool`]; keep in sync with `contracts/aci/agent-computer-interface.v1.yaml`.
@@ -92,4 +92,3 @@ mod tests {
         assert_eq!(mutation_kind_for_tool("vox_write_file"), "local_mutation");
     }
 }
-

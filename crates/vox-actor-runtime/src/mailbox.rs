@@ -1,5 +1,5 @@
-use bytes::Bytes;
 use crate::pid::Pid;
+use bytes::Bytes;
 use tokio::sync::{mpsc, oneshot};
 
 // ---------------------------------------------------------------------------
@@ -47,9 +47,7 @@ impl MessagePayload {
 
     /// Construct a `Json` payload by serialising `value` (single allocation, then shared).
     pub fn json_value(value: &serde_json::Value) -> Self {
-        Self::Json(Bytes::from(
-            serde_json::to_vec(value).unwrap_or_default(),
-        ))
+        Self::Json(Bytes::from(serde_json::to_vec(value).unwrap_or_default()))
     }
 
     /// Construct a `Json` payload from a pre-serialised string.

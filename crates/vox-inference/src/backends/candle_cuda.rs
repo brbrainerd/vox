@@ -1,9 +1,9 @@
-use async_trait::async_trait;
-use vox_package::ModelBundle;
 use crate::backend::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, LoadedModel, PromptInput,
     Quantization, SamplingParams, Verdict,
 };
+use async_trait::async_trait;
+use vox_package::ModelBundle;
 
 pub struct CandleCudaBackend;
 

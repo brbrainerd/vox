@@ -53,10 +53,7 @@ fn should_skip_rust_line(line: &str) -> bool {
 /// subtrees, qualifies.
 fn is_historical_or_audit_doc(rel_path: &Path) -> bool {
     let s = rel_path.to_string_lossy().replace('\\', "/");
-    let name = rel_path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
+    let name = rel_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
     // Design specs, master plans, follow-ups — these document migrations.
     if s.starts_with("docs/superpowers/specs/") || s.starts_with("docs/superpowers/plans/") {

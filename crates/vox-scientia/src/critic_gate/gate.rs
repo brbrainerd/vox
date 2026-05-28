@@ -220,8 +220,8 @@ pub fn evaluate_gate(inputs: &GateInputs<'_>) -> GateOutcome {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::fingerprint::ModelFingerprint;
+    use super::*;
 
     fn human(id: &str) -> ApproverRecord {
         ApproverRecord {
@@ -331,7 +331,10 @@ mod tests {
         };
         let out = evaluate_gate(&inputs);
         assert!(!out.cleared);
-        assert_eq!(out.reason, GateReason::CriticFingerprintCollidesWithArtifact);
+        assert_eq!(
+            out.reason,
+            GateReason::CriticFingerprintCollidesWithArtifact
+        );
     }
 
     #[test]

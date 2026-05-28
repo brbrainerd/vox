@@ -70,8 +70,7 @@ impl ArsRuntime {
                             let res = vox_secrets::resolve_secret(id);
                             if res.is_present() {
                                 if let Some(val) = res.expose() {
-                                    _injected_secrets
-                                        .insert(sec_str.to_string(), val.to_string());
+                                    _injected_secrets.insert(sec_str.to_string(), val.to_string());
                                 }
                             } else {
                                 // Deny-by-default: known secret ID but value not present.

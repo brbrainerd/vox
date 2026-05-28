@@ -41,8 +41,8 @@ pub fn detect_stalls(candidates: &[CandidateRow], now_ms: i64) -> Vec<StallEntry
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::queue::CandidateRow;
+    use super::*;
 
     fn row(id: &str, state: &str, updated_at_ms: i64) -> CandidateRow {
         CandidateRow {

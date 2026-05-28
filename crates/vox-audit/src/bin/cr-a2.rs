@@ -240,16 +240,21 @@ fn json_value_has_version(v: &serde_json::Value) -> bool {
 /// editor pragma on line 1 counts — that schema reference IS machine-
 /// verifiable.
 fn yaml_top_level_scan_for_version_key(body: &str) -> bool {
-    let needles = ["schema_version", "x-vox-version", "openapi", "$schema", "version", "schema"];
+    let needles = [
+        "schema_version",
+        "x-vox-version",
+        "openapi",
+        "$schema",
+        "version",
+        "schema",
+    ];
     for (i, line) in body.lines().enumerate() {
         // yaml-language-server: $schema=... pragma (line 1 by convention).
         if i < 3 && line.starts_with("# yaml-language-server:") && line.contains("$schema=") {
             return true;
         }
         for needle in needles {
-            if line.starts_with(&format!("{needle}:"))
-                || line.starts_with(&format!("{needle} :"))
-            {
+            if line.starts_with(&format!("{needle}:")) || line.starts_with(&format!("{needle} :")) {
                 // For `version:` and `schema:`, require a non-empty
                 // value (i.e. not `version:` followed by nested keys).
                 let rest = line[needle.len() + 1..].trim();
@@ -308,9 +313,7 @@ fn json_parses(body: &str) -> bool {
 /// lives in a sibling `.schema.json` / `.v1.yaml` that IS in scope.
 fn is_data_not_contract(rel_path: &str) -> bool {
     let lower = rel_path.to_ascii_lowercase();
-    if lower.contains("/repair-corpus/projects/")
-        && lower.ends_with("/expected.json")
-    {
+    if lower.contains("/repair-corpus/projects/") && lower.ends_with("/expected.json") {
         return true;
     }
     if lower.contains("/openclaw/discovery/") && lower.ends_with(".json") {
@@ -343,18 +346,12 @@ mod tests {
 
     #[test]
     fn yaml_top_level_schema_version_detected() {
-        assert!(has_schema_version(
-            "schema_version: 1\nname: foo\n",
-            "yaml"
-        ));
+        assert!(has_schema_version("schema_version: 1\nname: foo\n", "yaml"));
     }
 
     #[test]
     fn yaml_nested_schema_version_not_at_top_is_missed() {
-        assert!(!has_schema_version(
-            "doc:\n  schema_version: 1\n",
-            "yaml"
-        ));
+        assert!(!has_schema_version("doc:\n  schema_version: 1\n", "yaml"));
     }
 
     #[test]
@@ -399,7 +396,10 @@ mod tests {
     #[test]
     fn yaml_with_openapi_top_level_ok() {
         // OpenAPI specs self-version via the `openapi:` top-level key.
-        assert!(has_schema_version("openapi: 3.0.3\ninfo:\n  title: x\n", "yaml"));
+        assert!(has_schema_version(
+            "openapi: 3.0.3\ninfo:\n  title: x\n",
+            "yaml"
+        ));
     }
 
     #[test]
@@ -445,6 +445,8 @@ mod tests {
     #[test]
     fn data_not_contract_keeps_real_contracts() {
         assert!(!is_data_not_contract("contracts/code-audit/rules.v1.yaml"));
-        assert!(!is_data_not_contract("contracts/orchestration/model-pins.v1.yaml"));
+        assert!(!is_data_not_contract(
+            "contracts/orchestration/model-pins.v1.yaml"
+        ));
     }
 }

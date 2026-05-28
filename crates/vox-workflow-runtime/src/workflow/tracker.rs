@@ -198,11 +198,7 @@ impl WorkflowTracker for InMemoryTracker {
         activity_id: &str,
     ) -> impl std::future::Future<Output = anyhow::Result<Option<Value>>> + Send {
         let key = (workflow_name.to_string(), activity_id.to_string());
-        let value = self
-            .results
-            .lock()
-            .ok()
-            .and_then(|m| m.get(&key).cloned());
+        let value = self.results.lock().ok().and_then(|m| m.get(&key).cloned());
         async move { Ok(value) }
     }
 

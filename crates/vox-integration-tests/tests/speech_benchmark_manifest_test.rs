@@ -87,7 +87,11 @@ fn speech_benchmark_manifest_has_audit_corpus_triples() {
         assert!(
             matches!(
                 parts[3],
-                "code-dictation" | "command-phrasing" | "identifier-heavy" | "mixed-natural" | "noisy"
+                "code-dictation"
+                    | "command-phrasing"
+                    | "identifier-heavy"
+                    | "mixed-natural"
+                    | "noisy"
             ),
             "benchmark manifest line {} has unknown domain {}",
             line_no + 1,

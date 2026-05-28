@@ -43,18 +43,21 @@ fn probe_capture_editor_webview_preserves_native_sample_rate_for_audit() {
 #[test]
 fn probe_dashboard_speak_surface_has_no_microphone_path() {
     let root = workspace_root();
-    let speak_panel_path =
-        root.join("crates/vox-dashboard/src/components/shell/SpeakPanel.tsx");
+    let speak_panel_path = root.join("crates/vox-dashboard/src/components/shell/SpeakPanel.tsx");
     if !speak_panel_path.exists() {
         // vox-dashboard not yet created; test vacuously passes
         return;
     }
     let speak_panel = fs::read_to_string(&speak_panel_path).expect("read SpeakPanel");
-    let chat_hook =
-        fs::read_to_string(root.join("crates/vox-dashboard/src/hooks/useVoxChat.ts"))
-            .expect("read useVoxChat");
+    let chat_hook = fs::read_to_string(root.join("crates/vox-dashboard/src/hooks/useVoxChat.ts"))
+        .expect("read useVoxChat");
 
-    for forbidden in ["getUserMedia", "MediaRecorder", "vox_oratio", "vox_speech_to_code"] {
+    for forbidden in [
+        "getUserMedia",
+        "MediaRecorder",
+        "vox_oratio",
+        "vox_speech_to_code",
+    ] {
         assert!(
             !speak_panel.contains(forbidden),
             "SpeakPanel unexpectedly contains speech capture token {forbidden}"

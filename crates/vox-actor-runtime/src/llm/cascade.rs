@@ -50,7 +50,10 @@ pub async fn chat_with_cascade(
     let (outcome, err) = match &res {
         ActivityResult::Ok(Ok(_)) => ("ok", None),
         ActivityResult::Ok(Err(e)) => ("error", Some(e.clone())),
-        ActivityResult::Failed(e) => ("error", Some(format!("research cascade activity failed: {e:?}"))),
+        ActivityResult::Failed(e) => (
+            "error",
+            Some(format!("research cascade activity failed: {e:?}")),
+        ),
         ActivityResult::Cancelled => ("cancelled", Some("research cascade cancelled".into())),
     };
     vox_telemetry::record_event!(&TelemetryEvent::AiFixture(AiFixtureEvent::PromptDispatch(

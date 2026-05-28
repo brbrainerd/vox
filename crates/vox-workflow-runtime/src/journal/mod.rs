@@ -42,7 +42,10 @@ pub mod test_support {
     /// `journal::execute` calls for this activity will replay from this value
     /// without running the body.
     pub fn seed_completed(activity_id: &str, value: Value) {
-        seeded().lock().unwrap().insert(activity_id.to_string(), value);
+        seeded()
+            .lock()
+            .unwrap()
+            .insert(activity_id.to_string(), value);
     }
 
     /// Return the list of values recorded for `activity_id` by

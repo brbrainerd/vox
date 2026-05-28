@@ -10,5 +10,6 @@ pub trait SkillRuntime: Send + Sync {
     fn revision(&self) -> u32 {
         SKILL_RUNTIME_REVISION
     }
-    fn invoke_skill(&self, skill_id: RStr<'_>, input_json: RStr<'_>) -> RResult<RString, RBoxError>;
+    fn invoke_skill(&self, skill_id: RStr<'_>, input_json: RStr<'_>)
+    -> RResult<RString, RBoxError>;
 }

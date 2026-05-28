@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use super::ownership::OwnershipMode;
+use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{HirExpr, HirType};
 
@@ -36,9 +36,14 @@ where
                 fallible_db,
             )
         }
-        HirExpr::Block(stmts, _) => {
-            emit_block_tail(stmts, is_route, is_actor, mutation_tx, inferred_types, usage)
-        }
+        HirExpr::Block(stmts, _) => emit_block_tail(
+            stmts,
+            is_route,
+            is_actor,
+            mutation_tx,
+            inferred_types,
+            usage,
+        ),
         HirExpr::If(cond, then_b, else_b, _) => emit_if_tail(
             cond,
             then_b,
@@ -75,7 +80,11 @@ where
             s
         }
         HirExpr::Binary(vox_compiler::hir::HirBinOp::Pipe, left, right, _) => {
-            format!("({})({})", emit(right, OwnershipMode::Owned), emit(left, OwnershipMode::Owned))
+            format!(
+                "({})({})",
+                emit(right, OwnershipMode::Owned),
+                emit(left, OwnershipMode::Owned)
+            )
         }
         HirExpr::For(name, _, iter, body, _, _) => {
             let mut s = format!("for {} in {} {{\n", name, emit(iter, OwnershipMode::Owned));

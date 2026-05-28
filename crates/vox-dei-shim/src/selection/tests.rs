@@ -1,7 +1,9 @@
 use super::*;
 use vox_orchestrator::config::CostPreference;
 use vox_orchestrator::mode::{ExecutionModeProfile, InferenceConfig};
-use vox_orchestrator::models::{ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType};
+use vox_orchestrator::models::{
+    ModelCapabilities, ModelRegistry, ModelSpec, ModelTier, ProviderType,
+};
 use vox_orchestrator::types::{RoutingProfile, TaskCategory};
 
 #[test]

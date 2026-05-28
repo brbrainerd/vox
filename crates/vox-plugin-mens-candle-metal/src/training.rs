@@ -14,7 +14,7 @@ pub fn run_train_step(model: &mut CandleModel, batch_json: &str) -> anyhow::Resu
     if model.trainer.is_none() {
         anyhow::bail!("Cannot run training step: no trainer initialized in CandleModel.");
     }
-    
+
     // SP3-D streaming protocol deserialization stub
     #[derive(serde::Deserialize)]
     #[allow(dead_code)]
@@ -22,7 +22,7 @@ pub fn run_train_step(model: &mut CandleModel, batch_json: &str) -> anyhow::Resu
         input_ids: Vec<u32>,
         prefix_len: usize,
     }
-    
+
     let _batch: BatchPayload = serde_json::from_str(batch_json)
         .map_err(|e| anyhow::anyhow!("Failed to parse batch JSON: {}", e))?;
 

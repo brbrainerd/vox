@@ -69,7 +69,13 @@ fn eq_ci(a: &str, b: &str) -> bool {
 fn normalize_model_id(s: &str) -> String {
     s.to_ascii_lowercase()
         .chars()
-        .map(|c| if matches!(c, '_' | '/' | '.' | ' ') { '-' } else { c })
+        .map(|c| {
+            if matches!(c, '_' | '/' | '.' | ' ') {
+                '-'
+            } else {
+                c
+            }
+        })
         .collect()
 }
 
@@ -77,7 +83,12 @@ fn normalize_model_id(s: &str) -> String {
 mod tests {
     use super::*;
 
-    fn fp(provider: &str, model: &str, params: Option<u64>, cutoff: Option<&str>) -> ModelFingerprint {
+    fn fp(
+        provider: &str,
+        model: &str,
+        params: Option<u64>,
+        cutoff: Option<&str>,
+    ) -> ModelFingerprint {
         ModelFingerprint {
             provider: provider.into(),
             model_id: model.into(),
@@ -116,8 +127,18 @@ mod tests {
 
     #[test]
     fn same_provider_same_cutoff_and_params_collides_even_with_different_model_string() {
-        let a = fp("acme", "model-snapshot-a", Some(8_000_000_000), Some("2024-10"));
-        let b = fp("acme", "model-snapshot-b", Some(8_000_000_000), Some("2024-10"));
+        let a = fp(
+            "acme",
+            "model-snapshot-a",
+            Some(8_000_000_000),
+            Some("2024-10"),
+        );
+        let b = fp(
+            "acme",
+            "model-snapshot-b",
+            Some(8_000_000_000),
+            Some("2024-10"),
+        );
         assert!(a.collides_with(&b));
     }
 

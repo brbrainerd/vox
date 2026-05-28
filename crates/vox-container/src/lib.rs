@@ -20,8 +20,8 @@ pub mod podman;
 pub use detect::detect_runtime;
 
 // Re-export pure types from the L0 types crate so existing callers keep working.
-pub use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts, RuntimePreference};
 pub use vox_container_types::exec_grammar;
+pub use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts, RuntimePreference};
 
 /// Classify the exec risk of a container image or command string and log the result.
 ///

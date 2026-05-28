@@ -155,7 +155,9 @@ use tokio::sync::Mutex;
 
 /// Async actor message handler: JSON args in, JSON result out.
 pub type ActorHandler = Arc<
-    dyn Fn(serde_json::Value) -> Pin<Box<dyn Future<Output = anyhow::Result<serde_json::Value>> + Send>>
+    dyn Fn(
+            serde_json::Value,
+        ) -> Pin<Box<dyn Future<Output = anyhow::Result<serde_json::Value>> + Send>>
         + Send
         + Sync,
 >;

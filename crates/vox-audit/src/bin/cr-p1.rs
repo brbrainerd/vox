@@ -123,7 +123,10 @@ fn main() {
     // CR-P1 bar: ≥ 3 real apps AND ALL of them live.
     let met = total >= 3 && live_count == total;
 
-    eprintln!("CR-P1: {live_count}/{total} marquee apps live ({:.1}%)", 100.0 * live_pct);
+    eprintln!(
+        "CR-P1: {live_count}/{total} marquee apps live ({:.1}%)",
+        100.0 * live_pct
+    );
     for p in &probes {
         let flag = if p.live { "✓" } else { "✗" };
         let detail = match (p.http_status, &p.error) {
@@ -131,7 +134,11 @@ fn main() {
             (None, Some(e)) => format!("error: {e}"),
             (None, None) => "no response".to_string(),
         };
-        eprintln!("  {flag} {id:24}  {url}  →  {detail}", id = p.id, url = p.probe_url);
+        eprintln!(
+            "  {flag} {id:24}  {url}  →  {detail}",
+            id = p.id,
+            url = p.probe_url
+        );
     }
 
     let artifact = json!({
@@ -227,8 +234,7 @@ fn probe_health(url: &str) -> (bool, Option<u16>, Option<u64>, Option<String>) {
     };
     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
-    let request =
-        format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
+    let request = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
     use std::io::Write;
     if let Err(e) = stream.write_all(request.as_bytes()) {
         return (false, None, None, Some(format!("write: {e}")));
@@ -272,8 +278,7 @@ mod tests {
 
     #[test]
     fn parse_http_url_with_port_and_path() {
-        let (host, port, path) =
-            parse_http_url("http://127.0.0.1:8080/health").expect("parse");
+        let (host, port, path) = parse_http_url("http://127.0.0.1:8080/health").expect("parse");
         assert_eq!(host, "127.0.0.1");
         assert_eq!(port, 8080);
         assert_eq!(path, "/health");
@@ -294,8 +299,17 @@ mod tests {
 
     #[test]
     fn default_ports_are_distinct_for_three_slots() {
-        assert_ne!(default_port_for("marquee-app"), default_port_for("marquee-todo-auth"));
-        assert_ne!(default_port_for("marquee-todo-auth"), default_port_for("marquee-chat"));
-        assert_ne!(default_port_for("marquee-app"), default_port_for("marquee-chat"));
+        assert_ne!(
+            default_port_for("marquee-app"),
+            default_port_for("marquee-todo-auth")
+        );
+        assert_ne!(
+            default_port_for("marquee-todo-auth"),
+            default_port_for("marquee-chat")
+        );
+        assert_ne!(
+            default_port_for("marquee-app"),
+            default_port_for("marquee-chat")
+        );
     }
 }

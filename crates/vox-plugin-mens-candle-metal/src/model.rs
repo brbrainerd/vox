@@ -525,7 +525,8 @@ impl CandleModel {
     /// Load a Qwen3.5 QLoRA model from `model_path` for inference or resumption.
     pub fn load_from_path(model_path: &str) -> anyhow::Result<Self> {
         let path = std::path::Path::new(model_path);
-        let engine = crate::inference::InferenceEngine::load(path, &crate::device::DeviceKind::Best)?;
+        let engine =
+            crate::inference::InferenceEngine::load(path, &crate::device::DeviceKind::Best)?;
         let _inner = match engine.model {
             crate::inference::InferenceModel::Qwen35(m) => m,
         };

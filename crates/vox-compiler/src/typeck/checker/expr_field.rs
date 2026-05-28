@@ -111,9 +111,7 @@ impl<'a> Checker<'a> {
             Ty::Database => {
                 // CR-A1: collapse two identical error-emit branches into one.
                 match self.env.lookup(field) {
-                    Some(binding) if binding.kind == BindingKind::Table => {
-                        binding.ty.clone()
-                    }
+                    Some(binding) if binding.kind == BindingKind::Table => binding.ty.clone(),
                     _ => {
                         self.diags.push(Diagnostic::error(
                             format!("Unknown table '{field}' in database"),
@@ -190,7 +188,6 @@ impl<'a> Checker<'a> {
             Ty::Error
         }
     }
-
 }
 
 /// Map an `StdXxxNs` HIR type name to its `std.xxx` short namespace key.

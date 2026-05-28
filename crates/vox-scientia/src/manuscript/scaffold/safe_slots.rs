@@ -64,7 +64,13 @@ mod tests {
 
     #[test]
     fn safe_sections_are_not_forbidden() {
-        for t in ["Methods", "Results", "Limitations", "References", "Author Block"] {
+        for t in [
+            "Methods",
+            "Results",
+            "Limitations",
+            "References",
+            "Author Block",
+        ] {
             assert!(!is_section_forbidden(t), "{t} should be safe");
         }
     }

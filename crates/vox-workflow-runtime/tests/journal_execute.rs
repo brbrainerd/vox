@@ -15,13 +15,15 @@ static TEST_LOCK: Mutex<()> = Mutex::new(());
 async fn execute_runs_body_and_records_journal_entry() {
     let _g = TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
     journal::test_support::reset();
-    let result: Result<i64, anyhow::Error> = journal::execute("activity-1", async move {
-        Ok(42i64)
-    })
-    .await;
+    let result: Result<i64, anyhow::Error> =
+        journal::execute("activity-1", async move { Ok(42i64) }).await;
     assert_eq!(result.unwrap(), 42);
     let recorded = journal::test_support::recorded_for("activity-1");
-    assert_eq!(recorded.len(), 1, "expected one journal entry for activity-1");
+    assert_eq!(
+        recorded.len(),
+        1,
+        "expected one journal entry for activity-1"
+    );
     assert_eq!(recorded[0], serde_json::json!(42));
 }
 
@@ -39,8 +41,16 @@ async fn execute_replays_from_journal_on_resume() {
     })
     .await;
 
-    assert_eq!(result.unwrap(), 99, "replay should return seeded value not fresh body");
-    assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0, "body must NOT execute on replay");
+    assert_eq!(
+        result.unwrap(),
+        99,
+        "replay should return seeded value not fresh body"
+    );
+    assert_eq!(
+        counter.load(std::sync::atomic::Ordering::SeqCst),
+        0,
+        "body must NOT execute on replay"
+    );
 }
 
 #[tokio::test]
@@ -53,5 +63,9 @@ async fn execute_propagates_errors_from_body() {
     .await;
     assert!(result.is_err(), "error from body must propagate");
     let recorded = journal::test_support::recorded_for("activity-3");
-    assert_eq!(recorded.len(), 0, "failed activities must NOT be recorded as completed");
+    assert_eq!(
+        recorded.len(),
+        0,
+        "failed activities must NOT be recorded as completed"
+    );
 }

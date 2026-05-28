@@ -73,12 +73,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("out.txt"), b"hello").unwrap();
         let want = hex::encode(vox_crypto::compliance_hash(b"hello"));
-        let outcome = compare_output_hashes(
-            dir.path(),
-            &["out.txt".into()],
-            &[want],
-        )
-        .unwrap();
+        let outcome = compare_output_hashes(dir.path(), &["out.txt".into()], &[want]).unwrap();
         assert!(outcome.all_match);
         assert!(outcome.mismatches.is_empty());
     }
@@ -87,12 +82,8 @@ mod tests {
     fn mismatching_hash_is_reported() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("out.txt"), b"hello").unwrap();
-        let outcome = compare_output_hashes(
-            dir.path(),
-            &["out.txt".into()],
-            &["deadbeef".into()],
-        )
-        .unwrap();
+        let outcome =
+            compare_output_hashes(dir.path(), &["out.txt".into()], &["deadbeef".into()]).unwrap();
         assert!(!outcome.all_match);
         assert_eq!(outcome.mismatches.len(), 1);
         assert_eq!(outcome.mismatches[0].path, "out.txt");

@@ -99,7 +99,11 @@ fn embedded_hir_for_empty_module_roundtrips() {
 
     let roundtripped: vox_compiler::hir::HirModule =
         serde_json::from_str(json).expect("empty-module JSON deserializes");
-    assert_eq!(roundtripped.functions.len(), 1, "single trivial fn survives");
+    assert_eq!(
+        roundtripped.functions.len(),
+        1,
+        "single trivial fn survives"
+    );
     assert!(
         roundtripped.endpoint_fns.is_empty(),
         "no endpoints in trivial module"

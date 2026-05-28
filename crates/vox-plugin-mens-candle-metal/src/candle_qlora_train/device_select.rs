@@ -25,7 +25,9 @@ pub(super) fn select_candle_device(
 
     let (device, label) = match kind {
         DeviceKind::Cpu => (Device::Cpu, "cpu".into()),
-        DeviceKind::Cuda => anyhow::bail!("Plugin built for Metal. CUDA not supported in this build."),
+        DeviceKind::Cuda => {
+            anyhow::bail!("Plugin built for Metal. CUDA not supported in this build.")
+        }
         DeviceKind::Metal => {
             #[cfg(feature = "metal")]
             {

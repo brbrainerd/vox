@@ -181,10 +181,14 @@ mod tests {
             .iter()
             .filter(|d| d.code == "web_ir_validate.overlay.loose_z_index")
             .count();
-        assert_eq!(loose_count, 2, "expected one loose_z_index per numeric value; got: {out:?}");
+        assert_eq!(
+            loose_count, 2,
+            "expected one loose_z_index per numeric value; got: {out:?}"
+        );
         // No duplicate-z warning when the numeric values themselves are distinct.
         assert!(
-            !out.iter().any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
+            !out.iter()
+                .any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
             "distinct numeric z-values must not trip duplicate_z; got: {out:?}"
         );
     }

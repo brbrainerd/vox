@@ -37,10 +37,7 @@ async fn dispatch_unknown_actor_errors() {
 async fn registry_is_cloneable_and_shared() {
     let registry = ActorRegistry::new();
     registry
-        .register(
-            "Echo",
-            Arc::new(|args| Box::pin(async move { Ok(args) })),
-        )
+        .register("Echo", Arc::new(|args| Box::pin(async move { Ok(args) })))
         .await;
     let clone = registry.clone();
     let result = clone

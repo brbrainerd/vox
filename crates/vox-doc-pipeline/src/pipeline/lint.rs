@@ -316,7 +316,12 @@ fn git_last_commit_date(repo_root: &Path, rel_file: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(&s, "%Y-%m-%d").ok()
 }
 
-fn lint_last_updated_vs_git(path: &Path, content: &str, repo_root: &Path, errors: &mut Vec<LintError>) {
+fn lint_last_updated_vs_git(
+    path: &Path,
+    content: &str,
+    repo_root: &Path,
+    errors: &mut Vec<LintError>,
+) {
     let Some(after_open) = content.strip_prefix("---") else {
         return;
     };
@@ -522,10 +527,8 @@ mod tests {
         let content = "---\ntitle: First\ncategory: architecture\n---\n---\ntitle: Second\ncategory: architecture\n---\n# Body\n";
         lint_file(md_path, content, repo, &mut errs);
         assert!(
-            errs.iter().any(|e| matches!(
-                e.kind,
-                LintKind::DuplicateFrontmatter { .. }
-            )),
+            errs.iter()
+                .any(|e| matches!(e.kind, LintKind::DuplicateFrontmatter { .. })),
             "expected duplicate frontmatter lint, got {errs:?}"
         );
     }
@@ -537,10 +540,11 @@ mod tests {
         let repo = Path::new(".");
         let content = "---\ntitle: Only\ncategory: architecture\n---\n# Body\n";
         lint_file(md_path, content, repo, &mut errs);
-        assert!(!errs.iter().any(|e| matches!(
-            e.kind,
-            LintKind::DuplicateFrontmatter { .. }
-        )));
+        assert!(
+            !errs
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::DuplicateFrontmatter { .. }))
+        );
     }
 
     #[test]
@@ -550,10 +554,11 @@ mod tests {
         let repo = Path::new(".");
         let content = "---\ntitle: Only\ncategory: architecture\n---\n\n```md\n---\ntitle: Template example\n---\n```\n# Body\n";
         lint_file(md_path, content, repo, &mut errs);
-        assert!(!errs.iter().any(|e| matches!(
-            e.kind,
-            LintKind::DuplicateFrontmatter { .. }
-        )));
+        assert!(
+            !errs
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::DuplicateFrontmatter { .. }))
+        );
     }
 
     #[test]
@@ -563,10 +568,11 @@ mod tests {
         let repo = Path::new(".");
         let content = "---\ntitle: Doc\ncategory: reference\n---\n\n## Section\n\n---\n\n```vox\n@table type Task {\n    title: str\n}\n```\n";
         lint_file(md_path, content, repo, &mut errs);
-        assert!(!errs.iter().any(|e| matches!(
-            e.kind,
-            LintKind::DuplicateFrontmatter { .. }
-        )));
+        assert!(
+            !errs
+                .iter()
+                .any(|e| matches!(e.kind, LintKind::DuplicateFrontmatter { .. }))
+        );
     }
 
     #[test]

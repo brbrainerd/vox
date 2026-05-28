@@ -261,14 +261,12 @@ impl VoxDb {
                 (publication_id.to_string(), content_sha3_256.to_string()),
             )
             .await?;
-        let row = rows.first().ok_or_else(|| {
-            StoreError::Db("publication approval by-role count: no row".into())
-        })?;
+        let row = rows
+            .first()
+            .ok_or_else(|| StoreError::Db("publication approval by-role count: no row".into()))?;
         // SUM(...) returns NULL when there are no matching rows; coerce to 0.
-        let human: Option<i64> =
-            row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
-        let critic: Option<i64> =
-            row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        let human: Option<i64> = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let critic: Option<i64> = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
         Ok((human.unwrap_or(0), critic.unwrap_or(0)))
     }
 
@@ -294,12 +292,8 @@ impl VoxDb {
             out.push(PublicationApprovalRow {
                 approver: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
                 approver_role: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
-                critic_fingerprint_json: r
-                    .get(2)
-                    .map_err(|e| StoreError::Db(e.to_string()))?,
-                critic_report_uri: r
-                    .get(3)
-                    .map_err(|e| StoreError::Db(e.to_string()))?,
+                critic_fingerprint_json: r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                critic_report_uri: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
                 approved_at_ms: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
             });
         }

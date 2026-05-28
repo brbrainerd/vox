@@ -72,7 +72,10 @@ impl ModelScorer {
 
     /// Score a model with optional mode-aware bonuses/penalties.
     pub fn score_with_mode(&self, params: ScoreParams) -> f64 {
-        let model = params.model.as_ref().expect("model is required for scoring");
+        let model = params
+            .model
+            .as_ref()
+            .expect("model is required for scoring");
         let task_type = params.task_type;
         let effective_pref = params.effective_pref;
         let free_only = params.free_only;
@@ -118,8 +121,8 @@ impl ModelScorer {
         }
         score += (model.capabilities.max_context as f64 / 100_000.0 * w.context_bonus_per_100k)
             .min(w.max_context_cap);
-        score += (model.max_tokens as f64 / 16_000.0 * w.max_tokens_bonus_per_16k)
-            .min(w.max_tokens_cap);
+        score +=
+            (model.max_tokens as f64 / 16_000.0 * w.max_tokens_bonus_per_16k).min(w.max_tokens_cap);
 
         match model.provider_type {
             ProviderType::OpenRouter | ProviderType::Groq => score += w.openrouter_bonus,

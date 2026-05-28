@@ -396,15 +396,21 @@ mod minimal_repro_tests {
         // Span over "BAD" inside line4.
         let bad_start = source.find("BAD").unwrap();
         let bad_end = bad_start + 3;
-        let payload =
-            VoxCompilerDiagnosticPayload::from_diagnostic(&diag_at(bad_start, bad_end), "f.vox", source);
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(
+            &diag_at(bad_start, bad_end),
+            "f.vox",
+            source,
+        );
         let mr = payload.minimal_repro.expect("repro present");
         // 3 lines before line 4 + line 4 + 3 lines after = lines 1..=7.
         assert_eq!(mr.excerpt_first_line, 1);
         assert!(mr.excerpt.contains("line1"));
         assert!(mr.excerpt.contains("line4_BAD"));
         assert!(mr.excerpt.contains("line7"));
-        assert!(!mr.excerpt.contains("line8"), "tail clipped at context window");
+        assert!(
+            !mr.excerpt.contains("line8"),
+            "tail clipped at context window"
+        );
         assert_eq!(mr.local_span.start_line, 4);
         assert_eq!(mr.local_span.end_line, 4);
     }

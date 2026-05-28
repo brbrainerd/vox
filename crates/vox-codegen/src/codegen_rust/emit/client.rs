@@ -189,10 +189,14 @@ fn mcp_coerce_param_expr(name: &str, type_ann: Option<&HirType>) -> String {
             format!("{name}.as_bool().unwrap_or(false)")
         }
         Some(HirType::Named(t)) if t == "dec" => {
-            format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
+            format!(
+                "rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()"
+            )
         }
         Some(HirType::Decimal) => {
-            format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
+            format!(
+                "rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()"
+            )
         }
         _ => name.to_string(),
     }

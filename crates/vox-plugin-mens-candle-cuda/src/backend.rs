@@ -53,7 +53,9 @@ impl MlBackend for CandleCudaPlugin {
         #[allow(unsafe_code)]
         // SAFETY: pointer came from `Box::into_raw` in `load_model` for this plugin.
         unsafe {
-            drop(Box::from_raw(model.opaque as *mut crate::model::CandleModel));
+            drop(Box::from_raw(
+                model.opaque as *mut crate::model::CandleModel,
+            ));
         }
         RResult::ROk(())
     }

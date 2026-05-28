@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use tracing::{info, warn};
-use std::path::{Path, PathBuf};
 use std::fs;
+use std::path::{Path, PathBuf};
+use tracing::{info, warn};
 
 /// Resolve the user home directory using env vars (cross-platform, no `dirs` dep).
 fn home_dir() -> PathBuf {
@@ -92,7 +92,10 @@ async fn provision_wasm_sysroots(toolchains_dir: &Path, rust_version: &str) -> R
     let sysroot_dir = toolchains_dir.join(format!("wasm-sysroot-{}", rust_version));
     if !sysroot_dir.exists() {
         fs::create_dir_all(&sysroot_dir)?;
-        info!("Provisioned new WASM sysroot directory at {:?}", sysroot_dir);
+        info!(
+            "Provisioned new WASM sysroot directory at {:?}",
+            sysroot_dir
+        );
     } else {
         info!("WASM sysroot for {} already exists.", rust_version);
     }

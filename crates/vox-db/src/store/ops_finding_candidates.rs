@@ -97,12 +97,7 @@ impl VoxDb {
             )
             .await
             .map_err(StoreError::Turso)?;
-        if existing
-            .next()
-            .await
-            .map_err(StoreError::Turso)?
-            .is_some()
-        {
+        if existing.next().await.map_err(StoreError::Turso)?.is_some() {
             return Ok(InsertOutcome::AlreadySeen);
         }
 

@@ -3,8 +3,8 @@
 //! Mirrors `codegen_ts/state_machine_emit.rs` to ensure server-side parity
 //! and eliminate the split-plane issue for stateful logic.
 
-use vox_compiler::hir::{HirModule, HirStateMachineDecl, HirSmFrom};
 use super::types::emit_type;
+use vox_compiler::hir::{HirModule, HirSmFrom, HirStateMachineDecl};
 
 /// Emit Rust types and reducer functions for all state machines in the module.
 pub fn emit_state_machine_decls(hir: &HirModule) -> String {
@@ -89,7 +89,10 @@ fn emit_reducer_fn(out: &mut String, sm: &HirStateMachineDecl, name: &str) {
     out.push_str("    match state {\n");
     for st in &sm.states {
         if st.is_terminal {
-            out.push_str(&format!("        {}::{} {{ .. }} => state,\n", name, st.name));
+            out.push_str(&format!(
+                "        {}::{} {{ .. }} => state,\n",
+                name, st.name
+            ));
             continue;
         }
         let fields_suffix = if st.fields.is_empty() { "" } else { " { .. }" };
@@ -106,7 +109,11 @@ fn emit_reducer_fn(out: &mut String, sm: &HirStateMachineDecl, name: &str) {
             })
             .collect();
         for tr in &state_transitions {
-            let event_fields_suffix = if tr.event_params.is_empty() { "" } else { " { .. }" };
+            let event_fields_suffix = if tr.event_params.is_empty() {
+                ""
+            } else {
+                " { .. }"
+            };
             out.push_str(&format!(
                 "            {}Event::{}{} => {}::{},\n",
                 name, tr.event_name, event_fields_suffix, name, tr.to_state
@@ -166,9 +173,8 @@ mod tests {
 
     #[test]
     fn test_emit_rust_state_machine_with_fields() {
-        let out = emit(
-            "state_machine Counter { state Count(val: int)\non Inc from Count -> Count\n}",
-        );
+        let out =
+            emit("state_machine Counter { state Count(val: int)\non Inc from Count -> Count\n}");
         assert!(out.contains("Count {"));
         assert!(out.contains("val: i64,"));
         assert!(out.contains("Counter::Count { .. } => match event {"));

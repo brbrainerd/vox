@@ -2,10 +2,10 @@
 //!
 //! Enable the **`tauri-plugin`** crate feature from generated `src-tauri`.
 
-use tauri::plugin::{Builder, TauriPlugin};
 use tauri::Runtime;
+use tauri::plugin::{Builder, TauriPlugin};
 
-use crate::{TranscribeResult, PLUGIN_ID};
+use crate::{PLUGIN_ID, TranscribeResult};
 
 /// Register the Sherpa plugin (command `transcribe` on id [`PLUGIN_ID`]).
 #[must_use]
@@ -27,8 +27,6 @@ async fn transcribe() -> Result<TranscribeResult, String> {
     }
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        Err(
-            "on-device transcription is only available in Android and iOS Tauri builds".to_string(),
-        )
+        Err("on-device transcription is only available in Android and iOS Tauri builds".to_string())
     }
 }

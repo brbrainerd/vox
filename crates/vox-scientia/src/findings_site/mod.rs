@@ -25,7 +25,5 @@ pub mod page;
 pub mod render;
 
 pub use meta::{HighwireMetaTags, build_highwire_meta_tags};
-pub use page::{
-    FindingPage, ReplyEntry, RetractionNotice, VersionHistoryEntry, VerifiedClaim,
-};
+pub use page::{FindingPage, ReplyEntry, RetractionNotice, VerifiedClaim, VersionHistoryEntry};
 pub use render::render_finding_page;

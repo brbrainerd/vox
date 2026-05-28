@@ -84,10 +84,8 @@ pub fn count_dep_consumers(
     crates_root: &std::path::Path,
     dep_names: &[String],
 ) -> std::collections::HashMap<String, usize> {
-    let mut counts: std::collections::HashMap<String, usize> = dep_names
-        .iter()
-        .map(|n| (n.clone(), 0usize))
-        .collect();
+    let mut counts: std::collections::HashMap<String, usize> =
+        dep_names.iter().map(|n| (n.clone(), 0usize)).collect();
     let Ok(entries) = std::fs::read_dir(crates_root) else {
         return counts;
     };
@@ -124,11 +122,7 @@ pub fn count_dep_consumers(
     counts
 }
 
-fn scan(
-    repo_root: &std::path::Path,
-    now_ms: i64,
-    session_id: &str,
-) -> Vec<ResearchEvent> {
+fn scan(repo_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<ResearchEvent> {
     let workspace_cargo = repo_root.join("Cargo.toml");
     let Ok(cargo_toml) = std::fs::read_to_string(&workspace_cargo) else {
         return Vec::new();
@@ -210,11 +204,7 @@ name = "demo"
         assert!(extract_workspace_dep_names(toml).is_empty());
     }
 
-    fn write_crate_with_dep(
-        crates_root: &std::path::Path,
-        crate_name: &str,
-        dep_line: &str,
-    ) {
+    fn write_crate_with_dep(crates_root: &std::path::Path, crate_name: &str, dep_line: &str) {
         let crate_dir = crates_root.join(crate_name);
         std::fs::create_dir_all(&crate_dir).unwrap();
         std::fs::write(
@@ -254,7 +244,11 @@ name = "demo"
         )
         .unwrap();
         std::fs::create_dir_all(tmp.path().join("crates")).unwrap();
-        write_crate_with_dep(&tmp.path().join("crates"), "a", "serde = { workspace = true }");
+        write_crate_with_dep(
+            &tmp.path().join("crates"),
+            "a",
+            "serde = { workspace = true }",
+        );
         let out = scan(tmp.path(), 1_747_000_000_000, "s");
         assert!(out.is_empty()); // only 1 consumer, threshold is 3
     }

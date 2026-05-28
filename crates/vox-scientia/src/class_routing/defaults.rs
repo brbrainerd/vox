@@ -51,7 +51,10 @@ impl FindingClass {
 
     /// Atlas-class predicate; drives [`crate::routing::atlas_gate_applies_to`].
     pub fn is_atlas(&self) -> bool {
-        matches!(self, Self::ModelCapabilityAtlas | Self::ProviderReliabilityAtlas)
+        matches!(
+            self,
+            Self::ModelCapabilityAtlas | Self::ProviderReliabilityAtlas
+        )
     }
 }
 
@@ -112,12 +115,7 @@ pub fn builtin_class_defaults() -> ClassDefaults {
             reply_window_days: 7,
             negative_result_quota: 0,
             critic_allowed: true,
-            recommended_venues: vec![
-                "ICSE".into(),
-                "FSE".into(),
-                "OOPSLA".into(),
-                "PLDI".into(),
-            ],
+            recommended_venues: vec!["ICSE".into(), "FSE".into(), "OOPSLA".into(), "PLDI".into()],
         },
     );
     by_class.insert(
@@ -281,10 +279,26 @@ telemetry_trust:
     fn micro_track_default_critic_allowed_matrix() {
         let d = builtin_class_defaults();
         // SWE / repro: critic allowed.
-        assert!(d.policy_for(FindingClass::AlgorithmicImprovement).unwrap().critic_allowed);
-        assert!(d.policy_for(FindingClass::ReproducibilityInfra).unwrap().critic_allowed);
+        assert!(
+            d.policy_for(FindingClass::AlgorithmicImprovement)
+                .unwrap()
+                .critic_allowed
+        );
+        assert!(
+            d.policy_for(FindingClass::ReproducibilityInfra)
+                .unwrap()
+                .critic_allowed
+        );
         // Provider-implication classes: critic NOT allowed by default.
-        assert!(!d.policy_for(FindingClass::TelemetryTrust).unwrap().critic_allowed);
-        assert!(!d.policy_for(FindingClass::PolicyGovernance).unwrap().critic_allowed);
+        assert!(
+            !d.policy_for(FindingClass::TelemetryTrust)
+                .unwrap()
+                .critic_allowed
+        );
+        assert!(
+            !d.policy_for(FindingClass::PolicyGovernance)
+                .unwrap()
+                .critic_allowed
+        );
     }
 }

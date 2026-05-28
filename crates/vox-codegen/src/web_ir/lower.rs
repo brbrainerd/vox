@@ -418,8 +418,6 @@ fn mutation_payload_type(sf: &HirEndpointFn) -> String {
         .unwrap_or_else(|| "void".to_string())
 }
 
-
-
 fn parse_style_selector(s: &str) -> StyleSelector {
     let s = s.trim();
     if s.is_empty() {

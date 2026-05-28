@@ -695,7 +695,33 @@ fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
 }
 
 fn step_fmt(root: &Path) -> Result<()> {
-    cargo_status(root, &["fmt", "--all", "--", "--check"])
+    // On Windows, `cargo fmt --all -- --check` fails with os error 206 (path too long)
+    // when the combined rustfmt invocation exceeds Windows command-line/path limits.
+    // Work around by running per-package on Windows; CI (Linux) uses the fast `--all` path.
+    if cfg!(target_os = "windows") {
+        let meta = MetadataCommand::new()
+            .manifest_path(root.join("Cargo.toml"))
+            .no_deps()
+            .exec()
+            .context("cargo metadata for step_fmt")?;
+        for pkg in meta.workspace_packages() {
+            let status = cargo()
+                .args(["fmt", "-p", pkg.name.as_str(), "--", "--check"])
+                .current_dir(root)
+                .status()
+                .with_context(|| format!("spawn cargo fmt -p {}", pkg.name))?;
+            if !status.success() {
+                bail!(
+                    "cargo fmt -p {} -- --check exited with {:?}",
+                    pkg.name,
+                    status.code()
+                );
+            }
+        }
+        Ok(())
+    } else {
+        cargo_status(root, &["fmt", "--all", "--", "--check"])
+    }
 }
 
 fn step_line_endings(root: &Path) -> Result<()> {

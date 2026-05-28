@@ -49,7 +49,10 @@ async fn scientia_finding_candidates_fingerprint_unique_index_exists() {
         .await
         .expect("query");
     let count: i64 = rows.first().expect("row").get(0).expect("count");
-    assert_eq!(count, 1, "(producer_name, signal_fingerprint) unique index missing");
+    assert_eq!(
+        count, 1,
+        "(producer_name, signal_fingerprint) unique index missing"
+    );
 }
 
 #[tokio::test]

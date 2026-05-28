@@ -21,6 +21,6 @@ pub mod bundle;
 pub mod escape;
 pub mod render;
 
-pub use bundle::{list_bundle_entries, render_arxiv_bundle, BundleError};
+pub use bundle::{BundleError, list_bundle_entries, render_arxiv_bundle};
 pub use escape::escape_latex;
 pub use render::render_latex;

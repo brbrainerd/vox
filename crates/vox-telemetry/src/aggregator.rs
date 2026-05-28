@@ -8,11 +8,7 @@
 //! an ambient `task_id` are silently skipped. Memory is bounded by active tasks
 //! only — entries are removed on `take()`.
 
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-    time::Instant,
-};
+use std::{collections::HashMap, sync::Mutex, time::Instant};
 
 use crate::types::{ModelCallEvent, TaskRootSummaryEvent, TelemetryEvent};
 
@@ -203,7 +199,7 @@ mod tests {
             trace_id: "trace-x".into(),
             repository_id: None,
             outcome: "completed".into(),
-            wall_time_ms: 1234,  // caller-supplied value; not overwritten because != 0
+            wall_time_ms: 1234, // caller-supplied value; not overwritten because != 0
             total_input_tokens: 0,
             total_output_tokens: 0,
             total_cost_usd: 0.0,
@@ -231,7 +227,7 @@ mod tests {
             trace_id: "trace-y".into(),
             repository_id: None,
             outcome: "completed".into(),
-            wall_time_ms: 0,  // fill should populate this
+            wall_time_ms: 0, // fill should populate this
             total_input_tokens: 0,
             total_output_tokens: 0,
             total_cost_usd: 0.0,

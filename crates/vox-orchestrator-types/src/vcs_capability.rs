@@ -232,7 +232,8 @@ mod tests {
 
     #[test]
     fn mint_working_tree_write_round_trip_func() {
-        let cap = mint_working_tree_write(WorkspaceId(5), BranchName::parse("test/branch").unwrap());
+        let cap =
+            mint_working_tree_write(WorkspaceId(5), BranchName::parse("test/branch").unwrap());
         assert_eq!(cap.workspace(), WorkspaceId(5));
     }
 }

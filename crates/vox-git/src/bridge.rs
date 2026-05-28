@@ -169,10 +169,10 @@ impl GitBridge {
         // For now, fall back to git command (temporary until gix init API is stable).
         let status = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(["init", "--initial-branch=main"])
-            .arg(&path)
-            .status()
-            .context("Failed to run git init")?;
+        .args(["init", "--initial-branch=main"])
+        .arg(&path)
+        .status()
+        .context("Failed to run git init")?;
         if !status.success() {
             anyhow::bail!("git init failed at '{}'", path.display());
         }

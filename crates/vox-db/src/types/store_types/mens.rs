@@ -86,4 +86,3 @@ pub struct TierResult {
     pub passed: bool,
     pub diagnostic: String,
 }
-

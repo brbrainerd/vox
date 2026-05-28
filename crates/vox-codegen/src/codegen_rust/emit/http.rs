@@ -1,10 +1,10 @@
-use vox_compiler::app_contract::AppContractModule;
-use vox_compiler::hir::http_ergonomics::{HirCorsPolicy, RateLimitBy};
 use std::collections::HashMap;
+use vox_compiler::app_contract::AppContractModule;
 use vox_compiler::ast::span::Span;
+use vox_compiler::hir::http_ergonomics::{HirCorsPolicy, RateLimitBy};
 use vox_compiler::hir::{DurabilityKind, HirEndpointFn, HirEndpointKind, HirModule, HirType};
 
-use super::main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, BootPropagation};
+use super::main_boot::{BootPropagation, emit_durable_boot_helpers, emit_durable_boot_prelude};
 use super::stmt_expr::emit_stmt;
 use super::tables::emit_db_setup;
 
@@ -537,7 +537,16 @@ fn emit_server_fn_handler(
         let mut has_return = false;
         let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 2, true, false, true, inferred_types, Some(&usage), rid);
+            let emitted = emit_stmt(
+                stmt,
+                2,
+                true,
+                false,
+                true,
+                inferred_types,
+                Some(&usage),
+                rid,
+            );
             if emitted.contains("return Ok(Json(") || emitted.contains("return Json(") {
                 has_return = true;
             }
@@ -556,7 +565,16 @@ fn emit_server_fn_handler(
         let mut has_return = false;
         let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 1, true, false, false, inferred_types, Some(&usage), rid);
+            let emitted = emit_stmt(
+                stmt,
+                1,
+                true,
+                false,
+                false,
+                inferred_types,
+                Some(&usage),
+                rid,
+            );
             if emitted.contains("return Ok(Json(") {
                 has_return = true;
             }
@@ -604,7 +622,16 @@ fn emit_query_fn_handler(
     let mut has_return = false;
     let usage = super::usage::UsageTracker::build(&sf.body);
     for stmt in &sf.body {
-        let emitted = emit_stmt(stmt, 1, true, false, false, inferred_types, Some(&usage), rid);
+        let emitted = emit_stmt(
+            stmt,
+            1,
+            true,
+            false,
+            false,
+            inferred_types,
+            Some(&usage),
+            rid,
+        );
         if emitted.contains("return Ok(Json(") {
             has_return = true;
         }

@@ -508,9 +508,7 @@ pub fn register_hir_actors(env: &mut TypeEnv, module: &crate::hir::HirModule) {
         // Ensure even handler-less actors register so `lookup_actor`
         // returns `Some(empty_vec)` instead of `None` (the subscribe()
         // fallback to `Stream[str]` still works either way).
-        by_actor
-            .entry(actor_name.clone())
-            .or_default();
+        by_actor.entry(actor_name.clone()).or_default();
     }
     for (name, handlers) in by_actor {
         env.register_actor(name, handlers);

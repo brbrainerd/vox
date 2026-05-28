@@ -245,8 +245,7 @@ fn probe_health(url: &str) -> (bool, Option<u16>, Option<String>) {
     };
     let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
-    let request =
-        format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
+    let request = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
     if let Err(e) = stream.write_all(request.as_bytes()) {
         return (false, None, Some(format!("write: {e}")));
     }

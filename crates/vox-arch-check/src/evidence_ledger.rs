@@ -84,8 +84,8 @@ pub fn check_evidence_ledger(workspace_root: &Path) -> Result<Vec<EvidenceFindin
         .join("evidence-ledger.v1.json");
     let body = std::fs::read_to_string(&ledger_path)
         .with_context(|| format!("read {}", ledger_path.display()))?;
-    let ledger: LedgerFile = serde_json::from_str(&body)
-        .with_context(|| format!("parse {}", ledger_path.display()))?;
+    let ledger: LedgerFile =
+        serde_json::from_str(&body).with_context(|| format!("parse {}", ledger_path.display()))?;
     if ledger.schema_version != 1 {
         anyhow::bail!(
             "evidence-ledger.v1.json schema_version is {}, expected 1",
@@ -210,9 +210,8 @@ mod tests {
     fn write_ledger(root: &Path, claims_json: &str) {
         let dir = root.join("contracts").join("reports");
         fs::create_dir_all(&dir).unwrap();
-        let body = format!(
-            r#"{{"schema_version":1,"claims":{claims_json},"blocked_claims":{{}}}}"#
-        );
+        let body =
+            format!(r#"{{"schema_version":1,"claims":{claims_json},"blocked_claims":{{}}}}"#);
         fs::write(dir.join("evidence-ledger.v1.json"), body).unwrap();
     }
 
@@ -232,7 +231,11 @@ mod tests {
     #[test]
     fn empty_dated_dir_is_flagged() {
         let tmp = tempfile::tempdir().unwrap();
-        let report_dir = tmp.path().join("contracts").join("reports").join("retirement");
+        let report_dir = tmp
+            .path()
+            .join("contracts")
+            .join("reports")
+            .join("retirement");
         fs::create_dir_all(&report_dir).unwrap();
         write_ledger(
             tmp.path(),
@@ -246,7 +249,11 @@ mod tests {
     #[test]
     fn fresh_dated_dir_is_clean() {
         let tmp = tempfile::tempdir().unwrap();
-        let report_dir = tmp.path().join("contracts").join("reports").join("retirement");
+        let report_dir = tmp
+            .path()
+            .join("contracts")
+            .join("reports")
+            .join("retirement");
         fs::create_dir_all(&report_dir).unwrap();
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
         fs::write(report_dir.join(format!("{today}.json")), "{}").unwrap();
@@ -261,7 +268,11 @@ mod tests {
     #[test]
     fn stale_dated_report_is_flagged() {
         let tmp = tempfile::tempdir().unwrap();
-        let report_dir = tmp.path().join("contracts").join("reports").join("retirement");
+        let report_dir = tmp
+            .path()
+            .join("contracts")
+            .join("reports")
+            .join("retirement");
         fs::create_dir_all(&report_dir).unwrap();
         // 2020-01-01 → definitely older than 30 days from now.
         fs::write(report_dir.join("2020-01-01.json"), "{}").unwrap();

@@ -67,7 +67,10 @@ fn main() {
         "CR-D3 coverage: {covered}/{total} subcommands have at least one .vox example ({coverage_pct:.1}%)"
     );
     if !met {
-        eprintln!("CR-D3: {} subcommand(s) without an example:", without_example.len());
+        eprintln!(
+            "CR-D3: {} subcommand(s) without an example:",
+            without_example.len()
+        );
         for sub in without_example.iter().take(20) {
             eprintln!("  - {sub}");
         }
@@ -112,7 +115,9 @@ fn main() {
 /// (e.g. `["ci", "ci.lint", "ci.lint.run"]`).
 fn enumerate_subcommands(workspace: &std::path::Path) -> Result<Vec<String>, String> {
     let output = Command::new("cargo")
-        .args(["run", "-q", "-p", "vox-cli", "--", "commands", "--format", "json"])
+        .args([
+            "run", "-q", "-p", "vox-cli", "--", "commands", "--format", "json",
+        ])
         .current_dir(workspace)
         .output()
         .map_err(|e| format!("spawn cargo: {e}"))?;
@@ -123,8 +128,8 @@ fn enumerate_subcommands(workspace: &std::path::Path) -> Result<Vec<String>, Str
     let body = String::from_utf8_lossy(&output.stdout);
     // Trim potential cargo-run preamble noise. Find the first '{'.
     let first_brace = body.find('{').ok_or("no JSON in output")?;
-    let json: Value = serde_json::from_str(&body[first_brace..])
-        .map_err(|e| format!("parse json: {e}"))?;
+    let json: Value =
+        serde_json::from_str(&body[first_brace..]).map_err(|e| format!("parse json: {e}"))?;
     let entries = json["entries"]
         .as_array()
         .ok_or("missing `entries` array")?;
@@ -149,10 +154,7 @@ fn enumerate_subcommands(workspace: &std::path::Path) -> Result<Vec<String>, Str
 
 /// Walk every `.vox` file under `corpus_roots` and collect the set of
 /// subcommand paths each file references via `vox <subcommand>`.
-fn scan_corpus_for_mentions(
-    corpus_roots: &[PathBuf],
-    subcommands: &[String],
-) -> BTreeSet<String> {
+fn scan_corpus_for_mentions(corpus_roots: &[PathBuf], subcommands: &[String]) -> BTreeSet<String> {
     // Precompute the per-subcommand search needles. For path "ci.lint.run"
     // we look for "vox ci lint run" (clap's actual invocation form).
     let mut needles: Vec<(String, String)> = subcommands

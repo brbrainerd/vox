@@ -95,7 +95,12 @@ impl Producer for CommitGraphProducer {
     }
 
     async fn observe(&self, ctx: &ProducerContext) -> Vec<ResearchEvent> {
-        scan_commits(&ctx.repo_root, ctx.commit_window, ctx.now_ms, &ctx.session_id)
+        scan_commits(
+            &ctx.repo_root,
+            ctx.commit_window,
+            ctx.now_ms,
+            &ctx.session_id,
+        )
     }
 }
 

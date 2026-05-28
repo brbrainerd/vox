@@ -411,10 +411,7 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
     let obj = v
         .as_object_mut()
         .ok_or_else(|| "training row must be JSON object".to_string())?;
-    let existing = obj
-        .get("lane")
-        .and_then(|x| x.as_str())
-        .map(str::to_string);
+    let existing = obj.get("lane").and_then(|x| x.as_str()).map(str::to_string);
     // Lane override rule: if the row carries an explicit, non-default lane
     // label, trust it. If the row's lane is the generic catch-all
     // (`vox_codegen`) BUT the row's category suggests a more specific lane

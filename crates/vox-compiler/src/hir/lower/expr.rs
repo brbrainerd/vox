@@ -379,9 +379,7 @@ impl LowerCtx {
                 span,
             );
         }
-        if let Some((table, op)) =
-            super::expr_db::db_table_op_from_field(&obj_hir, method)
-        {
+        if let Some((table, op)) = super::expr_db::db_table_op_from_field(&obj_hir, method) {
             let mut cap = HirDbPlanCapabilities::default();
             if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
                 cap.emits_change_log = true;

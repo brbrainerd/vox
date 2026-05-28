@@ -94,9 +94,7 @@ fn arch_check_live_workspace_smoke_and_description_rule() {
     );
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains(": clean")
-            || stderr.contains("[warn]")
-            || stderr.contains("[ERROR]"),
+        stderr.contains(": clean") || stderr.contains("[warn]") || stderr.contains("[ERROR]"),
         "expected arch-check to print a summary line; got:\n{stderr}",
     );
 }

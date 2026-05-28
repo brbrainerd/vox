@@ -99,7 +99,11 @@ fn every_golden_example_compiles_clean() {
     // Sanity: the directory should not be empty, and `clean + skipped + failing`
     // must account for every .vox file we counted.
     assert!(total > 0, "no .vox files found under {}", dir.display());
-    assert_eq!(clean + skipped, total, "counter mismatch — bug in this test");
+    assert_eq!(
+        clean + skipped,
+        total,
+        "counter mismatch — bug in this test"
+    );
 }
 
 /// `apps/marquee/<app>/src/main.vox` carries the three reference marquee

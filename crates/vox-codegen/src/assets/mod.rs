@@ -65,19 +65,14 @@ impl AssetManifest {
 
     /// Copy declared assets into `dest_root`, preserving relative paths beneath `manifest_dir`.
     pub fn stage_under(&self, dest_root: &Path) -> Result<()> {
-        std::fs::create_dir_all(dest_root).with_context(|| {
-            format!(
-                "create asset stage directory {}",
-                dest_root.display()
-            )
-        })?;
+        std::fs::create_dir_all(dest_root)
+            .with_context(|| format!("create asset stage directory {}", dest_root.display()))?;
         for rel in &self.rel_paths {
             let src = self.manifest_dir.join(rel);
             let dst = dest_root.join(rel);
             if let Some(parent) = dst.parent() {
-                std::fs::create_dir_all(parent).with_context(|| {
-                    format!("create parent dirs for {}", dst.display())
-                })?;
+                std::fs::create_dir_all(parent)
+                    .with_context(|| format!("create parent dirs for {}", dst.display()))?;
             }
             copy_path_recursive(&src, &dst)
                 .with_context(|| format!("stage asset {} -> {}", src.display(), dst.display()))?;
@@ -92,7 +87,8 @@ fn copy_path_recursive(src: &Path, dst: &Path) -> Result<()> {
         .with_context(|| format!("stat {}", src.display()))?;
     if meta.is_dir() {
         std::fs::create_dir_all(dst).with_context(|| format!("mkdir {}", dst.display()))?;
-        for entry in std::fs::read_dir(src).with_context(|| format!("read_dir {}", src.display()))?
+        for entry in
+            std::fs::read_dir(src).with_context(|| format!("read_dir {}", src.display()))?
         {
             let entry = entry?;
             let file_type = entry.file_type()?;
@@ -102,17 +98,14 @@ fn copy_path_recursive(src: &Path, dst: &Path) -> Result<()> {
                 copy_path_recursive(&child_src, &child_dst)?;
             } else if file_type.is_file() {
                 std::fs::copy(&child_src, &child_dst).with_context(|| {
-                    format!(
-                        "copy {} -> {}",
-                        child_src.display(),
-                        child_dst.display()
-                    )
+                    format!("copy {} -> {}", child_src.display(), child_dst.display())
                 })?;
             }
         }
         Ok(())
     } else if meta.is_file() {
-        std::fs::copy(src, dst).with_context(|| format!("copy {} -> {}", src.display(), dst.display()))?;
+        std::fs::copy(src, dst)
+            .with_context(|| format!("copy {} -> {}", src.display(), dst.display()))?;
         Ok(())
     } else {
         anyhow::bail!("unsupported asset type (not file/dir): {}", src.display());
@@ -128,7 +121,14 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let icon = dir.path().join("app-icon.png");
         std::fs::File::create(&icon).expect("touch");
-        let m = AssetManifest::from_bundle_fragment(dir.path(), Some("app-icon.png"), None, None, None, None);
+        let m = AssetManifest::from_bundle_fragment(
+            dir.path(),
+            Some("app-icon.png"),
+            None,
+            None,
+            None,
+            None,
+        );
         m.validate_preflight().expect("ok");
         let stage = dir.path().join("stage");
         m.stage_under(&stage).expect("stage");

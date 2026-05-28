@@ -71,7 +71,11 @@ fn main() {
     }
 
     all_functions.sort_by(|a, b| b.complexity.cmp(&a.complexity));
-    let max_complexity = all_functions.iter().map(|f| f.complexity).max().unwrap_or(0);
+    let max_complexity = all_functions
+        .iter()
+        .map(|f| f.complexity)
+        .max()
+        .unwrap_or(0);
     let over_budget: Vec<&FunctionReport> = all_functions
         .iter()
         .filter(|f| f.complexity > COMPLEXITY_BUDGET)

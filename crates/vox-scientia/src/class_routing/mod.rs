@@ -22,10 +22,10 @@ pub mod defaults;
 pub mod routing;
 
 pub use defaults::{
-    builtin_class_defaults, load_class_defaults_from_yaml, ClassDefaults,
-    ClassPolicy, ClassRoutingError, FindingClass,
+    ClassDefaults, ClassPolicy, ClassRoutingError, FindingClass, builtin_class_defaults,
+    load_class_defaults_from_yaml,
 };
 pub use routing::{
-    atlas_gate_applies_to, recommended_venues_for, reply_window_days_for,
-    negative_result_quota_for, critic_allowed_for,
+    atlas_gate_applies_to, critic_allowed_for, negative_result_quota_for, recommended_venues_for,
+    reply_window_days_for,
 };

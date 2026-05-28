@@ -8,9 +8,9 @@
 //! - [`RuntimePreference`] — backend selection hint
 //! - [`exec_grammar`] — pure shell AST parser + risk classifier
 
-mod runtime;
 pub mod detect;
 pub mod exec_grammar;
+mod runtime;
 
-pub use runtime::{BuildOpts, ContainerRuntime, RunOpts};
 pub use detect::RuntimePreference;
+pub use runtime::{BuildOpts, ContainerRuntime, RunOpts};

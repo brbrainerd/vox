@@ -35,18 +35,17 @@ fn example_decl_parses_typechecks_and_lowers_into_examples_vec() {
     let errors: Vec<_> = res
         .diagnostics
         .iter()
-        .filter(|d| matches!(
-            d.severity,
-            vox_compiler::typeck::diagnostics::TypeckSeverity::Error
-        ))
+        .filter(|d| {
+            matches!(
+                d.severity,
+                vox_compiler::typeck::diagnostics::TypeckSeverity::Error
+            )
+        })
         .collect();
     assert!(
         errors.is_empty(),
         "unexpected errors: {:?}",
-        errors
-            .iter()
-            .map(|d| d.message.clone())
-            .collect::<Vec<_>>()
+        errors.iter().map(|d| d.message.clone()).collect::<Vec<_>>()
     );
 
     assert_eq!(
@@ -105,10 +104,12 @@ fn example_pre_fix_would_have_failed_to_parse() {
     let payloads = vox_compiler::pipeline::check_file(source, "baseline.vox");
     let errors: Vec<_> = payloads
         .iter()
-        .filter(|d| matches!(
-            d.severity,
-            vox_compiler::typeck::diagnostics::TypeckSeverity::Error
-        ))
+        .filter(|d| {
+            matches!(
+                d.severity,
+                vox_compiler::typeck::diagnostics::TypeckSeverity::Error
+            )
+        })
         .collect();
     assert!(
         errors.is_empty(),

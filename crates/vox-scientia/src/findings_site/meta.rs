@@ -38,8 +38,8 @@ pub fn build_highwire_meta_tags(page: &FindingPage) -> HighwireMetaTags {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::page::{Author, RetractionNotice};
+    use super::*;
 
     fn sample_page() -> FindingPage {
         FindingPage {
@@ -85,6 +85,9 @@ mod tests {
     #[test]
     fn abstract_html_url_uses_trusty_uri_path() {
         let m = build_highwire_meta_tags(&sample_page());
-        assert_eq!(m.citation_abstract_html_url.as_deref(), Some("/findings/RA1234"));
+        assert_eq!(
+            m.citation_abstract_html_url.as_deref(),
+            Some("/findings/RA1234")
+        );
     }
 }

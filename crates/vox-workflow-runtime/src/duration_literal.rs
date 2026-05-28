@@ -47,8 +47,14 @@ impl std::fmt::Display for DurationParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Empty => write!(f, "empty duration literal"),
-            Self::EmptyDigits => write!(f, "duration literal has unit suffix but no numeric digits"),
-            Self::InvalidNumber(s) => write!(f, "duration literal numeric portion {:?} is not a non-negative integer", s),
+            Self::EmptyDigits => {
+                write!(f, "duration literal has unit suffix but no numeric digits")
+            }
+            Self::InvalidNumber(s) => write!(
+                f,
+                "duration literal numeric portion {:?} is not a non-negative integer",
+                s
+            ),
             Self::UnknownUnit(u) => {
                 write!(
                     f,
@@ -85,7 +91,10 @@ pub fn parse_duration_str(s: &str) -> Result<Duration, DurationParseError> {
         // signs), the caller intended a number — emit InvalidNumber so the
         // diagnostic blames the right thing. Otherwise it's a unit-only
         // literal like `"minutes"` — UnknownUnit.
-        if unit.chars().any(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == '+') {
+        if unit
+            .chars()
+            .any(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == '+')
+        {
             return Err(DurationParseError::InvalidNumber(s.to_string()));
         }
         return Err(DurationParseError::UnknownUnit(unit.to_string()));
@@ -104,7 +113,10 @@ pub fn parse_duration_str(s: &str) -> Result<Duration, DurationParseError> {
             // number-shaped characters, the user wrote something like
             // `"1.5h"` and the digits we captured are just a prefix — the
             // whole input is best diagnosed as InvalidNumber.
-            if other.chars().any(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == '+') {
+            if other
+                .chars()
+                .any(|c| c.is_ascii_digit() || c == '.' || c == '-' || c == '+')
+            {
                 return Err(DurationParseError::InvalidNumber(s.to_string()));
             }
             return Err(DurationParseError::UnknownUnit(other.to_string()));
@@ -124,7 +136,10 @@ mod tests {
 
     #[test]
     fn parses_milliseconds() {
-        assert_eq!(parse_duration_str("500ms").unwrap(), Duration::from_millis(500));
+        assert_eq!(
+            parse_duration_str("500ms").unwrap(),
+            Duration::from_millis(500)
+        );
         assert_eq!(parse_duration_str("0ms").unwrap(), Duration::from_millis(0));
     }
 
@@ -132,14 +147,23 @@ mod tests {
     fn parses_seconds() {
         assert_eq!(parse_duration_str("30s").unwrap(), Duration::from_secs(30));
         // Whitespace tolerated.
-        assert_eq!(parse_duration_str(" 30 s ").unwrap(), Duration::from_secs(30));
+        assert_eq!(
+            parse_duration_str(" 30 s ").unwrap(),
+            Duration::from_secs(30)
+        );
     }
 
     #[test]
     fn parses_minutes_hours_days() {
         assert_eq!(parse_duration_str("5m").unwrap(), Duration::from_secs(300));
-        assert_eq!(parse_duration_str("2h").unwrap(), Duration::from_secs(2 * 3600));
-        assert_eq!(parse_duration_str("1d").unwrap(), Duration::from_secs(86_400));
+        assert_eq!(
+            parse_duration_str("2h").unwrap(),
+            Duration::from_secs(2 * 3600)
+        );
+        assert_eq!(
+            parse_duration_str("1d").unwrap(),
+            Duration::from_secs(86_400)
+        );
     }
 
     #[test]
@@ -150,15 +174,27 @@ mod tests {
 
     #[test]
     fn empty_is_error() {
-        assert_eq!(parse_duration_str("").unwrap_err(), DurationParseError::Empty);
-        assert_eq!(parse_duration_str("   ").unwrap_err(), DurationParseError::Empty);
+        assert_eq!(
+            parse_duration_str("").unwrap_err(),
+            DurationParseError::Empty
+        );
+        assert_eq!(
+            parse_duration_str("   ").unwrap_err(),
+            DurationParseError::Empty
+        );
     }
 
     #[test]
     fn empty_digits_is_error() {
         // Suffix with no digits.
-        matches!(parse_duration_str("ms").unwrap_err(), DurationParseError::EmptyDigits);
-        matches!(parse_duration_str(" s").unwrap_err(), DurationParseError::EmptyDigits);
+        matches!(
+            parse_duration_str("ms").unwrap_err(),
+            DurationParseError::EmptyDigits
+        );
+        matches!(
+            parse_duration_str(" s").unwrap_err(),
+            DurationParseError::EmptyDigits
+        );
     }
 
     #[test]

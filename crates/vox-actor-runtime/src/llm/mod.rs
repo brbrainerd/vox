@@ -1,7 +1,7 @@
 //! OpenAI-compatible chat, streaming, and embeddings around durable activities.
 
-mod chat;
 pub mod cascade;
+mod chat;
 mod embed;
 mod stream;
 mod types;

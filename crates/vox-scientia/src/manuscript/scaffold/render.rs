@@ -1,9 +1,7 @@
 //! IMRaD markdown rendering.
 
 use super::safe_slots::ForbiddenSection;
-use super::section_tree::{
-    AuthorEntry, CitedFact, FigureEntry, ResultsRow, ScaffoldInput,
-};
+use super::section_tree::{AuthorEntry, CitedFact, FigureEntry, ResultsRow, ScaffoldInput};
 
 /// Render a [`ScaffoldInput`] to a complete IMRaD markdown document.
 ///
@@ -20,7 +18,11 @@ pub fn render_imrad(input: &ScaffoldInput) -> String {
     write_title(&mut out, &input.title_hint);
     write_authors(&mut out, &input.authors);
     write_abstract_todo(&mut out);
-    write_forbidden_section_with_facts(&mut out, ForbiddenSection::Introduction, &input.cited_facts);
+    write_forbidden_section_with_facts(
+        &mut out,
+        ForbiddenSection::Introduction,
+        &input.cited_facts,
+    );
     write_methods(&mut out, input.methods_summary.as_deref());
     write_results(&mut out, &input.results_rows);
     write_figures(&mut out, &input.figures);
@@ -283,8 +285,8 @@ fn write_competing_interests(out: &mut String, ci: Option<&str>) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::section_tree::AuthorEntry;
+    use super::*;
 
     fn sample_input() -> ScaffoldInput {
         ScaffoldInput {
@@ -306,9 +308,13 @@ mod tests {
                 citation_key: "Doe2024".into(),
                 doi_or_url: "https://doi.org/10.0000/test".into(),
             }],
-            methods_summary: Some("We re-ran the existing benchmark suite under three configurations.".into()),
+            methods_summary: Some(
+                "We re-ran the existing benchmark suite under three configurations.".into(),
+            ),
             limitations: vec!["Sample restricted to x86_64 hosts.".into()],
-            ai_disclosure_markdown: Some("This manuscript was scaffolded by `vox-manuscript-scaffold` v0.5.".into()),
+            ai_disclosure_markdown: Some(
+                "This manuscript was scaffolded by `vox-manuscript-scaffold` v0.5.".into(),
+            ),
             competing_interests: Some("The authors declare no competing interests.".into()),
             figures: vec![],
         }

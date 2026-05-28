@@ -43,11 +43,7 @@ impl Producer for TestCorpusProducer {
     }
 }
 
-fn scan(
-    crates_root: &std::path::Path,
-    now_ms: i64,
-    session_id: &str,
-) -> Vec<ResearchEvent> {
+fn scan(crates_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<ResearchEvent> {
     if !crates_root.is_dir() {
         return Vec::new();
     }
@@ -115,7 +111,12 @@ fn count_test_files(tests_dir: &std::path::Path) -> (usize, u64) {
 mod tests {
     use super::*;
 
-    fn create_test_crate(crates_root: &std::path::Path, name: &str, n_files: usize, file_bytes: usize) {
+    fn create_test_crate(
+        crates_root: &std::path::Path,
+        name: &str,
+        n_files: usize,
+        file_bytes: usize,
+    ) {
         let crate_dir = crates_root.join(name);
         let tests_dir = crate_dir.join("tests");
         std::fs::create_dir_all(&tests_dir).unwrap();

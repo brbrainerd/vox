@@ -13,10 +13,10 @@
 //! Figure paths are taken verbatim from `ScaffoldInput::figures[*].path`
 //! so they line up with the LaTeX `\includegraphics{...}` references.
 
-use flate2::write::GzEncoder;
-use flate2::Compression;
-use thiserror::Error;
 use crate::manuscript::scaffold::ScaffoldInput;
+use flate2::Compression;
+use flate2::write::GzEncoder;
+use thiserror::Error;
 
 use super::render::render_latex;
 
@@ -135,16 +135,20 @@ mod tests {
             caption_hint: None,
         }];
         let svg = b"<svg xmlns='http://www.w3.org/2000/svg'/>".to_vec();
-        let bundle = render_arxiv_bundle(
-            &input,
-            &[("figures/fig-01.svg".to_string(), svg.clone())],
-        )
-        .unwrap();
+        let bundle =
+            render_arxiv_bundle(&input, &[("figures/fig-01.svg".to_string(), svg.clone())])
+                .unwrap();
         let entries = list_bundle_entries(&bundle).unwrap();
         let mut paths: Vec<&String> = entries.iter().map(|(p, _)| p).collect();
         paths.sort();
-        assert_eq!(paths, vec![&"figures/fig-01.svg".to_string(), &"main.tex".to_string()]);
-        let figure = entries.iter().find(|(p, _)| p == "figures/fig-01.svg").unwrap();
+        assert_eq!(
+            paths,
+            vec![&"figures/fig-01.svg".to_string(), &"main.tex".to_string()]
+        );
+        let figure = entries
+            .iter()
+            .find(|(p, _)| p == "figures/fig-01.svg")
+            .unwrap();
         assert_eq!(figure.1, svg);
     }
 

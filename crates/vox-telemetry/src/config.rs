@@ -167,7 +167,9 @@ pub fn org_policy_disabled() -> bool {
         let bare = line.split('#').next().unwrap_or("").trim();
         // Match `enabled = false` / `enabled=false` / `enabled = 0` / `enabled = "false"`.
         if let Some(rest) = bare.strip_prefix("enabled") {
-            let rest = rest.trim_start_matches(|c: char| c == ' ' || c == '=').trim();
+            let rest = rest
+                .trim_start_matches(|c: char| c == ' ' || c == '=')
+                .trim();
             let rest = rest.trim_matches('"').trim_matches('\'');
             if matches!(rest, "false" | "0" | "off") {
                 return true;
@@ -280,7 +282,9 @@ mod tests {
             }
             let bare = line.split('#').next().unwrap_or("").trim();
             if let Some(rest) = bare.strip_prefix("enabled") {
-                let rest = rest.trim_start_matches(|c: char| c == ' ' || c == '=').trim();
+                let rest = rest
+                    .trim_start_matches(|c: char| c == ' ' || c == '=')
+                    .trim();
                 let rest = rest.trim_matches('"').trim_matches('\'');
                 if matches!(rest, "false" | "0" | "off") {
                     return true;

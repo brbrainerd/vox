@@ -234,7 +234,11 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                         main_rs.push_str("fn main() {\n");
                     }
                     for stmt in &func.body {
-                        main_rs.push_str(&emit::emit_main_stmt(stmt, 1, Some(&module.inferred_types)));
+                        main_rs.push_str(&emit::emit_main_stmt(
+                            stmt,
+                            1,
+                            Some(&module.inferred_types),
+                        ));
                     }
                     main_rs.push_str("}\n");
                 }
@@ -251,7 +255,11 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                         for stmt in &func.body {
                             // WASI: same Rust statement emission for now; builtin routing can be
                             // reintroduced when `vox-script-wasi` shims are wired to HIR again.
-                            main_rs.push_str(&emit::emit_main_stmt(stmt, 1, Some(&module.inferred_types)));
+                            main_rs.push_str(&emit::emit_main_stmt(
+                                stmt,
+                                1,
+                                Some(&module.inferred_types),
+                            ));
                         }
                         main_rs.push_str("}\n");
                     }

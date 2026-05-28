@@ -110,6 +110,9 @@ fn status_field_is_present_on_entries() {
     let cloud = plugins.iter().find(|p| p.id == "cloud").expect("cloud");
     assert_eq!(cloud.status, CatalogStatus::Alpha);
     // skill-v0 was marked deprecated.
-    let v0 = plugins.iter().find(|p| p.id == "skill-v0").expect("skill-v0");
+    let v0 = plugins
+        .iter()
+        .find(|p| p.id == "skill-v0")
+        .expect("skill-v0");
     assert_eq!(v0.status, CatalogStatus::Deprecated);
 }

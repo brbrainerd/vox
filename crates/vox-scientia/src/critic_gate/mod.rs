@@ -31,7 +31,7 @@ pub mod venue;
 
 pub use fingerprint::ModelFingerprint;
 pub use gate::{
-    evaluate_gate, ApproverRecord, CriticRecommendation, GateInputs, GateOutcome, GateReason,
+    ApproverRecord, CriticRecommendation, GateInputs, GateOutcome, GateReason, evaluate_gate,
 };
 pub use role::ApproverRole;
 pub use venue::VenueCriticPolicy;

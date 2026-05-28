@@ -69,8 +69,7 @@ pub struct OpenClawClient {
 impl OpenClawClient {
     /// Build a client from configuration.
     pub fn new(cfg: OpenClawRemoteConfig) -> Result<Self, OpenClawError> {
-        let mut b =
-            vox_http_client::client_builder().timeout(std::time::Duration::from_secs(60));
+        let mut b = vox_http_client::client_builder().timeout(std::time::Duration::from_secs(60));
         if !cfg.verify_tls {
             b = b.danger_accept_invalid_certs(true);
         }

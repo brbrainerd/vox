@@ -54,6 +54,7 @@ mod ops_developer_journeys;
 pub mod ops_exec_time;
 mod ops_external_intelligence;
 mod ops_external_review;
+mod ops_finding_candidates;
 mod ops_identity;
 mod ops_learning;
 mod ops_lineage;
@@ -67,11 +68,8 @@ mod ops_planning;
 mod ops_publication;
 mod ops_questioning;
 mod ops_retention;
-mod ops_finding_candidates;
 mod ops_scientia;
 
-pub use ops_finding_candidates::{
-    FindingCandidateClass, FindingCandidateRow, InsertOutcome,
-};
+pub use ops_finding_candidates::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 mod ops_secrets_cloudless;
 mod ops_visus;

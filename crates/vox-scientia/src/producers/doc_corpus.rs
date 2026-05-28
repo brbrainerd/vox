@@ -41,15 +41,15 @@ impl Producer for DocCorpusProducer {
     }
 
     async fn observe(&self, ctx: &ProducerContext) -> Vec<ResearchEvent> {
-        scan(&ctx.repo_root.join("docs").join("src"), ctx.now_ms, &ctx.session_id)
+        scan(
+            &ctx.repo_root.join("docs").join("src"),
+            ctx.now_ms,
+            &ctx.session_id,
+        )
     }
 }
 
-fn scan(
-    docs_root: &std::path::Path,
-    now_ms: i64,
-    session_id: &str,
-) -> Vec<ResearchEvent> {
+fn scan(docs_root: &std::path::Path, now_ms: i64, session_id: &str) -> Vec<ResearchEvent> {
     if !docs_root.is_dir() {
         return Vec::new();
     }

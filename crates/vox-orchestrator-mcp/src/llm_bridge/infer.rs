@@ -662,8 +662,7 @@ pub async fn mcp_infer_tool_completion(
                 } else {
                     "llm-api-error"
                 };
-                let http_status_opt: Option<u16> =
-                    if e.status > 0 { Some(e.status) } else { None };
+                let http_status_opt: Option<u16> = if e.status > 0 { Some(e.status) } else { None };
                 let provider_str = format!("{:?}", model.provider_type);
 
                 if !tried_google_direct_fallback {
