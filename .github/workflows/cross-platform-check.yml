@@ -42,7 +42,7 @@ jobs:
             ${{ runner.os }}-cargo-cross-
       
       - name: cargo check (workspace)
-        run: cargo check --workspace --targets
+        run: cargo check --workspace --target ${{ matrix.target }}
       
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
