@@ -156,7 +156,6 @@ impl HirModule {
             ("rust_imports", HirFieldOwnership::SemanticCore),
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
-
             ("tests", HirFieldOwnership::SemanticCore),
             ("foralls", HirFieldOwnership::SemanticCore),
             ("endpoint_fns", HirFieldOwnership::AppContract),
@@ -212,7 +211,6 @@ impl HirModule {
         }
     }
 }
-
 
 /// A resolved import.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -878,16 +876,48 @@ mod tests {
             map.iter()
                 .any(|(name, own)| *name == "functions" && *own == HirFieldOwnership::SemanticCore)
         );
-        assert!(map.iter().any(|(name, own)| *name == "back_button" && *own == HirFieldOwnership::Shell));
-        assert!(map.iter().any(|(name, own)| *name == "deep_link" && *own == HirFieldOwnership::Shell));
-        assert!(map.iter().any(|(name, own)| *name == "push" && *own == HirFieldOwnership::Shell));
-        assert!(map.iter().any(|(name, own)| *name == "state_machines" && *own == HirFieldOwnership::SemanticCore));
-        assert!(map.iter().any(|(name, own)| *name == "route_ids" && *own == HirFieldOwnership::SemanticCore));
-        assert!(map.iter().any(|(name, own)| *name == "token_decls" && *own == HirFieldOwnership::SemanticCore));
-        assert!(map.iter().any(|(name, own)| *name == "mcp_tools" && *own == HirFieldOwnership::AppContract));
-        assert!(map.iter().any(|(name, own)| *name == "mcp_resources" && *own == HirFieldOwnership::AppContract));
-        assert!(map.iter().any(|(name, own)| *name == "foralls" && *own == HirFieldOwnership::SemanticCore));
-        assert!(map.iter().any(|(name, own)| *name == "client_routes" && *own == HirFieldOwnership::SemanticCore));
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "back_button" && *own == HirFieldOwnership::Shell)
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "deep_link" && *own == HirFieldOwnership::Shell)
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "push" && *own == HirFieldOwnership::Shell)
+        );
+        assert!(map.iter().any(
+            |(name, own)| *name == "state_machines" && *own == HirFieldOwnership::SemanticCore
+        ));
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "route_ids" && *own == HirFieldOwnership::SemanticCore)
+        );
+        assert!(
+            map.iter().any(
+                |(name, own)| *name == "token_decls" && *own == HirFieldOwnership::SemanticCore
+            )
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "mcp_tools" && *own == HirFieldOwnership::AppContract)
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "mcp_resources"
+                    && *own == HirFieldOwnership::AppContract)
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "foralls" && *own == HirFieldOwnership::SemanticCore)
+        );
+        assert!(
+            map.iter()
+                .any(|(name, own)| *name == "client_routes"
+                    && *own == HirFieldOwnership::SemanticCore)
+        );
     }
 
     #[test]

@@ -194,12 +194,15 @@ impl Orchestrator {
                         e["message"].as_str(),
                         e["timestamp_ms"].as_u64(),
                     ) {
-                        task_turns.entry(tid).or_default().push(crate::types::TaskTurn {
-                            agent_id: crate::types::AgentId(aid),
-                            agent_name: name.to_string(),
-                            message: msg.to_string(),
-                            timestamp_ms: ts,
-                        });
+                        task_turns
+                            .entry(tid)
+                            .or_default()
+                            .push(crate::types::TaskTurn {
+                                agent_id: crate::types::AgentId(aid),
+                                agent_name: name.to_string(),
+                                message: msg.to_string(),
+                                timestamp_ms: ts,
+                            });
                     }
                 } else if type_str == "task_phase_change" {
                     if let Some(phase_str) = e["phase"].as_str() {

@@ -101,8 +101,6 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         );
     }
 
-
-
     for table in &module.tables {
         if table.name.is_empty() {
             errors.push(HirValidationError {

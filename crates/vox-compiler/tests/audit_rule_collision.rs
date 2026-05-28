@@ -15,8 +15,8 @@ fn audit_rule_ids(yaml: &str) -> Vec<String> {
 
 #[test]
 fn no_audit_rule_collides_with_compiler_diagnostic_code() {
-    let rules_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../contracts/code-audit/rules.v1.yaml");
+    let rules_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../contracts/code-audit/rules.v1.yaml");
     let raw = std::fs::read_to_string(&rules_path).expect("read rules.v1.yaml");
     let ids = audit_rule_ids(&raw);
 

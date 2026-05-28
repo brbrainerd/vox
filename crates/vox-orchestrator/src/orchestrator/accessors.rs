@@ -35,12 +35,8 @@ impl Orchestrator {
                     weighted_load: queue.weighted_load(),
                     agent_session_id: queue.agent_session_id.clone(),
                     max_handoff_count: queue.max_handoff_count(),
-                    active_skill: queue
-                        .current_task()
-                        .and_then(|t| t.active_skill.clone()),
-                    current_phase: queue
-                        .current_task()
-                        .and_then(|t| t.current_phase),
+                    active_skill: queue.current_task().and_then(|t| t.active_skill.clone()),
+                    current_phase: queue.current_task().and_then(|t| t.current_phase),
                 }
             })
             .collect();

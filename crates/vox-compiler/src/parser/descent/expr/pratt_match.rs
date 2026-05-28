@@ -2,7 +2,8 @@
 
 use super::super::Parser;
 use crate::ast::expr::{
-    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, StringPart, UnOp, WorkflowVersionCall,
+    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, StringPart, UnOp,
+    WorkflowVersionCall,
 };
 use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
@@ -37,10 +38,7 @@ impl Parser {
                 self.advance();
                 // Parse template string with interpolation
                 let parts = self.parse_template_string_parts(s, start)?;
-                Expr::StringInterp {
-                    parts,
-                    span: start,
-                }
+                Expr::StringInterp { parts, span: start }
             }
             Token::DecLit(s) => {
                 self.advance();
@@ -871,7 +869,11 @@ impl super::super::Parser {
 
     /// Parse template string parts from a raw string with {expr} interpolation markers.
     /// This is a simple parser that splits on { and } and parses expressions between them.
-    fn parse_template_string_parts(&mut self, s: String, start_span: crate::ast::span::Span) -> Result<Vec<StringPart>, ()> {
+    fn parse_template_string_parts(
+        &mut self,
+        s: String,
+        start_span: crate::ast::span::Span,
+    ) -> Result<Vec<StringPart>, ()> {
         let mut parts = Vec::new();
         let mut current = String::new();
         let mut chars = s.chars().peekable();

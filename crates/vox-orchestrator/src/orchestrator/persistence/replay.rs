@@ -295,21 +295,31 @@ pub(crate) async fn replay_one_entry(
             let tenant_id = replay.get("tenant_id").and_then(serde_json::Value::as_str);
             let repository_id = crate::lineage::repository_id();
 
-            let _ = db.insert_telemetry_flat_raw(
-                agent_id,
-                session_id,
-                tenant_id,
-                &repository_id,
-                event_kind,
-                replay.get("tool_name").and_then(serde_json::Value::as_str),
-                replay.get("model_id").and_then(serde_json::Value::as_str),
-                replay.get("provider").and_then(serde_json::Value::as_str),
-                replay.get("duration_ms").and_then(serde_json::Value::as_i64),
-                replay.get("input_tokens").and_then(serde_json::Value::as_i64),
-                replay.get("output_tokens").and_then(serde_json::Value::as_i64),
-                replay.get("cost_usd").and_then(serde_json::Value::as_f64),
-                replay.get("payload_json").and_then(serde_json::Value::as_str),
-            ).await;
+            let _ = db
+                .insert_telemetry_flat_raw(
+                    agent_id,
+                    session_id,
+                    tenant_id,
+                    &repository_id,
+                    event_kind,
+                    replay.get("tool_name").and_then(serde_json::Value::as_str),
+                    replay.get("model_id").and_then(serde_json::Value::as_str),
+                    replay.get("provider").and_then(serde_json::Value::as_str),
+                    replay
+                        .get("duration_ms")
+                        .and_then(serde_json::Value::as_i64),
+                    replay
+                        .get("input_tokens")
+                        .and_then(serde_json::Value::as_i64),
+                    replay
+                        .get("output_tokens")
+                        .and_then(serde_json::Value::as_i64),
+                    replay.get("cost_usd").and_then(serde_json::Value::as_f64),
+                    replay
+                        .get("payload_json")
+                        .and_then(serde_json::Value::as_str),
+                )
+                .await;
             true
         }
         _ => false,

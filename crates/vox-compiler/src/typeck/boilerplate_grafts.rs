@@ -333,14 +333,16 @@ pub fn check_fixture_hole_staleness(
     hole: &crate::hir::nodes::boilerplate_grafts::HirHoleFixture,
 ) -> Option<Diagnostic> {
     let repo_root = vox_repository::resolve_repo_root_for_ci();
-    let ledger_path =
-        repo_root.join("contracts/reports/ai-fixture-holes/ledger.v1.json");
+    let ledger_path = repo_root.join("contracts/reports/ai-fixture-holes/ledger.v1.json");
     let raw = std::fs::read_to_string(&ledger_path).ok()?;
     let json: serde_json::Value = serde_json::from_str(&raw).ok()?;
     let entries = json.get("entries")?.as_array()?;
     let stale = entries.iter().any(|entry| {
         let cache_key = entry.get("cache_key").and_then(|v| v.as_str());
-        let is_stale = entry.get("stale").and_then(|v| v.as_bool()).unwrap_or(false);
+        let is_stale = entry
+            .get("stale")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
         cache_key == Some(hole.cache_key.as_str()) && is_stale
     });
     if !stale {
@@ -404,9 +406,7 @@ const VALID_PROMPT_STAGES: &[&str] = &[
 #[inline]
 fn redact_token_requires_env_capability(token: &str) -> bool {
     let t = token.trim();
-    t.starts_with("OPENROUTER_")
-        || t.starts_with("ANTHROPIC_")
-        || t.starts_with("OPENAI_")
+    t.starts_with("OPENROUTER_") || t.starts_with("ANTHROPIC_") || t.starts_with("OPENAI_")
 }
 
 #[inline]

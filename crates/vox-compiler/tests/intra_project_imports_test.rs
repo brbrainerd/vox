@@ -25,7 +25,7 @@ use vox_compiler::eval::Interpreter;
 use vox_compiler::hir::lower::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse_script;
-use vox_compiler::typeck::{typecheck_hir_module_with_path, TypeckSeverity};
+use vox_compiler::typeck::{TypeckSeverity, typecheck_hir_module_with_path};
 
 /// Lower the file at `path` and run it; returns Ok on success, Err with the
 /// EvalError debug-formatted on failure. Sets the interpreter's source path
@@ -33,12 +33,15 @@ use vox_compiler::typeck::{typecheck_hir_module_with_path, TypeckSeverity};
 fn run_file(path: &Path) -> Result<(), String> {
     let source = fs::read_to_string(path).map_err(|e| e.to_string())?;
     let tokens = lex(&source);
-    let module = parse_script(tokens).map_err(|errs| format!("parse failed: {} error(s)", errs.len()))?;
+    let module =
+        parse_script(tokens).map_err(|errs| format!("parse failed: {} error(s)", errs.len()))?;
     let lowered = lower_module(&module);
 
     let mut interp = Interpreter::new(10_000_000);
     interp.set_source_path(path.to_path_buf());
-    interp.run_module(&lowered).map_err(|e| format!("run_module: {e:?}"))?;
+    interp
+        .run_module(&lowered)
+        .map_err(|e| format!("run_module: {e:?}"))?;
     interp
         .call("main", Vec::new())
         .map(|_| ())
@@ -113,7 +116,10 @@ fn typecheck_resolves_pubs_and_rejects_private() {
     )
     .unwrap();
     let errs = check_file_errors(&main_pub);
-    assert!(errs.is_empty(), "expected clean check, got errors: {errs:?}");
+    assert!(
+        errs.is_empty(),
+        "expected clean check, got errors: {errs:?}"
+    );
 
     let main_private = dir.path().join("main_private.vox");
     fs::write(
@@ -227,7 +233,7 @@ fn cycle_a_imports_b_imports_a_resolves_without_infinite_loop() {
 // `run_frontend_str_with_options` so a regression on the inline pass
 // can't slip past `cargo test` even when no corpus script uses imports.
 
-use vox_compiler::pipeline::{run_frontend_str_with_options, PipelineOptions};
+use vox_compiler::pipeline::{PipelineOptions, run_frontend_str_with_options};
 
 #[test]
 fn pipeline_inlines_imported_pub_fn_bodies() {
@@ -254,9 +260,20 @@ fn pipeline_inlines_imported_pub_fn_bodies() {
     // The importer defines `main`; the pipeline inlined `shout` (pub) from
     // the helper file. Non-pub `hidden` must NOT appear in the merged HIR
     // — that's the strict-privacy invariant from RFC §3.
-    let names: Vec<&str> = result.hir.functions.iter().map(|f| f.name.as_str()).collect();
-    assert!(names.contains(&"main"), "expected main in merged HIR; got: {names:?}");
-    assert!(names.contains(&"shout"), "expected pub fn shout to be inlined; got: {names:?}");
+    let names: Vec<&str> = result
+        .hir
+        .functions
+        .iter()
+        .map(|f| f.name.as_str())
+        .collect();
+    assert!(
+        names.contains(&"main"),
+        "expected main in merged HIR; got: {names:?}"
+    );
+    assert!(
+        names.contains(&"shout"),
+        "expected pub fn shout to be inlined; got: {names:?}"
+    );
     assert!(
         !names.contains(&"hidden"),
         "non-pub fn hidden must NOT be inlined; privacy leaked: {names:?}",
@@ -268,7 +285,10 @@ fn pipeline_inlines_imported_pub_fn_bodies() {
         .filter(|d| d.severity == TypeckSeverity::Error)
         .map(|d| d.message.as_str())
         .collect();
-    assert!(errors.is_empty(), "expected clean typecheck; got errors: {errors:?}");
+    assert!(
+        errors.is_empty(),
+        "expected clean typecheck; got errors: {errors:?}"
+    );
 }
 
 #[test]
@@ -298,10 +318,18 @@ fn pipeline_inline_cycle_safe() {
     let result = run_frontend_str_with_options(&source, &a_path.to_string_lossy(), &options)
         .expect("frontend pipeline ran");
 
-    let names: Vec<&str> = result.hir.functions.iter().map(|f| f.name.as_str()).collect();
+    let names: Vec<&str> = result
+        .hir
+        .functions
+        .iter()
+        .map(|f| f.name.as_str())
+        .collect();
     assert!(names.contains(&"main"));
     assert!(names.contains(&"from_a"));
-    assert!(names.contains(&"from_b"), "from_b inlined transitively via a→b cycle");
+    assert!(
+        names.contains(&"from_b"),
+        "from_b inlined transitively via a→b cycle"
+    );
 }
 
 #[test]
@@ -327,7 +355,12 @@ fn pipeline_alias_form_prefixes_inlined_names() {
     let result = run_frontend_str_with_options(source, &main.to_string_lossy(), &options)
         .expect("frontend pipeline ran");
 
-    let names: Vec<&str> = result.hir.functions.iter().map(|f| f.name.as_str()).collect();
+    let names: Vec<&str> = result
+        .hir
+        .functions
+        .iter()
+        .map(|f| f.name.as_str())
+        .collect();
     assert!(names.contains(&"main"));
     assert!(
         names.contains(&"g__ping"),

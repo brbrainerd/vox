@@ -102,7 +102,10 @@ pub async fn dispatch_request(
             };
             let num_str = op_id_str.trim_start_matches("OP-");
             let Ok(num) = num_str.parse::<u64>() else {
-                return response_err(&req.id, "params.op_id must be a valid OperationId (e.g. OP-000007)");
+                return response_err(
+                    &req.id,
+                    "params.op_id must be a valid OperationId (e.g. OP-000007)",
+                );
             };
             match orch.undo_operation(crate::oplog::OperationId(num)).await {
                 Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
@@ -115,7 +118,10 @@ pub async fn dispatch_request(
             };
             let num_str = op_id_str.trim_start_matches("OP-");
             let Ok(num) = num_str.parse::<u64>() else {
-                return response_err(&req.id, "params.op_id must be a valid OperationId (e.g. OP-000007)");
+                return response_err(
+                    &req.id,
+                    "params.op_id must be a valid OperationId (e.g. OP-000007)",
+                );
             };
             match orch.redo_operation(crate::oplog::OperationId(num)).await {
                 Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),

@@ -36,8 +36,21 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 Ok(val.clone())
             } else if matches!(
                 name.as_str(),
-                "print" | "range" | "str" | "int" | "float" | "len" | "assert" | "chr"
-                | "abs" | "max" | "min" | "sorted" | "sum" | "bool" | "type_of"
+                "print"
+                    | "range"
+                    | "str"
+                    | "int"
+                    | "float"
+                    | "len"
+                    | "assert"
+                    | "chr"
+                    | "abs"
+                    | "max"
+                    | "min"
+                    | "sorted"
+                    | "sum"
+                    | "bool"
+                    | "type_of"
             ) {
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {
@@ -114,46 +127,37 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 // whole interpreter process. Matches the
                 // "no silent-wrong-output, no opaque crashes" health
                 // commitment from audit doc §10.4.
-                (HirBinOp::Add, VoxValue::Int(a), VoxValue::Int(b)) => a
-                    .checked_add(b)
-                    .map(VoxValue::Int)
-                    .ok_or_else(|| EvalError::AssertionFailed(format!(
-                        "integer overflow: {a} + {b}"
-                    ))),
-                (HirBinOp::Sub, VoxValue::Int(a), VoxValue::Int(b)) => a
-                    .checked_sub(b)
-                    .map(VoxValue::Int)
-                    .ok_or_else(|| EvalError::AssertionFailed(format!(
-                        "integer underflow: {a} - {b}"
-                    ))),
-                (HirBinOp::Mul, VoxValue::Int(a), VoxValue::Int(b)) => a
-                    .checked_mul(b)
-                    .map(VoxValue::Int)
-                    .ok_or_else(|| EvalError::AssertionFailed(format!(
-                        "integer overflow: {a} * {b}"
-                    ))),
-                (HirBinOp::Div, VoxValue::Int(_), VoxValue::Int(0)) => {
-                    Err(EvalError::AssertionFailed(
-                        "integer division by zero".to_string(),
-                    ))
+                (HirBinOp::Add, VoxValue::Int(a), VoxValue::Int(b)) => {
+                    a.checked_add(b).map(VoxValue::Int).ok_or_else(|| {
+                        EvalError::AssertionFailed(format!("integer overflow: {a} + {b}"))
+                    })
                 }
-                (HirBinOp::Div, VoxValue::Int(a), VoxValue::Int(b)) => a
-                    .checked_div(b)
-                    .map(VoxValue::Int)
-                    .ok_or_else(|| EvalError::AssertionFailed(format!(
-                        "integer division overflow: {a} / {b}"
-                    ))),
-                (HirBinOp::Mod, VoxValue::Int(_), VoxValue::Int(0)) => {
-                    Err(EvalError::AssertionFailed(
-                        "integer modulo by zero".to_string(),
-                    ))
+                (HirBinOp::Sub, VoxValue::Int(a), VoxValue::Int(b)) => {
+                    a.checked_sub(b).map(VoxValue::Int).ok_or_else(|| {
+                        EvalError::AssertionFailed(format!("integer underflow: {a} - {b}"))
+                    })
                 }
-                (HirBinOp::Mod, VoxValue::Int(a), VoxValue::Int(b)) => a
-                    .checked_rem(b)
-                    .map(VoxValue::Int)
-                    .ok_or_else(|| EvalError::AssertionFailed(format!(
-                        "integer modulo overflow: {a} % {b}"
-                    ))),
+                (HirBinOp::Mul, VoxValue::Int(a), VoxValue::Int(b)) => {
+                    a.checked_mul(b).map(VoxValue::Int).ok_or_else(|| {
+                        EvalError::AssertionFailed(format!("integer overflow: {a} * {b}"))
+                    })
+                }
+                (HirBinOp::Div, VoxValue::Int(_), VoxValue::Int(0)) => Err(
+                    EvalError::AssertionFailed("integer division by zero".to_string()),
+                ),
+                (HirBinOp::Div, VoxValue::Int(a), VoxValue::Int(b)) => {
+                    a.checked_div(b).map(VoxValue::Int).ok_or_else(|| {
+                        EvalError::AssertionFailed(format!("integer division overflow: {a} / {b}"))
+                    })
+                }
+                (HirBinOp::Mod, VoxValue::Int(_), VoxValue::Int(0)) => Err(
+                    EvalError::AssertionFailed("integer modulo by zero".to_string()),
+                ),
+                (HirBinOp::Mod, VoxValue::Int(a), VoxValue::Int(b)) => {
+                    a.checked_rem(b).map(VoxValue::Int).ok_or_else(|| {
+                        EvalError::AssertionFailed(format!("integer modulo overflow: {a} % {b}"))
+                    })
+                }
                 (HirBinOp::Is, a, b) => Ok(VoxValue::Bool(a == b)),
                 (HirBinOp::Isnt, a, b) => Ok(VoxValue::Bool(a != b)),
                 (HirBinOp::Lt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a < b)),
@@ -321,13 +325,13 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     // VoxValue::Option / ::Result so downstream method dispatch
                     // (`.is_ok()`, `.unwrap()`, `.is_none()`) and pattern
                     // matching on Result/Option both work.
-                    "Some" if eval_args.len() == 1 => {
-                        Ok(VoxValue::Option(Some(Box::new(eval_args.into_iter().next().unwrap()))))
-                    }
+                    "Some" if eval_args.len() == 1 => Ok(VoxValue::Option(Some(Box::new(
+                        eval_args.into_iter().next().unwrap(),
+                    )))),
                     "None" if eval_args.is_empty() => Ok(VoxValue::Option(None)),
-                    "Ok" if eval_args.len() == 1 => {
-                        Ok(VoxValue::Result(Ok(Box::new(eval_args.into_iter().next().unwrap()))))
-                    }
+                    "Ok" if eval_args.len() == 1 => Ok(VoxValue::Result(Ok(Box::new(
+                        eval_args.into_iter().next().unwrap(),
+                    )))),
                     "Err" | "Error" if eval_args.len() == 1 => {
                         let msg = match eval_args.into_iter().next().unwrap() {
                             VoxValue::Str(s) => s,
@@ -512,10 +516,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         return Ok(VoxValue::Option(None));
                     }
                     Ok(VoxValue::Option(
-                        items
-                            .into_iter()
-                            .nth(i as usize)
-                            .map(Box::new),
+                        items.into_iter().nth(i as usize).map(Box::new),
                     ))
                 }
                 (VoxValue::Str(s), VoxValue::Int(i)) => {
@@ -562,9 +563,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     Ok(VoxValue::_Return(Box::new(VoxValue::Result(Err(e)))))
                 }
                 VoxValue::Option(Some(v)) => Ok(*v),
-                VoxValue::Option(None) => {
-                    Ok(VoxValue::_Return(Box::new(VoxValue::Option(None))))
-                }
+                VoxValue::Option(None) => Ok(VoxValue::_Return(Box::new(VoxValue::Option(None)))),
                 // Non-Result/Option: pass through unchanged (shouldn't happen in
                 // well-typed programs; typechecker rejects the expression first).
                 other => Ok(other),
@@ -778,11 +777,7 @@ fn apply_closure_method(
         (VoxValue::Result(res), "map_err") => match res.as_ref() {
             Ok(v) => Ok(Some(VoxValue::Result(Ok(v.clone())))),
             Err(e) => {
-                let mapped = apply_closure(
-                    interp,
-                    &closure,
-                    vec![VoxValue::Str(e.clone())],
-                )?;
+                let mapped = apply_closure(interp, &closure, vec![VoxValue::Str(e.clone())])?;
                 if let VoxValue::Str(new_msg) = mapped {
                     Ok(Some(VoxValue::Result(Err(new_msg))))
                 } else {

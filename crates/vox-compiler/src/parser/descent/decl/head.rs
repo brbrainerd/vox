@@ -55,10 +55,7 @@ impl Parser {
     /// isn't a string literal. Rejects strings that don't end in `.vox` so
     /// authors don't confuse this with arbitrary asset imports.
     /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
-    fn try_parse_local_file_import(
-        &mut self,
-        paths: &mut Vec<ImportPath>,
-    ) -> Result<bool, ()> {
+    fn try_parse_local_file_import(&mut self, paths: &mut Vec<ImportPath>) -> Result<bool, ()> {
         let seg_start = self.span();
         let path = match self.peek().clone() {
             Token::StringLit(s) | Token::SingleStringLit(s) => s,
@@ -759,7 +756,10 @@ impl Parser {
     pub(crate) fn parse_v0_prop_line(&mut self) -> Result<crate::ast::decl::V0Prop, ()> {
         let pname = self.parse_ident_name()?;
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
-            eprintln!("[vox-compiler:v0.prop] name={pname:?} next={:?}", self.peek());
+            eprintln!(
+                "[vox-compiler:v0.prop] name={pname:?} next={:?}",
+                self.peek()
+            );
         }
         let is_optional = self.eat(&Token::Question);
         self.expect(&Token::Colon)?;
@@ -1251,7 +1251,7 @@ impl Parser {
                                             self.advance();
                                             subagent_description = Some(v);
                                         }
-                                    },
+                                    }
                                     "parallel" => match self.peek().clone() {
                                         Token::True => {
                                             self.advance();
@@ -1270,7 +1270,7 @@ impl Parser {
                                                 subagent_complexity = Some(v as u8);
                                             }
                                         }
-                                    },
+                                    }
                                     _ => {
                                         self.advance();
                                     }
@@ -1307,7 +1307,9 @@ impl Parser {
                                         }
                                     }
                                     "query" => match self.peek().clone() {
-                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                        Token::StringLit(v)
+                                        | Token::Ident(v)
+                                        | Token::TypeIdent(v) => {
                                             self.advance();
                                             search_query = Some(v);
                                         }
@@ -1330,7 +1332,9 @@ impl Parser {
                                         }
                                     }
                                     "policy" => match self.peek().clone() {
-                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                        Token::StringLit(v)
+                                        | Token::Ident(v)
+                                        | Token::TypeIdent(v) => {
                                             self.advance();
                                             search_policy = Some(v);
                                         }
@@ -1363,7 +1367,9 @@ impl Parser {
                                 self.eat(&Token::Eq);
                                 match key.as_str() {
                                     "spec" => match self.peek().clone() {
-                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                        Token::StringLit(v)
+                                        | Token::Ident(v)
+                                        | Token::TypeIdent(v) => {
                                             self.advance();
                                             hole_spec = Some(v);
                                         }
@@ -1378,7 +1384,9 @@ impl Parser {
                                         }
                                     }
                                     "cache_key" => match self.peek().clone() {
-                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                        Token::StringLit(v)
+                                        | Token::Ident(v)
+                                        | Token::TypeIdent(v) => {
                                             self.advance();
                                             hole_cache_key = Some(v);
                                         }
@@ -1389,8 +1397,10 @@ impl Parser {
                                             let mut constraints: Vec<String> = vec![];
                                             loop {
                                                 self.skip_newlines();
-                                                if matches!(self.peek(), Token::RBracket | Token::Eof)
-                                                {
+                                                if matches!(
+                                                    self.peek(),
+                                                    Token::RBracket | Token::Eof
+                                                ) {
                                                     break;
                                                 }
                                                 match self.peek().clone() {
@@ -1477,8 +1487,10 @@ impl Parser {
                                             let mut strengths: Vec<String> = vec![];
                                             loop {
                                                 self.skip_newlines();
-                                                if matches!(self.peek(), Token::RBracket | Token::Eof)
-                                                {
+                                                if matches!(
+                                                    self.peek(),
+                                                    Token::RBracket | Token::Eof
+                                                ) {
                                                     break;
                                                 }
                                                 if let Token::Ident(v) | Token::TypeIdent(v) =
@@ -1570,9 +1582,8 @@ impl Parser {
                                 // `env` lexes as a keyword (`Token::Env`) — mirror `parse_uses_clause`.
                                 Token::Env => {
                                     self.advance();
-                                    decorator_effects.push(
-                                        crate::ast::decl::effect::EffectAnnotation::Env,
-                                    );
+                                    decorator_effects
+                                        .push(crate::ast::decl::effect::EffectAnnotation::Env);
                                 }
                                 _ => {
                                     self.advance();

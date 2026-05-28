@@ -460,9 +460,7 @@ impl<'a> Checker<'a> {
                                 *span,
                                 self.source,
                             )
-                            .with_code(
-                                crate::typeck::diagnostics::codes::TYPES_UNDEFINED_VARIABLE,
-                            ),
+                            .with_code(crate::typeck::diagnostics::codes::TYPES_UNDEFINED_VARIABLE),
                         );
                         Ty::Error
                     }
@@ -498,15 +496,22 @@ impl<'a> Checker<'a> {
                                 Ty::Error
                             }
                         } else {
-                            self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
+                            self.diags.push(method_not_found_diag(
+                                method,
+                                &obj_ty,
+                                *span,
+                                self.source,
+                            ));
                             Ty::Error
                         }
                     } else {
-                        self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
+                        self.diags
+                            .push(method_not_found_diag(method, &obj_ty, *span, self.source));
                         Ty::Error
                     }
                 } else {
-                    self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
+                    self.diags
+                        .push(method_not_found_diag(method, &obj_ty, *span, self.source));
                     Ty::Error
                 }
             }
@@ -834,7 +839,8 @@ impl<'a> Checker<'a> {
         };
         let resolved = self.uf.resolve(&ty);
         let hir_ty = resolved.to_hir_type();
-        self.inferred_types.insert(super::hir_expr_span(expr), hir_ty);
+        self.inferred_types
+            .insert(super::hir_expr_span(expr), hir_ty);
         ty
     }
 }

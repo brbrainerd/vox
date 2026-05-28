@@ -14,8 +14,8 @@
 //! regressions, which is too coarse — a change to e.g. the navigation
 //! semantics could silently break the no-silent-Null contract.
 
-use vox_compiler::eval::value::VoxValue;
 use vox_compiler::eval::Interpreter;
+use vox_compiler::eval::value::VoxValue;
 use vox_compiler::hir::lower::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse_script;
@@ -27,8 +27,12 @@ fn run(src: &str) -> Result<VoxValue, String> {
     let module = parse_script(tokens).map_err(|errs| format!("parse: {} errors", errs.len()))?;
     let lowered = lower_module(&module);
     let mut interp = Interpreter::new(10_000_000);
-    interp.run_module(&lowered).map_err(|e| format!("module: {e:?}"))?;
-    interp.call("main", vec![]).map_err(|e| format!("main: {e:?}"))
+    interp
+        .run_module(&lowered)
+        .map_err(|e| format!("module: {e:?}"))?;
+    interp
+        .call("main", vec![])
+        .map_err(|e| format!("main: {e:?}"))
 }
 
 fn run_expect_int(src: &str) -> i64 {

@@ -7,9 +7,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use crate::hir::nodes::effect::HirEffectKind;
-use crate::hir::{
-    HirCapability, HirEndpointFn, HirExpr, HirFn, HirModule, HirStmt,
-};
+use crate::hir::{HirCapability, HirEndpointFn, HirExpr, HirFn, HirModule, HirStmt};
 
 /// Version of [`RequiredRuntimeCapabilities`] JSON envelope.
 pub const REQUIRED_CAPABILITIES_SCHEMA_VERSION: u32 = 1;
@@ -56,11 +54,7 @@ fn is_fs_module(name: &str) -> bool {
 
 fn fs_method_rw(method: &str) -> Option<&'static str> {
     let m = method.to_ascii_lowercase();
-    if m.starts_with("read")
-        || m == "open"
-        || m.contains("read_")
-        || m.ends_with("_read")
-    {
+    if m.starts_with("read") || m == "open" || m.contains("read_") || m.ends_with("_read") {
         return Some("fs.read");
     }
     if m.starts_with("write")
@@ -202,7 +196,9 @@ fn collect_fs_rw_from_stmt(stmt: &HirStmt, read: &mut bool, write: &mut bool) {
                 collect_fs_rw_from_expr(e, read, write);
             }
         }
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             collect_fs_rw_from_expr(condition, read, write);
             for s in body {
                 collect_fs_rw_from_stmt(s, read, write);

@@ -202,13 +202,16 @@ impl crate::orchestrator::Orchestrator {
                     if let Ok(mut guard) = self.config.write() {
                         *guard = new_cfg;
                     }
-                    self.event_bus.emit(crate::events::AgentEventKind::AttentionConfigReloaded);
+                    self.event_bus
+                        .emit(crate::events::AgentEventKind::AttentionConfigReloaded);
                     tracing::info!(path = %toml_path.display(), "hot-reloaded orchestrator config from Vox.toml");
                     return;
                 }
             }
         }
-        tracing::warn!("hot-reload failed: could not load Vox.toml from current dir or repository root");
+        tracing::warn!(
+            "hot-reload failed: could not load Vox.toml from current dir or repository root"
+        );
     }
 }
 

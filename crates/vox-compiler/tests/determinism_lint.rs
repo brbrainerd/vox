@@ -29,7 +29,9 @@ workflow now_capture() to int {
     assert!(
         has_determinism_diag(&ds),
         "expected lint.workflow.non_deterministic for std.time.now_ms() inside workflow; got {:?}",
-        ds.iter().map(|d| (d.code.clone(), d.message.clone())).collect::<Vec<_>>()
+        ds.iter()
+            .map(|d| (d.code.clone(), d.message.clone()))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -45,7 +47,9 @@ workflow random_pick() to int {
     assert!(
         has_determinism_diag(&ds),
         "expected lint.workflow.non_deterministic for std.random() inside workflow; got {:?}",
-        ds.iter().map(|d| (d.code.clone(), d.message.clone())).collect::<Vec<_>>()
+        ds.iter()
+            .map(|d| (d.code.clone(), d.message.clone()))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -106,7 +110,9 @@ workflow w() to int {
         has_determinism_diag(&ds),
         "workflow that calls a plain fn invoking std.time.now_ms() must \
          be rejected transitively; got diags: {:?}",
-        ds.iter().map(|d| (d.code.clone(), d.message.clone())).collect::<Vec<_>>()
+        ds.iter()
+            .map(|d| (d.code.clone(), d.message.clone()))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -158,7 +164,9 @@ workflow w() to int {
     assert!(
         has_determinism_diag(&ds),
         "multi-hop transitive workflow→outer→inner→std.time.now_ms() must be rejected; got diags: {:?}",
-        ds.iter().map(|d| (d.code.clone(), d.message.clone())).collect::<Vec<_>>()
+        ds.iter()
+            .map(|d| (d.code.clone(), d.message.clone()))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -193,6 +201,8 @@ workflow w() to int {
         has_determinism_diag(&ds),
         "mutually-recursive helpers must still surface the non-det call \
          without infinite-looping; got diags: {:?}",
-        ds.iter().map(|d| (d.code.clone(), d.message.clone())).collect::<Vec<_>>()
+        ds.iter()
+            .map(|d| (d.code.clone(), d.message.clone()))
+            .collect::<Vec<_>>()
     );
 }

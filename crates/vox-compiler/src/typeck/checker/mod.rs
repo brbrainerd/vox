@@ -98,7 +98,6 @@ impl<'a> Checker<'a> {
             self.check_function(&mut r.func);
         }
 
-
         for c in &module.components {
             self.check_reactive_component(c);
         }
@@ -400,9 +399,7 @@ impl<'a> Checker<'a> {
                                     d.span,
                                     self.source,
                                 )
-                                .with_code(
-                                    crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
-                                ),
+                                .with_code(crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH),
                             );
                         }
                     }
@@ -573,8 +570,6 @@ impl<'a> Checker<'a> {
         }
     }
 
-
-
     pub fn check_stmt(&mut self, stmt: &HirStmt) -> Ty {
         match stmt {
             HirStmt::Let {
@@ -594,9 +589,7 @@ impl<'a> Checker<'a> {
                                 hir_expr_span(value),
                                 self.source,
                             )
-                            .with_code(
-                                crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
-                            ),
+                            .with_code(crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH),
                         );
                     }
                     ann_ty
@@ -640,9 +633,7 @@ impl<'a> Checker<'a> {
                                 *span,
                                 self.source,
                             )
-                            .with_code(
-                                crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
-                            ),
+                            .with_code(crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH),
                         );
                     }
                 }
@@ -795,16 +786,30 @@ impl<'a> Checker<'a> {
 
         for constraint in queue {
             let (span, msg, code) = match &constraint {
-                crate::typeck::unify::PendingConstraint::HasField { span, target, field, .. } => {
+                crate::typeck::unify::PendingConstraint::HasField {
+                    span,
+                    target,
+                    field,
+                    ..
+                } => {
                     let target_str = pretty_print_unresolved_type(target);
-                    (*span, format!(
-                        "Cannot infer the type of this value to access field `{field}`.\n\
+                    (
+                        *span,
+                        format!(
+                            "Cannot infer the type of this value to access field `{field}`.\n\
                          Inferred so far: {target_str}.\n\
                          Add an explicit type annotation to the variable that produced this value \
                          (e.g. `let x: <Type> = ...`)."
-                    ), crate::typeck::diagnostics::codes::TYPES_UNRESOLVED_TYPE)
+                        ),
+                        crate::typeck::diagnostics::codes::TYPES_UNRESOLVED_TYPE,
+                    )
                 }
-                crate::typeck::unify::PendingConstraint::HasMethod { span, target, method, .. } => {
+                crate::typeck::unify::PendingConstraint::HasMethod {
+                    span,
+                    target,
+                    method,
+                    ..
+                } => {
                     // Per closures-rfc-2026-05-23.md §11 Q4: when a method call
                     // can't be resolved because the receiver type is still a
                     // TypeVar, the diagnostic MUST name the method, show
@@ -825,16 +830,19 @@ impl<'a> Checker<'a> {
                             "Add an explicit type annotation upstream so the receiver's type can be resolved."
                         )
                     };
-                    (*span, format!(
-                        "Cannot infer the type of this value to call `.{method}()`.\n\
+                    (
+                        *span,
+                        format!(
+                            "Cannot infer the type of this value to call `.{method}()`.\n\
                          Inferred so far: {target_str}.\n\
                          {suggestion}"
-                    ), crate::typeck::diagnostics::codes::TYPES_UNRESOLVED_TYPE)
+                        ),
+                        crate::typeck::diagnostics::codes::TYPES_UNRESOLVED_TYPE,
+                    )
                 }
             };
-            self.diags.push(
-                Diagnostic::error(msg, span, self.source).with_code(code),
-            );
+            self.diags
+                .push(Diagnostic::error(msg, span, self.source).with_code(code));
         }
     }
 }

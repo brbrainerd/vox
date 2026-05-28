@@ -281,13 +281,11 @@ impl crate::orchestrator::Orchestrator {
     pub fn heartbeat(&self, agent_id: AgentId, activity: crate::events::AgentActivity) {
         let active_skill = {
             let agents = crate::sync_lock::rw_read(&self.agents);
-            agents
-                .get(&agent_id)
-                .and_then(|q| {
-                    crate::sync_lock::rw_read(&**q)
-                        .current_task()
-                        .and_then(|t| t.active_skill.clone())
-                })
+            agents.get(&agent_id).and_then(|q| {
+                crate::sync_lock::rw_read(&**q)
+                    .current_task()
+                    .and_then(|t| t.active_skill.clone())
+            })
         };
         crate::sync_lock::rw_write(&*self.heartbeat_monitor).heartbeat(agent_id, activity);
         self.event_bus

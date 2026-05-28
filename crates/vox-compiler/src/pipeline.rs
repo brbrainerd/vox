@@ -491,9 +491,7 @@ fn inline_imported_decls(
     alias: Option<&str>,
     visited: &mut std::collections::HashSet<std::path::PathBuf>,
 ) {
-    let base_dir = importer_path
-        .parent()
-        .unwrap_or(std::path::Path::new("."));
+    let base_dir = importer_path.parent().unwrap_or(std::path::Path::new("."));
     let joined = base_dir.join(rel_path);
     let canonical = match std::fs::canonicalize(&joined) {
         Ok(c) => c,
@@ -525,7 +523,13 @@ fn inline_imported_decls(
         })
         .collect();
     for (rel, sub_alias) in import_paths {
-        inline_imported_decls(&mut imported_hir, &rel, &canonical, sub_alias.as_deref(), visited);
+        inline_imported_decls(
+            &mut imported_hir,
+            &rel,
+            &canonical,
+            sub_alias.as_deref(),
+            visited,
+        );
     }
 
     // Move `pub` functions and `pub` types into the importer's HIR.

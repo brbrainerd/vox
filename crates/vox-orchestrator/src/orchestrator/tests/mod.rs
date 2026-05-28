@@ -148,7 +148,13 @@ mod state_invariants {
         let orch = Orchestrator::new(OrchestratorConfig::for_testing());
         let path = Path::new("state_inv/cancel_unique.rs");
         let tid = orch
-            .submit_task("cancel me", vec![FileAffinity::write(path)], None, None, None)
+            .submit_task(
+                "cancel me",
+                vec![FileAffinity::write(path)],
+                None,
+                None,
+                None,
+            )
             .await
             .expect("submit");
         let aid = *orch
@@ -487,7 +493,13 @@ mod orch_smoke {
     async fn task_trace_after_submit() {
         let orch = test_orchestrator();
         let task_id = orch
-            .submit_task("Trace me", vec![FileAffinity::write("x.rs")], None, None, None)
+            .submit_task(
+                "Trace me",
+                vec![FileAffinity::write("x.rs")],
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         let steps = orch.task_trace(task_id).expect("trace exists");
@@ -507,7 +519,13 @@ mod orch_smoke {
     async fn task_trace_after_complete() {
         let orch = test_orchestrator();
         let task_id = orch
-            .submit_task("Complete me", vec![FileAffinity::write("y.rs")], None, None, None)
+            .submit_task(
+                "Complete me",
+                vec![FileAffinity::write("y.rs")],
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
@@ -531,7 +549,13 @@ mod orch_smoke {
     async fn task_trace_after_fail() {
         let orch = test_orchestrator();
         let task_id = orch
-            .submit_task("Fail me", vec![FileAffinity::write("z.rs")], None, None, None)
+            .submit_task(
+                "Fail me",
+                vec![FileAffinity::write("z.rs")],
+                None,
+                None,
+                None,
+            )
             .await
             .unwrap();
         let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();

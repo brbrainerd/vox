@@ -17,8 +17,8 @@ pub use messages::{
     A2AMessage, A2AMessageType, AgentMessage, MessageEnvelope, MessageId, MessagePriority,
     ThreadId, VcsContext,
 };
-pub use switch::{SwitchAccessMode, SwitchAction, SwitchActionType};
 pub use routing::RoutingProfile;
+pub use switch::{SwitchAccessMode, SwitchAction, SwitchActionType};
 pub use tasks::{
     AccessKind, AgentTask, Budget, CompletionAttestation, FileAffinity, MAX_A2A_BOUNCE,
     PopuliRemoteDelegate, TaskCategory, TaskDescriptor, TaskEnqueueHints, TaskPhase, TaskPriority,

@@ -74,7 +74,7 @@ async fn test_dynamic_scaling_and_retirement() {
     let mut retired = false;
     for _ in 0..30 {
         tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        
+
         fleet.check_scaling().await;
         let status = orch.status();
         if status.agents.len() == 1 {
@@ -82,7 +82,10 @@ async fn test_dynamic_scaling_and_retirement() {
             break;
         }
     }
-    assert!(retired, "Agents did not retire within timeout (check idle_retirement_ms and ScalingService logic)");
+    assert!(
+        retired,
+        "Agents did not retire within timeout (check idle_retirement_ms and ScalingService logic)"
+    );
 }
 
 #[tokio::test]

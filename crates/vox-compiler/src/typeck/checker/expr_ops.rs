@@ -159,9 +159,7 @@ impl<'a> Checker<'a> {
                     span,
                     self.source,
                 )
-                .with_code(
-                    crate::typeck::diagnostics::codes::TYPES_ARG_COUNT_MISMATCH,
-                ),
+                .with_code(crate::typeck::diagnostics::codes::TYPES_ARG_COUNT_MISMATCH),
             );
             for arg in actual {
                 let _ = self.check_expr(&arg.value, None);
@@ -181,9 +179,7 @@ impl<'a> Checker<'a> {
                     context: Some(Diagnostic::capture_context(self.source, arg_span)),
                     suggestions: vec![],
                     category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
-                    code: Some(
-                        crate::typeck::diagnostics::codes::TYPES_ARG_TYPE_MISMATCH.into(),
-                    ),
+                    code: Some(crate::typeck::diagnostics::codes::TYPES_ARG_TYPE_MISMATCH.into()),
                     fixes: vec![],
                     line_col: None,
                     missing_cases: vec![],

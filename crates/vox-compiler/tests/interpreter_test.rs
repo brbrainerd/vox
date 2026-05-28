@@ -84,9 +84,13 @@ fn not_keyword_inverts_bool_correctly() {
     let lowered = vox_compiler::hir::lower::lower_module(&module);
 
     let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
-    interpreter.run_module(&lowered).expect("Failed to run module");
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
 
-    let res = interpreter.call("main", vec![]).expect("Failed to call main");
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
     assert_eq!(
         res,
         vox_compiler::eval::value::VoxValue::Bool(true),

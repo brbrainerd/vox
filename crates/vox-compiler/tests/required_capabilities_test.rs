@@ -1,9 +1,9 @@
 //! Fixture tests for [`vox_compiler::required_capabilities`].
 
 use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::required_capabilities::project_required_capabilities;
-use vox_compiler::lexer::lex;
 
 fn lower_src(src: &str) -> vox_compiler::hir::TypedCoreIR_v2 {
     let tokens = lex(src);

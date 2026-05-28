@@ -190,7 +190,9 @@ pub fn build_classifier_prompt(
         s.push('\n');
     }
     if let Some(cost) = sample_input_cost_per_1k {
-        s.push_str(&format!("Sample input cost (USD per 1k tokens): {cost:.4}\n"));
+        s.push_str(&format!(
+            "Sample input cost (USD per 1k tokens): {cost:.4}\n"
+        ));
     }
     s.push_str("\nEmit only the JSON object. No prose preamble.\n");
     s
@@ -318,10 +320,15 @@ impl PromotionEvidence {
 pub fn render_council_report(registry: &ModelRegistry) -> String {
     let mut out = String::new();
     out.push_str("# Vox Model Council Report\n\n");
-    out.push_str("> Auto-generated. SSOT: `docs/src/architecture/model-autonomic-system-2026.md`.\n\n");
+    out.push_str(
+        "> Auto-generated. SSOT: `docs/src/architecture/model-autonomic-system-2026.md`.\n\n",
+    );
     out.push_str("## Catalog snapshot\n\n");
     let models = registry.list_models();
-    out.push_str(&format!("Total models in registry: **{}**\n\n", models.len()));
+    out.push_str(&format!(
+        "Total models in registry: **{}**\n\n",
+        models.len()
+    ));
     out.push_str("## Top tiers\n\n");
     out.push_str("| Tier | Count |\n|------|-------|\n");
     let mut tier_counts = std::collections::BTreeMap::<String, usize>::new();
@@ -358,7 +365,10 @@ mod tests {
     fn discovery_source_wire_strings() {
         assert_eq!(DiscoverySource::OpenRouter.as_str(), "openrouter");
         assert_eq!(DiscoverySource::LiteLlm.as_str(), "litellm");
-        assert_eq!(DiscoverySource::AnthropicDirect.as_str(), "anthropic_direct");
+        assert_eq!(
+            DiscoverySource::AnthropicDirect.as_str(),
+            "anthropic_direct"
+        );
         assert_eq!(DiscoverySource::PopuliMesh.as_str(), "populi_mesh");
     }
 

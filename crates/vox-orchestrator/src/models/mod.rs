@@ -1,12 +1,12 @@
+pub mod admission;
+pub mod autonomic;
 pub mod generated;
 pub mod key_guard;
 mod registry;
 pub mod routing_table;
 pub mod scoring;
-pub mod spec;
-pub mod admission;
-pub mod autonomic;
 pub mod select;
+pub mod spec;
 #[cfg(test)]
 mod tests;
 

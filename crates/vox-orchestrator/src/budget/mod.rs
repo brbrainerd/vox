@@ -305,7 +305,10 @@ impl BudgetManager {
     }
 
     pub fn global_exploration_cost_usd(&self) -> f64 {
-        (self.global_exploration_cost_micros.load(std::sync::atomic::Ordering::Relaxed) as f64) / 1_000_000.0
+        (self
+            .global_exploration_cost_micros
+            .load(std::sync::atomic::Ordering::Relaxed) as f64)
+            / 1_000_000.0
     }
 
     pub fn record_local_inference_tokens(&self, tokens: u64) {
@@ -334,7 +337,12 @@ impl BudgetManager {
         }
     }
 
-    pub fn record_cost(&self, agent_id: AgentId, cost_usd: f64, pricing_source: Option<crate::models::spec::PricingSource>) {
+    pub fn record_cost(
+        &self,
+        agent_id: AgentId,
+        cost_usd: f64,
+        pricing_source: Option<crate::models::spec::PricingSource>,
+    ) {
         let mut map = sync_lock::rw_write(&*self.inner);
         if let Some(budget) = map.get_mut(&agent_id) {
             budget.cost_usd += cost_usd;

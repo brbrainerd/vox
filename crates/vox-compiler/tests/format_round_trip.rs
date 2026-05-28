@@ -47,7 +47,8 @@ fn golden_corpus_format_preserves_ast_structure() {
         let j1 = normalize_ast_json(serde_json::to_value(&m1).expect("serde m1"));
         let j2 = normalize_ast_json(serde_json::to_value(&m2).expect("serde m2"));
         assert_eq!(
-            j1, j2,
+            j1,
+            j2,
             "AST structure drift after format for {}",
             path.display()
         );

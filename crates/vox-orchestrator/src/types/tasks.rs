@@ -725,7 +725,7 @@ impl AgentTask {
             self.transcript.remove(0);
         }
     }
- 
+
     /// Enforce state machine transitions for the task status.
     pub fn transition_to(&mut self, new_status: TaskStatus) -> Result<(), String> {
         // Allow self-transitions

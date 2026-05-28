@@ -177,19 +177,26 @@ impl TaskProcessor for AiTaskProcessor {
         let models_handle = self.orchestrator.models_handle();
         let routed = {
             let registry = crate::sync_lock::rw_read(&*models_handle);
-            let exploration_spent = crate::sync_lock::rw_read(&*self.orchestrator.budget_manager).global_exploration_cost_usd();
-            let exploration_limit = vox_config::load_model_routing_config().exploration.budget_usd_per_day;
+            let exploration_spent = crate::sync_lock::rw_read(&*self.orchestrator.budget_manager)
+                .global_exploration_cost_usd();
+            let exploration_limit = vox_config::load_model_routing_config()
+                .exploration
+                .budget_usd_per_day;
 
             if allowed_providers.is_empty() {
                 registry.best_for_task_with_filter(&task, cost_pref, |m| {
-                    if m.pricing_source == crate::models::spec::PricingSource::Unknown && exploration_spent >= exploration_limit {
+                    if m.pricing_source == crate::models::spec::PricingSource::Unknown
+                        && exploration_spent >= exploration_limit
+                    {
                         return false;
                     }
                     true
                 })
             } else {
                 registry.best_for_task_with_filter(&task, cost_pref, |m| {
-                    if m.pricing_source == crate::models::spec::PricingSource::Unknown && exploration_spent >= exploration_limit {
+                    if m.pricing_source == crate::models::spec::PricingSource::Unknown
+                        && exploration_spent >= exploration_limit
+                    {
                         return false;
                     }
                     let provider_str = match m.provider_type {
@@ -322,7 +329,9 @@ impl TaskProcessor for AiTaskProcessor {
                     }
                 }
             }
-            self.orchestrator.record_workflow_phase_change(task.id, phase).await;
+            self.orchestrator
+                .record_workflow_phase_change(task.id, phase)
+                .await;
             self.event_bus.emit(AgentEventKind::TaskPhaseChanged {
                 task_id: task.id,
                 agent_id,

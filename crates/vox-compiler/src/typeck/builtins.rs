@@ -683,25 +683,16 @@ impl BuiltinTypes {
         // reverse() — in-place reverse, returns unit (mutation variant).
         list_methods.insert("reverse".into(), Ty::Fn(vec![], Box::new(Ty::Unit)));
         // sum() — sums numeric elements; registered as T→T for both int and float lists.
-        list_methods.insert(
-            "sum".into(),
-            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
-        );
+        list_methods.insert("sum".into(), Ty::Fn(vec![], Box::new(Ty::GenericParam(0))));
         // max() → Option[T] — largest element.
         list_methods.insert(
             "max".into(),
-            Ty::Fn(
-                vec![],
-                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
-            ),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
         );
         // min() → Option[T] — smallest element.
         list_methods.insert(
             "min".into(),
-            Ty::Fn(
-                vec![],
-                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
-            ),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
         );
         // flatten() → List[T] — flattens one level (list[list[T]] → list[T]).
         list_methods.insert(
@@ -847,7 +838,10 @@ impl BuiltinTypes {
         for name in ["write", "write_file", "write_to_file"] {
             fs_methods.insert(
                 name.into(),
-                Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
+                Ty::Fn(
+                    vec![Ty::Str, Ty::Str],
+                    Box::new(Ty::Result(Box::new(Ty::Bool))),
+                ),
             );
         }
         // `fs.cwd` — current working directory.
@@ -858,7 +852,10 @@ impl BuiltinTypes {
         // `fs.copy(src, dst)` — copy a file. Eval impl uses `std::fs::copy`.
         fs_methods.insert(
             "copy".into(),
-            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
+            Ty::Fn(
+                vec![Ty::Str, Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Bool))),
+            ),
         );
         // `fs.remove(path)` — remove a file. For directories use remove_dir_all.
         fs_methods.insert(
@@ -935,7 +932,10 @@ impl BuiltinTypes {
         for name in ["extension", "parent", "file_name", "stem"] {
             path_methods.insert(name.into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)));
         }
-        path_methods.insert("is_absolute".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
+        path_methods.insert(
+            "is_absolute".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
         methods.insert("PathModule".into(), path_methods);
 
         // Regex module methods (the free-function namespace, distinct from
@@ -1010,15 +1010,24 @@ impl BuiltinTypes {
         // Navigation (single hop) — all Option[Json].
         json_value_methods.insert(
             "get".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Option(Box::new(json_ty.clone()))),
+            ),
         );
         json_value_methods.insert(
             "at".into(),
-            Ty::Fn(vec![Ty::Int], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::Option(Box::new(json_ty.clone()))),
+            ),
         );
         json_value_methods.insert(
             "pointer".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(json_ty.clone())))),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Option(Box::new(json_ty.clone()))),
+            ),
         );
 
         // Leaf coercion — Option[T]; None on wrong type OR is-null.
@@ -1052,10 +1061,7 @@ impl BuiltinTypes {
 
         // Inspection (no Option).
         json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
-        json_value_methods.insert(
-            "has".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
-        );
+        json_value_methods.insert("has".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
         json_value_methods.insert(
             "length".into(),
             Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Int)))),
@@ -1616,14 +1622,8 @@ impl BuiltinTypes {
             return match method {
                 "len" => Some(Ty::Fn(vec![], Box::new(Ty::Int))),
                 "is_empty" => Some(Ty::Fn(vec![], Box::new(Ty::Bool))),
-                "keys" => Some(Ty::Fn(
-                    vec![],
-                    Box::new(Ty::List(Box::new(k.clone()))),
-                )),
-                "values" => Some(Ty::Fn(
-                    vec![],
-                    Box::new(Ty::List(Box::new(v.clone()))),
-                )),
+                "keys" => Some(Ty::Fn(vec![], Box::new(Ty::List(Box::new(k.clone()))))),
+                "values" => Some(Ty::Fn(vec![], Box::new(Ty::List(Box::new(v.clone()))))),
                 "items" | "entries" => Some(Ty::Fn(
                     vec![],
                     Box::new(Ty::List(Box::new(Ty::List(Box::new(k.clone()))))),
@@ -1632,24 +1632,15 @@ impl BuiltinTypes {
                     vec![k.clone()],
                     Box::new(Ty::Option(Box::new(v.clone()))),
                 )),
-                "get_or" => Some(Ty::Fn(
-                    vec![k.clone(), v.clone()],
-                    Box::new(v.clone()),
-                )),
+                "get_or" => Some(Ty::Fn(vec![k.clone(), v.clone()], Box::new(v.clone()))),
                 "contains_key" | "has_key" | "has" => {
                     Some(Ty::Fn(vec![k.clone()], Box::new(Ty::Bool)))
                 }
-                "insert" | "set" => Some(Ty::Fn(
-                    vec![k.clone(), v.clone()],
-                    Box::new(map_ty.clone()),
-                )),
-                "remove" | "delete" => {
-                    Some(Ty::Fn(vec![k.clone()], Box::new(map_ty.clone())))
+                "insert" | "set" => {
+                    Some(Ty::Fn(vec![k.clone(), v.clone()], Box::new(map_ty.clone())))
                 }
-                "update" => Some(Ty::Fn(
-                    vec![map_ty.clone()],
-                    Box::new(map_ty),
-                )),
+                "remove" | "delete" => Some(Ty::Fn(vec![k.clone()], Box::new(map_ty.clone()))),
+                "update" => Some(Ty::Fn(vec![map_ty.clone()], Box::new(map_ty))),
                 _ => None,
             };
         }

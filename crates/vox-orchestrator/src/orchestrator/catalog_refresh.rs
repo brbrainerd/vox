@@ -160,7 +160,12 @@ async fn refresh_once(orch: &Arc<Orchestrator>) {
     };
 
     if let Some(db) = orch.db() {
-        match crate::models::admission::ModelAdmissionFilter::promote_calibrated_models(&db, &mut snapshot).await {
+        match crate::models::admission::ModelAdmissionFilter::promote_calibrated_models(
+            &db,
+            &mut snapshot,
+        )
+        .await
+        {
             Ok(count) if count > 0 => {
                 tracing::info!(target: "vox.orchestrator.catalog_refresh", promoted = count, "models promoted to telemetry status");
                 // Re-register promoted models back into the active registry
@@ -278,7 +283,13 @@ pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
     // ── 5. Run Admission Filter & Persist ─────────────────────────────────────
     let mut snapshot = registry.list_models();
     if let Ok(db) = vox_db::VoxDb::open_default().await {
-        if let Ok(count) = crate::models::admission::ModelAdmissionFilter::promote_calibrated_models(&db, &mut snapshot).await {
+        if let Ok(count) =
+            crate::models::admission::ModelAdmissionFilter::promote_calibrated_models(
+                &db,
+                &mut snapshot,
+            )
+            .await
+        {
             if count > 0 {
                 for m in &snapshot {
                     if m.pricing_source == PricingSource::Telemetry {

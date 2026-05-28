@@ -21,7 +21,9 @@ fn run_probe(source: &str) -> Result<VoxValue, String> {
     let module = parser::descent::parse(tokens).map_err(|e| format!("parse: {e:?}"))?;
     let lowered = hir::lower::lower_module(&module);
     let mut interp = eval::Interpreter::new(1_000_000);
-    interp.run_module(&lowered).map_err(|e| format!("run: {e:?}"))?;
+    interp
+        .run_module(&lowered)
+        .map_err(|e| format!("run: {e:?}"))?;
     interp
         .call("main", vec![])
         .map_err(|e| format!("call: {e:?}"))

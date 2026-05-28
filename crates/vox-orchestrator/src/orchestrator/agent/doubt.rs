@@ -136,8 +136,11 @@ impl crate::orchestrator::Orchestrator {
         }
 
         task.status = TaskStatus::Completed;
-        task.audit_report = Some(format!("OVERRULED: {}", reason.unwrap_or_else(|| "No reason provided".into())));
-        
+        task.audit_report = Some(format!(
+            "OVERRULED: {}",
+            reason.unwrap_or_else(|| "No reason provided".into())
+        ));
+
         tracing::info!(
             target: "vox.orchestrator.tasks",
             %task_id,
@@ -155,7 +158,7 @@ impl crate::orchestrator::Orchestrator {
             });
 
         crate::sync_lock::rw_write(&self.task_assignments).remove(&task_id);
-        
+
         Ok(())
     }
 }

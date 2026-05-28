@@ -88,7 +88,9 @@ impl SelectionAxes {
             let mut it = part.splitn(2, ':');
             let key = it.next().unwrap_or("").trim().to_ascii_lowercase();
             let val = it.next().unwrap_or("").trim();
-            let Ok(parsed) = val.parse::<u8>() else { continue };
+            let Ok(parsed) = val.parse::<u8>() else {
+                continue;
+            };
             match key.as_str() {
                 "cost" | "efficiency" => out.cost = parsed,
                 "responsiveness" | "latency" | "speed" => out.responsiveness = parsed,
@@ -120,7 +122,8 @@ impl SelectionAxes {
     /// dominates; `Performance` otherwise.
     #[must_use]
     pub fn to_cost_preference(self) -> CostPreference {
-        if self.cost as u16 > (self.intelligence as u16).saturating_add(self.responsiveness as u16) {
+        if self.cost as u16 > (self.intelligence as u16).saturating_add(self.responsiveness as u16)
+        {
             CostPreference::Economy
         } else {
             CostPreference::Performance
@@ -595,7 +598,12 @@ mod tests {
     #[test]
     fn from_env_parses_custom_axes() {
         let prior = std::env::var("VOX_MODEL_AXES").ok();
-        unsafe { std::env::set_var("VOX_MODEL_AXES", "cost:80,intelligence:10,responsiveness:10") };
+        unsafe {
+            std::env::set_var(
+                "VOX_MODEL_AXES",
+                "cost:80,intelligence:10,responsiveness:10",
+            )
+        };
         let axes = SelectionAxes::from_env();
         assert_eq!(axes.cost, 80);
         assert_eq!(axes.intelligence, 10);
@@ -648,7 +656,9 @@ mod tests {
         // With QUALITY_FIRST axes (intelligence=70), premium alias should fire.
         // The alias for codegen is `anthropic/claude-opus-4.7` per current routing.yaml.
         match outcome.reason {
-            SelectionReason::PremiumAlias { ref alias_model_id, .. } => {
+            SelectionReason::PremiumAlias {
+                ref alias_model_id, ..
+            } => {
                 assert_eq!(alias_model_id, "anthropic/claude-opus-4.7");
             }
             other => panic!("expected PremiumAlias, got {:?}", other),

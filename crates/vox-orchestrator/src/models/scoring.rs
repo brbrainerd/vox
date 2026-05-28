@@ -110,7 +110,7 @@ pub(super) fn latency_score(m: &ModelSpec) -> f64 {
         let cfg = vox_config::load_model_routing_config();
         let excellent = cfg.latency_bands.excellent_ms;
         let poor = cfg.latency_bands.poor_ms;
-        
+
         if ms <= excellent {
             return 1.0;
         }
@@ -286,8 +286,7 @@ pub fn auto_score_model(
 
     // Off-peak pricing bonus: DeepSeek cuts prices 50–75% UTC 16:30–00:30.
     // A small additive bonus tips routing toward DeepSeek when competing models score similarly.
-    let off_peak_bonus = if m.id.to_ascii_lowercase().contains("deepseek")
-        && is_deepseek_off_peak()
+    let off_peak_bonus = if m.id.to_ascii_lowercase().contains("deepseek") && is_deepseek_off_peak()
     {
         if m.id.to_ascii_lowercase().contains("r1") {
             DEEPSEEK_OFFPEAK_R1_BONUS

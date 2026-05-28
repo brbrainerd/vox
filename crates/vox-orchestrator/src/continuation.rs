@@ -149,7 +149,10 @@ impl ContinuationEngine {
         };
 
         if let Some(skill_content) = active_skill_instructions {
-            prompt_text.push_str(&format!("\n\n<active_skill>\n{}\n</active_skill>", skill_content));
+            prompt_text.push_str(&format!(
+                "\n\n<active_skill>\n{}\n</active_skill>",
+                skill_content
+            ));
         }
 
         #[cfg(feature = "runtime")]
@@ -225,8 +228,15 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 10); // no cooldown for testing
         let agent = AgentId(1);
 
-        let prompt =
-            engine.generate_continuation(agent, ContinuationStrategy::Continue, 3, 30, None, None, &bus);
+        let prompt = engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            3,
+            30,
+            None,
+            None,
+            &bus,
+        );
 
         assert!(prompt.is_some());
         let p = prompt.unwrap();
@@ -267,11 +277,27 @@ mod tests {
         let agent = AgentId(1);
 
         // First continuation succeeds
-        let p1 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
+        let p1 = engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            30,
+            None,
+            None,
+            &bus,
+        );
         assert!(p1.is_some());
 
         // Second is blocked by cooldown
-        let p2 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
+        let p2 = engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            30,
+            None,
+            None,
+            &bus,
+        );
         assert!(p2.is_none());
     }
 
@@ -281,12 +307,36 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 2); // max 2
         let agent = AgentId(1);
 
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
+        engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            30,
+            None,
+            None,
+            &bus,
+        );
+        engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            30,
+            None,
+            None,
+            &bus,
+        );
 
         assert!(engine.is_exhausted(agent));
 
-        let p3 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
+        let p3 = engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            30,
+            None,
+            None,
+            &bus,
+        );
         assert!(p3.is_none());
     }
 
@@ -296,8 +346,24 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 2);
         let agent = AgentId(1);
 
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
+        engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            30,
+            None,
+            None,
+            &bus,
+        );
+        engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            30,
+            None,
+            None,
+            &bus,
+        );
         assert!(engine.is_exhausted(agent));
 
         engine.reset_cooldown(agent);
@@ -311,8 +377,15 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 10);
         engine.set_enabled(false);
 
-        let p =
-            engine.generate_continuation(AgentId(1), ContinuationStrategy::Continue, 5, 30, None, None, &bus);
+        let p = engine.generate_continuation(
+            AgentId(1),
+            ContinuationStrategy::Continue,
+            5,
+            30,
+            None,
+            None,
+            &bus,
+        );
         assert!(p.is_none());
     }
 }

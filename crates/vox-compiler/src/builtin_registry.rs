@@ -538,9 +538,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Option(Box::new(Ty::Str))),
         ),
         // regex.is_match(haystack, pattern) → bool
-        ("regex", "is_match") => {
-            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool))
-        }
+        ("regex", "is_match") => Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool)),
         // regex.captures(haystack, pattern) → Option[list[str]]
         ("regex", "captures") => Ty::Fn(
             vec![Ty::Str, Ty::Str],

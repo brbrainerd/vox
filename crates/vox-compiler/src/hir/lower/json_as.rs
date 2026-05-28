@@ -280,7 +280,11 @@ fn emit_field_stmts(
         let tmp = format!("_f_{}", field.name);
         stmts.push(let_stmt(&tmp, expr_get("j", json_key, span), span));
         stmts.push(guard_none(&tmp, &missing_err, span));
-        stmts.push(let_stmt(&field.name, expr_method0(&tmp, "unwrap", span), span));
+        stmts.push(let_stmt(
+            &field.name,
+            expr_method0(&tmp, "unwrap", span),
+            span,
+        ));
         return;
     }
 
@@ -315,7 +319,11 @@ fn emit_field_stmts(
         } else {
             // Required field — guard on None then unwrap
             stmts.push(guard_none(&tmp, &missing_err, span));
-            stmts.push(let_stmt(&field.name, expr_method0(&tmp, "unwrap", span), span));
+            stmts.push(let_stmt(
+                &field.name,
+                expr_method0(&tmp, "unwrap", span),
+                span,
+            ));
         }
         return;
     }
@@ -324,19 +332,18 @@ fn emit_field_stmts(
     let tmp = format!("_f_{}", field.name);
     stmts.push(let_stmt(&tmp, expr_get("j", json_key, span), span));
     stmts.push(guard_none(&tmp, &missing_err, span));
-    stmts.push(let_stmt(&field.name, expr_method0(&tmp, "unwrap", span), span));
+    stmts.push(let_stmt(
+        &field.name,
+        expr_method0(&tmp, "unwrap", span),
+        span,
+    ));
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // to_json  (<TypeName>_to_json(v: <TypeName>) -> Json)
 // ──────────────────────────────────────────────────────────────────────────────
 
-fn build_to_json(
-    ctx: &mut LowerCtx,
-    t: &TypeDefDecl,
-    ann: &JsonAsAnnotation,
-    span: Span,
-) -> HirFn {
+fn build_to_json(ctx: &mut LowerCtx, t: &TypeDefDecl, ann: &JsonAsAnnotation, span: Span) -> HirFn {
     let fn_name = format!("{}_to_json", t.name);
     let fn_id = ctx.def_map.define(fn_name.clone());
 
@@ -536,7 +543,10 @@ fn expr_method1(receiver: &str, method: &str, arg: HirExpr, span: Span) -> HirEx
     HirExpr::MethodCall(
         Box::new(expr_ident(receiver, span)),
         method.to_string(),
-        vec![HirArg { name: None, value: arg }],
+        vec![HirArg {
+            name: None,
+            value: arg,
+        }],
         None,
         span,
     )
@@ -576,7 +586,10 @@ fn expr_get_and_then(
     HirExpr::MethodCall(
         Box::new(expr_get(receiver, key, span)),
         "and_then".to_string(),
-        vec![HirArg { name: None, value: lambda }],
+        vec![HirArg {
+            name: None,
+            value: lambda,
+        }],
         None,
         span,
     )
@@ -586,7 +599,10 @@ fn expr_get_and_then(
 fn expr_ok(val: HirExpr, span: Span) -> HirExpr {
     HirExpr::Call(
         Box::new(expr_ident("Ok", span)),
-        vec![HirArg { name: None, value: val }],
+        vec![HirArg {
+            name: None,
+            value: val,
+        }],
         false,
         span,
     )
@@ -620,7 +636,10 @@ fn let_stmt(name: &str, value: HirExpr, span: Span) -> HirStmt {
 
 /// `return <value>` statement.
 fn ret(value: HirExpr, span: Span) -> HirStmt {
-    HirStmt::Return { value: Some(value), span }
+    HirStmt::Return {
+        value: Some(value),
+        span,
+    }
 }
 
 /// `if <tmp>.is_none() { return Err("<msg>") }` — required-field presence guard.
@@ -660,7 +679,10 @@ mod tests {
     fn str_field(name: &str) -> VariantField {
         VariantField {
             name: name.to_string(),
-            type_ann: TypeExpr::Named { name: "str".to_string(), span: zero_span() },
+            type_ann: TypeExpr::Named {
+                name: "str".to_string(),
+                span: zero_span(),
+            },
             json_as_attr: JsonAsFieldAttr::default(),
             span: zero_span(),
         }
@@ -671,7 +693,10 @@ mod tests {
             name: name.to_string(),
             type_ann: TypeExpr::Generic {
                 name: "Option".to_string(),
-                args: vec![TypeExpr::Named { name: "str".to_string(), span: zero_span() }],
+                args: vec![TypeExpr::Named {
+                    name: "str".to_string(),
+                    span: zero_span(),
+                }],
                 span: zero_span(),
             },
             json_as_attr: JsonAsFieldAttr::default(),
@@ -826,7 +851,11 @@ mod tests {
         let fns = synthesise_json_as_fns(&mut ctx, &t);
         let from_fn = &fns[0];
         // Option field → exactly 1 let stmt + 1 return = 2 stmts total
-        assert_eq!(from_fn.body.len(), 2, "expected let + return for option field");
+        assert_eq!(
+            from_fn.body.len(),
+            2,
+            "expected let + return for option field"
+        );
     }
 
     #[test]
@@ -847,7 +876,11 @@ mod tests {
         let fns = synthesise_json_as_fns(&mut ctx, &t);
         let from_fn = &fns[0];
         // Required field → let _f_name + if guard + let name = unwrap + return = 4 stmts
-        assert_eq!(from_fn.body.len(), 4, "expected _f let + guard + unwrap + return");
+        assert_eq!(
+            from_fn.body.len(),
+            4,
+            "expected _f let + guard + unwrap + return"
+        );
     }
 
     #[test]
@@ -868,7 +901,11 @@ mod tests {
         let fns = synthesise_json_as_fns(&mut ctx, &t);
         let to_fn = &fns[1];
         // to_json body should be a single return of an ObjectLit
-        if let HirStmt::Return { value: Some(HirExpr::ObjectLit(pairs, _)), .. } = &to_fn.body[0] {
+        if let HirStmt::Return {
+            value: Some(HirExpr::ObjectLit(pairs, _)),
+            ..
+        } = &to_fn.body[0]
+        {
             assert_eq!(pairs[0].0, "eventType");
             assert_eq!(pairs[1].0, "createdAt");
         } else {

@@ -281,8 +281,7 @@ mod tests {
     /// Hp-T3 acceptance: initial intake is `Orchestrator`-sourced; after a
     /// `DeveloperOverride` cap the source flips to `Developer`.
     #[tokio::test]
-    async fn priority_source_starts_orchestrator_then_flips_to_developer(
-    ) {
+    async fn priority_source_starts_orchestrator_then_flips_to_developer() {
         let h = InMemoryHopper::headless();
         let item = h
             .submit(

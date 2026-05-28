@@ -68,8 +68,13 @@ impl AiMonitor {
         let now = std::time::SystemTime::now();
         let mut intents = Vec::new();
 
-        for &(agent_id, pending_tasks, has_in_progress, stalled_in_progress_ms, ref active_skill_id) in
-            active_agents
+        for &(
+            agent_id,
+            pending_tasks,
+            has_in_progress,
+            stalled_in_progress_ms,
+            ref active_skill_id,
+        ) in active_agents
         {
             if pending_tasks == 0 {
                 continue;
@@ -92,10 +97,7 @@ impl AiMonitor {
                         };
 
                         let active_skill_content = active_skill_id.as_ref().and_then(|id| {
-                            self.skill_registry
-                                .lookup(id)
-                                .ok()
-                                .map(|skill| skill.body)
+                            self.skill_registry.lookup(id).ok().map(|skill| skill.body)
                         });
 
                         if let Some(prompt) = self.engine.generate_continuation(

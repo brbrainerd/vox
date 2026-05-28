@@ -44,13 +44,11 @@ routes {
 
     let web_bytes_a = canonical_web_ir_bytes(&bundle.web).expect("web bytes");
     let app_bytes_a = canonical_app_contract_bytes(&bundle.app).expect("app bytes");
-    let rt_bytes_a =
-        canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
+    let rt_bytes_a = canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
 
     let web_bytes_b = canonical_web_ir_bytes(&bundle.web).expect("web bytes");
     let app_bytes_b = canonical_app_contract_bytes(&bundle.app).expect("app bytes");
-    let rt_bytes_b =
-        canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
+    let rt_bytes_b = canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
 
     assert_eq!(
         web_bytes_a, web_bytes_b,
@@ -67,9 +65,15 @@ routes {
 
     assert_eq!(bundle.app.schema_version, 2);
     assert_eq!(bundle.runtime.schema_version, 1);
-    assert!(!bundle.app.server_fns.is_empty(), "expected @server contract");
+    assert!(
+        !bundle.app.server_fns.is_empty(),
+        "expected @server contract"
+    );
     assert!(!bundle.app.query_fns.is_empty(), "expected @query contract");
-    assert!(!bundle.app.mutation_fns.is_empty(), "expected @mutation contract");
+    assert!(
+        !bundle.app.mutation_fns.is_empty(),
+        "expected @mutation contract"
+    );
 
     // Ensure we can monitor drift of each projection independently in CI logs.
     let web_hash = sha3_hex(&web_bytes_a);
@@ -93,13 +97,11 @@ fn projection_triplet_with_back_button_is_deterministic() {
 
     let web_bytes_a = canonical_web_ir_bytes(&bundle.web).expect("web bytes");
     let app_bytes_a = canonical_app_contract_bytes(&bundle.app).expect("app bytes");
-    let rt_bytes_a =
-        canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
+    let rt_bytes_a = canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
 
     let web_bytes_b = canonical_web_ir_bytes(&bundle.web).expect("web bytes");
     let app_bytes_b = canonical_app_contract_bytes(&bundle.app).expect("app bytes");
-    let rt_bytes_b =
-        canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
+    let rt_bytes_b = canonical_runtime_projection_bytes(&bundle.runtime).expect("runtime bytes");
 
     assert_eq!(web_bytes_a, web_bytes_b);
     assert_eq!(app_bytes_a, app_bytes_b);

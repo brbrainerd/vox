@@ -133,7 +133,8 @@ fn test_parse_match_arm_print_string_with_backticks() {
     let Stmt::Expr {
         expr: Expr::Match { arms, .. },
         ..
-    } = &f.body[0] else {
+    } = &f.body[0]
+    else {
         panic!("expected match expr");
     };
     assert_eq!(arms.len(), 1);
@@ -165,16 +166,15 @@ fn test_parse_match_arm_print_string_with_backticks() {
 
 #[test]
 fn test_parse_match_trailing_comma_after_arm() {
-    let m = parse_str(
-        "fn f() { match x { Ok(r) => r,\n Error(e) => e,\n } }",
-    );
+    let m = parse_str("fn f() { match x { Ok(r) => r,\n Error(e) => e,\n } }");
     let Decl::Function(f) = &m.declarations[0] else {
         panic!("expected function");
     };
     let Stmt::Expr {
         expr: Expr::Match { arms, .. },
         ..
-    } = &f.body[0] else {
+    } = &f.body[0]
+    else {
         panic!("expected match");
     };
     assert_eq!(arms.len(), 2);
@@ -932,7 +932,10 @@ fn test_parse_at_uses_decorator_accepts_env_keyword_token() {
     let m = parse_str("@uses(net, env)\nfn x() to str { \"\" }");
     match &m.declarations[0] {
         Decl::Function(f) => {
-            assert_eq!(f.effects, vec![EffectAnnotation::Net, EffectAnnotation::Env]);
+            assert_eq!(
+                f.effects,
+                vec![EffectAnnotation::Net, EffectAnnotation::Env]
+            );
         }
         other => panic!("Expected Decl::Function, got {other:?}"),
     }

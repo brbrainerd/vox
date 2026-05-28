@@ -428,10 +428,7 @@ impl Orchestrator {
             )
             .await
             {
-                self.record_persistence_degradation(
-                    "plan/replan_recovery_enqueue",
-                    &e.to_string(),
-                );
+                self.record_persistence_degradation("plan/replan_recovery_enqueue", &e.to_string());
             }
         }
 

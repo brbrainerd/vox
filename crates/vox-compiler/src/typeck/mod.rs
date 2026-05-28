@@ -111,7 +111,13 @@ pub fn typecheck_hir_module_with_path(
         }
         for imp in &hir.imports {
             if let Some(rel) = imp.local_file_path.as_ref() {
-                resolve_imported_pubs_into_env(&mut env, rel, path, imp.local_file_alias.as_deref(), &mut visited);
+                resolve_imported_pubs_into_env(
+                    &mut env,
+                    rel,
+                    path,
+                    imp.local_file_alias.as_deref(),
+                    &mut visited,
+                );
             }
         }
     }
@@ -150,8 +156,7 @@ pub fn typecheck_hir_module_with_path(
     ];
 
     // Parallel execution: each pass runs on a rayon worker thread.
-    let parallel_diags: Vec<Vec<Diagnostic>> =
-        passes.into_par_iter().map(|pass| pass()).collect();
+    let parallel_diags: Vec<Vec<Diagnostic>> = passes.into_par_iter().map(|pass| pass()).collect();
 
     for batch in parallel_diags {
         diags.extend(batch);
@@ -232,9 +237,7 @@ fn resolve_imported_pubs_into_env(
     alias: Option<&str>,
     visited: &mut std::collections::HashSet<std::path::PathBuf>,
 ) {
-    let base_dir = importer_path
-        .parent()
-        .unwrap_or(std::path::Path::new("."));
+    let base_dir = importer_path.parent().unwrap_or(std::path::Path::new("."));
     let joined = base_dir.join(rel_path);
     let canonical = match std::fs::canonicalize(&joined) {
         Ok(c) => c,
@@ -292,19 +295,12 @@ fn resolve_imported_pubs_into_env(
                 .as_ref()
                 .map(|t| registration::resolve_hir_type(t, env))
                 .unwrap_or(ty::Ty::Unit);
-            fields.push((
-                f.name.clone(),
-                ty::Ty::Fn(param_tys, Box::new(ret_ty)),
-            ));
+            fields.push((f.name.clone(), ty::Ty::Fn(param_tys, Box::new(ret_ty))));
         }
         if env.lookup(name).is_none() {
             env.define(
                 name.to_string(),
-                env::Binding::new(
-                    ty::Ty::Record(fields),
-                    false,
-                    env::BindingKind::Variable,
-                ),
+                env::Binding::new(ty::Ty::Record(fields), false, env::BindingKind::Variable),
             );
         }
     } else {
@@ -328,7 +324,6 @@ fn resolve_imported_pubs_into_env(
         }
     }
 }
-
 
 /// Walk all statements in a function body looking for `Async[T]` view nodes.
 fn collect_async_views(hir: &HirModule) -> Vec<crate::hir::nodes::async_view::HirAsyncView> {

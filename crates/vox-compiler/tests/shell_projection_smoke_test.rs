@@ -2,9 +2,7 @@
 
 use vox_compiler::hir::lower_module;
 use vox_compiler::parser::parse;
-use vox_compiler::shell_projection::{
-    canonical_shell_projection_bytes, project_shell_from_hir,
-};
+use vox_compiler::shell_projection::{canonical_shell_projection_bytes, project_shell_from_hir};
 
 fn lower_src(src: &str) -> vox_compiler::hir::TypedCoreIR_v2 {
     let tokens = vox_compiler::lexer::lex(src);

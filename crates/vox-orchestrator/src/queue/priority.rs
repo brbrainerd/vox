@@ -144,14 +144,11 @@ impl AgentQueue {
         task_id: TaskId,
         meta: &crate::planning::PlanningTaskMeta,
     ) -> bool {
-        let active_skill = meta
-            .execution_policy_json
-            .as_ref()
-            .and_then(|json| {
-                serde_json::from_str::<crate::planning::ExecutionPolicy>(json)
-                    .ok()
-                    .and_then(|p| p.allowed_skills.first().cloned())
-            });
+        let active_skill = meta.execution_policy_json.as_ref().and_then(|json| {
+            serde_json::from_str::<crate::planning::ExecutionPolicy>(json)
+                .ok()
+                .and_then(|p| p.allowed_skills.first().cloned())
+        });
 
         if let Some(t) = self.in_progress.as_mut()
             && t.id == task_id

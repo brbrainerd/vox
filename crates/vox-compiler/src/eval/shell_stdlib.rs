@@ -163,7 +163,8 @@ fn json_value_to_toml(j: &serde_json::Value) -> Result<toml::Value, String> {
                 toml::Value::Integer(i)
             } else if let Some(u) = n.as_u64() {
                 toml::Value::Integer(
-                    i64::try_from(u).map_err(|_| "json number too large for TOML Integer".to_string())?,
+                    i64::try_from(u)
+                        .map_err(|_| "json number too large for TOML Integer".to_string())?,
                 )
             } else {
                 toml::Value::Float(n.as_f64().unwrap_or(0.0))

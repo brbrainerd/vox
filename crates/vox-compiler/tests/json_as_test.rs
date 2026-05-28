@@ -11,8 +11,8 @@
 //! Each test calls `fn main()` which exercises the synthesised functions and
 //! returns a bool or int result that the assertion checks.
 
-use vox_compiler::eval::value::VoxValue;
 use vox_compiler::eval::Interpreter;
+use vox_compiler::eval::value::VoxValue;
 use vox_compiler::hir::lower::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse_script;
@@ -23,14 +23,15 @@ use vox_compiler::parser::parse_script;
 
 fn run(src: &str) -> Result<VoxValue, String> {
     let tokens = lex(src);
-    let module =
-        parse_script(tokens).map_err(|errs| format!("parse: {} errors", errs.len()))?;
+    let module = parse_script(tokens).map_err(|errs| format!("parse: {} errors", errs.len()))?;
     let lowered = lower_module(&module);
     let mut interp = Interpreter::new(10_000_000);
     interp
         .run_module(&lowered)
         .map_err(|e| format!("module: {e:?}"))?;
-    interp.call("main", vec![]).map_err(|e| format!("main: {e:?}"))
+    interp
+        .call("main", vec![])
+        .map_err(|e| format!("main: {e:?}"))
 }
 
 fn run_bool(src: &str) -> bool {
@@ -83,7 +84,8 @@ fn synthesised_fns_appear_in_hir_module() {
 
 #[test]
 fn from_json_extracts_required_str_field() {
-    let ok = run_bool(r#"
+    let ok = run_bool(
+        r#"
         @json_as(Product)
         type Product {
             name: str,
@@ -98,13 +100,15 @@ fn from_json_extracts_required_str_field() {
             let p = res.unwrap()
             return p.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("") == "gadget"
         }
-    "#);
+    "#,
+    );
     assert!(ok);
 }
 
 #[test]
 fn from_json_extracts_required_int_field() {
-    let n = run_int(r#"
+    let n = run_int(
+        r#"
         @json_as(Counter)
         type Counter {
             value: int,
@@ -119,7 +123,8 @@ fn from_json_extracts_required_int_field() {
             let c = res.unwrap()
             return c.get("value").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-3)
         }
-    "#);
+    "#,
+    );
     assert_eq!(n, 42);
 }
 
@@ -129,7 +134,8 @@ fn from_json_extracts_required_int_field() {
 
 #[test]
 fn from_json_errors_on_missing_required_field() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Item)
         type Item {
             id: int,
@@ -144,7 +150,8 @@ fn from_json_errors_on_missing_required_field() {
             if res.is_err() { return "missing_field_error" }
             return "ok"
         }
-    "#);
+    "#,
+    );
     assert_eq!(s, "missing_field_error");
 }
 
@@ -154,7 +161,8 @@ fn from_json_errors_on_missing_required_field() {
 
 #[test]
 fn from_json_option_field_absent_is_none() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Note)
         type Note {
             title: str,
@@ -177,14 +185,16 @@ fn from_json_option_field_absent_is_none() {
             if body_field.is_none() { return "none" }
             return "some"
         }
-    "#);
+    "#,
+    );
     // body key is absent from JSON → Option[str] field is None
     assert_eq!(s, "none");
 }
 
 #[test]
 fn from_json_option_field_present_is_some() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Note)
         type Note {
             title: str,
@@ -205,7 +215,8 @@ fn from_json_option_field_present_is_some() {
             if body_field.is_none() { return "none" }
             return body_field.unwrap()
         }
-    "#);
+    "#,
+    );
     assert_eq!(s, "content");
 }
 
@@ -215,7 +226,8 @@ fn from_json_option_field_present_is_some() {
 
 #[test]
 fn to_json_emits_object_with_correct_keys() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Config)
         type Config {
             host: str,
@@ -232,7 +244,8 @@ fn to_json_emits_object_with_correct_keys() {
             let out = Config_to_json(cfg)
             return out.get("host").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("no_host")
         }
-    "#);
+    "#,
+    );
     assert_eq!(s, "localhost");
 }
 
@@ -242,7 +255,8 @@ fn to_json_emits_object_with_correct_keys() {
 
 #[test]
 fn field_name_attribute_overrides_json_key() {
-    let ok = run_bool(r#"
+    let ok = run_bool(
+        r#"
         @json_as(Order)
         type Order {
             @field_name("order_id") id: str,
@@ -257,7 +271,8 @@ fn field_name_attribute_overrides_json_key() {
             let o = res.unwrap()
             return o.get("id").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("") == "abc-123"
         }
-    "#);
+    "#,
+    );
     assert!(ok);
 }
 
@@ -267,7 +282,8 @@ fn field_name_attribute_overrides_json_key() {
 
 #[test]
 fn camel_case_naming_reads_camel_json_keys() {
-    let ok = run_bool(r#"
+    let ok = run_bool(
+        r#"
         @json_as(Event, naming: "camelCase")
         type Event {
             event_type: str,
@@ -284,7 +300,8 @@ fn camel_case_naming_reads_camel_json_keys() {
             let typ = e.get("event_type").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
             return typ == "click"
         }
-    "#);
+    "#,
+    );
     assert!(ok);
 }
 
@@ -294,7 +311,8 @@ fn camel_case_naming_reads_camel_json_keys() {
 
 #[test]
 fn defaults_true_missing_field_uses_zero() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Settings, defaults: true)
         type Settings {
             timeout: int,
@@ -312,7 +330,8 @@ fn defaults_true_missing_field_uses_zero() {
             if timeout_val.is_none() { return "missing" }
             return "present"
         }
-    "#);
+    "#,
+    );
     // With defaults: true, missing `timeout` int field gets 0 — key should be present in result
     assert_eq!(s, "present");
 }
@@ -344,7 +363,8 @@ fn unannotated_type_has_no_synthesised_fns() {
 
 #[test]
 fn bool_field_round_trip() {
-    let ok = run_bool(r#"
+    let ok = run_bool(
+        r#"
         @json_as(Flag)
         type Flag {
             enabled: bool,
@@ -359,7 +379,8 @@ fn bool_field_round_trip() {
             let f = res.unwrap()
             return f.get("enabled").and_then(fn(j: Json) to Option[bool] { j.as_bool() }).unwrap_or(false)
         }
-    "#);
+    "#,
+    );
     assert!(ok);
 }
 
@@ -369,7 +390,8 @@ fn bool_field_round_trip() {
 
 #[test]
 fn multi_field_struct_all_fields_extracted() {
-    let n = run_int(r#"
+    let n = run_int(
+        r#"
         @json_as(Stats)
         type Stats {
             count: int,
@@ -387,7 +409,8 @@ fn multi_field_struct_all_fields_extracted() {
             let total = s.get("total").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-4)
             return count + total
         }
-    "#);
+    "#,
+    );
     assert_eq!(n, 102);
 }
 
@@ -397,7 +420,8 @@ fn multi_field_struct_all_fields_extracted() {
 
 #[test]
 fn adt_tagged_enum_dispatches_on_tag_field() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Shape, tag: "type")
         type Shape =
             | Circle { radius: int }
@@ -413,13 +437,15 @@ fn adt_tagged_enum_dispatches_on_tag_field() {
             let radius = shape.get("radius").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
             return "radius:" + str(radius)
         }
-    "#);
+    "#,
+    );
     assert_eq!(s, "radius:5");
 }
 
 #[test]
 fn adt_tagged_enum_second_variant_dispatches_correctly() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Shape, tag: "type")
         type Shape =
             | Circle { radius: int }
@@ -435,13 +461,15 @@ fn adt_tagged_enum_second_variant_dispatches_correctly() {
             let side = shape.get("side").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(-1)
             return "side:" + str(side)
         }
-    "#);
+    "#,
+    );
     assert_eq!(s, "side:7");
 }
 
 #[test]
 fn adt_tagged_enum_missing_tag_returns_err() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Shape, tag: "type")
         type Shape =
             | Circle { radius: int }
@@ -454,13 +482,15 @@ fn adt_tagged_enum_missing_tag_returns_err() {
             if res.is_ok() { return "unexpected_ok" }
             return "missing_tag"
         }
-    "#);
+    "#,
+    );
     assert_eq!(s, "missing_tag");
 }
 
 #[test]
 fn adt_tagged_enum_unknown_tag_returns_err() {
-    let s = run_str(r#"
+    let s = run_str(
+        r#"
         @json_as(Shape, tag: "type")
         type Shape =
             | Circle { radius: int }
@@ -474,6 +504,7 @@ fn adt_tagged_enum_unknown_tag_returns_err() {
             if res.is_ok() { return "unexpected_ok" }
             return "unknown_tag"
         }
-    "#);
+    "#,
+    );
     assert_eq!(s, "unknown_tag");
 }

@@ -89,7 +89,8 @@ impl LowerCtx {
                 ))
             } else if f.is_llm {
                 let has_prompt_payload = f.prompt_stage.is_some() && f.prompt_schema.is_some();
-                let has_subagent_payload = f.subagent_policy.is_some() || f.subagent_max_depth.is_some();
+                let has_subagent_payload =
+                    f.subagent_policy.is_some() || f.subagent_max_depth.is_some();
                 let has_search_payload = f.search_corpus.is_some()
                     || f.search_query.is_some()
                     || f.search_into.is_some()
@@ -106,10 +107,7 @@ impl LowerCtx {
                                 .search_corpus
                                 .clone()
                                 .unwrap_or_else(|| "docs".to_string()),
-                            query: f
-                                .search_query
-                                .clone()
-                                .unwrap_or_else(|| String::from("")),
+                            query: f.search_query.clone().unwrap_or_else(|| String::from("")),
                             into_type: f
                                 .search_into
                                 .clone()
@@ -145,40 +143,50 @@ impl LowerCtx {
                 } else if has_prompt_payload {
                     Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Prompt(
                         crate::hir::nodes::boilerplate_grafts::HirPromptFixture {
-                            stage: f.prompt_stage.clone().unwrap_or_else(|| "Planner".to_string()),
-                            schema: f.prompt_schema.clone().unwrap_or_else(|| "Unknown".to_string()),
+                            stage: f
+                                .prompt_stage
+                                .clone()
+                                .unwrap_or_else(|| "Planner".to_string()),
+                            schema: f
+                                .prompt_schema
+                                .clone()
+                                .unwrap_or_else(|| "Unknown".to_string()),
                             redact: f.prompt_redact.clone(),
                             span: f.span,
                         },
                     ))
                 } else if has_intent_payload {
-                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::IntentRouted(
-                        crate::hir::nodes::boilerplate_grafts::HirAiIntentFixture {
-                            task_category: f.ai_task_category.clone(),
-                            strengths: f.ai_strengths.clone(),
-                            tier_max: f.ai_tier_max.clone(),
-                            cost_ceiling_usd_per_call: f.ai_cost_ceiling_usd_per_call,
-                            span: f.span,
-                        },
-                    ))
+                    Some(
+                        crate::hir::nodes::boilerplate_grafts::HirAiFixture::IntentRouted(
+                            crate::hir::nodes::boilerplate_grafts::HirAiIntentFixture {
+                                task_category: f.ai_task_category.clone(),
+                                strengths: f.ai_strengths.clone(),
+                                tier_max: f.ai_tier_max.clone(),
+                                cost_ceiling_usd_per_call: f.ai_cost_ceiling_usd_per_call,
+                                span: f.span,
+                            },
+                        ),
+                    )
                 } else {
-                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::ModelPin(
-                        crate::hir::nodes::boilerplate_grafts::HirAiModelPinFixture {
-                            model: f.llm_model.clone(),
-                            structured_output: f.ai_structured_output_type.as_ref().map(|ty| {
-                                crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput {
-                                    return_type: ty.clone(),
-                                    max_iterations: if f.ai_max_iterations == 0 {
-                                        3
-                                    } else {
-                                        f.ai_max_iterations
-                                    },
-                                    span: f.span,
-                                }
-                            }),
-                            span: f.span,
-                        },
-                    ))
+                    Some(
+                        crate::hir::nodes::boilerplate_grafts::HirAiFixture::ModelPin(
+                            crate::hir::nodes::boilerplate_grafts::HirAiModelPinFixture {
+                                model: f.llm_model.clone(),
+                                structured_output: f.ai_structured_output_type.as_ref().map(|ty| {
+                                    crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput {
+                                        return_type: ty.clone(),
+                                        max_iterations: if f.ai_max_iterations == 0 {
+                                            3
+                                        } else {
+                                            f.ai_max_iterations
+                                        },
+                                        span: f.span,
+                                    }
+                                }),
+                                span: f.span,
+                            },
+                        ),
+                    )
                 }
             } else {
                 None
@@ -468,8 +476,6 @@ impl LowerCtx {
             span: e.span,
         }
     }
-
-
 
     pub(crate) fn lower_url_decl(&mut self, u: &UrlDecl) -> HirUrlDecl {
         let id = self.def_map.define(u.name.clone());

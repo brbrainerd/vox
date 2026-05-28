@@ -197,9 +197,10 @@ impl Orchestrator {
         if let Some(ref tenant_id) = task.tenant_id {
             let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
             if let Some(db) = db_opt {
-                let monthly_usage: i64 = vox_gamify::db::get_tenant_monthly_token_usage(&db, tenant_id)
-                    .await
-                    .unwrap_or(0);
+                let monthly_usage: i64 =
+                    vox_gamify::db::get_tenant_monthly_token_usage(&db, tenant_id)
+                        .await
+                        .unwrap_or(0);
                 let estimated_tokens = task.estimated_token_count();
 
                 // For now, assume "free" tier. A future lookup table in VoxDb will resolve this.

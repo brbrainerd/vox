@@ -861,7 +861,10 @@ mod excerpt_tests {
     use super::DiagnosticExcerpt;
 
     fn source_10() -> String {
-        (1..=10).map(|n| format!("line{n}")).collect::<Vec<_>>().join("\n")
+        (1..=10)
+            .map(|n| format!("line{n}"))
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     #[test]
@@ -946,8 +949,8 @@ mod excerpt_tests {
 
 #[cfg(test)]
 mod explain_url_tests {
-    use crate::ast::span::Span;
     use super::{Diagnostic, DiagnosticCategory, VoxCompilerDiagnosticPayload};
+    use crate::ast::span::Span;
 
     fn make_diag(code: Option<&str>) -> Diagnostic {
         Diagnostic {
@@ -981,14 +984,20 @@ mod explain_url_tests {
     fn numeric_code_produces_no_explain_url() {
         let diag = make_diag(Some("E0001"));
         let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
-        assert!(payload.explain_url.is_none(), "numeric codes have no docs URL");
+        assert!(
+            payload.explain_url.is_none(),
+            "numeric codes have no docs URL"
+        );
     }
 
     #[test]
     fn legacy_lint_code_produces_no_explain_url() {
         let diag = make_diag(Some("lint.theme_contrast"));
         let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
-        assert!(payload.explain_url.is_none(), "lint. prefix has no docs URL");
+        assert!(
+            payload.explain_url.is_none(),
+            "lint. prefix has no docs URL"
+        );
     }
 
     #[test]
@@ -1003,8 +1012,13 @@ mod explain_url_tests {
     fn explain_url_uses_vox_lang_org_domain() {
         let diag = make_diag(Some("vox/effect/pure-violated"));
         let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "fn f() {}");
-        let url = payload.explain_url.expect("vox/ code should have explain_url");
-        assert!(url.starts_with("https://vox-lang.org/diag/vox/"), "URL: {url}");
+        let url = payload
+            .explain_url
+            .expect("vox/ code should have explain_url");
+        assert!(
+            url.starts_with("https://vox-lang.org/diag/vox/"),
+            "URL: {url}"
+        );
         assert!(url.ends_with("vox/effect/pure-violated"), "URL: {url}");
     }
 
@@ -1050,11 +1064,8 @@ mod explain_url_tests {
         )
         .with_code(super::codes::TYPES_TYPE_MISMATCH);
         assert_eq!(diag.code.as_deref(), Some("vox/types/type-mismatch"));
-        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(
-            &diag,
-            "test.vox",
-            "let x: Int = \"hi\"",
-        );
+        let payload =
+            VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "let x: Int = \"hi\"");
         assert_eq!(payload.error_code, "vox/types/type-mismatch");
         assert_eq!(
             payload.explain_url.as_deref(),

@@ -319,8 +319,15 @@ impl crate::orchestrator::Orchestrator {
                             .map(|started| now_ms.saturating_sub(started))
                             .filter(|elapsed| has_in_progress && *elapsed >= stall_threshold_ms)
                             .unwrap_or(0);
-                        let active_skill = queue.current_task().and_then(|t| t.active_skill.clone());
-                        (*id, pending_total, has_in_progress, stalled_in_progress_ms, active_skill)
+                        let active_skill =
+                            queue.current_task().and_then(|t| t.active_skill.clone());
+                        (
+                            *id,
+                            pending_total,
+                            has_in_progress,
+                            stalled_in_progress_ms,
+                            active_skill,
+                        )
                     })
                     .collect()
             };

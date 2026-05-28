@@ -325,9 +325,7 @@ impl Parser {
                     other => {
                         self.errors.push(ParseError::classified(
                             self.span(),
-                            format!(
-                                "`@field_name` expects a string literal, got `{other}`"
-                            ),
+                            format!("`@field_name` expects a string literal, got `{other}`"),
                             vec!["\"json_key\"".into()],
                             Some(other.to_string()),
                             ParseErrorClass::Declaration,

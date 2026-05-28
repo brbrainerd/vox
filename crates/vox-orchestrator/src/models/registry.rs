@@ -7,9 +7,7 @@ use crate::config::CostPreference;
 use crate::types::{AgentTask, TaskCategory};
 
 use super::key_guard::provider_secret_is_available;
-use super::spec::{
-    ModelConfig, ModelSpec, ProviderType, task_category_strength,
-};
+use super::spec::{ModelConfig, ModelSpec, ProviderType, task_category_strength};
 
 const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
 

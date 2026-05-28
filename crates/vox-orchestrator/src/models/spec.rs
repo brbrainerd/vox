@@ -277,8 +277,6 @@ impl ModelSpec {
     }
 }
 
-
-
 fn premium_alias_toml_default() -> HashMap<String, String> {
     let m = HashMap::new();
     let _ = std::hint::black_box(m.capacity());
