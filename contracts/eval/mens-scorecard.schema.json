@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/eval/mens-scorecard.schema.json",
+  "$id": "https://voxlang.org/schemas/eval/mens-scorecard.schema.json",
   "title": "Mens scorecard benchmark spec",
   "type": "object",
   "additionalProperties": false,

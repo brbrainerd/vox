@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/journeys/canonical-journey-step.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/journeys/canonical-journey-step.v1.schema.json",
   "title": "CanonicalJourneyStepV1",
   "type": "object",
   "additionalProperties": true,

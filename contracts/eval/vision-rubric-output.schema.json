@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/eval/vision-rubric-output.schema.json",
+  "$id": "https://voxlang.org/schemas/eval/vision-rubric-output.schema.json",
   "title": "Vox vision / DOM rubric tool output (stub v1)",
   "description": "Machine-checkable result from a future `vox_vision_rubric` / CI rubric lane. Validate outputs against this schema before quarantine or Mens ingest.",
   "type": "object",

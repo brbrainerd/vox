@@ -21,7 +21,7 @@ pub(super) async fn http_health(
         )
             .into_response();
     }
-    // Plain body for load balancers and strict `curl` gates (e.g. `eval.vox-lang.org/health`).
+    // Plain body for load balancers and strict `curl` gates (e.g. `eval.voxlang.org/health`).
     (StatusCode::OK, "ok").into_response()
 }
 pub(super) async fn http_info(

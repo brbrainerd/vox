@@ -1,0 +1,166 @@
+// vox:caps process fs
+// scripts/show/script.vox
+// Whisper transcript -> 3-act outline drafter for Raw Nerve episodes.
+//
+// Inputs (environment):
+//   RAW_NERVE_RECORDING_DIR  required; OBS folder for one week of dev sessions
+//   RAW_NERVE_CTA_TYPE       optional; "playground" (default) or "donation"
+//   RAW_NERVE_OUT            optional; output path
+//                            (default: <RECORDING_DIR>/outline.md)
+//   RAW_NERVE_WHISPER_OUT    optional; transcript output directory
+//                            (default: /tmp/rawnerve-transcripts)
+//
+// Pipeline:
+//   1. fs.glob the recording directory for all files
+//   2. For each .mp4/.mkv/.webm/.wav: run whisper-cli -> JSON transcript
+//   3. Concatenate transcripts
+//   4. Send to LLM with the outline-shape prompt
+//   5. Write outline.md
+//
+// Dependencies:
+//   - whisper-cli on PATH (whisper.cpp or python whisper)
+//   - `vox mens prompt` for LLM routing
+//
+// Produces a DRAFT outline, not a finished script. Talk through it
+// conversationally; edit ruthlessly after.
+
+import process;
+import fs;
+import env;
+
+fn outline_prompt(transcript: str, cta_type: str) to str {
+    let mut p = ""
+    p = p + "You are an editor for Raw Nerve, a programming-language YouTube channel.\n"
+    p = p + "The host is Bert Brainerd, a former neuroscientist building Vox, an AI-native\n"
+    p = p + "programming language designed after the LLM.\n"
+    p = p + "\n"
+    p = p + "Below is a transcript of one week of recorded development work.\n"
+    p = p + "Produce a 3-act episode OUTLINE (not a script) the host will talk through\n"
+    p = p + "conversationally. The outline is bullets and one-liners; the host fills in\n"
+    p = p + "the takes.\n"
+    p = p + "\n"
+    p = p + "Constraints:\n"
+    p = p + "  - Total spoken length ~10 minutes (~1200 words delivered)\n"
+    p = p + "  - Voice register: deadpan irreverence with journalistic structure\n"
+    p = p + "  - Comedy in asides only, never setpieces\n"
+    p = p + "  - Show the wound (failures > wins for retention)\n"
+    p = p + "  - One CTA at the end. CTA type: " + cta_type + "\n"
+    p = p + "  - Reference specific moments by [HH:MM:SS] timestamps where useful\n"
+    p = p + "\n"
+    p = p + "Output schema:\n"
+    p = p + "  ## Act 1 - Setup (~2 min)\n"
+    p = p + "  - The problem in one sentence\n"
+    p = p + "  - Why it matters (one beat)\n"
+    p = p + "  - The provocation that opens Act 2\n"
+    p = p + "\n"
+    p = p + "  ## Act 2 - Evidence (~6 min)\n"
+    p = p + "  - 3-5 bullets, each ~60-90 sec\n"
+    p = p + "  - Each bullet ties to a transcript moment\n"
+    p = p + "  - Demos or code references where applicable\n"
+    p = p + "\n"
+    p = p + "  ## Act 3 - Payoff (~1-2 min)\n"
+    p = p + "  - The take (one stance to remember)\n"
+    p = p + "  - Connect to a worldview, not just a feature\n"
+    p = p + "  - CTA\n"
+    p = p + "\n"
+    p = p + "  ## Meta\n"
+    p = p + "  - 5 candidate titles (workshop)\n"
+    p = p + "  - 1 thumbnail concept (visual + text overlay)\n"
+    p = p + "  - Segment: Acta / Documenta / Analogia / Mens / Disputatio / Nota\n"
+    p = p + "  - Vox-scientia citation key: raw-nerve-YYYY-MM-DD-slug\n"
+    p = p + "\n"
+    p = p + "Transcript:\n"
+    p = p + transcript
+    return p
+}
+
+fn is_media(filename: str) to bool {
+    if filename.ends_with(".mp4") { return true }
+    if filename.ends_with(".mkv") { return true }
+    if filename.ends_with(".webm") { return true }
+    if filename.ends_with(".wav") { return true }
+    return false
+}
+
+fn main() {
+    let dir_opt = env.get("RAW_NERVE_RECORDING_DIR")
+    if dir_opt is null {
+        print("RAW_NERVE_RECORDING_DIR is required; set it to your week's OBS folder")
+        process.exit(1)
+    }
+    let recording_dir = dir_opt.unwrap()
+
+    let cta_opt = env.get("RAW_NERVE_CTA_TYPE")
+    let mut cta_type = "playground"
+    if cta_opt is not null {
+        cta_type = cta_opt.unwrap()
+    }
+
+    let out_opt = env.get("RAW_NERVE_OUT")
+    let mut out_path = recording_dir + "/outline.md"
+    if out_opt is not null {
+        out_path = out_opt.unwrap()
+    }
+
+    let whisper_out_opt = env.get("RAW_NERVE_WHISPER_OUT")
+    let mut whisper_out = "/tmp/rawnerve-transcripts"
+    if whisper_out_opt is not null {
+        whisper_out = whisper_out_opt.unwrap()
+    }
+
+    print("scripts/show/script.vox: transcribing recordings in " + recording_dir)
+
+    let media_res = fs.glob(recording_dir + "/**/*")
+    if media_res.is_err() {
+        print("could not list " + recording_dir)
+        process.exit(1)
+    }
+    let media_files = media_res.unwrap()
+
+    let mut combined = ""
+    let mut count = 0
+    for f in media_files {
+        if not is_media(f) { continue }
+        print("  - " + f)
+        let whisper_opt = process.run("whisper-cli", [f, "--model", "large-v3", "--output-format", "json", "--output-dir", whisper_out])
+        if whisper_opt is null {
+            print("    SKIPPED: could not spawn whisper-cli")
+            continue
+        }
+        let whisper = whisper_opt.unwrap()
+        if whisper.code != 0 {
+            print("    SKIPPED: whisper exited with " + str(whisper.code))
+            continue
+        }
+        combined = combined + "\n\n=== " + f + " ===\n\n" + whisper.stdout
+        count = count + 1
+    }
+
+    if count == 0 {
+        print("no transcribable media in " + recording_dir)
+        process.exit(1)
+    }
+
+    print("generating outline (transcribed " + str(count) + " files)...")
+    let prompt = outline_prompt(combined, cta_type)
+
+    let llm_opt = process.run("vox", ["mens", "prompt", "--text", prompt])
+    if llm_opt is null {
+        print("LLM call failed: could not spawn vox")
+        process.exit(1)
+    }
+    let llm = llm_opt.unwrap()
+    if llm.code != 0 {
+        print("LLM call failed: exit " + str(llm.code))
+        process.exit(1)
+    }
+
+    let ok = fs.write_file(out_path, llm.stdout)
+    if ok {
+        print("wrote outline -> " + out_path)
+        print("review it, then record from it conversationally")
+    } else {
+        print("could not write " + out_path)
+        process.exit(1)
+    }
+}

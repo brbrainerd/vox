@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/repository/repo-path-resolution.schema.json",
+  "$id": "https://voxlang.org/contracts/repository/repo-path-resolution.schema.json",
   "title": "RepoPathResolutionModes",
   "description": "Named resolution modes in crates/vox-repository `path_safety`: `resolve_strict_repo_relative_path` (relative-only, rejects `..`, join under canonical root before IO), `resolve_local_path_under_repo_root` (absolute or repo-relative existing paths, canonical prefix check), `path_relative_to_repo_root` (forward-slash relative path for metadata).",
   "type": "string",

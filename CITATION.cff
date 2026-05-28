@@ -12,7 +12,7 @@ authors:
   - family-names: "Brainerd"
     given-names: "Bert"
 repository-code: "https://github.com/vox-foundation/vox"
-url: "https://vox-lang.org"
+url: "https://voxlang.org"
 license: Apache-2.0
 version: "0.4"
 date-released: "2026-04-01"

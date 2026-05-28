@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/mcp/http-read-role-governance.schema.json",
+  "$id": "https://voxlang.org/schemas/mcp/http-read-role-governance.schema.json",
   "title": "MCP HTTP read-role governance profile",
   "type": "object",
   "additionalProperties": false,

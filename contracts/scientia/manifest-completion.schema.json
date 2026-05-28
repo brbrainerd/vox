@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/scientia/manifest-completion.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/manifest-completion.schema.json",
   "title": "SCIENTIA manifest completion report",
   "type": "object",
   "additionalProperties": false,

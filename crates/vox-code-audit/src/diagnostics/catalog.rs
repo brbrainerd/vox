@@ -6,7 +6,7 @@
 //!
 //! Every ID here has a corresponding `--explain` page planned at
 //! `docs/src/reference/diagnostics/<category>-<name>.md` and a stable URL at
-//! `https://vox-lang.org/diag/<id>`.
+//! `https://voxlang.org/diag/<id>`.
 
 // ---------------------------------------------------------------------------
 // Security — immediate `Error` severity
@@ -330,7 +330,7 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
 
 /// Find the explain URL for a given diagnostic ID.
 pub fn explain_url(id: &str) -> String {
-    format!("https://vox-lang.org/diag/{}", id)
+    format!("https://voxlang.org/diag/{}", id)
 }
 
 /// Returns true if `id` is a known stable diagnostic ID.
@@ -375,7 +375,7 @@ mod tests {
         let url = explain_url(LLM_DIRECT_PROVIDER_CALL);
         assert_eq!(
             url,
-            "https://vox-lang.org/diag/vox/llm/direct-provider-call"
+            "https://voxlang.org/diag/vox/llm/direct-provider-call"
         );
     }
 

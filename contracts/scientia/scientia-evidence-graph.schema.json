@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/scientia/scientia-evidence-graph.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/scientia-evidence-graph.schema.json",
   "title": "metadata_json.scientia_evidence graph",
   "description": "Shared evidence bundle for scholarly + social automation. Optional fields extend over time.",
   "type": "object",

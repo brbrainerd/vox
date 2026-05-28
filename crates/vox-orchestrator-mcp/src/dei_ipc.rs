@@ -2,8 +2,8 @@
 //! Logical daemon binary: `vox-orchestrator-d` (legacy docs may say `vox-dei-d`).
 //!
 //! Wire shape `{ id, method, params }` is [`vox_foundation::protocol::DispatchRequest`] (same as CLI dispatch); validates against
-//! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://vox-lang.org/schemas/dei/rpc-methods.schema.json`).
-//! No `vox-cli` dependency — types come from `vox-protocol` only.
+//! `contracts/dei/rpc-methods.schema.json` (`$id`: `https://voxlang.org/schemas/dei/rpc-methods.schema.json`).
+//! No `vox-cli` dependency — types come from `vox-foundation` only.
 
 use serde_json::Value;
 use std::process::Stdio;

@@ -122,7 +122,7 @@ impl Reporter {
                     d["minimal_excerpt"] = json!(f.context);
                 }
                 if let Some(id) = f.diagnostic_id.as_deref() {
-                    d["explain_url"] = json!(format!("https://vox-lang.org/diag/{}", id));
+                    d["explain_url"] = json!(format!("https://voxlang.org/diag/{}", id));
                 }
                 d
             })

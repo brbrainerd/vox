@@ -1,0 +1,194 @@
+// vox:caps fs
+// scripts/show/publish.vox
+// Generate vox-scientia-compatible publication artifacts for a Raw Nerve
+// episode: citation key, CITATION.cff, RSS Atom entry, and a YAML
+// metadata record. Does NOT call `vox scientia` directly -- produces
+// portable artifacts the user can either commit to a feed source tree
+// or hand to `vox scientia ingest` once vox-schola is installed.
+//
+// Inputs (environment):
+//   RAW_NERVE_EPISODE_TITLE        required
+//   RAW_NERVE_EPISODE_DATE         required (YYYY-MM-DD)
+//   RAW_NERVE_EPISODE_SLUG         required (kebab-case identifier)
+//   RAW_NERVE_EPISODE_SEGMENT      required (Acta/Documenta/Analogia/Mens/Disputatio/Nota)
+//   RAW_NERVE_EPISODE_ABSTRACT     required (one-paragraph summary)
+//   RAW_NERVE_EPISODE_AUTHOR       optional (default "Bert Brainerd")
+//   RAW_NERVE_EPISODE_YOUTUBE_URL  optional
+//   RAW_NERVE_EPISODE_PLAYGROUND_URL  optional
+//   RAW_NERVE_EPISODE_LENGTH_MIN   optional (default "10")
+//   RAW_NERVE_DRAFTS_DIR           optional (default "raw-nerve-publications")
+//
+// Outputs (written to <DRAFTS_DIR>/<citation-key>/):
+//   citation-key.txt    Just the key, for copy-paste into video descriptions
+//   CITATION.cff        Citation File Format record
+//   rss-entry.xml       One Atom <entry> element to splice into the feed
+//   scientia.yaml       Metadata record for `vox scientia ingest`
+//   README.md           Cross-reference + suggested next manual steps
+//
+// No network calls. No auto-publishing. The user reviews and commits.
+
+import fs;
+import env;
+
+fn require_env(name: str) to str {
+    let opt = env.get(name)
+    if opt is null {
+        print("required env var not set: " + name)
+        return ""
+    }
+    return opt.unwrap()
+}
+
+fn optional_env(name: str, fallback: str) to str {
+    let opt = env.get(name)
+    if opt is null {
+        return fallback
+    }
+    return opt.unwrap()
+}
+
+fn make_citation_key(date: str, slug: str) to str {
+    return "raw-nerve-" + date + "-" + slug
+}
+
+fn make_citation_cff(citation_key: str, title: str, author: str, date: str, abstract: str, youtube_url: str) to str {
+    let mut s = ""
+    s = s + "cff-version: 1.2.0\n"
+    s = s + "message: \"If you reference this episode of Raw Nerve, please cite it as follows.\"\n"
+    s = s + "type: software\n"
+    s = s + "title: \"" + title + "\"\n"
+    s = s + "abstract: >-\n"
+    s = s + "  " + abstract + "\n"
+    s = s + "authors:\n"
+    s = s + "  - family-names: \"Brainerd\"\n"
+    s = s + "    given-names: \"" + author + "\"\n"
+    s = s + "identifiers:\n"
+    s = s + "  - type: other\n"
+    s = s + "    value: \"" + citation_key + "\"\n"
+    s = s + "    description: \"Raw Nerve / vox-scientia citation key\"\n"
+    if youtube_url isnt "" {
+        s = s + "  - type: url\n"
+        s = s + "    value: \"" + youtube_url + "\"\n"
+        s = s + "    description: \"YouTube canonical URL\"\n"
+    }
+    s = s + "repository-code: \"https://github.com/vox-foundation/vox\"\n"
+    s = s + "url: \"https://voxlang.org/raw-nerve\"\n"
+    s = s + "license: \"CC-BY-SA-4.0\"\n"
+    s = s + "date-released: \"" + date + "\"\n"
+    return s
+}
+
+fn make_rss_entry(citation_key: str, title: str, date: str, abstract: str, youtube_url: str, segment: str) to str {
+    let mut s = ""
+    s = s + "<entry>\n"
+    s = s + "  <id>https://voxlang.org/raw-nerve/" + citation_key + "</id>\n"
+    s = s + "  <title>" + title + "</title>\n"
+    s = s + "  <updated>" + date + "T00:00:00Z</updated>\n"
+    s = s + "  <published>" + date + "T00:00:00Z</published>\n"
+    s = s + "  <author><name>Bert Brainerd</name></author>\n"
+    s = s + "  <category term=\"" + segment + "\"/>\n"
+    s = s + "  <summary type=\"text\">" + abstract + "</summary>\n"
+    if youtube_url isnt "" {
+        s = s + "  <link rel=\"alternate\" type=\"text/html\" href=\"" + youtube_url + "\"/>\n"
+    }
+    s = s + "  <link rel=\"alternate\" type=\"text/html\" href=\"https://voxlang.org/raw-nerve/" + citation_key + "\"/>\n"
+    s = s + "</entry>\n"
+    return s
+}
+
+fn make_scientia_yaml(citation_key: str, title: str, date: str, abstract: str, segment: str, length_min: str, youtube_url: str, playground_url: str) to str {
+    let mut s = ""
+    s = s + "# Raw Nerve episode metadata, scientia-ingest ready.\n"
+    s = s + "# Hand to `vox scientia ingest scripts/show/.../<citation-key>/scientia.yaml`\n"
+    s = s + "# once vox-schola is installed (cargo install --path crates/vox-schola).\n"
+    s = s + "kind: publication\n"
+    s = s + "type: podcast-episode\n"
+    s = s + "citation_key: \"" + citation_key + "\"\n"
+    s = s + "title: \"" + title + "\"\n"
+    s = s + "date: \"" + date + "\"\n"
+    s = s + "segment: \"" + segment + "\"\n"
+    s = s + "length_minutes: " + length_min + "\n"
+    s = s + "abstract: |\n"
+    s = s + "  " + abstract + "\n"
+    s = s + "authors:\n"
+    s = s + "  - Bert Brainerd\n"
+    s = s + "channel: \"Raw Nerve\"\n"
+    s = s + "publisher: \"Vox Foundation\"\n"
+    s = s + "license: \"CC-BY-SA-4.0\"\n"
+    if youtube_url isnt "" {
+        s = s + "youtube_url: \"" + youtube_url + "\"\n"
+    }
+    if playground_url isnt "" {
+        s = s + "playground_url: \"" + playground_url + "\"\n"
+    }
+    s = s + "repository: \"https://github.com/vox-foundation/vox\"\n"
+    s = s + "canonical_url: \"https://voxlang.org/raw-nerve/" + citation_key + "\"\n"
+    return s
+}
+
+fn make_readme(citation_key: str, title: str, date: str, drafts_dir: str) to str {
+    let mut s = ""
+    s = s + "# " + citation_key + "\n"
+    s = s + "\n"
+    s = s + "**Title:** " + title + "\n"
+    s = s + "**Date:** " + date + "\n"
+    s = s + "**Citation key:** `" + citation_key + "`\n"
+    s = s + "\n"
+    s = s + "## Files in this directory\n"
+    s = s + "\n"
+    s = s + "- `citation-key.txt` -- the citation key as a single line; copy-paste into YouTube descriptions / X posts\n"
+    s = s + "- `CITATION.cff` -- Citation File Format record; commit to wherever your project tracks citations\n"
+    s = s + "- `rss-entry.xml` -- one Atom `<entry>` element; splice into `voxlang.org/feed/raw-nerve.xml`\n"
+    s = s + "- `scientia.yaml` -- metadata record for `vox scientia ingest` when vox-schola is installed\n"
+    s = s + "\n"
+    s = s + "## Suggested next steps (manual)\n"
+    s = s + "\n"
+    s = s + "1. Review each generated artifact for accuracy.\n"
+    s = s + "2. Copy `rss-entry.xml` content into the project's feed source under `docs/src/feed/raw-nerve.xml` (or wherever the feed source lives) -- atop the entry list, latest-first.\n"
+    s = s + "3. Commit the CITATION.cff to `docs/src/raw-nerve/" + citation_key + "/CITATION.cff` (or wherever the project tracks per-publication citations).\n"
+    s = s + "4. When `vox-schola` is installed: `vox scientia ingest " + drafts_dir + "/" + citation_key + "/scientia.yaml`\n"
+    s = s + "5. Include the citation key in the YouTube video description as: *This episode is a vox-scientia publication. Citation key: `" + citation_key + "`.*\n"
+    return s
+}
+
+fn main() {
+    let title = require_env("RAW_NERVE_EPISODE_TITLE")
+    let date = require_env("RAW_NERVE_EPISODE_DATE")
+    let slug = require_env("RAW_NERVE_EPISODE_SLUG")
+    let segment = require_env("RAW_NERVE_EPISODE_SEGMENT")
+    let abstract = require_env("RAW_NERVE_EPISODE_ABSTRACT")
+
+    if title is "" { return }
+    if date is "" { return }
+    if slug is "" { return }
+    if segment is "" { return }
+    if abstract is "" { return }
+
+    let author = optional_env("RAW_NERVE_EPISODE_AUTHOR", "Bert")
+    let youtube_url = optional_env("RAW_NERVE_EPISODE_YOUTUBE_URL", "")
+    let playground_url = optional_env("RAW_NERVE_EPISODE_PLAYGROUND_URL", "")
+    let length_min = optional_env("RAW_NERVE_EPISODE_LENGTH_MIN", "10")
+    let drafts_dir = optional_env("RAW_NERVE_DRAFTS_DIR", "raw-nerve-publications")
+
+    let citation_key = make_citation_key(date, slug)
+    let out_dir = drafts_dir + "/" + citation_key
+
+    print("scripts/show/publish.vox: generating artifacts in " + out_dir)
+
+    let citation_cff = make_citation_cff(citation_key, title, author, date, abstract, youtube_url)
+    let rss_entry = make_rss_entry(citation_key, title, date, abstract, youtube_url, segment)
+    let scientia_yaml = make_scientia_yaml(citation_key, title, date, abstract, segment, length_min, youtube_url, playground_url)
+    let readme = make_readme(citation_key, title, date, drafts_dir)
+
+    let mut wrote = 0
+    if fs.write_file(out_dir + "/citation-key.txt", citation_key + "\n") { wrote = wrote + 1 }
+    if fs.write_file(out_dir + "/CITATION.cff", citation_cff) { wrote = wrote + 1 }
+    if fs.write_file(out_dir + "/rss-entry.xml", rss_entry) { wrote = wrote + 1 }
+    if fs.write_file(out_dir + "/scientia.yaml", scientia_yaml) { wrote = wrote + 1 }
+    if fs.write_file(out_dir + "/README.md", readme) { wrote = wrote + 1 }
+
+    print("wrote " + str(wrote) + "/5 artifacts to " + out_dir)
+    print("citation key: " + citation_key)
+    print("include in video description: this episode is a vox-scientia publication, citation key " + citation_key)
+    print("see " + out_dir + "/README.md for manual next steps")
+}

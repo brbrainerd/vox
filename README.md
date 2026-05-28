@@ -5,7 +5,7 @@
 
   <p><strong>One <code>.vox</code> file compiles to a database schema, a typed server, a browser app, and the artifacts to deploy them.</strong> Initiated by Bertrand Reyna-Brainerd.</p>
 
-  <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
+  <p><a href="https://voxlang.org"><strong>voxlang.org</strong></a></p>
 </div>
 
 <p align="center">

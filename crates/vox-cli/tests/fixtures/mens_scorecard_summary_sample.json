@@ -7,7 +7,7 @@
   "spec_path": "contracts/eval/mens-scorecard.baseline.json",
   "kpi_contract_alignment": {
     "runtime_generation_kpi_schema": "vox_runtime_generation_kpi_v1",
-    "mens_scorecard_event_schema_id": "https://vox-lang.org/schemas/eval/mens-scorecard-event.schema.json"
+    "mens_scorecard_event_schema_id": "https://voxlang.org/schemas/eval/mens-scorecard-event.schema.json"
   },
   "conditions": [
     {

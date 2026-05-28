@@ -429,7 +429,7 @@ pub async fn fetch_prior_art_federated(
                 .map(std::string::ToString::to_string)
         })
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "opensource@vox-lang.org".into());
+        .unwrap_or_else(|| "opensource@voxlang.org".into());
     let mail_ref = mail.as_str();
 
     let mut hits = Vec::new();

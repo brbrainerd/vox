@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/repository/repo-workspace-status.schema.json",
+  "$id": "https://voxlang.org/contracts/repository/repo-workspace-status.schema.json",
   "title": "RepoWorkspaceStatus",
   "description": "Payload for `vox repo status` (JSON) and MCP `vox_repo_status` (`RepoWorkspaceStatus` in crates/vox-repository).",
   "type": "object",

@@ -36,4 +36,4 @@ network_fetch_domains:
   - github.com
   - api.github.com
   - raw.githubusercontent.com
-  - vox-lang.org
+  - voxlang.org

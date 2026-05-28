@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/communication-protocol-catalog.schema.json",
+  "$id": "https://voxlang.org/schemas/communication-protocol-catalog.schema.json",
   "title": "Vox communication protocol catalog",
   "type": "object",
   "required": ["schema_version", "delivery_planes", "protocol_families"],

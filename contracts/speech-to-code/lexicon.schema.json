@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/speech-to-code/lexicon.schema.json",
+  "$id": "https://voxlang.org/schemas/speech-to-code/lexicon.schema.json",
   "title": "SpeechToCodeLexicon",
   "type": "object",
   "required": ["schema_version", "entries"],

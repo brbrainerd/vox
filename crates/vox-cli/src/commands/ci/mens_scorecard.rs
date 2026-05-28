@@ -564,7 +564,7 @@ pub async fn run_execute(root: &Path, spec_path: &Path, out_dir: Option<&Path>) 
         kpi_contract_alignment: Some(KpiContractAlignment {
             runtime_generation_kpi_schema: "vox_runtime_generation_kpi_v1".to_string(),
             mens_scorecard_event_schema_id:
-                "https://vox-lang.org/schemas/eval/mens-scorecard-event.schema.json".to_string(),
+                "https://voxlang.org/schemas/eval/mens-scorecard-event.schema.json".to_string(),
         }),
         completion_policy: Some(CompletionPolicyCrosswalk {
             policy_contract_rel: super::completion_quality::COMPLETION_POLICY_REL.to_string(),

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/eval/runtime-generation-kpi.schema.json",
+  "$id": "https://voxlang.org/schemas/eval/runtime-generation-kpi.schema.json",
   "title": "Runtime generation KPI",
   "type": "object",
   "additionalProperties": false,

@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vox-lang.org/schemas/telemetry/events.v1.schema.json",
+  "$id": "https://voxlang.org/schemas/telemetry/events.v1.schema.json",
   "title": "Vox Telemetry Events Catalog",
   "type": "object",
   "properties": {

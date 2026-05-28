@@ -70,7 +70,7 @@ The landing page must be rewritten as a **Starlight splash page** using `templat
 ## 3. User Journey Analysis
 
 ### Journey 1: First-Time Visitor ("What is Vox?")
-**Lands on `vox-lang.org/`**
+**Lands on `voxlang.org/`**
 Current gap: The hero message "The AI-Native Programming Language" is correct, but the CTAs point to broken `.md` links. The Diátaxis quadrant grid uses mdBook CSS variables.
 
 **Required fix:** Full splash page rewrite with working native links and proper Starlight CardGrid layout.
@@ -90,7 +90,7 @@ Gap: Sidebar currently exposes ALL 500+ pages including archive content. Recomme
 ### Journey 4: AI Agent / LLM ("What is the Vox syntax?")
 **Hits `/llms.txt` or `/_pagefind/`**
 Current gap:
-- `llms.txt` URLs point to `vox.foundation` (wrong domain — should be `vox-lang.org`)
+- `llms.txt` URLs point to `vox.foundation` (wrong domain — should be `voxlang.org`)
 - `llms-full.txt` is a stub — does NOT contain the actual full documentation content
 - `vox-docs.json` exists but may be stale
 - No `starlight-llms-txt` plugin is installed to auto-generate and keep in sync
@@ -102,10 +102,10 @@ Current gap:
 ### Gap 1: No MDX Landing Page (CRITICAL)
 The current `index.md` uses raw HTML and mdBook directives. It needs to become `index.mdx` using Starlight's built-in component library.
 
-**Impact:** Users hitting `vox-lang.org` see a broken layout. First impression is damaged.
+**Impact:** Users hitting `voxlang.org` see a broken layout. First impression is damaged.
 
 ### Gap 2: No Automatic `llms.txt` Generation (HIGH)
-The `llms.txt` and `llms-full.txt` files are **manually maintained stubs** that are already out of date (wrong domain `vox.foundation` vs `vox-lang.org`, missing content).
+The `llms.txt` and `llms-full.txt` files are **manually maintained stubs** that are already out of date (wrong domain `vox.foundation` vs `voxlang.org`, missing content).
 
 **Fix:** Install `starlight-llms-txt` plugin. It auto-generates `/llms.txt` and `/llms-full.txt` from the live sidebar at build time.
 
@@ -134,7 +134,7 @@ mdBook generated URLs like `/architecture/foo.html`. Starlight generates `/archi
 **Fix:** Generate a `_redirects` file in `docs-astro/public/` mapping `*.html` → `*/` for GitHub Pages / Cloudflare Pages.
 
 ### Gap 6: `llms.txt` Domain Mismatch (HIGH)
-All links in `llms.txt` point to `vox.foundation` not `vox-lang.org`. This will cause 404s for AI agents trying to follow those references.
+All links in `llms.txt` point to `vox.foundation` not `voxlang.org`. This will cause 404s for AI agents trying to follow those references.
 
 ### Gap 7: `{{#include}}` Directives in `index.md` (CRITICAL)
 The landing page `docs/src/index.md` contains mdBook-specific `{{#include ../../../README.md:anchor}}` directives that Starlight will render as literal text. This is the most visible regression.
@@ -188,7 +188,7 @@ This is already partially built. The `vox-doc-pipeline` needs a `--mode corpus` 
 |---|---|---|
 | Landing page broken | Rewrite `docs/src/index.md` → `index.mdx` using `template: splash` and Starlight components | `docs/src/index.md` |
 | `{{#include}}` broken | Replace with inline content or MDX imports | `docs/src/index.md` |
-| `llms.txt` domain mismatch | Fix `vox.foundation` → `vox-lang.org` in llms.txt and llms-full.txt | `docs/src/.well-known/` |
+| `llms.txt` domain mismatch | Fix `vox.foundation` → `voxlang.org` in llms.txt and llms-full.txt | `docs/src/.well-known/` |
 | Duplicate content config | Remove `docs-astro/src/content.config.ts` (redundant) | `docs-astro/src/content.config.ts` |
 
 ### P1 — High Value

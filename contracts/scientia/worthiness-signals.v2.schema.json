@@ -1,7 +1,7 @@
 {
   "x-vox-version": 2,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/scientia/worthiness-signals.v2.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/worthiness-signals.v2.schema.json",
   "title": "SCIENTIA worthiness signals v2",
   "description": "Profile-aware signal output contract for publication-worthiness v2.",
   "type": "object",

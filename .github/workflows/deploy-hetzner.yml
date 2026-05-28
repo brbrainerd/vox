@@ -330,7 +330,7 @@ jobs:
           COOLIFY_PUBLIC_EVAL_HEALTH_URL: ${{ secrets.COOLIFY_PUBLIC_EVAL_HEALTH_URL }}
         run: |
           set -euo pipefail
-          URL="${COOLIFY_PUBLIC_EVAL_HEALTH_URL:-https://eval.vox-lang.org/health}"
+          URL="${COOLIFY_PUBLIC_EVAL_HEALTH_URL:-https://eval.voxlang.org/health}"
           echo "Public HTTPS probe (curl CA verification, no -k): $URL"
           ok=""
           for i in $(seq 1 24); do

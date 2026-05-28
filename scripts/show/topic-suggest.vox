@@ -1,0 +1,113 @@
+// vox:caps process
+// scripts/show/topic-suggest.vox
+// Reads the past week of repository signals and proposes 3 ranked
+// episode candidates for Raw Nerve.
+//
+// Inputs (environment):
+//   RAW_NERVE_SINCE   optional; default "7 days ago" (git --since format)
+
+import process;
+import env;
+
+fn suggest_prompt(commits: str, closed_issues: str, merged_prs: str, doc_changes: str) to str {
+    let mut p = ""
+    p = p + "You are pitching episodes for Raw Nerve, a literary engineering\n"
+    p = p + "journal documenting Vox, an AI-native programming language.\n"
+    p = p + "\n"
+    p = p + "This past week's signals from the repository:\n"
+    p = p + "\n"
+    p = p + "Commits (oldest -> newest):\n" + commits + "\n"
+    p = p + "\n"
+    p = p + "Closed issues:\n" + closed_issues + "\n"
+    p = p + "\n"
+    p = p + "Merged PRs:\n" + merged_prs + "\n"
+    p = p + "\n"
+    p = p + "Docs changes:\n" + doc_changes + "\n"
+    p = p + "\n"
+    p = p + "Suggest 3 candidate episodes, each with:\n"
+    p = p + "  1. Working title (concrete, <= 8 words)\n"
+    p = p + "  2. Segment: Acta / Documenta / Analogia / Mens / Disputatio / Nota\n"
+    p = p + "  3. Why this week (1-2 sentences)\n"
+    p = p + "  4. 3-act sketch (1 line per act)\n"
+    p = p + "  5. Estimated prep effort (low / medium / high)\n"
+    p = p + "  6. Risk (what could make this not land)\n"
+    p = p + "  7. Playground example that best demonstrates it (from examples/golden/)\n"
+    p = p + "\n"
+    p = p + "Rank from most promising to least. Be specific. No generic clickbait."
+    return p
+}
+
+fn capture(cmd: str, args: list[str]) to str {
+    let res_opt = process.run(cmd, args)
+    if res_opt is null {
+        return ""
+    }
+    let res = res_opt.unwrap()
+    if res.code != 0 {
+        return ""
+    }
+    return res.stdout
+}
+
+// Convert a git-style relative date string ("7 days ago", "1 month ago")
+// to ISO-8601 (YYYY-MM-DD), which is what `gh issue list --search` and
+// `gh pr list --search` accept in `closed:>=` / `merged:>=` qualifiers.
+// Returns "" on failure; callers should fall back gracefully.
+fn relative_to_iso(rel: str) to str {
+    let res_opt = process.run("date", ["-d", rel, "+%Y-%m-%d"])
+    if res_opt is null {
+        return ""
+    }
+    let res = res_opt.unwrap()
+    if res.code != 0 {
+        return ""
+    }
+    let s = res.stdout.replace("\n", "")
+    return s.replace("\r", "")
+}
+
+fn main() {
+    let since_opt = env.get("RAW_NERVE_SINCE")
+    let mut since = "7 days ago"
+    if since_opt is not null {
+        since = since_opt.unwrap()
+    }
+
+    // git log accepts the relative form directly; gh issue/pr search
+    // requires an ISO date in `closed:>=` / `merged:>=` qualifiers.
+    let since_iso = relative_to_iso(since)
+
+    print("collecting repository signals (--since " + since + " / " + since_iso + ")...")
+
+    let commits = capture("git", ["log", "--since=" + since, "--oneline", "--no-merges"])
+    let mut closed = ""
+    let mut merged = ""
+    if since_iso isnt "" {
+        closed = capture("gh", ["issue", "list", "--state", "closed", "--search", "closed:>=" + since_iso, "--limit", "20"])
+        merged = capture("gh", ["pr", "list", "--state", "merged", "--search", "merged:>=" + since_iso, "--limit", "20"])
+    }
+    let docs = capture("git", ["log", "--since=" + since, "--name-only", "--pretty=format:", "--", "docs/"])
+
+    if commits is "" {
+        print("no commits in window; pick a different --since or take the week off")
+        process.exit(0)
+    }
+
+    let prompt = suggest_prompt(commits, closed, merged, docs)
+
+    let llm_opt = process.run("vox", ["mens", "prompt", "--text", prompt])
+    if llm_opt is null {
+        print("LLM call failed: could not spawn vox")
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
+    }
+    let llm = llm_opt.unwrap()
+    if llm.code != 0 {
+        print("LLM call failed: exit " + str(llm.code))
+        print("--- raw prompt for manual use ---")
+        print(prompt)
+        process.exit(1)
+    }
+    print(llm.stdout)
+}

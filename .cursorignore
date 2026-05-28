@@ -106,7 +106,6 @@ scratch*.txt
 
 # === PYTHON LOCAL TOOLING ===
 scripts/.venv/
-crates/vox-py/.venv/
 
 # === ROOT-LEVEL SCRATCH (should never be committed) ===
 /*.txt

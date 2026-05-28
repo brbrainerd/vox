@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/scientia/machine-suggestion-block.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/machine-suggestion-block.schema.json",
   "title": "SCIENTIA machine suggestion envelope",
   "description": "LLM or heuristic outputs must carry these labels; never treated as ground truth.",
   "type": "object",

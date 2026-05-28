@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/scientia/research-snapshot.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/scientia/research-snapshot.v1.schema.json",
   "title": "SCIENTIA research snapshot v1",
   "description": "Auditable recomputation snapshot for worthiness and metadata readiness diagnostics.",
   "type": "object",

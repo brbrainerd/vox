@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/communication/orchestrator-persistence-outbox.schema.json",
+  "$id": "https://voxlang.org/schemas/communication/orchestrator-persistence-outbox.schema.json",
   "title": "Orchestrator Persistence Outbox Payloads",
   "description": "Contract for context-store payloads used by orchestrator persistence degradation recovery: queue entries at orchestrator/persistence_outbox and lifecycle health at orchestrator/persistence_outbox_lifecycle.",
   "oneOf": [

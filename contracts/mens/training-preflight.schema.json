@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/mens/training-preflight.schema.json",
+  "$id": "https://voxlang.org/contracts/mens/training-preflight.schema.json",
   "title": "Mens training preflight record",
   "description": "F04: deterministic machine-readable preflight output — extend alongside FineTuneContract / planner fields. Phase 1 tightened: core keys required; optional fields remain open (`additionalProperties`).",
   "type": "object",

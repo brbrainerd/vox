@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/tokens.v1.json",
+  "$id": "https://voxlang.org/schemas/tokens.v1.json",
   "title": "Vox token file (vox.tokens.json)",
   "description": "Schema for vox.tokens.json. Each color value is either a plain hex string or an annotated object with optional WCAG contrast-pair metadata. Unknown token references in .vox source are compile errors; raw color literals on color properties are warnings.",
   "type": "object",

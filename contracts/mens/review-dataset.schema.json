@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/mens/review-dataset.schema.json",
+  "$id": "https://voxlang.org/contracts/mens/review-dataset.schema.json",
   "title": "Mens External Review Replay Row",
   "description": "Schema for ReviewDatasetBuild rows used in automated code review extraction",
   "type": "object",

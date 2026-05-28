@@ -52,7 +52,7 @@ jobs:
           LOG="$(mktemp)"
           if cargo run -p vox-cli --quiet -- ci coolify-eval sync-compose \
             --compose vox-eval.compose.yml \
-            --domains https://eval.vox-lang.org 2>&1 | tee "$LOG"; then
+            --domains https://eval.voxlang.org 2>&1 | tee "$LOG"; then
             exit 0
           fi
 

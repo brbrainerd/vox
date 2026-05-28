@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/command-registry.schema.json",
+  "$id": "https://voxlang.org/schemas/command-registry.schema.json",
   "title": "Vox command registry",
   "type": "object",
   "required": ["schema_version", "operations"],

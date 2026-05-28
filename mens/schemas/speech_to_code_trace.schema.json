@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/mens/speech_to_code_trace.schema.json",
+  "$id": "https://voxlang.org/schemas/mens/speech_to_code_trace.schema.json",
   "title": "SpeechToCodeTrainingTrace",
   "description": "Re-exports the canonical MENS training trace schema from contracts (keep paths stable for MENS tooling).",
   "$ref": "../../contracts/speech-to-code/speech_trace.mens.schema.json"

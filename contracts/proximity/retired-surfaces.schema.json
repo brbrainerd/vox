@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/schemas/retired-surfaces.schema.json",
+  "$id": "https://voxlang.org/schemas/retired-surfaces.schema.json",
   "title": "Retired Surfaces Map",
   "description": "Machine-readable mapping of retired symbols to their canonical replacements.",
   "type": "object",

@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/workflow/workflow-journal.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/workflow/workflow-journal.v1.schema.json",
   "title": "Interpreted workflow journal event (v1)",
   "description": "Contract for events emitted by vox-workflow-runtime interpreted durable workflow runner.",
   "type": "object",

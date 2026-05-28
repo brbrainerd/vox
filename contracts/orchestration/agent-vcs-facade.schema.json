@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/orchestration/agent-vcs-facade.schema.json",
+  "$id": "https://voxlang.org/contracts/orchestration/agent-vcs-facade.schema.json",
   "title": "AgentVcsFacadeJson",
   "description": "JSON shapes produced by vox_orchestrator::json_vcs_facade and mirrored by MCP vox_snapshot_*, vox_workspace_*, vox_oplog, and vox dei CLI.",
   "$defs": {

@@ -1,7 +1,7 @@
 {
   "x-vox-version": 1,
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://vox-lang.org/contracts/telemetry/completion-run.v1.schema.json",
+  "$id": "https://voxlang.org/contracts/telemetry/completion-run.v1.schema.json",
   "title": "completion CI run envelope v1",
   "type": "object",
   "required": ["schema_version", "repository_id", "recorded_at", "workflow", "findings_count"],

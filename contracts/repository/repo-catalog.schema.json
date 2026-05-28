@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://vox-lang.org/contracts/repository/repo-catalog.schema.json",
+  "$id": "https://voxlang.org/contracts/repository/repo-catalog.schema.json",
   "title": "Vox Repo Catalog",
   "type": "object",
   "additionalProperties": false,
