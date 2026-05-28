@@ -355,6 +355,17 @@ metric_types:
       includes `activity_name`, `activity_id`, `attempt`, `max_attempts`,
       `timeout_ms`, and a `terminal` flag distinguishing retry vs final kill.
 
+  - id: orch.cache.miss
+    constant: METRIC_TYPE_ORCH_CACHE_MISS
+    owner_crate: vox-orchestrator-mcp
+    sensitivity: S1
+    description: >-
+      LLM-provider prompt-cache lookup missed (the call returned no
+      `cache_read_input_tokens`, or returned zero). Counterpart to the
+      `cache_read_input_tokens` field on `ModelCallEvent` so miss rates can
+      be computed online. Emitted via `ResearchMetric` envelope from
+      `vox_orchestrator_mcp::llm_bridge::emit_cache_miss_if_applicable`.
+
 # ─────────────────────────────────────────────────────────────────────────────
 # blind_spots — failure modes the workspace cares about that emit NO event
 # today. Each entry is a tracked gap. When a metric_type is added to address
@@ -362,12 +373,6 @@ metric_types:
 # list.
 # ─────────────────────────────────────────────────────────────────────────────
 blind_spots:
-  - failure_mode: cache_miss
-    description: "LLM-provider response cache lookup missed (currently only hits are tracked via cache_read_input_tokens)."
-    owner_crate: vox-orchestrator-mcp
-    proposed_metric_type: orch.cache.miss
-    notes: "Asymmetry with cache_read_input_tokens on ModelCallEvent — miss rates are computed offline today."
-
   - failure_mode: task_cancellation
     description: "A task was explicitly cancelled mid-execution (user interrupt, parent timeout, etc.)."
     owner_crate: vox-orchestrator

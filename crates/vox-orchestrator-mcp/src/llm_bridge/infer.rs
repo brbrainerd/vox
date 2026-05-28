@@ -184,7 +184,7 @@ fn google_direct_fallback_for_gemini(
 /// the relevant subset of `ModelCallEvent` so consumers can join hit/miss rows
 /// without extra trace context lookups.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn emit_cache_miss_if_applicable(
+pub fn emit_cache_miss_if_applicable(
     model_id: &str,
     provider: &str,
     tool: &str,
