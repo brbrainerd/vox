@@ -937,8 +937,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
 
                     // Spawn reputation decay worker
                     tokio::spawn(async move {
-                        let mut interval =
-                            tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
+                        let mut interval = tokio::time::interval(vox_config::timeouts::D_3600S); // Every hour
                         loop {
                             interval.tick().await;
                             // Threshold 10 severity sum within 24h
@@ -1167,8 +1166,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
 
                     // Spawn reputation decay worker
                     tokio::spawn(async move {
-                        let mut interval =
-                            tokio::time::interval(std::time::Duration::from_secs(3600)); // Every hour
+                        let mut interval = tokio::time::interval(vox_config::timeouts::D_3600S); // Every hour
                         loop {
                             interval.tick().await;
                             // Threshold 10 severity sum within 24h

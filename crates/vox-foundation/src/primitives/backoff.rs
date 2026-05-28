@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn exponential_duration_respects_cap() {
-        let opts_max = Duration::from_secs(5);
+        let opts_max = vox_config::timeouts::D_5S;
         let out = next_exponential_backoff_duration(Duration::from_secs(4), 2.0, opts_max);
         assert_eq!(out, opts_max);
     }

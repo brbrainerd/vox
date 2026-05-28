@@ -7,6 +7,10 @@
 //   §3.2  List[T]  → readonly T[]
 //   Ref   user-defined struct type passed as response
 //
+// Vox uses anonymous record literals ascribed to a named type — the typeck unifies
+// `{ field: value, ... }` against the declared `type Foo { ... }` based on the
+// surrounding return-type or let-type ascription (see typeck/checker/expr.rs:222).
+//
 // Changing any of these endpoint signatures requires updating the snapshot AND:
 //   cargo run -p vox-wire-format-validator -- --update
 
@@ -16,7 +20,7 @@ type Price {
 }
 
 @query
-fn get_price(item_id: str) to Price { return Price { amount: 0.0, currency: "USD" } }
+fn get_price(item_id: str) to Price { return { amount: 0.0, currency: "USD" } }
 
 @query
 fn list_prices(category: str, limit: Option[int]) to List[dec] { return [] }

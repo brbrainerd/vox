@@ -522,7 +522,7 @@ impl PopuliTransportState {
     pub fn start_federation_gossip(&self) {
         let state = self.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+            let mut interval = tokio::time::interval(vox_config::timeouts::D_60S);
             let env = crate::populi_env();
 
             let scope_id = env

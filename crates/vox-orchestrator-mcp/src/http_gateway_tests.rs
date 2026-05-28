@@ -325,8 +325,8 @@ mod tests {
             )
             .await;
         });
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
+        let client = vox_http_client::client_builder()
+            .timeout(vox_config::timeouts::D_30S)
             .build()
             .expect("test http client");
         let tools_resp = client

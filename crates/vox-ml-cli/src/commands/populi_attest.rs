@@ -245,7 +245,7 @@ fn sign_manifest(manifest: &mut PublicAttestationManifest) -> anyhow::Result<()>
 }
 
 async fn publish_to_url(url: &str, body: &str) -> anyhow::Result<()> {
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let resp = client
         .put(url)
         .header("Content-Type", "application/json")
@@ -260,7 +260,7 @@ async fn publish_to_url(url: &str, body: &str) -> anyhow::Result<()> {
 }
 
 async fn fetch_manifest(url: &str) -> anyhow::Result<PublicAttestationManifest> {
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let resp = client
         .get(url)
         .send()

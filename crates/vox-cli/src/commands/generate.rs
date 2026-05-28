@@ -27,7 +27,7 @@ pub async fn run(
     let validate = !no_validate;
 
     let client = vox_http_client::client_builder()
-        .timeout(std::time::Duration::from_secs(120))
+        .timeout(vox_config::timeouts::D_120S)
         .build()
         .context("Failed to build HTTP client")?;
 

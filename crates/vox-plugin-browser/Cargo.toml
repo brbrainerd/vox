@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 vox-plugin-api = { workspace = true }
+vox-config = { workspace = true }
 abi_stable = { workspace = true }
 chromiumoxide = "0.9.1"
 chromiumoxide_cdp = "0.9.1"

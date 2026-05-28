@@ -26,7 +26,7 @@ impl OsfAdapter {
     pub fn new(base: String, token: String) -> Self {
         let http = vox_http_client::client_builder()
             .user_agent("vox-publisher/osf")
-            .timeout(Duration::from_secs(30))
+            .timeout(vox_config::timeouts::D_30S)
             .build()
             .expect("osf http client");
         Self { base, token, http }

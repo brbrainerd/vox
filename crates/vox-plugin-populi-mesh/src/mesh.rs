@@ -201,8 +201,7 @@ impl MeshDriver for PopuliMeshPlugin {
                 let _ = tx.send(());
             }
             // Shut down the runtime (waits for tasks to complete or forcibly stops them).
-            ps.runtime
-                .shutdown_timeout(std::time::Duration::from_secs(5));
+            ps.runtime.shutdown_timeout(vox_config::timeouts::D_5S);
         }
         RResult::ROk(())
     }

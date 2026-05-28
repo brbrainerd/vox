@@ -76,7 +76,7 @@ mod tests {
             agent_id: AgentId(1),
         });
 
-        let msg = tokio::time::timeout(std::time::Duration::from_millis(100), rx.recv())
+        let msg = tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv())
             .await
             .expect("should not timeout")
             .expect("should receive message");

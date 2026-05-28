@@ -155,7 +155,7 @@ impl Supervisor {
     /// Monitor all children and apply restart strategy when any dies.
     pub async fn monitor_loop(&self) {
         loop {
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(vox_config::timeouts::D_100MS).await;
 
             let mut children = self.children.write().await;
             let mut needs_restart = Vec::new();

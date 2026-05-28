@@ -66,7 +66,7 @@ async fn empty_pipeline_produces_cpu_fallback() {
 
 #[tokio::test]
 async fn registry_probe_returns_non_empty_model_name() {
-    let registry = HardwareRegistryV2::new(Duration::from_secs(300));
+    let registry = HardwareRegistryV2::new(vox_config::timeouts::D_300S);
     let summary = registry.probe().await;
     assert!(!summary.model_name.is_empty());
 }

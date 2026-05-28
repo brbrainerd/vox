@@ -12,7 +12,7 @@ pub struct ScrapedDocument {
 }
 
 pub async fn fetch_and_extract(url: &str, timeout_ms: u64) -> anyhow::Result<ScrapedDocument> {
-    let client = reqwest::Client::builder()
+    let client = vox_http_client::client_builder()
         .timeout(Duration::from_millis(timeout_ms))
         .user_agent("VoxResearchBot/1.0 (+https://vox.dev/research-bot)")
         .build()?;

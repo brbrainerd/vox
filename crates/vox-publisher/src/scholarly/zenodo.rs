@@ -582,7 +582,7 @@ mod tests {
         let client = ZenodoHttpClient {
             base: "https://sandbox.zenodo.org/api".into(),
             token: "tok".into(),
-            http: reqwest::Client::new(),
+            http: vox_http_client::client(),
         };
         let url = client.url_new_version("12345");
         assert_eq!(

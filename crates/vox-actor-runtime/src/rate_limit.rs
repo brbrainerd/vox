@@ -51,7 +51,7 @@ mod tests {
 
     #[test]
     fn rate_limit_blocks_after_threshold() {
-        let limiter = RateLimiter::new(2, Duration::from_secs(60));
+        let limiter = RateLimiter::new(2, vox_config::timeouts::D_60S);
         assert!(limiter.allow("u1"));
         assert!(limiter.allow("u1"));
         assert!(!limiter.allow("u1"));

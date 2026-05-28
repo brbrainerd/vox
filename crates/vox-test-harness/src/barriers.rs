@@ -21,7 +21,7 @@ impl TestBarrier {
     /// Waits for a signal, with a default 5-second timeout to prevent
     /// tests from hanging indefinitely in CI.
     pub async fn wait(&self) -> bool {
-        self.wait_with_timeout(Duration::from_secs(5)).await
+        self.wait_with_timeout(vox_config::timeouts::D_5S).await
     }
 
     /// Waits for a signal with a specific timeout.

@@ -16,9 +16,10 @@ impl DriftRule for BearerHeaderRule {
     }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
-        // Self-exemption: this rule's own implementation contains "Bearer " in
-        // test fixtures and assertion messages.
-        if features.crate_name.as_deref() == Some("vox-drift-check") {
+        // Self-exemption: vox-http-client owns the SSOT `BEARER_PREFIX` literal;
+        // vox-drift-check contains the rule's own test fixtures.
+        let crate_name = features.crate_name.as_deref().unwrap_or("");
+        if matches!(crate_name, "vox-http-client" | "vox-drift-check") {
             return vec![];
         }
         features.string_literals.iter()

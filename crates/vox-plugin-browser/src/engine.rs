@@ -48,7 +48,7 @@ impl BrowserEngine {
 
         let mut builder = BrowserConfig::builder()
             .request_timeout(Duration::from_secs(90))
-            .launch_timeout(Duration::from_secs(60));
+            .launch_timeout(vox_config::timeouts::D_60S);
         builder = if headless {
             builder.new_headless_mode()
         } else {

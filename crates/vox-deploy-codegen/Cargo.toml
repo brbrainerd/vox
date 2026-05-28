@@ -14,6 +14,7 @@ workspace = true
 # D-9-rescope step 2: migrated from vox-container (L3) to vox-container-types (L0).
 # Only pure types (BuildOpts, ContainerRuntime trait) are needed here; no runtime backends.
 vox-container-types.workspace = true
+vox-config.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde = { workspace = true }

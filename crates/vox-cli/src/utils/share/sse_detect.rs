@@ -10,7 +10,7 @@
 /// (app might not be running yet, or might not have an OpenAPI endpoint).
 pub async fn has_sse_routes(upstream_port: u16) -> bool {
     let url = format!("http://127.0.0.1:{}/openapi.json", upstream_port);
-    let client = match reqwest::Client::builder()
+    let client = match vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(3))
         .build()
     {

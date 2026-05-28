@@ -22,7 +22,7 @@ impl DuckDuckGoClient {
         query: &str,
         limit: usize,
     ) -> anyhow::Result<Vec<crate::searxng::SearxngResult>> {
-        let client = reqwest::Client::new();
+        let client = vox_http_client::client();
         // DuckDuckGo Instant Answer API is limited but free and no auth.
         // For actual web search, they have a different endpoint but it's often scraper-blocked.
         // We'll use the RelatedTopics as a factual fallback.

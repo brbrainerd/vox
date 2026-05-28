@@ -44,7 +44,7 @@ pub async fn run() -> Result<()> {
     );
 
     let mut issues = 0;
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
 
     for (name, spec) in &manifest.dependencies {
         let ver = spec.version_req().unwrap_or("0.1.0");

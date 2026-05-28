@@ -122,7 +122,7 @@ impl PopuliHttpClient {
     /// New client; `base` is normalized (trailing `/` stripped). No `Authorization` header.
     #[must_use]
     pub fn new(base: impl Into<String>) -> Self {
-        Self::new_with_timeout(base, Duration::from_secs(30))
+        Self::new_with_timeout(base, vox_config::timeouts::D_30S)
     }
 
     /// Like [`Self::new`] with an explicit request timeout (federation / control plane).

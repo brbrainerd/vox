@@ -31,7 +31,7 @@ impl SearxngSearchClient {
         engines_csv: &str,
         language: &str,
     ) -> anyhow::Result<Vec<SearxngResult>> {
-        let client = reqwest::Client::new();
+        let client = vox_http_client::client();
         let url = format!(
             "{}/search?q={}&format=json&engines={}&language={}",
             self.base_url.trim_end_matches('/'),

@@ -74,7 +74,7 @@ impl WebhookDelivery {
     pub fn new() -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(std::time::Duration::from_secs(10))
+                .timeout(vox_config::timeouts::D_10S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
         }

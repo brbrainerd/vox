@@ -40,9 +40,9 @@ fn e2e_completion_attestation() -> CompletionAttestation {
 }
 
 /// Whole-test wall timeout.
-const E2E_TEST_TIMEOUT: Duration = Duration::from_secs(60);
+const E2E_TEST_TIMEOUT: Duration = vox_config::timeouts::D_60S;
 /// Per-phase await timeout (pinpoints stall before whole-test timeout).
-const PHASE_TIMEOUT: Duration = Duration::from_secs(30);
+const PHASE_TIMEOUT: Duration = vox_config::timeouts::D_30S;
 /// Watchdog interval (~3s per user preference).
 const WATCHDOG_INTERVAL: Duration = Duration::from_secs(3);
 
@@ -165,8 +165,8 @@ impl E2eForensic {
                 // (a single `sleep(WATCHDOG_INTERVAL)` would block shutdown for the full interval).
                 let mut waited = Duration::ZERO;
                 while running.load(Ordering::SeqCst) && waited < WATCHDOG_INTERVAL {
-                    thread::sleep(Duration::from_millis(100));
-                    waited += Duration::from_millis(100);
+                    thread::sleep(vox_config::timeouts::D_100MS);
+                    waited += vox_config::timeouts::D_100MS;
                 }
                 if !running.load(Ordering::SeqCst) {
                     break;

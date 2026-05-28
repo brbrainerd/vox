@@ -77,7 +77,7 @@ pub async fn auth_command(provider: &str) -> Result<()> {
     println!("Local User ID: {}", ctx.user_id.bright_yellow());
     println!();
 
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
 
     // 1. Request Device Code
     let res = client

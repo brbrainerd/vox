@@ -470,7 +470,7 @@ mod tests {
     async fn mint_and_consume_bearer() {
         let r = MeshRegistry::empty();
         let token = r
-            .mint_invite_bearer("peer-1", "gpu", std::time::Duration::from_secs(60))
+            .mint_invite_bearer("peer-1", "gpu", vox_config::timeouts::D_60S)
             .await
             .unwrap();
         let (peer_id, slot_kind) = r.consume_bearer(&token).await.unwrap();

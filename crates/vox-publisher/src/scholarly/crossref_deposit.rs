@@ -28,7 +28,7 @@ impl CrossrefDepositAdapter {
     pub fn new(endpoint: String, login_id: String, login_passwd: String) -> Self {
         let http = vox_http_client::client_builder()
             .user_agent("vox-publisher/crossref")
-            .timeout(Duration::from_secs(60))
+            .timeout(vox_config::timeouts::D_60S)
             .build()
             .expect("crossref http client");
         Self {

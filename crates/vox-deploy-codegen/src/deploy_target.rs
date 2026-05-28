@@ -527,7 +527,7 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
                     timeout_secs
                 );
             }
-            std::thread::sleep(std::time::Duration::from_secs(10));
+            std::thread::sleep(vox_config::timeouts::D_10S);
 
             let status_url = format!(
                 "{}/api/v1/deployments/{}",

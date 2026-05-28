@@ -76,14 +76,14 @@ impl ScheduleSpec {
     }
 
     /// Approximate next-fire delay from `now`. Best-effort for the friendly
-    /// aliases; cron expressions return a placeholder `Duration::from_secs(60)`
+    /// aliases; cron expressions return a placeholder `vox_config::timeouts::D_60S`
     /// until the full parser lands.
     pub fn next_delay_from(&self, _now: SystemTime) -> Duration {
         match self {
-            ScheduleSpec::Hourly => Duration::from_secs(3600),
+            ScheduleSpec::Hourly => vox_config::timeouts::D_3600S,
             ScheduleSpec::Daily => Duration::from_secs(86_400),
             ScheduleSpec::Weekly => Duration::from_secs(7 * 86_400),
-            ScheduleSpec::Cron(_) => Duration::from_secs(60),
+            ScheduleSpec::Cron(_) => vox_config::timeouts::D_60S,
         }
     }
 }
@@ -182,9 +182,9 @@ mod tests {
     #[test]
     fn no_missed_buckets_when_last_run_in_future() {
         let now = SystemTime::now();
-        let later = now + Duration::from_secs(10);
+        let later = now + vox_config::timeouts::D_10S;
         assert_eq!(
-            missed_buckets_since(Some(later), now, Duration::from_secs(60)),
+            missed_buckets_since(Some(later), now, vox_config::timeouts::D_60S),
             0
         );
     }
@@ -195,7 +195,7 @@ mod tests {
         let now = UNIX_EPOCH + Duration::from_secs(7200);
         let last = UNIX_EPOCH + Duration::from_secs(0);
         assert_eq!(
-            missed_buckets_since(Some(last), now, Duration::from_secs(3600)),
+            missed_buckets_since(Some(last), now, vox_config::timeouts::D_3600S),
             2
         );
     }
@@ -205,7 +205,7 @@ mod tests {
         let now = SystemTime::now();
         assert_eq!(
             ScheduleSpec::Hourly.next_delay_from(now),
-            Duration::from_secs(3600)
+            vox_config::timeouts::D_3600S
         );
         assert_eq!(
             ScheduleSpec::Daily.next_delay_from(now),

@@ -513,7 +513,7 @@ fn tailscale_ip() -> anyhow::Result<String> {
 
 async fn control_plane_health(control_url: &str) -> bool {
     let url = format!("{}/health", control_url.trim_end_matches('/'));
-    reqwest::Client::new()
+    vox_http_client::client()
         .get(url)
         .timeout(std::time::Duration::from_secs(2))
         .send()

@@ -62,7 +62,7 @@ async fn heartbeat_keeps_leadership_alive() {
 
     wait_until_async(
         "leader heartbeat acknowledged",
-        Duration::from_secs(5),
+        vox_config::timeouts::D_5S,
         Duration::from_millis(5),
         || async { elect.heartbeat().await.expect("heartbeat") },
     )
@@ -79,7 +79,7 @@ async fn expired_lease_can_be_taken_over() {
     let b = LockLeaderElection::new(db, "node-B", "repo-1");
     wait_until_async(
         "node-B takes leadership after node-A lease expires",
-        Duration::from_secs(5),
+        vox_config::timeouts::D_5S,
         Duration::from_millis(5),
         || async {
             matches!(

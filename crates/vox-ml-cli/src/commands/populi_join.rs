@@ -152,7 +152,7 @@ pub async fn run(args: JoinArgs) -> anyhow::Result<()> {
 async fn fetch_manifest(
     url: &str,
 ) -> anyhow::Result<vox_mesh_types::attestation_manifest::PublicAttestationManifest> {
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let resp = client
         .get(url)
         .send()

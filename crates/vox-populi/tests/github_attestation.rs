@@ -131,7 +131,7 @@ async fn counterparty_fetches_and_verifies_manifest() {
 fn revoked_manifest_is_tombstoned_within_60_seconds() {
     use vox_populi::pairing::revocation::RevocationGossip;
 
-    let mut rg = RevocationGossip::new(std::time::Duration::from_secs(60));
+    let mut rg = RevocationGossip::new(vox_config::timeouts::D_60S);
     rg.tombstone("nodeA-pubkey-hex".into());
     assert!(rg.is_revoked("nodeA-pubkey-hex"));
     assert!(!rg.is_revoked("nodeB-pubkey-hex"));

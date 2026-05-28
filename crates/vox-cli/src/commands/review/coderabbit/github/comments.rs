@@ -23,7 +23,7 @@ pub async fn trigger_coderabbit(
     };
 
     let url = format!("https://api.github.com/repos/{owner}/{repo}/issues/{pr_number}/comments");
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let resp = client
         .post(&url)
         .bearer_auth(token)
@@ -49,7 +49,7 @@ pub async fn wait_for_review(pr_number: u64, timeout_secs: u64, path: &Path) -> 
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let start = std::time::Instant::now();
-    let poll_interval = std::time::Duration::from_secs(30);
+    let poll_interval = vox_config::timeouts::D_30S;
 
     while start.elapsed().as_secs() < timeout_secs {
         let reviews = provider

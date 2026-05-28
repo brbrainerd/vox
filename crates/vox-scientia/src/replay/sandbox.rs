@@ -78,7 +78,7 @@ mod tests {
     #[tokio::test]
     async fn echo_exits_zero_and_captures_stdout() {
         let dir = tempfile::tempdir().unwrap();
-        let out = run_in_sandbox(dir.path(), "echo ok", Duration::from_secs(5))
+        let out = run_in_sandbox(dir.path(), "echo ok", vox_config::timeouts::D_5S)
             .await
             .expect("spawn");
         assert_eq!(out.exit_code, Some(0));
@@ -94,7 +94,7 @@ mod tests {
     async fn nonzero_exit_is_reported() {
         let dir = tempfile::tempdir().unwrap();
         // `exit 7` is portable across sh/cmd.
-        let out = run_in_sandbox(dir.path(), "exit 7", Duration::from_secs(5))
+        let out = run_in_sandbox(dir.path(), "exit 7", vox_config::timeouts::D_5S)
             .await
             .expect("spawn");
         assert_eq!(out.exit_code, Some(7));
@@ -111,7 +111,7 @@ mod tests {
         let cmd = "ping -n 30 127.0.0.1 > nul";
         #[cfg(not(windows))]
         let cmd = "sleep 30";
-        let out = run_in_sandbox(dir.path(), cmd, Duration::from_millis(500))
+        let out = run_in_sandbox(dir.path(), cmd, vox_config::timeouts::D_500MS)
             .await
             .expect("spawn");
         assert!(out.timed_out, "expected timeout, got {:?}", out);

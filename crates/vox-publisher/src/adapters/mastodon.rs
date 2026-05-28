@@ -68,7 +68,7 @@ pub async fn post(
         payload["language"] = serde_json::json!(lang);
     }
 
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let res = client
         .post(&endpoint)
         .bearer_auth(token)

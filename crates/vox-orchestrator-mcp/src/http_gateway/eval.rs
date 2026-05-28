@@ -107,7 +107,7 @@ pub(super) async fn http_eval(
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
     // Hard execution boundary: 5 seconds
-    let exec = timeout(Duration::from_secs(5), cmd.output()).await;
+    let exec = timeout(vox_config::timeouts::D_5S, cmd.output()).await;
 
     let _ = dir.close();
 

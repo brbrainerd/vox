@@ -68,7 +68,7 @@ pub fn claim_cli_message_budget() -> bool {
             state.count = 1;
             true
         }
-        Some(start) if now.duration_since(start) > Duration::from_secs(3600) => {
+        Some(start) if now.duration_since(start) > vox_config::timeouts::D_3600S => {
             state.window_start = Some(now);
             state.count = 1;
             true

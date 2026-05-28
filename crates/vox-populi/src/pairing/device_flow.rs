@@ -47,7 +47,7 @@ pub struct DeviceFlow {
 
 impl DeviceFlow {
     pub fn new(cfg: DeviceFlowConfig) -> Self {
-        let client = reqwest::Client::builder()
+        let client = vox_http_client::client_builder()
             .user_agent("vox-populi-pairing/1")
             .build()
             .expect("reqwest client");

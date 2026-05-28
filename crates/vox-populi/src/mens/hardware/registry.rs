@@ -96,7 +96,7 @@ mod tests {
 
     #[tokio::test]
     async fn fresh_registry_probes_on_first_call() {
-        let registry = HardwareRegistryV2::new(Duration::from_secs(300));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_300S);
         let summary = registry.probe().await;
         // On CI without GPU hardware, the pipeline falls back to "Host CPU".
         assert!(!summary.model_name.is_empty());
@@ -104,7 +104,7 @@ mod tests {
 
     #[tokio::test]
     async fn cached_result_returned_within_ttl() {
-        let registry = HardwareRegistryV2::new(Duration::from_secs(300));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_300S);
         let first = registry.probe().await;
         let second = registry.probe().await;
         assert!(Arc::ptr_eq(&first, &second), "expected same Arc within TTL");
@@ -126,7 +126,7 @@ mod tests {
 
     #[tokio::test]
     async fn invalidate_forces_re_probe() {
-        let registry = HardwareRegistryV2::new(Duration::from_secs(300));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_300S);
         let first = registry.probe().await;
         registry.invalidate();
         let second = registry.probe().await;

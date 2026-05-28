@@ -129,7 +129,7 @@ impl ServerState {
         });
 
         let http_client = vox_http_client::client_builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(vox_config::timeouts::D_120S)
             .build()
             .expect("reqwest client for vox-mcp");
 
@@ -179,7 +179,7 @@ impl ServerState {
     ) -> Self {
         let workspace_root = Some(repository.root.clone());
         let http_client = vox_http_client::client_builder()
-            .timeout(std::time::Duration::from_secs(120))
+            .timeout(vox_config::timeouts::D_120S)
             .build()
             .expect("reqwest client for vox-mcp");
 
@@ -474,7 +474,7 @@ impl ServerState {
             research_events: tokio::sync::broadcast::channel(256).0,
             mcp_chat_model_override: Arc::new(PrRwLock::new(None)),
             budget_manager: Arc::new(BudgetManager::new(None)),
-            http_client: reqwest::Client::new(),
+            http_client: vox_http_client::client(),
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
         }

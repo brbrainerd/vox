@@ -5,7 +5,7 @@ use std::time::Duration;
 
 /// Wait until something accepts TCP connections on `addr` (mock HTTP server readiness).
 pub async fn wait_for_local_server(addr: SocketAddr, label: &str) {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    let deadline = tokio::time::Instant::now() + vox_config::timeouts::D_5S;
     loop {
         if tokio::net::TcpStream::connect(addr).await.is_ok() {
             return;

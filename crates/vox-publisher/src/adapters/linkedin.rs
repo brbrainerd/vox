@@ -50,7 +50,7 @@ pub async fn post(
         "isReshareDisabledByAuthor": false
     });
 
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let base = publisher_cfg
         .linkedin_api_base
         .as_deref()

@@ -16,7 +16,7 @@ impl OpenRouterCatalog {
     pub fn new() -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(Duration::from_secs(10))
+                .timeout(vox_config::timeouts::D_10S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
         }
@@ -302,7 +302,7 @@ impl OllamaCatalog {
     pub fn new(base_url: String) -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(Duration::from_secs(5))
+                .timeout(vox_config::timeouts::D_5S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
             base_url,
@@ -384,7 +384,7 @@ impl HuggingFaceCatalog {
     pub fn new() -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(Duration::from_secs(10))
+                .timeout(vox_config::timeouts::D_10S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
         }
@@ -447,7 +447,7 @@ impl PopuliMeshCatalog {
     pub fn new() -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(Duration::from_secs(5))
+                .timeout(vox_config::timeouts::D_5S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
         }
@@ -546,7 +546,7 @@ impl AnthropicDirectCatalog {
     pub fn new() -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(Duration::from_secs(10))
+                .timeout(vox_config::timeouts::D_10S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
         }
@@ -659,7 +659,7 @@ impl GoogleDirectCatalog {
     pub fn new() -> Self {
         Self {
             client: vox_http_client::client_builder()
-                .timeout(Duration::from_secs(10))
+                .timeout(vox_config::timeouts::D_10S)
                 .build()
                 .unwrap_or_else(|_| vox_http_client::client()),
         }

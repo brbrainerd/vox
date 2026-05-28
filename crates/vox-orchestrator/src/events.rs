@@ -791,7 +791,7 @@ mod tests {
 
         assert_eq!(id, EventId(1));
 
-        let event = tokio::time::timeout(std::time::Duration::from_millis(100), rx.recv())
+        let event = tokio::time::timeout(vox_config::timeouts::D_100MS, rx.recv())
             .await
             .expect("should not timeout")
             .expect("should receive");

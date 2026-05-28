@@ -18,7 +18,7 @@ pub fn spawn_clarification_db_inbox_poller(
     let db_clone = db.clone();
     let rid = repository_id;
     let handle = tokio::spawn(async move {
-        let mut tick = tokio::time::interval(std::time::Duration::from_secs(5));
+        let mut tick = tokio::time::interval(vox_config::timeouts::D_5S);
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             tick.tick().await;

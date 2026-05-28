@@ -22,7 +22,7 @@ impl CloudOffloadBackend {
     pub fn new() -> Self {
         Self {
             http: vox_http_client::client_builder()
-                .timeout(std::time::Duration::from_secs(300))
+                .timeout(vox_config::timeouts::D_300S)
                 .build()
                 .expect("reqwest builder"),
         }

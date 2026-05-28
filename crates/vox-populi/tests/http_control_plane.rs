@@ -44,7 +44,7 @@ async fn wait_populi_http_ready(base: &str) {
     let url = format!("{base}/health");
     wait_until_async(
         "Populi HTTP server accepting connections (/health)",
-        Duration::from_secs(15),
+        vox_config::timeouts::D_15S,
         Duration::from_millis(5),
         || async {
             match reqwest::get(&url).await {
@@ -251,7 +251,7 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
 
     wait_until_async(
         "stale mesh nodes pruned from list (VOX_MESH_SERVER_STALE_PRUNE_MS)",
-        Duration::from_secs(5),
+        vox_config::timeouts::D_5S,
         Duration::from_millis(5),
         || async { client.list_nodes().await.unwrap().nodes.is_empty() },
     )
@@ -723,7 +723,7 @@ async fn maintenance_deadline_expires_and_claims_resume() {
     let inbox_client = reqwest::Client::new();
     wait_until_async(
         "maintenance_for_ms elapsed; inbox claims resume",
-        Duration::from_secs(5),
+        vox_config::timeouts::D_5S,
         Duration::from_millis(10),
         || async {
             let claimed: serde_json::Value = inbox_client
