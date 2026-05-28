@@ -115,7 +115,14 @@ pub struct HirModule {
 
     /// Map of source spans to their inferred types, populated by the type checker.
     /// This supports performance-critical codegen optimizations (e.g. zero-copy emission).
-    #[serde(default)]
+    ///
+    /// Serialized through string-keyed adapters because `serde_json` requires map keys to
+    /// be strings; the `"start-end"` key format round-trips losslessly.
+    #[serde(
+        default,
+        serialize_with = "serialize_inferred_types",
+        deserialize_with = "deserialize_inferred_types"
+    )]
     pub inferred_types: std::collections::HashMap<Span, HirType>,
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
@@ -857,6 +864,59 @@ pub struct HirPush {
     pub on_action: Option<String>,
     /// Source span.
     pub span: Span,
+}
+
+/// Serialize `HashMap<Span, HirType>` with `"start-end"` string keys so the JSON output is
+/// `serde_json`-compatible (which requires map keys to be strings).
+///
+/// Paired with [`deserialize_inferred_types`] for a lossless round-trip.
+fn serialize_inferred_types<S>(
+    map: &std::collections::HashMap<Span, HirType>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeMap;
+    // BTreeMap-ordered output for determinism — keeps emitted Rust source byte-stable.
+    let mut ordered: std::collections::BTreeMap<(usize, usize), &HirType> =
+        std::collections::BTreeMap::new();
+    for (span, ty) in map {
+        ordered.insert((span.start, span.end), ty);
+    }
+    let mut s = serializer.serialize_map(Some(ordered.len()))?;
+    for ((start, end), ty) in ordered {
+        s.serialize_entry(&format!("{start}-{end}"), ty)?;
+    }
+    s.end()
+}
+
+/// Deserialize the `"start-end"` string keys back into `Span`s. Errors on malformed keys.
+fn deserialize_inferred_types<'de, D>(
+    deserializer: D,
+) -> Result<std::collections::HashMap<Span, HirType>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize as _;
+    let stringified: std::collections::HashMap<String, HirType> =
+        std::collections::HashMap::<String, HirType>::deserialize(deserializer)?;
+    let mut out = std::collections::HashMap::with_capacity(stringified.len());
+    for (key, val) in stringified {
+        let (start_s, end_s) = key.split_once('-').ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "invalid inferred_types span key `{key}`: expected `<start>-<end>`"
+            ))
+        })?;
+        let start: usize = start_s.parse::<usize>().map_err(|e| {
+            serde::de::Error::custom(format!("invalid start `{start_s}` in `{key}`: {e}"))
+        })?;
+        let end: usize = end_s.parse::<usize>().map_err(|e| {
+            serde::de::Error::custom(format!("invalid end `{end_s}` in `{key}`: {e}"))
+        })?;
+        out.insert(Span { start, end }, val);
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
