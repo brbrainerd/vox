@@ -54,8 +54,8 @@ async fn run_single_workspace_member(args: &CompileArgs) -> Result<()> {
                     args.triple.as_deref(),
                     args.release,
                     BundleMode::Script,
-                rust_app_shell_for_compile_app(args.kind),
-            )
+                    rust_app_shell_for_compile_app(args.kind),
+                )
                 .await?;
             }
             #[cfg(not(feature = "script-execution"))]
@@ -286,12 +286,8 @@ fn emit_tauri_and_assets(
     .context("emit Tauri packaging hints")?;
 
     let src_tauri_conf = generated.join("src-tauri").join("tauri.conf.json");
-    vox_tauri_codegen::write_tauri_desktop_config(&src_tauri_conf, &params).with_context(|| {
-        format!(
-            "write generated Tauri config {}",
-            src_tauri_conf.display()
-        )
-    })?;
+    vox_tauri_codegen::write_tauri_desktop_config(&src_tauri_conf, &params)
+        .with_context(|| format!("write generated Tauri config {}", src_tauri_conf.display()))?;
 
     if let Some(ref b) = proj.bundle {
         let assets = vox_codegen::assets::AssetManifest::from_bundle_fragment(

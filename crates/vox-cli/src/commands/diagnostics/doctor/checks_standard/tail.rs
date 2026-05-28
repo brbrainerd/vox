@@ -50,9 +50,15 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         detail: manifest_detail,
     });
 
-    let lsp_binary_path = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.join(if cfg!(windows) { "vox-lsp.exe" } else { "vox-lsp" })));
+    let lsp_binary_path = std::env::current_exe().ok().and_then(|p| {
+        p.parent().map(|d| {
+            d.join(if cfg!(windows) {
+                "vox-lsp.exe"
+            } else {
+                "vox-lsp"
+            })
+        })
+    });
 
     let mut lsp_bin = match lsp_binary_path.as_ref() {
         Some(p) => tokio::fs::try_exists(p).await.unwrap_or(false),

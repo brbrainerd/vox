@@ -26,12 +26,11 @@ pub async fn run(args: &EmitOpenapiArgs) -> Result<()> {
     }
 
     // ── 2. Generate OpenAPI 3.1 JSON ─────────────────────────────────────────
-    let json =
-        vox_codegen::codegen_ts::openapi_emit::generate_openapi(
-            &frontend.hir,
-            &args.package_name,
-            &args.package_version,
-        );
+    let json = vox_codegen::codegen_ts::openapi_emit::generate_openapi(
+        &frontend.hir,
+        &args.package_name,
+        &args.package_version,
+    );
 
     // ── 3. Write to --out path ────────────────────────────────────────────────
     if let Some(parent) = args.out.parent() {

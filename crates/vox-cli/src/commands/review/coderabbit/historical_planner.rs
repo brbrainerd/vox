@@ -36,19 +36,19 @@ pub async fn run_historical_submit(
     );
     let diff_out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args([
-            "-c",
-            "core.autocrlf=false",
-            "diff",
-            "--name-only",
-            "--diff-filter=ACDMRT",
-            commit_id,
-            &local_sha,
-        ])
-        .current_dir(repo)
-        .output()
-        .await
-        .context("git diff --name-only")?;
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "diff",
+        "--name-only",
+        "--diff-filter=ACDMRT",
+        commit_id,
+        &local_sha,
+    ])
+    .current_dir(repo)
+    .output()
+    .await
+    .context("git diff --name-only")?;
 
     if !diff_out.status.success() {
         guard.restore().await?;
@@ -138,16 +138,16 @@ pub async fn run_historical_submit(
     );
     let push_base_out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args([
-            "push",
-            "-f",
-            "origin",
-            &format!("{}:refs/heads/{}", commit_id, baseline_branch),
-        ])
-        .current_dir(repo)
-        .status()
-        .await
-        .context("git push historical baseline")?;
+    .args([
+        "push",
+        "-f",
+        "origin",
+        &format!("{}:refs/heads/{}", commit_id, baseline_branch),
+    ])
+    .current_dir(repo)
+    .status()
+    .await
+    .context("git push historical baseline")?;
 
     if !push_base_out.success() {
         guard.restore().await?;

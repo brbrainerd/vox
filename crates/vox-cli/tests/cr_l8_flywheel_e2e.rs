@@ -115,9 +115,11 @@ async fn production_sinks_persist_engine_emissions_to_jsonl_readable_by_aggregat
         .filter(|e| matches!(e, TelemetryEvent::LintFinding(_)))
         .count();
     assert_eq!(
-        lint_count, result.findings.len(),
+        lint_count,
+        result.findings.len(),
         "JSONL on disk has {} LintFinding events; engine emitted {}",
-        lint_count, result.findings.len()
+        lint_count,
+        result.findings.len()
     );
 
     // 5. Aggregate and verify the substantive report has the expected rollup.

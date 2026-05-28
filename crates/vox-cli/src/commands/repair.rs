@@ -8,9 +8,7 @@ use vox_config::bootstrap_inference::REPAIR_LOOP_PREFERRED;
 use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
 use vox_orchestrator::models::{SelectionIntent, select_with_default_registry};
 use vox_secrets::{SecretId, resolve_secret};
-use vox_telemetry::{
-    RepairAttemptEvent, RepairOutcomeEvent, TelemetryEvent, record_event,
-};
+use vox_telemetry::{RepairAttemptEvent, RepairOutcomeEvent, TelemetryEvent, record_event};
 
 #[derive(Debug, Deserialize)]
 struct SpanPayload {
@@ -143,7 +141,13 @@ impl RepairSession {
     }
 
     /// Emit the `RepairOutcomeEvent` that closes the session.
-    fn finalize(&self, final_state: &str, attempts_used: u32, residual_diagnostics: u32, note: Option<String>) {
+    fn finalize(
+        &self,
+        final_state: &str,
+        attempts_used: u32,
+        residual_diagnostics: u32,
+        note: Option<String>,
+    ) {
         let event = TelemetryEvent::RepairOutcome(RepairOutcomeEvent {
             final_state: final_state.to_string(),
             attempts_used,
@@ -207,9 +211,7 @@ pub async fn run(args: RepairArgs) -> Result<()> {
     // cuts effective cost ~60-80% via prompt caching on the 3-attempt loop.
     let openrouter_model = {
         let resolved = openrouter_chat_model_preference();
-        if !resolved.is_empty()
-            && resolved != vox_config::bootstrap_inference::OPENROUTER_AUTO
-        {
+        if !resolved.is_empty() && resolved != vox_config::bootstrap_inference::OPENROUTER_AUTO {
             resolved
         } else {
             select_with_default_registry(&SelectionIntent::repair_loop())
@@ -217,8 +219,8 @@ pub async fn run(args: RepairArgs) -> Result<()> {
                 .unwrap_or_else(|| REPAIR_LOOP_PREFERRED.to_string())
         }
     };
-    let supports_anthropic_prompt_cache = openrouter_model.starts_with("anthropic/")
-        || openrouter_model.starts_with("claude-");
+    let supports_anthropic_prompt_cache =
+        openrouter_model.starts_with("anthropic/") || openrouter_model.starts_with("claude-");
     let mut session = RepairSession::new(max_attempts, Some(openrouter_model.clone()));
     // CR-L8 aggregator buckets by repository_id; discover via Vox.toml walk-up.
     session.repository_id = RepairSession::discover_repository_id(file_path);
@@ -317,7 +319,9 @@ pub async fn run(args: RepairArgs) -> Result<()> {
             if let Ok(envelope) = serde_json::from_str::<serde_json::Value>(&llm_json) {
                 if let Some(findings) = envelope.get("lint_findings").and_then(|f| f.as_array()) {
                     if !findings.is_empty() {
-                        error_summary.push_str("\nLINT WARNINGS (Vox policy violations that must also be fixed):\n");
+                        error_summary.push_str(
+                            "\nLINT WARNINGS (Vox policy violations that must also be fixed):\n",
+                        );
                         for f in findings {
                             let rule = f.get("rule_id").and_then(|r| r.as_str()).unwrap_or("?");
                             let line = f.get("line").and_then(|l| l.as_u64()).unwrap_or(0);
@@ -956,8 +960,7 @@ mod tests {
         let project = tmp.path().join("my-proj");
         let src = project.join("src");
         std::fs::create_dir_all(&src).expect("mkdir");
-        std::fs::write(project.join("Vox.toml"), "[package]\nname = \"my-proj\"\n")
-            .expect("write");
+        std::fs::write(project.join("Vox.toml"), "[package]\nname = \"my-proj\"\n").expect("write");
         let file = src.join("main.vox");
         std::fs::write(&file, "").expect("write");
 

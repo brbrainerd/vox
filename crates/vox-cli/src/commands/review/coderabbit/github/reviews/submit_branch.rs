@@ -23,19 +23,19 @@ pub async fn submit(
 
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["checkout", "-b", &branch_name])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git checkout -b")?;
+    .args(["checkout", "-b", &branch_name])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git checkout -b")?;
     if !status.success() {
         let status2 = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(["checkout", &branch_name])
-            .current_dir(path)
-            .status()
-            .await
-            .context("git checkout")?;
+        .args(["checkout", &branch_name])
+        .current_dir(path)
+        .status()
+        .await
+        .context("git checkout")?;
         if !status2.success() {
             anyhow::bail!("git checkout -b failed");
         }
@@ -44,22 +44,22 @@ pub async fn submit(
     if !no_commit {
         let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(["add", "-A"])
-            .current_dir(path)
-            .status()
-            .await
-            .context("git add -A")?;
+        .args(["add", "-A"])
+        .current_dir(path)
+        .status()
+        .await
+        .context("git add -A")?;
         if !status.success() {
             anyhow::bail!("git add -A failed");
         }
 
         let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(["commit", "-m", "chore: batch for CodeRabbit review"])
-            .current_dir(path)
-            .status()
-            .await
-            .context("git commit")?;
+        .args(["commit", "-m", "chore: batch for CodeRabbit review"])
+        .current_dir(path)
+        .status()
+        .await
+        .context("git commit")?;
         if !status.success() {
             anyhow::bail!("git commit failed (nothing to commit or commit error)");
         }
@@ -67,11 +67,11 @@ pub async fn submit(
 
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["push", "-uf", "origin", &branch_name])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git push")?;
+    .args(["push", "-uf", "origin", &branch_name])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git push")?;
     if !status.success() {
         anyhow::bail!("git push failed for {}", branch_name);
     }

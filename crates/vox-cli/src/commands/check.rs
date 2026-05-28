@@ -26,7 +26,15 @@ use crate::cli_args::CheckArgs;
 fn is_script_like(source: &str) -> bool {
     // Conservative: if it looks like an app surface (has decorators that
     // belong in module-position only), don't treat as script.
-    let app_markers = ["@page", "@query", "@mutation", "@server", "@component", "@table", "@workflow"];
+    let app_markers = [
+        "@page",
+        "@query",
+        "@mutation",
+        "@server",
+        "@component",
+        "@table",
+        "@workflow",
+    ];
     !app_markers.iter().any(|m| source.contains(m))
 }
 

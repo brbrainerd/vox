@@ -138,11 +138,7 @@ impl DetectionRule for ImportCyclesDetector {
             return vec![];
         }
 
-        let file_name = file
-            .path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let file_name = file.path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         if file_name.is_empty() {
             return vec![];
@@ -154,10 +150,7 @@ impl DetectionRule for ImportCyclesDetector {
             let line_num = i + 1;
             let trimmed = line.trim();
 
-            if trimmed.starts_with("//")
-                || trimmed.starts_with("/*")
-                || trimmed.starts_with('*')
-            {
+            if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') {
                 continue;
             }
 
@@ -218,10 +211,7 @@ pub fn extract_vox_imports(file: &SourceFile) -> Vec<(usize, String)> {
     let mut out = Vec::new();
     for (i, line) in file.lines.iter().enumerate() {
         let trimmed = line.trim();
-        if trimmed.starts_with("//")
-            || trimmed.starts_with("/*")
-            || trimmed.starts_with('*')
-        {
+        if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') {
             continue;
         }
         if let Some(caps) = re.captures(line) {
@@ -492,7 +482,10 @@ pub fn hello() to str { "hi" }"#,
             "import \"./index.ts\"".to_string(),
         );
         let findings = detect_import_cycles_in_batch(&[rs, ts]);
-        assert!(findings.is_empty(), "non-Vox files are ignored by batch detector");
+        assert!(
+            findings.is_empty(),
+            "non-Vox files are ignored by batch detector"
+        );
     }
 
     // ── extract_vox_imports ────────────────────────────────────────────────

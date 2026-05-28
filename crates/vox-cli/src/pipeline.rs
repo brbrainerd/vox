@@ -270,9 +270,7 @@ pub fn format_check_for_llm_json(source: &str, file: &Path) -> String {
                         Severity::Critical => "critical",
                     }
                     .to_string();
-                    let minimal_repro = repro_table
-                        .get(f.rule_id.as_str())
-                        .map(|s| s.to_string());
+                    let minimal_repro = repro_table.get(f.rule_id.as_str()).map(|s| s.to_string());
                     LintFindingPayload {
                         rule_id: f.rule_id,
                         severity,

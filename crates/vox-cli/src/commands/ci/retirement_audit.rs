@@ -123,10 +123,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
     let mut files = Vec::new();
     collect_text_files(repo_root, &mut files)?;
 
-    let re = regex::Regex::new(
-        r#"vox-deprecated-since\s*=\s*"([^"]+)"\s+retire-by\s*=\s*"([^"]+)"#,
-    )
-    .expect("retirement marker regex");
+    let re =
+        regex::Regex::new(r#"vox-deprecated-since\s*=\s*"([^"]+)"\s+retire-by\s*=\s*"([^"]+)"#)
+            .expect("retirement marker regex");
 
     let mut count = 0usize;
     let mut overdue = Vec::new();
@@ -153,7 +152,9 @@ pub fn run(repo_root: &Path) -> Result<()> {
         }
     }
 
-    println!("retirement-audit: found {count} `vox-deprecated-since` marker(s); workspace version = {workspace_ver}");
+    println!(
+        "retirement-audit: found {count} `vox-deprecated-since` marker(s); workspace version = {workspace_ver}"
+    );
     if !overdue.is_empty() {
         for line in &overdue {
             eprintln!("OVERDUE: {line}");
@@ -165,8 +166,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     }
 
     // CR-L6 contract presence check (P1.5).
-    let contract_path =
-        repo_root.join("contracts/retirement/retired-surfaces.v1.yaml");
+    let contract_path = repo_root.join("contracts/retirement/retired-surfaces.v1.yaml");
     if !contract_path.exists() {
         return Err(anyhow!(
             "retirement-audit: CR-L6 contract missing at contracts/retirement/retired-surfaces.v1.yaml — \
@@ -177,7 +177,10 @@ pub fn run(repo_root: &Path) -> Result<()> {
     let contract_yaml = fs::read_to_string(&contract_path)
         .context("read contracts/retirement/retired-surfaces.v1.yaml")?;
     // Structural check: the file must contain at least one `- id:` entry.
-    let surface_count = contract_yaml.lines().filter(|l| l.trim_start().starts_with("- id:")).count();
+    let surface_count = contract_yaml
+        .lines()
+        .filter(|l| l.trim_start().starts_with("- id:"))
+        .count();
     if surface_count == 0 {
         return Err(anyhow!(
             "retirement-audit: contracts/retirement/retired-surfaces.v1.yaml contains \

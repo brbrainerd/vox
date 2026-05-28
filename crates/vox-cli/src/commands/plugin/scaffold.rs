@@ -55,7 +55,10 @@ pub fn run(id: &str, kind: ScaffoldKind, output_dir: &Path) -> Result<()> {
 
     println!("Scaffolded plugin at: {}", plugin_dir.display());
     println!("Next steps:");
-    println!("  1. Edit {}/Plugin.toml — fill in description, host.min-vox-version", dir_name);
+    println!(
+        "  1. Edit {}/Plugin.toml — fill in description, host.min-vox-version",
+        dir_name
+    );
     match kind {
         ScaffoldKind::Code | ScaffoldKind::Composite => {
             println!("  2. Edit {dir_name}/src/lib.rs — implement your extension-point trait");
@@ -65,7 +68,10 @@ pub fn run(id: &str, kind: ScaffoldKind, output_dir: &Path) -> Result<()> {
             println!("  2. Edit {dir_name}/SKILL.md — describe tools agents can call");
         }
     }
-    println!("  Run `vox plugin install --path {}` to test locally.", dir_name);
+    println!(
+        "  Run `vox plugin install --path {}` to test locally.",
+        dir_name
+    );
     Ok(())
 }
 
@@ -100,15 +106,13 @@ fn write_plugin_toml(dir: &Path, id: &str, kind: ScaffoldKind) -> Result<()> {
          min-vox-version = \"0.5.0\"\n\
          \n\
          {payload_section}",
-        id,
-        id
+        id, id
     );
     write_file(&dir.join("Plugin.toml"), &content)
 }
 
 fn write_code_scaffold(dir: &Path, id: &str) -> Result<()> {
-    std::fs::create_dir_all(dir.join("src"))
-        .with_context(|| "Failed to create src/")?;
+    std::fs::create_dir_all(dir.join("src")).with_context(|| "Failed to create src/")?;
 
     let crate_name = id.replace('-', "_");
     let struct_name: String = id
@@ -229,8 +233,7 @@ fn write_skill_scaffold(dir: &Path, id: &str) -> Result<()> {
 }
 
 fn write_file(path: &PathBuf, content: &str) -> Result<()> {
-    std::fs::write(path, content)
-        .with_context(|| format!("Failed to write {}", path.display()))
+    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))
 }
 
 #[cfg(test)]

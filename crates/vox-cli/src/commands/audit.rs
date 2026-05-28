@@ -297,8 +297,8 @@ fn render_outcome(
 }
 
 fn build_common_args(args: &AuditArgs) -> Result<vox_audit::CommonArgs> {
-    let format = vox_audit::report::ReportFormat::parse(&args.format)
-        .map_err(|msg| anyhow::anyhow!(msg))?;
+    let format =
+        vox_audit::report::ReportFormat::parse(&args.format).map_err(|msg| anyhow::anyhow!(msg))?;
     Ok(vox_audit::CommonArgs {
         format,
         baseline: None,

@@ -28,7 +28,8 @@ impl Default for IdAtBoundaryDetector {
 impl IdAtBoundaryDetector {
     pub fn new() -> Self {
         Self {
-            boundary_decorator: Regex::new(r"^\s*@(?:query|mutation|server|activity)\b").expect("valid regex"),
+            boundary_decorator: Regex::new(r"^\s*@(?:query|mutation|server|activity)\b")
+                .expect("valid regex"),
             actor_block: Regex::new(r"\bactor\s+\w+\s*\{").expect("valid regex"),
             fn_line: Regex::new(r"^\s*fn\s+\w+\s*\(").expect("valid regex"),
             bare_id_param: Regex::new(r"\b(\w+_id)\s*:\s*str\b").expect("valid regex"),

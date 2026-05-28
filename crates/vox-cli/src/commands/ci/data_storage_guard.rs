@@ -142,10 +142,10 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
 
                     if let Ok(output) = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
-                        .arg("ls-files")
-                        .arg(line)
-                        .current_dir(&root)
-                        .output()
+                    .arg("ls-files")
+                    .arg(line)
+                    .current_dir(&root)
+                    .output()
                     {
                         if !output.stdout.is_empty() {
                             report.violations.push(format!(
@@ -163,10 +163,10 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
     if run_all || opts.only.contains(&"scratch-clean".to_string()) {
         if let Ok(output) = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .arg("ls-files")
-            .arg("scratch/")
-            .current_dir(&root)
-            .output()
+        .arg("ls-files")
+        .arg("scratch/")
+        .current_dir(&root)
+        .output()
         {
             if let Ok(stdout) = String::from_utf8(output.stdout) {
                 let tracked_files: Vec<&str> = stdout
@@ -349,7 +349,9 @@ mod tests {
     #[test]
     fn env_var_token_filters_single_letter_suffix_noise() {
         assert!(!env_var_token_requires_registry_entry("VOX_A"));
-        assert!(env_var_token_requires_registry_entry("VOX_ANDROID_KEYSTORE"));
+        assert!(env_var_token_requires_registry_entry(
+            "VOX_ANDROID_KEYSTORE"
+        ));
     }
 
     #[test]

@@ -312,13 +312,8 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                     output,
                     candidate_class,
                 } => {
-                    return super::scout::run(
-                        commit_window,
-                        days_window,
-                        output,
-                        candidate_class,
-                    )
-                    .await;
+                    return super::scout::run(commit_window, days_window, output, candidate_class)
+                        .await;
                 }
                 ScientiaCmd::PublicationReplayExecute {
                     main_entity,

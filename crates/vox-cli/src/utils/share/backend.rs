@@ -27,7 +27,9 @@ impl FromStr for BackendKind {
             "cloudflare" => Ok(Self::Cloudflare),
             "localhost-run" => Ok(Self::LocalhostRun),
             "tailscale" => Ok(Self::Tailscale),
-            other => Err(crate::utils::share::error::ShareError::InvalidBackend(other.to_string())),
+            other => Err(crate::utils::share::error::ShareError::InvalidBackend(
+                other.to_string(),
+            )),
         }
     }
 }

@@ -102,7 +102,10 @@ pub struct ParityReport {
 impl ParityReport {
     /// True iff there are no error-severity mismatches.
     pub fn is_clean(&self) -> bool {
-        !self.mismatches.iter().any(|m| m.severity == Severity::Error)
+        !self
+            .mismatches
+            .iter()
+            .any(|m| m.severity == Severity::Error)
     }
 
     /// Compact one-line summary for log lines / report notes.
@@ -145,10 +148,11 @@ impl ParityReport {
 fn parse_binary_registrations(source_path: &Path) -> Result<BTreeSet<String>, ParityError> {
     use syn::visit::Visit;
 
-    let source = std::fs::read_to_string(source_path).map_err(|e| ParityError::ReadBinarySource {
-        path: source_path.to_path_buf(),
-        source: e,
-    })?;
+    let source =
+        std::fs::read_to_string(source_path).map_err(|e| ParityError::ReadBinarySource {
+            path: source_path.to_path_buf(),
+            source: e,
+        })?;
     let file = syn::parse_file(&source).map_err(|e| ParityError::ParseBinarySource {
         path: source_path.to_path_buf(),
         source: e,
@@ -251,7 +255,10 @@ fn parse_binary_registrations(source_path: &Path) -> Result<BTreeSet<String>, Pa
 
     fn is_identifier_shape(s: &str) -> bool {
         !s.is_empty()
-            && s.chars().next().map(|c| c.is_ascii_alphabetic() || c == '_').unwrap_or(false)
+            && s.chars()
+                .next()
+                .map(|c| c.is_ascii_alphabetic() || c == '_')
+                .unwrap_or(false)
             && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
     }
 
@@ -275,18 +282,17 @@ fn parse_binary_registrations(source_path: &Path) -> Result<BTreeSet<String>, Pa
 /// as registered because the symbol IS callable in the production
 /// (native) execution path.
 fn parse_registry_entries(source_path: &Path) -> Result<BTreeSet<String>, ParityError> {
-    let source = std::fs::read_to_string(source_path).map_err(|e| ParityError::ReadBinarySource {
-        path: source_path.to_path_buf(),
-        source: e,
-    })?;
+    let source =
+        std::fs::read_to_string(source_path).map_err(|e| ParityError::ReadBinarySource {
+            path: source_path.to_path_buf(),
+            source: e,
+        })?;
     // Lightweight regex pass — the file is auto-formatted with stable
     // `namespace: "<ns>"` / `name: "<name>"` field shapes inside each
     // `BuiltinRegistryEntry { ... }` literal. A full syn parse is
     // overkill for this shape.
-    let entry_re = regex::Regex::new(
-        r#"namespace:\s*"([^"]+)",\s*name:\s*"([^"]+)""#,
-    )
-    .expect("registry entry regex compiles");
+    let entry_re = regex::Regex::new(r#"namespace:\s*"([^"]+)",\s*name:\s*"([^"]+)""#)
+        .expect("registry entry regex compiles");
     let mut symbols: BTreeSet<String> = BTreeSet::new();
     for c in entry_re.captures_iter(&source) {
         let ns = &c[1];
@@ -349,8 +355,7 @@ fn parse_documented_symbols(doc_path: &Path) -> Result<BTreeSet<String>, ParityE
     for line in source.lines() {
         if line.starts_with("## ") {
             // New section — reset state.
-            globals_section =
-                global_header_re.is_match(line) || std_bare_header_re.is_match(line);
+            globals_section = global_header_re.is_match(line) || std_bare_header_re.is_match(line);
             // Skip namespace capture for bare `std.*` headers (they're
             // globals).
             current_ns = if std_bare_header_re.is_match(line) {
@@ -386,9 +391,7 @@ fn parse_documented_symbols(doc_path: &Path) -> Result<BTreeSet<String>, ParityE
 /// like `s.trim()`) are collected — those are the *free-function* calls that
 /// must resolve to a registered builtin. Receiver method calls are out of
 /// scope (covered by the method-dispatch type-check path).
-fn scan_corpus_call_sites(
-    root: &Path,
-) -> Result<BTreeMap<String, Vec<CorpusSite>>, ParityError> {
+fn scan_corpus_call_sites(root: &Path) -> Result<BTreeMap<String, Vec<CorpusSite>>, ParityError> {
     // Use the existing glob crate (already a vox-compiler dep, also workspace-deep).
     let pattern = format!("{}/**/*.vox", root.display());
     let entries = glob::glob(&pattern).map_err(|e| ParityError::CorpusWalk {
@@ -404,8 +407,8 @@ fn scan_corpus_call_sites(
         "io", "time", "http", "agentos", "str", "list",
     ];
     let alt = known_namespaces.join("|");
-    let call_re = regex::Regex::new(&format!(r"\b({alt})\.(\w+)\s*\("))
-        .expect("namespace regex compiles");
+    let call_re =
+        regex::Regex::new(&format!(r"\b({alt})\.(\w+)\s*\(")).expect("namespace regex compiles");
 
     let mut sites: BTreeMap<String, Vec<CorpusSite>> = BTreeMap::new();
     for entry in entries.flatten() {
@@ -619,8 +622,14 @@ mod tests {
         let doc = root.join("docs/src/reference/ref-builtins-stdlib.md");
         let corpus = root.join("scripts");
         let report = check_parity_at_paths(&binary, &doc, &corpus).expect("parity should run");
-        assert!(report.symbols_registered > 30, "expected ≥30 binary symbols");
-        assert!(report.symbols_documented > 5, "expected ≥5 documented symbols");
+        assert!(
+            report.symbols_registered > 30,
+            "expected ≥30 binary symbols"
+        );
+        assert!(
+            report.symbols_documented > 5,
+            "expected ≥5 documented symbols"
+        );
         // Don't gate on "no mismatches" since the audit is mid-cleanup — we
         // expect some RegisteredButUndocumented warns.
         let summary = report.summary();
@@ -638,8 +647,7 @@ mod tests {
         let binary = root.join("crates/vox-compiler/src/eval/builtins.rs");
         let doc = root.join("docs/src/reference/ref-builtins-stdlib.md");
         let corpus = root.join("scripts");
-        let report =
-            check_parity_at_paths(&binary, &doc, &corpus).expect("parity should run");
+        let report = check_parity_at_paths(&binary, &doc, &corpus).expect("parity should run");
         println!("\n=== CORPUS-USES-UNREGISTERED ===");
         for m in &report.mismatches {
             if matches!(m.kind, MismatchKind::CorpusUsesUnregistered) {

@@ -202,14 +202,7 @@ fn pre_push_dry_run_full_include_slow_adds_slow_step() {
 #[test]
 fn pre_push_dry_run_full_since_flag_accepted() {
     let out = Command::new(env!("CARGO_BIN_EXE_vox"))
-        .args([
-            "ci",
-            "pre-push",
-            "--dry-run",
-            "--full",
-            "--since",
-            "HEAD~3",
-        ])
+        .args(["ci", "pre-push", "--dry-run", "--full", "--since", "HEAD~3"])
         .output()
         .expect("spawn vox");
     // Dry-run builds steps (computing impacted crates), and HEAD~3 should work in

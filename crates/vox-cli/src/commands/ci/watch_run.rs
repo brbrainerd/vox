@@ -268,9 +268,9 @@ async fn fetch_job_log(client: &reqwest::Client, token: &str, job_id: u64) -> Re
 fn resolve_head_sha() -> Result<String> {
     let output = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .output()
-        .context("Failed to run git rev-parse HEAD")?;
+    .args(["rev-parse", "HEAD"])
+    .output()
+    .context("Failed to run git rev-parse HEAD")?;
     if !output.status.success() {
         anyhow::bail!("git rev-parse HEAD failed");
     }

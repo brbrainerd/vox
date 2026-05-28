@@ -68,13 +68,14 @@ fn tier_key(profile: &str) -> Option<&'static str> {
 /// Run the tier-budget-check from the repository root.
 pub fn run(root: &Path, junit_path: &Path, profile: &str) -> Result<()> {
     let elapsed_ms = elapsed_ms_from_junit(junit_path)?;
-    println!(
-        "tier-budget-check: JUnit elapsed = {elapsed_ms}ms (profile `{profile}`)"
-    );
+    println!("tier-budget-check: JUnit elapsed = {elapsed_ms}ms (profile `{profile}`)");
 
     let budgets_path = root.join("contracts/budgets/test-tier-budgets.v1.yaml");
     if !budgets_path.exists() {
-        println!("tier-budget-check: no budgets file at {}; skipping.", budgets_path.display());
+        println!(
+            "tier-budget-check: no budgets file at {}; skipping.",
+            budgets_path.display()
+        );
         return Ok(());
     }
 
@@ -98,8 +99,14 @@ pub fn run(root: &Path, junit_path: &Path, profile: &str) -> Result<()> {
         return Ok(());
     };
 
-    let warn_ms = tier.get("warn_ms").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
-    let fail_ms = tier.get("fail_ms").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
+    let warn_ms = tier
+        .get("warn_ms")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(u64::MAX);
+    let fail_ms = tier
+        .get("fail_ms")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(u64::MAX);
 
     if elapsed_ms > fail_ms {
         bail!(
@@ -115,9 +122,7 @@ pub fn run(root: &Path, junit_path: &Path, profile: &str) -> Result<()> {
              (see contracts/budgets/test-tier-budgets.v1.yaml)"
         );
     } else {
-        println!(
-            "tier-budget-check: OK — {elapsed_ms}ms ≤ warn threshold {warn_ms}ms"
-        );
+        println!("tier-budget-check: OK — {elapsed_ms}ms ≤ warn threshold {warn_ms}ms");
     }
 
     Ok(())

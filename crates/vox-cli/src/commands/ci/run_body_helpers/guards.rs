@@ -662,10 +662,10 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
         if !spec.is_empty() {
             let output = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
-                .current_dir(root)
-                .args(["diff", "--name-only", "--diff-filter=AMR", spec])
-                .output()
-                .with_context(|| format!("git diff for secret-env-guard ({spec})"))?;
+            .current_dir(root)
+            .args(["diff", "--name-only", "--diff-filter=AMR", spec])
+            .output()
+            .with_context(|| format!("git diff for secret-env-guard ({spec})"))?;
             if !output.status.success() {
                 return Err(anyhow!(
                     "git diff failed while checking secret env usage (range={spec})"
@@ -682,10 +682,10 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
 
     let output = std::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .current_dir(root)
-        .args(["diff", "--name-only", "--diff-filter=AMR", "HEAD"])
-        .output()
-        .context("run git diff HEAD for secret guard")?;
+    .current_dir(root)
+    .args(["diff", "--name-only", "--diff-filter=AMR", "HEAD"])
+    .output()
+    .context("run git diff HEAD for secret guard")?;
     if !output.status.success() {
         return Err(anyhow!("git diff failed while checking secret env usage"));
     }

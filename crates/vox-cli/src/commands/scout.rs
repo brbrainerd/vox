@@ -6,8 +6,8 @@
 
 use anyhow::{Context, Result};
 use vox_cli_core::scientia::ScoutOutput;
-use vox_db::store::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 use vox_db::VoxDb;
+use vox_db::store::{FindingCandidateClass, FindingCandidateRow, InsertOutcome};
 use vox_research_events::ResearchEvent;
 use vox_scientia::producers::{ProducerContext, ProducerRegistry};
 
@@ -42,9 +42,7 @@ pub async fn run(
 
     let filtered: Vec<&ResearchEvent> = events
         .iter()
-        .filter(|e| {
-            matches_class_filter(e, candidate_class.as_deref())
-        })
+        .filter(|e| matches_class_filter(e, candidate_class.as_deref()))
         .collect();
 
     match output {
@@ -157,18 +155,11 @@ fn producer_from_finding_id(id: &str) -> &'static str {
 }
 
 fn sane_float(f: f64) -> f64 {
-    if f.is_finite() {
-        f
-    } else {
-        0.0
-    }
+    if f.is_finite() { f } else { 0.0 }
 }
 
 fn print_table(events: &[&ResearchEvent]) {
-    println!(
-        "{:42} {:26} {:>5}",
-        "candidate-id", "class", "score"
-    );
+    println!("{:42} {:26} {:>5}", "candidate-id", "class", "score");
     println!("{}", "-".repeat(42 + 1 + 26 + 1 + 5));
     for ev in events {
         if let ResearchEvent::FindingCandidateProposed {

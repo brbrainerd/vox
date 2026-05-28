@@ -191,21 +191,17 @@ pub fn check_parity(yaml: &str) -> Result<ParityReport, ParityError> {
         match surface.enforcement.kind {
             EnforcementKind::Detector => {
                 let Some(rule_id) = surface.enforcement.rule_id.as_deref() else {
-                    report
-                        .detector_rows_missing_rule
-                        .push(MissingDetectorRule {
-                            surface_id: surface.id.clone(),
-                            referenced_rule_id: "<missing field>".to_string(),
-                        });
+                    report.detector_rows_missing_rule.push(MissingDetectorRule {
+                        surface_id: surface.id.clone(),
+                        referenced_rule_id: "<missing field>".to_string(),
+                    });
                     continue;
                 };
                 if !registered_rule_ids.contains(rule_id) {
-                    report
-                        .detector_rows_missing_rule
-                        .push(MissingDetectorRule {
-                            surface_id: surface.id.clone(),
-                            referenced_rule_id: rule_id.to_string(),
-                        });
+                    report.detector_rows_missing_rule.push(MissingDetectorRule {
+                        surface_id: surface.id.clone(),
+                        referenced_rule_id: rule_id.to_string(),
+                    });
                 } else {
                     report.detector_rows_ok.push(surface.id.clone());
                 }
@@ -213,12 +209,12 @@ pub fn check_parity(yaml: &str) -> Result<ParityReport, ParityError> {
                 if let Some(diag_id) = surface.enforcement.diagnostic_id.as_deref()
                     && !registered_diagnostic_ids.contains(diag_id)
                 {
-                    report.detector_rows_missing_diagnostic_id.push(
-                        MissingDiagnosticId {
+                    report
+                        .detector_rows_missing_diagnostic_id
+                        .push(MissingDiagnosticId {
                             surface_id: surface.id.clone(),
                             referenced_diagnostic_id: diag_id.to_string(),
-                        },
-                    );
+                        });
                 }
             }
             EnforcementKind::CliCheck => {
@@ -233,9 +229,7 @@ pub fn check_parity(yaml: &str) -> Result<ParityReport, ParityError> {
             EnforcementKind::DocumentationOnly => {
                 // Structural validation only: we trust the referenced
                 // contracts/documentation/retired-symbols.v1.yaml row.
-                report
-                    .documentation_only_rows_ok
-                    .push(surface.id.clone());
+                report.documentation_only_rows_ok.push(surface.id.clone());
             }
             EnforcementKind::Deferred => {
                 if surface.enforcement.target_milestone.is_none() {
@@ -423,11 +417,7 @@ surfaces:
     #[test]
     fn workspace_retired_surfaces_yaml_exists_and_parses() {
         let path = workspace_retirement_yaml_path();
-        assert!(
-            path.exists(),
-            "contract file missing at {}",
-            path.display()
-        );
+        assert!(path.exists(), "contract file missing at {}", path.display());
         let yaml = std::fs::read_to_string(&path).expect("read contract");
         let contract: RetirementContract =
             serde_yaml::from_str(&yaml).expect("contract parses against schema");

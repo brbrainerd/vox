@@ -7,8 +7,7 @@ use vox_cli::templates;
 #[test]
 fn tauri_packaging_readme_path_is_project_root_not_target_generated() {
     assert_eq!(
-        TAURI_PACKAGING_HINT_README_REL,
-        "tauri-packaging/README.md",
+        TAURI_PACKAGING_HINT_README_REL, "tauri-packaging/README.md",
         "must match vox_tauri_codegen output dir (project root / out_root + tauri-packaging/README.md)"
     );
     assert!(
@@ -23,9 +22,8 @@ fn spa_package_json_includes_tauri_apps_api_spa_and_tanstack_start() {
         ("spa", templates::package_json(false, false)),
         ("tanstack_start", templates::package_json(true, false)),
     ] {
-        let v: Value = serde_json::from_str(&json_str).unwrap_or_else(|e| {
-            panic!("{label} package_json must parse as JSON: {e}\n{json_str}")
-        });
+        let v: Value = serde_json::from_str(&json_str)
+            .unwrap_or_else(|e| panic!("{label} package_json must parse as JSON: {e}\n{json_str}"));
         let deps = v
             .get("dependencies")
             .and_then(|d| d.as_object())

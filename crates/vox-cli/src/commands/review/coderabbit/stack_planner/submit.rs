@@ -24,11 +24,11 @@ pub async fn run_stack_submit(
     // 1. Gather files via git bridge or CLI wrapper
     let output = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["ls-files"])
-        .current_dir(path)
-        .output()
-        .await
-        .context("Failed to run git ls-files")?;
+    .args(["ls-files"])
+    .current_dir(path)
+    .output()
+    .await
+    .context("Failed to run git ls-files")?;
 
     let output_str = String::from_utf8_lossy(&output.stdout);
     let mut all_files: Vec<String> = output_str.lines().map(|s| s.to_string()).collect();
@@ -143,11 +143,11 @@ async fn run_stack_submit_core(
     // Save current branch before destructive orphan checkout; restore even if chunk loop fails.
     let current_branch = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(path)
-        .output()
-        .await
-        .context("git rev-parse HEAD")?;
+    .args(["rev-parse", "--abbrev-ref", "HEAD"])
+    .current_dir(path)
+    .output()
+    .await
+    .context("git rev-parse HEAD")?;
     let current_branch = String::from_utf8_lossy(&current_branch.stdout)
         .trim()
         .to_string();
@@ -209,11 +209,11 @@ async fn run_stack_submit_core(
 
     let restore_st = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["checkout", &current_branch])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git checkout to restore branch")?;
+    .args(["checkout", &current_branch])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git checkout to restore branch")?;
     if !restore_st.success() {
         eprintln!(
             "[warn] could not restore branch {}: exit {:?}. Run `git checkout {}` manually.",

@@ -9,16 +9,17 @@ pub async fn run(id: Option<String>) -> Result<()> {
             anyhow::bail!("No target ID specified. Please specify an operation ID to rollback.");
         }
     };
-    
+
     println!("Rolling back operation {}...", target);
-    
+
     let res = dispatch::call_daemon(
         "vox-orchestrator-d",
         orch_daemon_method::UNDO_OPERATION,
         serde_json::json!({ "op_id": target }),
         false,
-    ).await?;
-    
+    )
+    .await?;
+
     println!("Rollback complete: {:?}", res);
     Ok(())
 }

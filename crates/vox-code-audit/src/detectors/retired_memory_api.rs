@@ -193,9 +193,7 @@ mod tests {
     #[test]
     fn does_not_flag_lookup_fact_by_key_canonical() {
         let d = RetiredMemoryApiDetector::new();
-        let f = rust(
-            "let v = MemoryManager::lookup_fact_by_key(\"key\").await;",
-        );
+        let f = rust("let v = MemoryManager::lookup_fact_by_key(\"key\").await;");
         let findings = d.detect(&f, None);
         assert!(findings.is_empty());
     }
@@ -225,10 +223,7 @@ mod tests {
     #[test]
     fn does_not_fire_on_non_rust_files() {
         let d = RetiredMemoryApiDetector::new();
-        let f = SourceFile::new(
-            PathBuf::from("test.vox"),
-            "recall(\"key\")".to_string(),
-        );
+        let f = SourceFile::new(PathBuf::from("test.vox"), "recall(\"key\")".to_string());
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "Vox source has different semantics");
     }

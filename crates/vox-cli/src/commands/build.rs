@@ -60,12 +60,9 @@ pub async fn run(
         .with_context(|| format!("Failed to create output directory: {}", out_dir.display()))?;
 
     if resolved_target == vox_config::BuildTarget::Server {
-        let rust_output = vox_codegen::codegen_rust::generate(
-            &hir,
-            "vox_generated_app",
-            rust_app_shell,
-        )
-            .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
+        let rust_output =
+            vox_codegen::codegen_rust::generate(&hir, "vox_generated_app", rust_app_shell)
+                .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
 
         let generated_dir = generated_backend_dir(file.parent());
         fs::create_dir_all(generated_dir.join("src"))
@@ -194,12 +191,9 @@ pub async fn run(
     }
 
     // 6. Generate Rust (Backend)
-    let rust_output = vox_codegen::codegen_rust::generate(
-        &hir,
-        "vox_generated_app",
-        rust_app_shell,
-    )
-        .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
+    let rust_output =
+        vox_codegen::codegen_rust::generate(&hir, "vox_generated_app", rust_app_shell)
+            .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
 
     // Write generated TS files
     for (filename, content) in &ts_output.files {

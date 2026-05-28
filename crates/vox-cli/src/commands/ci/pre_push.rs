@@ -326,8 +326,14 @@ fn check_tier_budget(root: &Path, profile: &str, total_ms: u64) -> Result<()> {
     let Some(tier) = tiers.get(tier_key) else {
         return Ok(());
     };
-    let warn_ms = tier.get("warn_ms").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
-    let fail_ms = tier.get("fail_ms").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
+    let warn_ms = tier
+        .get("warn_ms")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(u64::MAX);
+    let fail_ms = tier
+        .get("fail_ms")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(u64::MAX);
     if total_ms > fail_ms {
         bail!(
             "pre-push budget exceeded: profile `{}` took {}ms > fail threshold {}ms \
@@ -505,12 +511,20 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
         v.push(OwnedStep {
             label: nextest_label,
             run: Box::new(move |root| match (&impacted, with_cov) {
-                (Some(Ok(ImpactedCrates { fallback: false, packages })), false) => {
-                    step_nextest_packages(root, packages)
-                }
-                (Some(Ok(ImpactedCrates { fallback: false, packages })), true) => {
-                    step_nextest_packages_with_coverage(root, packages)
-                }
+                (
+                    Some(Ok(ImpactedCrates {
+                        fallback: false,
+                        packages,
+                    })),
+                    false,
+                ) => step_nextest_packages(root, packages),
+                (
+                    Some(Ok(ImpactedCrates {
+                        fallback: false,
+                        packages,
+                    })),
+                    true,
+                ) => step_nextest_packages_with_coverage(root, packages),
                 (_, false) => step_nextest(root),
                 (_, true) => step_nextest_with_coverage(root),
             }),
@@ -930,7 +944,10 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
             "pre-push --since: git diff against `{since_ref}` failed ({}); falling back to --workspace",
             String::from_utf8_lossy(&diff_out.stderr).trim()
         );
-        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+        return Ok(ImpactedCrates {
+            packages: vec![],
+            fallback: true,
+        });
     }
     let changed_files: Vec<String> = String::from_utf8_lossy(&diff_out.stdout)
         .lines()
@@ -941,10 +958,11 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
     if changed_files.is_empty() {
         // No changes — nothing to test; but rather than running nothing, fall back
         // to workspace so the user always gets a green signal on a clean branch.
-        println!(
-            "pre-push --since `{since_ref}`: no changed files; running full workspace"
-        );
-        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+        println!("pre-push --since `{since_ref}`: no changed files; running full workspace");
+        return Ok(ImpactedCrates {
+            packages: vec![],
+            fallback: true,
+        });
     }
 
     // Step 2: cargo metadata (no resolve needed; `dependencies` list is enough)
@@ -994,7 +1012,10 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
         eprintln!(
             "pre-push --since `{since_ref}`: no workspace crates match changed files; falling back to --workspace"
         );
-        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+        return Ok(ImpactedCrates {
+            packages: vec![],
+            fallback: true,
+        });
     }
 
     // Step 4: build reverse-dep map and BFS
@@ -1037,7 +1058,10 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
             "pre-push --since `{since_ref}`: {} impacted packages > threshold {threshold}; falling back to --workspace",
             impacted.len()
         );
-        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+        return Ok(ImpactedCrates {
+            packages: vec![],
+            fallback: true,
+        });
     }
 
     let mut packages: Vec<String> = impacted.into_iter().collect();
@@ -1047,7 +1071,10 @@ fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrate
         packages.len(),
         packages.join(", ")
     );
-    Ok(ImpactedCrates { packages, fallback: false })
+    Ok(ImpactedCrates {
+        packages,
+        fallback: false,
+    })
 }
 
 // ── Step functions ────────────────────────────────────────────────────────────
@@ -1078,7 +1105,14 @@ fn step_nextest_packages(root: &Path, packages: &[String]) -> Result<()> {
 
 /// Run `cargo llvm-cov nextest` for a specific set of packages.
 fn step_nextest_packages_with_coverage(root: &Path, packages: &[String]) -> Result<()> {
-    let mut args = vec!["llvm-cov", "nextest", "--profile", "ci", "--no-fail-fast", "--no-report"];
+    let mut args = vec![
+        "llvm-cov",
+        "nextest",
+        "--profile",
+        "ci",
+        "--no-fail-fast",
+        "--no-report",
+    ];
     for p in packages {
         args.push("--package");
         args.push(p.as_str());
@@ -1117,7 +1151,13 @@ fn step_llvm_cov_report(root: &Path) -> Result<()> {
     )?;
     cargo_status(
         root,
-        &["llvm-cov", "report", "--html", "--output-dir", "target/llvm-cov/html"],
+        &[
+            "llvm-cov",
+            "report",
+            "--html",
+            "--output-dir",
+            "target/llvm-cov/html",
+        ],
     )
 }
 

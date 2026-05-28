@@ -558,6 +558,10 @@ pub struct GenerateArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub struct GuiArgs {
     /// Open directly to a specific command panel.
-    #[arg(long, value_name = "COMMAND", help = "Open to a specific command panel")]
+    #[arg(
+        long,
+        value_name = "COMMAND",
+        help = "Open to a specific command panel"
+    )]
     pub command: Option<String>,
 }

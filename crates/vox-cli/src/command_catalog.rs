@@ -317,7 +317,10 @@ fn push_catalog_entry(cmd: &Command, path: &[String], out: &mut Vec<CommandCatal
                 long: arg.get_long().map(|s| s.to_string()),
                 help: arg.get_help().map(|s| s.to_string()),
                 required: arg.is_required_set(),
-                takes_value: matches!(arg.get_action(), clap::ArgAction::Set | clap::ArgAction::Append),
+                takes_value: matches!(
+                    arg.get_action(),
+                    clap::ArgAction::Set | clap::ArgAction::Append
+                ),
             })
             .collect(),
     });

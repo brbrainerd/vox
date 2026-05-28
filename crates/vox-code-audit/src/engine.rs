@@ -220,9 +220,8 @@ impl ToestubEngine {
     /// (or to [`run`]) will serialize; do not hold the returned `Vec<Finding>` across
     /// a second call on a different thread without copying first.
     pub fn check_source_file(&self, file: &crate::rules::SourceFile) -> Vec<Finding> {
-        let _guard = crate::run_context::RunContextGuard::new(
-            crate::run_context::RunContext::default(),
-        );
+        let _guard =
+            crate::run_context::RunContextGuard::new(crate::run_context::RunContext::default());
 
         let rust_ctx_owned = if file.language == crate::rules::Language::Rust {
             Some(RustFileContext::parse(&file.content))

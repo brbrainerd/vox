@@ -1,6 +1,6 @@
-use std::path::Path;
-use std::fs;
 use anyhow::{Result, bail};
+use std::fs;
+use std::path::Path;
 
 pub fn check(repo_root: &Path) -> Result<()> {
     let crates_dir = repo_root.join("crates");
@@ -15,8 +15,14 @@ pub fn check(repo_root: &Path) -> Result<()> {
             if toml_path.exists() {
                 let contents = fs::read_to_string(&toml_path)?;
                 // Simple string match; could be more robust with toml parser, but sufficient for CI guard.
-                if contents.contains("tauri =") || contents.contains("tauri-build =") || contents.contains("tauri-plugin") {
-                    bail!("Rule violation: crate '{}' depends on tauri, which is forbidden outside of vox-gui and codegen crates. See ADR-037.", name);
+                if contents.contains("tauri =")
+                    || contents.contains("tauri-build =")
+                    || contents.contains("tauri-plugin")
+                {
+                    bail!(
+                        "Rule violation: crate '{}' depends on tauri, which is forbidden outside of vox-gui and codegen crates. See ADR-037.",
+                        name
+                    );
                 }
             }
         }

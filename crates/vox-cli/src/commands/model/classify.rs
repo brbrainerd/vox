@@ -35,7 +35,9 @@ pub async fn run(args: ClassifyArgs) -> Result<()> {
         .classifier
         .clone()
         .or(pins.classifier.primary)
-        .context("no classifier model configured (set --classifier or pins.yaml::classifier.primary)")?;
+        .context(
+            "no classifier model configured (set --classifier or pins.yaml::classifier.primary)",
+        )?;
 
     // Pull what we know about the target model from the local catalog, if present.
     let (description, supported_params, sample_cost): (Option<String>, Vec<String>, Option<f64>) =

@@ -5,6 +5,8 @@ pub fn check_frozen_crates(_root: &Path) -> Result<()> {
     // crates/_frozen.md was deleted (superseded by layers.toml and
     // contracts/db/data-storage-policy.v1.yaml frozen_core_crates list).
     // The canonical frozen-core set is in data-storage-policy.v1.yaml.
-    println!("check-frozen: crates/_frozen.md was superseded by layers.toml and contracts/db/data-storage-policy.v1.yaml. Nothing to enforce.");
+    println!(
+        "check-frozen: crates/_frozen.md was superseded by layers.toml and contracts/db/data-storage-policy.v1.yaml. Nothing to enforce."
+    );
     Ok(())
 }

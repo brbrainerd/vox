@@ -191,9 +191,7 @@ parser would otherwise report the literal text as an unknown token."
                     .get(1)
                     .map(|m| m.as_str())
                     .expect("regex group 1 always present");
-                let full = caps
-                    .get(0)
-                    .expect("regex group 0 always present");
+                let full = caps.get(0).expect("regex group 0 always present");
                 findings.push(self.build_finding(
                     file,
                     line_num,
@@ -306,14 +304,24 @@ mod tests {
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1, "should flag `@endpoint(kind: mutation)`");
         assert!(findings[0].message.contains("@endpoint(kind: mutation)"));
-        assert!(findings[0].suggestion.as_ref().unwrap().contains("@mutation"));
+        assert!(
+            findings[0]
+                .suggestion
+                .as_ref()
+                .unwrap()
+                .contains("@mutation")
+        );
     }
 
     #[test]
     fn does_not_flag_bare_decorators() {
         // The bare-form decorators are canonical post-Phase B.
         let d = RetiredDecoratorDetector::new();
-        for src in ["@server fn x() {}", "@query fn y() {}", "@mutation fn z() {}"] {
+        for src in [
+            "@server fn x() {}",
+            "@query fn y() {}",
+            "@mutation fn z() {}",
+        ] {
             let f = source(src);
             let findings = d.detect(&f, None);
             assert!(
@@ -355,9 +363,8 @@ mod tests {
     #[test]
     fn ignores_comment_lines() {
         let d = RetiredDecoratorDetector::new();
-        let f = source(
-            "// @component fn Dashboard() {}\n// @server fn x() {}\n// @py.import pandas",
-        );
+        let f =
+            source("// @component fn Dashboard() {}\n// @server fn x() {}\n// @py.import pandas");
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "comment lines should be skipped");
     }

@@ -37,8 +37,7 @@ impl RetiredEnvVarDetector {
     pub fn new() -> Self {
         let names = "(TURSO_URL|VOX_TURSO_URL|VOX_TURSO_TOKEN)";
         Self {
-            bare_literal_pattern: Regex::new(&format!("\"{names}\""))
-                .expect("valid regex"),
+            bare_literal_pattern: Regex::new(&format!("\"{names}\"")).expect("valid regex"),
             // Matches std::env::var, env::var, env.get with the retired name.
             call_site_pattern: Regex::new(&format!(
                 r#"(?:std::)?env(?:::var|\.get)\s*\(\s*"{names}""#

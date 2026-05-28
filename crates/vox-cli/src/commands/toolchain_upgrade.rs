@@ -2,6 +2,7 @@
 //! (`commands::repo_upgrade`). Does not touch `Vox.toml` / `vox.lock`. See `vox upgrade` in CLI docs.
 
 use crate::cli_args::{UpgradeLane, UpgradeReleaseProvider, UpgradeToolchainArgs};
+use crate::utils::install_policy::{DEFAULT_RELEASE_GITHUB_OWNER, DEFAULT_RELEASE_GITHUB_REPO};
 use anyhow::{Result, anyhow};
 use self_update::{
     ArchiveKind, Compression, Download, Extract, Move, TempDir,
@@ -11,7 +12,6 @@ use self_update::{
 use self_update::{get_target, version};
 use semver::Version;
 use std::path::PathBuf;
-use crate::utils::install_policy::{DEFAULT_RELEASE_GITHUB_OWNER, DEFAULT_RELEASE_GITHUB_REPO};
 
 /// Blocking entry (call from `spawn_blocking`).
 pub fn run_toolchain_upgrade(args: &UpgradeToolchainArgs, json_output: bool) -> Result<()> {
@@ -711,7 +711,10 @@ fn maybe_install_openclaw_sidecar(
     let archive_path = tmp.path().join(&sidecar_asset);
     std::fs::write(&archive_path, &sidecar_bytes).map_err(|e| anyhow!(e))?;
     let sidecar_bin = if cfg!(target_os = "windows") {
-        format!("{}.exe", crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME)
+        format!(
+            "{}.exe",
+            crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME
+        )
     } else {
         crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME.to_string()
     };

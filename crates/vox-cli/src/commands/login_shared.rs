@@ -221,8 +221,9 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
 
     #[cfg(feature = "keyring-store")]
     {
-        let keyring = keyring::Entry::new("vox-secrets-env", "turso-url")
-            .context("Failed to instantiate keyring for turso-url. Keyring may not be available.")?;
+        let keyring = keyring::Entry::new("vox-secrets-env", "turso-url").context(
+            "Failed to instantiate keyring for turso-url. Keyring may not be available.",
+        )?;
         keyring
             .set_password(url)
             .context("Failed to set turso-url in keyring.")?;

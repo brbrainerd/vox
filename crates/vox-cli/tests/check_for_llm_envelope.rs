@@ -218,9 +218,15 @@ fn parse_id(s: &str) -> u64 {
     );
     // suggestion and minimal_repro are optional but when present must be strings
     if let Some(s) = f.get("suggestion") {
-        assert!(s.as_str().is_some(), "suggestion must be a string when present");
+        assert!(
+            s.as_str().is_some(),
+            "suggestion must be a string when present"
+        );
     }
     if let Some(r) = f.get("minimal_repro") {
-        assert!(r.as_str().is_some(), "minimal_repro must be a string when present");
+        assert!(
+            r.as_str().is_some(),
+            "minimal_repro must be a string when present"
+        );
     }
 }

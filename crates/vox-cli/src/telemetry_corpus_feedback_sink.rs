@@ -152,9 +152,7 @@ impl TelemetryRecorder for CorpusFeedbackJsonlSink {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vox_telemetry::{
-        LintFindingEvent, ModelCallEvent, RepairOutcomeEvent,
-    };
+    use vox_telemetry::{LintFindingEvent, ModelCallEvent, RepairOutcomeEvent};
 
     fn lint_event() -> TelemetryEvent {
         TelemetryEvent::LintFinding(LintFindingEvent {
@@ -221,7 +219,9 @@ mod tests {
         sink.record(&repair_outcome_event());
 
         // A13: per-quarter filename (was per-day).
-        let path = tmp.path().join(format!("{}.jsonl", current_quarter_yyyy_qn()));
+        let path = tmp
+            .path()
+            .join(format!("{}.jsonl", current_quarter_yyyy_qn()));
         assert!(path.exists(), "JSONL should exist at {}", path.display());
 
         let contents = std::fs::read_to_string(&path).expect("read");
@@ -267,7 +267,10 @@ mod tests {
         // SAFETY: see above.
         unsafe { std::env::set_var(EVENTS_DIR_ENV, "disabled") };
         let resolved = resolve_events_root();
-        assert!(resolved.is_none(), "sentinel `disabled` must disable the sink");
+        assert!(
+            resolved.is_none(),
+            "sentinel `disabled` must disable the sink"
+        );
         // SAFETY: see above.
         unsafe {
             match prior {

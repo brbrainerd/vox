@@ -4,11 +4,11 @@
 //! S8: bundle/dev integration — pass a .vox FILE to auto-build and serve.
 
 use crate::cli_args::BundleMode;
+use crate::utils::share::auth::AuthMode;
+use crate::utils::share::{BackendKind, ShareConfig, ShareSession};
 use anyhow::{Context as _, Result};
 use clap::Args;
 use std::time::Duration;
-use crate::utils::share::auth::AuthMode;
-use crate::utils::share::{BackendKind, ShareConfig, ShareSession};
 
 /// Timeout for the initial connection from the share proxy to the upstream app.
 /// Configurable at compile time; override via `VOX_SHARE_CONNECT_TIMEOUT_SECS` at runtime

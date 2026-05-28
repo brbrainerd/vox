@@ -37,13 +37,13 @@ pub async fn dispatch(cmd: PlanCmd) -> anyhow::Result<()> {
         PlanCmd::Replan { session_id } => {
             tracing::info!("Re-planning session: {}", session_id);
             println!("Replan requested for {}", session_id);
-            
+
             let config = vox_orchestrator::session::SessionConfig {
                 persist: true,
                 ..Default::default()
             };
             let mut manager = vox_orchestrator::session::SessionManager::new(config)?;
-            
+
             if let Ok(db) = vox_db::VoxDb::connect_default_sync() {
                 manager.set_db(std::sync::Arc::new(db));
             }

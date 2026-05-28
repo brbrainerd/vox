@@ -1,12 +1,12 @@
+use crate::utils::release_artifacts::{
+    artifact_filename as release_artifact_filename, checksum_line, is_windows_target,
+    package_tar_gz, package_zip, sha256_file,
+};
 use anyhow::{Context, Result, anyhow};
 use clap::ValueEnum;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use crate::utils::release_artifacts::{
-    artifact_filename as release_artifact_filename, checksum_line, is_windows_target,
-    package_tar_gz, package_zip, sha256_file,
-};
 
 /// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
 pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
@@ -217,8 +217,8 @@ fn build_and_package_binary(
 
 #[cfg(test)]
 mod tests {
-    use vox_bounded_fs::read_utf8_path_capped;
     use crate::utils::release_artifacts::artifact_filename;
+    use vox_bounded_fs::read_utf8_path_capped;
 
     use super::{
         bootstrap_executable_name, checksum_line, executable_name, plugin_executable_name,

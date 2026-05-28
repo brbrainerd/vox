@@ -65,10 +65,7 @@ pub fn run(triple: &str, checks: &mut Vec<Check>) {
         }
     }
 
-    if triple.contains("android")
-        || triple.contains("apple-ios")
-        || triple.contains("-ios")
-    {
+    if triple.contains("android") || triple.contains("apple-ios") || triple.contains("-ios") {
         let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
         let ok = Command::new(&cargo)
             .args(["tauri", "--version"])

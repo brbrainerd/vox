@@ -41,10 +41,8 @@ impl RetiredCapacitorDetector {
             )
             .expect("valid regex"),
             // `"@capacitor/anything": "..."` in package.json dep blocks.
-            package_json_pattern: Regex::new(
-                r#""@capacitor/([a-zA-Z0-9_-]+)"\s*:\s*"[^"]*""#,
-            )
-            .expect("valid regex"),
+            package_json_pattern: Regex::new(r#""@capacitor/([a-zA-Z0-9_-]+)"\s*:\s*"[^"]*""#)
+                .expect("valid regex"),
             // `npx cap sync`, `npx cap run`, etc. — any cap subcommand counts.
             cap_cli_pattern: Regex::new(r"\bnpx\s+cap\s+([a-z]+)\b").expect("valid regex"),
         }
@@ -114,16 +112,8 @@ during migration MUST carry a `// vox-deprecated-since=...` annotation."
         file: &SourceFile,
         _rust_ctx: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
-        let file_name = file
-            .path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
-        let ext = file
-            .path
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let file_name = file.path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        let ext = file.path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
         let is_package_json = file_name == "package.json";
         let is_shell_or_script = matches!(ext, "sh" | "bash" | "zsh" | "ps1" | "cmd" | "bat");
@@ -171,9 +161,7 @@ during migration MUST carry a `// vox-deprecated-since=...` annotation."
                 continue;
             }
 
-            if is_package_json
-                && let Some(caps) = self.package_json_pattern.captures(line)
-            {
+            if is_package_json && let Some(caps) = self.package_json_pattern.captures(line) {
                 let plugin = caps.get(1).map(|m| m.as_str()).unwrap_or("?");
                 let m = caps.get(0).expect("group 0");
                 findings.push(self.build_finding(
@@ -267,7 +255,11 @@ mod tests {
         let f = ts(r#"import { Foo } from "@capacitor/filesystem";"#);
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].message.contains("@tauri-apps/plugin-filesystem"));
+        assert!(
+            findings[0]
+                .message
+                .contains("@tauri-apps/plugin-filesystem")
+        );
     }
 
     #[test]

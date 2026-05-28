@@ -540,11 +540,8 @@ pub fn explain_diagnostic(id: &str) -> anyhow::Result<()> {
     // Find the registered detector to get its explain() text and minimal_repro.
     let rules = all_rules(None);
     let matching_rule = rules.iter().find(|r| r.diagnostic_id() == Some(id));
-    let explain_text = explain_ai_fixture_diagnostic(id).unwrap_or_else(|| {
-        matching_rule
-            .map(|r| r.explain())
-            .unwrap_or("")
-    });
+    let explain_text = explain_ai_fixture_diagnostic(id)
+        .unwrap_or_else(|| matching_rule.map(|r| r.explain()).unwrap_or(""));
     let minimal_repro: Option<&'static str> = matching_rule.and_then(|r| r.minimal_repro());
 
     println!("{}", "─".repeat(70));
@@ -593,8 +590,6 @@ pub fn list_diagnostics() {
 ///
 /// Returns an error listing any suppressions that lack a `— <reason>` of ≥ 20 chars.
 pub fn check_rationale_required(path: &std::path::Path) -> anyhow::Result<()> {
-    
-
     let mut violations: Vec<String> = Vec::new();
     let patterns = [
         regex::Regex::new(r#"//\s*toestub-ignore\([^)]+\)\s*$"#).unwrap(),

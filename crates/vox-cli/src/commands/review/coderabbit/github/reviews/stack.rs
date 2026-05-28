@@ -21,11 +21,11 @@ pub async fn create_stack_chunk_pr(
 ) -> Result<u64> {
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["checkout", "-b", new_branch, base_branch])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git checkout -b for stack chunk")?;
+    .args(["checkout", "-b", new_branch, base_branch])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git checkout -b for stack chunk")?;
     if !status.success() {
         anyhow::bail!("git checkout -b {new_branch} {base_branch} failed");
     }
@@ -35,40 +35,40 @@ pub async fn create_stack_chunk_pr(
         args.extend(files.iter().map(|s| s.as_str()));
         let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(&args)
-            .current_dir(path)
-            .status()
-            .await
-            .context("git checkout files from default branch")?;
+        .args(&args)
+        .current_dir(path)
+        .status()
+        .await
+        .context("git checkout files from default branch")?;
         if !status.success() {
             anyhow::bail!("git checkout {default_branch} -- <files> failed");
         }
 
         let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(["add", "-A"])
-            .current_dir(path)
-            .status()
-            .await
-            .context("git add -A")?;
+        .args(["add", "-A"])
+        .current_dir(path)
+        .status()
+        .await
+        .context("git add -A")?;
         if !status.success() {
             anyhow::bail!("git add -A failed");
         }
 
         let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args([
-                "commit",
-                "-m",
-                &format!(
-                    "feat: CodeRabbit review chunk {}",
-                    new_branch.trim_start_matches("cr-review-")
-                ),
-            ])
-            .current_dir(path)
-            .status()
-            .await
-            .context("git commit")?;
+        .args([
+            "commit",
+            "-m",
+            &format!(
+                "feat: CodeRabbit review chunk {}",
+                new_branch.trim_start_matches("cr-review-")
+            ),
+        ])
+        .current_dir(path)
+        .status()
+        .await
+        .context("git commit")?;
         if !status.success() {
             anyhow::bail!("git commit failed (nothing to commit or commit error)");
         }
@@ -76,11 +76,11 @@ pub async fn create_stack_chunk_pr(
 
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["push", "-u", "origin", new_branch])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git push")?;
+    .args(["push", "-u", "origin", new_branch])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git push")?;
     if !status.success() {
         anyhow::bail!("git push failed");
     }
@@ -122,11 +122,11 @@ pub async fn create_stack_chunk_pr(
 pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()> {
     let out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["status", "--porcelain"])
-        .current_dir(path)
-        .output()
-        .await
-        .context("git status --porcelain")?;
+    .args(["status", "--porcelain"])
+    .current_dir(path)
+    .output()
+    .await
+    .context("git status --porcelain")?;
     if !out.stdout.is_empty() {
         anyhow::bail!(
             "Working tree must be clean for `stack-submit` orphan baseline (destructive checkout).\n\
@@ -142,54 +142,54 @@ pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()
 
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["checkout", "--orphan", branch_name])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git checkout --orphan")?;
+    .args(["checkout", "--orphan", branch_name])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git checkout --orphan")?;
     if !status.success() {
         anyhow::bail!("git checkout --orphan {branch_name} failed");
     }
 
     let _ = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["read-tree", "--empty"])
-        .current_dir(path)
-        .status()
-        .await;
+    .args(["read-tree", "--empty"])
+    .current_dir(path)
+    .status()
+    .await;
 
     let readme = "# CodeRabbit stack baseline\n\nEmpty baseline for stacked review PRs.\n";
     fs::write(path.join("README.md"), readme).context("Write baseline README")?;
 
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["add", "README.md"])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git add README.md")?;
+    .args(["add", "README.md"])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git add README.md")?;
     if !status.success() {
         anyhow::bail!("git add README.md failed");
     }
 
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["commit", "-m", "chore: empty baseline for CodeRabbit stack"])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git commit")?;
+    .args(["commit", "-m", "chore: empty baseline for CodeRabbit stack"])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git commit")?;
     if !status.success() {
         anyhow::bail!("git commit failed");
     }
 
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["push", "-u", "origin", branch_name])
-        .current_dir(path)
-        .status()
-        .await
-        .context("git push")?;
+    .args(["push", "-u", "origin", branch_name])
+    .current_dir(path)
+    .status()
+    .await
+    .context("git push")?;
     if !status.success() {
         anyhow::bail!("git push failed");
     }

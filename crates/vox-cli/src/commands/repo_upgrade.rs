@@ -5,12 +5,12 @@
 //! Roll back `HEAD` on install failure.
 
 use crate::cli_args::UpgradeToolchainArgs;
+use crate::utils::install_policy::{CARGO_INSTALL_CLI_FROM_SOURCE, SOURCE_INSTALL_CLI_REL_PATH};
 use anyhow::{Context, Result, anyhow, bail};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use crate::utils::install_policy::{CARGO_INSTALL_CLI_FROM_SOURCE, SOURCE_INSTALL_CLI_REL_PATH};
 use vox_repository::resolve_repo_root_for_ci;
 
 const ROLLBACK_REL: &str = ".vox/toolchain-upgrade-rollback.json";

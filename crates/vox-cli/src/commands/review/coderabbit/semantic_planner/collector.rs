@@ -30,57 +30,57 @@ pub async fn collect_changed_files(repo: &Path) -> Result<Vec<String>> {
     // -c core.autocrlf=false suppresses CRLF warnings that fill the stderr pipe and deadlock .output()
     let diff_out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args([
-            "-c",
-            "core.autocrlf=false",
-            "diff",
-            "HEAD",
-            "--name-only",
-            "--diff-filter=ACDMRT",
-        ])
-        .current_dir(repo)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null()) // ← prevent CRLF warning deadlock
-        .output()
-        .await
-        .context("git diff HEAD --name-only")?;
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "diff",
+        "HEAD",
+        "--name-only",
+        "--diff-filter=ACDMRT",
+    ])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null()) // ← prevent CRLF warning deadlock
+    .output()
+    .await
+    .context("git diff HEAD --name-only")?;
     let diff_str = String::from_utf8_lossy(&diff_out.stdout);
 
     // 2. Staged (already added with git add)
     let staged_out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args([
-            "-c",
-            "core.autocrlf=false",
-            "diff",
-            "--cached",
-            "--name-only",
-            "--diff-filter=ACDMRT",
-        ])
-        .current_dir(repo)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .await
-        .context("git diff --cached --name-only")?;
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "diff",
+        "--cached",
+        "--name-only",
+        "--diff-filter=ACDMRT",
+    ])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null())
+    .output()
+    .await
+    .context("git diff --cached --name-only")?;
     let staged_str = String::from_utf8_lossy(&staged_out.stdout);
 
     // 3. Untracked new files/directories
     let status_out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args([
-            "-c",
-            "core.autocrlf=false",
-            "status",
-            "--short",
-            "--porcelain",
-        ])
-        .current_dir(repo)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .await
-        .context("git status --short")?;
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "status",
+        "--short",
+        "--porcelain",
+    ])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null())
+    .output()
+    .await
+    .context("git status --short")?;
     let status_str = String::from_utf8_lossy(&status_out.stdout);
 
     let mut files: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -133,31 +133,31 @@ pub async fn collect_all_files(repo: &Path) -> Result<Vec<String>> {
     // 1. All tracked files.
     let ls_out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["-c", "core.autocrlf=false", "ls-files"])
-        .current_dir(repo)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .await
-        .context("git ls-files")?;
+    .args(["-c", "core.autocrlf=false", "ls-files"])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null())
+    .output()
+    .await
+    .context("git ls-files")?;
     let ls_str = String::from_utf8_lossy(&ls_out.stdout);
 
     // 2. Untracked new files (same as collect_changed_files).
     let status_out = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args([
-            "-c",
-            "core.autocrlf=false",
-            "status",
-            "--short",
-            "--porcelain",
-        ])
-        .current_dir(repo)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null())
-        .output()
-        .await
-        .context("git status --short")?;
+    .args([
+        "-c",
+        "core.autocrlf=false",
+        "status",
+        "--short",
+        "--porcelain",
+    ])
+    .current_dir(repo)
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::null())
+    .output()
+    .await
+    .context("git status --short")?;
     let status_str = String::from_utf8_lossy(&status_out.stdout);
 
     let mut files: std::collections::HashSet<String> = std::collections::HashSet::new();

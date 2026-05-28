@@ -16,8 +16,7 @@ use std::path::Path;
 
 /// Read a JSON file into a typed value.
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
-    let bytes = std::fs::read(path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
     let value: T = serde_json::from_slice(&bytes)
         .with_context(|| format!("parse JSON at {}", path.display()))?;
     Ok(value)
@@ -45,7 +44,10 @@ pub async fn replay_execute(main_entity_path: &Path, stage_dir: &Path) -> Result
 /// Reads a `ScaffoldInput` JSON file and emits the IMRaD markdown to stdout.
 pub fn manuscript_draft(scaffold_path: &Path) -> Result<()> {
     let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
-    print!("{}", vox_scientia::manuscript::scaffold::render_imrad(&input));
+    print!(
+        "{}",
+        vox_scientia::manuscript::scaffold::render_imrad(&input)
+    );
     Ok(())
 }
 
@@ -278,10 +280,8 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         extracted_at_ms: chrono::Utc::now().timestamp_millis(),
     };
 
-    let merged_metadata = merge_extracted_claims_into_metadata(
-        manifest_row.metadata_json.as_deref(),
-        &summary,
-    )?;
+    let merged_metadata =
+        merge_extracted_claims_into_metadata(manifest_row.metadata_json.as_deref(), &summary)?;
 
     // Re-upsert with the updated metadata_json. The content digest
     // recomputes from the canonical fields including metadata_json, so
@@ -318,8 +318,9 @@ fn merge_extracted_claims_into_metadata(
     summary: &vox_publisher::scientia_evidence::ExtractedClaimsSummary,
 ) -> Result<String> {
     let mut root: serde_json::Value = match metadata_json {
-        Some(s) if !s.trim().is_empty() => serde_json::from_str(s)
-            .context("parse existing metadata_json as object")?,
+        Some(s) if !s.trim().is_empty() => {
+            serde_json::from_str(s).context("parse existing metadata_json as object")?
+        }
         _ => serde_json::Value::Object(Default::default()),
     };
     let obj = root
@@ -331,10 +332,7 @@ fn merge_extracted_claims_into_metadata(
     let evidence_obj = evidence
         .as_object_mut()
         .ok_or_else(|| anyhow::anyhow!("scientia_evidence must be a JSON object"))?;
-    evidence_obj.insert(
-        "extracted_claims".into(),
-        serde_json::to_value(summary)?,
-    );
+    evidence_obj.insert("extracted_claims".into(), serde_json::to_value(summary)?);
     Ok(serde_json::to_string(&root)?)
 }
 
@@ -370,11 +368,7 @@ pub fn render_latex_handler(scaffold_path: &Path, output: Option<&Path>) -> Resu
 ///
 /// Errors when a figure declared in the scaffold has no corresponding file
 /// under `figures_dir`.
-pub fn arxiv_bundle_handler(
-    scaffold_path: &Path,
-    figures_dir: &Path,
-    output: &Path,
-) -> Result<()> {
+pub fn arxiv_bundle_handler(scaffold_path: &Path, figures_dir: &Path, output: &Path) -> Result<()> {
     let input: vox_scientia::manuscript::scaffold::ScaffoldInput = read_json(scaffold_path)?;
 
     let mut figure_blobs: Vec<(String, Vec<u8>)> = Vec::with_capacity(input.figures.len());
@@ -411,8 +405,8 @@ pub fn arxiv_bundle_handler(
 /// and critic-allowed flag for the requested class.
 pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Result<()> {
     use vox_scientia::class_routing::{
-        builtin_class_defaults, critic_allowed_for, load_class_defaults_from_yaml,
-        negative_result_quota_for, recommended_venues_for, reply_window_days_for, FindingClass,
+        FindingClass, builtin_class_defaults, critic_allowed_for, load_class_defaults_from_yaml,
+        negative_result_quota_for, recommended_venues_for, reply_window_days_for,
     };
     let class = FindingClass::from_str(candidate_class).ok_or_else(|| {
         anyhow::anyhow!(
@@ -422,8 +416,7 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
         )
     })?;
     let defaults = if let Some(p) = yaml_config {
-        let yaml = std::fs::read_to_string(p)
-            .with_context(|| format!("read {}", p.display()))?;
+        let yaml = std::fs::read_to_string(p).with_context(|| format!("read {}", p.display()))?;
         load_class_defaults_from_yaml(&yaml).context("parse class defaults YAML")?
     } else {
         builtin_class_defaults()
@@ -457,7 +450,10 @@ pub fn venue_recommend(candidate_class: &str, yaml_config: Option<&Path>) -> Res
 /// stdout.
 pub fn finding_page_render(page_path: &Path) -> Result<()> {
     let page: vox_scientia::findings_site::FindingPage = read_json(page_path)?;
-    print!("{}", vox_scientia::findings_site::render_finding_page(&page));
+    print!(
+        "{}",
+        vox_scientia::findings_site::render_finding_page(&page)
+    );
     Ok(())
 }
 
@@ -511,7 +507,10 @@ mod tests {
             x: i32,
             y: String,
         }
-        let v = V { x: 7, y: "hi".into() };
+        let v = V {
+            x: 7,
+            y: "hi".into(),
+        };
         let f = tmp_json(&v);
         let back: V = read_json(f.path()).unwrap();
         assert_eq!(back, v);
@@ -627,11 +626,8 @@ mod tests {
             }
         });
         let summary = sample_summary();
-        let merged = merge_extracted_claims_into_metadata(
-            Some(&existing.to_string()),
-            &summary,
-        )
-        .unwrap();
+        let merged =
+            merge_extracted_claims_into_metadata(Some(&existing.to_string()), &summary).unwrap();
         let v: serde_json::Value = serde_json::from_str(&merged).unwrap();
         // Top-level sibling preserved.
         assert_eq!(v["scientific_publication"]["authors"][0], "Alice");
@@ -639,10 +635,7 @@ mod tests {
         assert_eq!(v["scientia_evidence"]["human_meaningful_advance"], true);
         assert_eq!(v["scientia_evidence"]["candidate_note"], "perf delta");
         // New extracted_claims attached.
-        assert_eq!(
-            v["scientia_evidence"]["extracted_claims"]["supported"],
-            8
-        );
+        assert_eq!(v["scientia_evidence"]["extracted_claims"]["supported"], 8);
     }
 
     #[test]
@@ -663,11 +656,8 @@ mod tests {
             }
         });
         let summary = sample_summary();
-        let merged = merge_extracted_claims_into_metadata(
-            Some(&existing.to_string()),
-            &summary,
-        )
-        .unwrap();
+        let merged =
+            merge_extracted_claims_into_metadata(Some(&existing.to_string()), &summary).unwrap();
         let v: serde_json::Value = serde_json::from_str(&merged).unwrap();
         // Old `total_atomic: 5` replaced by new `total_atomic: 10`.
         assert_eq!(

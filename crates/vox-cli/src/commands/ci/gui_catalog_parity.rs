@@ -15,7 +15,10 @@ pub fn run(repo_root: &PathBuf) -> Result<()> {
             anyhow::bail!("CommandCatalog contains entry with empty path");
         }
         if entry.about == "(no description)" {
-            anyhow::bail!("Command 'vox {}' has placeholder about string '(no description)'. All commands must have meaningful descriptions.", entry.path.join(" "));
+            anyhow::bail!(
+                "Command 'vox {}' has placeholder about string '(no description)'. All commands must have meaningful descriptions.",
+                entry.path.join(" ")
+            );
         }
     }
 
@@ -31,13 +34,17 @@ pub fn run(repo_root: &PathBuf) -> Result<()> {
     let tauri_conf_path = repo_root.join("crates/vox-gui/tauri.conf.json");
     let cargo_toml_path = repo_root.join("Cargo.toml");
 
-    let tauri_conf_content = fs::read_to_string(&tauri_conf_path).context("Failed to read tauri.conf.json")?;
-    let tauri_conf: serde_json::Value = serde_json::from_str(&tauri_conf_content).context("Failed to parse tauri.conf.json")?;
-    let tauri_version = tauri_conf.get("version")
+    let tauri_conf_content =
+        fs::read_to_string(&tauri_conf_path).context("Failed to read tauri.conf.json")?;
+    let tauri_conf: serde_json::Value =
+        serde_json::from_str(&tauri_conf_content).context("Failed to parse tauri.conf.json")?;
+    let tauri_version = tauri_conf
+        .get("version")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow::anyhow!("Version missing or not a string in tauri.conf.json"))?;
 
-    let cargo_toml_content = fs::read_to_string(&cargo_toml_path).context("Failed to read Cargo.toml")?;
+    let cargo_toml_content =
+        fs::read_to_string(&cargo_toml_path).context("Failed to read Cargo.toml")?;
     let mut workspace_version = None;
     let mut in_workspace_package = false;
     for line in cargo_toml_content.lines() {
@@ -54,7 +61,9 @@ pub fn run(repo_root: &PathBuf) -> Result<()> {
         }
     }
 
-    let workspace_version = workspace_version.ok_or_else(|| anyhow::anyhow!("Could not find version under [workspace.package] in Cargo.toml"))?;
+    let workspace_version = workspace_version.ok_or_else(|| {
+        anyhow::anyhow!("Could not find version under [workspace.package] in Cargo.toml")
+    })?;
 
     if tauri_version != workspace_version {
         anyhow::bail!(

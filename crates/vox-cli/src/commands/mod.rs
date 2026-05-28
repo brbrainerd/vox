@@ -124,14 +124,14 @@ pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
 pub(crate) mod scientia_ledger_contract;
-/// `vox scientia scout` — Phase F single-command surface over the Phase A
-/// signal producers in `vox-scientia-producers`.
-pub mod scout;
 /// Thin CLI handlers wrapping the pure-library SCIENTIA Phase B / C / D / E
 /// / G / H crates (`vox-replay-runner`, `vox-manuscript-scaffold`,
 /// `vox-critic-gate`, `vox-class-routing`, `vox-findings-site`,
 /// `vox-scientia-dashboard`).
 pub mod scientia_phase_handlers;
+/// `vox scientia scout` — Phase F single-command surface over the Phase A
+/// signal producers in `vox-scientia-producers`.
+pub mod scout;
 /// Public-URL tunnel for Vox apps (`vox share`). S1: LAN backend only.
 pub mod share;
 /// Optional telemetry upload queue (`vox telemetry`).
@@ -163,7 +163,6 @@ pub mod generate;
 /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
 #[cfg(feature = "dei")]
 pub mod visus;
-
 
 /// Native Tauri 2 GUI (`vox gui`).
 #[cfg(feature = "gui")]

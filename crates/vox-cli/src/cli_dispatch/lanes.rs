@@ -182,7 +182,7 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
                 a.mode,
                 vox_codegen::codegen_rust::RustAppShell::default(),
             )
-                .await?;
+            .await?;
         }
         FabricaCmd::Compile(a) => {
             commands::compile::run(&a).await?;

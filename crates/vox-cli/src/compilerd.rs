@@ -276,8 +276,8 @@ async fn handle_bundle(req: &DispatchRequest) -> anyhow::Result<()> {
         p.mode,
         vox_codegen::codegen_rust::RustAppShell::default(),
     )
-        .await
-        .context("bundle failed")?;
+    .await
+    .context("bundle failed")?;
     finish_ok(&req.id, Value::Null).await
 }
 
@@ -358,9 +358,18 @@ async fn handle_profile(req: &DispatchRequest) -> anyhow::Result<()> {
         .context("check (profile) failed")?;
     let t_check = t0.elapsed();
     let t1 = Instant::now();
-    crate::commands::build::run(&p.file, &out_dir, None, None, false, false, BuildMode::App, vox_codegen::codegen_rust::RustAppShell::default())
-        .await
-        .context("build (profile) failed")?;
+    crate::commands::build::run(
+        &p.file,
+        &out_dir,
+        None,
+        None,
+        false,
+        false,
+        BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
+    )
+    .await
+    .context("build (profile) failed")?;
     let t_build = t1.elapsed();
     let total = t0.elapsed();
 

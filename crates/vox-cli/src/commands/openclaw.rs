@@ -7,8 +7,8 @@
 //! - Import skills into the Vox ARS registry
 //! - List and resolve pending approval requests from the approval broker
 
-use clap::Subcommand;
 use crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
+use clap::Subcommand;
 use vox_openclaw_runtime::{
     DefaultOpenClawRuntimeAdapter, OpenClawClient, OpenClawConnectionOverrides,
     OpenClawDiscoveryOverrides, OpenClawRemoteConfig, OpenClawRuntimeAdapter,
@@ -848,9 +848,10 @@ async fn cmd_doctor(
                         break;
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
-                    backoff_ms = vox_foundation::primitives::backoff::next_backoff_ms_double_clamped(
-                        backoff_ms, 100, 30_000,
-                    );
+                    backoff_ms =
+                        vox_foundation::primitives::backoff::next_backoff_ms_double_clamped(
+                            backoff_ms, 100, 30_000,
+                        );
                 }
             }
             Err(err) => {

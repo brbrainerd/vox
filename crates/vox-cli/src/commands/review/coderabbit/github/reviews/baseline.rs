@@ -93,7 +93,7 @@ mod tests {
         let repo = dir.path();
         assert!(
             // vox-arch-check: allow git-exec
-        Command::new("git")
+            Command::new("git")
                 .args(["init"])
                 .current_dir(repo)
                 .status()
@@ -102,7 +102,7 @@ mod tests {
         );
         assert!(
             // vox-arch-check: allow git-exec
-        Command::new("git")
+            Command::new("git")
                 .args(["config", "user.email", "t@e.st"])
                 .current_dir(repo)
                 .status()
@@ -111,7 +111,7 @@ mod tests {
         );
         assert!(
             // vox-arch-check: allow git-exec
-        Command::new("git")
+            Command::new("git")
                 .args(["config", "user.name", "t"])
                 .current_dir(repo)
                 .status()
@@ -121,7 +121,7 @@ mod tests {
         fs::write(repo.join("f.txt"), "x").unwrap();
         assert!(
             // vox-arch-check: allow git-exec
-        Command::new("git")
+            Command::new("git")
                 .args(["add", "f.txt"])
                 .current_dir(repo)
                 .status()
@@ -130,7 +130,7 @@ mod tests {
         );
         assert!(
             // vox-arch-check: allow git-exec
-        Command::new("git")
+            Command::new("git")
                 .args(["commit", "-m", "init"])
                 .current_dir(repo)
                 .status()

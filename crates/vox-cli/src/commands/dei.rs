@@ -90,7 +90,7 @@ pub async fn status() -> Result<()> {
             );
         }
     }
-    
+
     println!(
         "  {} Visualization available via {}",
         "Tip:".bold().cyan(),
@@ -902,7 +902,11 @@ async fn doubt(task_id: u64, reason: Option<String>) -> Result<()> {
     let orch = build_repo_scoped_orchestrator_cli(config);
     orch.doubt_task(TaskId(task_id), reason)
         .map_err(|e| anyhow::anyhow!(e))?;
-    println!("{} Task {} flagged as suspect.", "✓".green().bold(), task_id);
+    println!(
+        "{} Task {} flagged as suspect.",
+        "✓".green().bold(),
+        task_id
+    );
     Ok(())
 }
 
@@ -911,6 +915,10 @@ async fn overrule(task_id: u64, reason: String) -> Result<()> {
     let orch = build_repo_scoped_orchestrator_cli(config);
     orch.overrule_task(TaskId(task_id), Some(reason))
         .map_err(|e| anyhow::anyhow!(e))?;
-    println!("{} Task {} overruled and marked as completed.", "✓".green().bold(), task_id);
+    println!(
+        "{} Task {} overruled and marked as completed.",
+        "✓".green().bold(),
+        task_id
+    );
     Ok(())
 }

@@ -55,8 +55,8 @@ pub mod scanner;
 pub mod task_queue;
 
 pub use ai_analyze::{AiAnalyzer, AiProvider};
-pub use detectors::import_cycles::{detect_import_cycles_in_batch, extract_vox_imports};
 pub use analysis::{NonCodeKind, RustFileContext, TokenMap};
+pub use detectors::import_cycles::{detect_import_cycles_in_batch, extract_vox_imports};
 pub use engine::{ToestubConfig, ToestubEngine, ToestubRunMode};
 pub use report::{OutputFormat, Reporter, RunSnapshot, ToestubJsonReportV1};
 pub use review::{

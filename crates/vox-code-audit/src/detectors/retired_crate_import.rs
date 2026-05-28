@@ -43,10 +43,8 @@ impl RetiredCrateImportDetector {
         // longer identifiers (e.g. `vox_ludus_compat`).
         Self {
             rust_pattern: Regex::new(r"\bvox_(ludus|sherpa_transcribe)\b").expect("valid regex"),
-            cargo_pattern: Regex::new(
-                r#"^\s*"?vox-(ludus|sherpa-transcribe)"?\s*="#,
-            )
-            .expect("valid regex"),
+            cargo_pattern: Regex::new(r#"^\s*"?vox-(ludus|sherpa-transcribe)"?\s*="#)
+                .expect("valid regex"),
             vox_pattern: Regex::new(r"\bvox[_-](ludus|sherpa[_-]transcribe)\b")
                 .expect("valid regex"),
         }

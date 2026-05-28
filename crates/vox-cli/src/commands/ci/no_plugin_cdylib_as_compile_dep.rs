@@ -16,7 +16,7 @@
 //!   - crates under `crates/vox-plugin-host/tests/` (test fixtures)
 //!   - Plugin crates themselves (`vox-plugin-*` prefix) — they may share util via rlib
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::fs;
 use std::path::Path;
 
@@ -80,7 +80,10 @@ pub fn check(repo_root: &Path) -> Result<()> {
     }
 
     if violations.is_empty() {
-        tracing::info!("no-plugin-cdylib-as-compile-dep OK ({} crates scanned).", count_crates(&crates_dir));
+        tracing::info!(
+            "no-plugin-cdylib-as-compile-dep OK ({} crates scanned).",
+            count_crates(&crates_dir)
+        );
         Ok(())
     } else {
         bail!(
@@ -93,6 +96,10 @@ pub fn check(repo_root: &Path) -> Result<()> {
 
 fn count_crates(crates_dir: &Path) -> usize {
     fs::read_dir(crates_dir)
-        .map(|rd| rd.filter_map(|e| e.ok()).filter(|e| e.path().join("Cargo.toml").exists()).count())
+        .map(|rd| {
+            rd.filter_map(|e| e.ok())
+                .filter(|e| e.path().join("Cargo.toml").exists())
+                .count()
+        })
         .unwrap_or(0)
 }

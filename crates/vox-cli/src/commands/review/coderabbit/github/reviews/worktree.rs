@@ -21,12 +21,12 @@ pub async fn git_worktree_remove(repo: &Path, path: &Path) -> Result<()> {
     for attempt in 1..=2u8 {
         let st = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(["worktree", "remove", "--force"])
-            .arg(path)
-            .current_dir(repo)
-            .status()
-            .await
-            .with_context(|| format!("git worktree remove {}", path.display()))?;
+        .args(["worktree", "remove", "--force"])
+        .arg(path)
+        .current_dir(repo)
+        .status()
+        .await
+        .with_context(|| format!("git worktree remove {}", path.display()))?;
         if st.success() {
             break;
         }
@@ -113,10 +113,10 @@ pub async fn create_chunk_pr_via_worktree(
     // ── 1. Prune stale git worktree metadata (survives directory deletion) ────
     let _ = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["worktree", "prune"])
-        .current_dir(repo_root)
-        .status()
-        .await;
+    .args(["worktree", "prune"])
+    .current_dir(repo_root)
+    .status()
+    .await;
 
     let wt = worktree_dir(repo_root, review_branch);
 
@@ -125,11 +125,11 @@ pub async fn create_chunk_pr_via_worktree(
         // Try graceful removal first (updates git metadata)
         let _ = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-            .args(["worktree", "remove", "--force"])
-            .arg(&wt)
-            .current_dir(repo_root)
-            .status()
-            .await;
+        .args(["worktree", "remove", "--force"])
+        .arg(&wt)
+        .current_dir(repo_root)
+        .status()
+        .await;
         // Forcibly wipe directory even if git command failed
         if wt.exists() {
             let _ = tokio::fs::remove_dir_all(&wt).await;
@@ -139,18 +139,18 @@ pub async fn create_chunk_pr_via_worktree(
     // ── 3. Force-delete stale local branch (may be "checked out" in deleted wt) ─
     let _ = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["branch", "-D", review_branch])
-        .current_dir(repo_root)
-        .output()
-        .await;
+    .args(["branch", "-D", review_branch])
+    .current_dir(repo_root)
+    .output()
+    .await;
 
     // Re-prune after forced dir deletion so git doesn't see stale refs
     let _ = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["worktree", "prune"])
-        .current_dir(repo_root)
-        .status()
-        .await;
+    .args(["worktree", "prune"])
+    .current_dir(repo_root)
+    .status()
+    .await;
 
     // ── 4. Ensure worktrees parent directory exists ───────────────────────────
     if let Some(parent) = wt.parent() {
@@ -160,11 +160,11 @@ pub async fn create_chunk_pr_via_worktree(
     // ── 5. Fetch baseline branch ──────────────────────────────────────────────
     let fetch_baseline = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["fetch", "origin", baseline_branch])
-        .current_dir(repo_root)
-        .status()
-        .await
-        .context("git fetch baseline branch")?;
+    .args(["fetch", "origin", baseline_branch])
+    .current_dir(repo_root)
+    .status()
+    .await
+    .context("git fetch baseline branch")?;
     if !fetch_baseline.success() {
         anyhow::bail!("git fetch origin {baseline_branch} failed");
     }
@@ -173,18 +173,18 @@ pub async fn create_chunk_pr_via_worktree(
     let wt_str = wt.to_str().with_context(|| "worktree path utf-8")?;
     let status = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args([
-            "worktree",
-            "add",
-            "-B",
-            review_branch,
-            wt_str,
-            &format!("origin/{baseline_branch}"),
-        ])
-        .current_dir(repo_root)
-        .status()
-        .await
-        .context("git worktree add")?;
+    .args([
+        "worktree",
+        "add",
+        "-B",
+        review_branch,
+        wt_str,
+        &format!("origin/{baseline_branch}"),
+    ])
+    .current_dir(repo_root)
+    .status()
+    .await
+    .context("git worktree add")?;
     if !status.success() {
         anyhow::bail!("git worktree add failed for {review_branch}");
     }
@@ -225,11 +225,11 @@ pub async fn create_chunk_pr_via_worktree(
             args.extend(refs);
             let st = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-                .args(&args)
-                .current_dir(&wt)
-                .status()
-                .await
-                .context("git add")?;
+            .args(&args)
+            .current_dir(&wt)
+            .status()
+            .await
+            .context("git add")?;
             if !st.success() {
                 eprintln!("[warn] git add batch had failures (paths may be deleted)");
             }
@@ -239,11 +239,11 @@ pub async fn create_chunk_pr_via_worktree(
     let commit_msg = format!("feat: CodeRabbit chunk {review_branch}");
     let cst = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["commit", "-m", &commit_msg])
-        .current_dir(&wt)
-        .status()
-        .await
-        .context("git commit")?;
+    .args(["commit", "-m", &commit_msg])
+    .current_dir(&wt)
+    .status()
+    .await
+    .context("git commit")?;
     if !cst.success() {
         anyhow::bail!("git commit failed in worktree (nothing staged?)");
     }
@@ -251,11 +251,11 @@ pub async fn create_chunk_pr_via_worktree(
     // ── 9. Force push (safe — these are ephemeral review branches) ────────────
     let push_st = tokio::process::// vox-arch-check: allow git-exec
         Command::new("git")
-        .args(["push", "-uf", "origin", review_branch])
-        .current_dir(&wt)
-        .status()
-        .await
-        .context("git push from worktree")?;
+    .args(["push", "-uf", "origin", review_branch])
+    .current_dir(&wt)
+    .status()
+    .await
+    .context("git push from worktree")?;
     if !push_st.success() {
         anyhow::bail!("git push failed for {review_branch}");
     }
