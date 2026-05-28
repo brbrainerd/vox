@@ -1,0 +1,21 @@
+{
+  "thing": "corpus-feedback",
+  "schema_version": 1,
+  "measured_at": "2026-05-27T21:22:11.911546100+00:00",
+  "corpus_hash": "blake3:events-count-0",
+  "corpus_size": 0,
+  "llm_panel": [],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 1.0
+  },
+  "threshold": {
+    "target": 1.0,
+    "met": true
+  },
+  "note": "no events this run; existing report at C:\\Users\\Owner\\vox\\contracts/reports/corpus-feedback\\2026-Q2.json is 0 days old (within 90-day window)"
+}
