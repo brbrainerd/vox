@@ -84,7 +84,7 @@ fn cache() -> &'static Mutex<DiscoveryCache> {
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::from_secs(0))
+        .unwrap_or(vox_config::timeouts::D_ZERO)
         .as_millis() as u64
 }
 

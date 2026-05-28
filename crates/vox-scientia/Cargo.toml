@@ -5,6 +5,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+vox-config = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -19,6 +20,7 @@ tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
 thiserror = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
+vox-http-client = { workspace = true }
 async-trait = { workspace = true }
 gix = { workspace = true }
 turso = { workspace = true }

@@ -2,12 +2,12 @@
 //!
 //! Resolution order (highest wins):
 //!   1. `/etc/vox/telemetry-policy.toml` — org-level hard-off (Phase D) ✓
-//!   2. `~/.config/vox/config.toml`        — user preference (Phase D, future)
+//!   2. `~/.config/vox/config.toml`        — user preference (Phase D) ✓ (2026-05-28)
 //!   3. `VOX_TELEMETRY`                    — master on/off/debug (Phase D) ✓
 //!   4. Legacy per-category env vars        — compat shim ✓
 //!   5. Default                             — local collection on, remote upload off ✓
 //!
-//! Phase D: layers 1 and 3–5 are implemented. Layer 2 (user config TOML) is deferred.
+//! Phase D: all five layers are implemented.
 
 /// Master telemetry configuration.
 #[derive(Debug, Clone)]
@@ -61,18 +61,26 @@ impl TelemetryConfig {
         }
     }
 
-    /// Resolve the active config from env vars.
+    /// Resolve the active config from all five layers.
     ///
     /// Resolution order (highest wins):
-    ///   1. `VOX_TELEMETRY` master (`off|on|debug`)
-    ///   2. Legacy per-category env vars
-    ///   3. Default: local-on, remote-off, all categories on
+    ///   1. Org-policy hard-off (`/etc/vox/telemetry-policy.toml` / `%ProgramData%\vox\…`)
+    ///   2. User config (`~/.config/vox/config.toml`)
+    ///   3. `VOX_TELEMETRY` master (`off|on|debug`)
+    ///   4. Legacy per-category env vars
+    ///   5. Default: local-on, remote-off, all categories on
     pub fn from_env() -> Self {
         // Layer 1: org-level hard-off takes absolute precedence.
         if org_policy_disabled() {
             return Self::all_off();
         }
 
+        // Layer 2: user config — read once. Overrides env-derived defaults below
+        // when keys are set; absent keys fall through to layers 3-5.
+        let user = read_user_config();
+
+        // Layer 3: env master switch. `off` forces everything off even if the user
+        // config left the master at default (i.e., env keeps its "kill switch" role).
         let master = std::env::var("VOX_TELEMETRY")
             .ok()
             .map(|v| v.to_ascii_lowercase());
@@ -81,18 +89,24 @@ impl TelemetryConfig {
             _ => {}
         }
 
-        let debug_to_stderr = matches!(master.as_deref(), Some("debug"));
+        // If user config set master=false but env didn't override it, honor user kill switch.
+        if matches!(user.enabled, Some(false)) && master.is_none() {
+            return Self::all_off();
+        }
+
+        let debug_to_stderr =
+            matches!(master.as_deref(), Some("debug")) || user.debug_to_stderr.unwrap_or(false);
         let benchmark_legacy = env_flag("VOX_BENCHMARK_TELEMETRY");
         let mcp_cost_legacy = env_flag("VOX_MCP_LLM_COST_EVENTS");
 
         Self {
             enabled: true,
-            remote_upload: false,
-            research_metrics: benchmark_legacy.unwrap_or(true),
-            model_calls: mcp_cost_legacy.unwrap_or(true),
-            agent_orchestration: true,
-            build: true,
-            errors: true,
+            remote_upload: user.remote_upload.unwrap_or(false),
+            research_metrics: benchmark_legacy.or(user.research_metrics).unwrap_or(true),
+            model_calls: mcp_cost_legacy.or(user.model_calls).unwrap_or(true),
+            agent_orchestration: user.agent_orchestration.unwrap_or(true),
+            build: user.build.unwrap_or(true),
+            errors: user.errors.unwrap_or(true),
             debug_to_stderr,
         }
     }
@@ -114,14 +128,18 @@ pub fn is_master_enabled() -> bool {
     if org_policy_disabled() {
         return false;
     }
-    // Layer 3: env-var master switch.
-    !matches!(
-        std::env::var("VOX_TELEMETRY")
-            .ok()
-            .map(|v| v.to_ascii_lowercase())
-            .as_deref(),
-        Some("off") | Some("0") | Some("false")
-    )
+    // Layer 3: env-var master switch (`off` is a hard kill).
+    let master = std::env::var("VOX_TELEMETRY")
+        .ok()
+        .map(|v| v.to_ascii_lowercase());
+    if matches!(master.as_deref(), Some("off") | Some("0") | Some("false")) {
+        return false;
+    }
+    // Layer 2: user config — only honored when env isn't explicitly overriding.
+    if master.is_none() && matches!(read_user_config().enabled, Some(false)) {
+        return false;
+    }
+    true
 }
 
 fn env_flag(key: &str) -> Option<bool> {
@@ -198,6 +216,126 @@ impl Default for TelemetryConfig {
     fn default() -> Self {
         Self::from_env()
     }
+}
+
+// ─── Layer 2: user config ─────────────────────────────────────────────────────
+
+/// Parsed `~/.config/vox/config.toml` `[telemetry]` section. Every field is
+/// `Option<bool>` so absent keys cleanly fall through to the next resolution layer.
+#[derive(Debug, Default, Clone)]
+pub(crate) struct UserConfig {
+    pub enabled: Option<bool>,
+    pub remote_upload: Option<bool>,
+    pub research_metrics: Option<bool>,
+    pub model_calls: Option<bool>,
+    pub agent_orchestration: Option<bool>,
+    pub build: Option<bool>,
+    pub errors: Option<bool>,
+    pub debug_to_stderr: Option<bool>,
+}
+
+/// Phase D — Layer 2: read the per-user config file.
+///
+/// File paths:
+///   - Windows: `%APPDATA%\vox\config.toml`
+///   - Linux / macOS: `$XDG_CONFIG_HOME/vox/config.toml` (defaults to `~/.config/vox/config.toml`)
+///
+/// Missing file → returns an empty `UserConfig` (all fields `None`).
+/// Unreadable file → returns an empty `UserConfig` (fail-open).
+///
+/// Parsing uses a small line-scanner that recognizes `key = value` pairs under
+/// an optional `[telemetry]` section. Values may be `true|false|0|1|on|off`,
+/// optionally quoted. The line-scanner avoids pulling a TOML dependency into
+/// this L1 facade crate (matches the org-policy pattern).
+pub(crate) fn read_user_config() -> UserConfig {
+    let path = user_config_path();
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(_) => return UserConfig::default(),
+    };
+    parse_user_config(&text)
+}
+
+fn user_config_path() -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            return std::path::PathBuf::from(appdata)
+                .join("vox")
+                .join("config.toml");
+        }
+        std::path::PathBuf::from(r"C:\Users\Default\AppData\Roaming\vox\config.toml")
+    }
+    #[cfg(not(windows))]
+    {
+        if let Some(xdg) = std::env::var_os("XDG_CONFIG_HOME") {
+            return std::path::PathBuf::from(xdg)
+                .join("vox")
+                .join("config.toml");
+        }
+        if let Some(home) = std::env::var_os("HOME") {
+            return std::path::PathBuf::from(home)
+                .join(".config")
+                .join("vox")
+                .join("config.toml");
+        }
+        std::path::PathBuf::from("/etc/vox/config.toml")
+    }
+}
+
+/// Parse a `[telemetry]` section's boolean keys from TOML-ish input.
+///
+/// Only recognizes flat `key = value` lines under either the top level or a
+/// `[telemetry]` table header. Other sections / nested tables are ignored.
+/// Returns a `UserConfig` with every recognized key set.
+fn parse_user_config(text: &str) -> UserConfig {
+    let mut cfg = UserConfig::default();
+    let mut in_telemetry = true; // top-of-file is treated as `[telemetry]` for convenience
+
+    for raw_line in text.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        // Section header? Update `in_telemetry`.
+        if let Some(rest) = line.strip_prefix('[') {
+            if let Some(name) = rest.strip_suffix(']') {
+                in_telemetry = name.trim() == "telemetry";
+                continue;
+            }
+        }
+        if !in_telemetry {
+            continue;
+        }
+        // key = value
+        let bare = line.split('#').next().unwrap_or("").trim();
+        let Some((key, val)) = bare.split_once('=') else {
+            continue;
+        };
+        let key = key.trim();
+        let val = val
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .to_ascii_lowercase();
+        let parsed = match val.as_str() {
+            "true" | "1" | "on" | "yes" => Some(true),
+            "false" | "0" | "off" | "no" => Some(false),
+            _ => continue,
+        };
+        match key {
+            "enabled" => cfg.enabled = parsed,
+            "remote_upload" => cfg.remote_upload = parsed,
+            "research_metrics" => cfg.research_metrics = parsed,
+            "model_calls" => cfg.model_calls = parsed,
+            "agent_orchestration" => cfg.agent_orchestration = parsed,
+            "build" => cfg.build = parsed,
+            "errors" => cfg.errors = parsed,
+            "debug_to_stderr" => cfg.debug_to_stderr = parsed,
+            _ => {}
+        }
+    }
+    cfg
 }
 
 #[cfg(test)]
@@ -316,6 +454,70 @@ mod tests {
     fn org_policy_scanner_handles_toml_section_with_disable() {
         let toml = "[telemetry]\nenabled = false\n";
         assert!(parse_policy(toml));
+    }
+
+    // ── user-config parser tests (Layer 2) ────────────────────────────────────
+
+    #[test]
+    fn user_config_parses_telemetry_section_flags() {
+        let toml = r#"
+            [telemetry]
+            enabled = true
+            remote_upload = false
+            research_metrics = true
+            model_calls = "false"
+            agent_orchestration = 1
+            build = 0
+            errors = "on"
+            debug_to_stderr = off
+        "#;
+        let cfg = parse_user_config(toml);
+        assert_eq!(cfg.enabled, Some(true));
+        assert_eq!(cfg.remote_upload, Some(false));
+        assert_eq!(cfg.research_metrics, Some(true));
+        assert_eq!(cfg.model_calls, Some(false));
+        assert_eq!(cfg.agent_orchestration, Some(true));
+        assert_eq!(cfg.build, Some(false));
+        assert_eq!(cfg.errors, Some(true));
+        assert_eq!(cfg.debug_to_stderr, Some(false));
+    }
+
+    #[test]
+    fn user_config_ignores_unknown_sections() {
+        let toml = "[other]\nenabled = false\n[telemetry]\nbuild = false\n";
+        let cfg = parse_user_config(toml);
+        assert_eq!(cfg.enabled, None, "key under [other] must not leak");
+        assert_eq!(cfg.build, Some(false));
+    }
+
+    #[test]
+    fn user_config_top_of_file_treated_as_telemetry_section() {
+        // Convenience: a config with no section header still parses telemetry keys.
+        let toml = "enabled = false\nremote_upload = true\n";
+        let cfg = parse_user_config(toml);
+        assert_eq!(cfg.enabled, Some(false));
+        assert_eq!(cfg.remote_upload, Some(true));
+    }
+
+    #[test]
+    fn user_config_empty_returns_all_none() {
+        let cfg = parse_user_config("");
+        assert_eq!(cfg.enabled, None);
+        assert_eq!(cfg.build, None);
+    }
+
+    #[test]
+    fn user_config_ignores_comments_and_unknown_values() {
+        let toml = r#"
+            # entire-line comment
+            [telemetry]
+            enabled = true  # trailing comment
+            unknown_key = true
+            build = "maybe"  # unparseable value — skipped
+        "#;
+        let cfg = parse_user_config(toml);
+        assert_eq!(cfg.enabled, Some(true));
+        assert_eq!(cfg.build, None, "unparseable value falls through");
     }
 
     #[test]

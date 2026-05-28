@@ -16,7 +16,7 @@ async fn test_event_bus() {
         exclusive: true,
     });
 
-    let event = timeout(Duration::from_secs(1), rx.recv())
+    let event = timeout(vox_config::timeouts::D_1S, rx.recv())
         .await
         .expect("timeout")
         .expect("recv");

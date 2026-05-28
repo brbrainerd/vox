@@ -52,7 +52,7 @@ fn main() {
     if cli.update_baseline {
         let baseline_path = cli
             .baseline
-            .unwrap_or_else(|| cli.root.join(".vox/cache/drift/baseline.json"));
+            .unwrap_or_else(|| cli.root.join(vox_config::paths::REPO_DRIFT_BASELINE_FILE));
         if let Some(parent) = baseline_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }

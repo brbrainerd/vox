@@ -1,0 +1,6 @@
+required = [
+  "Counter.tsx",
+  "vox-app-contract.json",
+  "vox-tanstack-query.tsx",
+]
+emits_rust_backend = true

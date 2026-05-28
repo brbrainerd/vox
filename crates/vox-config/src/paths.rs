@@ -196,6 +196,8 @@ pub const REPO_CACHE_DIR_PREFIX: &str = ".vox/cache/";
 pub const REPO_DRIFT_CACHE_DIR: &str = ".vox/cache/drift";
 /// `.vox/cache/drift/baseline.json` — drift-check baseline snapshot.
 pub const REPO_DRIFT_BASELINE_FILE: &str = ".vox/cache/drift/baseline.json";
+/// `.vox/models` directory — repo-local ML model fallback root.
+pub const REPO_MODELS_DIR: &str = ".vox/models";
 /// `.vox/memory` directory.
 pub const REPO_MEMORY_DIR: &str = ".vox/memory";
 /// `.vox/MEMORY.md` user-edited memory index.

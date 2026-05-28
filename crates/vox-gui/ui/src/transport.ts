@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import type { ActionManifest } from './types/actionManifest';
 
 export interface ExecuteOutput {
   exit_code: number;
@@ -35,6 +36,8 @@ class VoxTransport {
   private registryIndex: RegistryIndex | null = null;
   /** Singleton promise so concurrent callers don't double-fetch. */
   private registryFetch: Promise<RegistryFile> | null = null;
+  private actionManifestCache: ActionManifest | null = null;
+  private actionManifestFetch: Promise<ActionManifest> | null = null;
 
   async getRegistry(): Promise<RegistryFile> {
     if (this.registryCache) return this.registryCache;
@@ -56,6 +59,19 @@ class VoxTransport {
     this.registryCache = null;
     this.registryIndex = null;
     this.registryFetch = null;
+    this.actionManifestCache = null;
+    this.actionManifestFetch = null;
+  }
+
+  async getActionManifest(): Promise<ActionManifest> {
+    if (this.actionManifestCache) return this.actionManifestCache;
+    if (!this.actionManifestFetch) {
+      this.actionManifestFetch = invoke<ActionManifest>('get_action_manifest').then((m) => {
+        this.actionManifestCache = m;
+        return m;
+      });
+    }
+    return this.actionManifestFetch;
   }
 
   /** Return all operations for a given product_lane (e.g. "platform", "app"). */
@@ -97,18 +113,96 @@ class VoxTransport {
     return [cleanId.replace(/_/g, '-')];
   }
 
+  async getCatalog() {
+    return invoke('get_command_catalog');
+  }
+
+  async listModels(limit = 120) {
+    return invoke('list_model_cards', { limit });
+  }
+
+  async getActiveModel() {
+    return invoke<string | null>('get_active_model');
+  }
+
+  async setActiveModel(modelId: string) {
+    return invoke('set_active_model', { modelId });
+  }
+
+  async getRoutingSummaryLive() {
+    return invoke('get_routing_summary_live');
+  }
+
+  async setRoutingPriority(priority: {
+    efficiency: number;
+    precision: number;
+    latency: number;
+    availability: number;
+    balance: number;
+    mobile: number;
+  }) {
+    return invoke('set_routing_priority', priority);
+  }
+
+  async getModelScoreboard(windowDays = 7) {
+    return invoke('get_model_scoreboard', { windowDays });
+  }
+
+  async explainModelSelection(task: string, complexity?: number) {
+    return invoke('explain_model_selection', { task, complexity });
+  }
+
+  async suggestModelForTask(task: string) {
+    return invoke('suggest_model_for_task', { task });
+  }
+
   async callTool(name: string, args: Record<string, any> = {}): Promise<ExecuteOutput> {
-    const path = await this.resolvePath(name);
-    const res = await invoke<ExecuteOutput>('execute_command', { path, args });
+    if (name === 'vox_list_models') {
+      const models = await this.listModels(args.limit ?? 120);
+      return { exit_code: 0, stdout: JSON.stringify(models), stderr: '' };
+    }
+    if (name === 'vox_set_active_model' && args.model_id) {
+      await this.setActiveModel(String(args.model_id));
+      return { exit_code: 0, stdout: 'ok', stderr: '' };
+    }
+    if (name === 'vox_explain_model' && args.task) {
+      const out = await this.explainModelSelection(
+        String(args.task),
+        Number(args.intelligence ?? 50),
+      );
+      return { exit_code: 0, stdout: JSON.stringify(out), stderr: '' };
+    }
+    if (name === 'vox_suggest_model' && args.task) {
+      const out = await this.suggestModelForTask(String(args.task));
+      return { exit_code: 0, stdout: JSON.stringify(out), stderr: '' };
+    }
+    const manifest = await this.getActionManifest();
+    const canonical = name.startsWith('vox_') ? name : `vox_${name}`;
+    const action = manifest.actions.find((a) =>
+      a.mcp_name === canonical ||
+      a.id === name ||
+      a.id === canonical.replace(/^vox_/, '').replace(/_/g, '.') ||
+      a.command === `vox ${name.replace(/^vox_/, '').replace(/_/g, ' ')}`
+    );
+    if (action?.handler_kind === 'mcp') {
+      return {
+        exit_code: 64,
+        stdout: '',
+        stderr:
+          `Operation "${name}" is MCP-only and not executable via the GUI sidecar. ` +
+          'Use the MCP server integration path or add an IPC handler for this action.',
+      };
+    }
+    const path = action?.cli_path ?? (await this.resolvePath(name));
+    const res = await invoke<ExecuteOutput>('execute_command', {
+      path,
+      args: { ...args, __argv: args.__argv ?? [] },
+    });
     return res;
   }
 
   async getMetadata(path: string[]): Promise<CommandMetadata | null> {
     return invoke('get_command_metadata', { path });
-  }
-
-  async getCatalog() {
-    return invoke('get_command_catalog');
   }
 }
 

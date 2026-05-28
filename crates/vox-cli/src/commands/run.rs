@@ -299,10 +299,15 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<()> {
 /// - `BuildTarget::Server` always returns `false` (no frontend regardless of what's in dist/).
 /// - `BuildTarget::Fullstack` falls through to the heuristic.
 /// - `BuildTarget::Client` is not expected in `vox run`; falls through to heuristic.
+/// - `BuildTarget::Mobile` ships a TypeScript/RN bundle to a device; for `vox run` purposes
+///   we treat it as having a frontend so the dev-server proxy plumbing stays consistent
+///   with other TS-emitting targets.
 pub fn resolve_has_frontend(target: vox_config::BuildTarget, heuristic: bool) -> bool {
     match target {
         vox_config::BuildTarget::Server => false,
-        vox_config::BuildTarget::Fullstack | vox_config::BuildTarget::Client => heuristic,
+        vox_config::BuildTarget::Fullstack
+        | vox_config::BuildTarget::Client
+        | vox_config::BuildTarget::Mobile => heuristic,
     }
 }
 

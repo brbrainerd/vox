@@ -16,7 +16,7 @@ pub mod types;
 pub mod windows_fallback;
 
 /// Default probe cache TTL. Re-probes after 5 minutes by default.
-const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
+const DEFAULT_CACHE_TTL: Duration = vox_config::timeouts::D_300S;
 
 static REGISTRY_V2: OnceLock<registry::HardwareRegistryV2> = OnceLock::new();
 

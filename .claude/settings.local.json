@@ -400,7 +400,26 @@
       "Bash(powershell -Command \"Get-Content Cargo.toml | Select-String 'version = '\")",
       "Bash(cargo install *)",
       "PowerShell(Get-Process | Where-Object { $_.Name -match \"vox-arch-check|integration-dd\" } | Select-Object Id, Name, StartTime)",
-      "PowerShell(cd C:\\\\Users\\\\Owner\\\\vox; $env:VOX_ARCH_CHECK_PROFILE = \"1\"; cargo run -p vox-arch-check --quiet --release -- --warn-only 2>&1 | Select-String \"\\\\[profile\\\\]\")"
+      "PowerShell(cd C:\\\\Users\\\\Owner\\\\vox; $env:VOX_ARCH_CHECK_PROFILE = \"1\"; cargo run -p vox-arch-check --quiet --release -- --warn-only 2>&1 | Select-String \"\\\\[profile\\\\]\")",
+      "Bash(./target/debug/vox-drift-check.exe . --severity warning)",
+      "Bash(VOX_CLI_TESTS_SKIP_TSC=1 VOX_CLI_TESTS_SKIP_CARGO=1 cargo test -p vox-cli-tests --test build_e2e build_every_fixture_passes_fast_path)",
+      "Bash(VOX_CLI_TESTS_SKIP_TSC=1 VOX_CLI_TESTS_SKIP_CARGO=1 cargo test -p vox-cli-tests --test build_e2e build_every_fixture_passes_fast_path -- --test-threads 1)",
+      "Bash(./target/debug/vox-drift-check.exe . --severity warning --fail-on warning)",
+      "Bash(VOX_CLI_TESTS_SKIP_TSC=1 VOX_CLI_TESTS_SKIP_CARGO=1 cargo test -p vox-cli-tests --test build_e2e -- --skip emits_valid)",
+      "Bash(VOX_CLI_TESTS_SKIP_TSC=1 VOX_CLI_TESTS_SKIP_CARGO=1 cargo test -p vox-cli-tests --test build_e2e)",
+      "Bash(INSTA_UPDATE=always cargo test -p vox-codegen --test golden_ts_test)",
+      "Bash(VOX_CLI_TESTS_SKIP_TSC=1 VOX_CLI_TESTS_SKIP_CARGO=1 cargo test -p vox-cli-tests --test build_e2e mobile_emit_uses_adapter)",
+      "Bash(\"target/debug/vox.exe\" build *)",
+      "Bash(grep -A5 \"fn visit_item_static\\\\|fn visit_item_const\" ~/.cargo/registry/src/index.crates.io-*/syn-2*/src/gen/visit.rs 2>/dev/null | head -20)",
+      "Bash(grep -n \"^pub enum HirExpr\\\\|^    [A-Z][a-zA-Z]*[\\(\\\\\\\\\\\\[\\(]\" \"C:/Users/Owner/vox/crates/vox-compiler/src/hir/nodes/stmt_expr.rs\")",
+      "Bash(RUST_BACKTRACE=1 ./target/debug/vox-drift-check.exe crates/vox-actor-runtime --severity warning)",
+      "Bash(./target/debug/vox-drift-check.exe crates *)",
+      "Bash(./target/debug/vox-drift-check.exe apps *)",
+      "Bash(./target/debug/vox-drift-check.exe docs *)",
+      "Bash(grep -E \"^\\\\.|\\\\\\\\.vox\")",
+      "Bash(cd \"C:/Users/Owner/vox\" && cargo build -p vox-cli 2>&1 | tail -3 && rm -rf /tmp/dist_mobile2 && \"target/debug/vox.exe\" build --target=mobile \"C:/Users/Owner/vox/examples/golden-ts/component_state.vox\" -o /tmp/dist_mobile2 2>&1 | grep -vE \"wrote\\\\|Frontend\\\\|Build complete\" | tail -3; echo \"=== Counter.tsx ===\"; cat /tmp/dist_mobile2/Counter.tsx)",
+      "Bash(VOX_CLI_TESTS_SKIP_TSC=1 VOX_CLI_TESTS_SKIP_CARGO=1 cargo test -p vox-cli-tests --test build_e2e build_mobile_counter mobile_and_web)",
+      "Bash(grep -rn '\\\\`n' crates/vox-orchestrator/src/)"
     ]
   }
 }

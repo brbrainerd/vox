@@ -34,7 +34,7 @@ impl FlywheelMonitor {
     }
 
     pub async fn spawn(self) {
-        let mut tick = interval(Duration::from_secs(300)); // Check every 5 minutes
+        let mut tick = interval(vox_config::timeouts::D_300S); // Check every 5 minutes
         let orch = self.orch.clone();
         let training_in_progress = Arc::new(tokio::sync::Mutex::new(false));
         let mut states = self.states;

@@ -1,30 +1,145 @@
-use std::path::Path;
-use vox_orchestrator::{OrchestratorConfig, build_repo_scoped_orchestrator};
+use vox_cli_core::daemon_ipc::dispatch::call_daemon;
+use vox_foundation::protocol::orch_daemon_method;
 use vox_package_types::manifest::VoxManifest;
+
+#[derive(Debug, serde::Serialize)]
+pub struct GuiAgentSummary {
+    pub id: u64,
+    pub codename: String,
+    pub paused: bool,
+    pub in_progress: bool,
+    pub current_phase: Option<String>,
+    pub active_skill: Option<String>,
+    pub queued: usize,
+    pub urgent_count: usize,
+    pub normal_count: usize,
+    pub background_count: usize,
+    pub completed: usize,
+    pub owned_files: usize,
+    pub weighted_load: f64,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GuiOrchestratorStatus {
+    pub agent_count: usize,
+    pub total_queued: usize,
+    pub total_in_progress: usize,
+    pub total_completed: usize,
+    pub total_doubted: usize,
+    pub total_weighted_load: f64,
+    pub predicted_load: f64,
+    pub agents: Vec<GuiAgentSummary>,
+    pub recent_events: Vec<serde_json::Value>,
+    pub alerts: Vec<serde_json::Value>,
+    pub peers: Vec<serde_json::Value>,
+    pub total_cost: f64,
+    pub budget_cap: f64,
+    pub mesh_throughput: f64,
+    pub total_vram_gb: f64,
+}
+
+fn get_u64(v: &serde_json::Value, key: &str) -> u64 {
+    v.get(key).and_then(|x| x.as_u64()).unwrap_or(0)
+}
+
+fn get_f64(v: &serde_json::Value, key: &str) -> f64 {
+    v.get(key).and_then(|x| x.as_f64()).unwrap_or(0.0)
+}
+
+async fn daemon_status() -> Result<serde_json::Value, String> {
+    call_daemon(
+        "vox-orchestrator-d",
+        orch_daemon_method::STATUS,
+        serde_json::json!({}),
+        false,
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
+    GuiOrchestratorStatus {
+        agent_count: get_u64(&status, "agent_count") as usize,
+        total_queued: get_u64(&status, "total_queued") as usize,
+        total_in_progress: get_u64(&status, "total_in_progress") as usize,
+        total_completed: get_u64(&status, "total_completed") as usize,
+        total_doubted: get_u64(&status, "total_doubted") as usize,
+        total_weighted_load: get_f64(&status, "total_weighted_load"),
+        predicted_load: get_f64(&status, "predicted_load"),
+        agents: status
+            .get("agents")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|agent| GuiAgentSummary {
+                id: agent.get("id").and_then(|v| v.as_u64()).unwrap_or(0),
+                codename: agent
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Agent")
+                    .to_string(),
+                paused: agent
+                    .get("paused")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+                in_progress: agent
+                    .get("in_progress")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false),
+                current_phase: agent
+                    .get("current_phase")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string),
+                active_skill: agent
+                    .get("active_skill")
+                    .and_then(|v| v.as_str())
+                    .map(ToString::to_string),
+                queued: agent.get("queued").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                urgent_count: agent
+                    .get("urgent_count")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize,
+                normal_count: agent
+                    .get("normal_count")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize,
+                background_count: agent
+                    .get("background_count")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize,
+                completed: agent.get("completed").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
+                owned_files: agent
+                    .get("owned_files")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0) as usize,
+                weighted_load: agent
+                    .get("weighted_load")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0),
+            })
+            .collect(),
+        recent_events: Vec::new(),
+        alerts: Vec::new(),
+        peers: Vec::new(),
+        total_cost: 0.0,
+        budget_cap: 50.0,
+        mesh_throughput: 0.0,
+        total_vram_gb: 0.0,
+    }
+}
 
 #[tauri::command]
 pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
-    // This is a heavy operation as it rebuilds the orchestrator state from disk/db
-    // In a production app, we would have a long-running sidecar or shared memory.
-    // For the preview, we'll poll the local repo state.
-
-    // Note: We use a default config here; ideally we'd load it from the repo.
-    let config = OrchestratorConfig::default();
-
-    // We pass None to discover from CWD
-    let build = build_repo_scoped_orchestrator(config, None::<&Path>);
-    let status = build.orchestrator.status();
-
-    serde_json::to_value(&status).map_err(|e| e.to_string())
+    let status = daemon_status().await?;
+    serde_json::to_value(to_gui_status(status)).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, String> {
-    let config = OrchestratorConfig::default();
-    let build = build_repo_scoped_orchestrator(config, None::<&Path>);
-    let status = build.orchestrator.status();
-
-    let bytes = rmp_serde::to_vec_named(&status).map_err(|e| e.to_string())?;
+    let status = daemon_status().await?;
+    let gui_status = to_gui_status(status);
+    let bytes = rmp_serde::to_vec_named(&gui_status).map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
 }
 

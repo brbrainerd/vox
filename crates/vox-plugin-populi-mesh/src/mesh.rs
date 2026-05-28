@@ -172,7 +172,7 @@ impl MeshDriver for PopuliMeshPlugin {
         });
 
         // Brief wait so the OnceLock is populated before we read it.
-        std::thread::sleep(std::time::Duration::from_millis(50));
+        std::thread::sleep(vox_config::timeouts::D_50MS);
         let bound = bound_addr_cell.get().copied().unwrap_or(addr);
         let client_base = format!("http://{bound}");
 
@@ -201,8 +201,7 @@ impl MeshDriver for PopuliMeshPlugin {
                 let _ = tx.send(());
             }
             // Shut down the runtime (waits for tasks to complete or forcibly stops them).
-            ps.runtime
-                .shutdown_timeout(std::time::Duration::from_secs(5));
+            ps.runtime.shutdown_timeout(vox_config::timeouts::D_5S);
         }
         RResult::ROk(())
     }

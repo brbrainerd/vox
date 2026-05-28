@@ -29,6 +29,7 @@ impl DriftRule for VersionStringRule {
             .filter(|lit| {
                 matches!(lit.ctx, LiteralContext::Code) && lit.value == ctx.workspace_version
             })
+            .filter(|lit| !crate::extractor::is_allowed_at(features, self.id(), lit.loc.line))
             .map(|lit| Finding {
                 rule_id: self.id().to_string(),
                 rule_name: "Hardcoded Version String".into(),
@@ -65,6 +66,7 @@ mod tests {
         let ctx = WorkspaceContext {
             workspace_version: "0.5.0".into(),
             workspace_root: PathBuf::from("."),
+            layers: crate::layers_manifest::LayersManifest::default(),
         };
         let mut f =
             ExtractedFeatures::new(PathBuf::from("crates/vox-cli/tests/foo.rs"), Language::Rust);

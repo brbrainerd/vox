@@ -158,7 +158,7 @@ pub fn run_training_loop(
 
     let mut rng = rand::rngs::StdRng::seed_from_u64(config.seed);
     let mut last_progress = Instant::now();
-    let progress_every = Duration::from_secs(5);
+    let progress_every = vox_config::timeouts::D_5S;
     let mut ema_steps_per_sec: Option<f64> = None;
     let mut optimizer_step_count: u32 = global_step / config.grad_accum.max(1) as u32;
     let mut progress_anchor_step = optimizer_step_count;

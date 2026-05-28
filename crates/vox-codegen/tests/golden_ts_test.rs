@@ -6,12 +6,11 @@ use vox_compiler::{hir::lower_module, lexer::cursor::lex, parser::parse};
 
 /// Goldens that fail typeck due to known bugs in typeck itself (not the example).
 /// Each entry must point to a tracking issue; remove from this list when fixed.
-const TYPECK_SKIP: &[&str] = &[
-    // Struct-literal expressions in fn bodies aren't resolved
-    // ("Undefined variable: <TypeName>"). Surfaced during the
-    // mobile-target-evaluation-2026 harness audit on 2026-05-27.
-    "wire_format_round_trip",
-];
+///
+/// Currently empty after the 2026-05-28 audit found the only entry (`wire_format_round_trip`)
+/// was using non-idiomatic syntax (`TypeName { ... }`), not exhibiting a typeck bug.
+/// Vox supports anonymous record literals ascribed to named types; the example was corrected.
+const TYPECK_SKIP: &[&str] = &[];
 
 #[test]
 fn golden_ts_emit() {

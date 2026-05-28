@@ -8,6 +8,21 @@ use std::sync::Mutex;
 #[tokio::main]
 async fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg == "--print-action-manifest-json") {
+        match commands::action_manifest::build_action_manifest()
+            .map_err(|e| e.to_string())
+            .and_then(|manifest| serde_json::to_string(&manifest).map_err(|e| e.to_string()))
+        {
+            Ok(json) => {
+                println!("{json}");
+                return;
+            }
+            Err(err) => {
+                eprintln!("failed to print action manifest: {err}");
+                std::process::exit(1);
+            }
+        }
+    }
     let mut initial_view = None;
 
     // Simple CLI arg parser for the Tauri process
@@ -24,13 +39,37 @@ async fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::catalog::get_command_catalog,
+            commands::action_manifest::get_action_manifest,
             commands::execute::execute_command,
             commands::app_state::get_initial_view,
+            commands::build_info::get_build_info,
+            commands::control_plane::submit_orchestrator_task,
+            commands::control_plane::pause_orchestrator_agent,
+            commands::control_plane::resume_orchestrator_agent,
+            commands::control_plane::doubt_orchestrator_task,
+            commands::control_plane::overrule_orchestrator_task,
             commands::orchestrator::get_orchestrator_status,
             commands::orchestrator::get_orchestrator_status_bin,
             commands::orchestrator::set_orchestrator_config,
             commands::dynamic_mapping::get_command_metadata,
             commands::dynamic_mapping::get_full_registry,
+            commands::models::list_model_cards,
+            commands::models::get_active_model,
+            commands::models::set_active_model,
+            commands::models::get_routing_summary,
+            commands::models::get_routing_summary_live,
+            commands::models::set_routing_priority,
+            commands::models::get_model_scoreboard,
+            commands::models::explain_model_selection,
+            commands::models::suggest_model_for_task,
+            commands::memory::get_memory_status,
+            commands::memory::mnemosyne_recall,
+            commands::memory::mnemosyne_reindex,
+            commands::preferences::get_gui_preference,
+            commands::preferences::set_gui_preference,
+            commands::runs::start_gui_run,
+            commands::runs::finish_gui_run,
+            commands::runs::list_gui_runs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

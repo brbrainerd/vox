@@ -112,6 +112,68 @@ pub async fn run(
         return Ok(());
     }
 
+    if resolved_target == vox_config::BuildTarget::Mobile {
+        // React Native + Expo lowering. The Rust backend is intentionally NOT
+        // emitted here — mobile apps that need on-device Rust pull it in via
+        // the uniffi-bridged `@vox/runtime-rn` package, which lives outside the
+        // per-app codegen.
+        let ts_opts = vox_codegen::codegen_ts::CodegenOptions {
+            tanstack_start: false,
+            target: Some("rn".to_string()),
+            mode: vox_codegen::codegen_ts::emitter::BuildMode::App,
+            ..Default::default()
+        };
+        let rn_output = vox_codegen::codegen_ts::rn::generate_rn(&hir, &ts_opts)
+            .map_err(|e| anyhow::anyhow!("RN codegen error: {}", e))?;
+        for d in &rn_output.diagnostics {
+            eprintln!("warning[{}]: {}", d.code, d.message);
+        }
+
+        for (filename, content) in &rn_output.files {
+            let path = out_dir.join(filename);
+            // Scaffold-once: skip writing files that already exist for project-level
+            // artifacts like `app.json`, `babel.config.js`, `metro.config.js`,
+            // `eas.json`, `tsconfig.json`, `package.json`, `App.tsx`. Per-component
+            // and per-feature emit files (anything ending `.tsx` for an HIR
+            // component, plus generated SDKs) are overwritten on every build.
+            let scaffold_once: &[&str] = &[
+                "app.json",
+                "babel.config.js",
+                "metro.config.js",
+                "eas.json",
+                "tsconfig.json",
+                "package.json",
+                "App.tsx",
+            ];
+            if scaffold_once.contains(&filename.as_str()) && path.is_file() {
+                println!("  kept existing {}", path.display());
+                continue;
+            }
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&path, content)
+                .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+            println!("  wrote {}", path.display());
+        }
+
+        if emit_ir {
+            let web_ir = vox_codegen::web_ir::lower::lower_hir_to_web_ir(&hir);
+            let ir_json = serde_json::to_string_pretty(&web_ir)
+                .context("Failed to serialize WebIR to JSON")?;
+            let ir_path = out_dir.join("web-ir.v1.json");
+            fs::write(&ir_path, ir_json)
+                .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
+            println!("  wrote {}", ir_path.display());
+        }
+
+        println!(
+            "Build complete (mobile target): {} TS file(s); Rust backend skipped",
+            rn_output.files.len()
+        );
+        return Ok(());
+    }
+
     if resolved_target == vox_config::BuildTarget::Client {
         let ts_opts = vox_codegen::codegen_ts::CodegenOptions {
             tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,

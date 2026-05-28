@@ -16,16 +16,15 @@ impl DriftRule for BearerHeaderRule {
     }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
-        // Self-exemption: this rule's own implementation contains "Bearer " in
-        // test fixtures and assertion messages.
-        if features.crate_name.as_deref() == Some("vox-drift-check") {
-            return vec![];
-        }
         features.string_literals.iter()
             .filter(|lit| {
+                // Skip const-bound literals (the SSOT `BEARER_PREFIX` lives here)
+                // and non-code contexts (doc strings).
                 matches!(lit.ctx, LiteralContext::Code)
+                    // drift-allow(bearer-header-inline): rule's own pattern literal
                     && lit.value.starts_with("Bearer ")
             })
+            .filter(|lit| !crate::extractor::is_allowed_at(features, self.id(), lit.loc.line))
             .map(|lit| Finding {
                 rule_id: self.id().to_string(),
                 rule_name: "Inline Bearer Header Literal".into(),
@@ -60,6 +59,7 @@ mod tests {
         WorkspaceContext {
             workspace_version: "0.5.0".into(),
             workspace_root: PathBuf::from("."),
+            layers: crate::layers_manifest::LayersManifest::default(),
         }
     }
 
@@ -70,6 +70,7 @@ mod tests {
             Language::Rust,
         );
         f.string_literals.push(LiteralLoc {
+            // drift-allow(bearer-header-inline): rule's own test fixture
             value: "Bearer secret-token".into(),
             loc: Loc { line: 47, col: 0 },
             ctx: LiteralContext::Code,

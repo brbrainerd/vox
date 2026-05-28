@@ -1,0 +1,8 @@
+component Counter() {
+    state n: int = 0
+    view: column() {
+        heading(level=1) { "Count" }
+        button(on_click={n = n + 1}) { "Increment" }
+        button(on_click={n = n - 1}) { "Decrement" }
+    }
+}

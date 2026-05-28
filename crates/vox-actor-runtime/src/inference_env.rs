@@ -87,7 +87,7 @@ pub async fn fetch_hf_hub_text_generation_models(
 ) -> Result<Vec<HfHubTextGenModelBrief>, String> {
     let limit = limit.clamp(1, 100);
     let client = vox_http_client::client_builder()
-        .timeout(Duration::from_secs(30))
+        .timeout(vox_config::timeouts::D_30S)
         .build()
         .map_err(|e| format!("reqwest client build failed: {e}"))?;
     let url = format!(
@@ -126,7 +126,7 @@ pub struct PopuliCapabilitySnapshot {
 pub async fn probe_populi_capabilities(base_url: &str) -> PopuliCapabilitySnapshot {
     let base = base_url.trim_end_matches('/');
     let client = match vox_http_client::client_builder()
-        .timeout(Duration::from_secs(5))
+        .timeout(vox_config::timeouts::D_5S)
         .build()
     {
         Ok(c) => c,

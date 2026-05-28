@@ -288,7 +288,7 @@ async fn generate_http(server_url: &str, prompt: &str, max_tokens: u64) -> Resul
         "prompt": prompt,
         "max_tokens": max_tokens
     });
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let resp = client
         .post(format!("{}/generate", server_url.trim_end_matches('/')))
         .json(&body)

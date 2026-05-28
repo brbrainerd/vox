@@ -76,6 +76,11 @@ impl ModelRegistry {
         &self.arm_stats
     }
 
+    #[must_use]
+    pub fn scoreboard_snapshot(&self) -> &HashMap<String, ModelScore> {
+        &self.scoreboard
+    }
+
     /// Record a bandit outcome for `model_id` and update the in-memory Beta posterior.
     /// `success = true` increments the success counter; `false` increments failures.
     /// Used by [`crate::calibration::ContextualBandit`] to feed outcomes back.
@@ -677,6 +682,20 @@ impl ModelRegistry {
                 // if the daily exploration budget is exceeded.
                 if preference == CostPreference::Performance && m.is_free {
                     return false; // Skip free models in performance mode unless they are explicitly mapped
+                }
+
+                let safety_cap = vox_config::load_model_routing_config()
+                    .safety
+                    .max_cost_usd_per_request;
+                let est_tokens = task.map(|t| t.estimated_token_count()).unwrap_or(1024) as f64;
+                let est_cost = (est_tokens / 1000.0)
+                    * if m.cost_per_1k_input > 0.0 || m.cost_per_1k_output > 0.0 {
+                        (m.cost_per_1k_input + m.cost_per_1k_output) / 2.0
+                    } else {
+                        m.cost_per_1k
+                    };
+                if est_cost > safety_cap {
+                    return false;
                 }
 
                 // Budget Gating (FIX-18)

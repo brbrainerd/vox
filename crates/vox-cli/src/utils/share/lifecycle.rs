@@ -23,7 +23,7 @@ pub async fn run_countdown_printer(duration: Duration) {
     let deadline = tokio::time::Instant::now() + duration;
 
     loop {
-        tokio::time::sleep(Duration::from_secs(30)).await;
+        tokio::time::sleep(vox_config::timeouts::D_30S).await;
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
         if remaining.is_zero() {
             return;

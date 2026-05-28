@@ -172,7 +172,7 @@ pub fn gc_script_cache(max_entries: usize, max_size_mb: u64) -> Result<()> {
             // Parallel `vox run` can create many cache dirs with identical coarse mtimes on Windows.
             // Never delete entries touched in the last few minutes — another process may still be
             // compiling into `target/` under that hash directory.
-            let protect_recent = std::time::Duration::from_secs(120);
+            let protect_recent = vox_config::timeouts::D_120S;
             let Some(idx) = entries.iter().position(|(_path, modified)| {
                 modified
                     .elapsed()

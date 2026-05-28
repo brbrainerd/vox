@@ -40,6 +40,7 @@ mod tests {
 
     #[test]
     fn exponential_duration_respects_cap() {
+        // drift-allow(timeout-literal): vox-foundation is L1 — cannot depend on vox-config (L2) for SSOT timeouts
         let opts_max = Duration::from_secs(5);
         let out = next_exponential_backoff_duration(Duration::from_secs(4), 2.0, opts_max);
         assert_eq!(out, opts_max);

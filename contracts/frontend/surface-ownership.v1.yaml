@@ -2,20 +2,34 @@ x-vox-version: 2
 schema_version: 1
 
 surfaces:
-  - id: vox-dashboard
-    path: crates/vox-dashboard
+  - id: vox-gui
+    path: crates/vox-gui
     status: canonical
-    role: Primary user-facing GUI surface for Vox.
+    role: Primary user-facing native operator GUI surface for Vox.
     source_of_truth:
-      - crates/vox-dashboard/app/src/app.vox
-      - crates/vox-dashboard/app/src/generated
-      - docs/src/reference/vox-web-stack.md
+      - crates/vox-gui/src/main.rs
+      - crates/vox-gui/ui/src/App.tsx
+      - docs/src/architecture/vox-gui-capability-audit-2026.md
     ownership:
       team: platform-gui
       review_label: gui-canonical
     notes:
-      - Compiler-generated files under app/src/generated are immutable outputs.
-      - Hand-authored React escape-hatch components live under src/components.
+      - Tauri IPC handlers in crates/vox-gui/src/commands define backend capability.
+      - UI panels in crates/vox-gui/ui/src/components/surfaces must map to real handlers.
+
+  - id: vox-dashboard
+    path: crates/vox-dashboard
+    status: planned
+    role: Historical Axum SPA dashboard reference; not currently the shipped canonical GUI.
+    source_of_truth:
+      - docs/src/adr/024-dashboard-axum-spa.md
+      - docs/src/reference/vox-web-stack.md
+    ownership:
+      team: platform-gui
+      review_label: gui-planned
+    notes:
+      - Preserve references for migration history.
+      - Do not route new operator UX work here unless the crate is revived.
 
   - id: marquee-app
     path: apps/interop/marquee_app
@@ -28,7 +42,7 @@ surfaces:
       team: platform-gui
       review_label: gui-interop
     notes:
-      - Keep scope minimal and representative; avoid feature duplication with vox-dashboard.
+      - Keep scope minimal and representative; avoid feature duplication with vox-gui.
 
   - id: tools-visualizer
     path: apps/experimental/visualizer
@@ -40,8 +54,8 @@ surfaces:
       team: platform-gui
       review_label: gui-experimental
     notes:
-      - Do not duplicate canonical product UX from vox-dashboard.
-      - Promote features by upstreaming to vox-dashboard and reducing local divergence.
+      - Do not duplicate canonical product UX from vox-gui.
+      - Promote features by upstreaming to vox-gui and reducing local divergence.
 
   - id: test-app-bundle
     path: test_app_bundle
@@ -67,4 +81,4 @@ surfaces:
       team: platform-editor
       review_label: gui-deprecated
     notes:
-      - New UX and orchestration visualization ship in vox-dashboard.
+      - New UX and orchestration visualization ship in vox-gui.

@@ -63,6 +63,7 @@ impl DriftEngine {
     }
 
     pub fn run_all(&self) -> Result<Vec<vox_code_audit::rules::Finding>> {
+        use crate::layers_manifest::LayersManifest;
         use crate::rules::{WorkspaceContext, all_drift_rules};
         use crate::sweep::all_sweep_rules;
 
@@ -70,13 +71,14 @@ impl DriftEngine {
         let ctx = WorkspaceContext {
             workspace_version: ws.workspace_version.clone(),
             workspace_root: self.root.clone(),
+            layers: LayersManifest::load(&self.root),
         };
 
         let mut findings = Vec::new();
 
         // Sweep rules (cross-file)
         for rule in all_sweep_rules() {
-            findings.extend(rule.sweep(&ws.files));
+            findings.extend(rule.sweep(&ws.files, &ctx));
         }
 
         // Targeted drift rules (per-file with workspace ctx)
@@ -100,7 +102,7 @@ impl DriftEngine {
                 !matches!(
                     name.as_ref(),
                     "target" | "node_modules" | ".git" | "archive" | ".claude"
-                ) && name != ".vox-cache"
+                ) && name != vox_config::paths::REPO_DOT_VOX_CACHE_DIR
             })
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())

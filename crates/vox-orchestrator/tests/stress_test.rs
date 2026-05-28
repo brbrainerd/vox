@@ -179,7 +179,7 @@ proptest! {
 
 #[tokio::test]
 async fn stress_test_1000_tasks_10_agents() {
-    let stress_timeout = Duration::from_secs(120);
+    let stress_timeout = vox_config::timeouts::D_120S;
     let task_count: usize = 1000;
     let max_outer_rounds = STRESS_DRAIN_CAP_1K.max(task_count.saturating_mul(500));
 

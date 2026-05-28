@@ -231,7 +231,7 @@ async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
             cleared = true;
             break;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::time::sleep(vox_config::timeouts::D_20MS).await;
     }
     assert!(
         cleared,
@@ -361,7 +361,7 @@ async fn lease_gated_submit_relays_context_envelope_in_payload() {
             );
             break;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        tokio::time::sleep(vox_config::timeouts::D_25MS).await;
     }
     let payload = relayed_payload.expect("expected remote_task_envelope relay");
     assert_eq!(payload["session_id"], serde_json::json!(sid));
@@ -717,7 +717,7 @@ async fn cancel_populi_remote_delegated_relays_remote_cancel_message() {
             saw_cancel = true;
             break;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        tokio::time::sleep(vox_config::timeouts::D_25MS).await;
     }
     assert!(saw_cancel, "expected remote_task_cancel delivery");
 
@@ -823,7 +823,7 @@ async fn lease_renew_loss_requeues_locally_and_relays_cancel() {
             saw_cancel = true;
             break;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        tokio::time::sleep(vox_config::timeouts::D_25MS).await;
     }
     assert!(saw_cancel, "lease-loss fallback should relay cancel");
 
@@ -1038,7 +1038,7 @@ async fn non_lease_remote_relay_includes_session_and_context_payload() {
             );
             break;
         }
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        tokio::time::sleep(vox_config::timeouts::D_25MS).await;
     }
     let payload = relayed_payload.expect("expected non-lease relay payload");
     assert_eq!(payload["session_id"], serde_json::json!(sid));

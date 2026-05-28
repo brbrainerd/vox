@@ -26,7 +26,11 @@ impl SweepRule for LiteralDedupRule {
         Severity::Info
     }
 
-    fn sweep(&self, files: &[ExtractedFeatures]) -> Vec<Finding> {
+    fn sweep(
+        &self,
+        files: &[ExtractedFeatures],
+        _ctx: &crate::rules::WorkspaceContext,
+    ) -> Vec<Finding> {
         let mut index: HashMap<String, Vec<(PathBuf, usize)>> = HashMap::new();
         for f in files {
             for lit in &f.string_literals {
@@ -94,8 +98,18 @@ fn is_ignored_path(p: &std::path::Path) -> bool {
 mod tests {
     use super::*;
     use crate::features::*;
+    use crate::layers_manifest::LayersManifest;
+    use crate::rules::WorkspaceContext;
     use std::path::PathBuf;
     use vox_code_audit::rules::Language;
+
+    fn ctx() -> WorkspaceContext {
+        WorkspaceContext {
+            workspace_version: "0.6.0".into(), // drift-allow(version-string): test fixture
+            workspace_root: PathBuf::from("."),
+            layers: LayersManifest::default(),
+        }
+    }
 
     fn make_file(path: &str, literals: &[&str]) -> ExtractedFeatures {
         let mut f = ExtractedFeatures::new(PathBuf::from(path), Language::Rust);
@@ -117,7 +131,7 @@ mod tests {
             make_file("c.rs", &["duplicate-me"]),
         ];
         let rule = LiteralDedupRule::default();
-        let findings = rule.sweep(&files);
+        let findings = rule.sweep(&files, &ctx());
         assert!(!findings.is_empty());
         let f = &findings[0];
         assert!(f.message.contains("3"));
@@ -131,7 +145,7 @@ mod tests {
             make_file("b.rs", &["only-twice"]),
         ];
         let rule = LiteralDedupRule::default();
-        assert!(rule.sweep(&files).is_empty());
+        assert!(rule.sweep(&files, &ctx()).is_empty());
     }
 
     #[test]
@@ -146,6 +160,6 @@ mod tests {
         let f3 = make_file("c.rs", &["dup"]);
         // Only 2 Code occurrences — below threshold
         let rule = LiteralDedupRule::default();
-        assert!(rule.sweep(&[f1, f2, f3]).is_empty());
+        assert!(rule.sweep(&[f1, f2, f3], &ctx()).is_empty());
     }
 }

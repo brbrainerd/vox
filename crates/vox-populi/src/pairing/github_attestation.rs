@@ -152,7 +152,7 @@ pub enum FetchAndVerifyError {
 
 #[cfg(feature = "transport")]
 pub async fn fetch_and_verify(url: &str) -> Result<AttestationManifest, FetchAndVerifyError> {
-    let body = reqwest::Client::new()
+    let body = vox_http_client::client()
         .get(url)
         .header("Accept", "application/json")
         .send()

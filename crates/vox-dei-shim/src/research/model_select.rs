@@ -1,22 +1,19 @@
 //! Resolve research pipeline stage models from the canonical [`vox_orchestrator::models::ModelRegistry`].
 //!
-//! Phase 0a: returns static fallback model IDs. Phase 1+ wires this to the
-//! full `InferenceConfig`/`selection` machinery once those modules are activated.
-//!
-//! PHASE_0a_STUB: all picks return config-based fallbacks; no dynamic registry resolution.
+//! All research stages flow through [`vox_orchestrator::models::select_with_default_registry`]
+//! so routing honors premium aliases, scoreboard feedback, and user axes.
 
-// Re-export from the single source of truth in vox-config.
-pub(crate) use vox_config::NLI_FALLBACK as FALLBACK_NLI_MODEL_ID;
-pub(crate) use vox_config::RESEARCH_FLASH_FALLBACK as FALLBACK_RESEARCH_FLASH_MODEL_ID;
-pub(crate) use vox_config::REVIEW_PREMIUM_FALLBACK as FALLBACK_REVIEW_PREMIUM_MODEL_ID;
+use vox_orchestrator::models::{
+    SelectionIntent, select_with_default_registry,
+};
+use vox_orchestrator::models::ModelRegistry;
+
+/// Sentinel NLI model id used before registry resolution; see [`verifier_config_for_research_run`].
+pub const FALLBACK_NLI_MODEL_ID: &str = vox_config::NLI_FALLBACK;
 
 /// Opaque inference config passed to model resolution.
-///
-/// Phase 0a STUB: carries only the model override strings used by `pipeline.rs`.
-/// Phase 1 replaces this with the full `vox_orchestrator::mode::InferenceConfig`.
 #[derive(Debug, Clone, Default)]
 pub struct InferenceConfig {
-    // PHASE_0a_STUB: placeholder struct. Phase 1 merges with vox_orchestrator::mode::InferenceConfig.
     pub quality: QualityLevel,
 }
 
@@ -42,22 +39,66 @@ pub struct ResolvedResearchModels {
     pub judge_model: String,
 }
 
+fn resolve_stage(
+    registry: &ModelRegistry,
+    intent: SelectionIntent,
+    fallback: &str,
+) -> String {
+    if let Some(outcome) = select_with_default_registry(&intent) {
+        return outcome.model_id;
+    }
+    registry
+        .get(fallback)
+        .map(|m| m.id.clone())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 /// Select models for planner, claim extraction, synthesis, and judge stages.
-///
-/// Phase 0a STUB: returns static fallback model IDs from vox-config constants.
-/// Phase 1 replaces with live registry resolution via `crate::selection`.
-///
-/// `_base_inference` is accepted for API compatibility with future live resolution.
 #[must_use]
 pub fn resolve_research_models(
-    _registry: &vox_orchestrator::models::ModelRegistry,
+    registry: &ModelRegistry,
     _base_inference: &InferenceConfig,
 ) -> ResolvedResearchModels {
-    // PHASE_0a_STUB: static fallbacks. Phase 1 wires to resolve_model_with_registry_fallbacks.
+    let planner = resolve_stage(
+        registry,
+        SelectionIntent::research(),
+        vox_config::RESEARCH_FLASH_FALLBACK,
+    );
+    let claim = resolve_stage(
+        registry,
+        SelectionIntent::nli_classifier(),
+        vox_config::NLI_FALLBACK,
+    );
+    let synthesis = resolve_stage(
+        registry,
+        SelectionIntent::research(),
+        vox_config::RESEARCH_FLASH_FALLBACK,
+    );
+    let judge = resolve_stage(
+        registry,
+        SelectionIntent::review(),
+        vox_config::REVIEW_PREMIUM_FALLBACK,
+    );
+
     ResolvedResearchModels {
-        planner_model: FALLBACK_RESEARCH_FLASH_MODEL_ID.to_string(),
-        claim_model: FALLBACK_NLI_MODEL_ID.to_string(),
-        synthesis_model: FALLBACK_RESEARCH_FLASH_MODEL_ID.to_string(),
-        judge_model: FALLBACK_REVIEW_PREMIUM_MODEL_ID.to_string(),
+        planner_model: planner,
+        claim_model: claim,
+        synthesis_model: synthesis,
+        judge_model: judge,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_research_models_returns_non_empty_ids() {
+        let registry = ModelRegistry::from_cache();
+        let models = resolve_research_models(&registry, &InferenceConfig::default());
+        assert!(!models.planner_model.is_empty());
+        assert!(!models.claim_model.is_empty());
+        assert!(!models.synthesis_model.is_empty());
+        assert!(!models.judge_model.is_empty());
     }
 }

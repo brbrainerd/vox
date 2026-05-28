@@ -6,6 +6,7 @@ edition.workspace = true
 
 [dependencies]
 vox-orchestrator-types = { workspace = true }
+vox-config = { workspace = true }
 vox-db = { workspace = true }
 
 serde = { workspace = true }

@@ -16,7 +16,7 @@ impl TavilySearchClient {
         let binding = resolve_secret(SecretId::TavilyApiKey);
         let key_str = binding.expose()?;
         let client = Tavily::builder(key_str)
-            .timeout(std::time::Duration::from_secs(30))
+            .timeout(vox_config::timeouts::D_30S)
             .build()
             .ok()?;
         Some(Self { inner: client })

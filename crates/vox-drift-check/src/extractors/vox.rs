@@ -12,6 +12,7 @@ impl LanguageExtractor for VoxExtractor {
     fn extract(&self, path: &Path, content: &str) -> Result<ExtractedFeatures> {
         let mut features = ExtractedFeatures::new(path.to_path_buf(), Language::Vox);
         features.crate_name = crate::extractor::crate_name_from_path(path);
+        features.allowed_lines = crate::extractor::parse_drift_allow_comments(content);
 
         let tokens = lex(content);
         for spanned in &tokens {
@@ -31,6 +32,7 @@ impl LanguageExtractor for VoxExtractor {
                             value: v,
                             unit: None,
                             loc: Loc { line, col: 0 },
+                            in_const: false,
                         });
                     }
                 }

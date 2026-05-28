@@ -13,7 +13,7 @@ async fn scheduled_function_fires_after_interval() {
 
     vox_workflow_runtime::scheduled::register(
         "ticker",
-        std::time::Duration::from_secs(60),
+        vox_config::timeouts::D_60S,
         Arc::new(move || {
             let c = counter_clone.clone();
             Box::pin(async move {
@@ -61,7 +61,7 @@ async fn scheduler_restart_preserves_partial_interval_wait() {
 
     vox_workflow_runtime::scheduled::register(
         "long_ticker",
-        std::time::Duration::from_secs(3600),
+        vox_config::timeouts::D_3600S,
         Arc::new(move || {
             let c = counter_clone.clone();
             Box::pin(async move {

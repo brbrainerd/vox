@@ -720,7 +720,7 @@ jobs:
   # so branch-protection settings carry over without admin action.
   ci-summary:
     name: Check, Build, and Test (Rust)
-    needs: [guards-fast, lints, compiler-gates, tests, audits]
+    needs: [guards-fast, lints, compiler-gates, tests, audits, gui-playwright-smoke]
     if: always()
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 2
@@ -734,7 +734,8 @@ jobs:
             "${{ needs.lints.result }}" \
             "${{ needs.compiler-gates.result }}" \
             "${{ needs.tests.result }}" \
-            "${{ needs.audits.result }}"; do
+            "${{ needs.audits.result }}" \
+            "${{ needs.gui-playwright-smoke.result }}"; do
             if [ "$r" != "success" ]; then fail=1; fi
           done
           exit $fail

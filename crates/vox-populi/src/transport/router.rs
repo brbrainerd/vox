@@ -268,7 +268,7 @@ mod tests {
             .expect("serve");
         });
 
-        let client = reqwest::Client::new();
+        let client = vox_http_client::client();
         let ok = client
             .get(format!("http://{addr}/v1/populi/nodes"))
             .send()
@@ -313,7 +313,7 @@ mod tests {
             .expect("serve");
         });
 
-        let client = reqwest::Client::new();
+        let client = vox_http_client::client();
 
         // Happy path: correct token returns mesh_token.
         let resp = client
@@ -361,7 +361,7 @@ mod tests {
             .expect("serve");
         });
 
-        let client = reqwest::Client::new();
+        let client = vox_http_client::client();
         let resp = client
             .post(format!("http://{addr}/v1/populi/bootstrap/exchange"))
             .json(&crate::transport::BootstrapExchangeRequest {
@@ -392,7 +392,7 @@ mod tests {
             .expect("serve");
         });
 
-        let client = reqwest::Client::new();
+        let client = vox_http_client::client();
         let resp = client
             .post(format!("http://{addr}/v1/populi/bootstrap/exchange"))
             .json(&crate::transport::BootstrapExchangeRequest {

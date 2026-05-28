@@ -108,7 +108,7 @@ async fn install_from_url(url: &str, yes: bool) -> Result<()> {
     }
 
     println!("Fetching {} …", url);
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let bytes = client
         .get(url)
         .send()

@@ -14,7 +14,7 @@ use crate::types::AgentId;
 
 /// Wall-clock bound for Turso / sqlite snapshot and CAS writes so hung DB layers
 /// cannot block the orchestrator forever inside an async poll.
-const DB_IO_TIMEOUT: Duration = Duration::from_secs(60);
+const DB_IO_TIMEOUT: Duration = vox_config::timeouts::D_60S;
 
 impl crate::orchestrator::Orchestrator {
     /// Take a filesystem snapshot of `paths` and optionally persist their bytes to

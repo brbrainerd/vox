@@ -31,6 +31,7 @@ impl Visit for TsVisitor {
                     value: n.value,
                     unit: None,
                     loc: Loc::default(),
+                    in_const: false,
                 });
             }
             _ => {}
@@ -115,6 +116,8 @@ impl LanguageExtractor for TypeScriptExtractor {
 
         let mut features = ExtractedFeatures::new(path.to_path_buf(), Language::TypeScript);
         features.crate_name = crate::extractor::crate_name_from_path(path);
+
+        features.allowed_lines = crate::extractor::parse_drift_allow_comments(content);
 
         if let Ok(module) = parser.parse_module() {
             extract_imports(&module, &mut features);

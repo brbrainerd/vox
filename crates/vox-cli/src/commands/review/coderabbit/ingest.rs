@@ -161,7 +161,7 @@ async fn fetch_all_pr_comments(
     repo: &str,
     pr_number: u64,
 ) -> Result<Vec<GhReviewComment>> {
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
 
     // 1. Inline review comments
     let mut all = fetch_github_paginated(

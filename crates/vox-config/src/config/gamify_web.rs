@@ -66,6 +66,11 @@ pub enum BuildTarget {
     Server,
     /// Emit a zero-runtime TypeScript SDK package only; skip Rust codegen.
     Client,
+    /// Emit React Native + Expo (Expo Router) TypeScript for mobile, plus the standard
+    /// Vox-app-contract and OpenAPI artifacts. The Rust runtime is not emitted at this
+    /// stage; mobile apps that need on-device Rust pull it in via the uniffi-bridged
+    /// `@vox/runtime-rn` package (see `docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md`).
+    Mobile,
 }
 
 impl FromStr for BuildTarget {
@@ -76,6 +81,7 @@ impl FromStr for BuildTarget {
             "fullstack" => Ok(Self::Fullstack),
             "server" => Ok(Self::Server),
             "client" => Ok(Self::Client),
+            "mobile" | "rn" | "expo" => Ok(Self::Mobile),
             _ => Err(()),
         }
     }
@@ -89,6 +95,7 @@ impl BuildTarget {
             Self::Fullstack => "fullstack",
             Self::Server => "server",
             Self::Client => "client",
+            Self::Mobile => "mobile",
         }
     }
 }

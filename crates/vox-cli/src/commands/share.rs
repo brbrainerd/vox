@@ -248,7 +248,7 @@ async fn spawn_dev_server(
         .with_context(|| format!("failed to spawn dev server for {}", file.display()))?;
 
     println!("[vox share] Dev server starting on port {}...", port);
-    wait_for_port(port, std::time::Duration::from_secs(60)).await?;
+    wait_for_port(port, vox_config::timeouts::D_60S).await?;
     println!("[vox share] Dev server ready.");
     Ok(child)
 }
@@ -270,7 +270,7 @@ async fn wait_for_port(port: u16, timeout: std::time::Duration) -> anyhow::Resul
                 port
             );
         }
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(vox_config::timeouts::D_200MS).await;
     }
 }
 

@@ -470,7 +470,7 @@ mod tests {
     async fn mint_and_consume_bearer() {
         let r = MeshRegistry::empty();
         let token = r
-            .mint_invite_bearer("peer-1", "gpu", std::time::Duration::from_secs(60))
+            .mint_invite_bearer("peer-1", "gpu", vox_config::timeouts::D_60S)
             .await
             .unwrap();
         let (peer_id, slot_kind) = r.consume_bearer(&token).await.unwrap();
@@ -485,7 +485,7 @@ mod tests {
         let r = MeshRegistry::empty();
         // Mint with 0 duration — expires immediately.
         let token = r
-            .mint_invite_bearer("peer-2", "cpu", std::time::Duration::from_secs(0))
+            .mint_invite_bearer("peer-2", "cpu", vox_config::timeouts::D_ZERO)
             .await
             .unwrap();
         // Should fail because expiry is in the past (or right at now).

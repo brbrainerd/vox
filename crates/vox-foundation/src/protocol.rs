@@ -37,6 +37,10 @@ pub mod orch_daemon_method {
     pub const PAUSE_AGENT: &str = "orch.pause_agent";
     /// Params: `{"agent_id": u64}` → `{"ok": true}`.
     pub const RESUME_AGENT: &str = "orch.resume_agent";
+    /// Params: `{"task_id": u64, "reason": "..."?}` → `{"ok": true}`.
+    pub const DOUBT_TASK: &str = "orch.doubt_task";
+    /// Params: `{"task_id": u64, "reason": "..."} ` → `{"ok": true}`.
+    pub const OVERRULE_TASK: &str = "orch.overrule_task";
     /// Params: `{}` → workspace journey store diagnostics (`.vox/store.db` vs canonical).
     pub const WORKSPACE_JOURNEY: &str = "orch.workspace_journey";
     /// Params: `{}` → `{"ok": true}`. Triggers a hot-reload of Vox.toml configuration.

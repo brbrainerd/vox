@@ -90,7 +90,7 @@ async fn fetch_v0_tsx(
         );
     }
 
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let message = v0_refined_prompt(component_name, user_instruction);
 
     let image_data = if let Some(path) = image_path {

@@ -139,7 +139,7 @@ pub async fn start(db: Arc<VoxDb>) -> anyhow::Result<ScheduledHandle> {
                 .values()
                 .min()
                 .copied()
-                .unwrap_or_else(|| Instant::now() + Duration::from_secs(1));
+                .unwrap_or_else(|| Instant::now() + vox_config::timeouts::D_1S);
             tokio::select! {
                 _ = &mut rx => break,
                 _ = tokio::time::sleep_until(sleep_until) => {

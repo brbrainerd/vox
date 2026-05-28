@@ -140,7 +140,7 @@ pub async fn run(
     });
 
     let client = vox_http_client::client_builder()
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(vox_config::timeouts::D_60S)
         .build()
         .context("building HTTP client")?;
 

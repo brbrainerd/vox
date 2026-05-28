@@ -32,7 +32,7 @@ async fn wait_until_async<F, Fut>(
 }
 
 /// Wall-clock ceiling so local TCP daemon tests cannot stall indefinitely if readiness RPC regresses.
-const DAEMON_TEST_TIMEOUT: Duration = Duration::from_secs(60);
+const DAEMON_TEST_TIMEOUT: Duration = vox_config::timeouts::D_60S;
 
 #[tokio::test]
 async fn orchestrator_daemon_ping_and_task_status() {
@@ -70,8 +70,8 @@ async fn orchestrator_daemon_ping_and_task_status_inner() {
     let addr_str = addr.to_string();
     wait_until_async(
         "orchestrator daemon TCP accepting (`orch.ping`)",
-        Duration::from_secs(15),
-        Duration::from_millis(5),
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
         || {
             let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
             async move { c.ping().await.is_ok() }
@@ -129,8 +129,8 @@ async fn orchestrator_daemon_task_and_agent_write_methods_inner() {
     let addr_str = addr.to_string();
     wait_until_async(
         "orchestrator daemon TCP accepting (`orch.ping`)",
-        Duration::from_secs(15),
-        Duration::from_millis(5),
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
         || {
             let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
             async move { c.ping().await.is_ok() }

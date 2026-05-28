@@ -96,7 +96,7 @@ mod tests {
 
     #[tokio::test]
     async fn fresh_registry_probes_on_first_call() {
-        let registry = HardwareRegistryV2::new(Duration::from_secs(300));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_300S);
         let summary = registry.probe().await;
         // On CI without GPU hardware, the pipeline falls back to "Host CPU".
         assert!(!summary.model_name.is_empty());
@@ -104,7 +104,7 @@ mod tests {
 
     #[tokio::test]
     async fn cached_result_returned_within_ttl() {
-        let registry = HardwareRegistryV2::new(Duration::from_secs(300));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_300S);
         let first = registry.probe().await;
         let second = registry.probe().await;
         assert!(Arc::ptr_eq(&first, &second), "expected same Arc within TTL");
@@ -112,10 +112,10 @@ mod tests {
 
     #[tokio::test]
     async fn expired_cache_re_probes() {
-        let registry = HardwareRegistryV2::new(Duration::from_millis(1));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_1MS);
         let first = registry.probe().await;
         // Sleep past the 1ms TTL
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        tokio::time::sleep(vox_config::timeouts::D_10MS).await;
         let second = registry.probe().await;
         // A fresh probe may return the same model name, but it must be a new Arc.
         assert!(
@@ -126,7 +126,7 @@ mod tests {
 
     #[tokio::test]
     async fn invalidate_forces_re_probe() {
-        let registry = HardwareRegistryV2::new(Duration::from_secs(300));
+        let registry = HardwareRegistryV2::new(vox_config::timeouts::D_300S);
         let first = registry.probe().await;
         registry.invalidate();
         let second = registry.probe().await;

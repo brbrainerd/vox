@@ -127,8 +127,8 @@ mod tests {
             max_attempts: 3,
             base_delay_ms: 50,
         });
-        assert_eq!(client.backoff_duration(1), Duration::from_millis(50));
+        assert_eq!(client.backoff_duration(1), vox_config::timeouts::D_50MS);
         assert_eq!(client.backoff_duration(2), Duration::from_millis(100));
-        assert_eq!(client.backoff_duration(3), Duration::from_millis(200));
+        assert_eq!(client.backoff_duration(3), vox_config::timeouts::D_200MS);
     }
 }

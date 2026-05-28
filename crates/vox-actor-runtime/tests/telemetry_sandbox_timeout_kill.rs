@@ -38,9 +38,9 @@ async fn terminal_timeout_emits_sandbox_timeout_kill_event() {
     let rec = recorder();
     rec.events.lock().expect("mutex").clear();
 
-    let opts = ActivityOptions::new().with_timeout(Duration::from_millis(5));
+    let opts = ActivityOptions::new().with_timeout(vox_config::timeouts::D_5MS);
     let result = execute_activity::<_, _, (), &str>("hang-forever", &opts, || async {
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        tokio::time::sleep(vox_config::timeouts::D_60S).await;
         Ok(())
     })
     .await;

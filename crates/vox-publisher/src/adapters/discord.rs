@@ -35,7 +35,7 @@ pub async fn post(
         return Ok(format!("dry-run-discord-{}", item.id));
     }
 
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let res = client.post(&webhook_url).json(&payload).send().await?;
 
     if !res.status().is_success() {

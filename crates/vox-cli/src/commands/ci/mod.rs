@@ -31,6 +31,8 @@ mod frozen_crates;
 mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
 mod gui_catalog_parity;
+mod gui_surface_coverage;
+mod gui_version_sync;
 mod gui_smoke;
 mod install_hooks;
 mod kill_stuck_tests;

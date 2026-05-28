@@ -1,0 +1,120 @@
+//! React Native + Expo lowering for the `BuildTarget::Mobile` target.
+//!
+//! ## Single source of truth
+//!
+//! This module is **one of two** lowerings for Vox components. The web lowering
+//! (under [`super::reactive`] + [`super::component`]) consumes the same `HirModule`
+//! and produces React DOM + Tailwind output; this module consumes the same
+//! `HirModule` and produces React Native + StyleSheet output. The HIR is the
+//! shared source of truth — there is no separate "RN HIR".
+//!
+//! Future split-brain protection: the `vox-cli-tests` harness asserts that for
+//! every Vox source under test, BOTH lowerings produce output that
+//! `tsc --noEmit` accepts. Any divergence in supported VUV vocabulary fails CI.
+//!
+//! ## What's emitted
+//!
+//! For a Vox module, `generate_rn` produces a self-contained set of files:
+//!
+//! - `App.tsx`           — Expo Router root layout (when components are present).
+//! - `<Component>.tsx`   — one file per `component Name() { ... }`. RN-flavored.
+//! - `vox-client.ts`     — reused unchanged from the existing emit; the runtime
+//!                         HTTP layer is identical between web and mobile.
+//! - `mobile.ts`         — reused unchanged (it already targets the adapter
+//!                         contract via `target="rn"`).
+//! - `vox-app-contract.json`, `openapi.json`, `schemas.ts`, `types.ts` — reused.
+//! - `app.json`, `babel.config.js`, `metro.config.js`, `eas.json` — Expo build
+//!                         artifacts (one-shot scaffold, not overwritten).
+//!
+//! ## What's NOT yet emitted (will produce a clear codegen diagnostic, not silent stub)
+//!
+//! - `@form` → RN form (see follow-on in Phase 1A.3).
+//! - `@routes` → expo-router file tree (see follow-on in Phase 1A.3).
+//! - State machines are emitted unchanged (TypeScript-only; no React DOM coupling).
+
+pub mod component;
+pub mod scaffold;
+
+use crate::codegen_ts::emitter::CodegenOptions;
+use vox_compiler::hir::HirModule;
+
+/// Output of the RN lowering. Same shape as the web emitter's `CodegenOutput` for symmetry.
+pub struct RnCodegenOutput {
+    /// `(filename, content)` pairs that the build command writes into `out_dir`.
+    pub files: Vec<(String, String)>,
+    /// Non-fatal diagnostics emitted during lowering (e.g. unsupported VUV vocabulary).
+    pub diagnostics: Vec<crate::web_ir::WebIrDiagnostic>,
+}
+
+/// Generate React Native + Expo TypeScript files from a Vox module.
+///
+/// The caller is responsible for writing files. Returns `Err` on hard failures
+/// (e.g. unsupported features); use the `diagnostics` field for non-fatal warnings.
+pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodegenOutput, String> {
+    let mut files: Vec<(String, String)> = Vec::new();
+    let mut diagnostics: Vec<crate::web_ir::WebIrDiagnostic> = Vec::new();
+
+    // Components — one file each.
+    for rc in &hir.components {
+        let (filename, content) = component::emit_rn_component(rc, &mut diagnostics);
+        files.push((filename, content));
+    }
+
+    // Mobile primitives — reuse the existing emit, but with target="rn" so it
+    // imports from `@vox/runtime-rn` instead of `@vox/runtime`.
+    let bundle = crate::projection_bundle::project_bundle_from_hir(hir);
+    if let Some(mobile_content) =
+        crate::codegen_ts::mobile_emit::emit_mobile_setup_for_target(&bundle.shell, Some("rn"))
+    {
+        files.push(("mobile.ts".into(), mobile_content));
+    }
+
+    // App contract — unchanged (it's pure data, no UI coupling).
+    if let Ok(contract_json) = serde_json::to_string_pretty(&bundle.app) {
+        files.push(("vox-app-contract.json".to_string(), contract_json));
+    }
+
+    // Typed fetch client — unchanged (HTTP layer is portable).
+    if !hir.endpoint_fns.is_empty() {
+        files.push((
+            crate::codegen_ts::vox_client::VOX_CLIENT_FILENAME.to_string(),
+            crate::codegen_ts::vox_client::emit_vox_client(hir),
+        ));
+    }
+
+    // Zod schemas — pure types; reuse.
+    let zod_schemas = crate::codegen_ts::zod_emit::generate_zod_schemas(hir);
+    let has_schemas = !zod_schemas.is_empty();
+    if has_schemas {
+        files.push(("schemas.ts".to_string(), zod_schemas));
+    }
+
+    // TypeScript types — pure types; reuse.
+    let types_content = crate::codegen_ts::adt::generate_types(hir);
+    if !types_content.is_empty() {
+        files.push(("types.ts".to_string(), types_content));
+    }
+
+    // State machines — discriminated-union + reducer, framework-agnostic; reuse.
+    let sm_content = crate::codegen_ts::state_machine_emit::emit_state_machine_decls(hir);
+    if !sm_content.is_empty() {
+        files.push(("state_machines.ts".to_string(), sm_content));
+    }
+
+    // OpenAPI — pure schema, useful for client SDK consumers.
+    let has_api_fns = !hir.endpoint_fns.is_empty();
+    if has_schemas || has_api_fns {
+        let openapi = crate::codegen_ts::openapi_emit::generate_openapi(hir, "vox-app", "0.1.0");
+        files.push(("openapi.json".to_string(), openapi));
+    }
+
+    // Expo project scaffolding — emitted only when components exist (no point in
+    // an Expo app shell otherwise) and not overwritten on subsequent builds.
+    if !hir.components.is_empty() {
+        for (filename, content) in scaffold::emit_expo_scaffold(hir) {
+            files.push((filename, content));
+        }
+    }
+
+    Ok(RnCodegenOutput { files, diagnostics })
+}

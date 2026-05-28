@@ -40,7 +40,7 @@ pub async fn sync_command() -> Result<()> {
     );
     println!("{}", "Fetching recent activity from GitHub...".dimmed());
 
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let res = client
         .get("https://api.github.com/user/events")
         .header("User-Agent", "VoxGamifyCLI/1.0")

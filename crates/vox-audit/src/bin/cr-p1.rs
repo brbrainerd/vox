@@ -227,13 +227,13 @@ fn probe_health(url: &str) -> (bool, Option<u16>, Option<u64>, Option<String>) {
                 first
             }
         },
-        Duration::from_secs(5),
+        vox_config::timeouts::D_5S,
     ) {
         Ok(s) => s,
         Err(e) => return (false, None, None, Some(format!("connect: {e}"))),
     };
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
-    let _ = stream.set_write_timeout(Some(Duration::from_secs(5)));
+    let _ = stream.set_read_timeout(Some(vox_config::timeouts::D_5S));
+    let _ = stream.set_write_timeout(Some(vox_config::timeouts::D_5S));
     let request = format!("GET {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
     use std::io::Write;
     if let Err(e) = stream.write_all(request.as_bytes()) {

@@ -30,6 +30,7 @@ tracing = { workspace = true }
 blake3 = { workspace = true }
 tantivy = { workspace = true, optional = true, features = ["mmap"] }
 reqwest = { workspace = true }
+vox-http-client = { workspace = true }
 scraper = { workspace = true, optional = true }
 html2text = { workspace = true, optional = true }
 workspace-hack = { workspace = true }

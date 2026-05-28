@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 vox-plugin-api = { workspace = true }
+vox-config = { workspace = true }
 abi_stable = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }

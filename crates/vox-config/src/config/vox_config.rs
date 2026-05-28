@@ -45,7 +45,7 @@ impl Default for VoxConfig {
             data_dir: PathBuf::from("target/dogfood"),
             model_dir: crate::paths::data_dir()
                 .map(|d| d.join("models"))
-                .unwrap_or_else(|| PathBuf::from(".vox/models")),
+                .unwrap_or_else(|| PathBuf::from(crate::paths::REPO_MODELS_DIR)),
             train_epochs: 3,
             train_batch_size: 256,
             mcp_binary: None,

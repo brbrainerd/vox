@@ -6,19 +6,8 @@ use std::path::Path;
 use tempfile::NamedTempFile;
 use vox_wasm_engine::{WasmExecOpts, WasmHost};
 
-fn minimal_wasi_exit_success_wasm() -> Vec<u8> {
-    wat::parse_str(
-        r#"(module
-  (import "wasi_snapshot_preview1" "proc_exit" (func (param i32)))
-  (memory (export "memory") 1)
-  (func (export "_start")
-    i32.const 0
-    call 0
-  )
-)"#,
-    )
-    .expect("wat parse minimal WASI module")
-}
+mod common;
+use common::minimal_wasi_exit_success_wasm;
 
 #[test]
 fn wasm_host_executes_minimal_wasi_module() {

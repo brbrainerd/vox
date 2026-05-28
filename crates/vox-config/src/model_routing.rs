@@ -2,7 +2,51 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QualityWeightsConfig {
+    #[serde(default = "qw_socrates")]
+    pub socrates_factuality: f64,
+    #[serde(default = "qw_contra")]
+    pub contradiction_inverse: f64,
+    #[serde(default = "qw_success")]
+    pub success_rate: f64,
+    #[serde(default = "qw_lat")]
+    pub p50_latency_inverse: f64,
+    #[serde(default = "qw_cost")]
+    pub cost_inverse: f64,
+}
+
+fn qw_socrates() -> f64 {
+    0.25
+}
+fn qw_contra() -> f64 {
+    0.15
+}
+fn qw_success() -> f64 {
+    0.25
+}
+fn qw_lat() -> f64 {
+    0.15
+}
+fn qw_cost() -> f64 {
+    0.2
+}
+
+impl Default for QualityWeightsConfig {
+    fn default() -> Self {
+        Self {
+            socrates_factuality: qw_socrates(),
+            contradiction_inverse: qw_contra(),
+            success_rate: qw_success(),
+            p50_latency_inverse: qw_lat(),
+            cost_inverse: qw_cost(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelRoutingConfig {
+    #[serde(default)]
+    pub quality_weights: QualityWeightsConfig,
     #[serde(default)]
     pub latency_bands: LatencyBands,
     #[serde(default)]
@@ -61,6 +105,7 @@ pub fn load_model_routing_config() -> ModelRoutingConfig {
         tracing::error!("Failed to parse model-routing.v1.yaml: {}", e);
         // Return default values as fallback
         ModelRoutingConfig {
+            quality_weights: QualityWeightsConfig::default(),
             latency_bands: LatencyBands::default(),
             exploration: ExplorationConfig::default(),
             safety: SafetyConfig::default(),

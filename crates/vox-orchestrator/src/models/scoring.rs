@@ -32,6 +32,59 @@ const DEEPSEEK_OFFPEAK_V3_BONUS: f64 = 0.07;
 /// DeepSeek R1 is 75% cheaper UTC 16:30–00:30; stronger bonus reflects the larger discount.
 const DEEPSEEK_OFFPEAK_R1_BONUS: f64 = 0.12;
 
+/// Blend telemetry scoreboard signals using contract `quality_weights`.
+#[must_use]
+pub fn scoreboard_feedback_boost(
+    m: &ModelSpec,
+    score: Option<&super::registry::ModelScore>,
+    weights: &vox_config::model_routing::QualityWeightsConfig,
+) -> f64 {
+    let Some(s) = score else {
+        return 0.0;
+    };
+    if s.n_calls <= 0 {
+        return 0.0;
+    }
+    let success = s.success_rate.clamp(0.0, 1.0);
+    let quality = s.quality_score.clamp(0.0, 1.0);
+    let lat = s
+        .p50_latency_ms
+        .map(|ms| {
+            let cfg = vox_config::load_model_routing_config();
+            let excellent = cfg.latency_bands.excellent_ms;
+            let poor = cfg.latency_bands.poor_ms;
+            if ms as f64 <= excellent {
+                1.0
+            } else if ms as f64 >= poor {
+                0.0
+            } else {
+                1.0 - ((ms as f64 - excellent) / (poor - excellent))
+            }
+        })
+        .unwrap_or(0.5);
+    let cost_inv = if let Some(cps) = s.cost_per_success_usd {
+        (1.0 / (1.0 + cps * 100.0)).clamp(0.0, 1.0)
+    } else {
+        efficiency_score(m)
+    };
+    let w_sum = weights.socrates_factuality
+        + weights.contradiction_inverse
+        + weights.success_rate
+        + weights.p50_latency_inverse
+        + weights.cost_inverse;
+    if w_sum <= 0.0 {
+        return 0.0;
+    }
+    (weights.socrates_factuality * quality
+        + weights.contradiction_inverse * (1.0 - (1.0 - success).min(1.0))
+        + weights.success_rate * success
+        + weights.p50_latency_inverse * lat
+        + weights.cost_inverse * cost_inv)
+        / w_sum
+        * 0.15
+}
+
+
 /// Returns `true` when DeepSeek's off-peak pricing discount is active.
 ///
 /// Window: **UTC 16:30–00:30** (59_400 s → 86_400 s, then 0 s → 1_800 s).
@@ -187,6 +240,7 @@ pub fn auto_score_model(
     context_fill_ratio: Option<f32>,
     preference: CostPreference,
     hints: Option<&[RemainingBudget]>,
+    scoreboard: Option<&super::registry::ModelScore>,
 ) -> f64 {
     let mut w = AutoRoutingPriority::from_env();
     if complexity >= COMPLEXITY_HIGH_CUTOFF {
@@ -297,7 +351,9 @@ pub fn auto_score_model(
         0.0
     };
 
-    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus
+    let routing_cfg = vox_config::load_model_routing_config();
+    let telemetry_boost = scoreboard_feedback_boost(m, scoreboard, &routing_cfg.quality_weights);
+    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus + telemetry_boost
 }
 
 #[cfg(test)]
@@ -398,6 +454,7 @@ mod tests {
             None,  // no context fill
             CostPreference::Economy,
             Some(&hints),
+            None,
         );
         assert!(score <= RATE_LIMITED_SCORE_FLOOR, "rate-limited -> floor");
     }

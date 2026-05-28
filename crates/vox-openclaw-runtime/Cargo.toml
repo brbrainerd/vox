@@ -9,6 +9,7 @@ description = "OpenClaw client + ARS runtime adapter, executor, context bundles,
 
 [dependencies]
 vox-plugin-host = { workspace = true }
+vox-config   = { workspace = true }
 vox-db       = { workspace = true }
 serde        = { workspace = true }
 serde_json   = { workspace = true }

@@ -76,7 +76,7 @@ fn bucket_refills_over_time() {
 
     wait_until_sync(
         "token bucket refilled at least one token after drain",
-        Duration::from_secs(2),
+        vox_config::timeouts::D_2S,
         Duration::from_micros(50),
         || bucket.try_consume(1),
     );

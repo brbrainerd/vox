@@ -16,7 +16,7 @@ struct DocState {
 
 static DOC_STATE: OnceLock<Mutex<HashMap<String, DocState>>> = OnceLock::new();
 
-const DIAG_CLEAN_COOLDOWN: Duration = Duration::from_secs(120);
+const DIAG_CLEAN_COOLDOWN: Duration = vox_config::timeouts::D_120S;
 
 fn doc_state_lock() -> &'static Mutex<HashMap<String, DocState>> {
     DOC_STATE.get_or_init(|| Mutex::new(HashMap::new()))

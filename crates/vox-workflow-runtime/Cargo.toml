@@ -11,6 +11,7 @@ mens = ["dep:vox-populi", "vox-populi/transport"]
 test-support = []
 
 [dependencies]
+vox-config = { workspace = true }
 anyhow = { workspace = true }
 base64 = "0.22"
 blake3 = { workspace = true }

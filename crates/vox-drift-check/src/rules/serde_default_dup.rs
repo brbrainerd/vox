@@ -69,6 +69,7 @@ mod tests {
         WorkspaceContext {
             workspace_version: "0.5.0".into(),
             workspace_root: PathBuf::from("."),
+            layers: crate::layers_manifest::LayersManifest::default(),
         }
     }
 

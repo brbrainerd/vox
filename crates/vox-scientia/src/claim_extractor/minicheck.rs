@@ -80,8 +80,8 @@ impl MiniCheckVerifier {
                 })
             }
             MiniCheckBackend::Http { endpoint } => {
-                let client = reqwest::Client::builder()
-                    .timeout(std::time::Duration::from_secs(10))
+                let client = vox_http_client::client_builder()
+                    .timeout(vox_config::timeouts::D_10S)
                     .build()?;
                 let payload = MiniCheckRequest { claim, context };
                 let resp = client

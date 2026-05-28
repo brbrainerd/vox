@@ -96,7 +96,7 @@ impl RunPodClient {
     /// Construct with explicit API key.
     pub fn new(api_key: String, config: Arc<CloudProviderConfig>) -> Self {
         let http = vox_http_client::client_builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(vox_config::timeouts::D_30S)
             .build()
             .expect("reqwest TLS stack must be available");
         Self {

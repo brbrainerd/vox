@@ -111,7 +111,7 @@ pub async fn upload_pending(
     if url.trim().is_empty() {
         return Err(anyhow!("telemetry upload URL is empty"));
     }
-    let client = reqwest::Client::builder()
+    let client = vox_http_client::client_builder()
         .build()
         .context("build HTTP client")?;
     let paths = list_pending(root)?;

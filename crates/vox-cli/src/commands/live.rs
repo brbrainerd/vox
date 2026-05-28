@@ -232,7 +232,7 @@ async fn run_event_log_tail(path: PathBuf) -> Result<()> {
     let mut unreadable_logged = false;
     render(&stats, tick);
     loop {
-        sleep(Duration::from_millis(250)).await;
+        sleep(vox_config::timeouts::D_250MS).await;
         tick = tick.wrapping_add(1);
         if let Ok(meta) = std::fs::metadata(&path) {
             let len = meta.len();
@@ -295,7 +295,7 @@ pub async fn run() -> Result<()> {
                 merge_agent_event(&mut stats, &event);
                 render(&stats, tick);
             }
-            _ = sleep(Duration::from_millis(250)) => {
+            _ = sleep(vox_config::timeouts::D_250MS) => {
                 tick = tick.wrapping_add(1);
                 render(&stats, tick);
             }

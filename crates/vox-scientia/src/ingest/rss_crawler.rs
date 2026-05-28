@@ -17,7 +17,7 @@ impl FeedCrawler {
             header::HeaderValue::from_static("VoxScientia/0.4.0 (Autonomous Research Crawler)"),
         );
         let client = Client::builder()
-            .timeout(Duration::from_secs(15))
+            .timeout(vox_config::timeouts::D_15S)
             .default_headers(headers)
             .build()
             .context("Failed to build HTTP client")?;

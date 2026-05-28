@@ -53,7 +53,7 @@ impl OrchestratedViteGuard {
                     app_dir.display()
                 )
             })?;
-        std::thread::sleep(Duration::from_secs(2));
+        std::thread::sleep(vox_config::timeouts::D_2S);
         let url = "http://127.0.0.1:3001";
         let inject = if std::env::var("VOX_SSR_DEV_URL")
             .ok()

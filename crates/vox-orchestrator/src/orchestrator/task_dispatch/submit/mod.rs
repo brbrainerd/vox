@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 #[cfg(feature = "runtime")]
-pub(super) const AGENT_NOTIFY_TIMEOUT: Duration = Duration::from_secs(30);
+pub(super) const AGENT_NOTIFY_TIMEOUT: Duration = vox_config::timeouts::D_30S;
 
 mod attention_fields;
 mod batch;

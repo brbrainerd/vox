@@ -48,7 +48,7 @@ impl BrowserEngine {
 
         let mut builder = BrowserConfig::builder()
             .request_timeout(Duration::from_secs(90))
-            .launch_timeout(Duration::from_secs(60));
+            .launch_timeout(vox_config::timeouts::D_60S);
         builder = if headless {
             builder.new_headless_mode()
         } else {
@@ -178,7 +178,7 @@ impl BrowserEngine {
             }
             match resolve_element(&page, target).await {
                 Ok(_) => return Ok(()),
-                Err(_) => tokio::time::sleep(Duration::from_millis(200)).await,
+                Err(_) => tokio::time::sleep(vox_config::timeouts::D_200MS).await,
             }
         }
     }

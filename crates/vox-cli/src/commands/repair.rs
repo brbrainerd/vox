@@ -200,7 +200,7 @@ pub async fn run(args: RepairArgs) -> Result<()> {
     println!("Starting automated repair loop for {}", file_path.display());
 
     let http = vox_http_client::client_builder()
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(vox_config::timeouts::D_60S)
         .build()?;
 
     let max_attempts: u32 = 3;

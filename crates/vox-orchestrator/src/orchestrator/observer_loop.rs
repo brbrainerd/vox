@@ -13,8 +13,8 @@ pub async fn run_observer_loop(orch: Arc<Orchestrator>) {
 
     let interval = cfg.observer_poll_interval_ms;
     let mut ticker = tokio::time::interval(Duration::from_millis(interval));
-    let mut hardware_ticker = tokio::time::interval(Duration::from_secs(60));
-    let mut scoreboard_ticker = tokio::time::interval(Duration::from_secs(300)); // Refresh every 5 minutes
+    let mut hardware_ticker = tokio::time::interval(vox_config::timeouts::D_60S);
+    let mut scoreboard_ticker = tokio::time::interval(vox_config::timeouts::D_300S); // Refresh every 5 minutes
     let _repository_id =
         vox_repository::discover_repository_or_fallback(std::path::Path::new(".")).repository_id;
 

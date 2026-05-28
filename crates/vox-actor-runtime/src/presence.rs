@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn upsert_replaces_prior_snapshot() {
-        let map = PresenceMap::new(Duration::from_secs(60));
+        let map = PresenceMap::new(vox_config::timeouts::D_60S);
         let now = SystemTime::now();
         map.upsert(snap("alice", 1, 1, now));
         map.upsert(snap("alice", 2, 5, now));
@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn remove_drops_participant() {
-        let map = PresenceMap::new(Duration::from_secs(60));
+        let map = PresenceMap::new(vox_config::timeouts::D_60S);
         let now = SystemTime::now();
         map.upsert(snap("alice", 0, 0, now));
         map.upsert(snap("bob", 0, 0, now));
@@ -138,8 +138,8 @@ mod tests {
 
     #[test]
     fn snapshot_evicts_stale_entries() {
-        let map = PresenceMap::new(Duration::from_millis(1));
-        let past = SystemTime::now() - Duration::from_secs(10);
+        let map = PresenceMap::new(vox_config::timeouts::D_1MS);
+        let past = SystemTime::now() - vox_config::timeouts::D_10S;
         map.upsert(snap("ghost", 0, 0, past));
         // Tiny sleep would be flaky; instead, give the snapshot a now that's
         // definitely past stale_after by reusing the constructor — `past` is
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn empty_map_is_empty() {
-        let map = PresenceMap::new(Duration::from_secs(60));
+        let map = PresenceMap::new(vox_config::timeouts::D_60S);
         assert!(map.is_empty());
     }
 }

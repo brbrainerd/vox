@@ -1112,7 +1112,7 @@ mod tests {
         )?;
         fs::write(
             root.join("crates/alpha/tests/it.rs"),
-            "#[test]\nfn i() { std::thread::sleep(std::time::Duration::from_millis(1)); }\n",
+            "#[test]\nfn i() { std::thread::sleep(vox_config::timeouts::D_1MS); }\n",
         )?;
 
         let r = build_inventory(root)?;

@@ -1,0 +1,16 @@
+{
+  "name": "@vox/runtime-types",
+  "version": "0.6.0",
+  "description": "TypeScript interface contract for the Vox runtime. Single source of truth that both @vox/runtime (web/Tauri) and @vox/runtime-rn (Expo) implement.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "license": "Apache-2.0"
+}

@@ -4,8 +4,11 @@ use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct VoxPathLiteralRule;
 
-// vox-drift-check: contains the pattern strings the rule searches for as test fixtures.
-const ALLOWED_CRATES: &[&str] = &["vox-config", "vox-db", "vox-drift-check"];
+// No crate-level allowlist. SSOT path literals across the workspace are inside
+// `pub const` items, so the extractor's `LiteralContext::ConstDecl` tagging
+// (filtered below) makes them invisible to this rule — no per-crate exception
+// needed. Per-file legitimate one-offs use `// drift-allow(vox-path-literal)`.
+const ALLOWED_CRATES: &[&str] = &[];
 
 impl DriftRule for VoxPathLiteralRule {
     fn id(&self) -> &'static str {
@@ -28,9 +31,12 @@ impl DriftRule for VoxPathLiteralRule {
             .string_literals
             .iter()
             .filter(|lit| {
+                // ConstDecl literals are the canonical path constants — that's the goal.
                 matches!(lit.ctx, LiteralContext::Code)
+                    // drift-allow(vox-path-literal): rule's own pattern literals
                     && (lit.value.starts_with(".vox/") || lit.value.starts_with(".vox-cache"))
             })
+            .filter(|lit| !crate::extractor::is_allowed_at(features, self.id(), lit.loc.line))
             .map(|lit| Finding {
                 rule_id: self.id().to_string(),
                 rule_name: "Raw .vox/ Path Literal".into(),
@@ -68,6 +74,7 @@ mod tests {
         WorkspaceContext {
             workspace_version: "0.5.0".into(),
             workspace_root: PathBuf::from("."),
+            layers: crate::layers_manifest::LayersManifest::default(),
         }
     }
 
@@ -77,6 +84,7 @@ mod tests {
             ExtractedFeatures::new(PathBuf::from("crates/vox-cli/src/lib.rs"), Language::Rust);
         f.crate_name = Some("vox-cli".into());
         f.string_literals.push(LiteralLoc {
+            // drift-allow(vox-path-literal): rule's own test fixture
             value: ".vox/sessions".into(),
             loc: Loc { line: 10, col: 0 },
             ctx: LiteralContext::Code,
@@ -86,17 +94,40 @@ mod tests {
     }
 
     #[test]
-    fn allows_raw_vox_path_inside_config_crate() {
+    fn allows_raw_vox_path_in_const_decl() {
+        // The SSOT crate (vox-config) defines path strings as `pub const`s;
+        // the extractor tags those `LiteralContext::ConstDecl`, which is now
+        // the only mechanism that exempts them (no more crate-level allowlist
+        // for vox-config — the const-context test is what's load-bearing).
         let mut f = ExtractedFeatures::new(
             PathBuf::from("crates/vox-config/src/paths.rs"),
             Language::Rust,
         );
         f.crate_name = Some("vox-config".into());
         f.string_literals.push(LiteralLoc {
+            // drift-allow(vox-path-literal): rule's own test fixture
             value: ".vox/sessions".into(),
             loc: Loc { line: 1, col: 0 },
+            ctx: LiteralContext::ConstDecl,
+        });
+        let rule = VoxPathLiteralRule;
+        assert!(rule.check(&f, &ctx()).is_empty());
+    }
+
+    #[test]
+    fn allows_raw_vox_path_via_per_line_annotation() {
+        let mut f =
+            ExtractedFeatures::new(PathBuf::from("crates/vox-cli/src/lib.rs"), Language::Rust);
+        f.crate_name = Some("vox-cli".into());
+        f.string_literals.push(LiteralLoc {
+            // drift-allow(vox-path-literal): rule's own test fixture
+            value: ".vox/sessions".into(),
+            loc: Loc { line: 42, col: 0 },
             ctx: LiteralContext::Code,
         });
+        let mut allowed = std::collections::HashSet::new();
+        allowed.insert(42);
+        f.allowed_lines.insert("vox-path-literal".to_string(), allowed);
         let rule = VoxPathLiteralRule;
         assert!(rule.check(&f, &ctx()).is_empty());
     }

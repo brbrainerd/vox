@@ -1,0 +1,10 @@
+// Same VUV source as the web `component_state` fixture; built with --target=mobile
+// it must produce React Native + Expo TSX that tsc accepts using @types/react-native.
+component Counter() {
+    state n: int = 0
+    view: column() {
+        heading(level=1) { "Count" }
+        button(on_click={n = n + 1}) { "Increment" }
+        button(on_click={n = n - 1}) { "Decrement" }
+    }
+}

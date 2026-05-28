@@ -148,7 +148,7 @@ impl OpenRouterPanelClient {
         let api_key = vox_config::inference::openrouter_api_key()
             .ok_or(PanelClientError::MissingApiKey)?;
         let http = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(120))
+            .timeout(vox_config::timeouts::D_120S)
             .build()
             .map_err(|e| PanelClientError::Http(e.to_string()))?;
         Ok(Self { api_key, http })
@@ -261,7 +261,7 @@ impl MensPanelClient {
     /// for the canonical 127.0.0.1:11434.
     pub fn new(base_url: impl Into<String>) -> Result<Self, PanelClientError> {
         let http = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(120))
+            .timeout(vox_config::timeouts::D_120S)
             .build()
             .map_err(|e| PanelClientError::Http(e.to_string()))?;
         Ok(Self {
@@ -927,8 +927,8 @@ mod tests {
             "two retries should sleep twice; got {sleeps:?}"
         );
         // Exponential: first wait base*2^0 = 1s; second base*2^1 = 2s.
-        assert_eq!(sleeps[0], std::time::Duration::from_secs(1));
-        assert_eq!(sleeps[1], std::time::Duration::from_secs(2));
+        assert_eq!(sleeps[0], vox_config::timeouts::D_1S);
+        assert_eq!(sleeps[1], vox_config::timeouts::D_2S);
     }
 
     #[test]

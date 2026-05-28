@@ -149,7 +149,7 @@ pub async fn openclaw_health(_state: &ServerState) -> String {
         resolved.http_gateway_url.trim_end_matches('/')
     );
     let http_client = vox_http_client::client_builder()
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(vox_config::timeouts::D_5S)
         .build()
         .ok();
     let http_status = match http_client {

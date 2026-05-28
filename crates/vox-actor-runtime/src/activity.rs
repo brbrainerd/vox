@@ -59,8 +59,8 @@ impl Default for ActivityOptions {
         Self {
             retries: 0,
             timeout: None,
-            initial_backoff: Duration::from_millis(100),
-            max_backoff: Duration::from_secs(60),
+            initial_backoff: vox_config::timeouts::D_100MS,
+            max_backoff: vox_config::timeouts::D_60S,
             backoff_multiplier: 2.0,
             activity_id: None,
         }
@@ -346,8 +346,8 @@ mod tests {
         let opts = ActivityOptions::default();
         assert_eq!(opts.retries, 0);
         assert!(opts.timeout.is_none());
-        assert_eq!(opts.initial_backoff, Duration::from_millis(100));
-        assert_eq!(opts.max_backoff, Duration::from_secs(60));
+        assert_eq!(opts.initial_backoff, vox_config::timeouts::D_100MS);
+        assert_eq!(opts.max_backoff, vox_config::timeouts::D_60S);
         assert_eq!(opts.backoff_multiplier, 2.0);
         assert!(opts.activity_id.is_none());
     }
@@ -357,12 +357,12 @@ mod tests {
         let opts = ActivityOptions::new()
             .with_retries(3)
             .with_timeout_secs(10)
-            .with_initial_backoff(Duration::from_millis(200))
+            .with_initial_backoff(vox_config::timeouts::D_200MS)
             .with_activity_id("test-123".to_string());
 
         assert_eq!(opts.retries, 3);
-        assert_eq!(opts.timeout, Some(Duration::from_secs(10)));
-        assert_eq!(opts.initial_backoff, Duration::from_millis(200));
+        assert_eq!(opts.timeout, Some(vox_config::timeouts::D_10S));
+        assert_eq!(opts.initial_backoff, vox_config::timeouts::D_200MS);
         assert_eq!(opts.activity_id, Some("test-123".to_string()));
     }
 
@@ -370,37 +370,37 @@ mod tests {
     fn test_parse_duration() {
         assert_eq!(
             ActivityOptions::parse_duration("10s"),
-            Some(Duration::from_secs(10))
+            Some(vox_config::timeouts::D_10S)
         );
         assert_eq!(
             ActivityOptions::parse_duration("500ms"),
-            Some(Duration::from_millis(500))
+            Some(vox_config::timeouts::D_500MS)
         );
         assert_eq!(
             ActivityOptions::parse_duration("2m"),
-            Some(Duration::from_secs(120))
+            Some(vox_config::timeouts::D_120S)
         );
         assert_eq!(
             ActivityOptions::parse_duration("1h"),
-            Some(Duration::from_secs(3600))
+            Some(vox_config::timeouts::D_3600S)
         );
         assert_eq!(
             ActivityOptions::parse_duration("30"),
-            Some(Duration::from_secs(30))
+            Some(vox_config::timeouts::D_30S)
         );
         assert_eq!(ActivityOptions::parse_duration("invalid"), None);
     }
 
     #[test]
     fn test_next_backoff_capped() {
-        let opts = ActivityOptions::new().with_max_backoff(Duration::from_secs(5));
+        let opts = ActivityOptions::new().with_max_backoff(vox_config::timeouts::D_5S);
         // Starting from 4s with 2x multiplier should cap at 5s
         let result = vox_foundation::primitives::backoff::next_exponential_backoff_duration(
             Duration::from_secs(4),
             opts.backoff_multiplier,
             opts.max_backoff,
         );
-        assert_eq!(result, Duration::from_secs(5));
+        assert_eq!(result, vox_config::timeouts::D_5S);
     }
 
     #[tokio::test]
@@ -419,7 +419,7 @@ mod tests {
         let counter = Arc::new(AtomicU32::new(0));
         let opts = ActivityOptions::new()
             .with_retries(3)
-            .with_initial_backoff(Duration::from_millis(1)); // fast for tests
+            .with_initial_backoff(vox_config::timeouts::D_1MS); // fast for tests
 
         let counter_clone = counter.clone();
         let result = execute_activity("retry-test", &opts, move || {
@@ -446,7 +446,7 @@ mod tests {
     async fn test_execute_activity_all_retries_exhausted() {
         let opts = ActivityOptions::new()
             .with_retries(2)
-            .with_initial_backoff(Duration::from_millis(1));
+            .with_initial_backoff(vox_config::timeouts::D_1MS);
 
         let result = execute_activity("fail-test", &opts, || async {
             Err::<(), _>("always fails")
@@ -467,10 +467,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_activity_timeout() {
-        let opts = ActivityOptions::new().with_timeout(Duration::from_millis(10));
+        let opts = ActivityOptions::new().with_timeout(vox_config::timeouts::D_10MS);
 
         let result = execute_activity("timeout-test", &opts, || async {
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            tokio::time::sleep(vox_config::timeouts::D_10S).await;
             Ok::<_, String>("should not reach")
         })
         .await;

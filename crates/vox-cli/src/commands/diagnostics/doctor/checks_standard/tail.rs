@@ -216,7 +216,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     } else {
         let ollama_reachable = std::net::TcpStream::connect_timeout(
             &std::net::SocketAddr::from(([127, 0, 0, 1], 11434)),
-            std::time::Duration::from_millis(300),
+            vox_config::timeouts::D_300MS,
         )
         .is_ok();
         if ollama_reachable {

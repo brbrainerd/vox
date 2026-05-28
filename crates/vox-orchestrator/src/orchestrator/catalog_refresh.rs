@@ -220,17 +220,102 @@ pub struct RefreshReport {
     pub cache_path: std::path::PathBuf,
 }
 
-/// Foreground catalog refresh for the CLI — no running daemon required.
-///
-/// Fetches OpenRouter, LiteLLM, and Anthropic Direct, merges the results starting from the
-/// existing cached models, applies LiteLLM pricing patches, and overwrites the cache file.
-/// Returns a [`RefreshReport`] suitable for CLI display.
-pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
-    // ── 1. Seed from existing cache so user-config models survive the refresh ──
-    use crate::models::ModelRegistry;
-    let mut registry = ModelRegistry::from_cache();
+/// Unified discover/refresh report (CLI `vox model discover` + background parity).
+pub struct UnifiedCatalogReport {
+    pub openrouter_count: usize,
+    pub ollama_count: usize,
+    pub huggingface_count: usize,
+    pub mesh_count: usize,
+    pub mens_count: usize,
+    pub litellm_count: usize,
+    pub anthropic_count: usize,
+    pub total_written: usize,
+    pub cache_path: std::path::PathBuf,
+    pub new_discovery_ids: Vec<String>,
+}
 
-    // ── 2. OpenRouter ─────────────────────────────────────────────────────────
+pub const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
+
+async fn persist_catalog_refresh_timestamp() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    if let Ok(cfg) = vox_db::DbConfig::resolve_canonical()
+        && let Ok(db) = vox_db::VoxDb::connect(cfg).await
+    {
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let _ = db
+            .set_user_preference("global", MODEL_CATALOG_LAST_REFRESH_KEY, &now_secs.to_string())
+            .await;
+    }
+}
+
+async fn register_supplemental_catalogs(
+    registry: &mut crate::models::ModelRegistry,
+) -> (usize, usize, usize, usize) {
+    use crate::catalog::{
+        HuggingFaceCatalog, MensCatalog, ModelCatalog, OllamaCatalog, PopuliMeshCatalog,
+    };
+
+    let mut ollama_count = 0usize;
+    let ollama_url = vox_config::local_ollama_populi_base_url();
+    if let Ok(models) = OllamaCatalog::new(ollama_url).refresh().await {
+        ollama_count = models.len();
+        for m in models {
+            registry.register(m);
+        }
+    }
+
+    let mut hf_count = 0usize;
+    if let Ok(models) = HuggingFaceCatalog::new().refresh().await {
+        hf_count = models.len();
+        for m in models {
+            registry.register(m);
+        }
+    }
+
+    let mut mesh_count = 0usize;
+    if let Ok(models) = PopuliMeshCatalog::new().refresh().await {
+        mesh_count = models.len();
+        for m in models {
+            registry.register(m);
+        }
+    }
+
+    let mut mens_count = 0usize;
+    let repo_root = vox_repository::find_project_manifest_root(
+        &std::env::current_dir().unwrap_or_default(),
+    )
+    .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    if let Ok(models) = MensCatalog::new(&repo_root).refresh().await {
+        mens_count = models.len();
+        for m in models {
+            registry.register(m);
+        }
+    }
+
+    (ollama_count, hf_count, mesh_count, mens_count)
+}
+
+/// Single refresh pipeline for CLI discover + foreground pricing refresh parity.
+pub async fn run_unified_catalog_refresh(_force: bool) -> anyhow::Result<UnifiedCatalogReport> {
+    use crate::models::ModelRegistry;
+    use crate::models::autonomic::{DiscoveredModel, DiscoverySource, diff_and_emit_discovery};
+    use std::collections::HashSet;
+
+    let cache_file = vox_config::paths::dot_vox_user_dir()
+        .join("cache")
+        .join("model-catalog.v1.json");
+    let prior_ids: HashSet<String> = std::fs::read_to_string(&cache_file)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<crate::models::ModelSpec>>(&s).ok())
+        .map(|v| v.into_iter().map(|m| m.id).collect())
+        .unwrap_or_default();
+
+    let mut registry = ModelRegistry::from_cache();
+    let mut new_discovery_ids = Vec::new();
+
     let mut openrouter_count = 0usize;
     match OpenRouterCatalog::new().refresh().await {
         Ok(mut models) => {
@@ -240,6 +325,21 @@ pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
                 }
             }
             openrouter_count = models.len();
+            let discovered: Vec<DiscoveredModel> = models
+                .iter()
+                .map(|m| DiscoveredModel {
+                    id: m.id.clone(),
+                    description: None,
+                    max_context_tokens: Some(
+                        u32::try_from(m.capabilities.max_context).unwrap_or(u32::MAX),
+                    ),
+                })
+                .collect();
+            new_discovery_ids.extend(diff_and_emit_discovery(
+                DiscoverySource::OpenRouter,
+                &prior_ids,
+                discovered,
+            ));
             for m in models {
                 registry.register(m);
             }
@@ -249,7 +349,6 @@ pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
         }
     }
 
-    // ── 3. LiteLLM pricing oracle ─────────────────────────────────────────────
     let litellm_count;
     match LiteLLMCatalog::new().fetch().await {
         Ok(entries) => {
@@ -262,9 +361,7 @@ pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
         }
     }
 
-    // ── 4. Anthropic direct catalog (key-gated) ────────────────────────────────
     let mut anthropic_count = 0usize;
-    // No key — expected in most environments.
     if let Ok(mut models) = AnthropicDirectCatalog::new().refresh().await {
         for m in &mut models {
             if m.pricing_source == PricingSource::Bootstrap {
@@ -273,15 +370,41 @@ pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
         }
         anthropic_count = models.len();
         for m in models {
-            // Don't overwrite an OpenRouter-sourced entry.
             if registry.get(&m.id).is_none() {
                 registry.register(m);
             }
         }
     }
 
-    // ── 5. Run Admission Filter & Persist ─────────────────────────────────────
+    let (ollama_count, huggingface_count, mesh_count, mens_count) =
+        register_supplemental_catalogs(&mut registry).await;
+
+    if mesh_count > 0 {
+        let mesh_models = registry
+            .list_models()
+            .into_iter()
+            .filter(|m| m.provider_type == crate::models::ProviderType::PopuliMesh)
+            .collect::<Vec<_>>();
+        let discovered: Vec<DiscoveredModel> = mesh_models
+            .iter()
+            .map(|m| DiscoveredModel {
+                id: m.id.clone(),
+                description: None,
+                max_context_tokens: Some(
+                    u32::try_from(m.capabilities.max_context).unwrap_or(u32::MAX),
+                ),
+            })
+            .collect();
+        new_discovery_ids.extend(diff_and_emit_discovery(
+            DiscoverySource::PopuliMesh,
+            &prior_ids,
+            discovered,
+        ));
+    }
+
     let mut snapshot = registry.list_models();
+    crate::catalog_classifier::classify_models(&mut snapshot).await;
+
     if let Ok(db) = vox_db::VoxDb::open_default().await {
         if let Ok(count) =
             crate::models::admission::ModelAdmissionFilter::promote_calibrated_models(
@@ -301,26 +424,39 @@ pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
     }
 
     let total_written = snapshot.len();
-    let cache_file = vox_config::paths::dot_vox_user_dir()
-        .join("cache")
-        .join("model-catalog.v1.json");
     if let Some(parent) = cache_file.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let json = serde_json::to_string(&snapshot)?;
-    std::fs::write(&cache_file, &json)?;
+    std::fs::write(&cache_file, serde_json::to_string_pretty(&snapshot)?)?;
+    persist_catalog_refresh_timestamp().await;
 
-    Ok(RefreshReport {
+    Ok(UnifiedCatalogReport {
         openrouter_count,
+        ollama_count,
+        huggingface_count,
+        mesh_count,
+        mens_count,
         litellm_count,
         anthropic_count,
         total_written,
         cache_path: cache_file,
+        new_discovery_ids,
+    })
+}
+
+/// Foreground catalog refresh for the CLI — no running daemon required.
+pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
+    let unified = run_unified_catalog_refresh(true).await?;
+    Ok(RefreshReport {
+        openrouter_count: unified.openrouter_count,
+        litellm_count: unified.litellm_count,
+        anthropic_count: unified.anthropic_count,
+        total_written: unified.total_written,
+        cache_path: unified.cache_path,
     })
 }
 
 /// Cheap deterministic jitter derived from the current time's sub-second nanos.
-/// Avoids pulling in `rand` just for this.
 fn jitter_secs(max_secs: u64) -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
     let nanos = SystemTime::now()
@@ -329,3 +465,4 @@ fn jitter_secs(max_secs: u64) -> u64 {
         .subsec_nanos() as u64;
     nanos % (max_secs + 1)
 }
+

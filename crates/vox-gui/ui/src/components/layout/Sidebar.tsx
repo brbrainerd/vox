@@ -38,9 +38,10 @@ interface SidebarProps {
   mode: SidebarMode;
   setMode: (m: SidebarMode) => void;
   pushToast: (t: any) => void;
+  appVersion?: string;
 }
 
-export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushToast }: SidebarProps) {
+export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushToast, appVersion }: SidebarProps) {
   const w = SIDEBAR_WIDTHS[mode];
   const collapsed = mode === "rail";
   const wide = mode === "wide";
@@ -63,7 +64,7 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
               </div>
               <div className="leading-tight">
                 <div className="font-display text-[11px] tracking-[0.22em] text-zinc-200">VOX</div>
-                <div className="font-mono text-[8px] tracking-widest text-zinc-500">IMPERIUM</div>
+                  <div className="font-mono text-[8px] tracking-widest text-zinc-500">OPERATOR CONSOLE</div>
               </div>
             </div>
           )}
@@ -85,10 +86,16 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
           </div>
         )}
         <nav className="flex flex-col gap-1">
-          <NavItem collapsed={collapsed} active={view === "dashboard"} onClick={() => setView("dashboard")} icon={<Icon.dashboard className="size-4"/>} label="Imperium" />
+          <NavItem collapsed={collapsed} active={view === "dashboard"} onClick={() => setView("dashboard")} icon={<Icon.dashboard className="size-4"/>} label="Dashboard" />
           <NavItem collapsed={collapsed} active={view === "flow"}      onClick={() => setView("flow")}      icon={<Icon.flow className="size-4"/>}      label="Agents" badge={agentsCount} />
-          <NavItem collapsed={collapsed} active={view === "catalog"}   onClick={() => setView("catalog")}   icon={<Icon.catalog className="size-4"/>}   label="Skills" />
+          <NavItem collapsed={collapsed} active={view === "catalog"}   onClick={() => setView("catalog")}   icon={<Icon.catalog className="size-4"/>}   label="Commands" />
           <NavItem collapsed={collapsed} active={view === "matrix"}    onClick={() => setView("matrix")}    icon={<Icon.matrix className="size-4"/>}    label="Policies" />
+          <NavItem collapsed={collapsed} active={view === "models"}    onClick={() => setView("models")}    icon={<Icon.cpu className="size-4"/>}    label="Models" />
+          <NavItem collapsed={collapsed} active={view === "harness"}   onClick={() => setView("harness")}   icon={<Icon.command className="size-4"/>} label="Harness" />
+          <NavItem collapsed={collapsed} active={view === "repository"} onClick={() => setView("repository")} icon={<Icon.file className="size-4"/>} label="Repository" />
+          <NavItem collapsed={collapsed} active={view === "mesh"}      onClick={() => setView("mesh")}      icon={<Icon.cpu className="size-4"/>} label="Mesh" />
+          <NavItem collapsed={collapsed} active={view === "gamify"}    onClick={() => setView("gamify")}    icon={<Icon.spark className="size-4"/>} label="Gamify" />
+          <NavItem collapsed={collapsed} active={view === "runs"}      onClick={() => setView("runs")}      icon={<Icon.scale className="size-4"/>}      label="Runs" />
           <NavItem collapsed={collapsed} active={view === "memory"}    onClick={() => setView("memory")}    icon={<Icon.memory className="size-4"/>}    label="Memory" />
         </nav>
 
@@ -126,7 +133,7 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
             {!collapsed && (
               <div className="flex-1 leading-tight overflow-hidden">
                 <div className="font-display text-[11px] text-zinc-200 truncate">archon@vox</div>
-                <div className="font-mono text-[9px] text-zinc-500">build 0.5.0 · tauri 2</div>
+                <div className="font-mono text-[9px] text-zinc-500">build {appVersion ?? 'unknown'} · tauri 2</div>
               </div>
             )}
           </div>

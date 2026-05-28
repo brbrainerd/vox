@@ -19,7 +19,7 @@ pub async fn run() -> Result<()> {
         "{}",
         "Starting Ludus HUD. Listening for orchestrator events…".cyan()
     );
-    sleep(Duration::from_secs(1)).await;
+    sleep(vox_config::timeouts::D_1S).await;
 
     let mut companions: HashMap<u64, Companion> = HashMap::new();
 
@@ -77,7 +77,7 @@ pub async fn run() -> Result<()> {
                     _ => {}
                 }
             }
-            _ = sleep(Duration::from_secs(3)) => {}
+            _ = sleep(vox_config::timeouts::D_3S) => {}
         }
 
         let mut refs: Vec<&Companion> = companions.values().collect();

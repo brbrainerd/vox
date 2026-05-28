@@ -549,7 +549,7 @@ async fn cmd_approvals(mcp_url: String, json: bool) -> anyhow::Result<()> {
         }
     });
     let client = vox_http_client::client_builder()
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(vox_config::timeouts::D_5S)
         .build()?;
     let resp = client.post(&url).json(&body).send().await;
     match resp {
@@ -593,7 +593,7 @@ async fn cmd_resolve(
         }
     });
     let client = vox_http_client::client_builder()
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(vox_config::timeouts::D_5S)
         .build()?;
     match client.post(&url).json(&body).send().await {
         Ok(r) if r.status().is_success() => {
@@ -792,7 +792,7 @@ async fn cmd_doctor(
         resolved.http_gateway_url.trim_end_matches('/')
     );
     let http_status = vox_http_client::client_builder()
-        .timeout(std::time::Duration::from_secs(5))
+        .timeout(vox_config::timeouts::D_5S)
         .build()?
         .get(&http_probe_url)
         .send()

@@ -15,7 +15,7 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
 
     // Call GitHub API to get the latest deploy-hetzner.yml run
     let url = "https://api.github.com/repos/vox-foundation/vox/actions/runs?branch=main&event=push&per_page=10";
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let resp = client
         .get(url)
         .header("Authorization", format!("Bearer {}", token))

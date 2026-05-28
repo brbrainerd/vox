@@ -1,28 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Sparkline } from '../../ui/Sparkline';
-import { voxTransport } from '../../../transport';
-
-// ─── Memory Corpora (static config — real counts come from Mnemosyne backend) ─
-const MEM_CORPORA = [
-  { id: 'proj',  name: 'Project · vox',        type: 'code',   tone: 'text-brass',       entries: 0 },
-  { id: 'docs',  name: 'Docs · README + RFCs',  type: 'text',   tone: 'text-cyan-300',    entries: 0 },
-  { id: 'chats', name: 'Chats · Loquela log',   type: 'chat',   tone: 'text-violet-300',  entries: 0 },
-  { id: 'rules', name: 'Rule packs',             type: 'policy', tone: 'text-amber-300',   entries: 0 },
-  { id: 'web',   name: 'Web crawl · socrates',   type: 'web',    tone: 'text-emerald-300', entries: 0 },
-];
-
-// ─── Shard mini-cards ──────────────────────────────────────────────────────────
-const SHARD_COUNT = 12;
-const shards = Array.from({ length: SHARD_COUNT }, (_, i) => ({
-  id: `0x${(0x3A + i).toString(16).toUpperCase()}`,
-  depth: 3 + (i % 4),
-  entries: 1280 + i * 173,
-  hot: i < 3,
-  dirty: i === 4 || i === 9,
-  spark: [5, 6, 5, 7, 8, 7, 9, 10, 9, 11, 12, 11, 13].map(v => v + i * 0.3),
-}));
 
 interface HitResult {
   src: string;
@@ -98,27 +78,18 @@ function HitCard({ hit, onPin }: { hit: HitResult; onPin: () => void }) {
   );
 }
 
-// Sample hit dataset — will be replaced by real Mnemosyne recall once wired.
-const SAMPLE_HITS: HitResult[] = [
-  { src: 'vox-protocol/src/handshake.rs',   line: 142, score: 0.94, kind: 'code',   text: 'Constant-time comparison enforced via subtle::ConstantTimeEq; doubt injected when nonce reuse is observed.' },
-  { src: 'docs/rfcs/0007-clavis-rotation.md', line: 18, score: 0.91, kind: 'text',  text: 'Rotation cadence is policy-driven (default 90d); break-glass override requires capability gate.' },
-  { src: 'chats/loquela/2026-05-09',         line: 0,  score: 0.88, kind: 'chat',   text: 'User asked Augur to harden cryptographic invariants — produced 3 candidate branches.' },
-  { src: 'rule-packs/crypto.yml',            line: 31, score: 0.84, kind: 'policy', text: 'All AEAD constructions MUST tag nonce-reuse domain separately; doubt threshold 0.7.' },
-  { src: 'vox-arch-check/lib.rs',            line: 88, score: 0.79, kind: 'code',   text: 'Rule R-0421: invariants over crypto primitives validated against Socrates citation set.' },
-];
-
-const RECENT_RECALLS = [
-  { q: 'ed25519 invariant constraints',       n: 12, when: '2m' },
-  { q: 'qlora epoch schedule for mens-candle',n: 7,  when: '14m' },
-  { q: 'durable checkpoint stall mitigation', n: 21, when: '1h' },
-  { q: 'vox-arch-check rule precedence',      n: 4,  when: '3h' },
-];
+interface MemoryStatusPayload {
+  corpus_counts: Record<string, number>;
+  shards: Array<{ id: string; depth: number; entries: number; hot: boolean; dirty: boolean; spark: number[] }>;
+  recent_recalls: Array<{ q: string; n: number; when: string }>;
+}
 
 interface MemoryViewProps {
   pushToast: (t: any) => void;
 }
 
 export function MemoryView({ pushToast }: MemoryViewProps) {
+  const [memStatus, setMemStatus] = useState<MemoryStatusPayload | null>(null);
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState<string[]>(['proj', 'docs', 'chats', 'rules', 'web']);
   const [topK, setTopK] = useState(8);
@@ -126,16 +97,19 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
   const [hits, setHits] = useState<HitResult[]>([]);
   const [recalling, setRecalling] = useState(false);
 
-  const totalEntries = MEM_CORPORA.reduce(
+  useEffect(() => {
+    invoke<MemoryStatusPayload>('get_memory_status')
+      .then(setMemStatus)
+      .catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: String(err) }));
+  }, [pushToast]);
+
+  const corpora = MEM_CORPORA.map((c) => ({ ...c, entries: memStatus?.corpus_counts?.[c.id] ?? 0 }));
+  const totalEntries = corpora.reduce(
     (s, c) => s + (scope.includes(c.id) ? c.entries : 0),
     0
   );
   const toggleScope = (id: string) =>
     setScope(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
-
-  const kindToCorpusId: Record<string, string> = {
-    code: 'proj', text: 'docs', chat: 'chats', policy: 'rules', web: 'web',
-  };
 
   const recall = async (q?: string) => {
     const qq = (q ?? query).trim();
@@ -144,36 +118,23 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
     setHits([]);
 
     try {
-      // Execute real CLI command via Tauri Transport
-      const res = await voxTransport.callTool('mnemosyne_recall', {
+      const res = await invoke<HitResult[]>('mnemosyne_recall', {
         query: qq,
         scope: scope.join(','),
-        limit: topK
+        limit: topK,
       });
-
-      // Parse JSON output if the command outputs structured data
-      const parsed = JSON.parse(res.stdout);
-      if (Array.isArray(parsed)) {
-        setHits(parsed.slice(0, topK));
-      } else {
-        throw new Error("Invalid output format");
-      }
-    } catch (err) {
-      // Fallback to sample data if backend command is unavailable or fails
-      const results = SAMPLE_HITS
-        .filter(h => scope.includes(kindToCorpusId[h.kind] ?? 'proj'))
-        .slice(0, topK)
-        .map(h => ({ ...h, score: +(h.score - Math.random() * 0.04).toFixed(3) }));
-      setHits(results);
-      pushToast({ tone: 'warn', title: 'Recall backend error', body: 'Fell back to sample data' });
-    } finally {
-      setRecalling(false);
+      setHits(res.slice(0, topK));
       pushToast({
         tone: 'ok',
         title: 'Recall complete',
         body: `Top hits across ${scope.length} corpora`,
         cmd: `mnemosyne recall • "${qq}"`,
       });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Recall backend error', body: String(err) });
+    } finally {
+      setRecalling(false);
+      invoke<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
     }
   };
 
@@ -187,7 +148,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
               Mnemosyne · Memory
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              Vector + symbolic recall · {scope.length} corpora active
+              Vector + symbolic recall · {scope.length} corpora active · {totalEntries.toLocaleString()} indexed entries
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -202,7 +163,11 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
               <Icon.eye className="size-3" /> Auto-recall
             </button>
             <button
-              onClick={() => pushToast({ tone: 'warn', title: 'Reindex queued', cmd: 'mnemosyne reindex' })}
+              onClick={() =>
+                invoke('mnemosyne_reindex')
+                  .then(() => pushToast({ tone: 'ok', title: 'Reindex complete', cmd: 'mnemosyne reindex' }))
+                  .catch((err) => pushToast({ tone: 'warn', title: 'Reindex failed', body: String(err) }))
+              }
               className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.02] px-2 py-1.5 font-mono text-[10px] text-zinc-400 hover:text-zinc-200"
             >
               <Icon.refresh className="size-3" /> Reindex
@@ -242,7 +207,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
         {/* Scope chips */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <span className="font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Scope</span>
-          {MEM_CORPORA.map(c => (
+          {corpora.map(c => (
             <CorpusChip key={c.id} corpus={c} active={scope.includes(c.id)} onToggle={() => toggleScope(c.id)} />
           ))}
         </div>
@@ -255,7 +220,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
           <Icon.clock className="size-3.5 text-zinc-500" />
         </div>
         <div className="mt-3 space-y-1.5">
-          {RECENT_RECALLS.map((r, i) => (
+          {(memStatus?.recent_recalls ?? []).map((r, i) => (
             <button
               key={i}
               onClick={() => { setQuery(r.q); recall(r.q); }}
@@ -317,10 +282,10 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
       <Glass className="col-span-12 p-5">
         <div className="flex items-center justify-between">
           <h3 className="font-display text-[13px] uppercase tracking-[0.18em] text-zinc-200">Memory shards</h3>
-          <span className="font-mono text-[10px] text-zinc-500">{SHARD_COUNT} live · HNSW · dim 1024</span>
+          <span className="font-mono text-[10px] text-zinc-500">{(memStatus?.shards ?? []).length} live · HNSW · dim 1024</span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          {shards.map(s => (
+          {(memStatus?.shards ?? []).map(s => (
             <div
               key={s.id}
               className={`rounded-xl border p-3 transition hover:border-white/15 ${

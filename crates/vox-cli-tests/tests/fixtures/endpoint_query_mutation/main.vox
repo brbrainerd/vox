@@ -1,0 +1,5 @@
+@query
+fn get_user(id: int) to str { return "user" }
+
+@mutation
+fn create_user(name: str) to int { return 1 }

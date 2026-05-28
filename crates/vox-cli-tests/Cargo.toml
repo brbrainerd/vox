@@ -1,0 +1,28 @@
+[package]
+name = "vox-cli-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+description = "End-to-end CLI integration tests for `vox build` and friends — runs the CLI as a subprocess via `assert_cmd`, then asserts emitted TS compiles via `tsc --noEmit` and emitted Rust compiles via `cargo check`."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+tempfile = "3"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+
+[dev-dependencies]
+# Declared so cargo builds the `vox` binary before running tests.
+# The harness locates it via `env!("CARGO_BIN_EXE_vox")` — no nested `cargo build`,
+# no file-lock race with the outer `cargo test`.
+vox-cli = { path = "../vox-cli" }
+assert_cmd = "2"
+
+[[test]]
+name = "build_e2e"
+path = "tests/build_e2e.rs"

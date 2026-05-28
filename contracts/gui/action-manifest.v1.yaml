@@ -1,0 +1,39 @@
+x-vox-version: 2
+schema_version: 1
+description: >
+  GUI action manifest contract. Runtime instances are generated from the compiled
+  clap command catalog plus contracts/operations/catalog.v1.yaml metadata.
+entry_shape:
+  id: string
+  title: string
+  description: string
+  handler_kind:
+    enum: [cli, mcp, ipc]
+  cli_path: [string]
+  mcp_name: string
+  command: string
+  safety_class:
+    enum: [read_only, mutating, destructive, unknown]
+  feature_gate: string
+  capability_id: string
+  scope_kind: string
+  requires_repo: boolean
+  reversible: boolean
+  confirmation_policy:
+    enum: [none, recommended, required]
+  execution_mode:
+    enum: [sync, async]
+  output_kind:
+    enum: [text, json, msgpack, mixed]
+  status: string
+  product_lane: string
+  platform:
+    desktop: boolean
+    mobile: boolean
+  arguments:
+    - name: string
+      short: string
+      long: string
+      help: string
+      required: boolean
+      takes_value: boolean

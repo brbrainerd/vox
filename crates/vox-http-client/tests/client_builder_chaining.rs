@@ -8,7 +8,9 @@ use vox_http_client::client_builder;
 fn client_builder_chains_user_agent_and_timeouts_without_panic() {
     let client = client_builder()
         .user_agent("integration-test/vox-reqwest-defaults")
+        // drift-allow(timeout-literal): SSOT crate's own integration test exercises chainability
         .connect_timeout(Duration::from_secs(30))
+        // drift-allow(timeout-literal): SSOT crate's own integration test exercises chainability
         .pool_idle_timeout(Duration::from_secs(120))
         .build()
         .expect("chained builder should still construct offline");

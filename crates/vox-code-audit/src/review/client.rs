@@ -17,7 +17,7 @@ impl ReviewClient {
     /// Create a client with an explicit provider list.
     pub fn new(providers: Vec<ReviewProvider>) -> Self {
         let http = vox_http_client::client_builder()
-            .timeout(Duration::from_secs(120))
+            .timeout(vox_config::timeouts::D_120S)
             .user_agent("vox-review/0.1")
             .build()
             .expect("Failed to build HTTP client for vox review");

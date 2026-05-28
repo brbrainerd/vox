@@ -93,7 +93,7 @@ async fn run_watch(args: &crate::cli_args::TestArgs) -> Result<()> {
     // Run once immediately before waiting for changes.
     let _ = run_once(args).await;
 
-    let debounce = Duration::from_millis(300);
+    let debounce = vox_config::timeouts::D_300MS;
     let mut last_run = Instant::now();
 
     for event in rx {

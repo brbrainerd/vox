@@ -66,7 +66,7 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
         GITHUB_REPO, head_sha
     );
 
-    let client = reqwest::Client::new();
+    let client = vox_http_client::client();
     let start = Instant::now();
     let timeout = Duration::from_secs(args.timeout_secs);
 
