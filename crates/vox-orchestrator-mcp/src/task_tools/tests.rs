@@ -30,6 +30,8 @@ fn base_params(description: &str) -> SubmitTaskParams {
         required_labels: None,
         is_detached: None,
         budget: None,
+        active_skill: None,
+        tenant_id: None,
     }
 }
 

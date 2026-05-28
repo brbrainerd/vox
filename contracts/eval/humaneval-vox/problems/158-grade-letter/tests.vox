@@ -1,0 +1,30 @@
+fn grade_letter(score: int) to str {
+    if score >= 90 {
+        return "A"
+    }
+    if score >= 80 {
+        return "B"
+    }
+    if score >= 70 {
+        return "C"
+    }
+    if score >= 60 {
+        return "D"
+    }
+    return "F"
+}
+
+@test
+fn t_a() to Unit { assert(grade_letter(95) is "A") }
+@test
+fn t_a_edge() to Unit { assert(grade_letter(90) is "A") }
+@test
+fn t_b() to Unit { assert(grade_letter(85) is "B") }
+@test
+fn t_c() to Unit { assert(grade_letter(75) is "C") }
+@test
+fn t_d() to Unit { assert(grade_letter(65) is "D") }
+@test
+fn t_f() to Unit { assert(grade_letter(50) is "F") }
+@test
+fn t_zero() to Unit { assert(grade_letter(0) is "F") }

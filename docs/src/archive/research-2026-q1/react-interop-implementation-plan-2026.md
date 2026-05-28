@@ -1,7 +1,7 @@
 ---
 title: "Vox Web: Minimal React Interop Implementation Plan"
 description: "Complete implementation plan for Vox's minimal-surface, framework-agnostic React interop system. Supersedes the TanStack Start-specific codegen plan. Covers route manifest pattern, vox-client typed fetch SDK, v0/shadcn compatibility, decorator retirement, and full migration with 250+ tasks."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 
@@ -495,7 +495,7 @@ Tasks:
 **Goal:** Replace the broken virtual file route emitter with the stable manifest emitter.
 
 Tasks:
-- Create `crates/vox-compiler/src/codegen_ts/route_manifest.rs` [NEW FILE]
+- Create `crates/vox-codegen/src/codegen_ts/route_manifest.rs` [NEW FILE]
 - Add `pub fn emit_route_manifest(hir: &HirModule) -> String` 
 - Emit `VoxRoute` TypeScript type definition at top of manifest
 - Emit `notFoundComponent` export if `RoutesDecl.not_found_component` is set
@@ -535,7 +535,7 @@ Tasks:
 **Goal:** Generate one-time scaffold files that the user owns permanently.
 
 Tasks:
-- Create `crates/vox-compiler/src/codegen_ts/scaffold.rs` [NEW FILE]
+- Create `crates/vox-codegen/src/codegen_ts/scaffold.rs` [NEW FILE]
 - `fn emit_main_tsx() -> &'static str` — returns `app/main.tsx` content
 - `fn emit_app_tsx(not_found: Option<&str>, error: Option<&str>, pending: Option<&str>) -> String` — returns `app/App.tsx` adapting `voxRoutes`
 - `fn emit_globals_css() -> &'static str` — returns `app/globals.css` with Tailwind v4 `@import`

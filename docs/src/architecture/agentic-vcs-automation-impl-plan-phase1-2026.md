@@ -1,7 +1,7 @@
 ---
 title: "Agentic VCS Automation — Phase 1 Implementation Plan (2026-05-08)"
 description: "Step-by-step TDD plan that implements Phase 1 of the agentic-version-control-automation research: capability types, workspace↔branch binding, central banned-command-enforcing git exec wrapper, secret-scanner, write-side commit and branch MCP tools, telemetry namespace, and one production callsite migration. Phases 2–4 (Vox @vcs.* decorators, dashboard, .vox glue) are sketched at the end as separate plans."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 1 lowers the agentic-vcs research findings into concrete, ordered tasks with full code, exact file paths, exact commands, and TDD steps. Every task produces a commit. Future agents executing this plan should not need to invent code."
@@ -557,7 +557,7 @@ Create `crates/vox-orchestrator-mcp/src/vcs_tools/secret_scan.rs`:
 ```rust
 //! Minimal secret scanner for staged diff content. Phase 1: regex over a
 //! curated list of well-known credential shapes. Phase 2 will plug into
-//! `vox-clavis` for environment-derived blocklists.
+//! `vox-secrets` for environment-derived blocklists.
 
 use regex::Regex;
 use std::sync::OnceLock;
@@ -1356,7 +1356,7 @@ Modify `docs/agents/git-concurrency-policy.md` — append a new section after `#
 
 As of 2026-05-08, the banned-command list in §2 is enforced in code:
 
-- All orchestrator-process git invocations route through [`vox_orchestrator_mcp::git_exec::GitExec`](../../crates/vox-orchestrator-mcp/src/git_exec.rs).
+- All orchestrator-process git invocations route through [`vox_orchestrator_mcp::git_exec::GitExec`](../../../crates/vox-orchestrator-mcp/src/git_exec.rs).
 - Banned prefixes (`stash`, `reset --hard`, `clean -fd`, `clean -fdx`, `restore .`, `checkout .`, `checkout -- .`, `checkout -f`) are rejected before spawn and emit a `vox.vcs.exec` warning event.
 - Direct `tokio::process::Command::new("git")` calls in non-test code outside `git_exec.rs` are a code-review regression; `cargo run -p vox-arch-check` will gain a rule for this in Phase 2.
 

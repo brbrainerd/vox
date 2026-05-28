@@ -56,6 +56,21 @@ impl DetectionRule for OptionCombinatorDetector {
         written more concisely as combinator chains like `.map(f).unwrap_or(default)`."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VERBOSE — two-arm match over Option\n\
+             let display_name = match user.nickname {\n\
+             \x20   Some(n) => n.to_uppercase(),\n\
+             \x20   None => \"Anonymous\".to_string(),\n\
+             };\n\
+             \n\
+             // IDIOMATIC — use Option combinator\n\
+             let display_name = user.nickname\n\
+             \x20   .map(|n| n.to_uppercase())\n\
+             \x20   .unwrap_or_else(|| \"Anonymous\".to_string());",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

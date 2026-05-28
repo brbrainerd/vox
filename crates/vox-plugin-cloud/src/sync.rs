@@ -44,7 +44,14 @@ impl CloudSync for CloudPlugin {
     }
 
     fn list_remote_json(&self, _remote_prefix: RStr<'_>) -> RResult<RString, RBoxError> {
-        RResult::ROk(RString::from("[]"))
+        // Match sibling methods (upload, download) by returning an explicit
+        // not-implemented error instead of silently returning "[]". An empty
+        // array is indistinguishable from "no remote artifacts" at this layer
+        // and would mislead callers about feature availability.
+        // Refs: docs/src/architecture/semantic-gap-audit-2026.md F7.
+        RResult::RErr(RBoxError::new(std::io::Error::other(
+            "not yet implemented; SP7 scaffold",
+        )))
     }
 }
 

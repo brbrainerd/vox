@@ -194,7 +194,7 @@ pub fn resolve_mcp_chat_model_sync(
             if let Some(m) = registry.get(id) {
                 if !mcp_local_model_allowed(&m) {
                     return Err(
-                        "Sticky MCP model uses Ollama but VOX_INFERENCE_PROFILE does not allow local Ollama HTTP; use desktop_ollama or lan_gateway, pick a cloud model, or clear the override (see docs/src/architecture/mobile-edge-ai-ssot.md).".into(),
+                        "Sticky MCP model uses Ollama but vox_populi::inference_PROFILE does not allow local Ollama HTTP; use desktop_ollama or lan_gateway, pick a cloud model, or clear the override (see docs/src/architecture/mobile-edge-ai-ssot.md).".into(),
                     );
                 }
                 if !caps_ok(&m) {
@@ -233,7 +233,7 @@ pub fn resolve_mcp_chat_model_sync(
             .into_iter()
             .filter(|m| caps_ok(m))
             .filter(|m| matches!(m.provider_type, ProviderType::VoxLocal))
-            .filter(|m| mcp_local_model_allowed(m))
+            .filter(mcp_local_model_allowed)
             .filter(|m| routing_allows(m))
             .max_by(|a, b| a.max_tokens.cmp(&b.max_tokens))
         {
@@ -295,7 +295,7 @@ pub fn resolve_mcp_chat_model_sync(
 
     Err(
         "No LLM model available — set OPENROUTER_API_KEY or GEMINI_API_KEY, install Ollama when \
-         VOX_INFERENCE_PROFILE allows local/LAN Ollama (desktop_ollama or lan_gateway), \
+         vox_populi::inference_PROFILE allows local/LAN Ollama (desktop_ollama or lan_gateway), \
          or add models.toml under the Vox config directory."
             .into(),
     )

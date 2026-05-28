@@ -1,0 +1,4 @@
+
+crates\vox-compiler\src\required_capabilities.rs:82:13: warning: this `if` statement can be collapsed
+crates\vox-compiler\src\required_capabilities.rs:83:17: warning: this `if` statement can be collapsed
+

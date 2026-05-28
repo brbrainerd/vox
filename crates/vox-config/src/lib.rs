@@ -9,16 +9,22 @@ pub mod inference;
 pub mod operator_registry;
 pub mod paths;
 pub mod policy;
+pub mod project_manifest;
 pub mod rollout;
 pub mod routing_migration;
 pub mod routing_policy;
 pub mod scholarly;
 pub mod secrets;
 pub mod toml_config;
+pub mod model_routing;
 
 pub use bootstrap_inference::{
     NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,
     REVIEW_PREMIUM_FALLBACK,
+};
+pub use model_routing::{
+    ClassifierPinConfig, ExplorationConfig, LatencyBands, ModelPinsConfig, ModelRoutingConfig,
+    PromotionThresholds, SafetyConfig, load_model_pins_config, load_model_routing_config,
 };
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
@@ -39,6 +45,9 @@ pub use paths::{
     repo_memory_cache_dir, repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
 };
 pub use policy::hitl_policy::HitlPolicy;
+pub use project_manifest::{
+    BundleAssetsToml, BundleTomlFragment, ProjectManifest, WorkspaceTomlFragment,
+};
 pub use rollout::{
     RolloutFlagSnapshot, db_circuit_breaker_env_enabled,
     db_embedded_replica_integration_gate_armed, db_sync_remote_integration_gate_armed, env_truthy,
@@ -59,6 +68,11 @@ pub use secrets::secrets_str;
 /// Minimum Vox MCP server version required for full agent capability.
 pub const VOX_MCP_MIN_VERSION: &str = ">=0.2.0";
 
+/// URL path prefix for serving stored files.
+pub const STORAGE_URL_PREFIX: &str = "/storage";
+
+/// Maximum number of WAL entries to buffer before forcing a flush to disk.
+pub const WAL_FLUSH_BATCH_SIZE: usize = 32;
 #[cfg(test)]
 mod tests {
     use super::*;

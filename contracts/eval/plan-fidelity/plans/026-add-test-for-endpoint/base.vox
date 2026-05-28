@@ -1,0 +1,19 @@
+// Base source for plan-026-add-test-for-endpoint.
+//
+// `add_todo` validates emptiness but has no @test. The plan asks the
+// model to add one that exercises the empty-title error path.
+
+type TodoError =
+    | TitleEmpty(text: str)
+    | TitleTooLong(text: str)
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(TitleEmpty("title must not be empty"))
+    }
+    if len(title) > 100 {
+        return Error(TitleTooLong("title exceeds 100 chars"))
+    }
+    return Ok(title)
+}

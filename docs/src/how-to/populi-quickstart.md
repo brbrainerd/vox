@@ -1,7 +1,7 @@
 ---
 title: "Populi Quickstart"
 description: "Run a local Vox mesh control plane and pair a worker node in minutes — no environment variables required."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-05-01"
 training_eligible: true
 ---
@@ -12,7 +12,7 @@ This guide walks you through running a local Vox mesh control plane — no envir
 
 ## Prerequisites
 
-- `vox-mens` built with the `populi` feature: `cargo build -p vox-mens --features populi`
+- `vox-ml-cli` built with the `populi` feature: `cargo build -p vox-ml-cli --features populi`
 - A writable `~/.vox/` directory (created automatically on first run)
 
 ## Step 1 — Start the control plane
@@ -23,7 +23,7 @@ vox populi serve --enable
 
 On the very first run, Vox generates a random bearer token and saves it to `~/.vox/config.toml` under the key `mesh.token`.  The token is printed once — copy it somewhere safe:
 
-```
+```text
 vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):
   VOX_MESH_TOKEN=a3f7c2...  ← copy this
   Keep this secret — it authenticates all control-plane requests.

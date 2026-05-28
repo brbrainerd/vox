@@ -1,6 +1,6 @@
 //! Vox **populi** — node registry, optional HTTP control plane, and (feature **`mens`**) native ML.
 //!
-//! CPU-first: each [`NodeRecord`] carries [`vox_orchestrator::TaskCapabilityHints`]. See
+//! CPU-first: each [`NodeRecord`] carries `vox_orchestrator::TaskCapabilityHints`. See
 //! `docs/src/architecture/populi-ssot.md` for environment variables.
 //! The **`mens`** module holds Burn/Candle QLoRA training (`--features mens …`).
 
@@ -261,6 +261,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             caps.labels.push(lab);
         }
     }
+    #[cfg_attr(not(feature = "mens"), allow(unused_mut))]
     let mut rec = NodeRecord {
         id: node_id,
         capabilities: caps,
@@ -336,7 +337,7 @@ pub fn populi_registration_record_for_process() -> NodeRecord {
     let id = env
         .node_id
         .clone()
-        .unwrap_or_else(|| format!("local-{}", vox_primitives::id::simple_hex_id()));
+        .unwrap_or_else(|| format!("local-{}", vox_foundation::primitives::id::simple_hex_id()));
     let listen = env.control_addr.clone();
     node_record_for_current_process(id, listen)
 }
@@ -351,11 +352,41 @@ pub fn local_registry_path() -> PathBuf {
 pub mod mens;
 
 #[cfg(feature = "transport")]
+mod http_auth;
+#[cfg(feature = "transport")]
 pub mod http_client;
 #[cfg(feature = "transport")]
 pub mod http_lifecycle;
+#[cfg(feature = "tls")]
+pub mod tls;
 #[cfg(feature = "transport")]
 pub mod transport;
+
+/// Returns the current target triple (Wave 4 best-effort).
+pub fn current_target_triple() -> &'static str {
+    // Note: rustc-env is not portable across cross-compilation environments but as a worker
+    // id it's sufficient for self-identification on the host it's running on.
+    #[cfg(all(target_arch = "x86_64", target_os = "windows"))]
+    return "x86_64-pc-windows-msvc";
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    return "x86_64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+    return "aarch64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    return "aarch64-apple-darwin";
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_os = "windows"),
+        all(target_arch = "x86_64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "macos")
+    )))]
+    return "unknown-unknown-unknown";
+}
+
+/// GitHub-attested pairing and revocation (P5-T2).
+pub mod pairing;
+/// Per-key token-bucket quota + reputation EMA (P5-T3).
+pub mod quota;
 
 #[cfg(test)]
 mod normalize_http_control_base_tests {
@@ -388,23 +419,7 @@ mod normalize_http_control_base_tests {
     }
 }
 
-/// Returns the current target triple (Wave 4 best-effort).
-pub fn current_target_triple() -> &'static str {
-    // Note: rustc-env is not portable across cross-compilation environments but as a worker
-    // id it's sufficient for self-identification on the host it's running on.
-    #[cfg(all(target_arch = "x86_64", target_os = "windows"))]
-    return "x86_64-pc-windows-msvc";
-    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-    return "x86_64-unknown-linux-gnu";
-    #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
-    return "aarch64-unknown-linux-gnu";
-    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
-    return "aarch64-apple-darwin";
-    #[cfg(not(any(
-        all(target_arch = "x86_64", target_os = "windows"),
-        all(target_arch = "x86_64", target_os = "linux"),
-        all(target_arch = "aarch64", target_os = "linux"),
-        all(target_arch = "aarch64", target_os = "macos")
-    )))]
-    return "unknown-unknown-unknown";
-}
+#[allow(missing_docs)]
+pub mod inference;
+#[allow(missing_docs)]
+pub mod distributed_training;

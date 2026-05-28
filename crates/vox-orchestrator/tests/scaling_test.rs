@@ -5,7 +5,7 @@ use vox_orchestrator::orchestrator::Orchestrator;
 use vox_orchestrator::runtime::AgentFleet;
 use vox_orchestrator::types::TaskPriority;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_dynamic_scaling_and_retirement() {
     let mut config = OrchestratorConfig::for_testing();
     config.scaling_enabled = true;
@@ -24,8 +24,6 @@ async fn test_dynamic_scaling_and_retirement() {
 
     // 1. Initial state: 0 agents (fleet sync will spawn 1 default if needed, or check_scaling will)
     orch.spawn_agent("default").unwrap();
-
-    fleet.sync_fleet().await;
     assert_eq!(orch.agent_ids().len(), 1);
 
     // 2. Add tasks to trigger scaling
@@ -34,6 +32,7 @@ async fn test_dynamic_scaling_and_retirement() {
             format!("task-{}", i),
             vec![],
             Some(TaskPriority::Normal),
+            None,
             None,
         )
         .await
@@ -52,33 +51,38 @@ async fn test_dynamic_scaling_and_retirement() {
     );
     assert!(agent_count <= 4);
 
-    // 4. Mark tasks as complete to trigger retirement
+    // 4. Mark tasks as complete to trigger retirement.
+    // Explicitly scope the queue lock to ensure it is dropped before awaiting complete_task.
     {
         let ids = orch.agent_ids();
         for id in ids {
-            if let Some(q) = orch.get_agent_queue_mut(id) {
-                let tasks = q.write().unwrap().drain_tasks();
-                for t in tasks {
-                    orch.complete_task(t.id).await.ok();
-                }
+            let tasks = if let Some(q) = orch.get_agent_queue_mut(id) {
+                q.write().unwrap().drain_tasks()
+            } else {
+                vec![]
+            };
+
+            for t in tasks {
+                orch.complete_task(t.id).await.ok();
             }
         }
     }
 
-    // CONTROLLED-DURATION SLEEP: idle_retirement_ms=100 is an elapsed-time gate inside
-    // AgentFleet::check_scaling(). There is no polling seam to replace this without adding
-    // a MockClock to AgentFleet. At 200ms this is well above the 100ms threshold and
-    // below CI timeout risk. Do not remove without also adding a ClockSeam trait to AgentFleet.
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    fleet.check_scaling().await;
-
-    // Should have scaled down to min_agents
-    let final_count = orch.agent_ids().len();
-    assert_eq!(
-        final_count, 1,
-        "Should have scaled down to 1, found {}",
-        final_count
-    );
+    // 5. Active polling for retirement.
+    // We use a combination of yield and real-time sleep to ensure the orchestrator
+    // has time to process the retirement while the test thread remains responsive.
+    let mut retired = false;
+    for _ in 0..30 {
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        
+        fleet.check_scaling().await;
+        let status = orch.status();
+        if status.agents.len() == 1 {
+            retired = true;
+            break;
+        }
+    }
+    assert!(retired, "Agents did not retire within timeout (check idle_retirement_ms and ScalingService logic)");
 }
 
 #[tokio::test]
@@ -102,6 +106,7 @@ async fn test_predictive_scaling_uses_trend() {
             format!("task-{}", i),
             vec![],
             Some(TaskPriority::Urgent),
+            None,
             None,
         )
         .await
@@ -149,6 +154,7 @@ async fn test_group_affinity_voting_routes_correctly() {
             vec![FileAffinity::write("src/parser/grammar.rs")],
             None,
             None,
+            None,
         )
         .await
         .unwrap();
@@ -159,6 +165,7 @@ async fn test_group_affinity_voting_routes_correctly() {
         .submit_task(
             "parser task 2",
             vec![FileAffinity::write("src/parser/grammar.rs")],
+            None,
             None,
             None,
         )
@@ -188,6 +195,7 @@ async fn test_urgent_rebalance_trigger() {
             format!("urgent-{}", i),
             vec![],
             Some(TaskPriority::Urgent),
+            None,
             None,
         )
         .await

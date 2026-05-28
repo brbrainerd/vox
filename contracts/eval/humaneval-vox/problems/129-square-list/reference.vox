@@ -1,0 +1,7 @@
+fn square_list(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    for x in xs {
+        result.push(x * x)
+    }
+    return result
+}

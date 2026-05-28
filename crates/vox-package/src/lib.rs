@@ -8,6 +8,10 @@
 
 /// Content-addressed artifact cache (`.vox-cache`).
 pub mod artifact_cache;
+/// Content-addressed bundle store for compiled workflow / activity functions (P2-T1).
+pub mod bundle;
+/// SafeTensors model bundle metadata + aggregate CAS hash (Mn-T3).
+pub mod model_bundle;
 /// HTTP client for the package registry API.
 pub mod registry;
 /// Multi-package workspace discovery from `Vox.toml` / members.
@@ -21,6 +25,9 @@ pub use vox_package_types::{
 };
 
 pub use artifact_cache::{ArtifactCache, CacheLookup, CacheManifest};
+pub use model_bundle::{
+    BundleProvenance, ModelBundle, Sha3_512, WeightFormat, compute_model_bundle_content_hash,
+};
 pub use registry::{
     DownloadResponse, PublishDependency, PublishRequest, RegistryClient, RegistryPackageInfo,
     SearchResult,

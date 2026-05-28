@@ -17,14 +17,15 @@ impl OrientPhase {
             || l.contains("spec")
         {
             TaskCategory::Testing
-        } else if l.contains("refactor") || l.contains("clean") || l.contains("restructure") {
-            TaskCategory::General // Mapped to General
-        } else if l.contains("document")
+        } else if l.contains("refactor")
+            || l.contains("clean")
+            || l.contains("restructure")
+            || l.contains("document")
             || l.contains("comment")
             || l.contains("readme")
             || l.contains("docstring")
         {
-            TaskCategory::General // Mapped to General
+            TaskCategory::General
         } else if l.contains("analyze") || l.contains("audit") || l.contains("review") {
             TaskCategory::Review
         } else if l.contains("implement")

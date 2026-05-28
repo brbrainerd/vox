@@ -1,7 +1,7 @@
 ---
 title: "Secrets SSOT"
 description: "Canonical secret-management source of truth for Vox Secrets"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-05-08"
 training_eligible: true
 
@@ -32,7 +32,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 
 | Secret | Scope | Tier | Primary consumer surfaces |
 | --- | --- | --- | --- |
-| `OPENROUTER_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | LLM inference | Minimal cloud LLM | `vox-mcp`, `vox-runtime`, `vox-cli doctor/status` |
+| `OPENROUTER_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | LLM inference | Minimal cloud LLM | `vox-mcp`, `vox-actor-runtime`, `vox-cli doctor/status` |
 | `HF_TOKEN` | LLM retrieval / HF router | Optional | `vox-config`, HF routes |
 | `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `SAMBANOVA_API_KEY`, `CUSTOM_OPENAI_API_KEY` | Alternative LLM providers | Optional power-user | provider-specific runtime/mcp paths |
 | `VOX_RUNPOD_API_KEY`, `VOX_VAST_API_KEY` | Cloud GPU infra | Optional cloud GPU | `vox-populi` cloud providers |
@@ -49,7 +49,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_MESH_ADMIN_TOKEN` | Mesh admin bearer | Optional | Full HTTP surface when configured |
 | `VOX_MESH_JWT_HMAC_SECRET` | HS256 key for mesh JWT bearer | Optional | JWT claims `role`, `jti`, `exp` |
 | `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Ed25519 verify key (hex or Standard base64) | Optional | Signed `job_result` / `job_fail` payloads |
-| `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-runtime` auth gate |
+| `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-actor-runtime` auth gate |
 | `VOX_MCP_HTTP_BEARER_TOKEN`, `VOX_MCP_HTTP_READ_BEARER_TOKEN` | MCP HTTP gateway auth | Optional hardening | `vox-mcp` HTTP gateway auth surfaces |
 | `V0_API_KEY`, `VOX_OPENCLAW_TOKEN` | Auxiliary tooling | Optional | island generation / OpenClaw |
 | `*_TUNING_TEMPERATURE`, `*_TUNING_TOP_P` | LLM inference overrides (Gemini, Ollama, OpenAI, Anthropic, Together) | Optional | Resolution precedence: Request > Env > Tool Default |

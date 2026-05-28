@@ -1,0 +1,12 @@
+// Bug: divide() takes two arguments (a, b) but is called with only one.
+fn divide(a: int, b: int) to int {
+    if b is 0 {
+        return 0
+    }
+    return a / b
+}
+
+fn main() to int {
+    // BUG: divide requires 2 args; only 1 provided.
+    return divide(10)
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "005"
+title = "count_vowels"
+prompt = """
+Count the number of vowels (a, e, i, o, u — upper and lowercase) in the string.
+"""
+signature = "fn count_vowels(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

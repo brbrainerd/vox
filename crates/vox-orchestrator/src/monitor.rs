@@ -11,21 +11,38 @@ use crate::events::EventBus;
 use crate::types::AgentId;
 
 /// AI Monitor for idle detection and continuation prompts.
-#[derive(Debug)]
 pub struct AiMonitor {
     engine: ContinuationEngine,
     /// Last known activity timestamp for each agent
     last_activity: HashMap<AgentId, std::time::SystemTime>,
     idle_threshold: Duration,
+    /// Registry for looking up procedural skill instructions.
+    skill_registry: std::sync::Arc<vox_skills::SkillRegistry>,
+}
+
+impl std::fmt::Debug for AiMonitor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AiMonitor")
+            .field("engine", &self.engine)
+            .field("last_activity", &self.last_activity)
+            .field("idle_threshold", &self.idle_threshold)
+            .finish()
+    }
 }
 
 impl AiMonitor {
     /// Configures continuation cooldown, max auto-nudges per agent, and idle detection window.
-    pub fn new(cooldown_ms: u64, max_auto_continuations: u32, idle_threshold_ms: u64) -> Self {
+    pub fn new(
+        cooldown_ms: u64,
+        max_auto_continuations: u32,
+        idle_threshold_ms: u64,
+        skill_registry: std::sync::Arc<vox_skills::SkillRegistry>,
+    ) -> Self {
         Self {
             engine: ContinuationEngine::new(cooldown_ms, max_auto_continuations),
             last_activity: HashMap::new(),
             idle_threshold: Duration::from_millis(idle_threshold_ms),
+            skill_registry,
         }
     }
 
@@ -45,13 +62,15 @@ impl AiMonitor {
     /// Check for idle agents and return continuation prompts if any.
     pub fn check_idle_agents(
         &mut self,
-        active_agents: &[(AgentId, usize, bool, u64)], // (id, pending_task_count, has_in_progress, stalled_in_progress_ms)
+        active_agents: &[(AgentId, usize, bool, u64, Option<String>)], // (id, pending_task_count, has_in_progress, stalled_in_progress_ms, active_skill)
         event_bus: &EventBus,
     ) -> Vec<(AgentId, String)> {
         let now = std::time::SystemTime::now();
         let mut intents = Vec::new();
 
-        for &(agent_id, pending_tasks, has_in_progress, stalled_in_progress_ms) in active_agents {
+        for &(agent_id, pending_tasks, has_in_progress, stalled_in_progress_ms, ref active_skill_id) in
+            active_agents
+        {
             if pending_tasks == 0 {
                 continue;
             }
@@ -72,11 +91,20 @@ impl AiMonitor {
                             ContinuationStrategy::Continue
                         };
 
+                        let active_skill_content = active_skill_id.as_ref().and_then(|id| {
+                            self.skill_registry
+                                .lookup(id)
+                                .ok()
+                                .map(|skill| skill.body)
+                        });
+
                         if let Some(prompt) = self.engine.generate_continuation(
                             agent_id,
                             strategy,
                             pending_tasks,
                             observed_elapsed.as_secs(),
+                            active_skill_id.as_deref(),
+                            active_skill_content.as_deref(),
                             event_bus,
                         ) {
                             intents.push((agent_id, prompt.prompt_text));

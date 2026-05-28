@@ -14,14 +14,14 @@ use crate::server_state::ServerState;
 /// `Diagnostic.data` payload (`{ "suggestions": [...], "fixes": [...] }`, populated by
 /// [`vox_lsp::typeck_diagnostic_to_lsp`]).
 fn lsp_diagnostics_to_info(
-    diagnostics: &[tower_lsp::lsp_types::Diagnostic],
+    diagnostics: &[tower_lsp_server::ls_types::Diagnostic],
 ) -> Vec<DiagnosticInfo> {
     diagnostics
         .iter()
         .map(|d| {
             let code = match &d.code {
-                Some(tower_lsp::lsp_types::NumberOrString::String(s)) => Some(s.clone()),
-                Some(tower_lsp::lsp_types::NumberOrString::Number(n)) => Some(n.to_string()),
+                Some(tower_lsp_server::ls_types::NumberOrString::String(s)) => Some(s.clone()),
+                Some(tower_lsp_server::ls_types::NumberOrString::Number(n)) => Some(n.to_string()),
                 None => None,
             };
             let fixes = d
@@ -33,7 +33,7 @@ fn lsp_diagnostics_to_info(
                 .unwrap_or_default();
             DiagnosticInfo {
                 severity: match d.severity {
-                    Some(s) if s == tower_lsp::lsp_types::DiagnosticSeverity::ERROR => {
+                    Some(s) if s == tower_lsp_server::ls_types::DiagnosticSeverity::ERROR => {
                         "error".to_string()
                     }
                     _ => "warning".to_string(),
@@ -321,7 +321,7 @@ mod tests {
 
     #[test]
     fn lsp_diagnostics_to_info_extracts_code_and_fixes() {
-        use tower_lsp::lsp_types::{
+        use tower_lsp_server::ls_types::{
             Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range,
         };
         let d = Diagnostic {

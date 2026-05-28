@@ -1,0 +1,5 @@
+// Fix: change @uses(fs) to @uses(net) to match the actual effect used.
+@uses(net)
+fn fetch_config(url: str) to str {
+    return std.http.get_text(url)
+}

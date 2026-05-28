@@ -35,7 +35,7 @@ impl GitHubProvider {
 
     /// Create with a custom API base (for GitHub Enterprise).
     pub fn with_base(token: impl Into<String>, api_base: &str) -> Result<Self, ForgeError> {
-        let client = vox_reqwest_defaults::client_builder()
+        let client = vox_http_client::client_builder()
             .user_agent("vox-forge/0.1 (https://github.com/vox-lang/vox)")
             .build()
             .map_err(|e| ForgeError::Network(e.to_string()))?;

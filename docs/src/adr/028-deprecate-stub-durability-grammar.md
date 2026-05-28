@@ -1,15 +1,26 @@
 ---
 title: "ADR-028: Remove Stub Durability/Scheduling Grammar from Public API"
 description: "Proposes removing @scheduled, @durable, workflow, and activity from the public Vox grammar, retaining actor with documented limitations, following the 2026-05-01 durability runtime audit."
-category: "architecture"
-status: "experimental"
-last_updated: "2026-05-01"
+category: "Architecture Decisions (ADRs)"
+status: "deprecated"
+last_updated: "2026-05-23"
 training_eligible: true
 ---
 # ADR 028: Remove Stub Durability/Scheduling Grammar from Public API
 
 ## Status
-Proposed (2026-05-01)
+
+**Superseded by [ADR-041](041-durable-functions-completion-2026.md) (2026-05-23).**
+
+The 2026-05-01 audit found `@durable`/`workflow`/`activity` were parse-only stubs. Subsequent implementation work (Phases 1–6 of `docs/superpowers/plans/2026-05-23-durable-functions-completion.md`, completed 2026-05-23) closed the gap: codegen emits runtime calls; the runtime executes them with journal-backed replay; @scheduled has a persistent scheduler loop; actors auto-wire via main_boot. The grammar features are retained as public API. The original "Proposed" recommendation to remove them from the grammar is withdrawn.
+
+The audit findings below remain historically accurate as of 2026-05-01 and are preserved for the record.
+
+## Relationship to AGENTS.md (non-normative clarity)
+
+[`AGENTS.md`](../../../AGENTS.md) Grammar Unification keeps `actor`, `workflow`, and `activity` as **supported bare keywords** (they lower to `HirFn { durability: Some(DurabilityKind::_) }`). **`@durable` and `@scheduled` remain valid decorator syntax** today. This ADR does **not** override that policy until moved to **Accepted** and the compiler/parser change ships.
+
+**Separation of concerns:** “Syntax accepted by the compiler” and “durable execution implemented in the runtime” are different bars; see the audit below.
 
 ## Context
 
@@ -34,7 +45,7 @@ The `actor` keyword is a partial exception. Handler splitting into per-handler `
 1. **Remove `@scheduled`, `@durable`, `workflow`, and `activity` from the public grammar** in the next minor release.
 
    - These tokens are retained as **reserved identifiers**: the parser recognizes and rejects them with a clear diagnostic, e.g.:
-     ```
+     ```text
      error: `@scheduled` is not yet implemented — see tracking issue #<N>
      ```
    - The rejection happens at parse time so that users of future versions who add these features back do not silently compile to no-ops if they accidentally target an older toolchain.

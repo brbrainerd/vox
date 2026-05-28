@@ -1,7 +1,7 @@
 //! Socrates grounding snippets and telemetry for chat / inline / ghost tools.
 //!
-//! Rows written via [`spawn_socrates_telemetry_with_meta`] → [`vox_db::VoxDb::record_socrates_surface_event`]
-//! (or [`spawn_socrates_telemetry_with_llm`] → [`vox_db::VoxDb::record_unified_llm_turn`]) are **operator /
+//! Rows written via `spawn_socrates_telemetry_with_meta` → `vox_db::VoxDb::record_socrates_surface_event`
+//! (or `spawn_socrates_telemetry_with_llm` → `vox_db::VoxDb::record_unified_llm_turn`) are **operator /
 //! research diagnostics** (aggregated risk/confidence/contradiction — see `vox_db::socrates_telemetry` rustdoc), not end-user
 //! usage analytics. Questioning expansions use separate `question_*` tables.
 
@@ -21,6 +21,8 @@ use crate::server_state::ServerState;
 pub(crate) struct LlmSurfaceTelemetry {
     pub session_id: String,
     pub user_id: Option<String>,
+    #[allow(dead_code)]
+    pub tenant_id: Option<String>,
     pub prompt: String,
     pub response: String,
     pub model_id: String,
@@ -138,7 +140,7 @@ pub(crate) fn spawn_socrates_telemetry_with_meta(
     );
 }
 
-/// Like [`spawn_socrates_telemetry_with_meta`], but optionally records [`LlmSurfaceTelemetry`] in the same transaction as Socrates.
+/// Like `spawn_socrates_telemetry_with_meta`, but optionally records [`LlmSurfaceTelemetry`] in the same transaction as Socrates.
 pub(crate) fn spawn_socrates_telemetry_with_llm(
     state: &ServerState,
     surface: &'static str,
@@ -183,6 +185,7 @@ pub(crate) fn spawn_socrates_telemetry_with_llm(
                 output_tokens: l.output_tokens,
                 cache_read_tokens: l.cache_read_tokens,
                 trace_id: l.trace_id.as_deref(),
+                tenant_id: None,
                 context_utilization_pct: None,
                 success: l.success,
                 cost_usd: l.cost_usd,

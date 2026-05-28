@@ -25,7 +25,7 @@ jobs:
         run: cargo build -p vox-cli --features gpu
 
       - name: Prepare Mens corpus mix inputs
-        run: bash scripts/ci/prep_mens_mix_inputs.sh
+        run: cargo run -p vox-cli --features gpu --quiet -- run --interp scripts/ci/corpus_prep.vox
 
       - name: Mix corpus (strict)
         run: cargo run -p vox-cli --quiet -- mens corpus mix --config mens/config/mix.yaml

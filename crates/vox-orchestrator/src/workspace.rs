@@ -308,7 +308,7 @@ impl WorkspaceManager {
             .values()
             .filter(|c| agent_id.is_none_or(|a| c.agent_id == a))
             .collect();
-        changes.sort_by(|a, b| b.created_ms.cmp(&a.created_ms));
+        changes.sort_by_key(|c| std::cmp::Reverse(c.created_ms));
         changes.truncate(limit);
         changes
     }

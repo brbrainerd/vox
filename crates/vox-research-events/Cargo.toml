@@ -13,6 +13,8 @@ workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
+# Required by `schema_types.generated.rs` (typify): pattern strings compile to `::regress::Regex`.
+regress = { workspace = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]

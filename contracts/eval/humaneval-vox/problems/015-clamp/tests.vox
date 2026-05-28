@@ -1,0 +1,30 @@
+fn clamp(n: int, lo: int, hi: int) to int {
+    if n < lo {
+        return lo
+    }
+    if n > hi {
+        return hi
+    }
+    return n
+}
+
+@test
+fn test_below() to Unit {
+    assert(clamp(-5, 0, 10) is 0)
+}
+
+@test
+fn test_above() to Unit {
+    assert(clamp(15, 0, 10) is 10)
+}
+
+@test
+fn test_inside() to Unit {
+    assert(clamp(5, 0, 10) is 5)
+}
+
+@test
+fn test_at_boundary() to Unit {
+    assert(clamp(0, 0, 10) is 0)
+    assert(clamp(10, 0, 10) is 10)
+}

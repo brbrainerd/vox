@@ -208,6 +208,19 @@ impl DetectionRule for EmptyBodyDetector {
     fn languages(&self) -> &[Language] {
         &[Language::Rust, Language::TypeScript, Language::Python]
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — empty function body does nothing\n\
+             fn on_user_created(user: User) {}\n\
+             \n\
+             // FIX — implement the handler or explicitly note it is intentional\n\
+             fn on_user_created(user: User) {\n\
+             \x20   audit_log.record(AuditEvent::UserCreated { user_id: user.id });\n\
+             \x20   welcome_email::send(&user);\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

@@ -1,0 +1,12 @@
+fn square_add_one(n: int) to int {
+    return n * n + 1
+}
+
+@test
+fn t_zero() to Unit { assert(square_add_one(0) is 1) }
+@test
+fn t_one() to Unit { assert(square_add_one(1) is 2) }
+@test
+fn t_three() to Unit { assert(square_add_one(3) is 10) }
+@test
+fn t_neg() to Unit { assert(square_add_one(-4) is 17) }

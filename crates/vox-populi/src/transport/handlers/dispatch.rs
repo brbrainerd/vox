@@ -51,7 +51,7 @@ pub(crate) async fn dispatch_script(
     let client = crate::http_client::PopuliHttpClient::new(addr).with_env_token();
 
     if req.is_detached {
-        use vox_primitives::id::simple_hex_id;
+        use vox_foundation::primitives::id::simple_hex_id;
         let dispatch_id = simple_hex_id();
         let st_cl = st.clone();
         let dispatch_id_cl = dispatch_id.clone();
@@ -302,7 +302,7 @@ pub(crate) async fn execute_on_worker(
         // Identify .wasm vs native.
         let is_wasm = source_bytes.starts_with(b"\0asm");
         let ext = if is_wasm { ".wasm" } else { "" };
-        let file_name = format!("vox-bundle-{}{}", vox_primitives::id::simple_hex_id(), ext);
+        let file_name = format!("vox-bundle-{}{}", vox_foundation::primitives::id::simple_hex_id(), ext);
         let tmp_file = tmp_dir.join(file_name);
         std::fs::write(&tmp_file, &source_bytes).map_err(|e| {
             ResponseErr(
@@ -324,7 +324,7 @@ pub(crate) async fn execute_on_worker(
 
         tmp_file
     } else {
-        let file_name = format!("vox-dispatch-{}.vox", vox_primitives::id::simple_hex_id());
+        let file_name = format!("vox-dispatch-{}.vox", vox_foundation::primitives::id::simple_hex_id());
         let tmp_file = tmp_dir.join(file_name);
         std::fs::write(&tmp_file, &source_bytes).map_err(|e| {
             ResponseErr(

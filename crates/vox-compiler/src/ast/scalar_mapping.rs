@@ -1,6 +1,6 @@
 //! Vox **surface scalar** types (`int`, `float`, `str`, `bool`) and their lowering targets.
 //!
-//! Rust ([`vox-codegen-rust`]), TypeScript ([`vox-codegen-ts`]), and SQLite column affinities
+//! Rust (`vox-codegen-rust`), TypeScript (`vox-codegen-ts`), and SQLite column affinities
 //! must stay aligned; extend mappings here when adding scalars or target-specific overrides.
 
 /// Built-in scalar type names as they appear in Vox source / HIR `Named` types.

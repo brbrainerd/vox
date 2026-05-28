@@ -61,12 +61,15 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
             let cfg = vox_telemetry::TelemetryConfig::from_env();
             let recorder_active = vox_telemetry::global_recorder().is_some();
             let master = vox_telemetry::is_master_enabled();
+            let org_disabled = vox_telemetry::org_policy_disabled();
 
             println!("vox telemetry doctor");
             println!("─────────────────────────────────────");
+            println!("org_policy_disabled:   {}", org_disabled);
             println!("master_enabled:        {}", master);
             println!("enabled:               {}", cfg.enabled);
             println!("remote_upload:         {}", cfg.remote_upload);
+            println!("debug_to_stderr:       {}", cfg.debug_to_stderr);
             println!("─────────────────────────────────────");
             println!("categories:");
             println!("  research_metrics:    {}", cfg.research_metrics);
@@ -86,6 +89,8 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
                 std::process::exit(1);
             } else if !recorder_active {
                 println!("STATUS: WARNING   (no recorder registered — events are no-ops)");
+            } else if cfg.debug_to_stderr {
+                println!("STATUS: DEBUG     (VOX_TELEMETRY=debug — events printed to stderr)");
             } else {
                 println!("STATUS: OK");
             }

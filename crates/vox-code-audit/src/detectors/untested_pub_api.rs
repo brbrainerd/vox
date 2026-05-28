@@ -72,6 +72,29 @@ impl DetectionRule for UntestedPubApiDetector {
         Severity::Warning
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — pub fn with no #[test] block in this file\n\
+             pub fn calculate_tax(amount: f64, rate: f64) -> f64 {\n\
+             \x20   amount * rate\n\
+             }\n\
+             \n\
+             // FIX — add an inline test module\n\
+             pub fn calculate_tax(amount: f64, rate: f64) -> f64 {\n\
+             \x20   amount * rate\n\
+             }\n\
+             \n\
+             #[cfg(test)]\n\
+             mod tests {\n\
+             \x20   use super::*;\n\
+             \x20   #[test]\n\
+             \x20   fn test_calculate_tax() {\n\
+             \x20       assert_eq!(calculate_tax(100.0, 0.1), 10.0);\n\
+             \x20   }\n\
+             }",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[Language::Rust]
     }
@@ -111,13 +134,12 @@ impl DetectionRule for UntestedPubApiDetector {
                         self.has_test = true;
                         return;
                     }
-                    if let syn::Meta::List(list) = &attr.meta {
-                        if list.path.to_token_stream().to_string().replace(' ', "") == "cfg"
-                            && list.tokens.to_token_stream().to_string().contains("test")
-                        {
-                            self.has_test = true;
-                            return;
-                        }
+                    if let syn::Meta::List(list) = &attr.meta
+                        && list.path.to_token_stream().to_string().replace(' ', "") == "cfg"
+                        && list.tokens.to_token_stream().to_string().contains("test")
+                    {
+                        self.has_test = true;
+                        return;
                     }
                 }
                 syn::visit::visit_item_mod(self, node);

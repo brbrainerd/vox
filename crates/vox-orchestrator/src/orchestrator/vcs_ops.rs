@@ -207,7 +207,7 @@ impl crate::orchestrator::Orchestrator {
                         db_entries.push(entry);
                     }
                 }
-                db_entries.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+                db_entries.sort_by_key(|e| std::cmp::Reverse(e.timestamp_ms));
                 db_entries.truncate(limit);
                 db_entries
             }

@@ -1,0 +1,43 @@
+id = "plan-036-rename-table-field"
+wave = "wave_2"
+description = "Rename a @table field across all reference sites."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base has `@table type Contact { id: str, name: str }`. Rename the
+`name` field to `email` on the table. Update any other reference
+sites that mention `name` (e.g. endpoint parameter names if they
+shadow the field). vox check must remain clean after.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Identify every reference to `name` in the file."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Rename `name` to `email` atomically."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+field_renamed_completely = true
+no_dangling_references = true

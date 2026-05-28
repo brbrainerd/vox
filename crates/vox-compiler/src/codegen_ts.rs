@@ -1,7 +1,13 @@
-//! TypeScript code generation — stub module for tests.
+//! TypeScript code generation — stub module.
 //!
-//! This module is a placeholder for TypeScript codegen functionality.
-//! Tests referencing this module are marked as ignored pending implementation.
+//! Full TypeScript emit is handled by `vox-codegen` (the `codegen_ts` crate path).
+//! This in-compiler shim exists so compiler test utilities can reference a
+//! `generate()` entry point without pulling in the full codegen crate.
+//!
+//! Status: **Wave-3 migration in progress** — real emit lives in
+//! `crates/vox-codegen/src/codegen_ts/`.  This function returns
+//! `Err(E0404)` so callers get a structured, actionable diagnostic rather
+//! than a raw string.
 
 use crate::hir::HirModule;
 use std::collections::BTreeMap;
@@ -13,9 +19,20 @@ pub struct GeneratedFiles {
     pub files: BTreeMap<String, String>,
 }
 
-/// Generate TypeScript/TSX code from HIR (stub implementation).
+/// Generate TypeScript/TSX code from HIR.
+///
+/// # Errors
+///
+/// Returns `Err` with diagnostic code `E0404` when the TS codegen backend is
+/// not available in this build.  Callers in production use `vox-codegen`
+/// directly; this shim is for compiler-internal test utilities only.
 pub fn generate(_hir: &HirModule) -> Result<GeneratedFiles, String> {
-    Err("codegen_ts is not yet implemented".to_string())
+    Err(
+        "[E0404] TypeScript codegen is not available from the compiler crate. \
+         Use `vox_codegen::codegen_ts::generate()` (crates/vox-codegen) instead. \
+         See docs/src/architecture/where-things-live.md §codegen."
+            .to_string(),
+    )
 }
 
 /// Stub module for HIR to TS emission (tests only).

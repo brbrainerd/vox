@@ -69,7 +69,7 @@ component SurfaceStub(title: str, desc: str, action: str) {
 // ── SurfaceStub standalone ────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn surface_stub_emits_silhouette_and_cta() {
     let ts = compile_component(SURFACE_STUB_SRC, "SurfaceStub");
     println!("SurfaceStub.tsx:\n{ts}");
@@ -92,7 +92,7 @@ fn surface_stub_emits_silhouette_and_cta() {
 // ── MeshSurface ───────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn mesh_surface_stub_emits_header_and_stub() {
     let source = format!(
         "{}{}{}",
@@ -144,7 +144,7 @@ component MeshSurface() {
 // ── SpeakSurface ──────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn speak_surface_stub_emits_header_and_stub() {
     let source = format!(
         "{}{}{}",
@@ -184,7 +184,7 @@ component SpeakSurface() {
 // in button raw_class compiles correctly.
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn forge_surface_stub_emits_panel_toggle() {
     let source = format!(
         "{}{}",
@@ -242,7 +242,7 @@ component ForgeSurface() {
 // ── RunsSurface ───────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn runs_surface_stub_compiles() {
     let source = format!(
         "{}{}",
@@ -274,7 +274,7 @@ component RunsSurface() {
 // ── ModelsSurface ─────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn models_surface_stub_compiles() {
     let source = format!(
         "{}{}",
@@ -309,7 +309,7 @@ component ModelsSurface() {
 // ── CodeSurface ───────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn code_surface_stub_compiles() {
     let source = format!(
         "{}{}{}",
@@ -342,7 +342,7 @@ component CodeSurface() {
 // ── SettingsSurface ───────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn settings_surface_stub_compiles() {
     let source = format!(
         "{}{}",
@@ -373,7 +373,7 @@ component SettingsSurface() {
 // Compiles each surface and asserts no Latin nav label appears in any of them.
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn no_latin_labels_in_any_surface_stub() {
     let latin_labels = ["LOQUELA", "RETE", "FABRICA", "IMPERIUM"];
 

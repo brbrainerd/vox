@@ -1,6 +1,6 @@
 //! Pretty-print / minimally format Vox source by round-tripping parse → string.
 //!
-//! - [`format`] returns the original buffer when parsing fails (editor-safe soft mode).
+//! - [`format()`] returns the original buffer when parsing fails (editor-safe soft mode).
 //! - [`try_format`] is **fail-closed**: returns parse/round-trip errors for tooling (`vox fmt`).
 
 mod expr;

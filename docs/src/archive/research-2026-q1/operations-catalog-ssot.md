@@ -1,7 +1,7 @@
 ---
 title: "Operations catalog SSOT"
 description: "Unified operation catalog for MCP + CLI + planner parity."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-02"
 training_eligible: false

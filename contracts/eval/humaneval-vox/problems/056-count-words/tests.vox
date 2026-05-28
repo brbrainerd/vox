@@ -1,0 +1,22 @@
+fn count_words(s: str) to int {
+    if s.len() == 0 {
+        return 0
+    }
+    let parts: list[str] = s.split(" ")
+    let mut count: int = 0
+    for p in parts {
+        if p.len() > 0 {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_words("hello world") == 2)
+    assert(count_words("one two three four") == 4)
+    assert(count_words("") == 0)
+    assert(count_words("single") == 1)
+    assert(count_words("  spaces  ") == 1)
+    return "ok"
+}

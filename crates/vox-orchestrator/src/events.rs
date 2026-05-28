@@ -10,7 +10,19 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::broadcast;
 
-use crate::types::{AgentId, TaskId};
+use crate::types::{AgentId, PrioritySource, TaskId, TaskPriority};
+
+/// Opaque identifier for a hopper intake item (Hp-T1).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct HopperItemId(pub String);
+
+/// Source of authority for a reprioritization event (Hp-T2, SSOT §3.5).
+///
+/// `Developer` dominates `Orchestrator` dominates `LearningPolicy`.
+///
+/// **Deprecated alias.** Use [`PrioritySource`] from `vox-orchestrator-types`
+/// directly. This alias is retained for backward compatibility.
+pub type ReprioritizationActor = PrioritySource;
 
 // ---------------------------------------------------------------------------
 // Event types
@@ -115,11 +127,15 @@ pub enum AgentEventKind {
     AgentHeartbeat {
         agent_id: AgentId,
         activity: AgentActivity,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        active_skill: Option<String>,
     },
     /// An agent's activity changed.
     ActivityChanged {
         agent_id: AgentId,
         activity: AgentActivity,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        active_skill: Option<String>,
     },
     /// An agent's operating mode changed (Strategic, Execution, Verification).
     OperatingModeChanged {
@@ -249,6 +265,8 @@ pub enum AgentEventKind {
     ContinuationTriggered {
         agent_id: AgentId,
         strategy: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        active_skill: Option<String>,
     },
 
     /// A plan handoff between agents.
@@ -625,6 +643,67 @@ pub enum AgentEventKind {
         removed_nodes: Vec<String>,
         changed_edges: u32,
     },
+
+    // -----------------------------------------------------------------------
+    // Hopper variants (Hp-T2, SSOT §3.5)
+    // -----------------------------------------------------------------------
+    /// Emitted when a developer or policy reorders a task in flight.
+    TaskReprioritized {
+        task_id: TaskId,
+        old_priority: TaskPriority,
+        new_priority: TaskPriority,
+        actor: ReprioritizationActor,
+        reason: Option<String>,
+        session_id: Option<String>,
+    },
+
+    /// Emitted when the hopper admits an intake item and binds it to an agent queue.
+    HopperItemAdmitted {
+        item_id: HopperItemId,
+        classified_priority: TaskPriority,
+        classified_affinity: Vec<PathBuf>,
+        confidence: f32,
+        session_id: Option<String>,
+    },
+
+    /// Emitted when a developer overrides the orchestrator's classified priority.
+    HopperItemOverridden {
+        item_id: HopperItemId,
+        original_priority: TaskPriority,
+        developer_priority: TaskPriority,
+        delta_seconds_since_admit: u64,
+    },
+
+    // -----------------------------------------------------------------------
+    // Mesh spend + action events (P4-T1, P4-T6, P4-T7)
+    // -----------------------------------------------------------------------
+    /// Per-node budget tick — emitted at most once per second per node.
+    /// Powers the spend gauges (P4-T6) on the topology canvas.
+    MeshNodeBudget {
+        node_id: String,
+        cost_usd_24h: f64,
+        cost_cap_usd: f64,
+        token_count_24h: u64,
+    },
+
+    /// A destructive mesh action (kill/pause/drain/replay) was committed.
+    /// Always paired with a signed audit-log entry.
+    MeshActionCommitted {
+        node_id: String,
+        action: MeshAction,
+        actor: String,
+        signed_audit_id: String,
+    },
+}
+
+/// Destructive mesh actions that trigger a confirmation modal and signed audit-log entry.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MeshAction {
+    Kill,
+    Pause,
+    Drain,
+    Replay,
 }
 
 // ---------------------------------------------------------------------------

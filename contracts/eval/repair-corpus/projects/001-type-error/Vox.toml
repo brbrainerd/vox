@@ -1,0 +1,5 @@
+[package]
+name = "repair-001-type-error"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: type-error bug class. fn signature returns int but body returns str."

@@ -1,0 +1,11 @@
+[problem]
+id = "104"
+title = "insert_at_index"
+prompt = """
+Given a list of ints, an index i, and a value v, return a new list with v inserted at position i. If i >= len, append to end. If i < 0, insert at front.
+"""
+signature = "fn insert_at_index(xs: list[int], i: int, v: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "indexing"]

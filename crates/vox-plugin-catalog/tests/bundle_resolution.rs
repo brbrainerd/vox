@@ -7,16 +7,17 @@ fn vox_base_resolves_to_zero_plugins() {
 }
 
 #[test]
-fn vox_fullstack_resolves_to_eight_skills() {
+fn vox_fullstack_resolves_to_nine_plugins() {
+    // 8 skills + runtime-wasm = 9 total
     let plugins = bundle_resolved("vox-fullstack").expect("should resolve");
-    assert_eq!(plugins.len(), 8);
+    assert_eq!(plugins.len(), 9);
     assert!(plugins.iter().any(|p| p.id == "skill-compiler"));
+    assert!(plugins.iter().any(|p| p.id == "runtime-wasm"));
 }
 
 #[test]
 fn vox_ml_resolves_through_extends_chain() {
-    // vox-ml extends vox-fullstack which has 8 skills.
-    // vox-ml adds 3 ML/GPU plugins: tensor-burn-wgpu, mens-candle-cuda, nvml-probe. Total = 11.
+    // vox-ml extends vox-fullstack (9) + mens-candle-cuda + nvml-probe = 11.
     let plugins = bundle_resolved("vox-ml").expect("should resolve");
     assert_eq!(plugins.len(), 11);
     assert!(plugins.iter().any(|p| p.id == "mens-candle-cuda"));

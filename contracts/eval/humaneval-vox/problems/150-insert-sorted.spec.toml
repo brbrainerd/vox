@@ -1,0 +1,11 @@
+[problem]
+id = "150"
+title = "insert_sorted"
+prompt = """
+Given a sorted list of ints and a value, insert the value in the correct sorted position and return the resulting sorted list.
+"""
+signature = "fn insert_sorted(xs: list[int], val: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "sorting"]

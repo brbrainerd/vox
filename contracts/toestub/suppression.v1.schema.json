@@ -3,22 +3,45 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vox.local/contracts/toestub/suppression.v1.schema.json",
   "title": "TOESTUB structured suppression (v1 draft)",
-  "description": "Future: file/line scoped suppressions with owner, reason, expiry — see TOESTUB robustness program workstream F.",
+  "description": "File/line scoped suppressions with owner, reason, optional expiry — TOESTUB robustness program.",
   "type": "object",
-  "properties": 
-    "version":  "type": "integer", "const": 1 },
-    "suppressions": 
+  "properties": {
+    "x-vox-version": {
+      "type": "integer",
+      "const": 1
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "suppressions": {
       "type": "array",
-      "items": 
+      "items": {
         "type": "object",
         "required": ["rule_id_prefix", "reason", "owner"],
-        "properties": 
-          "rule_id_prefix":  "type": "string" },
-          "path_glob":  "type": "string" },
-          "line":  "type": "integer", "minimum": 1 },
-          "reason":  "type": "string", "minLength": 1 },
-          "owner":  "type": "string", "minLength": 1 },
-          "expires_after":  "type": "string", "description": "ISO-8601 date" }
+        "properties": {
+          "rule_id_prefix": {
+            "type": "string"
+          },
+          "path_glob": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expires_after": {
+            "type": "string",
+            "description": "ISO-8601 date"
+          }
         },
         "additionalProperties": false
       }

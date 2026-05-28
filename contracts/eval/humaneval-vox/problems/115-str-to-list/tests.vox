@@ -1,0 +1,12 @@
+fn str_to_list(s: str) to list[str] {
+    return s.chars()
+}
+
+fn main() to str {
+    assert(str_to_list("abc") == ["a", "b", "c"])
+    assert(str_to_list("") == [])
+    assert(str_to_list("x") == ["x"])
+    assert(str_to_list("hi!") == ["h", "i", "!"])
+    assert(str_to_list("12") == ["1", "2"])
+    return "ok"
+}

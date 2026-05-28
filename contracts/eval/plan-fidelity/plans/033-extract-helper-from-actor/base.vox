@@ -1,0 +1,25 @@
+// Base source for plan-033-extract-helper-from-actor.
+//
+// `Inbox.on receive` inlines validation. The plan asks the model to
+// extract `validate_inbox_text(text: str) to bool` and call it.
+
+actor Inbox {
+    on receive(text: str) to str {
+        if len(text) is 0 {
+            return "rejected:empty"
+        }
+        if len(text) > 1024 {
+            return "rejected:too_long"
+        }
+        return "ack:" + text
+    }
+}
+
+fn ack_label() to str {
+    return "ack"
+}
+
+@test
+fn test_ack_label() to Unit {
+    assert(ack_label() is "ack")
+}

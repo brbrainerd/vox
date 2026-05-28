@@ -74,7 +74,7 @@ impl ParseResult {
 ///
 /// Deprecated primitive names are rewritten to their canonical equivalents and
 /// a [`Warning`] is emitted for each rewrite site. The returned [`ParseResult`]
-/// exposes the rewritten [`Module`], the warnings, and a `uses_primitive` query.
+/// exposes the rewritten [`crate::Module`], the warnings, and a `uses_primitive` query.
 ///
 /// Returns `Err(Vec<ParseError>)` if the source has actual parse errors.
 pub fn parse_with_registry(
@@ -237,11 +237,8 @@ fn walk_expr(
         Expr::Jsx(el) => {
             maybe_rewrite_tag_jsx(el, registry, warnings, primitives_used);
             // Clone children indices to avoid borrow conflicts.
-            let children_len = el.children.len();
-            for i in 0..children_len {
-                // We need to walk each child; use index to get a mutable ref.
-                // SAFETY: index is in bounds.
-                walk_expr(&mut el.children[i], registry, warnings, primitives_used);
+            for child in el.children.iter_mut() {
+                walk_expr(child, registry, warnings, primitives_used);
             }
         }
         // ── Self-closing JSX ─────────────────────────────────────────────────
@@ -250,16 +247,14 @@ fn walk_expr(
         }
         // ── Fragment ──────────────────────────────────────────────────────────
         Expr::JsxFragment { children, .. } => {
-            let n = children.len();
-            for i in 0..n {
-                walk_expr(&mut children[i], registry, warnings, primitives_used);
+            for child in children.iter_mut() {
+                walk_expr(child, registry, warnings, primitives_used);
             }
         }
         // ── Composite expressions ─────────────────────────────────────────────
         Expr::Block { stmts, .. } => {
-            let n = stmts.len();
-            for i in 0..n {
-                walk_stmt(&mut stmts[i], registry, warnings, primitives_used);
+            for stmt in stmts.iter_mut() {
+                walk_stmt(stmt, registry, warnings, primitives_used);
             }
         }
         Expr::If {
@@ -269,14 +264,12 @@ fn walk_expr(
             ..
         } => {
             walk_expr(condition, registry, warnings, primitives_used);
-            let n = then_body.len();
-            for i in 0..n {
-                walk_stmt(&mut then_body[i], registry, warnings, primitives_used);
+            for stmt in then_body.iter_mut() {
+                walk_stmt(stmt, registry, warnings, primitives_used);
             }
             if let Some(else_stmts) = else_body {
-                let n = else_stmts.len();
-                for i in 0..n {
-                    walk_stmt(&mut else_stmts[i], registry, warnings, primitives_used);
+                for stmt in else_stmts.iter_mut() {
+                    walk_stmt(stmt, registry, warnings, primitives_used);
                 }
             }
         }
@@ -286,16 +279,14 @@ fn walk_expr(
         }
         Expr::Call { callee, args, .. } => {
             walk_expr(callee, registry, warnings, primitives_used);
-            let n = args.len();
-            for i in 0..n {
-                walk_expr(&mut args[i].value, registry, warnings, primitives_used);
+            for arg in args.iter_mut() {
+                walk_expr(&mut arg.value, registry, warnings, primitives_used);
             }
         }
         Expr::MethodCall { object, args, .. } => {
             walk_expr(object, registry, warnings, primitives_used);
-            let n = args.len();
-            for i in 0..n {
-                walk_expr(&mut args[i].value, registry, warnings, primitives_used);
+            for arg in args.iter_mut() {
+                walk_expr(&mut arg.value, registry, warnings, primitives_used);
             }
         }
         Expr::Binary { left, right, .. } => {
@@ -313,9 +304,8 @@ fn walk_expr(
         }
         Expr::Match { subject, arms, .. } => {
             walk_expr(subject, registry, warnings, primitives_used);
-            let n = arms.len();
-            for i in 0..n {
-                walk_expr(&mut arms[i].body, registry, warnings, primitives_used);
+            for arm in arms.iter_mut() {
+                walk_expr(&mut arm.body, registry, warnings, primitives_used);
             }
         }
         Expr::Pipe { left, right, .. } => {
@@ -339,21 +329,18 @@ fn walk_expr(
             walk_expr(target, registry, warnings, primitives_used);
         }
         Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {
-            let n = elements.len();
-            for i in 0..n {
-                walk_expr(&mut elements[i], registry, warnings, primitives_used);
+            for element in elements.iter_mut() {
+                walk_expr(element, registry, warnings, primitives_used);
             }
         }
         Expr::ObjectLit { fields, .. } => {
-            let n = fields.len();
-            for i in 0..n {
-                walk_expr(&mut fields[i].1, registry, warnings, primitives_used);
+            for field in fields.iter_mut() {
+                walk_expr(&mut field.1, registry, warnings, primitives_used);
             }
         }
         Expr::StringInterp { parts, .. } => {
-            let n = parts.len();
-            for i in 0..n {
-                if let StringPart::Interpolation(e) = &mut parts[i] {
+            for part in parts.iter_mut() {
+                if let StringPart::Interpolation(e) = part {
                     walk_expr(e, registry, warnings, primitives_used);
                 }
             }
@@ -364,7 +351,9 @@ fn walk_expr(
         | Expr::StringLit { .. }
         | Expr::BoolLit { .. }
         | Expr::DecimalLit { .. }
-        | Expr::Ident { .. } => {}
+        | Expr::Ident { .. }
+        | Expr::SideEffect { .. }
+        | Expr::WorkflowVersion(_) => {}
     }
 }
 
@@ -376,11 +365,11 @@ fn maybe_rewrite_tag_jsx(
     warnings: &mut Vec<Warning>,
     primitives_used: &mut std::collections::HashSet<String>,
 ) {
-    if let Some(entry) = registry.resolve(&el.tag) {
-        if entry.kind == RenameKind::Primitive {
-            let old = std::mem::replace(&mut el.tag, entry.to.clone());
-            warnings.push(make_warning(entry, el.span, &old));
-        }
+    if let Some(entry) = registry.resolve(&el.tag)
+        && entry.kind == RenameKind::Primitive
+    {
+        let old = std::mem::replace(&mut el.tag, entry.to.clone());
+        warnings.push(make_warning(entry, el.span, &old));
     }
     // Record canonical name (post-rewrite) as used.
     primitives_used.insert(el.tag.clone());
@@ -392,11 +381,11 @@ fn maybe_rewrite_tag_self_closing(
     warnings: &mut Vec<Warning>,
     primitives_used: &mut std::collections::HashSet<String>,
 ) {
-    if let Some(entry) = registry.resolve(&el.tag) {
-        if entry.kind == RenameKind::Primitive {
-            let old = std::mem::replace(&mut el.tag, entry.to.clone());
-            warnings.push(make_warning(entry, el.span, &old));
-        }
+    if let Some(entry) = registry.resolve(&el.tag)
+        && entry.kind == RenameKind::Primitive
+    {
+        let old = std::mem::replace(&mut el.tag, entry.to.clone());
+        warnings.push(make_warning(entry, el.span, &old));
     }
     primitives_used.insert(el.tag.clone());
 }

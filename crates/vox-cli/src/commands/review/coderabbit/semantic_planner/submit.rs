@@ -299,11 +299,13 @@ async fn run_semantic_submit_core(
     // Optional legacy: commit everything to default branch (broad `git add -u`).
     if cfg.commit_main {
         eprintln!("\n[legacy] --commit-main: staging all manifest paths + push {default_branch}");
-        let _ = Command::new("git")
+        let _ = // vox-arch-check: allow git-exec
+        Command::new("git")
             .args(["rm", "--cached", "-r", "--ignore-unmatch", "docs/book/"])
             .current_dir(repo)
             .status();
-        let add_all = Command::new("git")
+        let add_all = // vox-arch-check: allow git-exec
+        Command::new("git")
             .args(["add", "-u"])
             .current_dir(repo)
             .status()
@@ -319,7 +321,8 @@ async fn run_semantic_submit_core(
         for batch in all_new.chunks(200) {
             let mut args = vec!["add", "--"];
             args.extend(batch.iter().map(|s| s.as_str()));
-            let _ = Command::new("git").args(&args).current_dir(repo).status();
+            let _ = // vox-arch-check: allow git-exec
+        Command::new("git").args(&args).current_dir(repo).status();
         }
         let timestamp = chrono::Utc::now().format("%Y-%m-%d");
         let commit_msg = format!(
@@ -328,7 +331,8 @@ async fn run_semantic_submit_core(
             sem_manifest.total_files,
             sem_manifest.chunks.len(),
         );
-        let status = Command::new("git")
+        let status = // vox-arch-check: allow git-exec
+        Command::new("git")
             .args(["commit", "-m", &commit_msg])
             .current_dir(repo)
             .status()
@@ -336,7 +340,8 @@ async fn run_semantic_submit_core(
         if !status.success() {
             anyhow::bail!("git commit failed — nothing staged or commit error");
         }
-        let push = Command::new("git")
+        let push = // vox-arch-check: allow git-exec
+        Command::new("git")
             .args(["push", "origin", &default_branch])
             .current_dir(repo)
             .status()

@@ -2,7 +2,6 @@
 //! produce at least one training pair and that output is valid JSONL.
 #![allow(missing_docs)]
 
-use tempfile::NamedTempFile;
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_corpus::corpus::coverage::analyse_str_with_taxonomy;
 use vox_corpus::synthetic_gen::{
@@ -14,10 +13,14 @@ fn default_cfg() -> SyntheticGenConfig {
     SyntheticGenConfig::default()
 }
 
+/// Run generate_all in a fresh temp directory so companion files
+/// (`synthetic_search.jsonl`, `synthetic_cot_temp.jsonl`) don't collide
+/// across parallel test threads.
 fn run_to_string(cfg: &SyntheticGenConfig) -> String {
-    let tmp = NamedTempFile::new().unwrap();
-    generate_all(cfg, tmp.path()).unwrap();
-    read_utf8_path_capped(tmp.path()).unwrap()
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let output = tmp_dir.path().join("corpus.jsonl");
+    generate_all(cfg, &output).unwrap();
+    read_utf8_path_capped(&output).unwrap()
 }
 
 #[test]
@@ -148,9 +151,10 @@ fn min_phrasings_produces_at_least_that_many_pairs_per_tool() {
         emit_agent_rows: false,
         ..Default::default()
     };
-    let tmp = NamedTempFile::new().unwrap();
-    generate_all(&cfg, tmp.path()).unwrap();
-    let out = read_utf8_path_capped(tmp.path()).unwrap();
+    let tmp_dir = tempfile::tempdir().unwrap();
+    let tmp_output = tmp_dir.path().join("corpus.jsonl");
+    generate_all(&cfg, &tmp_output).unwrap();
+    let out = read_utf8_path_capped(&tmp_output).unwrap();
     let count = out
         .lines()
         .filter(|l| l.contains("vox_submit_task"))

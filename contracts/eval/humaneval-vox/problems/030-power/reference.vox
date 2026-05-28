@@ -1,0 +1,7 @@
+fn power(base: int, exp: int) to int {
+    let mut result: int = 1
+    for _ in range(0, exp) {
+        result = result * base
+    }
+    return result
+}

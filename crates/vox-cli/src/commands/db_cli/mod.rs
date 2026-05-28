@@ -1,4 +1,4 @@
-//! Clap subcommands for [`super::db`] (`vox db …`).
+//! Clap subcommands for `super::db` (`vox db …`).
 
 mod core_subcommands;
 mod publication_subcommands;

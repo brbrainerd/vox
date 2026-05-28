@@ -1,7 +1,7 @@
 //! Shared local-first retrieval execution for MCP, orchestrator, CLI, and A2A bridges.
 //!
 //! - [`policy::SearchPolicy`] — versioned tunables + `VOX_SEARCH_*` env overrides.
-//! - [`context::SearchRuntimeContext`] — repo root, Codex handle, memory paths.
+//! - [`context::SearchRuntimeContext`] — repo root, optional VoxDb handle, memory paths.
 //! - [`execution::execute_search_plan`] — memory hybrid + knowledge + chunks + repo inventory.
 //! - [`bundle::run_search_with_verification`] — automatic verification pass.
 //! - Optional **Tantivy** (`tantivy-lexical`) and **Qdrant** (`qdrant-vector`) backends.
@@ -19,11 +19,16 @@ pub mod ingest;
 mod memory_cache;
 pub mod memory_hybrid;
 pub mod policy;
+pub mod research;
 mod rrf;
+#[cfg(feature = "web-scrape")]
 pub mod scraper;
 pub mod searxng;
 mod searxng_defaults;
+/// Intent-oriented repo path discovery (AgentOS semantic filesystem bridge).
+pub mod semantic_fs;
 pub mod symbol_proximity;
+mod tavily_budget;
 pub mod web_dispatcher;
 
 #[cfg(feature = "tantivy-lexical")]
@@ -50,5 +55,6 @@ pub use execution::{
 };
 pub use ingest::ingest_markdown_tree;
 pub use memory_hybrid::{HybridSearchHit, MemorySearchEngine};
-pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy};
+pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
+pub use tavily_budget::TavilySessionBudget;
 pub use vox_actor_runtime::llm::LlmConfig;

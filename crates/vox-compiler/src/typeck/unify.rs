@@ -269,6 +269,22 @@ impl InferenceContext {
                 }
                 Ok(())
             }
+            // A record literal `{a: v, ...}` used where a `Map[str, V]` is expected:
+            // unify the key type with `Str` (field names are always strings) and each
+            // field value with the map's value type.  This is the standard record-as-map
+            // coercion; field names become the runtime keys.
+            (Ty::Record(fields), Ty::Map(k, v)) | (Ty::Map(k, v), Ty::Record(fields)) => {
+                self.unify(k.as_ref(), &Ty::Str)?;
+                for (_, field_ty) in fields {
+                    self.unify(field_ty, v.as_ref())?;
+                }
+                Ok(())
+            }
+            // `char` in Vox is a single-character string.  The lexer produces
+            // `Ty::Str` for both `"x"` and `'x'` (single-quoted), so allowing
+            // Str ↔ Char unification is the right semantic: a char annotation
+            // accepts any single-char string literal.
+            (Ty::Str, Ty::Char) | (Ty::Char, Ty::Str) => Ok(()),
             (Ty::Error, Ty::Error) => Ok(()),
             (Ty::Never, _) | (_, Ty::Never) => Ok(()),
             (Ty::Error, other) | (other, Ty::Error) => Err(format!(

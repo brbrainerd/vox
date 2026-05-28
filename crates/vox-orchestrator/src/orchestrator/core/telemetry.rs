@@ -5,6 +5,7 @@ impl crate::orchestrator::Orchestrator {
     pub async fn record_telemetry(
         &self,
         agent_id: AgentId,
+        tenant_id: Option<&str>,
         event_kind: &str,
         model_id: Option<&str>,
         provider: Option<&str>,
@@ -23,6 +24,7 @@ impl crate::orchestrator::Orchestrator {
             .insert_telemetry_flat_raw(
                 &aid,
                 sid,
+                tenant_id,
                 &repo,
                 event_kind,
                 None, // tool_name
@@ -40,6 +42,7 @@ impl crate::orchestrator::Orchestrator {
             tracing::warn!(error = %e, kind = event_kind, "failed to record flat telemetry; outbox enqueue pending");
             self.enqueue_telemetry_outbox(
                 agent_id,
+                tenant_id,
                 sid,
                 event_kind,
                 model_id,
@@ -56,6 +59,7 @@ impl crate::orchestrator::Orchestrator {
     pub async fn enqueue_telemetry_outbox(
         &self,
         agent_id: AgentId,
+        tenant_id: Option<&str>,
         session_id: &str,
         event_kind: &str,
         model_id: Option<&str>,
@@ -80,6 +84,7 @@ impl crate::orchestrator::Orchestrator {
             "replay": {
                 "op": "insert_telemetry_flat_raw",
                 "agent_id": agent_id.0.to_string(),
+                "tenant_id": tenant_id,
                 "session_id": session_id,
                 "event_kind": event_kind,
                 "model_id": model_id,

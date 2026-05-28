@@ -1,7 +1,7 @@
 ---
 title: "Scientia × Mesh/Model-Routing Integration Research (2026)"
 description: "Fundamental limitations of the Vox-Scientia publication pipeline and a concrete proposal to close the scientia ↔ mesh/orchestrator feedback loop so that provider and model behaviour become first-class, publishable scientific artifacts."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Identifies the canonical seam between the scientia publication SSOT (ADR-011), the model-orchestration SSOT audit, and telemetry-trust, and specifies the contracts that make model/provider observations a publishable finding class. Authoritative for the next-gen routing feedback loop."
@@ -9,7 +9,7 @@ sourced_at: "2026-04-23"
 vox_relevance:
   - "vox-scientia-core / vox-publisher: novelty, worthiness, distribution"
   - "vox-orchestrator: ModelRegistry, ScoringWeights, task_routing"
-  - "vox-mens / vox-mesh-types: federation, TaskSpec, MeshDirectoryEntry"
+  - "vox-ml-cli / vox-mesh-types: federation, TaskSpec, MeshDirectoryEntry"
   - "vox-db: model_scoreboard, llm_interactions, llm_feedback"
   - "vox-secrets: provider-secret envelope"
   - "vox-socrates-policy: hallucination / contradiction gate"
@@ -34,7 +34,7 @@ Supersedes nothing. Extends the Scientia candidate taxonomy and defines the feed
 
 Vox-Scientia today is a **deterministic, contract-driven research-publication pipeline**: crawl feeds → deduplicate → score novelty against federated prior art (OpenAlex / Crossref / Semantic Scholar) → evaluate a multi-weight worthiness gate → compile per-channel distribution → post to Twitter/X, Bluesky, Mastodon, Discord, LinkedIn, Reddit, Hacker News, ResearchGate, GitHub, RSS, YouTube, Zenodo, OpenReview, and stage arXiv for operator submission. Secrets are channelled through vox-secrets. Approvals are digest-bound. The pipeline is unusually disciplined for its category.
 
-Its **fundamental limitation** is that it is a publication pipeline about the *world* and nearly silent about its own *substrate*. Vox runs a mesh (`vox-mens` + `vox-mesh-types`) and an orchestrator (`vox-orchestrator`) that choose among providers, endpoints, and local models every second of every day, and the observations that fall out of those choices — "Gemini 2.0 plans to a depth of three tool calls reliably but hallucinates on four," "this OpenRouter endpoint drifts 300 ms after 23:00 UTC," "Claude 3.5 Haiku's long-context recall on 80k-token Vox source trees holds at 0.86" — never become first-class **discovery signals**, never enter the novelty ledger, never pass through the worthiness gate, and never get published. They also never flow back into the **router scoring function** beyond the existing coarse success-rate / cost / p50-latency rollup.
+Its **fundamental limitation** is that it is a publication pipeline about the *world* and nearly silent about its own *substrate*. Vox runs a mesh (`vox-ml-cli` + `vox-mesh-types`) and an orchestrator (`vox-orchestrator`) that choose among providers, endpoints, and local models every second of every day, and the observations that fall out of those choices — "Gemini 2.0 plans to a depth of three tool calls reliably but hallucinates on four," "this OpenRouter endpoint drifts 300 ms after 23:00 UTC," "Claude 3.5 Haiku's long-context recall on 80k-token Vox source trees holds at 0.86" — never become first-class **discovery signals**, never enter the novelty ledger, never pass through the worthiness gate, and never get published. They also never flow back into the **router scoring function** beyond the existing coarse success-rate / cost / p50-latency rollup.
 
 The asymmetry is stark:
 
@@ -147,7 +147,7 @@ From `vox-orchestrator`:
 - `task_and_flags_to_profile` → `RoutingProfile { Vision, Research, StrictJson, VoxComposer, Planning, RustLangdev, General }`.
 - `task_strengths(TaskCategory) -> Vec<StrengthTag>`.
 
-From `vox-mens` / `vox-mesh-types`:
+From `vox-ml-cli` / `vox-mesh-types`:
 
 - `TaskKind { TextInfer, ImageGen, SpeechTranscribe, TrainQLoRA, Embed, VoxScript }`.
 - `TaskSpec { kind, model_id, min_vram_mb, priority, timeout_secs, payload_b64, required_labels }`.

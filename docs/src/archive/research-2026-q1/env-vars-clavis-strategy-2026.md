@@ -1,7 +1,7 @@
 ---
 title: "Environment Variables vs. Clavis: Strategy and Cross-System Settings 2026"
 description: "Research synthesis on when environment variables are necessary, when they are harmful, what alternatives exist, and how Vox Clavis can evolve to support cross-system user settings sync for logged-in users."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-16"
 training_eligible: false

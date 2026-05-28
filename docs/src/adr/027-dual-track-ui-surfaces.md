@@ -1,7 +1,7 @@
 ---
 title: "ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)"
 description: "Splits Vox's UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent and the training corpus stays clean."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "deprecated"
 last_updated: "2026-05-01"
 training_eligible: false
@@ -16,14 +16,14 @@ training_eligible: false
 **Superseded** (2026-05-03) — islands retired; see [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Original status: Accepted (2026-04-30)
 
 > [!NOTE]
-> **Amendment (2026-05-01):** `vox-dashboard` is now the **primary user surface** for the Vox orchestrator; `vox-vscode/` is deprecated and retained for LSP only. New capability UX, MCP behavior, and visualization ship in `crates/vox-dashboard/`. See [ADR 031](031-deprecate-vox-vscode.md).
+> **Amendment (2026-05-01):** `vox-dashboard` is now the **primary user surface** for the Vox orchestrator; `apps/editor/vox-vscode/` is deprecated and retained for LSP only. New capability UX, MCP behavior, and visualization ship in `crates/vox-dashboard/`. See [ADR 031](031-deprecate-vox-vscode.md).
 
 ## Context
 
 Vox today carries **two parallel UI surfaces** that have grown in sync but were never delineated:
 
 1. A **Vox-native reactivity model**: `component Name(params) { state/derived/effect/on mount/on cleanup/view: }` paired with `state_machine Name { state … on Event from X -> Y }` and the `routes { … }` block. These lower through `HirReactiveComponent` / `HirStateMachineDecl` / `client_routes` into WebIR, then to TSX.
-2. An **explicit React/TanStack interop model**: `@island Name { prop: Type }` for hydration islands, `@v0 from "design-id" Name { … }` for AI-generated React stubs, and the legacy `@component fn` decorator that emits React hooks directly.
+2. An **explicit React/TanStack interop model**: `@island Name { prop: Type }` for hydration islands, `@v0 from "design-id" Name { … }` for AI-generated React stubs, and the legacy decorator-on-fn component form that emits React hooks directly.
 
 Both are documented as "supported," but the boundary between them is informal. Authors writing Vox-native components routinely import React idioms (`use_state`, `onClick`, raw `<div className=…>`); authors writing islands occasionally reach for `state_machine`. The April 2026 comprehensive audit flagged this as **corpus contamination** — the model trains on a mixture of two surfaces with no schematic separator, learning React hooks as the canonical Vox idiom.
 
@@ -52,7 +52,7 @@ Track A bans bare React imports (`use_state`, `useEffect`, `<div className>`) at
 |---|---|---|
 | `@island Name { prop: Type }` | 🟢 Stable (V1 mount contract, OP-0214) | `HirIsland` → TSX with `data-vox-island` |
 | `@v0 from "design-id" Name { … }` | 🟡 Preview | Build hook → v0.dev API → React component stubs |
-| `@component fn Name() { … }` (classic) | 🟡 Preview, frozen | AST-direct → React hooks emit |
+| Classic decorator-on-fn component body `{ … }` | 🟡 Preview, frozen | AST-direct → React hooks emit |
 
 Track B is **explicit interop**. Files using these decorators must include `// @track: react-interop` as the first non-frontmatter line. Track B is **training-ineligible by default**: corpus extraction skips files marked `@track: react-interop` unless the contributor opts them in with `training_weight: > 0`.
 
@@ -63,7 +63,7 @@ Track B exists for three concrete cases:
 
 ### What collapses
 
-- The `@component fn` decorator is **frozen** — no new features land. It remains for migration but is not the canonical form.
+- The classic decorator-on-fn component track is **frozen** — no new features land. It remains for migration but is not the canonical form.
 - The previous "Path C optional" framing in ADR 012 is replaced: `component`/`state_machine`/`routes` are the **default** Vox-native path, not optional.
 - The "shelve Vox-native reactivity indefinitely" stance from the April 2026 comprehensive audit (item #15) is **overturned** — Track A becomes the primary surface for greenfield. The audit's concerns (corpus pollution, two-emitter maintenance cost) are addressed by the explicit track boundary, not by removing Track A.
 
@@ -108,4 +108,4 @@ Track B exists for three concrete cases:
 - `docs/src/architecture/comprehensive-audit-v2-2026.md` (item #2: "React idiom contamination"; item #15: "Vox-native reactivity DSL — shelved")
 - `docs/src/architecture/path-b-decommission-2026.md`
 - `crates/vox-compiler/src/hir/nodes/decl.rs` (`HirReactiveComponent`, `HirIsland`, `HirStateMachineDecl`)
-- `crates/vox-compiler/src/codegen_ts/reactive.rs` and `codegen_ts/island_emit.rs`
+- `crates/vox-codegen/src/codegen_ts/reactive.rs` and `codegen_ts/island_emit.rs`

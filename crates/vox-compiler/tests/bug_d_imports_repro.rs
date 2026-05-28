@@ -1,16 +1,16 @@
 //! Bug D repro: emitted component files reference @endpoint fns and `std.*` builtins
 //! as bare identifiers without import statements,
-//! per docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
+//! per docs/superpowers/plans/language/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
 
 const FIXTURE: &str = r#"
 import react.use_state
 
-@endpoint(kind: query)
+@query
 fn parse_voice(s: str) -> str {
     s
 }
 
-@endpoint(kind: mutation)
+@mutation
 fn record_event(name: str, payload: str) -> str {
     name
 }
@@ -29,7 +29,7 @@ component VoicePage() {
 "#;
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn endpoint_calls_emit_imports() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");

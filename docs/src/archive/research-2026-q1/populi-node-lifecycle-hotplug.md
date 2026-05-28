@@ -1,7 +1,7 @@
 ---
 title: "Populi node lifecycle, drain, and GPU hotplug"
 description: "Design for maintenance, quarantine, stale nodes, and capacity changes without a second control plane."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-29"
 training_eligible: false
 

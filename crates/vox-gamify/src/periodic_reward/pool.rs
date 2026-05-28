@@ -243,4 +243,12 @@ pub(super) static REWARD_POOL: &[RewardDef] = &[
         crystal_bonus: 200,
         description: "Special seasonal reward — available once per quarter.",
     },
+    RewardDef {
+        id: "senatus_populusque",
+        name: "SPQR",
+        icon: "🏛️",
+        xp_bonus: 750,
+        crystal_bonus: 150,
+        description: "Awarded for shipping a feature used by 3+ other contributors this week.",
+    },
 ];

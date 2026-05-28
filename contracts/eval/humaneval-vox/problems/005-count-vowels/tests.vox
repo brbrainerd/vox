@@ -1,0 +1,18 @@
+fn count_vowels(s: str) to int {
+    let vowels: list[str] = ["a", "e", "i", "o", "u", "A", "E", "I", "O", "U"]
+    let mut count: int = 0
+    for ch in s.chars() {
+        if vowels.contains(ch) {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_vowels("hello") == 2)
+    assert(count_vowels("") == 0)
+    assert(count_vowels("rhythm") == 0)
+    assert(count_vowels("aeiou") == 5)
+    return "ok"
+}

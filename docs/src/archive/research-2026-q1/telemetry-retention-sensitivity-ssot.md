@@ -1,7 +1,7 @@
 ---
 title: "Telemetry retention and sensitivity SSOT"
 description: "Maps telemetry and telemetry-adjacent data to sensitivity classes, retention expectations, and prune policy alignment."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-04-02"
 training_eligible: false

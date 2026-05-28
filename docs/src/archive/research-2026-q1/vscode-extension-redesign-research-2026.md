@@ -1,7 +1,7 @@
 ---
 title: "Vox VS Code Extension — Frontend Redesign Research (2026)"
 description: "Research substrate for Industrial Cyber-Renaissance reskin using v0.dev workflow and React-based webview architecture."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-05"
 training_eligible: false

@@ -1,0 +1,7 @@
+
+crates\vox-prereg\src\lib.rs:4:55: error: unresolved link to `PreregistrationV1`: no item named `PreregistrationV1` in scope
+crates\vox-prereg\src\living_review.rs:27:69: error: unresolved link to `add_version`: no item named `add_version` in scope
+crates\vox-prereg\src\living_review.rs:39:21: error: unresolved link to `add_version`: no item named `add_version` in scope
+crates\vox-prereg\src\reply_window.rs:4:37: error: unresolved link to `PreregGate`: no item named `PreregGate` in scope
+error: could not document `vox-prereg`
+

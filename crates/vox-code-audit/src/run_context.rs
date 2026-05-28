@@ -40,7 +40,7 @@ pub struct RunContext {
     pub feature_flags: HashSet<String>,
     /// Per-callee occurrence counts this run (for hotlist / diagnostics).
     pub(crate) unresolved_callee_counts: HashMap<String, usize>,
-    /// For each workspace member under `crates/<name>/`, module names referenced as `crate::<name>` anywhere in that crate's scanned Rust sources (cross-file wiring for [`unwired/module`]).
+    /// For each workspace member under `crates/<name>/`, module names referenced as `crate::<name>` anywhere in that crate's scanned Rust sources (cross-file wiring for the `unwired/module` rule).
     pub workspace_crate_mod_refs: HashMap<String, HashSet<String>>,
     /// Fast pool of all words in the current crate (for skeleton reachability heuristics).
     pub workspace_crate_words: HashMap<String, HashSet<String>>,

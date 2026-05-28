@@ -1,7 +1,7 @@
 ---
 title: "Durability & Scheduling Runtime Audit (2026)"
 description: "Definitive audit of @scheduled, @durable, DurabilityKind, actor/workflow/activity keywords — what parses vs. what executes. Verdict: zero runtime implementation across all features."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Audit establishing that all Vox durability/scheduling features are syntax-only with no runtime semantics; required reading before any Phase 4 implementation work."
@@ -35,7 +35,7 @@ training_rationale: "Audit establishing that all Vox durability/scheduling featu
 - **AST:** `ScheduledDecl { interval: String }` in `crates/vox-compiler/src/ast/decl/fundecl.rs:176-182`.
 - **HIR lowering:** `hir/lower/mod.rs:322-326` sets `HirFn { schedule_interval: Some(interval) }`. The string is preserved.
 - **Codegen:** No reference to `schedule_interval` anywhere in `crates/vox-compiler/src/codegen_rust/`. Emits a plain `async fn`.
-- **Runtime:** No scheduler loop, no `tokio::time::interval`, no cron wiring anywhere in `crates/vox-runtime/`.
+- **Runtime:** No scheduler loop, no `tokio::time::interval`, no cron wiring anywhere in `crates/vox-actor-runtime/`.
 - **Golden:** `examples/golden/scheduled_tick.vox` compiles and lowers (counted in `golden_vox_examples_test.rs:97`), but no invocation test exists.
 
 **Conclusion:** The interval metadata travels from parse to HIR and stops. It is dead code beyond the HIR.
@@ -58,9 +58,9 @@ training_rationale: "Audit establishing that all Vox durability/scheduling featu
 
 ### `actor` / `workflow` / `activity` Keywords — Phase 2 Syntax Unification
 
-Per [AGENTS.md §Grammar Unification](../../AGENTS.md): "They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate HIR node types."
+Per [AGENTS.md §Grammar Unification](../../../AGENTS.md): "They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate HIR node types."
 
-- **Actor:** Handler splitting into per-handler `HirFn` entries works at HIR level (`hir/lower/mod.rs:305-314`). `vox-runtime/src/scheduler.rs` has actor mailbox/spawn/dispatch logic, but the generated Rust functions do not connect to it — the wiring is manual.
+- **Actor:** Handler splitting into per-handler `HirFn` entries works at HIR level (`hir/lower/mod.rs:305-314`). `vox-actor-runtime/src/scheduler.rs` has actor mailbox/spawn/dispatch logic, but the generated Rust functions do not connect to it — the wiring is manual.
 - **Workflow / Activity:** Parsed, lowered with correct `DurabilityKind`. Generated Rust is a plain `async fn`. `examples/golden/checkout_workflow.vox` does **not** use the `workflow`/`activity` keywords — it uses plain `fn`.
 - **No integration tests** for any of the three execution models.
 
@@ -95,6 +95,6 @@ The HIR `DurabilityKind` variants and `schedule_interval` field are worth keepin
 | `crates/vox-compiler/src/hir/nodes/durability.rs:13-23` | `DurabilityKind` variants |
 | `crates/vox-compiler/src/hir/lower/mod.rs:297-326` | Lowering for all three kinds |
 | `crates/vox-compiler/src/codegen_rust/` | Absent: no durability codegen |
-| `crates/vox-runtime/src/scheduler.rs` | Actor mailbox (partial); no cron loop |
+| `crates/vox-actor-runtime/src/scheduler.rs` | Actor mailbox (partial); no cron loop |
 | `examples/golden/scheduled_tick.vox` | Parses/lowers; no runtime test |
 | `examples/golden/counter_actor.vox` | Notes: "persistent state inside actor blocks not parsed yet" |

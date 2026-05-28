@@ -1,0 +1,163 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/schemas/agentos/ai-first-fixtures.v1.schema.json",
+  "title": "AI-first language fixtures catalog v1",
+  "type": "object",
+  "required": ["x-vox-version", "schema_version", "fixtures"],
+  "additionalProperties": false,
+  "properties": {
+    "x-vox-version": {
+      "type": "integer",
+      "const": 2
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "fixtures": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "class",
+          "intent",
+          "syntax_shape",
+          "parsed_today",
+          "hir_lowering_today",
+          "codegen_today",
+          "runtime_hook",
+          "required_effects",
+          "aci_mutation_kind",
+          "diagnostic_ids",
+          "mcp_alignment",
+          "secret_surface",
+          "maturity",
+          "adr_required",
+          "examples"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9._-]+$" },
+          "class": {
+            "type": "string",
+            "enum": [
+              "agent_control",
+              "model_selection",
+              "query_template",
+              "deferred_fill",
+              "search_substitution"
+            ]
+          },
+          "intent": { "type": "string", "minLength": 1 },
+          "syntax_shape": { "type": "string", "minLength": 1 },
+          "parsed_today": { "type": "boolean" },
+          "parser_evidence": { "type": "string" },
+          "hir_lowering_today": { "type": "boolean" },
+          "codegen_today": { "type": "boolean" },
+          "runtime_hook": {
+            "type": "object",
+            "required": ["crate", "module", "function"],
+            "additionalProperties": false,
+            "properties": {
+              "crate": { "type": "string", "minLength": 1 },
+              "module": { "type": "string", "minLength": 1 },
+              "function": { "type": "string", "minLength": 1 }
+            }
+          },
+          "required_effects": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["net", "db", "fs", "env", "clock", "random", "spawn", "mcp", "nothing"]
+            }
+          },
+          "required_capabilities": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "aci_mutation_kind": {
+            "type": "string",
+            "enum": [
+              "read_only",
+              "local_mutation",
+              "external_side_effect",
+              "unknown"
+            ]
+          },
+          "routing_hints": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "task_category": { "type": "string" },
+              "strengths": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "tier_max": {
+                "type": "string",
+                "enum": ["Unknown", "Local", "Light", "Pro", "Elite"]
+              },
+              "cost_ceiling_usd_per_call": { "type": "number" },
+              "cascade_stage": {
+                "type": "string",
+                "enum": [
+                  "Planner",
+                  "ClaimExtraction",
+                  "Verification",
+                  "Synthesis",
+                  "Judge",
+                  "SelfVerification"
+                ]
+              }
+            }
+          },
+          "safety_invariants": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "diagnostic_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^vox/[a-z0-9-]+/[a-z0-9-]+$"
+            }
+          },
+          "telemetry_events": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "mcp_alignment": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "secret_surface": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "maturity": {
+            "type": "string",
+            "enum": ["experimental", "candidate", "proposed", "retired"]
+          },
+          "adr_required": { "type": "boolean" },
+          "examples": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["title", "code"],
+              "additionalProperties": false,
+              "properties": {
+                "title": { "type": "string" },
+                "code": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

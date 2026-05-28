@@ -1,0 +1,19 @@
+// ---
+// title: "AI fixture — agent control subagent"
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// training_eligible: true
+// ---
+
+@subagent(policy = parallel, max_depth = 2, budget_usd = 0.5, description = "parallel fanout")
+@uses(net, spawn)
+fn fanout_tasks(goal: str) to str {
+    return goal
+}
+
+@test
+fn test_fanout_tasks_fixture() to Unit {
+    let out = fanout_tasks("summarize docs")
+    assert(len(out) > 0)
+}

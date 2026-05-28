@@ -36,7 +36,7 @@ fn read_fixture(name: &str) -> String {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn subscript_expressions_pass_through_to_tsx() {
     let src = read_fixture("subscript.vox");
     let files = compile_components(&src);

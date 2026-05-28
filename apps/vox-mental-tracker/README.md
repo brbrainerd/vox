@@ -37,5 +37,5 @@ See plan: append-only **`HealthEventLog`** + derived views; exports under **`con
 Per-release checklist in [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md). Detailed gate definitions in [`docs/how-to/release.md`](docs/how-to/release.md). To run the programmatic gates locally:
 
 ```bash
-bash apps/vox-mental-tracker/scripts/release_check.sh
+vox run apps/vox-mental-tracker/scripts/release_gates.vox
 ```

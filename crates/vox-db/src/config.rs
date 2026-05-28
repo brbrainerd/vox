@@ -201,7 +201,7 @@ impl DbConfig {
         Self::resolve_standalone()
     }
 
-    /// Resolve config for the **project** Arca [`crate::store::VoxDb`] (snippets, share, etc.).
+    /// Resolve config for the **project** Arca `crate::store::VoxDb` (snippets, share, etc.).
     ///
     /// Uses canonical [`Self::from_env`] (`VOX_DB_*`), mapping an empty environment to the project
     /// file [`crate::store::DEFAULT_PROJECT_STORE_PATH`] instead of the user data default from
@@ -238,7 +238,7 @@ impl DbConfig {
     }
 
     /// Resolve configuration specifically for a mens node:
-    /// - If `VOX_DB_URL`, `VOX_DB_TOKEN`, AND `VOX_DB_PATH` are set, use [`Self::EmbeddedReplica`].
+    /// - If `VOX_DB_URL`, `VOX_DB_TOKEN`, AND `VOX_DB_PATH` are set, use `Self::EmbeddedReplica`.
     /// - If only `VOX_DB_URL` + `VOX_DB_TOKEN` are set, use [`Self::Remote`].
     /// - Otherwise, fall back to [`Self::resolve_standalone`] (local file).
     pub fn resolve_for_mesh() -> Result<Self, String> {
@@ -275,10 +275,10 @@ impl DbConfig {
 #[cfg(test)]
 mod tests {
     use super::{DbConfig, try_remote_from_compat_env};
-    use std::sync::Mutex;
     use vox_secrets::SecretId;
 
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    // Re-use the crate-level env lock so local_tests can also serialise against us.
+    use crate::TEST_ENV_LOCK as ENV_LOCK;
 
     #[test]
     #[allow(unsafe_code)]

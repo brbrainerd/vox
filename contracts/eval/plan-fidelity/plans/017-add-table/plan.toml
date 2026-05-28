@@ -1,0 +1,45 @@
+id = "plan-017-add-table"
+wave = "wave_2"
+description = "Add a second @table type alongside an existing one."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file defines a single `@table type Bookmark { id: str, url:
+str }`. Add a sibling `@table type Tag { id: str, label: str }` so the
+project supports two tables. Do not modify the existing Bookmark
+table or any endpoint.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+  - ADTs use `type X = | A | B(field: T)` syntax.
+  - Tables use `@table type Name { field: T, ... }` syntax.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing @table and endpoints."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Append the new `@table type Tag { ... }`."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+new_table_added = true
+existing_table_unchanged = true

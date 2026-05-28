@@ -262,28 +262,29 @@ pub fn run_candle_qlora_train(
     let mut computed_contamination = None;
     if let Some(filter) = config.context_filter.as_ref() {
         let before = pairs.len();
-        let is_vox_pure = filter.categories.as_ref().map_or(false, |cats| {
-            cats.iter().any(|c| c.eq_ignore_ascii_case("vox_pure"))
-        });
+        let is_vox_pure = filter
+            .categories
+            .as_ref()
+            .is_some_and(|cats| cats.iter().any(|c| c.eq_ignore_ascii_case("vox_pure")));
         let mut total_react_tokens = 0usize;
         let mut total_code_tokens = 0usize;
 
         pairs.retain(|p| {
-            if let Some(r_min) = filter.rating_min {
-                if p.rating.unwrap_or(0) < r_min {
-                    return false;
-                }
+            if let Some(r_min) = filter.rating_min
+                && p.rating.unwrap_or(0) < r_min
+            {
+                return false;
             }
             if let Some(d) = p.difficulty {
-                if let Some(d_min) = filter.difficulty_min {
-                    if d < d_min {
-                        return false;
-                    }
+                if let Some(d_min) = filter.difficulty_min
+                    && d < d_min
+                {
+                    return false;
                 }
-                if let Some(d_max) = filter.difficulty_max {
-                    if d > d_max {
-                        return false;
-                    }
+                if let Some(d_max) = filter.difficulty_max
+                    && d > d_max
+                {
+                    return false;
                 }
             }
             if let Some(cats) = &filter.categories {
@@ -291,37 +292,31 @@ pub fn run_candle_qlora_train(
                     return true;
                 }
                 let mut matches = is_vox_pure;
-                if !matches {
-                    if let Some(c) = &p.category {
-                        let text = c.to_ascii_lowercase();
-                        if cats
-                            .iter()
-                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
-                        {
-                            matches = true;
-                        }
+                if !matches && let Some(c) = &p.category {
+                    let text = c.to_ascii_lowercase();
+                    if cats
+                        .iter()
+                        .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                    {
+                        matches = true;
                     }
                 }
-                if !matches {
-                    if let Some(l) = &p.lane {
-                        let text = l.to_ascii_lowercase();
-                        if cats
-                            .iter()
-                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
-                        {
-                            matches = true;
-                        }
+                if !matches && let Some(l) = &p.lane {
+                    let text = l.to_ascii_lowercase();
+                    if cats
+                        .iter()
+                        .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                    {
+                        matches = true;
                     }
                 }
-                if !matches {
-                    if let Some(tf) = &p.task_family {
-                        let text = tf.to_ascii_lowercase();
-                        if cats
-                            .iter()
-                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
-                        {
-                            matches = true;
-                        }
+                if !matches && let Some(tf) = &p.task_family {
+                    let text = tf.to_ascii_lowercase();
+                    if cats
+                        .iter()
+                        .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                    {
+                        matches = true;
                     }
                 }
                 if !matches {
@@ -329,21 +324,19 @@ pub fn run_candle_qlora_train(
                 }
             }
 
-            if is_vox_pure {
-                if let Some(resp) = p.effective_response() {
-                    let hits = resp.matches("className=").count()
-                        + resp.matches("import React").count()
-                        + resp.matches("useEffect(").count()
-                        + resp.matches("useState(").count()
-                        + resp.matches("<div").count()
-                        + resp.matches("onClick=").count();
+            if is_vox_pure && let Some(resp) = p.effective_response() {
+                let hits = resp.matches("className=").count()
+                    + resp.matches("import React").count()
+                    + resp.matches("useEffect(").count()
+                    + resp.matches("useState(").count()
+                    + resp.matches("<div").count()
+                    + resp.matches("onClick=").count();
 
-                    total_react_tokens += hits;
-                    total_code_tokens += resp.len().max(1) / 4;
+                total_react_tokens += hits;
+                total_code_tokens += resp.len().max(1) / 4;
 
-                    if hits > 3 {
-                        return false;
-                    }
+                if hits > 3 {
+                    return false;
                 }
             }
 

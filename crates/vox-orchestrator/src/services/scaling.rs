@@ -110,7 +110,8 @@ impl ScalingService {
             if (agent_count - to_retire.len()) <= min_agents {
                 break;
             }
-            if now.duration_since(*last_active).as_millis() as u64 > retirement_ms {
+            let elapsed = now.duration_since(*last_active).as_millis() as u64;
+            if elapsed > retirement_ms {
                 to_retire.push(*agent_id);
             }
         }
@@ -179,6 +180,8 @@ mod tests {
                 weighted_load: total_weighted_load,
                 agent_session_id: None,
                 max_handoff_count: 0,
+                active_skill: None,
+                current_phase: None,
             }],
         }
     }

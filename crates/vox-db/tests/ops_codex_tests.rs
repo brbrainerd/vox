@@ -104,6 +104,32 @@ async fn list_research_metrics_by_session_optional_metric_type() {
 }
 
 #[tokio::test]
+async fn list_research_metrics_for_session_prefix_includes_created_at() {
+    let dir = tempdir().unwrap();
+    let db_path = dir.path().join("research_metrics_prefix.db");
+    let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
+
+    store
+        .append_research_metric("mens:r1", "entropy", Some(0.5), None)
+        .await
+        .unwrap();
+
+    let rows = store
+        .list_research_metrics_for_session_prefix("mens:", 10)
+        .await
+        .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].0, "mens:r1");
+    assert_eq!(rows[0].1, "entropy");
+    assert_eq!(rows[0].2, Some(0.5));
+    assert!(
+        rows[0].4.len() >= 8,
+        "created_at should be non-empty: {:?}",
+        rows[0].4
+    );
+}
+
+#[tokio::test]
 async fn test_endpoint_reliability_ewma() {
     let dir = tempdir().unwrap();
     let db_path = dir.path().join("test.db");

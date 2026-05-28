@@ -22,6 +22,7 @@
 ## Architecture Authority
 - [Architecture Index](https://voxlang.org/architecture/architecture-index/)
 - [Research Index](https://voxlang.org/architecture/research-index/)
+- [Where things live](https://voxlang.org/architecture/where-things-live/)
 - [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/)
 - [Cryptography SSOT](https://voxlang.org/architecture/cryptography-ssot-2026/)
 - [Telemetry Trust SSOT](https://voxlang.org/architecture/telemetry-trust-ssot/)
@@ -35,7 +36,7 @@
 ## Retired Surfaces (Do Not Use)
 The following symbols are retired and must NOT be used in generated code:
 - `vox-dei` → replaced by `vox-orchestrator`
-- `vox-ars` → `vox-ars-runtime` (now `vox-openclaw-runtime`)
+- `vox-ars` → `vox-openclaw-runtime`
 - `@component fn Name()` → replaced by `component Name() {}`
 - `recall()` → replaced by `recall_async(query_spec)`
 - `TURSO_URL` → replaced by `VOX_DB_URL`

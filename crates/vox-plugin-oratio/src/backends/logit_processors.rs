@@ -302,7 +302,7 @@ fn phrase_list_for_bias() -> Vec<String> {
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioSessionHotwords).expose()
     {
         out.extend(crate::oratio_internals::contextual_bias::parse_hotword_csv(
-            &hot,
+            hot,
         ));
     }
     let mut seen = HashSet::new();
@@ -313,7 +313,7 @@ fn phrase_list_for_bias() -> Vec<String> {
 fn trie_phrase_list() -> Vec<String> {
     vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioConstrainedPhrases)
         .expose()
-        .map(|s| crate::oratio_internals::contextual_bias::parse_hotword_csv(&s))
+        .map(crate::oratio_internals::contextual_bias::parse_hotword_csv)
         .unwrap_or_default()
 }
 

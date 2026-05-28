@@ -8,6 +8,7 @@ pub async fn enqueue_plan_node(
     plan_session_id: &str,
     plan_version: u32,
     session_id: Option<String>,
+    tenant_id: Option<String>,
 ) -> Result<TaskId, crate::orchestrator::OrchestratorError> {
     crate::planning::quality_gate::validate_plan_nodes(std::slice::from_ref(node))?;
     let meta = PlanningTaskMeta {
@@ -73,6 +74,7 @@ pub async fn enqueue_plan_node(
         None,
         session_id,
         Some(hints),
+        tenant_id,
         Some(meta),
     )
     .await

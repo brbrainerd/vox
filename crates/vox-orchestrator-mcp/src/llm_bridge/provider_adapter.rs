@@ -26,7 +26,7 @@ pub(crate) struct ProviderInferResult {
 #[derive(Debug, Clone)]
 pub(crate) struct InferRequest<'a> {
     pub system_prompt: &'a str,
-    pub user_prompt: vox_openai_wire::ChatMessageContent<'a>,
+    pub user_prompt: vox_openai::ChatMessageContent<'a>,
     pub max_t: u64,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
@@ -164,11 +164,7 @@ impl ProviderAdapter for AnthropicNativeAdapter {
             use super::providers::http_anthropic_direct;
             let url = endpoint_for(model)?;
             let bearer = super::provider_auth::bearer_for(model)?;
-            let api_key = if bearer.starts_with("Bearer ") {
-                &bearer[7..]
-            } else {
-                &bearer
-            };
+            let api_key = bearer.strip_prefix("Bearer ").unwrap_or(&bearer);
 
             let (text, prompt_tokens, completion_tokens, meta) = http_anthropic_direct(
                 client,
@@ -246,13 +242,13 @@ struct VoxLocalGenerateResponse {
     errors: Vec<String>,
 }
 
-fn extract_prompt_text(content: &vox_openai_wire::ChatMessageContent<'_>) -> String {
+fn extract_prompt_text(content: &vox_openai::ChatMessageContent<'_>) -> String {
     match content {
-        vox_openai_wire::ChatMessageContent::Text(t) => t.to_string(),
-        vox_openai_wire::ChatMessageContent::Parts(parts) => parts
+        vox_openai::ChatMessageContent::Text(t) => t.to_string(),
+        vox_openai::ChatMessageContent::Parts(parts) => parts
             .iter()
             .filter_map(|p| match p {
-                vox_openai_wire::ChatMessagePart::Text { text } => Some(*text),
+                vox_openai::ChatMessagePart::Text { text } => Some(*text),
                 _ => None,
             })
             .collect::<Vec<_>>()
@@ -346,7 +342,7 @@ pub(crate) async fn infer_via_provider_adapter(
     client: &reqwest::Client,
     model: &ModelSpec,
     system_prompt: &str,
-    user_prompt: vox_openai_wire::ChatMessageContent<'_>,
+    user_prompt: vox_openai::ChatMessageContent<'_>,
     max_t: u64,
     temperature: Option<f32>,
     top_p: Option<f32>,
@@ -400,7 +396,7 @@ mod tests {
     ) -> InferRequest<'a> {
         InferRequest {
             system_prompt: "",
-            user_prompt: vox_openai_wire::ChatMessageContent::Text("hello"),
+            user_prompt: vox_openai::ChatMessageContent::Text("hello"),
             max_t: 256,
             temperature: None,
             top_p: None,

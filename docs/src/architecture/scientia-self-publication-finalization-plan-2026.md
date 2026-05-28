@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA Self-Publication Finalization Plan (2026)"
 description: "Research-grounded multi-phase plan to finalize Vox SCIENTIA into an autonomous, high-signal self-publication system targeting IMC/MLSys/TMLR via a Living-Review Provider Atlas."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "approved"
 training_eligible: true
 training_rationale: "Canonical strategic plan for SCIENTIA finalization; load-bearing for all downstream Phase-N implementation plans and ADRs."
@@ -493,7 +493,7 @@ proposing message are answered yes:
 
 | Phase | Plan |
 |---|---|
-| 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
+| 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/scientia/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
 | 0b | Phase 0b — `vox-research-events` L1 crate — **Complete** |
 | 0c | schema_types module in vox-research-events (5 JSON Schema → Rust types) — **Complete** |
 | 0d | 7 DB tables + 12 Codex methods (research_pipeline.rs) — **Complete** |

@@ -1,7 +1,7 @@
 //! Four-dimension risk scorer and HITL escalation matrix (D5 + D9).
 //!
 //! Scores an action on irreversibility, blast radius, compliance exposure, and
-//! confidence deficit, then maps the composite to a [`RiskGrade`] and [`HitlAction`].
+//! confidence deficit, then maps the composite to a `RiskGrade` and `HitlAction`.
 //! Thresholds mirror `contracts/orchestration/risk-confidence-matrix.v1.yaml`.
 //! All logic is pure: no async, no I/O.
 
@@ -126,7 +126,7 @@ impl RiskMatrix {
             .clamp(0.0, 1.0)
     }
 
-    /// Map a composite score to a [`RiskGrade`], with hard-override if any single dimension
+    /// Map a composite score to a `RiskGrade`, with hard-override if any single dimension
     /// exceeds `hard_critical_dimension`.
     #[must_use]
     #[inline]
@@ -152,7 +152,7 @@ impl RiskMatrix {
         }
     }
 
-    /// Map a [`RiskGrade`] to the HITL action the orchestrator should take.
+    /// Map a `RiskGrade` to the HITL action the orchestrator should take.
     #[must_use]
     #[inline]
     pub fn hitl_action(&self, grade: RiskGrade) -> HitlAction {
@@ -220,6 +220,20 @@ impl HitlInterruptEvent {
             action_description: action_description.into(),
             session_id,
         }
+    }
+}
+
+/// Merge AgentOS `mutation_kind` signals into raw [`RiskDimensions`] before matrix scoring.
+pub fn apply_agentos_mutation_risk(dim: &mut RiskDimensions, mutation_kind: &str) {
+    match mutation_kind {
+        "external_side_effect" => {
+            dim.blast_radius = dim.blast_radius.max(0.55);
+            dim.irreversibility = dim.irreversibility.max(0.35);
+        }
+        "local_mutation" => {
+            dim.irreversibility = dim.irreversibility.max(0.28);
+        }
+        _ => {}
     }
 }
 
@@ -308,7 +322,7 @@ mod tests {
             confidence_deficit: 0.3,
         };
         let (score, grade, action) = m.evaluate(&dims);
-        assert!(score >= 0.25 && score < 0.50, "score={score}");
+        assert!((0.25..0.50).contains(&score), "score={score}");
         assert_eq!(grade, RiskGrade::Medium);
         assert_eq!(action, HitlAction::WarnContext);
     }
@@ -349,5 +363,12 @@ mod tests {
     fn hitl_interrupt_event_has_correct_metric_type() {
         let ev = HitlInterruptEvent::new(HitlAction::Escalate, RiskGrade::High, "drop table", None);
         assert_eq!(ev.metric_type, "orch.hitl.interrupt");
+    }
+
+    #[test]
+    fn agentos_external_boosts_blast_radius() {
+        let mut d = RiskDimensions::default();
+        apply_agentos_mutation_risk(&mut d, "external_side_effect");
+        assert!(d.blast_radius >= 0.55);
     }
 }

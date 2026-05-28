@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign — SP1 Implementation Plan (2026)"
 description: "Step-by-step implementation plan for Sub-Project 1 of the plugin system redesign: plugin manifest schemas, the vox-plugin-catalog SSOT crate, hand-rolled and generated documentation, vox-build-meta deprecation shims, and the plugin-catalog-parity CI guard."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Concrete TDD task plan for SP1; companion to the parent design spec."
@@ -1770,7 +1770,7 @@ Create `docs/src/reference/plugin-manifest.md`:
 ---
 title: "Plugin Manifest (Plugin.toml)"
 description: "Schema for the Plugin.toml file every Vox plugin ships."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 ---
@@ -1869,7 +1869,7 @@ Create `docs/src/reference/plugin-catalog.md`:
 ---
 title: "Plugin Catalog"
 description: "What the Vox plugin catalog is and how it relates to per-plugin manifests."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 ---
@@ -1909,7 +1909,7 @@ Create `docs/src/reference/distribution-bundles.md`:
 ---
 title: "Distribution Bundles"
 description: "What Vox bundles are, how to pick one, and how to roll your own."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 ---

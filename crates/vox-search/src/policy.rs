@@ -15,6 +15,26 @@ fn default_chunk_vector_fusion_weight() -> f32 {
     0.60
 }
 
+#[inline]
+fn default_memory_bm25_k1() -> f64 {
+    1.2
+}
+
+#[inline]
+fn default_memory_bm25_b() -> f64 {
+    0.75
+}
+
+#[inline]
+fn default_rrf_k() -> f64 {
+    60.0
+}
+
+#[inline]
+fn default_persist_web_hits() -> bool {
+    true
+}
+
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchPolicy {
@@ -77,6 +97,29 @@ pub struct SearchPolicy {
     pub scraper_min_text_density: f64,
     /// Max iterative search hops for multi-hop research.
     pub web_search_max_hops: u8,
+    /// BM25 `k1` for in-process markdown memory ranking (`VOX_SEARCH_BM25_K1`).
+    #[serde(default = "default_memory_bm25_k1")]
+    pub memory_bm25_k1: f64,
+    /// BM25 `b` for in-process markdown memory ranking (`VOX_SEARCH_BM25_B`).
+    #[serde(default = "default_memory_bm25_b")]
+    pub memory_bm25_b: f64,
+    /// Reciprocal rank fusion smoothing constant (`VOX_SEARCH_RRF_K`).
+    #[serde(default = "default_rrf_k")]
+    pub rrf_k: f64,
+    /// When true, web-retrieval hits are mirrored into `search_documents` (async best-effort).
+    #[serde(default = "default_persist_web_hits")]
+    pub persist_web_hits: bool,
+}
+
+/// Aggregated SCIENTIA observations that can tune retrieval policy for a run.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SearchPolicyFeedback {
+    /// Citation/source precision in the latest window, normalized 0.0..1.0.
+    pub citation_precision: f64,
+    /// Model self-verification reliability in the latest window, normalized 0.0..1.0.
+    pub model_reliability: f64,
+    /// Source hit rate in the latest window, normalized 0.0..1.0.
+    pub source_hit_rate: f64,
 }
 
 impl Default for SearchPolicy {
@@ -198,6 +241,24 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(3),
+            memory_bm25_k1: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchBm25K1)
+                .expose()
+                .and_then(|v| v.parse::<f64>().ok())
+                .filter(|x| x.is_finite() && *x > 0.0)
+                .unwrap_or_else(default_memory_bm25_k1),
+            memory_bm25_b: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchBm25B)
+                .expose()
+                .and_then(|v| v.parse::<f64>().ok())
+                .filter(|x| x.is_finite())
+                .unwrap_or_else(default_memory_bm25_b),
+            rrf_k: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchRrfK)
+                .expose()
+                .and_then(|v| v.parse::<f64>().ok())
+                .filter(|x| x.is_finite() && *x > 0.0)
+                .unwrap_or_else(default_rrf_k),
+            persist_web_hits: !parse_truthy_env(
+                vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled,
+            ),
         }
     }
 }
@@ -294,6 +355,34 @@ impl SearchPolicy {
             p.web_search_max_hops = n;
         }
         if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchBm25K1).expose()
+            && let Ok(x) = v.parse::<f64>()
+            && x.is_finite()
+            && x > 0.0
+        {
+            p.memory_bm25_k1 = x;
+        }
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchBm25B).expose()
+            && let Ok(x) = v.parse::<f64>()
+            && x.is_finite()
+        {
+            p.memory_bm25_b = x;
+        }
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchRrfK).expose()
+            && let Ok(x) = v.parse::<f64>()
+            && x.is_finite()
+            && x > 0.0
+        {
+            p.rrf_k = x;
+        }
+        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled)
+            .expose()
+            .is_some()
+        {
+            p.persist_web_hits =
+                !parse_truthy_env(vox_secrets::SecretId::VoxSearchPersistWebHitsDisabled);
+        }
+        if let Some(v) =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngEngines).expose()
         {
             if let Some(norm) = normalize_searxng_engines_csv(v) {
@@ -320,6 +409,31 @@ impl SearchPolicy {
         p
     }
 
+    /// Apply SCIENTIA feedback while preserving the free/no-paid-service default.
+    #[must_use]
+    pub fn with_scientia_feedback(mut self, feedback: SearchPolicyFeedback) -> Self {
+        let citation_precision = feedback.citation_precision.clamp(0.0, 1.0);
+        let model_reliability = feedback.model_reliability.clamp(0.0, 1.0);
+        let source_hit_rate = feedback.source_hit_rate.clamp(0.0, 1.0);
+
+        if citation_precision < 0.65 || source_hit_rate < 0.5 {
+            self.verification_weak_evidence_threshold =
+                (self.verification_weak_evidence_threshold + 0.10).min(0.85);
+            self.web_search_max_hops = self.web_search_max_hops.saturating_add(1).min(5);
+        }
+        if model_reliability < 0.6 {
+            self.evidence_quality_coverage_weight =
+                (self.evidence_quality_coverage_weight + 0.10).min(0.6);
+            self.evidence_quality_top_weight =
+                (1.0 - self.evidence_quality_coverage_weight).max(0.4);
+        }
+        if citation_precision >= 0.85 && source_hit_rate >= 0.8 {
+            self.verification_weak_evidence_threshold =
+                (self.verification_weak_evidence_threshold - 0.05).max(0.45);
+        }
+        self
+    }
+
     /// Effective fusion weight clamped to `[0, 1]`.
     #[must_use]
     pub fn clamped_memory_vector_weight(&self) -> f32 {
@@ -327,9 +441,30 @@ impl SearchPolicy {
     }
 
     /// Effective chunk hybrid fusion weight on the vector leg, clamped to `[0, 1]`.
+    ///
+    /// Note: [`Self::from_env`] may clamp weights when parsing secrets; this helper clamps again
+    /// for programmatic mutations (tests / dynamic policy).
     #[must_use]
     pub fn clamped_chunk_vector_weight(&self) -> f32 {
         self.chunk_vector_fusion_weight.clamp(0.0, 1.0)
+    }
+
+    /// BM25 `k1` clamped to a sane interval for memory markdown ranking.
+    #[must_use]
+    pub fn clamped_memory_bm25_k1(&self) -> f64 {
+        self.memory_bm25_k1.clamp(0.1, 3.0)
+    }
+
+    /// BM25 `b` clamped to `[0, 1]`.
+    #[must_use]
+    pub fn clamped_memory_bm25_b(&self) -> f64 {
+        self.memory_bm25_b.clamp(0.0, 1.0)
+    }
+
+    /// RRF smoothing constant `k` clamped for numerical stability.
+    #[must_use]
+    pub fn clamped_rrf_k(&self) -> f64 {
+        self.rrf_k.clamp(1.0, 500.0)
     }
 
     /// Sanitized `engines=` value for SearXNG requests.
@@ -415,5 +550,25 @@ mod tests {
             Some("en-US")
         );
         assert!(normalize_searxng_language_tag("en_US").is_none());
+    }
+
+    #[test]
+    fn scientia_feedback_tightens_weak_source_policy_without_tavily() {
+        let policy = SearchPolicy {
+            tavily_enabled: false,
+            ..SearchPolicy::default()
+        };
+        let adjusted = policy.clone().with_scientia_feedback(SearchPolicyFeedback {
+            citation_precision: 0.3,
+            model_reliability: 0.5,
+            source_hit_rate: 0.2,
+        });
+
+        assert!(
+            adjusted.verification_weak_evidence_threshold
+                > policy.verification_weak_evidence_threshold
+        );
+        assert!(adjusted.web_search_max_hops > policy.web_search_max_hops);
+        assert!(!adjusted.tavily_enabled);
     }
 }

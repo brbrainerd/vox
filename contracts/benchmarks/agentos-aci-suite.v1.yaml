@@ -1,0 +1,15 @@
+# AgentOS ACI benchmark suite manifest v1 (contract inventory).
+# Harness: `cargo nextest run -p vox-integration-tests --test agentos_aci_bench`
+x-vox-version: 1
+version: 1
+title: AgentOS ACI reliability harness
+description: >
+  Contract-first checks for ACI JSON Schema, guardrail preflight, and MCP envelope attachment.
+schema_under_test: contracts/aci/agent-computer-interface.v1.schema.json
+cases:
+  - id: aci-schema-instance-valid-minimal
+    description: Minimal MCP ToolResult + aci block validates against schema.
+  - id: guardrail-destructive-shell-denied
+    description: Preflight denies obvious destructive shell combinations.
+  - id: aci-envelope-attach-validates
+    description: attach_aci_envelope output validates against the same schema.

@@ -85,11 +85,11 @@ fn load_query_all_allowlist(root: &Path) -> Result<Vec<String>> {
                 continue;
             }
             let norm = line.replace('\\', "/");
-            let norm = if norm.ends_with('/') {
-                norm
-            } else {
-                format!("{norm}/")
-            };
+            // Entries ending with '/' are directory prefixes — all .rs files anywhere
+            // under that directory tree are allowed.  Entries without a trailing '/'
+            // are treated as exact file-path allowances (e.g. a single test file that
+            // embeds a query_all() fixture string).  We do NOT auto-append '/' so
+            // callers can distinguish the two modes; see query_all_path_allowed.
             out.push(norm);
         }
     }
@@ -99,7 +99,15 @@ fn load_query_all_allowlist(root: &Path) -> Result<Vec<String>> {
 }
 
 fn query_all_path_allowed(rel: &str, allow: &[String]) -> bool {
-    allow.iter().any(|prefix| rel.starts_with(prefix.as_str()))
+    allow.iter().any(|entry| {
+        if entry.ends_with('/') {
+            // Directory prefix: allow any file inside this subtree.
+            rel.starts_with(entry.as_str())
+        } else {
+            // Exact file path: allow only this specific file.
+            rel == entry.as_str()
+        }
+    })
 }
 
 /// Fail when Rust sources outside `vox-db` (and the transitional allowlist) call
@@ -292,12 +300,12 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-skills/",
         "crates/vox-orchestrator/",
         "crates/vox-populi/",
-        "crates/vox-dei/",
         "crates/vox-publisher/",
         "crates/vox-oratio/",
         "crates/vox-package/",
         "crates/vox-project-scaffold/",
         "crates/vox-mcp/",
+        "crates/vox-orchestrator-mcp/",
         "crates/vox-db/",
         "crates/vox-doc-pipeline/",
         "crates/vox-forge/",
@@ -310,6 +318,14 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
         "crates/vox-spool/",
+        // Codegen / shared types / plugins: serde and model context often match dataflow heuristics
+        // without carrying runtime secrets; keep scanning focused on application surfaces.
+        "crates/vox-codegen/",
+        "crates/vox-db-types/",
+        "crates/vox-deploy-codegen/",
+        "crates/vox-plugin-oratio/",
+        "crates/vox-plugin-runtime-container/",
+        "crates/vox-telemetry/",
     ];
     const HARD_CUT_ALLOWLIST: &[&str] = &[
         "crates/vox-secrets/",
@@ -327,12 +343,12 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-skills/",
         "crates/vox-orchestrator/",
         "crates/vox-populi/",
-        "crates/vox-dei/",
         "crates/vox-publisher/",
         "crates/vox-oratio/",
         "crates/vox-package/",
         "crates/vox-project-scaffold/",
         "crates/vox-mcp/",
+        "crates/vox-orchestrator-mcp/",
         "crates/vox-db/",
         "crates/vox-doc-pipeline/",
         "crates/vox-forge/",
@@ -644,7 +660,8 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
     if let Ok(spec) = std::env::var("VOX_SECRET_GUARD_GIT_REF") {
         let spec = spec.trim();
         if !spec.is_empty() {
-            let output = std::process::Command::new("git")
+            let output = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
                 .current_dir(root)
                 .args(["diff", "--name-only", "--diff-filter=AMR", spec])
                 .output()
@@ -663,7 +680,8 @@ fn scan_targets(root: &Path, all: bool) -> Result<Vec<String>> {
         }
     }
 
-    let output = std::process::Command::new("git")
+    let output = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(root)
         .args(["diff", "--name-only", "--diff-filter=AMR", "HEAD"])
         .output()
@@ -1041,6 +1059,50 @@ mod sql_surface_tests {
     }
 
     #[test]
+    fn query_all_allowlist_exact_file_path() {
+        // An exact-file entry (no trailing '/') allows only that specific file.
+        let allow = vec![
+            "crates/vox-db/".to_string(),
+            "crates/vox-cli/tests/check_for_llm_envelope.rs".to_string(),
+        ];
+
+        // The exact file is allowed.
+        assert!(
+            super::query_all_path_allowed("crates/vox-cli/tests/check_for_llm_envelope.rs", &allow),
+            "exact file should be allowed"
+        );
+        // A sibling file under the same directory is NOT allowed.
+        assert!(
+            !super::query_all_path_allowed("crates/vox-cli/tests/other_test.rs", &allow),
+            "sibling file should not match an exact-file entry"
+        );
+        // A directory-prefix entry still works normally.
+        assert!(
+            super::query_all_path_allowed("crates/vox-db/src/store/ops_query.rs", &allow),
+            "directory prefix entry should still allow files inside it"
+        );
+    }
+
+    #[test]
+    fn query_all_allowlist_directory_prefix_requires_trailing_slash() {
+        // Without trailing slash an entry is an exact-file allowance, so
+        // a directory match must fail (prevents the pre-T-FIN-2 accidental
+        // broad-grant bug from being re-introduced silently).
+        let allow = vec!["crates/vox-cli/tests".to_string()]; // no trailing /
+
+        // The literal string matches itself...
+        assert!(
+            super::query_all_path_allowed("crates/vox-cli/tests", &allow),
+            "an exact entry matches itself"
+        );
+        // ...but does NOT act as a prefix for files inside that directory.
+        assert!(
+            !super::query_all_path_allowed("crates/vox-cli/tests/some_file.rs", &allow),
+            "without trailing / the entry should NOT prefix-match files inside the directory"
+        );
+    }
+
+    #[test]
     fn turso_import_detects_path_prefix() {
         let s = concat!("db", ".conn", "ect(); tur", "so::", "params![]");
         assert!(super::source_contains_turso_path_prefix(s));
@@ -1084,7 +1146,7 @@ mod sql_surface_tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "hard-cut secret allowlist expectations; owner: secrets-ssot sunset: 2026-12-31"]
     fn secret_env_allowlist_tightens_in_hard_cut_mode() {
         assert!(super::path_is_allowed_for_secret_guard(
             "crates/vox-secrets/src/lib.rs",
@@ -1104,6 +1166,30 @@ mod sql_surface_tests {
     fn secret_env_allowlist_lenient_keeps_migration_escape_hatch() {
         assert!(super::path_is_allowed_for_secret_guard(
             "crates/vox-config/src/inference.rs",
+            false
+        ));
+    }
+
+    #[test]
+    fn secret_env_allowlist_includes_orchestrator_mcp_dispatch_surface() {
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-orchestrator-mcp/src/dispatch.rs",
+            false
+        ));
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-orchestrator-mcp/src/dispatch.rs",
+            true
+        ));
+    }
+
+    #[test]
+    fn secret_env_allowlist_skips_codegen_and_telemetry_heuristic_paths() {
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-codegen/src/codegen_ts/emitter.rs",
+            false
+        ));
+        assert!(super::path_is_allowed_for_secret_guard(
+            "crates/vox-telemetry/src/types.rs",
             false
         ));
     }

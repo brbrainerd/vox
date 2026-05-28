@@ -1,7 +1,7 @@
 //! vox-plugin-mens-candle-cuda — Candle + CUDA ML backend plugin.
 //!
 //! Implements `MlBackend` from vox-plugin-api. The model handle stores
-//! a Box<CandleModel>; methods recover it via the opaque pointer field.
+//! a `Box<CandleModel>`; methods recover it via the opaque pointer field.
 //!
 //! # SP3 sub-batch C — QLoRA training fully ported from vox-populi
 //!
@@ -14,6 +14,11 @@
 
 pub mod adapter_schema_v3;
 mod backend;
+// MoE link-only stubs: only needed when the `cuda` cargo feature is on, since
+// that's the only configuration where candle-nn's MoE entry-point references
+// reach the linker. See `moe_stubs.rs` for full rationale.
+#[cfg(feature = "cuda")]
+mod moe_stubs;
 pub mod candle_qlora_train;
 mod checkpoint;
 pub mod checkpoint_state;

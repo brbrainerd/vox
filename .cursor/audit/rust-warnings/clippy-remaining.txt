@@ -1,0 +1,46 @@
+
+crates\vox-cli\src\commands\ci\command_compliance\validators.rs:179:37: warning: this manual char comparison can be written more succinctly: help: consider using an array of `char`: `['/', '|', ',', ' ']`
+crates\vox-cli\src\commands\ci\docs_reality_audit.rs:137:5: warning: unnecessary `if let` since only the `Some` variant of the iterator element is used
+crates\vox-cli\src\compilerd.rs:437:9: warning: redundant redefinition of a binding `cli_build_target`
+crates\vox-code-audit\tests\gold_dataset.rs:174:17: warning: this `if` can be collapsed into the outer `match`
+crates\vox-dashboard\src\api\mesh_topology.rs:6:5: warning: doc list item overindented: help: try using `    ` (4 spaces)
+crates\vox-dashboard\tests\hopper_panel_smoke.rs:44:13: warning: length comparison to zero: help: using `!is_empty` is clearer and more explicit: `!v["data"]["item_id"].as_str().unwrap().is_empty()`
+crates\vox-db\src\local_tests.rs:411:9: warning: this `MutexGuard` is held across an await point
+crates\vox-deploy-codegen\src\deploy_target.rs:410:1: warning: items after a test module
+crates\vox-drift-check\src\engine.rs:156:25: warning: this `map_or` can be simplified
+crates\vox-grammar-export\tests\export_test.rs:108:23: warning: manual implementation of `split_once`: help: try: `l.split_once("::=").map(|x| x.1)`
+crates\vox-integration-tests\tests\mcp_project_init_test.rs:23:9: warning: this `MutexGuard` is held across an await point
+crates\vox-mesh-types\src\task.rs:45:13: warning: wildcard pattern covers any other pattern as it will match anyway
+crates\vox-mesh-types\tests\tee_attestation.rs:78:20: warning: use of `default` to create a unit struct
+crates\vox-mesh-types\tests\tee_attestation.rs:90:20: warning: use of `default` to create a unit struct
+crates\vox-populi\src\mens\hardware\tests.rs:2:1: warning: module has the same name as its containing module
+crates\vox-populi\tests\dispatch_persistence.rs:13:9: warning: this `MutexGuard` is held across an await point
+crates\vox-publisher\src\adapters\tests\discord.rs:37:11: warning: struct update has no effect, all the fields in the struct have already been specified
+crates\vox-publisher\src\publication_preflight\tests.rs:2:1: warning: module has the same name as its containing module
+crates\vox-share\tests\consent_test.rs:27:11: warning: struct update has no effect, all the fields in the struct have already been specified
+crates\vox-tensor\tests\jsonl_and_replay_smoke.rs:17:5: warning: empty string literal in `writeln!`
+crates\vox-workflow-runtime\src\durable_promise.rs:165:35: warning: this async expression only awaits a single future: help: you can reduce it to: `p`
+crates\vox-workflow-runtime\tests\workflow_tracker_tests.rs:24:5: warning: this function can be simplified using the `async fn` syntax
+warning: `vox-cli` (lib test) generated 3 warnings (3 duplicates)
+warning: `vox-cli` (lib) generated 3 warnings (run `cargo clippy --fix --lib -p vox-cli -- ` to apply 2 suggestions)
+warning: `vox-code-audit` (test "gold_dataset") generated 1 warning (run `cargo clippy --fix --test "gold_dataset" -p vox-code-audit -- ` to apply 1 suggestion)
+warning: `vox-dashboard` (lib test) generated 1 warning (1 duplicate)
+warning: `vox-dashboard` (lib) generated 1 warning
+warning: `vox-dashboard` (test "hopper_panel_smoke") generated 1 warning (run `cargo clippy --fix --test "hopper_panel_smoke" -p vox-dashboard -- ` to apply 1 suggestion)
+warning: `vox-db` (lib test) generated 1 warning
+warning: `vox-deploy-codegen` (lib test) generated 1 warning (run `cargo clippy --fix --lib -p vox-deploy-codegen --tests -- ` to apply 1 suggestion)
+warning: `vox-drift-check` (lib test) generated 1 warning (run `cargo clippy --fix --lib -p vox-drift-check --tests -- ` to apply 1 suggestion)
+warning: `vox-grammar-export` (test "export_test") generated 1 warning (run `cargo clippy --fix --test "export_test" -p vox-grammar-export -- ` to apply 1 suggestion)
+warning: `vox-integration-tests` (test "mcp_project_init_test") generated 1 warning
+warning: `vox-mesh-types` (lib test) generated 1 warning (1 duplicate)
+warning: `vox-mesh-types` (lib) generated 1 warning
+warning: `vox-mesh-types` (test "tee_attestation") generated 2 warnings (run `cargo clippy --fix --test "tee_attestation" -p vox-mesh-types -- ` to apply 2 suggestions)
+warning: `vox-populi` (lib test) generated 1 warning
+warning: `vox-populi` (test "dispatch_persistence") generated 1 warning
+warning: `vox-publisher` (lib test) generated 2 warnings
+warning: `vox-share` (test "consent_test") generated 1 warning
+warning: `vox-tensor` (test "jsonl_and_replay_smoke") generated 1 warning (run `cargo clippy --fix --test "jsonl_and_replay_smoke" -p vox-tensor -- ` to apply 1 suggestion)
+warning: `vox-workflow-runtime` (lib test) generated 1 warning (run `cargo clippy --fix --lib -p vox-workflow-runtime --tests -- ` to apply 1 suggestion)
+warning: `vox-workflow-runtime` (test "workflow_tracker_tests") generated 1 warning
+warning: vox-dashboard@0.5.0: vox-dashboard: app.vox compiled to app/src/generated/
+

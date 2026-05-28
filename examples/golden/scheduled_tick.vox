@@ -1,17 +1,17 @@
 // ---
-// title: "Reference: @scheduled"
-// description: "Minimal golden for @scheduled top-level job (lowers as a normal function in HIR)."
+// title: "Reference: scheduled job (post-ADR-028)"
+// description: "@scheduled is reserved per ADR-028 and rejected at parse time with E028. Until the durability runtime lands per mesh-phase1-language-spine-plan-2026, scheduled jobs are written as plain `fn` with the cadence in the name or a doc comment; orchestration is handled externally."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [@scheduled, fn]
-// last_validated: 2026-04-12
+// constructs: [fn, return]
+// last_validated: 2026-05-18
 // training_eligible: true
 // training_weight: 1.0
 // ---
 // ANCHOR: scheduled_region
-@scheduled("1h")
-fn scheduled_tick() to Unit {
+// Cadence: 1h (run via external scheduler until @scheduled lands).
+fn scheduled_tick_1h() to Unit {
     return Unit
 }
 // ANCHOR_END: scheduled_region

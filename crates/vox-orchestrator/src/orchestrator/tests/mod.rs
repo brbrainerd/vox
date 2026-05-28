@@ -114,6 +114,7 @@ mod state_invariants {
                 None,
                 None,
                 None,
+                None,
             )
             .await
             .expect("submit heavy");
@@ -123,6 +124,7 @@ mod state_invariants {
             vec![FileAffinity::write("state_inv/rebalance/light_only.rs")],
             None,
             Some("light".to_string()),
+            None,
             None,
             None,
             None,
@@ -146,7 +148,7 @@ mod state_invariants {
         let orch = Orchestrator::new(OrchestratorConfig::for_testing());
         let path = Path::new("state_inv/cancel_unique.rs");
         let tid = orch
-            .submit_task("cancel me", vec![FileAffinity::write(path)], None, None)
+            .submit_task("cancel me", vec![FileAffinity::write(path)], None, None, None)
             .await
             .expect("submit");
         let aid = *orch
@@ -168,7 +170,7 @@ mod state_invariants {
         let orch = Orchestrator::new(OrchestratorConfig::for_testing());
         let path = Path::new("state_inv/fail_unique.rs");
         let tid = orch
-            .submit_task("fail me", vec![FileAffinity::write(path)], None, None)
+            .submit_task("fail me", vec![FileAffinity::write(path)], None, None, None)
             .await
             .expect("submit");
         let aid = *orch
@@ -234,6 +236,7 @@ mod orch_smoke {
                 vec![FileAffinity::write("grammar.rs")],
                 None,
                 None,
+                None,
             )
             .await
             .expect("submit");
@@ -278,6 +281,7 @@ mod orch_smoke {
                 vec![FileAffinity::read("README.md")],
                 None,
                 Some(sid.to_string()),
+                None,
             )
             .await
             .expect("submit");
@@ -301,6 +305,7 @@ mod orch_smoke {
                 vec![FileAffinity::write("src/lib.rs")],
                 None,
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -308,6 +313,7 @@ mod orch_smoke {
             .submit_task(
                 "Task 2",
                 vec![FileAffinity::write("src/lib.rs")],
+                None,
                 None,
                 None,
             )
@@ -331,12 +337,14 @@ mod orch_smoke {
             vec![FileAffinity::write("crates/vox-parser/src/lib.rs")],
             None,
             None,
+            None,
         )
         .await
         .unwrap();
         orch.submit_task(
             "Codegen work",
             vec![FileAffinity::write("crates/vox-codegen-rust/src/lib.rs")],
+            None,
             None,
             None,
         )
@@ -356,6 +364,7 @@ mod orch_smoke {
                 vec![FileAffinity::write("test.rs")],
                 None,
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -370,6 +379,33 @@ mod orch_smoke {
             .dequeue();
 
         // Complete it (writes can classify as Review/Confirm; attestation satisfies gates)
+        orch.complete_task_with_attestation(task_id, Some(complete_attestation_for_tests()))
+            .await
+            .expect("complete");
+        assert_eq!(orch.status().total_completed, 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn complete_task_with_link_audit_enabled_skips_check_links_without_md_writes() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.completion_markdown_link_audit_enabled = true;
+        let orch = Orchestrator::new(cfg);
+        let task_id = orch
+            .submit_task(
+                "rs-only writes",
+                vec![FileAffinity::write("src/link_audit_flag_smoke.rs")],
+                None,
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+        let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
+        orch.agent_queue(agent_id)
+            .unwrap()
+            .write()
+            .unwrap()
+            .dequeue();
         orch.complete_task_with_attestation(task_id, Some(complete_attestation_for_tests()))
             .await
             .expect("complete");
@@ -426,7 +462,7 @@ mod orch_smoke {
             ..OrchestratorConfig::for_testing()
         });
         let err = orch
-            .submit_task("test", vec![], None, None)
+            .submit_task("test", vec![], None, None, None)
             .await
             .unwrap_err();
         assert!(matches!(err, OrchestratorError::Disabled));
@@ -435,10 +471,10 @@ mod orch_smoke {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn status_snapshot() {
         let orch = test_orchestrator();
-        orch.submit_task("t1", vec![FileAffinity::write("a.rs")], None, None)
+        orch.submit_task("t1", vec![FileAffinity::write("a.rs")], None, None, None)
             .await
             .unwrap();
-        orch.submit_task("t2", vec![FileAffinity::write("b.rs")], None, None)
+        orch.submit_task("t2", vec![FileAffinity::write("b.rs")], None, None, None)
             .await
             .unwrap();
 
@@ -451,7 +487,7 @@ mod orch_smoke {
     async fn task_trace_after_submit() {
         let orch = test_orchestrator();
         let task_id = orch
-            .submit_task("Trace me", vec![FileAffinity::write("x.rs")], None, None)
+            .submit_task("Trace me", vec![FileAffinity::write("x.rs")], None, None, None)
             .await
             .unwrap();
         let steps = orch.task_trace(task_id).expect("trace exists");
@@ -471,7 +507,7 @@ mod orch_smoke {
     async fn task_trace_after_complete() {
         let orch = test_orchestrator();
         let task_id = orch
-            .submit_task("Complete me", vec![FileAffinity::write("y.rs")], None, None)
+            .submit_task("Complete me", vec![FileAffinity::write("y.rs")], None, None, None)
             .await
             .unwrap();
         let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
@@ -495,7 +531,7 @@ mod orch_smoke {
     async fn task_trace_after_fail() {
         let orch = test_orchestrator();
         let task_id = orch
-            .submit_task("Fail me", vec![FileAffinity::write("z.rs")], None, None)
+            .submit_task("Fail me", vec![FileAffinity::write("z.rs")], None, None, None)
             .await
             .unwrap();
         let agent_id = *orch.task_assignments.read().unwrap().get(&task_id).unwrap();
@@ -742,6 +778,7 @@ mod orch_smoke {
                 None,
                 None,
                 None,
+                None,
             )
             .await
             .expect("submit goal");
@@ -763,6 +800,7 @@ mod orch_smoke {
                 None,
                 Some(crate::planning::PlanningMode::ForcePlan),
                 Some("s1".to_string()),
+                None,
                 None,
             )
             .await
@@ -856,6 +894,7 @@ mod orch_smoke {
                 Some(crate::planning::PlanningMode::ForcePlan),
                 Some("plan-dag-test".into()),
                 None,
+                None,
             )
             .await
             .expect("planned goal");
@@ -923,5 +962,5 @@ mod orch_smoke {
     }
 }
 
-#[cfg(test)]
+mod persistence_integrity;
 mod populi_single_owner;

@@ -50,11 +50,12 @@ async fn test_economy_preference_rebalancing() {
                 vec![],
                 Some(TaskPriority::Normal),
                 None,
+                None,
             )
             .await
             .unwrap();
         // Force assignment to expensive_id for setup (manually move)
-        let _ = orch.retire_agent(expensive_id);
+        drop(orch.retire_agent(expensive_id));
     }
 
     // Re-setup: put many tasks on expensive, 0 on cheap

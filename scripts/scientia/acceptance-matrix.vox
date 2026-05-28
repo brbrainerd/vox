@@ -1,22 +1,42 @@
-import process;
+// acceptance-matrix.vox — SCIENTIA acceptance slice runner.
+// Migrated 2026-05-24 to Option-discipline:
+//   - process.which(cmd) returns Option[Str]; default with `unwrap_or`
+//   - process.run(cmd, args) returns Option[Record{stdout,stderr,code}];
+//     check is_some + read .code (not bare Int return)
 
-component Main() {
-    print("Running SCIENTIA acceptance slice...");
-    
-    // Check for cargo on PATH
-    let cargo = process.which("cargo") ?? "cargo";
-    
-    print("Step 1: vox-db publication flow tests");
-    let res1 = process.run(cargo, ["test", "-p", "vox-db", "--test", "publication_flow_tests"]);
-    if res1 != 0 {
-        process.exit(res1);
+import process
+
+fn run_step(label: str, cargo: str, args: list[str]) {
+    print(label)
+    let res = process.run(cargo, args)
+    if res is null {
+        print(label + ": failed to spawn")
+        process.exit(2)
     }
-    
-    print("Step 2: vox-publisher remote status tests");
-    let res2 = process.run(cargo, ["test", "-p", "vox-publisher", "--features", "scholarly-external-jobs", "scholarly_remote_status", "--", "--nocapture"]);
-    if res2 != 0 {
-        process.exit(res2);
+    let out = res.unwrap()
+    if out.code != 0 {
+        process.exit(out.code)
     }
-    
-    print("✅ acceptance slice complete.");
+}
+
+fn main() {
+    print("Running SCIENTIA acceptance slice...")
+
+    // `process.which` returns Option[Str] — fall back to bare "cargo"
+    // (relies on PATH resolution by the spawn layer).
+    let cargo = process.which("cargo").unwrap_or("cargo")
+
+    run_step(
+        "Step 1: vox-db publication flow tests",
+        cargo,
+        ["test", "-p", "vox-db", "--test", "publication_flow_tests"],
+    )
+
+    run_step(
+        "Step 2: vox-publisher remote status tests",
+        cargo,
+        ["test", "-p", "vox-publisher", "--features", "scholarly-external-jobs", "scholarly_remote_status", "--", "--nocapture"],
+    )
+
+    print("acceptance slice complete.")
 }

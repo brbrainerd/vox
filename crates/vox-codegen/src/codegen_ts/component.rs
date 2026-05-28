@@ -5,8 +5,8 @@
 //! while **this** module remains the AST → TSX codegen path (OP-0177+, OP-0179).
 //!
 //! **Compatibility mode (OP-0178):** React hook imports follow [`vox_compiler::react_bridge`] registry;
-//! non-registry `use_*` hooks rely on user imports. **Pathways (OP-0184):** classic AST → [`super::jsx`];
-//! Path C → [`super::reactive`] + optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS` view bridge.
+//! non-registry `use_*` hooks rely on user imports. **Pathways (OP-0184):** classic AST → `super::jsx`;
+//! Path C → `super::reactive` (Web IR canonical `view:` emit; see module docs there).
 //!
 //! **Disposition (OP-0190):** shrinking direct JSX ownership means moving view strings toward Web IR
 //! preview/`emit_tsx` parity tests first, then codegen cutover.

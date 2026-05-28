@@ -1,0 +1,11 @@
+[problem]
+id = "138"
+title = "remove_consecutive_dups"
+prompt = """
+Remove consecutive duplicate characters from a string. For example, "aabbcc" -> "abc" and "abba" -> "aba".
+"""
+signature = "fn remove_consecutive_dups(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "iteration"]

@@ -89,29 +89,6 @@ fn with_web_ir_validate_enabled<R>(f: impl FnOnce() -> R) -> R {
     f()
 }
 
-/// Sets `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` for the duration of `f`, then restores the prior value.
-fn with_reactive_emit_views_enabled<R>(f: impl FnOnce() -> R) -> R {
-    let _env_guard = ENV_MUTEX.lock().expect("ENV_MUTEX poisoned");
-    const KEY: &str = "VOX_WEBIR_EMIT_REACTIVE_VIEWS";
-    struct Guard {
-        prev: Option<OsString>,
-    }
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            match &self.prev {
-                Some(v) => unsafe { std::env::set_var(KEY, v) },
-                None => unsafe { std::env::remove_var(KEY) },
-            }
-        }
-    }
-    let prev = std::env::var_os(KEY);
-    unsafe {
-        std::env::set_var(KEY, "1");
-    }
-    let _guard = Guard { prev };
-    f()
-}
-
 /// Call `generate()` while holding [`ENV_MUTEX`], ensuring the env-var is NOT set.
 /// Prevents `codegen_server_has_express_route_with_await` from racing past "without express" tests.
 macro_rules! generate_without_express {
@@ -138,11 +115,11 @@ component Chat() {
     }
 }
 
-@endpoint(kind: server) fn claude_send(msg: str) to ChatResult {
+@server fn claude_send(msg: str) to ChatResult {
     Ok("ok")
 }
 
-@endpoint(kind: mutation) fn api_chat(prompt: str) to ChatResult {
+@mutation fn api_chat(prompt: str) to ChatResult {
     return Ok("ok")
 }
 "#;

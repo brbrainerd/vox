@@ -1,0 +1,11 @@
+[problem]
+id = "156"
+title = "power_sum"
+prompt = """
+Given a list of ints and an exponent k, return the sum of n^k for each n in the list. Assume k >= 0.
+"""
+signature = "fn power_sum(xs: list[int], k: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

@@ -1,7 +1,7 @@
 ---
 title: "Empirical Justification for Reward Weight Allocations in Code RL"
 description: "Research on reward weighting strategies for code RL and why syntax-heavy scalarization is unstable."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

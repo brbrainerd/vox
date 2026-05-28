@@ -89,10 +89,13 @@ pub async fn status() -> Result<()> {
                 agent.owned_files,
             );
         }
-    } else {
-        println!();
-        println!("  {}", "No agents spawned yet.".dimmed());
     }
+    
+    println!(
+        "  {} Visualization available via {}",
+        "Tip:".bold().cyan(),
+        "vox gui".bold().yellow()
+    );
 
     println!();
     Ok(())
@@ -541,6 +544,22 @@ pub enum DeiCli {
         #[arg(long)]
         human: bool,
     },
+    /// Flag a task as "suspect" to trigger a verifier resolution loop.
+    Doubt {
+        /// Task numeric ID.
+        task_id: u64,
+        /// Optional reason for doubt.
+        #[arg(short, long)]
+        reason: Option<String>,
+    },
+    /// Overrule a doubted or failed task, force-marking it as completed.
+    Overrule {
+        /// Task numeric ID.
+        task_id: u64,
+        /// Required justification for the overrule.
+        #[arg(short, long)]
+        reason: String,
+    },
     /*
     /// Analyze a Vox file for diagnostic errors and suggest repairs using HIR hints.
     Analyze {
@@ -638,7 +657,10 @@ pub async fn run(cli: DeiCli) -> Result<()> {
         DeiCli::Oplog { cmd } => run_dei_oplog(cmd).await,
         DeiCli::TakeoverStatus { agent_id, human } => {
             run_dei_takeover_status(agent_id, human).await
-        } // DeiCli::Analyze { path, apply } => run_dei_analyze(&path, apply).await,
+        }
+        DeiCli::Doubt { task_id, reason } => doubt(task_id, reason).await,
+        DeiCli::Overrule { task_id, reason } => overrule(task_id, reason).await,
+        // DeiCli::Analyze { path, apply } => run_dei_analyze(&path, apply).await,
     }
 }
 
@@ -873,4 +895,22 @@ fn load_config() -> OrchestratorConfig {
 
 fn build_repo_scoped_orchestrator_cli(config: OrchestratorConfig) -> std::sync::Arc<Orchestrator> {
     std::sync::Arc::new(build_repo_scoped_orchestrator(config, None).orchestrator)
+}
+
+async fn doubt(task_id: u64, reason: Option<String>) -> Result<()> {
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    orch.doubt_task(TaskId(task_id), reason)
+        .map_err(|e| anyhow::anyhow!(e))?;
+    println!("{} Task {} flagged as suspect.", "✓".green().bold(), task_id);
+    Ok(())
+}
+
+async fn overrule(task_id: u64, reason: String) -> Result<()> {
+    let config = load_config();
+    let orch = build_repo_scoped_orchestrator_cli(config);
+    orch.overrule_task(TaskId(task_id), Some(reason))
+        .map_err(|e| anyhow::anyhow!(e))?;
+    println!("{} Task {} overruled and marked as completed.", "✓".green().bold(), task_id);
+    Ok(())
 }

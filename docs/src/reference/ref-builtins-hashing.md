@@ -1,7 +1,7 @@
 ---
 title: "Hashing & Identity Builtins"
 description: "Official documentation for Hashing & Identity Builtins for the Vox language. Detailed technical reference, architecture guides, and imple"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 
@@ -11,7 +11,7 @@ schema_type: "TechArticle"
 
 Vox provides **three native hashing primitives** backed directly by Rust crates.
 These are exposed in Vox source as `std.*` calls and in Rust as
-`vox_runtime::builtins::vox_*` functions. The compiler rewrites the Vox syntax to
+`vox_actor_runtime::builtins::vox_*` functions. The compiler rewrites the Vox syntax to
 direct Rust calls — there is no FFI overhead.
 
 ---
@@ -129,10 +129,10 @@ Two distinct risks are addressed by the three-tier design:
 
 ## Rust API
 
-Accessible directly from Rust code (e.g. in `vox-cli`, `vox-runtime` internals):
+Accessible directly from Rust code (e.g. in `vox-cli`, `vox-actor-runtime` internals):
 
 ```rust
-use vox_runtime::builtins::{vox_hash_fast, vox_hash_secure, vox_uuid, vox_now_ms};
+use vox_actor_runtime::builtins::{vox_hash_fast, vox_hash_secure, vox_uuid, vox_now_ms};
 
 // Fast non-cryptographic (XXH3-128)
 let key: String = vox_hash_fast("some cache key");  // 32-char hex
@@ -149,14 +149,14 @@ let ts: u64 = vox_now_ms();          // milliseconds since UNIX epoch
 
 ### Crate Dependencies
 
-The **Vox language and workspace crates** are **Apache-2.0**. The SPDX identifiers below describe **bundled third-party Rust crates** used by `vox-runtime`, not the license of Vox itself.
+The **Vox language and workspace crates** are **Apache-2.0**. The SPDX identifiers below describe **bundled third-party Rust crates** used by `vox-actor-runtime`, not the license of Vox itself.
 
 | Crate | Version | License |
 |---|---|---|
 | `xxhash-rust` | `0.8` (`xxh3` feature) | MIT |
 | `blake3` | `1.x` | Apache-2.0/CC0 |
 
-Both are workspace dependencies in the root `Cargo.toml` and used by `vox-runtime`.
+Both are workspace dependencies in the root `Cargo.toml` and used by `vox-actor-runtime`.
 
 ---
 
@@ -166,7 +166,7 @@ Vox uses several hashes outside the `std.hash_*` builtins. Do not swap algorithm
 
 | Family | Crate | Typical use |
 |--------|--------|-------------|
-| **XXH3** | `xxhash-rust` | Fast fingerprints (`vox-runtime` `hash_fast`, `vox-corpus` preflight, `vox run` script cache key, Ludus archetype bucketing, orchestrator planning rollout selector) |
+| **XXH3** | `xxhash-rust` | Fast fingerprints (`vox-actor-runtime` `hash_fast`, `vox-corpus` preflight, `vox run` script cache key, Ludus archetype bucketing, orchestrator planning rollout selector) |
 | **BLAKE3** | `blake3` | Content-addressable IDs (repository id, `hash_secure`, Populi attestation, research tooling) |
 | **SHA-256** | `sha2` | Published artifact checksums / bootstrap verify (interoperates with `sha256sum`) |
 | **SHA-3 / Keccak** | `sha3` | DB content hashing (e.g. SHA3-512 + Base32), schema manifest (Keccak256), oplog chains, publisher / webhook digests |
@@ -180,14 +180,14 @@ at compile time:
 
 | Vox Source | Generated Rust |
 |---|---|
-| `std.uuid()` | `vox_runtime::builtins::vox_uuid()` |
-| `std.now_ms()` | `vox_runtime::builtins::vox_now_ms()` |
-| `std.hash_fast(x)` | `vox_runtime::builtins::vox_hash_fast(&x)` |
-| `std.hash_secure(x)` | `vox_runtime::builtins::vox_hash_secure(&x)` |
-| `std.crypto.hash_fast(x)` | `vox_runtime::builtins::vox_hash_fast(&x)` |
-| `std.crypto.hash_secure(x)` | `vox_runtime::builtins::vox_hash_secure(&x)` |
-| `std.crypto.uuid()` | `vox_runtime::builtins::vox_uuid()` |
-| `std.time.now_ms()` | `vox_runtime::builtins::vox_now_ms()` |
+| `std.uuid()` | `vox_actor_runtime::builtins::vox_uuid()` |
+| `std.now_ms()` | `vox_actor_runtime::builtins::vox_now_ms()` |
+| `std.hash_fast(x)` | `vox_actor_runtime::builtins::vox_hash_fast(&x)` |
+| `std.hash_secure(x)` | `vox_actor_runtime::builtins::vox_hash_secure(&x)` |
+| `std.crypto.hash_fast(x)` | `vox_actor_runtime::builtins::vox_hash_fast(&x)` |
+| `std.crypto.hash_secure(x)` | `vox_actor_runtime::builtins::vox_hash_secure(&x)` |
+| `std.crypto.uuid()` | `vox_actor_runtime::builtins::vox_uuid()` |
+| `std.time.now_ms()` | `vox_actor_runtime::builtins::vox_now_ms()` |
 
 No heap allocation or FFI is involved — these are direct Rust function calls
 that the compiler inlines into generated code.
@@ -197,6 +197,6 @@ that the compiler inlines into generated code.
 ## Related
 
 - [Security Model](../explanation/expl-security.md) — how Vox handles secrets and threat modeling
-- [vox-runtime API](../reference/cli.md) — full runtime module reference
+- [`vox-actor-runtime`](../../../crates/vox-actor-runtime/) — crate providing `builtins::*` and `routing_telemetry`
 - [FTT Pipeline](../how-to/examples.md) — live usage of `hash_secure` and `uuid` in production
 

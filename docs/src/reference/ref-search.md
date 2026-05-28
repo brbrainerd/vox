@@ -1,7 +1,7 @@
 ---
 title: "Searching the Documentation"
 description: "Official documentation for Searching the Documentation for the Vox language. Detailed technical reference, architecture guides, and imple"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 

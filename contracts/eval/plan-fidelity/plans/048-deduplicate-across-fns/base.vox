@@ -1,0 +1,72 @@
+// Base source for plan-048-deduplicate-across-fns.
+//
+// Three @endpoint mutations duplicate the same 3-line title
+// validation block. The plan asks the model to extract a
+// `validate_title` helper and call it from all three.
+
+type TodoError =
+    | TitleEmpty(text: str)
+    | TitleTooLong(text: str)
+
+@endpoint(kind: mutation) @auth(scheme: bearer)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(TitleEmpty("title must not be empty"))
+    }
+    if len(title) > 100 {
+        return Error(TitleTooLong("title exceeds 100 chars"))
+    }
+    return Ok("added")
+}
+
+@endpoint(kind: mutation) @auth(scheme: bearer)
+fn rename_todo(id: str, new_title: str) to Result[str, TodoError] {
+    if len(new_title) is 0 {
+        return Error(TitleEmpty("title must not be empty"))
+    }
+    if len(new_title) > 100 {
+        return Error(TitleTooLong("title exceeds 100 chars"))
+    }
+    return Ok("renamed")
+}
+
+@endpoint(kind: mutation) @auth(scheme: bearer)
+fn tag_todo(id: str, tag_title: str) to Result[str, TodoError] {
+    if len(tag_title) is 0 {
+        return Error(TitleEmpty("title must not be empty"))
+    }
+    if len(tag_title) > 100 {
+        return Error(TitleTooLong("title exceeds 100 chars"))
+    }
+    return Ok("tagged")
+}
+
+@test
+fn test_add_todo_empty_rejects() to Unit {
+    let r = add_todo("")
+    match r {
+        Error(TitleEmpty(_))   => assert(true)
+        Error(TitleTooLong(_)) => assert(false)
+        Ok(_)                  => assert(false)
+    }
+}
+
+@test
+fn test_rename_todo_empty_rejects() to Unit {
+    let r = rename_todo("id-1", "")
+    match r {
+        Error(TitleEmpty(_))   => assert(true)
+        Error(TitleTooLong(_)) => assert(false)
+        Ok(_)                  => assert(false)
+    }
+}
+
+@test
+fn test_tag_todo_empty_rejects() to Unit {
+    let r = tag_todo("id-1", "")
+    match r {
+        Error(TitleEmpty(_))   => assert(true)
+        Error(TitleTooLong(_)) => assert(false)
+        Ok(_)                  => assert(false)
+    }
+}

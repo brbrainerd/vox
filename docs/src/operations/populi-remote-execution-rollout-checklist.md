@@ -1,7 +1,7 @@
 ---
 title: "Populi remote execution rollout checklist"
 description: "Go/no-go criteria, kill-switch validation, and rollback steps before enabling authoritative or pilot remote execution beyond local defaults."
-category: "reference"
+category: "Operations"
 last_updated: "2026-03-29"
 training_eligible: true
 
@@ -41,7 +41,7 @@ Prove you can **disable remote paths** without redeploying code:
 
 ## Observability gates
 
-- [ ] Logs or traces include **`task_id`** (or equivalent) for routed work; when lease placement ships, include **`lease_id`** and **placement reason** per [placement observability](../reference/orchestration-unified.md#placement-and-lease-observability-roadmap-contract).
+- [ ] Logs or traces include **`task_id`** (or equivalent) for routed work; when lease placement ships, include **`lease_id`** and **placement reason** per [placement observability](../reference/orchestration-unified.md#placement-and-lease-observability).
 - [ ] Optional: **`VOX_MESH_CODEX_TELEMETRY`** emits **`populi_control_event`** rows without storing bearer material ([mens SSOT](../reference/populi.md)).
 
 ## Regression and rollback

@@ -1,7 +1,7 @@
 ---
 title: "Ludus: scope and non-goals"
 description: "Defines optional gamification boundaries—never blocking core flows, not a correctness layer, notification/HUD expectations, kill-switch pointers, and legacy gamify_* naming vs Ludus UX."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

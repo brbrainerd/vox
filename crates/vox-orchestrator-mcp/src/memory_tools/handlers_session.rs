@@ -10,7 +10,10 @@ const REM_SESSION_ID: &str =
 /// Create a new session for an agent (async).
 pub async fn session_create(state: &ServerState, params: SessionCreateParams) -> String {
     let mut mgr = state.session_manager.lock().await;
-    match mgr.create(vox_orchestrator::AgentId(params.agent_id)) {
+    match mgr.create(
+        vox_orchestrator::AgentId(params.agent_id),
+        params.tenant_id,
+    ) {
         Ok(id) => ToolResult::ok(id).to_json(),
         Err(e) => {
             ToolResult::<String>::err_with_remediation(format!("{e}"), REM_SESSION_OP).to_json()
@@ -24,14 +27,7 @@ pub async fn session_list(state: &ServerState) -> String {
     let sessions: Vec<SessionInfo> = mgr
         .list_sessions()
         .iter()
-        .map(|s| SessionInfo {
-            id: s.id.clone(),
-            agent_id: s.agent_id.0,
-            state: s.state.to_string(),
-            turn_count: s.turn_count,
-            total_tokens: s.total_tokens,
-            last_active: s.last_active,
-        })
+        .map(|s| SessionInfo::from_session(*s))
         .collect();
     ToolResult::ok(sessions).to_json()
 }
@@ -70,15 +66,7 @@ pub async fn session_compact(state: &ServerState, params: SessionCompactParams) 
 pub async fn session_info(state: &ServerState, params: SessionIdParams) -> String {
     let mgr = state.session_manager.lock().await;
     match mgr.get(&params.session_id) {
-        Some(s) => ToolResult::ok(SessionInfo {
-            id: s.id.clone(),
-            agent_id: s.agent_id.0,
-            state: s.state.to_string(),
-            turn_count: s.turn_count,
-            total_tokens: s.total_tokens,
-            last_active: s.last_active,
-        })
-        .to_json(),
+        Some(s) => ToolResult::ok(SessionInfo::from_session(s)).to_json(),
         None => ToolResult::<String>::err_with_remediation(
             format!("Session '{}' not found.", params.session_id),
             REM_SESSION_ID,

@@ -2,61 +2,61 @@
   "x-vox-version": 1,
   "version": 1,
   "cases": [
-    
+    {
       "id": "stub-todo-tp-1",
       "label": "true_positive",
       "rule_id_prefix": "stub/todo",
       "path": "gold/stub_tp.rs",
       "line": 2,
-      "snippet": "fn main() \n    todo!();\n}\n"
+      "snippet": "fn main() {\n    todo!();\n}\n"
     },
-    
+    {
       "id": "scaling-regex-tp-1",
       "label": "true_positive",
       "rule_id_prefix": "scaling/regex-new-hot",
       "path": "gold/scaling_tp.rs",
       "line": 2,
-      "snippet": "fn demo() \n    let _ = Regex::new(r\"x\");\n}\n"
+      "snippet": "fn demo() {\n    let _ = Regex::new(r\"x\");\n}\n"
     },
-    
+    {
       "id": "scaling-regex-fp-comment",
       "label": "false_positive",
       "rule_id_prefix": "scaling/regex-new-hot",
       "path": "gold/scaling_fp.rs",
       "line": 1,
-      "snippet": "// Regex::new(\"ignore\")\nfn main() }\n"
+      "snippet": "// Regex::new(\"ignore\")\nfn main() {}\n"
     },
-    
+    {
       "id": "unresolved-tp-1",
       "label": "true_positive",
       "rule_id_prefix": "unresolved-ref",
       "path": "crates/gold/src/lib.rs",
       "line": 2,
-      "snippet": "fn main() \n    totally_unknown_fn_z9q();\n}\n"
+      "snippet": "fn main() {\n    totally_unknown_fn_z9q();\n}\n"
     },
-    
+    {
       "id": "unresolved-fp-println",
       "label": "false_positive",
       "rule_id_prefix": "unresolved-ref",
       "path": "crates/gold/src/lib.rs",
       "line": 2,
-      "snippet": "fn main() \n    println!(\"hi\");\n}\n"
+      "snippet": "fn main() {\n    println!(\"hi\");\n}\n"
     },
-    
+    {
       "id": "unresolved-fp-use-inner-fn",
       "label": "false_positive",
       "rule_id_prefix": "unresolved-ref",
       "path": "crates/gold/src/lib.rs",
       "line": 6,
-      "snippet": "mod inner \n    pub fn hello() }\n}\nuse inner::hello;\nfn main() \n    hello();\n}\n"
+      "snippet": "mod inner {\n    pub fn hello() {}\n}\nuse inner::hello;\nfn main() {\n    hello();\n}\n"
     },
-    
+    {
       "id": "unresolved-fp-qualified-module-call",
       "label": "false_positive",
       "rule_id_prefix": "unresolved-ref",
       "path": "crates/gold/src/lib.rs",
       "line": 5,
-      "snippet": "mod m \n    pub fn foo() }\n}\nfn main() \n    m::foo();\n}\n"
+      "snippet": "mod m {\n    pub fn foo() {}\n}\nfn main() {\n    m::foo();\n}\n"
     }
   ]
 }

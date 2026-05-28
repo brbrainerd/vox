@@ -1,0 +1,17 @@
+// ---
+// title: "AI fixture — deferred fill hole"
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// training_eligible: true
+// ---
+
+@hole(spec = "implement semantic ranking", reviewer = human, cache_key = "hole:semantic-ranking", constraints = [strict])
+fn fill_later(query: str) to str {
+    return query
+}
+
+@test
+fn test_fill_later_fixture_declared() to Unit {
+    assert(len("hole") > 0)
+}

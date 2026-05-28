@@ -1,7 +1,7 @@
 ---
 title: "Acceptance runbook — Mens HF fine-tune convergence"
 description: "Official documentation for Acceptance runbook — Mens HF fine-tune convergence for the Vox language."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

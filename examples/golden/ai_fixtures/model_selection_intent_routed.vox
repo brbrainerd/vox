@@ -1,0 +1,19 @@
+// ---
+// title: "AI fixture — model selection intent-routed"
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// training_eligible: true
+// ---
+
+@ai(task_category = CodeGen, strengths = [codegen, reasoning], tier_max = Pro, cost_ceiling_usd_per_call = 0.6)
+@uses(net)
+fn route_model(spec: str) to str {
+    return spec
+}
+
+@test
+fn test_route_model_fixture() to Unit {
+    let out = route_model("build parser fixture")
+    assert(len(out) > 0)
+}

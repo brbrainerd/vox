@@ -1,0 +1,14 @@
+[problem]
+id = "071"
+title = "is_perfect"
+prompt = """
+Return true if n is a perfect number: a positive integer equal to the sum of its
+proper divisors (all divisors excluding n itself).
+For example: 6 = 1 + 2 + 3, 28 = 1 + 2 + 4 + 7 + 14.
+Return false for n <= 1.
+"""
+signature = "fn is_perfect(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

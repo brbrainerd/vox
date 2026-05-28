@@ -40,7 +40,7 @@ pub enum AiProvider {
         /// API key (can also be set via GEMINI_API_KEY env var)
         #[serde(default)]
         api_key: String,
-        /// Model name (default: gemini-2.5-flash)
+        /// Model name (default: gemini-3-flash)
         #[serde(default = "default_gemini_model")]
         model: String,
     },
@@ -64,7 +64,8 @@ fn default_ollama_model() -> String {
 }
 
 fn default_gemini_model() -> String {
-    "gemini-2.5-flash".to_string()
+    // 2026-Q2 refresh: Gemini 3 Flash (1M ctx, cheaper, faster).
+    "gemini-3-flash".to_string()
 }
 
 fn default_pollinations_model() -> String {

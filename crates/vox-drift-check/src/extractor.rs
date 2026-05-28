@@ -11,11 +11,11 @@ pub fn crate_name_from_path(path: &Path) -> Option<String> {
     let mut components = path.components().peekable();
     while let Some(part) = components.next() {
         let part_str = part.as_os_str().to_string_lossy();
-        if part_str == "crates" {
-            if let Some(name_part) = components.next() {
-                let name = name_part.as_os_str().to_string_lossy().into_owned();
-                return Some(name);
-            }
+        if part_str == "crates"
+            && let Some(name_part) = components.next()
+        {
+            let name = name_part.as_os_str().to_string_lossy().into_owned();
+            return Some(name);
         }
     }
     None

@@ -85,6 +85,7 @@ pub async fn ingest_workflow_traces_to_jsonl(
                                 in_progress: false,
                                 paused: false,
                                 agent_session_id: Some(session_id.clone()),
+                                current_phase: None,
                             },
                         );
                     }

@@ -2,6 +2,15 @@
 # Feature flags for orchestrator policy modules (D1–D10).
 # All default false — safe to ship before wiring.
 # Set to true to activate the corresponding module.
+#
+# Runtime: orchestrator reads `[orchestrator]` in Vox.toml first, then optional env overrides
+# resolved via vox-secrets (`VOX_ORCHESTRATOR_AGENTOS_*`, etc.). This YAML is the contract /
+# documentation snapshot — it is not loaded automatically by the Rust binary today.
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
 version: 1
 x-vox-version: 1
 flags:
@@ -19,3 +28,6 @@ flags:
   vox.orchestrator.contextual_bandit.enabled: false
   vox.orchestrator.subagent_dispatch.enabled: false
   vox.orchestrator.chain_length_cap.enabled: false
+  vox.orchestrator.agentos.aci_envelope.enabled: true  # CR-L5: on by default since v0.6
+  vox.orchestrator.agentos.guardrail_kernel.enabled: false
+  vox.orchestrator.agentos.checkpoint_hints.enabled: false

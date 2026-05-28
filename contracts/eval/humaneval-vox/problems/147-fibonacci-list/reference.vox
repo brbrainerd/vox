@@ -1,0 +1,17 @@
+fn fibonacci_list(n: int) to list[int] {
+    let mut result: list[int] = []
+    if n == 0 {
+        return result
+    }
+    let mut a: int = 0
+    let mut b: int = 1
+    let mut i: int = 0
+    while i < n {
+        result.push(a)
+        let t: int = a + b
+        a = b
+        b = t
+        i = i + 1
+    }
+    return result
+}

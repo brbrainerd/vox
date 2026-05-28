@@ -70,19 +70,37 @@ pub(crate) fn extract_mcp_handler_tools(src: &str) -> Result<HashSet<String>> {
     Ok(out)
 }
 
-fn extract_mcp_tool_aliases(alias_rs: &str) -> Result<Vec<(String, String)>> {
-    let re = Regex::new(r#"\("([^"]+)",\s*"([^"]+)"\)"#).expect("mcp alias pair regex");
+fn extract_mcp_tool_aliases(alias_yaml: &str) -> Result<Vec<(String, String)>> {
+    let v: serde_yaml::Value = serde_yaml::from_str(alias_yaml)
+        .map_err(|e| anyhow!("contracts/mcp/tool-wire-aliases.v1.yaml parse error: {e}"))?;
+    let aliases = v
+        .get("aliases")
+        .and_then(|a| a.as_sequence())
+        .ok_or_else(|| anyhow!("contracts/mcp/tool-wire-aliases.v1.yaml: missing `aliases`"))?;
     let mut out = Vec::new();
-    for c in re.captures_iter(alias_rs) {
-        let a = c[1].to_string();
-        let b = c[2].to_string();
-        if a.starts_with("vox_") && b.starts_with("vox_") {
-            out.push((a, b));
+    for row in aliases {
+        let Some(map) = row.as_mapping() else {
+            continue;
+        };
+        let alias = map
+            .get(serde_yaml::Value::String("alias".to_string()))
+            .and_then(|x| x.as_str())
+            .ok_or_else(|| {
+                anyhow!("contracts/mcp/tool-wire-aliases.v1.yaml: alias row missing `alias`")
+            })?;
+        let canonical = map
+            .get(serde_yaml::Value::String("canonical".to_string()))
+            .and_then(|x| x.as_str())
+            .ok_or_else(|| {
+                anyhow!("contracts/mcp/tool-wire-aliases.v1.yaml: alias row missing `canonical`")
+            })?;
+        if alias.starts_with("vox_") && canonical.starts_with("vox_") {
+            out.push((alias.to_string(), canonical.to_string()));
         }
     }
     if out.is_empty() {
         return Err(anyhow!(
-            "vox-orchestrator mcp_tools/tool_aliases.rs: expected TOOL_WIRE_ALIASES vox_* pairs"
+            "contracts/mcp/tool-wire-aliases.v1.yaml: expected at least one vox_* alias pair"
         ));
     }
     Ok(out)
@@ -92,12 +110,12 @@ pub(crate) fn check_mcp_tool_wiring(
     repo_root: &Path,
     mcp_mod: &str,
     mcp_dispatch: &str,
-    tool_aliases_rs: &str,
+    tool_aliases_yaml: &str,
 ) -> Result<()> {
     assert_mcp_mod_reexports_registry(mcp_mod)?;
     let reg_tools = extract_mcp_registry_tool_names(repo_root)?;
     let reg_set: HashSet<String> = reg_tools.iter().cloned().collect();
-    let alias_pairs = extract_mcp_tool_aliases(tool_aliases_rs)?;
+    let alias_pairs = extract_mcp_tool_aliases(tool_aliases_yaml)?;
     for (alias, canonical) in &alias_pairs {
         if reg_set.contains(alias) {
             return Err(anyhow!(
@@ -130,7 +148,7 @@ pub(crate) fn check_mcp_tool_wiring(
         }
     }
 
-    let vscode_dir = repo_root.join("vox-vscode");
+    let vscode_dir = repo_root.join("apps").join("editor").join("vox-vscode");
     if vscode_dir.is_dir() {
         let status = std::process::Command::new("node")
             .arg("scripts/check-mcp-tool-parity.mjs")

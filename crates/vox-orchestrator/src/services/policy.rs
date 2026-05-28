@@ -7,7 +7,7 @@
 //! **LLM premature-completion governance** is anchored at
 //! `contracts/operations/completion-policy.v1.yaml` and enforced in CI via
 //! `vox ci completion-audit` / `completion-gates`; runtime completion attestation
-//! and placeholder heuristics live in [`crate::orchestrator::task_dispatch::complete`].
+//! and placeholder heuristics live in `crate::orchestrator::task_dispatch::complete`.
 
 use crate::events::EventBus;
 use crate::locks::{FileLockManager, LockConflict, LockKind};
@@ -106,7 +106,7 @@ impl PolicyEngine {
             let actual_touched: std::collections::HashSet<_> = att
                 .artifact_paths
                 .iter()
-                .map(|p| std::path::PathBuf::from(p))
+                .map(std::path::PathBuf::from)
                 .collect();
             let mut untouched = Vec::new();
             for planned in &write_manifest {

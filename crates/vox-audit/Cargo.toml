@@ -1,0 +1,93 @@
+[package]
+name = "vox-audit"
+description = "Umbrella CR-L gate runner. Hosts the `vox audit <thing>` subcommand registry and implements the canonical JSON report shape defined in contracts/ci/vox-audit-contract.v1.yaml."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+flate2 = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+blake3 = { workspace = true }
+tracing = { workspace = true }
+vox-code-audit = { workspace = true }
+vox-compiler = { workspace = true }
+vox-config = { workspace = true }
+vox-telemetry = { workspace = true }
+reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
+toml = { workspace = true }
+walkdir = { workspace = true }
+workspace-hack = { workspace = true }
+# CR-L7 deploy + new legs (P2.2 of the 2026-05-21 honest plan): scaffold
+# a fresh web project + dry-run a deploy plan, both timed end-to-end.
+vox-project-scaffold = { workspace = true }
+vox-deploy-codegen = { workspace = true }
+vox-container = { workspace = true }
+vox-package = { workspace = true }
+tempfile = { workspace = true }
+
+[[bin]]
+name = "vox-audit"
+path = "src/main.rs"
+
+# CR-E1 cold-start benchmark — measures lex+parse+lower+typeck p99 over
+# a hello-world fixture. Per honest plan §5.4. Threshold: p99 <= 50ms.
+[[bin]]
+name = "cr-e1"
+path = "src/bin/cr-e1.rs"
+
+# CR-A1 cyclomatic-complexity sweep over primary lowering paths.
+# Per honest plan §5.6. Threshold: max function complexity <= 15.
+[[bin]]
+name = "cr-a1"
+path = "src/bin/cr-a1.rs"
+
+# CR-D3 CLI subcommand example coverage sweep.
+# Per honest plan §5.9. Threshold: 100% of `vox` subcommands have
+# at least one .vox example referencing them.
+[[bin]]
+name = "cr-d3"
+path = "src/bin/cr-d3.rs"
+
+# CR-A4 lifecycle metadata parity sweep over orchestration contracts.
+# Per honest plan §5.8. Threshold: every orchestration contract declares
+# lifecycle (experimental|stable|deprecated) + migration_window if
+# deprecated.
+[[bin]]
+name = "cr-a4"
+path = "src/bin/cr-a4.rs"
+
+# CR-A2 schema-parity sweep over contracts/. Per honest plan §5.7.
+# Initial enforce=false; flipped to true when 100% parity reached.
+[[bin]]
+name = "cr-a2"
+path = "src/bin/cr-a2.rs"
+
+# CR-E2 marquee bundle-size measurement. Per honest plan §5.5.
+# Threshold: 800 KB gzip per app.
+[[bin]]
+name = "cr-e2"
+path = "src/bin/cr-e2.rs"
+
+# CR-P1 marquee-live probe. Per honest plan §5.2. Three apps must
+# answer /health with 2xx.
+[[bin]]
+name = "cr-p1"
+path = "src/bin/cr-p1.rs"
+
+# CR-P2 uptime monitor. Per honest plan §5.3. Probe-and-append +
+# rolling 7-day window roll-up.
+[[bin]]
+name = "cr-p2"
+path = "src/bin/cr-p2.rs"
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

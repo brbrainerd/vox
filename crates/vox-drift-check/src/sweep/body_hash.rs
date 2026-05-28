@@ -33,10 +33,10 @@ impl SweepRule for BodyHashRule {
                     .body_signatures
                     .iter()
                     .find(|b| b.parent_fn.as_deref() == Some(&def.name));
-                if let Some(sig) = sig {
-                    if sig.line_count < self.min_lines {
-                        continue;
-                    }
+                if let Some(sig) = sig
+                    && sig.line_count < self.min_lines
+                {
+                    continue;
                 }
                 index.entry(def.body_hash).or_default().push((
                     f.file.clone(),

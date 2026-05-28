@@ -1,0 +1,11 @@
+[problem]
+id = "152"
+title = "digits_to_int"
+prompt = """
+Convert a list of digits (each 0-9) to a non-negative integer, treating the list as most-significant first. For example, [1, 2, 3] -> 123. Return 0 for an empty list.
+"""
+signature = "fn digits_to_int(ds: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math", "lists"]

@@ -285,18 +285,20 @@ pub async fn run_workflow(
         let _ = requested_run_id;
         // Build the project (same as vox run)
         let out_dir = std::path::PathBuf::from("dist");
-        crate::commands::build::run(
+        vox_cli::commands::build::run(
             file,
             &out_dir,
             None,
+            None,
             false,
             false,
-            crate::cli_args::BuildMode::App,
+            vox_cli_core::cli_args::BuildMode::App,
+            vox_cli::RustAppShell::default(),
         )
         .await?;
 
         let generated_dir = std::path::PathBuf::from("target").join("generated");
-        let shared_target = crate::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));
+        let shared_target = vox_cli::fs_utils::run_target_dir_for_workspace(Some(&generated_dir));
 
         // Run workflow: set env so generated binary executes workflow and exits
         let extra_env: Vec<(String, String)> = vec![
@@ -304,13 +306,13 @@ pub async fn run_workflow(
             ("VOX_WORKFLOW_ARGS".to_string(), args_json.to_string()),
         ];
 
-        let req = crate::build_service::CargoRequest::run(
+        let req = vox_cli_core::build_service::CargoRequest::run(
             generated_dir,
             Some(shared_target),
             vec!["--".to_string()],
             extra_env,
         );
-        let output = crate::build_service::run_cargo(&req)
+        let output = vox_cli_core::build_service::run_cargo(&req)
             .context("Failed to execute workflow (cargo run in generated directory)")?;
 
         if !output.status.success() {

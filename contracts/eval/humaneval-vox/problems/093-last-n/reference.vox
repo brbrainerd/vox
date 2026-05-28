@@ -1,0 +1,19 @@
+fn last_n(items: list[int], n: int) to list[int] {
+    let len: int = items.len()
+    let mut start: int = len - n
+    if start < 0 {
+        start = 0
+    }
+    let mut result: list[int] = []
+    let mut i: int = start
+    while i < len {
+        match items[i] {
+            Some(v) => {
+                result.push(v)
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}

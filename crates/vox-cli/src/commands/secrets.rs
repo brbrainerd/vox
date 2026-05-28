@@ -23,7 +23,7 @@ fn redact_value(value: &str) -> String {
 }
 
 fn local_inference_allows_no_cloud_key() -> bool {
-    match std::env::var("VOX_INFERENCE_PROFILE")
+    match std::env::var("vox_populi::inference_PROFILE")
         .ok()
         .map(|s| s.trim().to_ascii_lowercase())
         .as_deref()
@@ -132,7 +132,8 @@ pub enum SecretsCmd {
         args: crate::commands::login_shared::LoginArgs,
     },
     /// Show secret readiness for a workflow (credentials / env resolution).
-    #[command(name = "status", visible_alias = "doctor")]
+    /// Compatibility: `vox secrets doctor` remains accepted but hidden from help (use top-level `vox doctor` for toolchain checks).
+    #[command(name = "status", alias = "doctor")]
     Status {
         #[arg(long, value_enum, default_value_t = WorkflowArg::Chat)]
         workflow: WorkflowArg,
@@ -368,6 +369,10 @@ struct DoctorSecretRow {
     remediation: Option<String>,
     deprecated_alias_in_use: Option<String>,
     feature_gate_missing: bool,
+    /// Informational note from the resolver — e.g. an env var shadowing
+    /// an `auth.json` value stored via `vox secrets set`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    detail: Option<String>,
 }
 
 fn emit_doctor_json_v1(
@@ -456,6 +461,7 @@ fn emit_doctor_json_v1(
                 resolved.status,
                 vox_secrets::ResolutionStatus::BackendUnavailable
             ),
+            detail: resolved.detail.clone(),
         });
     }
 

@@ -1,0 +1,11 @@
+[problem]
+id = "126"
+title = "first_duplicate"
+prompt = """
+Find the first element in a list that appears more than once (first by position of second occurrence). Return -1 if no duplicates exist.
+"""
+signature = "fn first_duplicate(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "search"]

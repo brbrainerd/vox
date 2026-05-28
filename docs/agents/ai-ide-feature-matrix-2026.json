@@ -361,9 +361,9 @@
   ],
   "vox_baseline": {
     "extension_surfaces": [
-      "vox-vscode/src/SidebarProvider.ts",
-      "vox-vscode/src/core/VoxMcpClient.ts",
-      "vox-vscode/webview-ui/src/index.tsx"
+      "apps/editor/vox-vscode/src/SidebarProvider.ts",
+      "apps/editor/vox-vscode/src/core/VoxMcpClient.ts",
+      "apps/editor/vox-vscode/webview-ui/src/index.tsx"
     ],
     "core_surfaces": [
       "crates/vox-mcp/src/tools/chat_tools/",
@@ -399,8 +399,8 @@
       "vox": {
         "status": "partial",
         "primary_surfaces": [
-          "vox-vscode/src/inline/GhostTextProvider.ts",
-          "vox-vscode/src/inline/InlineEditController.ts",
+          "apps/editor/vox-vscode/src/inline/GhostTextProvider.ts",
+          "apps/editor/vox-vscode/src/inline/InlineEditController.ts",
           "crates/vox-mcp/src/tools/chat_tools/ghost_text.rs"
         ],
         "implementation_locus": "Mostly extension polish and MCP registry parity, with optional Mens latency work later.",
@@ -435,8 +435,8 @@
       "vox": {
         "status": "partial",
         "primary_surfaces": [
-          "vox-vscode/src/SidebarProvider.ts",
-          "vox-vscode/src/core/VoxMcpClient.ts",
+          "apps/editor/vox-vscode/src/SidebarProvider.ts",
+          "apps/editor/vox-vscode/src/core/VoxMcpClient.ts",
           "crates/vox-mcp/src/tools/task_tools.rs"
         ],
         "implementation_locus": "Extension UX plus task-orchestrator handoff and richer apply/review loops.",
@@ -472,7 +472,7 @@
         "status": "partial",
         "primary_surfaces": [
           "crates/vox-mcp/src/tools/chat_tools/plan.rs",
-          "vox-vscode/src/SidebarProvider.ts"
+          "apps/editor/vox-vscode/src/SidebarProvider.ts"
         ],
         "implementation_locus": "Extension command surface and webview state model.",
         "loc_band": "200-800",
@@ -506,7 +506,7 @@
       "vox": {
         "status": "partial",
         "primary_surfaces": [
-          "vox-vscode/src/vcs/SnapshotProvider.ts",
+          "apps/editor/vox-vscode/src/vcs/SnapshotProvider.ts",
           "crates/vox-mcp/src/tools/vcs_tools/",
           "crates/vox-orchestrator/src/json_vcs_facade.rs"
         ],
@@ -543,7 +543,7 @@
         "status": "backend-only",
         "primary_surfaces": [
           "contracts/mcp/tool-registry.canonical.yaml",
-          "vox-vscode/src/core/VoxMcpClient.ts",
+          "apps/editor/vox-vscode/src/core/VoxMcpClient.ts",
           "crates/vox-mcp/src/tools/repo_catalog_tools.rs"
         ],
         "implementation_locus": "Extension/webview event model and chat transcript rendering, not core capability invention.",
@@ -580,7 +580,7 @@
         "primary_surfaces": [
           "crates/vox-mcp/src/tools/task_tools.rs",
           "crates/vox-orchestrator/src/orchestrator/",
-          "vox-vscode/src/agents/AgentController.ts"
+          "apps/editor/vox-vscode/src/agents/AgentController.ts"
         ],
         "implementation_locus": "Substantial extension and orchestration UX work, but with strong backend foundations already present.",
         "loc_band": "2500-8000",
@@ -615,8 +615,8 @@
         "status": "partial",
         "primary_surfaces": [
           "crates/vox-search/src/execution.rs",
-          "vox-vscode/src/context/WorkspaceContextEngine.ts",
-          "vox-vscode/src/SidebarProvider.ts"
+          "apps/editor/vox-vscode/src/context/WorkspaceContextEngine.ts",
+          "apps/editor/vox-vscode/src/SidebarProvider.ts"
         ],
         "implementation_locus": "Blend extension affordances with search-ranking polish and context envelope rollout.",
         "loc_band": "800-2500",
@@ -651,7 +651,7 @@
         "status": "partial",
         "primary_surfaces": [
           "crates/vox-mcp/src/memory/handlers_memory.rs",
-          "vox-vscode/src/core/preferenceKeys.ts",
+          "apps/editor/vox-vscode/src/core/preferenceKeys.ts",
           "crates/vox-mcp/src/tools/repo_catalog_tools.rs"
         ],
         "implementation_locus": "Extension-facing UX for repository rules and reusable workflows, backed by existing memory and skills surfaces.",
@@ -688,7 +688,7 @@
         "primary_surfaces": [
           "contracts/mcp/tool-registry.canonical.yaml",
           "docs/src/architecture/capability-registry-ssot.md",
-          "vox-vscode/src/core/mcpToolRegistry.generated.ts"
+          "apps/editor/vox-vscode/src/core/mcpToolRegistry.generated.ts"
         ],
         "implementation_locus": "Mostly discoverability, docs, and UI surfacing rather than backend build-out.",
         "loc_band": "200-800",
@@ -758,9 +758,9 @@
       "vox": {
         "status": "partial",
         "primary_surfaces": [
-          "vox-vscode/src/speech/registerOratioSpeechCommands.ts",
-          "vox-vscode/src/VisualEditorPanel.ts",
-          "vox-vscode/webview-ui/src/components/"
+          "apps/editor/vox-vscode/src/speech/registerOratioSpeechCommands.ts",
+          "apps/editor/vox-vscode/src/VisualEditorPanel.ts",
+          "apps/editor/vox-vscode/webview-ui/src/components/"
         ],
         "implementation_locus": "Primarily extension/webview work; Mens and Oratio become differentiators later rather than prerequisites now.",
         "loc_band": "200-800",
@@ -796,7 +796,7 @@
         "primary_surfaces": [
           "crates/vox-mcp/src/tools/compiler_tools.rs",
           "crates/vox-mcp/src/tools/chat_tools/plan.rs",
-          "vox-vscode/src/chat/ChatController.ts"
+          "apps/editor/vox-vscode/src/chat/ChatController.ts"
         ],
         "implementation_locus": "UI-driven verification flows on top of already-shipped test, check, and adequacy tooling.",
         "loc_band": "200-800",
@@ -830,7 +830,7 @@
       "vox": {
         "status": "partial",
         "primary_surfaces": [
-          "vox-vscode/src/agents/AgentController.ts",
+          "apps/editor/vox-vscode/src/agents/AgentController.ts",
           "crates/vox-orchestrator/src/events.rs",
           "crates/vox-mcp/src/tools/task_tools.rs"
         ],

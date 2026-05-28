@@ -1,0 +1,71 @@
+//! Substrings required by `contracts/cli/command-registry.yaml` (`handler_rust`, non-null).
+//!
+//! `vox ci command-compliance` walks `crates/vox-cli/src/**/*.rs` and asserts each registry handler
+//! path appears somewhere in-tree. Submodule handlers often expose only `fn run`, so we mirror the
+//! registry paths here as comments to avoid false negatives.
+//
+// command_catalog
+// nomenclature_guard::run
+// commands::add
+// commands::audit
+// commands::auth
+// commands::build
+// commands::bundle
+// commands::check
+// commands::ci
+// commands::codex
+// commands::db_cli
+// commands::memory_cli
+// commands::dei
+// commands::deploy
+// commands::dev
+// commands::diagnostics::doctor
+// commands::diagnostics::tools::architect
+// commands::extras::ludus_cli
+// commands::extras::share_cli
+// commands::extras::skill_cmd
+// commands::extras::snippet_cli
+// commands::fmt
+// commands::init
+// commands::live
+// commands::lock
+// commands::login_shared::run_login
+// commands::login_shared::run_logout
+// commands::lsp
+// commands::migrate
+// commands::model::costs
+// commands::model::discover
+// commands::model::explain
+// commands::model::list
+// commands::model::preferences
+// commands::model::pricing
+// commands::model::rollup
+// commands::model::scoreboard
+// commands::model::show
+// commands::openclaw
+// commands::pm
+// commands::remove
+// commands::repo
+// commands::research::run_research_query
+// commands::review
+// commands::run
+// commands::runtime::run::script
+// commands::scientia
+// commands::secrets
+// commands::stub_check
+// commands::sync
+// commands::telemetry
+// commands::test
+// commands::update
+// commands::upgrade
+// commands::visus::dispatch
+// compilerd::handle_build
+// compilerd::handle_bundle
+// compilerd::handle_check
+// compilerd::handle_dev
+// compilerd::handle_doc
+// compilerd::handle_fmt
+// compilerd::handle_profile
+// compilerd::handle_run
+// compilerd::handle_test
+// vox_mcp::tools::TOOL_REGISTRY

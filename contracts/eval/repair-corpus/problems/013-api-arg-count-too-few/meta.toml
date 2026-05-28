@@ -1,0 +1,15 @@
+id = "013"
+title = "API misuse: divide called with 1 arg, requires 2"
+description = """
+divide(a, b) is a two-parameter function, but the call site passes
+only one argument: divide(10). The divisor b is missing. The fix is
+to supply the second argument, e.g., divide(10, 2).
+"""
+bug_class = "api-misuse"
+difficulty = "easy"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/types/arg-count-mismatch"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

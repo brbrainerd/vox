@@ -1,0 +1,22 @@
+fn capitalize_first(s: str) to str {
+    if s.len() == 0 {
+        return ""
+    }
+    let chars: list[str] = s.chars()
+    let mut result: str = ""
+    let mut i: int = 0
+    while i < chars.len() {
+        match chars[i] {
+            Some(c) => {
+                if i == 0 {
+                    result = result + c.to_upper()
+                } else {
+                    result = result + c
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}

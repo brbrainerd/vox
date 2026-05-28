@@ -1,0 +1,142 @@
+x-vox-version: 1
+schema_version: 1
+
+# Reference LLM panel for CR-L0..CR-L4 measurement.
+#
+# References:
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.1 P0.3, §1.4 P2.8
+#   - docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md §9.1 G5
+#
+# Purpose: Pin the set of LLMs against which CR-L rate measurements are
+# computed. Without a fixed panel + median-of-panel rule, CR-L numbers can be
+# tuned by picking favorable models.
+#
+# Status as of 2026-05-15: ACTIVE, ratified by council 2026-05-15
+# (D7–D9 in v1-llm-target-implementation-plan-2026.md §8 ratification log).
+
+panel:
+  id: vox-v1-reference-panel
+  schema_version: 1
+  status: active                          # was: draft (council ratified 2026-05-15)
+  pinned_at: "2026-05-15"
+  rebaseline_at_release_candidate: true   # D7 ratified
+  scoring_rule: "median-of-members"       # arithmetic median of per-member pass rate
+  cr_l0_mens_handling: "report-separately" # D9 ratified — MENS not in CR-L0 median
+  other_gates_mens_handling: "include-in-median"  # D9 ratified — MENS in CR-L1/L2/L4 median
+
+# Members.
+# Each member has a stable `id`, a version pin, a capability tier hint, and a
+# pricing record. Pricing pinned at panel `pinned_at` for cost-ceiling math.
+members:
+  - id: mens-current
+    role: project-owned
+    description: "The Vox project's own MENS model at the release-candidate tag."
+    version_pin_policy: "matches workspace.package.version at measurement time"
+    capability_tier_hint: "strong (Vox-native)"
+    pricing:
+      input_per_million_tokens_usd: 0.50  # local inference; cost ~= compute
+      output_per_million_tokens_usd: 0.50
+      pricing_basis: "estimated local-compute amortized cost"
+    notes: >
+      MENS is the project's own model. Its score is the primary signal for
+      "did we train MENS to v1.0 quality." However, MENS alone cannot establish
+      whether Vox is a good LLM-target language — that requires panel-median
+      comparison against frontier models.
+
+  - id: claude-sonnet
+    role: frontier-baseline
+    description: >
+      Anthropic Claude Sonnet 4.6 (current GA, released 2026-02-17).
+      1M-context flat-rate, prompt caching reduces cached input 90%.
+    version_pin_policy: "latest GA at panel pinned_at; updated only at release-candidate tag"
+    version_pinned: "claude-sonnet-4-6"
+    capability_tier_hint: "strong"
+    pricing:
+      input_per_million_tokens_usd: 3.00
+      output_per_million_tokens_usd: 15.00
+      pricing_basis: "Anthropic published rates 2026-05; cached input drops to $0.30/MTok"
+
+  - id: gpt-frontier
+    role: frontier-baseline
+    description: >
+      OpenAI GPT-5.4 at current GA (best price/quality for coding +
+      Terminal-Bench at 75.1%). Switch to gpt-5.5-pro for the dedicated
+      agentic / CR-L0 measurement runs (BenchLM 90.1).
+    version_pin_policy: "latest GA at panel pinned_at"
+    version_pinned: "gpt-5.4"
+    cr_l0_substitute: "gpt-5.5-pro"
+    capability_tier_hint: "strong"
+    pricing:
+      input_per_million_tokens_usd: 5.00
+      output_per_million_tokens_usd: 20.00
+      pricing_basis: "OpenAI published rates 2026-05"
+
+# Operational policy.
+operational_policy:
+  rate_limits:
+    # CR-L0 worst case: 10 specs × 5 attempts × 3 panel members = 150 sessions per RC.
+    # At ~30 LLM calls per session, ~4500 LLM calls per RC measurement run.
+    max_concurrent_sessions: 5
+    retry_on_rate_limit:
+      max_retries: 3
+      backoff_base_seconds: 30
+      backoff_max_seconds: 600
+  caching:
+    # Identical (prompt, temperature, seed) returns the cached response.
+    # Critical for cost control during iteration phases (P4.2, P4.9).
+    enabled: true
+    cache_path: "contracts/reports/llm-panel-cache/"
+    cache_ttl_days: 30
+    cache_key_includes: ["panel_member_id", "panel_pinned_at", "prompt_hash", "temperature", "seed"]
+  fallback_when_unreachable:
+    # If a panel member is unreachable (API down, rate-limit exhausted), the
+    # run records a `panel_member_unreachable` outcome rather than a failure.
+    # Reports include unreachable-count as a metadata field.
+    policy: "record-skip-not-fail"
+    block_release_if_unreachable_pct_gt: 0.20  # > 20% sessions unreachable = invalid run
+
+# Authentication.
+authentication:
+  # All panel members resolved through Clavis (vox-secrets) per AGENTS.md.
+  mens-current:
+    secret_id: "MENS_LOCAL_ENDPOINT_TOKEN"  # if local server; else inline binary
+  claude-sonnet:
+    secret_id: "ANTHROPIC_API_KEY"
+  gpt-frontier:
+    secret_id: "OPENAI_API_KEY"
+
+# Cost reporting.
+cost_reporting:
+  # Every measurement run emits cost telemetry:
+  #   - per-spec cost per panel member
+  #   - median cost across panel
+  #   - cumulative cost across all specs
+  # Reports cite this in contracts/reports/<thing>/<date>.json under
+  # `results.per_llm[].median_cost_usd` (see vox-audit-contract.v1.yaml).
+  emit_per_run: true
+  alert_when_cumulative_rc_run_usd_gt: 200.00
+  alert_channel: "vox.audit.cost_alert"
+
+# Council ratification log (D7–D9, 2026-05-15).
+council_ratification_log:
+  - id: panel-composition
+    decision: "3-member panel as drafted (MENS-current + Claude-Sonnet + GPT-frontier)."
+    ratified_at: "2026-05-15"
+    rationale: >
+      Median-stability at bounded RC cost (<$300/run). 2-member loses signal;
+      5-member triples cost without clear additional fidelity.
+  - id: panel-rebaseline-cadence
+    decision: "Rebaseline at release-candidate tag (per-RC pricing pin)."
+    ratified_at: "2026-05-15"
+    rationale: >
+      2026 LLM release velocity makes quarterly cadence stale; per-RC
+      captures pricing drops and model-version drift.
+  - id: panel-mens-self-reference
+    decision: >
+      MENS-current reported SEPARATELY for CR-L0; INCLUDED in panel median
+      for CR-L1, CR-L2, CR-L4.
+    ratified_at: "2026-05-15"
+    rationale: >
+      CR-L0 measures end-to-end agent loop; MENS is often *the agent*, so
+      median inclusion biases the test. CR-L1/L2/L4 measure language fit;
+      MENS as one panel member among three is a fair signal there.

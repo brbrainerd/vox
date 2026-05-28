@@ -79,7 +79,7 @@ impl ToolReceiptLedger {
     /// Returns a snapshot of all receipts.
     pub fn snapshot(&self) -> HashMap<String, (AgentId, String)> {
         let guard = self.receipts.read();
-        let receipts: &HashMap<String, ToolReceipt> = &*guard;
+        let receipts: &HashMap<String, ToolReceipt> = &guard;
         receipts
             .iter()
             .map(|(id, r)| (id.clone(), (r.agent_id, r.tool_name.clone())))

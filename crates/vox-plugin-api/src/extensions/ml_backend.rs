@@ -15,7 +15,7 @@
 
 use abi_stable::{StableAbi, sabi_trait, std_types::*};
 
-pub const ML_BACKEND_REVISION: u32 = 3;
+pub const ML_BACKEND_REVISION: u32 = 4;
 
 /// Opaque handle to a backend-owned model. The host never inspects the
 /// contents — it only passes it back to the same backend across calls.
@@ -37,6 +37,13 @@ pub trait MlBackend: Send + Sync {
     /// Load a pretrained model from `model_path`. Returns an opaque handle
     /// that subsequent calls reference.
     fn load_model(&self, model_path: RStr<'_>) -> RResult<RBox<MlModelHandle>, RBoxError>;
+
+    /// Release resources for a handle previously returned by [`Self::load_model`].
+    /// The host must not use `model` after a successful unload.
+    fn unload_model(&self, model: &MlModelHandle) -> RResult<(), RBoxError> {
+        let _ = model;
+        RResult::ROk(())
+    }
 
     /// Run one training step. Batch is JSON-encoded; stats response is
     /// JSON-encoded. Schema is owned by the caller.

@@ -1,4 +1,4 @@
-//! Embedding calls used by hybrid memory retrieval and Codex-backed vector search.
+//! Embedding calls used by hybrid memory retrieval and `vox-db`-backed vector search.
 
 use std::sync::Arc;
 
@@ -13,7 +13,7 @@ pub struct EmbeddingService {
 }
 
 impl EmbeddingService {
-    /// New service bound to a Codex handle and provider configuration.
+    /// New service bound to a [`vox_db::VoxDb`] handle and provider configuration.
     pub fn new(db: Arc<VoxDb>, config: LlmConfig) -> Self {
         Self { db, config }
     }
@@ -64,7 +64,7 @@ impl EmbeddingService {
         &self.config
     }
 
-    /// Shared Codex handle.
+    /// Shared database handle.
     #[must_use]
     pub fn db(&self) -> &Arc<VoxDb> {
         &self.db

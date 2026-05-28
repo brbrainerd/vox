@@ -125,15 +125,19 @@ impl SkillRegistry {
 
     /// Register a [`LoadedSkill`] discovered from the plugin install directory.
     ///
-    /// The simple `SkillManifest` from `vox-plugin-api` is promoted to the rich
-    /// host-side `SkillManifest` so all callers see a uniform type.
+    /// Both `LoadedSkill.manifest` and the host-side `SkillManifest` are now the same
+    /// canonical type from `vox-plugin-types` (D-17 unification). If `author` is empty,
+    /// it is filled in from `plugin_id` so registry callers always see a non-empty author.
     pub fn install(&self, skill: LoadedSkill) {
-        let manifest = promote_manifest(skill.manifest, &skill.plugin_id);
+        let mut manifest = skill.manifest;
+        if manifest.author.is_empty() {
+            manifest.author = skill.plugin_id.clone();
+        }
         let entry = RegisteredSkill {
             manifest: manifest.clone(),
             body: Some(skill.body),
             source: SkillSource::Plugin {
-                plugin_id: skill.plugin_id.clone(),
+                plugin_id: skill.plugin_id,
             },
         };
         self.skills
@@ -149,6 +153,7 @@ impl SkillRegistry {
             skill_id: id.to_string(),
         })?;
         // Reconstruct a LoadedSkill on the way out.
+        // Both LoadedSkill.manifest and entry.manifest are now the same type (D-17).
         let plugin_id = match &entry.source {
             SkillSource::Plugin { plugin_id } => plugin_id.clone(),
             _ => id.to_string(),
@@ -156,7 +161,7 @@ impl SkillRegistry {
         Ok(LoadedSkill {
             plugin_id,
             format_version: 1,
-            manifest: demote_manifest(&entry.manifest),
+            manifest: entry.manifest.clone(),
             body: entry.body.clone().unwrap_or_default(),
             exposed_tools: entry.manifest.tools.clone(),
         })
@@ -192,16 +197,16 @@ impl SkillRegistry {
 
         {
             let mut skills = self.skills.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(existing) = skills.get(&id) {
-                if existing.manifest.version == version {
-                    info!(skill = %id, "Skill already installed at same version");
-                    return Ok(InstallResult {
-                        id,
-                        version,
-                        already_installed: true,
-                        hash,
-                    });
-                }
+            if let Some(existing) = skills.get(&id)
+                && existing.manifest.version == version
+            {
+                info!(skill = %id, "Skill already installed at same version");
+                return Ok(InstallResult {
+                    id,
+                    version,
+                    already_installed: true,
+                    hash,
+                });
             }
             info!(skill = %id, version = %version, "Installing skill bundle");
             let mut manifest = bundle.manifest.clone();
@@ -377,39 +382,9 @@ pub fn new_registry_arc() -> Arc<SkillRegistry> {
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers: bridge the two SkillManifest shapes
-// ---------------------------------------------------------------------------
-
-/// Promote the slim `vox_plugin_api::skill::SkillManifest` to the rich host-side type.
-fn promote_manifest(api: vox_plugin_api::skill::SkillManifest, plugin_id: &str) -> SkillManifest {
-    SkillManifest {
-        id: api.id,
-        name: api.name,
-        version: api.version,
-        // plugin-api manifest has no author field — use plugin_id as fallback
-        author: plugin_id.to_string(),
-        description: api.description,
-        category: SkillCategory::Custom("plugin".to_string()),
-        permissions: Vec::new(),
-        tools: api.tools,
-        dependencies: Vec::new(),
-        homepage: None,
-        registry: None,
-        hash: None,
-        tags: Vec::new(),
-    }
-}
-
-/// Demote the rich host-side manifest back to the slim API shape (for `lookup`).
-fn demote_manifest(m: &SkillManifest) -> vox_plugin_api::skill::SkillManifest {
-    vox_plugin_api::skill::SkillManifest {
-        id: m.id.clone(),
-        name: m.name.clone(),
-        version: m.version.clone(),
-        description: m.description.clone(),
-        tools: m.tools.clone(),
-    }
-}
+// promote_manifest / demote_manifest removed (D-17): LoadedSkill.manifest and the
+// host-side SkillManifest are now the same canonical type from vox-plugin-types.
+// Author backfill is done inline in install().
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -478,6 +453,7 @@ mod tests {
                 version: "0.1.0".to_string(),
                 description: "A test".to_string(),
                 tools: vec!["tool_a".to_string()],
+                ..Default::default()
             },
             body: "# Test".to_string(),
             exposed_tools: vec![],

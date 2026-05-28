@@ -217,7 +217,7 @@ pub(super) struct OpenReviewHttpClient {
 
 impl OpenReviewHttpClient {
     pub(super) async fn new_authenticated(base: String) -> Result<Self, ScholarlyError> {
-        let http = vox_reqwest_defaults::client_builder()
+        let http = vox_http_client::client_builder()
             .user_agent("vox-publisher/scholarly-openreview")
             .build()
             .map_err(|e| ScholarlyError::Config {

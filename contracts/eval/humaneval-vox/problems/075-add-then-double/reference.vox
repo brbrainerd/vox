@@ -1,0 +1,3 @@
+fn add_then_double(a: int, b: int) to int {
+    return (a + b) * 2
+}

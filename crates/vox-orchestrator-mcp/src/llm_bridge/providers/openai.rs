@@ -2,18 +2,19 @@ use std::collections::HashMap;
 
 use super::metadata::HttpCallMetadata;
 use crate::llm_bridge::error::HttpInferError;
-use vox_openai_wire::{
+use vox_openai::{
     ChatCompletionRequest as OpenAiChatRequest, ChatCompletionResponse as OpenAiChatResponse,
     ChatMessageTurn as OpenAiMsg,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn http_openai_compatible_with_headers(
     client: &reqwest::Client,
     url: &str,
     bearer: &str,
     model: &str,
     system: &str,
-    user: vox_openai_wire::ChatMessageContent<'_>,
+    user: vox_openai::ChatMessageContent<'_>,
     max_tokens: u64,
     temperature: Option<f32>,
     top_p: Option<f32>,
@@ -26,7 +27,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
     if !system.is_empty() {
         messages.push(OpenAiMsg {
             role: "system",
-            content: vox_openai_wire::ChatMessageContent::Text(system),
+            content: vox_openai::ChatMessageContent::Text(system),
         });
     }
     messages.push(OpenAiMsg {

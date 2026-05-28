@@ -18,6 +18,7 @@ impl Drop for RestoreCwd {
     }
 }
 
+#[allow(clippy::await_holding_lock)] // Lock intentionally held across awaits to serialize CWD-mutating tests.
 #[tokio::test]
 async fn vox_project_init_writes_nested_application() {
     let _lock = PROJECT_INIT_CWD_LOCK.lock().expect("cwd lock");

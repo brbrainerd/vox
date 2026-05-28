@@ -33,10 +33,7 @@ pub fn run() -> Result<()> {
     let plugins = vox_plugin_catalog::all_plugins();
 
     // Header
-    println!(
-        "{:<30} {:<11} {:<12} {}",
-        "ID", "KIND", "STATUS", "DESCRIPTION"
-    );
+    println!("{:<30} {:<11} {:<12} DESCRIPTION", "ID", "KIND", "STATUS");
     println!("{}", "-".repeat(90));
 
     for p in plugins {

@@ -12,18 +12,18 @@ use super::{DomNode, WebIrDiagnostic, WebIrModule};
 pub fn validate_keys(module: &WebIrModule) -> Vec<WebIrDiagnostic> {
     let mut out = Vec::new();
     for node in &module.dom_nodes {
-        if let DomNode::Loop { iterator, key, .. } = node {
-            if key.is_none() {
-                out.push(WebIrDiagnostic {
-                    code: "validate.list_key.required".to_string(),
-                    message: format!(
-                        "list render `for … in {iterator} {{ … }}` is missing a `key` clause. \
+        if let DomNode::Loop { iterator, key, .. } = node
+            && key.is_none()
+        {
+            out.push(WebIrDiagnostic {
+                code: "validate.list_key.required".to_string(),
+                message: format!(
+                    "list render `for … in {iterator} {{ … }}` is missing a `key` clause. \
                          Add `for x in {iterator} key=x.id {{ … }}` for stable React identity."
-                    ),
-                    span: None,
-                    category: Some("dom".to_string()),
-                });
-            }
+                ),
+                span: None,
+                category: Some("dom".to_string()),
+            });
         }
     }
     out

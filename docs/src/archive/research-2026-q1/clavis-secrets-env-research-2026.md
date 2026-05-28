@@ -1,7 +1,7 @@
 ---
 title: "Clavis secrets, env vars, and API key strategy research 2026"
 description: "Research synthesis for Vox Clavis on secrets sprawl, API key reduction, SSOT maintainability, and account-level persistence patterns."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-06"
 training_eligible: false

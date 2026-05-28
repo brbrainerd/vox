@@ -18,36 +18,44 @@ scientia-discord = []
 scientia-opencollective = []
 scientia-youtube = []
 # Shared scholarly `external_submission_jobs` orchestration (CLI + MCP).
-scholarly-external-jobs = ["dep:vox-db"]
+scholarly-external-jobs = [
+    "dep:vox-db",
+]
 live-api-canary = []
 
 [dependencies]
+vox-scientia = { workspace = true }
 async-trait = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_yaml = { workspace = true }
 serde_json = { workspace = true }
-flate2 = { version = "1", default-features = true, features = ["rust_backend"] }
-tar = "0.4.45"
+flate2 = { workspace = true }
+tar = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 vox-forge = { path = "../vox-forge", features = ["github", "gitlab"] }
-quick-xml = { version = "0.31", features = ["serialize"] }
+quick-xml = { workspace = true, features = ["serialize"] }
 reqwest = { workspace = true, features = ["multipart"] }
-vox-reqwest-defaults = { workspace = true }
-mime_guess = "2.0"
+vox-http-client = { workspace = true }
+mime_guess = { workspace = true }
 hex = { workspace = true }
 sha2 = { workspace = true }
 sha3 = { workspace = true }
 regex = { workspace = true }
-pulldown-cmark = "0.13"
+pulldown-cmark = { workspace = true }
 vox-bounded-fs = { workspace = true }
-vox-primitives = { workspace = true }
+vox-foundation = { workspace = true }
 vox-secrets = { path = "../vox-secrets" }
 vox-config = { path = "../vox-config" }
+vox-jsonschema-util.workspace = true
 unicode-segmentation = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }
+
+
+
+
 bsky-sdk = { workspace = true, optional = true }
 atrium-api = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
@@ -55,6 +63,10 @@ workspace-hack = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = { workspace = true }
-axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json", "query"] }
+axum = { workspace = true, features = ["http1", "tokio", "json", "query"] }
 jsonschema = { workspace = true, default-features = false }
 wiremock = { workspace = true }
+# Force deadpool's `rt_tokio_1` feature (see root Cargo.toml). Without it
+# `cargo test` builds (which pull wiremock + deadpool transitively) hit a
+# rustc-1.92 inference failure inside `deadpool::unmanaged::Pool::timeout_get`.
+deadpool = { workspace = true }

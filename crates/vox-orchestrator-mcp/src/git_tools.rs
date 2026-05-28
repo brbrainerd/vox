@@ -1,4 +1,4 @@
-﻿//! Git integration tool handlers for the Vox MCP server.
+//! Git integration tool handlers for the Vox MCP server.
 //!
 //! Covers: log, diff, status, blame.
 //!
@@ -37,7 +37,8 @@ pub async fn git_log(state: &ServerState, max_commits: Option<usize>) -> String 
 
 /// Run `git diff` for a file or the whole working tree.
 pub async fn git_diff(state: &ServerState, path: Option<&str>) -> String {
-    let mut cmd = tokio::process::Command::new("git");
+    let mut cmd = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git");
     cmd.current_dir(git_cwd(state));
     cmd.arg("diff");
     if let Some(p) = path {
@@ -59,7 +60,8 @@ pub async fn git_diff(state: &ServerState, path: Option<&str>) -> String {
 
 /// Run `git status` to see working tree status.
 pub async fn git_status(state: &ServerState) -> String {
-    let output = tokio::process::Command::new("git")
+    let output = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(git_cwd(state))
         .args(["status", "--short"])
         .output()
@@ -80,7 +82,8 @@ pub async fn git_status(state: &ServerState) -> String {
 
 /// Run `git blame` for a specific file.
 pub async fn git_blame(state: &ServerState, path: &str) -> String {
-    let output = tokio::process::Command::new("git")
+    let output = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(git_cwd(state))
         .args(["blame", path])
         .output()

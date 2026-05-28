@@ -7,7 +7,11 @@
 use serde::{Deserialize, Serialize};
 
 /// A complete skill manifest (equivalent to OpenClaw's skill.json / SKILL.md frontmatter).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+///
+/// Implements `Default` so construction sites that only need the core five fields
+/// (id, name, version, description, tools) can use `..Default::default()` for the rest.
+/// This is the canonical, unified type used everywhere in the plugin stack.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SkillManifest {
     /// Unique skill identifier, e.g. "vox.compiler"
     pub id: String,
@@ -15,11 +19,13 @@ pub struct SkillManifest {
     pub name: String,
     /// Semver version string
     pub version: String,
-    /// Author or publisher identifier
+    /// Author or publisher identifier. Defaults to empty string when not provided.
+    #[serde(default)]
     pub author: String,
     /// Short description for marketplace display
     pub description: String,
-    /// Primary skill category
+    /// Primary skill category. Defaults to `SkillCategory::Unknown` when not provided.
+    #[serde(default)]
     pub category: SkillCategory,
     /// Minimum permissions the skill requires
     #[serde(default)]
@@ -69,9 +75,12 @@ impl SkillManifest {
 }
 
 /// Skill category for marketplace browsing and filtering.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum SkillCategory {
+    /// Unclassified / not yet assigned. Default value.
+    #[default]
+    Unknown,
     Compiler,
     Testing,
     Documentation,

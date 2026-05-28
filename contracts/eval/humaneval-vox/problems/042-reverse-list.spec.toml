@@ -1,0 +1,11 @@
+[problem]
+id = "042"
+title = "reverse_list"
+prompt = """
+Return a new list with the elements in reverse order.
+"""
+signature = "fn reverse_list(xs: list[int]) to list[int]"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

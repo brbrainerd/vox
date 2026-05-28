@@ -1,0 +1,13 @@
+// Repair-corpus fixture 025 — logic bug class.
+// `is_adult(age)` should return true for ages >= 18, but the
+// predicate uses `<` (less-than) so it returns true for minors
+// and false for adults. Expected repair: replace `<` with `>=`.
+
+fn is_adult(age: int) to bool {
+    return age < 18
+}
+
+@test
+fn test_is_adult_twenty_one() to Unit {
+    assert(is_adult(21) is true)
+}

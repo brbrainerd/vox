@@ -1,0 +1,11 @@
+[problem]
+id = "043"
+title = "triangle_valid"
+prompt = """
+Return true if three side lengths (positive integers) can form a valid triangle (each side < sum of the other two).
+"""
+signature = "fn triangle_valid(a: int, b: int, c: int) to bool"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

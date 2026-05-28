@@ -1,0 +1,8 @@
+id = "humaneval-vox-125-between"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `between(n: int, lo: int, hi: int) to bool` returning true when lo < n < hi (strict-strict).
+"""

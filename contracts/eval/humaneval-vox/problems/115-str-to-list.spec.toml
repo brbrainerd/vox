@@ -1,0 +1,11 @@
+[problem]
+id = "115"
+title = "str_to_list"
+prompt = """
+Given a string, return a list of its individual characters as strings.
+"""
+signature = "fn str_to_list(s: str) to list[str]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "lists"]

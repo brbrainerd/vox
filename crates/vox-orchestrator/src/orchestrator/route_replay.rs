@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 
 impl super::Orchestrator {
-    /// Call [`Self::resolve_route`] for each pending task (not [`crate::types::AgentTask::populi_remote_delegate`])
+    /// Call `Self::resolve_route` for each pending task (not [`crate::types::AgentTask::populi_remote_delegate`])
     /// and move work when the resolved agent changed. Skips tasks delegated to remote Populi execution.
     pub async fn replay_queued_routes_after_populi_schedulable_drop(&self) -> usize {
         let agent_ids: Vec<crate::types::AgentId> = crate::sync_lock::rw_read(&*self.agents)

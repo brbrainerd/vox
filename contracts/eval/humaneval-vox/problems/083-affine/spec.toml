@@ -1,0 +1,8 @@
+id = "humaneval-vox-083-affine"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `affine(m: int, x: int, b: int) to int` returning the affine combination m*x + b. (Line equation.)
+"""

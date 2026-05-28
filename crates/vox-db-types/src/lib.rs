@@ -31,6 +31,10 @@ pub use eval_params::EvalRunParams;
 pub mod store_types;
 pub use store_types::*;
 
+/// SCIENTIA / research-session row DTOs.
+pub mod research;
+pub use research::{ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary};
+
 /// Alias kept for back-compat (`vox_db::MemoryParams`).
 pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;
 

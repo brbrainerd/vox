@@ -38,7 +38,7 @@ pub enum FileKind {
 impl FileKind {
     /// Classify a file path by extension.
     ///
-    /// `.vox.ui` is recognized as [`FileKind::ReactiveModule`] regardless of path
+    /// `.vox.ui` is recognized as [`Self::ReactiveModule`] regardless of path
     /// separator (`/`, `\`) or absolute / relative form. The discriminator runs on the
     /// final filename component only — directories named `.vox.ui/` do not affect the
     /// classification of files inside them.

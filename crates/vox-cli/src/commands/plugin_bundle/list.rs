@@ -5,7 +5,7 @@ use anyhow::Result;
 pub fn run() -> Result<()> {
     let bundles = vox_plugin_catalog::all_bundles();
 
-    println!("{:<25} {:>8}  {}", "ID", "PLUGINS", "DESCRIPTION");
+    println!("{:<25} {:>8}  DESCRIPTION", "ID", "PLUGINS");
     println!("{}", "-".repeat(80));
 
     for b in bundles {

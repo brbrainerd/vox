@@ -1,0 +1,11 @@
+fn negate(b: bool) to bool {
+    if b is false {
+        return true
+    }
+    return false
+}
+
+@test
+fn t_negate_true() to Unit { assert(negate(true) is false) }
+@test
+fn t_negate_false() to Unit { assert(negate(false) is true) }

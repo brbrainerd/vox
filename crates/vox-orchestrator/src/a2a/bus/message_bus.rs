@@ -1,9 +1,12 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, OnceLock};
 
 use crate::types::{
     A2AMessage, A2AMessageType, AgentId, MessageId, MessagePriority, ThreadId, VcsContext,
 };
+
+static GLOBAL_MESSAGE_BUS: OnceLock<Arc<MessageBus>> = OnceLock::new();
 
 /// Message bus for A2A communication.
 ///
@@ -206,7 +209,7 @@ impl MessageBus {
                     .collect()
             })
             .unwrap_or_default();
-        msgs.sort_by(|a, b| b.priority.cmp(&a.priority));
+        msgs.sort_by_key(|m| std::cmp::Reverse(m.priority));
         msgs
     }
 
@@ -383,6 +386,28 @@ impl MessageBus {
     /// Total count of dropped inbox messages due to per-agent inbox capacity.
     pub fn dropped_messages(&self) -> u64 {
         self.dropped_messages.load(Ordering::Relaxed)
+    }
+
+    /// Process-global in-process bus for codegen-emitted AI fixtures.
+    #[must_use]
+    pub fn global() -> Arc<MessageBus> {
+        GLOBAL_MESSAGE_BUS
+            .get_or_init(|| Arc::new(MessageBus::new(1024)))
+            .clone()
+    }
+
+    /// Record an `@subagent` routing decision on the bus for audit / downstream observers.
+    pub fn record_ai_subagent_fixture_routing(&self, decision: &str, prompt_byte_len: usize) {
+        let sender = AgentId(9101);
+        let receiver = AgentId(9102);
+        self.register_agent(sender);
+        self.register_agent(receiver);
+        let _ = self.send(
+            sender,
+            receiver,
+            A2AMessageType::PlanHandoff,
+            format!("ai_fixture_subagent decision={decision} prompt_bytes={prompt_byte_len}"),
+        );
     }
 }
 

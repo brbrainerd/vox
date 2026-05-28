@@ -3,6 +3,8 @@ x-vox-version: 1
 # Used by `vox ci retired-symbol-check` to prevent hallucination-prone identifiers from appearing in docs.
 
 symbols:
+  # Note: `\bvox-dei\b` also matches the `vox-dei` prefix inside `vox-dei-d`; `retired_symbol_check`
+  # skips lines containing `vox-dei-d`, `crates/vox-dei`, or the word "retired".
   - id: vox-dei-old-crate
     pattern: "\\bvox-dei\\b"
     replacement: "vox-orchestrator"
@@ -11,10 +13,6 @@ symbols:
     pattern: "\\bvox-ars(?:[^-\\w]|$)"
     replacement: "vox-openclaw-runtime"
     rationale: "Crate retired; ARS runtime types live in vox-openclaw-runtime. (vox-openclaw-runtime itself is the canonical replacement and is not flagged.)"
-  - id: vox-gamify-crate
-    pattern: "\\bvox-gamify\\b"
-    replacement: "vox-gamify"
-    rationale: "Consolidated into vox-gamify crate."
   - id: vox-lexer-crate
     pattern: "\\bvox-lexer\\b"
     replacement: "vox-compiler"
@@ -60,6 +58,6 @@ symbols:
     replacement: "sync_to_db()"
     rationale: "Renamed to sync_to_db() for clarity."
   - id: vox-ml-cli-standalone
-    pattern: "vox-ml-cli"
-    replacement: "vox-populi"
-    rationale: "Now part of vox-populi."
+    pattern: "\\bvox-ml-cli-standalone\\b"
+    replacement: "vox-ml-cli"
+    rationale: "The `-standalone` suffix dates to when the binary was split from the workspace; the canonical crate name is now `vox-ml-cli` (which itself depends on vox-populi). Only the literal old name is retired."

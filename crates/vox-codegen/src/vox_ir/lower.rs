@@ -28,7 +28,7 @@ pub fn lower_hir_to_vox_ir(hir: &HirModule, source: Option<&str>) -> VoxIrModule
             rust_imports: hir.rust_imports.clone(),
             functions: hir.functions.clone(),
             types: hir.types.clone(),
-            routes: hir.routes.clone(),
+
             endpoint_fns: hir.endpoint_fns.clone(),
             tables: hir.tables.clone(),
             mcp_tools: hir.mcp_tools.clone(),

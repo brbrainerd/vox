@@ -1,0 +1,36 @@
+id = "plan-011-add-input-validation"
+wave = "wave_1"
+description = "Add an early-return for invalid input without breaking existing callers."
+max_steps = 3
+max_cost_usd = 0.50
+
+prompt = """
+The file declares fn `first_char(s: str) to str` which currently
+assumes a non-empty string. Add an early-return at the top of the fn:
+if `len(s) is 0`, return the empty string `""`. The existing happy-
+path behavior must remain unchanged.
+
+Vox conventions to honor:
+  - `len(s)` is the builtin string-length call (not `s.len()`).
+  - Return arrow is `to T`, not `->`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Insert an `if len(s) is 0 { return \"\" }` guard at the top."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes; fn signature unchanged."
+
+[success_criteria]
+vox_check_passes = true
+guard_added = true
+fn_signature_unchanged = true

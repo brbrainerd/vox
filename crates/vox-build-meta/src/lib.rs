@@ -35,7 +35,8 @@ pub fn emit() {
 }
 
 fn git_stdout(args: &[&str]) -> Option<String> {
-    Command::new("git")
+    // vox-arch-check: allow git-exec
+        Command::new("git")
         .args(args)
         .output()
         .ok()

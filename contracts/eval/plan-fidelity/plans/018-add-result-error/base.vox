@@ -1,0 +1,29 @@
+// Base source for plan-018-add-result-error.
+//
+// TodoError has two variants today. The plan asks the model to add a
+// third (DuplicateTitle) and extend the @test match block.
+
+type TodoError =
+    | TitleEmpty(text: str)
+    | TitleTooLong(text: str)
+
+@endpoint(kind: mutation)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(TitleEmpty("title must not be empty"))
+    }
+    if len(title) > 100 {
+        return Error(TitleTooLong("title exceeds 100 chars"))
+    }
+    return Ok(title)
+}
+
+@test
+fn test_add_todo_empty_returns_error() to Unit {
+    let result = add_todo("")
+    match result {
+        Error(TitleEmpty(_))   => assert(true)
+        Error(TitleTooLong(_)) => assert(false)
+        Ok(_)                  => assert(false)
+    }
+}

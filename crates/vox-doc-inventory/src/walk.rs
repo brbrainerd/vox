@@ -26,7 +26,7 @@ pub(crate) fn iter_repo_files(root: &Path) -> Result<Vec<PathBuf>> {
     let roots = [
         root.join("crates"),
         root.join("docs"),
-        root.join("vox-vscode"),
+        root.join("apps").join("editor").join("vox-vscode"),
         root.join("scripts"),
         root.join(".github").join("workflows"),
     ];

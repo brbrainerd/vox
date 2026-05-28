@@ -1,0 +1,12 @@
+// Repair-corpus fixture 026 — logic bug class.
+// `area(w, h)` should return w * h, but the implementation uses
+// `+` instead of `*`. Expected repair: replace `w + h` with `w * h`.
+
+fn area(w: int, h: int) to int {
+    return w + h
+}
+
+@test
+fn test_area_three_by_four() to Unit {
+    assert(area(3, 4) is 12)
+}

@@ -60,6 +60,7 @@ pub struct ServerState {
     pub sqlite_capabilities: Option<vox_db::capabilities::SqliteProbeSnapshot>,
     pub session_manager: Arc<TokMutex<SessionManager>>,
     pub transient_events: Arc<TokMutex<Vec<vox_orchestrator::events::AgentEvent>>>,
+    pub research_events: tokio::sync::broadcast::Sender<vox_research_events::ResearchEvent>,
     pub mcp_chat_model_override: Arc<PrRwLock<Option<String>>>,
     pub budget_manager: Arc<BudgetManager>,
     pub http_client: reqwest::Client,
@@ -127,7 +128,7 @@ impl ServerState {
             .await;
         });
 
-        let http_client = vox_reqwest_defaults::client_builder()
+        let http_client = vox_http_client::client_builder()
             .timeout(std::time::Duration::from_secs(120))
             .build()
             .expect("reqwest client for vox-mcp");
@@ -150,6 +151,7 @@ impl ServerState {
             session_manager: Arc::new(TokMutex::new(session_manager)),
             skill_registry: registry,
             transient_events: Arc::new(TokMutex::new(Vec::new())),
+            research_events: tokio::sync::broadcast::channel(256).0,
             mcp_chat_model_override: Arc::new(PrRwLock::new(None)),
             budget_manager: Arc::new(BudgetManager::new(None)),
             http_client,
@@ -161,6 +163,8 @@ impl ServerState {
         state.spawn_populi_federation_poller();
         state.spawn_populi_remote_result_poller();
         state.spawn_populi_remote_worker_poller();
+
+        state.spawn_scientia_research_mesh_background_jobs();
 
         state
     }
@@ -174,12 +178,12 @@ impl ServerState {
         skill_registry: Arc<SkillRegistry>,
     ) -> Self {
         let workspace_root = Some(repository.root.clone());
-        let http_client = vox_reqwest_defaults::client_builder()
+        let http_client = vox_http_client::client_builder()
             .timeout(std::time::Duration::from_secs(120))
             .build()
             .expect("reqwest client for vox-mcp");
 
-        Self {
+        let state = Self {
             orchestrator,
             orchestrator_config,
             db: None,
@@ -197,11 +201,48 @@ impl ServerState {
             session_manager,
             skill_registry,
             transient_events: Arc::new(TokMutex::new(Vec::new())),
+            research_events: tokio::sync::broadcast::channel(256).0,
             mcp_chat_model_override: Arc::new(PrRwLock::new(None)),
             budget_manager: Arc::new(BudgetManager::new(None)),
             http_client,
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
+        };
+        state.spawn_scientia_research_mesh_background_jobs();
+        state
+    }
+
+    /// SCIENTIA mesh tap + optional `vox-publisher` intake writes and promoted-ledger consumer.
+    ///
+    /// Does not require Codex; runs for MCP and daemon hosts as soon as [`ServerState`] exists.
+    pub fn spawn_scientia_research_mesh_background_jobs(&self) {
+        let opts = Some(vox_dei_shim::research::ScientiaMeshSubscriberOptions {
+            repo_root: self.repository.root.clone(),
+            publisher_mesh_intake_enabled: self
+                .orchestrator_config
+                .research_mesh_intake_writer_active(),
+        });
+        vox_dei_shim::research::spawn_scientia_mesh_research_event_subscriber(
+            self.research_events.subscribe(),
+            opts,
+        );
+
+        #[cfg(feature = "news-publish")]
+        if self
+            .orchestrator_config
+            .scientia_research_mesh
+            .intake_consumer_poll_enabled
+        {
+            let root = self.repository.root.clone();
+            let ms = self
+                .orchestrator_config
+                .scientia_research_mesh
+                .intake_consumer_poll_interval_ms
+                .max(1_000);
+            vox_publisher::research_mesh::spawn_research_mesh_intake_consumer(
+                root,
+                std::time::Duration::from_millis(ms),
+            );
         }
     }
 
@@ -397,6 +438,7 @@ impl ServerState {
         self.budget_manager.attach_db(db.clone()).await;
         self.db = Some(db);
         self.load_attention_preferences_from_db().await;
+
         self
     }
 }
@@ -429,6 +471,7 @@ impl ServerState {
             sqlite_capabilities: None,
             session_manager,
             transient_events: Arc::new(TokMutex::new(Vec::new())),
+            research_events: tokio::sync::broadcast::channel(256).0,
             mcp_chat_model_override: Arc::new(PrRwLock::new(None)),
             budget_manager: Arc::new(BudgetManager::new(None)),
             http_client: reqwest::Client::new(),
@@ -443,7 +486,7 @@ impl ServerState {
     }
 }
 
-/// Returns true when JSON looks like [`ToolResult`] with `success: false` (MCP `is_error` signal).
+/// Returns true when JSON looks like `ToolResult` with `success: false` (MCP `is_error` signal).
 pub fn tool_json_envelope_is_error(json: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(json)
         .ok()

@@ -1,0 +1,26 @@
+fn caesar_decode(s: str, k: int) to str {
+    let shift: int = 26 - k % 26
+    let mut result: str = ""
+    let chars: list[str] = s.chars()
+    for c in chars {
+        let code: int = c.ord()
+        if code >= 97 and code <= 122 {
+            let new_code: int = (code - 97 + shift) % 26 + 97
+            result = result + chr(new_code)
+        } else {
+            result = result + c
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(caesar_decode("bcd", 1) == "abc")
+    assert(caesar_decode("xyz", 3) == "uvw")
+    assert(caesar_decode("abc", 0) == "abc")
+    assert(caesar_decode("abc", 26) == "abc")
+    assert(caesar_decode("hello", 13) == "uryyb")
+    assert(caesar_decode("uryyb", 13) == "hello")
+    assert(caesar_decode("d f", 3) == "a c")
+    return "ok"
+}

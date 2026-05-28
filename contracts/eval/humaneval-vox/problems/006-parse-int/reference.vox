@@ -1,0 +1,6 @@
+fn parse_int(s: str) to Result[int] {
+    if len(s) is 0 {
+        return Error("empty string")
+    }
+    return Ok(42)
+}

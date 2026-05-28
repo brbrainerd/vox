@@ -1,0 +1,9 @@
+// Repair-corpus fixture 049 — api-misuse bug class.
+// The stdlib `len(value: any) -> int` builtin is called with no
+// arguments — an arity-mismatch misuse of a stdlib API. Expected
+// repair: pass the collection (or string) whose length is needed,
+// e.g. `len(xs)`.
+
+fn zero_size() to int {
+    return len()
+}

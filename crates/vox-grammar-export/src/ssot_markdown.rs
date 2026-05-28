@@ -70,7 +70,7 @@ const LEXER_DECORATORS: &[&str] = &[
 pub fn emit_ssot_markdown() -> String {
     let mut g = String::with_capacity(4096);
     g.push_str("# Vox Grammar SSOT\n\n");
-    g.push_str("This document defines the canonical vocabulary for the Vox programming language. Both `tree-sitter-vox` and `vox-vscode/syntaxes/vox.tmLanguage.json` must align with these tokens.\n\n");
+    g.push_str("This document defines the canonical vocabulary for the Vox programming language. Both `tree-sitter-vox` and `apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json` must align with these tokens.\n\n");
 
     g.push_str("## Keywords\n\n");
 

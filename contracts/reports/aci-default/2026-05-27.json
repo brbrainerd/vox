@@ -1,0 +1,20 @@
+{
+  "thing": "aci-default",
+  "schema_version": 1,
+  "measured_at": "2026-05-27T21:22:10.238399300+00:00",
+  "corpus_hash": "blake3:f1e7317d0946c71fba7862f60ad13b04ba27a2bdd5a50e4e5f6433dadbd6437d",
+  "corpus_size": 1,
+  "llm_panel": [],
+  "reproducibility": {
+    "temperature": 0.0,
+    "seed": 42,
+    "attempts_per_fixture": 5
+  },
+  "results": {
+    "overall_pass_rate": 1.0
+  },
+  "threshold": {
+    "target": 1.0,
+    "met": true
+  }
+}

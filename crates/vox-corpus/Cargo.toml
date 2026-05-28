@@ -29,12 +29,12 @@ rand = { workspace = true }
 tracing = { workspace = true }
 rayon = { workspace = true }
 xxhash-rust = { workspace = true }
-syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
-quote = "1.0"
+syn = { workspace = true, features = ["full", "visit", "extra-traits"] }
+quote = { workspace = true }
 
 [build-dependencies]
-syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
-quote = "1.0"
+syn = { workspace = true, features = ["full", "visit", "extra-traits"] }
+quote = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

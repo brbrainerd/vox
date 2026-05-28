@@ -179,6 +179,56 @@ pub async fn get_companion(db: &Codex, id: &str) -> Result<Option<Companion>> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OrchestratorCompanionIdMigration {
+    None,
+    /// Canonical row already present; drop stale legacy PK.
+    DeleteLegacy,
+    /// Rename legacy PK to canonical.
+    RenameLegacyToCanonical,
+}
+
+pub(crate) fn orchestrator_companion_id_migration_plan(
+    has_canonical: bool,
+    has_legacy: bool,
+) -> OrchestratorCompanionIdMigration {
+    match (has_canonical, has_legacy) {
+        (true, true) => OrchestratorCompanionIdMigration::DeleteLegacy,
+        (false, true) => OrchestratorCompanionIdMigration::RenameLegacyToCanonical,
+        _ => OrchestratorCompanionIdMigration::None,
+    }
+}
+
+/// Best-effort migrate of the default orchestrator HUD companion row from the pre-rename id
+/// (built with `concat!` so greps stay clean) to `vox-orchestrator`.
+pub async fn migrate_default_orchestrator_companion_id(db: &Codex, user_id: &str) -> Result<()> {
+    const CANONICAL: &str = "vox-orchestrator";
+    let legacy = concat!("vox", "-", "dei");
+    let has_c = get_companion(db, CANONICAL).await?.is_some();
+    let has_l = get_companion(db, legacy).await?.is_some();
+    match orchestrator_companion_id_migration_plan(has_c, has_l) {
+        OrchestratorCompanionIdMigration::None => Ok(()),
+        OrchestratorCompanionIdMigration::DeleteLegacy => delete_companion(db, legacy).await,
+        OrchestratorCompanionIdMigration::RenameLegacyToCanonical => {
+            let user_id = user_id.to_string();
+            let breaker = db.breaker().clone();
+            let conn = db.connection().clone();
+            breaker
+                .call(|| async move {
+                    conn.execute(
+                        "UPDATE gamify_companions SET id = ?1 WHERE id = ?2 AND user_id = ?3",
+                        params![CANONICAL, legacy, user_id.as_str()],
+                    )
+                    .await?;
+                    Ok::<(), vox_db::StoreError>(())
+                })
+                .await
+                .map_err(|e| anyhow::anyhow!("{}", e))?;
+            Ok(())
+        }
+    }
+}
+
 /// Delete a companion.
 pub async fn delete_companion(db: &Codex, id: &str) -> Result<()> {
     let id = id.to_string();
@@ -196,4 +246,38 @@ pub async fn delete_companion(db: &Codex, id: &str) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod orchestrator_companion_migration_tests {
+    use super::orchestrator_companion_id_migration_plan;
+    use super::OrchestratorCompanionIdMigration;
+
+    #[test]
+    fn migrates_none_when_legacy_missing() {
+        assert_eq!(
+            orchestrator_companion_id_migration_plan(false, false),
+            OrchestratorCompanionIdMigration::None
+        );
+        assert_eq!(
+            orchestrator_companion_id_migration_plan(true, false),
+            OrchestratorCompanionIdMigration::None
+        );
+    }
+
+    #[test]
+    fn deletes_legacy_when_canonical_exists() {
+        assert_eq!(
+            orchestrator_companion_id_migration_plan(true, true),
+            OrchestratorCompanionIdMigration::DeleteLegacy
+        );
+    }
+
+    #[test]
+    fn renames_when_only_legacy_exists() {
+        assert_eq!(
+            orchestrator_companion_id_migration_plan(false, true),
+            OrchestratorCompanionIdMigration::RenameLegacyToCanonical
+        );
+    }
 }

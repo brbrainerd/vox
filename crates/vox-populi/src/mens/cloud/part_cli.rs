@@ -56,4 +56,3 @@ pub fn normalize_gpu_name(raw: &str) -> String {
         .trim()
         .to_string()
 }
-

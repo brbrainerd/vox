@@ -69,7 +69,6 @@ pub struct ContextIngestExpectations<'a> {
 }
 
 /// Structural and policy validation without config branching.
-#[must_use]
 pub(crate) fn validate_context_envelope_ingest(
     envelope: &ContextEnvelope,
     expectations: ContextIngestExpectations<'_>,
@@ -382,6 +381,9 @@ fn merge_envelopes_crdt(prev: &ContextEnvelope, incoming: &ContextEnvelope) -> C
     if out.content.structured_payload.is_none() {
         out.content.structured_payload = prev.content.structured_payload.clone();
     }
+    if out.agentos.is_none() {
+        out.agentos = prev.agentos.clone();
+    }
     out.provenance = merge_provenance_crdt(&prev.provenance, &incoming.provenance);
     out
 }
@@ -520,6 +522,7 @@ mod tests {
             safety: None,
             obo_token: None,
             operating_mode: None,
+            agentos: None,
         }
     }
 

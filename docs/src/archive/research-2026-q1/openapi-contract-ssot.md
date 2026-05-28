@@ -1,7 +1,7 @@
 ---
 title: "OpenAPI contract SSOT (Populi, MCP, Codex)"
 description: "How committed OpenAPI YAML stays authoritative and how we validate and optionally generate clients."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 0
 last_updated: "2026-03-29"

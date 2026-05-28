@@ -1,7 +1,7 @@
 ---
 title: "Vox web stack SSOT"
 description: "Stable architecture bookmark: defers the authoritative web stack narrative to docs/src/reference/vox-web-stack.md while keeping this path as the SSOT filename anchor."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 
 schema_type: "TechArticle"

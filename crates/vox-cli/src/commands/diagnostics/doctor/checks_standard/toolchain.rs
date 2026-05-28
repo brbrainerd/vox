@@ -73,7 +73,8 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         detail: pnpm_detail,
     });
 
-    let git = Command::new("git").arg("--version").output().await;
+    let git = // vox-arch-check: allow git-exec
+        Command::new("git").arg("--version").output().await;
     checks.push(match git {
         Ok(o) if o.status.success() => Check {
             name: "Git".to_string(),

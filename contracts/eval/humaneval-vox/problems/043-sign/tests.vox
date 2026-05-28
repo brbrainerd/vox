@@ -1,0 +1,20 @@
+fn sign(n: int) to int {
+    if n < 0 {
+        return -1
+    }
+    if n > 0 {
+        return 1
+    }
+    return 0
+}
+
+@test
+fn t_zero() to Unit { assert(sign(0) is 0) }
+@test
+fn t_positive() to Unit { assert(sign(42) is 1) }
+@test
+fn t_negative() to Unit { assert(sign(-3) is -1) }
+@test
+fn t_pos_one() to Unit { assert(sign(1) is 1) }
+@test
+fn t_neg_one() to Unit { assert(sign(-1) is -1) }

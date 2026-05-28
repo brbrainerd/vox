@@ -1,0 +1,35 @@
+fn insertion_sort(xs: list[int]) to list[int] {
+    let n: int = xs.len()
+    let mut arr: list[int] = []
+    for x in xs {
+        arr.push(x)
+    }
+    let mut i: int = 1
+    while i < n {
+        match arr[i] {
+            Some(key) => {
+                let mut j: int = i - 1
+                let mut done: bool = false
+                while j >= 0 and not done {
+                    match arr[j] {
+                        Some(vj) => {
+                            if vj > key {
+                                arr[j + 1] = vj
+                                j = j - 1
+                            } else {
+                                done = true
+                            }
+                        }
+                        None => {
+                            done = true
+                        }
+                    }
+                }
+                arr[j + 1] = key
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return arr
+}

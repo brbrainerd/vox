@@ -41,7 +41,7 @@ pub async fn llm_stream(
         );
     }
 
-    let client: Client = vox_reqwest_defaults::client();
+    let client: Client = vox_http_client::client();
     let req_body = OpenRouterRequest {
         model: &config.model,
         messages: &messages,
@@ -77,7 +77,7 @@ pub async fn llm_stream(
     let byte_stream = res.bytes_stream();
 
     let string_stream = stream! {
-        use vox_openai_sse::{Utf8LineBuffer, sse_data_line_delta};
+        use vox_openai::sse::{Utf8LineBuffer, sse_data_line_delta};
 
         let mut buf = Utf8LineBuffer::new();
         futures_util::pin_mut!(byte_stream);

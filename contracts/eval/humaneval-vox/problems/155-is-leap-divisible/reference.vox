@@ -1,0 +1,9 @@
+fn is_leap_divisible(year: int) to bool {
+    if year % 400 is 0 {
+        return true
+    }
+    if year % 100 is 0 {
+        return false
+    }
+    return year % 4 is 0
+}

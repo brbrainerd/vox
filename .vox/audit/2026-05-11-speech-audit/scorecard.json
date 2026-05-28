@@ -1,0 +1,82 @@
+{
+  "schema_version": "1",
+  "run_id": "2026-05-11-speech-audit",
+  "captured_at_utc": "2026-05-11T12:30:00Z",
+  "matrix": "contracts/speech-to-code/audit-matrix.v1.yaml",
+  "corpus_manifest": "contracts/speech-to-code/benchmark-fixtures.manifest.txt",
+  "primary_metrics": ["wer", "cer"],
+  "supporting_metrics": [
+    "compile_pass_at_1",
+    "compile_pass_at_k",
+    "semantic_pass_rate",
+    "latency_ms_median",
+    "latency_ms_p95"
+  ],
+  "thresholds": {
+    "max_wer": 0.35,
+    "max_cer": 0.15,
+    "min_compile_pass_at_1": 0.65,
+    "min_compile_pass_at_k": 0.72,
+    "max_latency_ms_p95": 12000
+  },
+  "summary": {
+    "cells_total": 15,
+    "cells_measured_by_static_or_contract_probe": 6,
+    "cells_measured_by_passthrough_eval": 1,
+    "cells_requiring_runtime_model_or_device": 9,
+    "blocking_gaps": 5
+  },
+  "cells": [
+    {
+      "id": "win-editor-webview-whisper-cpu-48k-code",
+      "status": "probe_only",
+      "evidence": "speech_pipeline_stage_probe_test::probe_capture_editor_webview_preserves_native_sample_rate_for_audit",
+      "skip_reason_for_wer": "transport_error_without_mcp_and_model_runtime"
+    },
+    {
+      "id": "win-dashboard-speak-gap",
+      "status": "gap_confirmed",
+      "failure_category": "orchestration",
+      "evidence": "speech_pipeline_stage_probe_test::probe_dashboard_speak_surface_has_no_microphone_path"
+    },
+    {
+      "id": "win-cli-eval-whisper-cpu-16k-all",
+      "status": "passthrough_eval_measured",
+      "wer": 0.0,
+      "cer": 0.0,
+      "confidence": 0.87,
+      "evidence": "cargo run -p vox-ml-cli --features oratio -- oratio eval tests/speech-to-code/fixtures/corpus_v1/eval_passthrough.jsonl --limit 3",
+      "note": "Text passthrough validates eval/WER plumbing without model download; runtime ASR WER remains a separate model cell."
+    },
+    {
+      "id": "win-cli-eval-whisper-cuda-16k-code",
+      "status": "skipped",
+      "skip_reason": "no-cuda-runtime-decode-cell-executed",
+      "failure_category": "acoustic"
+    },
+    {
+      "id": "linux-cli-eval-sherpa-cpu-16k-code",
+      "status": "skipped",
+      "skip_reason": "feature-off-or-model-dir-unavailable",
+      "failure_category": "lexical"
+    },
+    {
+      "id": "http-audio-ingress-missing-gap",
+      "status": "gap_confirmed",
+      "failure_category": "orchestration",
+      "evidence": "no crates/vox-audio-ingress tree present while contracts reference /api/audio/*"
+    }
+  ],
+  "global_kpi_baseline": {
+    "schema_version": "1",
+    "captured_at_utc": "2026-05-11T12:00:00Z",
+    "correlation_id": "speech-audit-baseline-2026-05-11",
+    "wer": 0.35,
+    "cer": 0.15,
+    "compile_pass_at_1": 0.65,
+    "compile_pass_at_k": 0.72,
+    "semantic_pass_rate": 0.6,
+    "latency_ms_median": 6000,
+    "latency_ms_p95": 12000
+  }
+}

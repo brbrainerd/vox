@@ -1,0 +1,28 @@
+fn hex_digit_val(c: str) to int {
+    let code: int = c.ord()
+    if code >= 48 and code <= 57 {
+        return code - 48
+    }
+    return code - 87
+}
+
+fn from_hex(s: str) to int {
+    let chars: list[str] = s.chars()
+    let mut result: int = 0
+    for c in chars {
+        result = result * 16 + hex_digit_val(c)
+    }
+    return result
+}
+
+fn main() to str {
+    assert(from_hex("0") == 0)
+    assert(from_hex("f") == 15)
+    assert(from_hex("10") == 16)
+    assert(from_hex("ff") == 255)
+    assert(from_hex("100") == 256)
+    assert(from_hex("a") == 10)
+    assert(from_hex("1000") == 4096)
+    assert(from_hex("ab") == 171)
+    return "ok"
+}

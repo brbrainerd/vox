@@ -73,7 +73,7 @@ pub async fn llm_embed(
                 ));
             }
 
-            let client = vox_reqwest_defaults::client();
+            let client = vox_http_client::client();
             let req_body = OpenRouterEmbedRequest {
                 model: &config.model,
                 input: &text,

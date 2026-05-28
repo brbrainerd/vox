@@ -1,0 +1,11 @@
+[problem]
+id = "076"
+title = "is-palindrome-int"
+prompt = """
+Write a Vox function is_palindrome_int(n: int) to bool that returns true if the integer reads the same forwards and backwards. Negative numbers always return false.
+"""
+signature = "fn is_palindrome_int(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "math"]

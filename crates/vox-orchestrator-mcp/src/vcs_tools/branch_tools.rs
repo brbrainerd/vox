@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use vox_orchestrator_types::vcs_capability::mint_working_tree_write;
 use vox_orchestrator_types::{BranchName, BranchNameError, WorkingTreeWrite, WorkspaceId};
 
 use crate::git_exec::{GitExec, GitExecError};
@@ -63,7 +64,7 @@ pub async fn branch_create(
         "branch created"
     );
 
-    Ok(WorkingTreeWrite::mint(
+    Ok(mint_working_tree_write(
         WorkspaceId(workspace_id),
         parsed_branch,
     ))

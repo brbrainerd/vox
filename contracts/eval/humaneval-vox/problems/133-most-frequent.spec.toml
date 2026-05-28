@@ -1,0 +1,11 @@
+[problem]
+id = "133"
+title = "most_frequent"
+prompt = """
+Find the most frequently occurring element in a list of ints. If there is a tie, return the smallest value among the tied elements. The list is non-empty.
+"""
+signature = "fn most_frequent(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["lists", "counting"]

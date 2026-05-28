@@ -1,9 +1,9 @@
 fn main() {
-    let schemas_dir = "./schemas";
-    if fs::is_dir(schemas_dir) {
-        fs::remove_dir(schemas_dir);
-        print("Removed empty schemas directory");
+    let schemas_dir = "./schemas"
+    if fs.is_dir(schemas_dir) {
+        let _ = fs.remove_dir_all(schemas_dir)
+        print("Removed empty schemas directory")
     } else {
-        print("schemas directory does not exist or is not a directory");
+        print("schemas directory does not exist or is not a directory")
     }
 }

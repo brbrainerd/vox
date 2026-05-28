@@ -334,6 +334,15 @@ pub struct ContextSafety {
     pub required_citations: Option<u32>,
 }
 
+/// Optional AgentOS hints (intent planning, sparse checkpoint recommendations).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ContextAgentOsHints {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suggested_tools: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sparse_checkpoint_recommended: Option<bool>,
+}
+
 /// Canonical context artifact.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ContextEnvelope {
@@ -359,6 +368,8 @@ pub struct ContextEnvelope {
     pub obo_token: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub operating_mode: Option<OperatingMode>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agentos: Option<ContextAgentOsHints>,
 }
 
 impl ContextEnvelope {
@@ -406,6 +417,23 @@ impl ContextEnvelope {
         );
         mac.update(msg.as_bytes());
         mac.verify_slice(&decoded).is_ok()
+    }
+
+    /// Attach AgentOS intent-derived suggested MCP tool names (bounded).
+    #[must_use]
+    pub fn with_agentos_intent_hints(mut self, intent: &str, max_steps: usize) -> Self {
+        let tools: Vec<String> = crate::agentos::intent_planner::plan_intent(intent, max_steps)
+            .into_iter()
+            .map(str::to_string)
+            .collect();
+        let sparse = tools
+            .iter()
+            .any(|t| crate::agentos::checkpoint_engine::should_sparse_checkpoint(t));
+        self.agentos = Some(ContextAgentOsHints {
+            suggested_tools: tools,
+            sparse_checkpoint_recommended: Some(sparse),
+        });
+        self
     }
 
     /// Build a retrieval envelope projection from the orchestrator session retrieval bridge shape.
@@ -527,6 +555,7 @@ impl ContextEnvelope {
             }),
             obo_token: None,
             operating_mode: None,
+            agentos: None,
         }
     }
 
@@ -629,6 +658,39 @@ impl ContextEnvelope {
             }),
             obo_token: None,
             operating_mode: None,
+            agentos: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod agentos_hint_tests {
+    use super::*;
+
+    #[test]
+    fn intent_hints_attach_tool_names() {
+        let retrieval: crate::socrates::SessionRetrievalEnvelope =
+            serde_json::from_value(serde_json::json!({})).expect("empty retrieval envelope");
+        let env = ContextEnvelope::from_session_retrieval("repo", "sid", &retrieval)
+            .with_agentos_intent_hints("run cargo tests", 4);
+        let hints = env.agentos.expect("hints");
+        assert!(
+            hints
+                .suggested_tools
+                .iter()
+                .any(|t| t.contains("vox_run_tests"))
+        );
+        assert_eq!(hints.sparse_checkpoint_recommended, Some(false));
+    }
+
+    #[test]
+    fn intent_hints_set_sparse_checkpoint_when_plan_includes_mutation() {
+        let retrieval: crate::socrates::SessionRetrievalEnvelope =
+            serde_json::from_value(serde_json::json!({})).expect("empty retrieval envelope");
+        let env = ContextEnvelope::from_session_retrieval("repo", "sid", &retrieval)
+            .with_agentos_intent_hints("patch readme section", 4);
+        let hints = env.agentos.expect("hints");
+        assert!(hints.suggested_tools.iter().any(|t| t == "vox_write_file"));
+        assert_eq!(hints.sparse_checkpoint_recommended, Some(true));
     }
 }

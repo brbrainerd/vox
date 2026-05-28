@@ -1,0 +1,3 @@
+fn add_one(n: int) to int {
+    return n + 1
+}

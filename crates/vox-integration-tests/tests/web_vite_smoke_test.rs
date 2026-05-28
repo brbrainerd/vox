@@ -8,11 +8,11 @@ use vox_cli::commands::build;
 use vox_cli::frontend;
 
 #[tokio::test]
-#[ignore = "set VOX_WEB_VITE_SMOKE=1 and ensure pnpm is on PATH"]
+#[ignore = "set VOX_WEB_VITE_SMOKE=1 and ensure pnpm is on PATH — owner: integration-tests sunset: 2026-12-31"]
 async fn full_stack_minimal_vite_production_build() {
     let vite_smoke_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebViteSmoke);
     assert_eq!(
-        vite_smoke_resolved.expose().as_deref(),
+        vite_smoke_resolved.expose(),
         Some("1"),
         "set VOX_WEB_VITE_SMOKE=1 to run this test"
     );
@@ -36,9 +36,11 @@ async fn full_stack_minimal_vite_production_build() {
         &vox_file,
         &ts_out,
         None,
+        None,
         false,
         false,
         vox_cli::cli_args::BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await
     .expect("vox build");

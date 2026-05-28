@@ -1,3 +1,4 @@
+schema_version: 1
 # Table retention hints for `vox db prune-plan` / `vox db prune-apply`.
 # SSOT path: contracts/db/retention-policy.yaml
 #

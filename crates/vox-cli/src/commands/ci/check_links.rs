@@ -1,10 +1,96 @@
 use anyhow::{Context, Result};
+use chrono::NaiveDate;
 use owo_colors::OwoColorize;
 use regex::Regex;
+use serde::Deserialize;
 use std::path::Path;
 use walkdir::WalkDir;
 
 use vox_bounded_fs::read_utf8_path_capped;
+
+const LINK_ALLOWLIST_REL: &str = "contracts/documentation/link-allowlist.v1.yaml";
+
+#[derive(Debug, Deserialize)]
+struct LinkAllowlistFile {
+    #[allow(dead_code)]
+    schema_version: u32,
+    #[serde(default)]
+    allowlist: Vec<LinkAllowEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LinkAllowEntry {
+    source: String,
+    target: String,
+    #[allow(dead_code)]
+    reason: String,
+    expires: String,
+}
+
+fn load_allowlist(repo_root: &Path) -> Result<Vec<LinkAllowEntry>> {
+    let path = repo_root.join(LINK_ALLOWLIST_REL);
+    if !path.is_file() {
+        return Ok(Vec::new());
+    }
+    let raw = read_utf8_path_capped(&path).with_context(|| format!("read {}", path.display()))?;
+    let parsed: LinkAllowlistFile =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", LINK_ALLOWLIST_REL))?;
+    Ok(parsed.allowlist)
+}
+
+fn repo_rel_normalized(repo_root: &Path, path: &Path) -> String {
+    path.strip_prefix(repo_root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+/// Strip trailing `:LINE` / `:LINE-LINE` suffixes from Markdown links (common for Rust line refs).
+fn strip_source_line_suffix(target_path: &str) -> &str {
+    let re = Regex::new(r"(?s)^(.+?):\d+(?:-\d+)?$").expect("regex");
+    let Some(caps) = re.captures(target_path) else {
+        return target_path;
+    };
+    let base = caps.get(1).map(|m| m.as_str()).unwrap_or(target_path);
+    if looks_like_file_path_with_extension(base) {
+        base
+    } else {
+        target_path
+    }
+}
+
+fn looks_like_file_path_with_extension(path: &str) -> bool {
+    let base = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    base.contains('.') && !base.ends_with('.') && Path::new(base).extension().is_some()
+}
+
+fn allowlist_skips(
+    allowlist: &[LinkAllowEntry],
+    source_rel: &str,
+    target_full: &str,
+    today: NaiveDate,
+) -> bool {
+    for e in allowlist {
+        let src = e.source.replace('\\', "/");
+        let tgt = e.target.replace('\\', "/");
+        if src != source_rel || tgt != target_full {
+            continue;
+        }
+        if let Ok(exp) = NaiveDate::parse_from_str(&e.expires, "%Y-%m-%d") {
+            if exp < today {
+                println!(
+                    "{} allowlist entry expired (still skipping): {} -> {} (expired {})",
+                    "WARN".yellow(),
+                    source_rel.cyan(),
+                    target_full.yellow(),
+                    e.expires
+                );
+            }
+        }
+        return true;
+    }
+    false
+}
 
 pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
     let docs_src = repo_root.join("docs").join("src");
@@ -15,6 +101,8 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
         "INIT".bright_blue(),
     );
 
+    let allowlist = load_allowlist(repo_root)?;
+    let today = chrono::Utc::now().date_naive();
     let mut total_links = 0;
     let mut broken_links = Vec::new();
     let mut nesting_errors = Vec::new();
@@ -71,52 +159,74 @@ pub fn run(repo_root: &Path, target: Option<&Path>) -> Result<()> {
 
         let parent_dir = path.parent().unwrap_or(repo_root);
 
-        for cap in link_re.captures_iter(&content) {
-            let target_full = &cap[1];
-
-            // Skip external links and local anchors
-            if target_full.starts_with("http")
-                || target_full.starts_with("#")
-                || target_full.starts_with("mailto:")
-            {
+        // Ignore Markdown links inside fenced code blocks — they are usually not links.
+        let mut in_fence = false;
+        for line in content.lines() {
+            let trimmed_start = line.trim_start();
+            if trimmed_start.starts_with("```") {
+                in_fence = !in_fence;
+                continue;
+            }
+            if in_fence {
                 continue;
             }
 
-            total_links += 1;
+            for cap in link_re.captures_iter(line) {
+                let target_full = &cap[1];
 
-            // Split into path and optional anchor
-            let mut parts = target_full.splitn(2, '#');
-            let target_path_str = parts.next().unwrap_or(target_full);
-            let anchor = parts.next();
+                // Skip external links and local anchors
+                if target_full.starts_with("http")
+                    || target_full.starts_with("#")
+                    || target_full.starts_with("mailto:")
+                {
+                    continue;
+                }
 
-            if target_path_str.is_empty() {
-                continue;
-            }
+                total_links += 1;
 
-            // Resolve path
-            let target_path = if target_path_str.starts_with("/") {
-                // Treat as root-relative (relative to repo root)
-                repo_root.join(target_path_str.trim_start_matches('/'))
-            } else {
-                parent_dir.join(target_path_str)
-            };
+                // Split into path and optional anchor
+                let mut parts = target_full.splitn(2, '#');
+                let target_path_str = parts.next().unwrap_or(target_full);
+                let anchor = parts.next();
 
-            // Normalize and check existence
-            if !target_path.exists() {
-                broken_links.push((
-                    path.to_path_buf(),
-                    target_full.to_string(),
-                    target_path,
-                    "missing_file",
-                ));
-            } else if let Some(anchor_text) = anchor {
-                if !check_anchor(&target_path, anchor_text) {
+                if target_path_str.is_empty() {
+                    continue;
+                }
+
+                let normalized_path = strip_source_line_suffix(target_path_str.trim());
+                let source_rel = repo_rel_normalized(repo_root, &path);
+                if allowlist_skips(&allowlist, &source_rel, target_full, today) {
+                    continue;
+                }
+
+                // Resolve path (strip trailing `/` so directory targets resolve on all platforms)
+                let target_path = if normalized_path.starts_with("/") {
+                    repo_root.join(
+                        normalized_path
+                            .trim_start_matches('/')
+                            .trim_end_matches('/'),
+                    )
+                } else {
+                    parent_dir.join(normalized_path.trim_end_matches('/'))
+                };
+
+                // Normalize and check existence
+                if !target_path.exists() {
                     broken_links.push((
                         path.to_path_buf(),
                         target_full.to_string(),
                         target_path,
-                        "missing_anchor",
+                        "missing_file",
                     ));
+                } else if let Some(anchor_text) = anchor {
+                    if !check_anchor(&target_path, anchor_text) {
+                        broken_links.push((
+                            path.to_path_buf(),
+                            target_full.to_string(),
+                            target_path,
+                            "missing_anchor",
+                        ));
+                    }
                 }
             }
         }

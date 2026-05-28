@@ -1,7 +1,7 @@
 ---
 title: "How-To: System I/O and Capabilities"
 description: "How to safely interact with filesystems and network endpoints."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

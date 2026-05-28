@@ -2,35 +2,35 @@
   "x-vox-version": 1,
   "version": 1,
   "suppressions": [
-    
+    {
       "rule_id_prefix": "arch/god_object",
       "path_glob": "**/vox-secrets/src/spec.rs",
       "reason": "Legacy payload pending domain split",
       "owner": "robot"
     },
-    
+    {
       "rule_id_prefix": "arch/god_object",
       "path_glob": "**/vox-compiler/tests/web_ir_lower_emit.rs",
       "reason": "Large test file",
       "owner": "robot"
     },
-    
+    {
       "rule_id_prefix": "arch/god_object",
       "path_glob": "**/vox-populi/tests/http_control_plane.rs",
       "reason": "Large test file",
       "owner": "robot"
     },
-    
+    {
       "rule_id_prefix": "arch/god_object",
       "path_glob": "**/vox-workflow-runtime/tests/workflow_tracker_tests.rs",
       "reason": "Large test file",
       "owner": "robot"
     },
-    
+    {
       "rule_id_prefix": "arch/god_object",
       "path_glob": "**/vox-compiler/tests/reactive_smoke.rs",
       "reason": "Large test file",
       "owner": "robot"
-    },
+    }
   ]
 }

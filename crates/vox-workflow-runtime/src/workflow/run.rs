@@ -4,11 +4,33 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use vox_compiler::hir::HirModule;
 
+/// Derive a stable, content-addressed `activity_id` from structural inputs.
+///
+/// The id is a BLAKE3 hex digest of `"{workflow_name}\0{activity_name}\0{position}"`,
+/// truncated to 32 hex chars for readability. This is deterministic across replays as
+/// long as the workflow topology (activity order and names) does not change.
+pub(crate) fn derive_activity_id(
+    workflow_name: &str,
+    activity_name: &str,
+    position: usize,
+) -> String {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(workflow_name.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(activity_name.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(position.to_le_bytes().as_ref());
+    let hash = hasher.finalize();
+    // 16 bytes → 32 lowercase hex chars: unique enough for a workflow's activity set.
+    let bytes = &hash.as_bytes()[..16];
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
 use super::plan::plan_workflow_replay_ir;
 use super::tracker::{DefaultTracker, WorkflowTracker};
 #[cfg(feature = "mens")]
 use super::types::PopuliActivity;
-use super::types::{PlannedActivity, ReplayNode};
+use super::types::{PlannedActivity, ReplayNode, compute_structural_arg_hash};
 
 /// Version tag for interpreted workflow journal events emitted by this crate.
 pub const WORKFLOW_JOURNAL_VERSION: u32 = 1;
@@ -29,109 +51,201 @@ pub async fn interpret_workflow_durable(
     tracker: &mut impl WorkflowTracker,
 ) -> anyhow::Result<Vec<Value>> {
     let replay_ir = plan_workflow_replay_ir(hir, workflow_name)?;
-    let plan: Vec<PlannedActivity> = replay_ir
+    let activity_count = replay_ir
         .nodes
-        .into_iter()
-        .map(|node| match node {
-            ReplayNode::Activity(step) => step,
-        })
-        .collect();
+        .iter()
+        .filter(|n| matches!(n, ReplayNode::Activity(_)))
+        .count();
     let mut journal = Vec::new();
     tracker
-        .on_workflow_started(workflow_name, plan.len())
+        .on_workflow_started(workflow_name, activity_count)
         .await?;
     journal.push(versioned_event(json!({
         "event": "WorkflowStarted",
         "workflow": workflow_name,
-        "steps": plan.len(),
+        "steps": activity_count,
     })));
-    for (idx, step) in plan.iter().enumerate() {
-        let activity_id = step
-            .activity_id
-            .clone()
-            .unwrap_or_else(|| format!("{workflow_name}-{idx}"));
+    let mut activity_idx: usize = 0;
+    for node in replay_ir.nodes {
+        match node {
+            ReplayNode::WorkflowPatch {
+                change_id,
+                min,
+                max,
+            } => {
+                handle_workflow_patch(workflow_name, &change_id, min, max, &mut journal, tracker)
+                    .await?;
+            }
+            ReplayNode::Activity(step) => {
+                let activity_id = step
+                    .activity_id
+                    .clone()
+                    .unwrap_or_else(|| derive_activity_id(workflow_name, &step.name, activity_idx));
+                activity_idx += 1;
 
-        if tracker
-            .is_activity_completed(workflow_name, &activity_id)
-            .await?
-        {
-            if let Some(replayed_result) = tracker
-                .load_activity_result(workflow_name, &activity_id)
-                .await?
-            {
+                // P2-T5: try the deterministic per-activity dedup cache first.
+                let arg_hash_hex = compute_structural_arg_hash(&step.arguments);
+                let now_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(0);
+                if let Some(cached) = tracker
+                    .load_cached_activity_result(&activity_id, &arg_hash_hex, now_ms)
+                    .await?
+                {
+                    journal.push(versioned_event(json!({
+                        "event": "ActivityCacheHit",
+                        "workflow": workflow_name,
+                        "activity": step.name,
+                        "activity_id": activity_id,
+                        "arg_hash": arg_hash_hex,
+                    })));
+                    journal.push(versioned_event(json!({
+                        "event": "ActivityCompleted",
+                        "workflow": workflow_name,
+                        "activity": step.name,
+                        "activity_id": activity_id,
+                        "from_cache": true,
+                        "result": cached,
+                    })));
+                    continue;
+                }
+
+                if tracker
+                    .is_activity_completed(workflow_name, &activity_id)
+                    .await?
+                {
+                    if let Some(replayed_result) = tracker
+                        .load_activity_result(workflow_name, &activity_id)
+                        .await?
+                    {
+                        journal.push(versioned_event(json!({
+                            "event": "ActivityReplayed",
+                            "workflow": workflow_name,
+                            "activity": step.name,
+                            "activity_id": activity_id,
+                            "replay_source": "workflow_activity_log",
+                            "result_event": replayed_result
+                                .get("event")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("unknown"),
+                        })));
+                        journal.push(versioned_event(replayed_result));
+                        journal.push(versioned_event(json!({
+                            "event": "ActivityCompleted",
+                            "workflow": workflow_name,
+                            "activity": step.name,
+                            "activity_id": activity_id,
+                            "replayed": true,
+                        })));
+                    } else {
+                        journal.push(versioned_event(json!({
+                            "event": "ActivitySkipped",
+                            "workflow": workflow_name,
+                            "activity": step.name,
+                            "activity_id": activity_id,
+                            "reason": "already completed in prior durable run",
+                        })));
+                    }
+                    continue;
+                }
+
+                tracker
+                    .on_activity_started(workflow_name, &step.name, &activity_id)
+                    .await?;
                 journal.push(versioned_event(json!({
-                    "event": "ActivityReplayed",
+                    "event": "ActivityTask",
                     "workflow": workflow_name,
                     "activity": step.name,
                     "activity_id": activity_id,
-                    "replay_source": "workflow_activity_log",
-                    "result_event": replayed_result
-                        .get("event")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown"),
+                    "execution_boundary": if step.mens { "mesh" } else { "local" },
+                    "max_attempts": step.retries.saturating_add(1).max(1),
+                    "timeout_ms": step.timeout_ms,
+                    "idempotency_key": activity_id,
                 })));
-                journal.push(versioned_event(replayed_result));
+                journal.push(versioned_event(json!({
+                    "event": "ActivityStarted",
+                    "workflow": workflow_name,
+                    "activity": step.name,
+                    "activity_id": activity_id,
+                })));
+
+                let entry = execute_step_with_retries(
+                    workflow_name,
+                    &step,
+                    &activity_id,
+                    &mut journal,
+                    tracker,
+                )
+                .await?;
+
+                tracker
+                    .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
+                    .await?;
+                let dedup_ms = step.dedup_window_ms.unwrap_or(24 * 60 * 60 * 1000);
+                let _ = tracker
+                    .record_cached_activity_result(
+                        &activity_id,
+                        &arg_hash_hex,
+                        &entry,
+                        now_ms,
+                        dedup_ms,
+                    )
+                    .await;
+                journal.push(entry);
+
                 journal.push(versioned_event(json!({
                     "event": "ActivityCompleted",
                     "workflow": workflow_name,
                     "activity": step.name,
                     "activity_id": activity_id,
-                    "replayed": true,
-                })));
-            } else {
-                journal.push(versioned_event(json!({
-                    "event": "ActivitySkipped",
-                    "workflow": workflow_name,
-                    "activity": step.name,
-                    "activity_id": activity_id,
-                    "reason": "already completed in prior durable run",
                 })));
             }
-            continue;
         }
-
-        tracker
-            .on_activity_started(workflow_name, &step.name, &activity_id)
-            .await?;
-        journal.push(versioned_event(json!({
-            "event": "ActivityTask",
-            "workflow": workflow_name,
-            "activity": step.name,
-            "activity_id": activity_id,
-            "execution_boundary": if step.mens { "mesh" } else { "local" },
-            "max_attempts": step.retries.saturating_add(1).max(1),
-            "timeout_ms": step.timeout_ms,
-            "idempotency_key": activity_id,
-        })));
-        journal.push(versioned_event(json!({
-            "event": "ActivityStarted",
-            "workflow": workflow_name,
-            "activity": step.name,
-            "activity_id": activity_id,
-        })));
-
-        let entry =
-            execute_step_with_retries(workflow_name, step, &activity_id, &mut journal, tracker)
-                .await?;
-
-        tracker
-            .on_activity_completed(workflow_name, &step.name, &activity_id, &entry)
-            .await?;
-        journal.push(entry);
-
-        journal.push(versioned_event(json!({
-            "event": "ActivityCompleted",
-            "workflow": workflow_name,
-            "activity": step.name,
-            "activity_id": activity_id,
-        })));
     }
     tracker.on_workflow_completed(workflow_name).await?;
     journal.push(versioned_event(json!({
         "event": "WorkflowCompleted",
         "workflow": workflow_name,
+        "return_value": null,
     })));
     Ok(journal)
+}
+
+async fn handle_workflow_patch(
+    workflow_name: &str,
+    change_id: &str,
+    min: u32,
+    max: u32,
+    journal: &mut Vec<Value>,
+    tracker: &mut impl WorkflowTracker,
+) -> anyhow::Result<u32> {
+    if let Some(prior) = tracker
+        .load_workflow_patch(workflow_name, change_id)
+        .await?
+    {
+        journal.push(versioned_event(json!({
+            "event": "WorkflowPatch",
+            "workflow": workflow_name,
+            "change_id": change_id,
+            "version": prior,
+            "replayed": true,
+        })));
+        return Ok(prior);
+    }
+    tracker
+        .record_workflow_patch(workflow_name, change_id, max)
+        .await?;
+    journal.push(versioned_event(json!({
+        "event": "WorkflowPatch",
+        "workflow": workflow_name,
+        "change_id": change_id,
+        "version": max,
+        "min_supported": min,
+        "max_supported": max,
+        "replayed": false,
+    })));
+    Ok(max)
 }
 
 async fn execute_step_with_retries(
@@ -470,6 +584,40 @@ mod tests {
         assert_eq!(
             value["journal_version"].as_u64(),
             Some(WORKFLOW_JOURNAL_VERSION as u64)
+        );
+    }
+
+    #[test]
+    fn derive_activity_id_is_deterministic() {
+        let id1 = derive_activity_id("my_workflow", "send_email", 0);
+        let id2 = derive_activity_id("my_workflow", "send_email", 0);
+        assert_eq!(id1, id2, "same inputs must produce same activity_id");
+    }
+
+    #[test]
+    fn derive_activity_id_differs_by_position() {
+        let id0 = derive_activity_id("wf", "step", 0);
+        let id1 = derive_activity_id("wf", "step", 1);
+        assert_ne!(id0, id1, "different positions must produce different ids");
+    }
+
+    #[test]
+    fn derive_activity_id_differs_by_workflow_name() {
+        let id_a = derive_activity_id("workflow_a", "step", 0);
+        let id_b = derive_activity_id("workflow_b", "step", 0);
+        assert_ne!(
+            id_a, id_b,
+            "different workflow names must produce different ids"
+        );
+    }
+
+    #[test]
+    fn derive_activity_id_is_32_hex_chars() {
+        let id = derive_activity_id("wf", "act", 0);
+        assert_eq!(id.len(), 32, "activity_id must be 32 hex chars");
+        assert!(
+            id.chars().all(|c| c.is_ascii_hexdigit()),
+            "must be lowercase hex"
         );
     }
 }

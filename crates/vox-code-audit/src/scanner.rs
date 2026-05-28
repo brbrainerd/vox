@@ -14,7 +14,7 @@ const DEFAULT_EXCLUDES: &[&str] = &[
     "**/patches/**",
     // mdBook and other generated web assets under docs.
     "**/docs/book/**",
-    "**/vox-vscode/out/**",
+    "**/apps/editor/vox-vscode/out/**",
     "**/tools/dashboard/**",
     "**/target/**",
     "**/node_modules/**",

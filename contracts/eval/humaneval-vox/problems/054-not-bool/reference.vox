@@ -1,0 +1,6 @@
+fn not_bool(b: bool) to bool {
+    if b {
+        return false
+    }
+    return true
+}

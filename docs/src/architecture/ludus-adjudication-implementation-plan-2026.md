@@ -1,6 +1,6 @@
 ---
 title: "ludus-adjudication-implementation-plan-2026"
-category: "reference"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---
@@ -250,8 +250,8 @@ TrustTier::Master  = 3   (community-vouched — NOT YET AUTO-GRANTED)
 
 - [x] CREATE `crates/vox-cli/src/commands/extras/ludus/disputes.rs`:
   - Implement `execute()` routing for the new subcommands.
-  - Call `vox_ludus::db::file_dispute(...)` in `File`.
-  - Call `vox_ludus::db::cast_vote(...)` in `Vote`.
+  - Call `vox_gamify::db::file_dispute(...)` in `File`.
+  - Call `vox_gamify::db::cast_vote(...)` in `Vote`.
 
 ### 4.3 Profile CLI Update
 

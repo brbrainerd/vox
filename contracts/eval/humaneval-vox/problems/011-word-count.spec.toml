@@ -1,0 +1,11 @@
+[problem]
+id = "011"
+title = "word_count"
+prompt = """
+Count the number of words in a string. Words are separated by spaces. Multiple consecutive spaces count as one separator. Leading/trailing spaces are ignored.
+"""
+signature = "fn word_count(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

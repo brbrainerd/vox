@@ -1,0 +1,11 @@
+[problem]
+id = "128"
+title = "caesar_decode"
+prompt = """
+Decode a Caesar cipher: shift each lowercase letter backwards by k positions (wrapping around). Non-letter characters are unchanged.
+"""
+signature = "fn caesar_decode(s: str, k: int) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["strings", "cipher"]

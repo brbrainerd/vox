@@ -1,0 +1,29 @@
+// Base source for plan-049-tighten-effect-row.
+//
+// `LookupError` declares three variants but only `NotFound` is ever
+// produced. The plan asks the model to tighten the ADT by removing
+// the two unused variants and updating the @test match arms.
+
+type LookupError =
+    | NotFound(text: str)
+    | Unauthorized(text: str)
+    | Throttled(text: str)
+
+@endpoint(kind: query) @auth(scheme: bearer)
+fn fetch_user(id: str) to Result[str, LookupError] {
+    if len(id) is 0 {
+        return Error(NotFound("id must not be empty"))
+    }
+    return Error(NotFound("user not found"))
+}
+
+@test
+fn test_fetch_user_empty_returns_notfound() to Unit {
+    let r = fetch_user("")
+    match r {
+        Error(NotFound(_))     => assert(true)
+        Error(Unauthorized(_)) => assert(false)
+        Error(Throttled(_))    => assert(false)
+        Ok(_)                  => assert(false)
+    }
+}

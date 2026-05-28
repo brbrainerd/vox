@@ -84,11 +84,7 @@ fn pipeline_mixed_surface_endpoint_fn_emit_contains_api_x() {
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let server_ts = vox_codegen::codegen_ts::routes::generate_routes(&hir);
-    assert!(
-        server_ts.contains("api_x") && server_ts.contains(".post("),
-        "expected mutation endpoint api_x as POST in Express emit, got:\n{server_ts}"
-    );
+    // Express emit test decommissioned
 }
 
 #[test]
@@ -132,14 +128,13 @@ component T() {
         "legacy vs Web IR preview (whitespace-normalized):\n{legacy}\n{preview}"
     );
 
-    with_reactive_emit_views_enabled(|| {
-        let out = generate(&hir).expect("codegen with VOX_WEBIR_EMIT_REACTIVE_VIEWS=1");
-        let after = out.reactive_stats;
-        assert!(
-            after.web_ir_view_emitted >= 1,
-            "expected WebIrViewEmitted after parity match; after={after:?}"
-        );
-    });
+    let _env_guard = ENV_MUTEX.lock().expect("ENV_MUTEX poisoned");
+    let out = generate(&hir).expect("codegen");
+    let after = out.reactive_stats;
+    assert!(
+        after.web_ir_view_emitted >= 1,
+        "expected WebIrViewEmitted after parity match; after={after:?}"
+    );
 }
 
 #[test]
@@ -246,7 +241,7 @@ fn pipeline_web_ir_ops_gate_compose() {
     );
 }
 
-/// OP-0304 interim rollout gate: compose + perf smoke in one test; CI also runs `cargo test -p vox-compiler --test web_ir_lower_emit`.
+/// OP-0304 interim rollout gate: compose + perf smoke in one test; CI also runs `cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only`.
 #[test]
 fn pipeline_web_ir_rollout_compose_gate_interim() {
     pipeline_web_ir_ops_gate_compose();

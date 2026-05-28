@@ -1,0 +1,18 @@
+fn mod_positive(n: int, m: int) to int {
+    let r = n % m
+    if r < 0 {
+        return r + m
+    }
+    return r
+}
+
+@test
+fn t_positive() to Unit { assert(mod_positive(7, 3) is 1) }
+@test
+fn t_zero() to Unit { assert(mod_positive(0, 3) is 0) }
+@test
+fn t_negative_wraps() to Unit { assert(mod_positive(-1, 5) is 4) }
+@test
+fn t_exact() to Unit { assert(mod_positive(10, 5) is 0) }
+@test
+fn t_negative_exact() to Unit { assert(mod_positive(-10, 5) is 0) }

@@ -16,6 +16,8 @@ use crate::extensions::publication::Publication_TO;
 use crate::extensions::script_executor::ScriptExecutor_TO;
 use crate::extensions::speech_to_text::SpeechToText_TO;
 use crate::extensions::tensor_backend::TensorBackend_TO;
+use crate::extensions::http_listener::HttpListener_TO;
+use crate::extensions::skill_runtime::SkillRuntime_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
     StableAbi, library::RootModule, package_version_strings, sabi_trait,
@@ -108,6 +110,19 @@ pub trait VoxPlugin: Send + Sync {
     fn as_publication(&self) -> ROption<Publication_TO<'static, RBox<()>>> {
         ROption::RNone
     }
+
+    /// Optional accessor: if this plugin provides a HttpListener implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_http_listener(&self) -> ROption<HttpListener_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a SkillRuntime implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_skill_runtime(&self) -> ROption<SkillRuntime_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
 }
 
 pub type VoxPluginRef = VoxPlugin_TO<'static, RBox<()>>;

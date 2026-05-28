@@ -1,0 +1,20 @@
+// ---
+// title: "Structured directory listings (std.fs)"
+// description: "list_dir_detailed returns structured FileRecord rows (native Rust, argv-first — no shell)."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, std.fs, list_dir_detailed, @test, assert]
+// last_validated: 2026-05-11
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Use std.fs.list_dir_detailed for structured file metadata from Vox scripts.
+
+@test
+fn list_dir_detailed_current_has_entries() to Unit {
+    assert(match std.fs.list_dir_detailed(".") {
+        Ok(rows) => len(rows) > 0
+        Error(_) => false
+    })
+}

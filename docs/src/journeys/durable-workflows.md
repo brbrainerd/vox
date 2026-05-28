@@ -1,7 +1,7 @@
 ---
 title: "Journey: Reliable Background Workflows"
 description: "How to escape brittle external job queues using Vox's native Durable Execution for microservice reliability."
-category: "journey"
+category: "Getting Started"
 sort_order: 2
 
 schema_type: "HowTo"

@@ -153,7 +153,7 @@ fn emit_node(
 fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
     if let Some(lt_pos) = jsx.find('<') {
         let after_lt = &jsx[lt_pos..];
-        if let Some(rel_end) = after_lt.find(|c: char| c == '>' || c == '/') {
+        if let Some(rel_end) = after_lt.find(['>', '/']) {
             let insert_at = lt_pos + rel_end;
             return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
         }

@@ -1,4 +1,4 @@
-﻿//! MCP tools: submit Mens / training-style work through the orchestrator (compatibility shim).
+//! MCP tools: submit Mens / training-style work through the orchestrator (compatibility shim).
 
 use serde::Deserialize;
 use serde_json::json;
@@ -34,6 +34,9 @@ pub struct TrainSubmitParams {
     /// Optional minimum quality score (1-5) expected for trajectory rows.
     #[serde(default)]
     pub min_quality_score: Option<u8>,
+    /// Optional tenant identifier for budget attribution.
+    #[serde(default)]
+    pub tenant_id: Option<String>,
 }
 
 /// Enqueue a background orchestrator task tagged for training; returns canonical `vox mens train` hint.
@@ -80,6 +83,7 @@ pub async fn train_submit(state: &ServerState, params: TrainSubmitParams) -> Str
             Some(caps),
             None,
             params.session_id.clone(),
+            params.tenant_id.clone(),
         )
         .await
     {

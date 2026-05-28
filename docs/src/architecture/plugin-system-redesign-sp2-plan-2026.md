@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign — SP2 Implementation Plan (2026)"
 description: "Step-by-step implementation plan for Sub-Project 2: vox-plugin-api shared types, vox-plugin-host loader for both code and skill payloads, dual-payload registry, two noop test plugins, and ABI-mismatch CI guards."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Concrete TDD task plan for SP2; companion to the parent design spec."
@@ -26,7 +26,7 @@ training_rationale: "Concrete TDD task plan for SP2; companion to the parent des
 - `tracing` (existing) for telemetry-event emission
 - Project's existing telemetry pattern per [`telemetry-trust-ssot.md`](telemetry-trust-ssot.md)
 
-The CUDA cdylib spike at [`crates/vox-plugin-cuda-spike/`](../../../crates/vox-plugin-cuda-spike/) already proved `libloading` works on Windows MSVC + CUDA 13.1. SP2 generalizes that pattern through `abi_stable`'s typed boundary.
+The CUDA cdylib spike at [`crates/vox-plugin-cuda-spike/`](plugin-system-redesign-2026.md#sub-project-3-first-code-extension-point-mlbackend) already proved `libloading` works on Windows MSVC + CUDA 13.1. SP2 generalizes that pattern through `abi_stable`'s typed boundary.
 
 ---
 

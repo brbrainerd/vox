@@ -1,6 +1,7 @@
 ---
 title: "Picking a Vox bundle"
 description: "Decision guide for choosing the right Vox distribution bundle for your use case."
+category: "How-To Guides"
 ---
 
 # Picking a Vox bundle
@@ -30,7 +31,7 @@ Run `vox bundle list` to see all bundles with their resolved plugin counts, or
 
 Each bundle extends one or more parent bundles through an `extends` chain:
 
-```
+```text
 vox-base                   (no plugins)
   └── vox-server           (core skill plugins)
         ├── vox-fullstack  (+ web / frontend skills)

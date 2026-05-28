@@ -2,7 +2,7 @@
 //!
 //! Walks the AST and maps declarations to LSP symbols (outline view).
 
-use tower_lsp::lsp_types::*;
+use tower_lsp_server::ls_types::*;
 pub use vox_compiler::ast::Span;
 pub use vox_compiler::ast::decl::*;
 

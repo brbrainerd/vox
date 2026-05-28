@@ -68,7 +68,7 @@ mod tests {
     #[tokio::test]
     async fn test_spawn_and_send() -> Result<(), RegistryError> {
         let scheduler = Scheduler::new();
-        let (tx, rx) = tokio::sync::oneshot::channel::<String>();
+        let (tx, rx) = tokio::sync::oneshot::channel::<bytes::Bytes>();
 
         let handle = scheduler.spawn(|mut ctx| async move {
             if let Some(Envelope::Message(msg)) = ctx.receive().await {
@@ -80,12 +80,12 @@ mod tests {
 
         let msg = Envelope::Message(Message {
             from: crate::pid::Pid::new(),
-            payload: MessagePayload::Text("hello vox".into()),
+            payload: MessagePayload::text("hello vox"),
         });
         handle.send(msg).await.unwrap();
 
         let result = rx.await.unwrap();
-        assert_eq!(result, "hello vox");
+        assert_eq!(result.as_ref(), b"hello vox");
         Ok(())
     }
 
@@ -118,8 +118,9 @@ mod tests {
         let handle = scheduler.spawn(|mut ctx: ProcessContext| async move {
             while let Some(env) = ctx.receive().await {
                 if let Envelope::Request(req) = env {
-                    if let MessagePayload::Json(json_str) = &req.payload {
-                        let reply = format!("Echo: {}", json_str);
+                    if let MessagePayload::Json(json_bytes) = &req.payload {
+                        let text = std::str::from_utf8(json_bytes).unwrap();
+                        let reply = format!("Echo: {}", text);
                         ProcessContext::reply(req, reply);
                     }
                 }
@@ -128,11 +129,11 @@ mod tests {
 
         // Call the echo actor and verify reply
         let response = handle
-            .call(MessagePayload::Json("hello from caller".to_string()))
+            .call(MessagePayload::json_str("hello from caller"))
             .await
             .unwrap();
 
-        assert_eq!(response, "Echo: hello from caller");
+        assert_eq!(response.as_ref(), b"Echo: hello from caller");
         Ok(())
     }
 }

@@ -1,7 +1,7 @@
 ---
 title: "Model Routing & Provider Cascade"
 description: "Official documentation for Model Routing & Provider Cascade for the Vox language. Detailed technical reference, architecture guides, and "
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-04-29"
 training_eligible: true
 
@@ -14,17 +14,17 @@ schema_type: "HowTo"
 
 Vox uses a **dynamic OpenRouter catalog** as the primary cloud model source, with **provider policy** enforced in shipped surfaces via in-tree helpers (for example `vox doctor` under `--features codex`) and **MCP / `vox-orchestrator-d`** for full multi-agent routing. The **`vox-orchestrator`** crate is the routing SSOT and ships both the library used by MCP and the **`vox-orchestrator-d`** daemon binary (see [`crates/vox-orchestrator/Cargo.toml`](../../../crates/vox-orchestrator/Cargo.toml)).
 
-Usage statistics and BYOK-style limits are persisted to **Codex** (Turso via `vox-pm` / `vox-db`) where wired; legacy docs may say `vox-arca` for the same storage plane.
+Usage statistics and BYOK-style limits are persisted to **Codex** (Turso via `vox-package` / `vox-db`) where wired; legacy docs may say `vox-arca` for the same storage plane.
 
 For full runtime architecture and operational rollout details, also read:
 
 - `crates/vox-cli/src/dei_daemon.rs` — stable RPC **method id** SSOT used by the orchestrator daemon (filename retains historical `dei_` prefix; the daemon binary is `vox-orchestrator-d`)
-- `crates/vox-runtime/src/model_resolution.rs` — OpenAI-compatible chat route resolution in the shipped runtime
+- `crates/vox-actor-runtime/src/model_resolution.rs` — OpenAI-compatible chat route resolution in the shipped runtime
 - `crates/vox-orchestrator/src/runtime.rs` — agent fleet, dispatch, and routing metadata in the live library
 
 ## Dynamic Catalog
 
-Catalog refresh and normalization for CLI / MCP paths are owned by the **`vox-orchestrator-d` daemon + MCP stack** together with `vox-runtime` / `vox_config` inference helpers. Conceptually the pipeline is:
+Catalog refresh and normalization for CLI / MCP paths are owned by the **`vox-orchestrator-d` daemon + MCP stack** together with `vox-actor-runtime` / `vox_config` inference helpers. Conceptually the pipeline is:
 
 1. **Fetches** models from `https://openrouter.ai/api/v1/models` (public fetch; API key optional but recommended for consistent provider policy behavior)
 2. **Normalizes** each entry to capability metadata (vision, cost, strengths) in the consumer
@@ -69,27 +69,27 @@ The minimal **`vox`** binary does not ship the historical interactive `vox chat`
 
 ### Mens / Ollama base URL
 
-Local inference uses a single resolution order: **`OLLAMA_URL` → `POPULI_URL` →** default `http://localhost:11434`, exposed as **`vox_config::inference::local_ollama_populi_base_url()`** (SSOT in `crates/vox-config/src/inference.rs`). The Mens client (`vox_runtime::mens::MensConfig::from_env`) uses the same precedence.
+Local inference uses a single resolution order: **`OLLAMA_URL` → `POPULI_URL` →** default `http://localhost:11434`, exposed as **`vox_config::inference::local_ollama_populi_base_url()`** (SSOT in `crates/vox-config/src/inference.rs`). The Mens client (`vox_actor_runtime::mens::MensConfig::from_env`) uses the same precedence.
 
 ### Hugging Face Inference Providers (router)
 
 For OpenAI-compatible chat against the HF **Inference Providers** router, use:
 
-- **URL:** `https://router.huggingface.co/v1/chat/completions` (constant `vox_runtime::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL`)
+- **URL:** `https://router.huggingface.co/v1/chat/completions` (constant `vox_actor_runtime::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL`)
 - **Token:** `HF_TOKEN` or `HUGGING_FACE_HUB_TOKEN` via **`vox_config::inference::huggingface_hub_token()`**
-- **Descriptor:** `vox_runtime::inference_env::resolve_huggingface_router("org/model")` returns model id, URL, and optional bearer token.
-- **Dedicated endpoint:** `vox_runtime::inference_env::resolve_huggingface_dedicated("https://….hf.space/v1/chat/completions", "model-id")` for pinned Inference Endpoints (same token env vars).
-- **Env shortcut (policy resolver):** `HF_DEDICATED_CHAT_URL` + `HF_DEDICATED_CHAT_MODEL` (see `vox_config::inference::hf_dedicated_chat_completions_url` / `hf_dedicated_chat_model`) are read by [`vox_runtime::model_resolution::RouteResolutionInput::default`] and take precedence over the shared router when an HF token is present.
+- **Descriptor:** `vox_actor_runtime::inference_env::resolve_huggingface_router("org/model")` returns model id, URL, and optional bearer token.
+- **Dedicated endpoint:** `vox_actor_runtime::inference_env::resolve_huggingface_dedicated("https://….hf.space/v1/chat/completions", "model-id")` for pinned Inference Endpoints (same token env vars).
+- **Env shortcut (policy resolver):** `HF_DEDICATED_CHAT_URL` + `HF_DEDICATED_CHAT_MODEL` (see `vox_config::inference::hf_dedicated_chat_completions_url` / `hf_dedicated_chat_model`) are read by [`vox_actor_runtime::model_resolution::RouteResolutionInput::default`] and take precedence over the shared router when an HF token is present.
 
 Manual model pins and task overrides still win over automatic routing (see precedence below).
 
 ### Hugging Face Hub catalog (text-generation)
 
-`vox_runtime::inference_env::fetch_hf_hub_text_generation_models(limit)` calls the Hub **`/api/models`** listing (`pipeline_tag=text-generation`, sorted by downloads) and normalizes rows with `parse_hf_hub_models_array`. Use this for adapters and tooling that need a fresh allowlist without hardcoding model ids in business logic.
+`vox_actor_runtime::inference_env::fetch_hf_hub_text_generation_models(limit)` calls the Hub **`/api/models`** listing (`pipeline_tag=text-generation`, sorted by downloads) and normalizes rows with `parse_hf_hub_models_array`. Use this for adapters and tooling that need a fresh allowlist without hardcoding model ids in business logic.
 
 ### Runtime SSOT resolver (OpenAI-compatible chat)
 
-`vox_runtime::model_resolution::resolve_chat_provider_route` applies fixed precedence: **manual** → **Mens (GPU-prefer)** → **HF dedicated** (token + dedicated env) → **HF router** (token + `HF_CHAT_MODEL`) → **OpenRouter** (key) → **any Mens** → **OpenRouter bootstrap** (`OPENROUTER_AUTO`). Map the result with `chat_route_to_llm_config` before `vox_runtime::llm::llm_chat`.
+`vox_actor_runtime::model_resolution::resolve_chat_provider_route` applies fixed precedence: **manual** → **Mens (GPU-prefer)** → **HF dedicated** (token + dedicated env) → **HF router** (token + `HF_CHAT_MODEL`) → **OpenRouter** (key) → **any Mens** → **OpenRouter bootstrap** (`OPENROUTER_AUTO`). Map the result with `chat_route_to_llm_config` before `vox_actor_runtime::llm::llm_chat`.
 
 ### Unified four-lane backend semantics (orchestrator / MCP / runtime chat)
 
@@ -102,7 +102,7 @@ Registry-backed work (`vox-orchestrator` `ModelSpec` + `route_backend_for_model`
 | Local Ollama / Mens | `Ollama` | `Ollama` for `PopuliLocal` | `("mens", "populi_local")` |
 | Cascade / other | `CascadeFallback` (and Groq/Mistral/… per `route_backend_for_model` rules) | `CascadeFallback` for HF router/dedicated, BYOK OpenAI-compatible manual URLs (non-Google), and other non-native HTTP lanes | `("custom", "cascade")` |
 
-**SSOT for telemetry strings:** `vox_runtime::model_resolution::backend_telemetry_labels`. MCP `mcp_provider_telemetry_labels` delegates to it so labels cannot drift.
+**SSOT for telemetry strings:** `vox_actor_runtime::model_resolution::backend_telemetry_labels`. MCP `mcp_provider_telemetry_labels` delegates to it so labels cannot drift.
 
 **Residual divergence (by design):**
 
@@ -114,7 +114,7 @@ Helpers: `route_backend_for_chat_route`, `route_telemetry_labels` (derived from 
 
 ### Mens capability probe (GPU / health)
 
-`vox_runtime::inference_env::probe_populi_capabilities(base_url)` (and `PopuliClient::probe_capabilities`) call Ollama-compatible **`/api/tags`** and **`/api/version`**. `gpu_capable` is `Some(true)` only when version JSON (string match) suggests CUDA, ROCm, or Metal; otherwise `None` if unknown.
+`vox_actor_runtime::inference_env::probe_populi_capabilities(base_url)` (and `PopuliClient::probe_capabilities`) call Ollama-compatible **`/api/tags`** and **`/api/version`**. `gpu_capable` is `Some(true)` only when version JSON (string match) suggests CUDA, ROCm, or Metal; otherwise `None` if unknown.
 
 ### Multi-agent registry (orchestrator daemon)
 

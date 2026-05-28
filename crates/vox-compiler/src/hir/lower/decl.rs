@@ -15,23 +15,32 @@ impl LowerCtx {
         body = self.inject_contracts(f, body);
         self.def_map.pop_scope();
 
-        let capabilities = f
-            .effects
-            .iter()
-            .map(|e| match e {
-                crate::ast::decl::EffectAnnotation::Net => crate::hir::HirCapability::Net,
-                crate::ast::decl::EffectAnnotation::Db => crate::hir::HirCapability::Db,
-                crate::ast::decl::EffectAnnotation::Fs => crate::hir::HirCapability::Fs,
-                crate::ast::decl::EffectAnnotation::Env => crate::hir::HirCapability::Env,
-                crate::ast::decl::EffectAnnotation::Clock => crate::hir::HirCapability::Clock,
-                crate::ast::decl::EffectAnnotation::Random => crate::hir::HirCapability::Random,
-                crate::ast::decl::EffectAnnotation::Spawn => crate::hir::HirCapability::Spawn,
-                crate::ast::decl::EffectAnnotation::Mcp(t) => {
-                    crate::hir::HirCapability::Mcp(t.clone())
-                }
-                crate::ast::decl::EffectAnnotation::Nothing => crate::hir::HirCapability::Nothing,
-            })
-            .collect();
+        let capabilities = Self::merge_mens_capabilities(
+            f.effects
+                .iter()
+                .map(|e| match e {
+                    crate::ast::decl::EffectAnnotation::Net => crate::hir::HirCapability::Net,
+                    crate::ast::decl::EffectAnnotation::Db => crate::hir::HirCapability::Db,
+                    crate::ast::decl::EffectAnnotation::Fs => crate::hir::HirCapability::Fs,
+                    crate::ast::decl::EffectAnnotation::Env => crate::hir::HirCapability::Env,
+                    crate::ast::decl::EffectAnnotation::Clock => crate::hir::HirCapability::Clock,
+                    crate::ast::decl::EffectAnnotation::Random => crate::hir::HirCapability::Random,
+                    crate::ast::decl::EffectAnnotation::Spawn => crate::hir::HirCapability::Spawn,
+                    crate::ast::decl::EffectAnnotation::GpuCompute => {
+                        crate::hir::HirCapability::GpuCompute
+                    }
+                    crate::ast::decl::EffectAnnotation::Mutate => crate::hir::HirCapability::Mutate,
+                    crate::ast::decl::EffectAnnotation::Mcp(t) => {
+                        crate::hir::HirCapability::Mcp(t.clone())
+                    }
+                    crate::ast::decl::EffectAnnotation::Nothing => {
+                        crate::hir::HirCapability::Nothing
+                    }
+                })
+                .collect(),
+            f.inference_model.is_some(),
+            f.training_step,
+        );
 
         HirFn {
             id,
@@ -45,8 +54,144 @@ impl LowerCtx {
             is_mobile_native: f.is_mobile_native,
             is_pure: f.is_pure,
             is_reactive: f.is_reactive,
+            is_remote: f.is_remote,
             is_llm: f.is_llm,
             llm_model: f.llm_model.clone(),
+            ai_structured_output: f.ai_structured_output_type.as_ref().map(|ty| {
+                crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput {
+                    return_type: ty.clone(),
+                    max_iterations: if f.ai_max_iterations == 0 {
+                        3
+                    } else {
+                        f.ai_max_iterations
+                    },
+                    span: f.span,
+                }
+            }),
+            ai_fixture: if f.hole_spec.is_some() || f.hole_cache_key.is_some() {
+                Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Hole(
+                    crate::hir::nodes::boilerplate_grafts::HirHoleFixture {
+                        spec: f
+                            .hole_spec
+                            .clone()
+                            .unwrap_or_else(|| "unfilled-hole".to_string()),
+                        reviewer: f
+                            .hole_reviewer
+                            .clone()
+                            .unwrap_or_else(|| "human".to_string()),
+                        cache_key: f
+                            .hole_cache_key
+                            .clone()
+                            .unwrap_or_else(|| "unset".to_string()),
+                        constraints: f.hole_constraints.clone(),
+                        span: f.span,
+                    },
+                ))
+            } else if f.is_llm {
+                let has_prompt_payload = f.prompt_stage.is_some() && f.prompt_schema.is_some();
+                let has_subagent_payload = f.subagent_policy.is_some() || f.subagent_max_depth.is_some();
+                let has_search_payload = f.search_corpus.is_some()
+                    || f.search_query.is_some()
+                    || f.search_into.is_some()
+                    || f.search_top_k.is_some()
+                    || f.search_policy.is_some();
+                let has_intent_payload = f.ai_task_category.is_some()
+                    || !f.ai_strengths.is_empty()
+                    || f.ai_tier_max.is_some()
+                    || f.ai_cost_ceiling_usd_per_call.is_some();
+                if has_search_payload {
+                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Search(
+                        crate::hir::nodes::boilerplate_grafts::HirSearchFixture {
+                            corpus: f
+                                .search_corpus
+                                .clone()
+                                .unwrap_or_else(|| "docs".to_string()),
+                            query: f
+                                .search_query
+                                .clone()
+                                .unwrap_or_else(|| String::from("")),
+                            into_type: f
+                                .search_into
+                                .clone()
+                                .or_else(|| {
+                                    f.return_type.as_ref().and_then(|t| match t {
+                                        TypeExpr::Named { name, .. } => Some(name.clone()),
+                                        _ => None,
+                                    })
+                                })
+                                .unwrap_or_else(|| "str".to_string()),
+                            top_k: f.search_top_k,
+                            policy: f.search_policy.clone(),
+                            span: f.span,
+                        },
+                    ))
+                } else if has_subagent_payload {
+                    Some(
+                        crate::hir::nodes::boilerplate_grafts::HirAiFixture::Subagent(
+                            crate::hir::nodes::boilerplate_grafts::HirSubagentFixture {
+                                policy: f
+                                    .subagent_policy
+                                    .clone()
+                                    .unwrap_or_else(|| "inline_only".to_string()),
+                                max_depth: f.subagent_max_depth.unwrap_or(1),
+                                budget_usd: f.subagent_budget_usd,
+                                description: f.subagent_description.clone(),
+                                parallel: f.subagent_parallel,
+                                complexity: f.subagent_complexity,
+                                span: f.span,
+                            },
+                        ),
+                    )
+                } else if has_prompt_payload {
+                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::Prompt(
+                        crate::hir::nodes::boilerplate_grafts::HirPromptFixture {
+                            stage: f.prompt_stage.clone().unwrap_or_else(|| "Planner".to_string()),
+                            schema: f.prompt_schema.clone().unwrap_or_else(|| "Unknown".to_string()),
+                            redact: f.prompt_redact.clone(),
+                            span: f.span,
+                        },
+                    ))
+                } else if has_intent_payload {
+                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::IntentRouted(
+                        crate::hir::nodes::boilerplate_grafts::HirAiIntentFixture {
+                            task_category: f.ai_task_category.clone(),
+                            strengths: f.ai_strengths.clone(),
+                            tier_max: f.ai_tier_max.clone(),
+                            cost_ceiling_usd_per_call: f.ai_cost_ceiling_usd_per_call,
+                            span: f.span,
+                        },
+                    ))
+                } else {
+                    Some(crate::hir::nodes::boilerplate_grafts::HirAiFixture::ModelPin(
+                        crate::hir::nodes::boilerplate_grafts::HirAiModelPinFixture {
+                            model: f.llm_model.clone(),
+                            structured_output: f.ai_structured_output_type.as_ref().map(|ty| {
+                                crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput {
+                                    return_type: ty.clone(),
+                                    max_iterations: if f.ai_max_iterations == 0 {
+                                        3
+                                    } else {
+                                        f.ai_max_iterations
+                                    },
+                                    span: f.span,
+                                }
+                            }),
+                            span: f.span,
+                        },
+                    ))
+                }
+            } else {
+                None
+            },
+            embed: f
+                .embed
+                .as_ref()
+                .map(|e| crate::hir::nodes::boilerplate_grafts::HirEmbedDecl {
+                    model: e.model.clone(),
+                    source_field: e.source_field.clone(),
+                    dimension: e.dimensions,
+                    span: e.span,
+                }),
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
             durability: None,
@@ -61,8 +206,35 @@ impl LowerCtx {
                 })
                 .collect(),
             ts_extern_module: f.ts_extern_module.clone(),
+            generated_hash: None,
             span: f.span,
+            inference_model: f.inference_model.clone(),
+            training_step: f.training_step,
+            distributed_train: None,
         }
+    }
+
+    fn merge_mens_capabilities(
+        mut caps: Vec<crate::hir::HirCapability>,
+        inference: bool,
+        training_step: bool,
+    ) -> Vec<crate::hir::HirCapability> {
+        let mut push = |c: crate::hir::HirCapability| {
+            if !caps.contains(&c) {
+                caps.push(c);
+            }
+        };
+        if inference {
+            push(crate::hir::HirCapability::GpuCompute);
+            push(crate::hir::HirCapability::Random);
+            push(crate::hir::HirCapability::Net);
+        }
+        if training_step {
+            push(crate::hir::HirCapability::GpuCompute);
+            push(crate::hir::HirCapability::Random);
+            push(crate::hir::HirCapability::Mutate);
+        }
+        caps
     }
 
     pub(crate) fn lower_param(&mut self, p: &expr::Param) -> HirParam {
@@ -297,27 +469,7 @@ impl LowerCtx {
         }
     }
 
-    pub(crate) fn lower_route(&mut self, r: &HttpRouteDecl) -> HirRoute {
-        let method = match r.method {
-            HttpMethod::Get => HirHttpMethod::Get,
-            HttpMethod::Post => HirHttpMethod::Post,
-            HttpMethod::Put => HirHttpMethod::Put,
-            HttpMethod::Delete => HirHttpMethod::Delete,
-        };
-        let route_contract = format!("{} {}", method.as_str(), r.path);
-        self.def_map.push_scope();
-        let body = r.body.iter().map(|s| self.lower_stmt(s)).collect();
-        self.def_map.pop_scope();
 
-        HirRoute {
-            method,
-            path: r.path.clone(),
-            route_contract,
-            return_type: r.return_type.as_ref().map(|t| self.lower_type(t)),
-            body,
-            span: r.span,
-        }
-    }
 
     pub(crate) fn lower_url_decl(&mut self, u: &UrlDecl) -> HirUrlDecl {
         let id = self.def_map.define(u.name.clone());
@@ -354,6 +506,23 @@ impl LowerCtx {
         let params = w.params.iter().map(|p| self.lower_param(p)).collect();
         let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
         self.def_map.pop_scope();
+        let distributed_train = match (&w.distributed_train_strategy, &w.distributed_train_peers) {
+            (Some(s), Some(p)) => Some((s.clone(), (*p).min(u64::from(u32::MAX)) as u32)),
+            _ => None,
+        };
+        let mut capabilities = vec![];
+        if distributed_train.is_some() {
+            let mut push = |c: crate::hir::HirCapability| {
+                if !capabilities.contains(&c) {
+                    capabilities.push(c);
+                }
+            };
+            push(crate::hir::HirCapability::Spawn);
+            push(crate::hir::HirCapability::Net);
+            push(crate::hir::HirCapability::GpuCompute);
+            push(crate::hir::HirCapability::Random);
+            push(crate::hir::HirCapability::Mutate);
+        }
         HirFn {
             id,
             name: w.name.clone(),
@@ -366,16 +535,24 @@ impl LowerCtx {
             is_mobile_native: false,
             is_pure: false,
             is_reactive: false,
+            is_remote: false,
             is_llm: false,
             llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
             is_deprecated: w.is_deprecated,
             schedule_interval: None,
             durability: None, // overwritten by caller
             actor_state_fields: vec![],
-            capabilities: vec![],
+            capabilities,
             postconditions: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: w.span,
+            inference_model: None,
+            training_step: false,
+            distributed_train,
         }
     }
 
@@ -398,8 +575,12 @@ impl LowerCtx {
             is_mobile_native: false,
             is_pure: false,
             is_reactive: false,
+            is_remote: false,
             is_llm: false,
             llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
             is_deprecated: a.is_deprecated,
             schedule_interval: None,
             durability: None, // overwritten by caller
@@ -407,7 +588,11 @@ impl LowerCtx {
             capabilities: vec![],
             postconditions: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: a.span,
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
         }
     }
 
@@ -438,8 +623,12 @@ impl LowerCtx {
             is_mobile_native: false,
             is_pure: false,
             is_reactive: false,
+            is_remote: false,
             is_llm: false,
             llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
             is_deprecated: a.is_deprecated,
             schedule_interval: None,
             durability: None, // overwritten by caller
@@ -447,7 +636,11 @@ impl LowerCtx {
             capabilities: vec![],
             postconditions: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: a.span,
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
         }
     }
 
@@ -481,8 +674,12 @@ impl LowerCtx {
                     is_mobile_native: false,
                     is_pure: false,
                     is_reactive: false,
+                    is_remote: false,
                     is_llm: false,
                     llm_model: None,
+                    ai_structured_output: None,
+                    ai_fixture: None,
+                    embed: None,
                     is_deprecated: a.is_deprecated,
                     schedule_interval: None,
                     durability: None, // overwritten by caller (same as shell)
@@ -490,7 +687,11 @@ impl LowerCtx {
                     capabilities: vec![],
                     postconditions: vec![],
                     ts_extern_module: None,
+                    generated_hash: None,
                     span: h.span,
+                    inference_model: None,
+                    training_step: false,
+                    distributed_train: None,
                 }
             })
             .collect()

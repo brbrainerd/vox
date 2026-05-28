@@ -1,0 +1,9 @@
+// Bug: match on bool only covers `true` — missing the `false` arm.
+// Vox requires exhaustive matches; a match on bool must cover both
+// `true` and `false` (or use a wildcard).
+fn describe_flag(enabled: bool) to str {
+    match enabled {
+        true => "feature is on"
+        // BUG: no `false` arm — non-exhaustive match
+    }
+}

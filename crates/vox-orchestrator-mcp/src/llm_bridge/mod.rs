@@ -25,7 +25,7 @@ pub use model_route_policy::{
 /// Clamp requested max output tokens for HTTP chat APIs (OpenRouter / Gemini caps).
 #[must_use]
 pub fn clamp_http_max_output_tokens(n: u64) -> u64 {
-    n.max(1).min(limits::HTTP_MAX_OUTPUT_TOKENS_CAP)
+    n.clamp(1, limits::HTTP_MAX_OUTPUT_TOKENS_CAP)
 }
 
 /// Result from the VoxLocal inference server.

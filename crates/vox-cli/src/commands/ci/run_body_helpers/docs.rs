@@ -514,6 +514,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     command_compliance::run(root)?;
     crate::commands::ci::capability_sync::run(root, false)?;
     contracts_index::run(root)?;
+    crate::commands::ci::docs_reality_audit::run_verify(root)?;
     exec_policy_contract::run(root)?;
     completion_quality::run_audit_verify_ssot(root)?;
     scientia_worthiness_contract::run(root)?;

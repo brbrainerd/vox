@@ -1,7 +1,7 @@
 ---
 title: "Dashboard Migration Research 2026"
 description: "Architectural decisions for standalone dashboard"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 ---
 # Vox Dashboard Migration Research (April 2026)
@@ -34,7 +34,7 @@ The frontend is a Vite 6 SPA (React 19). During the Rust build process, the `dis
 
 ## Component reuse
 
-All 13 core React components from `vox-vscode/webview-ui/src/components/` were ported verbatim. The primary modifications involved:
+All 13 core React components from `apps/editor/vox-vscode/webview-ui/src/components/` were ported verbatim. The primary modifications involved:
 1. Swapping `vscode.postMessage` for `voxTransport.callTool`.
 2. Stripping `var(--vscode-*)` CSS tokens in favor of neutral `index.css` design system classes (e.g., `text-foreground`, `bg-background`, `border-border`).
 

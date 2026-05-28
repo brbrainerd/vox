@@ -21,10 +21,6 @@ const RATE_LIMITED_SCORE_FLOOR: f64 = -10_000.0;
 const EMPTY_BUDGET_AVAILABILITY_SCORE: f64 = 0.35;
 const BUDGET_LOG10_DIVISOR: f64 = 3.0;
 const BUDGET_AVAILABILITY_MIN: f64 = 0.4;
-/// p50 threshold (ms) below which we consider a model latency-excellent.
-const LATENCY_EXCELLENT_MS: f64 = 500.0;
-/// p50 threshold (ms) above which latency score is fully penalized.
-const LATENCY_POOR_MS: f64 = 8_000.0;
 /// Fallback RPM floor for throughput score when provider limits are unknown.
 const THROUGHPUT_FALLBACK_RPM: f64 = 20.0;
 /// Reference RPM for normalizing throughput (full score at this RPM or above).
@@ -51,7 +47,7 @@ pub fn is_deepseek_off_peak() -> bool {
         .unwrap_or_default()
         .as_secs()
         % 86_400;
-    sod >= START_SECS || sod < END_SECS
+    !(END_SECS..START_SECS).contains(&sod)
 }
 
 #[must_use]
@@ -111,13 +107,17 @@ pub(super) fn latency_score(m: &ModelSpec) -> f64 {
 
     if let Some(p50_ms) = m.capabilities.latency_p50_ms {
         let ms = p50_ms as f64;
-        if ms <= LATENCY_EXCELLENT_MS {
+        let cfg = vox_config::load_model_routing_config();
+        let excellent = cfg.latency_bands.excellent_ms;
+        let poor = cfg.latency_bands.poor_ms;
+        
+        if ms <= excellent {
             return 1.0;
         }
-        if ms >= LATENCY_POOR_MS {
+        if ms >= poor {
             return 0.0;
         }
-        return 1.0 - (ms - LATENCY_EXCELLENT_MS) / (LATENCY_POOR_MS - LATENCY_EXCELLENT_MS);
+        return 1.0 - (ms - excellent) / (poor - excellent);
     }
 
     match m.provider_type {
@@ -286,7 +286,7 @@ pub fn auto_score_model(
 
     // Off-peak pricing bonus: DeepSeek cuts prices 50–75% UTC 16:30–00:30.
     // A small additive bonus tips routing toward DeepSeek when competing models score similarly.
-    let off_peak_bonus = if matches!(m.provider_type, crate::models::ProviderType::DeepSeek)
+    let off_peak_bonus = if m.id.to_ascii_lowercase().contains("deepseek")
         && is_deepseek_off_peak()
     {
         if m.id.to_ascii_lowercase().contains("r1") {

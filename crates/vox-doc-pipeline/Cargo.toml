@@ -1,6 +1,6 @@
 [package]
 name = "vox-doc-pipeline"
-description = "Doc generator: regenerates SUMMARY.md, architecture-index.md, feed.xml from frontmatter."
+description = "Documentation linter + corpus export for docs/src (Starlight owns sidebar/RSS generation)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,6 +16,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+chrono = { workspace = true }
 vox-bounded-fs = { workspace = true }
 workspace-hack = { workspace = true }
 vox-compiler = { workspace = true }

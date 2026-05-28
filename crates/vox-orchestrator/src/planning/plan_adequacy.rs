@@ -6,7 +6,7 @@
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 
-/// Minimal task shape for analysis (MCP [`PlanTask`] maps 1:1).
+/// Minimal task shape for analysis (MCP `PlanTask` maps 1:1).
 #[derive(Debug, Clone, Serialize)]
 pub struct PlanAdequacyTask {
     /// Monotonic task index (1-based for MCP).

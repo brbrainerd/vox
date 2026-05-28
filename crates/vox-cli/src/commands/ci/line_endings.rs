@@ -107,7 +107,8 @@ fn violates_lf_only(bytes: &[u8]) -> bool {
 }
 
 fn git_output(repo_root: &Path, args: &[&str]) -> Result<Vec<u8>> {
-    let out = Command::new("git")
+    let out = // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(repo_root)
         .args(args)
         .output()

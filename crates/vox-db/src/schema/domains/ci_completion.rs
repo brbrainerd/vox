@@ -1,6 +1,6 @@
 //! Arca SQL: CI completion audit telemetry (runs, findings, detector rollups, suppressions).
 //!
-//! Column sensitivity: **S2** on repo-identifying and path-bearing fields — see module rustdoc on [`crate::store::ops_completion`].
+//! Column sensitivity: **S2** on repo-identifying and path-bearing fields — see module rustdoc on `crate::store::ops_completion`.
 
 pub const SCHEMA_CI_COMPLETION: &str = "
 CREATE TABLE IF NOT EXISTS ci_completion_run (

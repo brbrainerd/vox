@@ -95,7 +95,7 @@ impl BehavioralGate {
         // skip only while this crate is built for its own `cargo test` (`cfg(test)` on the lib).
         #[cfg(test)]
         {
-            return GateResult::Allowed;
+            GateResult::Allowed
         }
 
         #[cfg(not(test))]
@@ -284,7 +284,7 @@ impl<'a> BudgetGate<'a> {
     ) {
         self.budget_manager
             .record_usage(agent_id, (tokens_in + tokens_out) as usize);
-        self.budget_manager.record_cost(agent_id, cost_usd);
+        self.budget_manager.record_cost(agent_id, cost_usd, None);
         let _ = self
             .usage_tracker
             .record_call_detailed(
@@ -375,9 +375,9 @@ impl<'a> Gate for BudgetGate<'a> {
         // Record in memory (budget manager)
         self.budget_manager
             .record_usage(agent_id, (tokens_in + tokens_out) as usize);
-        self.budget_manager.record_cost(agent_id, cost_usd);
+        self.budget_manager.record_cost(agent_id, cost_usd, None);
 
-        // Record in DB (usage tracker) using the same keys as [`LIMITS`].
+        // Record in DB (usage tracker) using the same keys as `LIMITS`.
         let _ = self
             .usage_tracker
             .record_call_detailed(
@@ -406,8 +406,10 @@ mod budget_gate_tests {
 
     #[test]
     fn check_attention_snapshot_blocks_when_enabled_and_exhausted() {
-        let mut cfg = OrchestratorConfig::default();
-        cfg.attention_enabled = true;
+        let cfg = OrchestratorConfig {
+            attention_enabled: true,
+            ..OrchestratorConfig::default()
+        };
         let mgr = BudgetManager::new(None);
         mgr.init_attention(500);
         mgr.add_questioning_attention_debit_ms(500);
@@ -459,8 +461,10 @@ mod budget_gate_tests {
 
     #[test]
     fn check_attention_snapshot_allows_when_disabled_even_if_spent_high() {
-        let mut cfg = OrchestratorConfig::default();
-        cfg.attention_enabled = false;
+        let cfg = OrchestratorConfig {
+            attention_enabled: false,
+            ..OrchestratorConfig::default()
+        };
         let mgr = BudgetManager::new(None);
         mgr.init_attention(100);
         mgr.add_questioning_attention_debit_ms(500);

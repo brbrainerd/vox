@@ -26,7 +26,7 @@ pub async fn publication_decision_explain(
             title: manifest.title.clone(),
             abstract_text: manifest.abstract_text.clone(),
         };
-        let client = vox_reqwest_defaults::client();
+        let client = vox_http_client::client();
         let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
             &client,
             &candidate_id,
@@ -124,7 +124,7 @@ pub async fn publication_novelty_happy_path(publication_id: &str, offline: bool)
         title: row.title.clone(),
         abstract_text: row.abstract_text.clone(),
     };
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let bundle = vox_publisher::scientia_prior_art::fetch_prior_art_federated(
         &client,
         &candidate_id,

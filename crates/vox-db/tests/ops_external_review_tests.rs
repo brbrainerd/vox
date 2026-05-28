@@ -97,6 +97,25 @@ async fn external_review_upsert_and_state_roundtrip() {
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].fingerprint, "fp-42-1");
     assert_eq!(findings[0].status, "confirmed_true");
+
+    assert_eq!(
+        db.count_external_review_runs_for_repository("vox-foundation/vox")
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        db.count_external_review_findings_for_repository("vox-foundation/vox")
+            .await
+            .unwrap(),
+        1
+    );
+    assert_eq!(
+        db.count_external_review_deadletters_pending_for_repository("vox-foundation/vox")
+            .await
+            .unwrap(),
+        0
+    );
 }
 
 #[tokio::test]
@@ -131,4 +150,10 @@ async fn external_review_deadletter_retry_flow() {
         .await
         .expect("list after");
     assert_eq!(rows2[0].retry_state, "retried");
+    assert_eq!(
+        db.count_external_review_deadletters_pending_for_repository("vox-foundation/vox")
+            .await
+            .unwrap(),
+        0
+    );
 }

@@ -212,6 +212,7 @@ pub struct BudgetManager {
     pub(crate) global_financial_cost_micros: Arc<std::sync::atomic::AtomicI64>,
     pub(crate) execution_time_budget_multiplier: Arc<std::sync::atomic::AtomicU64>,
     pub(crate) local_inference_tokens: Arc<std::sync::atomic::AtomicU64>,
+    pub(crate) global_exploration_cost_micros: Arc<std::sync::atomic::AtomicI64>,
     pub(crate) drift: Arc<std::sync::RwLock<HashMap<AgentId, DriftState>>>,
     pub(crate) drift_cost_threshold_usd: Arc<std::sync::atomic::AtomicU64>,
     pub(crate) cost_progress: Arc<std::sync::RwLock<HashMap<AgentId, CostProgressState>>>,
@@ -234,6 +235,7 @@ impl BudgetManager {
                 1.5f64.to_bits(),
             )),
             local_inference_tokens: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            global_exploration_cost_micros: Arc::new(std::sync::atomic::AtomicI64::new(0)),
             db: Arc::new(std::sync::RwLock::new(db)),
             drift: Arc::new(std::sync::RwLock::new(HashMap::new())),
             drift_cost_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(0.5f64.to_bits())),
@@ -302,6 +304,10 @@ impl BudgetManager {
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    pub fn global_exploration_cost_usd(&self) -> f64 {
+        (self.global_exploration_cost_micros.load(std::sync::atomic::Ordering::Relaxed) as f64) / 1_000_000.0
+    }
+
     pub fn record_local_inference_tokens(&self, tokens: u64) {
         self.local_inference_tokens
             .fetch_add(tokens, std::sync::atomic::Ordering::Relaxed);
@@ -328,7 +334,7 @@ impl BudgetManager {
         }
     }
 
-    pub fn record_cost(&self, agent_id: AgentId, cost_usd: f64) {
+    pub fn record_cost(&self, agent_id: AgentId, cost_usd: f64, pricing_source: Option<crate::models::spec::PricingSource>) {
         let mut map = sync_lock::rw_write(&*self.inner);
         if let Some(budget) = map.get_mut(&agent_id) {
             budget.cost_usd += cost_usd;
@@ -340,6 +346,12 @@ impl BudgetManager {
         let inc_micros = (cost_usd * 1_000_000.0).round() as i64;
         self.global_financial_cost_micros
             .fetch_add(inc_micros, std::sync::atomic::Ordering::Relaxed);
+
+        if let Some(crate::models::spec::PricingSource::Unknown) = pricing_source {
+            self.global_exploration_cost_micros
+                .fetch_add(inc_micros, std::sync::atomic::Ordering::Relaxed);
+            self.record_novel_routing_explore(agent_id);
+        }
 
         // Update drift cost tracking
         let mut drift_map = sync_lock::rw_write(&*self.drift);
@@ -400,12 +412,7 @@ impl BudgetManager {
                     usage_ratio: ratio,
                     tokens_remaining: 0,
                 }
-            } else if b.token_alert() {
-                BudgetSignal::HighLoad {
-                    usage_ratio: ratio,
-                    tokens_remaining: b.tokens_available(),
-                }
-            } else if b.cost_alert() {
+            } else if b.token_alert() || b.cost_alert() {
                 BudgetSignal::HighLoad {
                     usage_ratio: ratio,
                     tokens_remaining: b.tokens_available(),

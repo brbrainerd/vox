@@ -10,7 +10,7 @@ async fn test_infinite_loop_actor_yields_to_scheduler() {
     // 1. Establish an adjacent "control" task. If starvation occurs, this task will never complete.
     let (tx, rx) = tokio::sync::oneshot::channel();
 
-    let control_task = tokio::spawn(async move {
+    let _control_task = tokio::spawn(async move {
         // Pretend this is our healthy system scheduler doing normal requests
         tokio::time::sleep(Duration::from_millis(50)).await;
         let _ = tx.send("Healthy interleave!".to_string());
@@ -20,7 +20,7 @@ async fn test_infinite_loop_actor_yields_to_scheduler() {
     // In actual production, this block is the generated Rust emitted from:
     // `crates/vox-compiler/src/codegen_rust/emit/stmt_expr.rs` for `HirStmt::Loop`
     let actor_task = tokio::spawn(async move {
-        let (mailbox_tx, mailbox_rx) = vox_actor_runtime::mailbox::new_mailbox(10);
+        let (_mailbox_tx, mailbox_rx) = vox_actor_runtime::mailbox::new_mailbox(10);
         let mut ctx = vox_actor_runtime::process::ProcessContext::new(
             vox_actor_runtime::pid::Pid::new(),
             mailbox_rx,

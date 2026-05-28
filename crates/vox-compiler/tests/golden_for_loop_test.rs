@@ -33,7 +33,7 @@ fn read_fixture(name: &str) -> String {
 // ── for r in rows { … } — synthetic _i ────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_minimal_body_compiles() {
     let src = read_fixture("for_minimal_body.vox");
     let files = compile_components(&src);
@@ -50,7 +50,7 @@ fn for_loop_minimal_body_compiles() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_no_index_emits_underscore_i() {
     let src = read_fixture("for_no_index.vox");
     let files = compile_components(&src);
@@ -69,7 +69,7 @@ fn for_loop_no_index_emits_underscore_i() {
 // ── for x, i in arr { … } — explicit index ────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_emits_array_map_with_explicit_index() {
     let src = read_fixture("runs_table.vox");
     let files = compile_components(&src);
@@ -90,7 +90,7 @@ fn for_loop_emits_array_map_with_explicit_index() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn for_loop_nested_emits_nested_maps() {
     let src = read_fixture("for_nested.vox");
     let files = compile_components(&src);

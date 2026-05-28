@@ -1,7 +1,7 @@
 ---
 title: "Crate Classification Audit (2026-05-08)"
 description: "Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "deprecated"
 superseded_by:
   - "2026-05-08-workspace-reorg-outcome.md"
@@ -52,13 +52,13 @@ This audit classifies every crate in `crates/` against five labels:
 | vox-plugin-api | SHARED | 14 | plugin ABI surface; MUST stay |
 | vox-plugin-catalog | CORE | 2 | SSOT plugin catalog |
 | vox-plugin-host | CORE | 4 | plugin loader/discovery |
-| vox-pm | CORE | 2 | project management |
+| vox-package | CORE | 2 | project management |
 | vox-populi | CORE | 3 | ML inference/training dispatch |
 | vox-primitives | CORE | 4 | shared primitive types |
 | vox-protocol | CORE | 3 | A2A protocol |
 | vox-reqwest-defaults | CORE | 6 | HTTP client defaults |
 | vox-repository | CORE | 2 | repo abstraction |
-| vox-runtime | CORE | 2 | runtime helpers |
+| vox-actor-runtime | CORE | 2 | runtime helpers |
 | vox-scaling-policy | CORE | 2 | scaling decisions |
 | vox-ssg | CORE (direct dep) | 1 (vox-cli) | static site gen; see MISPLACED note |
 | vox-checksum-manifest | CORE | 1 | checksums |
@@ -73,7 +73,7 @@ This audit classifies every crate in `crates/` against five labels:
 | vox-scientia-core | DEAD | 0 | no consumers in workspace |
 | vox-scientia-social | DEAD | 0 | no consumers in workspace |
 | vox-scientia-ingest | DEAD | 0 | no consumers; ingestion pipeline unused |
-| vox-search | DEAD | 0 | search surface; no consumer |
+| vox-search | CORE | many | agent retrieval execution (`execute_search_plan`, MCP); see [search-retrieval-ssot-2026.md](search-retrieval-ssot-2026.md) |
 | vox-socrates-policy | DEAD | 0 | policy engine; no consumer |
 | vox-spool | DEAD | 0 | spool subsystem; no consumer |
 | vox-tools | DEAD | 0 | tools crate; re-exported via oratio (orphaned) |
@@ -85,19 +85,19 @@ This audit classifies every crate in `crates/` against five labels:
 | vox-integration-tests | DEAD | 0 | test crate with no callers; uses vox-lsp |
 | vox-test-harness | DEAD | 0 | test harness; no consumers |
 | vox-lsp | CORE (optional) | 1 (orchestrator behind feature) | behind `toestub-gate` feature |
-| vox-ars | CORE (optional) | 2 (orchestrator + runtime, mandatory) | ARS migration facade; used at runtime |
+| vox-openclaw-runtime | CORE (optional) | 2 (orchestrator + runtime, mandatory) | OpenClaw / ARS runtime facade; used at runtime |
 | vox-audio-ingress | MISPLACED | 1 (self-referential via vox-oratio dep) | brings in vox-oratio; should be PLUGIN |
 | vox-browser | DEAD | 0 | browser abstraction; no consumer; MISPLACED into vox-plugin-browser |
 | vox-forge | CORE (optional) | 1 (vox-cli behind `coderabbit` feature) | GitHub/GitLab integration |
 | vox-git | CORE (optional) | 1 (vox-cli behind `coderabbit` feature) | git integration |
-| vox-ludus | CORE (optional) | 0 direct / 1 optional | gamification; optional in vox-cli |
-| vox-toestub | CORE (optional) | 1 optional | completion guard; optional |
+| vox-gamify | CORE (optional) | 0 direct / 1 optional | gamification; optional in vox-cli |
+| vox-code-audit | CORE (optional) | 1 optional | completion guard; optional |
 | vox-doc-pipeline | CORE | 1 | doc pipeline runner |
 | vox-dashboard | CORE (optional) | 1 (vox-cli behind `dashboard` feature) | VS Code extension dashboard |
 | vox-skills | CORE (optional) | 1 (vox-cli behind `ars` feature) | skill registry ARS shim |
 | vox-oratio | MISPLACED | 2 optional | Candle Whisper; should be fully in vox-plugin-oratio |
 | vox-tensor | SHARED | 4 (all optional or plugin) | GPU tensor; needed by plugins; see note |
-| vox-mens | CORE | 1 (vox-cli) | `vox mens` subcommand |
+| vox-ml-cli | CORE | 1 (vox-cli) | `vox mens` subcommand |
 | vox-populi | CORE | 3 | populi inference; hosts burn/candle gated code |
 | — | — | — | — |
 | **PLUGIN crates** | | | |
@@ -125,11 +125,10 @@ The following crates have zero consumers in `Cargo.toml` files across the worksp
 |---|---|
 | `vox-exec-grammar` | No Cargo.toml consumer found |
 | `vox-grammar-export` | No Cargo.toml consumer found |
-| `vox-schola` | Inline serde types in `vox-mens/merge_qlora.rs` replaced it; plugin owns merge |
+| `vox-schola` | Inline serde types in `vox-ml-cli/merge_qlora.rs` replaced it; plugin owns merge |
 | `vox-scientia-core` | No consumers; social/ingestion pipeline not wired |
 | `vox-scientia-social` | No consumers |
 | `vox-scientia-ingest` | No consumers |
-| `vox-search` | No consumers |
 | `vox-socrates-policy` | No consumers |
 | `vox-spool` | No consumers |
 | `vox-webhook` | No consumers |
@@ -149,7 +148,7 @@ The following crates have zero consumers in `Cargo.toml` files across the worksp
 
 | Crate | Current State | Recommended Action |
 |---|---|---|
-| `vox-oratio` | Used optionally in vox-mens and vox-orchestrator; pulls in heavy Candle deps | Finish extraction to `vox-plugin-oratio`; all remaining uses should go through the plugin dispatch boundary |
+| `vox-oratio` | Used optionally in vox-ml-cli and vox-orchestrator; pulls in heavy Candle deps | Finish extraction to `vox-plugin-oratio`; all remaining uses should go through the plugin dispatch boundary |
 | `vox-audio-ingress` | Only consumer is itself (via `vox-oratio` dep); orphaned | Delete or fold into vox-plugin-oratio-mic |
 | `vox-ssg` | In vox-cli directly; SSG is a publishing concern, not core CLI | Consider extracting SSG commands to a skill plugin; low urgency |
 

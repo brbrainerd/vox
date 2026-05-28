@@ -1,0 +1,156 @@
+// vox:caps fs subprocess env net
+//
+// Bring up all three marquee slots for CR-P1 local-dev measurement.
+//
+// Each slot is a different deployment archetype — slot 1 is a static
+// SPA served by nginx-in-docker; slots 2 and 3 are server-only Rust
+// binaries. Rather than let the runbook for each diverge (the
+// "split-brain" risk), this script is the single canonical bring-up
+// surface for local CR-P1 runs.
+//
+// Usage:
+//   vox run scripts/start-marquee.vox            # build + spawn slot 2 + slot 3
+//   vox run scripts/start-marquee.vox check      # report status (via cr-p1)
+//
+// CR-P1 evidence:
+//   After this script reports "ok", run:
+//     ./target/release/cr-p1
+//   to refresh contracts/reports/perf/cr-p1/<UTC>.json.
+//
+// Default ports per contracts/marquee/manifest.v1.yaml + cr-p1.rs:
+//   - marquee-app           → 8080  (slot 1, dashboard, nginx via docker)
+//   - marquee-todo-auth     → 8081  (slot 2, single-tenant SaaS, native binary)
+//   - marquee-chat          → 8082  (slot 3, realtime, native binary)
+//
+// Slot 1 stays on its own runbook (docker), because it has no Rust
+// backend at runtime — it's a nginx-served static SPA:
+//   cd apps/interop/marquee_app && docker build -t marquee-slot1 .
+//   docker run -d -p 8080:80 marquee-slot1
+//
+// References:
+//   - contracts/marquee/manifest.v1.yaml — canonical slot list
+//   - crates/vox-audit/src/bin/cr-p1.rs — probe + threshold
+//   - AGENTS.md §VoxScript-First Glue Code — why this is a .vox file
+
+fn vox_build(entry: str, out_dir: str) to bool {
+    print("  vox build " + entry + " -o " + out_dir);
+    let result = std.process.run("vox", ["build", entry, "-o", out_dir]);
+    match result {
+        Ok(code) => return code is 0,
+        Error(m) => {
+            print("  ERROR: vox build failed: " + m);
+            return false;
+        }
+    }
+}
+
+fn cargo_build_generated() to bool {
+    print("  cargo build --release --manifest-path target/generated/Cargo.toml");
+    let result = std.process.run("cargo", ["build", "--release", "--manifest-path", "target/generated/Cargo.toml"]);
+    match result {
+        Ok(code) => return code is 0,
+        Error(m) => {
+            print("  ERROR: cargo build failed: " + m);
+            return false;
+        }
+    }
+}
+
+fn stash_binary(suffix: str) to bool {
+    let src = "target/generated/target/release/vox_generated_app.exe";
+    let dst = "target/marquee-" + suffix + ".exe";
+    print("  copy " + src + " -> " + dst);
+    let result = std.process.run("cp", [src, dst]);
+    match result {
+        Ok(code) => return code is 0,
+        Error(_) => return false
+    }
+}
+
+fn spawn_server(suffix: str) to bool {
+    let bin = "target/marquee-" + suffix + ".exe";
+    print("  spawn " + bin + " (reads VOX_PORT from inherited env)");
+    let result = std.process.spawn_background(bin, []);
+    match result {
+        Ok(_pid) => return true,
+        Error(m) => {
+            print("  ERROR: spawn failed: " + m);
+            return false;
+        }
+    }
+}
+
+fn build_and_run_native(entry: str, out_dir: str, suffix: str) to bool {
+    if not vox_build(entry, out_dir) {
+        return false;
+    }
+    if not cargo_build_generated() {
+        return false;
+    }
+    if not stash_binary(suffix) {
+        return false;
+    }
+    return spawn_server(suffix);
+}
+
+fn check_via_probe() to Unit {
+    print("running cr-p1 probe...");
+    let result = std.process.run("./target/release/cr-p1.exe", []);
+    match result {
+        Ok(_) => print("(see cr-p1 output above)"),
+        Error(m) => print("ERROR: cr-p1 probe failed: " + m)
+    }
+}
+
+fn main() to Unit {
+    let argv = std.args;
+    let mode_opt = if len(argv) > 1 { Some(argv[1]) } else { None };
+
+    match mode_opt {
+        Some("check") => {
+            check_via_probe();
+            return;
+        }
+        _ => {}
+    }
+
+    print("== marquee bring-up (local dev) ==");
+    print("");
+    print("slot 1 (marquee-app / :8080) uses docker — not handled here.");
+    print("  cd apps/interop/marquee_app && docker build -t marquee-slot1 .");
+    print("  docker run -d -p 8080:80 marquee-slot1");
+    print("");
+    print("This script handles slot 2 + slot 3 (native binaries).");
+    print("Set VOX_PORT before invoking each, e.g.:");
+    print("  VOX_PORT=8081 target/marquee-slot2.exe");
+    print("  VOX_PORT=8082 target/marquee-slot3.exe");
+    print("");
+    print("Building slot 2 (todo-auth)...");
+
+    let ok2 = build_and_run_native(
+        "apps/marquee/todo-auth/src/main.vox",
+        "apps/marquee/todo-auth/dist",
+        "slot2"
+    );
+
+    print("");
+    print("Building slot 3 (chat)...");
+
+    let ok3 = build_and_run_native(
+        "apps/marquee/chat/src/main.vox",
+        "apps/marquee/chat/dist",
+        "slot3"
+    );
+
+    print("");
+    if ok2 {
+        if ok3 {
+            print("slot 2 + slot 3 build-and-spawn: ok");
+            print("");
+            print("Next: refresh CR-P1 evidence with");
+            print("  ./target/release/cr-p1");
+            return;
+        }
+    }
+    print("slot 2 + slot 3 bring-up: FAILED — see errors above");
+}

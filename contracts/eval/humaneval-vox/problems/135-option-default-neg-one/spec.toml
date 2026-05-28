@@ -1,0 +1,8 @@
+id = "humaneval-vox-135-option-default-neg-one"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `option_default_neg_one(o: Option[int]) to int` returning the inner value or -1 on None.
+"""

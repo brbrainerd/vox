@@ -1,0 +1,13 @@
+[problem]
+id = "075"
+title = "sum_even_squares"
+prompt = """
+Return the sum of squares of all even numbers from 2 up to n (inclusive).
+For example: sum_even_squares(6) = 2^2 + 4^2 + 6^2 = 4 + 16 + 36 = 56.
+If n < 2, return 0.
+"""
+signature = "fn sum_even_squares(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

@@ -1,19 +1,15 @@
 use anyhow::{Context, Result, anyhow};
 use clap::ValueEnum;
-use flate2::Compression;
-use flate2::write::GzEncoder;
-use sha2::{Digest, Sha256};
 use std::fs;
-use std::fs::File;
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use tar::Builder;
-use zip::CompressionMethod;
-use zip::write::SimpleFileOptions;
+use crate::utils::release_artifacts::{
+    artifact_filename as release_artifact_filename, checksum_line, is_windows_target,
+    package_tar_gz, package_zip, sha256_file,
+};
 
 /// Supported release triples (SSOT: `vox-install-policy`; keep workflow/docs aligned via `vox ci command-compliance`).
-pub use vox_install_policy::SUPPORTED_RELEASE_TARGETS;
+pub use crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum ReleasePackage {
@@ -140,10 +136,6 @@ fn resolve_out_dir(repo_root: &Path, out_dir: &Path) -> PathBuf {
     }
 }
 
-fn is_windows_target(target: &str) -> bool {
-    target.contains("windows")
-}
-
 fn executable_name(target: &str) -> &'static str {
     if is_windows_target(target) {
         "vox.exe"
@@ -170,18 +162,6 @@ fn plugin_executable_name(target: &str, plugin: &str) -> String {
     } else {
         plugin.to_string()
     }
-}
-
-fn artifact_extension(target: &str) -> &'static str {
-    if is_windows_target(target) {
-        "zip"
-    } else {
-        "tar.gz"
-    }
-}
-
-fn artifact_filename(name: &str, version: &str, target: &str) -> String {
-    format!("{name}-{version}-{target}.{}", artifact_extension(target))
 }
 
 fn build_and_package_binary(
@@ -224,7 +204,7 @@ fn build_and_package_binary(
         ));
     }
 
-    let artifact_name = artifact_filename(archive_name, artifact_version, target);
+    let artifact_name = release_artifact_filename(archive_name, artifact_version, target);
     let artifact_path = out_dir_abs.join(&artifact_name);
     if is_windows_target(target) {
         package_zip(&built_binary, &artifact_path, built_bin_name)?;
@@ -235,63 +215,14 @@ fn build_and_package_binary(
     Ok(artifact_name)
 }
 
-/// Deterministic archive layout for CI: a single member at the archive root named `vox` or `vox.exe`.
-fn package_tar_gz(binary_path: &Path, artifact_path: &Path, archive_name: &str) -> Result<()> {
-    let artifact = File::create(artifact_path)
-        .with_context(|| format!("create archive {}", artifact_path.display()))?;
-    let encoder = GzEncoder::new(artifact, Compression::default());
-    let mut tar = Builder::new(encoder);
-    tar.append_path_with_name(binary_path, archive_name)
-        .with_context(|| format!("add {} to tar", binary_path.display()))?;
-    tar.finish().context("finish tar archive")?;
-    Ok(())
-}
-
-fn package_zip(binary_path: &Path, artifact_path: &Path, archive_name: &str) -> Result<()> {
-    let artifact = File::create(artifact_path)
-        .with_context(|| format!("create archive {}", artifact_path.display()))?;
-    let mut zip = zip::ZipWriter::new(artifact);
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-    zip.start_file(archive_name, options)
-        .context("start zip file entry")?;
-
-    let mut src = File::open(binary_path)
-        .with_context(|| format!("open binary for zipping {}", binary_path.display()))?;
-    let mut buf = Vec::new();
-    src.read_to_end(&mut buf)
-        .with_context(|| format!("read binary {}", binary_path.display()))?;
-    zip.write_all(&buf).context("write binary bytes to zip")?;
-    zip.finish().context("finish zip archive")?;
-    Ok(())
-}
-
-fn sha256_file(path: &Path) -> Result<String> {
-    let mut file = File::open(path).with_context(|| format!("open {}", path.display()))?;
-    let mut hasher = Sha256::new();
-    let mut buf = [0_u8; 8192];
-    loop {
-        let n = file
-            .read(&mut buf)
-            .with_context(|| format!("read {}", path.display()))?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buf[..n]);
-    }
-    Ok(format!("{:x}", hasher.finalize()))
-}
-
-fn checksum_line(sha256_hex: &str, filename: &str) -> String {
-    format!("{sha256_hex}  {filename}\n")
-}
-
 #[cfg(test)]
 mod tests {
     use vox_bounded_fs::read_utf8_path_capped;
+    use crate::utils::release_artifacts::artifact_filename;
 
     use super::{
-        artifact_filename, bootstrap_executable_name, checksum_line, executable_name,
-        plugin_executable_name, validate_release_target,
+        bootstrap_executable_name, checksum_line, executable_name, plugin_executable_name,
+        validate_release_target,
     };
 
     #[test]
@@ -377,7 +308,7 @@ mod tests {
 
     /// `scripts/install.*` must name every triple users can download; keep aligned with CI matrix.
     #[test]
-    #[ignore]
+    #[ignore = "opt-in release-target install script audit; owner: ci sunset: 2026-12-31"]
     fn install_scripts_cover_release_targets() {
         use std::path::PathBuf;
 
@@ -427,7 +358,7 @@ mod tests {
         assert_eq!(
             from_workflow,
             from_ssot,
-            "release-binaries.yml matrix targets must match `vox_install_policy::SUPPORTED_RELEASE_TARGETS` (workflow files: {})",
+            "release-binaries.yml matrix targets must match `crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS` (workflow files: {})",
             wf.display()
         );
     }

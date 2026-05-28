@@ -81,8 +81,3 @@ impl SpeechLexicon {
         out
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-}

@@ -1,4 +1,4 @@
-//! Walk [`HirExpr`] trees to find every [`HirExpr::DbTableOp`] site (shared by runtime projection).
+//! Walk [`HirExpr`] trees to find every `HirExpr::DbTableOp` site (shared by runtime projection).
 
 use crate::hir::{
     HirArg, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule, HirReactiveMember, HirStmt,
@@ -33,9 +33,7 @@ pub fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut(&HirEx
     for fd in &module.tests {
         walk_stmts(&fd.body, f);
     }
-    for r in &module.routes {
-        walk_stmts(&r.body, f);
-    }
+
     for sf in &module.endpoint_fns {
         walk_stmts(&sf.body, f);
     }
@@ -84,9 +82,7 @@ pub fn for_each_hir_expr_in_module_mut(module: &mut HirModule, f: &mut impl FnMu
     for fd in &mut module.tests {
         walk_stmts_mut(&mut fd.body, f);
     }
-    for r in &mut module.routes {
-        walk_stmts_mut(&mut r.body, f);
-    }
+
     for sf in &mut module.endpoint_fns {
         walk_stmts_mut(&mut sf.body, f);
     }
@@ -214,12 +210,27 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
             walk_expr(obj.as_ref(), f);
             walk_expr(idx.as_ref(), f);
         }
+        HirExpr::AsyncView(v) => {
+            if let Some(arm) = &v.fetching_arm {
+                walk_expr(arm, f);
+            }
+            if let Some(arm) = &v.empty_arm {
+                walk_expr(arm, f);
+            }
+            if let Some(arm) = &v.error_arm {
+                walk_expr(arm, f);
+            }
+            if let Some(arm) = &v.ok_arm {
+                walk_expr(arm, f);
+            }
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::StringLit(..)
         | HirExpr::BoolLit(..)
         | HirExpr::Ident(..)
-        | HirExpr::DecimalLit(..) => {}
+        | HirExpr::DecimalLit(..)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 
@@ -336,12 +347,27 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
             walk_expr_mut(obj.as_mut(), f);
             walk_expr_mut(idx.as_mut(), f);
         }
+        HirExpr::AsyncView(v) => {
+            if let Some(arm) = &mut v.fetching_arm {
+                walk_expr_mut(arm, f);
+            }
+            if let Some(arm) = &mut v.empty_arm {
+                walk_expr_mut(arm, f);
+            }
+            if let Some(arm) = &mut v.error_arm {
+                walk_expr_mut(arm, f);
+            }
+            if let Some(arm) = &mut v.ok_arm {
+                walk_expr_mut(arm, f);
+            }
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::StringLit(..)
         | HirExpr::BoolLit(..)
         | HirExpr::Ident(..)
-        | HirExpr::DecimalLit(..) => {}
+        | HirExpr::DecimalLit(..)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 

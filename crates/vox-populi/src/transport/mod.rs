@@ -1,4 +1,5 @@
 //! Minimal HTTP control plane for populi join / list / heartbeat / leave (loopback-first).
+#![allow(missing_docs)]
 //!
 //! When **any** mesh-class secret resolves via Clavis (`VOX_MESH_TOKEN` and/or worker/submitter/admin
 //! role tokens, or optional **`VOX_MESH_JWT_HMAC_SECRET`** for HS256 JWTs), all routes except
@@ -14,13 +15,15 @@
 //! **`VOX_MESH_HTTP_RATE_LIMIT_PER_SEC`** / **`VOX_MESH_HTTP_RATE_LIMIT_BURST`**.
 
 mod auth;
+pub mod auth_ed25519;
+pub mod envelope;
 mod handlers;
 mod mesh_replay;
 mod result_attestation;
 mod router;
 pub mod store;
 
-pub use auth::{PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
+pub use auth::{AuthScheme, PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
 pub use router::{
     PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve, serve_with_listener,
 };
@@ -44,10 +47,10 @@ pub const A2A_MESSAGE_JOB_RESULT: &str = "job_result";
 /// Terminal failure from worker (convention).
 pub const A2A_MESSAGE_JOB_FAIL: &str = "job_fail";
 
-/// Body for [`leave_node`]: remove a node id from the in-memory registry.
+/// Body for the `leave_node` HTTP handler: remove a node id from the in-memory registry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LeaveRequest {
-    /// Node id to remove (same as [`NodeRecord::id`]).
+    /// Node id to remove (same as `NodeRecord::id`).
     pub id: String,
 }
 
@@ -165,7 +168,7 @@ pub struct A2AAckRequest {
 
 /// Grant or refresh a **remote execution** lease for an opaque `scope_key` (correlation id for a task /
 /// workflow slice / resource slot). Distinct from per-A2A-row inbox leases; stored in-memory on the
-/// control plane only. TTL uses the same wall clock as inbox leases ([`a2a_lease_duration_ms`]).
+/// control plane only. TTL uses the same wall clock as inbox leases (`a2a_lease_duration_ms`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoteExecLeaseGrantRequest {
     /// Node id requesting the lease (must be registered via join).
@@ -247,7 +250,7 @@ pub struct A2ALeaseRenewRequest {
 /// Operator quarantine toggle (blocks A2A claims for a node).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdminQuarantineRequest {
-    /// [`NodeRecord::id`].
+    /// `NodeRecord::id`.
     pub node_id: String,
     /// When true, claimers with this node id cannot receive new leases.
     pub quarantined: bool,
@@ -256,7 +259,7 @@ pub struct AdminQuarantineRequest {
 /// Operator maintenance toggle (blocks new A2A claims for a node while enabled).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdminMaintenanceRequest {
-    /// [`NodeRecord::id`].
+    /// `NodeRecord::id`.
     pub node_id: String,
     /// When true, claimers with this node id cannot receive new leases.
     pub maintenance: bool,
@@ -389,7 +392,7 @@ pub struct PopuliTransportState {
     bootstrap_token: Option<Arc<str>>,
     bootstrap_expires_unix_ms: Option<u64>,
     bootstrap_used: Arc<AtomicBool>,
-    /// When set, join/heartbeat must send the same [`NodeRecord::scope_id`].
+    /// When set, join/heartbeat must send the same `NodeRecord::scope_id`.
     pub required_scope: Option<Arc<str>>,
     /// Optional Ed25519 verify key from **`VOX_MESH_WORKER_RESULT_VERIFY_KEY`** for signed job results.
     pub(super) worker_result_verify_key: Option<[u8; 32]>,

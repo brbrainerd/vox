@@ -1,0 +1,8 @@
+// Repair-corpus fixture 020 — effect-violation bug class.
+// @pure fn performs a database read via `db.query()` (Db capability).
+// Expected repair: drop @pure and declare `uses db`, or accept the rows as an argument.
+
+@pure
+fn list_active_users() to str {
+    db.query("SELECT id FROM users WHERE active = 1")
+}

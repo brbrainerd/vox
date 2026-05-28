@@ -1,7 +1,7 @@
 ---
 title: "Shiki, mdBook & Documentation Platform Evaluation (2026)"
 description: "Comprehensive research and quantified feature comparison of documentation site generators and syntax highlighting strategies for an AI-native, Rust-first codebase in 2026."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Research on documentation platforms."
@@ -11,11 +11,11 @@ related:
   - docs/src/architecture/research-index.md
   - docs/src/architecture/architecture-index.md
   - docs/src/archive/research-2026-q1/vox-syntax-highlighting-ssot-2026.md
-  - vox-vscode/syntaxes/vox.tmLanguage.json
-  - vox-vscode/syntaxes/markdown-injection.json
-  - vox-vscode/package.json
-  - docs/book.toml
-  - docs/theme/highlight-vox.js
+  - apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json
+  - apps/editor/vox-vscode/syntaxes/markdown-injection.json
+  - apps/editor/vox-vscode/package.json
+  - docs-astro/README.md
+  - docs-astro/src/utils/sidebar.mjs
 ---
 
 # Shiki, mdBook & Documentation Platform Evaluation (2026)
@@ -31,8 +31,8 @@ regex-based highlight.js definition. Every time the Vox language surface changes
 three grammars must be updated in lockstep.
 
 **Critical discovery:** `shiki ^4.0.1` is **already a direct dependency** of
-`vox-vscode/package.json` (line 441). The `vox.tmLanguage.json` grammar and
-`markdown-injection.json` are both present in `vox-vscode/syntaxes/`. Shiki is
+`apps/editor/vox-vscode/package.json` (line 441). The `vox.tmLanguage.json` grammar and
+`markdown-injection.json` are both present in `apps/editor/vox-vscode/syntaxes/`. Shiki is
 already ingesting the TextMate grammar inside the VS Code extension's webview.
 The documentation portal is the *only* surface not yet unified.
 
@@ -266,7 +266,7 @@ must be fixed now. The path:
    replaces highlight.js with Shiki + `vox.tmLanguage.json` at build time.
 2. **Delete `docs/theme/highlight-vox.js`** and remove it from `book.toml`
    `additional-js`.
-3. The `vox.tmLanguage.json` in `vox-vscode/syntaxes/` becomes the single source
+3. The `vox.tmLanguage.json` in `apps/editor/vox-vscode/syntaxes/` becomes the single source
    of truth for all five rendering contexts (VS Code, Cursor, Neovim, GitHub,
    and now docs portal).
 
@@ -326,11 +326,11 @@ Drawing from research on documentation for AI-native codebases:
 The following documents were verified to exist before being linked:
 
 - **Grammar SSOT:** [`docs/src/archive/research-2026-q1/vox-syntax-highlighting-ssot-2026.md`](../archive/research-2026-q1/vox-syntax-highlighting-ssot-2026.md) — archived predecessor to this document; defines the two-artifact strategy (TextMate + Tree-sitter) and the scope name SSOT table.
-- **TextMate grammar (live):** [`vox-vscode/syntaxes/vox.tmLanguage.json`](../../../vox-vscode/syntaxes/vox.tmLanguage.json) — the authoritative grammar that Shiki will consume.
-- **Markdown injection (live):** [`vox-vscode/syntaxes/markdown-injection.json`](../../../vox-vscode/syntaxes/markdown-injection.json) — already active for VS Code `.md` file highlighting.
-- **Current book config:** [`docs/book.toml`](../../book.toml) — pins mdBook 0.4.40; contains `highlight-vox.js` as `additional-js`.
-- **Current highlight.js grammar:** [`docs/theme/highlight-vox.js`](../../theme/highlight-vox.js) — the drift-prone file to be eliminated.
-- **VS Code extension:** [`vox-vscode/package.json`](../../../vox-vscode/package.json) — already declares `shiki ^4.0.1` as a dependency (line 441).
+- **TextMate grammar (live):** [`apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json`](../../../apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json) — the authoritative grammar that Shiki will consume.
+- **Markdown injection (live):** [`apps/editor/vox-vscode/syntaxes/markdown-injection.json`](../../../apps/editor/vox-vscode/syntaxes/markdown-injection.json) — already active for VS Code `.md` file highlighting.
+- **Current book config:** [`docs-astro`](../../../docs-astro/README.md) — Starlight replaces mdBook; syntax highlighting follows the VS Code TextMate grammar listed below.
+- **Current highlight.js grammar:** Legacy mdBook `highlight-vox.js` — retired with the Astro migration.
+- **VS Code extension:** [`apps/editor/vox-vscode/package.json`](../../../apps/editor/vox-vscode/package.json) — already declares `shiki ^4.0.1` as a dependency (line 441).
 - **Agent policy:** [`AGENTS.md`](../../../AGENTS.md) — mandates VoxScript-first glue, no Python, doctest compliance.
 - **Research index:** [`docs/src/architecture/research-index.md`](research-index.md) — this document should be registered there.
 

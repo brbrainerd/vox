@@ -1,0 +1,3 @@
+fn average_two(a: int, b: int) to int {
+    return (a + b) / 2
+}

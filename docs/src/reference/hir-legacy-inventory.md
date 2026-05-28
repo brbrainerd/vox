@@ -1,7 +1,7 @@
 ---
 title: "HIR legacy AST wrappers (inventory)"
 description: "AST-retained HIR nodes and migration targets (Path C)"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-25"
 training_eligible: true
 

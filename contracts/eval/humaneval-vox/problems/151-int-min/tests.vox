@@ -1,0 +1,15 @@
+fn int_min(a: int, b: int) to int {
+    if a < b {
+        return a
+    }
+    return b
+}
+
+@test
+fn t_left() to Unit { assert(int_min(1, 5) is 1) }
+@test
+fn t_right() to Unit { assert(int_min(7, 3) is 3) }
+@test
+fn t_equal() to Unit { assert(int_min(4, 4) is 4) }
+@test
+fn t_neg() to Unit { assert(int_min(-1, -10) is -10) }

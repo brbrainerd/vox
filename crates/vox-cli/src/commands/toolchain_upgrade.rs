@@ -11,7 +11,7 @@ use self_update::{
 use self_update::{get_target, version};
 use semver::Version;
 use std::path::PathBuf;
-use vox_install_policy::{DEFAULT_RELEASE_GITHUB_OWNER, DEFAULT_RELEASE_GITHUB_REPO};
+use crate::utils::install_policy::{DEFAULT_RELEASE_GITHUB_OWNER, DEFAULT_RELEASE_GITHUB_REPO};
 
 /// Blocking entry (call from `spawn_blocking`).
 pub fn run_toolchain_upgrade(args: &UpgradeToolchainArgs, json_output: bool) -> Result<()> {
@@ -583,7 +583,7 @@ fn install_bin_dir() -> Result<PathBuf> {
 }
 
 fn verify_checksum(asset_bytes: &[u8], checksums_txt: &str, asset_name: &str) -> Result<()> {
-    vox_checksum_manifest::verify_checksum(asset_bytes, checksums_txt, asset_name)
+    crate::utils::checksum_manifest::verify_checksum(asset_bytes, checksums_txt, asset_name)
         .map_err(|e| anyhow!(e))
 }
 
@@ -682,7 +682,7 @@ fn maybe_install_openclaw_sidecar(
     dest_dir: &std::path::Path,
     json_output: bool,
 ) -> Result<()> {
-    if std::env::var(vox_install_policy::VOX_OPENCLAW_SIDECAR_DISABLE_ENV)
+    if std::env::var(crate::utils::install_policy::VOX_OPENCLAW_SIDECAR_DISABLE_ENV)
         .ok()
         .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
     {
@@ -711,9 +711,9 @@ fn maybe_install_openclaw_sidecar(
     let archive_path = tmp.path().join(&sidecar_asset);
     std::fs::write(&archive_path, &sidecar_bytes).map_err(|e| anyhow!(e))?;
     let sidecar_bin = if cfg!(target_os = "windows") {
-        format!("{}.exe", vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME)
+        format!("{}.exe", crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME)
     } else {
-        vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME.to_string()
+        crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME.to_string()
     };
     let mut ex = Extract::from_source(&archive_path);
     ex.archive(archive_kind_for_asset_name(&sidecar_asset));
@@ -745,7 +745,7 @@ fn find_sidecar_asset(checksum_txt: &str, target_triple: &str, ext: &str) -> Opt
         if !file.contains(target_triple) || !file.ends_with(ext) {
             continue;
         }
-        if vox_install_policy::OPENCLAW_SIDECAR_ASSET_PREFIXES
+        if crate::utils::install_policy::OPENCLAW_SIDECAR_ASSET_PREFIXES
             .iter()
             .any(|prefix| file.starts_with(prefix))
         {

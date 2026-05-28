@@ -100,26 +100,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
     }
     out.push_str("}\n\n");
 
-    // Helper to check if a type needs JSON serialization for SQL
-    let is_json = |ty: &HirType| -> bool {
-        match ty {
-            HirType::Named(n) => VoxScalar::parse(n).is_none(),
-            HirType::Generic(n, args) => {
-                if n == "Option" {
-                    // Option<T>: if T is simple, it's simple. If T is complex, it's JSON.
-                    match &args[0] {
-                        HirType::Named(sub) => VoxScalar::parse(sub).is_none(),
-                        _ => true,
-                    }
-                } else if n == "Id" {
-                    false
-                } else {
-                    true // List, etc.
-                }
-            }
-            _ => true, // Unit, tuple etc.
-        }
-    };
+    let is_json = |ty: &HirType| hir_type_needs_json_serialization(ty);
 
     out.push_str(&format!("impl {} {{\n", table.name));
 
@@ -211,7 +192,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
         tn
     ));
     out.push_str(
-        "        let row = rows.next().await?.ok_or_else(|| turso::Error::SqliteFailure(0, \"count: empty result\".into()))?;\n",
+        "        let row = rows.next().await?.ok_or(turso::Error::QueryReturnedNoRows)?;\n",
     );
     out.push_str("        let c: i64 = row.get(0)?;\n");
     out.push_str("        Ok(c)\n");
@@ -226,7 +207,7 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
         tn
     ));
     out.push_str(
-        "        let mut rows = db.connection().query(&sql, params).await?;\n        let row = rows.next().await?.ok_or_else(|| turso::Error::SqliteFailure(0, \"count_where: empty result\".into()))?;\n        let c: i64 = row.get(0)?;\n        Ok(c)\n",
+        "        let mut rows = db.connection().query(&sql, params).await?;\n        let row = rows.next().await?.ok_or(turso::Error::QueryReturnedNoRows)?;\n        let c: i64 = row.get(0)?;\n        Ok(c)\n",
     );
     out.push_str("    }\n\n");
 
@@ -329,6 +310,32 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
     out
 }
 
+/// Returns `true` when a HIR type must be serialized to JSON before storage
+/// in a SQL column (i.e. it is not a SQLite-native scalar).
+///
+/// Extracted from the `is_json` closure in `emit_table_struct` per CR-A1:
+/// the 4-branch match contributed DPs inline and also prevented the closure
+/// from being referenced in `emit_select_projection_helpers`.
+fn hir_type_needs_json_serialization(ty: &HirType) -> bool {
+    match ty {
+        HirType::Named(n) => VoxScalar::parse(n).is_none(),
+        HirType::Generic(n, args) => {
+            if n == "Option" {
+                // Option<T>: if T is a SQL scalar, no JSON needed; otherwise JSON.
+                match &args[0] {
+                    HirType::Named(sub) => VoxScalar::parse(sub).is_none(),
+                    _ => true,
+                }
+            } else if n == "Id" {
+                false
+            } else {
+                true // List, etc.
+            }
+        }
+        _ => true, // Unit, tuple, etc.
+    }
+}
+
 /// Generate `CREATE TABLE IF NOT EXISTS` DDL for a @table.
 pub fn emit_table_ddl(table: &HirTable) -> String {
     let table_name = table.name.to_lowercase();
@@ -372,8 +379,21 @@ pub fn emit_db_setup(module: &HirModule) -> String {
     out.push_str(
         "    let codex = vox_db::Codex::connect(cfg).await.expect(\"Failed to open Codex database\");\n",
     );
+    // PRAGMA setup. `journal_mode=WAL` returns a result row (the
+    // mode that ended up being set), which turso's `execute_batch`
+    // can't consume — it panics with "Misuse: unexpected row during
+    // execution". Run it as a query and drain the rows, then exec
+    // the row-less PRAGMAs in a batch. Per the 2026-05-23 slot-2
+    // todo-auth runtime bring-up.
     out.push_str(
-        "    codex.connection().execute_batch(\"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\").await.expect(\"PRAGMA failed\");\n",
+        "    {\n\
+        \x20       let mut __vox_jm = codex.connection().query(\"PRAGMA journal_mode=WAL;\", ()).await\n\
+        \x20           .expect(\"PRAGMA journal_mode failed\");\n\
+        \x20       while __vox_jm.next().await.expect(\"PRAGMA journal_mode row\").is_some() {}\n\
+        \x20   }\n",
+    );
+    out.push_str(
+        "    codex.connection().execute_batch(\"PRAGMA foreign_keys=ON;\").await.expect(\"PRAGMA foreign_keys failed\");\n",
     );
     out.push_str("    codex.connection().execute_batch(r#\"\n");
     for table in &module.tables {
@@ -384,7 +404,11 @@ pub fn emit_db_setup(module: &HirModule) -> String {
         out.push_str(&emit_index_ddl(index));
         out.push('\n');
     }
-    out.push_str("#\"#).await.expect(\"schema migration failed\");\n");
+    // Raw-string close: `"#` ends `r#"..."#`. The previous code
+    // emitted a stray `#` before the close, producing `#"#)` which
+    // SQLite parsed as "bad variable name '#'". Per the 2026-05-23
+    // slot-2 todo-auth runtime bring-up.
+    out.push_str("\"#).await.expect(\"schema migration failed\");\n");
     out.push_str("    let db = Arc::new(codex);\n\n");
     out
 }

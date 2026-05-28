@@ -1,0 +1,9 @@
+fn filter_evens(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    for x in xs {
+        if x % 2 == 0 {
+            result.push(x)
+        }
+    }
+    return result
+}

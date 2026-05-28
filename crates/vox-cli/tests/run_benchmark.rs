@@ -104,7 +104,7 @@ fn timed_vox_run(script: &Path) -> (Duration, bool) {
 /// Smoke-test that `vox run` can compile and execute a minimal script at all.
 /// Asserts exit 0 only — no timing constraint (cold compile can take seconds).
 #[test]
-#[ignore = "requires compiled vox binary and cargo; run with --ignored"]
+#[ignore = "requires compiled vox binary and cargo; run with --ignored — owner: vox-cli sunset: 2026-12-31"]
 fn cold_cache_vox_run_succeeds() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let script = write_hello_script(tmp.path(), "hello.vox");
@@ -121,7 +121,7 @@ fn cold_cache_vox_run_succeeds() {
 /// Assert that a second `vox run` (warm cache, binary already on disk) completes
 /// within 500 ms.  This is the Jai-class startup-time regression gate.
 #[test]
-#[ignore = "requires compiled vox binary and cargo; run with --ignored"]
+#[ignore = "requires compiled vox binary and cargo; run with --ignored — owner: vox-cli sunset: 2026-12-31"]
 fn warm_cache_vox_run_under_500ms() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let script = write_hello_script(tmp.path(), "hello_warm.vox");
@@ -155,7 +155,7 @@ fn warm_cache_vox_run_under_500ms() {
 /// Compare cold vs warm latency and log the speedup factor.
 /// Does NOT fail on any timing — purely informational.
 #[test]
-#[ignore = "requires compiled vox binary and cargo; run with --ignored"]
+#[ignore = "requires compiled vox binary and cargo; run with --ignored — owner: vox-cli sunset: 2026-12-31"]
 fn benchmark_cold_vs_warm_speedup() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let script = write_hello_script(tmp.path(), "hello_speedup.vox");

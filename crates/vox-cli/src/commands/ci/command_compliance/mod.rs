@@ -29,9 +29,9 @@ use validators::{
     check_catalog_feature_gates_match_registry, check_catalog_generation_smoke,
     check_command_registry_embed_matches_disk, check_compilerd, check_dei,
     check_dockerfiles_cargo_locked_policy, check_env_var_ssot_index,
-    check_feature_growth_boundaries_projection_gate, check_install_policy_surfaces,
-    check_latin_alias_parity_with_catalog, check_mcp_http_read_role_governance,
-    check_operator_docs_no_legacy_vox_install_pm_nudge,
+    check_env_vars_doc_tokens_registered, check_feature_growth_boundaries_projection_gate,
+    check_install_policy_surfaces, check_latin_alias_parity_with_catalog,
+    check_mcp_http_read_role_governance, check_operator_docs_no_legacy_vox_install_pm_nudge,
     check_packaging_pm_docs_no_resurrected_uv_copies, check_product_lane_schema_parity,
     check_project_pm_commands_no_toolchain_lane, check_reachability, check_ref_cli,
     check_registry_latin_and_handlers, check_root_readme_cli_drift,
@@ -73,6 +73,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     let env_ssot = read_env_vars_ssot_doc(repo_root)?;
     check_env_var_ssot_index(&reg, &env_ssot)?;
+    check_env_vars_doc_tokens_registered(repo_root, &env_ssot)?;
     check_product_lane_schema_parity(repo_root)?;
     check_mcp_http_read_role_governance(repo_root)?;
     check_tier1_env_vars_documented(repo_root, &env_ssot)?;
@@ -95,8 +96,8 @@ pub fn run(repo_root: &Path) -> Result<()> {
         read_utf8_path_capped(&repo_root.join("crates/vox-orchestrator-mcp/src/dispatch.rs"))
             .context("read vox-orchestrator-mcp dispatch.rs")?;
     let mcp_tool_aliases =
-        read_utf8_path_capped(&repo_root.join("crates/vox-orchestrator-mcp/src/tool_aliases.rs"))
-            .context("read vox-orchestrator-mcp tool_aliases.rs")?;
+        read_utf8_path_capped(&repo_root.join("contracts/mcp/tool-wire-aliases.v1.yaml"))
+            .context("read contracts/mcp/tool-wire-aliases.v1.yaml")?;
     let scripts_readme = read_utf8_path_capped(&repo_root.join("scripts/README.md"))
         .context("read scripts/README.md")?;
     let root_readme =

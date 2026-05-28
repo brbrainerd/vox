@@ -1,7 +1,7 @@
 ---
 title: "Vox Syntax Highlighting: Universal SSOT Strategy (2026)"
 description: "Research synthesis on how tree-sitter-vox, TextMate grammars, and Markdown injection queries combine to provide consistent, IDE-agnostic Vox syntax coloring everywhere code appears."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 last_updated: "2026-04-16"
@@ -69,7 +69,7 @@ This single file is picked up by Neovim `nvim-treesitter`, Helix, Zed, and any
 editor using the Tree-sitter Markdown grammar — **zero per-editor configuration**
 by the user because the grammar package ships the file.
 
-### Artifact 2 — `vox-vscode/syntaxes/vox.tmLanguage.json` ← VS Code, Cursor, Windsurf, GitHub (legacy)
+### Artifact 2 — `apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json` ← VS Code, Cursor, Windsurf, GitHub (legacy)
 
 VS Code does not yet use Tree-sitter as its default highlighting engine (as of
 mid-2026). Highlighting for `.vox` files is served by the `vox-vscode` extension
@@ -77,7 +77,7 @@ via TextMate grammar. **What is missing** for Markdown is a second grammar
 contribution that activates inside fenced code blocks:
 
 ```json
-// In vox-vscode/package.json, inside "contributes":
+// In apps/editor/vox-vscode/package.json, inside "contributes":
 "grammars": [
   {
     "language": "vox",
@@ -137,11 +137,11 @@ injection queries are the necessary complement.
 
 ### Wave 1 — Enable VS Code / Cursor / Windsurf injection (High Value, Medium Effort)
 
-1. Audit / complete `vox-vscode/syntaxes/vox.tmLanguage.json` to cover all
+1. Audit / complete `apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json` to cover all
    tokens in `highlights.scm` (functions, types, keywords, decorators, actors,
    workflows, JSX, etc.).
 2. Add the `injectTo: ["text.html.markdown"]` grammar contribution to
-   `vox-vscode/package.json`.
+   `apps/editor/vox-vscode/package.json`.
 3. Publish the updated `vox-vscode` extension to VS Code Marketplace.
 4. This automatically propagates to Cursor and Windsurf which consume the same
    extension format.

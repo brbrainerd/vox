@@ -315,7 +315,7 @@ mod tests {
     fn clause_paths_become_file_manifest() {
         let g = "fix compiler error in crates/foo/src/lib.rs";
         let n = synthesize_plan_nodes(g);
-        assert!(n.len() >= 1);
+        assert!(!n.is_empty());
         assert_eq!(n[0].execution_policy.file_manifest.len(), 1);
         assert!(
             n[0].execution_policy.file_manifest[0]

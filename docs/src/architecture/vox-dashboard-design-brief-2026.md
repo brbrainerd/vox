@@ -1,7 +1,7 @@
 ---
 title: "Vox Dashboard — Design Brief for Anthropic Labs Design (2026)"
 description: "Screen-by-screen spec for the Vox dashboard redesign. VUV-form code examples, primitive inventory, token map, anti-patterns."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-03"
 training_eligible: false
@@ -417,7 +417,7 @@ Do not generate any of these:
 
 VUV passthrough handles SVG natively. When the compiler encounters a lowercase tag it does not recognise as a primitive, it emits it verbatim as an HTML element with all children preserved. This was confirmed and fixed by commit `01702849b` on this branch (`fix(compiler): emit children of unknown-tag (passthrough) view-calls as JSX children`) and smoke-tested by `d7a88f975` and `7dcdcf6c5`.
 
-Vox source uses **snake_case** for SVG attributes, which the compiler lowers to camelCase in the React output (same mechanism as `on_click` → `onClick`). The attribute-aliasing table is in `crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs::map_jsx_attr_name`.
+Vox source uses **snake_case** for SVG attributes, which the compiler lowers to camelCase in the React output (same mechanism as `on_click` → `onClick`). The attribute-aliasing table is in `crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs::map_jsx_attr_name`.
 
 Working SVG component pattern:
 

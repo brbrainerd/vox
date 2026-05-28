@@ -1,6 +1,8 @@
 //! Per-file lock manager for exclusive writer access.
 
+pub mod leader;
 mod lease;
+mod persisted;
 mod refresh;
 mod resource;
 
@@ -75,10 +77,21 @@ pub(crate) enum LockEntry {
 ///
 /// Enforces the single-writer principle: at most one agent can hold an
 /// exclusive lock on any file, while multiple agents can hold shared read locks.
+///
+/// When constructed with [`FileLockManager::with_db`] the manager writes
+/// through to the `vcs_lock` table on every acquire/release so that a fresh
+/// daemon instance can replay the lock map on startup via
+/// [`FileLockManager::hydrate_from_db`].
 #[derive(Clone)]
 pub struct FileLockManager {
     pub(crate) locks: Arc<std::sync::RwLock<HashMap<PathBuf, LockEntry>>>,
     pub(crate) queue: Arc<std::sync::RwLock<HashMap<PathBuf, std::collections::VecDeque<AgentId>>>>,
+    /// Optional DB handle for persistent write-through (P0-T1).
+    pub(crate) db: Option<vox_db::VoxDb>,
+    /// Node-id string used as `holder_node_id` in the `vcs_lock` table.
+    pub(crate) node_id: String,
+    /// Repository-id scoping this manager's lock namespace.
+    pub(crate) repository_id: String,
 }
 
 #[cfg(test)]

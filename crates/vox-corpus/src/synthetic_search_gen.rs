@@ -120,7 +120,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         (
             "How does data flow from a .vox file to running Rust code?",
             "compiler pipeline source to runtime",
-            "crates/vox-parser/src/lib.rs",
+            "crates/vox-compiler/src/lib.rs",
             "The Vox compiler is the `vox-compiler` workspace crate: Source → Lexer (`logos` in `lexer/token.rs`) → Parser (`parser`) → AST (`ast`) → HIR (`hir`) → TypeCheck (`typeck`) → Rust/TS codegen (`codegen_rust`, `codegen_ts`, `web_ir`). See `docs/src/architecture/nomenclature-migration-map.md` for retired split-crate names.",
         ),
         (

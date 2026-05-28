@@ -10,6 +10,8 @@ pub const REMOTE_TASK_ACK_TYPE: &str = "remote_task_ack";
 pub const REMOTE_TASK_RESULT_TYPE: &str = "remote_task_result";
 /// Stable A2A wire type for best-effort remote task cancellation hints.
 pub const REMOTE_TASK_CANCEL_TYPE: &str = "remote_task_cancel";
+// `OP_FRAGMENT_SYNC_TYPE` lives in `dispatch::op_fragment_sync` (the canonical
+// definition consumed by the gossip path); do not re-declare here.
 
 /// Envelope sent across mesh A2A relay to request remote execution.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -66,6 +68,16 @@ pub struct RemoteTaskEnvelope {
     /// Phase C: number of agent-to-agent hops from the root; root = 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub span_depth: Option<u16>,
+    /// P2-T4: content-hash of the workflow bundle this envelope dispatches.
+    /// Receivers consult their bundle store; on miss they emit a
+    /// `bundle_request` A2A message back to the sender.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle_ref: Option<vox_package::bundle::BundleRef>,
+    /// P2-T4: inline base64-encoded bundle bytes when the bundle is below
+    /// the size threshold (default 1 MiB). When set, receivers skip the
+    /// `bundle_request` round-trip and use these bytes directly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundle_inline_b64: Option<String>,
 }
 
 #[cfg(test)]
@@ -110,6 +122,8 @@ mod tests {
             caller_agent_id: Some("agent-3".into()),
             trace_id: Some("trace-123".into()),
             span_depth: Some(2),
+            bundle_ref: None,
+            bundle_inline_b64: None,
         };
         let json = serde_json::to_string(&envelope).unwrap();
         let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();

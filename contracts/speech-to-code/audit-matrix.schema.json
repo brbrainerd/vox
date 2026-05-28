@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/schemas/speech-to-code/audit-matrix.schema.json",
+  "title": "SpeechToCodeAuditMatrix",
+  "type": "object",
+  "required": ["schema_version", "generated_at_utc", "cells"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1" },
+    "generated_at_utc": { "type": "string", "format": "date-time" },
+    "description": { "type": "string" },
+    "cells": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "tier",
+          "os",
+          "backend",
+          "compute",
+          "model",
+          "sample_rate",
+          "surface",
+          "domain"
+        ],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "tier": { "type": "string", "enum": ["must", "should", "may"] },
+          "os": {
+            "type": "string",
+            "enum": ["windows-11", "linux-x64", "macos-14", "ios", "android", "n/a"]
+          },
+          "backend": {
+            "type": "string",
+            "enum": ["whisper", "sherpa", "apple-speech", "web-speech", "cloud", "none", "n/a"]
+          },
+          "compute": {
+            "type": "string",
+            "enum": ["cpu", "cuda", "metal", "browser", "mobile-native", "none", "n/a"]
+          },
+          "model": { "type": "string", "minLength": 1 },
+          "sample_rate": {
+            "type": "integer",
+            "enum": [0, 8000, 16000, 22050, 44100, 48000, 96000]
+          },
+          "surface": {
+            "type": "string",
+            "enum": [
+              "editor-file-picker",
+              "editor-webview-mic",
+              "cli-eval",
+              "cli-record-transcribe",
+              "mcp-path",
+              "mcp-prompt",
+              "streaming-ws",
+              "mobile-ios",
+              "mobile-android",
+              "vox-app-web-speech",
+              "dashboard-speak-gap",
+              "http-audio-missing"
+            ]
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "code-dictation",
+              "command-phrasing",
+              "identifier-heavy",
+              "mixed-natural",
+              "noisy",
+              "gap-confirmation",
+              "transport"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "skip_policy": { "type": "string" },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

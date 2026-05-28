@@ -1,5 +1,5 @@
-# PR mutation testing (non-blocking): fires when compiler or codegen crates change.
-# Results are uploaded as a workflow artifact; the job never fails the PR.
+# PR mutation testing (merge-blocking on survivors): fires when compiler or codegen crates change.
+# Results are uploaded as a workflow artifact; `cargo mutants` failures fail the job (no continue-on-error).
 name: Mutation (PR, vox-compiler + vox-codegen)
 
 on:

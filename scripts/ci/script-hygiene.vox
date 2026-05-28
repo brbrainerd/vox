@@ -1,4 +1,6 @@
 // vox:caps fs env process
+// CI canonical gate: `vox ci script-hygiene` — same allowlist as Rust (`SCRIPT_GLUE_ALLOWLIST` in matrix.rs).
+// Does not run `vox check` on every `.vox` file (many scripts are stubs / transitional).
 import fs;
 import path;
 import process;

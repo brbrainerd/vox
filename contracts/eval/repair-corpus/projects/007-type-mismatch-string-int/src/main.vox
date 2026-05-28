@@ -1,0 +1,9 @@
+// Repair-corpus fixture 007 — type-error bug class.
+// The `count` let-binding is annotated as int but assigned the str
+// "hello". Expected repair: either change the annotation to `str`,
+// or replace "hello" with an int literal.
+
+fn get_count() to int {
+    let count: int = "hello"
+    return count
+}

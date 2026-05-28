@@ -1,0 +1,50 @@
+[package]
+name = "vox-plugin-mens-candle-metal"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "ML training backend plugin: Candle + Metal. Implements MlBackend."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+vox-hf-layout = { workspace = true }
+vox-tensor = { workspace = true }
+vox-db = { workspace = true }
+vox-secrets = { workspace = true }
+vox-eval = { workspace = true }
+vox-compiler = { workspace = true }
+abi_stable = { workspace = true }
+candle-core = { workspace = true }
+candle-nn = { workspace = true }
+
+qlora-rs = { workspace = true }
+peft-rs = { workspace = true }
+safetensors = { workspace = true }
+tokenizers = { workspace = true }
+memmap2 = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+chrono = { workspace = true }
+ctrlc = { workspace = true }
+owo-colors = { workspace = true }
+rand = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
+
+[features]
+default = []
+# Opt-in Metal kernel compilation. Requires macOS.
+# Without this feature, the plugin compiles against CPU candle and GPU-only
+# ops return a clear runtime error.
+metal = ["candle-core/metal", "candle-nn/metal"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

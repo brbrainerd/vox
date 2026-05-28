@@ -10,11 +10,7 @@ on:
       - main
     paths:
       - '**/*.vox'
-      - 'crates/vox-parser/**'
-      - 'crates/vox-typeck/**'
-      - 'crates/vox-ast/**'
-      - 'crates/vox-hir/**'
-      - 'crates/vox-lexer/**'
+      - 'crates/vox-compiler/**'
       - 'docs/src/**'
       - 'docs/src/research/**'
       - 'examples/**'

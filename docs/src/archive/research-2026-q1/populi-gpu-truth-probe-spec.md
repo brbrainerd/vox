@@ -1,12 +1,12 @@
 ---
 title: "populi-gpu-truth-probe-spec"
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: false
 ---
 title: "Populi GPU truth probe specification (Native Layer A)"
 description: "How probe-backed native hardware inventory flows into NodeRecord heartbeats and reconciles with ADR 018."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-18"
 training_eligible: false
 archived_date: 2026-04-18

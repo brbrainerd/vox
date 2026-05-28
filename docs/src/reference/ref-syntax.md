@@ -1,7 +1,7 @@
 ---
 title: "Language Syntax Reference"
 description: "A comprehensive, scannable syntax quick-reference page."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-26"
 training_eligible: true
@@ -12,7 +12,7 @@ keywords: ["Vox syntax reference", "Vox language keywords", "Vox grammar specifi
 
 # Reference: Language Syntax
 
-This page provides the canonical structural layout for Vox v0.3 features. All code samples are grounded in the confirmed `examples/golden/` files.
+This page provides the canonical structural layout for Vox language syntax aligned with the workspace compiler version ([Versioning Policy (SSOT)](../../../AGENTS.md#versioning-policy-ssot); currently **0.5.x**). All code samples are grounded in the confirmed `examples/golden/` files where noted.
 
 ## Primitive Types
 
@@ -216,3 +216,12 @@ Vox imports use fully qualified paths. Use `import rust:<crate>` for native inte
 import react.use_state
 import rust:serde_json as json
 ```
+
+## See also
+
+- [Operator precedence](./ref-operator-precedence.md)
+- [Literals](./ref-literals.md)
+- [Type system](./ref-type-system.md)
+- [Async and concurrency](./ref-async-concurrency.md)
+- [FFI](./ref-ffi.md)
+- [Standard library index](./ref-stdlib-index.md)

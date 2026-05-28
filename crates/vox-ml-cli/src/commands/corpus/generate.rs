@@ -620,11 +620,17 @@ pub(super) async fn run_mutate(source_dir: &Path, count: usize, output: &Path) -
                     && !verification.has_errors()
                 {
                     let pair = serde_json::json!({
-                        "prompt": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```",
-                        "response": "```vox\n".to_string() + &mutated_source + "\n```",
+                        "prompt": format!(
+                            "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n{}\n```",
+                            result.source
+                        ),
+                        "response": format!("```vox\n{mutated_source}\n```"),
                         "messages": [
-                            { "role": "user", "content": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```" },
-                            { "role": "assistant", "content": "```vox\n".to_string() + &mutated_source + "\n```" }
+                            { "role": "user", "content": format!(
+                                "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n{}\n```",
+                                result.source
+                            ) },
+                            { "role": "assistant", "content": format!("```vox\n{mutated_source}\n```") }
                         ],
                         "category": "ast_mutate",
                         "lane": "vox_lang_tier_b",
@@ -689,10 +695,10 @@ pub(super) async fn run_rust_mine(source_dir: &Path, output: &Path) -> Result<()
                 {
                     let pair = serde_json::json!({
                         "prompt": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust),
-                        "response": "```vox\n".to_string() + &result.source + "\n```",
+                        "response": format!("```vox\n{}\n```", result.source),
                         "messages": [
                             { "role": "user", "content": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust) },
-                            { "role": "assistant", "content": "```vox\n".to_string() + &result.source + "\n```" }
+                            { "role": "assistant", "content": format!("```vox\n{}\n```", result.source) }
                         ],
                         "category": "rust_to_vox_translation",
                         "lane": "vox_rust_expert_cross",

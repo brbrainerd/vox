@@ -1,6 +1,6 @@
 //! Shared frontend scaffold, install, and build logic for run and bundle commands.
 //!
-//! `pnpm` invocations (`vox run` scaffold) use [`pnpm_executable`] as the single source of truth
+//! `pnpm` invocations (`vox run` scaffold) use `pnpm_executable` as the single source of truth
 //! for the OS-specific binary name.
 
 use anyhow::{Context, Result};

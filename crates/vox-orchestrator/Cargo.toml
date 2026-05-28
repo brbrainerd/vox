@@ -1,6 +1,6 @@
 [package]
 name = "vox-orchestrator"
-description = "Glue crate for the multi-agent file-affinity router: dei_shim, planning, services, runtime glue. Core router lives in vox-orchestrator-core (boundary marker), queue/lock/oplog in vox-orchestrator-queue, MCP in vox-orchestrator-mcp."
+description = "Multi-agent file-affinity task router. Queue/lock/oplog in vox-orchestrator-queue; MCP protocol tools in vox-orchestrator-mcp."
 version.workspace = true
 edition.workspace = true
 
@@ -10,7 +10,6 @@ default = [
     "runtime",
     "json-schema",
 ]
-dashboard = ["dep:vox-dashboard"]
 # Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
@@ -24,8 +23,9 @@ news-publish = [
 ]
 # JSON Schema generation for repository types (consumed by vox-orchestrator-mcp).
 json-schema = ["vox-repository/json-schema"]
-runtime = ["vox-actor-runtime", "vox-populi/mens"]
-toestub-gate = ["vox-code-audit", "vox-lsp", "dep:tower-lsp-server", "dep:tower-lsp"]
+runtime = ["vox-actor-runtime", "vox-populi/mens", "lsp"]
+toestub-gate = ["vox-code-audit", "vox-lsp", "lsp"]
+# LSP diagnostic integration (tower-lsp-server types). Enabled transitively by toestub-gate and runtime.
 lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]
 # Enable jj-lib as VCS backend. Pure Rust, no C. Pin to exact version for stability.
@@ -40,69 +40,69 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
-vox-reqwest-defaults.workspace = true
-globset = "0.4"
+vox-http-client.workspace = true
+globset = { workspace = true }
 toml = { workspace = true }
 vox-package.workspace = true
 vox-gamify = { workspace = true }
 dirs = { workspace = true }
-parking_lot = "0.12"
+parking_lot = { workspace = true }
 futures-util = { workspace = true }
-sysinfo = { version = "0.38.2", optional = true }
+sysinfo = { workspace = true, optional = true }
 sha3 = { workspace = true }
 xxhash-rust = { workspace = true }
-hmac = "0.12.1"
-sha2 = "0.10.8"
-tiktoken-rs = "0.6"
-hex = "0.4.3"
+hmac = { workspace = true }
+sha2 = { workspace = true }
+tiktoken-rs = { workspace = true }
+hex = { workspace = true }
 getrandom = "0.2"
 vox-crypto.workspace = true
+vox-foundation.workspace = true
 
 # Optional dependencies behind feature flags
 vox-actor-runtime = { workspace = true, optional = true }
 vox-code-audit = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
-tower-lsp = { version = "0.20", optional = true }
-tower-lsp-server = { version = "0.23", optional = true }
+tower-lsp-server = { workspace = true, optional = true }
 vox-db.workspace = true
-vox-search.workspace = true
+vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape", "tavily"] }
 vox-orchestrator-types.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true
-vox-dashboard = { workspace = true, optional = true }
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
 vox-publisher = { workspace = true, optional = true, default-features = false }
-async-trait = "0.1.89"
+async-trait = { workspace = true }
 anyhow.workspace = true
 serde_yaml.workspace = true
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
-governor = { workspace = true }
-regex = "1"
+regex = { workspace = true }
 vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
 # See src/jj_backend.rs for the isolation wrapper. Use `--features jj-backend` to enable.
-jj-lib = { version = "=0.27.0", optional = true, default-features = false }
-uuid = { version = "1.22.0", features = ["v4"] }
+jj-lib = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4"] }
 chrono = { workspace = true }
 walkdir.workspace = true
 vox-bounded-fs.workspace = true
-vox-protocol.workspace = true
-aes-gcm = { version = "0.10.3", optional = true }
+aes-gcm = { workspace = true, optional = true }
 rand.workspace = true
 base64.workspace = true
 vox-secrets.workspace = true
+vox-skills = { workspace = true }
+vox-skill-runtime = { workspace = true }
+
+vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
 blake3.workspace = true
-crossbeam-queue = "0.3.12"
+crossbeam-queue = { workspace = true }
 workspace-hack = { workspace = true }
 axum = { workspace = true, features = ["tokio", "http1", "json"] }
 glob.workspace = true
-ignore = "0.4.25"
-rand_distr = "0.4"
+ignore = { workspace = true }
+rand_distr = { workspace = true }
 async-stream.workspace = true
-tempfile.workspace = true
 
 # Daemon binary moved to crates/vox-orchestrator-d/ in 2026-05-08 reorg Phase 4.
 
@@ -111,22 +111,23 @@ serde_yaml = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-proptest = "1.10.0"
+proptest = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
+tracing-test = { workspace = true }
 vox-actor-runtime = { workspace = true }
-vox-skills = { workspace = true }
 axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
-tower = { version = "0.5", features = ["util"] }
+tower = { workspace = true, features = ["util"] }
 
-[lints.rust]
-unsafe_code = "warn"
+[[test]]
+name = "skill_runtime_inproc"
 
-[lints.clippy]
-# Cargo forbids selectively overriding `[lints.clippy]` while `workspace = true`.
-# Duplicate the workspace rust lint above and suppress clippy in this oversized crate until
-# a dedicated cleanup sprint (deploy gate runs `cargo clippy -D warnings`).
-all = "allow"
+[[test]]
+name = "mesh_ai_fixture_relay"
+required-features = ["populi-transport"]
+
+[lints]
+workspace = true
 

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::paths::dot_vox_user_dir;
 
 /// Flat key-value user config store loaded from `~/.vox/config.toml`.
-/// Keys match canonical OperatorEnvSpec names (e.g. "VOX_INFERENCE_PROFILE").
+/// Keys match canonical OperatorEnvSpec names (e.g. "vox_populi::inference_PROFILE").
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct VoxUserConfig {
     #[serde(flatten)]

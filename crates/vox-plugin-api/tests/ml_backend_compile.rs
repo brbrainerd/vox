@@ -7,8 +7,8 @@ use vox_plugin_api::extensions::ml_backend::{
 };
 
 #[test]
-fn revision_constant_is_three() {
-    assert_eq!(ML_BACKEND_REVISION, 3);
+fn revision_constant_is_four() {
+    assert_eq!(ML_BACKEND_REVISION, 4);
 }
 
 struct DummyBackend;

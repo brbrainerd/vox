@@ -1,7 +1,7 @@
 ---
 title: "AI-Augmented Testing & Hourglass Architecture Research (2026)"
 description: "Synthesis of 2026 state-of-the-art AI-augmented testing, shifting from the traditional testing pyramid to an hourglass/honeycomb architecture driven by the Vox Internal Representation (HIR) and AI-to-AI integration."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-11"
 training_eligible: false

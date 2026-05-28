@@ -1,0 +1,16 @@
+id = "006"
+title = "Net effect used but @uses(net) not declared"
+description = """
+check_health performs an HTTP GET via std.http.get_text, which is a
+Net-effect operation. The function signature has no @uses(net)
+annotation. Vox requires explicit effect declarations on every function
+that performs I/O. The fix is to add @uses(net) before fn check_health.
+"""
+bug_class = "effect-violation"
+difficulty = "hard"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/effect/missing-net-decl"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

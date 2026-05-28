@@ -1,7 +1,7 @@
 ---
 title: "AI CLI Generation Standard"
 description: "Architecture and design principles for LLM-driven CLI command generation via internal AST representations."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 10
 last_updated: "2026-04-10"

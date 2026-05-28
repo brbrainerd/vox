@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/reports/docs-reality-audit/metrics.v1.schema.json",
+  "title": "docs-reality-audit-metrics-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "inventory_claim_count",
+    "findings_total",
+    "findings_open",
+    "findings_closed",
+    "counts_by_classification",
+    "counts_by_status",
+    "counts_by_priority_band",
+    "open_p0",
+    "open_p1",
+    "rollout_milestone_pct"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "RFC3339 UTC timestamp when metrics were computed."
+    },
+    "inventory_claim_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings_total": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings_open": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings_closed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "counts_by_classification": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "counts_by_status": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "counts_by_priority_band": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "open_p0": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "open_p1": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rollout_milestone_pct": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Estimated progress vs Documentation Reality Audit rollout (0–100)."
+    },
+    "rollout_notes": {
+      "type": "string"
+    }
+  }
+}

@@ -52,7 +52,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
 
     let lsp_binary_path = std::env::current_exe()
         .ok()
-        .and_then(|p| p.parent().map(|d| d.join("vox-lsp")));
+        .and_then(|p| p.parent().map(|d| d.join(if cfg!(windows) { "vox-lsp.exe" } else { "vox-lsp" })));
 
     let mut lsp_bin = match lsp_binary_path.as_ref() {
         Some(p) => tokio::fs::try_exists(p).await.unwrap_or(false),
@@ -205,7 +205,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
     );
     let ollama_detail = if ollama_probe_skipped {
         format!(
-            "TCP probe skipped for VOX_INFERENCE_PROFILE={profile:?} (not desktop/lan Ollama); see docs/src/architecture/mobile-edge-ai-ssot.md"
+            "TCP probe skipped for vox_populi::inference_PROFILE={profile:?} (not desktop/lan Ollama); see docs/src/architecture/mobile-edge-ai-ssot.md"
         )
     } else {
         let ollama_reachable = std::net::TcpStream::connect_timeout(
@@ -216,7 +216,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         if ollama_reachable {
             "running on localhost:11434 (local inference available)".to_string()
         } else {
-            "not running — install from https://ollama.com if you want local models (or set VOX_INFERENCE_PROFILE if this host should not use loopback Ollama)".to_string()
+            "not running — install from https://ollama.com if you want local models (or set vox_populi::inference_PROFILE if this host should not use loopback Ollama)".to_string()
         }
     };
     checks.push(Check {

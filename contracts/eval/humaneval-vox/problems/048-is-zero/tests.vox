@@ -1,0 +1,12 @@
+fn is_zero(n: int) to bool {
+    return n is 0
+}
+
+@test
+fn t_zero() to Unit { assert(is_zero(0) is true) }
+@test
+fn t_one() to Unit { assert(is_zero(1) is false) }
+@test
+fn t_neg() to Unit { assert(is_zero(-3) is false) }
+@test
+fn t_large() to Unit { assert(is_zero(1000) is false) }

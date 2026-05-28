@@ -1,0 +1,48 @@
+id = "plan-015-add-mutation-endpoint"
+wave = "wave_2"
+description = "Add a mutation @endpoint with empty-input validation and ADT error."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file defines a `BookmarkError` ADT and a single
+`@endpoint(kind: query)` reading bookmarks. Add a new endpoint
+`@endpoint(kind: mutation) fn add_bookmark(url: str) to Result[str, BookmarkError]`
+that rejects empty `url` with `Error(InvalidUrl("url must not be empty"))`
+and otherwise returns `Ok(url)`. Do not modify the existing endpoint
+or the ADT.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `InvalidUrl("...")`),
+    not as `BookmarkError.InvalidUrl(...)`.
+  - ADTs use `type X = | A | B(field: T)` syntax.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing ADT + query endpoint."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Append the `add_bookmark` mutation endpoint."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+new_endpoint_added = true
+adt_error_variant_used = true
+mutation_kind_present = true

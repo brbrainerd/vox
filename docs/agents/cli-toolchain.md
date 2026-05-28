@@ -20,7 +20,7 @@ crates/
   vox-ssg/            ← Static site generation
   vox-lsp/           ← Language Server (stdio)
   vox-package/       ← Package manager (vox add/remove/publish)
-  vox-runtime/       ← Runtime builtins (hash, stdlib)
+  vox-actor-runtime/ ← Runtime builtins (hash, stdlib)
   vox-tensor/        ← Pure-CPU JSONL data loaders / training-pair types (Burn extracted 2026-05-08)
   vox-code-audit/    ← TOESTUB architectural analysis engine
   vox-container/     ← Container/OCI build support

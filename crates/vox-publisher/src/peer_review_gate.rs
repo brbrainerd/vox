@@ -159,7 +159,7 @@ fn verify_review(review: &PeerReview) -> bool {
     review.signature_hex == expected_sig
 }
 
-fn count_distinct<'a>(keys: &[&'a str]) -> usize {
+fn count_distinct(keys: &[&str]) -> usize {
     let mut seen: Vec<&str> = Vec::new();
     for k in keys {
         if !seen.contains(k) {

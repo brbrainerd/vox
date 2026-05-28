@@ -1,7 +1,7 @@
 ---
 title: "Rust ecosystem support SSOT"
 description: "Canonical support matrix and debt model for Rust crate families used by Vox lanes."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-28"
 training_eligible: false
 

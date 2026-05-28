@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/telemetry/agentos-guardrail-deny.v1.schema.json",
+  "title": "AgentOS guardrail deny telemetry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tool", "reason"],
+  "properties": {
+    "tool": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 },
+    "risk_score": { "type": "integer", "minimum": 0, "maximum": 100 }
+  }
+}

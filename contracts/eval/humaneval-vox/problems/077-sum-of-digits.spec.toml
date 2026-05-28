@@ -1,0 +1,11 @@
+[problem]
+id = "077"
+title = "sum-of-digits"
+prompt = """
+Write a Vox function sum_of_digits(n: int) to int that returns the sum of the absolute digit values of an integer. Use string conversion approach.
+"""
+signature = "fn sum_of_digits(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "math"]

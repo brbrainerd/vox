@@ -1,8 +1,12 @@
 //! Load / merge / persist logic for [`VoxConfig`](super::vox_config::VoxConfig).
+//!
+//! **Figment pilot (narrow):** precedence remains explicit (`defaults` → global TOML → repo `Vox.toml` → env)
+//! in [`VoxConfig::load`] / [`VoxConfig::load_from_repo_root`]. A future step can centralize the same
+//! ordering via [`figment`](https://docs.rs/figment) without changing field semantics — keep call sites stable until tests cover merge parity.
 
 use std::path::{Path, PathBuf};
 
-use super::gamify_web::{GamifyMode, WebRunMode};
+use super::gamify_web::{BuildTarget, GamifyMode, WebRunMode};
 use super::persist::{global_config_path, save_merged_global_config};
 use super::toml_schema::VoxToml;
 use super::vox_config::VoxConfig;
@@ -289,6 +293,24 @@ impl VoxConfig {
         {
             self.anthropic_key = Some(v.to_string());
         }
+
+        // Non-secret build override (documented on `BuildTarget` in `gamify_web.rs`).
+        // Must run after `Vox.toml` merges so env beats manifest when both are set.
+        Self::merge_build_target_from_env_var(self);
+    }
+
+    /// Override `build_target` from `VOX_BUILD_TARGET` (`fullstack` | `server` | `client`).
+    pub(crate) fn merge_build_target_from_env_var(cfg: &mut VoxConfig) {
+        let Ok(raw) = std::env::var("VOX_BUILD_TARGET") else {
+            return;
+        };
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        if let Ok(t) = trimmed.parse::<BuildTarget>() {
+            cfg.build_target = t;
+        }
     }
 }
 
@@ -298,6 +320,10 @@ fn merge_vox_toml_path_for_test(cfg: &mut VoxConfig, path: &Path) {
 }
 
 #[cfg(test)]
+// Rust 2024 made `std::env::set_var` / `remove_var` `unsafe`. The
+// `vox_build_target_env_overrides_toml_after_merge` test serializes via
+// `VOX_BUILD_TARGET_ENV_MUTEX` (declared in this module).
+#[allow(unsafe_code)]
 mod tests {
     use super::super::gamify_web::BuildTarget;
     use super::*;
@@ -458,7 +484,6 @@ db_extra = "de"
 
     #[test]
     fn build_target_from_str_parses_all_variants() {
-        use std::str::FromStr;
         assert_eq!(
             "fullstack".parse::<BuildTarget>().unwrap(),
             BuildTarget::Fullstack
@@ -484,7 +509,6 @@ db_extra = "de"
 
     #[test]
     fn build_target_from_str_unknown_is_none() {
-        use std::str::FromStr;
         assert!("".parse::<BuildTarget>().is_err());
         assert!("ios".parse::<BuildTarget>().is_err());
         assert!("backend".parse::<BuildTarget>().is_err());
@@ -523,6 +547,33 @@ db_extra = "de"
         let mut cfg = VoxConfig::default();
         merge_vox_toml_path_for_test(&mut cfg, &p);
         assert_eq!(cfg.build_target, BuildTarget::Fullstack);
+    }
+
+    static VOX_BUILD_TARGET_ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn vox_build_target_env_overrides_toml_after_merge() {
+        let _lock = VOX_BUILD_TARGET_ENV_MUTEX.lock().expect("serial env test");
+        let prev = std::env::var("VOX_BUILD_TARGET").ok();
+        unsafe {
+            std::env::set_var("VOX_BUILD_TARGET", "client");
+        }
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(&p, "[build]\ntarget = \"server\"\n").expect("write");
+        let mut cfg = VoxConfig::default();
+        merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert_eq!(cfg.build_target, BuildTarget::Server);
+        VoxConfig::merge_build_target_from_env_var(&mut cfg);
+        assert_eq!(cfg.build_target, BuildTarget::Client);
+        match prev {
+            Some(v) => unsafe {
+                std::env::set_var("VOX_BUILD_TARGET", v);
+            },
+            None => unsafe {
+                std::env::remove_var("VOX_BUILD_TARGET");
+            },
+        }
     }
 
     #[test]

@@ -1,0 +1,16 @@
+id = "008"
+title = "Letter grade: strict > instead of >= at all thresholds"
+description = """
+All four grade boundaries use strict greater-than (>) instead of
+greater-than-or-equal (>=). A score of exactly 90 falls through to "B"
+instead of "A", 80 to "C", 70 to "D", and 60 to "F". Changing each
+> to >= in the four if conditions fixes all boundary cases.
+"""
+bug_class = "logic"
+difficulty = "medium"
+scope = "single-file"
+detection_mode = "runtime"
+expected_diagnostics = []
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

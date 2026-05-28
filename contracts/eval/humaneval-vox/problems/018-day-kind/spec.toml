@@ -1,0 +1,10 @@
+id = "humaneval-vox-018-day-kind"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write a Vox function `day_kind(day: str) to str` that returns "weekend"
+for "saturday" or "sunday", and "weekday" for any other input.
+Compare strings case-sensitively.
+"""

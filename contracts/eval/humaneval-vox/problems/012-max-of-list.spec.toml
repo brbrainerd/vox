@@ -1,0 +1,11 @@
+[problem]
+id = "012"
+title = "max_of_list"
+prompt = """
+Return the maximum value in a non-empty list of integers.
+"""
+signature = "fn max_of_list(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

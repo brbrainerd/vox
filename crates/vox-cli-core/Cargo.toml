@@ -5,15 +5,23 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+vox-config = { workspace = true }
 vox-db = { workspace = true }
-vox-secrets = { workspace = true }
-vox-repository = { workspace = true }
 vox-gamify = { workspace = true }
+vox-foundation = { workspace = true }
+vox-repository = { workspace = true }
+vox-secrets = { workspace = true }
+anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
+owo-colors = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros", "sync"] }
+sysinfo = { workspace = true }
+tokio = { workspace = true, features = ["io-std", "macros", "process", "rt", "rt-multi-thread", "signal", "sync"] }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
-owo-colors = { workspace = true }
-anyhow = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+which = { workspace = true }
+
+[dev-dependencies]
+vox-bounded-fs = { workspace = true }
+vox-jsonschema-util = { workspace = true }

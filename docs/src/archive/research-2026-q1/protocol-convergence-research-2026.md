@@ -1,7 +1,7 @@
 ---
 title: "Protocol convergence research 2026"
 description: "Advisory synthesis: converging on one taxonomy and durable SSOT (Vox DB / Codex) while choosing HTTP, SSE, WebSockets, MCP, and mesh transports by semantic lane—not by forcing a single wire format."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 6
 last_updated: "2026-03-29"

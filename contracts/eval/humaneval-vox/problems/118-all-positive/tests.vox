@@ -1,0 +1,18 @@
+fn all_positive(xs: list[int]) to bool {
+    for x in xs {
+        if x <= 0 {
+            return false
+        }
+    }
+    return true
+}
+
+fn main() to str {
+    assert(all_positive([1, 2, 3]) == true)
+    assert(all_positive([1, 0, 3]) == false)
+    assert(all_positive([-1, 2, 3]) == false)
+    assert(all_positive([]) == true)
+    assert(all_positive([100]) == true)
+    assert(all_positive([1, 2, -5]) == false)
+    return "ok"
+}

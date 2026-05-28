@@ -1,4 +1,0 @@
-import yaml;
-fn main() {
-    print("YAML imported");
-}

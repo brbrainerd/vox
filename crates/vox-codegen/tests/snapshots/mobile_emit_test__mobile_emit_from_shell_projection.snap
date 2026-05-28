@@ -1,0 +1,41 @@
+---
+source: crates/vox-codegen/tests/mobile_emit_test.rs
+expression: out
+---
+// Capability-driven Android/iOS manifest hints share SSOT:
+// contracts/capability/runtime-capabilities.v1.yaml → runtime-capabilities.projection.json
+// (emitted beside Tauri packaging hints on `vox compile` when contracts root is found).
+//
+import * as endpoints from './vox-client';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
+import { useEffect } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+
+let __backHandlerRegistered = false;
+export function installBackButtonHandler() {
+  if (__backHandlerRegistered) return;
+  __backHandlerRegistered = true;
+  void listen('vox-back-button', async () => {
+    const handled = await endpoints.handle_back();
+    if (!handled) {
+      await invoke('plugin:process|exit');
+    }
+  });
+}
+
+export function useDeepLinkRouting() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen<string>('vox-deep-link', async (event) => {
+      const target = await endpoints.handle_link(event.payload);
+      navigate({ to: target });
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  }, [navigate]);
+}
+
+export async function installPushNotifications() {
+  void listen<string>('vox-push-registration', async (e) => { await endpoints.store_token(e.payload); });
+}

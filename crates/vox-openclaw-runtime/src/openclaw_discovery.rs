@@ -152,7 +152,7 @@ fn fallback_endpoints(source: String) -> OpenClawResolvedEndpoints {
 async fn fetch_well_known(
     well_known_url: &str,
 ) -> Result<(OpenClawResolvedEndpoints, u64), crate::openclaw_adapter::OpenClawAdapterError> {
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .timeout(Duration::from_secs(8))
         .build()
         .map_err(|e| crate::openclaw_adapter::OpenClawAdapterError::Other(e.to_string()))?;

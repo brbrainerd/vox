@@ -32,6 +32,15 @@ pub enum Token {
     Continue,
     #[token("match")]
     Match,
+    /// `when` — view-arm discriminant keyword for `Async[T]` rendering (GA-01).
+    #[token("when")]
+    When,
+    /// `fetching` — `Async[T]` view arm: data is in-flight (GA-01).
+    #[token("fetching")]
+    Fetching,
+    /// `empty` — `Async[T]` view arm: data resolved to empty set (GA-01).
+    #[token("empty")]
+    Empty,
     #[token("for")]
     For,
     #[token("in")]
@@ -54,6 +63,9 @@ pub enum Token {
     Workflow,
     #[token("activity")]
     Activity,
+    /// `side_effect` — sanctioned non-determinism block inside a workflow (P1-T7).
+    #[token("side_effect")]
+    SideEffect,
     #[token("spawn")]
     Spawn,
     #[token("http")]
@@ -92,6 +104,13 @@ pub enum Token {
     Or,
     #[token("not")]
     Not,
+    /// The bare `!` character. Vox uses phonetic operators (`not`, `and`, `or`,
+    /// `is`, `isnt`), so `!` is NOT a valid negation operator. This token exists
+    /// only so the parser can emit a clear error pointing the user at `not`.
+    /// Prior to this token's existence, `!` was silently dropped by the lexer
+    /// — see docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md §2.
+    #[token("!")]
+    BangInvalid,
     #[token("is")]
     Is,
     #[token("isnt")]
@@ -114,8 +133,45 @@ pub enum Token {
     AtMcpResource,
     #[token("@test")]
     AtTest,
-    #[token("@endpoint")]
-    AtEndpoint,
+    /// `@example` — corpus-eligible reference fn for HumanEval-Vox / doctest
+    /// mining. Same surface as `@test` (no params, returns Unit, body uses
+    /// `assert(...)`); the semantic delta is that examples are harvested as
+    /// authored solutions, not as regression tests.
+    #[token("@example")]
+    AtExample,
+    // `@endpoint(kind: …)` was the original endpoint decorator form; the
+    // bare-form `@query` / `@mutation` / `@server` decorators superseded it
+    // in Phase B (audit doc §11.2, 2026-05-23) and the lexer token was
+    // retired in v0.6.0 (Phase H step 18).  Any remaining `@endpoint` text
+    // in user source now fails to lex; the `retired/decorator-usage` lint
+    // surfaces a friendly suggestion before the parser reports the failure.
+    /// `@query` — first-class GET-style endpoint, canonical form.
+    /// Lower K-complexity (~65 % per call site vs the retired
+    /// `@endpoint(kind: query)`) and matches the conceptual hierarchy
+    /// (the verb is the head, not the modifier).  Added 2026-05-23 per
+    /// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §11.2.
+    #[token("@query")]
+    AtQuery,
+    /// `@mutation` — first-class POST/PUT/DELETE-style endpoint, canonical form.
+    /// See `@query` above.
+    #[token("@mutation")]
+    AtMutation,
+    /// `@server` — first-class server-only endpoint (no client emit),
+    /// canonical form.  Same K-complexity argument as `@query`/`@mutation`.
+    #[token("@server")]
+    AtServer,
+    // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)` decorator on
+    // type definitions. Lowering synthesizes `T::from_json` / `T::to_json`
+    // functions per the RFC §6 plan.
+    #[token("@json_as")]
+    AtJsonAs,
+    // Per-field attributes inside `@json_as`-annotated types (RFC §4.3).
+    #[token("@field_name")]
+    AtFieldName,
+    #[token("@default")]
+    AtDefault,
+    #[token("@skip_if_none")]
+    AtSkipIfNone,
     #[token("@table")]
     AtTable,
     #[token("@index")]
@@ -154,6 +210,14 @@ pub enum Token {
     AtV0,
     #[token("@ai")]
     AtAi,
+    #[token("@prompt")]
+    AtPrompt,
+    #[token("@subagent")]
+    AtSubagent,
+    #[token("@search")]
+    AtSearch,
+    #[token("@hole")]
+    AtHole,
     #[token("@cancellable")]
     AtCancellable,
     #[token("@form")]
@@ -164,6 +228,56 @@ pub enum Token {
     AtDeepLink,
     #[token("@push")]
     AtPush,
+    /// `@tokens` — project-level design-token block declaration (CC-23 / GA-20).
+    #[token("@tokens")]
+    AtTokens,
+    /// `@cors` — CORS policy decorator on `@endpoint` (Phase 3 HTTP ergonomics / GA-06).
+    #[token("@cors")]
+    AtCors,
+    /// `@rate_limit` — per-IP/key rate-limiting decorator (Phase 3 HTTP ergonomics / GA-06).
+    #[token("@rate_limit")]
+    AtRateLimit,
+    /// `@uses` — effect annotation declaring I/O surfaces of a function (Phase 5 / GA-05).
+    #[token("@uses")]
+    AtUses,
+    /// `@pii` — PII-taint marker on a type field or variable (GA-23).
+    #[token("@pii")]
+    AtPii,
+    /// `@embed` — embedding-generation decorator on a `@table` field (CC-16 / GA-24).
+    #[token("@embed")]
+    AtEmbed,
+    /// `@webhook` — verified-inbound-webhook decorator (CC-04 / GA-16).
+    #[token("@webhook")]
+    AtWebhook,
+    /// `@public` — opts an `@endpoint` out of `@auth` requirement
+    /// (Phase-3 HTTP-ergonomics; one half of the
+    /// `@public XOR @auth(...)` rule). Composes after `@endpoint(...)`.
+    #[token("@public")]
+    AtPublic,
+    /// `@auth` — OAuth/OIDC auth flow decorator (GA-04).
+    #[token("@auth")]
+    AtAuth,
+    /// `@offline_capable` — service-worker / offline-first decorator (CC-22 / GA-15).
+    #[token("@offline_capable")]
+    AtOfflineCapable,
+    /// `@collaborative` — CRDT-backed collaborative-editing decorator (CC-20 / GA-15).
+    #[token("@collaborative")]
+    AtCollaborative,
+    /// `@layer` — VUV layered-layout tier decorator (GA-26).
+    #[token("@layer")]
+    AtLayer,
+    /// `@remote` — marks a function for cross-node dispatch via the mesh (P1-T3).
+    #[token("@remote")]
+    AtRemote,
+    /// `@inference` — MENS inference routing (Mn-T4).
+    #[token("@inference")]
+    AtInference,
+    /// `@training_step` — one step of a CUDA training loop (Mn-T5).
+    #[token("@training_step")]
+    AtTrainingStep,
+    /// `@distributed_train` — distributed training workflow preamble (Mn-T5).
+    #[token("@distributed_train")]
+    AtDistributedTrain,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -263,6 +377,53 @@ pub enum Token {
     #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     IntLit(i64),
 
+    // Raw string literal: `r"..."` — no escape processing at all. Closing
+    // delimiter is the first unescaped `"`; backslashes are preserved
+    // verbatim. Use this for regex patterns, Windows paths, and any
+    // string where `\n`/`\t`/`\"` shouldn't get interpreted.
+    //
+    // Priority 6 so `r"text"` is captured here before the `r` is mis-lexed
+    // as an Ident followed by a StringLit. The pattern uses `[^"]*?` (lazy)
+    // so the first `"` after the opening `"` closes the literal. For
+    // strings containing a `"`, use the regular `"..."` form with `\"`.
+    //
+    // Added 2026-05-23 to unblock regex-heavy corpus scripts (Phase L.4
+    // bucket: extract_table_names.vox, migrate-arrows.vox) that were
+    // running their `(...)` capture groups into Vox's `{...}` template
+    // regex friction.
+    // Hash-padded raw strings — Rust-style `r#"..."#`, `r##"..."##`,
+    // `r###"..."###`. Higher priority than the bare `r"..."` so the
+    // explicit-delimiter forms are tried first. Bodies can embed `"` as
+    // long as it isn't followed by the matching `#`-count. Three levels
+    // cover every realistic use (regex with quotes, SQL with quotes, etc.);
+    // Rust technically allows arbitrary `#` depth but practical code never
+    // exceeds three. Added 2026-05-24 to support patterns like
+    // `r#"\)\s*->\s*([A-Z][a-zA-Z0-9_\[\]]*)"#` that the bare form can't
+    // express. See audit doc §Phase L.4.
+    // For N=3: body allows `"` followed by 0–2 `#`s then non-`#`-non-`"`.
+    #[regex(r#####"r###"(?:[^"]|"+([^#"]|#[^#"]|##[^#"]))*"+###"#####, priority = 8, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[5..s.len()-4].to_string())
+    })]
+    // For N=2: body allows `"` followed by 0–1 `#` then non-`#`-non-`"`.
+    #[regex(r#####"r##"(?:[^"]|"+([^#"]|#[^#"]))*"+##"#####, priority = 7, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[4..s.len()-3].to_string())
+    })]
+    // For N=1: body allows `"` followed by non-`#`-non-`"`.
+    #[regex(r####"r#"(?:[^"]|"+[^#"])*"+#"####, priority = 6, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[3..s.len()-2].to_string())
+    })]
+    #[regex(r#"r"[^"]*""#, priority = 5, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        // Drop leading `r"` and trailing `"`.
+        Some(s[2..s.len()-1].to_string())
+    })]
+    RawStringLit(String),
+
+    // Double-quoted string: any run of non-quote / non-backslash bytes, or standard escapes.
+    // Backticks (U+0060) are literal — markdown-style `cmd` fragments do not close the string.
     #[regex(r#""([^"\\]|\\.)*""#, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
         let inner = &s[1..s.len()-1];
@@ -288,6 +449,26 @@ pub enum Token {
         Some(out)
     })]
     StringLit(String),
+
+    // Template string: double-quoted string with {expr} interpolation.
+    // The regex *requires* at least one `{...}` segment, so plain strings without
+    // interpolation are matched by `StringLit` instead. (Earlier attempts let the
+    // regex match any `"..."` and returned `None` for non-templates, but Logos
+    // emits a lexer error on `None` rather than falling through to a lower-priority
+    // pattern — which silently swallowed every plain string literal.)
+    //
+    // The `{...}` segment must START with an identifier character (letter or
+    // underscore, optionally preceded by whitespace) — this excludes JSON
+    // literals like `"{\"key\":1}"` which have `{` followed by `\"` / `"`.
+    // Without this guard, every embedded JSON string was misclassified as a
+    // template, producing "Complex expressions in template strings not yet
+    // supported" parse errors. (RFC json-ergonomics-rfc-2026-05-23 §10
+    // migration impact — discovered while migrating audit-dependency-layers.)
+    #[regex(r#""([^"\\]|\\.)*\{\s*[a-zA-Z_]([^"\\]|\\.)*\}([^"\\]|\\.)*""#, priority = 5, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[1..s.len()-1].to_string())
+    })]
+    TemplateStringLit(String),
 
     #[regex(r#"'([^'\\]|\\.)*'"#, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
@@ -350,6 +531,9 @@ impl std::fmt::Display for Token {
             Token::If => write!(f, "if"),
             Token::Else => write!(f, "else"),
             Token::Match => write!(f, "match"),
+            Token::When => write!(f, "when"),
+            Token::Fetching => write!(f, "fetching"),
+            Token::Empty => write!(f, "empty"),
             Token::For => write!(f, "for"),
             Token::In => write!(f, "in"),
             Token::To => write!(f, "to"),
@@ -361,6 +545,7 @@ impl std::fmt::Display for Token {
             Token::Actor => write!(f, "actor"),
             Token::Workflow => write!(f, "workflow"),
             Token::Activity => write!(f, "activity"),
+            Token::SideEffect => write!(f, "side_effect"),
             Token::Spawn => write!(f, "spawn"),
             Token::Http => write!(f, "http"),
             Token::Pub => write!(f, "pub"),
@@ -379,6 +564,10 @@ impl std::fmt::Display for Token {
             Token::And => write!(f, "and"),
             Token::Or => write!(f, "or"),
             Token::Not => write!(f, "not"),
+            Token::BangInvalid => write!(f, "!"),
+            Token::AtQuery => write!(f, "@query"),
+            Token::AtMutation => write!(f, "@mutation"),
+            Token::AtServer => write!(f, "@server"),
             Token::Is => write!(f, "is"),
             Token::Isnt => write!(f, "isnt"),
             Token::True => write!(f, "true"),
@@ -389,7 +578,12 @@ impl std::fmt::Display for Token {
             Token::AtResource => write!(f, "@resource"),
             Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
-            Token::AtEndpoint => write!(f, "@endpoint"),
+            Token::AtExample => write!(f, "@example"),
+            Token::AtPublic => write!(f, "@public"),
+            Token::AtJsonAs => write!(f, "@json_as"),
+            Token::AtFieldName => write!(f, "@field_name"),
+            Token::AtDefault => write!(f, "@default"),
+            Token::AtSkipIfNone => write!(f, "@skip_if_none"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtNative => write!(f, "@native"),
@@ -406,11 +600,30 @@ impl std::fmt::Display for Token {
             Token::AtDeprecated => write!(f, "@deprecated"),
             Token::AtV0 => write!(f, "@v0"),
             Token::AtAi => write!(f, "@ai"),
+            Token::AtPrompt => write!(f, "@prompt"),
+            Token::AtSubagent => write!(f, "@subagent"),
+            Token::AtSearch => write!(f, "@search"),
+            Token::AtHole => write!(f, "@hole"),
             Token::AtCancellable => write!(f, "@cancellable"),
             Token::AtForm => write!(f, "@form"),
             Token::AtBackButton => write!(f, "@back_button"),
             Token::AtDeepLink => write!(f, "@deep_link"),
             Token::AtPush => write!(f, "@push"),
+            Token::AtTokens => write!(f, "@tokens"),
+            Token::AtCors => write!(f, "@cors"),
+            Token::AtRateLimit => write!(f, "@rate_limit"),
+            Token::AtUses => write!(f, "@uses"),
+            Token::AtPii => write!(f, "@pii"),
+            Token::AtEmbed => write!(f, "@embed"),
+            Token::AtWebhook => write!(f, "@webhook"),
+            Token::AtAuth => write!(f, "@auth"),
+            Token::AtOfflineCapable => write!(f, "@offline_capable"),
+            Token::AtCollaborative => write!(f, "@collaborative"),
+            Token::AtLayer => write!(f, "@layer"),
+            Token::AtRemote => write!(f, "@remote"),
+            Token::AtInference => write!(f, "@inference"),
+            Token::AtTrainingStep => write!(f, "@training_step"),
+            Token::AtDistributedTrain => write!(f, "@distributed_train"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),
@@ -449,7 +662,9 @@ impl std::fmt::Display for Token {
             Token::IntLit(v) => write!(f, "{v}"),
             Token::FloatLit(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),
+            Token::TemplateStringLit(s) => write!(f, "\"{s}\""),
             Token::SingleStringLit(s) => write!(f, "'{s}'"),
+            Token::RawStringLit(s) => write!(f, "r\"{s}\""),
             Token::DecLit(s) => write!(f, "{s}dec"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),

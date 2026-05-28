@@ -1,7 +1,7 @@
 ---
 title: "ADR 006: Mens full-graph Candle QLoRA with qlora-rs"
 description: "Official documentation for ADR 006: Mens full-graph Candle QLoRA with qlora-rs for the Vox language."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-24"
 training_eligible: true
 

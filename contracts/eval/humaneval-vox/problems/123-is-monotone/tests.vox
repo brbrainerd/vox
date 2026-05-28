@@ -1,0 +1,33 @@
+fn is_monotone(xs: list[int]) to bool {
+    if xs.len() < 2 { return true }
+    let mut asc: bool = true
+    let mut desc: bool = true
+    let mut i: int = 1
+    while i < xs.len() {
+        match xs[i] {
+            Some(b) => {
+                match xs[i - 1] {
+                    Some(a) => {
+                        if b < a { asc = false }
+                        if b > a { desc = false }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return asc or desc
+}
+
+fn main() to str {
+    assert(is_monotone([1, 2, 3, 4]) == true)
+    assert(is_monotone([4, 3, 2, 1]) == true)
+    assert(is_monotone([1, 1, 1]) == true)
+    assert(is_monotone([1, 3, 2]) == false)
+    assert(is_monotone([]) == true)
+    assert(is_monotone([5]) == true)
+    assert(is_monotone([1, 2, 2, 3]) == true)
+    return "ok"
+}

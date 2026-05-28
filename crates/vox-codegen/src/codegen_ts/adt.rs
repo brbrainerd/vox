@@ -95,17 +95,5 @@ fn generate_adt(typedef: &HirTypeDef) -> String {
 }
 
 fn map_type_to_ts(ty: &HirType) -> String {
-    match ty {
-        HirType::Named(name) => match name.as_str() {
-            "int" | "float" => "number".to_string(),
-            "str" => "string".to_string(),
-            "bool" => "boolean".to_string(),
-            other => other.to_string(),
-        },
-        HirType::Generic(name, args) => {
-            let args_str: Vec<String> = args.iter().map(map_type_to_ts).collect();
-            format!("{}<{}>", name, args_str.join(", "))
-        }
-        _ => "any".to_string(),
-    }
+    vox_compiler::contract_ir::wire_type_to_ts(&vox_compiler::contract_ir::project_type(ty))
 }

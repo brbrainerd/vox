@@ -1,0 +1,186 @@
+2026-05-11T13:21:26.882293Z  INFO vox_plugin_host::telemetry: event="plugin.discovered" id="oratio" version="0.1.0" payload_kind="code" abi_or_format_version=12
+2026-05-11T13:21:26.884063Z  INFO vox_plugin_host::telemetry: event="plugin.loaded" id="oratio" version="0.1.0" payload_kind="code" load_ms=1
+File: tests/speech-to-code/fixtures/corpus_v1/utt_01.wav
+Expected: create function audit sample 1 returns ok
+Actual:   Create function audit sample one returns okay
+Errors: 2 / 7 (WER: 28.6%, CER: 17.1%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_02.wav
+Expected: create function audit sample 2 returns ok
+Actual:   Create function audit sample to returns OK
+Errors: 1 / 7 (WER: 14.3%, CER: 14.3%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_03.wav
+Expected: create function audit sample 3 returns ok
+Actual:   Create function audit sample 3 returns ok
+Errors: 0 / 7 (WER: 0.0%, CER: 2.9%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_04.wav
+Expected: create function audit sample 4 returns ok
+Actual:   Create function audit sample for returns okay.
+Errors: 2 / 7 (WER: 28.6%, CER: 20.0%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_05.wav
+Expected: create function audit sample 5 returns ok
+Actual:   Create function audit sample 5 returns ok
+Errors: 0 / 7 (WER: 0.0%, CER: 2.9%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_06.wav
+Expected: create function audit sample 6 returns ok
+Actual:   Create function audit sample 6 returns OK
+Errors: 0 / 7 (WER: 0.0%, CER: 8.6%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_07.wav
+Expected: create function audit sample 7 returns ok
+Actual:   Create function audit sample 7 returns ok
+Errors: 0 / 7 (WER: 0.0%, CER: 2.9%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_08.wav
+Expected: create function audit sample 8 returns ok
+Actual:   Create function audit sample 8 returns ok
+Errors: 0 / 7 (WER: 0.0%, CER: 2.9%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_09.wav
+Expected: create function audit sample 9 returns ok
+Actual:   Create function audit sample 9 returns ok
+Errors: 0 / 7 (WER: 0.0%, CER: 2.9%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_10.wav
+Expected: create function audit sample 10 returns ok
+Actual:   Create function audit sample 10 returns okay
+Errors: 1 / 7 (WER: 14.3%, CER: 8.3%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_11.wav
+Expected: run speech canary sample 1
+Actual:   Run Speech Canary Sample 1
+Errors: 0 / 5 (WER: 0.0%, CER: 18.2%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_12.wav
+Expected: run speech canary sample 2
+Actual:   Run Speech Canary Sample 2
+Errors: 0 / 5 (WER: 0.0%, CER: 18.2%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_13.wav
+Expected: run speech canary sample 3
+Actual:   Run Speech Canary Sample 3
+Errors: 0 / 5 (WER: 0.0%, CER: 18.2%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_14.wav
+Expected: run speech canary sample 4
+Actual:   Run Speech Canary Sample 4.
+Errors: 1 / 5 (WER: 20.0%, CER: 22.7%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_15.wav
+Expected: run speech canary sample 5
+Actual:   Run Speech Canary Sample 5
+Errors: 0 / 5 (WER: 0.0%, CER: 18.2%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_16.wav
+Expected: run speech canary sample 6
+Actual:   Run Speech Canary Sample 6.
+Errors: 1 / 5 (WER: 20.0%, CER: 22.7%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_17.wav
+Expected: transcribe identifier vox speech sample 1
+Actual:   transcribe Identifier vox Speech Sample 1
+Errors: 0 / 6 (WER: 0.0%, CER: 8.3%)
+Confidence: 0.840
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_18.wav
+Expected: transcribe identifier vox speech sample 2
+Actual:   transcribe Identifier vox Speech Sample 2
+Errors: 0 / 6 (WER: 0.0%, CER: 8.3%)
+Confidence: 0.840
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_19.wav
+Expected: transcribe identifier vox speech sample 3
+Actual:   transcribe Identifier vox Speech Sample 3
+Errors: 0 / 6 (WER: 0.0%, CER: 8.3%)
+Confidence: 0.840
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_20.wav
+Expected: transcribe identifier vox speech sample 4
+Actual:   transcribe Identifier vox Speech Sample 4
+Errors: 0 / 6 (WER: 0.0%, CER: 8.3%)
+Confidence: 0.840
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_21.wav
+Expected: transcribe identifier vox speech sample 5
+Actual:   transcribe Identifier vox Speech Sample 5
+Errors: 0 / 6 (WER: 0.0%, CER: 8.3%)
+Confidence: 0.840
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_22.wav
+Expected: transcribe identifier vox speech sample 6
+Actual:   transcribe Identifier vox Speech Sample 6
+Errors: 0 / 6 (WER: 0.0%, CER: 8.3%)
+Confidence: 0.840
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_23.wav
+Expected: please turn this note sample 1 into vox code
+Actual:   Please turn this Note Sample 1 into Voxcode
+Errors: 2 / 9 (WER: 22.2%, CER: 11.1%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_24.wav
+Expected: please turn this note sample 2 into vox code
+Actual:   Please turn this Note Sample to into Voxcode
+Errors: 3 / 9 (WER: 33.3%, CER: 16.7%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_25.wav
+Expected: please turn this note sample 3 into vox code
+Actual:   Please turn this Note Sample 3 into Voxcode
+Errors: 2 / 9 (WER: 22.2%, CER: 11.1%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_26.wav
+Expected: please turn this note sample 4 into vox code
+Actual:   Please turn this note sample for IntuVox code
+Errors: 3 / 9 (WER: 33.3%, CER: 19.4%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_27.wav
+Expected: background noise then create sample 1
+Actual:   Background noise then create sample 1.
+Errors: 1 / 6 (WER: 16.7%, CER: 6.2%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_28.wav
+Expected: background noise then create sample 2
+Actual:   Background noise then create sample too
+Errors: 1 / 6 (WER: 16.7%, CER: 12.5%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_29.wav
+Expected: background noise then create sample 3
+Actual:   Background Noise then create Sample 3
+Errors: 0 / 6 (WER: 0.0%, CER: 9.4%)
+Confidence: 0.870
+
+File: tests/speech-to-code/fixtures/corpus_v1/utt_30.wav
+Expected: background noise then create sample 4
+Actual:   Background noise then create sample for
+Errors: 1 / 6 (WER: 16.7%, CER: 12.5%)
+Confidence: 0.870
+
+Processed 30 samples.
+Total Words: 196
+Total Errors: 21
+Overall WER: 10.71%

@@ -1,7 +1,7 @@
 ---
 title: "Archive"
 description: "Archive"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "legacy"
 training_eligible: false
 archived_date: 2026-04-18
@@ -18,7 +18,7 @@ As of April 2026, the underlying persistence and routing models for Visus are al
 - MCP tools (`vox_visus_audit`, `vox_visus_baseline`) are registered in `tool-registry.yaml`.
 
 **Missing Context (The Gap):**
-The MCP tool `vox_visus_audit` is currently missing from the orchestrator's dispatch pipeline (`crates/vox-orchestrator/src/mcp_tools/dispatch.rs`) and lacks the execution logic needed to trigger the browser subagent, capture WebP/screenshots, and pipe them into the Vision-Language Model (VLM).
+The MCP tool `vox_visus_audit` is currently missing from the orchestrator's dispatch pipeline (`crates/vox-orchestrator-mcp/src/dispatch.rs`) and lacks the execution logic needed to trigger the browser subagent, capture WebP/screenshots, and pipe them into the Vision-Language Model (VLM).
 
 ## Implementation Waves
 

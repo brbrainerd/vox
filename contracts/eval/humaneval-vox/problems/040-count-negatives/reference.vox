@@ -1,0 +1,9 @@
+fn count_negatives(xs: list[int]) to int {
+    let mut count: int = 0
+    for x in xs {
+        if x < 0 {
+            count = count + 1
+        }
+    }
+    return count
+}

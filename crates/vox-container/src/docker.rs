@@ -1,9 +1,9 @@
 //! Docker CLI backend for [`ContainerRuntime`].
 //!
 //! This implementation is **synchronous** (`std::process::Command`). When calling from async
-//! code, wrap `build` / `run` in [`tokio::task::spawn_blocking`] so the runtime thread is not blocked.
+//! code, wrap `build` / `run` in `tokio::task::spawn_blocking` so the runtime thread is not blocked.
 
-use crate::runtime::{BuildOpts, ContainerRuntime, RunOpts};
+use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts};
 use std::process::Command;
 
 /// Docker-backed container runtime.

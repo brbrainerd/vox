@@ -1,7 +1,7 @@
 //! Golden examples strict-parse gate — audit item A.13.
 //!
 //! When `VOX_EXAMPLES_STRICT_PARSE=1` (always set in CI), every `.vox` file
-//! under `examples/golden/` **must** parse without errors using the production
+//! under `examples/golden/**` **must** parse without errors using the production
 //! parser.  Any parse failure is a CI-blocking error.
 //!
 //! Run locally:
@@ -23,16 +23,22 @@ fn repo_root() -> PathBuf {
 fn collect_golden_vox_files(root: &Path) -> Vec<PathBuf> {
     let golden = root.join("examples").join("golden");
     let mut files = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&golden) {
+    collect_vox_recursive(&golden, &mut files);
+    files.sort();
+    files
+}
+
+fn collect_vox_recursive(dir: &Path, out: &mut Vec<PathBuf>) {
+    if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension().is_some_and(|e| e == "vox") {
-                files.push(p);
+            if p.is_dir() {
+                collect_vox_recursive(&p, out);
+            } else if p.extension().is_some_and(|e| e == "vox") {
+                out.push(p);
             }
         }
     }
-    files.sort();
-    files
 }
 
 #[test]
@@ -103,4 +109,21 @@ fn all_golden_examples_parse_clean() {
         failures.len(),
         files.len()
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn collect_golden_includes_nested_examples() {
+        let root = repo_root();
+        let files = collect_golden_vox_files(&root);
+        let mesh_noop = root.join("examples/golden/mesh/noop.vox");
+        assert!(
+            files.iter().any(|p| p == &mesh_noop),
+            "strict-parse gate must traverse examples/golden/** recursively (missing {})",
+            mesh_noop.display()
+        );
+    }
 }

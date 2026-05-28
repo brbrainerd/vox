@@ -1,7 +1,7 @@
 ---
 title: "Codex HTTP API"
 description: "Official documentation for Codex HTTP API for the Vox language. Detailed technical reference, architecture guides, and implementation pat"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-26"
 training_eligible: true
 
@@ -14,7 +14,7 @@ Rust implementation surfaces live in **`vox-db`** (Codex schema, readiness, stor
 
 ## SSOT
 
-- **OpenAPI 3** — [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) (validated by [`scripts/check_codex_ssot.ps1`](../../../scripts/check_codex_ssot.ps1)).
+- **OpenAPI 3** — [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) (validated by **`vox ci check-codex-ssot`**).
 
 ## Tests
 
@@ -29,7 +29,7 @@ Rust implementation surfaces live in **`vox-db`** (Codex schema, readiness, stor
 
 ## Speech ingress (`/api/audio/*`)
 
-OpenAPI paths **`GET /api/audio/status`**, **`POST /api/audio/transcribe`**, **`POST /api/audio/transcribe/upload`** are implemented by the **`vox-audio-ingress`** binary ([`crates/vox-audio-ingress`](../../../crates/vox-audio-ingress)): Oratio STT on **paths under `VOX_ORATIO_WORKSPACE`** (or process CWD) or **multipart upload**. Same bind vars as the table above. This is separate from Codex CRUD routes but lives in the shared [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) catalog for client codegen.
+OpenAPI paths **`GET /api/audio/status`**, **`POST /api/audio/transcribe`**, **`POST /api/audio/transcribe/upload`** are implemented by the speech ingress stack ([`crates/vox-oratio`](../../../crates/vox-oratio) library surfaces + thin HTTP adapters): Oratio STT on **paths under `VOX_ORATIO_WORKSPACE`** (or process CWD) or **multipart upload**. Same bind vars as the table above. This is separate from Codex CRUD routes but lives in the shared [`contracts/codex-api.openapi.yaml`](../../../contracts/codex-api.openapi.yaml) catalog for client codegen.
 
 ## Related
 

@@ -64,6 +64,9 @@ pub struct SearchExecution {
     pub recommended_next_action: Option<SearchRefinementAction>,
 }
 
+/// Distinct corpus buckets that can contribute evidence (aligned with `execute_search_plan` corpora).
+const SEARCH_CORPUS_BUCKET_COUNT: f64 = 8.0;
+
 fn normalize_query(query: &str) -> String {
     query.split_whitespace().collect::<Vec<_>>().join(" ")
 }
@@ -239,7 +242,7 @@ fn tantivy_supplemental_lines(
     Vec::new()
 }
 
-/// Execute a concrete [`SearchPlan`] against Codex + local memory paths.
+/// Execute a concrete [`SearchPlan`] against `VoxDb` (when attached) + local memory paths.
 pub async fn execute_search_plan(
     ctx: &SearchRuntimeContext,
     query: &str,
@@ -260,7 +263,7 @@ pub async fn execute_search_plan(
             "execute_search_plan"
         );
     }
-    let engine = cached_memory_engine(ctx);
+    let engine = cached_memory_engine(ctx, policy).await;
     let mut warnings: Vec<String> = Vec::new();
 
     let mut lexical_fallback_used = false;
@@ -503,6 +506,32 @@ pub async fn execute_search_plan(
     let web_lines = if plan.corpora.contains(&SearchCorpus::WebResearch) {
         match crate::web_dispatcher::WebSearchDispatcher::search(query, policy).await {
             Ok(hits) => {
+                if policy.persist_web_hits
+                    && let Some(db) = db_opt.as_ref()
+                {
+                    for h in &hits {
+                        let db_arc = db.clone();
+                        let engine_name = h
+                            .provenance
+                            .iter()
+                            .find_map(|p| p.strip_prefix("engine:"))
+                            .unwrap_or("unknown")
+                            .to_string();
+                        let source_uri = format!("web-ingest:{engine_name}:{}", h.path);
+                        let title = h.title.clone();
+                        let body = h.content_snippet.clone();
+                        tokio::spawn(async move {
+                            let _ = crate::ingest::persist_text_document_chunk(
+                                db_arc.as_ref(),
+                                &source_uri,
+                                &title,
+                                &body,
+                                "text/plain",
+                            )
+                            .await;
+                        });
+                    }
+                }
                 if !hits.is_empty() {
                     backend_mix.push(SearchBackend::Web);
                     if top_score.is_none() {
@@ -564,7 +593,11 @@ pub async fn execute_search_plan(
         ];
         let non_empty: Vec<_> = lists.into_iter().filter(|v| !v.is_empty()).collect();
         if non_empty.len() >= 2 {
-            crate::rrf::rrf_merge_line_lists(&non_empty, limit.saturating_mul(2).max(8))
+            crate::rrf::rrf_merge_line_lists(
+                &non_empty,
+                limit.saturating_mul(2).max(8),
+                policy.clamped_rrf_k(),
+            )
         } else {
             Vec::new()
         }
@@ -577,7 +610,9 @@ pub async fn execute_search_plan(
         + usize::from(!chunk_lines.is_empty())
         + usize::from(!repo_lines.is_empty())
         + usize::from(!tantivy_doc_lines.is_empty())
-        + usize::from(!qdrant_lines.is_empty());
+        + usize::from(!qdrant_lines.is_empty())
+        + usize::from(!web_lines.is_empty())
+        + usize::from(!symbol_proximity_lines.is_empty());
 
     let evidence_total = memory_lines.len()
         + knowledge_lines.len()
@@ -591,7 +626,7 @@ pub async fn execute_search_plan(
     let citation_coverage = if evidence_total == 0 {
         0.0
     } else {
-        (effective_diversity as f64 / 6.0).clamp(0.0, 1.0)
+        (effective_diversity as f64 / SEARCH_CORPUS_BUCKET_COUNT).clamp(0.0, 1.0)
     };
     let evidence_quality = if evidence_total == 0 {
         0.0

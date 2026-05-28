@@ -139,7 +139,7 @@ impl CostDefenseState {
 
 /// 5-layer cost defense circuit breaker.
 ///
-/// Call [`check_before_task`] before dispatching any task. The method returns
+/// Call [`Self::check_before_task`] before dispatching any task. The method returns
 /// a list of rejections (empty = task is allowed). Callers should treat any
 /// non-empty rejection list as a hard block except for `MonthlyPacingWarning`
 /// which is advisory.

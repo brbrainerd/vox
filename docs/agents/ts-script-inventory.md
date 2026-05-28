@@ -9,7 +9,7 @@ training_eligible: true
 
 | Area | Path pattern | Disposition |
 |------|----------------|-------------|
-| VS Code extension | `editors/vox-vscode/**/*.ts` | **Keep** (host runtime). |
+| VS Code extension | `apps/editor/vox-vscode/**/*.ts` | **Keep** (host runtime). |
 | Generated app | `dist/app/**` (after build) | **Keep** (codegen output). |
 | mdBook / docs theme | `docs/theme/**` | **Keep** unless moved to pure mdBook defaults. |
 | OpenCode helpers | `.opencode/scripts/**` | **Keep**; prefer `vox ci` for any check that must gate merges. |

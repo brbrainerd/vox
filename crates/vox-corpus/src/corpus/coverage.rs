@@ -1,7 +1,8 @@
 //! Corpus coverage analysis for the Mens training pipeline.
 //!
 //! Scans a JSONL corpus file, counts `{"category": ...}` entries per construct
-//! type, and compares against the full [`TAXONOMY`](vox_cli::training::TAXONOMY).
+//! type, and compares against the full taxonomy passed by the caller (e.g.
+//! `vox_cli::training::TAXONOMY`).
 //!
 //! ## Usage
 //! ```rust,no_run

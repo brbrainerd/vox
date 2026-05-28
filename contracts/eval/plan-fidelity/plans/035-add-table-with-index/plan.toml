@@ -1,0 +1,43 @@
+id = "plan-035-add-table-with-index"
+wave = "wave_2"
+description = "Add a second @table whose schema includes a lookup-style key."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base has `@table type Article { id: str, title: str }`. Add a
+second `@table type ArticleTag { article_id: str, tag: str }` so that
+`(article_id, tag)` acts as a lookup index across articles. Do not
+modify the existing Article table.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing Article table."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Append the new @table type ArticleTag."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+second_table_added = true
+existing_table_unchanged = true

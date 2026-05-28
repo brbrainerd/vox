@@ -1,0 +1,21 @@
+fn int_to_binary(n: int) to str {
+    if n == 0 {
+        return "0"
+    }
+    let mut bits: list[str] = []
+    let mut x: int = n
+    while x > 0 {
+        if x % 2 == 0 {
+            bits.push("0")
+        } else {
+            bits.push("1")
+        }
+        x = x / 2
+    }
+    let reversed: list[str] = bits.reversed()
+    let mut result: str = ""
+    for b in reversed {
+        result = result + b
+    }
+    return result
+}

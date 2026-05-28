@@ -1,25 +1,40 @@
 //! `vox build` — full compile pipeline and artifact layout.
 //!
-//! Writes **TypeScript** into `out_dir` and **Rust** under `target/generated/` (Axum-style backend).
+//! Writes **TypeScript** into `out_dir` and **Rust** under `target/generated/` (Axum-style backend)
+//! when `[build] target = "fullstack"` (default). Use **`--target=server`** for Rust-only or
+//! **`--target=client`** for a Library-shaped TS SDK (`openapi.json`, `vox-client.ts`, …).
 //! Optional **`--scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) writes user-owned Vite/app files via
 //! [`vox_codegen::codegen_ts::scaffold`]. `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
 
+use crate::cli_args::BuildMode;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use vox_bounded_fs::read_utf8_path_capped;
+use vox_codegen::codegen_rust::RustAppShell;
+
+fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
+    crate::fs_utils::strip_windows_verbatim_path(
+        crate::fs_utils::run_target_dir_for_workspace(start).join("generated"),
+    )
+}
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
 ///
 /// `emit_scaffold`: write [`vox_codegen::codegen_ts::scaffold`] files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
+///
+/// Build target precedence: `cli_build_target` (from `vox build --target`) overrides
+/// `VOX_BUILD_TARGET` and `Vox.toml [build] target` (both applied via [`vox_config::VoxConfig::load`]).
 pub async fn run(
     file: &Path,
     out_dir: &Path,
-    target: Option<String>,
+    mobile_target: Option<String>,
+    cli_build_target: Option<vox_config::BuildTarget>,
     emit_scaffold: bool,
     emit_ir: bool,
-    mode: crate::cli_args::BuildMode,
+    mode: BuildMode,
+    rust_app_shell: RustAppShell,
 ) -> Result<()> {
     let frontend = crate::pipeline::run_frontend(file, false).await?;
     crate::pipeline::print_diagnostics(&frontend, file, false);
@@ -36,27 +51,155 @@ pub async fn run(
     );
     let crate::pipeline::FrontendResult { module, hir, .. } = frontend;
 
-    // 5. Generate TypeScript (Frontend)
+    let mut resolved_target = vox_config::VoxConfig::load().build_target;
+    if let Some(t) = cli_build_target {
+        resolved_target = t;
+    }
+
+    fs::create_dir_all(out_dir)
+        .with_context(|| format!("Failed to create output directory: {}", out_dir.display()))?;
+
+    if resolved_target == vox_config::BuildTarget::Server {
+        let rust_output = vox_codegen::codegen_rust::generate(
+            &hir,
+            "vox_generated_app",
+            rust_app_shell,
+        )
+            .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
+
+        let generated_dir = generated_backend_dir(file.parent());
+        fs::create_dir_all(generated_dir.join("src"))
+            .context("Failed to create generated src directory")?;
+
+        for (filename, content) in &rust_output.files {
+            let path = generated_dir.join(filename);
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&path, content)
+                .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+            println!("  wrote {}", path.display());
+        }
+
+        if emit_ir {
+            let web_ir = vox_codegen::web_ir::lower::lower_hir_to_web_ir(&hir);
+            let ir_json = serde_json::to_string_pretty(&web_ir)
+                .context("Failed to serialize WebIR to JSON")?;
+            let ir_path = out_dir.join("web-ir.v1.json");
+            fs::write(&ir_path, ir_json)
+                .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
+            println!("  wrote {}", ir_path.display());
+        }
+
+        let public_dir = generated_dir.join("public").join("ssg-shells");
+        fs::create_dir_all(&public_dir).context("Failed to create public/ssg-shells")?;
+        for (rel_path, html) in crate::utils::ssg::generate_static_site(&module) {
+            let out = public_dir.join(&rel_path);
+            if let Some(parent) = out.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::write(&out, html).with_context(|| {
+                format!(
+                    "Failed to write SSG shell {} (from {})",
+                    out.display(),
+                    rel_path
+                )
+            })?;
+            println!("  wrote {}", out.display());
+        }
+
+        println!(
+            "Build complete (server target): {} Rust file(s); TypeScript skipped",
+            rust_output.files.len()
+        );
+        return Ok(());
+    }
+
+    if resolved_target == vox_config::BuildTarget::Client {
+        let ts_opts = vox_codegen::codegen_ts::CodegenOptions {
+            tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
+            target: mobile_target.clone(),
+            mode: vox_codegen::codegen_ts::emitter::BuildMode::Library,
+            ..Default::default()
+        };
+        let ts_output = vox_codegen::codegen_ts::generate_with_options(&hir, ts_opts)
+            .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
+        for d in &ts_output.diagnostics {
+            eprintln!("warning[{}]: {}", d.code, d.message);
+        }
+
+        for (filename, content) in &ts_output.files {
+            let path = out_dir.join(filename);
+            fs::write(&path, content)
+                .with_context(|| format!("Failed to write output file: {}", path.display()))?;
+            println!("  wrote {}", path.display());
+        }
+
+        let emitted_manifest = ts_output
+            .files
+            .iter()
+            .any(|(n, _)| n == "routes.manifest.ts" || n == "routes.manifest.json");
+        if emitted_manifest {
+            let written_names: std::collections::HashSet<&str> =
+                ts_output.files.iter().map(|(n, _)| n.as_str()).collect();
+            let mut to_remove = vec!["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"];
+            to_remove.push("routes.manifest.ts");
+            for stale_name in to_remove {
+                if written_names.contains(stale_name) {
+                    continue;
+                }
+                let stale = out_dir.join(stale_name);
+                if stale.is_file() {
+                    fs::remove_file(&stale)
+                        .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
+                    println!("  removed stale {}", stale.display());
+                }
+            }
+        }
+
+        if emit_ir {
+            let web_ir = vox_codegen::web_ir::lower::lower_hir_to_web_ir(&hir);
+            let ir_json = serde_json::to_string_pretty(&web_ir)
+                .context("Failed to serialize WebIR to JSON")?;
+            let ir_path = out_dir.join("web-ir.v1.json");
+            fs::write(&ir_path, ir_json)
+                .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
+            println!("  wrote {}", ir_path.display());
+        }
+
+        verify_app_tsx_route_imports(out_dir)
+            .context("generated TS import graph (routes.manifest / App) — client target")?;
+
+        println!(
+            "Build complete (client target): {} TS file(s); Rust skipped",
+            ts_output.files.len()
+        );
+        return Ok(());
+    }
+
+    // 5. Generate TypeScript (Frontend) — fullstack default
     let ts_opts = vox_codegen::codegen_ts::CodegenOptions {
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
-        target: target.clone(),
+        target: mobile_target.clone(),
         mode: match mode {
-            crate::cli_args::BuildMode::App => vox_codegen::codegen_ts::emitter::BuildMode::App,
-            crate::cli_args::BuildMode::Library => {
-                vox_codegen::codegen_ts::emitter::BuildMode::Library
-            }
+            BuildMode::App => vox_codegen::codegen_ts::emitter::BuildMode::App,
+            BuildMode::Library => vox_codegen::codegen_ts::emitter::BuildMode::Library,
         },
+        ..Default::default()
     };
     let ts_output = vox_codegen::codegen_ts::generate_with_options(&hir, ts_opts)
         .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
+    for d in &ts_output.diagnostics {
+        eprintln!("warning[{}]: {}", d.code, d.message);
+    }
 
     // 6. Generate Rust (Backend)
-    let rust_output = vox_codegen::codegen_rust::generate(&hir, "vox_generated_app")
+    let rust_output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "vox_generated_app",
+        rust_app_shell,
+    )
         .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
-
-    // 7. Write output files
-    fs::create_dir_all(out_dir)
-        .with_context(|| format!("Failed to create output directory: {}", out_dir.display()))?;
 
     // Write generated TS files
     for (filename, content) in &ts_output.files {
@@ -74,7 +217,7 @@ pub async fn run(
         let written_names: std::collections::HashSet<&str> =
             ts_output.files.iter().map(|(n, _)| n.as_str()).collect();
         let mut to_remove = vec!["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"];
-        if mode == crate::cli_args::BuildMode::Library {
+        if mode == BuildMode::Library {
             to_remove.push("routes.manifest.ts");
         }
         for stale_name in to_remove {
@@ -174,16 +317,8 @@ pub async fn run(
     verify_app_tsx_route_imports(out_dir)
         .context("generated TS import graph (routes.manifest / App)")?;
 
-    // Write API client for server functions (if any)
-    if !rust_output.api_client_ts.is_empty() {
-        let api_path = out_dir.join("api.ts");
-        fs::write(&api_path, &rust_output.api_client_ts)
-            .with_context(|| format!("Failed to write API client: {}", api_path.display()))?;
-        println!("  wrote {}", api_path.display());
-    }
-
     // Rust goes to target/generated
-    let generated_dir = std::path::Path::new("target").join("generated");
+    let generated_dir = generated_backend_dir(file.parent());
     fs::create_dir_all(generated_dir.join("src"))
         .context("Failed to create generated src directory")?;
 
@@ -210,7 +345,7 @@ pub async fn run(
 
     let public_dir = generated_dir.join("public").join("ssg-shells");
     fs::create_dir_all(&public_dir).context("Failed to create public/ssg-shells")?;
-    for (rel_path, html) in vox_ssg::generate_static_site(&module) {
+    for (rel_path, html) in crate::utils::ssg::generate_static_site(&module) {
         let out = public_dir.join(&rel_path);
         if let Some(parent) = out.parent() {
             fs::create_dir_all(parent)?;
@@ -225,46 +360,11 @@ pub async fn run(
         println!("  wrote {}", out.display());
     }
 
-    if let Some(t) = target {
+    if let Some(t) = mobile_target {
         if t == "ios" || t == "android" {
-            println!("Synchronizing Capacitor project for {}...", t);
-            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-            let status = tokio::process::Command::new("npx")
-                .arg("cap")
-                .arg("sync")
-                .arg(&t)
-                .current_dir(&cwd)
-                .status()
-                .await;
-            match status {
-                Ok(s) if s.success() => println!("  Capacitor sync complete."),
-                Ok(s) => eprintln!("  Capacitor sync exited with {s}"),
-                Err(e) => eprintln!("  Failed to execute npx cap sync: {e}"),
-            }
-
-            if t == "android" {
-                let res_dir = cwd.join("android/app/src/main/res/xml");
-                if std::fs::create_dir_all(&res_dir).is_ok() {
-                    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">127.0.0.1</domain>
-        <domain includeSubdomains="true">localhost</domain>
-    </domain-config>
-</network-security-config>"#;
-                    let _ = std::fs::write(res_dir.join("network_security_config.xml"), xml);
-                }
-
-                // WAKE_LOCK injection
-                let manifest_path = cwd.join("android/app/src/main/AndroidManifest.xml");
-                if manifest_path.is_file() {
-                    let mut m = std::fs::read_to_string(&manifest_path).unwrap_or_default();
-                    if !m.contains("android.permission.WAKE_LOCK") {
-                        m = m.replace("<application", "<uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n    <application");
-                        let _ = std::fs::write(&manifest_path, m);
-                    }
-                }
-            }
+            println!(
+                "Mobile target `{t}`: legacy Capacitor `cap sync` is retired — use `vox compile --target mobile-{t}` (Tauri 2) and `cargo tauri android` / `cargo tauri ios` from the generated workspace under the repo `target/generated/` tree (see docs/src/architecture/vox-application-packaging-ssot-2026.md)."
+            );
         }
     }
 
@@ -274,6 +374,25 @@ pub async fn run(
         rust_output.files.len()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_backend_dir_uses_repo_target_from_nested_compile_suite() {
+        let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("workspace root")
+            .to_path_buf();
+        let nested = repo.join("examples/compile-suite");
+        assert_eq!(
+            generated_backend_dir(Some(&nested)),
+            repo.join("target/generated")
+        );
+    }
 }
 
 /// After `scaffold_react_app`, ensure `main.tsx` / `routes/index.tsx` only import existing files.

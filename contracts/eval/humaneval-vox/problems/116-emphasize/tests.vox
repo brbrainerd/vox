@@ -1,0 +1,10 @@
+fn emphasize(s: str) to str {
+    return "*" + s + "*"
+}
+
+@test
+fn t_word() to Unit { assert(emphasize("hi") is "*hi*") }
+@test
+fn t_empty() to Unit { assert(emphasize("") is "**") }
+@test
+fn t_phrase() to Unit { assert(emphasize("hello world") is "*hello world*") }

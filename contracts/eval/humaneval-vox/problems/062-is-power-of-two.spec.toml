@@ -1,0 +1,12 @@
+[problem]
+id = "062"
+title = "is_power_of_two"
+prompt = """
+Return true if n is a positive power of two (n > 0 and n = 2^k for some non-negative integer k).
+For example: 1 -> true, 2 -> true, 4 -> true, 6 -> false, 0 -> false.
+"""
+signature = "fn is_power_of_two(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

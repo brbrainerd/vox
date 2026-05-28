@@ -27,10 +27,10 @@ impl InferenceProfile {
     }
 }
 
-/// Read [`InferenceProfile`] from **`VOX_INFERENCE_PROFILE`** (case-insensitive).
+/// Read [`InferenceProfile`] from **`vox_populi::inference_PROFILE`** (case-insensitive).
 #[must_use]
 pub fn inference_profile_from_env() -> InferenceProfile {
-    let raw = std::env::var("VOX_INFERENCE_PROFILE")
+    let raw = std::env::var("vox_populi::inference_PROFILE")
         .ok()
         .map(|s| s.trim().to_ascii_lowercase());
     match raw.as_deref() {
@@ -43,7 +43,7 @@ pub fn inference_profile_from_env() -> InferenceProfile {
     }
 }
 
-/// Whether MCP / other HTTP clients may use **local** Ollama (`VOX_INFERENCE_PROFILE`).
+/// Whether MCP / other HTTP clients may use **local** Ollama (`vox_populi::inference_PROFILE`).
 #[must_use]
 pub fn inference_profile_allows_local_ollama_http() -> bool {
     inference_profile_from_env().allows_local_ollama_http()

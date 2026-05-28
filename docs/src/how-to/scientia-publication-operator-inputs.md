@@ -1,7 +1,7 @@
 ---
 title: "Scientia publication: what you type vs what the system derives"
 description: "Per-surface and per-platform manual inputs versus derived fields for VoxGiantia publication."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-03-25"
 training_eligible: true
 

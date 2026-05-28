@@ -8,7 +8,7 @@ use anyhow::Context as _;
 use serde::Deserialize;
 
 /// Walk `examples/golden` under `repo_root`, parse each `.vox`, and count AST decl kinds
-/// (same strings as [`crate::corpus::extract_vox::part_ast`]).
+/// (same strings as the private `crate::corpus::extract_vox::part_ast` helper).
 #[cfg(feature = "ast-extract")]
 pub fn golden_decl_histogram(repo_root: &Path) -> anyhow::Result<serde_json::Value> {
     use crate::corpus::extract_vox::part_ast;

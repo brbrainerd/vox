@@ -1,0 +1,80 @@
+// vox:caps fs env process
+// Re-render docs/src/assets/durable_essentialist_loop.webp.
+// Migrated 2026-05-24 to canonical Vox idioms:
+//   - `-> str` -> `to str`
+//   - `!` -> `not`
+//   - process.run + env.get + process.cwd returns wrapped types
+
+import fs
+import path
+import process
+import env
+
+fn detect_chrome() to str {
+    let from_env = env.get("CHROME_PATH").unwrap_or("")
+    if from_env isnt "" {
+        return from_env
+    }
+    let candidates = [
+        "C:/Program Files/Google/Chrome/Application/chrome.exe",
+        "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ]
+    for c in candidates {
+        if fs.exists(c) {
+            return c
+        }
+    }
+    return ""
+}
+
+fn run_step(label: str, cmd: str, args: list[str]) {
+    let r_opt = process.run(cmd, args)
+    if r_opt is null {
+        print(label + ": failed to spawn")
+        process.exit(1)
+    }
+    let r = r_opt.unwrap()
+    if r.code != 0 {
+        print(label + " failed (exit " + str(r.code) + "): " + r.stderr)
+        process.exit(1)
+    }
+}
+
+fn main() {
+    let repo = process.cwd().unwrap_or(".")
+    let tool_dir = path.join(repo, "apps/build-tools/render-durable-animation")
+    let webp_out = path.join(repo, "docs/src/assets/durable_essentialist_loop.webp")
+    let frames_dir = path.join(tool_dir, "frames")
+
+    let chrome = detect_chrome()
+    if chrome is "" {
+        print("ERROR: Chrome/Chromium not found. Set CHROME_PATH env var.")
+        process.exit(1)
+    }
+
+    if not fs.exists(path.join(tool_dir, "node_modules")) {
+        print("Installing puppeteer-core in apps/build-tools/render-durable-animation/ ...")
+        run_step("npm install", "npm", ["install", "--prefix", tool_dir])
+    }
+
+    print("Capturing frames via headless Chrome at 960x960 ...")
+    run_step("render.js", "node", [path.join(tool_dir, "render.js"), repo, chrome])
+
+    print("Encoding animated WebP via ffmpeg ...")
+    let ffmpeg_args = [
+        "-y",
+        "-framerate", "20",
+        "-i", path.join(frames_dir, "f%04d.png"),
+        "-loop", "0",
+        "-lossless", "0",
+        "-compression_level", "6",
+        "-q:v", "70",
+        webp_out,
+    ]
+    run_step("ffmpeg", "ffmpeg", ffmpeg_args)
+
+    print("OK. Wrote " + webp_out)
+}

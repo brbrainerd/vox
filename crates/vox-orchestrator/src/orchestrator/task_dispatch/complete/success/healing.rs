@@ -28,7 +28,7 @@ impl Orchestrator {
                                 .filter(|d| {
                                     matches!(
                                         d.severity,
-                                        Some(tower_lsp::lsp_types::DiagnosticSeverity::ERROR)
+                                        Some(tower_lsp_server::ls_types::DiagnosticSeverity::ERROR)
                                     )
                                 })
                                 .map(|d| d.message)

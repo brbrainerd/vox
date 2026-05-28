@@ -1,7 +1,7 @@
 ---
 title: "Review Anti-Pattern Catalog Contract"
 description: "Stability-first contract for review_antipattern_memory rows."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 

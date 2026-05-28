@@ -1,7 +1,7 @@
 ---
 title: "Mens local serving SSOT (Schola + orchestrator)"
 description: "Single operator story for serving Candle QLoRA training outputs: vox-schola HTTP, POPULI_URL, orchestrator mesh config, and external handoff."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-04-07"
 training_eligible: true
 
@@ -34,7 +34,7 @@ This is **not** the same process as **Ollama.app** on `http://localhost:11434`, 
 
 ## Orchestrator and agent-to-agent
 
-The in-tree orchestrator’s **`AiTaskProcessor`** uses **`vox_ludus::FreeAiClient`**, which calls **`POST …/api/generate`** for the local Ollama lane. **Schola implements `/api/generate`**, so orchestrator streaming works when **`POPULI_URL`** targets Schola.
+The in-tree orchestrator’s **`AiTaskProcessor`** uses **`vox_gamify::FreeAiClient`**, which calls **`POST …/api/generate`** for the local Ollama lane. **Schola implements `/api/generate`**, so orchestrator streaming works when **`POPULI_URL`** targets Schola.
 
 **`Vox.toml` `[mesh]`** (or legacy **`[mens]`**) can record a stable inference base for operators and tooling:
 

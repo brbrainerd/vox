@@ -7,7 +7,7 @@ fn test_ir_emission_with_hashing_and_inference() {
             a + b
         }
 
-        @endpoint(kind: server)
+        @server
         fn greet(name: str) {
             "Hello " + name
         }
@@ -58,18 +58,15 @@ fn test_ir_emission_with_hashing_and_inference() {
     vox_jsonschema_util::validate(&ir, &validator, "lower_hir_to_vox_ir").expect("schema validate");
 }
 
-/// Predates ADR-028. `@scheduled("…") fn` is now a reserved-keyword early-error in
-/// `pipeline::run_frontend_str` — the pipeline returns an empty HirModule before HIR lowering
-/// runs, so `lower_hir_to_vox_ir` produces zero scheduled_jobs. The negative-path contract is
-/// covered by `pipeline::tests::test_reject_scheduled_adr028`. Re-enable this test when
-/// `@scheduled` is restored to the public grammar (per ADR-028 it is reserved-for-future, not
-/// permanently removed).
+/// Per ADR-041 (durable functions completion), `@scheduled` is back in the public grammar
+/// and the scheduler runtime ships — the pipeline no longer rejects it at the front-end.
+/// `routes` was removed from the vox-ir.schema.json `required` list (2026-05-25) because
+/// `VoxIrContent` never serialises that key; schema now correctly treats it as optional.
 #[test]
-#[ignore = "ADR-028 reserves @scheduled; restore when the keyword returns to public grammar"]
 fn test_ir_emission_includes_scheduled_jobs_in_web_ir() {
     let source = r#"
 @scheduled("1h")
-fn tick() -> Unit {
+fn tick() to Unit {
     return Unit
 }
 "#;

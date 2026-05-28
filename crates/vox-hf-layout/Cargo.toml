@@ -1,0 +1,16 @@
+[package]
+name = "vox-hf-layout"
+description = "Shared Hugging Face config.json parsing for transformer layout (MENS / Candle plugins)."
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+tracing.workspace = true
+vox-bounded-fs.workspace = true
+
+[lints]
+workspace = true

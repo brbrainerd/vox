@@ -1,0 +1,8 @@
+// Bug: function declares @uses(fs) (filesystem effect) but the body
+// calls std.http.get_text, which requires the Net effect. The declared
+// effect is wrong — the compiler sees an undeclared Net call.
+@uses(fs)
+fn fetch_config(url: str) to str {
+    // BUG: std.http.get_text needs @uses(net), not @uses(fs).
+    return std.http.get_text(url)
+}

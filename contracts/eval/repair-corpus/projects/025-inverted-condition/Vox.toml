@@ -1,0 +1,5 @@
+[package]
+name = "repair-025-inverted-condition"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Predicate inverts the comparison direction."

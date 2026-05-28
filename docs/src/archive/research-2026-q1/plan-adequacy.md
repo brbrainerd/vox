@@ -1,7 +1,7 @@
 ---
 title: "Plan adequacy — thin plans, external limits, and Vox mitigation"
 description: "Why IDE and API planners produce underspecified plans, how Vox detects and expands them safely, and telemetry for rollout."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-29"
 training_eligible: false
 

@@ -136,6 +136,28 @@ pub const WORKFLOW_NON_DETERMINISTIC_BUILTIN: &str = "vox/workflow/non-determini
 pub const EFFECT_PURE_VIOLATED: &str = "vox/effect/pure-violated";
 
 // ---------------------------------------------------------------------------
+// Core type errors — emitted by vox-compiler typeck (v0.6 LLM-target)
+// ---------------------------------------------------------------------------
+// These constants mirror `vox_compiler::typeck::diagnostics::codes::TYPES_*`
+// so that `--explain` and `--list-diagnostics` can surface them.
+// String values MUST stay in sync with the compiler crate.
+
+/// Type mismatch in `let`, `return`, `state`, `derived`, or assignment.
+pub const TYPES_TYPE_MISMATCH: &str = "vox/types/type-mismatch";
+/// Undefined variable referenced in expression position.
+pub const TYPES_UNDEFINED_VARIABLE: &str = "vox/types/undefined-variable";
+/// Wrong number of arguments at a call site.
+pub const TYPES_ARG_COUNT_MISMATCH: &str = "vox/types/arg-count-mismatch";
+/// Argument type does not match the callee's declared parameter type.
+pub const TYPES_ARG_TYPE_MISMATCH: &str = "vox/types/arg-type-mismatch";
+/// Field access on a type that does not have that field.
+pub const TYPES_FIELD_NOT_FOUND: &str = "vox/types/field-not-found";
+/// Method call on a type that does not have that method.
+pub const TYPES_METHOD_NOT_FOUND: &str = "vox/types/method-not-found";
+/// Type of an expression could not be fully resolved (unresolved type variable).
+pub const TYPES_UNRESOLVED_TYPE: &str = "vox/types/unresolved-type";
+
+// ---------------------------------------------------------------------------
 // Type rules (Phase 3)
 // ---------------------------------------------------------------------------
 
@@ -158,6 +180,38 @@ pub const CORPUS_TRAINING_INELIGIBLE_IMPORT: &str = "vox/corpus/training-ineligi
 pub const SYNTAX_DECORATOR_POSITION_POLICY: &str = "vox/syntax/decorator-position-policy";
 
 // ---------------------------------------------------------------------------
+// Retirement guard (CR-L6) — `Warning` at land, `Error` after one minor
+// ---------------------------------------------------------------------------
+
+/// Source file uses a retired decorator or import form per AGENTS.md §Retired Surfaces.
+/// First 5 patterns covered: `@component fn`, `@server fn`, `@query fn`,
+/// `@mutation fn`, `@py.import`. Remaining 5 (`recall()`, `@capacitor/*`,
+/// `axum::serve`, `rust-embed`, `vox-sherpa-transcribe`) land in P1.4.
+pub const RETIRED_DECORATOR_USAGE: &str = "vox/retired/decorator-usage";
+
+/// Source file references a retired Vox crate name (vox-ludus, vox-sherpa-transcribe).
+/// Covers the `vox-ludus-crate` and `vox-sherpa-transcribe-plugin` rows of
+/// `contracts/retirement/retired-surfaces.v1.yaml`. Phase 1.4 detector.
+pub const RETIRED_CRATE_IMPORT: &str = "vox/retired/crate-import";
+
+/// Source file references a retired Vox env-var name (TURSO_URL / VOX_TURSO_URL /
+/// VOX_TURSO_TOKEN). Covers the `turso-env-vars` row. Phase 1.4 detector.
+pub const RETIRED_ENV_VAR: &str = "vox/retired/env-var";
+
+/// Source file calls a retired memory-API (`recall()` / `recall_async()`).
+/// Covers the `recall-fn-api` row. Phase 1.4 detector.
+pub const RETIRED_MEMORY_API: &str = "vox/retired/memory-api";
+
+/// Source file imports a retired `@capacitor/*` package or runs `npx cap sync`.
+/// Covers the `capacitor-imports` and `cap-sync-cli` rows. Phase 1.4 detector.
+pub const RETIRED_CAPACITOR: &str = "vox/retired/capacitor";
+
+/// A Vox file contains a circular `import` dependency (self-import or multi-file cycle).
+/// Phase J.19 / CR-L gate.  Multi-file cycles are detected by
+/// `detectors::import_cycles::detect_import_cycles_in_batch`.
+pub const IMPORT_CYCLE: &str = "vox/import/cycle";
+
+// ---------------------------------------------------------------------------
 // Codegen (Phase 1)
 // ---------------------------------------------------------------------------
 
@@ -167,6 +221,29 @@ pub const CODEGEN_GENERATED_FILE_DRIFT: &str = "vox/codegen/generated-file-drift
 /// A decorator-shaped public Rust fn under `vox-compiler/src/lower/decorators/`
 /// lacks a `#[vox_decorator]` attribute.
 pub const CODEGEN_DECORATOR_WITHOUT_ATTRIBUTE: &str = "vox/codegen/decorator-without-attribute";
+
+/// `@ai(task_category=...)` payload contains an unrecognized category.
+pub const AI_UNKNOWN_TASK_CATEGORY: &str = "vox/ai/unknown-task-category";
+/// `@prompt(stage=...)` stage value is invalid.
+pub const PROMPT_INVALID_STAGE: &str = "vox/prompt/invalid-stage";
+/// `@prompt(...)` omitted required redaction policy for sensitive payloads.
+pub const PROMPT_SECRET_LEAKAGE: &str = "vox/prompt/secret-leakage";
+/// `@subagent(...)` requested chain depth exceeds configured limits.
+pub const SUBAGENT_CHAIN_DEPTH_EXCEEDED: &str = "vox/subagent/chain-depth-exceeded";
+/// `@subagent(policy = distributed)` requires mesh / `populi-transport` workspace wiring.
+pub const SUBAGENT_DISTRIBUTED_NOT_WIRED: &str = "vox/subagent/distributed-not-wired";
+/// `@search(corpus=...)` attempted a denied or unsupported corpus.
+pub const SEARCH_CORPUS_DENIED: &str = "vox/search/corpus-denied";
+/// `@search(corpus=memory, ...)` used an invalid memory key.
+pub const SEARCH_MEMORY_KEY_INVALID: &str = "vox/search/memory-key-invalid";
+/// `@search(corpus=web, ...)` violated web policy constraints.
+pub const SEARCH_WEB_POLICY_DENIED: &str = "vox/search/web-policy-denied";
+/// `@hole(...)` fixture has not been filled.
+pub const FIXTURE_UNFILLED_HOLE: &str = "vox/fixture/unfilled-hole";
+/// `@hole(...)` fixture is stale per ledger policy.
+pub const FIXTURE_STALE_HOLE: &str = "vox/fixture/stale-hole";
+/// TypeScript codegen observed AI fixtures without TS lowering support.
+pub const CODEGEN_MISSING_TS_AI_LOWERING: &str = "vox/codegen/missing-ts-ai-lowering";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -193,6 +270,14 @@ pub const ALL_PHASE2_IDS: &[&str] = &[
 
 /// All known diagnostic IDs across all phases.
 pub const ALL_KNOWN_IDS: &[&str] = &[
+    // Core type errors (v0.6)
+    TYPES_TYPE_MISMATCH,
+    TYPES_UNDEFINED_VARIABLE,
+    TYPES_ARG_COUNT_MISMATCH,
+    TYPES_ARG_TYPE_MISMATCH,
+    TYPES_FIELD_NOT_FOUND,
+    TYPES_METHOD_NOT_FOUND,
+    TYPES_UNRESOLVED_TYPE,
     LLM_DIRECT_PROVIDER_CALL,
     SECRET_ENV_GET_SHAPE,
     CRYPTO_BANNED_CRATE_IMPORT,
@@ -224,6 +309,23 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     SYNTAX_DECORATOR_POSITION_POLICY,
     CODEGEN_GENERATED_FILE_DRIFT,
     CODEGEN_DECORATOR_WITHOUT_ATTRIBUTE,
+    AI_UNKNOWN_TASK_CATEGORY,
+    PROMPT_INVALID_STAGE,
+    PROMPT_SECRET_LEAKAGE,
+    SUBAGENT_CHAIN_DEPTH_EXCEEDED,
+    SUBAGENT_DISTRIBUTED_NOT_WIRED,
+    SEARCH_CORPUS_DENIED,
+    SEARCH_MEMORY_KEY_INVALID,
+    SEARCH_WEB_POLICY_DENIED,
+    FIXTURE_UNFILLED_HOLE,
+    FIXTURE_STALE_HOLE,
+    CODEGEN_MISSING_TS_AI_LOWERING,
+    RETIRED_DECORATOR_USAGE,
+    RETIRED_CRATE_IMPORT,
+    RETIRED_ENV_VAR,
+    RETIRED_MEMORY_API,
+    RETIRED_CAPACITOR,
+    IMPORT_CYCLE,
 ];
 
 /// Find the explain URL for a given diagnostic ID.

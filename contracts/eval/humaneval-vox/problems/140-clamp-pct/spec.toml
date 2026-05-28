@@ -1,0 +1,8 @@
+id = "humaneval-vox-140-clamp-pct"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `clamp_pct(n: int) to int` clamping n to the percentage range [0, 100].
+"""

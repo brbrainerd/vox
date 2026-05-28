@@ -1,0 +1,55 @@
+{
+  "criterion": "CR-P1",
+  "manifest_path": "C:\\Users\\Owner\\vox\\.claude\\worktrees\\jovial-buck-e93ac0\\contracts\\marquee\\manifest.v1.yaml",
+  "measured_at": "2026-05-23T20:20:14.705221200+00:00",
+  "measurement_notes": [
+    "live = HTTP GET <probe_url> returned 2xx within 5s.",
+    "probe_url resolution: (1) manifest.apps[].live_url if set; (2) env VOX_CR_P1_<APP_ID>_URL (uppercase, dashes→_); (3) http://127.0.0.1:<default_port>/health.",
+    "Default ports per slot: marquee-app=8080, marquee-todo-auth=8081, marquee-chat=8082.",
+    "Local-dev scope: this measurement assumes the three slots are reachable on the loopback interface; the v1.0 acceptance bar is local-dev reachability, not production OCI hosting. Canonical bring-up runbook: `vox run scripts/start-marquee.vox` (handles slot 2 + slot 3 native binaries) + docker (slot 1's nginx SPA). Slot 1 has no Rust backend at runtime — it ships as a static SPA + nginx — so it follows the docker recipe in apps/interop/marquee_app/Dockerfile rather than the native-binary recipe.",
+    "Sub-bar artifacts are publishable evidence per honest plan §3.x — even a 1/3 result documents real measured progress."
+  ],
+  "per_app": [
+    {
+      "error": null,
+      "fixture_path": "apps/interop/marquee_app",
+      "http_status": 200,
+      "id": "marquee-app",
+      "live": true,
+      "probe_url": "http://127.0.0.1:8080/health",
+      "response_time_ms": 2,
+      "status": "real"
+    },
+    {
+      "error": "connect: No connection could be made because the target machine actively refused it. (os error 10061)",
+      "fixture_path": "apps/marquee/todo-auth",
+      "http_status": null,
+      "id": "marquee-todo-auth",
+      "live": false,
+      "probe_url": "http://127.0.0.1:8081/health",
+      "response_time_ms": null,
+      "status": "real"
+    },
+    {
+      "error": "connect: No connection could be made because the target machine actively refused it. (os error 10061)",
+      "fixture_path": "apps/marquee/chat",
+      "http_status": null,
+      "id": "marquee-chat",
+      "live": false,
+      "probe_url": "http://127.0.0.1:8082/health",
+      "response_time_ms": null,
+      "status": "real"
+    }
+  ],
+  "results": {
+    "live_pct": 0.3333333333333333,
+    "real_apps_live": 1,
+    "real_apps_total": 3
+  },
+  "schema_version": 1,
+  "threshold": {
+    "met": false,
+    "target_all_live": true,
+    "target_real_apps_total": 3
+  }
+}

@@ -1,0 +1,25 @@
+fn str_count_words_unique(s: str) to int {
+    if s.trim().len() == 0 {
+        return 0
+    }
+    let words: list[str] = s.split(" ")
+    let mut seen: list[str] = []
+    for word in words {
+        let lower: str = word.to_lower()
+        if lower.len() > 0 and not seen.contains(lower) {
+            seen.push(lower)
+        }
+    }
+    return seen.len()
+}
+
+fn main() to str {
+    assert(str_count_words_unique("hello world") == 2)
+    assert(str_count_words_unique("hello hello") == 1)
+    assert(str_count_words_unique("Hello hello") == 1)
+    assert(str_count_words_unique("") == 0)
+    assert(str_count_words_unique("one two three") == 3)
+    assert(str_count_words_unique("a b c a b") == 3)
+    assert(str_count_words_unique("foo") == 1)
+    return "ok"
+}

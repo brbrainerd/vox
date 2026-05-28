@@ -1,0 +1,31 @@
+id = "plan-001-add-fn"
+wave = "wave_1"
+description = "Add a new pure fn to a single file."
+max_steps = 3
+max_cost_usd = 0.75
+
+prompt = """
+Given a Vox source file, add a new pure fn `double(n: int) to int`
+that returns `n * 2`. Do not modify any existing fn. Add one @test
+block that exercises double(3) == 6.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "write"
+description = "Append the new fn and its @test block."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes; new @test runs clean."
+
+[success_criteria]
+vox_check_passes = true
+new_test_passes = true
+existing_fns_unchanged = true

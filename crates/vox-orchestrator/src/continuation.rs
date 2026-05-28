@@ -119,13 +119,15 @@ impl ContinuationEngine {
         strategy: ContinuationStrategy,
         pending_task_count: usize,
         idle_secs: u64,
+        active_skill_id: Option<&str>,
+        active_skill_instructions: Option<&str>,
         event_bus: &EventBus,
     ) -> Option<ContinuationPrompt> {
         if !self.can_continue(agent_id) {
             return None;
         }
 
-        let prompt_text = match strategy {
+        let mut prompt_text = match strategy {
             ContinuationStrategy::Continue => format!(
                 "You have been idle for {}s with {} pending task(s). Please continue with the current task.",
                 idle_secs, pending_task_count
@@ -145,6 +147,10 @@ impl ContinuationEngine {
                 pending_task_count
             ),
         };
+
+        if let Some(skill_content) = active_skill_instructions {
+            prompt_text.push_str(&format!("\n\n<active_skill>\n{}\n</active_skill>", skill_content));
+        }
 
         #[cfg(feature = "runtime")]
         let prompt_text = vox_actor_runtime::prompt_canonical::canonicalize_simple(&prompt_text);
@@ -166,6 +172,7 @@ impl ContinuationEngine {
         event_bus.emit(AgentEventKind::ContinuationTriggered {
             agent_id,
             strategy: strategy.to_string(),
+            active_skill: active_skill_id.map(|s| s.to_string()),
         });
 
         Some(ContinuationPrompt {
@@ -219,7 +226,7 @@ mod tests {
         let agent = AgentId(1);
 
         let prompt =
-            engine.generate_continuation(agent, ContinuationStrategy::Continue, 3, 30, &bus);
+            engine.generate_continuation(agent, ContinuationStrategy::Continue, 3, 30, None, None, &bus);
 
         assert!(prompt.is_some());
         let p = prompt.unwrap();
@@ -229,17 +236,42 @@ mod tests {
     }
 
     #[test]
+    fn skill_injection_xml() {
+        let bus = EventBus::new(16);
+        let mut engine = ContinuationEngine::new(0, 10);
+        let agent = AgentId(1);
+        let skill_id = "superpowers:tdd";
+        let skill_instructions = "# TDD Instructions\n1. Red\n2. Green\n3. Refactor";
+
+        let prompt = engine.generate_continuation(
+            agent,
+            ContinuationStrategy::Continue,
+            1,
+            60,
+            Some(skill_id),
+            Some(skill_instructions),
+            &bus,
+        );
+
+        assert!(prompt.is_some());
+        let p = prompt.unwrap();
+        assert!(p.prompt_text.contains("<active_skill>"));
+        assert!(p.prompt_text.contains("1. Red"));
+        assert!(p.prompt_text.contains("</active_skill>"));
+    }
+
+    #[test]
     fn cooldown_prevents_spam() {
         let bus = EventBus::new(16);
         let mut engine = ContinuationEngine::new(1_000_000, 10); // very long cooldown
         let agent = AgentId(1);
 
         // First continuation succeeds
-        let p1 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
+        let p1 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
         assert!(p1.is_some());
 
         // Second is blocked by cooldown
-        let p2 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
+        let p2 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
         assert!(p2.is_none());
     }
 
@@ -249,12 +281,12 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 2); // max 2
         let agent = AgentId(1);
 
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
 
         assert!(engine.is_exhausted(agent));
 
-        let p3 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
+        let p3 = engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
         assert!(p3.is_none());
     }
 
@@ -264,8 +296,8 @@ mod tests {
         let mut engine = ContinuationEngine::new(0, 2);
         let agent = AgentId(1);
 
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
-        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
+        engine.generate_continuation(agent, ContinuationStrategy::Continue, 1, 30, None, None, &bus);
         assert!(engine.is_exhausted(agent));
 
         engine.reset_cooldown(agent);
@@ -280,7 +312,7 @@ mod tests {
         engine.set_enabled(false);
 
         let p =
-            engine.generate_continuation(AgentId(1), ContinuationStrategy::Continue, 5, 30, &bus);
+            engine.generate_continuation(AgentId(1), ContinuationStrategy::Continue, 5, 30, None, None, &bus);
         assert!(p.is_none());
     }
 }

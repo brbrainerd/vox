@@ -1,0 +1,8 @@
+// Repair-corpus fixture 009 — type-error bug class.
+// `sum_first` reads element 0 of a List[int] and adds a str to it.
+// Expected repair: drop the " items" suffix, OR change the return
+// type to str and call as_string(...) on the int.
+
+fn sum_first(xs: List[int]) to int {
+    return xs[0] + " items"
+}

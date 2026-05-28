@@ -4,7 +4,7 @@
  * The codegen emits bare references to Vox builtins like `str(...)`,
  * `Speech.transcribe_microphone()`, `std.time.now_ms()` that have no JS
  * import. Until the compiler emits proper imports for these (tracked in
- * docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md
+ * docs/superpowers/plans/language/2026-05-08-codegen-ts-bugs-blocking-tracker.md
  * follow-up), this module installs them on globalThis so the emitted
  * code resolves at runtime.
  *

@@ -13,7 +13,7 @@ pub use worthiness::*;
 
 use crate::scientific_metadata::ScientificPublicationMetadata;
 
-/// Inline snapshot compatible with [`vox_db::socrates_telemetry::SocratesSurfaceAggregate`] JSON.
+/// Inline snapshot compatible with `vox_db::socrates_telemetry::SocratesSurfaceAggregate` JSON.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq)]
 pub struct SocratesAggregateSnapshot {
     #[serde(default)]
@@ -133,6 +133,53 @@ pub struct ScientiaEvidenceContext {
     /// Which machine facets were attached for audit (anti-slop transparency).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub autofill_provenance: Vec<AutofillProvenanceEntry>,
+    /// Phase D wiring — summary of the most recent claim extraction +
+    /// MiniCheck verification over the manuscript body. Written by
+    /// `vox scientia publication-extract-claims` and consumed by
+    /// `worthiness_extraction.rs` to derive
+    /// [`WorthinessInputs::claim_evidence_coverage`] from a measured
+    /// support ratio instead of a citation-presence heuristic.
+    ///
+    /// [`WorthinessInputs::claim_evidence_coverage`]: crate::publication_worthiness::WorthinessInputs::claim_evidence_coverage
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extracted_claims: Option<ExtractedClaimsSummary>,
+}
+
+/// Summary written to `metadata_json.scientia_evidence.extracted_claims` by
+/// `publication-extract-claims`. The full per-claim verdicts live in
+/// `scientia_claim_verdicts`; this struct is the aggregate that worthiness
+/// derivation reads.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ExtractedClaimsSummary {
+    pub schema_version: u32,
+    /// Total atomic claims that survived VeriScore + span checks.
+    pub total_atomic: u32,
+    /// Verdicts where `support_score >= promotion_threshold`.
+    pub supported: u32,
+    /// Verdicts where the verifier returned a contradicting verdict.
+    pub refuted: u32,
+    /// Verdicts where `support_score < abstain_threshold`.
+    pub abstained: u32,
+    /// Verifier identifier (e.g. `"mock"` or `"minicheck-ft5"`).
+    pub verifier_model: String,
+    pub abstain_threshold: f64,
+    pub promotion_threshold: f64,
+    pub extracted_at_ms: i64,
+}
+
+impl ExtractedClaimsSummary {
+    /// Measured support ratio in `[0, 1]`. Used by worthiness derivation to
+    /// override the citation-presence heuristic when present. Returns
+    /// `0.0` when `total_atomic == 0` (no claims were extractable — the
+    /// rubric treats this as "claim_evidence_coverage cannot be measured"
+    /// and the caller falls back to the existing heuristic).
+    pub fn support_ratio(&self) -> f64 {
+        if self.total_atomic == 0 {
+            0.0
+        } else {
+            self.supported as f64 / self.total_atomic as f64
+        }
+    }
 }
 
 impl ScientiaEvidenceContext {

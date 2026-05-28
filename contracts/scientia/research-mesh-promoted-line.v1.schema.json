@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/scientia/research-mesh-promoted-line.v1.schema.json",
+  "title": "SCIENTIA research mesh promoted ledger line",
+  "description": "Each JSON line in events.v1.jsonl; `record` MUST validate against research-mesh-intake.v1.schema.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "promoted_at_ms",
+    "source_relative_path",
+    "record"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "promoted_at_ms": { "type": "integer" },
+    "source_relative_path": { "type": "string", "minLength": 1 },
+    "record": { "type": "object" }
+  }
+}

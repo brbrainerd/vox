@@ -1,7 +1,7 @@
 ---
 title: "GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)"
 description: "Roadmap tying WebIR, golden UI, vox island/v0, Playwright, MCP browser, orchestrator vision routing, and Mens Qwen3.5 (+ optional vision lane) into a closed improvement loop. Each item names repo anchors and a concrete implementation path."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 19
 last_updated: "2026-04-12"
@@ -79,9 +79,9 @@ flowchart TB
 
 | Concern | Primary anchors |
 | --- | --- |
-| Web UI IR | `crates/vox-compiler/src/web_ir/` — `lower.rs` (`IslandMount`, routes, behaviors), `validate/` |
+| Web UI IR | `crates/vox-codegen/src/web_ir/` — `lower.rs` (`IslandMount`, routes, behaviors), `validate/` |
 | v0 syntax | `crates/vox-compiler/src/parser/descent/decl/tail.rs` — `@v0 "id" Name` and `@v0 from "design.png"` |
-| TS emit + islands | `crates/vox-compiler/src/codegen_ts/` — `emitter.rs`, `island_emit.rs` (no `v0_tsx_normalize` in this crate) |
+| TS emit + islands | `crates/vox-codegen/src/codegen_ts/` — `emitter.rs`, `island_emit.rs` (no `v0_tsx_normalize` in this crate) |
 | Deterministic GUI spine | `crates/vox-compiler/tests/web_ir_lower_emit.rs` — lowering + emit regression without a browser |
 | CLI v0 lint + v0 HTTP | `crates/vox-cli/src/v0_tsx_normalize.rs`, `v0.rs` (`VOX_V0_API_URL` override for tests/mocks), `commands/build.rs` named-export validation |
 | Island pipeline | `crates/vox-cli/src/commands/island/` — `generate` with `--image`, cache, shadcn stub |
@@ -127,7 +127,7 @@ Section tags mirror the legend (**Shipped** / **Partial** / **RFC**). “Vision?
 ### B. v0, islands, and CLI
 
 9. **Partial — `vox island generate --image` → attach to v0 API** — `island/mod.rs`, `actions::generate`, `v0.rs` — Threaded end-to-end; **`VOX_V0_API_URL`** supports mocked HTTP in `vox-cli` tests (see `v0_wiremock_tests`). — Yes — Use same image in **eval** for VL rubric “matches layout”.
-10. **RFC — Normalize v0 TSX with AST (not regex only)** — `v0_tsx_normalize.rs` — Prefer a **workspace-owned** parser path (for example a small `napi-rs`/`oxc` crate or subprocess contract). **Do not** assume `vox-vscode/` `esbuild` is callable from the Rust CLI—different package graph and policy. — No. — N/A.
+10. **RFC — Normalize v0 TSX with AST (not regex only)** — `v0_tsx_normalize.rs` — Prefer a **workspace-owned** parser path (for example a small `napi-rs`/`oxc` crate or subprocess contract). **Do not** assume `apps/editor/vox-vscode/` `esbuild` is callable from the Rust CLI—different package graph and policy. — No. — N/A.
 11. **RFC — `vox doctor` check: v0 env + islands dir** — `vox doctor` modules — Surface `V0_API_KEY` / islands readiness from Clavis + paths (not wired today). — No. — N/A.
 12. **RFC — Cache key includes design PNG hash** — island cache — Invalidate when `@v0 from` file changes. — Yes — Vision rubric keyed by PNG sha.
 13. **RFC — `vox build` warning when island stub still placeholder** — `emitter.rs` placeholder comment — Detect `pending v0 CLI` substring. — Yes — Screenshot should still show placeholder; rubric fails until replaced.
@@ -146,7 +146,7 @@ Section tags mirror the legend (**Shipped** / **Partial** / **RFC**). “Vision?
 
 ### D. VS Code extension and developer UX
 
-23. **RFC — “Open golden preview” command** — `vox-vscode/README.md` — Deep-link to built `dist/` for active golden. — Yes for side-by-side with design PNG. — N/A.
+23. **RFC — “Open golden preview” command** — `apps/editor/vox-vscode/README.md` — Deep-link to built `dist/` for active golden. — Yes for side-by-side with design PNG. — N/A.
 24. **RFC — Diagnostic code links to WebIR doc** — `vox-lsp` — On WebIR-related errors, show markdown link to blueprint. — No. — N/A.
 25. **RFC — Snippet updates for `component` vs `@component`** — `language_surface.rs`, grammar export — Reduce dual-path confusion per research. — No. — Mens prompts updated in `vox_corpus::training::generate_training_system_prompt`.
 26. **RFC — Visual editor: pipe screenshot to rubric command** — extension host — Optional config `vox.visionRubricCommand`. — Yes. — Local Qwen-VL or remote.

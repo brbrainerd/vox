@@ -1,0 +1,17 @@
+
+warning: vox-dashboard@0.5.0: vox-dashboard: app.vox compiled to app/src/generated/
+crates\vox-codegen\src\codegen_ts\emitter.rs:376:17: warning: this expression creates a reference which is immediately dereferenced by the compiler: help: change this to: `web_projection`
+crates\vox-codegen\src\codegen_ts\emitter.rs:384:17: warning: this expression creates a reference which is immediately dereferenced by the compiler: help: change this to: `web_projection`
+warning: `vox-codegen` (lib) generated 2 warnings (run `cargo clippy --fix --lib -p vox-codegen -- ` to apply 2 suggestions)
+warning: `vox-codegen` (lib test) generated 2 warnings (2 duplicates)
+crates\vox-orchestrator\src\dei_shim\research\orchestrator\pipeline.rs:199:9: error[E0061]: this function takes 7 arguments but 6 arguments were supplied
+crates\vox-orchestrator\src\dei_shim\research\verifier.rs:186:5: warning: unreachable expression: unreachable expression
+crates\vox-orchestrator\src\dei_shim\research\orchestrator\pipeline_cache.rs:37:17: error[E0425]: cannot find function `research_cache_key` in this scope: not found in this scope
+crates\vox-orchestrator\src\dei_shim\research\orchestrator\pipeline_cache.rs:38:17: error[E0425]: cannot find function `research_cache_key` in this scope: not found in this scope
+crates\vox-orchestrator\src\dei_shim\research\orchestrator\pipeline_cache.rs:39:17: error[E0425]: cannot find function `research_cache_key` in this scope: not found in this scope
+warning: `vox-orchestrator` (lib) generated 1 warning
+error: could not compile `vox-orchestrator` (lib) due to 1 previous error; 1 warning emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `vox-orchestrator` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `vox-orchestrator` (lib test) due to 4 previous errors; 1 warning emitted
+

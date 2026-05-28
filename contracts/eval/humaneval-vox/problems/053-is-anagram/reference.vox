@@ -1,0 +1,16 @@
+fn sort_chars(s: str) to str {
+    let chars: list[str] = s.to_lower().chars()
+    let sorted: list[str] = chars.sorted()
+    let mut result: str = ""
+    for c in sorted {
+        result = result + c
+    }
+    return result
+}
+
+fn is_anagram(a: str, b: str) to bool {
+    if a.len() != b.len() {
+        return false
+    }
+    return sort_chars(a) == sort_chars(b)
+}

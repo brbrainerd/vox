@@ -1,0 +1,285 @@
+x-vox-version: 1
+schema_version: 1
+
+# Single source of truth for retired-surface coverage.
+#
+# Each row pairs a retired symbol/pattern from AGENTS.md §Retired Surfaces
+# with its canonical replacement and the enforcement mechanism that catches
+# accidental re-introduction.
+#
+# References:
+#   - AGENTS.md §Retired Surfaces (LLM Guard) — the source-of-truth list
+#   - contracts/documentation/retired-symbols.v1.yaml — markdown text guard
+#   - crates/vox-code-audit/src/detectors/ — code-level detectors
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.2 P1.3
+#
+# CR-L6 parity gate: every row must have either `enforcement.kind` ∈
+# {detector, cli-check, documentation-only} pointing at a real wired check,
+# or `enforcement.kind: deferred` with a target landing milestone.
+#
+# Parity check: `vox-code-audit::retirement_parity::check_against_workspace(...)`
+# (also exposed via the planned `vox ci retirement-audit` CLI command in P1.5).
+
+surfaces:
+  # =========================================================================
+  # Detector-enforced (CR-L6 first slice, P1.2 landed 2026-05-15)
+  # =========================================================================
+
+  - id: at-component-fn
+    retired_pattern: "@component fn Name()"
+    canonical: "component Name() { ... }"
+    agents_md_row: "@component fn Name()"
+    enforcement:
+      kind: detector
+      rule_id: "retired/decorator-usage"
+      diagnostic_id: "vox/retired/decorator-usage"
+    rationale: >
+      Grammar-unification 2026-Q1: bare `component` keyword is canonical;
+      `@component fn` was retired as the redundant decorator+fn pair.
+
+  - id: at-server-fn
+    retired_pattern: "@server fn"
+    canonical: "@endpoint(kind: server) fn"
+    agents_md_row: "@server fn, @query fn, @mutation fn"
+    enforcement:
+      kind: detector
+      rule_id: "retired/decorator-usage"
+      diagnostic_id: "vox/retired/decorator-usage"
+    rationale: >
+      The unified `@endpoint(kind: server|query|mutation)` decorator
+      subsumed the three separate forms for grammar parsimony and to
+      centralize endpoint policy (auth, CORS, rate limits).
+
+  - id: at-query-fn
+    retired_pattern: "@query fn"
+    canonical: "@endpoint(kind: query) fn"
+    agents_md_row: "@server fn, @query fn, @mutation fn"
+    enforcement:
+      kind: detector
+      rule_id: "retired/decorator-usage"
+      diagnostic_id: "vox/retired/decorator-usage"
+    rationale: "Same as at-server-fn: unified into @endpoint(kind: query)."
+
+  - id: at-mutation-fn
+    retired_pattern: "@mutation fn"
+    canonical: "@endpoint(kind: mutation) fn"
+    agents_md_row: "@server fn, @query fn, @mutation fn"
+    enforcement:
+      kind: detector
+      rule_id: "retired/decorator-usage"
+      diagnostic_id: "vox/retired/decorator-usage"
+    rationale: "Same as at-server-fn: unified into @endpoint(kind: mutation)."
+
+  - id: at-py-import
+    retired_pattern: "@py.import"
+    canonical: "Vox-native equivalent or external HTTP"
+    agents_md_row: "@py.import (Python interop)"
+    enforcement:
+      kind: detector
+      rule_id: "retired/decorator-usage"
+      diagnostic_id: "vox/retired/decorator-usage"
+    rationale: >
+      Python is no longer a Vox glue surface (AGENTS.md §VoxScript-First
+      Glue Code). @py.import directives leak Python-side state into the
+      Vox compiler and cannot be analyzed by the effect system.
+
+  # =========================================================================
+  # Documentation-text-enforced (existing retired-symbols.v1.yaml; predates CR-L6)
+  # =========================================================================
+
+  - id: vox-dei-crate
+    retired_pattern: "vox-dei"
+    canonical: "vox-orchestrator"
+    agents_md_row: "vox-dei (old large orchestrator crate)"
+    enforcement:
+      kind: cli-check
+      command: "vox ci no-dei-import"
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "vox-dei-old-crate"
+    rationale: >
+      Old large orchestrator crate retired in favor of vox-orchestrator.
+      The new small vox-dei crate exists for HITL only; the no-dei-import
+      CI check guards against re-introduction at the call-site level.
+
+  - id: vox-ars-crate
+    retired_pattern: "vox-ars"
+    canonical: "vox-openclaw-runtime"
+    agents_md_row: "vox-ars (crate)"
+    enforcement:
+      kind: documentation-only
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_id: "vox-ars-crate"
+    rationale: "ARS runtime types live in vox-openclaw-runtime."
+
+  - id: vox-ludus-crate
+    retired_pattern: "vox-ludus"
+    canonical: "vox-gamify"
+    agents_md_row: "vox-ludus"
+    enforcement:
+      kind: detector
+      rule_id: "retired/crate-import"
+      diagnostic_id: "vox/retired/crate-import"
+    rationale: >
+      P1.4 (2026-05-15) wired the `retired/crate-import` detector. Catches
+      `use vox_ludus::...` paths in Rust, `vox-ludus = ...` in Cargo.toml,
+      and `import vox_ludus` in Vox source.
+
+  - id: merged-compiler-crates
+    retired_pattern: "vox-lexer, vox-parser, vox-hir, vox-typeck"
+    canonical: "vox-compiler (monolith)"
+    agents_md_row: "vox-lexer, vox-parser, vox-hir, vox-typeck"
+    enforcement:
+      kind: documentation-only
+      backed_by_contract: "contracts/documentation/retired-symbols.v1.yaml"
+      contract_symbol_ids:
+        - "vox-lexer-crate"
+        - "vox-parser-crate"
+        - "vox-hir-crate"
+        - "vox-typeck-crate"
+    rationale: "Four crates merged into vox-compiler monolith."
+
+  - id: turso-env-vars
+    retired_pattern: "TURSO_URL, VOX_TURSO_URL, VOX_TURSO_TOKEN"
+    canonical: "VOX_DB_URL, VOX_DB_TOKEN"
+    agents_md_row: "TURSO_URL / VOX_TURSO_URL / VOX_TURSO_TOKEN"
+    enforcement:
+      kind: detector
+      rule_id: "retired/env-var"
+      diagnostic_id: "vox/retired/env-var"
+      complementary_doc_contract: "contracts/documentation/retired-symbols.v1.yaml"
+    rationale: >
+      P1.4 (2026-05-15) upgraded this from documentation-only to detector.
+      The `retired/env-var` detector catches call-sites like
+      `env::var("TURSO_URL")` with High confidence and bare-literal mentions
+      with Medium confidence. The markdown text guard
+      (`contracts/documentation/retired-symbols.v1.yaml`) continues to run
+      against doc drift.
+
+  - id: recall-fn-api
+    retired_pattern: "recall() / recall_async()"
+    canonical: "MemoryManager::lookup_fact_by_key (async)"
+    agents_md_row: "recall() / recall_async()"
+    enforcement:
+      kind: detector
+      rule_id: "retired/memory-api"
+      diagnostic_id: "vox/retired/memory-api"
+      complementary_doc_contract: "contracts/documentation/retired-symbols.v1.yaml"
+    rationale: >
+      P1.4 (2026-05-15) upgraded this from documentation-only to detector.
+      The `retired/memory-api` detector fires on call shapes only
+      (`recall(` / `recall_async(`) and exempts the canonical owner file
+      `crates/vox-orchestrator/src/memory/manager.rs`. Markdown text guard
+      continues alongside.
+
+  # =========================================================================
+  # Deferred (P1.4 — implementation plan target close mid-2026-Q3)
+  # =========================================================================
+
+  - id: capacitor-imports
+    retired_pattern: "@capacitor/*"
+    canonical: "@tauri-apps/plugin-*"
+    agents_md_row: "@capacitor/*, npx cap sync"
+    enforcement:
+      kind: detector
+      rule_id: "retired/capacitor"
+      diagnostic_id: "vox/retired/capacitor"
+      tracked_in: "docs/src/architecture/tauri-convergence-migration-plan-2026.md"
+    rationale: >
+      P1.4 (2026-05-15) wired the `retired/capacitor` detector. Catches
+      `import ... from '@capacitor/<plugin>'` in TypeScript and
+      `"@capacitor/<plugin>": "..."` entries in package.json. Tauri
+      convergence migration tracks the broader retirement.
+
+  - id: cap-sync-cli
+    retired_pattern: "npx cap sync"
+    canonical: "cargo tauri build / cargo tauri dev"
+    agents_md_row: "@capacitor/*, npx cap sync"
+    enforcement:
+      kind: detector
+      rule_id: "retired/capacitor"
+      diagnostic_id: "vox/retired/capacitor"
+      tracked_in: "docs/src/architecture/tauri-convergence-migration-plan-2026.md"
+    rationale: >
+      P1.4 (2026-05-15) wired the `retired/capacitor` detector to catch
+      `npx cap <subcommand>` invocations in shell scripts (.sh / .bash /
+      .zsh / .ps1 / .cmd / .bat).
+
+  - id: axum-serve-in-generated-apps
+    retired_pattern: "axum::serve (in generated desktop/mobile apps)"
+    canonical: "Tauri 2 runtime"
+    agents_md_row: "axum::serve, rust-embed (for generated desktop/mobile apps)"
+    enforcement:
+      kind: deferred
+      target_milestone: "P1.4"
+      tracked_in: "docs/src/architecture/tauri-convergence-migration-plan-2026.md"
+    rationale: >
+      Context-sensitive: axum::serve remains canonical for native-binary/
+      server targets. Detector must distinguish "generated app" context
+      from "server binary" context. Deferred until P1.4 lands the context
+      classifier.
+
+  - id: rust-embed-in-generated-apps
+    retired_pattern: "rust-embed (in generated desktop/mobile apps)"
+    canonical: "Tauri 2 runtime asset pipeline"
+    agents_md_row: "axum::serve, rust-embed (for generated desktop/mobile apps)"
+    enforcement:
+      kind: deferred
+      target_milestone: "P1.4"
+      tracked_in: "docs/src/architecture/tauri-convergence-migration-plan-2026.md"
+    rationale: "Same context-sensitive deferral as axum-serve-in-generated-apps."
+
+  - id: vox-sherpa-transcribe-plugin
+    retired_pattern: "vox-sherpa-transcribe"
+    canonical: "vox-tauri-stt"
+    agents_md_row: "vox-sherpa-transcribe (Capacitor plugin)"
+    enforcement:
+      kind: detector
+      rule_id: "retired/crate-import"
+      diagnostic_id: "vox/retired/crate-import"
+      tracked_in: "docs/src/architecture/tauri-convergence-migration-plan-2026.md"
+    rationale: >
+      P1.4 (2026-05-15) wired the `retired/crate-import` detector. Catches
+      `vox_sherpa_transcribe::...` paths in Rust and `vox-sherpa-transcribe`
+      Cargo dependencies.
+
+# ---------------------------------------------------------------------------
+# Parity invariants (enforced by `vox-code-audit::retirement_parity`).
+# ---------------------------------------------------------------------------
+parity_invariants:
+  - id: every-detector-row-references-real-rule
+    description: >
+      For every row with `enforcement.kind: detector`, the referenced
+      `rule_id` MUST appear in `vox_code_audit::detectors::all_rules()`.
+  - id: every-detector-row-references-real-diagnostic-id
+    description: >
+      For every row with `enforcement.kind: detector`, the `diagnostic_id`
+      MUST appear in `vox_code_audit::diagnostics::catalog::ALL_KNOWN_IDS`.
+  - id: every-retired-decorator-detector-pattern-covered
+    description: >
+      Every retired pattern that the `retired/decorator-usage` detector
+      flags MUST be represented by a row here (no detector firing on
+      patterns not declared in this contract).
+  - id: deferred-rows-have-target-milestone
+    description: >
+      Every row with `enforcement.kind: deferred` MUST declare a
+      `target_milestone` for follow-up planning.
+
+# ---------------------------------------------------------------------------
+# Status summary (machine-readable; humans should cross-reference rows above).
+# ---------------------------------------------------------------------------
+status_summary:
+  total_rows: 16
+  by_enforcement_kind:
+    detector: 11        # +6 from P1.4 (turso-env-vars, recall-fn-api, vox-ludus-crate,
+                        # capacitor-imports, cap-sync-cli, vox-sherpa-transcribe-plugin)
+    cli-check: 1
+    documentation-only: 2  # only vox-ars-crate + merged-compiler-crates remain doc-only
+    deferred: 2         # axum-serve-in-generated-apps, rust-embed-in-generated-apps
+                        # (both context-sensitive; out of scope for v1.0)
+  coverage_pct_active: 0.875        # (detector + cli-check + documentation-only) / total
+  council_ratification: >
+    2026-05-15. CR-L6 first slice (P1.2) + retirement-parity contract (P1.3) +
+    P1.4 detector slate all landed same day. Remaining deferred rows are the
+    two context-sensitive cases (axum::serve / rust-embed in generated apps);
+    these require a "generated app context classifier" that is out of scope
+    for v1.0 per implementation-plan §3.9.

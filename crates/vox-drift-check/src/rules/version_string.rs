@@ -19,11 +19,7 @@ impl DriftRule for VersionStringRule {
         if ctx.workspace_version.is_empty() {
             return vec![];
         }
-        if features
-            .file
-            .file_name()
-            .map_or(false, |n| n == "Cargo.toml")
-        {
+        if features.file.file_name().is_some_and(|n| n == "Cargo.toml") {
             return vec![];
         }
 

@@ -18,7 +18,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "macros", "time", "fs"] }
-futures = "0.3"
+futures = { workspace = true }
 uuid = { workspace = true }
 workspace-hack = { workspace = true }
 

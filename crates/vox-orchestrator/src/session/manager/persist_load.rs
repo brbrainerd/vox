@@ -29,6 +29,7 @@ impl SessionManager {
                 let mut session = Session {
                     id: session_id.to_string(),
                     agent_id: aid,
+                    tenant_id: None,
                     state: SessionState::Active,
                     created_at: now_secs(), // Replaced by Create event if found
                     last_active: now_secs(),
@@ -67,10 +68,12 @@ impl SessionManager {
             SessionEvent::Created {
                 created_at,
                 agent_id,
+                tenant_id,
                 ..
             } => {
                 s.created_at = created_at;
                 s.agent_id = AgentId(agent_id);
+                s.tenant_id = tenant_id;
             }
             SessionEvent::TurnAdded {
                 role,

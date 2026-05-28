@@ -1,7 +1,7 @@
 ---
 title: "Communication protocols"
 description: "Canonical map of Vox communication protocol families, delivery planes, and coexistence rules."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-03-29"
 training_eligible: true

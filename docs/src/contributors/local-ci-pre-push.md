@@ -1,26 +1,64 @@
 ---
 title: "Local CI parity (pre-push)"
-description: "Run the merge-blocking subset locally before every push via `vox ci pre-push`. Includes optional `--act` mode for GitHub-hosted exception workflows."
-category: "contributors"
+description: "Fast default `git push` hook via `vox ci pre-push`; full static gate with `--complete`; emergency `--no-verify` policy."
+category: "Contributors"
 status: "current"
-last_updated: "2026-05-09"
+last_updated: "2026-05-27"
 training_eligible: true
 schema_type: "TechArticle"
 ---
 
 # Local CI parity (pre-push)
 
-`vox ci pre-push` runs the merge-blocking subset of `.github/workflows/ci.yml`
-locally so failures show up before the GitHub round-trip.
+`vox ci pre-push` is the **`git push` hook** target (`cargo run -q -p vox-cli -- ci install-hooks`).
+It runs **before** the remote receives objects.
 
-## Modes
+> **Canonical tier table:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
+> **Budget thresholds:** `contracts/budgets/test-tier-budgets.v1.yaml`
 
-| Mode | Steps | Typical wall-clock |
-|------|-------|--------------------|
-| `--quick` | fmt-check, line-endings, ssot-drift | ~30 s |
-| default | + doc-inventory verify, clippy (workspace), TOESTUB on changed `crates/<x>` | ~2–4 min |
-| `--full` | + `cargo nextest run --workspace` | ~10–25 min |
-| `--act` | + GH-hosted exception workflows via `act` (composable with any mode above) | +3–8 min |
+## Profiles
+
+| Profile | Flags | What runs | Target wall-clock (post Phase 2+3) |
+| -------- | ----- | ----------- | ------------------- |
+| **Fast** (default) | _(none)_, or **`--quick`** | `cargo fmt --check`, **`vox ci line-endings`**, **`vox ci ssot-drift`** (includes **`contracts-index`**, **`docs-reality-audit verify`**, registry parity, …), **scoped** **`vox-doc-pipeline --lint-only`** + **`vox ci doctest-md --strict`** on changed `docs/src/**/*.md` (excludes **`docs/src/archive/`**), **`vox-drift-check`**. No workspace clippy / doc-inventory / scoped TOESTUB. | **≤60s** (arch-check cached). |
+| **Complete** | **`--complete`** | Everything in **fast**, plus **full-tree** doc lint + doctest under **`docs/src/`**, **`vox ci doc-inventory verify`**, workspace **`cargo clippy … -D warnings`**, scoped TOESTUB on changed `crates/<pkg>`. Matches the historical pre-merge static gate (without integration tests). | **≤180s** typical. |
+| **Full** | **`--full`** | **`--complete`** plus **`cargo nextest run --workspace --profile ci --no-fail-fast`** (slow `#[ignore]` tests excluded). | **≤120s** (slow excluded). |
+| **Full+cov** | **`--full --with-coverage`** | **`--full`** but uses **`cargo llvm-cov nextest`** + emits lcov/HTML report under `target/llvm-cov/`. | **≤260s**. |
+| **Full+since** | **`--full --since <ref>`** | **`--full`** nextest step runs only for packages changed since `<ref>` + their reverse-deps. Falls back to workspace when > 20 packages impacted. | **3–20s** for 1–3 crate edits. |
+| **Full+cov+since** | **`--full --with-coverage --since <ref>`** | Combination of the above two. | **3–30s** typical. |
+
+**Legacy:** **`--quick`** is an alias for the default **fast** profile (it conflicts with **`--complete`** / **`--full`**).
+
+**Progress:** During slow subprocess steps, stderr prints a **heartbeat every ~3s** (`still running <step> (Xs elapsed)`) so a push never looks hung.
+
+**Telemetry:** **`--report-json <path>`** emits per-step durations — **`contracts/reports/pre-push-report.v1.schema.json`** (`schema_version` **3** adds `with_coverage` and extended profile values; v2 added `profile`). Env **`VOX_PREPUSH_AUDIT_LOG`** appends one JSON line per successful run (not **`--dry-run`**).
+
+### Extended `--full` flags
+
+| Flag | Effect |
+| ---- | ------ |
+| **`--include-slow`** | Also runs the slow `#[ignore]` partition (arch-check smoke, scientia timeout, codegen bundle check). Adds ~3–5 min. CI always sets this. |
+| **`--with-coverage`** | Substitutes `cargo llvm-cov nextest` for plain nextest and appends `cargo llvm-cov report`. Requires `cargo-llvm-cov` on PATH. |
+| **`--since <ref>`** | Narrows nextest to packages touched since `<ref>` (default: `origin/main`). Falls back to `--workspace` if > `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20) packages impacted. |
+| **`--enforce-budgets`** | After a successful real run (not `--dry-run`), compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml`. Warns at `warn_ms` (1.2× baseline); fails at `fail_ms` (1.5× baseline). No-op if budgets file is absent. |
+
+**Diagnostics:** **`vox ci dev-loop-audit`** surfaces **`CARGO_TARGET_DIR`** fragmentation that causes redundant compiles across terminals ([runner-contract §Cargo incremental cache](../ci/runner-contract.md#cargo-incremental-cache-troubleshooting-ai-multi-terminal)).
+
+### CI vs local
+
+- **Fast** pre-push **does not** scan all archived research Markdown locally; **GitHub `docs-quality` / merge gates still enforce full-doc behavior**.
+- Before merging doc-heavy or registry-risky changes, run **`vox ci pre-push --complete`** (or rely on CI).
+
+## Not in fast pre-push (run before risky edits)
+
+The GitHub merge gate still runs additional steps that **fast** `vox ci pre-push` skips locally. Before changing **`contracts/operations/catalog.v1.yaml`**, command registry rows, or `crates/vox-cli/src/lib.rs` dispatch, also run locally:
+
+- **`cargo run -p vox-cli -- ci command-compliance`**
+- **`cargo run -p vox-cli -- ci operations-verify`** when the operations catalog or MCP/capability projections change
+- **`cargo run -p vox-cli -- ci command-sync`** (verify generated CLI reference docs)
+- **`cargo run -p vox-cli -- ci dep-sprawl`** / **`cargo run -p vox-arch-check`** when dependency graphs move
+
+Use **`vox ci ssot-drift`** for an aggregate check if you want one heavy command instead of piecing the above together.
 
 ## Install the git hook (one-time)
 
@@ -28,88 +66,48 @@ locally so failures show up before the GitHub round-trip.
 cargo run -q -p vox-cli -- ci install-hooks
 ```
 
-This writes `.git/hooks/pre-push` as a one-line delegate to
-`vox ci pre-push`. The generated stub honours
-[AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md) — no business logic
-in shell.
+This writes `.git/hooks/pre-push` as a thin delegate to **`vox ci pre-push`** (fast profile by default). See [AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md).
 
-## Bypass
+## Bypass (emergency only)
 
-`git push --no-verify` skips the hook. Use sparingly; CI still runs.
+**`git push --no-verify`** skips the hook. Use **only** for emergencies or when fixing the hook itself — **CI still runs**. After pushing with **`--no-verify`**, run **`vox ci pre-push --complete`** (or **`--full`**) locally as soon as possible and fix any failures before the next merge.
 
 ## Tuning the diff base
 
-The TOESTUB-scoped step looks at `git diff origin/main...HEAD` by default.
-Override with `VOX_PREPUSH_BASE=<ref>` (e.g. `VOX_PREPUSH_BASE=HEAD~1`).
+Scoped doc/doctest steps use **`git diff --name-only $BASE...HEAD`**. Default **`BASE`** is **`origin/main`**. Override with **`VOX_PREPUSH_BASE=<ref>`** (e.g. **`VOX_PREPUSH_BASE=HEAD~1`**).
+
+Scoped TOESTUB ( **`--complete`** / **`--full`** ) uses the same base.
 
 ## `--act` mode (GH-hosted exception workflows)
 
-When `--act` is set, `vox ci pre-push` additionally runs the workflows that target
-`ubuntu-latest` (documented in [github-hosted-exceptions](../ci/github-hosted-exceptions.md))
-inside Docker containers via [nektos/act](https://github.com/nektos/act).
-Catches Node/pnpm version mismatches and link-checker regressions before push
-instead of after.
+When **`--act`** is set, `vox ci pre-push` additionally runs workflows that target **`ubuntu-latest`** inside Docker via [nektos/act](https://github.com/nektos/act). Composable with any profile (**`--complete --act`**, etc.).
 
-**Workflows covered:** `docs-quality.yml`, `link_checker.yml`,
-`ts-emit-noemit.yml`. (Workflows that depend on real Chromium, GPU, or
-Docker-in-Docker capabilities cannot be reproduced by `act` and stay on the
-self-hosted fleet — see [runner-contract](../ci/runner-contract.md).)
+**Workflows covered:** `docs-quality.yml`, `link_checker.yml`, `ts-emit-noemit.yml`.
 
-**Configuration:** [`.actrc`](../../../.actrc) at the repo root pins the
-catalog image (`catthehacker/ubuntu:act-24.04`) and platform mappings.
-Maintainers should bump the tag in lockstep with `actions-runner` upgrades.
+**Configuration:** [`.actrc`](../../../.actrc) at the repo root.
+
+## Verification (smoke)
+
+- **Automated:** `cargo test -p vox-cli pre_push_dry_run` — asserts **`--dry-run`** step lists for fast / **`--complete`** / **`--full`**, report schema **v3** (`with_coverage` + extended profile enum), **`--act`** workflow flags, and **`--enforce-budgets`** flag acceptance.
+- **Inspect planned steps:** `vox ci pre-push --dry-run` prints the exact subprocess sequence without executing them.
+- **`git push --dry-run`** still runs the real **`pre-push`** hook (unless **`--no-verify`**); use **`vox ci pre-push --dry-run`** to preview work without hook side effects.
 
 ### Installing `act`
 
-`act` must be on `PATH`, OR available as the `gh` CLI extension `gh act`
-(the `vox ci pre-push --act` lookup tries the standalone binary first, then
-falls back to `gh act`). Docker Desktop (or another Docker daemon) must be
-running.
+`act` must be on **`PATH`**, or available as **`gh act`**. Docker must be running.
 
 #### Windows
 
-Pick one of the following installers. All result in `act.exe` on `PATH`.
-
 | Method | Command | Notes |
-|--------|---------|-------|
-| **WinGet** (recommended — ships with Windows 11) | `winget install nektos.act` | Auto-updates via `winget upgrade nektos.act`. |
-| **Scoop** | `scoop install act` | Adds to user PATH; `scoop update act` to upgrade. |
-| **Chocolatey** | `choco install act-cli` | Run as Administrator. |
-| **GitHub CLI extension** | `gh extension install nektos/gh-act` | No PATH change needed; invoked as `gh act …`. The `vox ci pre-push --act` lookup detects this fallback. |
-| **Manual** | Download `act_Windows_x86_64.zip` from [releases](https://github.com/nektos/act/releases), extract `act.exe` into a folder on `PATH` (e.g. `%USERPROFILE%\bin`). | Bump manually. |
+| ------ | ------- | ----- |
+| **WinGet** | `winget install nektos.act` | |
+| **Scoop** | `scoop install act` | |
+| **Chocolatey** | `choco install act-cli` | Administrator |
+| **GitHub CLI extension** | `gh extension install nektos/gh-act` | Invoke as **`gh act`** |
 
-After install, verify:
+Verify:
 
 ```powershell
 act --version
-docker version    # daemon must be reachable
+docker version
 ```
-
-**Docker requirement on Windows:** Docker Desktop with the WSL 2 backend is
-the supported setup. The `--bind` flag in `.actrc` mounts `~/.cargo` into the
-container — for that to work, your Windows `%USERPROFILE%\.cargo` must be on
-a drive shared with WSL (Docker Desktop → Settings → Resources → File
-Sharing). If the bind-mount fails, comment out `--bind` in `.actrc` and
-expect slower first runs (cargo registry re-downloads in-container).
-
-**Artifact path on Windows:** `.actrc` defaults to `--artifact-server-path
-/tmp/act-artifacts`, which is a WSL path. If you hit permission errors,
-override locally with `--artifact-server-path %TEMP%\act-artifacts` (or pass
-the flag directly to `act` and skip the rc default).
-
-#### macOS / Linux
-
-| Method | Command |
-|--------|---------|
-| **Homebrew** (macOS, Linux with Homebrew) | `brew install act` |
-| **install.sh** (Linux) | `curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh \| sudo bash` |
-| **GitHub CLI extension** (any OS) | `gh extension install nektos/gh-act` |
-
-### Common `--act` failures and fixes
-
-| Symptom | Cause | Fix |
-|--------|-------|-----|
-| `act: command not found` | Not on PATH and no `gh act` extension. | Install via the table above. |
-| `Cannot connect to the Docker daemon` | Docker Desktop / `dockerd` not running. | Start Docker Desktop (Windows/macOS) or `sudo systemctl start docker` (Linux). |
-| `unable to find image 'catthehacker/...': pull denied` | Network or rate-limit. | `docker login` (anon pull is rate-limited) or pre-pull the image. |
-| Action version mismatch with self-hosted fleet | `.actrc` image tag drifted from `actions-runner`. | Bump the catalog image tag in [`.actrc`](../../../.actrc); see [runner-contract](../ci/runner-contract.md). |

@@ -1,7 +1,7 @@
 ---
 title: "Mens Qwen family migration and native stack (research 2026)"
 description: "Qwen2 vs Qwen3.5 in Vox Candle paths; operator runbook vs code removal; external HF and QwenLM sources; deprecation tiers; TrainingPair and tokenizer implications."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 17
 last_updated: "2026-04-12"

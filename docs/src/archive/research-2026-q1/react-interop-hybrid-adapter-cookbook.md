@@ -1,7 +1,7 @@
 ---
 title: "Hybrid adapter cookbook (SPA + SSR)"
 description: "How user-owned adapters consume routes.manifest.ts and vox-client.ts for SPA/islands vs SSR tracks."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-07"
 training_eligible: false
 

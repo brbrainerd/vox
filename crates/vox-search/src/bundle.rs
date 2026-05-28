@@ -26,7 +26,7 @@ pub async fn run_search_with_verification(
     limit: usize,
     policy: &SearchPolicy,
     lexical_fallback: Option<&dyn LexicalMemoryFallback>,
-    budget: Option<&crate::tavily::TavilySessionBudget>,
+    budget: Option<&crate::tavily_budget::TavilySessionBudget>,
 ) -> Result<(SearchExecution, SearchDiagnostics, SearchPlan), String> {
     let plan = heuristic_search_plan(
         query,
@@ -193,26 +193,14 @@ pub async fn run_search_with_verification(
                                     let db_arc = db.clone();
                                     tokio::spawn(async move {
                                         let source_uri = format!("tavily:{}", url);
-                                        let mut hasher = blake3::Hasher::new();
-                                        hasher.update(content.as_bytes());
-                                        let hash = hasher.finalize().to_string();
-                                        if let Ok(doc_id) = db_arc
-                                            .upsert_search_document(
-                                                &source_uri,
-                                                &title,
-                                                "text/plain",
-                                                &hash,
-                                            )
-                                            .await
-                                        {
-                                            let _ = db_arc
-                                                .replace_search_document_chunks_with_refs(
-                                                    doc_id,
-                                                    &[content],
-                                                    &[None],
-                                                )
-                                                .await;
-                                        }
+                                        let _ = crate::ingest::persist_text_document_chunk(
+                                            db_arc.as_ref(),
+                                            &source_uri,
+                                            &title,
+                                            &content,
+                                            "text/plain",
+                                        )
+                                        .await;
                                     });
                                 }
                             }

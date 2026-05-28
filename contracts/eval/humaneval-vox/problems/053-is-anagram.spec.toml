@@ -1,0 +1,13 @@
+[problem]
+id = "053"
+title = "is_anagram"
+prompt = """
+Return true if strings a and b are anagrams of each other (case-insensitive).
+Two strings are anagrams if they contain the same characters with the same frequencies,
+regardless of order and case.
+"""
+signature = "fn is_anagram(a: str, b: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

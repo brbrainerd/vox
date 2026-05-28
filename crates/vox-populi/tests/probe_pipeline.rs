@@ -98,7 +98,7 @@ fn operator_override_rejects_unknown_probe_name() {
     let pipeline = ProbePipeline::default_for_platform();
     let known_names = pipeline.probe_names();
     // All known names should pass validation.
-    let known_refs: Vec<&str> = known_names.iter().copied().collect();
+    let known_refs: Vec<&str> = known_names.to_vec();
     assert_eq!(pipeline.validate_probe_names(&known_refs), Ok(()));
 
     // Inject a typo — validation must reject it.

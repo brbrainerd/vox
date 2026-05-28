@@ -59,9 +59,13 @@ pub fn map_to_ast_target(
                 p.to_string()
             };
             let mut name = None;
-            if i + 1 < parts.len() {
-                // Next word is probably the symbol name
-                let clean = parts[i + 1].trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
+            let mut j = i + 1;
+            // Skip connector words like "called", "named", "for"
+            if j < parts.len() && matches!(parts[j], "called" | "named" | "for") {
+                j += 1;
+            }
+            if j < parts.len() {
+                let clean = parts[j].trim_matches(|c: char| !c.is_alphanumeric() && c != '_');
                 if !clean.is_empty() {
                     name = Some(clean.to_string());
                 }
@@ -91,8 +95,10 @@ mod tests {
 
     #[test]
     fn test_map_this_function_with_context() {
-        let mut ctx = IdeContext::default();
-        ctx.cursor_line = Some(10);
+        let ctx = IdeContext {
+            cursor_line: Some(10),
+            ..IdeContext::default()
+        };
         let target = map_to_ast_target("edit this function", Some(&ctx)).unwrap();
         assert_eq!(target.node_kind, "function");
         assert!(target.symbol_name.is_none());

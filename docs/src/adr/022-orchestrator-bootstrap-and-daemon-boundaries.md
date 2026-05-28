@@ -1,7 +1,7 @@
 ---
 title: "ADR 022 — Orchestrator bootstrap factory and daemon boundaries"
-description: "Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon."
-category: "reference"
+description: "Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-orchestrator-d, and optional future orchestrator daemon."
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-04-01"
 training_eligible: true
 
@@ -27,7 +27,7 @@ Mesh distribution uses **per-process** `Orchestrator` instances with **Turso-bac
 1. **Bootstrap SSOT:** Expose **`vox_orchestrator::build_repo_scoped_orchestrator`** and **`build_repo_scoped_orchestrator_for_repository`** returning **`RepoScopedOrchestratorBuild`** (`repository`, scoped `config`, `orchestrator`). All first-party embedders use this factory.
 2. **`vox-orchestrator-d` boundary:** Keep **`vox-orchestrator-d`** focused on **DeI RPC / AI routing** and **Orchestrator** operations. MCP behaves as a thin client for many task/agent lifecycle slices.
 3. **Trust-conditioned gates:** Optional **`trust_gate_relax_*`** config relaxes **Socrates enforce**, **completion grounding enforce**, and **strict scope** when Codex **`agent_reliability`** exceeds a configurable floor, reusing the same Laplace scores as reputation routing.
-4. **Merged Authority:** The legacy **`vox-dei-d`** has been merged into **`vox-orchestrator-d`** to unify the AI plane and Coordination plane.
+4. **Merged Authority:** The legacy orchestrator daemon binary name has been merged into **`vox-orchestrator-d`** to unify the AI plane and Coordination plane.
 5. **Authority model (Phase B/IPC transition):** adopt a **split-plane transition model** until broad RPC parity exists: daemon-aligned RPC can own **task + agent lifecycle** slices under explicit MCP env flags, while MCP remains authoritative for VCS/context/event/session surfaces still backed by embedded stores. Promote to full thin MCP only after those stores gain explicit daemon contracts.
 
 ## Consequences
@@ -49,9 +49,9 @@ When product requirements justify fixing **cold-start** and **gravity** (one RAM
 - [`crates/vox-orchestrator/src/bootstrap.rs`](../../../crates/vox-orchestrator/src/bootstrap.rs)
 - [`crates/vox-orchestrator/src/orch_daemon/mod.rs`](../../../crates/vox-orchestrator/src/orch_daemon/mod.rs) — TCP RPC + `OrchDaemonClient`
 - [`crates/vox-orchestrator/src/mesh_federation_poll.rs`](../../../crates/vox-orchestrator/src/mesh_federation_poll.rs) — shared Populi federation poll loop (MCP + daemon)
-- [`crates/vox-orchestrator/src/mcp_tools/dei_tools/orchestrator_snapshot.rs`](../../../crates/vox-orchestrator/src/mcp_tools/dei_tools/orchestrator_snapshot.rs) — `VOX_ORCHESTRATOR_EVENT_LOG` JSONL sink
+- [`crates/vox-orchestrator/src/mcp_tools/mod.rs`](../../../crates/vox-orchestrator/src/mcp_tools/mod.rs) — MCP tool wiring (legacy `orchestrator_snapshot` path removed; event/log sinks live alongside tool registration)
 - [`crates/vox-orchestrator/src/clarification_db_inbox_poll.rs`](../../../crates/vox-orchestrator/src/clarification_db_inbox_poll.rs) — Codex clarification inbox drain
-- [`crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs`](../../../crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs) — `vox-orchestrator-d` binary
+- [`crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs`](../../../crates/vox-orchestrator-d/src/bin/vox_orchestrator_d.rs) — `vox-orchestrator-d` binary
 - [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs)
 - [Orphan surface inventory](../archive/research-2026-q1/orphan-surface-inventory.md) — `vox-orchestrator` staging crate vs `vox-orchestrator` SSOT
 

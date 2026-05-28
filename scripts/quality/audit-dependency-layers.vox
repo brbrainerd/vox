@@ -1,109 +1,74 @@
 // vox:caps fs process env
+// audit-dependency-layers.vox — enforce the layered-crate-dependency rule
+// (Layer N may only depend on layers ≤ N). Migrated to the strict-Option
+// Json API (json-ergonomics-rfc-2026-05-23) and the lexer fix that allows
+// JSON literals in string form.
+
 import fs;
 import path;
 import process;
 import env;
 
-fn main() {
-    print("Vox Dependency Layer Auditor (2026-04-20)");
-    
-    let root = ".";
-    // Define layers (Lower number = more foundational, Higher number = more complex/leaf)
-    // Rule: Layer N may only depend on layers <= N.
-    
-    let layers = {
-        "vox-primitives": 0,
-        "vox-cli-core": 0,
-        "vox-build-meta": 0,
-        "vox-toestub": 0,
-        "vox-checksum-manifest": 0,
-        
-        "vox-secrets": 1,
-        "vox-bounded-fs": 1,
-        "vox-crypto": 1,
-        "vox-identity": 1,
-        "vox-runtime": 1,
-        "vox-repository": 1,
-        "vox-reqwest-defaults": 1,
-        
-        "vox-compiler": 2,
-        "vox-config": 2,
-        "vox-db": 2,
-        "vox-search": 2,
-        "vox-eval": 2,
-        "vox-corpus": 2,
-        "vox-mesh-types": 2,
-        
-        "vox-populi": 3,
-        "vox-mens": 3,
-        "vox-schola": 3,
-        "vox-oratio": 3,
-        "vox-ludus": 3,
-        "vox-workflow-runtime": 3,
-        "vox-skills": 3,
-        
-        "vox-orchestrator": 4,
-        "vox-cli": 4,
-        "vox-bootstrap": 4
-    };
+fn layer_of(layers: Json, name: str, default: int) to int {
+    return layers.get(name).and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(default)
+}
 
-    let mut violations = 0;
-    
-    let crates_dir = "crates";
-    let dirs_res = fs.list_dir(crates_dir);
-    if dirs_res.is_err() {
-        print("❌ Could not list crates directory.");
-        process.exit(1);
+fn main() {
+    print("Vox Dependency Layer Auditor (2026-05-23, JSON-RFC API)")
+
+    // Layer assignments live as a JSON literal — the lexer fix on 2026-05-23
+    // (`TemplateStringLit` regex requires `{` followed by an identifier-start)
+    // makes this work cleanly. Lower number = more foundational.
+    let layers_src = "{\"vox-primitives\":0,\"vox-cli-core\":0,\"vox-build-meta\":0,\"vox-toestub\":0,\"vox-checksum-manifest\":0,\"vox-secrets\":1,\"vox-bounded-fs\":1,\"vox-crypto\":1,\"vox-identity\":1,\"vox-runtime\":1,\"vox-repository\":1,\"vox-reqwest-defaults\":1,\"vox-compiler\":2,\"vox-config\":2,\"vox-db\":2,\"vox-search\":2,\"vox-eval\":2,\"vox-corpus\":2,\"vox-mesh-types\":2,\"vox-populi\":3,\"vox-mens\":3,\"vox-schola\":3,\"vox-oratio\":3,\"vox-ludus\":3,\"vox-workflow-runtime\":3,\"vox-skills\":3,\"vox-orchestrator\":4,\"vox-cli\":4,\"vox-bootstrap\":4}"
+    let layers_res = json.parse(layers_src)
+    if layers_res.is_err() {
+        print("internal error: layer table is not valid JSON: " + layers_res.unwrap_err())
+        process.exit(2)
     }
-    let dirs = dirs_res.unwrap();
-    
+    let layers = layers_res.unwrap()
+
+    let mut violations = 0
+    let crates_dir = "crates"
+    let dirs_res = fs.list_dir(crates_dir)
+    if dirs_res.is_err() {
+        print("❌ Could not list crates directory.")
+        process.exit(1)
+    }
+    let dirs = dirs_res.unwrap()
+
     for cname in dirs {
-        let cpath = path.join(crates_dir, cname);
-        let cargo_toml_path = path.join(cpath, "Cargo.toml");
-        
-        if not fs.exists(cargo_toml_path) {
-            continue;
-        }
-        
-        let mut current_layer = 100; // Default for unknown/new crates
-        if layers.contains(cname) {
-            current_layer = layers.get(cname);
-        }
-        
-        let content_res = fs.read(cargo_toml_path);
-        if content_res.is_err() {
-            continue;
-        }
-        let content = content_res.unwrap();
-        
-        // Simple scan for workspace dependencies
-        let lines = content.split("\n");
-        for line in lines {
-            let trimmed = line.trim();
-            // Look for "crate-name = { workspace = true }" or similar
-            if trimmed.contains("workspace = true") {
-                let parts = trimmed.split("=");
-                if parts.len() >= 1 {
-                    let dep_name = parts.get(0).trim();
-                    
-                    if layers.contains(dep_name) {
-                        let dep_layer = layers.get(dep_name);
-                        if dep_layer > current_layer {
-                            print("❌ Layer Violation: '" + cname + "' (Layer " + current_layer + ") depends on '" + dep_name + "' (Layer " + dep_layer + ")");
-                            print("   Location: " + cargo_toml_path);
-                            violations = violations + 1;
-                        }
-                    }
-                }
+        let cpath = path.join(crates_dir, cname)
+        let cargo_toml_path = path.join(cpath, "Cargo.toml")
+        if not fs.exists(cargo_toml_path) { continue }
+
+        let current_layer = layer_of(layers, cname, 100) // 100 = unknown/new
+
+        let content_res = fs.read(cargo_toml_path)
+        if content_res.is_err() { continue }
+        let content = content_res.unwrap()
+
+        for line in content.split("\n") {
+            let trimmed = line.trim()
+            if not trimmed.contains("workspace = true") { continue }
+            let parts = trimmed.split("=")
+            if parts.len() < 1 { continue }
+            let dep_name = parts.get(0).unwrap_or("").trim()
+
+            if not layers.has(dep_name) { continue }
+            let dep_layer = layer_of(layers, dep_name, 0)
+            if dep_layer > current_layer {
+                print("❌ Layer Violation: '" + cname + "' (Layer " + str(current_layer) + ") depends on '" + dep_name + "' (Layer " + str(dep_layer) + ")")
+                print("   Location: " + cargo_toml_path)
+                violations = violations + 1
             }
         }
     }
-    
+
     if violations > 0 {
-        print("\nFound " + violations + " dependency layer violations.");
-        print("Policy: foundational crates cannot depend on complex domain or leaf crates.");
-        process.exit(1);
+        print("\nFound " + str(violations) + " dependency layer violations.")
+        print("Policy: foundational crates cannot depend on complex domain or leaf crates.")
+        process.exit(1)
     }
-    
-    print("✅ Dependency layer audit passed.");
+
+    print("✅ Dependency layer audit passed.")
 }

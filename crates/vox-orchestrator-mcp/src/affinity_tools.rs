@@ -1,6 +1,6 @@
 //! MCP tools for file affinity: resolve owners, claim paths, transfer ownership, list files.
 //!
-//! All handlers return JSON via [`vox_orchestrator::ToolResult`]. Mutating calls update the in-memory
+//! All handlers return JSON via `vox_orchestrator::ToolResult`. Mutating calls update the in-memory
 //! orchestrator affinity map (not the filesystem).
 
 use serde::{Deserialize, Serialize};

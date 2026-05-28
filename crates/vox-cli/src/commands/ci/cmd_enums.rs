@@ -43,7 +43,7 @@ pub enum CiCmd {
     /// Documentation SSOT guard (required pages, doc-inventory schema, orphan inventory crate list).
     #[command(name = "check-docs-ssot")]
     CheckDocsSsot,
-    /// Enforces that no new crates are added outside of the 10 Frozen Core crates in `crates/_frozen.md`.
+    /// No-op since `crates/_frozen.md` was superseded by `layers.toml` and `contracts/db/data-storage-policy.v1.yaml`. Kept for backwards-compatibility.
     #[command(name = "check-frozen")]
     CheckFrozen,
     /// Codex / Arca SSOT file and OpenAPI substring guard.
@@ -52,9 +52,18 @@ pub enum CiCmd {
     /// Validate `contracts/index.yaml` against JSON Schema and listed file paths.
     #[command(name = "contracts-index")]
     ContractsIndex,
+    /// Verify AI fixture catalog parity with lexer tokens and HIR fixture variants.
+    #[command(name = "ai-fixtures-coverage")]
+    AiFixturesCoverage,
     /// Validate `contracts/terminal/exec-policy.v1.yaml` against schema (+ pwsh smoke when available).
     #[command(name = "exec-policy-contract")]
     ExecPolicyContract,
+    /// Enforce GUI / CLI synchronization (Taure configuration parity and command descriptions).
+    #[command(name = "gui-catalog-parity")]
+    GuiCatalogParity,
+    /// Validate the YAML contract schema against the system's expected defaults.
+    #[command(name = "model-routing-check")]
+    ModelRoutingCheck,
     /// Validate OpenClaw gateway protocol fixture contracts.
     #[command(name = "openclaw-contract")]
     OpenClawContract,
@@ -80,19 +89,50 @@ pub enum CiCmd {
     /// Validate SCIENTIA finding-candidate + novelty-evidence example JSON against v1 schemas.
     #[command(name = "scientia-novelty-ledger-contracts")]
     ScientiaNoveltyLedgerContracts,
+    /// Execute the speech-to-code MUST+SHOULD runtime matrix and emit KPI artifacts.
+    #[command(name = "speech-runtime-suite")]
+    SpeechRuntimeSuite {
+        /// Stable run id under `.vox/audit/<run-id>`.
+        #[arg(long)]
+        run_id: Option<String>,
+        /// JSONL runtime eval manifest.
+        #[arg(
+            long,
+            default_value = "tests/speech-to-code/fixtures/corpus_v1/eval_audio_runtime_no_lang.jsonl"
+        )]
+        eval_manifest: PathBuf,
+        /// Limit audio samples for the CPU Candle runtime eval.
+        #[arg(long, default_value_t = 30)]
+        limit: usize,
+        /// Plugin install root containing `oratio/0.1.0/Plugin.toml` and native artifact.
+        #[arg(long)]
+        plugins_dir: Option<PathBuf>,
+        /// Emit classification artifacts without running the audio runtime.
+        #[arg(long)]
+        skip_runtime: bool,
+    },
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
-    /// Local pre-push aggregate: runs the merge-blocking subset (fmt, clippy,
-    /// ssot-drift, line-endings, doc-inventory verify, scoped TOESTUB). Mirrors
-    /// the `check-and-test` guards cluster so failures match CI before pushing.
+    /// Local pre-push aggregate. **Default (fast):** fmt, line-endings, ssot-drift,
+    /// **scoped** doc lint + doctest on changed `docs/src/**/*.md` (excludes `archive/`),
+    /// and workspace drift-check — tuned for responsive `git push`.
+    /// Use **`--complete`** for the historical full static gate (whole-tree docs, clippy,
+    /// doc-inventory, scoped TOESTUB). **`--full`** adds workspace nextest (CI profile,
+    /// slow `#[ignore]` tests excluded by default; add **`--include-slow`** to run them).
     #[command(name = "pre-push")]
     PrePush {
-        /// Skip clippy and TOESTUB (fmt + ssot-drift + line-endings only). ~30s.
-        #[arg(long, conflicts_with = "full")]
+        /// Legacy alias for the default **fast** profile (same as omitting `--complete`/`--full`).
+        #[arg(long, conflicts_with_all = ["complete", "full"])]
         quick: bool,
-        /// Also run `cargo nextest run --workspace --no-fail-fast` (slow). Off by default.
-        #[arg(long)]
+        /// Full static analysis: whole-tree doc lint + doctest, doc-inventory, workspace clippy,
+        /// scoped TOESTUB (same shape as the pre-2026-05-11 default pre-push, without nextest).
+        #[arg(long, conflicts_with = "quick")]
+        complete: bool,
+        /// Implies **`--complete`** and appends **`cargo nextest run --workspace --profile ci --no-fail-fast`**
+        /// (slow `#[ignore]` tests excluded; add `--include-slow` to include them).
+        /// Add `--with-coverage` for llvm-cov; add `--since <ref>` to run only impacted crates.
+        #[arg(long, conflicts_with = "quick")]
         full: bool,
         /// Print commands without executing.
         #[arg(long)]
@@ -102,6 +142,38 @@ pub enum CiCmd {
         /// Catches failures in docs-quality, link_checker, and ts-emit-noemit before push.
         #[arg(long)]
         act: bool,
+        /// Write JSON timing report (`contracts/reports/pre-push-report.v1.schema.json`).
+        #[arg(long, value_name = "PATH")]
+        report_json: Option<PathBuf>,
+        /// Also run the slow `#[ignore]` test partition (arch-check smoke, scientia timeout,
+        /// codegen bundle check). Only meaningful with `--full`. Adds ~3–5 min.
+        #[arg(long)]
+        include_slow: bool,
+        /// Run nextest under `cargo llvm-cov nextest` and emit a coverage report under
+        /// `target/llvm-cov/`. Only valid with `--full`; errors if used without it.
+        /// Adds ~60s overhead vs. plain nextest. Requires `cargo-llvm-cov` on PATH.
+        #[arg(long)]
+        with_coverage: bool,
+        /// Run nextest only for the packages affected by changes since `<REF>` (plus their
+        /// transitive reverse-deps). Falls back to `--workspace` if more than
+        /// `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20) packages are impacted.
+        /// Only meaningful with `--full`. Typical wall-clock for a 1–3 crate edit: 3–20s.
+        #[arg(long, value_name = "REF")]
+        since: Option<String>,
+        /// Compare total elapsed time against the tier budgets in
+        /// `contracts/budgets/test-tier-budgets.v1.yaml` after a successful run.
+        /// Warns to stderr when elapsed > `warn_ms`; fails when elapsed > `fail_ms`.
+        /// No-op if the budgets file is absent (safe on first clone).
+        /// Skipped in `--dry-run` mode (no elapsed times to compare).
+        #[arg(long)]
+        enforce_budgets: bool,
+    },
+    /// Heuristics for Cargo cache fragmentation and expensive local verification habits (AI / inner-loop).
+    #[command(name = "dev-loop-audit")]
+    DevLoopAudit {
+        /// Emit JSON (`contracts/reports/dev-loop-audit.v1.schema.json`).
+        #[arg(long)]
+        json: bool,
     },
     /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
     #[command(name = "data-ssot-guards")]
@@ -115,6 +187,12 @@ pub enum CiCmd {
     /// `cargo check -p vox-cli` for each supported feature set.
     #[command(name = "feature-matrix")]
     FeatureMatrix,
+    /// Smoke `vox compile --help` via `cargo run -p vox-cli` (cross-host parity with `compile-matrix.yml`).
+    #[command(name = "compile-matrix")]
+    CompileMatrix,
+    /// Scan `vox-deprecated-since` markers and fail when `retire-by` semver is <= the workspace version.
+    #[command(name = "retirement-audit")]
+    RetirementAudit,
     /// Ensures `vox-cli` sources do not reference the staging `vox-dei` crate via a Rust path import.
     #[command(name = "no-dei-import", visible_alias = "no-vox-dei-import")]
     NoDeiImport,
@@ -129,6 +207,13 @@ pub enum CiCmd {
         /// Subcommand execution variant.
         #[command(subcommand)]
         cmd: DocInventoryCmd,
+    },
+    /// Documentation Reality Audit — validate inventory/findings/metrics JSON + path hints (`contracts/documentation/docs-reality-audit.program.v1.yaml`).
+    #[command(name = "docs-reality-audit")]
+    DocsRealityAudit {
+        /// Subcommand execution variant.
+        #[command(subcommand)]
+        cmd: DocsRealityAuditCmd,
     },
     /// Milestone benchmark matrix (`contracts/eval/benchmark-matrix.json`).
     #[command(name = "eval-matrix")]
@@ -163,6 +248,13 @@ pub enum CiCmd {
         /// Automatically convert CRLF -> LF in violating files and stage them via `git add`.
         #[arg(long)]
         autofix: bool,
+    },
+    /// Regenerate or verify `examples/PARSE_STATUS.md` from `examples/golden/*.vox`.
+    #[command(name = "parse-status")]
+    ParseStatus {
+        /// Write `examples/PARSE_STATUS.md` if it differs from the generator output.
+        #[arg(long)]
+        write: bool,
     },
     /// Run mesh / Populi CI gate steps from `scripts/populi/gates.yaml` (with legacy fallback).
     #[command(name = "mesh-gate", visible_alias = "mens-gate")]
@@ -312,6 +404,7 @@ pub enum CiCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Fail when changed files add direct secret env reads outside Clavis-owned modules.
     #[command(name = "secret-env-guard")]
     SecretEnvGuard {
         /// Scan all crate Rust files instead of only changed files.
@@ -348,7 +441,7 @@ pub enum CiCmd {
     /// Verify all public Row/Entry/Result/Summary/Pair/Report/Rollup/Snapshot/Profile/Job structs derive Serialize+Deserialize.
     #[command(name = "row-serde-lint")]
     RowSerdeLint,
-    /// Report (never fail) stringly-typed *_id fields in vox-db-types rows that have a Db<Entity>Id newtype.
+    /// Report (never fail) stringly-typed *_id fields in vox-db-types rows that have a `DbEntityId` newtype.
     #[command(name = "string-id-lint")]
     StringIdLint,
     /// Verify Secrets SSOT parity between managed secret spec and docs/guards.
@@ -452,6 +545,9 @@ pub enum CiCmd {
         #[arg(long)]
         target: Option<PathBuf>,
     },
+    /// Validate `contracts/documentation/canonical-map.v1.yaml` structure (B-canon paths, aliases, globs).
+    #[command(name = "canonical-map-verify")]
+    CanonicalMapVerify,
     /// Build and package release artifacts for a target triple (binary + checksum manifest).
     #[command(name = "release-build")]
     ReleaseBuild {
@@ -561,6 +657,97 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Regenerable workspace test inventory (Rust tests, ignores, golden Vox, app E2E paths).
+    #[command(name = "test-inventory")]
+    TestInventory {
+        /// Print deterministic JSON to stdout.
+        #[arg(long)]
+        json: bool,
+        /// Write JSON to this path.
+        #[arg(long)]
+        output: Option<PathBuf>,
+        /// Write Markdown summary to this path.
+        #[arg(long)]
+        markdown: Option<PathBuf>,
+        /// Fail if this JSON file differs after parsing both sides and comparing structured data (semantic equality for `TestInventoryReport`, not a raw text diff).
+        #[arg(long)]
+        check: Option<PathBuf>,
+    },
+    /// Safety / suppression-debt baseline (unsafe-ish counts, ignored tests, crate `#![allow]`, TS eslint-disable).
+    #[command(name = "safety-inventory")]
+    SafetyInventory {
+        #[arg(long)]
+        json: bool,
+        #[arg(long)]
+        output: Option<PathBuf>,
+        #[arg(long)]
+        check: Option<PathBuf>,
+    },
+    /// Summarize nextest/JUnit XML: slow tests, retries/flaky heuristics, optional threshold warnings (report-only).
+    #[command(name = "test-runtime-report")]
+    TestRuntimeReport {
+        /// Path to JUnit XML (e.g. `target/nextest/ci/junit.xml` when nextest JUnit is enabled).
+        #[arg(long)]
+        junit: PathBuf,
+        /// Emit machine-readable JSON to stdout (suppresses default human summary).
+        #[arg(long)]
+        json: bool,
+        /// Write Markdown summary to this path.
+        #[arg(long)]
+        markdown: Option<PathBuf>,
+        /// Number of slow tests to list (max-time per classname+name).
+        #[arg(long, default_value_t = 20)]
+        top: usize,
+        /// Warn when any listed slow test exceeds this duration in milliseconds (does not fail the command).
+        #[arg(long)]
+        fail_over_ms: Option<u64>,
+        /// Warn when the number of retry/flaky candidate rows exceeds this value (does not fail the command).
+        #[arg(long)]
+        fail_retry_count: Option<usize>,
+    },
+    /// Governance gate: ignored tests must use `#[ignore = "..."]` with owner/sunset/date-style markers (default warn).
+    #[command(name = "ignored-test-age")]
+    IgnoredTestAge {
+        #[arg(long, value_enum, default_value_t = GovernanceGateMode::Warn)]
+        mode: GovernanceGateMode,
+        /// Optional `test-inventory` JSON; when set, requires `summary.cargo_ignored_test_functions` to match the live scan count.
+        #[arg(long)]
+        inventory: Option<PathBuf>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Governance gate: retry/flaky candidate rows vs budget (`test-runtime-report` JSON or JUnit).
+    #[command(name = "flake-budget")]
+    FlakeBudget {
+        #[arg(long, value_enum, default_value_t = GovernanceGateMode::Warn)]
+        mode: GovernanceGateMode,
+        #[arg(long)]
+        report_json: Option<PathBuf>,
+        #[arg(long)]
+        junit: Option<PathBuf>,
+        #[arg(long, default_value_t = 20)]
+        top: usize,
+        #[arg(long = "max-candidates", default_value_t = 50)]
+        max_candidates: usize,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Governance gate: compare two `test-runtime-report` JSON files for top-test slowdowns vs baseline.
+    #[command(name = "runtime-regress")]
+    RuntimeRegress {
+        #[arg(long, value_enum, default_value_t = GovernanceGateMode::Warn)]
+        mode: GovernanceGateMode,
+        #[arg(long)]
+        current: PathBuf,
+        #[arg(long)]
+        baseline: PathBuf,
+        #[arg(long, default_value_t = 25.0)]
+        percent: f64,
+        #[arg(long, default_value_t = 500)]
+        absolute_ms: u64,
+        #[arg(long)]
+        json: bool,
+    },
     /// Coolify eval sandbox: discover apps and sync `vox-eval.compose.yml` via API.
     CoolifyEval {
         #[command(subcommand)]
@@ -589,6 +776,12 @@ pub enum CiCmd {
     /// Verify every in-tree `Plugin.toml` has a matching entry in the plugin catalog. Passes trivially when no Plugin.toml files exist (SP1).
     #[command(name = "plugin-catalog-parity")]
     PluginCatalogParity,
+    /// Enforce no-tauri-in-core architectural boundary.
+    #[command(name = "no-tauri-in-core")]
+    NoTauriInCore,
+    /// Guard that no non-plugin crate takes a compile-time dep on a cdylib plugin (D-2).
+    #[command(name = "no-plugin-cdylib-as-compile-dep")]
+    NoPluginCdylibAsCompileDep,
     /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
     #[command(name = "plugin-abi-parity")]
     PluginAbiParity,
@@ -650,6 +843,19 @@ pub enum DocInventoryCmd {
     Verify,
 }
 
+/// Subcommands for [`CiCmd::DocsRealityAudit`].
+#[derive(Subcommand)]
+pub enum DocsRealityAuditCmd {
+    /// Validate JSON artifacts against schemas; ensure inventory path hints resolve.
+    Verify,
+    /// Emit rollout metrics for `findings.v1.json` (stdout; use `--write` to refresh `metrics.v1.json`).
+    Metrics {
+        /// Write `contracts/reports/docs-reality-audit/metrics.v1.json`.
+        #[arg(long)]
+        write: bool,
+    },
+}
+
 /// `vox ci toestub-scoped --mode` ↔ `toestub --mode`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
 pub enum ToestubCiMode {
@@ -692,6 +898,26 @@ pub enum CoverageGateMode {
     Warn,
     /// Exit non-zero when a configured threshold is not met.
     Enforce,
+}
+
+/// `vox ci ignored-test-age` / `flake-budget` / `runtime-regress` exit behavior.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+#[value(rename_all = "kebab-case")]
+pub enum GovernanceGateMode {
+    /// Print findings; exit 0 unless paired with other failures.
+    #[default]
+    Warn,
+    /// Exit non-zero when the gate detects drift.
+    Enforce,
+}
+
+impl GovernanceGateMode {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            GovernanceGateMode::Warn => "warn",
+            GovernanceGateMode::Enforce => "enforce",
+        }
+    }
 }
 
 /// Projection target for `vox ci operations-sync`.

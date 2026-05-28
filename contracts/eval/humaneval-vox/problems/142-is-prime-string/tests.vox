@@ -1,0 +1,29 @@
+fn is_prime(n: int) to bool {
+    if n < 2 {
+        return false
+    }
+    let mut i: int = 2
+    while i * i <= n {
+        if n % i == 0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn is_prime_string(s: str) to bool {
+    return is_prime(s.len())
+}
+
+fn main() to str {
+    assert(is_prime_string("ab") == true)
+    assert(is_prime_string("abc") == true)
+    assert(is_prime_string("abcd") == false)
+    assert(is_prime_string("abcde") == true)
+    assert(is_prime_string("") == false)
+    assert(is_prime_string("a") == false)
+    assert(is_prime_string("abcdefg") == true)
+    assert(is_prime_string("abcdefgh") == false)
+    return "ok"
+}

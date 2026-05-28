@@ -29,17 +29,25 @@ pub mod types;
 
 // ── Public re-exports ─────────────────────────────────────────────────────
 
-pub use aggregator::fill_task_root_summary;
-pub use config::{TelemetryConfig, is_master_enabled};
+pub use aggregator::{fill_task_root_summary, record_task_started};
+pub use config::{TelemetryConfig, is_master_enabled, org_policy_disabled};
 pub use no_op::NoOpRecorder;
 pub use recorder::{CompositeRecorder, TelemetryRecorder, global_recorder, set_global_recorder};
 pub use span::{TRACE_CTX, TraceContext, current_trace_ctx};
 pub use types::{
     // event types
+    AiFixtureEvent,
     BuildSummaryEvent,
     ErrorEvent,
-    // existing metric types
+    FixtureModelIntentResolvedEvent,
+    HoleObservedTelemetryEvent,
+    OrchSubagentDispatchEvent,
+    PromptDispatchTelemetryEvent,
+    SearchDispatchTelemetryEvent,
+    SubagentDispatchTelemetryPayload,
     METRIC_TYPE_AGENT_EXEC_TIME,
+    // existing metric types
+    METRIC_TYPE_AGENTOS_GUARDRAIL_DENY,
     METRIC_TYPE_BANDIT_UPDATE,
     METRIC_TYPE_BENCHMARK_EVENT,
     METRIC_TYPE_BUDGET_DECISION,
@@ -51,6 +59,10 @@ pub use types::{
     METRIC_TYPE_CIRCUIT_BREAKER_TRIP,
     METRIC_TYPE_DRIFT_ALERT,
     METRIC_TYPE_ERROR_EVENT,
+    METRIC_TYPE_FIXTURE_HOLE_OBSERVED,
+    METRIC_TYPE_FIXTURE_MODEL_INTENT,
+    METRIC_TYPE_FIXTURE_PROMPT_DISPATCH,
+    METRIC_TYPE_FIXTURE_SEARCH_DISPATCH,
     METRIC_TYPE_HITL_INTERRUPT,
     METRIC_TYPE_MEMORY_HYBRID_FUSION,
     METRIC_TYPE_MODEL_CALL_EVENT,
@@ -85,6 +97,32 @@ pub use types::{
     // error
     TelemetryError,
     TelemetryEvent,
+    // CR-L8 corpus-feedback (P2.1)
+    LintAutofixEvent,
+    LintFindingEvent,
+    METRIC_TYPE_LINT_AUTOFIX_APPLIED,
+    METRIC_TYPE_LINT_AUTOFIX_REJECTED,
+    METRIC_TYPE_LINT_FINDING,
+    METRIC_TYPE_REPAIR_ATTEMPT,
+    METRIC_TYPE_REPAIR_OUTCOME,
+    RepairAttemptEvent,
+    RepairOutcomeEvent,
+    SESSION_PREFIX_LINT,
+    SESSION_PREFIX_REPAIR,
+    // vox audit run telemetry (A11)
+    AuditRunEvent,
+    METRIC_TYPE_AUDIT_RUN,
+    SESSION_PREFIX_AUDIT,
+    // model-autonomic system (L0/L1/L2/L3) — 2026-05-15
+    ClassificationEvent,
+    ConfidencePromotionEvent,
+    DiscoveryEvent,
+    METRIC_TYPE_CONFIDENCE_PROMOTION,
+    METRIC_TYPE_MODEL_CLASSIFICATION,
+    METRIC_TYPE_MODEL_DISCOVERY,
+    METRIC_TYPE_SELECTION_DECISION,
+    SESSION_PREFIX_MODEL_AUTONOMIC,
+    SelectionDecisionEvent,
     // write helpers
     TelemetryWriteOptions,
     validate_research_metric_row,
@@ -96,8 +134,8 @@ pub use types::{
 ///
 /// No-op (zero cost) when no recorder has been registered via [`set_global_recorder`].
 ///
-/// ```rust,ignore
-/// record_event!(&TelemetryEvent::ResearchMetric(ResearchMetricEvent { … }));
+/// ```text
+/// record_event!(&TelemetryEvent::ResearchMetric(ResearchMetricEvent { ... }));
 /// ```
 #[macro_export]
 macro_rules! record_event {

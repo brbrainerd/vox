@@ -196,6 +196,21 @@ fn find_stale_captures_in_expr(
             find_stale_captures_in_expr(body, states, inside_lambda, out);
         }
 
+        HirExpr::AsyncView(v) => {
+            if let Some(a) = &v.fetching_arm {
+                find_stale_captures_in_expr(a, states, inside_lambda, out);
+            }
+            if let Some(a) = &v.empty_arm {
+                find_stale_captures_in_expr(a, states, inside_lambda, out);
+            }
+            if let Some(a) = &v.error_arm {
+                find_stale_captures_in_expr(a, states, inside_lambda, out);
+            }
+            if let Some(a) = &v.ok_arm {
+                find_stale_captures_in_expr(a, states, inside_lambda, out);
+            }
+        }
+
         // ── Leaf literals — nothing to capture ───────────────────────────────
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
@@ -205,6 +220,9 @@ fn find_stale_captures_in_expr(
 
         // ── JSX — not expected in lifecycle bodies; ignore ────────────────────
         HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) | HirExpr::JsxFragment(..) => {}
+
+        // workflow.version is a leaf marker; no captures possible.
+        HirExpr::WorkflowVersion(_) => {}
     }
 }
 

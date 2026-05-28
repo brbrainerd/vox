@@ -118,7 +118,7 @@ fn run_mode_script_passes_trailing_args_to_std_args() {
 
 /// Full app lane compiles the generated server — too slow for default CI.
 #[test]
-#[ignore = "run locally: cargo test -p vox-cli --features script-execution --test run_mode_dispatch -- --ignored"]
+#[ignore = "run locally: cargo test -p vox-cli --features script-execution --test run_mode_dispatch -- --ignored — owner: vox-cli sunset: 2026-12-31"]
 fn run_mode_app_builds_examples_chatbot() {
     let repo = workspace_root();
     let chatbot = repo.join("examples/chatbot.vox");

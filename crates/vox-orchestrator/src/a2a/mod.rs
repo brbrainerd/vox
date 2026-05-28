@@ -1,7 +1,7 @@
 //! Agent-to-agent messaging types and helpers.
 
 mod bus;
-mod dispatch;
+pub mod dispatch;
 mod envelope;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
@@ -15,6 +15,8 @@ mod remote_worker;
 #[cfg(not(feature = "populi-transport"))]
 #[path = "remote_worker_noop.rs"]
 mod remote_worker;
+pub mod secret_bag;
+pub mod traceparent;
 
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
 
@@ -25,8 +27,8 @@ pub use dispatch::{
 };
 #[cfg(feature = "populi-transport")]
 pub use dispatch::{
-    drain_populi_remote_task_results, relay_remote_task_cancel, relay_remote_task_envelope,
-    relay_to_mesh,
+    drain_populi_remote_task_results, relay_ai_fixture_distributed_subagent,
+    relay_remote_task_cancel, relay_remote_task_envelope, relay_to_mesh,
 };
 pub use envelope::{
     A2ADeliveryPlane, A2AInboxPlane, A2ARoute, DbA2AMessage, REMOTE_TASK_ACK_TYPE,

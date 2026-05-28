@@ -1,7 +1,7 @@
 ---
 title: "Language Features Empirically Linked to LLM Code Generation Success"
 description: "Research on algebraic data types, non-null policies, and zero implicit coercion as reliability enhancers for LLM code generation."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

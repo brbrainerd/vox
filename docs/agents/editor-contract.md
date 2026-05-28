@@ -46,7 +46,7 @@ VS Code activate()
 ## Extension Source Layout
 
 ```
-vox-vscode/src/
+apps/editor/vox-vscode/src/
   extension.ts              ← activation, wires everything below
   core/
     VoxMcpClient.ts         ← typed MCP call wrapper (ONLY comms layer)

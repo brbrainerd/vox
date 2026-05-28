@@ -1,0 +1,26 @@
+fn is_abundant(n: int) to bool {
+    if n < 2 { return false }
+    let mut sum: int = 1
+    let mut i: int = 2
+    while i * i <= n {
+        if n % i == 0 {
+            sum = sum + i
+            if i * i != n {
+                sum = sum + n / i
+            }
+        }
+        i = i + 1
+    }
+    return sum > n
+}
+
+fn main() to str {
+    assert(is_abundant(12) == true)
+    assert(is_abundant(18) == true)
+    assert(is_abundant(20) == true)
+    assert(is_abundant(6) == false)
+    assert(is_abundant(7) == false)
+    assert(is_abundant(1) == false)
+    assert(is_abundant(945) == true)
+    return "ok"
+}

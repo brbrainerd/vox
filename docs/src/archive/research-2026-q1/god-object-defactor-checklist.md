@@ -1,7 +1,7 @@
 ---
 title: "God object defactor checklist (v3)"
 description: "Tracks Rust sources over 500 non-blank lines with status workflow; includes PowerShell inventory regeneration, per-crate cargo check/test matrix, public API freeze table, and refactor session log."
-category: "architecture"
+category: "Architecture SSOTs"
 
 schema_type: "TechArticle"
 training_eligible: false

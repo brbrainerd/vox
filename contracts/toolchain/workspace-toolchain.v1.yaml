@@ -1,0 +1,16 @@
+schema: vox.workspace.toolchain.v1
+versions:
+  rust: "1.92.0"
+  node: "22.0.0"
+  pnpm: "9.1.0"
+  cuda: "12.1"
+targets:
+  rust:
+    - "wasm32-wasip1"
+    - "aarch64-apple-darwin"
+    - "x86_64-pc-windows-msvc"
+    - "x86_64-unknown-linux-gnu"
+components:
+  rust:
+    - "rustfmt"
+    - "clippy"

@@ -1,0 +1,3 @@
+fn lt(a: int, b: int) to bool {
+    return a < b
+}

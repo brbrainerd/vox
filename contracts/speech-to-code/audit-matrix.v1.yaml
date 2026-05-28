@@ -1,0 +1,187 @@
+schema_version: "1"
+generated_at_utc: "2026-05-11T12:00:00Z"
+description: "Broad-wave ASR-primary audit matrix for Vox speech-to-code surfaces."
+cells:
+  - id: win-editor-webview-whisper-cpu-48k-code
+    tier: must
+    os: windows-11
+    backend: whisper
+    compute: cpu
+    model: openai/whisper-tiny.en
+    sample_rate: 48000
+    surface: editor-webview-mic
+    domain: code-dictation
+    features: ["stt-candle"]
+    env:
+      VOX_ORATIO_BACKEND: whisper
+      VOX_ORATIO_MODEL: openai/whisper-tiny.en
+    notes: "Captures the Cursor/VS Code webview AudioContext sample-rate path."
+  - id: win-editor-file-whisper-cpu-16k-code
+    tier: must
+    os: windows-11
+    backend: whisper
+    compute: cpu
+    model: openai/whisper-tiny.en
+    sample_rate: 16000
+    surface: editor-file-picker
+    domain: code-dictation
+    features: ["stt-candle"]
+    env:
+      VOX_ORATIO_BACKEND: whisper
+  - id: win-cli-eval-whisper-cpu-16k-all
+    tier: must
+    os: windows-11
+    backend: whisper
+    compute: cpu
+    model: openai/whisper-tiny.en
+    sample_rate: 16000
+    surface: cli-eval
+    domain: mixed-natural
+    features: ["stt-candle"]
+    env:
+      VOX_ORATIO_BACKEND: whisper
+  - id: win-mcp-path-whisper-cpu-16k-command
+    tier: must
+    os: windows-11
+    backend: whisper
+    compute: cpu
+    model: openai/whisper-tiny.en
+    sample_rate: 16000
+    surface: mcp-path
+    domain: command-phrasing
+    features: ["oratio"]
+    env:
+      VOX_ORATIO_BACKEND: whisper
+  - id: win-mcp-prompt-no-asr-route
+    tier: must
+    os: windows-11
+    backend: none
+    compute: none
+    model: prompt-only
+    sample_rate: 0
+    surface: mcp-prompt
+    domain: command-phrasing
+    features: []
+    env: {}
+    notes: "Prompt mode bypasses ASR and anchors codegen/HIR support metrics."
+  - id: win-dashboard-speak-gap
+    tier: must
+    os: windows-11
+    backend: none
+    compute: none
+    model: n/a
+    sample_rate: 0
+    surface: dashboard-speak-gap
+    domain: gap-confirmation
+    features: []
+    env: {}
+    notes: "Confirms Loquela is text chat only until a mic path lands."
+  - id: linux-cli-eval-whisper-cpu-16k-code
+    tier: must
+    os: linux-x64
+    backend: whisper
+    compute: cpu
+    model: openai/whisper-tiny.en
+    sample_rate: 16000
+    surface: cli-eval
+    domain: code-dictation
+    features: ["stt-candle"]
+    env:
+      VOX_ORATIO_BACKEND: whisper
+  - id: linux-streaming-ws-whisper-cpu-16k-command
+    tier: must
+    os: linux-x64
+    backend: whisper
+    compute: cpu
+    model: openai/whisper-tiny.en
+    sample_rate: 16000
+    surface: streaming-ws
+    domain: command-phrasing
+    features: ["serve", "stt-candle"]
+    env:
+      VOX_ORATIO_BACKEND: whisper
+  - id: win-cli-eval-whisper-cuda-16k-code
+    tier: should
+    os: windows-11
+    backend: whisper
+    compute: cuda
+    model: openai/whisper-tiny.en
+    sample_rate: 16000
+    surface: cli-eval
+    domain: code-dictation
+    features: ["stt-candle", "cuda"]
+    env:
+      VOX_ORATIO_BACKEND: whisper
+      VOX_ORATIO_CUDA: "1"
+    skip_policy: "skip reason=no-cuda when nvcc or CUDA runtime is unavailable"
+  - id: linux-cli-eval-sherpa-cpu-16k-code
+    tier: should
+    os: linux-x64
+    backend: sherpa
+    compute: cpu
+    model: VOX_ORATIO_SHERPA_MODEL_DIR
+    sample_rate: 16000
+    surface: cli-eval
+    domain: code-dictation
+    features: ["stt-sherpa"]
+    env:
+      VOX_ORATIO_BACKEND: sherpa
+    skip_policy: "skip reason=feature-off when stt-sherpa is not compiled"
+  - id: ios-mobile-apple-speech-native-code
+    tier: should
+    os: ios
+    backend: apple-speech
+    compute: mobile-native
+    model: SFSpeechRecognizer-on-device
+    sample_rate: 16000
+    surface: mobile-ios
+    domain: mixed-natural
+    features: ["capacitor"]
+    env: {}
+  - id: android-mobile-sherpa-native-code
+    tier: should
+    os: android
+    backend: sherpa
+    compute: mobile-native
+    model: sherpa-onnx
+    sample_rate: 16000
+    surface: mobile-android
+    domain: mixed-natural
+    features: ["capacitor", "sherpa-onnx"]
+    env: {}
+  - id: browser-vox-app-web-speech-command
+    tier: should
+    os: n/a
+    backend: web-speech
+    compute: browser
+    model: WebSpeechAPI
+    sample_rate: 0
+    surface: vox-app-web-speech
+    domain: command-phrasing
+    features: []
+    env: {}
+    notes: "Classify prompt fallback as ASR=N/A, not ASR success."
+  - id: http-audio-ingress-missing-gap
+    tier: should
+    os: n/a
+    backend: n/a
+    compute: n/a
+    model: n/a
+    sample_rate: 0
+    surface: http-audio-missing
+    domain: transport
+    features: []
+    env: {}
+    notes: "Contracts mention /api/audio/* but no vox-audio-ingress crate is present."
+  - id: macos-editor-webview-whisper-cpu-48k-code
+    tier: may
+    os: macos-14
+    backend: whisper
+    compute: cpu
+    model: openai/whisper-base.en
+    sample_rate: 48000
+    surface: editor-webview-mic
+    domain: identifier-heavy
+    features: ["stt-candle"]
+    env:
+      VOX_ORATIO_BACKEND: whisper

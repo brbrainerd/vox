@@ -1,0 +1,56 @@
+name: Cross-Platform Check (Windows + macOS)
+on:
+  schedule:
+    - cron: '0 4 * * 1'   # Weekly Monday
+  pull_request:
+    paths:
+      - 'crates/**'
+      - 'Cargo.*'
+      - '.cargo/**'
+      - '.github/workflows/cross-platform-check.yml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cross-check:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-cross-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-cross-
+      
+      - name: cargo check (workspace)
+        run: cargo check --workspace --target ${{ matrix.target }}
+      
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      
+      - name: nextest (platform-sensitive crates)
+        run: |
+          cargo nextest run -p vox-config
+          cargo nextest run -p vox-cli-core
+          cargo nextest run -p vox-populi --lib

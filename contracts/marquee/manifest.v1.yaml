@@ -1,0 +1,171 @@
+x-vox-version: 1
+schema_version: 1
+
+# Marquee app manifest.
+#
+# References:
+#   - docs/src/architecture/v1-release-criteria.md (CR-P1, CR-P3, CR-E2, CR-L0, CR-L7)
+#   - docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md §9 G3
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.1 P0.1
+#
+# Purpose: Canonical, machine-readable list of "Marquee" apps that v1.0
+# release criteria reference. Without this manifest, CR-P1 (3 marquee apps
+# in production), CR-P3 (vox new web -> vox deploy in 120s), CR-E2 (bundle
+# size <= 800KB gzip), CR-L0 (E2E agent loop fixtures), and CR-L7 (deploy
+# CLI integration test) are all unverifiable.
+#
+# Status as of 2026-05-26: ALL 3 SLOTS REAL. Ratified 2026-05-15 (D4–D6 in
+# v1-llm-target-implementation-plan-2026.md §8 ratification log).
+# Slot count locked at 3 (CR-P1 minimum). Slots 2–3 fixtures landed 2026-05-26
+# (vox check passes, 0 warnings). CR-P1 is now verifiable.
+
+apps:
+  # ---------------------------------------------------------------------
+  # Slot 1 — Public demo / dashboard archetype (REAL, already in tree)
+  # ---------------------------------------------------------------------
+  - id: marquee-app
+    status: real
+    name: "Vox Marquee Demo"
+    description: >
+      Existing public demo: data-table dashboard with @table types,
+      @query / @mutation endpoint functions, and a Vox component view.
+    fixture_path: "apps/interop/marquee_app"
+    vox_toml: "apps/interop/marquee_app/Vox.toml"
+    entry: "apps/interop/marquee_app/src/main.vox"
+    archetype: "dashboard"
+    features:
+      - "@table types"
+      - "@query endpoint"
+      - "@mutation endpoint"
+      - "Vox component view"
+      - "route parameters"
+    deploy_target: container
+    deploy_runtime: auto
+    deploy_registry: "ghcr.io/owner"
+    expected_bundle_kb_gzip: 800   # CR-E2 ceiling
+    expected_deploy_seconds: 120   # CR-P3 ceiling
+    test_coverage_status: partial  # smoke only
+    used_by_criteria:
+      - CR-P1
+      - CR-P3
+      - CR-E2
+      - CR-L0
+      - CR-L7
+
+  # ---------------------------------------------------------------------
+  # Slot 2 — Todo-CRUD with @auth (REAL, landed 2026-05-26)
+  # ---------------------------------------------------------------------
+  - id: marquee-todo-auth
+    status: real
+    name: "Vox Todo-CRUD with @auth"
+    description: >
+      The simplest credible SaaS skeleton: per-user todo list with
+      @query / @mutation endpoint functions, @auth(scheme: bearer),
+      SQLite persistence, and tests covering auth gates and validation.
+      Fixture landed 2026-05-26; vox check passes with 0 warnings.
+    fixture_path: "apps/marquee/todo-auth"
+    vox_toml: "apps/marquee/todo-auth/Vox.toml"
+    entry: "apps/marquee/todo-auth/src/main.vox"
+    archetype: "single-tenant-saas"
+    features:
+      - "@query endpoint"
+      - "@mutation endpoint"
+      - "@auth(scheme: bearer)"
+      - "@table types (User + Todo with FK)"
+      - "Result[T] error propagation"
+      - "tests covering auth gates and validation"
+    deploy_target: container
+    deploy_runtime: auto
+    deploy_registry: "ghcr.io/owner"
+    expected_bundle_kb_gzip: 800
+    expected_deploy_seconds: 120
+    test_coverage_status: unit
+    used_by_criteria:
+      - CR-P1
+      - CR-L0
+      - CR-L7
+
+  # ---------------------------------------------------------------------
+  # Slot 3 — Chat / realtime archetype (REAL, landed 2026-05-26)
+  # ---------------------------------------------------------------------
+  - id: marquee-chat
+    status: real
+    name: "Vox Chat"
+    description: >
+      Realtime chat exercising actor primitives. Demonstrates the `actor`
+      keyword with join/leave/message handlers, @server streaming endpoint
+      (SSE/WebSocket fan-out wired by deploy adapter), @auth bearer gates,
+      and @table message persistence. Fixture landed 2026-05-26; vox check
+      passes with 0 warnings.
+    fixture_path: "apps/marquee/chat"
+    vox_toml: "apps/marquee/chat/Vox.toml"
+    entry: "apps/marquee/chat/src/main.vox"
+    archetype: "realtime"
+    features:
+      - "actor declaration (ChatRoom with join/leave/message handlers)"
+      - "@server streaming endpoint (SSE/WebSocket via deploy adapter)"
+      - "presence state (actor runtime maintains participant set)"
+      - "@auth(scheme: bearer) on streaming and write lanes"
+      - "@table types (User + Message)"
+      - "tests covering write-path validation"
+    deploy_target: container
+    deploy_runtime: auto
+    deploy_registry: "ghcr.io/owner"
+    expected_bundle_kb_gzip: 800
+    expected_deploy_seconds: 120
+    test_coverage_status: unit
+    used_by_criteria:
+      - CR-P1
+      - CR-L0
+      - CR-L7
+
+# ---------------------------------------------------------------------------
+# Council ratification log (D4–D6, 2026-05-15)
+# ---------------------------------------------------------------------------
+council_ratification_log:
+  - id: marquee-slot-2-pick
+    decision: "Todo-CRUD with @auth (archetype marquee-todo-auth)."
+    ratified_at: "2026-05-15"
+    rationale: "Simplest credible SaaS skeleton; covers @auth lane without inflating P3.5 cost."
+
+  - id: marquee-slot-3-pick
+    decision: "Realtime chat with actor primitives (archetype marquee-chat)."
+    ratified_at: "2026-05-15"
+    rationale: "Demonstrates actor keyword and streaming endpoints — the agent-collaboration lane."
+
+  - id: marquee-slot-count
+    decision: "3 apps (CR-P1 minimum); no expansion to 4 or 5."
+    ratified_at: "2026-05-15"
+    rationale: >
+      Expanding to 5 apps inflates P3.5 by ~160 hours per additional app.
+      Additional archetypes (mobile-emit, LLM-tool integration) deferred to v1.5.
+
+# ---------------------------------------------------------------------------
+# Out-of-scope (intentionally NOT marquee)
+# ---------------------------------------------------------------------------
+non_marquee_apps:
+  - id: vox-vscode
+    path: "apps/editor/vox-vscode"
+    reason: "Editor integration, not a Vox-language demonstration."
+  - id: vox-mental-tracker
+    path: "apps/vox-mental-tracker"
+    reason: "Experimental/personal; not maintained as a release showcase."
+  - id: experimental-visualizer
+    path: "apps/experimental/visualizer"
+    reason: "Compiler visualization tool; not an end-user app."
+  - id: render-durable-animation
+    path: "apps/build-tools/render-durable-animation"
+    reason: "Build tool, not an end-user app."
+
+# ---------------------------------------------------------------------------
+# Schema notes
+# ---------------------------------------------------------------------------
+#
+# Future schema additions (deferred to v2):
+#   - deployment_test_command (when CR-L7 lands)
+#   - bundle_size_measured_kb_gzip (when CR-E2 measurement lands)
+#   - tenancy_model (when SaaS slot crystallizes)
+#   - last_deployed_at + last_doctor_green_at (continuous health)
+#
+# Any consumer of this manifest MUST tolerate unknown fields per the
+# repo-wide forward-compat policy (contracts/index.yaml).

@@ -76,6 +76,7 @@ fn compile_to_ts(src: &str, label: &str) -> Vec<(String, String)> {
         tanstack_start: false,
         target: None,
         mode: BuildMode::App,
+        ..Default::default()
     };
     // Disable WebIR validate gate for test isolation (same pattern as pipeline_test.rs).
     // We care about whether the emitted TS type-checks, not the structural IR gate.
@@ -89,7 +90,7 @@ fn compile_to_ts(src: &str, label: &str) -> Vec<(String, String)> {
 /// The main test: for every `.vox` file in `examples/golden-ts/`, emit TS and verify
 /// that `tsc --noEmit` succeeds.
 #[test]
-#[ignore = "requires node/npx in PATH; run explicitly with: cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture"]
+#[ignore = "requires node/npx in PATH; run explicitly with: cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture — owner: integration-tests sunset: 2026-12-31"]
 fn all_golden_fixtures_emit_valid_typescript() {
     let scratch = scratch_dir();
     let golden_dir = golden_ts_dir();

@@ -1,0 +1,15 @@
+// Repair-corpus fixture 023 — effect-violation bug class.
+// @test exercises an invariant marked @pure that performs an env read.
+// Expected repair: drop @pure from `invariant_holds` and declare `uses env`,
+// or pass the configured value in as a parameter so the test fn stays pure.
+
+@pure
+fn invariant_holds() to int {
+    env.get("APP_THRESHOLD")
+    return 0
+}
+
+@test
+fn test_invariant_holds() to Unit {
+    assert(invariant_holds() is 0)
+}

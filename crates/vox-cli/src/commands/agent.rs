@@ -117,9 +117,14 @@ pub async fn generate() -> Result<()> {
 
                 let md_path = agents_dir.join(format!("{crate_name}.md"));
 
+                let scope_path = entry.path().components()
+                    .map(|c| c.as_os_str().to_string_lossy().to_string())
+                    .collect::<Vec<_>>()
+                    .join("/");
+
                 let content = format!(
                     "---\nname: {}\nmodel: gemini-2.5-flash-preview\npermission:\n  write: allow\n  bash: allow\n  edit: allow\nscope:\n  - {}/**\n---\n\nYou are the specialist for {}. Your domain is {}.\n\nFocus exclusively on this component and its specific responsibilities within the Vox compilation pipeline.",
-                    crate_name, entry.path().display().to_string().replace("\\", "/"), description, entry.path().display().to_string().replace("\\", "/")
+                    crate_name, scope_path, description, scope_path
                 );
 
                 fs::write(&md_path, content)?;

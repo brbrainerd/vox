@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "captured_at_utc": "2026-05-11T12:00:00Z",
+  "correlation_id": "speech-audit-baseline-2026-05-11",
+  "wer": 0.35,
+  "cer": 0.15,
+  "compile_pass_at_1": 0.65,
+  "compile_pass_at_k": 0.72,
+  "semantic_pass_rate": 0.6,
+  "latency_ms_median": 6000,
+  "latency_ms_p95": 12000,
+  "notes": "Local audit artifact mirroring the committed canary threshold snapshot. Runtime model cells were not executed in this setup pass."
+}

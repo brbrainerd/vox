@@ -134,7 +134,7 @@ pub struct ConflictOfInterest {
     pub description: String,
 }
 
-/// ICMJE-format COI declaration (https://www.icmje.org/conflicts-of-interest/).
+/// ICMJE-format COI declaration (<https://www.icmje.org/conflicts-of-interest/>).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoiDeclaration {
     /// Study or Atlas ID this declaration covers.

@@ -50,8 +50,7 @@ impl RequireJustificationDetector {
         // Check next line for a comment
         if let Some(next) = next_line {
             let trimmed = next.trim();
-            if trimmed.starts_with("//") {
-                let comment_text = &trimmed[2..];
+            if let Some(comment_text) = trimmed.strip_prefix("//") {
                 let non_ws_count = comment_text.chars().filter(|c| !c.is_whitespace()).count();
                 if non_ws_count >= 40 {
                     return true;
@@ -96,6 +95,21 @@ impl DetectionRule for RequireJustificationDetector {
         Good: @require(x > 0 && y < 100 && z != null)\n      // because: x must be positive for the logarithm, y bounded by protocol limit, z required by schema\n      fn process(x, y, z) {}"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — complex @require with no explanation of why\n\
+             @require(amount > 0 && amount <= 1_000_000 && currency != null && !user.frozen)\n\
+             fn process_payment(amount: f64, currency: str, user: User) { ... }\n\
+             \n\
+             // FIX — add a justification comment explaining the constraints\n\
+             @require(amount > 0 && amount <= 1_000_000 && currency != null && !user.frozen)\n\
+             // because: amount must be positive (no zero-value payments); 1M cap is the\n\
+             // regulatory limit; currency required by ISO-4217 schema; frozen users blocked\n\
+             // by compliance policy (see ADR-031).\n\
+             fn process_payment(amount: f64, currency: str, user: User) { ... }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,
@@ -132,9 +146,7 @@ impl DetectionRule for RequireJustificationDetector {
                             file: file.path.clone(),
                             line: line_num,
                             column: 0,
-                            message: format!(
-                                "Complex `@require(...)` expression lacks a justification comment (need ≥ 40 chars after `//`)."
-                            ),
+                            message: "Complex `@require(...)` expression lacks a justification comment (need ≥ 40 chars after `//`).".to_string(),
                             suggestion: Some(
                                 "Add `// because: <reason>` comment after the `@require(...)` line explaining why this invariant holds.".into(),
                             ),

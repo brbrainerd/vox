@@ -1,0 +1,68 @@
+x-vox-version: 1
+schema_version: 1
+
+title: Documentation Reality Audit Program
+summary: >
+  Sustaining cycle to audit documentation and contracts against codebase reality,
+  triage mismatches as code deficit vs doc deficit vs intentional historical record,
+  and prioritize remediation via a shared scoring model.
+
+taxonomy:
+  primary_classification:
+    - id: CodeDeficit
+      meaning: Docs or contracts describe intended behavior that is missing or incomplete in code.
+    - id: DocDeficit
+      meaning: Code implements behavior that docs fail to describe accurately or completely.
+    - id: IntentionalHistorical
+      meaning: Document is a dated snapshot, research note, or superseded plan; not normative for current behavior.
+    - id: AmbiguousNeedsDecision
+      meaning: Conflict requires an explicit product or architecture decision before changing docs or code.
+
+  secondary_tags:
+    - omission-accidental
+    - breaking-risk
+    - security-policy
+    - naming-drift
+    - api-surface
+    - test-gap
+    - generator-drift
+
+  historicity_for_claims:
+    - CurrentNormative
+    - CurrentDescriptive
+    - HistoricalSnapshot
+    - ResearchIntent
+
+priority_scoring:
+  description: >
+    PriorityScore = Impact*2 + BlastRadius*2 + Staleness + EnforcementGap + Tractability.
+    All dimensions are non-negative integers with bounded ranges documented in findings schema.
+  priority_bands:
+    P0:
+      min_score: 22
+      note: Policy, security, CLI-contract, or high user-facing breakage risk.
+    P1:
+      min_score: 14
+      note: Architecture or reference drift with moderate blast radius.
+    P2:
+      min_score: 0
+      note: Historical cleanup, wording, or low-risk clarifications.
+
+machine_readable_artifacts:
+  inventory_json: contracts/reports/docs-reality-audit/inventory.v1.json
+  findings_json: contracts/reports/docs-reality-audit/findings.v1.json
+  metrics_json: contracts/reports/docs-reality-audit/metrics.v1.json
+  schemas:
+    inventory: contracts/reports/docs-reality-audit/inventory.v1.schema.json
+    findings: contracts/reports/docs-reality-audit/findings.v1.schema.json
+    metrics: contracts/reports/docs-reality-audit/metrics.v1.schema.json
+
+cadence:
+  weekly: Diff-based audit of changed docs, contracts, and referenced code paths.
+  monthly: Full inventory sweep and backlog hygiene.
+  release_gate: Targeted audit of CLI reference, env-vars, and operations catalog parity.
+
+verification:
+  cli_command: vox ci docs-reality-audit verify
+  bundled_in:
+    - vox ci ssot-drift

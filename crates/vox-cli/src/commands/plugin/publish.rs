@@ -139,7 +139,7 @@ pub async fn run(
         "skill_md": skill_md,
     });
 
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(60))
         .build()
         .context("building HTTP client")?;

@@ -3,7 +3,7 @@
 // description: "Pre-push lint that enforces CodeRabbit doc-policy rules: required frontmatter fields, valid status values, and labeled code fences in architecture docs."
 // category: "tooling"
 // status: "current"
-// last_updated: "2026-05-01"
+// last_updated: "2026-05-23"
 // training_eligible: false
 // ---
 //
@@ -26,22 +26,19 @@ import path;
 // Auto-generated files that are exempt from frontmatter requirements
 // ---------------------------------------------------------------------------
 fn is_auto_generated(file_path: str) to bool {
-    let normalized = str.replace(file_path, "\\", "/");
-    return str.ends_with(normalized, "/SUMMARY.md")
-        || str.ends_with(normalized, "/architecture-index.md")
-        || str.ends_with(normalized, "/research-index.md")
-        || str.ends_with(normalized, "feed.xml");
+    let normalized = file_path.replace("\\", "/");
+    return normalized.ends_with("/SUMMARY.md") or normalized.ends_with("/architecture-index.md") or normalized.ends_with("/research-index.md") or normalized.ends_with("feed.xml");
 }
 
 // ---------------------------------------------------------------------------
 // Extract filename from a path (last component after / or \)
 // ---------------------------------------------------------------------------
 fn file_name_from_path(file_path: str) to str {
-    let normalized = str.replace(file_path, "\\", "/");
+    let normalized = file_path.replace("\\", "/");
     let parts = normalized.split("/");
-    let n = list.len(parts);
+    let n = parts.len();
     if n > 0 {
-        return parts[n - 1];
+        return parts.get(n - 1).unwrap_or(file_path);
     }
     return file_path;
 }
@@ -63,30 +60,32 @@ fn check_frontmatter(file_path: str) to list[str] {
     let content = content_res.unwrap();
 
     // Must open with a YAML frontmatter block
-    if !str.starts_with(content, "---\n") {
-        violations = list.push(violations, file_path + ": missing YAML frontmatter block (file must begin with ---)");
+    if not content.starts_with("---\n") {
+        violations.push(file_path + ": missing YAML frontmatter block (file must begin with ---)");
         return violations;
     }
 
     // Required field keys
     let required = ["title:", "description:", "category:", "status:", "last_updated:", "training_eligible:"];
     for field in required {
-        if !str.contains(content, field) {
-            violations = list.push(violations, file_path + ": frontmatter missing required field '" + field + "'");
+        if not content.contains(field) {
+            violations.push(file_path + ": frontmatter missing required field '" + field + "'");
         }
     }
 
     // Valid status — only checked when the status: key is present
-    if str.contains(content, "status:") {
+    if content.contains("status:") {
         let valid = ["current", "experimental", "research", "roadmap", "legacy", "deprecated"];
         let mut status_ok = false;
         for s in valid {
-            if str.contains(content, "status: \"" + s + "\"") || str.contains(content, "status: " + s) {
+            let q = "status: \"" + s + "\"";
+            let bare = "status: " + s;
+            if content.contains(q) or content.contains(bare) {
                 status_ok = true;
             }
         }
-        if !status_ok {
-            violations = list.push(violations, file_path + ": status has unknown value (allowed: current|experimental|research|roadmap|legacy|deprecated)");
+        if not status_ok {
+            violations.push(file_path + ": status has unknown value (allowed: current|experimental|research|roadmap|legacy|deprecated)");
         }
     }
 
@@ -109,22 +108,22 @@ fn check_unlabeled_fences(file_path: str) to list[str] {
     }
     let content = content_res.unwrap();
 
-    let lines = str.split_lines(content);
+    let lines = content.split("\n");
     let mut line_num = 0;
     let mut in_fence = false;
 
     for line in lines {
         line_num = line_num + 1;
-        let trimmed = str.trim(line);
+        let trimmed = line.trim();
 
-        if str.starts_with(trimmed, "```") {
+        if trimmed.starts_with("```") {
             if in_fence {
                 // Closing fence — reset state
                 in_fence = false;
             } else {
                 // Opening fence — check for language tag
                 if trimmed == "```" {
-                    violations = list.push(violations, file_path + ":" + str(line_num) + ": unlabeled code fence — add a language tag (e.g. ```bash, ```rust, ```toml)");
+                    violations.push(file_path + ":" + str(line_num) + ": unlabeled code fence — add a language tag (e.g. ```bash, ```rust, ```toml)");
                 }
                 in_fence = true;
             }
@@ -142,7 +141,7 @@ fn main() {
     let arch_dir  = "docs/src/architecture";
     let sp_dir    = "docs/superpowers";
 
-    if !fs.exists(docs_src) {
+    if not fs.exists(docs_src) {
         print("Error: docs/src not found — run from the repo root.");
         process.exit(1);
     }
@@ -150,51 +149,45 @@ fn main() {
     let mut all_violations = [];
 
     // ---- Check 1 + 2: Frontmatter on all docs/src/**/*.md -----------------
-    let all_files = fs.list_recursive(docs_src);
+    let all_files = fs.glob(docs_src + "/**/*.md").unwrap();
     for f in all_files {
-        if path.extension(f) == "md" {
-            let v = check_frontmatter(f);
-            for item in v {
-                all_violations = list.push(all_violations, item);
-            }
+        let v = check_frontmatter(f);
+        for item in v {
+            all_violations.push(item);
         }
     }
 
     // ---- Check 3: Labeled fences in architecture docs ---------------------
     if fs.exists(arch_dir) {
-        let arch_files = fs.list_recursive(arch_dir);
+        let arch_files = fs.glob(arch_dir + "/**/*.md").unwrap();
         for f in arch_files {
-            if path.extension(f) == "md" {
-                let v = check_unlabeled_fences(f);
-                for item in v {
-                    all_violations = list.push(all_violations, item);
-                }
+            let v = check_unlabeled_fences(f);
+            for item in v {
+                all_violations.push(item);
             }
         }
     }
 
     // ---- Check 4: No stray .md files in docs/superpowers/ ----------------
     if fs.exists(sp_dir) {
-        let sp_files = fs.list_recursive(sp_dir);
+        let sp_files = fs.glob(sp_dir + "/**/*.md").unwrap();
         for f in sp_files {
-            if path.extension(f) == "md" {
-                let normalized = str.replace(f, "\\", "/");
-                // Plans and specs belong in superpowers; flag anything that
-                // looks like it was mistakenly placed instead of docs/src/
-                if str.contains(normalized, "/architecture/") || str.contains(normalized, "/contributors/") {
-                    all_violations = list.push(all_violations, f + ": looks misplaced — this doc should live under docs/src/, not docs/superpowers/");
-                }
+            let normalized = f.replace("\\", "/");
+            // Plans and specs belong in superpowers; flag anything that
+            // looks like it was mistakenly placed instead of docs/src/
+            if normalized.contains("/architecture/") or normalized.contains("/contributors/") {
+                all_violations.push(f + ": looks misplaced — this doc should live under docs/src/, not docs/superpowers/");
             }
         }
     }
 
     // ---- Report ------------------------------------------------------------
-    if list.len(all_violations) == 0 {
-        print("✅ Doc policy lint passed — no violations.");
+    if all_violations.len() == 0 {
+        print("Doc policy lint passed — no violations.");
         process.exit(0);
     }
 
-    print("❌ Doc policy violations (" + str(list.len(all_violations)) + "):");
+    print("Doc policy violations (" + str(all_violations.len()) + "):");
     print("");
     for v in all_violations {
         print("  " + v);

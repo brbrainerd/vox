@@ -472,4 +472,74 @@ impl crate::VoxDb {
             })
             .await
     }
+
+    /// Count `external_review_run` rows for one `repository_id`.
+    pub async fn count_external_review_runs_for_repository(
+        &self,
+        repository_id: &str,
+    ) -> Result<i64, StoreError> {
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT COUNT(*) FROM external_review_run WHERE repository_id=?1",
+                        params![repository_id.as_str()],
+                    )
+                    .await?;
+                let n: i64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0);
+                Ok::<i64, StoreError>(n)
+            })
+            .await
+    }
+
+    /// Count `external_review_finding` rows for one `repository_id`.
+    pub async fn count_external_review_findings_for_repository(
+        &self,
+        repository_id: &str,
+    ) -> Result<i64, StoreError> {
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT COUNT(*) FROM external_review_finding WHERE repository_id=?1",
+                        params![repository_id.as_str()],
+                    )
+                    .await?;
+                let n: i64 = rows.next().await?.and_then(|r| r.get(0).ok()).unwrap_or(0);
+                Ok::<i64, StoreError>(n)
+            })
+            .await
+    }
+
+    /// Count pending `external_review_deadletter` rows for one `repository_id`.
+    pub async fn count_external_review_deadletters_pending_for_repository(
+        &self,
+        repository_id: &str,
+    ) -> Result<i64, StoreError> {
+        let repository_id = repository_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT COUNT(*) FROM external_review_deadletter WHERE repository_id=?1 AND retry_state='pending'",
+                        params![repository_id.as_str()],
+                    )
+                    .await?;
+                let n: i64 = rows
+                    .next()
+                    .await?
+                    .and_then(|r| r.get(0).ok())
+                    .unwrap_or(0);
+                Ok::<i64, StoreError>(n)
+            })
+            .await
+    }
 }

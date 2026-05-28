@@ -11,3 +11,5 @@ pub mod publication;
 pub mod script_executor;
 pub mod speech_to_text;
 pub mod tensor_backend;
+pub mod http_listener;
+pub mod skill_runtime;

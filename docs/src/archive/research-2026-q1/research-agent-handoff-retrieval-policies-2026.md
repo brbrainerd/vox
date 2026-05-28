@@ -1,6 +1,6 @@
 ---
 title: "Evidence Base for Context Retrieval Policies"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

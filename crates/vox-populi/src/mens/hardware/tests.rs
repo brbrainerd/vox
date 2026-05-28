@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)] // File is `tests.rs`; inner `mod tests` keeps `cfg(test)` items grouped.
 mod tests {
     use crate::mens::hardware::mock::MockProbe;
     use crate::mens::hardware::pipeline::ProbePipeline;

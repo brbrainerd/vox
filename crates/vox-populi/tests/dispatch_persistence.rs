@@ -9,6 +9,7 @@ static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 #[tokio::test]
 #[serial]
 #[allow(unsafe_code)]
+#[allow(clippy::await_holding_lock)] // Lock intentionally held across awaits to serialize env-mutating tests.
 async fn verify_dispatch_results_persistence_across_restart() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
     let tmp_dir = tempfile::tempdir().expect("create temp dir");
@@ -61,9 +62,9 @@ async fn verify_dispatch_results_persistence_across_restart() {
             .await
             .expect("should retrieve result via wait");
 
-        assert_eq!(response.success, true);
+        assert!(response.success);
         assert_eq!(response.output, "wait result retrieved after restart");
-        assert_eq!(response.is_truncated, false);
+        assert!(!response.is_truncated);
 
         server_task.abort();
     }

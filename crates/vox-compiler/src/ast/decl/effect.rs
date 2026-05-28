@@ -20,6 +20,10 @@ pub enum EffectAnnotation {
     Random,
     /// Spawns a subprocess or background task.
     Spawn,
+    /// GPU compute (kernels / Candle CUDA / inference dispatch).
+    GpuCompute,
+    /// In-place mutable tensor / optimizer state updates (training).
+    Mutate,
     /// Calls a specific MCP tool: `mcp(tool_name)`.
     Mcp(String),
     /// Explicit `uses nothing` — equivalent to `@pure`.
@@ -36,6 +40,8 @@ impl EffectAnnotation {
             "clock" => Some(Self::Clock),
             "random" => Some(Self::Random),
             "spawn" => Some(Self::Spawn),
+            "gpu_compute" => Some(Self::GpuCompute),
+            "mutate" => Some(Self::Mutate),
             "nothing" => Some(Self::Nothing),
             _ => None,
         }
@@ -50,6 +56,8 @@ impl EffectAnnotation {
             Self::Clock => "clock",
             Self::Random => "random",
             Self::Spawn => "spawn",
+            Self::GpuCompute => "gpu_compute",
+            Self::Mutate => "mutate",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }

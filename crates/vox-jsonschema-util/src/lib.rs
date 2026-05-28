@@ -1,6 +1,8 @@
-//! Compile [`serde_json::Value`] JSON Schemas with [`jsonschema`] and validate instances with stable [`anyhow`] context.
+//! Compile [`serde_json::Value`] JSON Schemas with [`jsonschema`] and validate instances with stable `anyhow` context.
 //!
-//! File I/O stays with callers (e.g. [`vox_bounded_fs`]); this crate only centralizes compile/validate.
+//! File I/O stays with callers (e.g. `vox_bounded_fs`); this crate only centralizes compile/validate.
+
+#![forbid(unsafe_code)]
 
 use std::path::Path;
 

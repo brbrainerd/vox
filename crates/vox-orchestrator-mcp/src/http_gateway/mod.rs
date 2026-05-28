@@ -70,9 +70,9 @@ const DEFAULT_ALLOWED_TOOLS: &[&str] = &[
     "vox_emergency_stop",
     "vox_rebalance",
     "vox_doubt_task",
-    "vox_ludus_progress_snapshot",
-    "vox_ludus_notification_ack",
-    "vox_ludus_notifications_ack_all",
+    "vox_gamify_progress_snapshot",
+    "vox_gamify_notification_ack",
+    "vox_gamify_notifications_ack_all",
     "vox_budget_status",
     "vox_language_surface",
     "vox_pipeline_status",
@@ -227,10 +227,7 @@ pub fn build_app(state: GatewayState) -> Router {
         .route("/v1/mobile", get(http_mobile_workspace))
         .route("/v1/mobile/status", get(http_mobile_status));
 
-    #[cfg(feature = "dashboard")]
-    let app = app.merge(vox_dashboard::dashboard_router(
-        state.dashboard_token.as_ref().map(|t| t.0.clone()),
-    ));
+
 
     let cors = tower_http::cors::CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
@@ -280,25 +277,8 @@ pub fn spawn_http_gateway_if_enabled(
     let allow_unauthenticated =
         read_bool_env(vox_secrets::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
 
-    #[cfg(feature = "dashboard")]
-    let mut dashboard_token: Option<token::DashboardToken> = None;
-    #[cfg(not(feature = "dashboard"))]
     let dashboard_token: Option<token::DashboardToken> = None;
-    #[cfg(feature = "dashboard")]
-    if bind_host == DEFAULT_BIND_HOST
-        && vox_secrets::resolve_secret(vox_secrets::SecretId::VoxDashboardEnabled)
-            .expose()
-            .map(|s| s.trim() == "1")
-            .unwrap_or(false)
-    {
-        let state_dir = vox_config::state_dir().unwrap_or_else(|| std::env::temp_dir().join("vox"));
-        if let Ok(token) = token::DashboardToken::generate_or_load(&state_dir) {
-            if bearer_token.is_none() {
-                bearer_token = Some(token.0.clone());
-            }
-            dashboard_token = Some(token);
-        }
-    }
+
 
     let public_eval_enabled =
         read_bool_env(vox_secrets::SecretId::VoxMcpHttpPublicEvalEnabled).unwrap_or(false);
@@ -438,9 +418,7 @@ pub(super) fn enforce_rate_limit(
 
 pub(super) fn parse_allowed_tools() -> Result<HashSet<String>> {
     parse_allowed_tools_from_value(
-        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpAllowedTools)
-            .expose()
-            .as_deref(),
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpAllowedTools).expose(),
     )
 }
 
@@ -582,45 +560,6 @@ pub(super) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     diff == 0
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn constant_time_eq_length_256_multiple_not_equal() {
-        // Lengths differ by 256 — before the fix, `(256 ^ 0) as u8 == 0` produces a false positive.
-        let a = vec![0u8; 256];
-        let b: &[u8] = &[];
-        assert!(
-            !constant_time_eq(&a, b),
-            "empty slice must not equal 256-byte slice"
-        );
-        let c = vec![0u8; 512];
-        assert!(
-            !constant_time_eq(&a, &c),
-            "256-byte slice must not equal 512-byte slice"
-        );
-    }
-
-    /// Exercises `build_app` end-to-end: proves the production router factory
-    /// wires `crate::services::routes::router()` correctly by hitting the
-    /// `/api/v2/health` endpoint (which has no `ConnectInfo` dependency).
-    #[tokio::test]
-    async fn build_app_wires_api_v2_routes() {
-        use axum::body::Body;
-        use axum::http::{Request, StatusCode};
-        use tower::ServiceExt;
-        let state = GatewayState::for_test().await;
-        let app = build_app(state);
-        let req = Request::builder()
-            .uri("/api/v2/health")
-            .body(Body::empty())
-            .unwrap();
-        let resp = app.oneshot(req).await.unwrap();
-        assert_eq!(resp.status(), StatusCode::OK);
-    }
-}
-
 pub(super) fn read_bool_env(id: vox_secrets::SecretId) -> Option<bool> {
     vox_secrets::resolve_secret(id).expose().map(|v| {
         let t = v.trim();
@@ -753,4 +692,43 @@ pub(super) fn mobile_workspace_html() -> &'static str {
 </body>
 </html>
 "#
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constant_time_eq_length_256_multiple_not_equal() {
+        // Lengths differ by 256 — before the fix, `(256 ^ 0) as u8 == 0` produces a false positive.
+        let a = vec![0u8; 256];
+        let b: &[u8] = &[];
+        assert!(
+            !constant_time_eq(&a, b),
+            "empty slice must not equal 256-byte slice"
+        );
+        let c = vec![0u8; 512];
+        assert!(
+            !constant_time_eq(&a, &c),
+            "256-byte slice must not equal 512-byte slice"
+        );
+    }
+
+    /// Exercises `build_app` end-to-end: proves the production router factory
+    /// wires `crate::services::routes::router()` correctly by hitting the
+    /// `/api/v2/health` endpoint (which has no `ConnectInfo` dependency).
+    #[tokio::test]
+    async fn build_app_wires_api_v2_routes() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
+        let state = GatewayState::for_test().await;
+        let app = build_app(state);
+        let req = Request::builder()
+            .uri("/api/v2/health")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }

@@ -1,4 +1,4 @@
-x-vox-version: 1
+x-vox-version: 2
 schema_version: 1
 
 policy:
@@ -10,6 +10,6 @@ policy:
 
 surfaces:
   - path: crates/vox-dashboard/package.json
-  - path: marquee_app/package.json
-  - path: tools/visualizer/package.json
-  - path: test_app_bundle/app/package.json
+  - path: apps/interop/marquee_app/package.json
+  - path: apps/experimental/visualizer/package.json
+  - path: tests/fixtures/frontend/test_app_bundle/app/package.json

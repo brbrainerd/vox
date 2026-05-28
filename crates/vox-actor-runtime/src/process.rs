@@ -1,6 +1,8 @@
 use crate::mailbox::{
-    Envelope, MailboxReceiver, MailboxSender, MessagePayload, Request, new_mailbox,
+    DEFAULT_MAILBOX_CAPACITY, DEFAULT_MAX_REDUCTIONS, Envelope, MailboxReceiver, MailboxSender,
+    MessagePayload, Request, new_mailbox,
 };
+use bytes::Bytes;
 use crate::pid::Pid;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -29,7 +31,7 @@ impl ProcessContext {
             name: None,
             mailbox_rx,
             reduction_count: 0,
-            max_reductions: 2000, // Cooperative scheduling limit
+            max_reductions: DEFAULT_MAX_REDUCTIONS,
             heap: crate::gc::ActorHeap::new(),
         }
     }
@@ -48,8 +50,8 @@ impl ProcessContext {
     }
 
     /// Reply to a request by sending a response through the oneshot channel.
-    pub fn reply(request: Request, response: String) {
-        let _ = request.reply_tx.send(response);
+    pub fn reply(request: Request, response: impl Into<Bytes>) {
+        let _ = request.reply_tx.send(response.into());
     }
 }
 
@@ -74,8 +76,8 @@ impl ProcessHandle {
     }
 
     /// Send a request and wait for a response (request-response pattern).
-    /// Returns the reply string from the actor.
-    pub async fn call(&self, payload: MessagePayload) -> Result<String, CallError> {
+    /// Returns the reply bytes from the actor.
+    pub async fn call(&self, payload: MessagePayload) -> Result<Bytes, CallError> {
         let (reply_tx, reply_rx) = oneshot::channel();
         let request = Request {
             from: Pid::new(),
@@ -114,7 +116,7 @@ where
     Fut: std::future::Future<Output = ()> + Send + 'static,
 {
     let pid = Pid::new();
-    let (tx, rx) = new_mailbox(256);
+    let (tx, rx) = new_mailbox(DEFAULT_MAILBOX_CAPACITY);
     let ctx = ProcessContext::new(pid, rx);
     let task = tokio::spawn(behavior(ctx));
 

@@ -1,0 +1,10 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "ios-mobile-apple-speech-native-code",
+  "evidence": "xcrun is unavailable on this host.",
+  "failure_category": "orchestration",
+  "notes": "Requires macOS/Xcode simulator or real device bridge.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "status": "runtime_unavailable"
+}

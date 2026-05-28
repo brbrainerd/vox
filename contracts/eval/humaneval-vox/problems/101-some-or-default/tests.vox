@@ -1,0 +1,15 @@
+fn some_or_default(o: Option[int], d: int) to int {
+    match o {
+        Some(n) => return n
+        None    => return d
+    }
+}
+
+@test
+fn t_some() to Unit { assert(some_or_default(Some(7), 99) is 7) }
+@test
+fn t_none() to Unit { assert(some_or_default(None, 99) is 99) }
+@test
+fn t_some_zero() to Unit { assert(some_or_default(Some(0), 5) is 0) }
+@test
+fn t_neg_default() to Unit { assert(some_or_default(None, -1) is -1) }

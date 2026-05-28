@@ -1,0 +1,17 @@
+// Fix: change < to > so best is updated when a larger value is found.
+fn find_max(nums: list[int]) to int {
+    let mut best: int = nums[0]
+    for i in range(1, len(nums)) {
+        if nums[i] > best {
+            best = nums[i]
+        }
+    }
+    return best
+}
+
+fn main() to str {
+    assert(find_max([3, 1, 4, 1, 5, 9, 2, 6]) == 9)
+    assert(find_max([42]) == 42)
+    assert(find_max([-1, -5, -3]) == -1)
+    return "ok"
+}

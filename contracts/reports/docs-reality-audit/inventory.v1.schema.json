@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/reports/docs-reality-audit/inventory.v1.schema.json",
+  "title": "docs-reality-audit-inventory-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "cycle_label", "claims"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "cycle_label": {
+      "type": "string",
+      "description": "Human-readable cycle id (e.g. kickoff-2026-05 or monthly-2026-05)."
+    },
+    "claims": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claim" }
+    }
+  },
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "doc_path",
+        "authority_tier",
+        "historicity",
+        "claim_type",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "doc_path": {
+          "type": "string",
+          "description": "Repo-relative path to the primary Markdown or policy document."
+        },
+        "authority_tier": {
+          "type": "string",
+          "enum": ["A-spec", "B-canon", "C-generated", "D-index"]
+        },
+        "historicity": {
+          "type": "string",
+          "enum": ["CurrentNormative", "CurrentDescriptive", "HistoricalSnapshot", "ResearchIntent"]
+        },
+        "claim_type": {
+          "type": "string",
+          "enum": [
+            "normative_requirement",
+            "architecture_statement",
+            "api_surface",
+            "historical_plan",
+            "operational_reference"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 8
+        },
+        "normative_cues": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "evidence_hints": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "code_globs": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "contracts": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "tests_globs": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

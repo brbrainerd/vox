@@ -152,14 +152,13 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
                                     let node_id = hex::encode(&vox_crypto::secure_hash(&hex::decode(&pk).unwrap_or_default())[0..16]);
 
                                     // Optional strict DB trust enforcement
-                                    if let Some(verifier) = &trust_verifier {
-                                        if !verifier(node_id.clone()).await {
+                                    if let Some(verifier) = &trust_verifier
+                                        && !verifier(node_id.clone()).await {
                                             warn!(path = %path, node_id = %node_id, "node signature valid but node is untrusted");
                                             let mut res = (StatusCode::FORBIDDEN, "untrusted node").into_response();
                                             stamp_populi_feature_header(&mut res);
                                             return res;
                                         }
-                                    }
 
                                     req.extensions_mut().insert(PopuliAuthContext::NodeSignature {
                                         node_id,

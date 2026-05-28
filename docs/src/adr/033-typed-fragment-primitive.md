@@ -1,7 +1,7 @@
 ---
 title: "ADR 033 — Typed parametric fragment primitive"
 description: "Introduces a `fragment` bare-keyword scope for typed parametric markup blocks that are passable as props, callable multiple times with different arguments, and validated against consumer prop interfaces at compile time. Drafted ahead of Phase F implementation; deferred until the Phase 6 (TASK-6.1) typed semantic primitives stabilize."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-03"
 training_eligible: true
@@ -14,7 +14,7 @@ schema_type: "TechArticle"
 Accepted (2026-05-03). Phase F shipped end-to-end across two commits in the same session:
 
 - Lexer `Token::Fragment` + `Display` arm, AST `FragmentDecl` and `Decl::Fragment` variant, parser dispatch in [parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) and `parse_fragment_decl` in [parser/descent/decl/head.rs](../../../crates/vox-compiler/src/parser/descent/decl/head.rs) (commit `6f01b8ae1`).
-- HIR `HirFragmentDecl` node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and `emit_fragment_decls` in [codegen_ts/fragment_emit.rs](../../../crates/vox-compiler/src/codegen_ts/fragment_emit.rs) producing typed React function components in `fragments.tsx` with `<Name>Args` prop interfaces, wired into `emitter::generate` (commit `2227e3026`).
+- HIR `HirFragmentDecl` node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and `emit_fragment_decls` in [codegen_ts/fragment_emit.rs](../../../crates/vox-codegen/src/codegen_ts/fragment_emit.rs) producing typed React function components in `fragments.tsx` with `<Name>Args` prop interfaces, wired into `emitter::generate` (commit `2227e3026`).
 
 The Phase 6 (TASK-6.1) typed semantic primitive surface landed on `main` during the same session merge cycle, so the codegen gate originally noted here cleared without a second migration. Open questions in §"Open questions" remain follow-up sub-slices, not blockers.
 
@@ -101,7 +101,7 @@ Other emit targets (a future native target, etc.) can lower differently without 
 
 Fragments are an **authoring** primitive; Phase-6 typed semantic primitives (`stack`, `text`, `button`, `field`, …) are an **emission** primitive. A fragment body uses Phase-6 primitives in its markup; a Phase-6 primitive can accept a `Fragment[…]` prop (e.g., `<Table row={Row} />`). They compose orthogonally.
 
-The deferral decision: do not implement fragments before the Phase 6 primitive surface stabilizes. A fragment authored today against raw JSX (`<tr><td>…</td></tr>`) would migrate twice — once to the Phase 6 primitive shape, once to whatever fragment composition reveals about primitive design. Wait until at least the 10 highest-usage primitives in [crates/vox-compiler/src/web_ir/primitives/mod.rs](../../../crates/vox-compiler/src/web_ir/primitives/mod.rs) have shipped per-primitive files before opening Phase F code work.
+The deferral decision: do not implement fragments before the Phase 6 primitive surface stabilizes. A fragment authored today against raw JSX (`<tr><td>…</td></tr>`) would migrate twice — once to the Phase 6 primitive shape, once to whatever fragment composition reveals about primitive design. Wait until at least the 10 highest-usage primitives in [crates/vox-codegen/src/web_ir/primitives/mod.rs](../../../crates/vox-codegen/src/web_ir/primitives/mod.rs) have shipped per-primitive files before opening Phase F code work.
 
 ## Alternatives considered
 
@@ -138,7 +138,7 @@ The deferral decision: do not implement fragments before the Phase 6 primitive s
 
 - Existing `component`/`fn` semantics unchanged — fragments are purely additive.
 - React-emit target unchanged — fragments lower to typed React function components.
-- No effect on the [Phase 5 React interop spec](../architecture/phase5-react-interop-spec-2026.md) — emitted fragments are first-class TS exports consumable by external React apps.
+- No effect on the [Phase 5 React interop spec](../archive/phase5-react-interop-spec-2026.md) — emitted fragments are first-class TS exports consumable by external React apps.
 
 ## Open questions (resolve at implementation time)
 
@@ -155,7 +155,7 @@ When Phase F code work starts, the touch surface is:
 - New AST node `FragmentDecl` at [crates/vox-compiler/src/ast/decl/](../../../crates/vox-compiler/src/ast/decl/).
 - Top-level decl dispatch in [crates/vox-compiler/src/parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) — same surface as `component` / `state_machine` (four sites: skip-recovery, async-fn, top-level fn, pub-fn).
 - New HIR node `HirFragmentDecl`.
-- New codegen at `crates/vox-compiler/src/codegen_ts/fragment_emit.rs`.
+- New codegen at `crates/vox-codegen/src/codegen_ts/fragment_emit.rs`.
 - Web IR validation: ensure fragments referenced in `<RenderFragment>` exist; arity / type match.
 - Goldens: at minimum `examples/golden/fragment_table_row.vox` (a `<Table>` parameterized by a row fragment).
 - Doctest fences in `docs/src/tutorials/` covering `<RenderFragment>` use.
@@ -166,5 +166,5 @@ When Phase F code work starts, the touch surface is:
 - [Svelte-Mineable Features Implementation Plan (2026)](../architecture/svelte-mineable-features-implementation-plan-2026.md) — Phase F entry; sequencing notes on the Phase 6 dependency.
 - [Vox GUI-Native Language Roadmap (2026)](../architecture/vox-gui-native-roadmap-2026.md) — TASK-6.1 (Phase 6 primitives) is the unblock dependency.
 - [ADR 032: `.vox.ui` reactive modules](032-vox-ui-reactive-modules.md) — sibling ADR for the other major Phase D/E surface; same status (accepted + shipped end-to-end in the same session).
-- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](../architecture/phase5-react-interop-spec-2026.md) — confirms no `slot`/`fragment` keyword reservation; Phase F is unconstrained.
+- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](../archive/phase5-react-interop-spec-2026.md) — confirms no `slot`/`fragment` keyword reservation; Phase F is unconstrained.
 - [AGENTS.md §Grammar Unification](../../../AGENTS.md) — policy that `fragment` qualifies as a new bare-keyword scope.

@@ -20,12 +20,15 @@
 //! | `vox run <file> [--port N] [--mode auto\|app\|script] [-- …]` | `commands::run` |
 //! | `vox script <file> …` | `commands::runtime::run::script` (needs `script-execution`) |
 //! | `vox ci …` | `commands::ci` |
-//! | `vox bundle <file> [-o DIR] [--target TRIPLE] [--release]` | `commands::bundle` |
+//! | `vox bundle …` (plugin bundles) | `commands::plugin_bundle` |
+//! | `vox bundle-app …` / `vox fabrica bundle …` (web app) | `commands::bundle` |
 //! | `vox fmt <file>` | `commands::fmt` |
 //! | `vox add` / `remove` / `update` / `lock` / `sync` / `upgrade` / `pm` | `commands::add`, `remove`, `update`, `lock`, `sync`, `upgrade`, `pm` |
 //! | `vox dev <file>` | `commands::dev` (via `vox-compilerd`) |
+//! | `vox emit client <file>` | `commands::emit` (Library TS SDK / openapi only) |
 //! | `vox live` | `commands::live` (needs `--features live`) |
 //! | `vox db …` | `commands::db_cli` |
+//! | `vox memory search …` | `commands::memory_cli` |
 //! | `vox scientia …` | `commands::scientia` (research / capability-map facade over `db_cli`) |
 //! | `vox telemetry …` | `commands::telemetry` (optional upload queue; ADR 023) |
 //! | `vox codex verify \| export-legacy \| import-legacy \| cutover \| import-orchestrator-memory \| import-skill-bundle \| socrates-metrics \| socrates-eval-snapshot` | `commands::codex` |
@@ -54,18 +57,18 @@ async fn main() -> anyhow::Result<()> {
         let cmd = args[1].as_str();
         let is_ml = matches!(
             cmd,
-            "mens" | "schola" | "oratio" | "speech" | "populi" | "train" | "scientia"
+            "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
         );
         let is_ext_ml = cmd == "ext"
             && args.len() > 2
             && matches!(
                 args[2].as_str(),
-                "mens" | "schola" | "oratio" | "speech" | "populi" | "train" | "scientia"
+                "mens" | "schola" | "oratio" | "speech" | "populi" | "train"
             );
 
         if is_ml || is_ext_ml {
             let primary_cmd = if is_ext_ml { args[2].as_str() } else { cmd };
-            let binary = if primary_cmd == "schola" || primary_cmd == "scientia" {
+            let binary = if primary_cmd == "schola" {
                 "vox-schola"
             } else {
                 "vox-ml-cli"

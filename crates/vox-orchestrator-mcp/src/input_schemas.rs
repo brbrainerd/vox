@@ -222,32 +222,32 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_agent_handoff" => parse_obj(
             r#"{"type":"object","properties":{"from_agent_id":{"type":"integer","minimum":0},"to_agent_id":{"type":"integer","minimum":0},"plan_summary":{"type":"string","minLength":1},"unresolved_objectives":{"type":"array","items":{"type":"string"}},"verification_criteria":{"type":"array","items":{"type":"string"}},"context_envelope_json":{"type":"string","minLength":1},"harness_spec_json":{"type":"string","minLength":1}},"required":["from_agent_id","to_agent_id","plan_summary"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_notifications_list" => parse_obj(
+        "vox_gamify_notifications_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":100}},"additionalProperties":false}"#,
         ),
-        "vox_ludus_progress_snapshot" => parse_obj(
+        "vox_gamify_progress_snapshot" => parse_obj(
             r#"{"type":"object","properties":{"notification_limit":{"type":"integer","minimum":1,"maximum":100},"policy_limit":{"type":"integer","minimum":1,"maximum":500},"policy_days":{"type":"integer","minimum":1,"maximum":3660}},"additionalProperties":false}"#,
         ),
-        "vox_ludus_notification_ack" => parse_obj(
+        "vox_gamify_notification_ack" => parse_obj(
             r#"{"type":"object","properties":{"notification_id":{"type":"string","minLength":1}},"required":["notification_id"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_notifications_ack_all" => {
+        "vox_gamify_notifications_ack_all" => {
             parse_obj(r#"{"type":"object","additionalProperties":false}"#)
         }
-        "vox_ludus_quest_list" => parse_obj(
+        "vox_gamify_quest_list" => parse_obj(
             r#"{"type":"object","properties":{"limit":{"type":"integer","minimum":1,"maximum":200}},"additionalProperties":false}"#,
         ),
-        "vox_ludus_shop_catalog" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_ludus_shop_buy" => parse_obj(
+        "vox_gamify_shop_catalog" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_gamify_shop_buy" => parse_obj(
             r#"{"type":"object","properties":{"item_index":{"type":"integer","minimum":1},"idempotency_key":{"type":"string"}},"required":["item_index"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_collegium_join" => parse_obj(
+        "vox_gamify_collegium_join" => parse_obj(
             r#"{"type":"object","properties":{"collegium_id":{"type":"string","minLength":1}},"required":["collegium_id"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_battle_start" => parse_obj(
+        "vox_gamify_battle_start" => parse_obj(
             r#"{"type":"object","properties":{"companion_name":{"type":"string"},"rule_id":{"type":"string"},"message":{"type":"string"},"file_path":{"type":"string"},"line":{"type":"integer","minimum":1},"context":{"type":"string"}},"required":["companion_name","rule_id","message"],"additionalProperties":false}"#,
         ),
-        "vox_ludus_battle_submit" => parse_obj(
+        "vox_gamify_battle_submit" => parse_obj(
             r#"{"type":"object","properties":{"companion_name":{"type":"string"},"code":{"type":"string"},"success":{"type":"boolean"}},"required":["companion_name","code"],"additionalProperties":false}"#,
         ),
 
@@ -264,11 +264,23 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_memory_search" => parse_obj(
             r#"{"type":"object","properties":{"query":{"type":"string"}},"required":["query"],"additionalProperties":false}"#,
         ),
+        "vox_semantic_fs_discover" => parse_obj(
+            r#"{"type":"object","properties":{"intent":{"type":"string","minLength":1},"limit":{"type":"integer","minimum":1,"maximum":256}},"required":["intent"],"additionalProperties":false}"#,
+        ),
         "vox_memory_log" => parse_obj(
             r#"{"type":"object","properties":{"entry":{"type":"string"}},"required":["entry"],"additionalProperties":false}"#,
         ),
         "vox_knowledge_query" => parse_obj(
             r#"{"type":"object","properties":{"query":{"type":"string"},"limit":{"type":"integer"}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_research_run" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"},"json":{"type":"boolean"}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_research_start" => parse_obj(
+            r#"{"type":"object","properties":{"query":{"type":"string","minLength":1},"scope":{"type":"string"},"max_sources":{"type":"integer","minimum":1,"maximum":50},"verify_claims":{"type":"boolean"},"site_scope":{"type":"string"}},"required":["query"],"additionalProperties":false}"#,
+        ),
+        "vox_research_status" | "vox_research_get" => parse_obj(
+            r#"{"type":"object","properties":{"session_id":{"type":"integer","minimum":1}},"required":["session_id"],"additionalProperties":false}"#,
         ),
 
         // ── Sessions & compaction ─────────────────────────────────────────────

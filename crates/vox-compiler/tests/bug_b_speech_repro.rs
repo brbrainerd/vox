@@ -1,5 +1,5 @@
 //! Bug B repro: `Speech.transcribe_microphone()` lowers to `mobile.transcribe_microphone()`
-//! per docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
+//! per docs/superpowers/plans/language/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
 
 const FIXTURE: &str = r#"
 import react.use_state
@@ -14,7 +14,7 @@ component VoicePage() {
 "#;
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn speech_transcribe_microphone_emits_speech_namespace() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");

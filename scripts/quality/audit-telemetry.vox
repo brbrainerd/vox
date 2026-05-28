@@ -9,32 +9,38 @@ fn main() {
     
     // 1. Check for Build Regressions
     print("Step 1: Checking for build-time regressions vs historical averages...");
-    let reg_res = process.run("cargo", ["run", "-p", "vox-cli", "--quiet", "--", "db", "build-regressions", "--json"]);
+    let reg_opt = process.run("cargo", ["run", "-p", "vox-cli", "--quiet", "--", "db", "build-regressions", "--json"]);
+    if reg_opt is null {
+        print("Warning: Unable to spawn cargo for regression telemetry.");
+        process.exit(0);
+    }
+    let reg_res = reg_opt.unwrap();
     if reg_res.code isnt 0 {
-        print("⚠️  Warning: Unable to fetch regression telemetry (database might be empty).");
+        print("Warning: Unable to fetch regression telemetry (database might be empty).");
     } else {
         let regressions = reg_res.stdout.trim();
         if regressions != "[]" and regressions != "" {
-            print("❌ REGRESSION DETECTED:");
+            print("REGRESSION DETECTED:");
             print(regressions);
             // In a strict CI, we would process.exit(1) here.
         } else {
-            print("  ✅ No build-time regressions detected.");
+            print("  No build-time regressions detected.");
         }
     }
 
     // 2. Dynamic Layer Auditing (Performance-Based)
     print("\nStep 2: Performing dynamic architectural coupling audit...");
-    let health_res = process.run("cargo", ["run", "-p", "vox-cli", "--quiet", "--", "db", "build-health", "--json"]);
-    if health_res.code isnt 0 {
-        print("⚠️  Warning: Unable to fetch build health telemetry.");
+    let health_opt = process.run("cargo", ["run", "-p", "vox-cli", "--quiet", "--", "db", "build-health", "--json"]);
+    if health_opt is null {
+        print("Warning: Unable to spawn cargo for build health telemetry.");
         process.exit(0);
     }
-    
-    // We expect the JSON health output. 
-    // Since we don't have a complex JSON parser in this VoxScript environment yet,
-    // we'll rely on the "slowest" list provided in the health output.
-    
+    let health_res = health_opt.unwrap();
+    if health_res.code isnt 0 {
+        print("Warning: Unable to fetch build health telemetry.");
+        process.exit(0);
+    }
+
     print("Analyzing 'Heavy' crate leakage...");
     let health_json = health_res.stdout;
     
@@ -48,8 +54,8 @@ fn main() {
     let lines = health_json.split("\n");
     for line in lines {
         if line.contains("\"name\":") {
-            let name = line.split(":").get(1).split(",").get(0).trim().replace("\"", "");
-            slowest_crates = slowest_crates.push(name);
+            let name = line.split(":").get(1).unwrap().split(",").get(0).unwrap().trim().replace("\"", "");
+            slowest_crates.push(name);
         }
     }
     
@@ -73,11 +79,11 @@ fn main() {
             let cargo_toml_path = path.join(path.join(crates_dir, cname), "Cargo.toml");
             if not fs.exists(cargo_toml_path) { continue; }
             
-            let toml = fs.read(cargo_toml_path).unwrap();
+            let toml_content = fs.read(cargo_toml_path).unwrap();
             for heavy in slowest_crates {
-                if toml.contains("name = \"" + heavy + "\"") { continue; } // skip self
-                
-                if toml.contains(heavy) {
+                if toml_content.contains("name = \"" + heavy + "\"") { continue; } // skip self
+
+                if toml_content.contains(heavy) {
                     print("❌ ARCHITECTURAL LEAK: Foundational crate '" + cname + "' depends on heavy crate '" + heavy + "' (Telemetry Score: High Cost).");
                     violations = violations + 1;
                 }

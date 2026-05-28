@@ -1,0 +1,11 @@
+[problem]
+id = "018"
+title = "rotate_left"
+prompt = """
+Rotate a list left by k positions. If k >= len, wrap around. If the list is empty, return it unchanged.
+"""
+signature = "fn rotate_left(xs: list[int], k: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

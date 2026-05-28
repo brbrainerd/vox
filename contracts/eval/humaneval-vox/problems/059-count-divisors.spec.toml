@@ -1,0 +1,13 @@
+[problem]
+id = "059"
+title = "count_divisors"
+prompt = """
+Count all positive divisors of n, including 1 and n itself.
+For example, count_divisors(6) = 4 because 1, 2, 3, 6 all divide 6.
+Assume n >= 1.
+"""
+signature = "fn count_divisors(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

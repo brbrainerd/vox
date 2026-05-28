@@ -1,0 +1,18 @@
+// ---
+// title: "Reference: std.fs + std.process for automation scripts"
+// description: "Minimal golden pointing at scripts/clean-build-artifacts.vox for `std.process.run_ex`, `std.fs.glob`, and `std.fs.remove_dir_all` with env gates."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, std.fs, exists, @test]
+// last_validated: 2026-05-12
+// training_eligible: true
+// training_weight: 0.5
+// ---
+// Full disk-reclaim automation (dry-run by default, `VOX_CLEAN_EXECUTE=1` for deletes):
+// [`scripts/clean-build-artifacts.vox`](../../scripts/clean-build-artifacts.vox)
+
+@test
+fn repo_root_dot_exists() to Unit {
+    assert(std.fs.exists("."))
+}

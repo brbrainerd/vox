@@ -23,7 +23,7 @@ tokio = { workspace = true }
 async-trait = "0.1.89"
 # Pure-Rust HTTP + TLS. No OpenSSL, no C.
 reqwest = { workspace = true }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]

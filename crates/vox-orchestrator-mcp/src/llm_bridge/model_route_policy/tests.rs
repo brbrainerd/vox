@@ -140,7 +140,7 @@ fn registry_paid_plus_ollama_free() -> ModelRegistry {
 fn sticky_ollama_rejected_when_inference_profile_disallows() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
     // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK`; no concurrent env access in tests.
-    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
+    unsafe { std::env::set_var("vox_populi::inference_PROFILE", "cloud_openai_compatible") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -159,11 +159,11 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
     )
     .expect_err("sticky ollama must fail");
     assert!(
-        err.contains("VOX_INFERENCE_PROFILE"),
+        err.contains("vox_populi::inference_PROFILE"),
         "expected profile hint: {err}"
     );
     unsafe {
-        std::env::remove_var("VOX_INFERENCE_PROFILE");
+        std::env::remove_var("vox_populi::inference_PROFILE");
     }
 }
 
@@ -364,7 +364,7 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
 #[test]
 fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
-    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "cloud_openai_compatible") };
+    unsafe { std::env::set_var("vox_populi::inference_PROFILE", "cloud_openai_compatible") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -385,11 +385,11 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
     )
     .expect_err("no allowed free model");
     assert!(
-        err.contains("VOX_INFERENCE_PROFILE") || err.contains("enforce_free_tier_only"),
+        err.contains("vox_populi::inference_PROFILE") || err.contains("enforce_free_tier_only"),
         "expected profile or enforce hint: {err}"
     );
     unsafe {
-        std::env::remove_var("VOX_INFERENCE_PROFILE");
+        std::env::remove_var("vox_populi::inference_PROFILE");
     }
 }
 
@@ -439,7 +439,7 @@ fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
 #[test]
 fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
-    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "desktop_ollama") };
+    unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -467,14 +467,14 @@ fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
         model.provider
     );
     unsafe {
-        std::env::remove_var("VOX_INFERENCE_PROFILE");
+        std::env::remove_var("vox_populi::inference_PROFILE");
     }
 }
 
 #[test]
 fn vox_local_not_preferred_for_non_code_tasks() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
-    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "desktop_ollama") };
+    unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
@@ -501,7 +501,7 @@ fn vox_local_not_preferred_for_non_code_tasks() {
         model.id,
     );
     unsafe {
-        std::env::remove_var("VOX_INFERENCE_PROFILE");
+        std::env::remove_var("vox_populi::inference_PROFILE");
     }
 }
 

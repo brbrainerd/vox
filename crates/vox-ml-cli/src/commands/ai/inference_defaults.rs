@@ -1,4 +1,4 @@
-//! Shared defaults for Mens native HTTP inference (`vox mens serve`) and [`super::serve::ServeConfig`].
+//! Shared defaults for Mens native HTTP inference (`vox mens serve`) and `super::serve::ServeConfig`.
 //!
 //! Keep in sync with CLI `#[arg(default_…)]` on serve-related subcommands.
 

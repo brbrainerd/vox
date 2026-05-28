@@ -1,0 +1,11 @@
+[problem]
+id = "091"
+title = "is-sorted-desc"
+prompt = """
+Write a Vox function is_sorted_desc(items: list[int]) to bool that returns true if the list is sorted in non-increasing order (each element >= the next). Empty or single-element lists return true.
+"""
+signature = "fn is_sorted_desc(items: list[int]) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

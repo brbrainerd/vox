@@ -1,0 +1,49 @@
+id = "plan-033-extract-helper-from-actor"
+wave = "wave_2"
+description = "Extract inline validation from an actor handler into a pure helper."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The base has `actor Inbox { on receive(text: str) to str { ... } }`
+whose body inlines 5 lines of validation (empty + length cap + ack
+formatting). Extract the validation into a pure helper
+`fn validate_inbox_text(text: str) to bool` and have the handler call
+it. The handler signature must not change.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the actor handler's inline validation."
+
+[[steps]]
+step = 2
+verb = "extract"
+description = "Add a pure helper fn at module scope."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Replace the inline validation in the handler with a call."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+helper_fn_added = true
+handler_signature_unchanged = true

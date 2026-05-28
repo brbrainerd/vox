@@ -78,5 +78,6 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::BackButton(_) => ("back_button".into(), "back_button".into()),
         Decl::DeepLink(d) => ("deep_link".into(), d.scheme.clone()),
         Decl::Push(_) => ("push".into(), "push".into()),
+        Decl::Tokens(_) => ("tokens".into(), "tokens".into()),
     }
 }

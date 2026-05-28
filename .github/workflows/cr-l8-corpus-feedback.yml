@@ -1,0 +1,408 @@
+# CR-L8 corpus-feedback pipeline (P2.1c, ratified 2026-05-15).
+#
+# Exercises the full diagnostic→repair→corpus loop:
+#
+#   1. `cargo test` runs the workspace test suite. Tests that exercise
+#      `ToestubEngine::run()` and `vox repair` emit `vox.lint.*` and
+#      `vox.repair.*` `TelemetryEvent`s through `record_event!`.
+#   2. When `init_telemetry_sinks` (vox-cli/src/lib.rs) registers the
+#      `CorpusFeedbackJsonlSink` (P2.1c), those events persist to
+#      `contracts/reports/corpus-feedback-events/<YYYY-MM-DD>.jsonl`.
+#      That directory is `.gitignore`d (A1) so per-run noise stays out of git.
+#   3. `cargo run -p vox-audit -- corpus-feedback` loads the JSONL files,
+#      runs `vox_audit::aggregator::aggregate`, writes the substantive
+#      report at `contracts/reports/corpus-feedback/<YYYY-QN>.json` per
+#      CR-L8 spec, and gates exit-code on freshness.
+#   4. Both artifacts are uploaded as build artifacts so PR reviewers (and
+#      the council) can inspect the run's actual aggregated rollups.
+#
+# Per `contracts/ci/vox-audit-contract.v1.yaml` §exit_codes (D22 ratified),
+# `exit 2` (infrastructure error) does NOT block CI. Only the binary CR-L8
+# gates (CR-L8 itself is binary "report exists < 90 days old") block GA, and
+# this workflow IS the artifact-producer that satisfies that gate.
+
+name: vox-audit gates (CR-L8 + stdlib-coverage)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "crates/**"
+      - "Cargo.lock"
+      - "contracts/eval/**"
+      - "contracts/retirement/**"
+      - "contracts/ci/vox-audit-contract.v1.yaml"
+      - ".github/workflows/cr-l8-corpus-feedback.yml"
+      # Stdlib-coverage gate (added 2026-05-23 — non-CR-L tooling gate, see
+      # `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10).
+      - "scripts/**"
+      - "docs/src/reference/ref-builtins-stdlib.md"
+      - "contracts/reports/stdlib-coverage/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  # Direct the CR-L8 JSONL sink at a known path inside the workspace; this
+  # path is `.gitignore`d (see A1, root `.gitignore`).
+  VOX_CORPUS_FEEDBACK_EVENTS_DIR: ${{ github.workspace }}/contracts/reports/corpus-feedback-events
+
+jobs:
+  corpus-feedback:
+    name: Exercise loop + aggregate
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry & Target
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-cr-l8-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-cr-l8-
+            ${{ runner.os }}-cargo-
+
+      # ────────────────────────────────────────────────────────────────────
+      # Step 1: build the crates that emit and aggregate.
+      # ────────────────────────────────────────────────────────────────────
+      - name: Build vox-cli + vox-audit + vox-code-audit
+        run: |
+          cargo build \
+            -p vox-cli \
+            -p vox-audit \
+            -p vox-code-audit
+
+      # ────────────────────────────────────────────────────────────────────
+      # Step 2: run the integration tests that exercise the emit path. The
+      # tests run `init_telemetry_sinks` (or register their own recorder for
+      # in-binary capture), then drive ToestubEngine and `vox repair` flows.
+      # ────────────────────────────────────────────────────────────────────
+      - name: Run telemetry-emitting tests (seeds JSONL events)
+        run: |
+          # vox-cli integration tests register the production sink via
+          # `init_telemetry_sinks` and emit through the full pipeline.
+          cargo test -p vox-cli --test telemetry_corpus_feedback_e2e -- --nocapture
+
+          # vox-audit's full-loop test uses BufferedRecorder (in-memory
+          # capture) — it doesn't write JSONL itself, but it does prove the
+          # engine→aggregator wire is intact.
+          cargo test -p vox-audit --test cr_l8_loop_e2e -- --nocapture
+
+          # vox-code-audit emission tests cover the engine emit-site shape.
+          cargo test -p vox-code-audit --test telemetry_emission_test -- --nocapture
+
+      # ────────────────────────────────────────────────────────────────────
+      # Step 3: list any JSONL events that actually landed on disk. The
+      # `.gitignore`d events dir is populated by `CorpusFeedbackJsonlSink`
+      # whenever the corresponding sink was registered AT EMIT TIME (not just
+      # during unit tests where we use a BufferedRecorder).
+      # ────────────────────────────────────────────────────────────────────
+      - name: Inventory JSONL events on disk
+        run: |
+          set -euo pipefail
+          events_dir="${VOX_CORPUS_FEEDBACK_EVENTS_DIR}"
+          mkdir -p "$events_dir"
+          echo "Events directory: $events_dir"
+          find "$events_dir" -name '*.jsonl' -print -exec wc -l {} \; || true
+
+      # ────────────────────────────────────────────────────────────────────
+      # Step 4: invoke the umbrella runner's corpus-feedback subcommand. It
+      # reads from the JSONL events dir, aggregates, writes the substantive
+      # report at `contracts/reports/corpus-feedback/<YYYY-QN>.json`.
+      #
+      # Exit-code-2 (infrastructure error, e.g. no events yet) is tolerated
+      # per contract §exit-code-2-semantics. The workflow continues so the
+      # artifact upload step always runs.
+      # ────────────────────────────────────────────────────────────────────
+      - name: Aggregate corpus-feedback report
+        id: aggregate
+        continue-on-error: true
+        run: |
+          cargo run --quiet -p vox-audit -- corpus-feedback --format json \
+            > corpus-feedback-result.json
+          echo "EXIT=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Inventory substantive report
+        run: |
+          set -euo pipefail
+          report_dir="${{ github.workspace }}/contracts/reports/corpus-feedback"
+          if [ -d "$report_dir" ]; then
+            ls -la "$report_dir" || true
+            for f in "$report_dir"/*.json; do
+              [ -f "$f" ] || continue
+              echo "==== $(basename "$f") ===="
+              head -c 4096 "$f" || true
+              echo
+            done
+          else
+            echo "No report dir at $report_dir yet (P2.1c is wired but no events were"
+            echo "persisted to JSONL during this run — the corpus-feedback gate exits 2"
+            echo "honestly per CR-L8 §6 freshness semantics)."
+          fi
+
+      # ────────────────────────────────────────────────────────────────────
+      # Step 5: archive everything as a CI artifact so reviewers can inspect.
+      # ────────────────────────────────────────────────────────────────────
+      - name: Upload CR-L8 artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-l8-corpus-feedback-${{ github.run_id }}
+          path: |
+            contracts/reports/corpus-feedback/
+            contracts/reports/corpus-feedback-events/
+            corpus-feedback-result.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      # ────────────────────────────────────────────────────────────────────
+      # Step 6: surface the audit-subcommand exit code in the job log. Per
+      # D22 (ratified 2026-05-15) exit-2 is "infra not ready" and does NOT
+      # block CI. Only exit-1 (bar missed) and exit-3 (invalid input) would
+      # warrant red. This step exits 1 only when the subcommand returns
+      # those codes; otherwise green.
+      # ────────────────────────────────────────────────────────────────────
+      - name: Gate on substantive failure modes
+        run: |
+          set -e
+          rc="${{ steps.aggregate.outcome }}"
+          # The `continue-on-error: true` above prevents the workflow from
+          # auto-failing on any non-zero exit. We inspect the cargo exit code
+          # encoded in the GITHUB_OUTPUT EXIT variable to differentiate.
+          exit_code="${{ steps.aggregate.outputs.EXIT }}"
+          echo "vox-audit corpus-feedback returned exit ${exit_code:-unknown}"
+          case "${exit_code:-2}" in
+            0) echo "✓ CR-L8 gate met (Ok)";;
+            1) echo "✗ CR-L8 bar missed — see report"; exit 1;;
+            2) echo "✓ CR-L8 infrastructure error (no events) — exit 2 does NOT block CI per D22";;
+            3) echo "✗ CR-L8 invalid input (malformed fixtures / contracts)"; exit 1;;
+            *) echo "? unrecognized exit code"; exit 1;;
+          esac
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Stdlib-coverage gate (non-CR-L tooling gate). Added 2026-05-23 per
+  # `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10. Does NOT
+  # block GA — its job is to prevent three-way drift between
+  # `crates/vox-compiler/src/eval/builtins.rs` registrations,
+  # `docs/src/reference/ref-builtins-stdlib.md` doc claims, and corpus call
+  # sites under `scripts/**/*.vox`.
+  #
+  # Gates on regression vs. the committed baseline at
+  # `contracts/reports/stdlib-coverage/<latest>.json`, NOT on absolute count.
+  # This is important during Phase B+C corpus cleanup when many mismatches
+  # legitimately exist temporarily.
+  # ──────────────────────────────────────────────────────────────────────────
+  stdlib-coverage:
+    name: stdlib-coverage parity
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry & Target
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-stdlib-coverage-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-stdlib-coverage-
+            ${{ runner.os }}-cargo-
+
+      # Build only what's needed. Static analysis; no LLM, no integration tests.
+      - name: Build vox-audit + vox-code-audit
+        run: |
+          cargo build -p vox-audit -p vox-code-audit
+
+      # Determine the most recent committed baseline report. If none exists
+      # (first PR after the gate lands), the diff degrades to an absolute
+      # comparison — error-severity mismatches still trip the gate.
+      - name: Resolve baseline report
+        id: baseline
+        run: |
+          set -euo pipefail
+          baseline_dir="${{ github.workspace }}/contracts/reports/stdlib-coverage"
+          if [ -d "$baseline_dir" ]; then
+            latest=$(ls -1 "$baseline_dir"/*.json 2>/dev/null | sort | tail -1 || true)
+          else
+            latest=""
+          fi
+          if [ -n "${latest}" ] && [ -f "${latest}" ]; then
+            echo "Using baseline: ${latest}"
+            echo "PATH=${latest}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No baseline report found — running absolute parity check."
+            echo "PATH=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Run the gate. `--no-canonical-report` keeps PR runs from writing to
+      # the report archive (only main pushes update the baseline; see below).
+      - name: Run stdlib-coverage parity check
+        id: parity
+        continue-on-error: true
+        run: |
+          set +e
+          baseline_arg=""
+          if [ -n "${{ steps.baseline.outputs.PATH }}" ]; then
+            baseline_arg="--baseline ${{ steps.baseline.outputs.PATH }}"
+          fi
+          cargo run --quiet -p vox-audit -- stdlib-coverage \
+            --no-canonical-report \
+            $baseline_arg \
+            > stdlib-coverage-result.json
+          echo "EXIT=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Surface report summary
+        run: |
+          set -euo pipefail
+          if [ -f stdlib-coverage-result.json ]; then
+            echo "===== stdlib-coverage report ====="
+            cat stdlib-coverage-result.json
+            echo
+          fi
+
+      # On `main` push only, write a fresh baseline. PR runs do NOT touch the
+      # baseline so the gate stays stable across the PR cycle.
+      - name: Refresh baseline (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cargo run --quiet -p vox-audit -- stdlib-coverage > /dev/null
+
+      - name: Upload stdlib-coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stdlib-coverage-${{ github.run_id }}
+          path: |
+            contracts/reports/stdlib-coverage/
+            stdlib-coverage-result.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Gate on substantive drift
+        run: |
+          set -e
+          exit_code="${{ steps.parity.outputs.EXIT }}"
+          echo "vox-audit stdlib-coverage returned exit ${exit_code:-unknown}"
+          case "${exit_code:-2}" in
+            0) echo "✓ stdlib-coverage clean (no drift)";;
+            1) echo "✗ stdlib-coverage detected error-severity drift — see report"; exit 1;;
+            2) echo "? stdlib-coverage infra error (binary source / docs / corpus missing) — DOES NOT block CI per D22"; exit 0;;
+            3) echo "✗ stdlib-coverage invalid input (malformed report or contract)"; exit 1;;
+            *) echo "? unrecognized exit code"; exit 1;;
+          esac
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Script corpus health gate (Phase F per audit doc §12). Runs `vox check`
+  # against every `scripts/**/*.vox` and gates on regression vs a committed
+  # passing-set baseline.
+  #
+  # The baseline list at `contracts/reports/scripts-pass-baseline.txt` is
+  # one path per line and tracks the *known-passing* set. PRs that change
+  # the corpus or compiler may move scripts in or out of this set; the gate
+  # fails only when a script that used to pass starts failing (regression).
+  # Newly-passing scripts (above the baseline count) are celebrated, not
+  # gated on.
+  # ──────────────────────────────────────────────────────────────────────────
+  scripts-check:
+    name: vox check on scripts/
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry & Target
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-scripts-check-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-scripts-check-
+            ${{ runner.os }}-cargo-
+
+      - name: Build vox CLI
+        run: cargo build -p vox-cli --bin vox
+
+      - name: Run vox check on every scripts/**/*.vox
+        id: check-scripts
+        run: |
+          set -euo pipefail
+          mapfile -t scripts < <(find scripts -name '*.vox' -not -path '*/.*' | sort)
+          pass_list=()
+          fail_list=()
+          for f in "${scripts[@]}"; do
+            if ./target/debug/vox check "$f" >/dev/null 2>&1; then
+              pass_list+=("$f")
+            else
+              fail_list+=("$f")
+            fi
+          done
+          printf '%s\n' "${pass_list[@]}" > scripts-pass-current.txt
+          printf '%s\n' "${fail_list[@]}" > scripts-fail-current.txt
+          echo "Total scripts: ${#scripts[@]}; passing: ${#pass_list[@]}; failing: ${#fail_list[@]}"
+
+      - name: Detect regression vs baseline
+        run: |
+          set -euo pipefail
+          baseline="${{ github.workspace }}/contracts/reports/scripts-pass-baseline.txt"
+          if [ ! -f "$baseline" ]; then
+            echo "No baseline at $baseline — gate degrades to absolute count."
+            echo "Current passing set (write this to the baseline on next main push):"
+            cat scripts-pass-current.txt
+            exit 0
+          fi
+          # Compute regressions: scripts in baseline but NOT in current pass set.
+          comm -23 <(sort -u "$baseline") <(sort -u scripts-pass-current.txt) > scripts-regressed.txt || true
+          if [ -s scripts-regressed.txt ]; then
+            echo "✗ Regression: the following scripts used to pass vox check and no longer do:"
+            cat scripts-regressed.txt
+            exit 1
+          fi
+          # Compute new passers — celebrate but don't gate.
+          comm -13 <(sort -u "$baseline") <(sort -u scripts-pass-current.txt) > scripts-newly-passing.txt || true
+          if [ -s scripts-newly-passing.txt ]; then
+            echo "✓ Newly-passing scripts (consider promoting to baseline):"
+            cat scripts-newly-passing.txt
+          fi
+          echo "✓ No regression in script-check pass set."
+
+      - name: Refresh baseline (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          cp scripts-pass-current.txt contracts/reports/scripts-pass-baseline.txt
+          echo "Baseline refreshed to $(wc -l < contracts/reports/scripts-pass-baseline.txt) passing scripts."
+
+      - name: Upload scripts-check artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scripts-check-${{ github.run_id }}
+          path: |
+            scripts-pass-current.txt
+            scripts-fail-current.txt
+            scripts-regressed.txt
+            scripts-newly-passing.txt
+          if-no-files-found: warn
+          retention-days: 30

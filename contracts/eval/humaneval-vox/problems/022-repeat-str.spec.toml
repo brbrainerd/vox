@@ -1,0 +1,11 @@
+[problem]
+id = "022"
+title = "repeat_str"
+prompt = """
+Return a string that repeats s exactly n times. Return empty string if n <= 0.
+"""
+signature = "fn repeat_str(s: str, n: int) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

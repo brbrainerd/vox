@@ -44,7 +44,7 @@ pub(crate) async fn probe_vox_local_health(client: &reqwest::Client) -> Result<(
         .map_err(|e| HttpInferError {
             status: 0,
             message: format!(
-                "VoxLocal unreachable at {base} ({e}); run `python scripts/vox_inference.py --serve` or set VOX_LOCAL_ENDPOINT."
+                "VoxLocal unreachable at {base} ({e}); run `python scripts/vox_populi::inference.py --serve` or set VOX_LOCAL_ENDPOINT."
             ),
             is_capability_gap: false,
         })?;

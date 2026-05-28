@@ -1,0 +1,12 @@
+// Repair-corpus fixture 022 — effect-violation bug class.
+// @pure fn calls a non-pure helper (same file) that declares `uses net`.
+// Expected repair: drop @pure and declare `uses net`, or inline a pure fallback.
+
+fn fetch_quote() uses net to str {
+    "to be, or not to be"
+}
+
+@pure
+fn cached_quote() to str {
+    fetch_quote()
+}

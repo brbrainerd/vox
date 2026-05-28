@@ -1,0 +1,10 @@
+
+crates\vox-cli\src\cli_args.rs:252:13: warning: called `.as_ref().map(|p| p.as_path())` on an `Option` value: help: consider using as_deref: `c.inner.file.as_deref()`
+crates\vox-compiler\tests\format_round_trip.rs:57:5: warning: for loop over a single element
+crates\vox-search\src\execution.rs:509:17: warning: this `if` statement can be collapsed
+crates\vox-search\src\memory_hybrid.rs:149:5: warning: this `if` statement can be collapsed
+crates\vox-search\src\symbol_proximity.rs:57:5: warning: this `if` statement can be collapsed
+crates\vox-search\src\symbol_proximity.rs:58:9: warning: this `if` statement can be collapsed
+crates\vox-search\src\web_dispatcher.rs:53:9: warning: this `if` statement can be collapsed
+crates\vox-search\tests\web_dispatcher_searxng_mock.rs:26:5: warning: field assignment outside of initializer for an instance created with Default::default()
+

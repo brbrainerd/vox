@@ -5,6 +5,15 @@
 //! high-frequency bidirectional streams are needed (e.g. low-latency token streams).
 //! The runtime and codegen use this enum so a future WebSocket path can be added
 //! without breaking the API.
+//!
+//! ## v1.x codegen wiring
+//!
+//! `StreamTransport::WebSocket` is forward-declared but not yet wired into the
+//! Rust / TypeScript codegen path. When `WebSocket` support is added in v1.x,
+//! the codegen emitter for `@chat` and `@subscribe` endpoints should:
+//! 1. Check `stream_transport == StreamTransport::WebSocket`.
+//! 2. Emit a `tokio-tungstenite` upgrade path instead of the SSE `EventStream`.
+//! Until then, the emitter treats any unknown variant as `Sse` (safe default).
 
 /// Identifies the transport used for a streaming endpoint.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Default)]

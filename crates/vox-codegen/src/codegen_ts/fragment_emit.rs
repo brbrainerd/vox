@@ -113,9 +113,10 @@ mod tests {
     }
 
     fn module_with(frags: Vec<HirFragmentDecl>) -> HirModule {
-        let mut m = HirModule::default();
-        m.fragments = frags;
-        m
+        HirModule {
+            fragments: frags,
+            ..HirModule::default()
+        }
     }
 
     #[test]

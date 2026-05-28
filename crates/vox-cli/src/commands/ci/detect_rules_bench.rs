@@ -5,10 +5,10 @@
 //! table.  Non-zero exit when any rule's F1 falls below `--min-f1`.
 
 use anyhow::{Context, Result, bail};
-use std::path::PathBuf;
+use std::path::Path;
 use vox_rule_pack::{RulePack, bench::run_bench};
 
-pub fn run(rules: &PathBuf, fixtures_root: &PathBuf, min_f1: f64, json: bool) -> Result<()> {
+pub fn run(rules: &Path, fixtures_root: &Path, min_f1: f64, json: bool) -> Result<()> {
     let yaml = std::fs::read_to_string(rules)
         .with_context(|| format!("cannot read rules file: {}", rules.display()))?;
 

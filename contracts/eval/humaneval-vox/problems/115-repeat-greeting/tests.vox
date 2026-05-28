@@ -1,0 +1,8 @@
+fn repeat_greeting(name: str) to str {
+    return "Hi " + name + ", Hi " + name + "!"
+}
+
+@test
+fn t_simple() to Unit { assert(repeat_greeting("Ada") is "Hi Ada, Hi Ada!") }
+@test
+fn t_empty() to Unit { assert(repeat_greeting("") is "Hi , Hi !") }

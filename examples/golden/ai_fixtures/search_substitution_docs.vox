@@ -1,0 +1,19 @@
+// ---
+// title: "AI fixture — search substitution docs"
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// training_eligible: true
+// ---
+
+@search(corpus = docs, query = "ai fixtures", into = SearchHit, top_k = 5, policy = strict)
+@uses(fs, net)
+fn find_docs() to str {
+    return "ok"
+}
+
+@test
+fn test_find_docs_fixture() to Unit {
+    let out = find_docs()
+    assert(len(out) > 0)
+}

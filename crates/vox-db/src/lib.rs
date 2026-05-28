@@ -97,8 +97,10 @@ pub mod ddl;
 pub mod error_enrichment;
 // `eval_params` types moved to `vox-db-types`; re-exported below.
 pub mod exec_time_telemetry;
+mod local_cli_introspection;
 pub mod sql_util;
 pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
+pub use local_cli_introspection::{audit_database_json, sample_table_json_objects};
 pub mod hash;
 pub mod learning;
 pub mod legacy_import_extras;
@@ -144,6 +146,12 @@ pub mod types;
 pub mod workflow_journal;
 /// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
 pub mod workspace_journey_store;
+
+pub mod mesh_exec_leases;
+pub use mesh_exec_leases::ExecLeaseRow;
+pub mod mesh_locks;
+pub use mesh_locks::{LockKindRow, LockLeaderRow, VcsLockRow};
+pub use store::ops_convergence::ConvergenceOpRow;
 
 pub mod oratio_eval;
 pub mod plugin_state_backend;
@@ -220,6 +228,7 @@ pub use types::now_unix_ms;
 pub use vox_db_types::EvalRunParams;
 pub use vox_db_types::{
     DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
+    ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
 };
 pub use workspace_journey_store::{
     WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
@@ -271,6 +280,12 @@ mod codex_contract {
         assert_eq!(std::mem::align_of::<Codex>(), std::mem::align_of::<VoxDb>());
     }
 }
+
+/// Shared mutex that serialises all tests that mutate process-level environment
+/// variables (`VOX_DB_URL`, `VOX_DB_TOKEN`, `VOX_SECRETS_*`, …). Both
+/// `config::tests` and `local_tests` acquire this lock before touching env.
+#[cfg(test)]
+pub(crate) static TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(all(test, feature = "local"))]
 mod local_tests;

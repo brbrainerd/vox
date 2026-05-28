@@ -248,6 +248,7 @@ pub const fn secret_reads_populi_env_file(id: SecretId) -> bool {
             | SecretId::VoxMeshWorkerToken
             | SecretId::VoxMeshSubmitterToken
             | SecretId::VoxMeshAdminToken
+            | SecretId::VoxMeshScopeId
     )
 }
 

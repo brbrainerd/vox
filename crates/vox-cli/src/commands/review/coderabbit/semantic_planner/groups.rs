@@ -23,7 +23,7 @@ pub(crate) static IGNORED_DIRS: &[&str] = &[
     ".next/",
     "tmp_tools/", // temporary scaffolding directories
     "vendor/",
-    "vox-vscode/out/",
+    "apps/editor/vox-vscode/out/",
     // CodeRabbit tooling — worktrees, run-state, manifests.
     // Without this, a bare `.coderabbit` entry in the manifest triggers copy_dir_recursive
     // which recurses inside worktrees and hits Windows OS error 206 (path too long).

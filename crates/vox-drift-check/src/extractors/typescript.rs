@@ -38,20 +38,20 @@ impl Visit for TsVisitor {
     }
 
     fn visit_call_expr(&mut self, node: &swc_ecma_ast::CallExpr) {
-        if let Callee::Expr(expr) = &node.callee {
-            if let Expr::Member(m) = expr.as_ref() {
-                let mut path = Vec::new();
-                collect_member_path(&m.obj, &mut path);
-                if let swc_ecma_ast::MemberProp::Ident(id) = &m.prop {
-                    path.push(id.sym.as_str().to_string());
-                }
-                if !path.is_empty() {
-                    self.features.call_sites.push(CallSite {
-                        path,
-                        arity: node.args.len() as u8,
-                        loc: Loc::default(),
-                    });
-                }
+        if let Callee::Expr(expr) = &node.callee
+            && let Expr::Member(m) = expr.as_ref()
+        {
+            let mut path = Vec::new();
+            collect_member_path(&m.obj, &mut path);
+            if let swc_ecma_ast::MemberProp::Ident(id) = &m.prop {
+                path.push(id.sym.as_str().to_string());
+            }
+            if !path.is_empty() {
+                self.features.call_sites.push(CallSite {
+                    path,
+                    arity: node.args.len() as u8,
+                    loc: Loc::default(),
+                });
             }
         }
         node.visit_children_with(self);
@@ -95,7 +95,7 @@ fn extract_imports(module: &Module, features: &mut ExtractedFeatures) {
 
 impl LanguageExtractor for TypeScriptExtractor {
     fn extract(&self, path: &Path, content: &str) -> Result<ExtractedFeatures> {
-        let is_tsx = path.extension().map_or(false, |e| e == "tsx" || e == "jsx");
+        let is_tsx = path.extension().is_some_and(|e| e == "tsx" || e == "jsx");
         let cm: Lrc<SourceMap> = Default::default();
         let fm = cm.new_source_file(
             FileName::Real(path.to_path_buf()).into(),

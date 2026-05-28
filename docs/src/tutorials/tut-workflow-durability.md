@@ -1,8 +1,9 @@
 ---
 title: "Tutorial: Workflow Durability"
 description: "Learn how to build resilient, long-running processes using Vox workflows."
-category: "tutorials"
+category: "Tutorials"
 status: "current"
+sort_order: 6
 last_updated: "2026-04-06"
 training_eligible: true
 

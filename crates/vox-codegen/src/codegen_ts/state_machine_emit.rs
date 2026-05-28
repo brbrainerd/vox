@@ -17,7 +17,7 @@ use vox_compiler::hir::{HirModule, HirStateMachineDecl, HirType};
 /// 2. Discriminated-union event type.
 /// 3. Pure reducer function `<name>Reducer(state, event) -> state`.
 /// 4. **Phase G:** `use<Name>StateMachine(initial)` React hook backed by the
-///    reducer, mirroring [`vox_actor_runtime::state_machine::ReactiveStateMachine`]
+///    reducer, mirroring `vox_actor_runtime::state_machine::ReactiveStateMachine`
 ///    on the React side. Returns `{ state, send }`.
 pub fn emit_state_machine_decls(hir: &HirModule) -> String {
     if hir.state_machines.is_empty() {

@@ -126,7 +126,7 @@ pub struct TrainingManifest {
     /// Execution kernel identity at write time (`burn_lora`, `candle_qlora`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_kernel: Option<String>,
-    /// Hex digest of the full [`super::finetune_contract::FineTuneContract`] at plan time (`finetune_contract_digest`).
+    /// Hex digest of the full `super::finetune_contract::FineTuneContract` at plan time (`finetune_contract_digest`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finetune_contract_digest: Option<String>,
     /// Candle QLoRA: optimizer steps that completed in the native training loop.
@@ -196,7 +196,7 @@ pub struct TrainingManifest {
 
 /// Snapshot of run settings for [`initial_training_manifest`].
 ///
-/// With the `train` feature, build via [`InitialManifestRun::from_lora_config`]. When
+/// With the `mens-train` feature, build via `InitialManifestRun::from_lora_config`. When
 /// `LoraTrainingConfig` gains manifest-relevant fields, update that constructor and this struct together.
 #[derive(Debug, Clone)]
 pub struct InitialManifestRun {

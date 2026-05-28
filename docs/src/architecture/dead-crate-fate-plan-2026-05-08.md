@@ -1,7 +1,7 @@
 ---
 title: "Dead Crate Fate Plan (2026-05-08)"
 description: "Per-crate recommendation for the 17 DEAD and 3 MISPLACED workspace crates: delete, wire up, extract to plugin, or freeze."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Plan for resolving each abandoned crate either by removal or by wiring it into the plugin-first architecture; useful reference for future workspace hygiene."
@@ -77,9 +77,9 @@ These should be reclassified **CORE** in the audit table. Their fates are addres
 
 ### vox-schola
 **Purpose**: Standalone ML training/serving binary (`vox-schola`) — a thin CLI wrapper around QLoRA training.
-**Why dead**: The QLoRA training path was absorbed into `vox-mens` (the `merge_qlora.rs` command) and `vox-plugin-mens-candle-cuda`. The binary is 79 lines and just re-dispatches to `vox-cli-core`. Nothing calls it; the `vox mens` subcommand replaced it.
+**Why dead**: The QLoRA training path was absorbed into `vox-ml-cli` (the `merge_qlora.rs` command) and `vox-plugin-mens-candle-cuda`. The binary is 79 lines and just re-dispatches to `vox-cli-core`. Nothing calls it; the `vox mens` subcommand replaced it.
 **LOC / size**: 79 lines, 1 file.
-**Concept fit today**: No — the training surface now lives in `vox-mens` + `vox-populi` + plugins.
+**Concept fit today**: No — the training surface now lives in `vox-ml-cli` + `vox-populi` + plugins.
 **Recommendation**: **DELETE**
 **How**: Remove `crates/vox-schola/`; remove from `Cargo.toml` workspace members.
 **Effort**: XS (15min)
@@ -161,11 +161,11 @@ These should be reclassified **CORE** in the audit table. Their fates are addres
 
 ### vox-tools
 **Purpose**: In-process MCP tool executor for Mens chat — OpenAI-compatible tool definitions and direct execution without MCP transport.
-**Why dead**: After `vox-oratio` was extracted to `vox-plugin-oratio`, the transcription path in this crate was refactored to dispatch through the plugin (commit `f8f4cb0f9`). But the crate itself was never deleted or adopted by `vox-mens`.
+**Why dead**: After `vox-oratio` was extracted to `vox-plugin-oratio`, the transcription path in this crate was refactored to dispatch through the plugin (commit `f8f4cb0f9`). But the crate itself was never deleted or adopted by `vox-ml-cli`.
 **LOC / size**: 580 lines, 3 files (lib.rs, mens_chat.rs, capability_registry/).
 **Concept fit today**: The in-process tool execution concept was superseded by the plugin dispatch pattern. `vox-plugin-host` now provides the canonical discovery + dispatch surface. `vox-capability-registry` covers the registry aspect.
-**Recommendation**: **DELETE** — the two components it wraps (`vox-capability-registry` + `vox-plugin-host`) already exist as first-class crates. The `mens_chat` tool list can live in `vox-mens` directly.
-**How**: Check what `vox-mens` currently calls from `vox-tools` (likely nothing, given zero consumers). Remove `crates/vox-tools/`.
+**Recommendation**: **DELETE** — the two components it wraps (`vox-capability-registry` + `vox-plugin-host`) already exist as first-class crates. The `mens_chat` tool list can live in `vox-ml-cli` directly.
+**How**: Check what `vox-ml-cli` currently calls from `vox-tools` (likely nothing, given zero consumers). Remove `crates/vox-tools/`.
 **Effort**: XS (15min)
 **Risk**: Low. The audit says zero consumers. The transcription dispatch refactor already bypassed this crate. Confirm with `grep -rn "vox.tools\|vox_tools" crates/`.
 
@@ -259,11 +259,11 @@ These should be reclassified **CORE** in the audit table. Their fates are addres
 
 ### vox-oratio (MISPLACED)
 **Purpose**: Vox STT — Candle Whisper STT and transcript refinement. Large crate (7,224 LOC, 30+ files).
-**Current state**: Extraction is actively in progress. The `stt-candle` feature is marked DEPRECATED in the Cargo.toml comment; the plugin (`vox-plugin-oratio`) now owns the Candle Whisper backend. `vox-mens` and `vox-orchestrator` still take optional deps on `vox-oratio` for the `compiler-rerank` feature.
+**Current state**: Extraction is actively in progress. The `stt-candle` feature is marked DEPRECATED in the Cargo.toml comment; the plugin (`vox-plugin-oratio`) now owns the Candle Whisper backend. `vox-ml-cli` and `vox-orchestrator` still take optional deps on `vox-oratio` for the `compiler-rerank` feature.
 **Recommendation**: **Finish extraction** — the plan is correct and underway. The remaining `vox-oratio` uses are the `compiler-rerank` feature (AST mapper / transcript reranking), which is lightweight and has no ML deps. Either: (a) move `compiler-rerank` logic into `vox-compiler` directly, or (b) keep `vox-oratio` as a slim non-ML reranking crate and delete all ML modules. Option (b) is lower risk.
 **How**: Delete `src/backends/`, `src/acoustic_preprocess.rs`, `src/vad/`, `src/tiering.rs` and all other ML-only files once the `stt-candle` feature removal is complete. Keep `refine/`, `ast_mapper.rs`, `routing.rs`, `speech_normalize.rs` as the non-ML residue.
 **Effort**: M (½ day)
-**Risk**: Medium. Need to audit exactly which symbols `vox-mens/oratio` feature and `vox-orchestrator/oratio-rerank` import before deleting modules.
+**Risk**: Medium. Need to audit exactly which symbols `vox-ml-cli/oratio` feature and `vox-orchestrator/oratio-rerank` import before deleting modules.
 
 ---
 

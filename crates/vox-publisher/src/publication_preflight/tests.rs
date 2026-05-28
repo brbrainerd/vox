@@ -1,4 +1,5 @@
 use super::*;
+#[allow(clippy::module_inception)] // File is `tests.rs`; inner `mod tests` keeps test items grouped.
 mod tests {
     use super::*;
     use crate::scientific_metadata::{ScientificAuthor, ScientificPublicationMetadata};

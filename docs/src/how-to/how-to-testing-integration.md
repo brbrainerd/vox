@@ -1,7 +1,7 @@
 ---
 title: "How-To: Testing Integration"
 description: "How to structure tests for Vox functions, workflows, and UI using the built-in testing framework."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

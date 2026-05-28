@@ -74,7 +74,7 @@ impl SpeechToText for OratioPlugin {
 
             // Parse the f32 PCM bytes.
             let raw = audio_pcm.as_slice();
-            if raw.len() % 4 != 0 {
+            if !raw.len().is_multiple_of(4) {
                 return RResult::RErr(RBoxError::new(std::io::Error::other(
                     "audio_pcm length must be a multiple of 4 (mono f32 little-endian)",
                 )));

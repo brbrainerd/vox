@@ -1,6 +1,6 @@
 //! `vox scientia` — Vox Scientia facade over Codex research and capability-map tools.
 //!
-//! Delegates to [`super::db_cli::DbCli`] so `vox db …` remains the implementation SSOT.
+//! Delegates to `super::db_cli::DbCli` so `vox db …` remains the implementation SSOT.
 
 pub use vox_cli_core::scientia::ScientiaCmd;
 
@@ -305,6 +305,86 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                 ScientiaCmd::FeedSourceList => DbCli::Publication(DbCliPublication::FeedSourceList),
                 ScientiaCmd::Diagnose { live } => {
                     return diagnose_adapters(live).await;
+                }
+                ScientiaCmd::Scout {
+                    commit_window,
+                    days_window,
+                    output,
+                    candidate_class,
+                } => {
+                    return super::scout::run(
+                        commit_window,
+                        days_window,
+                        output,
+                        candidate_class,
+                    )
+                    .await;
+                }
+                ScientiaCmd::PublicationReplayExecute {
+                    main_entity,
+                    stage_dir,
+                } => {
+                    return super::scientia_phase_handlers::replay_execute(
+                        &main_entity,
+                        &stage_dir,
+                    )
+                    .await;
+                }
+                ScientiaCmd::PublicationManuscriptDraft { scaffold } => {
+                    return super::scientia_phase_handlers::manuscript_draft(&scaffold);
+                }
+                ScientiaCmd::PublicationCriticGateCheck { inputs } => {
+                    return super::scientia_phase_handlers::critic_gate_check(&inputs);
+                }
+                ScientiaCmd::PublicationCriticApprove {
+                    publication_id,
+                    critic_id,
+                    inputs,
+                } => {
+                    return super::scientia_phase_handlers::critic_approve(
+                        &publication_id,
+                        &critic_id,
+                        &inputs,
+                    )
+                    .await;
+                }
+                ScientiaCmd::PublicationExtractClaims { publication_id } => {
+                    return super::scientia_phase_handlers::publication_extract_claims(
+                        &publication_id,
+                    )
+                    .await;
+                }
+                ScientiaCmd::PublicationRenderLatex { scaffold, output } => {
+                    return super::scientia_phase_handlers::render_latex_handler(
+                        &scaffold,
+                        output.as_deref(),
+                    );
+                }
+                ScientiaCmd::PublicationArxivBundle {
+                    scaffold,
+                    figures_dir,
+                    output,
+                } => {
+                    return super::scientia_phase_handlers::arxiv_bundle_handler(
+                        &scaffold,
+                        &figures_dir,
+                        &output,
+                    );
+                }
+                ScientiaCmd::PublicationVenueRecommend {
+                    candidate_class,
+                    yaml_config,
+                } => {
+                    return super::scientia_phase_handlers::venue_recommend(
+                        &candidate_class,
+                        yaml_config.as_deref(),
+                    );
+                }
+                ScientiaCmd::PublicationFindingPageRender { page } => {
+                    return super::scientia_phase_handlers::finding_page_render(&page);
+                }
+                ScientiaCmd::PublicationDashboardSnapshot { inputs } => {
+                    return super::scientia_phase_handlers::dashboard_snapshot(&inputs);
                 }
             };
             db_cli::run(db_cmd).await

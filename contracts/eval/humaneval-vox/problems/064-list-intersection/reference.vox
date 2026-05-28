@@ -1,0 +1,11 @@
+fn list_intersection(a: list[int], b: list[int]) to list[int] {
+    let mut seen: list[int] = []
+    let mut result: list[int] = []
+    for x in a {
+        if b.contains(x) and not seen.contains(x) {
+            result.push(x)
+            seen.push(x)
+        }
+    }
+    return result
+}

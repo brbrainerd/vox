@@ -44,6 +44,32 @@ pub fn load_policy(path: &Path) -> Result<DataStoragePolicy> {
     serde_json::from_value(val).context("deserialize policy")
 }
 
+/// `env-parity` scans source with ripgrep; documentation and string-building often use **prefix**
+/// tokens like `VOX_CLI_` or `VOX_MCP_HTTP_` that are not real environment variable names.
+/// Require SSOT entries only for tokens that look like complete env vars.
+fn env_var_token_requires_registry_entry(name: &str) -> bool {
+    let name = name.trim();
+    if name.is_empty() {
+        return false;
+    }
+    if name.ends_with('_') {
+        return false;
+    }
+    for prefix in ["VOX_", "TURSO_", "XDG_"] {
+        if let Some(rest) = name.strip_prefix(prefix) {
+            if rest.is_empty() {
+                return false;
+            }
+            // e.g. `VOX_A` / `VOX_B` from overlapping matches — not actionable registry keys.
+            if rest.len() == 1 && rest.chars().all(|c| c.is_ascii_uppercase()) {
+                return false;
+            }
+            return true;
+        }
+    }
+    true
+}
+
 pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
     let root = std::env::current_dir()?;
     let policy_path = root.join("contracts/db/data-storage-policy.v1.yaml");
@@ -114,7 +140,8 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                         continue;
                     }
 
-                    if let Ok(output) = std::process::Command::new("git")
+                    if let Ok(output) = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
                         .arg("ls-files")
                         .arg(line)
                         .current_dir(&root)
@@ -134,7 +161,8 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
 
     // Scratch cleanliness
     if run_all || opts.only.contains(&"scratch-clean".to_string()) {
-        if let Ok(output) = std::process::Command::new("git")
+        if let Ok(output) = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
             .arg("ls-files")
             .arg("scratch/")
             .current_dir(&root)
@@ -249,6 +277,9 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                             "--no-line-number",
                             "(VOX|TURSO|XDG)_[A-Z0-9_]+",
                             "crates/",
+                            "apps/",
+                            "scripts/",
+                            "docs/src/",
                         ])
                         .current_dir(&root)
                         .output()
@@ -270,6 +301,9 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                             }
 
                             for var in found_vars {
+                                if !env_var_token_requires_registry_entry(&var) {
+                                    continue;
+                                }
                                 if !allowed_vars.contains(&var) {
                                     report.violations.push(format!(
                                         "env-parity: undocumented environment variable '{}' found in source code. Must be added to contracts/config/env-vars.v1.yaml",
@@ -304,6 +338,19 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn env_var_token_filters_prefix_fragments() {
+        assert!(!env_var_token_requires_registry_entry("VOX_CLI_"));
+        assert!(!env_var_token_requires_registry_entry("VOX_ROUTE_"));
+        assert!(env_var_token_requires_registry_entry("VOX_CLI_FEATURES"));
+    }
+
+    #[test]
+    fn env_var_token_filters_single_letter_suffix_noise() {
+        assert!(!env_var_token_requires_registry_entry("VOX_A"));
+        assert!(env_var_token_requires_registry_entry("VOX_ANDROID_KEYSTORE"));
+    }
 
     #[test]
     fn test_bad_policy_fails() {

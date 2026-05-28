@@ -63,6 +63,7 @@ impl DiscoveryGate {
             .insert_telemetry_flat(
                 "discovery_gate".to_string(),
                 "null".to_string(),
+                None,
                 entry.repository_id.clone(),
                 "discovery_promoted".to_string(),
                 None,
@@ -105,6 +106,7 @@ impl DiscoveryGate {
             .insert_telemetry_flat(
                 "discovery_gate".to_string(),
                 "null".to_string(),
+                None,
                 entry.repository_id.clone(),
                 "discovery_rejected".to_string(),
                 None,

@@ -61,7 +61,7 @@ pub enum RegistryError {
 }
 
 impl RenameRegistry {
-    pub fn from_str(json: &str) -> Result<Self, RegistryError> {
+    pub fn parse_json(json: &str) -> Result<Self, RegistryError> {
         let file: RenameRegistryFile = serde_json::from_str(json)?;
         if file.version != 1 {
             return Err(RegistryError::UnsupportedVersion(file.version));
@@ -93,7 +93,7 @@ impl RenameRegistry {
     pub fn load_canonical() -> Result<Self, RegistryError> {
         let path = canonical_path();
         let bytes = std::fs::read_to_string(&path)?;
-        Self::from_str(&bytes)
+        Self::parse_json(&bytes)
     }
 
     pub fn entries(&self) -> impl Iterator<Item = &RenameEntry> {

@@ -1,6 +1,6 @@
 ---
 title: "Data Storage Migration Backlog (2026)"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Backlog for the data storage migration"
@@ -485,12 +485,12 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Blockers**: M-20.
 - **SSOT findings**: F10.
 - **Sub-steps**:
-  1. Inventory: `rg 'TURSO_URL|VOX_TURSO_URL|VOX_TURSO_TOKEN|TURSO_AUTH_TOKEN' crates/`.
+  1. Inventory: grep `crates/` for literals enumerated under Turso compatibility aliases in `contracts/config/env-vars.v1.yaml` / env-vars SSOT.
   2. In `crates/vox-secrets/src/backend/vox_vault.rs` and `lib.rs`, add a deprecation warning branch that logs once when a `TURSO_*` var is used and routes it into the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`.
   3. Add the deprecation list to `contracts/config/env-vars.v1.yaml` (requires M-13).
   4. Plan sunset for release 0.6 (6 months).
   5. Add guard sub-check `retired-env-var` that warns in `vox-secrets` (sunset window), fails elsewhere.
-- **Verification**: guard green; CI passes; a test with `TURSO_URL=…` produces the deprecation warning.
+- **Verification**: guard green; CI passes; a test with a legacy Turso URL env var set produces the deprecation warning.
 
 ## Phase 3 — Tier B / C rollout
 
@@ -502,7 +502,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F17, F67, Open Question #9.
 - **Sub-steps**:
   1. Identify whether `dist/schemas.ts` is source or build output. Check `package.json` build scripts, `dist/.gitignore`, `docs/src/reference/frontend.md` if it exists.
-  2. If source: move to `marquee_app/src/schemas.ts` or similar, and commit decision.
+  2. If source: move to `apps/interop/marquee_app/src/schemas.ts` or similar, and commit decision.
   3. If build output: move out of `dist/`, add to `.gitignore`, and write a regeneration task. CI check: `dist/schemas.ts` byte-identical to regeneration.
   4. Author decision memo at `docs/src/architecture/decisions/011-dist-schemas-ts-provenance.md`.
 - **Verification**: decision memo committed; follow-up ticket filed.
@@ -580,10 +580,10 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Sub-steps**:
   1. Author `docs/src/architecture/telemetry-trust-ssot.md` (currently missing per F74). Minimal scope: trust surface, subscriber policy, redaction.
   2. Author `contracts/telemetry/subscriber-policy.v1.yaml` — profiles `Cli`, `Daemon`, `Test`, each with level + appender config.
-  3. In `crates/vox-runtime/src/observability.rs`, generalize the existing `init_structured_telemetry()` (HEAD L15 area, currently Daemon-shaped) into `pub fn init(policy: SubscriberPolicy) -> bool`. Keep `init_structured_telemetry` as a thin `init(SubscriberPolicy::Daemon)` wrapper so no current caller breaks.
-  4. Refactor `crates/vox-cli-core/src/lib.rs:29::init_tracing_for_cli` to call `vox_runtime::observability::init(SubscriberPolicy::Cli)`. Final body: two lines (`vox_runtime::observability::init(SubscriberPolicy::Cli); ()`).
-  5. Remove the duplicated `EnvFilter` / `tracing_subscriber::fmt()` setup from `vox-cli-core`. After this step, `vox-cli-core/Cargo.toml` gains `vox-runtime = { path = "../vox-runtime" }` and loses direct `tracing_subscriber` plumbing (it may keep the crate for macro use).
-  6. Add guard sub-check `single-subscriber-init`: `rg 'tracing_subscriber::fmt\(\)|Registry::default\(\)' crates/` returns only `crates/vox-runtime/src/observability.rs` + `crates/*/tests/**`.
+  3. In `crates/vox-actor-runtime/src/observability.rs`, generalize the existing `init_structured_telemetry()` (HEAD L15 area, currently Daemon-shaped) into `pub fn init(policy: SubscriberPolicy) -> bool`. Keep `init_structured_telemetry` as a thin `init(SubscriberPolicy::Daemon)` wrapper so no current caller breaks.
+  4. Refactor `crates/vox-cli-core/src/lib.rs:29::init_tracing_for_cli` to call `vox_actor_runtime::observability::init(SubscriberPolicy::Cli)`. Final body: two lines (`vox_actor_runtime::observability::init(SubscriberPolicy::Cli); ()`).
+  5. Remove the duplicated `EnvFilter` / `tracing_subscriber::fmt()` setup from `vox-cli-core`. After this step, `vox-cli-core/Cargo.toml` gains `vox-actor-runtime = { path = "../vox-actor-runtime" }` and loses direct `tracing_subscriber` plumbing (it may keep the crate for macro use).
+  6. Add guard sub-check `single-subscriber-init`: `rg 'tracing_subscriber::fmt\(\)|Registry::default\(\)' crates/` returns only `crates/vox-actor-runtime/src/observability.rs` + `crates/*/tests/**`.
 - **Verification**:
   - `cargo test -p vox-cli-core` passes (existing tracing test).
   - `cargo run -p vox-cli --quiet -- --version` and `cargo run -p vox-cli --quiet -- ci manifest` both emit identically-shaped JSON trace lines (diffable up to timestamps).
@@ -597,7 +597,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F54.
 - **Sub-steps**:
   1. Add `tracing-appender` to workspace deps.
-  2. In `vox-runtime::observability::init`, wire a rolling file appender under `$VOX_STATE_DIR/logs/`.
+  2. In `vox-actor-runtime::observability::init`, wire a rolling file appender under `$VOX_STATE_DIR/logs/`.
   3. Document in `docs/src/reference/logging.md`.
 - **Verification**: logs appear under the configured path; rotation happens at midnight.
 
@@ -608,7 +608,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Blockers**: M-40, M-03.
 - **SSOT findings**: F51.
 - **Sub-steps**:
-  1. Add a macro `vox_event!(kind = "foo", field1 = value, …)` in `vox-runtime::events`.
+  1. Add a macro `vox_event!(kind = "foo", field1 = value, …)` in `vox-actor-runtime::events`.
   2. The macro emits via `tracing::info!` AND appends a JSONL record to the Tier B spool using `vox-spool`.
   3. Generated types from `contracts/telemetry/events.v1.yaml` (M-15) gate allowed `kind` values at compile time.
 - **Verification**: a test calls `vox_event!` and finds both the trace log and the spool record.
@@ -621,7 +621,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F52.
 - **Sub-steps**:
   1. Author `contracts/telemetry/spans.v1.yaml` listing all canonical span names.
-  2. Generate a `vox_runtime::spans::Name` enum.
+  2. Generate a `vox_actor_runtime::spans::Name` enum.
   3. Add guard sub-check `span-registry-parity`: every `span!(…, "name", …)` in crates must use a variant of the enum.
 - **Verification**: guard green.
 
@@ -660,13 +660,13 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Sub-steps**: analogous to M-50; files at `crates/vox-orchestrator/src/types/`.
 - **Verification**: guard green; existing tests pass.
 
-### M-52 · Same in `vox-ludus::schema`
+### M-52 · Same in `vox-gamify::schema`
 
 - **Owner**: Ludus.
 - **Blast radius**: M.
 - **Blockers**: M-50.
 - **SSOT findings**: F34.
-- **Sub-steps**: analogous to M-50; files at `crates/vox-ludus/src/schema/`.
+- **Sub-steps**: analogous to M-50; files at `crates/vox-gamify/src/schema/`.
 - **Verification**: guard green.
 
 ### M-53 · `ObservationReport` libsql leak
@@ -772,7 +772,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   1. Update `deny.toml` with a `[[bans.deny]]` entry for `turso` outside allowlisted crates.
   2. Add a similar entry for `libsql` (the lower-level crate).
   3. Run `cargo deny check bans` locally.
-- **Verification**: `cargo deny check bans` passes on a clean tree, fails on a synthetic PR that imports `turso` into `vox-runtime`.
+- **Verification**: `cargo deny check bans` passes on a clean tree, fails on a synthetic PR that imports `turso` into `vox-actor-runtime`.
 
 ### M-62 · Fuzz targets per wire schema
 
@@ -896,7 +896,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   2. Add a short note to `AGENTS.md` §Archival Protocol siblings.
 - **Verification**: policy file lists `.jj/`; guard ignores `.jj/`.
 
-### M-72 · Grammar SSOT parity + vox-tensor / vox-mens boundary
+### M-72 · Grammar SSOT parity + vox-tensor / vox-ml-cli boundary
 
 - **Owner**: Platform + Mens.
 - **Blast radius**: M.
@@ -904,10 +904,10 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F69, Open Question #8.
 - **Sub-steps**:
   1. Add guard sub-check `grammar-ssot-drift`: changes to `tree-sitter-vox/grammar.js` or `src/grammar.json` require a sibling change to `tree-sitter-vox/GRAMMAR_SSOT.md`.
-  2. Author `docs/src/architecture/decisions/012-vox-tensor-vs-vox-mens-boundary.md` resolving Open Question #8.
+  2. Author `docs/src/architecture/decisions/012-vox-tensor-vs-vox-ml-cli-boundary.md` resolving Open Question #8.
 - **Verification**: guard green; decision memo committed.
 
-### M-73 · Top-level dir READMEs (patches/examples/marquee_app/tools/infra)
+### M-73 · Top-level dir READMEs (patches/examples/apps/interop/marquee_app/tools/infra)
 
 - **Owner**: Governance.
 - **Blast radius**: L.
@@ -997,9 +997,9 @@ These four tickets close the findings added in SSOT §I (F75–F78) after reconc
 
 ## Deferred / side-item tickets
 
-- **M-55b**: benchmark `smol_str::SmolStr` in `vox-runtime` request hot path (F38).
+- **M-55b**: benchmark `smol_str::SmolStr` in `vox-actor-runtime` request hot path (F38).
 - **M-55c**: adopt `SmallVec<[T; N]>` for `intent_tags`, CLI `args`, etc. (F39).
-- **M-57d**: profile `vox-corpus` / `vox-mens` parsers; adopt `bumpalo` only if allocation cost is visible (F43).
+- **M-57d**: profile `vox-corpus` / `vox-ml-cli` parsers; adopt `bumpalo` only if allocation cost is visible (F43).
 
 ## Index: finding → migration item
 
@@ -1068,13 +1068,13 @@ These four tickets close the findings added in SSOT §I (F75–F78) after reconc
 ## Ownership legend
 
 - **Data Core**: owners of `vox-db`, `vox-jsonschema-util` codegen module, `vox-test-harness`.
-- **Platform**: owners of `vox-runtime`, `vox-primitives`.
+- **Platform**: owners of `vox-actor-runtime`, `vox-primitives`.
 - **CLI**: owners of `vox-cli`, `vox-cli-core`.
 - **Orchestrator**: owners of `vox-orchestrator`, `vox-orchestrator-types`.
-- **Mens**: owners of `vox-mens`, `vox-populi`, `vox-tensor`.
-- **Ludus**: owners of `vox-ludus`.
+- **Mens**: owners of `vox-ml-cli`, `vox-populi`, `vox-tensor`.
+- **Ludus**: owners of `vox-gamify`.
 - **Config owner**: owners of `vox-config`.
-- **Frontend**: owners of `marquee_app/`, `dist/`, `vox-vscode`.
+- **Frontend**: owners of `apps/interop/marquee_app/`, `dist/`, `apps/editor/vox-vscode`.
 - **Governance**: owners of `AGENTS.md`, `crates/_frozen.md`, and `docs/src/architecture/decisions/`.
 - **CI**: owners of `.gitlab-ci.yml`, `.github/workflows/`, and the `vox ci` subcommands.
 

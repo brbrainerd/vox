@@ -69,8 +69,7 @@ mod tests {
     use super::collect_table_select_projections;
     use vox_compiler::ast::span::Span;
     use vox_compiler::hir::{
-        DefId, HirDbPlanCapabilities, HirDbQueryPlan, HirDbTableOp, HirDerived, HirExpr, HirModule,
-        HirReactiveComponent, HirReactiveMember,
+        DefId, HirDbPlanCapabilities, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule,
     };
 
     #[test]
@@ -102,6 +101,12 @@ mod tests {
             route_path: "/test".to_string(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
+            stream_interval: None,
             span,
         });
 

@@ -1,4 +1,6 @@
-x-vox-version: 1
+# Schema-backed telemetry event catalog (tier B). Runtime/event-name guards may consume this
+# alongside JSON-schema payloads in contracts/telemetry/*.schema.json.
+x-vox-version: 2
 version: 1
 events:
   - id: completion-detector-snapshot
@@ -28,3 +30,61 @@ events:
     tier: "B"
     retention_days: 365
     description: "Telemetry regarding paper/asset novelty classification."
+
+  - id: agentos-guardrail-deny
+    schema_path: contracts/telemetry/agentos-guardrail-deny.v1.schema.json
+    owner_crate: vox-orchestrator
+    tier: "B"
+    retention_days: 90
+    description: "AgentOS guardrail kernel denied a high-risk MCP tool preflight."
+
+  - id: fixture-model-intent-resolved
+    schema_path: contracts/telemetry/fixture-model-intent-resolved.v1.schema.json
+    owner_crate: vox-telemetry
+    tier: "B"
+    retention_days: 90
+    description: >-
+      Model routing intent from extended @ai fixtures (task category, strengths, tier ceiling).
+      Emitted as TelemetryEvent::AiFixture via vox-telemetry / ResearchMetricsSink.
+
+  - id: orch-subagent-dispatch
+    schema_path: contracts/telemetry/orch-subagent-dispatch.v1.schema.json
+    owner_crate: vox-telemetry
+    tier: "B"
+    retention_days: 90
+    description: >-
+      Subagent dispatch decision; metric_type orch.subagent.dispatch. Emitted from
+      DispatchRouter::route_with_telemetry and persisted via AiFixture telemetry mapping.
+
+  - id: fixture-prompt-dispatch
+    schema_path: contracts/telemetry/fixture-prompt-dispatch.v1.schema.json
+    owner_crate: vox-telemetry
+    tier: "B"
+    retention_days: 90
+    description: "@prompt / research cascade dispatch observation (chat_with_cascade)."
+
+  - id: fixture-search-dispatch
+    schema_path: contracts/telemetry/fixture-search-dispatch.v1.schema.json
+    owner_crate: vox-telemetry
+    tier: "B"
+    retention_days: 90
+    description: "@search corpus retrieval dispatch observation."
+
+  - id: fixture-hole-observed
+    schema_path: contracts/telemetry/fixture-hole-observed.v1.schema.json
+    owner_crate: vox-telemetry
+    tier: "B"
+    retention_days: 90
+    description: "@hole fixture lifecycle observation (staleness / inventory)."
+
+  - id: research-event-bridge
+    schema_path: contracts/telemetry/research-event-bridge.v1.schema.json
+    owner_crate: vox-orchestrator
+    tier: "B"
+    retention_days: 365
+    description: >-
+      Metadata JSON for whitelisted vox-research-events::ResearchEvent rows mirrored into
+      research_metrics (telemetry_catalog_id=research-event-bridge). Metric types include
+      research_started, sources_total, self_verification_reliability, citation_precision,
+      retrieval_hit_rate, scientia.finding_candidate_proposed, scientia.claim_verified.
+      Plan JSON for subqueries_emitted remains a direct record_research_metric row (no duplicate bus row).

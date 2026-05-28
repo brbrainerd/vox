@@ -18,3 +18,7 @@ tracing.workspace = true
 wasmtime.workspace = true
 wasmtime-wasi.workspace = true
 workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+wat = "1.220"

@@ -1,6 +1,11 @@
 # contracts/orchestration/plan-mode-trigger.v1.yaml
 # Plan-mode vs ReAct decision thresholds for D2.
 # Mirrored by `crates/vox-orchestrator/src/planning/plan_mode_trigger.rs::PlanModeTriggerConfig::default`.
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
 version: 1
 x-vox-version: 1
 description: "Plan-mode vs. ReAct mode decision trigger (D2)"

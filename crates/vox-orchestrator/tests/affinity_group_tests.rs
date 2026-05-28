@@ -11,7 +11,7 @@ fn test_default_affinity_resolution() {
     let g1 = reg.resolve(p1).unwrap();
     assert_eq!(g1.name, "pm-group");
 
-    let p2 = Path::new("crates/vox-lexer/src/lib.rs");
+    let p2 = Path::new("crates/vox-compiler/src/lexer/mod.rs");
     let g2 = reg.resolve(p2).unwrap();
     assert_eq!(g2.name, "lexer-parser-group");
 }

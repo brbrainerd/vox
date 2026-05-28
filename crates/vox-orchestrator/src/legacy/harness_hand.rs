@@ -201,7 +201,6 @@ pub fn apply_harness_subject_defaults(
 }
 
 /// Structural and continuity validation for a supplied harness artifact.
-#[must_use]
 pub fn validate_agent_harness_ingest(
     harness: &AgentHarnessSpec,
     expectations: HarnessIngestExpectations<'_>,

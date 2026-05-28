@@ -1,0 +1,3 @@
+fn str_concat_three(a: str, b: str, c: str) to str {
+    return a + b + c
+}

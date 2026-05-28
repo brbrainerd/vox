@@ -2,12 +2,12 @@
 //!
 //! Phase C of the Svelte-mineable features implementation plan upgrades the
 //! existing exact-string-match conflict detection at
-//! [`super::routes`] (a `HashSet<(Method, String)>` of literal paths) to
+//! `super::routes` (a `HashSet<(Method, String)>` of literal paths) to
 //! segment-aware overlap detection that catches `/users/:id` vs `/users/me`
 //! ambiguity at compile time. This module is the pure utility layer; the
 //! integration into the route emitter is a separate change.
 //!
-//! Grammar accepted by [`RoutePattern::parse`]:
+//! Grammar accepted by `RoutePattern::parse`:
 //! - Empty path `""` or `"/"` — root.
 //! - Slash-separated segments.
 //! - A segment beginning with `:` is a parameter (e.g. `:id`); the remainder is the
@@ -16,7 +16,7 @@
 //! - Any other segment is a literal.
 //!
 //! Two patterns *overlap* when there exists a concrete path that both could match.
-//! See [`Overlap`] for the precedence resolution rule.
+//! See `Overlap` for the precedence resolution rule.
 
 use std::fmt;
 

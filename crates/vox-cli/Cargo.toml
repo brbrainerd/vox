@@ -28,7 +28,11 @@ path = "src/bin/vox-compilerd.rs"
 
 
 [features]
-default = []
+default = ["keyring-store"]
+# OS credential store for `vox login` / `vox auth connect` vault persistence.
+# Disable on headless CI builds where no keyring daemon is available.
+keyring-store = ["dep:keyring"]
+ai-fixtures-v1 = []
 # Fast fuzzy ranking for command catalog, MCP tool picker, dashboard palette.
 # Uses nucleo-matcher (same scorer as Helix/Zed). Adds ~300KB to binary.
 fuzzy-search = ["dep:nucleo"]
@@ -36,7 +40,12 @@ fuzzy-search = ["dep:nucleo"]
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Native MCP server runtime previously in vox-mcp binary
-mcp-server = ["vox-orchestrator/populi-transport", "dep:axum", "dep:rmcp", "dep:vox-orchestrator-mcp"]
+mcp-server = [
+    "vox-orchestrator/populi-transport",
+    "vox-orchestrator-mcp/populi-transport",
+    "dep:rmcp",
+    "dep:vox-orchestrator-mcp",
+]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
 
@@ -52,7 +61,7 @@ script-execution = [
     "dep:win32job",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "dep:axum", "dep:axum-extra", "dep:tokio-stream"]
+execution-api = ["script-execution", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-code-audit",
@@ -62,7 +71,8 @@ stub-check = [
 completion-toestub = ["dep:vox-code-audit"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
-dashboard = ["dep:vox-dashboard"]
+# Native Tauri 2 GUI (replaces dashboard SPA)
+gui = []
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
 ars = ["dep:vox-skills", "dep:vox-openclaw-runtime"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
@@ -105,24 +115,26 @@ broken_inference_stub = []
 [dependencies]
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
-vox-ssg = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
 miette = { workspace = true }
 anyhow = { workspace = true }
+cargo_metadata = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 reqwest = { workspace = true, features = ["multipart"] }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
-sha2 = { workspace = true }
+sha2.workspace = true
 tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
 vox-package = { workspace = true }
+
+vox-eval = { workspace = true }
 vox-container = { workspace = true }
 vox-wasm-engine = { workspace = true }
 vox-deploy-codegen = { workspace = true }
@@ -132,13 +144,18 @@ vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 vox-db = { workspace = true }
-vox-search = { workspace = true }
+vox-research-events = { workspace = true }
+# `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
+# handler; not pulled in via the producers crate.
+vox-scientia = { workspace = true }
+# Narrow retrieval features for CLI (avoid default qdrant/tavily stacks).
+vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape"] }
 # `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI
 # routes `db/publication/ingest.rs` through `vox-plugin-host`'s ABI surface
 # (the `Publication` extension point on `VoxPlugin`) to keep the heavy
 # `feed-rs` / `vox-publisher` transitive deps out of the default CLI build.
 # Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
-vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
+vox-publisher = { workspace = true, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
 vox-code-audit = { workspace = true, optional = true }
 vox-drift-check = { workspace = true }
@@ -147,6 +164,7 @@ vox-drift-check = { workspace = true }
 
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
+vox-dei-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
 vox-plugin-catalog = { workspace = true }
@@ -157,12 +175,10 @@ abi_stable = { workspace = true }
 vox-populi = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
-vox-dashboard = { workspace = true, optional = true }
 
 vox-repository = { workspace = true }
 vox-project-scaffold = { workspace = true }
-vox-checksum-manifest = { workspace = true }
-vox-install-policy = { workspace = true }
+vox-tauri-codegen = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
 comfy-table = { workspace = true }
@@ -173,40 +189,37 @@ glob = { workspace = true }
 vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 
 vox-actor-runtime = { workspace = true }
-vox-primitives = { workspace = true }
-vox-exec-grammar = { workspace = true }
+vox-foundation = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
-vox-protocol = { workspace = true }
 vox-constrained-gen = { workspace = true }
 rand = { workspace = true }
 
-uuid = { version = "1.22.0", features = ["v4"] }
+uuid = { workspace = true, features = ["v4"] }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
-rmcp = { version = "0.16", optional = true, features = ["server", "client", "transport-io"] }
-axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
-governor = { workspace = true }
+rmcp = { workspace = true, optional = true, features = ["server", "client", "transport-io"] }
+axum = { workspace = true, features = ["http1", "json", "tokio", "ws"] }
 vox-grammar-export = { workspace = true }
-axum-extra = { version = "0.12.5", optional = true, features = ["typed-header"] }
-notify = "7"
-tokio-stream = { version = "0.1", optional = true }
-dirs = { version = "6" }
-walkdir = "2"
+axum-extra = { workspace = true, features = ["typed-header"] }
+notify = { workspace = true }
+tokio-stream = { workspace = true, optional = true }
+dirs = { workspace = true }
+walkdir = { workspace = true }
 sysinfo = { workspace = true }
-vox-eval = { workspace = true }
+
 vox-forge = { workspace = true, optional = true, features = ["github", "gitlab"] }
 vox-git = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 xxhash-rust = { workspace = true, optional = true }
-which = "8"
-wasmtime = { version = "42.0.1", optional = true }
-wasmtime-wasi = { version = "42.0.1", optional = true }
-flate2 = "1.1.9"
-tar = "0.4.45"
-zip = { version = "8.4.0", default-features = false, features = ["deflate"] }
-self_update = { version = "0.43.1", default-features = false, features = [
+which = { workspace = true }
+wasmtime = { workspace = true, optional = true }
+wasmtime-wasi = { workspace = true, optional = true }
+flate2.workspace = true
+tar.workspace = true
+zip = { features = ["deflate"], version = "2" }
+self_update = { workspace = true, features = [
     "reqwest",
     "rustls",
     "archive-tar",
@@ -214,39 +227,49 @@ self_update = { version = "0.43.1", default-features = false, features = [
     "compression-flate2",
     "compression-zip-deflate",
 ] }
-semver = "1"
-keyring.workspace = true
+semver = { workspace = true }
+keyring = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 vox-rule-pack = { workspace = true }
 vox-telemetry = { workspace = true }
+vox-audit = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true
-vox-share = { workspace = true }
-hex = "0.4.3"
+hex.workspace = true
 nucleo = { workspace = true, optional = true }
 tempfile = { workspace = true }
+hyper-util.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+form_urlencoded = "1.2.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-landlock = { version = "0.4.4", optional = true }
+landlock = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-win32job = { version = "2", optional = true }
+win32job = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
-libc = "0.2"
+libc = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
+windows-sys = { workspace = true, features = ["Win32_System_Threading"] }
 
 [build-dependencies]
 vox-build-meta = { workspace = true }
 
 [dev-dependencies]
+insta = { workspace = true }
 safetensors = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
 wiremock = { workspace = true }
+# Force deadpool's `rt_tokio_1` feature (see root Cargo.toml). wiremock pulls
+# deadpool 0.12 without activating a runtime backend, which under rustc 1.92
+# leaves `Runtime::timeout` returning the never type and breaks inference in
+# `deadpool::unmanaged::Pool::timeout_get`.
+deadpool = { workspace = true }
 vox-db = { workspace = true }
 vox-orchestrator = { workspace = true }
 
@@ -269,6 +292,11 @@ required-features = ["workflow-runtime"]
 name = "workflow_cli_durability_ux"
 path = "tests/workflow_cli_durability_ux.rs"
 required-features = ["mens-dei"]
+
+[[test]]
+name = "cr_l8_flywheel_e2e"
+path = "tests/cr_l8_flywheel_e2e.rs"
+required-features = ["completion-toestub"]
 
 [lints]
 workspace = true

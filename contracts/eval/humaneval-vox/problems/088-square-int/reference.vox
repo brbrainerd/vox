@@ -1,0 +1,7 @@
+fn square_int(n: int) to int {
+    let r = n * n
+    if r < 0 {
+        return -r
+    }
+    return r
+}

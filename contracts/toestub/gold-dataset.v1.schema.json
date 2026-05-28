@@ -4,24 +4,34 @@
   "$id": "https://vox.local/contracts/toestub/gold-dataset.v1.schema.json",
   "title": "TOESTUB gold / eval fixture (v1 draft)",
   "type": "object",
-  "properties": 
-    "version":  "type": "integer", "const": 1 },
-    "cases": 
+  "properties": {
+    "x-vox-version": {
+      "type": "integer",
+      "const": 1
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "cases": {
       "type": "array",
-      "items": 
+      "items": {
         "type": "object",
         "required": ["id", "label", "rule_id_prefix", "path", "line"],
-        "properties": 
-          "id":  "type": "string" },
-          "label": 
+        "properties": {
+          "id": { "type": "string" },
+          "label": {
             "type": "string",
             "enum": ["true_positive", "false_positive", "false_negative"]
           },
-          "rule_id_prefix":  "type": "string" },
-          "path":  "type": "string" },
-          "line":  "type": "integer", "minimum": 1 },
-          "notes":  "type": "string" },
-          "snippet": 
+          "rule_id_prefix": { "type": "string" },
+          "path": { "type": "string" },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "notes": { "type": "string" },
+          "snippet": {
             "type": "string",
             "description": "Synthetic source used by the gold harness when file is not repo-relative."
           }

@@ -1,0 +1,24 @@
+fn validate_email(email: str) to Result[str] {
+    if len(email) < 5 {
+        return Error("email too short")
+    }
+    return Ok(email)
+}
+
+@test
+fn test_short_email() to Unit {
+    let r = validate_email("a@b")
+    match r {
+        Error(_) => assert(true)
+        Ok(_)    => assert(false)
+    }
+}
+
+@test
+fn test_valid_email() to Unit {
+    let r = validate_email("alice@example.com")
+    match r {
+        Ok(addr) => assert(addr is "alice@example.com")
+        Error(_) => assert(false)
+    }
+}

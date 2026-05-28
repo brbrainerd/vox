@@ -1,0 +1,36 @@
+# vox:skip
+id = "plan-fidelity-009-add-paginated-list-messages-endpoint"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+Add `@query @auth(scheme: bearer) fn list_messages(room_id: str, limit: int) to list[str]` \
+to `src/messages.vox`. When `limit <= 0` return an empty list; otherwise return \
+`db.Message.list_by_room(room_id, limit)`. \
+Add `@test fn test_list_messages_zero_limit` to `tests/messages_test.vox` that asserts \
+`list_messages("room-1", 0)` returns an empty list. \
+Run `vox check --strict && vox test --filter=test_list_messages_zero_limit`.
+"""
+preconditions = """
+`src/messages.vox` defines `@table type Message { room_id: str, sender: str, body: str }` \
+and compiles clean. `tests/messages_test.vox` does not yet exist. \
+`vox check --strict` passes at HEAD. No `list_messages` function exists yet.
+"""
+
+[plan_expected_shape]
+min_steps = 4
+max_steps = 8
+must_include_tasks = ["add-endpoint", "add-auth-decorator", "add-pagination-guard", "add-test", "verify-compile"]
+must_include_decorator_calls = ["@query", "@auth", "@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_list_messages_zero_limit"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/messages.vox", regex = "@query" },
+  { path = "src/messages.vox", regex = "@auth\\(scheme: bearer\\)" },
+  { path = "src/messages.vox", regex = "fn list_messages" },
+  { path = "src/messages.vox", regex = "limit" },
+  { path = "tests/messages_test.vox", regex = "test_list_messages_zero_limit" },
+]

@@ -1,12 +1,11 @@
 use vox_codegen::codegen_rust::emit::emit_lib;
-use vox_compiler::hir::lower_module;
 
 /// Validates that the Vox compiler successfully drops the `@forall` metamorphic annotations
 /// and compiles pure mathematical idempotency checks correctly into the syntax tree,
 /// supporting the AI-Augmented Testing Hourglass architectural pattern.
 #[test]
 fn metamorphic_hir_lowering_honors_idempotency_axioms() {
-    let source = r#"
+    let _source = r#"
 @pure
 @forall(list: list[int])
 fn prop_sort_idempotent(list: list[int]) {
@@ -34,6 +33,10 @@ fn prop_sort_idempotent(list: list[int]) {
             is_reactive: false,
             is_llm: false,
             llm_model: None,
+            ai_structured_output: None,
+            ai_fixture: None,
+            embed: None,
+            is_remote: false,
             is_deprecated: false,
             schedule_interval: None,
             durability: None,
@@ -41,7 +44,11 @@ fn prop_sort_idempotent(list: list[int]) {
             postconditions: vec![],
             capabilities: vec![],
             ts_extern_module: None,
+            generated_hash: None,
             span: vox_compiler::ast::Span::new(0, 0),
+            inference_model: None,
+            training_step: false,
+            distributed_train: None,
         },
     };
 

@@ -1,0 +1,10 @@
+fn add_five(n: int) to int {
+    return n + 5
+}
+
+@test
+fn t_zero() to Unit { assert(add_five(0) is 5) }
+@test
+fn t_pos() to Unit { assert(add_five(3) is 8) }
+@test
+fn t_neg() to Unit { assert(add_five(-2) is 3) }

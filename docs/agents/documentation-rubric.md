@@ -13,7 +13,7 @@ Use this rubric when improving comments, rustdoc, or prose docs so edits stay al
 
 | Source | Use for |
 |--------|---------|
-| [AGENTS.md](../../AGENTS.md) | Architecture, terminology, `missing_docs` policy, Codex naming, and **doc `last_updated`** (use the session’s real calendar date — e.g. Cursor `<user_info>` “Today’s date” — never a future day relative to it) |
+| [AGENTS.md](../../AGENTS.md) | Architecture, terminology, `missing_docs` policy, Codex naming; optional `last_updated` in frontmatter is secondary to Git history (`documentation-governance.md`) |
 | [docs/src/reference/style-guide.md](../src/reference/style-guide.md) | Voice, snippets, headings, cross-links |
 | [docs/src/adr/002-diataxis-doc-architecture.md](../src/adr/002-diataxis-doc-architecture.md) | Doc taxonomy, **required frontmatter**, `training_eligible` |
 | [docs/src/adr/004-codex-arca-turso-ssot.md](../src/adr/004-codex-arca-turso-ssot.md) | Codex / Arca / Turso / env vars |
@@ -54,7 +54,7 @@ Keep a comment or doc line only if it answers at least one of:
 
 ## Markdown pages under `docs/src/`
 
-- Preserve **YAML frontmatter** per ADR 002; update `last_updated` when meaningfully editing.
+- Preserve **YAML frontmatter** per ADR 002; refresh `last_updated` when you touch substantive meaning (optional hint — CI may warn when it diverges from Git by policy).
 - Prefer linking to SSOT over copying long architecture sections.
 - For `training_eligible: true` pages, treat code blocks as training data: keep them accurate and minimal.
 

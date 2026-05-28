@@ -19,7 +19,8 @@ pub async fn create_stack_chunk_pr(
     files: &[String],
     full_review: bool,
 ) -> Result<u64> {
-    let status = tokio::process::Command::new("git")
+    let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["checkout", "-b", new_branch, base_branch])
         .current_dir(path)
         .status()
@@ -32,7 +33,8 @@ pub async fn create_stack_chunk_pr(
     if !files.is_empty() {
         let mut args = vec!["checkout", default_branch, "--"];
         args.extend(files.iter().map(|s| s.as_str()));
-        let status = tokio::process::Command::new("git")
+        let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
             .args(&args)
             .current_dir(path)
             .status()
@@ -42,7 +44,8 @@ pub async fn create_stack_chunk_pr(
             anyhow::bail!("git checkout {default_branch} -- <files> failed");
         }
 
-        let status = tokio::process::Command::new("git")
+        let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
             .args(["add", "-A"])
             .current_dir(path)
             .status()
@@ -52,7 +55,8 @@ pub async fn create_stack_chunk_pr(
             anyhow::bail!("git add -A failed");
         }
 
-        let status = tokio::process::Command::new("git")
+        let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
             .args([
                 "commit",
                 "-m",
@@ -70,7 +74,8 @@ pub async fn create_stack_chunk_pr(
         }
     }
 
-    let status = tokio::process::Command::new("git")
+    let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["push", "-u", "origin", new_branch])
         .current_dir(path)
         .status()
@@ -115,7 +120,8 @@ pub async fn create_stack_chunk_pr(
 
 /// Create an empty orphan branch for stack baseline (requires **clean** working tree).
 pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()> {
-    let out = tokio::process::Command::new("git")
+    let out = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["status", "--porcelain"])
         .current_dir(path)
         .output()
@@ -134,7 +140,8 @@ pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()
         "[warn] stack-submit: `git checkout --orphan {branch_name}` will replace the current checkout with a minimal tree until the command finishes and restores your branch."
     );
 
-    let status = tokio::process::Command::new("git")
+    let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["checkout", "--orphan", branch_name])
         .current_dir(path)
         .status()
@@ -144,7 +151,8 @@ pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()
         anyhow::bail!("git checkout --orphan {branch_name} failed");
     }
 
-    let _ = tokio::process::Command::new("git")
+    let _ = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["read-tree", "--empty"])
         .current_dir(path)
         .status()
@@ -153,7 +161,8 @@ pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()
     let readme = "# CodeRabbit stack baseline\n\nEmpty baseline for stacked review PRs.\n";
     fs::write(path.join("README.md"), readme).context("Write baseline README")?;
 
-    let status = tokio::process::Command::new("git")
+    let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["add", "README.md"])
         .current_dir(path)
         .status()
@@ -163,7 +172,8 @@ pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()
         anyhow::bail!("git add README.md failed");
     }
 
-    let status = tokio::process::Command::new("git")
+    let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["commit", "-m", "chore: empty baseline for CodeRabbit stack"])
         .current_dir(path)
         .status()
@@ -173,7 +183,8 @@ pub async fn create_orphan_baseline(path: &Path, branch_name: &str) -> Result<()
         anyhow::bail!("git commit failed");
     }
 
-    let status = tokio::process::Command::new("git")
+    let status = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["push", "-u", "origin", branch_name])
         .current_dir(path)
         .status()

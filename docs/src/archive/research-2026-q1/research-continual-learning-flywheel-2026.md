@@ -1,7 +1,7 @@
 ---
 title: "Continual Learning Flywheel Risks"
 description: "Cluster overview: empirical risk assessment for the Vox MENS dogfood training flywheel, covering model collapse, oracle failures, catastrophic forgetting, slop contamination, and corpus thresholds."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

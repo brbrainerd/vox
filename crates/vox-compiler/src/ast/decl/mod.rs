@@ -11,10 +11,16 @@ pub mod config;
 pub mod db;
 /// Effect annotations for the `uses` clause.
 pub mod effect;
+/// `@embed(model:, dimensions:, source_field:)` decorator AST (GA-24).
+pub mod embed_decorator;
 /// `@form` declaration — generates a React form component with validation.
 pub mod form;
 /// Functions, components, server handlers, MCP, hooks, and tests.
 pub mod fundecl;
+/// HTTP ergonomics decorators: `@cors`, `@rate_limit`, `@pii` (GA-06/GA-23).
+pub mod http_decorators;
+/// `@layer(tier:)` decorator AST (GA-26).
+pub mod layer_decorator;
 /// Actors, agents, workflows, activities, and HTTP routes.
 pub mod logic;
 /// Mobile Capacitor primitive declarations (`@back_button`, `@deep_link`, `@push`).
@@ -27,6 +33,8 @@ pub mod typedef;
 pub mod ui;
 /// Typed URL path declarations (`url Name { … }`).
 pub mod url;
+/// `@webhook(provider:, secret:, replay_window_secs:)` decorator AST (GA-16).
+pub mod webhook;
 
 pub use config::*;
 pub use db::*;
@@ -47,3 +55,4 @@ mod types;
 pub use types::{
     Decl, HttpMethod, ImportDecl, ImportPath, ImportPathKind, Module, RustCrateImport,
 };
+pub use ui::{AstColorToken, AstFontToken, AstScalarToken, TokensDecl};

@@ -2,4 +2,5 @@
 
 pub use super::stmt_expr::{
     HirArg, HirBinOp, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing, HirTry, HirUnOp,
+    HirWorkflowVersion,
 };

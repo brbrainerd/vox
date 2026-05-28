@@ -97,7 +97,9 @@ impl Orchestrator {
             }
         }
 
-        let broken_links_report = if task_clone_opt.is_some() {
+        let link_audit_enabled =
+            crate::sync_lock::rw_read(&*self.config).completion_markdown_link_audit_enabled;
+        let broken_links_report = if task_clone_opt.is_some() && link_audit_enabled {
             crate::orchestrator::task_dispatch::complete::audit_reporter::verify_broken_links(
                 &write_files,
             )
@@ -113,7 +115,9 @@ impl Orchestrator {
 
         let mut behavioral_failure = None;
         if task_clone_opt.is_some() {
-            let gate = crate::gate::BehavioralGate::new(true);
+            let require_behavioral =
+                crate::sync_lock::rw_read(&*self.config).behavioral_gate_on_complete;
+            let gate = crate::gate::BehavioralGate::new(require_behavioral);
             if let crate::gate::GateResult::BehavioralTestFailed { message } =
                 gate.check_behavior(None).await
             {
@@ -150,11 +154,11 @@ impl Orchestrator {
             let mut auto_debug_requeue: Option<(crate::types::AgentTask, String, usize, usize)> =
                 None;
 
-            if let Some(ref task) = queue.current_task() {
+            if let Some(task) = queue.current_task() {
                 // Behavioral gate
                 if let Some(msg) = gates::check_behavioral_gate(&mut behavioral_failure) {
                     if task.debug_iterations < max_debug_iterations {
-                        let mut t = (*task).clone();
+                        let mut t = task.clone();
                         t.debug_iterations += 1;
                         t.description.push_str(&format!(
                             "\n\n[BEHAVIORAL GATE]\nBehavioral tests failed. Fix and retry:\n{}",
@@ -330,7 +334,7 @@ impl Orchestrator {
                 task_id,
                 &phase_label,
                 "toestub_requeue",
-                requeue_task.debug_iterations as u8,
+                requeue_task.debug_iterations,
             );
             queue.enqueue(requeue_task);
             return Ok(());
@@ -364,6 +368,10 @@ impl Orchestrator {
                 _ => None,
             };
             queue.mark_complete(task_id);
+            let bandit_model_id = current
+                .model_override
+                .clone()
+                .or_else(|| current.model_preference.clone());
             (
                 write_files,
                 current.session_id.clone(),
@@ -374,6 +382,8 @@ impl Orchestrator {
                 current.campaign_id.clone(),
                 current.benchmark_tier,
                 current.audit_report.clone(),
+                bandit_model_id,
+                current.tenant_id.clone(),
             )
         };
 
@@ -387,6 +397,8 @@ impl Orchestrator {
             campaign_id,
             benchmark_tier,
             audit_report,
+            bandit_model_id,
+            tenant_id,
         ) = completion_data;
 
         let (snap_before, db_snap_before) =
@@ -423,6 +435,7 @@ impl Orchestrator {
             plan_meta,
             campaign_id,
             benchmark_tier,
+            tenant_id.clone(),
         )
         .await;
 
@@ -439,6 +452,8 @@ impl Orchestrator {
             session_id,
             audit_report,
         );
+
+        self.record_bandit_task_outcome(bandit_model_id.as_deref(), true);
 
         {
             let agents = crate::sync_lock::rw_read(&*self.agents);

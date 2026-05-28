@@ -31,7 +31,7 @@ fn compile_component(source: &str, component_name: &str) -> String {
 // ── Task 1.1 — tokens module (compile-only, no view) ─────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn tokens_module_compiles() {
     let source = r#"
 let bg        = "zinc.950"
@@ -60,7 +60,7 @@ let rose      = "rose.500"
 // ── StateChip ─────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn state_chip_running_emits_emerald() {
     let source = r#"
 component StateChip(status: str, label: str = "", dim: bool = false) {
@@ -113,7 +113,7 @@ component StateChip(status: str, label: str = "", dim: bool = false) {
 // ── NodeBadge ─────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn node_badge_emits_mono_font_and_status() {
     let source = r#"
 component NodeBadge(id: str, status: str, role: str = "", dim: bool = false) {
@@ -161,7 +161,7 @@ component NodeBadge(id: str, status: str, role: str = "", dim: bool = false) {
 // ── KeyHint ───────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn key_hint_emits_bordered_chip() {
     let source = r#"
 component KeyHint(text: str) {
@@ -188,7 +188,7 @@ component KeyHint(text: str) {
 // ── Label ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn label_emits_uppercase_text() {
     let source = r#"
 component Label(text: str) {
@@ -217,7 +217,7 @@ component Label(text: str) {
 // ── SectionHeading ────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn section_heading_emits_border_row() {
     let source = r#"
 component SectionHeading(title: str) {
@@ -250,7 +250,7 @@ component SectionHeading(title: str) {
 // ── IconBtn ───────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn icon_btn_emits_button_element() {
     let source = r#"
 component IconBtn(icon: str, size: int = 8, on_click: fn() = fn() {}) {
@@ -282,7 +282,7 @@ component IconBtn(icon: str, size: int = 8, on_click: fn() = fn() {}) {
 // ── Toggle ────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn toggle_emits_conditional_bg() {
     let source = r#"
 component Toggle(checked: bool, label: str = "", on_change: fn() = fn() {}) {
@@ -328,7 +328,7 @@ component Toggle(checked: bool, label: str = "", on_change: fn() = fn() {}) {
 // ── Input ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn input_display_emits_panel_with_text() {
     let source = r#"
 component Input(value: str = "", mono: bool = false, placeholder: str = "") {
@@ -370,7 +370,7 @@ component Input(value: str = "", mono: bool = false, placeholder: str = "") {
 // ── StatBox ───────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn stat_box_emits_kpi_structure() {
     let source = r#"
 component StatBox(key: str, value: str, sub: str = "") {
@@ -414,7 +414,7 @@ component StatBox(key: str, value: str, sub: str = "") {
 // ── Codeframe ─────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn codeframe_emits_mono_rose_caret() {
     let source = r#"
 component Codeframe(file: str, line: int, col: int, excerpt: str, caret: str) {

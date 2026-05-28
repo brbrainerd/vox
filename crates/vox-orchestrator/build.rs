@@ -448,7 +448,7 @@ fn append_capability_intent_codegen(out: &mut String, yaml_content: &str) {
     );
     out.push_str("    match intent {\n");
     for k_str in &intent_keys {
-        let Some(val) = intent_map.get(&Value::String(k_str.clone())) else {
+        let Some(val) = intent_map.get(Value::String(k_str.clone())) else {
             continue;
         };
         let caps_seq = val
@@ -456,7 +456,7 @@ fn append_capability_intent_codegen(out: &mut String, yaml_content: &str) {
             .map(|s| {
                 s.iter()
                     .filter_map(|v| v.as_str())
-                    .map(|c| snake_to_pascal_upper(c))
+                    .map(snake_to_pascal_upper)
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
@@ -561,7 +561,7 @@ fn append_capability_intent_codegen(out: &mut String, yaml_content: &str) {
 }
 
 fn snake_to_pascal_upper(s: &str) -> String {
-    s.split(|c| c == '_' || c == '.')
+    s.split(['_', '.'])
         .filter(|p| !p.is_empty())
         .map(|w| {
             let mut ch = w.chars();

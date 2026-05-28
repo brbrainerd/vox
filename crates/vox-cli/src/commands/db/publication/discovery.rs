@@ -154,7 +154,7 @@ pub async fn publication_novelty_fetch(
         title: row.title.clone(),
         abstract_text: row.abstract_text.clone(),
     };
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let repo_root = vox_repository::resolve_repo_root_for_ci();
     let scientia_h =
         vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
@@ -209,7 +209,7 @@ pub async fn publication_novelty_fetch(
 /// Auto-publish `auto_draft_eligible` Scientia findings to the local RSS feed.
 ///
 /// Scans publication manifests ranked by the Scientia discovery heuristics and
-/// appends each [`DiscoveryIntakeTier::StrongCandidate`] finding as an RSS item in
+/// appends each `DiscoveryIntakeTier::StrongCandidate` finding as an RSS item in
 /// `feed.xml`.  This is the **owned** channel (a local file), so no gate / dual
 /// approval is required.  The insert is idempotent: items already present in the
 /// feed (matched by GUID) are skipped silently.

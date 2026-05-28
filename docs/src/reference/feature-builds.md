@@ -1,6 +1,6 @@
 ---
 title: Vox Feature Builds & Capabilities
-category: reference
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---
@@ -17,7 +17,7 @@ Features are captured in `FEATURES_JSON` via `vox-build-meta` at compile time an
 
 ### The Drift Guard (TOESTUB)
 
-The workspace enforces dependency drift protection via the `WorkspaceDriftDetector` in `vox-toestub`:
+The workspace enforces dependency drift protection via the `WorkspaceDriftDetector` in `vox-code-audit`:
 - **Orphan Crates:** Crates located in `crates/` but missing from the root `Cargo.toml` `[workspace.dependencies]` are flagged.
 - **Inheritance:** The use of inline `path =` dependencies instead of `workspace = true` is forbidden to ensure workspace configuration hygiene.
 

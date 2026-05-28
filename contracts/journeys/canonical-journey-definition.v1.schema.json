@@ -6,11 +6,11 @@
   "type": "object",
   "additionalProperties": true,
   "required": ["journey_id", "version", "title"],
-  "properties": 
-    "journey_id":  "type": "string", "minLength": 1 },
-    "version":  "type": "integer", "minimum": 1 },
-    "title":  "type": "string" },
-    "description":  "type": "string" },
-    "documentation_contract":  "type": "string" }
+  "properties": {
+    "journey_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "documentation_contract": { "type": "string" }
   }
 }

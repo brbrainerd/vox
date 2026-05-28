@@ -1,0 +1,24 @@
+[plugin]
+id = "mens-candle-metal"
+name = "Mens (Candle + Metal)"
+version = "0.1.0"
+description = "ML training backend using Candle with Metal acceleration."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "code"
+abi-version = 12
+
+[plugin.payload.provides]
+extension-points = ["MlBackend"]
+
+[plugin.payload.requires]
+os = ["macos"]
+arch = ["aarch64", "x86_64"]
+
+[plugin.payload.artifacts]
+"macos-aarch64" = "libvox_plugin_mens_candle_metal.dylib"
+"macos-x86_64"  = "libvox_plugin_mens_candle_metal.dylib"

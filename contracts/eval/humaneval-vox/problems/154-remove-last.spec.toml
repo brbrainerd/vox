@@ -1,0 +1,11 @@
+[problem]
+id = "154"
+title = "remove_last"
+prompt = """
+Remove the last element from a list of ints and return the shorter list. Return an empty list if the input is already empty.
+"""
+signature = "fn remove_last(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

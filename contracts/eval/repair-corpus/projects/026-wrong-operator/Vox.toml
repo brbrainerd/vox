@@ -1,0 +1,5 @@
+[package]
+name = "repair-026-wrong-operator"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Area function adds instead of multiplies."

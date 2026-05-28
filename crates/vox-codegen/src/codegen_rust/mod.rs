@@ -13,6 +13,17 @@ mod pipeline;
 
 pub use emit::emit_api_client;
 
+/// Selects the generated Rust **application shell** for full-stack app bundles.
+///
+/// - [`RustAppShell::AxumLocalServer`] — localhost Axum + embedded assets (`native-binary`, default `vox build`).
+/// - [`RustAppShell::TauriApp`] — Tauri 2 packaging path (`vox compile --target desktop|mobile-*`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RustAppShell {
+    #[default]
+    AxumLocalServer,
+    TauriApp,
+}
+
 /// Rust `edition` written into generated `Cargo.toml` files (keep aligned with root workspace).
 pub const GENERATED_CARGO_EDITION: &str = "2024";
 
@@ -22,6 +33,7 @@ pub use pipeline::{ScriptTarget, generate, generate_script, generate_script_with
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::projection_bundle::project_bundle_from_hir;
     use emit::{emit_cargo_toml, emit_main, emit_table_struct};
     use vox_compiler::ast::span::Span;
     use vox_compiler::hir::{
@@ -38,6 +50,11 @@ mod tests {
             id: DefId(1),
             name: "Task".to_string(),
             fields: vec![
+                HirTableField {
+                    name: "id".to_string(),
+                    type_ann: HirType::Named("int".to_string()),
+                    span: Span::new(0, 0),
+                },
                 HirTableField {
                     name: "title".to_string(),
                     type_ann: HirType::Named("str".to_string()),
@@ -59,6 +76,7 @@ mod tests {
             ],
             is_pub: true,
             is_deprecated: false,
+            primary_key: "id".to_string(),
             span: Span::new(0, 0),
         }
     }
@@ -66,7 +84,7 @@ mod tests {
     // ── emit_table_struct: typed DSL surface ──────────────────────────────────
 
     #[test]
-    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
+    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes — owner: codegen sunset: 2026-12-31"]
     fn emits_struct_and_patch_struct() {
         let table = simple_task_table();
         let out = emit_table_struct(&table, &[]);
@@ -97,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
+    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes — owner: codegen sunset: 2026-12-31"]
     fn emits_all_typed_dsl_methods() {
         let table = simple_task_table();
         let out = emit_table_struct(&table, &[]);
@@ -228,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
+    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes — owner: codegen sunset: 2026-12-31"]
     fn bool_field_maps_to_i64_in_from_row() {
         let table = simple_task_table();
         let out = emit_table_struct(&table, &[]);
@@ -240,7 +258,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
+    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes — owner: codegen sunset: 2026-12-31"]
     fn option_field_maps_to_option_type_in_from_row() {
         let table = simple_task_table();
         let out = emit_table_struct(&table, &[]);
@@ -262,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes"]
+    #[ignore = "emit_table_struct DSL drift vs tests — reconcile when table codegen stabilizes — owner: codegen sunset: 2026-12-31"]
     fn insert_typed_uses_turso_value_not_clone() {
         let table = simple_task_table();
         let out = emit_table_struct(&table, &[]);
@@ -341,6 +359,12 @@ mod tests {
             route_path: "/api/query/q1".into(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
+            stream_interval: None,
             span: sp,
         });
         module.endpoint_fns.push(HirEndpointFn {
@@ -356,10 +380,17 @@ mod tests {
             route_path: "/api/mutation/m1".into(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
+            stream_interval: None,
             span: sp,
         });
 
-        let out = emit_main(&module, "demo_pkg");
+        let bundle = project_bundle_from_hir(&module);
+        let out = emit_main(&module, "demo_pkg", &bundle.app);
         assert!(out.contains(".route(\"/api/query/q1\", get(handle_q_q1))"));
         assert!(out.contains(".route(\"/api/mutation/m1\", post(handle_m_m1))"));
         assert!(out.contains("async fn handle_q_q1("));
@@ -385,10 +416,17 @@ mod tests {
             route_path: "/api/mutation/m1".into(),
             is_pure: false,
             effects: vec![],
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
+            stream_interval: None,
             span: sp,
         });
 
-        let out = emit_main(&module, "demo_pkg");
+        let bundle = project_bundle_from_hir(&module);
+        let out = emit_main(&module, "demo_pkg", &bundle.app);
         assert!(
             out.contains("async fn handle_m_m1("),
             "expected mutation handler: {out}"
@@ -400,6 +438,99 @@ mod tests {
         assert!(
             out.contains("return Ok(Json(serde_json::to_value"),
             "mutation JSON returns should use Result for transactional handler: {out}"
+        );
+    }
+
+    #[test]
+    fn rust_app_shell_marker_axum_in_main_rs() {
+        let module = empty_module();
+        let out = pipeline::generate(&module, "pkg", RustAppShell::AxumLocalServer).unwrap();
+        let main = out.files.get("src/main.rs").expect("main.rs");
+        assert!(main.contains("rust_app_shell=AxumLocalServer"), "{main}");
+    }
+
+    #[test]
+    fn rust_app_shell_marker_tauri_in_main_rs() {
+        let module = empty_module();
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        let main = out
+            .files
+            .get("src-tauri/src/main.rs")
+            .expect("src-tauri main.rs");
+        assert!(main.contains("rust_app_shell=TauriApp"), "{main}");
+        assert!(
+            main.contains("vox_tauri_stt::plugin::init()"),
+            "expected STT plugin registration: {main}"
+        );
+    }
+
+    #[test]
+    fn tauri_emit_registers_sherpa_acl_in_build_rs() {
+        let module = empty_module();
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        let build_rs = out.files.get("src-tauri/build.rs").expect("build.rs");
+        assert!(
+            build_rs.contains("InlinedPlugin::new()"),
+            "expected tauri-build inlined plugin ACL: {build_rs}"
+        );
+        assert!(
+            build_rs.contains("\"vox-stt\""),
+            "expected plugin id vox-stt in build.rs: {build_rs}"
+        );
+        let cargo = out
+            .files
+            .get("src-tauri/Cargo.toml")
+            .expect("src-tauri/Cargo.toml");
+        assert!(
+            cargo.contains("vox-tauri-stt") && cargo.contains("tauri-plugin"),
+            "expected vox-tauri-stt path dep with feature: {cargo}"
+        );
+        assert!(
+            cargo.contains("path = \"../../../crates/vox-actor-runtime\""),
+            "src-tauri path deps must use ../../../crates (manifest under target/generated/src-tauri): {cargo}"
+        );
+        assert!(
+            !cargo.contains("path = \"../../crates/vox-actor-runtime\""),
+            "src-tauri must not use ../../crates (wrong resolve from src-tauri/): {cargo}"
+        );
+        let cap = out
+            .files
+            .get("src-tauri/capabilities/default.json")
+            .expect("default capability");
+        assert!(
+            cap.contains("vox-stt:default"),
+            "expected vox-stt default permission in capability: {cap}"
+        );
+    }
+
+    #[test]
+    fn tauri_workspace_cargo_excludes_axum_from_root() {
+        let module = empty_module();
+        let out = pipeline::generate(&module, "vox_generated_app", RustAppShell::TauriApp).unwrap();
+        let root = out.files.get("Cargo.toml").expect("workspace Cargo.toml");
+        assert!(
+            root.contains("[workspace]") && root.contains("src-tauri"),
+            "{root}"
+        );
+        assert!(
+            !root.contains("axum"),
+            "workspace root should not list axum: {root}"
+        );
+        let st = out
+            .files
+            .get("src-tauri/Cargo.toml")
+            .expect("src-tauri/Cargo.toml");
+        assert!(
+            !st.contains("axum") && !st.contains("rust-embed"),
+            "unexpected server deps in Tauri crate: {st}"
+        );
+        assert!(st.contains("tauri"), "expected tauri dep: {st}");
+        assert!(
+            out.files
+                .get("src-tauri/tauri.conf.json")
+                .expect("tauri.conf.json")
+                .contains("com.vox.generated"),
+            "expected placeholder bundle id in tauri.conf.json"
         );
     }
 }

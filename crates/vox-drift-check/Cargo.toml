@@ -27,11 +27,14 @@ anyhow           = { workspace = true }
 tracing          = { workspace = true }
 globset          = { workspace = true }
 quote            = { workspace = true }
-swc_ecma_parser  = { workspace = true }
-swc_ecma_ast     = { workspace = true }
-swc_ecma_visit   = { workspace = true }
-swc_common       = { workspace = true }
+swc_ecma_parser  = { workspace = true, optional = true }
+swc_ecma_ast     = { workspace = true, optional = true }
+swc_ecma_visit   = { workspace = true, optional = true }
+swc_common       = { workspace = true, optional = true }
 workspace-hack   = { workspace = true }
+
+[features]
+drift-typescript = ["dep:swc_ecma_parser", "dep:swc_ecma_ast", "dep:swc_ecma_visit", "dep:swc_common"]
 
 [dev-dependencies]
 insta    = { workspace = true }

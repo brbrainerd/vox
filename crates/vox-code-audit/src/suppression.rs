@@ -1,6 +1,6 @@
 //! Structured suppressions loaded from JSON matching `contracts/toestub/suppression.v1.schema.json`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use globset::{Glob, GlobMatcher};
 use serde_json::Value;
@@ -42,17 +42,38 @@ pub struct SuppressionStore {
     entries: Vec<Compiled>,
 }
 
-fn validate_suppression_json_instance(raw: &str) -> anyhow::Result<()> {
-    let schema_path = Path::new("contracts/toestub/suppression.v1.schema.json");
-    let Ok(schema_raw) = vox_bounded_fs::read_utf8_path_capped(schema_path) else {
-        tracing::debug!(
-            "TOESTUB suppression schema missing at {}; skipping instance validation",
-            schema_path.display()
-        );
-        return Ok(());
-    };
+fn find_repo_root_holding_suppression_schema(mut base: &Path) -> Option<PathBuf> {
+    if base.is_file() {
+        base = base.parent()?;
+    }
+    for anc in base.ancestors() {
+        if anc
+            .join("contracts/toestub/suppression.v1.schema.json")
+            .is_file()
+        {
+            return Some(anc.to_path_buf());
+        }
+    }
+    None
+}
+
+fn load_suppression_schema_value(suppression_path: &Path) -> anyhow::Result<(Value, PathBuf)> {
+    let root = find_repo_root_holding_suppression_schema(suppression_path).ok_or_else(|| {
+        anyhow::anyhow!(
+            "cannot locate contracts/toestub/suppression.v1.schema.json by walking up from {}",
+            suppression_path.display()
+        )
+    })?;
+    let schema_path = root.join("contracts/toestub/suppression.v1.schema.json");
+    let schema_raw = vox_bounded_fs::read_utf8_path_capped(&schema_path)
+        .map_err(|e| anyhow::anyhow!("read {}: {e}", schema_path.display()))?;
     let schema_val: Value = serde_json::from_str(&schema_raw)
         .map_err(|e| anyhow::anyhow!("parse suppression schema: {e}"))?;
+    Ok((schema_val, schema_path))
+}
+
+fn validate_suppression_json_instance(raw: &str, suppression_path: &Path) -> anyhow::Result<()> {
+    let (schema_val, schema_path) = load_suppression_schema_value(suppression_path)?;
     let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
         .map_err(|e| anyhow::anyhow!("{e:#}"))?;
     let instance: Value =
@@ -63,6 +84,31 @@ fn validate_suppression_json_instance(raw: &str) -> anyhow::Result<()> {
         format!("suppressions vs {}", schema_path.display()),
     )
     .map_err(|e| anyhow::anyhow!("{e:#}"))?;
+    Ok(())
+}
+
+/// Fail-closed validation for `contracts/toestub/suppression.v1.schema.json` (JSON parse),
+/// both suppression ledger files against the schema, and full [`SuppressionStore`] load for the real ledger.
+///
+/// `repo_root` must be the workspace root (directory containing `contracts/`).
+pub fn validate_toestub_suppression_contracts(repo_root: &Path) -> anyhow::Result<()> {
+    let schema_path = repo_root.join("contracts/toestub/suppression.v1.schema.json");
+    let _schema: Value = serde_json::from_str(
+        &vox_bounded_fs::read_utf8_path_capped(&schema_path)
+            .map_err(|e| anyhow::anyhow!("read {}: {e}", schema_path.display()))?,
+    )
+    .map_err(|e| anyhow::anyhow!("contracts/toestub/suppression.v1.schema.json: {e}"))?;
+
+    let ledger = repo_root.join("contracts/toestub/suppressions.v1.json");
+    let example = repo_root.join("contracts/toestub/suppressions.v1.example.json");
+
+    for path in [&ledger, &example] {
+        let raw = vox_bounded_fs::read_utf8_path_capped(path)
+            .map_err(|e| anyhow::anyhow!("read {}: {e}", path.display()))?;
+        validate_suppression_json_instance(&raw, path)?;
+    }
+
+    SuppressionStore::load_optional(Some(&ledger))?;
     Ok(())
 }
 
@@ -83,7 +129,7 @@ impl SuppressionStore {
         }
         let raw = vox_bounded_fs::read_utf8_path_capped(path)
             .map_err(|e| anyhow::anyhow!("read suppressions {}: {e}", path.display()))?;
-        validate_suppression_json_instance(&raw)?;
+        validate_suppression_json_instance(&raw, path)?;
         let doc: SuppressionFile = serde_json::from_str(&raw)
             .map_err(|e| anyhow::anyhow!("parse suppressions JSON: {e}"))?;
         if doc.version != 1 {
@@ -131,5 +177,26 @@ impl SuppressionStore {
             return true;
         }
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toestub_suppression_contracts_validate_from_workspace_root() {
+        let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let repo_root = loop {
+            if dir.join("contracts/toestub/suppressions.v1.json").is_file() {
+                break dir;
+            }
+            assert!(
+                dir.pop(),
+                "could not find contracts/toestub/suppressions.v1.json above {}",
+                env!("CARGO_MANIFEST_DIR")
+            );
+        };
+        validate_toestub_suppression_contracts(&repo_root).unwrap();
     }
 }

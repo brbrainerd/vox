@@ -18,28 +18,17 @@ impl<'a> Checker<'a> {
         let raw_obj = self.check_expr(object, None);
         let obj_ty = self.uf.resolve(&raw_obj);
         match &obj_ty {
-            Ty::Named(n) if n == "JsonBody" => match field {
-                "message" => Ty::Str,
-                _ => {
-                    self.diags.push(Diagnostic::error(
-                        format!("Field '{field}' not found on JsonBody"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
-            },
-            Ty::Named(n) if n == "KeyboardEvent" => match field {
-                "key" => Ty::Str,
-                _ => {
-                    self.diags.push(Diagnostic::error(
-                        format!("Field '{field}' not found on KeyboardEvent"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }
-            },
+            Ty::Named(n) if n == "JsonBody" => {
+                self.check_single_str_field("JsonBody", field, "message", span)
+            }
+            Ty::Named(n) if n == "KeyboardEvent" => {
+                self.check_single_str_field("KeyboardEvent", field, "key", span)
+            }
+            // Std-namespace dispatch — collapsed from 17 near-duplicate
+            // match arms into a table-driven lookup. Each StdXxxNs name
+            // maps to a sub-namespace key (e.g. "StdFsNs" → "fs"); we
+            // delegate to std_namespace_method_ty and emit a uniform
+            // diagnostic on miss. Per CR-A1 plan §5.6 refactoring pass.
             Ty::Named(n) if n == "StdNamespace" => std_root_field_ty(field).unwrap_or_else(|| {
                 self.diags.push(Diagnostic::error(
                     format!("Unknown std submodule or field '{field}'"),
@@ -48,97 +37,10 @@ impl<'a> Checker<'a> {
                 ));
                 Ty::Error
             }),
-            Ty::Named(n) if n == "StdFsNs" => {
-                std_namespace_method_ty("fs", field).unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.fs method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                })
+            Ty::Named(n) if std_namespace_short_name(n).is_some() => {
+                let ns = std_namespace_short_name(n).expect("guard");
+                self.lookup_std_namespace_field(ns, field, span)
             }
-            Ty::Named(n) if n == "StdPathNs" => std_namespace_method_ty("path", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.path method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdEnvNs" => std_namespace_method_ty("env", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.env method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdProcessNs" => std_namespace_method_ty("process", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.process method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdJsonNs" => std_namespace_method_ty("json", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.json method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdHttpNs" => std_namespace_method_ty("http", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.http method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdCryptoNs" => std_namespace_method_ty("crypto", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.crypto method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdTimeNs" => std_namespace_method_ty("time", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.time method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdLogNs" => std_namespace_method_ty("log", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.log method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
-            Ty::Named(n) if n == "StdRegexNs" => std_namespace_method_ty("regex", field)
-                .unwrap_or_else(|| {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown std.regex method '{field}'"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
-                }),
             Ty::Named(n) if n.starts_with("RustCrate::") => {
                 let crate_name = n.trim_start_matches("RustCrate::");
                 let support = classify_rust_crate(crate_name).as_label();
@@ -179,11 +81,40 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
-            Ty::Database => {
-                if let Some(binding) = self.env.lookup(field) {
-                    if binding.kind == BindingKind::Table {
-                        binding.ty.clone()
+            // `@table type Foo { f: T }` registers a Table binding. A function
+            // parameter `p: Foo` resolves to `Ty::Named("Foo")` during registration
+            // (tables are registered after functions in Pass 1). In Pass 2 body
+            // checking, the Table binding is live — look up its fields directly.
+            Ty::Named(n)
+                if self
+                    .env
+                    .lookup(n)
+                    .is_some_and(|b| b.kind == BindingKind::Table) =>
+            {
+                let table_ty = self.env.lookup(n).unwrap().ty.clone();
+                if let Ty::Table(_, fields) | Ty::Collection(_, fields) = table_ty {
+                    if let Some((_, ft)) = fields.iter().find(|(fn_, _)| fn_ == field) {
+                        ft.clone()
                     } else {
+                        self.diags.push(Diagnostic::error(
+                            format!("Field '{field}' not found on table type {n}"),
+                            span,
+                            self.source,
+                        ));
+                        Ty::Error
+                    }
+                } else {
+                    // Should not happen: Table binding has non-Table type.
+                    Ty::Error
+                }
+            }
+            Ty::Database => {
+                // CR-A1: collapse two identical error-emit branches into one.
+                match self.env.lookup(field) {
+                    Some(binding) if binding.kind == BindingKind::Table => {
+                        binding.ty.clone()
+                    }
+                    _ => {
                         self.diags.push(Diagnostic::error(
                             format!("Unknown table '{field}' in database"),
                             span,
@@ -191,13 +122,6 @@ impl<'a> Checker<'a> {
                         ));
                         Ty::Error
                     }
-                } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown table '{field}' in database"),
-                        span,
-                        self.source,
-                    ));
-                    Ty::Error
                 }
             }
             Ty::TypeVar(_) => {
@@ -225,5 +149,71 @@ impl<'a> Checker<'a> {
                 Ty::Error
             }
         }
+    }
+
+    /// Resolve a `std.<ns>.<field>` lookup. Centralizes the previously-
+    /// duplicated diagnostic emission so the 16 std-namespace types share
+    /// one well-tested path.
+    fn lookup_std_namespace_field(&mut self, ns: &str, field: &str, span: Span) -> Ty {
+        match std_namespace_method_ty(ns, field) {
+            Some(ty) => ty,
+            None => {
+                self.diags.push(Diagnostic::error(
+                    format!("Unknown std.{ns} method '{field}'"),
+                    span,
+                    self.source,
+                ));
+                Ty::Error
+            }
+        }
+    }
+    /// Check field access on a named type that exposes exactly one `Str` field.
+    ///
+    /// CR-A1: extracted from `check_expr_field_access` — each inline
+    /// `match field { ... }` contributed 1 DP (the match keyword);
+    /// sharing them here removes 2 DPs from the caller.
+    fn check_single_str_field(
+        &mut self,
+        type_name: &str,
+        field: &str,
+        expected: &str,
+        span: Span,
+    ) -> Ty {
+        if field == expected {
+            Ty::Str
+        } else {
+            self.diags.push(Diagnostic::error(
+                format!("Field '{field}' not found on {type_name}"),
+                span,
+                self.source,
+            ));
+            Ty::Error
+        }
+    }
+
+}
+
+/// Map an `StdXxxNs` HIR type name to its `std.xxx` short namespace key.
+/// Returns `None` for non-std names. Kept as a free function rather than
+/// a method so the table lookup is `pub(super)`-callable without
+/// requiring a `&self` borrow.
+fn std_namespace_short_name(named: &str) -> Option<&'static str> {
+    match named {
+        "StdFsNs" => Some("fs"),
+        "StdPathNs" => Some("path"),
+        "StdEnvNs" => Some("env"),
+        "StdProcessNs" => Some("process"),
+        "StdJsonNs" => Some("json"),
+        "StdAgentosNs" => Some("agentos"),
+        "StdCsvNs" => Some("csv"),
+        "StdTomlNs" => Some("toml"),
+        "StdYamlNs" => Some("yaml"),
+        "StdIoNs" => Some("io"),
+        "StdHttpNs" => Some("http"),
+        "StdCryptoNs" => Some("crypto"),
+        "StdTimeNs" => Some("time"),
+        "StdLogNs" => Some("log"),
+        "StdRegexNs" => Some("regex"),
+        _ => None,
     }
 }

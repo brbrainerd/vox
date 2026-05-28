@@ -1,22 +1,47 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-#[error(
-    "This Vox feature requires the '{plugin_id}' plugin (extension point '{extension_point}'), which is not installed.\n\nTo install it, run:\n\n  vox plugin install {plugin_id}\n\nSee: docs/src/reference/plugins.md"
-)]
+/// Plugin-missing error. `Display` calls into [`crate::format_install_hint`]
+/// so the rendered message includes the workspace-local install command
+/// when the caller is running from a Vox workspace checkout — see that
+/// helper for the exact format and detection logic.
+#[derive(Debug)]
 pub struct PluginMissingError {
     pub plugin_id: &'static str,
     pub extension_point: &'static str,
 }
 
-#[derive(Debug, Error)]
-#[error(
-    "Skill '{skill_id}' is not installed.\n\nTo install it, run:\n\n  vox plugin install {skill_id}"
-)]
+impl std::fmt::Display for PluginMissingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "This Vox feature requires the '{}' plugin (extension point '{}'), which is not installed.\n\nTo install it, run:\n\n{}",
+            self.plugin_id,
+            self.extension_point,
+            crate::format_install_hint(self.plugin_id, None)
+        )
+    }
+}
+
+impl std::error::Error for PluginMissingError {}
+
+#[derive(Debug)]
 pub struct SkillNotInstalledError {
     pub skill_id: String,
 }
+
+impl std::fmt::Display for SkillNotInstalledError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Skill '{}' is not installed.\n\nTo install it, run:\n\n{}",
+            self.skill_id,
+            crate::format_install_hint(&self.skill_id, None)
+        )
+    }
+}
+
+impl std::error::Error for SkillNotInstalledError {}
 
 #[derive(Debug, Error)]
 pub enum LoadError {

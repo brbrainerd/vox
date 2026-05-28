@@ -1,0 +1,14 @@
+// Repair-corpus fixture 010 — type-error bug class.
+// The `User` record declares `email: str` but the literal assigns
+// the int 42 to that field. Expected repair: pass a str such as
+// "ada@example.com" instead of 42.
+
+@table type User {
+    id: int
+    email: str
+}
+
+fn make_user() to User {
+    let u: User = { id: 1, email: 42 }
+    return u
+}

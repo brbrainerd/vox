@@ -1,7 +1,7 @@
 ---
 title: "Multi-Agent VCS Replication — Landscape Research (2026-05-03)"
 description: "Survey of version-control and CRDT systems evaluated for a multi-agent code-collaboration substrate. Finds no off-the-shelf project provides codebase-scale auto-converging replication; recommends building op-log gossip on top of existing jj-lib + Populi mesh investment (Path 1) over pivoting to Pijul (Path 2) or an Automerge-based hybrid (Path 3). Companion to the spec doc."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Canonical justification for why Vox builds its own op-log gossip protocol on jj rather than adopting Pijul or Automerge. Names the projects evaluated, their fitness scores, and the decision criteria so future agents don't re-run the survey."
@@ -120,7 +120,7 @@ There is no off-the-shelf project that hits the target. Every viable substrate e
 
 ### Recommendation: Path 1
 
-- Path 1 keeps every piece Vox has built — `jj_backend.rs`, the [A2A mesh](../../../crates/vox-orchestrator/src/a2a/), the [Populi transport](populi-mesh-north-star-2026.md), the [conflict manager](../../../crates/vox-orchestrator/src/mcp_tools/vcs_tools/) — and adds the missing piece (op-log gossip) as a self-contained protocol.
+- Path 1 keeps every piece Vox has built — `jj_backend.rs`, the [A2A mesh](../../../crates/vox-orchestrator/src/a2a/), the [Populi transport](populi-mesh-north-star-2026.md), the [conflict manager](../../../crates/vox-orchestrator-mcp/src/vcs_tools/mod.rs) — and adds the missing piece (op-log gossip) as a self-contained protocol.
 - Pijul's patch-theory ideas inform the merge algorithm without requiring a project dependency. The ICSE 2025 "Semantic-Aware Replicated Data Types" paper is the closest published work on the agent-aware merge problem and informs the conflict-classification design.
 - Path 2 is rejected on project-health grounds (single-maintainer dependency too risky).
 - Path 3 is rejected as research-grade for the v1 horizon; revisit after Path 1 ships and we have empirical conflict-rate data.
@@ -130,5 +130,5 @@ There is no off-the-shelf project that hits the target. Every viable substrate e
 - **Companion spec:** [`multi-agent-vcs-replication-spec-2026.md`](multi-agent-vcs-replication-spec-2026.md) — turns this recommendation into a concrete architecture.
 - **Mesh foundation:** [`populi-mesh-north-star-2026.md`](populi-mesh-north-star-2026.md), [`populi-mesh-a2a-durability-spec-2026.md`](populi-mesh-a2a-durability-spec-2026.md).
 - **Orchestrator context:** [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md) §multi-agent coherence.
-- **Existing code surfaces:** [`crates/vox-orchestrator/src/jj_backend.rs`](../../../crates/vox-orchestrator/src/jj_backend.rs), [`crates/vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`crates/vox-orchestrator/src/mcp_tools/vcs_tools/`](../../../crates/vox-orchestrator/src/mcp_tools/vcs_tools/), [`crates/vox-git/`](../../../crates/vox-git/).
+- **Existing code surfaces:** [`crates/vox-orchestrator/src/jj_backend.rs`](../../../crates/vox-orchestrator/src/jj_backend.rs), [`crates/vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`crates/vox-orchestrator/src/mcp_tools/vcs_tools/`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/mod.rs), [`crates/vox-git/`](../../../crates/vox-git/).
 - **External:** Iroh docs <https://docs.iroh.computer>, jj op-log <https://jj-vcs.github.io/jj/latest/operation-log/>, Pijul <https://pijul.org>, Automerge <https://automerge.org>.

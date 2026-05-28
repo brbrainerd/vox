@@ -7,6 +7,7 @@
 //! code: after emitting a tree, run `vox ci completion-audit` (optionally scoped to the output root)
 //! or extend CI to scan `target/` / app output dirs; see `contracts/operations/completion-policy.v1.yaml`.
 
+pub mod annotations;
 pub mod app_contract;
 pub mod ast;
 pub mod ast_eval;
@@ -26,7 +27,9 @@ pub mod module;
 pub mod parser;
 pub mod pipeline;
 pub mod react_bridge;
+pub mod required_capabilities;
 pub mod runtime_projection;
+pub mod shell_projection;
 pub mod rust_interop_support;
 pub mod serialization;
 pub mod tokens;

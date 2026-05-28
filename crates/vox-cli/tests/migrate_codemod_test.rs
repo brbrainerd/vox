@@ -76,7 +76,7 @@ use vox_compiler::parser::renames::RenameRegistry;
 
 /// Helper: load a registry with a single Box→panel rename for testing.
 fn test_registry() -> RenameRegistry {
-    RenameRegistry::from_str(
+    RenameRegistry::parse_json(
         r#"{
         "version": 1,
         "entries": [
@@ -312,7 +312,7 @@ fn rewrite_skips_non_primitive_kinds() {
     use vox_compiler::parser::renames::RenameRegistry;
     // A kwarg rename should NOT rewrite identifier tokens (would over-reach;
     // kwarg renames need argument-position context).
-    let registry = RenameRegistry::from_str(
+    let registry = RenameRegistry::parse_json(
         r#"{
         "version": 1,
         "entries": [

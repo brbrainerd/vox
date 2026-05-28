@@ -282,12 +282,14 @@ impl LowerCtx {
             }
             // Lambdas create a new return context, so we do NOT inject postconditions into them.
             HirExpr::Lambda(..) => {}
+            HirExpr::AsyncView(_) => {}
             HirExpr::IntLit(..)
             | HirExpr::FloatLit(..)
             | HirExpr::StringLit(..)
             | HirExpr::BoolLit(..)
             | HirExpr::DecimalLit(..)
-            | HirExpr::Ident(..) => {}
+            | HirExpr::Ident(..)
+            | HirExpr::WorkflowVersion(_) => {}
         }
     }
 }

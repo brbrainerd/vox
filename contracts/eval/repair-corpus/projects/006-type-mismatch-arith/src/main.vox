@@ -1,0 +1,8 @@
+// Repair-corpus fixture 006 — type-error bug class.
+// The fn `score_doubled` doubles a str-typed argument with `* 2`,
+// which only works on numeric types. Expected repair: change the
+// parameter type to int, OR call a numeric parser first.
+
+fn score_doubled(n: str) to int {
+    return n * 2
+}

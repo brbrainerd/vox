@@ -1,5 +1,6 @@
 //! `vox test` — runs `cargo test` in the generated Rust crate under `target/generated`.
 
+use crate::cli_args::BuildMode;
 use crate::commands::build;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -18,14 +19,22 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
     let out_dir = PathBuf::from("dist");
     let file = &args.file;
 
+    if vox_config::VoxConfig::load().build_target == vox_config::BuildTarget::Client {
+        anyhow::bail!(
+            "`vox test` requires Rust codegen; `[build] target = \"client\"` / `VOX_BUILD_TARGET=client` emits TypeScript only. Use fullstack or server."
+        );
+    }
+
     println!("Building for tests: {}...", file.display());
     build::run(
         file,
         &out_dir,
         None,
+        None,
         false,
         false,
-        crate::cli_args::BuildMode::App,
+        BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await?;
 

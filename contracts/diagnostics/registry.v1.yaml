@@ -1,0 +1,20 @@
+x-vox-version: 1
+schema_version: 1
+description: >
+  Reserved diagnostic identifier namespaces for the Vox compiler vs repository audit tools.
+  Compiler-issued `code` strings must remain disjoint from `vox-code-audit` rule ids in
+  `contracts/code-audit/rules.v1.yaml`. Enforcement: `crates/vox-code-audit/tests/no_id_collision.rs`.
+
+compiler_reserved_prefixes:
+  - "E"
+  - "W"
+  - "lint."
+  - "typecheck."
+  - "vox/"
+
+audit_rules_source: contracts/code-audit/rules.v1.yaml
+
+notes:
+  - Audit rule ids use slash-separated namespaces (e.g. `skeleton/untested-pub-api`,
+    `victory-claim/premature`) and must not exactly equal any compiler `code` string
+    listed in `vox_compiler::typeck::diagnostics::codes::ALL_COMPILER_DIAGNOSTIC_CODES`.

@@ -1,6 +1,6 @@
 //! COPE-aligned retraction workflow for Atlas findings.
 //!
-//! Reference: https://publicationethics.org/retraction-guidelines
+//! Reference: <https://publicationethics.org/retraction-guidelines>
 //! A retraction must: state the reason clearly, be issued promptly,
 //! be linked to the original article, and be communicated to all databases
 //! where the original was indexed.

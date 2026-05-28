@@ -8,9 +8,9 @@
 //! | Sub-module | Responsibility |
 //! |---|---|
 //! | [`core`] | `new`, `with_groups`, `init_db`, `record_ai_usage` |
-//! | [`agent_lifecycle`] | `spawn_agent`, `retire_agent`, `pause/resume`, `heartbeat`, `handoff` |
-//! | [`scaling`] | `rebalance`, `tick` |
-//! | [`vcs_ops`] | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
+//! | `agent_lifecycle` | `spawn_agent`, `retire_agent`, `pause/resume`, `heartbeat`, `handoff` |
+//! | `scaling` | `rebalance`, `tick` |
+//! | `vcs_ops` | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
 
 mod agent;
 mod campaigns;
@@ -125,4 +125,11 @@ pub struct Orchestrator {
     pub privacy_router: std::sync::Arc<std::sync::RwLock<crate::privacy_router::PrivacyRouter>>,
     /// Cross-model consensus judge.
     pub judge_model: std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>>,
+    /// AgentOS: MCP `mutation_kind` ledger + unified [`crate::orchestrator_policy::OrchestratorPolicy`] evaluation.
+    pub agentos_policy_ledger: std::sync::Arc<crate::agentos::policy_runtime::AgentosPolicyLedger>,
+    /// Skill registry for procedural workflow tracking and continuation instruction injection.
+    pub skill_registry: std::sync::Arc<vox_skills::SkillRegistry>,
+    /// Orchestrator-policy token/cost budget gate (D7).
+    pub tenant_budget_gate:
+        std::sync::Arc<std::sync::RwLock<crate::budget_gate::OrchestratorBudgetGate>>,
 }

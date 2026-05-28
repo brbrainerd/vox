@@ -679,6 +679,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         LlmSurfaceTelemetry {
             session_id: session_id.clone(),
             user_id: None,
+            tenant_id: None,
             prompt: user_prompt.clone(),
             response: response_text.clone(),
             model_id: model_used.clone(),

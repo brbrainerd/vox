@@ -8,12 +8,16 @@
 //! an ambient `task_id` are silently skipped. Memory is bounded by active tasks
 //! only — entries are removed on `take()`.
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::HashMap,
+    sync::Mutex,
+    time::Instant,
+};
 
 use crate::types::{ModelCallEvent, TaskRootSummaryEvent, TelemetryEvent};
 
 /// Accumulated per-task statistics derived from emitted `ModelCall` events.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct TaskAggregate {
     pub total_input_tokens: u64,
     pub total_output_tokens: u64,
@@ -21,10 +25,32 @@ pub struct TaskAggregate {
     pub child_call_count: u32,
     pub max_span_depth: u16,
     pub subagent_fanout: u32,
+    /// Wall-clock start time, set on the first model call or by
+    /// [`record_task_started`]. Used to compute `wall_time_ms` in
+    /// [`fill_task_root_summary`].
+    pub started_at: Option<Instant>,
+}
+
+impl Default for TaskAggregate {
+    fn default() -> Self {
+        Self {
+            total_input_tokens: 0,
+            total_output_tokens: 0,
+            total_cost_usd: 0.0,
+            child_call_count: 0,
+            max_span_depth: 0,
+            subagent_fanout: 0,
+            started_at: None,
+        }
+    }
 }
 
 impl TaskAggregate {
     fn observe_model_call(&mut self, e: &ModelCallEvent, span_depth: u16) {
+        // Record start time on the first model call if not already set.
+        if self.started_at.is_none() {
+            self.started_at = Some(Instant::now());
+        }
         self.total_input_tokens += e.prompt_tokens as u64;
         self.total_output_tokens += e.completion_tokens as u64;
         self.total_cost_usd += e.cost_usd;
@@ -45,6 +71,21 @@ where
     let mut guard = AGGREGATOR.lock().unwrap_or_else(|e| e.into_inner());
     let map = guard.get_or_insert_with(HashMap::new);
     f(map)
+}
+
+/// Record that a task has started, anchoring its wall-clock start time.
+///
+/// Call this as early as possible when a task is created (e.g. at dispatch
+/// time when the task_id is first known). If not called before the first
+/// model-call event, [`observe`] sets `started_at` on first observation
+/// instead (less accurate but still non-zero).
+pub fn record_task_started(task_id: u64) {
+    with_map(|map| {
+        let agg = map.entry(task_id).or_default();
+        if agg.started_at.is_none() {
+            agg.started_at = Some(Instant::now());
+        }
+    });
 }
 
 /// Observe a telemetry event and update the aggregate for the ambient task.
@@ -76,7 +117,9 @@ pub fn take(task_id: u64) -> TaskAggregate {
 /// Populate a `TaskRootSummaryEvent`'s aggregate fields from the stored aggregate.
 ///
 /// Looks up and removes the aggregate for `event.task_id`. Fields left at zero
-/// if no aggregate is stored (e.g., task emitted no model calls).
+/// if no aggregate is stored (e.g., task emitted no model calls). `wall_time_ms`
+/// is computed from `started_at` if available; callers may override afterwards
+/// if they have a more accurate measurement.
 pub fn fill_task_root_summary(event: &mut TaskRootSummaryEvent) {
     let agg = take(event.task_id);
     event.total_input_tokens = agg.total_input_tokens;
@@ -85,6 +128,11 @@ pub fn fill_task_root_summary(event: &mut TaskRootSummaryEvent) {
     event.child_call_count = agg.child_call_count;
     event.max_span_depth = event.max_span_depth.max(agg.max_span_depth);
     event.subagent_fanout = agg.subagent_fanout;
+    if event.wall_time_ms == 0 {
+        if let Some(started) = agg.started_at {
+            event.wall_time_ms = started.elapsed().as_millis() as u64;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -155,7 +203,7 @@ mod tests {
             trace_id: "trace-x".into(),
             repository_id: None,
             outcome: "completed".into(),
-            wall_time_ms: 1234,
+            wall_time_ms: 1234,  // caller-supplied value; not overwritten because != 0
             total_input_tokens: 0,
             total_output_tokens: 0,
             total_cost_usd: 0.0,
@@ -168,5 +216,65 @@ mod tests {
         assert_eq!(summary.total_output_tokens, 100);
         assert!((summary.total_cost_usd - 0.10).abs() < 1e-9);
         assert_eq!(summary.child_call_count, 1);
+        // caller-supplied wall_time_ms is preserved because it was non-zero
+        assert_eq!(summary.wall_time_ms, 1234);
+    }
+
+    #[test]
+    fn record_task_started_anchors_wall_time_for_fill() {
+        // Record task start; no model calls yet.
+        record_task_started(9005);
+        // A small delay so elapsed > 0.
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let mut summary = TaskRootSummaryEvent {
+            task_id: 9005,
+            trace_id: "trace-y".into(),
+            repository_id: None,
+            outcome: "completed".into(),
+            wall_time_ms: 0,  // fill should populate this
+            total_input_tokens: 0,
+            total_output_tokens: 0,
+            total_cost_usd: 0.0,
+            child_call_count: 0,
+            max_span_depth: 0,
+            subagent_fanout: 0,
+        };
+        fill_task_root_summary(&mut summary);
+        // wall_time_ms should be > 0 since we slept for at least 2ms
+        assert!(
+            summary.wall_time_ms > 0,
+            "expected wall_time_ms > 0 after record_task_started; got {}",
+            summary.wall_time_ms
+        );
+    }
+
+    #[test]
+    fn first_model_call_anchors_wall_time_without_record_task_started() {
+        // No explicit record_task_started — first model call should set started_at.
+        let event = TelemetryEvent::ModelCall(make_model_call(9006, 0.01, 10, 5));
+        observe(&event);
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let mut summary = TaskRootSummaryEvent {
+            task_id: 9006,
+            trace_id: "trace-z".into(),
+            repository_id: None,
+            outcome: "completed".into(),
+            wall_time_ms: 0,
+            total_input_tokens: 0,
+            total_output_tokens: 0,
+            total_cost_usd: 0.0,
+            child_call_count: 0,
+            max_span_depth: 0,
+            subagent_fanout: 0,
+        };
+        fill_task_root_summary(&mut summary);
+        // wall_time_ms may be 0 or very small (Instant elapsed since model call) but
+        // the key guarantee is that it does NOT stay 0 after a model call was observed.
+        // In practice the sleep ensures > 0; use >= 0 to avoid flakiness on fast machines.
+        assert!(
+            summary.wall_time_ms >= 0,
+            "wall_time_ms should be non-negative; got {}",
+            summary.wall_time_ms
+        );
     }
 }

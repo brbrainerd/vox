@@ -192,7 +192,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore] // Requires libsql `local` feature; run with `cargo test -p vox-actor-runtime -- --ignored`
+    #[ignore = "requires libsql local feature; run cargo test -p vox-actor-runtime -- --ignored owner: actor-runtime sunset: 2026-12-31"]
     async fn test_feedback_log_and_thumbs_up_round_trip() {
         // B-016: Integration test for FeedbackCollector::log + thumbs_up round-trip
         let path = std::env::temp_dir().join(format!(

@@ -19,7 +19,7 @@ Agent and terminal shells may not have `PATH` set like a normal user login. To a
 - **`vox ci build-timings` / `cuda-features`:** These spawn `nvcc` on `PATH`. If a job still skips CUDA, set in that shell:  
   `$env:PATH = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.1\bin;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.1\bin\x64;" + $env:PATH`  
   and `$env:CUDA_PATH = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.1"`.
-- **User PATH repair (all apps, new processes):** `pwsh -File scripts/windows/ensure_cuda_path.ps1` (idempotent; sets **User** `Path` + `CUDA_PATH`). Other agent hosts that do not read `.vscode/settings.json` still see `nvcc` after a new shell.
+- **User PATH repair (all apps, new processes):** `vox doctor --fix-cuda-path` (idempotent; sets **User** `Path` + `CUDA_PATH`). The legacy `scripts/windows/ensure_cuda_path.ps1` was removed — use the CLI primitive. Other agent hosts that do not read `.vscode/settings.json` still see `nvcc` after a new shell.
 
 ## Running Cargo
 

@@ -1,0 +1,5 @@
+[package]
+name = "repair-042-db-get-wrong-id-type"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. db.X.get is called with a bool argument instead of an Id[T] (int)."

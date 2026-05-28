@@ -1,0 +1,27 @@
+fn is_power_of_two(n: int) to bool {
+    if n <= 0 {
+        return false
+    }
+    let mut x: int = n
+    while x > 1 {
+        if x % 2 != 0 {
+            return false
+        }
+        x = x / 2
+    }
+    return true
+}
+
+fn main() to str {
+    assert(is_power_of_two(1) == true)
+    assert(is_power_of_two(2) == true)
+    assert(is_power_of_two(4) == true)
+    assert(is_power_of_two(8) == true)
+    assert(is_power_of_two(16) == true)
+    assert(is_power_of_two(0) == false)
+    assert(is_power_of_two(-1) == false)
+    assert(is_power_of_two(6) == false)
+    assert(is_power_of_two(1024) == true)
+    assert(is_power_of_two(1000) == false)
+    return "ok"
+}

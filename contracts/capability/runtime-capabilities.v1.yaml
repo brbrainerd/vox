@@ -1,0 +1,74 @@
+# Maps Vox @uses(...) style capability ids to downstream packaging hints.
+# SSOT for projecting compile-time capabilities to Tauri permissions, mobile manifests, and web CSP.
+# x-vox-version: 1
+schema_version: 1
+capabilities:
+  - id: net.http
+    description: HTTP client / fetch to remote hosts
+    tauri_permission:
+      - core:default
+      - http:default
+    android_uses_permission: []
+    ios_info_plist_keys: []
+    web_csp_note: "connect-src must allow endpoint origins"
+  - id: fs.read
+    description: Read files from user-visible paths
+    tauri_permission:
+      - fs:allow-read
+    android_uses_permission:
+      - android.permission.READ_EXTERNAL_STORAGE
+    ios_info_plist_keys:
+      - NSDocumentsFolderUsageDescription
+    web_csp_note: null
+  - id: fs.write
+    description: Write files
+    tauri_permission:
+      - fs:allow-write
+    android_uses_permission:
+      - android.permission.WRITE_EXTERNAL_STORAGE
+    ios_info_plist_keys: []
+    web_csp_note: null
+  - id: notifications
+    description: OS notifications / push hooks
+    tauri_permission:
+      - notification:default
+    android_uses_permission:
+      - android.permission.POST_NOTIFICATIONS
+    ios_info_plist_keys:
+      - UIBackgroundModes
+    web_csp_note: null
+  - id: clipboard
+    description: Clipboard read/write
+    tauri_permission:
+      - clipboard-manager:default
+    android_uses_permission: []
+    ios_info_plist_keys: []
+    web_csp_note: null
+  - id: camera
+    description: Camera capture
+    tauri_permission:
+      - camera:default
+    android_uses_permission:
+      - android.permission.CAMERA
+    ios_info_plist_keys:
+      - NSCameraUsageDescription
+    web_csp_note: null
+  - id: geolocation
+    description: Device location
+    tauri_permission:
+      - geolocation:default
+    android_uses_permission:
+      - android.permission.ACCESS_COARSE_LOCATION
+      - android.permission.ACCESS_FINE_LOCATION
+    ios_info_plist_keys:
+      - NSLocationWhenInUseUsageDescription
+    web_csp_note: null
+  - id: deep_link
+    description: URL schemes / universal links
+    tauri_permission:
+      - deep-link:default
+    android_uses_permission:
+      - android.permission.VIEW
+    ios_info_plist_keys:
+      - CFBundleURLTypes
+    web_csp_note: null

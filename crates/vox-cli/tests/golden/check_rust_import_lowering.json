@@ -16,7 +16,15 @@
     "found_type": null,
     "correction_hints": [],
     "suggested_fixes": [],
-    "related_spans": []
+    "related_spans": [],
+    "excerpt": {
+      "lines": [
+        1,
+        2,
+        3
+      ],
+      "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+    }
   },
   {
     "error_code": "E0000",
@@ -35,7 +43,15 @@
     "found_type": null,
     "correction_hints": [],
     "suggested_fixes": [],
-    "related_spans": []
+    "related_spans": [],
+    "excerpt": {
+      "lines": [
+        1,
+        2,
+        3
+      ],
+      "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+    }
   },
   {
     "error_code": "E0000",
@@ -54,6 +70,14 @@
     "found_type": null,
     "correction_hints": [],
     "suggested_fixes": [],
-    "related_spans": []
+    "related_spans": [],
+    "excerpt": {
+      "lines": [
+        1,
+        2,
+        3
+      ],
+      "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+    }
   }
 ]

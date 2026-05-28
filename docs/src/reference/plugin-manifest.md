@@ -1,7 +1,7 @@
 ---
 title: "Plugin Manifest (Plugin.toml)"
 description: "Schema for the Plugin.toml file every Vox plugin ships."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 ---
@@ -141,7 +141,7 @@ The `vox ci agentskills-compliance` guard runs on every PR and enforces the Agen
 
 Run locally with:
 
-```
+```bash
 vox ci agentskills-compliance
 ```
 

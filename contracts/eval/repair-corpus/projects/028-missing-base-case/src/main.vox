@@ -1,0 +1,17 @@
+// Repair-corpus fixture 028 — logic bug class.
+// `factorial(n)` has a base case but it returns the wrong value:
+// `factorial(0)` returns 0 instead of 1, which causes the entire
+// product to collapse to 0 for every n >= 0. Expected repair:
+// change the base-case return from 0 to 1.
+
+fn factorial(n: int) to int {
+    if n <= 0 {
+        return 0
+    }
+    return n * factorial(n - 1)
+}
+
+@test
+fn test_factorial_five() to Unit {
+    assert(factorial(5) is 120)
+}

@@ -1,0 +1,47 @@
+id = "plan-020-add-stream-endpoint"
+wave = "wave_2"
+description = "Add a stream @endpoint to an app that has only query + mutation."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file has one query and one mutation endpoint. Add a new
+streaming endpoint
+`@endpoint(kind: stream) @auth(scheme: bearer) fn tail_log() to str`
+that returns a literal `"tick"`. Do not modify the existing endpoints
+or ADTs.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+  - ADTs use `type X = | A | B(field: T)` syntax.
+  - Stream endpoints are declared with `@endpoint(kind: stream)`.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing endpoints to mirror style."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Append the new `tail_log` stream endpoint."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+new_endpoint_added = true
+stream_kind_present = true
+auth_decorator_present = true

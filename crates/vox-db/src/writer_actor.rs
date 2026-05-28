@@ -16,6 +16,7 @@ pub enum DbWriteCmd {
     InsertCostRecord {
         agent_id: String,
         session_id: Option<String>,
+        tenant_id: Option<String>,
         provider: String,
         model: Option<String>,
         input_tokens: i64,
@@ -48,6 +49,7 @@ pub enum DbWriteCmd {
     InsertTelemetryFlat {
         agent_id: String,
         session_id: String,
+        tenant_id: Option<String>,
         repository_id: String,
         event_kind: String,
         tool_name: Option<String>,
@@ -113,6 +115,7 @@ impl VoxWriteHandle {
         &self,
         agent_id: String,
         session_id: Option<String>,
+        tenant_id: Option<String>,
         provider: String,
         model: Option<String>,
         input_tokens: i64,
@@ -123,6 +126,7 @@ impl VoxWriteHandle {
         self.send(DbWriteCmd::InsertCostRecord {
             agent_id,
             session_id,
+            tenant_id,
             provider,
             model,
             input_tokens,
@@ -196,6 +200,7 @@ impl VoxWriteHandle {
         &self,
         agent_id: String,
         session_id: String,
+        tenant_id: Option<String>,
         repository_id: String,
         event_kind: String,
         tool_name: Option<String>,
@@ -211,6 +216,7 @@ impl VoxWriteHandle {
         self.send(DbWriteCmd::InsertTelemetryFlat {
             agent_id,
             session_id,
+            tenant_id,
             repository_id,
             event_kind,
             tool_name,
@@ -270,6 +276,7 @@ pub fn spawn_writer(db: VoxDb) -> VoxWriteHandle {
                         .insert_telemetry_flat_raw(
                             "writer_actor",
                             "null",
+                            None,
                             "null",
                             "backpressure_warning",
                             None,
@@ -305,6 +312,7 @@ pub fn spawn_writer(db: VoxDb) -> VoxWriteHandle {
                 DbWriteCmd::InsertCostRecord {
                     agent_id,
                     session_id,
+                    tenant_id,
                     provider,
                     model,
                     input_tokens,
@@ -316,6 +324,7 @@ pub fn spawn_writer(db: VoxDb) -> VoxWriteHandle {
                         .insert_cost_record(
                             &agent_id,
                             session_id.as_deref(),
+                            tenant_id.as_deref(),
                             &provider,
                             model.as_deref(),
                             input_tokens,
@@ -372,6 +381,7 @@ pub fn spawn_writer(db: VoxDb) -> VoxWriteHandle {
                 DbWriteCmd::InsertTelemetryFlat {
                     agent_id,
                     session_id,
+                    tenant_id,
                     repository_id,
                     event_kind,
                     tool_name,
@@ -388,6 +398,7 @@ pub fn spawn_writer(db: VoxDb) -> VoxWriteHandle {
                         .insert_telemetry_flat_raw(
                             &agent_id,
                             &session_id,
+                            tenant_id.as_deref(),
                             &repository_id,
                             &event_kind,
                             tool_name.as_deref(),

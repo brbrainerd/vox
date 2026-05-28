@@ -163,7 +163,7 @@ pub async fn auth_command(provider: &str) -> Result<()> {
     // 3. Fetch GitHub User Info
     let user_res = client
         .get(GITHUB_USER_API_URL)
-        .header("User-Agent", "Vox-Ludus-CLI")
+        .header("User-Agent", "VoxGamifyCLI/1.0")
         .header("Authorization", format!("token {}", access_token))
         .send()
         .await?;

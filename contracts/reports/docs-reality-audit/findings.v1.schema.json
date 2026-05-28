@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/reports/docs-reality-audit/findings.v1.schema.json",
+  "title": "docs-reality-audit-findings-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "findings"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "scores": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impact",
+        "blast_radius",
+        "staleness",
+        "enforcement_gap",
+        "tractability"
+      ],
+      "properties": {
+        "impact": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "blast_radius": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "staleness": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "enforcement_gap": { "type": "integer", "minimum": 0, "maximum": 3 },
+        "tractability": { "type": "integer", "minimum": 0, "maximum": 3 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "claim_ids",
+        "classification",
+        "scores",
+        "priority_score",
+        "priority_band",
+        "recommended_action",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "claim_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "doc_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "code_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "contract_paths": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "claim_type": {
+          "type": "string",
+          "enum": [
+            "normative_requirement",
+            "architecture_statement",
+            "api_surface",
+            "historical_plan",
+            "operational_reference"
+          ]
+        },
+        "classification": {
+          "type": "string",
+          "enum": [
+            "CodeDeficit",
+            "DocDeficit",
+            "IntentionalHistorical",
+            "AmbiguousNeedsDecision"
+          ]
+        },
+        "secondary_tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "scores": { "$ref": "#/$defs/scores" },
+        "priority_score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 29
+        },
+        "priority_band": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2"]
+        },
+        "recommended_action": { "type": "string", "minLength": 1 },
+        "owner_candidate": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["new", "triaged", "in-progress", "verified", "closed"]
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

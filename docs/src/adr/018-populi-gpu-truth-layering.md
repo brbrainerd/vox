@@ -1,7 +1,7 @@
 ---
 title: "ADR 018: Populi GPU truth layering"
 description: "Normative layering between probe-backed hardware facts, allocatable capacity, and operator policy labels for Populi scheduling."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-29"
 training_eligible: true
 
@@ -30,7 +30,7 @@ Scheduling and routing need **trustworthy** signals: today, many GPU/NPU hints a
 
 - Documentation and OpenAPI evolve to distinguish **verified** vs **advertised** GPU fields without breaking existing clients.
 - Routing and federation hints consume **health + capacity** from Layer A/B when available, falling back to legacy advertisement only when necessary.
-- Telemetry should eventually attribute placement decisions to **which layer** supplied the decisive signal (see [placement observability](../reference/orchestration-unified.md#placement-and-lease-observability-roadmap-contract)).
+- Telemetry should eventually attribute placement decisions to **which layer** supplied the decisive signal (see [placement observability](../reference/orchestration-unified.md#placement-and-lease-observability)).
 
 ## Related documentation
 

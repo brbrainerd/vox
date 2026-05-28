@@ -1,6 +1,7 @@
 # .gitlab-ci.yml — Vox GitLab CI/CD Pipeline
 #
-# Equivalent to .github/workflows/ci.yml for GitLab.
+# Mirrors key GitHub CI gates (see `.github/workflows/ci.yml`). Not a byte-for-byte duplicate:
+# some jobs are combined here; `vox-ci-guards` aligns with GitHub `guards-fast` SSOT bundle usage.
 # All steps use portable `cargo` commands — no GitHub Marketplace actions.
 #
 # To use:
@@ -66,9 +67,9 @@ vox-ci-guards:
     - cargo run -p vox-cli --quiet -- ci line-endings
     - cargo run -p vox-cli --quiet -- ci manifest
     - cargo run -p vox-cli --quiet -- ci data-storage-guard --json
-    - cargo run -p vox-cli --quiet -- ci check-codex-ssot
-    - cargo run -p vox-cli --quiet -- ci check-docs-ssot
-    - cargo run -p vox-cli --quiet -- ci command-compliance
+    # Parity with GitHub guards-fast: retired-symbol then ssot-drift (bundles codex/docs SSOT + command-compliance + data-ssot-guards).
+    - cargo run -p vox-cli --quiet -- ci retired-symbol-check
+    - cargo run -p vox-cli --quiet -- ci ssot-drift
     - cargo run -p vox-cli --quiet -- ci doc-inventory verify
     - cargo run -p vox-cli --quiet -- ci eval-matrix verify
     - cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts

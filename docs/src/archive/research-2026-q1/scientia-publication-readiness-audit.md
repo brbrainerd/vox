@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA publication readiness audit"
 description: "Architecture audit of SCIENTIA publication workflows against core AI journal and self-publication requirements."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-25"
 training_eligible: false
 

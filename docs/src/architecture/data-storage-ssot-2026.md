@@ -1,6 +1,6 @@
 ---
 title: "Data Storage SSOT (2026)"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Single source of truth for data storage architecture"
@@ -11,7 +11,6 @@ related:
   - contracts/db/baseline-version-policy.yaml
   - contracts/db/retention-policy.yaml
   - contracts/db/data-storage-policy.v1.yaml
-  - crates/_frozen.md
   - AGENTS.md
 ---
 
@@ -33,7 +32,7 @@ Vox has accumulated four overlapping persistence mechanisms, each drifting towar
 3. **Hand-rolled file queues** — `vox-cli::telemetry_spool` (one JSON per file), plus ad-hoc `append(true)` opens scattered through the workspace.
 4. **Loose filesystem artifacts** — model weights, training corpora, packaged modules, `vox_hardened.db` (orphan), several databases at the repo root, `target-*` sibling profile dirs.
 
-Additionally, Rust types conflate two jobs: representing libSQL rows and being the wire format. Serialization derives are sprinkled on storage types, making schema churn expensive. Tracing init lives in two places (`vox-runtime::observability`, `vox-cli-core::init_tracing_for_cli`) with duplicated `EnvFilter` setup.
+Additionally, Rust types conflate two jobs: representing libSQL rows and being the wire format. Serialization derives are sprinkled on storage types, making schema churn expensive. Tracing init lives in two places (`vox-actor-runtime::observability`, `vox-cli-core::init_tracing_for_cli`) with duplicated `EnvFilter` setup.
 
 This SSOT declares a four-tier model, identifies concrete findings against the current code, and hands off to the migration backlog and lint spec. Every finding has a fixed ID (F-N) and is cross-referenced by a migration item (M-N) and at least one guard check.
 
@@ -45,7 +44,7 @@ These were resolved in the audit clarifying pass. They are not up for debate in 
 2. **libSQL/Turso stays** as the Tier A engine. No sled/heed/redb/rocksdb.
 3. **VoxScript-first for migration glue** per `AGENTS.md §VoxScript-First Glue Code`. No `.sh`, no `.ps1`, no `.py` helpers.
 4. **Secret plane is `vox-secrets`** per `AGENTS.md §Secret Management (Required, SSOT)`. No direct `env::var("TURSO_*")` outside the vox-secrets allowlist.
-5. **Frozen Core crates** (per `crates/_frozen.md`) keep their public surface stable. Tier A DDL changes in frozen crates need governance sign-off.
+5. **Frozen Core crates** (per `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates` — canonical list since `crates/_frozen.md` was retired 2026-05-24) keep their public surface stable. Tier A DDL changes in frozen crates need governance sign-off.
 6. **Archive Protocol**: `archive/` and `docs/src/archive/` are frozen inputs. Auditors and agents must not regenerate against them.
 
 ## 4. Target state: four-tier data model
@@ -54,7 +53,7 @@ These were resolved in the audit clarifying pass. They are not up for debate in 
 
 Canonical persistence for anything that has identity, relations, or constraints.
 
-- **Owner**: `vox-db` (API facade + migrations). `vox-pm` opens the project-local file through a vox-db handle, not through a string literal.
+- **Owner**: `vox-db` (API facade + migrations). `vox-package` opens the project-local file through a vox-db handle, not through a string literal.
 - **Databases**:
   - User-global: `$VOX_DATA_DIR/store.db` — conversations, agents, events, Arca/Codex core. Baseline DDL assembled from `SCHEMA_FRAGMENTS` in `crates/vox-db/src/schema/manifest.rs`.
   - Project-local: `<repo>/.vox_modules/local_store.db` — package manager index, materialized from `vox.lock`. Regenerable; opened today via bare string literal in `crates/vox-cli/src/commands/{update,sync,search,pm_lifecycle}.rs` (F6).
@@ -119,9 +118,9 @@ This is the most-changed section of this SSOT. Three prior drafts assumed new cr
 
 ### 5.3 Observability init
 
-**Decision**: consolidate `crates/vox-runtime/src/observability.rs` and `crates/vox-cli-core/src/lib.rs::init_tracing_for_cli` into a single canonical `vox_runtime::observability::init(policy)` function, and have `vox-cli-core` thinly call it.
+**Decision**: consolidate `crates/vox-actor-runtime/src/observability.rs` and `crates/vox-cli-core/src/lib.rs::init_tracing_for_cli` into a single canonical `vox_actor_runtime::observability::init(policy)` function, and have `vox-cli-core` thinly call it.
 
-- No new `vox-observability` crate. That was a phantom in the previous draft. `vox-runtime` already owns rich observability (request context, ID generation, `tracing_subscriber::fmt` init, `EnvFilter`); promoting it to sole owner is cheaper than extracting.
+- No new `vox-observability` crate. That was a phantom in the previous draft. `vox-actor-runtime` already owns rich observability (request context, ID generation, `tracing_subscriber::fmt` init, `EnvFilter`); promoting it to sole owner is cheaper than extracting.
 - Subscriber behavior is parameterized by `contracts/telemetry/subscriber-policy.v1.yaml` (authored in M-40) rather than hardcoded.
 - `vox-cli-core::init_tracing_for_cli` becomes a two-line wrapper that passes a `CliProfile` policy variant.
 
@@ -170,7 +169,7 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F7**. `crates/vox-db/src/collection.rs:83` uses string-interpolated SQL (`format!("INSERT INTO {}", ...)`) instead of a bound parameter. Small but real SQLi vector if the caller is wrong. M-27.
 - **F8**. `crates/vox-db/src/codex_legacy.rs:50-51` uses fuzzy `is_legacy_schema_chain` heuristics instead of a committed-to baseline digest. M-28.
 - **F9**. Row-by-row Turso workaround at `crates/vox-db/src/store/ops_retention.rs:101-111` — documented but not isolated. M-29-docs documents module-level; M-21 considers removing once Turso batch support matures.
-- **F10**. `TURSO_*` env vars (`TURSO_URL`, `VOX_TURSO_URL`, `VOX_TURSO_TOKEN`, `TURSO_AUTH_TOKEN`) appear across `vox-secrets/src/backend/vox_vault.rs` and `vox-secrets/src/lib.rs` constants. Redundant with the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`. M-30 (sunset).
+- **F10**. Historical note: legacy Turso-prefixed env aliases (`TURSO_*`, `VOX_TURSO_*`) appear across `vox-secrets/src/backend/vox_vault.rs` and `vox-secrets/src/lib.rs` constants. Redundant with the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`. M-30 (sunset).
 
 ### B. Contracts — canonical shape
 
@@ -203,11 +202,11 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 
 - **F32**. `crates/vox-db/src/store/types/` mixes libSQL row structs with `#[derive(Serialize, Deserialize)]`. Row and wire responsibilities conflated. M-50.
 - **F33**. Same pattern in `crates/vox-orchestrator/src/types/`. M-51.
-- **F34**. Same pattern in `crates/vox-ludus/src/schema/`. M-52.
+- **F34**. Same pattern in `crates/vox-gamify/src/schema/`. M-52.
 - **F35**. `ObservationReport` leaks `libsql::Value` across the observability boundary. M-53.
 - **F36**. No shared error primitives crate-wide — each crate re-rolls `anyhow::Error` or `thiserror`. M-54.
 - **F37**. `#[repr(C)]` discipline is case-by-case. Policy-only, no migration item; each annotated struct needs a one-line justification comment.
-- **F38**. `smol_str::SmolStr` is adopted unevenly. Performance benefit worth benchmarking in `vox-runtime`. Deferred — M-55b.
+- **F38**. `smol_str::SmolStr` is adopted unevenly. Performance benefit worth benchmarking in `vox-actor-runtime`. Deferred — M-55b.
 - **F39**. `SmallVec<[T; N]>` not adopted for documented-small vectors (`intent_tags`, CLI `args`). Deferred — M-55c.
 - **F40**. `serde(rename_all = ...)` inconsistency: kebab-case in some CLI crates, PascalCase in some wire crates. Canonical: snake_case (default), camelCase allowed for outward HTTP only. M-55.
 - **F41**. `crates/vox-orchestrator-types/` is a separate types-only crate — good. Still mixes row + wire; noted under F33. Kept separate to preserve ownership split.
@@ -225,7 +224,7 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 
 ### F. Observability
 
-- **F50**. Two tracing-subscriber inits: `crates/vox-runtime/src/observability.rs:49` (rich) and `crates/vox-cli-core/src/lib.rs:29` (thin). Duplicated `EnvFilter` setup. M-40 consolidates.
+- **F50**. Two tracing-subscriber inits: `crates/vox-actor-runtime/src/observability.rs:49` (rich) and `crates/vox-cli-core/src/lib.rs:29` (thin). Duplicated `EnvFilter` setup. M-40 consolidates.
 - **F51**. No structured event macro — `tracing::info!(...)` calls do not emit events to the Tier B spool. M-42.
 - **F52**. No span registry — span names like `"completion_run"` are authored free-form. M-43.
 - **F53**. `build_errors.txt` is the closest thing to a build log, and it's neither structured nor rotated. F23 already tracks deletion; observability angle is M-41.
@@ -247,13 +246,13 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F63**. `vox-observability` was a phantom crate in prior drafts — does not exist and does not need to. See §5.3.
 - **F64**. `vox-schema` was a phantom crate in prior drafts. Codegen is a module tree inside `vox-jsonschema-util`. See §5.1. Note: pre-scaffolded `crates/vox-schema/` and `crates/vox-spool/` directories from the prior draft were deleted because `[workspace.members] = ["crates/*", ...]` was auto-including non-compiling scaffolds.
 - **F65**. `vox-spool` is not pre-created; it lands only when M-03 executes. See §5.2.
-- **F66**. `crates/_frozen.md` Frozen Core Ledger exists and needs cross-linking from this SSOT so that Tier A DDL changes in frozen crates require governance sign-off. M-68.
+- **F66**. ~~`crates/_frozen.md` Frozen Core Ledger~~ Resolved 2026-05-24: file retired; canonical list is `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates`. M-68 closed.
 - **F67**. `dist/schemas.ts` provenance is unknown. M-31 spikes: is it source or build output?
 - **F68**. `.jj/` is Jujutsu VCS state; coexists with `.git/`; never touched by Vox crates. Document and allowlist in the guard. M-71.
 - **F69**. `tree-sitter-vox/GRAMMAR_SSOT.md` exists and is a grammar SSOT. Link it from Related Documents; wire a parity check. M-72.
 - **F70**. `.gitignore` hygiene — no automated BOM check. Policy-only, rolled into M-74.
 - **F71**. `patches/` directory is Cargo vendored-patches — third-party, not Vox data. Allowlist in guard. M-73.
-- **F72**. `examples/` and `marquee_app/` top-level dirs: if they persist data, routing must go through the tiered model. M-73.
+- **F72**. `examples/` and `apps/interop/marquee_app/` top-level dirs: if they persist data, routing must go through the tiered model. M-73.
 - **F73**. `tools/` and `infra/` top-level dirs: similar to F72. M-73.
 - **F74**. `telemetry-trust-ssot.md`, `telemetry-remote-sink-spec.md`, and `telemetry-implementation-blueprint-2026.md` are referenced by `AGENTS.md §Telemetry trust (SSOT)` but do NOT exist in `docs/src/architecture/`. M-40 is blocked on authoring at least the trust SSOT. Tracked here so downstream migrations know the prerequisite.
 
@@ -309,7 +308,7 @@ This work is considered "done" when all of:
 5. **Delta migration framework** — forward-only, or forward + backward? Deferred to M-21.
 6. **Tier D TTL** — documented 30 days by default. Overridable per-channel? Tracked in M-57.
 7. **Golden fixture standard** — `insta` vs `expect-test` vs hand-rolled. M-64b.
-8. **`vox-tensor` vs `vox-mens` boundary** — `vox-tensor` (`burn` wrapper + JSONL DataLoader + LoRA config) is a utility; `vox-mens` is the training pipeline consumer. Document boundary and whether any persistent surfaces cross it. M-72.
+8. **`vox-tensor` vs `vox-ml-cli` boundary** — `vox-tensor` (`burn` wrapper + JSONL DataLoader + LoRA config) is a utility; `vox-ml-cli` is the training pipeline consumer. Document boundary and whether any persistent surfaces cross it. M-72.
 9. **`dist/schemas.ts` — source or artifact?** Resolved by M-31.
 
 ## 11. Related documents
@@ -319,7 +318,7 @@ This work is considered "done" when all of:
 - [`contracts/db/baseline-version-policy.yaml`](../../../contracts/db/baseline-version-policy.yaml) — today's partial contract-side SSoT for baseline version + digest.
 - [`contracts/db/retention-policy.yaml`](../../../contracts/db/retention-policy.yaml) — retention vocabulary; extended in M-30.
 - [`contracts/db/data-storage-policy.v1.yaml`](../../../contracts/db/data-storage-policy.v1.yaml) — machine-checked policy; consumed by the guard.
-- [`crates/_frozen.md`](../../../crates/_frozen.md) — Frozen Core Ledger.
+- `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates` — Frozen Core list (canonical since `crates/_frozen.md` was retired 2026-05-24).
 - [`AGENTS.md`](../../../AGENTS.md) — cross-tool policy surface; see `#voxscript-first-glue-code-required`, `#telemetry-trust-ssot`, `#secret-management-required-ssot`, `#archival-protocol-llm-guard`.
 - [`tree-sitter-vox/GRAMMAR_SSOT.md`](../../../tree-sitter-vox/GRAMMAR_SSOT.md) — grammar SSoT.
 - ADR [023-optional-telemetry-remote-upload.md](../adr/023-optional-telemetry-remote-upload.md) — remote telemetry upload.

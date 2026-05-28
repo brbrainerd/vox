@@ -17,8 +17,10 @@ async fn test_bluesky_post_success() {
         content_markdown: "Test Content".to_string(),
         ..Default::default()
     };
-    let mut publisher_cfg = PublisherConfig::default();
-    publisher_cfg.bluesky_pds_url = Some(pds_base);
+    let publisher_cfg = PublisherConfig {
+        bluesky_pds_url: Some(pds_base),
+        ..PublisherConfig::default()
+    };
 
     // 1. Mock createSession
     Mock::given(method("POST"))

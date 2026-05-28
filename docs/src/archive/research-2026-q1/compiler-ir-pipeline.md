@@ -1,7 +1,7 @@
 ---
 title: "Compiler IR Pipeline"
 description: "Reference for the Vox Intermediate Representation emission, validation, and its role in machine-verifiable agent loops."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-11"
 training_eligible: false

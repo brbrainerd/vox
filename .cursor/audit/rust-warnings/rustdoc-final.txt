@@ -1,0 +1,27 @@
+
+crates\vox-corpus\src\corpus\coverage.rs:4:54: error: unresolved link to `vox_cli::training::TAXONOMY`: no item named `vox_cli` in scope
+crates\vox-corpus\src\corpus\decl_coverage.rs:11:24: error: public documentation for `golden_decl_histogram` links to private item `crate::corpus::extract_vox::part_ast`: this item is private
+crates\vox-corpus\src\corpus\extract_rs.rs:4:53: error: unresolved link to `vox_tensor::data::TrainingPair`: no item named `vox_tensor` in scope
+crates\vox-corpus\src\corpus\preflight\preflight_part1.rs:98:68: error: unresolved link to `T`: no item named `T` in scope
+error: could not document `vox-corpus`
+error: unresolved link to `catalog`
+crates\vox-code-audit\src\run_context.rs:43:173: error: unresolved link to `unwired/module`: no item named `unwired/module` in scope
+crates\vox-plugin-mens-candle-cuda\src\config.rs:135:18: error: unresolved link to `crate::mens::tensor::lora_train::run_mens_training`: no item named `mens` in module `vox_plugin_mens_candle_cuda`
+error: could not document `vox-code-audit`
+crates\vox-plugin-mens-candle-cuda\src\lib.rs:4:10: error: unclosed HTML tag `CandleModel`
+error: could not document `vox-plugin-mens-candle-cuda`
+crates\vox-populi\src\lib.rs:3:46: error: unresolved link to `vox_orchestrator::TaskCapabilityHints`: no item named `vox_orchestrator` in scope
+crates\vox-populi\src\mens\hardware\probe.rs:22:61: error: unresolved link to `ProbePipeline`: no item named `ProbePipeline` in scope
+crates\vox-populi\src\mens\hardware\probe.rs:62:34: error: unresolved link to `ProbePipeline`: no item named `ProbePipeline` in scope
+crates\vox-populi\src\mens\tensor\hf_keymap.rs:3:30: error: unresolved link to `super::candle_qlora_weights`: no item named `candle_qlora_weights` in module `tensor`
+crates\vox-populi\src\mens\tensor\manifest\mod.rs:129:34: error: unresolved link to `super::finetune_contract::FineTuneContract`: no item named `finetune_contract` in module `tensor`
+crates\vox-populi\src\mens\tensor\manifest\mod.rs:199:43: error: unresolved link to `InitialManifestRun::from_lora_config`: the struct `InitialManifestRun` has no field or associated item named `from_lora_config`
+crates\vox-populi\src\transport\store\in_memory.rs:3:50: error: unresolved link to `VoxDbMeshStore`: no item named `VoxDbMeshStore` in scope
+crates\vox-populi\src\transport\mod.rs:50:16: error: unresolved link to `leave_node`: no item named `leave_node` in scope
+crates\vox-populi\src\transport\mod.rs:53:38: error: unresolved link to `NodeRecord::id`: no item named `NodeRecord` in scope
+crates\vox-populi\src\transport\mod.rs:171:73: error: public documentation for `RemoteExecLeaseGrantRequest` links to private item `a2a_lease_duration_ms`: this item is private
+crates\vox-populi\src\transport\mod.rs:253:11: error: unresolved link to `NodeRecord::id`: no item named `NodeRecord` in scope
+crates\vox-populi\src\transport\mod.rs:262:11: error: unresolved link to `NodeRecord::id`: no item named `NodeRecord` in scope
+crates\vox-populi\src\transport\mod.rs:395:55: error: unresolved link to `NodeRecord::scope_id`: no item named `NodeRecord` in scope
+error: could not document `vox-populi`
+

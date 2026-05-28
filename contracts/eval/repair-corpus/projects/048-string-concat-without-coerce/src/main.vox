@@ -1,0 +1,9 @@
+// Repair-corpus fixture 048 — api-misuse bug class.
+// `path.join` is a string-builder API expecting two str arguments,
+// but the caller passes the int `n` as the second segment without
+// first coercing it. Expected repair: wrap n with str(...) or
+// to_string(...) before calling, e.g. `path.join(base, str(n))`.
+
+fn full(base: str, n: int) to str {
+    return path.join(base, n)
+}

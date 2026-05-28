@@ -5,7 +5,7 @@ exclude = [
     "crates/vox-arch-check/tests/fixtures/missing-desc",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
-    "crates/vox-plugin-noop-skill",
+    "crates/vox-plugin-host/tests/fixtures/noop-skill",
     "crates/vox-plugin-skill-compiler",
     "crates/vox-plugin-skill-git",
     "crates/vox-plugin-skill-memory",
@@ -18,7 +18,7 @@ exclude = [
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
@@ -50,11 +50,15 @@ opt-level = 1
 debug = 0
 
 [workspace.dependencies]
+vox-scientia = { path = "crates/vox-scientia" }
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
 vox-telemetry             = { path = "crates/vox-telemetry" }
+vox-foundation            = { path = "crates/vox-foundation" }
 
+
+vox-audit                 = { path = "crates/vox-audit" }
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-secrets                = { path = "crates/vox-secrets" }
 vox-cli                   = { path = "crates/vox-cli" }
@@ -63,16 +67,17 @@ vox-compiler              = { path = "crates/vox-compiler" }
 vox-codegen         = { path = "crates/vox-codegen" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
+vox-container-types       = { path = "crates/vox-container-types" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
 vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
-vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
-vox-install-policy        = { path = "crates/vox-install-policy" }
+
+
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-db-types              = { path = "crates/vox-db-types" }
 vox-eval                  = { path = "crates/vox-eval" }
-vox-exec-grammar          = { path = "crates/vox-exec-grammar" }
+
 vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
@@ -82,28 +87,37 @@ vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
-vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
+
 vox-test-harness          = { path = "crates/vox-test-harness" }
-vox-webhook               = { path = "crates/vox-webhook" }
+vox-plugin-test-harness   = { path = "crates/vox-plugin-test-harness" }
 vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
+
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-gamify                 = { path = "crates/vox-gamify" }
+vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
+vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
+vox-distributed-training  = { path = "crates/vox-distributed-training" }
+vox-inference             = { path = "crates/vox-inference" }
+
+vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
-vox-orchestrator-core     = { path = "crates/vox-orchestrator-core" }
+vox-dei-shim              = { path = "crates/vox-dei-shim" }
+
 vox-orchestrator-test-helpers = { path = "crates/vox-orchestrator-test-helpers" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
-vox-openai-sse            = { path = "crates/vox-openai-sse" }
-vox-openai-wire           = { path = "crates/vox-openai-wire" }
+
+
+vox-openai             = { path = "crates/vox-openai" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
 vox-plugin-types          = { path = "crates/vox-plugin-types" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
@@ -115,33 +129,40 @@ vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
 vox-package                    = { path = "crates/vox-package" }
 vox-package-types              = { path = "crates/vox-package-types" }
+
+
+
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
-vox-cli-ci                = { path = "crates/vox-cli-ci" }
+
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
-vox-primitives            = { path = "crates/vox-primitives" }
-vox-protocol              = { path = "crates/vox-protocol" }
-vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
-vox-prereg                = { path = "crates/vox-prereg" }
+vox-http-client        = { path = "crates/vox-http-client" }
+
 vox-research-events       = { path = "crates/vox-research-events" }
-vox-nanopub               = { path = "crates/vox-nanopub" }
-vox-ro-crate              = { path = "crates/vox-ro-crate" }
-vox-claim-extractor       = { path = "crates/vox-claim-extractor" }
+
+
+
+vox-rename-registry       = { path = "crates/vox-rename-registry" }
 vox-repository            = { path = "crates/vox-repository" }
+vox-shell-stdlib-types    = { path = "crates/vox-shell-stdlib-types" }
 vox-rule-pack             = { path = "crates/vox-rule-pack" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
-vox-share                 = { path = "crates/vox-share" }
+
 vox-skills                = { path = "crates/vox-skills" }
-vox-ssg                   = { path = "crates/vox-ssg" }
+
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-code-audit               = { path = "crates/vox-code-audit" }
 vox-drift-check              = { path = "crates/vox-drift-check" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
-vox-inspect-bridge        = { path = "crates/vox-inspect-bridge" }
+vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
+vox-tauri-stt             = { path = "crates/vox-tauri-stt" }
+
+
+
 
 # External dependencies (centralized versions)
 abi_stable         = "0.11"
@@ -152,6 +173,7 @@ serde              = { version = "1", features = ["derive"] }
 serde_json         = "1"
 serde_yaml         = "0.9"
 toml               = "0.8"
+typify             = "0.6.2"
 miette             = { version = "7.6", features = ["fancy"] }
 aho-corasick       = "1"
 nucleo             = { version = "0.5" }
@@ -162,6 +184,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-test       = { version = "0.2", features = ["no-env-filter"] }
 anyhow             = "1"
 reqwest            = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
+reqwest-middleware = { version = "0.4", default-features = false, features = ["json", "rustls-tls"] }
+reqwest-retry      = { version = "0.7", default-features = false }
+http               = "1"
 bsky-sdk = { version = "0.1", default-features = false, features = ["atrium-xrpc-client", "rich-text", "default-client"] }
 atrium-api = { version = "0.25", default-features = false, features = ["bluesky"] }
 sha2               = "0.10"
@@ -173,13 +198,18 @@ base64             = "0.22"
 owo-colors         = "4"
 chrono             = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 regex              = "1"
+regress            = "0.11"
 comfy-table        = "7"
+csv                = "1.3"
 tempfile           = "3"
 turso              = { version = "0.4", default-features = false, features = ["sync"] }
 blake3             = { version = "1", features = ["pure"] }
 jsonwebtoken       = { version = "9", default-features = false }
 ed25519-dalek      = { version = "2", default-features = false }
 x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
+rustls             = { version = "0.23", default-features = false, features = ["ring"] }
+rustls-pemfile     = "2"
+tokio-rustls       = { version = "0.26", default-features = false, features = ["ring"] }
 insta              = { version = "1", features = ["json"] }
 criterion          = { version = "0.5", features = ["html_reports"] }
 async-trait        = "0.1"
@@ -196,9 +226,10 @@ sysinfo            = "0.38"
 walkdir            = "2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
-candle-core        = { version = "0.9", default-features = false }
-candle-nn          = { version = "0.9", default-features = false }
-safetensors        = "0.4"
+candle-core         = { version = "0.9", default-features = false }
+candle-nn           = { version = "0.9", default-features = false }
+candle-transformers = { version = "0.9", default-features = false }
+safetensors        = "0.7"
 tokenizers         = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 memmap2            = "0.9"
 # 0.4+ resolves Hugging Face relative `Location` redirects in tokio metadata (0.3 breaks with `relative URL without a base`).
@@ -214,7 +245,7 @@ governor           = "0.10"
 strum              = { version = "0.26", features = ["derive"] }
 serial_test        = "3"
 wiremock           = "0.6"
-tantivy            = "0.22"
+tantivy            = { version = "0.22", default-features = false }
 scraper            = "0.20"
 html2text          = "0.12"
 # Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).
@@ -240,7 +271,7 @@ gix                = { version = "0.70", default-features = false }
 jj-lib             = { version = "=0.27.0", default-features = false }
 wasmtime           = "42.0.1"
 wasmtime-wasi      = "42.0.1"
-zip                = "8.4.0"
+
 self_update        = "0.43.1"
 landlock           = "0.4.4"
 win32job           = "2"
@@ -248,14 +279,32 @@ windows-sys        = "0.59"
 tavily             = "2.1.0"
 quick-xml          = "0.31"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
+bzip2              = "0.6.1"
+zstd               = "0.13.3"
+hmac               = "0.12.1"
+crossbeam-queue    = "0.3.12"
+ignore             = "0.4.25"
+tauri              = { version = "2", features = [] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
-symphonia          = "0.5.4"
+symphonia          = { version = "0.5.4", default-features = false }
 sherpa-onnx        = "1.12"
 syn                = "2"
+prettyplease       = "0.2"
 proc-macro2        = "1"
 semver             = "1"
+cargo_metadata     = "0.18"
+parking_lot        = "0.12"
 secrecy            = "0.10"
+zeroize            = { version = "1", features = ["derive"] }
+# wiremock 0.6.5 pulls in deadpool 0.12.3 with no runtime backend feature.
+# Under rustc 1.92, `Runtime::timeout`'s body cfg-strips both arms and ends
+# up returning `!`, which then breaks type inference inside
+# `deadpool::unmanaged::Pool::timeout_get` even though that code path is
+# never instantiated by wiremock. Forcing `rt_tokio_1` here gives the match
+# a concrete arm so inference succeeds. Tracked upstream — remove once
+# wiremock activates a runtime explicitly.
+deadpool           = { version = "0.12", features = ["rt_tokio_1"] }
 rmcp               = "0.16"
 rmp-serde          = "1"
 libloading         = "0.8"
@@ -271,6 +320,29 @@ swc_common         = "21"
 which              = "7"
 ctrlc              = "3.4"
 proptest           = { version = "1", default-features = false, features = ["std"] }
+# File watching
+notify             = "6"
+# Audio
+cpal               = "0.15"
+# Binary / stream utilities
+byteorder          = "1"
+tar                = "0.4"
+libc               = "0.2"
+# CLI UI
+dialoguer          = "0.11"
+pulldown-cmark     = "0.13"
+url                = "2"
+urlencoding        = "2"
+# Language model / tokenization
+tiktoken-rs        = { version = "0.5", default-features = false }
+# Tower / LSP
+tower              = { version = "0.5", default-features = false }
+tower-lsp-server   = "0.23"
+# Serde schemas (v0.8 alias used by some crates)
+schemars08         = { package = "schemars", version = "0.8" }
+# Rand extras
+rand_distr         = "0.4"
+rand09             = { package = "rand", version = "0.9", features = ["small_rng"] }
 
 
 [patch.crates-io]

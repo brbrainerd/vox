@@ -9,7 +9,7 @@ use owo_colors::OwoColorize;
 use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use vox_code_audit::detectors::all_rules;
 use vox_code_audit::diagnostics::catalog::{ALL_KNOWN_IDS, explain_url, is_known_id};
-use vox_code_audit::rules::DetectionRule;
+use vox_code_audit::diagnostics::explain_ai_fixture_diagnostic;
 use vox_code_audit::rules::{Language, Severity};
 use vox_code_audit::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
 
@@ -537,13 +537,15 @@ pub fn explain_diagnostic(id: &str) -> anyhow::Result<()> {
 
     let url = explain_url(id);
 
-    // Find the registered detector to get its explain() text
+    // Find the registered detector to get its explain() text and minimal_repro.
     let rules = all_rules(None);
-    let explain_text = rules
-        .iter()
-        .find(|r| r.diagnostic_id() == Some(id))
-        .map(|r| r.explain())
-        .unwrap_or("");
+    let matching_rule = rules.iter().find(|r| r.diagnostic_id() == Some(id));
+    let explain_text = explain_ai_fixture_diagnostic(id).unwrap_or_else(|| {
+        matching_rule
+            .map(|r| r.explain())
+            .unwrap_or("")
+    });
+    let minimal_repro: Option<&'static str> = matching_rule.and_then(|r| r.minimal_repro());
 
     println!("{}", "─".repeat(70));
     println!("  Diagnostic: {}", id.bright_cyan().bold());
@@ -558,6 +560,16 @@ pub fn explain_diagnostic(id: &str) -> anyhow::Result<()> {
             println!("  {line}");
         }
     }
+
+    // Show the minimal reproduction snippet when the detector provides one.
+    if let Some(repro) = minimal_repro {
+        println!();
+        println!("  {}", "Example:".bold());
+        for line in repro.lines() {
+            println!("  {line}");
+        }
+    }
+
     println!("{}", "─".repeat(70));
     Ok(())
 }
@@ -581,7 +593,7 @@ pub fn list_diagnostics() {
 ///
 /// Returns an error listing any suppressions that lack a `— <reason>` of ≥ 20 chars.
 pub fn check_rationale_required(path: &std::path::Path) -> anyhow::Result<()> {
-    use std::fs;
+    
 
     let mut violations: Vec<String> = Vec::new();
     let patterns = [

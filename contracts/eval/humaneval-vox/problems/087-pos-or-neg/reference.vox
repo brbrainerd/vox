@@ -1,0 +1,9 @@
+fn pos_or_neg(n: int) to str {
+    if n > 0 {
+        return "positive"
+    }
+    if n < 0 {
+        return "negative"
+    }
+    return "zero"
+}

@@ -1,0 +1,23 @@
+// Base source for plan-028-actor-add-handler.
+//
+// A small ChatRoom actor with join/leave. The plan asks the model to
+// add a third handler `on send_msg(user, text) to str`.
+
+actor ChatRoom {
+    on join(user: str) to str {
+        return "joined:" + user
+    }
+
+    on leave(user: str) to str {
+        return "left:" + user
+    }
+}
+
+fn render_join_ack(user: str) to str {
+    return "joined:" + user
+}
+
+@test
+fn test_join_ack_format() to Unit {
+    assert(render_join_ack("ada") is "joined:ada")
+}

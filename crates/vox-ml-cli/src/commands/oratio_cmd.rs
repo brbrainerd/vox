@@ -579,13 +579,10 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             let mut total_errors = 0;
             let mut count = 0;
 
-            let rt = tokio::runtime::Runtime::new()?;
             let db_opt = if persist {
-                rt.block_on(async {
-                    crate::workspace_db::connect_cli_workspace_voxdb()
-                        .await
-                        .ok()
-                })
+                crate::workspace_db::connect_cli_workspace_voxdb()
+                    .await
+                    .ok()
             } else {
                 None
             };
@@ -604,7 +601,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                     model_id: None,
                     dataset_name: ds_name,
                 };
-                let _ = rt.block_on(async { db.record_oratio_eval_run_start(&params).await });
+                let _ = db.record_oratio_eval_run_start(&params).await;
             }
 
             let mut rec_idx = 0usize;
@@ -645,8 +642,8 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 count += 1;
 
                 if let Some(ref db) = db_opt {
-                    let _ = rt.block_on(async {
-                        db.append_oratio_eval_sample(
+                    let _ = db
+                        .append_oratio_eval_sample(
                             &run_id,
                             path,
                             expected,
@@ -657,8 +654,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                             None,
                             0,
                         )
-                        .await
-                    });
+                        .await;
                 }
 
                 println!("File: {}", path);
@@ -681,10 +677,9 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             };
 
             if let Some(ref db) = db_opt {
-                let _ = rt.block_on(async {
-                    db.complete_oratio_eval_run(&run_id, Some(wer as f32 / 100.0), None, None, None)
-                        .await
-                });
+                let _ = db
+                    .complete_oratio_eval_run(&run_id, Some(wer as f32 / 100.0), None, None, None)
+                    .await;
             }
 
             println!("Processed {} samples.", count);

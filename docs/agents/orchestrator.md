@@ -57,7 +57,7 @@ See `docs/src/architecture/socrates-protocol-ssot.md` and ADR 005.
 
 - Compilation, formatting, type-checking → surfaced via MCP compiler/git helpers and CLI integration (see `TOOL_REGISTRY` and `crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs`).
 - TOESTUB analysis → `bash scripts/quality/toestub_scoped.sh` or `cargo run -p vox-code-audit --bin toestub -- <PATH>`; optional `vox stub-check` when built with **`--features stub-check`** (see `docs/src/reference/cli.md`).
-- Mens **native LoRA** training → **`vox mens train`** (`vox-populi` / **`vox-ml-cli`** shim); not orchestrator core.
+- Mens **native LoRA** training → **`vox mens train`** (`vox-populi`); not orchestrator core.
 - Inference / codegen → `vox generate` and related CLI surfaces where enabled.
 
 Some MCP tools spawn subprocesses (`cargo`, `git`, etc.); behavior is **per tool** — do not assume every capability shells out to a single monolithic `vox` invocation.

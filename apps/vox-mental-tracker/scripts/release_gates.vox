@@ -1,0 +1,43 @@
+// Programmatic release gates G1–G4 for vox-mental-tracker (replaces scripts/release_check.sh).
+// Run from the repository root:
+//   vox run apps/vox-mental-tracker/scripts/release_gates.vox
+//
+// G2 skips when BASE_URL is unset (same behavior as the legacy shell gate).
+
+fn main() to int {
+    println("==> G1 — Vitest")
+    let g1 = shell_exec("bash -lc 'set -e; cd apps/vox-mental-tracker && pnpm exec vitest run'")
+    if g1 != 0 {
+        println("    FAIL")
+        return g1
+    }
+    println("    PASS")
+
+    println("==> G2 — Playwright (browser lane)")
+    let g2 = shell_exec("bash -lc 'if [ -z \"${BASE_URL:-}\" ]; then echo \"    SKIP-DETECT: BASE_URL unset → specs self-skip; set BASE_URL and re-run\"; exit 0; fi; cd apps/vox-mental-tracker && pnpm exec playwright test'")
+    if g2 != 0 {
+        println("    FAIL")
+        return g2
+    }
+    println("    PASS")
+
+    println("==> G3 — vox check")
+    let g3 = shell_exec("bash -lc 'set -e; ROOT=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; cd \"$ROOT\" && cargo run -q -p vox-cli -- check apps/vox-mental-tracker/src/main.vox'")
+    if g3 != 0 {
+        println("    FAIL")
+        return g3
+    }
+    println("    PASS")
+
+    println("==> G4 — Contracts parse")
+    let g4 = shell_exec("bash -lc 'set -euo pipefail; for f in apps/vox-mental-tracker/contracts/event-payloads/*.json; do python3 -c \"import json,sys; json.load(open(sys.argv[1]))\" \"$f\"; done; python3 -c \"import glob,yaml; [yaml.safe_load(open(p)) for p in sorted(glob.glob(\\\"apps/vox-mental-tracker/contracts/export/*.yaml\\\"))]\"'")
+    if g4 != 0 {
+        println("    FAIL")
+        return g4
+    }
+    println("    PASS")
+
+    println("")
+    println("Programmatic gates passed. Walk manual gates G5–G8 per apps/vox-mental-tracker/docs/how-to/release.md.")
+    return 0
+}

@@ -195,13 +195,28 @@ fn scan_expr_for_handlers(
             scan_expr_for_handlers(a, async_fns, diags);
             scan_expr_for_handlers(b, async_fns, diags);
         }
+        HirExpr::AsyncView(v) => {
+            if let Some(a) = &v.fetching_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+            if let Some(a) = &v.empty_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+            if let Some(a) = &v.error_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+            if let Some(a) = &v.ok_arm {
+                scan_expr_for_handlers(a, async_fns, diags);
+            }
+        }
         // Leaf literals — nothing to recurse into.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::StringLit(..)
         | HirExpr::BoolLit(..)
         | HirExpr::DecimalLit(..)
-        | HirExpr::Ident(..) => {}
+        | HirExpr::Ident(..)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 
@@ -255,7 +270,7 @@ fn expr_calls_any_of(expr: &HirExpr, names: &HashSet<String>) -> bool {
                 || then_s.iter().any(|s| stmt_calls_any_of(s, names))
                 || else_s
                     .as_ref()
-                    .map_or(false, |es| es.iter().any(|s| stmt_calls_any_of(s, names)))
+                    .is_some_and(|es| es.iter().any(|s| stmt_calls_any_of(s, names)))
         }
         HirExpr::Lambda(_, _, body, _, _) => expr_calls_any_of(body, names),
         HirExpr::Binary(_, l, r, _) => expr_calls_any_of(l, names) || expr_calls_any_of(r, names),
@@ -278,7 +293,7 @@ fn expr_calls_any_of(expr: &HirExpr, names: &HashSet<String>) -> bool {
         HirExpr::For(_, _, iter, body, key, _) => {
             expr_calls_any_of(iter, names)
                 || expr_calls_any_of(body, names)
-                || key.as_ref().map_or(false, |k| expr_calls_any_of(k, names))
+                || key.as_ref().is_some_and(|k| expr_calls_any_of(k, names))
         }
         _ => false,
     }
@@ -314,7 +329,7 @@ fn expr_has_state_assign(expr: &HirExpr) -> bool {
                 || then_s.iter().any(stmt_has_state_assign)
                 || else_s
                     .as_ref()
-                    .map_or(false, |es| es.iter().any(stmt_has_state_assign))
+                    .is_some_and(|es| es.iter().any(stmt_has_state_assign))
         }
         HirExpr::Lambda(_, _, body, _, _) => expr_has_state_assign(body),
         HirExpr::Binary(_, l, r, _) => expr_has_state_assign(l) || expr_has_state_assign(r),

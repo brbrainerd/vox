@@ -1,0 +1,8 @@
+id = "humaneval-vox-097-result-or-zero"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `result_or_zero(r: Result[int]) to int` returning the Ok value when present, 0 on Error.
+"""

@@ -1,7 +1,7 @@
 ---
 title: "Vox full-stack web UI — single source of truth"
 description: "Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-04-07"
 training_eligible: true
 
@@ -32,7 +32,7 @@ schema_type: "TechArticle"
 
 > [!IMPORTANT]
 > **`vox-dashboard` is the Single Source of Truth** for the Vox user-facing frontend experience (see [ADR 030](../adr/030-state-machine-ssot.md) and [ADR 031](../adr/031-deprecate-vox-vscode.md)).
-> `vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-dashboard/` — not in the VS Code extension.
+> `apps/editor/vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-dashboard/` — not in the VS Code extension.
 
 The **orchestration dashboard** (`crates/vox-dashboard/`) is the primary Vox user surface. It is served by the Axum backend (`vox dashboard` command) and communicates with the orchestrator over a local MCP WebSocket proxy. All reactive UI state within the dashboard uses the Vox `state_machine` compiler primitive as the single source of truth (see below).
 
@@ -45,7 +45,7 @@ Frontend lifecycle ownership (canonical vs experimental vs fixture-only) is trac
 
 ## `state_machine` as SSoT for reactive UI state
 
-Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `crates/vox-compiler/src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `crates/vox-compiler/src/codegen_ts/state_machine_emit.rs`.
+Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `crates/vox-compiler/src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `crates/vox-codegen/src/codegen_ts/state_machine_emit.rs`.
 
 Do **not** hand-write reactive `.tsx` files in `app/src/generated/` — they must be compiler outputs from `.vox` sources. The CI gate at `scripts/check_dashboard_ssot.vox` enforces this rule.
 
@@ -87,12 +87,12 @@ For mobile support, this web stack is the primary delivery surface for Vox appli
 - Templates: `crates/vox-cli/src/templates/` (`spa.rs`, `tanstack.rs`; `package.json`, Vite config).
 - Frontend build: `crates/vox-cli/src/frontend.rs`.
 - v0: `crates/vox-cli/src/v0.rs`, `crates/vox-cli/src/v0_tsx_normalize.rs`.
-- React hook mapping / `component` emission: `crates/vox-compiler/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-compiler/src/codegen_ts/reactive.rs`, `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). Route manifest + typed client: [`codegen_ts/route_manifest.rs`](../../../crates/vox-compiler/src/codegen_ts/route_manifest.rs), [`codegen_ts/vox_client.rs`](../../../crates/vox-compiler/src/codegen_ts/vox_client.rs); Start file layout glue lives in [`codegen_ts/scaffold.rs`](../../../crates/vox-compiler/src/codegen_ts/scaffold.rs) and CLI templates (`tanstack.rs`). Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
+- React hook mapping / `component` emission: `crates/vox-codegen/src/codegen_ts/component.rs` (imports [`react_bridge`](../../../crates/vox-compiler/src/react_bridge.rs): Vox `use_*` → React hooks, shared AST walks). Path C reactive: `crates/vox-codegen/src/codegen_ts/reactive.rs`, `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs`. Server-fn API path prefix: [`web_prefixes::SERVER_FN_API_PREFIX`](../../../crates/vox-compiler/src/web_prefixes.rs) (HIR + TS fetch URLs stay aligned). Route manifest + typed client: [`codegen_ts/route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs), [`codegen_ts/vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs); Start file layout glue lives in [`codegen_ts/scaffold.rs`](../../../crates/vox-codegen/src/codegen_ts/scaffold.rs) and CLI templates (`tanstack.rs`). Opt-out for legacy-hook warnings: env **`VOX_SUPPRESS_LEGACY_HOOK_LINTS`** ([`env-vars.md`](env-vars.md)).
 - **`vox run` auto mode**: `crates/vox-cli/src/commands/run.rs` + `commands/runtime/run/run.rs` — default is an `@page` scan in the first 8 KiB; override with **`[web] run_mode`** in `Vox.toml` (`auto` \| `app` \| `script`) or env **`VOX_WEB_RUN_MODE`** (same values; parsed in `vox-config`).
 - **TanStack Start scaffold (opt-in)**: `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** — `crates/vox-cli/src/templates.rs` + `frontend.rs` emit Start file layout + `@tanstack/react-start` (see [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md)).
 - **External frontend interop (2026)**: `component` declarations lower to plain TSX under the generated `app/` directory; an external React/TanStack/mobile app imports them or calls the endpoints declared in `.vox` via the generated `vox-client.ts`. SSG HTML shells still come from **`vox-ssg`** + `routes {`. Full plan: [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
 
-**Web IR gate matrix (OP-S068, OP-S129, OP-S152, OP-S209):** parity and validate thresholds are enumerated under [acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) with tests in `web_ir_lower_emit.rs`, `reactive_smoke.rs`, `pipeline.rs`, and `full_stack_minimal_build.rs`.
+**Web IR gate matrix (OP-S068, OP-S129, OP-S152, OP-S209):** parity and validate thresholds are enumerated under [acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) with tests in `web_ir_lower_emit.rs`, `reactive_smoke.rs`, `pipeline.rs`, and `full_stack_minimal_build.rs`.
 
 ## Data grids (TanStack Table)
 
@@ -105,10 +105,10 @@ For **dense, interactive tables** (sorting, filtering, column visibility, virtua
 - [ADR 010 — TanStack web spine](../adr/010-tanstack-web-spine.md) — decisions (topology, examples, v0, `vox-codegen-html` retirement).
 - [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md) — ranked trade-offs and migration plan for compiler-owned frontend IR while keeping React ecosystem interop.
 - [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — weighted execution plan and staged task quotas for compiler migration.
-- [WebIR operations catalog (OP-0001..OP-0320)](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — ordered, file-by-file operation map with complexity/test/token budgets.
-- [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md) — parser-grounded current-vs-target full-stack representation mapping.
-- [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification) — token+grammar+escape-hatch delta for the canonical worked app.
-- [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible) — reproducible class registries, worked counts, and equation trace.
+- [WebIR operations catalog (OP-0001..OP-0320)](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — ordered, file-by-file operation map with complexity/test/token budgets.
+- [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — parser-grounded current-vs-target full-stack representation mapping.
+- [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — token+grammar+escape-hatch delta for the canonical worked app.
+- [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — reproducible class registries, worked counts, and equation trace.
 
 ## Examples (canonical `.vox` shape)
 

@@ -1,0 +1,10 @@
+fn str_concat_three(a: str, b: str, c: str) to str {
+    return a + b + c
+}
+
+@test
+fn t_simple() to Unit { assert(str_concat_three("a", "b", "c") is "abc") }
+@test
+fn t_spaces() to Unit { assert(str_concat_three("hello", " ", "world") is "hello world") }
+@test
+fn t_empties() to Unit { assert(str_concat_three("", "", "") is "") }

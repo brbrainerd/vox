@@ -1,0 +1,14 @@
+// Bug: match on NetworkState only covers Disconnected and Connecting —
+// the Connected variant is not handled, making the match non-exhaustive.
+type NetworkState =
+    | Disconnected
+    | Connecting
+    | Connected(address: str, port: int)
+
+fn status_label(state: NetworkState) to str {
+    match state {
+        Disconnected => "offline"
+        Connecting => "connecting..."
+        // BUG: Connected variant not covered — non-exhaustive match
+    }
+}

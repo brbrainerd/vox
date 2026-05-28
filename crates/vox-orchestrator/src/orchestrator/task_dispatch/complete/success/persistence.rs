@@ -15,6 +15,7 @@ impl Orchestrator {
         plan_completion_meta: Option<PlanningTaskMeta>,
         campaign_id: Option<String>,
         benchmark_tier: Option<crate::reconstruction::ReconstructionBenchmarkTier>,
+        tenant_id: Option<String>,
     ) {
         if let Some(db) = self.db().as_ref() {
             let reliability_agent_id = agent_id.0.to_string();
@@ -130,6 +131,7 @@ impl Orchestrator {
                     &meta.plan_session_id,
                     meta.plan_version,
                     session_id.clone(),
+                    tenant_id,
                 )
                 .await
                 {

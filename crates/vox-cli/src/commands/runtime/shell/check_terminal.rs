@@ -2,7 +2,8 @@
 //!
 //! This is the **authoritative** path for validating host/agent PowerShell command strings against
 //! [`DEFAULT_POLICY_REL`]. It is **not** wired into `vox shell repl` passthrough; REPL remains a
-//! minimal dev utility (see `mod.rs`).
+//! minimal dev utility (see `mod.rs`). AgentOS **ACI** shell backends that classify probe output are
+//! in [`crate::commands::runtime::shell::aci_adapter`] (`aci_adapter`).
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -415,13 +416,13 @@ pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
 /// policy allow-lists and blocked-parameter rules.  Network URL enforcement is
 /// best-effort (literal string scanning) compared to the full pwsh AST path.
 fn run_check_rust_fallback(payload: &str, policy: &ExecPolicyV1) -> Result<()> {
-    use vox_exec_grammar::{ExecPolicy, risk};
+    use vox_container::exec_grammar::{ExecPolicy, risk};
 
     // Parse as a pipeline so every stage (e.g. `curl … | cargo …`) is checked.
-    let asts = vox_exec_grammar::parse_pipeline(payload)
+    let asts = vox_container::exec_grammar::parse_pipeline(payload)
         .map_err(|e| anyhow!("parse error (rust fallback): {e}"))?;
 
-    // Build a vox_exec_grammar::ExecPolicy that mirrors the loaded ExecPolicyV1.
+    // Build a vox_container::exec_grammar::ExecPolicy that mirrors the loaded ExecPolicyV1.
     let grammar_policy = ExecPolicy {
         allowed_cmdlets: policy.allowed_cmdlets.clone(),
         allowed_binaries: policy.allowed_binaries.clone(),

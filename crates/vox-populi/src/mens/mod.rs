@@ -21,6 +21,9 @@ pub mod hub;
 #[cfg(feature = "mens-cloud")]
 pub mod cloud;
 
+#[cfg(feature = "mesh-discovery-publish")]
+pub mod discovery_publish;
+
 /// Default HuggingFace model for Mens training and serving (VoxMens QLoRA SSOT).
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3.5-4B";
 

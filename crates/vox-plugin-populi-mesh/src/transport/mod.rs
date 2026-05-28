@@ -14,6 +14,8 @@
 //! **`VOX_MESH_HTTP_RATE_LIMIT_PER_SEC`** / **`VOX_MESH_HTTP_RATE_LIMIT_BURST`**.
 
 mod auth;
+pub mod auth_ed25519;  // D-7-rescope: ported from vox-populi/src/transport/auth_ed25519.rs
+pub mod envelope;      // D-7-rescope: ported from vox-populi/src/transport/envelope.rs
 mod handlers;
 mod mesh_replay;
 mod result_attestation;
@@ -481,7 +483,7 @@ impl PopuliTransportState {
         if let Some(path) = &dispatch_results_store_path
             && let Ok(existing) = store::load_dispatch_results_store(path)
         {
-            s.dispatch_results = Arc::new(dashmap::DashMap::from_iter(existing.into_iter()));
+            s.dispatch_results = Arc::new(dashmap::DashMap::from_iter(existing));
         }
 
         s.a2a_store_path = store_path;
@@ -693,17 +695,16 @@ pub(super) fn exec_lease_sweep(rows: &mut Vec<RemoteExecLeaseRow>, now_ms: u64) 
 }
 
 /// Sweep expired dispatch results from the DashMap.
-
 pub(super) fn dispatch_results_sweep(
     map: &dashmap::DashMap<String, DispatchResponse>,
     now_ms: u64,
 ) {
     let mut to_remove = Vec::new();
     for entry in map.iter() {
-        if let Some(exp) = entry.value().expires_unix_ms {
-            if exp <= now_ms {
-                to_remove.push(entry.key().clone());
-            }
+        if let Some(exp) = entry.value().expires_unix_ms
+            && exp <= now_ms
+        {
+            to_remove.push(entry.key().clone());
         }
     }
     for k in to_remove {

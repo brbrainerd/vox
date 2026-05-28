@@ -2,9 +2,6 @@
 
 use std::collections::HashMap;
 
-/// Classic RRF constant — ranks are 1-based in the fusion sum.
-const RRF_K: f64 = 60.0;
-
 /// Stable deduplication key for a formatted retrieval line (see `execution` formatters).
 pub(crate) fn rrf_dedup_key(line: &str) -> String {
     let t = line.trim_start();
@@ -44,13 +41,15 @@ pub(crate) fn rrf_dedup_key(line: &str) -> String {
 }
 
 /// Merge ordered hit lists using RRF; each list is ranked by position (first = rank 1).
-pub(crate) fn rrf_merge_line_lists(lists: &[Vec<String>], limit: usize) -> Vec<String> {
+/// `rrf_k` is the smoothing constant (often ~60); must be ≥ 1.0.
+pub(crate) fn rrf_merge_line_lists(lists: &[Vec<String>], limit: usize, rrf_k: f64) -> Vec<String> {
+    let k = rrf_k.max(1.0);
     let mut scores: HashMap<String, f64> = HashMap::new();
     let mut line_for_key: HashMap<String, String> = HashMap::new();
     for list in lists {
         for (rank, line) in list.iter().enumerate() {
             let key = rrf_dedup_key(line);
-            let contrib = 1.0 / (RRF_K + (rank + 1) as f64);
+            let contrib = 1.0 / (k + (rank + 1) as f64);
             *scores.entry(key.clone()).or_insert(0.0) += contrib;
             line_for_key.entry(key).or_insert_with(|| line.clone());
         }
@@ -75,7 +74,7 @@ mod tests {
     fn rrf_prefers_hits_that_rank_well_in_multiple_lists() {
         let a = vec!["[chunk:x] first".into(), "[chunk:y] second".into()];
         let b = vec!["[chunk:x] only".into()];
-        let out = rrf_merge_line_lists(&[a, b], 2);
+        let out = rrf_merge_line_lists(&[a, b], 2, 60.0);
         assert_eq!(out.len(), 2);
         assert!(out[0].contains("chunk:x"), "x should lead: {:?}", out);
     }

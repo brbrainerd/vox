@@ -18,17 +18,18 @@ tracing = { workspace = true }
 futures = { workspace = true }
 async-trait = { workspace = true }
 workspace-hack = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }
 
 # Transport heavy deps (moved from vox-populi transport feature)
 vox-populi = { workspace = true }
 vox-secrets = { workspace = true }
 vox-crypto = { workspace = true }
+vox-identity = { workspace = true }  # D-7-rescope: needed by auth_ed25519 (TrustedNodeRegistry)
 vox-mesh-types = { workspace = true }
 vox-db = { workspace = true }
 vox-bounded-fs = { workspace = true }
-vox-reqwest-defaults = { workspace = true }
-vox-primitives = { workspace = true }
+vox-http-client = { workspace = true }
+vox-foundation = { workspace = true }
 vox-repository = { workspace = true }
 axum = { workspace = true }
 tower-http = { workspace = true, features = ["trace", "request-id"] }

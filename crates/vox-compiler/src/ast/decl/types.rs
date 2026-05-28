@@ -33,8 +33,25 @@ pub struct ImportPath {
 pub enum ImportPathKind {
     /// Dot-separated symbol path (e.g. `react.use_state`).
     SymbolPath { segments: Vec<String> },
+    /// Consume a React `.tsx` component from disk — Phase 5 interop
+    /// (`import react MyButton from "../ui/MyButton.tsx"`).
+    ReactComponent {
+        /// Local binding (typically PascalCase).
+        local_name: String,
+        /// ES module specifier string literal (relative or package path).
+        module_specifier: String,
+    },
     /// Rust crate import (`import rust:serde_json`).
     RustCrate(RustCrateImport),
+    /// Intra-project Vox file import (`import "./helpers/walk_docs.vox"`).
+    /// Path is resolved relative to the importing file's directory. Only `pub`
+    /// declarations from the target file are made available; bare names merge
+    /// into the importing file's scope (with an optional `as alias` namespace).
+    /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
+    LocalFile {
+        /// Source path string exactly as written (e.g. `./helpers/walk_docs.vox`).
+        path: String,
+    },
 }
 
 /// Rust crate import metadata.
@@ -61,7 +78,7 @@ pub struct ImportDecl {
     pub span: Span,
 }
 
-/// One item in a [`Module`]: any construct that can appear at column 0 (after indentation) in a file.
+/// One item in a [`crate::Module`]: any construct that can appear at column 0 (after indentation) in a file.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Decl {
     /// Top-level or nested function.
@@ -149,6 +166,8 @@ pub enum Decl {
     DeepLink(mobile::DeepLinkDecl),
     /// Mobile push-notification wiring (`@push`).
     Push(mobile::PushDecl),
+    /// Project-level design-token block (`@tokens { … }`).
+    Tokens(TokensDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -194,6 +213,7 @@ impl Decl {
             Decl::BackButton(b) => b.span,
             Decl::DeepLink(d) => d.span,
             Decl::Push(p) => p.span,
+            Decl::Tokens(t) => t.span,
         }
     }
 }

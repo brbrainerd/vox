@@ -1,0 +1,44 @@
+id = "plan-032-convert-to-result"
+wave = "wave_2"
+description = "Convert an Option-returning fn to Result with an ADT error."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base has `fn lookup(id: str) to Option[int]` returning Some(n) or
+None. Convert it to `fn lookup(id: str) to Result[int, FooError]`
+using the existing `FooError` ADT — `Some(n)` becomes `Ok(n)` and
+`None` becomes `Error(NotFound("not found"))`. Update the existing
+@test to match-on Result variants instead of Option variants.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Identify the Option-returning fn and its callers."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Rewrite the fn signature + body to return Result."
+
+[[steps]]
+step = 3
+verb = "edit-test"
+description = "Update the @test to match-on Result variants."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes and the @test still runs clean."
+
+[success_criteria]
+vox_check_passes = true
+return_type_converted = true
+existing_tests_pass = true

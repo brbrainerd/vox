@@ -30,6 +30,9 @@ tiers:
     temporary_exceptions:
       - vox-package
       - vox-gamify
+      # Transitional: vox-cli CI guard source embeds CREATE TABLE fixture text
+      # for `db_schema_coverage` self-validation.
+      - vox-cli
     # Additional libSQL files that M-26/M-67 fold away. Listed so the guard
     # ignores them until the migration lands; each line must be deleted in the
     # same PR that removes the corresponding file from disk.
@@ -129,7 +132,7 @@ ignored_paths:
   - node_modules
 
 # Frozen Core crates whose Tier A DDL cannot change without a governance token.
-# Keep this list in lockstep with crates/_frozen.md (F62, M-68).
+# This is the canonical frozen-core list (crates/_frozen.md was retired 2026-05-24).
 frozen_core_crates:
   - vox-db
   - vox-secrets

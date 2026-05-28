@@ -1,6 +1,11 @@
 # contracts/orchestration/circuit-breaker.v1.yaml
 # Five-signal circuit breaker thresholds for D6 doom-loop detection.
 # Mirrored by `crates/vox-orchestrator/src/circuit_breaker.rs::CircuitBreakerConfig::default`.
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
 version: 1
 x-vox-version: 1
 description: "Five-signal circuit breaker for orchestrator doom-loop detection (D6)"

@@ -1,7 +1,7 @@
 ---
 title: "ADR 030 — state_machine as SSoT for reactive UI state"
 description: "Formally adopts the Vox state_machine compiler primitive as the single source of truth for all reactive browser UI state in vox-dashboard and Vox-generated applications."
-category: "architecture"
+category: "Architecture Decisions (ADRs)"
 status: "current"
 last_updated: "2026-05-01"
 training_eligible: true
@@ -35,7 +35,7 @@ ADR 027 adopted Track A (Vox-native reactivity) as the canonical surface for gre
 
 - `crates/vox-compiler/src/hir/nodes/state_machine.rs` — HIR node
 - `crates/vox-compiler/src/typeck/state_machine_check.rs` — type-checking
-- `crates/vox-compiler/src/codegen_ts/state_machine_emit.ts` — lowering
+- `crates/vox-codegen/src/codegen_ts/state_machine_emit.ts` — lowering
 - `crates/vox-dashboard/app/src/app.vox` — dashboard entry point (Tab switcher uses `state`)
 - `scripts/check_dashboard_ssot.vox` — CI gate (to be created in Phase 3)
 

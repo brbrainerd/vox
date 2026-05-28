@@ -851,6 +851,12 @@ pub fn validate_web_ir(module: &WebIrModule) -> Vec<WebIrDiagnostic> {
 ///
 /// Advisory diagnostics are informational — callers that gate builds should filter these out;
 /// callers that surface all diagnostics (LSP, dashboards) should still include them.
+///
+/// A11y accessibility violations (`web_ir_validate.a11y.*`) are advisory so that the reactive
+/// emitter still produces valid JSX when an input lacks a label.  The violations are surfaced as
+/// compiler warnings / LSP diagnostics, but they must not replace emitted components with the
+/// failure placeholder — that would make the app non-functional, which is worse than an
+/// accessible-name gap.
 #[must_use]
 pub fn is_advisory_diagnostic(d: &WebIrDiagnostic) -> bool {
     matches!(
@@ -859,7 +865,14 @@ pub fn is_advisory_diagnostic(d: &WebIrDiagnostic) -> bool {
             | "web_ir_validate.overlay.duplicate_z"
             | "web_ir_validate.overlay.position_conflict"
             | "web_ir_validate.route.unreachable"
+            | "web_ir_validate.a11y.input_missing_label"
+            | "web_ir_validate.a11y.button_missing_name"
+            | "web_ir_validate.a11y.anchor_missing_name"
+            | "web_ir_validate.a11y.anchor_missing_href"
+            | "web_ir_validate.a11y.img_missing_alt"
+            | "web_ir_validate.a11y.role_button_missing_keyboard"
     ) || d.code.ends_with("_warning")
+        || d.code.starts_with("web_ir_validate.a11y.")
 }
 
 /// Internal combined validator used by `validate_web_ir_with_metrics` and `validate_web_ir_with_registry`.

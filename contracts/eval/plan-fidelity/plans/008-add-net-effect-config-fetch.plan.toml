@@ -1,0 +1,38 @@
+# vox:skip
+id = "plan-fidelity-008-add-net-effect-config-fetch"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+In `src/config.vox`, add two things: \
+(1) `@uses(net) fn fetch_remote_config(url: str) to str` that calls \
+`std.http.get_text(url)` and returns the result; \
+(2) `@query fn get_config_url() to str` that returns the hardcoded config URL \
+`"https://config.example.com/v1"`. \
+Create `tests/config_test.vox` with `@test fn test_get_config_url_returns_nonempty` \
+that asserts `len(get_config_url()) > 0`. \
+Run `vox check --strict && vox test --filter=test_get_config_url_returns_nonempty`.
+"""
+preconditions = """
+`src/config.vox` exists and is empty (or contains only a comment). \
+`tests/config_test.vox` does not yet exist. \
+`vox check --strict` passes at HEAD.
+"""
+
+[plan_expected_shape]
+min_steps = 4
+max_steps = 8
+must_include_tasks = ["add-net-fn", "add-effect-declaration", "add-query-endpoint", "add-test", "verify-compile"]
+must_include_decorator_calls = ["@uses", "@query", "@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_get_config_url_returns_nonempty"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/config.vox", regex = "@uses\\(net\\)" },
+  { path = "src/config.vox", regex = "fn fetch_remote_config" },
+  { path = "src/config.vox", regex = "@query" },
+  { path = "src/config.vox", regex = "fn get_config_url" },
+  { path = "tests/config_test.vox", regex = "test_get_config_url_returns_nonempty" },
+]

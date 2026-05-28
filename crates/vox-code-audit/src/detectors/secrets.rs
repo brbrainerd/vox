@@ -99,26 +99,26 @@ impl SecretDetector {
             }
         }
 
-        if let Some(m) = self.generic_secret.regex().find(line) {
-            if !skip_if_comment(m.start()) {
-                findings.push(Self::make_finding(
-                    self.generic_secret,
-                    file,
-                    line_num,
-                    "Potential hardcoded secret or API key detected.".to_string(),
-                ));
-            }
+        if let Some(m) = self.generic_secret.regex().find(line)
+            && !skip_if_comment(m.start())
+        {
+            findings.push(Self::make_finding(
+                self.generic_secret,
+                file,
+                line_num,
+                "Potential hardcoded secret or API key detected.".to_string(),
+            ));
         }
 
-        if let Some(m) = self.jwt_token.regex().find(line) {
-            if !skip_if_comment(m.start()) {
-                findings.push(Self::make_finding(
-                    self.jwt_token,
-                    file,
-                    line_num,
-                    "Potential hardcoded JWT token detected.".to_string(),
-                ));
-            }
+        if let Some(m) = self.jwt_token.regex().find(line)
+            && !skip_if_comment(m.start())
+        {
+            findings.push(Self::make_finding(
+                self.jwt_token,
+                file,
+                line_num,
+                "Potential hardcoded JWT token detected.".to_string(),
+            ));
         }
 
         findings
@@ -167,6 +167,21 @@ impl DetectionRule for SecretDetector {
 
     fn severity(&self) -> Severity {
         Severity::Error
+    }
+
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — hardcoded API key in source code\n\
+             fn connect() {\n\
+             \x20   let client = ApiClient::new(\"sk-live-abc123xyz789\");  // NEVER hardcode secrets\n\
+             }\n\
+             \n\
+             // FIX — read from environment variable\n\
+             fn connect() -> Result<ApiClient, ConfigError> {\n\
+             \x20   let key = std::env::var(\"API_KEY\")?;\n\
+             \x20   Ok(ApiClient::new(key))\n\
+             }",
+        )
     }
 
     fn languages(&self) -> &[Language] {

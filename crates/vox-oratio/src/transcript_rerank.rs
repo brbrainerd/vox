@@ -100,7 +100,7 @@ pub fn pick_best_transcript_index_with_raw(
     #[cfg(not(feature = "compiler-rerank"))]
     {
         let _ = (raw_reference,);
-        return 0;
+        0
     }
     #[cfg(feature = "compiler-rerank")]
     {

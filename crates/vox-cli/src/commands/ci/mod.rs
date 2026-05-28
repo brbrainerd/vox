@@ -1,6 +1,7 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
 mod agentskills_compliance;
+mod ai_fixtures_coverage;
 mod attention_ledger_parity;
 mod attention_parity;
 pub mod build_timings;
@@ -10,6 +11,8 @@ mod capability_sync;
 mod check_links;
 mod command_compliance;
 mod command_sync;
+mod compile_matrix;
+mod retirement_audit;
 pub mod completion_quality;
 mod contracts_index;
 mod coolify_eval;
@@ -19,21 +22,29 @@ mod dep_sprawl;
 pub mod deploy_status;
 mod detect_rules_bench;
 mod determinism_audit;
+mod dev_loop_audit;
+mod docs_deprecated_command_guard;
+mod docs_reality_audit;
 mod doctest_md;
 mod eval_matrix;
 mod exec_policy_contract;
 mod frozen_crates;
 mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
+mod gui_catalog_parity;
 mod gui_smoke;
 mod install_hooks;
 mod kill_stuck_tests;
 mod line_endings;
 mod mens_scorecard;
+mod model_routing_check;
 pub(crate) mod nomenclature_guard;
+mod no_tauri_in_core;
+mod no_plugin_cdylib_as_compile_dep;
 mod openclaw_contract;
 mod operations_catalog;
 mod parse_check;
+mod parse_status;
 mod plugin_abi_parity;
 mod plugin_catalog_parity;
 mod plugin_skill_parity;
@@ -43,12 +54,17 @@ mod pre_push;
 mod release_build;
 pub(crate) mod retired_symbol_check;
 mod row_serde_lint;
+mod safety_inventory;
 mod scaling_audit;
 mod scientia_heuristics_parity;
 mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
+mod speech_runtime_suite;
 pub(crate) mod string_id_lint;
 pub(crate) mod sync_ignore_files;
+mod test_governance;
+pub mod test_inventory;
+pub mod test_runtime_report;
 mod toestub_budget;
 pub mod watch_run;
 pub mod workspace_artifacts;
@@ -64,8 +80,8 @@ use std::process::{Command, Stdio};
 use anyhow::Result;
 
 pub use cmd_enums::{
-    CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit,
-    MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
+    CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd,
+    GovernanceGateMode, GrammarDriftEmit, MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
 };
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.

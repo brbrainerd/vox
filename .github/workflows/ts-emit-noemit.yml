@@ -29,8 +29,12 @@ jobs:
           cache-dependency-path: 'crates/vox-integration-tests/ts-noemit-scratch/pnpm-lock.yaml'
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
       - name: Install scratch deps
         run: pnpm install --frozen-lockfile
         working-directory: crates/vox-integration-tests/ts-noemit-scratch
       - name: Run TS emit typecheck
-        run: cargo test -p vox-integration-tests --test ts_emit_typecheck_test -- --ignored --nocapture
+        run: cargo nextest run -p vox-integration-tests --test ts_emit_typecheck_test --run-ignored ignored-only --no-capture

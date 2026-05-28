@@ -1,4 +1,4 @@
-﻿//! OpenClaw MCP tools backed by the native OpenClaw runtime adapter.
+//! OpenClaw MCP tools backed by the native OpenClaw runtime adapter.
 
 use crate::params::{
     OpenClawDomainParams, OpenClawGatewayCallParams, OpenClawImportParams, OpenClawNotifyParams,
@@ -148,7 +148,7 @@ pub async fn openclaw_health(_state: &ServerState) -> String {
         "{}/v1/skills",
         resolved.http_gateway_url.trim_end_matches('/')
     );
-    let http_client = vox_reqwest_defaults::client_builder()
+    let http_client = vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
         .ok();

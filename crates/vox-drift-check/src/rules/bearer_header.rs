@@ -28,7 +28,7 @@ impl DriftRule for BearerHeaderRule {
                 file: features.file.clone(),
                 line: lit.loc.line,
                 column: lit.loc.col,
-                message: "Inline Bearer token literal — use `vox_reqwest_defaults::bearer_auth_header(token)` helper".into(),
+                message: "Inline Bearer token literal — use `vox_http_client::bearer_auth_header(token)` helper".into(),
                 suggestion: Some(
                     "Add `bearer_auth_header(token: &str) -> HeaderValue` to vox-reqwest-defaults".into(),
                 ),

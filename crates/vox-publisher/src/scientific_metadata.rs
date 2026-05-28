@@ -1,4 +1,4 @@
-//! Structured scholarly fields embedded in [`crate::publication::PublicationManifest::metadata_json`].
+//! Structured scholarly fields embedded in `crate::publication::PublicationManifest::metadata_json`.
 //!
 //! Stored under the `scientific_publication` key so community/news metadata can coexist unchanged.
 //! All fields are optional at the JSON layer except author `name` when an author entry is present.

@@ -211,6 +211,7 @@ impl RetrievalEvidenceEnvelope {
             }),
             obo_token: None,
             operating_mode: None,
+            agentos: None,
         }
     }
 }

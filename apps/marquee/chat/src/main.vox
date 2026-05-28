@@ -1,0 +1,155 @@
+// Vox Chat — Marquee Slot 3
+//
+// Demonstrates:
+//   actor declaration    — chat room as a stateful actor with join/leave/message handlers
+//   @server endpoint     — streaming / server-sent-event lane (HTTP gateway upgrades to WS)
+//   @table               — message persistence
+//   @auth(scheme: bearer)— per-request auth gate on write and streaming endpoints
+//   @test                — unit tests covering validation helpers and write-path error gates
+//
+// References: contracts/marquee/manifest.v1.yaml (marquee-chat)
+// Ratified 2026-05-15 by Vox Foundation Council.
+//
+// Presence state (who is in a room) lives inside the actor runtime — join/leave
+// handlers return formatted status lines; the deploy-time transport layer
+// broadcasts them to all connected clients.  @server stream_room signals the
+// HTTP gateway to hold the connection open and emit Message records as SSE
+// (server-sent events) / WebSocket frames.
+
+// ── Schema ────────────────────────────────────────────────────────────────────
+
+@table type User {
+    username: str
+    session_token: str
+}
+
+@table type Message {
+    room_id: str
+    sender: str
+    body: str
+    sent_at: str
+}
+
+// ── Chat room actor ───────────────────────────────────────────────────────────
+
+// ChatRoom handles per-room message delivery.  The actor runtime maintains
+// presence state; each handler returns a formatted event line the transport
+// layer fans out to subscribers.
+actor ChatRoom {
+    on join(user: str) to str {
+        return "joined:" + user
+    }
+    on leave(user: str) to str {
+        return "left:" + user
+    }
+    on message(user: str, body: str) to str {
+        return user + ": " + body
+    }
+}
+
+// ── @server streaming endpoint ────────────────────────────────────────────────
+
+// Subscribe to live messages from a chat room.
+// The @server decorator signals the HTTP gateway to hold this connection open
+// and deliver new Message records as server-sent events (SSE) or WebSocket
+// frames — the transport choice is made by the deploy adapter.
+// Authentication is enforced by the bearer-token middleware before the
+// connection is upgraded.
+@server
+@auth(scheme: bearer)
+fn stream_room(room_id: str) to list[str] {
+    // Placeholder: the deploy-time streaming layer replaces this body with
+    // live fan-out from the ChatRoom actor mailbox.  The list[str] return
+    // type carries the initial backfill; the stream continuation is driven
+    // by actor.message events.
+    return []
+}
+
+// ── Auth-protected write endpoints ────────────────────────────────────────────
+
+// Post a new message to a room. Validates the body then persists it.
+@mutation
+@auth(scheme: bearer)
+fn post_message(room_id: str, sender: str, body: str) to Result[str] {
+    if len(body) is 0 {
+        return Error("body must not be empty")
+    }
+    if len(body) > 1000 {
+        return Error("body must be 1000 characters or fewer")
+    }
+    db.Message.insert({ room_id: room_id, sender: sender, body: body, sent_at: "" })
+    return Ok("message.sent")
+}
+
+// ── Auth-protected read endpoints ─────────────────────────────────────────────
+
+// List the most-recent messages in a room (paginated by the HTTP layer).
+@query
+@auth(scheme: bearer)
+fn list_messages(room_id: str) to list[Message] {
+    return []
+}
+
+// ── Public (unauthenticated) endpoints ────────────────────────────────────────
+
+// Health probe — no auth required.
+@query fn health() to str {
+    return "ok"
+}
+
+// ── Pure business-logic helpers ───────────────────────────────────────────────
+
+// Returns true when a chat body satisfies the length constraints:
+// non-empty and at most 1000 characters.
+fn is_valid_body(body: str) to bool {
+    return len(body) > 0 and len(body) <= 1000
+}
+
+// Format a sender + body pair into a display line.
+fn format_message(sender: str, body: str) to str {
+    return sender + ": " + body
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+@test
+fn test_health_returns_ok() {
+    assert(health() is "ok")
+}
+
+@test
+fn test_valid_body_accepted() {
+    assert(is_valid_body("Hello, world!") is true)
+    assert(is_valid_body("x") is true)
+}
+
+@test
+fn test_empty_body_rejected() {
+    assert(is_valid_body("") is false)
+}
+
+@test
+fn test_format_message() {
+    assert(format_message("alice", "hello") is "alice: hello")
+}
+
+@test
+fn test_post_message_rejects_empty_body() {
+    let result = post_message("room1", "alice", "")
+    match result {
+        Error(msg) => assert(len(msg) > 0)
+        Ok(_)      => assert(false)
+    }
+}
+
+// Write-path gate: over-long body is rejected before any database access.
+@test
+fn test_post_message_rejects_long_body() {
+    // 1001 characters — one over the limit.
+    let long = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    let result = post_message("room1", "alice", long)
+    match result {
+        Error(msg) => assert(len(msg) > 0)
+        Ok(_)      => assert(false)
+    }
+}

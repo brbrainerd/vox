@@ -33,6 +33,19 @@ pub fn check_effect_compliance(module: &HirModule, source: &str) -> Vec<Diagnost
         }
     }
 
+    // Bottom-up effect inference (P1-T6): for every unannotated function, infer
+    // its direct stdlib capabilities from its body and add them to cap_map.
+    // This lets annotated callers be checked against a callee's inferred effects
+    // even when the callee carries no explicit `uses` clause.
+    for f in &module.functions {
+        if !cap_map.contains_key(&f.name) {
+            let inferred = infer_body_effects(&f.body);
+            if !inferred.is_empty() {
+                cap_map.insert(f.name.clone(), inferred);
+            }
+        }
+    }
+
     let mut diags = Vec::new();
     for f in &module.functions {
         check_fn(f, &cap_map, source, &mut diags);
@@ -69,6 +82,8 @@ fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
         HirEffectKind::Clock => HirCapability::Clock,
         HirEffectKind::Random => HirCapability::Random,
         HirEffectKind::Spawn => HirCapability::Spawn,
+        HirEffectKind::GpuCompute => HirCapability::GpuCompute,
+        HirEffectKind::Mutate => HirCapability::Mutate,
         HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
     }
 }
@@ -303,6 +318,21 @@ fn check_expr(
             check_expr(obj, caller_name, caller_set, cap_map, source, diags);
             check_expr(idx, caller_name, caller_set, cap_map, source, diags);
         }
+        HirExpr::AsyncView(v) => {
+            check_expr(&v.source, caller_name, caller_set, cap_map, source, diags);
+            if let Some(a) = &v.fetching_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+            if let Some(a) = &v.empty_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+            if let Some(a) = &v.error_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+            if let Some(a) = &v.ok_arm {
+                check_expr(a, caller_name, caller_set, cap_map, source, diags);
+            }
+        }
         // Leaves.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
@@ -312,7 +342,162 @@ fn check_expr(
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_) => {}
+        | HirExpr::Try(_)
+        | HirExpr::WorkflowVersion(_) => {}
+    }
+}
+
+/// Infer the direct stdlib capabilities used in a function body by walking
+/// method-call nodes whose receiver is a known stdlib module identifier.
+fn infer_body_effects(body: &[HirStmt]) -> Vec<HirCapability> {
+    let mut caps: HashSet<HirCapability> = HashSet::new();
+    for stmt in body {
+        infer_stmt_effects(stmt, &mut caps);
+    }
+    caps.into_iter().collect()
+}
+
+fn infer_stmt_effects(stmt: &HirStmt, caps: &mut HashSet<HirCapability>) {
+    match stmt {
+        HirStmt::Let { value, .. } | HirStmt::Expr { expr: value, .. } => {
+            infer_expr_effects(value, caps);
+        }
+        HirStmt::Assign { value, .. } => {
+            infer_expr_effects(value, caps);
+        }
+        HirStmt::Return { value: Some(v), .. } => {
+            infer_expr_effects(v, caps);
+        }
+        HirStmt::Return { value: None, .. } => {}
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            infer_expr_effects(condition, caps);
+            for s in body {
+                infer_stmt_effects(s, caps);
+            }
+        }
+        HirStmt::Loop { body, .. } => {
+            for s in body {
+                infer_stmt_effects(s, caps);
+            }
+        }
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
+    }
+}
+
+fn infer_expr_effects(expr: &HirExpr, caps: &mut HashSet<HirCapability>) {
+    match expr {
+        HirExpr::MethodCall(obj, _, args, _, _) => {
+            if let HirExpr::Ident(module_name, _) = obj.as_ref() {
+                if let Some(cap) = stdlib_module_capability(module_name) {
+                    caps.insert(cap);
+                }
+            }
+            infer_expr_effects(obj, caps);
+            for arg in args {
+                infer_expr_effects(&arg.value, caps);
+            }
+        }
+        HirExpr::Call(callee, args, _, _) => {
+            infer_expr_effects(callee, caps);
+            for arg in args {
+                infer_expr_effects(&arg.value, caps);
+            }
+        }
+        HirExpr::Binary(_, left, right, _) => {
+            infer_expr_effects(left, caps);
+            infer_expr_effects(right, caps);
+        }
+        HirExpr::Unary(_, operand, _) => {
+            infer_expr_effects(operand, caps);
+        }
+        HirExpr::If(cond, then_stmts, else_stmts, _) => {
+            infer_expr_effects(cond, caps);
+            for s in then_stmts {
+                infer_stmt_effects(s, caps);
+            }
+            if let Some(els) = else_stmts {
+                for s in els {
+                    infer_stmt_effects(s, caps);
+                }
+            }
+        }
+        HirExpr::Block(stmts, _) => {
+            for s in stmts {
+                infer_stmt_effects(s, caps);
+            }
+        }
+        HirExpr::For(_, _, iterable, body, _, _) => {
+            infer_expr_effects(iterable, caps);
+            infer_expr_effects(body, caps);
+        }
+        HirExpr::Lambda(_, _, body, _, _) => {
+            infer_expr_effects(body, caps);
+        }
+        HirExpr::With(lhs, rhs, _) => {
+            infer_expr_effects(lhs, caps);
+            infer_expr_effects(rhs, caps);
+        }
+        HirExpr::Match(subject, arms, _) => {
+            infer_expr_effects(subject, caps);
+            for arm in arms {
+                if let Some(g) = &arm.guard {
+                    infer_expr_effects(g, caps);
+                }
+                infer_expr_effects(&arm.body, caps);
+            }
+        }
+        HirExpr::FieldAccess(obj, _, _) => {
+            infer_expr_effects(obj, caps);
+        }
+        HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
+            for e in elems {
+                infer_expr_effects(e, caps);
+            }
+        }
+        HirExpr::ObjectLit(fields, _) => {
+            for (_, v) in fields {
+                infer_expr_effects(v, caps);
+            }
+        }
+        HirExpr::Spawn(inner, _) => {
+            infer_expr_effects(inner, caps);
+        }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                infer_expr_effects(child, caps);
+            }
+        }
+        HirExpr::Index(obj, idx, _) => {
+            infer_expr_effects(obj, caps);
+            infer_expr_effects(idx, caps);
+        }
+        HirExpr::AsyncView(v) => {
+            infer_expr_effects(v.source.as_ref(), caps);
+            if let Some(a) = &v.fetching_arm {
+                infer_expr_effects(a, caps);
+            }
+            if let Some(a) = &v.empty_arm {
+                infer_expr_effects(a, caps);
+            }
+            if let Some(a) = &v.error_arm {
+                infer_expr_effects(a, caps);
+            }
+            if let Some(a) = &v.ok_arm {
+                infer_expr_effects(a, caps);
+            }
+        }
+        HirExpr::IntLit(..)
+        | HirExpr::FloatLit(..)
+        | HirExpr::DecimalLit(..)
+        | HirExpr::StringLit(..)
+        | HirExpr::BoolLit(..)
+        | HirExpr::Ident(..)
+        | HirExpr::JsxSelfClosing(_)
+        | HirExpr::Jsx(_)
+        | HirExpr::Try(_)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 
@@ -562,6 +747,12 @@ fn caller() to str { fetch() }",
             route_path: format!("/api/query/{name}"),
             is_pure,
             effects,
+            webhook: None,
+            cors: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
+            stream_interval: None,
             span: dummy_span(),
         }
     }

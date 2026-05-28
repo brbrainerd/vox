@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA SSOT handbook (glossary, vocabulary, checklists)"
 description: "Single reference for SCIENTIA lifecycle terms, status vocabulary, SSOT routing, anti-drift checklists, operator flows, SLOs, and LLM task conventions."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-28"
 training_eligible: true
 

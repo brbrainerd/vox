@@ -269,7 +269,7 @@ impl crate::VoxDb {
         }))
     }
 
-    /// Next `turn_index` for [`question_events`] under this session (0-based contiguous).
+    /// Next `turn_index` for `question_events` under this session (0-based contiguous).
     pub async fn next_question_event_turn_index(
         &self,
         question_session_id: i64,

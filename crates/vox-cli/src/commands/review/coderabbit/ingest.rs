@@ -942,32 +942,20 @@ pub async fn run_db_status(path: &Path, json: bool) -> Result<()> {
         .await
         .context("connect VoxDb for db-status")?;
 
-    let mut run_rows = db
-        .query_all(
-            "SELECT COUNT(*) FROM external_review_run WHERE repository_id=?1",
-            turso::params![repository_id.as_str()],
-        )
+    let run_count = db
+        .count_external_review_runs_for_repository(&repository_id)
         .await
         .context("count external_review_run")?;
-    let run_count: i64 = run_rows.pop().and_then(|r| r.get(0).ok()).unwrap_or(0);
 
-    let mut finding_rows = db
-        .query_all(
-            "SELECT COUNT(*) FROM external_review_finding WHERE repository_id=?1",
-            turso::params![repository_id.as_str()],
-        )
+    let finding_count = db
+        .count_external_review_findings_for_repository(&repository_id)
         .await
         .context("count external_review_finding")?;
-    let finding_count: i64 = finding_rows.pop().and_then(|r| r.get(0).ok()).unwrap_or(0);
 
-    let mut dl_rows = db
-        .query_all(
-            "SELECT COUNT(*) FROM external_review_deadletter WHERE repository_id=?1 AND retry_state='pending'",
-            turso::params![repository_id.as_str()],
-        )
+    let deadletter_pending = db
+        .count_external_review_deadletters_pending_for_repository(&repository_id)
         .await
         .context("count external_review_deadletter pending")?;
-    let deadletter_pending: i64 = dl_rows.pop().and_then(|r| r.get(0).ok()).unwrap_or(0);
 
     let kpi = db
         .list_external_review_kpi_snapshots(&repository_id, 10)

@@ -43,7 +43,7 @@ pub async fn sync_command() -> Result<()> {
     let client = reqwest::Client::new();
     let res = client
         .get("https://api.github.com/user/events")
-        .header("User-Agent", "Vox-Ludus-CLI")
+        .header("User-Agent", "VoxGamifyCLI/1.0")
         .header("Authorization", format!("token {}", token))
         .send()
         .await?;

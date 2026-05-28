@@ -1,0 +1,22 @@
+fn is_monotone(xs: list[int]) to bool {
+    if xs.len() < 2 { return true }
+    let mut asc: bool = true
+    let mut desc: bool = true
+    let mut i: int = 1
+    while i < xs.len() {
+        match xs[i] {
+            Some(b) => {
+                match xs[i - 1] {
+                    Some(a) => {
+                        if b < a { asc = false }
+                        if b > a { desc = false }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return asc or desc
+}

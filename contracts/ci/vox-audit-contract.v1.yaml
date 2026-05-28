@@ -1,0 +1,305 @@
+x-vox-version: 1
+schema_version: 1
+
+# `vox audit <thing>` CI subcommand contract.
+#
+# References:
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §4
+#   - contracts/ci/check-targets.v1.yaml (sibling: workspace-wide check registry)
+#
+# Purpose: Single normative contract for every `vox audit <thing>` subcommand
+# implemented in the `vox-audit` crate. Without this contract, each CR-L's
+# runner would be born with a different shape — eight differently-shaped
+# subcommands risk being incompatible at CI integration time.
+
+contract:
+  id: vox-audit-subcommand
+  schema_version: 1
+  status: active                          # ratified by council 2026-05-15 (D21–D23)
+  applies_to: "all `vox audit <thing>` subcommands"
+  canonical_baseline_policy: "latest-tagged-release"  # D23 ratified
+
+# ----------------------------------------------------------------------------
+# CLI surface
+# ----------------------------------------------------------------------------
+cli_surface:
+  invocation_pattern: "vox audit <thing> [flags]"
+  required_flags: []
+  standard_flags:
+    - flag: "--json"
+      description: "Emit JSON to stdout. Default."
+      mutually_exclusive_with: ["--markdown", "--html"]
+    - flag: "--markdown"
+      description: "Emit human-readable Markdown to stdout."
+      mutually_exclusive_with: ["--json", "--html"]
+    - flag: "--html"
+      description: "Emit standalone HTML to stdout."
+      mutually_exclusive_with: ["--json", "--markdown"]
+    - flag: "--baseline=<path>"
+      description: "Compare results against a prior report JSON. Emits delta in output."
+      optional: true
+    - flag: "--threshold=<num>"
+      description: "Override the default bar from the corpus manifest. Causes exit-1 if not met."
+      optional: true
+    - flag: "--corpus=<path>"
+      description: "Override the default corpus path (contracts/eval/<thing>/)."
+      optional: true
+    - flag: "--llm-panel=<path>"
+      description: "Override the default panel (contracts/eval/llm-panel.v1.yaml)."
+      optional: true
+    - flag: "--dry-run"
+      description: "Validate fixtures + panel without running LLM calls. Exit 0 if valid."
+      optional: true
+
+# ----------------------------------------------------------------------------
+# Exit codes
+# ----------------------------------------------------------------------------
+exit_codes:
+  - code: 0
+    meaning: "Measurement complete; bar met (if threshold set) or no threshold set."
+  - code: 1
+    meaning: "Measurement complete; bar not met."
+  - code: 2
+    meaning: >
+      Infrastructure error — corpus missing, panel member unreachable above
+      threshold, output directory unwritable, etc. Does NOT block CI on its
+      own; logs to telemetry and skips. CR-L gate is marked
+      "infrastructure not ready" in release notes.
+  - code: 3
+    meaning: "Invalid arguments / malformed fixtures / schema violation."
+
+# ----------------------------------------------------------------------------
+# Report file (atomic write, regardless of stdout format)
+# ----------------------------------------------------------------------------
+report_file:
+  path_template: "contracts/reports/<thing>/<YYYY-MM-DD>.json"
+  write_policy: "atomic"                  # write to tempfile + rename
+  permissions: "0o644"
+  always_emitted: true                    # even on exit 1 / 2 / 3, a partial report is written
+  partial_report_marker: "incomplete: true"
+
+# ----------------------------------------------------------------------------
+# Canonical JSON shape
+# ----------------------------------------------------------------------------
+report_schema:
+  type: object
+  required:
+    - thing
+    - schema_version
+    - measured_at
+    - corpus_hash
+    - corpus_size
+    - llm_panel
+    - reproducibility
+    - results
+  properties:
+    thing:
+      type: string
+      description: "The audit subcommand name, e.g., 'humaneval-vox'."
+    schema_version:
+      type: integer
+      const: 1
+    measured_at:
+      type: string
+      format: date-time
+    corpus_hash:
+      type: string
+      pattern: "^blake3:[0-9a-f]{64}$"
+    corpus_size:
+      type: integer
+      minimum: 0
+    llm_panel:
+      type: array
+      items:
+        type: object
+        required: [id, version]
+        properties:
+          id: { type: string }
+          version: { type: string }
+    reproducibility:
+      type: object
+      required: [temperature, seed, attempts_per_fixture]
+      properties:
+        temperature: { type: number }
+        seed: { type: integer }
+        attempts_per_fixture: { type: integer, minimum: 1 }
+    results:
+      type: object
+      required: [overall_pass_rate]
+      properties:
+        overall_pass_rate: { type: number, minimum: 0.0, maximum: 1.0 }
+        median_pass_rate: { type: number, minimum: 0.0, maximum: 1.0 }
+        per_llm:
+          type: array
+          items:
+            type: object
+            required: [id, pass_rate]
+            properties:
+              id: { type: string }
+              pass_rate: { type: number }
+              median_cost_usd: { type: number }
+              unreachable_count: { type: integer }
+        per_fixture:
+          type: array
+          description: "Optional fine-grained breakdown."
+          items:
+            type: object
+            required: [id, outcomes]
+            properties:
+              id: { type: string }
+              outcomes:
+                type: array
+                description: "One per attempt."
+                items:
+                  type: object
+                  properties:
+                    panel_member: { type: string }
+                    passed: { type: boolean }
+                    cost_usd: { type: number }
+                    duration_ms: { type: integer }
+                    error_class: { type: string }
+    threshold:
+      type: object
+      properties:
+        target: { type: number }
+        met: { type: boolean }
+    delta_vs_baseline:
+      type: object
+      properties:
+        baseline_hash: { type: string }
+        absolute: { type: number }
+        relative_pct: { type: number }
+    incomplete:
+      type: boolean
+      description: "True when emitted as a partial report on error exit codes."
+
+# ----------------------------------------------------------------------------
+# Telemetry
+# ----------------------------------------------------------------------------
+telemetry:
+  event_namespace: "vox.audit.<thing>"
+  required_fields:
+    - corpus_hash
+    - panel_version
+    - duration_seconds
+    - outcome                             # "pass" | "fail" | "infra_error" | "invalid"
+    - cumulative_cost_usd
+    - unreachable_panel_member_count
+
+# ----------------------------------------------------------------------------
+# Subcommand inventory (CR-L gates)
+# ----------------------------------------------------------------------------
+subcommands:
+  - name: "vox audit spec-to-app"
+    gate: CR-L0
+    corpus: "contracts/eval/spec-to-app/"
+    block_ga: true                        # CR-L0 sub-bar blocks GA
+    cost_metered: true
+  - name: "vox audit humaneval"
+    gate: CR-L1
+    corpus: "contracts/eval/humaneval-vox/"
+    block_ga: false                       # can demote
+    cost_metered: true
+  - name: "vox audit mens-on-distribution"
+    gate: CR-L2
+    corpus: "contracts/eval/humaneval-vox/"  # reuses CR-L1 corpus
+    block_ga: false
+    cost_metered: true
+    single_model: "mens-current"          # not a panel-median measurement
+  - name: "vox audit repair-corpus"
+    gate: CR-L3
+    corpus: "contracts/eval/repair-corpus/"
+    block_ga: false                       # but sub-bar demotes project-scope to v1.1
+    cost_metered: true
+  - name: "vox audit plan-fidelity"
+    gate: CR-L4
+    corpus: "contracts/eval/plan-fidelity/"
+    block_ga: false
+    cost_metered: true
+  - name: "vox audit aci-default"
+    gate: CR-L5
+    corpus: null                          # boolean check, no corpus
+    block_ga: true                        # CR-L5 is binary must-land
+    cost_metered: false
+  - name: "vox audit retirement"
+    gate: CR-L6
+    corpus: "contracts/retirement/retired-surfaces.v1.yaml"  # ref doc, not eval fixtures
+    block_ga: true                        # CR-L6 is binary must-land
+    cost_metered: false
+  - name: "vox audit deploy"
+    gate: CR-L7
+    corpus: "contracts/marquee/manifest.v1.yaml"
+    block_ga: true                        # CR-L7 is binary E2E test
+    cost_metered: false
+  - name: "vox audit corpus-feedback"
+    gate: CR-L8
+    corpus: null                          # checks artifact age + shape
+    block_ga: true                        # CR-L8 is binary must-land
+    cost_metered: false
+
+# ----------------------------------------------------------------------------
+# Tooling gates (non-CR-L) — share the canonical report shape and CLI surface,
+# but do not block GA. Added 2026-05-23 (per
+# `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10).
+# ----------------------------------------------------------------------------
+  - name: "vox audit stdlib-coverage"
+    gate: Tooling                         # not a CR-L; ToolingStdlibCoverage variant
+    corpus: "scripts/"                    # default corpus root (override with --corpus)
+    block_ga: false                       # tooling gate; blocks PRs introducing drift only
+    cost_metered: false                   # static analysis; no LLM calls
+    inputs:
+      - "crates/vox-compiler/src/eval/builtins.rs"   # binary side (syn parse)
+      - "docs/src/reference/ref-builtins-stdlib.md"  # docs side (markdown tables)
+      - "scripts/**/*.vox"                            # corpus side (regex over call sites)
+    detector: "vox_code_audit::stdlib_parity::check_parity_at_paths"
+
+# ----------------------------------------------------------------------------
+# Umbrella subcommand
+# ----------------------------------------------------------------------------
+umbrella:
+  name: "vox audit all"
+  description: >
+    Runs every registered subcommand and aggregates a combined report.
+    Exit code is the worst-case exit code across all sub-runs:
+      - 0 if all subs return 0
+      - 1 if any sub returns 1 and none return 2 or 3
+      - 2 if any sub returns 2 and none return 3
+      - 3 if any sub returns 3
+  combined_report_path: "contracts/reports/audit-all/<YYYY-MM-DD>.json"
+
+# ----------------------------------------------------------------------------
+# Implementation guidance
+# ----------------------------------------------------------------------------
+implementation:
+  home_crate: "vox-audit"                 # new crate, P1.5
+  registration: >
+    Each subcommand impls a `Subcommand` trait in `vox-audit`. The trait
+    defines `run() -> AuditResult` returning the canonical JSON shape.
+  forward_compat: >
+    Unknown fields in older reports MUST be tolerated. The schema version
+    field is the upgrade hook; bumping schema_version requires a council
+    review per contracts/index.yaml policy.
+
+# ----------------------------------------------------------------------------
+# Council ratification log (D21–D23, 2026-05-15).
+# ----------------------------------------------------------------------------
+council_ratification_log:
+  - id: vox-audit-home-crate
+    decision: "New top-level `vox-audit` crate (NOT a submodule of vox-cli)."
+    ratified_at: "2026-05-15"
+    rationale: >
+      vox-cli is already near TOESTUB sprawl limits. New top-level capability
+      gets its own crate per workspace-organization rules. `vox-audit` ships
+      a public `Subcommand` trait enabling third-party extensions.
+  - id: vox-audit-exit-code-2-semantics
+    decision: "Exit 2 (infrastructure error) logs to telemetry, does NOT block CI."
+    ratified_at: "2026-05-15"
+    rationale: >
+      Default-fail during P0-P3 stub phase produces nonstop red CI;
+      default-skip lets CI focus on actually-implemented checks. Risk of
+      silently-skipped real failures is covered by `vox.audit.<thing>`
+      telemetry alerts.
+  - id: vox-audit-canonical-baseline
+    decision: "Latest tagged release is the canonical baseline; manual-pin reserved for emergency rollback."
+    ratified_at: "2026-05-15"
+    rationale: "Simplest contract; aligns with release-engineering tool defaults."

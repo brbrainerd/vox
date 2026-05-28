@@ -73,7 +73,17 @@ pub struct WorthinessInputs {
     #[serde(default)]
     pub repeated_unresolved_contradiction: bool,
     pub claim_evidence_coverage: f64,
+    /// Operator-declared replayability. When `artifact_replayability_measured`
+    /// is `Some`, that measured value supersedes this declared one for
+    /// hard-gate checks. Producers of this struct should keep both populated
+    /// so consumers can compare declared vs measured during diagnostics.
     pub artifact_replayability: f64,
+    /// Phase B: measured replayability written back by `vox-replay-runner`
+    /// after sandboxed re-execution of the manifest's RO-Crate `mainEntity`.
+    /// `None` means "replay has not been measured yet"; downstream gates
+    /// fall back to `artifact_replayability` (declared).
+    #[serde(default)]
+    pub artifact_replayability_measured: Option<f64>,
     pub before_after_pair_integrity: f64,
     pub metadata_completeness: f64,
     pub ai_disclosure_compliance: f64,
@@ -289,11 +299,20 @@ pub fn evaluate_worthiness(
 
 fn hard_metrics_ok(c: &PublicationWorthinessContract, inputs: &WorthinessInputs) -> bool {
     inputs.claim_evidence_coverage >= c.thresholds.claim_evidence_coverage_min
-        && inputs.artifact_replayability >= c.thresholds.artifact_replayability_min
+        && effective_replayability(inputs) >= c.thresholds.artifact_replayability_min
         && inputs.before_after_pair_integrity >= c.thresholds.before_after_pair_integrity_min
         && inputs.metadata_completeness >= c.thresholds.metadata_completeness_min
         && (inputs.ai_disclosure_compliance - c.thresholds.ai_disclosure_compliance_exact).abs()
             < 1e-9
+}
+
+/// The replayability value the worthiness rubric should actually gate on:
+/// the measured value when `vox-replay-runner` has populated it, otherwise
+/// the operator-declared value.
+pub fn effective_replayability(inputs: &WorthinessInputs) -> f64 {
+    inputs
+        .artifact_replayability_measured
+        .unwrap_or(inputs.artifact_replayability)
 }
 
 fn aggregate_score(c: &PublicationWorthinessContract, inputs: &WorthinessInputs) -> f64 {
@@ -356,7 +375,7 @@ pub fn machine_venue_profile_violations(
 
 /// Aggregate worthiness score for [`crate::PublisherConfig::worthiness_score`] (per-channel policy floors).
 ///
-/// Matches the orchestrator news service probe: default contract under `repo_root`, [`PreflightProfile::Default`].
+/// Matches the orchestrator news service probe: default contract under `repo_root`, `PreflightProfile::Default`.
 pub fn worthiness_score_for_publication_manifest(
     manifest: &crate::publication::PublicationManifest,
     repo_root: &Path,
@@ -399,6 +418,7 @@ mod tests {
             repeated_unresolved_contradiction: false,
             claim_evidence_coverage: 0.95,
             artifact_replayability: 0.9,
+            artifact_replayability_measured: None,
             before_after_pair_integrity: 0.95,
             metadata_completeness: 0.95,
             ai_disclosure_compliance: 1.0,
@@ -457,5 +477,50 @@ mod tests {
         i.meaningful_advance = false;
         let r = evaluate_worthiness(&c, &i);
         assert_eq!(r.decision, WorthinessDecision::AskForEvidence);
+    }
+
+    // ── Phase B: effective_replayability + measured-supersedes-declared ──────
+
+    #[test]
+    fn effective_replayability_falls_back_to_declared_when_measured_is_none() {
+        let mut i = sample_inputs_publish_ready();
+        i.artifact_replayability = 0.42;
+        i.artifact_replayability_measured = None;
+        assert!((effective_replayability(&i) - 0.42).abs() < 1e-12);
+    }
+
+    #[test]
+    fn effective_replayability_uses_measured_when_present() {
+        let mut i = sample_inputs_publish_ready();
+        i.artifact_replayability = 0.99; // operator-declared (optimistic)
+        i.artifact_replayability_measured = Some(0.0); // runner: hash mismatch
+        assert_eq!(effective_replayability(&i), 0.0);
+    }
+
+    #[test]
+    fn measured_failure_overrides_declared_pass_in_hard_metrics() {
+        let c = sample_contract();
+        let mut i = sample_inputs_publish_ready();
+        // Declared value is well above the contract floor.
+        i.artifact_replayability = 0.95;
+        // But the runner measured a hash mismatch.
+        i.artifact_replayability_measured = Some(0.0);
+        let r = evaluate_worthiness(&c, &i);
+        assert!(
+            !r.hard_metrics_ok,
+            "measured 0.0 must override declared 0.95 and fail the hard-gate"
+        );
+        assert_ne!(r.decision, WorthinessDecision::Publish);
+    }
+
+    #[test]
+    fn measured_pass_alongside_declared_pass_still_publishes() {
+        let c = sample_contract();
+        let mut i = sample_inputs_publish_ready();
+        i.artifact_replayability = 0.9;
+        i.artifact_replayability_measured = Some(1.0);
+        let r = evaluate_worthiness(&c, &i);
+        assert_eq!(r.decision, WorthinessDecision::Publish);
+        assert!(r.hard_metrics_ok);
     }
 }

@@ -153,6 +153,7 @@ pub enum DbCliPublication {
         json: bool,
     },
     /// Explain discovery rank, manifest completion, and transform preview for one id.
+    /// Explain the heuristic scoring for publication discovery
     #[command(name = "publication-discovery-explain")]
     PublicationDiscoveryExplain {
         #[arg(long)]

@@ -146,7 +146,7 @@ impl PopuliClient {
     /// Create a new client from config.
     pub fn new(config: MensConfig) -> Self {
         Self {
-            http: vox_reqwest_defaults::client(),
+            http: vox_http_client::client(),
             config,
         }
     }

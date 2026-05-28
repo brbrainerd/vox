@@ -56,7 +56,7 @@ prefix_rules:
     any_prefix: ["examples/"]
   - order: 50
     name: "10_vscode_ext"
-    any_prefix: ["vox-vscode/"]
+    any_prefix: ["apps/editor/vox-vscode/"]
   - order: 55
     name: "11_scripts_xtask"
     any_prefix:

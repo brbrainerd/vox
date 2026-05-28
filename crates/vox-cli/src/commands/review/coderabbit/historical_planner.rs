@@ -34,7 +34,8 @@ pub async fn run_historical_submit(
         "[historical-submit] Resolving diff: {}...{}",
         commit_id, local_sha
     );
-    let diff_out = tokio::process::Command::new("git")
+    let diff_out = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args([
             "-c",
             "core.autocrlf=false",
@@ -135,7 +136,8 @@ pub async fn run_historical_submit(
         "\n[historical-submit] Pushing historical baseline {} -> origin/{}",
         commit_id, baseline_branch
     );
-    let push_base_out = tokio::process::Command::new("git")
+    let push_base_out = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args([
             "push",
             "-f",

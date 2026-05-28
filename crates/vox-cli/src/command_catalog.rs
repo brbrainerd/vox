@@ -21,6 +21,16 @@ pub enum CatalogTier {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct CommandCatalogArgument {
+    pub name: String,
+    pub short: Option<char>,
+    pub long: Option<String>,
+    pub help: Option<String>,
+    pub required: bool,
+    pub takes_value: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct CommandCatalogEntry {
     pub path: Vec<String>,
     pub command: String,
@@ -34,6 +44,8 @@ pub struct CommandCatalogEntry {
     /// Transport-independent capability id (`cli.*`) when `contracts/capability` loads.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub capability_id: Option<String>,
+    #[serde(default)]
+    pub arguments: Vec<CommandCatalogArgument>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -45,8 +57,21 @@ pub struct CommandCatalog {
 pub fn build_catalog() -> CommandCatalog {
     let root = crate::VoxCliRoot::command();
     let mut entries = Vec::new();
-    for sub in root.get_subcommands() {
-        walk_command(sub, &[], &mut entries);
+    // Iterative DFS: the `vox` CLI tree is deep enough that recursive walks can overflow the
+    // default Windows thread stack (~1 MiB) when many tests run in parallel.
+    let mut stack: Vec<(&Command, Vec<String>)> = Vec::new();
+    let top: Vec<_> = root.get_subcommands().collect();
+    for sub in top.into_iter().rev() {
+        stack.push((sub, vec![sub.get_name().to_string()]));
+    }
+    while let Some((cmd, path)) = stack.pop() {
+        push_catalog_entry(cmd, &path, &mut entries);
+        let children: Vec<_> = cmd.get_subcommands().collect();
+        for sub in children.into_iter().rev() {
+            let mut child_path = path.clone();
+            child_path.push(sub.get_name().to_string());
+            stack.push((sub, child_path));
+        }
     }
     entries.sort_by(|a, b| a.path.cmp(&b.path));
     let repo_root = vox_repository::resolve_repo_root_for_ci();
@@ -267,11 +292,9 @@ pub fn render_search_results(entries: &[CommandCatalogEntry], pattern: &str) -> 
     out
 }
 
-fn walk_command(cmd: &Command, prefix: &[String], out: &mut Vec<CommandCatalogEntry>) {
-    let mut path = prefix.to_vec();
-    path.push(cmd.get_name().to_string());
-    let feature_gate = command_contract::merged_feature_gate(&path);
-    let tier = tier_for_path(&path, feature_gate.is_some());
+fn push_catalog_entry(cmd: &Command, path: &[String], out: &mut Vec<CommandCatalogEntry>) {
+    let feature_gate = command_contract::merged_feature_gate(path);
+    let tier = tier_for_path(path, feature_gate.is_some());
     out.push(CommandCatalogEntry {
         command: format!("vox {}", path.join(" ")),
         about: cmd
@@ -281,15 +304,23 @@ fn walk_command(cmd: &Command, prefix: &[String], out: &mut Vec<CommandCatalogEn
         aliases: collect_aliases(cmd),
         has_subcommands: cmd.has_subcommands(),
         compiled_in: true,
-        source_group: command_contract::catalog_source_group(&path),
+        source_group: command_contract::catalog_source_group(path),
         feature_gate,
-        path: path.clone(),
+        path: path.to_vec(),
         tier,
         capability_id: None,
+        arguments: cmd
+            .get_arguments()
+            .map(|arg| CommandCatalogArgument {
+                name: arg.get_id().to_string(),
+                short: arg.get_short(),
+                long: arg.get_long().map(|s| s.to_string()),
+                help: arg.get_help().map(|s| s.to_string()),
+                required: arg.is_required_set(),
+                takes_value: matches!(arg.get_action(), clap::ArgAction::Set | clap::ArgAction::Append),
+            })
+            .collect(),
     });
-    for sub in cmd.get_subcommands() {
-        walk_command(sub, &path, out);
-    }
 }
 
 fn collect_aliases(cmd: &Command) -> Vec<String> {

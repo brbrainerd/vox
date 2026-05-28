@@ -1,0 +1,13 @@
+[problem]
+id = "072"
+title = "triangular_number"
+prompt = """
+Return the nth triangular number, defined as n * (n + 1) / 2.
+For example: triangular_number(1) = 1, triangular_number(4) = 10, triangular_number(10) = 55.
+Assume n >= 0. Return 0 for n = 0.
+"""
+signature = "fn triangular_number(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

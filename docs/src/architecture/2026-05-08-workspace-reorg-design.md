@@ -1,7 +1,7 @@
 ---
 title: "Workspace Reorg — Build-Time + Layered Architecture (2026-05-08)"
 description: "Design document for the 2026-05-08 workspace reorg: build-time wins, layered architecture, and phase plan."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---
@@ -32,10 +32,10 @@ The workspace has grown to 86+ crates with these structural issues:
 |---|---|---|
 | **L0 — Pure types** | Data structs only. No tokio, no DB, no logic. | `vox-orchestrator-types`, `vox-db-types`, `vox-protocol`, `vox-mesh-types`, **`vox-plugin-types`** *(new)*, **`vox-skill-types`** *(new)* |
 | **L1 — Primitives & utilities** | OS wrappers, crypto, FS, JSON helpers. | `vox-primitives`, `vox-bounded-fs`, `vox-crypto`, `vox-secrets`, `vox-jsonschema-util`, `vox-checksum-manifest`, `vox-identity` |
-| **L2 — Domain libraries** | Pure-data domain logic over L0+L1. | `vox-config`, `vox-pm`, `vox-repository`, `vox-search`, `vox-corpus` |
-| **L3 — Heavy runtimes (split)** | Big monoliths, decomposed along feature boundaries. | `vox-db-core`, `vox-db-stores` *(new — extracted from `vox-db`)*, `vox-orchestrator-queue` *(new)*, `vox-orchestrator-mcp` *(new)*, `vox-orchestrator-runtime` *(new)*, `vox-orchestrator` *(slim coordinator, ~25K LoC)*, `vox-compiler`, `vox-compiler-emit`, `vox-mens`, `vox-publisher` |
+| **L2 — Domain libraries** | Pure-data domain logic over L0+L1. | `vox-config`, `vox-package`, `vox-repository`, `vox-search`, `vox-corpus` |
+| **L3 — Heavy runtimes (split)** | Big monoliths, decomposed along feature boundaries. | `vox-db-core`, `vox-db-stores` *(new — extracted from `vox-db`)*, `vox-orchestrator-queue` *(new)*, `vox-orchestrator-mcp` *(new)*, `vox-orchestrator-runtime` *(new)*, `vox-orchestrator` *(slim coordinator, ~25K LoC)*, `vox-compiler`, `vox-codegen`, `vox-ml-cli`, `vox-publisher` |
 | **L4 — Plugin infrastructure** | Plugins ship as cdylib; loaded at runtime. | `vox-plugin-api` *(slimmed)*, **`vox-plugin-host`** *(no `vox-db` dep — uses `PluginStateBackend` trait)*, plugin crates |
-| **L5 — Surfaces** | Binaries and integration. | `vox-runtime`, **`vox-cli-thin`** *(new)*, `vox-cli` *(full)*, `vox-toestub`, `vox-orchestrator-d` *(new — daemon bin package)* |
+| **L5 — Surfaces** | Binaries and integration. | `vox-actor-runtime`, **`vox-cli-thin`** *(new)*, `vox-cli` *(full)*, `vox-code-audit`, `vox-orchestrator-d` *(new — daemon bin package)* |
 
 ### Workspace-hack 5-way decomposition
 

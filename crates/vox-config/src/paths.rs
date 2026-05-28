@@ -151,10 +151,55 @@ pub fn repo_backend_artifact_dir(repo_root: &Path) -> PathBuf {
     repo_root.join(".vox").join("backend-artifact")
 }
 
+/// SCIENTIA research mesh intake (orchestrator research broadcast → publisher scholarly pipeline).
+///
+/// Under `<repo_root>/.vox/scientia/research-mesh-intake/` — see `vox-publisher::research_mesh`.
+#[must_use]
+pub fn repo_scientia_research_mesh_intake_dir(repo_root: &Path) -> PathBuf {
+    repo_root
+        .join(".vox")
+        .join("scientia")
+        .join("research-mesh-intake")
+}
+
+/// Promoted SCIENTIA mesh ledger (JSONL) under `<repo_root>/.vox/scientia/research-mesh-promoted/`.
+#[must_use]
+pub fn repo_scientia_research_mesh_promoted_dir(repo_root: &Path) -> PathBuf {
+    repo_root
+        .join(".vox")
+        .join("scientia")
+        .join("research-mesh-promoted")
+}
+
 /// Basename for MCP session dirs (`.vox/sessions/<repository_id>` under repo root).
 pub const MCP_SESSIONS_DIR_BASENAME: &str = ".vox/sessions";
 
 /// MCP session persistence: `.vox/sessions/<repository_id>` (relative to repository root).
 pub fn mcp_sessions_dir(repository_id: &str) -> PathBuf {
     PathBuf::from(MCP_SESSIONS_DIR_BASENAME).join(repository_id)
+}
+
+#[cfg(test)]
+mod repo_path_tests {
+    use super::*;
+
+    #[test]
+    fn scientia_research_mesh_intake_is_under_dot_vox() {
+        let p = repo_scientia_research_mesh_intake_dir(Path::new("/workspace/repo"));
+        let s = p.to_string_lossy();
+        assert!(
+            s.contains(".vox") && s.contains("scientia") && s.contains("research-mesh-intake"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn scientia_research_mesh_promoted_is_under_dot_vox() {
+        let p = repo_scientia_research_mesh_promoted_dir(Path::new("/workspace/repo"));
+        let s = p.to_string_lossy();
+        assert!(
+            s.contains(".vox") && s.contains("scientia") && s.contains("research-mesh-promoted"),
+            "{s}"
+        );
+    }
 }

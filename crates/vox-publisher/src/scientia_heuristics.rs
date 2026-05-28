@@ -36,7 +36,7 @@ pub struct ScientiaHeuristics {
     pub worthiness_epistemic_abstract_boost: f64,
     pub worthiness_novelty_base: f64,
     pub worthiness_novelty_r_coef: f64,
-    /// Below this [`WorthinessInputs::claim_evidence_coverage`], Socrates contradiction shrink is skipped (coverage paradox).
+    /// Below this `WorthinessInputs::claim_evidence_coverage`, Socrates contradiction shrink is skipped (coverage paradox).
     pub worthiness_contradiction_coverage_gate: f64,
     pub confidence_weight_strong: f64,
     pub confidence_weight_supporting: f64,

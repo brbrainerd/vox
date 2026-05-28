@@ -14,6 +14,8 @@ pub enum HirEffectKind {
     Clock,
     Random,
     Spawn,
+    GpuCompute,
+    Mutate,
     /// Parameterized MCP tool call.
     Mcp(String),
 }
@@ -28,6 +30,8 @@ impl HirEffectKind {
             HirEffectKind::Clock => "clock".into(),
             HirEffectKind::Random => "random".into(),
             HirEffectKind::Spawn => "spawn".into(),
+            HirEffectKind::GpuCompute => "gpu_compute".into(),
+            HirEffectKind::Mutate => "mutate".into(),
             HirEffectKind::Mcp(tool) => format!("mcp({tool})"),
         }
     }

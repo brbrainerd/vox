@@ -4,7 +4,7 @@ const DEFAULT_MAX_RETRIES: u64 = 3;
 const DEFAULT_RETRY_BASE_MS: u64 = 500;
 
 impl crate::VoxDb {
-    /// Wrap an already-open [`VoxDb`] (e.g. after custom Turso setup).
+    /// Wrap an already-open `VoxDb` (e.g. after custom Turso setup).
     pub fn from_store(conn: turso::Connection, sync_db: Option<turso::sync::Database>) -> Self {
         Self {
             conn,

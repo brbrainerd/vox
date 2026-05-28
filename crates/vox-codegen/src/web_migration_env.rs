@@ -19,10 +19,14 @@ pub(crate) fn web_ir_validate_gate_enabled() -> bool {
     !env_var_explicitly_disabled(std::env::var("VOX_WEBIR_VALIDATE"))
 }
 
-/// Path C reactive `view:` may emit Web IR preview TSX when validate is clean and parity matches.
-///
-/// **Default:** **on** (unset). Set `VOX_WEBIR_EMIT_REACTIVE_VIEWS=0`, `false`, `no`, or `off` for legacy `emit_hir_expr` views only.
+/// When set (`1`, `true`, `yes`), TypeScript codegen fails if the module contains AI fixtures that are not lowered to TS yet.
 #[must_use]
-pub(crate) fn web_ir_emit_reactive_views_enabled() -> bool {
-    !env_var_explicitly_disabled(std::env::var("VOX_WEBIR_EMIT_REACTIVE_VIEWS"))
+pub(crate) fn ts_strict_ai_gate_enabled() -> bool {
+    matches!(
+        std::env::var("VOX_TS_STRICT_AI")
+            .ok()
+            .as_deref()
+            .map(str::trim),
+        Some("1") | Some("true") | Some("yes")
+    )
 }

@@ -1,9 +1,9 @@
 ---
 title: "Coding Agent Instructions"
 description: "Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox."
-category: "contributor"
+category: "Contributors"
 status: "current"
-last_updated: "2026-04-17"
+last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "High-signal quick-reference loaded as agent context; each section is a directly actionable rule."
 
@@ -18,13 +18,13 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 
 1. **Check SSOT inventories first** — verify similar features aren't retired. Cross-reference `AGENTS.md` and [legacy-retirement-roadmap.md](../archive/research-2026-q1/legacy-retirement-roadmap.md).
 2. **Beware renamed crates** — `vox-dei` was retired; the orchestrator is `vox-orchestrator`. See the retired surfaces table in `AGENTS.md`.
-3. **Do not hallucinate surfaces** — if a crate isn't in `architecture-index.md` or `AGENTS.md`, do not assume it exists.
+3. **Do not hallucinate surfaces** — if a crate isn't in [`where-things-live.md`](../architecture/where-things-live.md) or `AGENTS.md`, do not assume it exists.
 4. **Search before modifying** — use `grep_search` and `view_file` before touching large modules.
 
 ## Structural limits (enforced by TOESTUB, fail CI)
 
 | Limit | Value | Rule ID |
-|---|---|---|
+| --- | --- | --- |
 | Max file length (non-blank lines) | 500 | `arch/god_object` |
 | Max methods per struct/impl | 12 | `arch/god_object` |
 | Max files per directory | 20 | `arch/sprawl` |
@@ -37,6 +37,24 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 Full fix guide: [TOESTUB contributor guide](toestub-contributor-guide.md).
 Policy SSOT: [Architectural governance](../../agents/governance.md).
 
+## AI inner-loop: reduce Cargo overhead
+
+Coding agents often spawn **many shells**. Each distinct **`CARGO_TARGET_DIR`** is a **separate incremental cache** — the workspace [`.cargo/config.toml`](../../../.cargo/config.toml) pins **`target/`** for a reason.
+
+**Do:**
+
+- Run **`vox ci dev-loop-audit`** at the start of a focused session (or **`--json`** for tooling).
+- Prefer **`cargo check -p <crate>`** and **`cargo nextest run -p <crate> --profile ci`** (or a **filtered** **`cargo test`**) while iterating.
+- Use **`vox ci pre-push`** (optionally **`--quick`**) when you intend to **push**, not after every edit.
+- Emit timings occasionally: **`vox ci pre-push --report-json target/local/pre-push-last.json`**.
+
+**Avoid:**
+
+- Switching **`CARGO_TARGET_DIR`** between **`target`**, **`target-agent-ssot`**, **`target-ci-*`** during the same task unless intentionally isolating.
+- Using **`vox ci pre-push`** as the first compile check after a one-crate change.
+
+Full rationale and thresholds: [AI dev loop overhead (2026)](../architecture/ai-dev-loop-overhead-2026.md).
+
 ## Pre-commit victory checklist
 
 Run these before marking any task complete. Tiers are ordered — fix earlier tiers first.
@@ -45,11 +63,12 @@ Run these before marking any task complete. Tiers are ordered — fix earlier ti
 # Tier 1 — zero stubs
 cargo run -p vox-cli --features stub-check -- stub-check crates/<your-crate>
 
-# Tier 3 — compile
-cargo check --workspace
+# Tier 3 — compile (prefer scoped — avoids workspace-wide churn)
+cargo check -p <your-crate>
 
 # Tier 5 — unit tests (for code changes)
 cargo test -p <your-crate>
+# Or: cargo nextest run -p <your-crate> --profile ci
 
 # Tier 6 — .vox parse rate (if .vox files changed)
 cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
@@ -69,6 +88,7 @@ Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../archive/research-202
 When assigning a task to an AI agent — or starting a task yourself — express the requirement as a **failing test before any implementation brief**. This is the most unambiguous spec format available:
 
 **For Rust changes:**
+
 ```rust
 #[test]
 fn share_tunnel_url_includes_port() {
@@ -79,6 +99,7 @@ fn share_tunnel_url_includes_port() {
 ```
 
 **For Vox golden examples:**
+
 ```vox
 // vox:skip
 @test
@@ -90,6 +111,7 @@ fn greet_returns_full_name() {
 ```
 
 Paste the failing test as the first content of any implementation request. Benefits:
+
 - Eliminates ambiguity about inputs, outputs, and edge cases.
 - Acts as an automated linter on AI-generated output — code that doesn't pass the test is wrong, regardless of how plausible it looks.
 - Keeps the agent in a verifiable loop: write → run → diagnose → fix.
@@ -150,7 +172,7 @@ Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/re
 ## Key SSOTs
 
 | Need | SSOT |
-|---|---|
+| --- | --- |
 | Secrets / credentials | [Secrets SSOT](../reference/secrets-ssot.md) |
 | CLI command additions | [CLI design rules SSOT](../archive/research-2026-q1/cli-design-rules-ssot.md) |
 | Retired symbols / crates | [AGENTS.md §Retired Surfaces](../../../AGENTS.md) |
@@ -162,4 +184,3 @@ Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/re
 ## Enforcement
 
 Operations are checked by `AGENTS.md` + CI. Prefer decomposition over shell cleverness. When in doubt, read the SSOT.
-

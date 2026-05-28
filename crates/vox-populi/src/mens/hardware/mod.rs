@@ -13,6 +13,7 @@ pub mod registry;
 #[cfg(test)]
 mod tests;
 pub mod types;
+pub mod windows_fallback;
 
 /// Default probe cache TTL. Re-probes after 5 minutes by default.
 const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);

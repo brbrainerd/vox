@@ -1,0 +1,7 @@
+{
+  "id": "repair-003-logic",
+  "bug_class": "logic",
+  "post_repair_criterion": "test_passes",
+  "expected_diagnostic_count_before": 0,
+  "note": "vox check passes; failure surfaces only at @test execution. Used to validate that the runner reports test-level failures as well as compile-level ones."
+}

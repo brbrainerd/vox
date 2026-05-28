@@ -95,7 +95,7 @@ pub struct Turn {
 }
 
 /// Generate a 3-turn iterative refinement conversation for a given Vox construct type.
-/// Turn 1: create it, Turn 2: add error handling with real Result[T], Turn 3: production-ready.
+/// Turn 1: create it, Turn 2: add error handling with real `Result[T]`, Turn 3: production-ready.
 pub fn gen_multiturn_vox(
     construct: &str,
     name: &str,

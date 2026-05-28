@@ -1,0 +1,11 @@
+// Repair-corpus fixture 044 — api-misuse bug class.
+// The `range(start: int, end: int)` stdlib numeric API (same family
+// as `len`) is called with a str second argument. Vox's `len(x)` is
+// polymorphic in x, so the canonical wrong-type misuse in this family
+// is `range`, which fixes both arguments at `int`. Expected repair:
+// parse `end` into an int before calling, or change the parameter
+// type to `int`.
+
+fn ladder(end: str) to List[int] {
+    return range(0, end)
+}

@@ -1,0 +1,12 @@
+[problem]
+id = "068"
+title = "insertion_sort"
+prompt = """
+Sort a list of integers in non-decreasing order using insertion sort.
+Return the sorted list without modifying the original input.
+"""
+signature = "fn insertion_sort(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

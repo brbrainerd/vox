@@ -1,10 +1,6 @@
 use super::*;
 #[cfg(feature = "populi-transport")]
 use crate::a2a::populi_remote_worker_tick_once;
-use crate::a2a::{
-    REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE,
-    RemoteTaskEnvelope, RemoteTaskResult,
-};
 use crate::config::OrchestratorConfig;
 use crate::reconstruction::AgentExecutionRole;
 use crate::types::{
@@ -33,6 +29,7 @@ async fn lease_gated_relay_failure_falls_back_to_local_queue() {
             None,
             None,
             Some(hints),
+            None,
             None,
         )
         .await
@@ -171,6 +168,7 @@ async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
             None,
             None,
             Some(hints),
+            None,
             None,
         )
         .await
@@ -343,6 +341,7 @@ async fn lease_gated_submit_relays_context_envelope_in_payload() {
             None,
             Some(hints),
             Some(sid.to_string()),
+            None,
         )
         .await
         .expect("submit");
@@ -771,6 +770,7 @@ async fn lease_renew_loss_requeues_locally_and_relays_cancel() {
             None,
             Some(hints),
             None,
+            None,
         )
         .await
         .expect("submit");
@@ -1089,6 +1089,7 @@ mod route_replay_tests {
                 None,
                 None,
                 None,
+                None,
             )
             .await
             .expect("submit");
@@ -1150,6 +1151,7 @@ mod route_replay_tests {
                 vec![FileAffinity::write("route_replay_fixture/delegate_skip.rs")],
                 None,
                 Some("heavy".into()),
+                None,
                 None,
                 None,
                 None,
@@ -1298,6 +1300,7 @@ async fn vram_admission_rejects_oversized_task_and_falls_back_to_local_queue() {
             None,
             Some(cap),
             Some(hints),
+            None,
             None,
         )
         .await

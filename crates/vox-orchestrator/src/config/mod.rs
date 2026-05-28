@@ -12,11 +12,13 @@ mod impl_validate;
 mod merge_populi;
 mod news;
 mod orchestrator_fields;
+mod scientia_research_mesh;
 
 pub use enums::{CostPreference, OverflowStrategy, ScalingProfile};
 pub use errors::{ConfigError, ConfigValidationError};
 pub use news::NewsConfig;
 pub use orchestrator_fields::OrchestratorConfig;
+pub use scientia_research_mesh::ScientiaResearchMeshConfig;
 
 #[cfg(test)]
 mod tests;

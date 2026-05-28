@@ -1,0 +1,20 @@
+// Base source for plan-036-rename-table-field.
+//
+// A Contact table with `name`. The plan asks the model to rename the
+// field to `email`.
+
+@table type Contact {
+    id: str,
+    name: str
+}
+
+@endpoint(kind: query)
+fn lookup_contact(name: str) to List[Contact] {
+    return []
+}
+
+@test
+fn test_lookup_contact_empty() to Unit {
+    let xs = lookup_contact("ada")
+    assert(len(xs) is 0)
+}

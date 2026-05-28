@@ -1,7 +1,7 @@
 ---
 title: "Zig-Inspired Deployment Architecture"
 description: "Official documentation for Zig-Inspired Deployment Architecture for the Vox language. Detailed technical reference, architecture guides, "
-category: "reference"
+category: "Concepts"
 last_updated: "2026-03-24"
 training_eligible: true
 
@@ -70,7 +70,7 @@ replicas  = 3
 
 Vox stores build outputs in a content-addressed cache, keyed by SHA-3/512 of all inputs:
 
-```
+```text
 .vox-cache/
 ├── manifests/    # <input-hash> → artifact metadata (JSON)
 └── artifacts/    # <input-hash>/ directories with build outputs
@@ -98,7 +98,7 @@ When `target = "bare-metal"`, `vox deploy` generates and installs a systemd serv
 | Crate | Role |
 |---|---|
 | `vox-container` | `ContainerRuntime` trait, Docker/Podman, bare-metal systemd, `DeployTarget` enum; generated Compose embeds optional mens env from `docker/vox-compose-mens-environment.block.yaml` ([deployment compose SSOT](../reference/deployment-compose.md), [mens SSOT](../reference/populi.md)) |
-| `vox-pm` | `ArtifactCache` (content-addressed build cache), `VoxManifest`/`DeploySection` |
+| `vox-package` | `ArtifactCache` (content-addressed build cache), `VoxManifest`/`DeploySection` |
 | `vox-cli` | Unified `vox deploy` command dispatching to all target types |
 
 ## Reducing Technical Debt

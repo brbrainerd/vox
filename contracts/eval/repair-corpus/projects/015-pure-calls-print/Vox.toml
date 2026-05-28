@@ -1,0 +1,5 @@
+[package]
+name = "repair-015-pure-calls-print"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: effect-violation bug class. @pure fn performs stdout-style IO via env.println()."

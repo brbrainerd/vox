@@ -3,7 +3,7 @@
 //! Produces `▶ Run test` / `▶ Run property` code lenses above each
 //! `@test` and `@forall` declaration in a `.vox` document.
 
-use tower_lsp::lsp_types::{CodeLens, Command, Position, Range};
+use tower_lsp_server::ls_types::{CodeLens, Command, Position, Range};
 use vox_compiler::ast::decl::{Decl, Module};
 
 /// Build all code lenses for a parsed Vox module.

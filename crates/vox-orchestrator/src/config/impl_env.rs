@@ -532,6 +532,15 @@ impl OrchestratorConfig {
                 self.completion_grounding_enforce,
             );
         }
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorCompletionMarkdownLinkAuditEnabled)
+        {
+            self.completion_markdown_link_audit_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_COMPLETION_MARKDOWN_LINK_AUDIT_ENABLED",
+                &val,
+                self.completion_markdown_link_audit_enabled,
+            );
+        }
         // Phase 15: Attention Budget env overrides
         if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorAttentionEnabled) {
             self.attention_enabled = parse_or_warn(
@@ -875,6 +884,63 @@ impl OrchestratorConfig {
                 self.exec_time_history_window_days,
             );
         }
+
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorAgentosAciEnvelopeEnabled)
+        {
+            self.agentos_aci_envelope_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_AGENTOS_ACI_ENVELOPE_ENABLED",
+                &v,
+                self.agentos_aci_envelope_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorAgentosGuardrailKernelEnabled)
+        {
+            self.agentos_guardrail_kernel_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_AGENTOS_GUARDRAIL_KERNEL_ENABLED",
+                &v,
+                self.agentos_guardrail_kernel_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorAgentosCheckpointHintsEnabled)
+        {
+            self.agentos_checkpoint_hints_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_AGENTOS_CHECKPOINT_HINTS_ENABLED",
+                &v,
+                self.agentos_checkpoint_hints_enabled,
+            );
+        }
+
+        // SCIENTIA research mesh intake (see docs/architecture/research-scientia-telemetry-channels.md)
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxScientiaResearchMeshIntakeWriterEnabled)
+        {
+            self.scientia_research_mesh.intake_writer_enabled = parse_or_warn(
+                "VOX_SCIENTIA_RESEARCH_MESH_INTAKE_WRITER",
+                &v,
+                self.scientia_research_mesh.intake_writer_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxScientiaResearchMeshConsumerPollEnabled)
+        {
+            self.scientia_research_mesh.intake_consumer_poll_enabled = parse_or_warn(
+                "VOX_SCIENTIA_RESEARCH_MESH_CONSUMER_POLL",
+                &v,
+                self.scientia_research_mesh.intake_consumer_poll_enabled,
+            );
+        }
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxScientiaResearchMeshConsumerPollIntervalMs)
+        {
+            self.scientia_research_mesh.intake_consumer_poll_interval_ms = parse_or_warn(
+                "VOX_SCIENTIA_RESEARCH_MESH_CONSUMER_POLL_INTERVAL_MS",
+                &v,
+                self.scientia_research_mesh.intake_consumer_poll_interval_ms,
+            );
+        }
     }
 
     /// Create a config suitable for testing (small limits, fast timeouts).
@@ -884,6 +950,8 @@ impl OrchestratorConfig {
             lock_timeout_ms: 1000,
             bulletin_capacity: 16,
             toestub_gate: false,
+            behavioral_gate_on_complete: false,
+            completion_markdown_link_audit_enabled: false,
             ..Default::default()
         }
     }

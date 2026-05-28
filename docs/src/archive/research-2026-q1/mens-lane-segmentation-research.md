@@ -1,7 +1,7 @@
 ---
 title: "Mens lane segmentation research"
 description: "Research groundwork for separating code-only, docs QA, chat, tool, speech, and future multimodal lanes in VoxMens training data and evaluation."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-28"
 training_eligible: false
 

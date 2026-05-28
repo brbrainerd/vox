@@ -1,9 +1,9 @@
-//! MENS and GRPO training types for [`crate::VoxDb`].
+//! MENS and GRPO training types for `vox_db::VoxDb`.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// A report on an agent interaction observed by the [`Observer`].
+/// A report on an agent interaction observed by the `Observer`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ObservationReport {
     pub session_id: crate::ids::DbSessionId,

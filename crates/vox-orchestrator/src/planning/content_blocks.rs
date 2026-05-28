@@ -131,7 +131,7 @@ pub fn markdown_to_content_blocks(md: &str) -> Vec<ContentBlock> {
 }
 
 /// Flush accumulated prose lines into a single `Prose` block (skipping blank-only runs).
-fn flush_prose<'a>(lines: &mut Vec<&'a str>, blocks: &mut Vec<ContentBlock>) {
+fn flush_prose(lines: &mut Vec<&str>, blocks: &mut Vec<ContentBlock>) {
     let text = lines.join("\n");
     let trimmed = text.trim();
     if !trimmed.is_empty() {
@@ -163,12 +163,9 @@ fn try_parse_task_item(line: &str) -> Option<ContentBlock> {
     let after_num = &trimmed[dot_pos + 2..];
 
     // Extract description: strip `**…**` markdown bold
-    let desc_raw = if after_num.starts_with("**") {
-        let end = after_num[2..]
-            .find("**")
-            .map(|p| p + 2)
-            .unwrap_or(after_num.len());
-        &after_num[2..end]
+    let desc_raw = if let Some(rest) = after_num.strip_prefix("**") {
+        let end = rest.find("**").unwrap_or(rest.len());
+        &rest[..end]
     } else {
         // Fall back to text before ` — `
         after_num.split(" — ").next().unwrap_or(after_num)

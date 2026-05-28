@@ -3,15 +3,12 @@
 // ─── Slot Pools ──────────────────────────────────────────
 
 pub(crate) static CRATE_POOL: &[&str] = &[
-    "vox-hir",
-    "vox-ast",
-    "vox-lexer",
+    "vox-compiler",
     "vox-cli",
     "vox-db",
-    "vox-dei",
+    "vox-orchestrator",
     "vox-gamify",
     "vox-arca",
-    "vox-typeck",
     "vox-codegen-rust",
     "vox-ssg",
     "vox-lsp",
@@ -41,11 +38,7 @@ static DOC_CATEGORY_POOL: &[&str] = &[
 ];
 
 static BUILD_CRATE_POOL: &[&str] = &[
-    "vox-lexer",
-    "vox-parser",
-    "vox-ast",
-    "vox-hir",
-    "vox-typeck",
+    "vox-compiler",
     "vox-codegen-rust",
     "vox-ssg",
     "vox-cli",

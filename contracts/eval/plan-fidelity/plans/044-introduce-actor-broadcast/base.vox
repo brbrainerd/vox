@@ -1,0 +1,36 @@
+// Base source for plan-044-introduce-actor-broadcast.
+//
+// `ChatRoom` exposes only request/response handlers (join, leave,
+// send_msg). The plan asks the model to add a broadcast-style
+// `on broadcast(text)` handler and a matching @endpoint mutation.
+
+actor ChatRoom {
+    on join(user: str) to str {
+        return "joined:" + user
+    }
+
+    on leave(user: str) to str {
+        return "left:" + user
+    }
+
+    on send_msg(user: str, text: str) to str {
+        return "msg:" + user + ":" + text
+    }
+}
+
+@endpoint(kind: mutation) @auth(scheme: bearer)
+fn send_message(text: str) to Result[str] {
+    if len(text) is 0 {
+        return Error("message must not be empty")
+    }
+    return Ok("queued")
+}
+
+@test
+fn test_send_message_rejects_empty() to Unit {
+    let r = send_message("")
+    match r {
+        Error(_) => assert(true)
+        Ok(_) => assert(false)
+    }
+}

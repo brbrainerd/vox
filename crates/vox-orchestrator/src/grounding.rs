@@ -48,12 +48,12 @@ fn lower_contains_ascii_whole_word(haystack_lower: &str, needle: &str) -> bool {
         let before_ok = haystack_lower[..idx]
             .chars()
             .next_back()
-            .map_or(true, |c| !c.is_ascii_alphanumeric() && c != '_');
+            .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_');
         let after_idx = idx + needle.len();
         let after_ok = haystack_lower[after_idx..]
             .chars()
             .next()
-            .map_or(true, |c| !c.is_ascii_alphanumeric() && c != '_');
+            .is_none_or(|c| !c.is_ascii_alphanumeric() && c != '_');
         if before_ok && after_ok {
             return true;
         }
@@ -148,7 +148,7 @@ pub(crate) fn split_summary_into_claim_segments(summary: &str) -> Vec<&str> {
         let Some(c0) = base.chars().next() else {
             return false;
         };
-        let all_ascii = base.chars().all(|c| c.is_ascii());
+        let all_ascii = base.is_ascii();
         if all_ascii {
             if base.chars().count() < COMPOUND_STREET_ASCII_STR_MIN_CHARS
                 || !c0.is_ascii_uppercase()
@@ -457,9 +457,24 @@ pub fn grounding_violation_declared_not_in_envelope(
     }
 }
 
+/// Bounded MCP tool name hints from natural-language intent (AgentOS planner stub).
+#[must_use]
+pub fn agentos_suggested_tools_from_intent(intent: &str, max_steps: usize) -> Vec<String> {
+    crate::agentos::intent_planner::plan_intent(intent, max_steps)
+        .into_iter()
+        .map(str::to_string)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn agentos_intent_maps_tests_to_run_tool() {
+        let v = agentos_suggested_tools_from_intent("please run cargo tests", 4);
+        assert!(v.iter().any(|t| t == "vox_run_tests"));
+    }
 
     #[test]
     fn voxcite_parses_ids() {

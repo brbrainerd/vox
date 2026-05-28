@@ -23,14 +23,14 @@ pub struct ChatmlTurn {
 }
 
 /// A single prompt→response training pair or multi-turn sequence (matches dogfood JSONL schema).
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+///
+/// Deserializes via `TrainingPairRaw` (private struct) so that `instruction` → `prompt` and `output` → `response`
+/// normalization happens on the way in, even when both canonical and alias keys are present.
+#[derive(Debug, Serialize, Clone, Default)]
 pub struct TrainingPair {
     pub prompt: Option<String>,
-    pub instruction: Option<String>,
     pub response: Option<String>,
-    pub output: Option<String>,
     /// Optional multi-turn messages. If present, typically preferred over single-turn prompt/response.
-    #[serde(alias = "turns")]
     pub messages: Option<Vec<ChatmlTurn>>,
     /// Optional quality rating (1-5). Absent means unrated.
     pub rating: Option<u8>,
@@ -52,13 +52,57 @@ pub struct TrainingPair {
     pub syntax_spans: Option<Vec<SyntaxSpan>>,
 }
 
+/// Raw deserialization helper: accepts both canonical and alias key names.
+#[derive(Deserialize)]
+struct TrainingPairRaw {
+    pub prompt: Option<String>,
+    pub instruction: Option<String>,
+    pub response: Option<String>,
+    pub output: Option<String>,
+    #[serde(alias = "turns")]
+    pub messages: Option<Vec<ChatmlTurn>>,
+    pub rating: Option<u8>,
+    pub category: Option<String>,
+    pub difficulty: Option<u8>,
+    pub lane: Option<String>,
+    pub response_mode: Option<String>,
+    pub task_family: Option<String>,
+    pub interruption_decision: Option<String>,
+    pub agent_trust_score: Option<f64>,
+    pub syntax_spans: Option<Vec<SyntaxSpan>>,
+    // Note: `origin`, `schema_version`, and `source` keys appear in some dogfood
+    // rows but are intentionally not declared here. Serde silently ignores
+    // unknown fields by default (no `#[serde(deny_unknown_fields)]`), so they
+    // are absorbed without warning and without occupying a struct field.
+}
+
+impl<'de> Deserialize<'de> for TrainingPair {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let raw = TrainingPairRaw::deserialize(d)?;
+        Ok(Self {
+            prompt: raw.prompt.or(raw.instruction),
+            response: raw.response.or(raw.output),
+            messages: raw.messages,
+            rating: raw.rating,
+            category: raw.category,
+            difficulty: raw.difficulty,
+            lane: raw.lane,
+            response_mode: raw.response_mode,
+            task_family: raw.task_family,
+            interruption_decision: raw.interruption_decision,
+            agent_trust_score: raw.agent_trust_score,
+            syntax_spans: raw.syntax_spans,
+        })
+    }
+}
+
 impl TrainingPair {
     pub fn effective_prompt(&self) -> Option<&String> {
-        self.prompt.as_ref().or(self.instruction.as_ref())
+        self.prompt.as_ref()
     }
 
     pub fn effective_response(&self) -> Option<&String> {
-        self.response.as_ref().or(self.output.as_ref())
+        self.response.as_ref()
     }
 }
 
@@ -323,10 +367,10 @@ impl Iterator for JsonlDataLoader {
                 Err(_) => continue, // skip malformed lines
             };
             // Rating filter
-            if let Some(r) = pair.rating {
-                if r < self.min_rating {
-                    continue;
-                }
+            if let Some(r) = pair.rating
+                && r < self.min_rating
+            {
+                continue;
             }
             let (input_ids, labels) = if let Some(ref turns) = pair.messages {
                 VoxTokenizer::tokenize_turns_for_training(turns, self.max_len)

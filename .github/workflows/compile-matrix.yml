@@ -1,0 +1,58 @@
+# Smoke matrix for `vox compile` — keeps CLI wiring honest across OS hosts.
+# Full installer builds (MSI/DMG/APK) stay opt-in / fixture-driven per application-packaging SSOT.
+
+name: Compile matrix smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "crates/vox-cli/**"
+      - "crates/vox-codegen/**"
+      - "crates/vox-config/**"
+      - "crates/vox-release-artifacts/**"
+      - "crates/vox-tauri-codegen/**"
+      - "crates/vox-assets/**"
+      - "examples/compile-suite/**"
+      - "contracts/operations/catalog.v1.yaml"
+      - ".github/workflows/compile-matrix.yml"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  compile-help-linux:
+    name: vox compile --help (Linux self-hosted)
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build -p vox-cli
+      - run: cargo run -p vox-cli -- ci compile-matrix
+      - name: Compile suite workspace native-binary smoke
+        working-directory: examples/compile-suite
+        run: ../../target/debug/vox compile --workspace --target native-binary
+      - name: Compile suite desktop Tauri generation smoke
+        working-directory: examples/compile-suite/packages/desktop
+        run: ../../../target/debug/vox compile --target desktop -o dist src/main.vox
+
+  compile-help-windows:
+    name: vox compile --help (windows-latest)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build -p vox-cli
+      - run: cargo run -p vox-cli -- ci compile-matrix
+
+  compile-help-macos:
+    name: vox compile --help (macos-latest)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build -p vox-cli
+      - run: cargo run -p vox-cli -- ci compile-matrix

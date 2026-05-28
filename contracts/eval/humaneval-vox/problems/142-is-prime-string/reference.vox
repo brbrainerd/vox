@@ -1,0 +1,17 @@
+fn is_prime(n: int) to bool {
+    if n < 2 {
+        return false
+    }
+    let mut i: int = 2
+    while i * i <= n {
+        if n % i == 0 {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}
+
+fn is_prime_string(s: str) to bool {
+    return is_prime(s.len())
+}

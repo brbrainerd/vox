@@ -6,6 +6,8 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+pub mod mens;
+
 /// Aggregated scores from a single eval run (format, safety, quality proxy, parse validity, coverage).
 pub struct EvalMetrics {
     /// Fraction of responses that pass basic format checks (non-empty, no immediate refusal prefix).

@@ -15,7 +15,7 @@ pub enum ResourceLockKind {
 /// A generic resource lock (e.g. database row, URI, logical semaphore).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceLock {
-    /// Unique resource identifier (e.g. "db://users/1", "http://api.com/resource").
+    /// Unique resource identifier (e.g. `"db://users/1"`, `"http://api.com/resource"`).
     pub resource_id: String,
     pub kind: ResourceLockKind,
     pub holder: AgentId,
@@ -48,17 +48,16 @@ impl ResourceLockManager {
             .unwrap()
             .as_millis() as u64;
 
-        if let Some(existing) = locks.get(resource_id) {
-            if existing.expires_ms > now {
-                if existing.holder != agent_id {
-                    return Err(format!(
-                        "Resource '{}' is already locked by agent {}",
-                        resource_id, existing.holder
-                    ));
-                }
-                // Re-entrant: extend TTL
-            }
+        if let Some(existing) = locks.get(resource_id)
+            && existing.expires_ms > now
+            && existing.holder != agent_id
+        {
+            return Err(format!(
+                "Resource '{}' is already locked by agent {}",
+                resource_id, existing.holder
+            ));
         }
+        // Re-entrant: extend TTL
 
         let lock = ResourceLock {
             resource_id: resource_id.to_string(),
@@ -73,16 +72,20 @@ impl ResourceLockManager {
     /// Release a resource lock.
     pub fn release(&self, resource_id: &str, agent_id: AgentId) {
         let mut locks = self.locks.write().unwrap();
-        if let Some(existing) = locks.get(resource_id) {
-            if existing.holder == agent_id {
-                locks.remove(resource_id);
-            }
+        if let Some(existing) = locks.get(resource_id)
+            && existing.holder == agent_id
+        {
+            locks.remove(resource_id);
         }
     }
 
     /// Number of active locks.
     pub fn len(&self) -> usize {
         self.locks.read().unwrap().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.locks.read().unwrap().is_empty()
     }
 
     /// Returns a snapshot of all active locks.

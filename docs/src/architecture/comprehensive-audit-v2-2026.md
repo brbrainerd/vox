@@ -1,7 +1,7 @@
 ---
 title: "Comprehensive Vox audit and improvement plan (April 2026, v2)"
 description: "Full-spectrum audit + ~90 prioritized improvements. Targets the 'premier LLM destination for web app code' thesis."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-18"
 training_eligible: true
@@ -82,7 +82,7 @@ This is a *coherent* posture. The plan collapses significantly.
 - **60, 61** — MENS training pipeline hardening. **Demoted to P2.** MENS is a research pillar but no solo dev cares that their Vox code is training data on day one.
 - **41** — Scientia/RAG hardening beyond current state. **Demoted to P2.**
 - **77, 78** — SSoT generator consolidation. **Demoted to P2** (was P1). Still needed for contributor sanity, but 1 contributor ≈ you, so the pain is smaller than the audit assumed.
-- **96, 97** — crate ledger, resurrecting `vox-dei`. P1 → P2; the freeze decision (93) supersedes the ledger.
+- **96, 97** — crate ledger, resurrecting retired orchestrator codenames. P1 → P2; the freeze decision (93) supersedes the ledger.
 
 ### Items deleted from scope entirely
 
@@ -91,7 +91,7 @@ This is a *coherent* posture. The plan collapses significantly.
 
 ### The reshaped week-by-week
 
-1. **Week 1 — bleed stops, scope honest.** 1, 2, 3, 4, 93, 94, 69 (archive stale research). Publish a `crates/_frozen.md` list. Publish three-criterion v1.0 gate: (a) 3 external solo-dev apps in production for 30 days, (b) `vox new web` → public URL in under 10 minutes, (c) zero P0 open on `vox-compiler`/`vox-runtime`.
+1. **Week 1 — bleed stops, scope honest.** 1, 2, 3, 4, 93, 94, 69 (archive stale research). Publish a `crates/_frozen.md` list. Publish three-criterion v1.0 gate: (a) 3 external solo-dev apps in production for 30 days, (b) `vox new web` → public URL in under 10 minutes, (c) zero P0 open on `vox-compiler`/`vox-actor-runtime`.
 2. **Weeks 2–3 — the product *is* `vox new web`.** 28, 33, 40. One command from empty dir to a deployed TanStack Start app on a free tier (Fly.io / Vercel / Cloudflare). Golden path in docs. Record the video.
 3. **Weeks 4–6 — the first real user.** 84, 85, 86. Find one solo dev externally (could be a friend, could be you in a second persona) and walk them through shipping a real app. File every paper-cut as an issue. Fix it or freeze it within the week.
 4. **Months 2–3 — keep the app up.** 49, 50, 51, 62, 63, 64. Runtime recovery, observability, error reporting. Users on production = support channel.

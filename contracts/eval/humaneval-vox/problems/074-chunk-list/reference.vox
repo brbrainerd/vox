@@ -1,0 +1,14 @@
+fn chunk_list(xs: list[int], k: int) to list[int] {
+    if k <= 0 {
+        return []
+    }
+    let mut result: list[int] = []
+    let mut count: int = 0
+    for x in xs {
+        if count < k {
+            result.push(x)
+            count = count + 1
+        }
+    }
+    return result
+}

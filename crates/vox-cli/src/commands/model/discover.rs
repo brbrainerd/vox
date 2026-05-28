@@ -1,8 +1,12 @@
 use clap::Parser;
 use owo_colors::OwoColorize;
+use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 use vox_db::{DbConfig, VoxDb};
 use vox_orchestrator::catalog::{ModelCatalog, OpenRouterCatalog};
+use vox_orchestrator::models::autonomic::{
+    DiscoveredModel, DiscoverySource, diff_and_emit_discovery,
+};
 
 /// Refresh the model catalog from all sources.
 #[derive(Parser)]
@@ -20,6 +24,20 @@ pub async fn run(_args: DiscoverArgs) -> anyhow::Result<()> {
 
     let mut all_models = Vec::new();
 
+    // Load prior snapshot so we can diff and emit DiscoveryEvent for each
+    // newly-seen model id (autonomic system L1).
+    let cache_dir = vox_config::paths::dot_vox_user_dir().join("cache");
+    let cache_file = cache_dir.join("model-catalog.v1.json");
+    let prior_ids: HashSet<String> = std::fs::read_to_string(&cache_file)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+        .map(|v| {
+            v.into_iter()
+                .filter_map(|x| x.get("id").and_then(|i| i.as_str()).map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
     // 1. OpenRouter
     let or_catalog = OpenRouterCatalog::new();
     if let Ok(models) = or_catalog.refresh().await {
@@ -27,6 +45,7 @@ pub async fn run(_args: DiscoverArgs) -> anyhow::Result<()> {
             "  ✅ Discovered {} models from OpenRouter",
             models.len().green()
         );
+        emit_discovery(DiscoverySource::OpenRouter, &prior_ids, &models);
         all_models.extend(models);
     }
 
@@ -58,6 +77,7 @@ pub async fn run(_args: DiscoverArgs) -> anyhow::Result<()> {
             "  ✅ Discovered {} models from Populi Mesh",
             models.len().green()
         );
+        emit_discovery(DiscoverySource::PopuliMesh, &prior_ids, &models);
         all_models.extend(models);
     }
 
@@ -86,4 +106,30 @@ pub async fn run(_args: DiscoverArgs) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+/// Bridge from `Vec<ModelSpec>` to the autonomic L1 diff. Emits one
+/// `DiscoveryEvent` per genuinely-new id (not in `prior` and not retired).
+fn emit_discovery(
+    source: DiscoverySource,
+    prior: &HashSet<String>,
+    models: &[vox_orchestrator::models::ModelSpec],
+) {
+    let discovered: Vec<DiscoveredModel> = models
+        .iter()
+        .map(|m| DiscoveredModel {
+            id: m.id.clone(),
+            description: None,
+            max_context_tokens: Some(u32::try_from(m.capabilities.max_context).unwrap_or(u32::MAX)),
+        })
+        .collect();
+    let new_ids = diff_and_emit_discovery(source, prior, discovered);
+    if !new_ids.is_empty() {
+        println!(
+            "    {} {} new model id(s) from {}",
+            "↳".cyan(),
+            new_ids.len().yellow().bold(),
+            source.as_str()
+        );
+    }
 }

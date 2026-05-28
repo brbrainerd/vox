@@ -31,7 +31,7 @@ GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you
 
 ## Enforced Rules
 
-TOESTUB rule IDs are emitted as shown below (see `crates/vox-toestub/src/detectors/`). Policy names in prose map to these IDs.
+TOESTUB rule IDs are emitted as shown below (see `crates/vox-code-audit/src/detectors/`). Policy names in prose map to these IDs.
 
 | Rule ID (TOESTUB) | Description | Default severity |
 |---|---|---|
@@ -92,7 +92,7 @@ crates/vox-orchestrator/src/mcp_tools/tools/
 
 ## Nomenclature (English-first + CLI aliases)
 
-- **SSOT:** [Nomenclature migration map](../src/architecture/nomenclature-migration-map.md) — canonical English terms, Latin CLI aliases, and retired identifiers (`vox-mens`, phantom crate names, broken doc links).
+- **SSOT:** [Naming & Anti-Entanglement Guards](../src/architecture/2026-05-08-naming-and-guards-design.md) — canonical English terms, Latin CLI aliases, and retired identifiers (`vox-mens`, phantom crate names, broken doc links).
 - **Mesh vs model:** use **mesh** / **Populi** for coordination; **model** / **Mens** for the ML stack. Do not call the mesh control plane “mens” in new docs.
 - **CLI:** prefer documented English command names; `clavis` is a deprecated alias for `secrets`; other Latin routes (`fabrica`, `oratio`, …) remain discoverability aliases.
 

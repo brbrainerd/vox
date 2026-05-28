@@ -2,6 +2,21 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Lifecycle status of a catalog entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CatalogStatus {
+    /// Early preview; API or behavior may change.
+    Alpha,
+    /// Feature-complete but not yet production-hardened.
+    Beta,
+    /// Production-ready; breaking changes follow semver.
+    #[default]
+    Stable,
+    /// Maintained for compatibility; prefer the replacement if one is listed.
+    Deprecated,
+}
+
 /// One entry in the plugin catalog.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -14,6 +29,10 @@ pub struct PluginCatalogEntry {
 
     /// One-line human description.
     pub description: String,
+
+    /// Lifecycle stage. Defaults to `stable` when absent.
+    #[serde(default)]
+    pub status: CatalogStatus,
 
     /// For `code` payloads: extension-point trait names this plugin provides.
     #[serde(default)]
@@ -53,6 +72,10 @@ pub enum PayloadKind {
 pub struct BundleEntry {
     pub id: String,
     pub description: String,
+
+    /// Lifecycle stage. Defaults to `stable` when absent.
+    #[serde(default)]
+    pub status: CatalogStatus,
 
     /// Optional parent bundle whose plugin set is inherited.
     #[serde(default)]

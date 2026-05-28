@@ -94,7 +94,7 @@ fn op_s062_server_contract_fixture_multi_route_has_get_stats() {
         hir.endpoint_fns.iter().any(|s| s.name == "get_stats"),
         "expected @server fn get_stats in fixture"
     );
-    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express ok");
+    // Express route generation is decommissioned; test only endpoint presence.
 }
 
 /// OP-S076: mixed surface lowers behaviors + reactive view roots (Path C); classic views optional.
@@ -243,7 +243,7 @@ fn op_s160_route_data_bridge_gate_b() {
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
     let (_w, s) = lower_hir_to_web_ir_with_summary(&hir);
-    assert!(s.http_loader_contracts >= 1 || s.query_fn_contracts >= 1 || !hir.routes.is_empty(), "{s:?}");
+    assert!(s.http_loader_contracts >= 1 || s.query_fn_contracts >= 1, "{s:?}");
 }
 
 /// OP-S164 component/reactive gate B.

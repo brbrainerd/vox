@@ -1,4 +1,4 @@
-﻿use schemars::JsonSchema;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// MCP arguments: persist a fact into MEMORY.md / optional Codex graph.
@@ -30,7 +30,7 @@ pub struct KnowledgeQueryParams {
 /// MCP arguments: fetch one MEMORY.md entry by key.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct MemoryRecallParams {
-    /// Key previously stored via [`memory_store`].
+    /// Key previously stored via `memory_store`.
     pub key: String,
 }
 
@@ -44,6 +44,62 @@ pub struct MemorySearchParams {
     pub trace_id: Option<String>,
     #[serde(default)]
     pub correlation_id: Option<String>,
+}
+
+/// MCP arguments: full `run_research` pipeline (web gather + synthesis + judge when LLM configured).
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResearchRunParams {
+    /// Natural-language research topic or question.
+    pub query: String,
+    /// `both` (default), `web`, or `local`.
+    #[serde(default)]
+    pub scope: Option<String>,
+    /// Max sources per planner subquery (default 10).
+    #[serde(default)]
+    pub max_sources: Option<usize>,
+    /// When true, attempt claim verification on deep tier (stubbed until Phase 1).
+    #[serde(default)]
+    pub verify_claims: Option<bool>,
+    /// Optional domain filter (`example.com`, no scheme).
+    #[serde(default)]
+    pub site_scope: Option<String>,
+    /// When true (default), return JSON-serialized [`vox_dei_shim::research::ResearchResult`].
+    #[serde(default = "default_research_json")]
+    pub json: bool,
+}
+
+/// MCP arguments: start a long-running research job.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResearchStartParams {
+    pub query: String,
+    #[serde(default)]
+    pub scope: Option<String>,
+    #[serde(default)]
+    pub max_sources: Option<usize>,
+    #[serde(default)]
+    pub verify_claims: Option<bool>,
+    #[serde(default)]
+    pub site_scope: Option<String>,
+}
+
+/// MCP arguments: inspect a research session.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ResearchSessionParams {
+    pub session_id: i64,
+}
+
+fn default_research_json() -> bool {
+    true
+}
+
+/// MCP arguments: semantic-fs path discovery from an intent string.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct SemanticFsDiscoverParams {
+    /// Natural-language intent (token overlap ranks paths under the workspace root).
+    pub intent: String,
+    /// Max paths to return (default 16).
+    #[serde(default)]
+    pub limit: Option<i64>,
 }
 
 /// MCP arguments: append one line to today's rolling log file.
@@ -65,8 +121,10 @@ pub struct CompactParams {
 /// MCP arguments: create a new persisted session for an agent.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SessionCreateParams {
-    /// Agent that owns the session.
+    /// Agent ID to create the session for.
     pub agent_id: u64,
+    /// Optional tenant ID for budget tracking.
+    pub tenant_id: Option<String>,
 }
 
 /// MCP arguments: refer to an existing session by opaque id string.
@@ -97,20 +155,29 @@ pub struct SessionAddTurnParams {
 }
 
 /// Serializable session row for MCP list/info tools.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, JsonSchema)]
 pub struct SessionInfo {
-    /// Session id string.
     pub id: String,
-    /// Owning agent id.
-    pub agent_id: u64,
-    /// Lifecycle state label.
+    pub agent_id: String,
+    pub tenant_id: Option<String>,
     pub state: String,
-    /// Number of turns stored.
     pub turn_count: usize,
-    /// Accumulated token estimate.
-    pub total_tokens: usize,
-    /// Last activity timestamp (epoch ms).
-    pub last_active: u64,
+    pub token_count: usize,
+    pub created_at: u64,
+}
+
+impl SessionInfo {
+    pub fn from_session(s: &vox_orchestrator::session::Session) -> Self {
+        Self {
+            id: s.id.clone(),
+            agent_id: s.agent_id.0.to_string(),
+            tenant_id: s.tenant_id.clone(),
+            state: s.state.to_string(),
+            turn_count: s.turn_count,
+            token_count: s.total_tokens,
+            created_at: s.created_at,
+        }
+    }
 }
 
 /// MCP arguments: read one `user_preferences` row.

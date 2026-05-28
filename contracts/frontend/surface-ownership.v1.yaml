@@ -1,4 +1,4 @@
-x-vox-version: 1
+x-vox-version: 2
 schema_version: 1
 
 surfaces:
@@ -18,7 +18,7 @@ surfaces:
       - Hand-authored React escape-hatch components live under src/components.
 
   - id: marquee-app
-    path: marquee_app
+    path: apps/interop/marquee_app
     status: interoperability-reference
     role: External React integration exemplar consuming generated Vox artifacts.
     source_of_truth:
@@ -31,7 +31,7 @@ surfaces:
       - Keep scope minimal and representative; avoid feature duplication with vox-dashboard.
 
   - id: tools-visualizer
-    path: tools/visualizer
+    path: apps/experimental/visualizer
     status: experimental
     role: Experimental visualization sandbox.
     source_of_truth:
@@ -57,7 +57,7 @@ surfaces:
       - Avoid using this tree as a product integration reference.
 
   - id: vox-vscode-webview
-    path: vox-vscode
+    path: apps/editor/vox-vscode
     status: deprecated-primary-surface
     role: VS Code extension host retained for LSP and compatibility.
     source_of_truth:

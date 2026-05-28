@@ -107,15 +107,15 @@ routes {
     "/about" to About
 }
 
-@endpoint(kind: query) fn api_todos() to str {
+@query fn api_todos() to str {
     return "[]"
 }
 
-@endpoint(kind: mutation) fn create_todo() to str {
+@mutation fn create_todo() to str {
     return "created"
 }
 
-@endpoint(kind: server) fn get_stats() to int {
+@server fn get_stats() to int {
     return 42
 }
 "#;
@@ -159,12 +159,17 @@ fn pipeline_multi_route_rust_codegen() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_codegen::codegen_rust::generate(&hir, "multi_route_app").unwrap();
+    let output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "multi_route_app",
+        vox_codegen::codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .unwrap();
     let main_rs = output.files.get("src/main.rs").expect("main.rs");
     insta::assert_snapshot!("multi_route_rust_main_rs_emit", main_rs);
 }
 
-/// `@endpoint(kind: query)` plus Path C components → Web IR summary (OP-0181).
+/// `@query` plus Path C components → Web IR summary (OP-0181).
 #[test]
 fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
     use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
@@ -236,8 +241,6 @@ fn pipeline_express_contract_mapper_fixture_validates_multi_route_hir() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir)
-        .expect("MULTI_ROUTE_SRC express validation");
     assert!(
         hir.endpoint_fns
             .iter()
@@ -255,7 +258,7 @@ fn pipeline_route_component_express_and_web_ir_gate() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express");
+    // Express validation is decommissioned
     let (web, summary) =
         vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary(&hir);
     assert!(

@@ -11,13 +11,20 @@ vox-db = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-parking_lot = "0.12"
+parking_lot = { workspace = true }
 chrono = { workspace = true }
 tokio = { workspace = true }
 async-trait = "0.1.89"
 thiserror = { workspace = true }
 sha3 = { workspace = true }
+blake3 = { workspace = true }
+hex = { workspace = true }
+vox-crypto = { workspace = true }
 workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [lints]
 workspace = true

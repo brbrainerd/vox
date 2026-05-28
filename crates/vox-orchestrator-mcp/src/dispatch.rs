@@ -86,6 +86,23 @@ pub async fn handle_tool_call(
         return Ok(crate::params::ToolResult::<()>::err(rejection).to_json_compact());
     }
 
+    if state.orchestrator_config.agentos_guardrail_kernel_enabled {
+        if let Err(detail) =
+            vox_orchestrator::agentos::guardrail_kernel::evaluate_mcp_tool_preflight(
+                name_canonical,
+                &args,
+            )
+        {
+            crate::agentos_telemetry::record_guardrail_deny_best_effort(
+                state.db.as_ref(),
+                state.repository.repository_id.as_str(),
+                &detail,
+            )
+            .await;
+            return Ok(crate::params::ToolResult::<()>::err(detail.reason).to_json_compact());
+        }
+    }
+
     // Trust-Tier RBAC for dangerous operations
     if matches!(
         name_canonical,
@@ -128,6 +145,13 @@ pub async fn handle_tool_call(
         ctx
     };
 
+    // Phase D: anchor wall-clock start time for this task in the aggregator.
+    // record_task_started is idempotent (no-op if already set), so calling it on
+    // every tool dispatch safely records the first-call instant without overwriting.
+    if let Some(task_id) = trace_ctx.task_id {
+        vox_telemetry::record_task_started(task_id);
+    }
+
     let db_opt = state.db.as_ref().map(|db| (**db).clone());
     let te = vox_db::TimedExecution::new(
         format!("mcp:{}", name_canonical),
@@ -137,6 +161,9 @@ pub async fn handle_tool_call(
     )
     .with_costs(None, None, None);
 
+    let aci_envelope = state.orchestrator_config.agentos_aci_envelope_enabled;
+    let checkpoint_hints = state.orchestrator_config.agentos_checkpoint_hints_enabled;
+
     let result = te
         .run(|| {
             let args = args.clone();
@@ -145,6 +172,32 @@ pub async fn handle_tool_call(
             })
         })
         .await;
+
+    // AgentOS: fold MCP mutation_kind into live orchestrator policy ledger (D5 overlay input).
+    {
+        let aid = agent_id.and_then(|s| s.parse::<u64>().ok());
+        state
+            .orchestrator
+            .record_agentos_mcp_tool(aid, name_canonical);
+    }
+
+    let result = result.map(|payload| {
+        if !aci_envelope {
+            return payload;
+        }
+        match crate::aci::attach_aci_envelope(
+            name_canonical,
+            &payload,
+            checkpoint_hints,
+            Some(&args),
+        ) {
+            Ok(wrapped) => wrapped,
+            Err(e) => {
+                tracing::warn!(tool = name_canonical, error = %e, "aci envelope attach failed; returning raw payload");
+                payload
+            }
+        }
+    });
 
     let duration_ms = start_time.elapsed().as_millis() as i64;
 
@@ -171,6 +224,7 @@ pub async fn handle_tool_call(
             "duration_ms": duration_ms,
             "success": result.is_ok(),
             "repository_id": state.repository.repository_id,
+            "mutation_kind": vox_orchestrator::agentos::mutation_classifier::mutation_kind_for_tool(name_canonical),
         });
         if let Some(sid) = session_id {
             route_ev["session_id"] = serde_json::Value::String(sid.to_string());
@@ -188,6 +242,7 @@ pub async fn handle_tool_call(
                 "duration_ms": duration_ms,
                 "success": result.is_ok(),
                 "repository_id": state.repository.repository_id,
+                "mutation_kind": vox_orchestrator::agentos::mutation_classifier::mutation_kind_for_tool(name_canonical),
             });
             if let Some(sid) = session_id {
                 payload["session_id"] = serde_json::Value::String(sid.to_string());
@@ -790,12 +845,27 @@ async fn handle_tool_call_inner(
         "vox_memory_search" => {
             Ok(crate::memory::memory_search(state, serde_json::from_value(args)?).await)
         }
+        "vox_semantic_fs_discover" => {
+            Ok(crate::memory::semantic_fs_discover_mcp(state, serde_json::from_value(args)?).await)
+        }
         "vox_memory_log" => {
             Ok(crate::memory::memory_daily_log(state, serde_json::from_value(args)?).await)
         }
         "vox_memory_list_keys" => Ok(crate::memory::memory_list_keys(state).await),
         "vox_knowledge_query" => {
             Ok(crate::memory::knowledge_query(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_run" => {
+            Ok(crate::memory::research_run(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_start" => {
+            Ok(crate::memory::research_start(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_status" => {
+            Ok(crate::memory::research_status(state, serde_json::from_value(args)?).await)
+        }
+        "vox_research_get" => {
+            Ok(crate::memory::research_get(state, serde_json::from_value(args)?).await)
         }
         "vox_memory_save_db" => {
             Ok(crate::memory::memory_save_db(state, serde_json::from_value(args)?).await)
@@ -844,34 +914,34 @@ async fn handle_tool_call_inner(
         "vox_check_mood" => {
             Ok(crate::gamify::check_mood(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notifications_list" => {
+        "vox_gamify_notifications_list" => {
             Ok(crate::gamify::ludus_notifications_list(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_progress_snapshot" => {
+        "vox_gamify_progress_snapshot" => {
             Ok(crate::gamify::ludus_progress_snapshot(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notification_ack" => {
+        "vox_gamify_notification_ack" => {
             Ok(crate::gamify::ludus_notification_ack(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_notifications_ack_all" => {
+        "vox_gamify_notifications_ack_all" => {
             Ok(crate::gamify::ludus_notifications_ack_all(state).await)
         }
-        "vox_ludus_quest_list" => {
+        "vox_gamify_quest_list" => {
             Ok(crate::gamify::ludus_quest_list(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_shop_catalog" => {
+        "vox_gamify_shop_catalog" => {
             Ok(crate::gamify::ludus_shop_catalog(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_shop_buy" => {
+        "vox_gamify_shop_buy" => {
             Ok(crate::gamify::ludus_shop_buy(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_collegium_join" => {
+        "vox_gamify_collegium_join" => {
             Ok(crate::gamify::ludus_collegium_join(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_battle_start" => {
+        "vox_gamify_battle_start" => {
             Ok(crate::gamify::ludus_battle_start(state, serde_json::from_value(args)?).await)
         }
-        "vox_ludus_battle_submit" => {
+        "vox_gamify_battle_submit" => {
             Ok(crate::gamify::ludus_battle_submit(state, serde_json::from_value(args)?).await)
         }
         "vox_agent_status" => {

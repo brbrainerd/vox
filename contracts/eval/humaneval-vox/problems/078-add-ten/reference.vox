@@ -1,0 +1,3 @@
+fn add_ten(n: int) to int {
+    return n + 10
+}

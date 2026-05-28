@@ -1,0 +1,15 @@
+fn abs_int(n: int) to int {
+    if n < 0 {
+        return -n
+    }
+    return n
+}
+
+@test
+fn t_zero() to Unit { assert(abs_int(0) is 0) }
+@test
+fn t_positive() to Unit { assert(abs_int(7) is 7) }
+@test
+fn t_negative() to Unit { assert(abs_int(-7) is 7) }
+@test
+fn t_large_negative() to Unit { assert(abs_int(-1000) is 1000) }

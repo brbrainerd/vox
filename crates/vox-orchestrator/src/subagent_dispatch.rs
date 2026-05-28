@@ -101,6 +101,31 @@ impl DispatchRouter {
             DispatchDecision::Inline
         }
     }
+
+    /// Like [`Self::route`], plus emits [`vox_telemetry::TelemetryEvent::AiFixture`] subagent telemetry.
+    #[must_use]
+    pub fn route_with_telemetry(
+        &self,
+        signal: &DispatchSignal,
+        session_id: Option<String>,
+    ) -> DispatchDecision {
+        let decision = self.route(signal);
+        let trace_ctx = vox_telemetry::current_trace_ctx();
+        let payload = vox_telemetry::SubagentDispatchTelemetryPayload {
+            metric_type: vox_telemetry::METRIC_TYPE_SUBAGENT_DISPATCH.to_string(),
+            decision: decision.to_string(),
+            complexity: Some(u32::from(signal.complexity)),
+            chain_depth: Some(signal.chain_depth),
+            session_id,
+            parent_task_id: trace_ctx.parent_task_id,
+            span_depth: Some(u32::from(trace_ctx.span_depth)),
+            dispatch_latency_ms: None,
+        };
+        vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::AiFixture(
+            vox_telemetry::AiFixtureEvent::SubagentDispatch(payload)
+        ));
+        decision
+    }
 }
 
 /// Metric payload emitted when a sub-agent is dispatched.

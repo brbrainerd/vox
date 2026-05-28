@@ -15,7 +15,10 @@
 pub mod assertions;
 pub mod barriers;
 pub mod diagnosis;
+pub mod env_scratch;
 pub mod hir_builders;
 pub mod pipeline;
 pub mod portpicker;
 pub mod spans;
+pub mod temp_root;
+pub mod workspace_paths;

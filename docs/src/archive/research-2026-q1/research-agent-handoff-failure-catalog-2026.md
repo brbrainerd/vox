@@ -1,6 +1,6 @@
 ---
 title: "Production Failure Mode Catalog with Mitigations"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

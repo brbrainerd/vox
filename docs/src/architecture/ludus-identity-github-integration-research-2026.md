@@ -1,7 +1,7 @@
 ---
 title: "Ludus Identity Federation & GitHub Integration"
 description: "Research findings and architecture plan for decentralized Ludus profile storage and GitHub account linking."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Defines identity federation patterns and gamification integration for contributor workflows."
@@ -32,7 +32,7 @@ vox-config::paths::local_user_id()
   → "local-user"              (fallback)
 ```
 
-`canonical_user_id()` in `vox-ludus/src/db/helpers.rs` wraps this and filters the sentinel `"user"`.
+`canonical_user_id()` in `vox-gamify/src/db/helpers.rs` wraps this and filters the sentinel `"user"`.
 
 **Consequence:** Two devices with the same `$USERNAME` will collide if they ever share a DB. Two devices with different usernames running the same person will have completely separate profiles. There is no authentication whatsoever. The `user_id` is just the OS username string stored in SQLite.
 
@@ -117,7 +117,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_vox_identities_provider
     ON vox_identities(provider, provider_id);
 ```
 
-This is a **schema V19** migration in `crates/vox-ludus/src/schema.rs`.
+This is a **schema V19** migration in `crates/vox-gamify/src/schema.rs`.
 
 ### Decentralized Profile Sync
 
@@ -145,7 +145,7 @@ local SQLite (vox.db) ← → remote Turso (keyed to github_id)
 | **Polling via `gh` CLI** | `vox ludus sync-github` fetches recent events | Minutes | Low |
 | **GitHub Actions step** | Vox action fires after PR merge | Near-real-time | Medium |
 
-**Recommended for V1:** GitHub Actions step + polling. A `vox-ludus-action` GitHub Action (composite or Docker) that fires on `pull_request.closed` (merged) and `pull_request_review.submitted`. The action calls `vox ludus award --event <type> --actor <github_id>` against a user's personal Turso remote. No server needed.
+**Recommended for V1:** GitHub Actions step + polling. A `vox-gamify-action` GitHub Action (composite or Docker) that fires on `pull_request.closed` (merged) and `pull_request_review.submitted`. The action calls `vox ludus award --event <type> --actor <github_id>` against a user's personal Turso remote. No server needed.
 
 ### Mapping GitHub Events → Ludus Policy Events
 
@@ -178,7 +178,7 @@ Anti-grind protection applies automatically via the existing `PolicyEngine` — 
 - [ ] Add `VoxGithubClientId` and `VoxGithubOauthToken` to `spec/ids.rs`
 - [ ] Register a GitHub OAuth App (or GitHub App) for Vox
 - [ ] Implement `vox ludus auth github` using device flow (`reqwest` calls, vox-secrets storage)
-- [ ] Add `vox_identities` table (schema V19) to `crates/vox-ludus/src/schema.rs`
+- [ ] Add `vox_identities` table (schema V19) to `crates/vox-gamify/src/schema.rs`
 - [ ] Resolve and store numeric GitHub user ID on successful auth
 
 ### Wave 2 — Remote Profile Sync
@@ -191,7 +191,7 @@ Anti-grind protection applies automatically via the existing `PolicyEngine` — 
 ### Wave 3 — GitHub Contribution Rewards
 - [ ] Polling: `vox ludus sync-github` — fetches last N events from `/users/{github_login}/events`
 - [ ] Maps GitHub events to Ludus policy events via `award_github_event()`
-- [ ] GitHub Actions composite action: `vox-ludus-award-action`
+- [ ] GitHub Actions composite action: `vox-gamify-award-action`
 - [ ] Anti-grind: daily counter persistence ensures GitHub events respect same grind caps
 - [ ] `vox ludus audit` shows GitHub-sourced events tagged with `source: github`
 
@@ -219,7 +219,7 @@ Anti-grind protection applies automatically via the existing `PolicyEngine` — 
 
 - GitHub Device Flow: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
 - GitHub stable user IDs: `GET /user` → `id` field (integer, never changes)
-- Existing reward policy: `crates/vox-ludus/src/reward_policy.rs`
-- Identity schema location: `crates/vox-ludus/src/schema.rs` (add as V19)
+- Existing reward policy: `crates/vox-gamify/src/reward_policy.rs`
+- Identity schema location: `crates/vox-gamify/src/schema.rs` (add as V19)
 - Secrets spec: `crates/vox-secrets/src/spec/ids.rs`
 - VoxDB remote: `VOX_DB_URL` / `VOX_DB_TOKEN` (vox-secrets `VoxDbUrl` / `VoxDbToken`)

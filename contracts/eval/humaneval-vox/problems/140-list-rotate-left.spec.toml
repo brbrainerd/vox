@@ -1,0 +1,11 @@
+[problem]
+id = "140"
+title = "list_rotate_left"
+prompt = """
+Rotate a list of ints left by n positions. Elements shifted off the front are appended to the back. If the list is empty, return it unchanged.
+"""
+signature = "fn list_rotate_left(xs: list[int], n: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "iteration"]

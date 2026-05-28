@@ -3,6 +3,11 @@
 //! This is an L1 crate (pure data — no async runtime, no DB). All SCIENTIA pipeline
 //! components communicate through these types to avoid circular crate dependencies.
 
+// `schema_types.generated.rs` (typify) references `::regress::Regex`; keep `regress` in the crate
+// root prelude so `cargo test` graphs that unify features differently still compile.
+#[allow(unused_imports)]
+use regress as _;
+
 pub mod emitter;
 pub mod events;
 pub mod observation;

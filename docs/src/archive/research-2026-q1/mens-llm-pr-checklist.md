@@ -1,7 +1,7 @@
 ---
 title: "Mens / HF fine-tune — LLM PR checklist"
 description: "Official documentation for Mens / HF fine-tune — LLM PR checklist for the Vox language. Detailed technical reference, architecture guid"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

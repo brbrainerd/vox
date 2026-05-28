@@ -113,6 +113,7 @@ pub struct AgentTopologyNode {
     pub in_progress: bool,
     pub paused: bool,
     pub agent_session_id: Option<String>,
+    pub current_phase: Option<crate::types::TaskPhase>,
 }
 
 /// Explicit limitations surfaced with a topology snapshot so operators know what is

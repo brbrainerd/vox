@@ -1,0 +1,18 @@
+// Repair-corpus fixture 031 — logic bug class.
+// `classify(n)` was meant to return "pos" for non-negative ints
+// and "neg" otherwise, but a copy-paste left both branches
+// returning "pos", so the negative-input case is wrong.
+// Expected repair: change the second return value from "pos"
+// to "neg".
+
+fn classify(n: int) to str {
+    if n > 0 {
+        return "pos"
+    }
+    return "pos"
+}
+
+@test
+fn test_classify_negative() to Unit {
+    assert(classify(-1) is "neg")
+}

@@ -1,0 +1,13 @@
+fn result_or_msg(r: Result[str]) to str {
+    match r {
+        Ok(s)    => return s
+        Error(_) => return "(error)"
+    }
+}
+
+@test
+fn t_ok() to Unit { assert(result_or_msg(Ok("hi")) is "hi") }
+@test
+fn t_err() to Unit { assert(result_or_msg(Error("boom")) is "(error)") }
+@test
+fn t_ok_empty() to Unit { assert(result_or_msg(Ok("")) is "") }

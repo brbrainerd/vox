@@ -14,8 +14,12 @@ use super::emit;
 use super::manifest::{CodegenOutput, manifest_dependency_path};
 
 /// Generate a full Rust project from a HIR module.
-pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput, miette::Error> {
-    let out = emit::generate(module, package_name)?;
+pub fn generate(
+    module: &HirModule,
+    package_name: &str,
+    shell: super::RustAppShell,
+) -> Result<CodegenOutput, miette::Error> {
+    let out = emit::generate(module, package_name, shell)?;
     Ok(CodegenOutput {
         files: out.files,
         api_client_ts: out.api_client_ts,
@@ -230,7 +234,7 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                         main_rs.push_str("fn main() {\n");
                     }
                     for stmt in &func.body {
-                        main_rs.push_str(&emit::emit_main_stmt(stmt, 1));
+                        main_rs.push_str(&emit::emit_main_stmt(stmt, 1, Some(&module.inferred_types)));
                     }
                     main_rs.push_str("}\n");
                 }
@@ -247,7 +251,7 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
                         for stmt in &func.body {
                             // WASI: same Rust statement emission for now; builtin routing can be
                             // reintroduced when `vox-script-wasi` shims are wired to HIR again.
-                            main_rs.push_str(&emit::emit_main_stmt(stmt, 1));
+                            main_rs.push_str(&emit::emit_main_stmt(stmt, 1, Some(&module.inferred_types)));
                         }
                         main_rs.push_str("}\n");
                     }

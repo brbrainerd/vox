@@ -33,6 +33,11 @@ pub struct WorkflowDecl {
     pub body: Vec<Stmt>,
     pub is_traced: bool,
     pub is_deprecated: bool,
+    /// From `@distributed_train(strategy = ..., peers = N) workflow ...` (Mn-T5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distributed_train_strategy: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distributed_train_peers: Option<u64>,
     pub span: Span,
 }
 

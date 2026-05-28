@@ -1,6 +1,6 @@
 //! TypeScript emission for `.vox.ui` reactive modules (ADR-032, Phase D).
 //!
-//! Each [`HirReactiveModule`] becomes a generated TSX module exporting:
+//! Each `HirReactiveModule` becomes a generated TSX module exporting:
 //!
 //! 1. A typed `<Name>Context` React `Context<...>` whose value is the module's
 //!    reactive bindings.

@@ -1,0 +1,8 @@
+// Base source for plan-006-add-doc-comment.
+//
+// The plan asks the model to ADD a `///` doc comment above `square`
+// without modifying the fn body.
+
+fn square(n: int) to int {
+  return n * n
+}

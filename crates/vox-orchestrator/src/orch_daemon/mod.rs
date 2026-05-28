@@ -1,4 +1,4 @@
-//! JSON-line orchestrator daemon (ADR 022 Phase B): newline-delimited [`vox_protocol::DispatchRequest`].
+//! JSON-line orchestrator daemon (ADR 022 Phase B): newline-delimited [`vox_foundation::protocol::DispatchRequest`].
 //!
 //! **Transport (`vox-orchestrator-d` process):** set **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** to
 //! `127.0.0.1:9745`, optional `tcp://` prefix, or **`stdio`** / **`-`** / **`stdin`** for one line in, one line out on stdio.
@@ -14,8 +14,8 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
-use vox_protocol::orch_daemon_method;
-use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+use vox_foundation::protocol::orch_daemon_method;
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 use crate::Orchestrator;
 use crate::types::TaskId;
@@ -90,6 +90,37 @@ pub async fn dispatch_request(
                 );
             }
             response_result(&req.id, diag)
+        }
+        orch_daemon_method::RELOAD_CONFIG => {
+            // Hot-reload orchestrator configuration from Vox.toml
+            orch.reload_config();
+            response_result(&req.id, serde_json::json!({ "ok": true }))
+        }
+        orch_daemon_method::UNDO_OPERATION => {
+            let Some(op_id_str) = req.params.get("op_id").and_then(|x| x.as_str()) else {
+                return response_err(&req.id, "params.op_id (string) required");
+            };
+            let num_str = op_id_str.trim_start_matches("OP-");
+            let Ok(num) = num_str.parse::<u64>() else {
+                return response_err(&req.id, "params.op_id must be a valid OperationId (e.g. OP-000007)");
+            };
+            match orch.undo_operation(crate::oplog::OperationId(num)).await {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
+        }
+        orch_daemon_method::REDO_OPERATION => {
+            let Some(op_id_str) = req.params.get("op_id").and_then(|x| x.as_str()) else {
+                return response_err(&req.id, "params.op_id (string) required");
+            };
+            let num_str = op_id_str.trim_start_matches("OP-");
+            let Ok(num) = num_str.parse::<u64>() else {
+                return response_err(&req.id, "params.op_id must be a valid OperationId (e.g. OP-000007)");
+            };
+            match orch.redo_operation(crate::oplog::OperationId(num)).await {
+                Ok(()) => response_result(&req.id, serde_json::json!({ "ok": true })),
+                Err(e) => response_err(&req.id, format!("{e}")),
+            }
         }
         orch_daemon_method::STATUS => match serde_json::to_value(orch.status()) {
             Ok(v) => response_result(&req.id, v),
@@ -168,6 +199,11 @@ pub async fn dispatch_request(
                 .get("session_id")
                 .and_then(|x| x.as_str())
                 .map(ToString::to_string);
+            let tenant_id = req
+                .params
+                .get("tenant_id")
+                .and_then(|x| x.as_str())
+                .map(ToString::to_string);
             match orch
                 .submit_task_with_agent(
                     description.to_string(),
@@ -177,6 +213,7 @@ pub async fn dispatch_request(
                     capability_requirements,
                     enqueue_hints,
                     session_id,
+                    tenant_id,
                 )
                 .await
             {

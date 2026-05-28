@@ -19,7 +19,7 @@ pub enum ProbeError {
 
 /// A single hardware-detection backend (NVML, wgpu, DRM, Metal, DXGI, …).
 ///
-/// Implementations are stateless; all state lives in the [`ProbePipeline`].
+/// Implementations are stateless; all state lives in the [`ProbePipeline`](crate::mens::hardware::pipeline::ProbePipeline).
 #[async_trait]
 pub trait HardwareProbe: Send + Sync {
     /// Short identifier used in logs and [`ProbeAttempt::probe_name`].
@@ -59,7 +59,7 @@ pub struct ProbeAttempt {
     pub duration_ms: u64,
 }
 
-/// Result of running the full [`ProbePipeline`].
+/// Result of running the full [`ProbePipeline`](crate::mens::hardware::pipeline::ProbePipeline).
 #[derive(Debug, Clone)]
 pub struct ProbeReport {
     /// Best-available hardware summary: the first `Found` result, or the CPU-only fallback

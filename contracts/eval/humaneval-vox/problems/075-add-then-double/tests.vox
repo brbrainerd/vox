@@ -1,0 +1,12 @@
+fn add_then_double(a: int, b: int) to int {
+    return (a + b) * 2
+}
+
+@test
+fn t_zeros() to Unit { assert(add_then_double(0, 0) is 0) }
+@test
+fn t_positive() to Unit { assert(add_then_double(3, 4) is 14) }
+@test
+fn t_negative() to Unit { assert(add_then_double(-2, -3) is -10) }
+@test
+fn t_mixed() to Unit { assert(add_then_double(-2, 5) is 6) }

@@ -1,0 +1,14 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/telemetry/fixture-hole-observed.v1.schema.json",
+  "title": "fixture hole observed telemetry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cache_key", "observation"],
+  "properties": {
+    "cache_key": { "type": "string", "minLength": 1 },
+    "observation": { "type": "string", "minLength": 1 },
+    "reviewer": { "type": ["string", "null"] }
+  }
+}

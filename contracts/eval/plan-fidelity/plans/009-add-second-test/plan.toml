@@ -1,0 +1,32 @@
+id = "plan-009-add-second-test"
+wave = "wave_1"
+description = "Append a second @test block exercising a different input."
+max_steps = 2
+max_cost_usd = 0.50
+
+prompt = """
+The file declares fn `is_even(n: int) to bool` and one @test block
+that exercises `is_even(2)`. Append a second @test block that
+exercises a different input — call `is_even(3)` and assert the result
+is `false`. Do not modify the existing fn or the existing @test.
+
+Vox conventions to honor:
+  - Tests are declared with `@test` followed by `fn name() to Unit`.
+  - Assertion is `assert(X is Y)`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "append"
+description = "Append a second @test block exercising is_even(3) is false."
+
+[success_criteria]
+vox_check_passes = true
+new_test_count = 1
+existing_fn_unchanged = true
+new_test_passes = true

@@ -92,6 +92,7 @@ impl OpLog {
             db_snap_id_gen: std::sync::atomic::AtomicU64::new(1),
             entries: std::collections::VecDeque::new(),
             max_entries,
+            persist: None,
         }
     }
 
@@ -176,6 +177,10 @@ impl OpLog {
             change_id,
             model_id,
             predecessor_hash,
+            signature: None,
+            signing_key_id: None,
+            daemon_id: [0u8; 16],
+            parent_op_ids: Vec::new(),
         };
 
         self.entries.push_back(entry);

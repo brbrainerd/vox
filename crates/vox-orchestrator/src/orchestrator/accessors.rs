@@ -35,6 +35,12 @@ impl Orchestrator {
                     weighted_load: queue.weighted_load(),
                     agent_session_id: queue.agent_session_id.clone(),
                     max_handoff_count: queue.max_handoff_count(),
+                    active_skill: queue
+                        .current_task()
+                        .and_then(|t| t.active_skill.clone()),
+                    current_phase: queue
+                        .current_task()
+                        .and_then(|t| t.current_phase),
                 }
             })
             .collect();
@@ -292,6 +298,7 @@ impl Orchestrator {
                     in_progress: queue.has_in_progress(),
                     paused: queue.is_paused(),
                     agent_session_id: queue.agent_session_id.clone(),
+                    current_phase: queue.current_task().and_then(|t| t.current_phase),
                 }
             })
             .collect();
@@ -338,6 +345,20 @@ impl Orchestrator {
     /// Access the model registry handle.
     pub fn models_handle(&self) -> std::sync::Arc<std::sync::RwLock<crate::models::ModelRegistry>> {
         std::sync::Arc::clone(&self.models)
+    }
+
+    pub fn record_bandit_task_outcome(&self, model_id: Option<&str>, success: bool) {
+        if !crate::orchestration_feature_flags::orchestration_feature_flags_cached()
+            .contextual_bandit_enabled()
+        {
+            return;
+        }
+        let Some(mid) = model_id.map(str::trim).filter(|s| !s.is_empty()) else {
+            return;
+        };
+        if let Ok(mut reg) = self.models_handle().write() {
+            reg.record_bandit_outcome(mid, success);
+        }
     }
 
     /// Access the event bus
@@ -433,5 +454,20 @@ impl Orchestrator {
         &self,
     ) -> std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>> {
         std::sync::Arc::clone(&self.judge_model)
+    }
+
+    /// Record MCP tool completion for AgentOS policy risk overlay (`agent_id` from MCP args).
+    pub fn record_agentos_mcp_tool(&self, agent_id: Option<u64>, canonical_tool_name: &str) {
+        self.agentos_policy_ledger
+            .record_mcp_tool(agent_id, canonical_tool_name);
+    }
+
+    /// Evaluate unified orchestrator policy with the latest AgentOS `mutation_kind` for this MCP agent.
+    #[must_use]
+    pub fn evaluate_orchestrator_policy_for_agent(
+        &self,
+        agent_id: Option<u64>,
+    ) -> crate::orchestrator_policy::PolicyDecision {
+        self.agentos_policy_ledger.evaluate_for_agent(agent_id)
     }
 }

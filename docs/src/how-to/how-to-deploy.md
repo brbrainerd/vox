@@ -1,7 +1,7 @@
 ---
 title: "How-To: Deploy to Production"
 description: "Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization."
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-04-06"
 status: "current"
 training_eligible: true
@@ -39,7 +39,7 @@ You can define your deployment environment directly in your `.vox` files using `
 ```
 
 > [!NOTE]
-> The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`api.ts`** for `@endpoint(kind: server) fn`. See [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md).
+> The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`vox-client.ts`** for HTTP endpoints. See [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md).
 
 ### Bare Metal (systemd) Provider
 

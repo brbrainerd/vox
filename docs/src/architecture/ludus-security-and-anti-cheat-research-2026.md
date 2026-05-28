@@ -1,6 +1,6 @@
 ---
 title: "ludus-security-and-anti-cheat-research-2026"
-category: "reference"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---
@@ -30,7 +30,7 @@ Rather than a centralized "Anti-Cheat" server, we leverage the existing `Collegi
 *   **Vouching**: Joining a "Ranked Arena" requires a vouch from a high-reputation player. If the vouched player is caught cheating, the voucher's reputation also suffers (transitive trust).
 
 ### 4. Technical Guardrails (Checksumming)
-*   **Binary Integrity**: The `vox` binary includes a self-checksumming routine that verifies the `vox-ludus` constants haven't been patched.
+*   **Binary Integrity**: The `vox` binary includes a self-checksumming routine that verifies the `vox-gamify` constants haven't been patched.
 *   **Signed Telemetry**: All rewards are signed with the player's private key (managed by Clavis) before being synced to the cloud DB. This prevents simple "man-in-the-middle" API spoofing.
 *   **Idempotency Guards**: Every GitHub event is uniquely identified by its API ID. We already implement `INSERT OR IGNORE` in `gamify_processed_events` to prevent double-claiming.
 

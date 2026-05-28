@@ -44,3 +44,21 @@ entries:
     consumption_required: false
     consumer_paths: []
     test_targets: []
+
+  - schema_id: scientia-research-mesh-intake-v1-schema
+    contract_path: contracts/scientia/research-mesh-intake.v1.schema.json
+    consumption_required: true
+    consumer_paths:
+      - crates/vox-publisher/src/research_mesh.rs
+      - crates/vox-orchestrator/src/dei_shim/research/mesh_subscriber.rs
+    test_targets:
+      - cargo test -p vox-publisher research_mesh
+
+  - schema_id: scientia-research-mesh-promoted-line-v1-schema
+    contract_path: contracts/scientia/research-mesh-promoted-line.v1.schema.json
+    consumption_required: true
+    consumer_paths:
+      - crates/vox-publisher/src/research_mesh.rs
+      - crates/vox-cli/src/commands/research/mesh_intake.rs
+    test_targets:
+      - cargo test -p vox-publisher research_mesh

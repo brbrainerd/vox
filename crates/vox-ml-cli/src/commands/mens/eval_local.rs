@@ -424,7 +424,7 @@ fn verify_completion(
         bench_root.join(format!("eval_local_{manifest_index}_{sample_id}.vox"))
     };
     tracing::debug!(
-        target: "vox_mens_eval_local",
+        target: "vox_eval::mens_local",
         sample_id,
         manifest_index,
         file_hint = file_hint,

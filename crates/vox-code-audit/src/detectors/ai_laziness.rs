@@ -113,6 +113,22 @@ impl DetectionRule for AiLazinessDetector {
         LANGS
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — AI laziness pattern: placeholder return or 'implement later' comment\n\
+             fn calculate_tax(amount: f64, region: &str) -> f64 {\n\
+             \x20   // TODO: implement tax calculation\n\
+             \x20   0.0  // placeholder\n\
+             }\n\
+             \n\
+             // FIX — real implementation; scope down if full implementation is out of scope\n\
+             fn calculate_tax(amount: f64, region: &str) -> f64 {\n\
+             \x20   let rate = TAX_RATES.get(region).copied().unwrap_or(0.0);\n\
+             \x20   (amount * rate * 100.0).round() / 100.0\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,
@@ -223,34 +239,32 @@ impl DetectionRule for AiLazinessDetector {
                 });
             }
 
-            if !test_gated {
-                if let Some(caps) = self.mock_named_fn.regex().captures(line) {
-                    let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                    findings.push(Finding {
-                        rule_id: "ai-laziness/mock-named-fn".into(),
-                        rule_name: "Mock-named function in non-test code".into(),
-                        severity: Severity::Warning,
-                        file: file.path.clone(),
-                        line: line_num,
-                        column: 0,
-                        message: format!(
-                            "Function name starts with `{}` but the file is not gated as test \
+            if !test_gated && let Some(caps) = self.mock_named_fn.regex().captures(line) {
+                let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                findings.push(Finding {
+                    rule_id: "ai-laziness/mock-named-fn".into(),
+                    rule_name: "Mock-named function in non-test code".into(),
+                    severity: Severity::Warning,
+                    file: file.path.clone(),
+                    line: line_num,
+                    column: 0,
+                    message: format!(
+                        "Function name starts with `{}` but the file is not gated as test \
                                  code — mocks should not ship.",
-                            prefix
-                        ),
-                        suggestion: Some(
-                            "Move the function under `#[cfg(test)]`, rename it to its real \
+                        prefix
+                    ),
+                    suggestion: Some(
+                        "Move the function under `#[cfg(test)]`, rename it to its real \
                                  responsibility, or delete it if unused."
-                                .into(),
-                        ),
-                        diagnostic_id: None,
-                        alternatives: vec![],
-                        rationale: None,
-                        context: file.context_around(line_num, 1),
-                        confidence: Some(FindingConfidence::Medium),
-                        evidence: None,
-                    });
-                }
+                            .into(),
+                    ),
+                    diagnostic_id: None,
+                    alternatives: vec![],
+                    rationale: None,
+                    context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Medium),
+                    evidence: None,
+                });
             }
 
             if let Some(caps) = self.custom_type_default_return.regex().captures(line) {

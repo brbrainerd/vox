@@ -86,7 +86,7 @@ pub async fn fetch_hf_hub_text_generation_models(
     limit: u32,
 ) -> Result<Vec<HfHubTextGenModelBrief>, String> {
     let limit = limit.clamp(1, 100);
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .timeout(Duration::from_secs(30))
         .build()
         .map_err(|e| format!("reqwest client build failed: {e}"))?;
@@ -125,7 +125,7 @@ pub struct PopuliCapabilitySnapshot {
 /// Query `/api/tags` and `/api/version` on an Ollama-compatible `base_url`.
 pub async fn probe_populi_capabilities(base_url: &str) -> PopuliCapabilitySnapshot {
     let base = base_url.trim_end_matches('/');
-    let client = match vox_reqwest_defaults::client_builder()
+    let client = match vox_http_client::client_builder()
         .timeout(Duration::from_secs(5))
         .build()
     {

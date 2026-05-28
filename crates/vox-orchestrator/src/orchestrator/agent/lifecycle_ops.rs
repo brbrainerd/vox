@@ -279,9 +279,23 @@ impl crate::orchestrator::Orchestrator {
 
     /// Update the heartbeat for an agent and emit an event.
     pub fn heartbeat(&self, agent_id: AgentId, activity: crate::events::AgentActivity) {
+        let active_skill = {
+            let agents = crate::sync_lock::rw_read(&self.agents);
+            agents
+                .get(&agent_id)
+                .and_then(|q| {
+                    crate::sync_lock::rw_read(&**q)
+                        .current_task()
+                        .and_then(|t| t.active_skill.clone())
+                })
+        };
         crate::sync_lock::rw_write(&*self.heartbeat_monitor).heartbeat(agent_id, activity);
         self.event_bus
-            .emit(crate::events::AgentEventKind::AgentHeartbeat { agent_id, activity });
+            .emit(crate::events::AgentEventKind::AgentHeartbeat {
+                agent_id,
+                activity,
+                active_skill,
+            });
         if activity != crate::events::AgentActivity::Idle {
             self.record_activity();
         }

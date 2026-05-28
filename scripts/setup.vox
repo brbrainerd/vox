@@ -1,13 +1,83 @@
-// setup.vox
-// Primary repository setup script.
-// Run via: `vox run scripts/setup.vox` or `cargo run -p vox-cli -- run scripts/setup.vox`
+// vox:caps process
+// setup.vox - Primary repository setup script.
+// Run: vox run scripts/setup.vox
+// Migrated 2026-05-23 to the strict-Option / Result-discipline stdlib.
 
-println("Initializing Vox workspace setup...");
-println("1. Checking for existing configuration files...");
+fn check_command(cmd: str, args: list[str], name: str) to bool {
+    let result_opt = process.run(cmd, args)
+    if result_opt is null {
+        print("Missing dependency (could not spawn): " + name)
+        return false
+    }
+    let result = result_opt.unwrap()
+    if result.code != 0 {
+        print("Missing dependency: " + name)
+        return false
+    }
+    print("Found: " + name)
+    return true
+}
 
-// Additional setup like copying .env.example, creating directories,
-// or downloading test fixtures goes here natively in Vox script.
+fn main() {
+    print("Initializing Vox Workspace Setup")
 
-println("Setup complete! You can now build Vox using standard Rust tooling:");
-println("  cargo build");
-println("  cargo run -p vox-cli -- <args>");
+    print("[1] Verifying Rust Toolchain SSoT...")
+    let rustc_ok = check_command("rustc", ["--version"], "Rust Toolchain")
+    if not rustc_ok {
+        print("Please install rustup: https://rustup.rs/")
+        process.exit(1)
+    }
+
+    print("[2] Ensuring WASM sysroots (wasm32-wasip1)...")
+    let wasm_opt = process.run("rustup", ["target", "add", "wasm32-wasip1"])
+    if wasm_opt isnt null {
+        let wasm_result = wasm_opt.unwrap()
+        if wasm_result.code != 0 {
+            print("Failed to add WASM target. Isolated workloads may fail.")
+        } else {
+            print("WASM sysroots configured.")
+        }
+    }
+
+    print("[3] Verifying Node and PNPM...")
+    let node_ok = check_command("node", ["--version"], "Node.js (v22+)")
+    let pnpm_ok = check_command("pnpm", ["--version"], "pnpm (v9+)")
+    if not node_ok {
+        print("Node.js missing. The frontend build may fail. Install via fnm or nvm.")
+    }
+    if (not pnpm_ok) and node_ok {
+        print("pnpm missing. Run `corepack enable` to install it.")
+    }
+
+    print("[4] Verifying CUDA toolkit (for ML / vox-populi)...")
+    let nvcc_ok = check_command("nvcc", ["--version"], "NVIDIA CUDA Toolkit")
+    if not nvcc_ok {
+        print("CUDA (nvcc) not found on PATH. GPU acceleration will fallback to CPU or Metal (macOS).")
+    } else {
+        print("CUDA Toolkit detected. GPU acceleration enabled.")
+    }
+
+    print("[5] Installing Git Pre-commit Hooks...")
+    let hooks_opt = process.run("vox", ["run", "scripts/install-hooks.vox"])
+    if hooks_opt isnt null {
+        let hooks = hooks_opt.unwrap()
+        if hooks.code != 0 {
+            print("Hook installation failed. Ensure lefthook is installed.")
+        }
+    }
+
+    print("[6] Validating Workspace Integrity...")
+    print("Running cargo check --workspace...")
+    let check_opt = process.run("cargo", ["check", "--workspace"])
+    if check_opt is null {
+        print("Failed to spawn cargo check.")
+        process.exit(1)
+    }
+    let check = check_opt.unwrap()
+    if check.code != 0 {
+        print("Workspace verification failed. Please resolve the compilation errors above.")
+        process.exit(1)
+    }
+
+    print("Setup complete. The Vox workspace is ready.")
+}

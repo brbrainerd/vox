@@ -1,0 +1,13 @@
+id = "humaneval-vox-016-len-bucket"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write a Vox function `len_bucket(s: str) to str` that classifies the
+length of `s`:
+  - 0:           "empty"
+  - 1 to 5:      "short"
+  - 6 to 20:     "medium"
+  - 21 or more:  "long"
+"""

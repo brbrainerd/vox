@@ -1,10 +1,18 @@
-//! Framework-agnostic typed `fetch` client for `@server` / `@query` / `@mutation`.
+//! Framework-agnostic typed `fetch` client for `@query` / `@mutation` / `@server` endpoints.
 //!
 //! **HTTP SSOT (Rust + TS):** generated Axum wiring uses **`GET`** for `@query` (deterministic
 //! JSON-in-query encoding: sorted keys, each value is `JSON.stringify` + `encodeURIComponent`) and
 //! **`POST` + JSON body** for `@mutation` / `@server`. Cache-friendly reads use GET as intended.
+//!
+//! Wire-format rules live in [`vox_compiler::contract_ir`]. This emitter reads
+//! [`vox_compiler::contract_ir::ContractEndpoint`] rather than walking HIR directly —
+//! so type mappings (Decimal → string, BigInt → string, Option → optional param) are
+//! enforced by the same projection that drives Zod and OpenAPI emit.
 
-use vox_compiler::hir::{HirEndpointFn, HirEndpointKind, HirModule};
+use vox_compiler::contract_ir::{
+    self, ContractEndpointKind, WireType, wire_type_to_ts, wire_type_to_zod,
+};
+use vox_compiler::hir::HirModule;
 
 /// Stable output filename for the generated client.
 pub const VOX_CLIENT_FILENAME: &str = "vox-client.ts";
@@ -16,7 +24,10 @@ pub fn emit_vox_client(hir: &HirModule) -> String {
     out.push_str("// Transport: GET + JSON query values for @query; POST + JSON body for @mutation / @server.\n");
     out.push_str("// Do not edit; regenerate with `vox build`.\n\n");
     out.push_str("import { z } from \"zod\";\n");
-    let type_names: Vec<String> = hir.types.iter().map(|t| t.name.clone()).collect();
+
+    let ir = contract_ir::project(hir);
+
+    let type_names: Vec<String> = ir.types.iter().map(|t| t.name.clone()).collect();
     if !type_names.is_empty() {
         out.push_str(&format!(
             "import type {{ {} }} from \"./types\";\n",
@@ -29,10 +40,73 @@ pub fn emit_vox_client(hir: &HirModule) -> String {
         ));
     }
 
-    out.push_str("export class VoxApiError extends Error {\n  constructor(public readonly status: number, public readonly path: string, public readonly responseText: string) {\n    super(`${path} failed: ${status}${responseText ? ` — ${responseText.slice(0, 200)}` : \"\"}`);\n    this.name = \"VoxApiError\";\n  }\n}\n\n");
+    out.push_str(
+        r#"/** Wire-format v1 error body when the server returns SSOT §6 JSON (`ok` is always false). */
+export type VoxWireError = {
+  ok: false;
+  code: string;
+  message: string;
+  request_id?: string;
+  details?: unknown;
+};
+
+const VoxErrorEnvelopeSchema = z.object({
+  ok: z.literal(false),
+  code: z.string(),
+  message: z.string(),
+  request_id: z.string().optional(),
+  details: z.unknown().optional(),
+});
+
+function parseVoxWireError(text: string): VoxWireError | undefined {
+  const s = text.trim();
+  if (!s.startsWith("{")) return undefined;
+  try {
+    const j: unknown = JSON.parse(s);
+    const p = VoxErrorEnvelopeSchema.safeParse(j);
+    return p.success ? (p.data as VoxWireError) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export class VoxApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly path: string,
+    /** Raw response body (often JSON text). */
+    public readonly responseText: string,
+    /** Parsed §6 envelope when the body matches `VoxWireError`. */
+    public readonly wireError?: VoxWireError,
+  ) {
+    const detail =
+      wireError !== undefined
+        ? `${wireError.code}: ${wireError.message}`
+        : responseText
+          ? responseText.slice(0, 280)
+          : "";
+    super(detail ? `${path} failed: ${status} — ${detail}` : `${path} failed: ${status}`);
+    this.name = "VoxApiError";
+  }
+}
+
+"#,
+    );
 
     out.push_str(
-        "const BASE = ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? \"\");\n\n",
+        r#"let __voxApiBaseRuntime: string | undefined;
+
+/** Override the API base URL at runtime (e.g. after reading a host-injected config). Precedence: this value, then `import.meta.env.VITE_API_URL`, then relative paths. */
+export function configureVoxApiBase(base: string | undefined): void {
+  __voxApiBaseRuntime = base;
+}
+
+function voxApiBase(): string {
+  if (__voxApiBaseRuntime !== undefined) return __voxApiBaseRuntime;
+  return ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "");
+}
+
+"#,
     );
     out.push_str(
         r#"/** Build `?a=<json>&b=<json>` with keys sorted lexicographically (matches Axum BTreeMap decode). */
@@ -46,19 +120,21 @@ function voxQueryString(query: Record<string, unknown>): string {
 }
 
 async function $get<T>(path: string, schema?: { parse: (x: any) => T }, query?: Record<string, unknown>, init?: RequestInit): Promise<T> {
-  const url = BASE ? `${BASE}${path}` : path;
+  const base = voxApiBase();
+  const url = base ? `${base}${path}` : path;
   const qs = query && Object.keys(query).length > 0 ? voxQueryString(query) : "";
   const r = await fetch(`${url}${qs}`, { method: "GET", ...init });
   if (!r.ok) {
     const t = await r.text().catch(() => "");
-    throw new VoxApiError(r.status, path, t);
+    throw new VoxApiError(r.status, path, t, parseVoxWireError(t));
   }
   const data = await r.json();
   return schema ? schema.parse(data) : (data as T);
 }
 
 async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: unknown, init?: RequestInit): Promise<T> {
-  const url = BASE ? `${BASE}${path}` : path;
+  const base = voxApiBase();
+  const url = base ? `${base}${path}` : path;
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -67,69 +143,91 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   });
   if (!r.ok) {
     const t = await r.text().catch(() => "");
-    throw new VoxApiError(r.status, path, t);
+    throw new VoxApiError(r.status, path, t, parseVoxWireError(t));
   }
   const data = await r.json();
   return schema ? schema.parse(data) : (data as T);
 }
 
+function isTauri(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).__TAURI_INVOKE__ !== "undefined";
+}
+
+async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { parse: (x: any) => T }): Promise<T> {
+  try {
+    // @ts-ignore
+    const data = await (window as any).__TAURI_INVOKE__(cmd, { request: args });
+    return schema ? schema.parse(data) : (data as T);
+  } catch (e: any) {
+    throw new VoxApiError(500, cmd, e.toString(), undefined);
+  }
+}
+
 "#,
     );
 
-    for sf in &hir.endpoint_fns {
-        out.push_str(&emit_one_fn(sf, sf.kind == HirEndpointKind::Query));
+    for ep in &ir.endpoints {
+        let is_query = ep.kind == ContractEndpointKind::Query;
+        out.push_str(&emit_one_endpoint(ep, is_query));
     }
 
     out
 }
 
-fn emit_one_fn(sf: &HirEndpointFn, is_query: bool) -> String {
-    let name = &sf.name;
-    let return_type = sf.return_type.as_ref().map_or(
-        "unknown".to_string(),
-        crate::codegen_ts::hir_emit::map_hir_type_to_ts,
-    );
-    let path = &sf.route_path;
+fn emit_one_endpoint(ep: &contract_ir::ContractEndpoint, is_query: bool) -> String {
+    let name = &ep.name;
+    let path = &ep.path;
 
-    let return_schema = sf.return_type.as_ref().map_or(
-        "undefined".to_string(),
-        crate::codegen_ts::zod_emit::map_type_to_zod,
-    );
+    let return_ts = match &ep.response {
+        WireType::Unit => "void".to_string(),
+        wt => wire_type_to_ts(wt),
+    };
 
-    if sf.params.is_empty() {
+    // `undefined` tells $get/$post to skip schema validation (unit returns have
+    // no body to parse; callers must not depend on the return value).
+    let return_schema = match &ep.response {
+        WireType::Unit => "undefined".to_string(),
+        wt => wire_type_to_zod(wt),
+    };
+
+    if ep.params.is_empty() {
         if is_query {
             return format!(
-                "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(init?: RequestInit): Promise<{return_type}> {{\n  return $get<{return_type}>(\"{path}\", {return_schema}, undefined, init);\n}}\n\n"
+                "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{}}, {return_schema});\n  return $get<{return_ts}>(\"{path}\", {return_schema}, undefined, init);\n}}\n\n"
             );
         }
         return format!(
-            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(init?: RequestInit): Promise<{return_type}> {{\n  return $post<{return_type}>(\"{path}\", {return_schema}, {{}}, init);\n}}\n\n"
+            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{}}, {return_schema});\n  return $post<{return_ts}>(\"{path}\", {return_schema}, {{}}, init);\n}}\n\n"
         );
     }
 
-    let mut fields = Vec::new();
-    for p in &sf.params {
-        let ty = p.type_ann.as_ref().map_or(
-            "unknown".to_string(),
-            crate::codegen_ts::hir_emit::map_hir_type_to_ts,
-        );
-        fields.push(format!("{}: {}", p.name, ty));
-    }
-    let arg_type = fields.join(", ");
-    let body_obj = sf
+    let fields: Vec<String> = ep
         .params
         .iter()
-        .map(|p| format!("{}: args.{}", p.name, p.name))
+        .map(|f| {
+            let ts_ty = wire_type_to_ts(&f.ty);
+            if f.optional {
+                format!("{}?: {}", f.name, ts_ty)
+            } else {
+                format!("{}: {}", f.name, ts_ty)
+            }
+        })
+        .collect();
+    let arg_type = fields.join(", ");
+    let body_obj = ep
+        .params
+        .iter()
+        .map(|f| format!("{}: args.{}", f.name, f.name))
         .collect::<Vec<_>>()
         .join(", ");
 
     if is_query {
         format!(
-            "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_type}> {{\n  return $get<{return_type}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
+            "/** @query `{name}` → `{path}` (GET) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{ {body_obj} }}, {return_schema});\n  return $get<{return_ts}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
         )
     } else {
         format!(
-            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_type}> {{\n  return $post<{return_type}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
+            "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{ {body_obj} }}, {return_schema});\n  return $post<{return_ts}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
         )
     }
 }

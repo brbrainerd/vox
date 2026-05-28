@@ -1,0 +1,14 @@
+// Base source for plan-038-split-into-two-files-conceptual.
+//
+// A `process` fn and a single caller in a @test. The plan asks the
+// model to rename it to `process_event` and annotate the conceptual
+// module split via a comment (no real file split).
+
+fn process(x: int) to int {
+    return x + 1
+}
+
+@test
+fn test_process_increments() to Unit {
+    assert(process(1) is 2)
+}

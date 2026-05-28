@@ -1,5 +1,9 @@
 use anyhow::Result;
 
+/// README written by `vox_tauri_codegen::emit_tauri_packaging_hints` next to `tauri.conf.json`
+/// (project root — not under `target/`).
+pub const TAURI_PACKAGING_HINT_README_REL: &str = "tauri-packaging/README.md";
+
 /// `vox init` — scaffold a new Vox project with a `Vox.toml` manifest.
 pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>) -> Result<()> {
     let project_name = name.unwrap_or_else(|| {
@@ -22,8 +26,20 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
         template,
     )?;
 
-    if let Some("mobile-pwa") = template {
-        crate::templates::mobile_pwa::scaffold(project_name, &scaffold_path)?;
+    if matches!(template, Some("mobile-pwa") | Some("tauri-mobile")) {
+        let slug = project_name.to_lowercase().replace('-', "");
+        let params = vox_tauri_codegen::TauriEmitParams {
+            identifier: &format!("com.vox.{slug}"),
+            display_name: project_name,
+            frontend_dist_relative: "dist",
+        };
+        let contracts_repo = vox_tauri_codegen::find_contracts_repo_root(&scaffold_path);
+        vox_tauri_codegen::emit_tauri_packaging_hints(
+            &scaffold_path,
+            &params,
+            contracts_repo.as_deref(),
+            None,
+        )?;
     }
 
     if summary.package_kind == "skill" {
@@ -79,12 +95,17 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
             println!("    1. vox build src/main.vox -o dist");
             println!("    2. Edit activities and workflow steps");
         }
-        (_, Some("mobile-pwa")) => {
+        (_, Some("mobile-pwa")) | (_, Some("tauri-mobile")) => {
             println!("  Next steps:");
-            println!("    1. pnpm install (or npm install)");
+            println!("    1. pnpm install");
             println!("    2. vox build src/main.vox -o dist");
-            println!("    3. npx cap add ios (or android)");
-            println!("    4. npx cap sync");
+            println!(
+                "    3. Follow `{}` (Tauri 2 packaging hints from `vox init`)",
+                TAURI_PACKAGING_HINT_README_REL
+            );
+            println!(
+                "    4. `vox compile --target mobile-android` or `mobile-ios` when tooling is wired"
+            );
         }
         _ => {
             println!("  Get started with: vox build src/main.vox");

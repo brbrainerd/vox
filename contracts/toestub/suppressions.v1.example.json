@@ -2,7 +2,7 @@
   "x-vox-version": 1,
   "version": 1,
   "suppressions": [
-    
+    {
       "rule_id_prefix": "scaling/regex-new-hot",
       "path_glob": "crates/example/**",
       "line": 12,

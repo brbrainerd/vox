@@ -7,44 +7,44 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "profile", "hard_gate", "soft_gate", "diagnostic", "next_actions"],
-  "properties": 
-    "version":  "type": "string", "const": "v2" },
-    "profile": 
+  "properties": {
+    "version": { "type": "string", "const": "v2" },
+    "profile": {
       "type": "string",
       "enum": ["journal", "preprint", "repository", "social"]
     },
-    "hard_gate":  "$ref": "#/$defs/signalArray" },
-    "soft_gate":  "$ref": "#/$defs/signalArray" },
-    "diagnostic":  "$ref": "#/$defs/signalArray" },
-    "next_actions": 
+    "hard_gate": { "$ref": "#/$defs/signalArray" },
+    "soft_gate": { "$ref": "#/$defs/signalArray" },
+    "diagnostic": { "$ref": "#/$defs/signalArray" },
+    "next_actions": {
       "type": "array",
-      "items":  "$ref": "#/$defs/actionItem" }
+      "items": { "$ref": "#/$defs/actionItem" }
     }
   },
-  "$defs": 
-    "signalArray": 
+  "$defs": {
+    "signalArray": {
       "type": "array",
-      "items": 
+      "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "passed", "score", "reason_code"],
-        "properties": 
-          "id":  "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
-          "passed":  "type": "boolean" },
-          "score":  "type": "number", "minimum": 0, "maximum": 1 },
-          "reason_code":  "type": "string", "minLength": 1 },
-          "details":  "type": "string" }
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
+          "passed": { "type": "boolean" },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "reason_code": { "type": "string", "minLength": 1 },
+          "details": { "type": "string" }
         }
       }
     },
-    "actionItem": 
+    "actionItem": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "priority", "action"],
-      "properties": 
-        "id":  "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
-        "priority":  "type": "integer", "minimum": 1, "maximum": 999 },
-        "action":  "type": "string", "minLength": 1 }
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_\\-]+$" },
+        "priority": { "type": "integer", "minimum": 1, "maximum": 999 },
+        "action": { "type": "string", "minLength": 1 }
       }
     }
   }

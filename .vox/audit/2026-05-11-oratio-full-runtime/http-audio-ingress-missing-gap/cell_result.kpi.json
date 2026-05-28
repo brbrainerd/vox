@@ -1,0 +1,10 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "http-audio-ingress-missing-gap",
+  "evidence": "No crates/vox-audio-ingress tree exists while codegen/docs reference /api/audio/transcribe.",
+  "failure_category": "orchestration",
+  "notes": "HTTP audio ingress remains absent.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "status": "measured_gap"
+}

@@ -1,0 +1,20 @@
+fn zip_sums(xs: list[int], ys: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let limit: int = if xs.len() < ys.len() { xs.len() } else { ys.len() }
+    let mut i: int = 0
+    while i < limit {
+        match xs[i] {
+            Some(x) => {
+                match ys[i] {
+                    Some(y) => {
+                        result.push(x + y)
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}

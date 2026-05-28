@@ -1,7 +1,7 @@
 ---
 title: "Architecture: ASR Speech-to-Code"
 description: "Detailed system design for integrating high-fidelity speech-to-code dictation into the Vox MENS pipeline."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

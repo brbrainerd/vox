@@ -23,6 +23,11 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
                     "Option<{}>",
                     args_str.first().unwrap_or(&"serde_json::Value".to_string())
                 ),
+                // Deprecated aliases — emit DurablePromise during the v0.6→v0.7 migration window.
+                "Future" | "Promise" => format!(
+                    "DurablePromise<{}>",
+                    args_str.first().unwrap_or(&"serde_json::Value".to_string())
+                ),
                 _ => format!("{}<{}>", n, args_str.join(", ")),
             }
         }

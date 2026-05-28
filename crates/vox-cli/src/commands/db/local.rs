@@ -18,138 +18,23 @@ pub async fn status() -> Result<()> {
     Ok(())
 }
 
-fn sqlite_quote_ident(name: &str) -> String {
-    let mut s = String::with_capacity(name.len() + 2);
-    s.push('"');
-    for c in name.chars() {
-        if c == '"' {
-            s.push_str("\"\"");
-        } else {
-            s.push(c);
-        }
+fn format_research_metric_time(created_at: &str) -> String {
+    let s = created_at.trim();
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S") {
+        return dt.format("%H:%M:%S").to_string();
     }
-    s.push('"');
-    s
-}
-
-async fn sqlite_pragma_i64(conn: &turso::Connection, sql: &str) -> Result<i64> {
-    let mut rows = conn.query(sql, ()).await?;
-    let Some(row) = rows.next().await? else {
-        return Ok(0i64);
-    };
-    Ok(row.get(0)?)
-}
-
-async fn sqlite_pragma_text(conn: &turso::Connection, sql: &str) -> Result<String> {
-    let mut rows = conn.query(sql, ()).await?;
-    let Some(row) = rows.next().await? else {
-        return Ok(String::new());
-    };
-    Ok(row.get(0)?)
-}
-
-fn pick_time_audit_column(col_names: &[String]) -> Option<String> {
-    const PREFERRED: &[&str] = &[
-        "updated_at_ms",
-        "created_at_ms",
-        "updated_at",
-        "created_at",
-        "recorded_at_ms",
-        "submitted_at_ms",
-        "attempted_at_ms",
-        "timestamp",
-        "ts",
-    ];
-    for name in PREFERRED {
-        if col_names.iter().any(|n| n == name) {
-            return Some((*name).to_string());
-        }
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+        return dt.format("%H:%M:%S").to_string();
     }
-    for n in col_names {
-        let l = n.to_lowercase();
-        if l.contains("at_ms") || l.ends_with("_at") || l.contains("timestamp") {
-            return Some(n.clone());
-        }
-    }
-    None
+    s.chars().take(32).collect()
 }
 
 /// Read-only audit: table row counts + storage PRAGMAs (JSON to stdout).
 pub async fn audit(timestamps: bool) -> Result<()> {
     let db = vox_db::VoxDb::connect_default().await?;
-    let version = db.schema_version().await?;
-    let data_dir = vox_db::VoxDb::data_dir()
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "unknown".to_string());
-    let db_path = vox_db::paths::default_db_path()
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let conn = db.connection();
-
-    let page_count = sqlite_pragma_i64(conn, "PRAGMA page_count").await?;
-    let page_size = sqlite_pragma_i64(conn, "PRAGMA page_size").await?;
-    let freelist_count = sqlite_pragma_i64(conn, "PRAGMA freelist_count").await?;
-    let journal_mode = sqlite_pragma_text(conn, "PRAGMA journal_mode").await?;
-
-    let mut name_rows = conn
-        .query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-            (),
-        )
-        .await?;
-    let mut tables: Vec<serde_json::Value> = Vec::new();
-    while let Some(row) = name_rows.next().await? {
-        let name: String = row.get(0)?;
-        let q = sqlite_quote_ident(&name);
-        let sql = format!("SELECT COUNT(*) FROM {q}");
-        let mut c = conn
-            .query(&sql, ())
-            .await
-            .with_context(|| format!("count {name}"))?;
-        let count: i64 = c
-            .next()
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("missing count for {name}"))?
-            .get(0)?;
-        let mut entry = serde_json::json!({"name": name, "row_count": count});
-        if timestamps && count > 0 {
-            let info_sql = format!("PRAGMA table_info({q})");
-            let mut info_rows = conn.query(&info_sql, ()).await?;
-            let mut col_names = Vec::new();
-            while let Some(r) = info_rows.next().await? {
-                col_names.push(r.get::<String>(1)?);
-            }
-            if let Some(tc) = pick_time_audit_column(&col_names) {
-                let tq = sqlite_quote_ident(&tc);
-                let rng_sql =
-                    format!("SELECT MIN({tq}), MAX({tq}) FROM {q} WHERE {tq} IS NOT NULL");
-                if let Ok(mut rng) = conn.query(&rng_sql, ()).await {
-                    if let Some(rr) = rng.next().await? {
-                        let vmin: Option<String> = rr.get(0).ok();
-                        let vmax: Option<String> = rr.get(1).ok();
-                        entry["time_column"] = serde_json::json!(tc);
-                        entry["time_min"] = serde_json::json!(vmin);
-                        entry["time_max"] = serde_json::json!(vmax);
-                    }
-                }
-            }
-        }
-        tables.push(entry);
-    }
-
-    let out = serde_json::json!({
-        "schema_version": version,
-        "data_dir": data_dir,
-        "db_path": db_path,
-        "pragma": {
-            "page_count": page_count,
-            "page_size": page_size,
-            "freelist_count": freelist_count,
-            "journal_mode": journal_mode,
-        },
-        "table_count": tables.len(),
-        "tables": tables,
-    });
+    let out = vox_db::audit_database_json(&db, timestamps)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("{}", serde_json::to_string_pretty(&out)?);
     Ok(())
 }
@@ -200,48 +85,20 @@ pub async fn schema(file: Option<&PathBuf>) -> Result<()> {
 
 /// Print sample data from a table or collection.
 pub async fn sample(table: &str, limit: i64) -> Result<()> {
-    vox_db::sql_util::validate_identifier(table)
-        .map_err(|e| anyhow::anyhow!("invalid table name {:?}: {}", table, e))?;
     let db = vox_db::VoxDb::connect_default().await?;
     println!("Sample data from '{}' (limit {}):", table, limit);
 
-    let conn = &db.connection();
+    let rows = vox_db::sample_table_json_objects(&db, table, limit)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
-    // Get column names via PRAGMA table_info since Row::column_name is missing.
-    let info_sql = format!("PRAGMA table_info({})", table);
-    let mut info_rows = conn.query(&info_sql, ()).await?;
-    let mut col_names = Vec::new();
-    while let Some(row) = info_rows.next().await? {
-        col_names.push(row.get::<String>(1)?); // Column 1 is 'name' in PRAGMA table_info
-    }
-
-    let sql = format!("SELECT * FROM {} LIMIT {}", table, limit);
-    let mut rows = conn.query(&sql, ()).await?;
-
-    let mut count = 0;
-    while let Some(row) = rows.next().await? {
-        count += 1;
-        // Print as JSON for simplicity in CLI
-        let mut map = serde_json::Map::new();
-
-        for (i, name) in col_names.iter().enumerate() {
-            let val: serde_json::Value = match row.get_value(i) {
-                Ok(v) => match v {
-                    turso::Value::Null => serde_json::Value::Null,
-                    turso::Value::Integer(i) => i.into(),
-                    turso::Value::Real(f) => f.into(),
-                    turso::Value::Text(s) => s.into(),
-                    turso::Value::Blob(b) => format!("(blob {} bytes)", b.len()).into(),
-                },
-                Err(_) => "error".into(),
-            };
-            map.insert(name.to_string(), val);
-        }
-        println!("{}", serde_json::to_string(&map)?);
-    }
-
-    if count == 0 {
+    if rows.is_empty() {
         println!("(no rows)");
+        return Ok(());
+    }
+
+    for map in rows {
+        println!("{}", serde_json::to_string(&map)?);
     }
 
     Ok(())
@@ -643,17 +500,10 @@ pub async fn mens_metrics(domain: Option<&str>, limit: u32) -> Result<()> {
         "mens:".to_string()
     };
 
-    let conn = db.connection();
-    // Wave 4-02: Direct MENS telemetry query
-    let mut rows = conn
-        .query(
-            "SELECT session_id, metric_type, numeric_value, metadata_json, created_at_ms 
-         FROM research_metrics 
-         WHERE session_id LIKE ?1 || '%' 
-         ORDER BY id DESC LIMIT ?2",
-            turso::params![session_prefix.clone(), limit as i64],
-        )
-        .await?;
+    let rows = db
+        .list_research_metrics_for_session_prefix(&session_prefix, limit as i64)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     println!(
         "{:<28} {:<24} {:<10} {:<20}",
@@ -662,20 +512,13 @@ pub async fn mens_metrics(domain: Option<&str>, limit: u32) -> Result<()> {
     println!("{}", "-".repeat(95));
 
     let mut count = 0;
-    while let Some(row) = rows.next().await? {
+    for (session, mtype, val, meta, created_at) in rows {
         count += 1;
-        let session: String = row.get(0)?;
-        let mtype: String = row.get(1)?;
-        let val: Option<f64> = row.get(2)?;
-        let meta: Option<String> = row.get(3)?;
-        let ms: i64 = row.get(4)?;
 
         let val_str = val
             .map(|v| format!("{:.4}", v))
             .unwrap_or_else(|| "-".to_string());
-        let time = chrono::DateTime::from_timestamp(ms / 1000, 0)
-            .map(|t| t.format("%H:%M:%S").to_string())
-            .unwrap_or_else(|| "??:??:??".to_string());
+        let time = format_research_metric_time(&created_at);
 
         println!(
             "{:<28} {:<24} {:<10} [{}] {}",

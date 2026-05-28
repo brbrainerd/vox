@@ -1,0 +1,14 @@
+[problem]
+id = "065"
+title = "rotate_right"
+prompt = """
+Rotate the list xs to the right by k positions.
+For example: rotate_right([1, 2, 3, 4, 5], 2) -> [4, 5, 1, 2, 3].
+If the list is empty or k is 0, return the list unchanged.
+k may be larger than the list length (use k % len).
+"""
+signature = "fn rotate_right(xs: list[int], k: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

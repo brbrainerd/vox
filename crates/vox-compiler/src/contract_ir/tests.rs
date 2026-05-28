@@ -1,4 +1,4 @@
-use super::*;
+use super::{wire_type_to_ts, wire_type_to_zod, *};
 use crate::ast::span::Span;
 use crate::hir::{HirType, HirTypeDef, HirVariant};
 
@@ -133,13 +133,80 @@ fn datetime_aliases_widen_to_string() {
     }
 }
 
+// ── wire_type_to_ts ────────────────────────────────────────────────────────
+
+#[test]
+fn wire_type_to_ts_maps_primitives() {
+    assert_eq!(wire_type_to_ts(&WireType::Number), "number");
+    assert_eq!(wire_type_to_ts(&WireType::String), "string");
+    assert_eq!(wire_type_to_ts(&WireType::Bool), "boolean");
+    assert_eq!(wire_type_to_ts(&WireType::Unit), "void");
+    assert_eq!(wire_type_to_ts(&WireType::Unknown), "unknown");
+}
+
+#[test]
+fn wire_type_to_ts_string_encoded_types_map_to_string() {
+    // wire-format-v1: these are transmitted as strings; TS consumers parse them.
+    assert_eq!(wire_type_to_ts(&WireType::DecimalString), "string");
+    assert_eq!(wire_type_to_ts(&WireType::BigIntString), "string");
+    assert_eq!(wire_type_to_ts(&WireType::DateTimeString), "string");
+}
+
+#[test]
+fn wire_type_to_ts_array_is_readonly() {
+    let ty = WireType::Array(Box::new(WireType::Number));
+    assert_eq!(wire_type_to_ts(&ty), "readonly number[]");
+}
+
+#[test]
+fn wire_type_to_ts_ref_is_name() {
+    assert_eq!(wire_type_to_ts(&WireType::Ref("User".into())), "User");
+}
+
+#[test]
+fn wire_type_to_ts_tuple() {
+    let ty = WireType::Tuple(vec![WireType::Number, WireType::String]);
+    assert_eq!(wire_type_to_ts(&ty), "[number, string]");
+}
+
+// ── wire_type_to_zod ───────────────────────────────────────────────────────
+
+#[test]
+fn wire_type_to_zod_maps_primitives() {
+    assert_eq!(wire_type_to_zod(&WireType::Number), "z.number()");
+    assert_eq!(wire_type_to_zod(&WireType::String), "z.string()");
+    assert_eq!(wire_type_to_zod(&WireType::Bool), "z.boolean()");
+    assert_eq!(wire_type_to_zod(&WireType::Unit), "z.void()");
+    assert_eq!(wire_type_to_zod(&WireType::Unknown), "z.any()");
+}
+
+#[test]
+fn wire_type_to_zod_datetime_has_offset_validation() {
+    assert_eq!(
+        wire_type_to_zod(&WireType::DateTimeString),
+        "z.string().datetime({ offset: true })"
+    );
+}
+
+#[test]
+fn wire_type_to_zod_ref_appends_schema_suffix() {
+    assert_eq!(
+        wire_type_to_zod(&WireType::Ref("Order".into())),
+        "OrderSchema"
+    );
+}
+
+// ── existing projection tests follow ───────────────────────────────────────
+
 #[test]
 fn list_of_t_projects_as_array() {
-    let ty = HirType::Generic("list".into(), vec![HirType::Named("int".into())]);
-    let WireType::Array(inner) = project_type(&ty) else {
-        panic!("expected array");
-    };
-    assert!(matches!(*inner, WireType::Number));
+    for name in ["list", "List", "Vec", "Array"] {
+        let ty = HirType::Generic(name.into(), vec![HirType::Named("int".into())]);
+        let WireType::Array(inner) = project_type(&ty) else {
+            panic!("{name} should project as Array");
+        };
+        assert!(matches!(*inner, WireType::Number), "{name}");
+    }
 }
 
 #[test]

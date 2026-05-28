@@ -1,7 +1,7 @@
 //! Three-tier model cascade for autonomous model-routing (D1).
 //!
 //! Maps task complexity, circuit-breaker alarm level, and budget state to a
-//! [`RoutingTier`] (Economy / Standard / Strong), which callers translate to
+//! `RoutingTier` (Economy / Standard / Strong), which callers translate to
 //! [`crate::config::CostPreference`] or a direct [`crate::models::ModelSpec`] lookup.
 //!
 //! All logic is pure: no async, no I/O, no allocations on the hot path.

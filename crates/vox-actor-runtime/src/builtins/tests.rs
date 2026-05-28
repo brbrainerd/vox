@@ -22,6 +22,38 @@ fn list_dir_finds_file() {
 }
 
 #[test]
+fn list_dir_detailed_includes_file_metadata() {
+    let dir = std::env::temp_dir().join(format!("vox-list-detailed-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("y.txt"), b"zz").unwrap();
+    let rows = vox_fs_list_dir_detailed(dir.to_string_lossy().as_ref()).unwrap();
+    let y = rows.iter().find(|r| r.name == "y.txt").expect("y.txt row");
+    assert!(y.is_file);
+    assert_eq!(y.size, 2);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn csv_parse_records_reads_header() {
+    let v = vox_csv_parse_records("a,b\n1,2\n").unwrap();
+    let arr = v.as_array().expect("array");
+    assert_eq!(arr.len(), 1);
+    let o = arr[0].as_object().expect("obj");
+    assert_eq!(o.get("a").and_then(|x| x.as_str()), Some("1"));
+}
+
+#[test]
+fn process_run_capture_lines_echo() {
+    let lines = if cfg!(windows) {
+        vox_process_run_capture_lines("cmd.exe", &["/C".into(), "echo".into(), "hi".into()])
+    } else {
+        vox_process_run_capture_lines("echo", &["hi".into()])
+    }
+    .expect("echo");
+    assert!(lines.iter().any(|l| l.contains("hi")), "{lines:?}");
+}
+
+#[test]
 fn fast_hash_differs_for_similar_inputs() {
     // Avalanche effect: single char change → totally different hash
     assert_ne!(vox_hash_fast("gain"), vox_hash_fast("Gain"));
@@ -185,7 +217,7 @@ fn json_read_str_and_f64() {
 
 #[tokio::test]
 async fn http_invalid_json_body_is_rejected_before_network() {
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let err = handle_http_op(
         &client,
         HttpOp::PostJson {
@@ -200,7 +232,7 @@ async fn http_invalid_json_body_is_rejected_before_network() {
 
 #[tokio::test]
 async fn http_invalid_url_reports_error() {
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
     let err = handle_http_op(
         &client,
         HttpOp::GetText {

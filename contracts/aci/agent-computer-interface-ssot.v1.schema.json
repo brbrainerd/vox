@@ -1,0 +1,33 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/aci/agent-computer-interface-ssot.v1.schema.json",
+  "title": "Vox Agent-Computer Interface contract metadata (YAML SSOT) v1",
+  "description": "Validates contracts/aci/agent-computer-interface.v1.yaml — mutation_kind and shell_backend vocabularies. Not the MCP JSON tool-response envelope (see agent-computer-interface.v1.schema.json).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "x-vox-version",
+    "version",
+    "title",
+    "description",
+    "mutation_kind",
+    "shell_backend"
+  ],
+  "properties": {
+    "x-vox-version": { "type": "integer", "const": 1 },
+    "version": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "mutation_kind": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    },
+    "shell_backend": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "minLength": 1 }
+    }
+  }
+}

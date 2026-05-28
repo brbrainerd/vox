@@ -1,0 +1,11 @@
+[problem]
+id = "102"
+title = "common_elements"
+prompt = """
+Given two lists of ints, return the elements that appear in both lists. No duplicates, preserving the order they appear in the first list.
+"""
+signature = "fn common_elements(a: list[int], b: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "sets"]

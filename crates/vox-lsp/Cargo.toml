@@ -6,13 +6,12 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-tower-lsp = "0.20"
-tower-lsp-server = "0.23"
+tower-lsp-server = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+vox-foundation = { workspace = true }
 
 vox-compiler = { workspace = true }
 vox-db.workspace = true
@@ -21,6 +20,9 @@ vox-bounded-fs = { workspace = true }
 vox-secrets.workspace = true
 anyhow = { workspace = true }
 workspace-hack = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true }
 
 [lints]
 workspace = true

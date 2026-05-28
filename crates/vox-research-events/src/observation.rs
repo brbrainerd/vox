@@ -114,7 +114,7 @@ mod tests {
             profile_key: "p95_latency_ms_mean".to_string(),
             profile_value: 312.5,
             sample_count: 1000,
-            last_updated_ms: 1715299200_000,
+            last_updated_ms: 1_715_299_200_000,
         };
         let json = serde_json::to_string(&row).unwrap();
         let back: LearnedProfileRow = serde_json::from_str(&json).unwrap();

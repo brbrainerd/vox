@@ -126,6 +126,58 @@ impl<'a> JournalFitRecommender<'a> {
     pub fn is_venue_whitelisted(&self, venue_id: &str) -> bool {
         self.catalog.find_by_id(venue_id).is_some()
     }
+
+    /// Phase E wiring — rank venues with per-`FindingClass` boosting.
+    ///
+    /// Venues that appear in `defaults.policy_for(class).recommended_venues`
+    /// get a fixed `+1.0` score boost and a `"class_recommended"` reason
+    /// added to their `VenueFitScore`. The base topic-overlap score is
+    /// still computed and combined, so a venue that matches the candidate
+    /// class AND the topic list ranks highest.
+    ///
+    /// Atlas classes
+    /// (`ModelCapabilityAtlas`, `ProviderReliabilityAtlas`) inherit the
+    /// existing IMC/MLSys-shaped ranking; non-Atlas classes get the
+    /// micro-track routing from `vox-class-routing`.
+    pub fn rank_venues_for_class(
+        &self,
+        finding_topics: &[&str],
+        class: vox_scientia::class_routing::FindingClass,
+        defaults: &vox_scientia::class_routing::ClassDefaults,
+    ) -> Vec<VenueFitScore> {
+        const CLASS_BOOST: f64 = 1.0;
+        let class_recommended: std::collections::HashSet<&str> =
+            vox_scientia::class_routing::recommended_venues_for(defaults, class)
+                .iter()
+                .map(String::as_str)
+                .collect();
+        let mut scores = self.rank_venues(finding_topics);
+        for s in &mut scores {
+            if class_recommended.contains(s.venue_id.as_str()) {
+                s.score += CLASS_BOOST;
+                s.reasons.push("class_recommended".to_string());
+            }
+        }
+        scores.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        scores
+    }
+
+    /// Phase E wiring — best-fit venue for a given class.
+    pub fn top_venue_for_class(
+        &self,
+        finding_topics: &[&str],
+        class: vox_scientia::class_routing::FindingClass,
+        defaults: &vox_scientia::class_routing::ClassDefaults,
+    ) -> Option<&'a VenueEntry> {
+        self.rank_venues_for_class(finding_topics, class, defaults)
+            .into_iter()
+            .find(|s| s.score > 0.0)
+            .and_then(|s| self.catalog.find_by_id(&s.venue_id))
+    }
 }
 
 #[cfg(test)]
@@ -206,5 +258,111 @@ venues:
         assert!(rec.is_venue_whitelisted("imc"));
         assert!(rec.is_venue_whitelisted("tmlr"));
         assert!(!rec.is_venue_whitelisted("predatory-journal-xyz"));
+    }
+
+    // ── Phase E wiring — class-aware ranking ─────────────────────────────
+
+    /// Build a `ClassDefaults` map where `algorithmic_improvement` has
+    /// `imc` as its recommended venue. Verifies class-boost logic.
+    fn defaults_recommending(class: vox_scientia::class_routing::FindingClass, venue_id: &str)
+        -> vox_scientia::class_routing::ClassDefaults
+    {
+        let mut d = vox_scientia::class_routing::builtin_class_defaults();
+        d.by_class
+            .entry(class.as_str().to_string())
+            .and_modify(|p| p.recommended_venues = vec![venue_id.to_string()])
+            .or_insert(vox_scientia::class_routing::ClassPolicy {
+                reply_window_days: 7,
+                negative_result_quota: 0,
+                critic_allowed: true,
+                recommended_venues: vec![venue_id.to_string()],
+            });
+        d
+    }
+
+    #[test]
+    fn class_aware_rank_boosts_class_recommended_venue() {
+        let cat = VenueCatalog::from_yaml(SAMPLE_YAML).expect("parse");
+        let rec = JournalFitRecommender::new(&cat);
+        let defaults = defaults_recommending(
+            vox_scientia::class_routing::FindingClass::AlgorithmicImprovement,
+            "imc",
+        );
+        let scores = rec.rank_venues_for_class(
+            &["measurement"],
+            vox_scientia::class_routing::FindingClass::AlgorithmicImprovement,
+            &defaults,
+        );
+        let imc = scores.iter().find(|s| s.venue_id == "imc").unwrap();
+        assert!(
+            imc.reasons.iter().any(|r| r == "class_recommended"),
+            "imc should carry class_recommended reason; got {:?}",
+            imc.reasons
+        );
+        // imc's score includes the +1.0 boost on top of its topic overlap
+        // (1 match / 2 focus tags = 0.5 → 1.5 with boost). So it ranks
+        // above tmlr (which only matches `machine-learning` of its 2 tags
+        // when the topic is `measurement` → 0.0).
+        assert!(imc.score >= 1.0);
+        assert_eq!(scores.first().map(|s| s.venue_id.as_str()), Some("imc"));
+    }
+
+    #[test]
+    fn class_aware_rank_falls_back_to_topic_only_when_class_has_no_recommendations() {
+        let cat = VenueCatalog::from_yaml(SAMPLE_YAML).expect("parse");
+        let rec = JournalFitRecommender::new(&cat);
+        // `Other` class has no recommended_venues in builtin defaults.
+        let defaults = vox_scientia::class_routing::builtin_class_defaults();
+        let scores = rec.rank_venues_for_class(
+            &["machine-learning"],
+            vox_scientia::class_routing::FindingClass::Other,
+            &defaults,
+        );
+        // No venue should have `class_recommended` reason.
+        for s in &scores {
+            assert!(
+                !s.reasons.iter().any(|r| r == "class_recommended"),
+                "no class_recommended boost for `Other`; got {:?}",
+                s
+            );
+        }
+        // tmlr matches the topic, so it should rank first.
+        assert_eq!(scores.first().map(|s| s.venue_id.as_str()), Some("tmlr"));
+    }
+
+    #[test]
+    fn class_aware_top_venue_returns_class_recommended_when_available() {
+        let cat = VenueCatalog::from_yaml(SAMPLE_YAML).expect("parse");
+        let rec = JournalFitRecommender::new(&cat);
+        let defaults = defaults_recommending(
+            vox_scientia::class_routing::FindingClass::ReproducibilityInfra,
+            "tmlr",
+        );
+        // No topic match for `unrelated-topic`, but class recommendation
+        // still surfaces tmlr.
+        let top = rec.top_venue_for_class(
+            &["unrelated-topic"],
+            vox_scientia::class_routing::FindingClass::ReproducibilityInfra,
+            &defaults,
+        );
+        assert!(top.is_some(), "class-recommended venue should surface");
+        assert_eq!(top.unwrap().id, "tmlr");
+    }
+
+    #[test]
+    fn class_aware_top_venue_returns_none_when_neither_match() {
+        let cat = VenueCatalog::from_yaml(SAMPLE_YAML).expect("parse");
+        let rec = JournalFitRecommender::new(&cat);
+        // Empty defaults map for a class with no class-recommendations,
+        // and no topic match.
+        let defaults = vox_scientia::class_routing::ClassDefaults {
+            by_class: Default::default(),
+        };
+        let top = rec.top_venue_for_class(
+            &["unrelated-topic"],
+            vox_scientia::class_routing::FindingClass::Other,
+            &defaults,
+        );
+        assert!(top.is_none());
     }
 }

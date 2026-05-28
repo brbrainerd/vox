@@ -1,4 +1,12 @@
 //! HTTP relay for A2A over Populi mesh transport.
+//!
+//! P0-T3: every path that falls back to local execution after a failed relay
+//! must call [`gate_local_fallback`] first. This enforces the W1 invariant —
+//! a remote node holding an unexpired lease for the same scope blocks the
+//! local fallback rather than duplicating execution.
+//!
+//! P6-T9: `HopperOpSync` message kinds are routed through the federation
+//! envelope layer. See `crate::hopper::mesh_adapter` for the type definitions.
 
 use crate::types::{A2AMessageType, AgentId, CompletionAttestation};
 
@@ -6,6 +14,42 @@ use super::super::envelope::{
     REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE, RemoteTaskCancel,
     RemoteTaskEnvelope, RemoteTaskResult,
 };
+
+/// Gate a local-fallback decision against the `mesh_exec_leases` table.
+///
+/// Call this after a mesh relay fails, before falling through to local execution.
+/// Returns `Ok(())` when this node may proceed; returns `Err` when a remote node
+/// holds an unexpired lease for `scope_key` (W1 guard, ADR-017).
+/// Fails closed on DB error — returns `Err` rather than silently permitting.
+pub async fn gate_local_fallback(
+    db: &vox_db::VoxDb,
+    scope_key: &str,
+    self_node_id: &str,
+) -> Result<(), super::lease_gate::LeaseGateError> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    match super::lease_gate::check_before_local_fallback(db, scope_key, self_node_id, now).await {
+        Ok(()) => Ok(()),
+        Err(super::lease_gate::LeaseGateError::HeldByRemote { holder_node_id, .. }) => {
+            tracing::warn!(
+                scope_key = scope_key,
+                holder = %holder_node_id,
+                "gate_local_fallback: remote lease holder owns scope; refusing duplicate-execute"
+            );
+            Err(super::lease_gate::LeaseGateError::HeldByRemote {
+                scope_key: scope_key.to_string(),
+                holder_node_id,
+                expires_at: 0,
+            })
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "lease_gate db error; failing closed");
+            Err(e)
+        }
+    }
+}
 
 fn fnv1a64(parts: &[&str]) -> u64 {
     let mut h: u64 = 0xcbf29ce484222325;
@@ -58,6 +102,42 @@ pub async fn relay_to_mesh(
         })
         .await
         .map_err(|e: vox_populi::PopuliRegistryError| e.to_string())
+}
+
+/// AI-first `@subagent(policy = distributed)` fixture hook: best-effort mesh relay after local dispatch.
+///
+/// When [`vox_populi::http_lifecycle::populi_http_control_base_from_env`] resolves a control-plane URL,
+/// sends a small [`A2AMessageType::HelpRequest`] tagging the dispatch decision. Otherwise returns
+/// `{decision}|mesh=skipped_no_control_url` so fixture crates compile and run without Populi.
+pub async fn relay_ai_fixture_distributed_subagent(
+    dispatch_decision: &str,
+    prompt_len: usize,
+) -> String {
+    let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env() else {
+        return format!("{dispatch_decision}|mesh=skipped_no_control_url");
+    };
+    let timeout_ms = vox_populi::http_lifecycle::populi_http_timeout_ms_from_env();
+    let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
+        &base,
+        std::time::Duration::from_millis(timeout_ms),
+    )
+    .with_env_deliver_token();
+    let sender = AgentId(1);
+    let receiver = AgentId(2);
+    let payload =
+        format!("ai_fixture_subagent dispatch={dispatch_decision} prompt_len={prompt_len}");
+    match relay_to_mesh(
+        &client,
+        sender,
+        receiver,
+        A2AMessageType::HelpRequest,
+        payload,
+    )
+    .await
+    {
+        Ok(()) => format!("{dispatch_decision}|mesh=relayed"),
+        Err(e) => format!("{dispatch_decision}|mesh=error:{e}"),
+    }
 }
 
 /// Relay a structured remote task envelope over the mesh A2A transport.
@@ -116,7 +196,9 @@ pub async fn relay_remote_task_envelope(
             jwe_payload,
             task_kind: Some("vox_script".to_string()),
             model_id: None,
-            traceparent: None,
+            traceparent: Some(crate::a2a::traceparent::encode(
+                &crate::a2a::traceparent::TraceContext::from_current_span(),
+            )),
             priority: 128,
         })
         .await

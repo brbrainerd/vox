@@ -1,7 +1,7 @@
 ---
 title: "Diagnostic questioning — research synthesis 2026"
 description: "Why, when, and how to ask questions in AI and planning systems. Covers information-theoretic foundations, POMDP/EVPI framing, attention budget integration, question taxonomy, state-of-art gap analysis, and a Vox implementation roadmap."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_date: "2026-04-10"
 last_updated: "2026-04-10"

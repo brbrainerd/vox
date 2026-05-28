@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "browser-vox-app-web-speech-command",
+  "status": "runtime_unavailable",
+  "failure_category": "orchestration",
+  "evidence": "No browser microphone/Web Speech runtime harness is exposed to this command.",
+  "notes": "Requires browser-backed Web Speech test harness."
+}

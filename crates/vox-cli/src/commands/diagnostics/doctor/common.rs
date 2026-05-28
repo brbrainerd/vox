@@ -44,10 +44,9 @@ impl Check {
     }
 }
 
+/// Delegates to [`crate::fs_utils::user_home_dir`] (`vox_config::paths::user_home_dir`).
 pub(crate) fn user_home_dir() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
+    Some(crate::fs_utils::user_home_dir())
 }
 
 pub(crate) fn vox_dot_dir() -> PathBuf {

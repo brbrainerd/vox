@@ -107,6 +107,8 @@ pub async fn run(cmd: PopuliLifecycleCmd, global_json: bool) -> anyhow::Result<(
                     Some(deny_users)
                 },
                 allowed_mesh_networks: None, // Used in routing, populated from allowed_scopes currently
+                accept_sensitive_workloads: false,
+                redundancy: None,
             };
             if let Ok(json) = serde_json::to_string(&donation_policy) {
                 env_map.insert("VOX_MESH_DONATION_POLICY_JSON".to_string(), json);

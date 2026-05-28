@@ -3,6 +3,7 @@
 use crate::ast::decl::fundecl::StyleBlock;
 use crate::ast::span::Span;
 use crate::hir::nodes::form::HirForm;
+use crate::hir::nodes::tokens::HirTokensDecl;
 
 use super::expr::HirExpr;
 use super::stmt::HirStmt;
@@ -17,6 +18,8 @@ pub enum HirFieldOwnership {
     MigrationOnly,
     /// Data that can be projected into an externalized app surface contract.
     AppContract,
+    /// Native shell / mobile primitives (`@back_button`, `@deep_link`, `@push`) projected to `ShellProjectionModule`.
+    Shell,
 }
 
 /// A fully lowered Vox module: every declaration category is collected into its own vector.
@@ -33,8 +36,7 @@ pub struct HirModule {
     pub functions: Vec<HirFn>,
     /// Algebraic and struct types.
     pub types: Vec<HirTypeDef>,
-    /// HTTP route handlers.
-    pub routes: Vec<HirRoute>,
+
     /// `@test` functions.
     pub tests: Vec<HirFn>,
     /// `@forall` properties.
@@ -99,6 +101,20 @@ pub struct HirModule {
     #[serde(default)]
     pub push: Option<HirPush>,
 
+    /// Project-level design-token declarations (`tokens { … }`), CC-23.
+    #[serde(default)]
+    pub token_decls: Vec<HirTokensDecl>,
+
+    /// Typed route ids derived from `routes { … }` blocks (GA-09a).
+    /// Each entry drives `emit_route_id_module()` in codegen-ts.
+    #[serde(default)]
+    pub route_ids: Vec<crate::hir::nodes::boilerplate_grafts::HirRouteId>,
+
+    /// Map of source spans to their inferred types, populated by the type checker.
+    /// This supports performance-critical codegen optimizations (e.g. zero-copy emission).
+    #[serde(default)]
+    pub inferred_types: std::collections::HashMap<Span, HirType>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 }
@@ -113,7 +129,7 @@ pub struct SemanticHirModule {
     pub rust_imports: Vec<HirRustImport>,
     pub functions: Vec<HirFn>,
     pub types: Vec<HirTypeDef>,
-    pub routes: Vec<HirRoute>,
+
     pub tests: Vec<HirFn>,
     pub endpoint_fns: Vec<HirEndpointFn>,
     pub tables: Vec<HirTable>,
@@ -140,24 +156,32 @@ impl HirModule {
             ("rust_imports", HirFieldOwnership::SemanticCore),
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
-            ("routes", HirFieldOwnership::AppContract),
+
             ("tests", HirFieldOwnership::SemanticCore),
+            ("foralls", HirFieldOwnership::SemanticCore),
             ("endpoint_fns", HirFieldOwnership::AppContract),
             ("tables", HirFieldOwnership::SemanticCore),
             ("indexes", HirFieldOwnership::SemanticCore),
             ("collections", HirFieldOwnership::SemanticCore),
             ("vector_indexes", HirFieldOwnership::SemanticCore),
             ("search_indexes", HirFieldOwnership::SemanticCore),
-            ("mcp_tools", HirFieldOwnership::SemanticCore),
-            ("mcp_resources", HirFieldOwnership::SemanticCore),
+            ("mcp_tools", HirFieldOwnership::AppContract),
+            ("mcp_resources", HirFieldOwnership::AppContract),
             ("agents", HirFieldOwnership::SemanticCore),
             ("environments", HirFieldOwnership::SemanticCore),
-            ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
+            ("client_routes", HirFieldOwnership::SemanticCore),
             ("url_decls", HirFieldOwnership::SemanticCore),
+            ("state_machines", HirFieldOwnership::SemanticCore),
             ("fragments", HirFieldOwnership::SemanticCore),
             ("reactive_modules", HirFieldOwnership::SemanticCore),
             ("forms", HirFieldOwnership::AppContract),
+            ("back_button", HirFieldOwnership::Shell),
+            ("deep_link", HirFieldOwnership::Shell),
+            ("push", HirFieldOwnership::Shell),
+            ("token_decls", HirFieldOwnership::SemanticCore),
+            ("route_ids", HirFieldOwnership::SemanticCore),
+            ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
         ]
     }
 
@@ -169,7 +193,7 @@ impl HirModule {
             rust_imports: self.rust_imports.clone(),
             functions: self.functions.clone(),
             types: self.types.clone(),
-            routes: self.routes.clone(),
+
             tests: self.tests.clone(),
             endpoint_fns: self.endpoint_fns.clone(),
             tables: self.tables.clone(),
@@ -189,47 +213,6 @@ impl HirModule {
     }
 }
 
-/// HTTP route lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirRoute {
-    /// HTTP method.
-    pub method: HirHttpMethod,
-    /// Path pattern string.
-    pub path: String,
-    /// Stable contract key (`METHOD path`) for WebIR / client stubs (OP-0040).
-    pub route_contract: String,
-    /// Declared response type.
-    pub return_type: Option<HirType>,
-    /// Handler body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the route.
-    pub span: Span,
-}
-
-/// HTTP methods for [`HirRoute`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum HirHttpMethod {
-    /// GET
-    Get,
-    /// POST
-    Post,
-    /// PUT
-    Put,
-    /// DELETE
-    Delete,
-}
-
-impl HirHttpMethod {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Get => "GET",
-            Self::Post => "POST",
-            Self::Put => "PUT",
-            Self::Delete => "DELETE",
-        }
-    }
-}
 
 /// A resolved import.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -238,6 +221,21 @@ pub struct HirImport {
     pub module_path: Vec<String>,
     /// Imported symbol name.
     pub item: String,
+    /// When `Some`, emit `import <item> from "<spec>"` for external React components (Phase 5).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub es_module_specifier: Option<String>,
+    /// When `Some(path)`, this is an intra-project Vox-file import
+    /// (`import "./helpers/foo.vox"`). The path is resolved relative to the
+    /// importing file at run-module time; `pub fn`s from the target are
+    /// merged into the importer's scope (with optional `as alias` namespace).
+    /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_file_path: Option<String>,
+    /// When `Some(name)`, exported pubs from a local-file import are namespaced
+    /// under this name (e.g. `import "./util.vox" as u` → `u.fn_name(...)`).
+    /// When `None`, exported pubs merge directly into the importer's scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub local_file_alias: Option<String>,
     /// Span in source.
     pub span: Span,
 }
@@ -293,12 +291,25 @@ pub struct HirFn {
     /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
     #[serde(default)]
     pub capabilities: Vec<HirCapability>,
+    /// `@remote` — eligible for cross-node dispatch via the mesh (P1-T3).
+    #[serde(default)]
+    pub is_remote: bool,
     /// Whether the function body is implemented via an LLM.
     #[serde(default)]
     pub is_llm: bool,
     /// Optional specific LLM model to use for implementation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub llm_model: Option<String>,
+    /// Structured-output contract for `@ai` functions (GA-21).
+    /// When `Some`, `check_ai_return_shape()` verifies the return type has a wire codec.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_structured_output: Option<crate::hir::nodes::boilerplate_grafts::HirAiStructuredOutput>,
+    /// Unified AI fixture surface attached to this function.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_fixture: Option<crate::hir::nodes::boilerplate_grafts::HirAiFixture>,
+    /// Embedding spec from `@embed(model:, dimensions:, source_field:)` (GA-24).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub embed: Option<crate::hir::nodes::boilerplate_grafts::HirEmbedDecl>,
     /// `@deprecated` on the source `fn`.
     #[serde(default)]
     pub is_deprecated: bool,
@@ -319,8 +330,23 @@ pub struct HirFn {
     /// When `Some`, body is empty and codegen-TS emits an import for the function.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ts_extern_module: Option<String>,
+    /// P2-T1: Stable SHA3-512 content-hash (hex) of this function's compile inputs.
+    /// Populated for `DurabilityKind::Workflow` and `DurabilityKind::Activity` by the
+    /// HIR lowering pass. `None` for plain `fn` and for `actor` (actors live in mailboxes,
+    /// not the bundle CAS).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_hash: Option<String>,
     /// Span covering the declaration.
     pub span: Span,
+    /// `@inference(model = "...")` — Mn-T4.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_model: Option<String>,
+    /// `@training_step` — Mn-T5.
+    #[serde(default)]
+    pub training_step: bool,
+    /// `@distributed_train(...)` metadata when lowered from a workflow — Mn-T5.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distributed_train: Option<(String, u32)>,
 }
 
 /// A lowered postcondition with optional fallback.
@@ -391,6 +417,21 @@ pub struct HirEndpointFn {
     /// Declared capability effects from `uses net, db, mcp(...)` (TASK-4.2).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: super::effect::HirEffectSet,
+    /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
+    #[serde(default)]
+    pub webhook: Option<super::boilerplate_grafts::HirWebhookDecl>,
+    /// `@cors(origins:, allow_credentials:)` sidecar (GA-06).
+    #[serde(default)]
+    pub cors: Option<super::http_ergonomics::HirCorsPolicy>,
+    /// `@rate_limit(by:, window_secs:, max:)` sidecar (GA-06).
+    #[serde(default)]
+    pub rate_limit: Option<super::http_ergonomics::HirRateLimitPolicy>,
+    /// `@pii(class:)` marker on this endpoint (GA-23).
+    #[serde(default)]
+    pub pii: Option<super::boilerplate_grafts::HirPiiMarker>,
+    /// `@layer(tier:)` Z-tier annotation (GA-26).
+    #[serde(default)]
+    pub layer: Option<super::layer::HirLayerDecl>,
     /// Span covering the declaration.
     pub span: Span,
 }
@@ -634,6 +675,8 @@ pub enum HirCapability {
     Clock,
     Random,
     Spawn,
+    GpuCompute,
+    Mutate,
     /// `mcp(tool_name)` — parameterized MCP tool call.
     Mcp(String),
     /// `uses nothing` — explicitly pure.
@@ -650,6 +693,8 @@ impl HirCapability {
             Self::Clock => "clock",
             Self::Random => "random",
             Self::Spawn => "spawn",
+            Self::GpuCompute => "gpu_compute",
+            Self::Mutate => "mutate",
             Self::Mcp(_) => "mcp",
             Self::Nothing => "nothing",
         }
@@ -833,6 +878,16 @@ mod tests {
             map.iter()
                 .any(|(name, own)| *name == "functions" && *own == HirFieldOwnership::SemanticCore)
         );
+        assert!(map.iter().any(|(name, own)| *name == "back_button" && *own == HirFieldOwnership::Shell));
+        assert!(map.iter().any(|(name, own)| *name == "deep_link" && *own == HirFieldOwnership::Shell));
+        assert!(map.iter().any(|(name, own)| *name == "push" && *own == HirFieldOwnership::Shell));
+        assert!(map.iter().any(|(name, own)| *name == "state_machines" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "route_ids" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "token_decls" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "mcp_tools" && *own == HirFieldOwnership::AppContract));
+        assert!(map.iter().any(|(name, own)| *name == "mcp_resources" && *own == HirFieldOwnership::AppContract));
+        assert!(map.iter().any(|(name, own)| *name == "foralls" && *own == HirFieldOwnership::SemanticCore));
+        assert!(map.iter().any(|(name, own)| *name == "client_routes" && *own == HirFieldOwnership::SemanticCore));
     }
 
     #[test]

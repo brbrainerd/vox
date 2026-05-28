@@ -56,7 +56,7 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
         config_class: ConfigClass::CiGate,
     },
     OperatorEnvSpec {
-        name: "VOX_INFERENCE_PROFILE",
+        name: "vox_populi::inference_PROFILE",
         description: "Inference strategy (cloud, mobile, lan, desktop).",
         defaults: "desktop_ollama",
 

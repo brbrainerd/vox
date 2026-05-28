@@ -2,7 +2,7 @@
 //!
 //! **Pairing:** wrap **`@query`** / server-fn clients with **`useVoxServerQuery(['name'], () => name(...args))`**
 //! (stable keys + async `queryFn`). Route-level suspense UI uses **`@loading`** → TanStack
-//! **`pendingComponent`** wiring aligns with [`route_manifest`](./route_manifest.rs) (`globalPendingComponent` / per-route `pending:`).
+//! **`pendingComponent`** wiring aligns with `route_manifest` (see `./route_manifest.rs` — `globalPendingComponent` / per-route `pending:`).
 
 /// React Query wiring emitted into `dist/**/generated/` for Vox web apps.
 #[must_use]

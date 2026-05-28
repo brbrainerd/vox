@@ -1,7 +1,7 @@
 ---
 title: "Mesh / Populi SSOT (CPU-first)"
 description: "Official documentation for mesh (Populi) runtime, env vars, and HTTP control plane (CPU-first)."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-29"
 training_eligible: true
 
@@ -15,7 +15,7 @@ The **mesh** (Populi) layer is **opt-in at runtime**: default single-node behavi
 ## A2A acknowledgment vs Ludus notification ACK
 
 - **Populi A2A** **`ack`** paths (inbox claimer / message ACK) acknowledge **mesh-delivered agent mail** and task handoff plumbing. They are **unrelated** to **Vox Ludus** `gamify_notifications` read state.
-- **Ludus** notification ACK is **`vox_ludus_notification_ack`** / **`vox_ludus_notifications_ack_all`** on Codex (`gamify_notifications`). Operators should not confuse mesh **message** lifecycle with **gamify** UX inbox.
+- **Gamify** notification ACK is **`vox_gamify_notification_ack`** / **`vox_gamify_notifications_ack_all`** on Codex (`gamify_notifications`). Legacy MCP names **`vox_ludus_*`** still alias to these tools. Operators should not confuse mesh **message** lifecycle with **gamify** UX inbox.
 
 Optional future work: correlate mesh task outcomes with Ludus `remote_task_*`-style events for cross-node reputation (**design-only spike**; not implied by current ACK semantics).
 
@@ -224,7 +224,7 @@ stateDiagram-v2
 Mesh/security doc changes must remain **`training_eligible: true`** where appropriate (this page). Before promoting default mesh behaviour:
 
 1. Edit [`docs/src/reference/populi.md`](populi.md) and [`docs/src/reference/secrets-ssot.md`](secrets-ssot.md) first (contract SSOT).
-2. Link new pages from [`SUMMARY.md`](../SUMMARY.md).
+2. Link new pages from [Starlight sidebar / docs-astro](../../../docs-astro/README.md).
 3. Run the Mens corpus pipeline per [How-To: Contribute — Mens training](../how-to/how-to-contribute-mens.md) (extract → validate → pairs → eval).
 4. Record any eval regression in the PR; delay changing defaults until recovery.
 
@@ -249,7 +249,7 @@ The hardware probe pipeline (`vox-populi::mens::hardware::pipeline`) provides st
 
 ### Architecture
 
-```
+```text
   operator Clavis override
      │  (VoxGpuModel + VoxGpuVramMb)
      │  preempts all probing → skip pipeline
@@ -339,3 +339,52 @@ Live tests require a real GPU. They are gated behind the `hw-probe-live-test` Ca
 cargo test -p vox-populi --test probe_pipeline_live --features hw-probe-live-test
 ```
 
+
+
+---
+
+## Appendix: TLS / WireGuard transport (P0-T5)
+
+### Enabling TLS on the HTTP plane
+
+Add a `[mesh.transport]` sub-table to `Vox.toml`:
+
+```toml
+[mesh]
+control_url = "https://my-mesh.example.com:9847"
+
+[mesh.transport]
+tls_cert_path   = "/etc/vox/cert.pem"
+tls_key_path    = "/etc/vox/key.pem"
+tls_min_version = "1.3"   # optional; default is "1.3"
+```
+
+When `tls_cert_path` and `tls_key_path` are set, the `vox populi serve` command loads the `tls` Cargo feature and terminates TLS locally via `rustls`. Plain HTTP is the default when neither path is set.
+
+### Generating a self-signed certificate (development)
+
+Using [`mkcert`](https://github.com/FiloSottile/mkcert):
+
+```sh
+mkcert -install          # trust the local CA once
+mkcert localhost 127.0.0.1
+# → localhost+1.pem  localhost+1-key.pem
+```
+
+Using [`step`](https://smallstep.com/docs/step-cli/):
+
+```sh
+step certificate create mesh.local mesh.crt mesh.key \
+  --profile self-signed --subtle
+```
+
+### WireGuard / Tailscale Funnel (recommended for off-LAN)
+
+For meshes that span the public internet, we recommend **Tailscale Funnel** as a WireGuard sidecar rather than bundling WireGuard into the process. The `wireguard_endpoint` key in `[mesh.transport]` is a documentation pointer only — the server reads it via `vox doctor mesh` but takes no action:
+
+```toml
+[mesh.transport]
+wireguard_endpoint = "100.x.y.z:9847"  # Tailscale node address
+```
+
+Run `tailscale funnel 9847` to expose port 9847 through the Tailscale fabric. No cert management is needed — Tailscale handles TLS and peer authentication.

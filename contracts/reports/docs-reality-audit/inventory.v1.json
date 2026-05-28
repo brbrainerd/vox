@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "cycle_label": "kickoff-2026-05",
+  "claims": [
+    {
+      "id": "claim.agents.policy.cross-tool",
+      "doc_path": "AGENTS.md",
+      "authority_tier": "B-canon",
+      "historicity": "CurrentNormative",
+      "claim_type": "normative_requirement",
+      "summary": "Cross-tool contributor policy (secrets, automation tiers, retired surfaces) is binding for the workspace.",
+      "normative_cues": ["MUST", "Required", "Do NOT"],
+      "evidence_hints": {
+        "code_globs": ["crates/**"],
+        "contracts": [
+          "contracts/config/env-vars.v1.yaml",
+          "contracts/documentation/retired-symbols.v1.yaml"
+        ]
+      }
+    },
+    {
+      "id": "claim.arch.where-things-live",
+      "doc_path": "docs/src/architecture/where-things-live.md",
+      "authority_tier": "B-canon",
+      "historicity": "CurrentDescriptive",
+      "claim_type": "architecture_statement",
+      "summary": "Concept-to-crate lookup table must stay aligned with layers.toml and new code locations.",
+      "normative_cues": ["add the row"],
+      "evidence_hints": {
+        "code_globs": ["crates/*/Cargo.toml", "docs/src/architecture/layers.toml"]
+      }
+    },
+    {
+      "id": "claim.arch.layers-toml",
+      "doc_path": "docs/src/architecture/layers.toml",
+      "authority_tier": "A-spec",
+      "historicity": "CurrentNormative",
+      "claim_type": "operational_reference",
+      "summary": "Architecture layers, fan-in, and budgets are enforced by vox-arch-check.",
+      "normative_cues": ["layer", "budget"],
+      "evidence_hints": {
+        "code_globs": ["crates/vox-arch-check/src/**/*.rs"],
+        "tests_globs": ["crates/vox-arch-check/tests/**/*.rs"]
+      }
+    },
+    {
+      "id": "claim.ref.cli-surface",
+      "doc_path": "docs/src/reference/cli.md",
+      "authority_tier": "B-canon",
+      "historicity": "CurrentNormative",
+      "claim_type": "api_surface",
+      "summary": "CLI prose stays consistent with contracts/operations catalog and generated command surface.",
+      "evidence_hints": {
+        "contracts": [
+          "contracts/cli/command-registry.yaml",
+          "contracts/operations/catalog.v1.yaml"
+        ],
+        "code_globs": ["crates/vox-cli/src/**/*.rs"]
+      }
+    },
+    {
+      "id": "claim.ref.command-compliance",
+      "doc_path": "docs/src/reference/command-compliance.md",
+      "authority_tier": "B-canon",
+      "historicity": "CurrentNormative",
+      "claim_type": "operational_reference",
+      "summary": "Command compliance describes parity checks between registry, MCP, capability, and implementation.",
+      "evidence_hints": {
+        "contracts": [
+          "contracts/cli/command-registry.yaml",
+          "contracts/capability/capability-registry.yaml",
+          "contracts/mcp/tool-registry.canonical.yaml"
+        ],
+        "code_globs": ["crates/vox-cli/src/commands/ci/command_compliance/**/*.rs"]
+      }
+    },
+    {
+      "id": "claim.contract.env-vars",
+      "doc_path": "contracts/config/env-vars.v1.yaml",
+      "authority_tier": "A-spec",
+      "historicity": "CurrentNormative",
+      "claim_type": "normative_requirement",
+      "summary": "Declared VOX_* and related env vars must match resolver and docs mirror.",
+      "evidence_hints": {
+        "code_globs": ["crates/vox-secrets/src/**/*.rs", "crates/vox-cli/src/**/*.rs"],
+        "contracts": ["contracts/config/env-vars.v1.schema.json"]
+      }
+    },
+    {
+      "id": "claim.contract.cli-registry",
+      "doc_path": "contracts/cli/command-registry.yaml",
+      "authority_tier": "A-spec",
+      "historicity": "CurrentNormative",
+      "claim_type": "api_surface",
+      "summary": "Shipped CLI rows are generated from operations catalog and validated by command-compliance.",
+      "evidence_hints": {
+        "contracts": ["contracts/operations/catalog.v1.yaml"],
+        "code_globs": ["crates/vox-cli/src/commands/ci/operations_catalog.rs"]
+      }
+    },
+    {
+      "id": "claim.contract.operations-catalog",
+      "doc_path": "contracts/operations/catalog.v1.yaml",
+      "authority_tier": "A-spec",
+      "historicity": "CurrentNormative",
+      "claim_type": "operational_reference",
+      "summary": "Single human-edited operation catalog drives MCP, CLI, and capability projections.",
+      "evidence_hints": {
+        "code_globs": ["crates/vox-cli/src/commands/ci/operations_catalog.rs"]
+      }
+    },
+    {
+      "id": "claim.contrib.doc-governance",
+      "doc_path": "docs/src/contributors/documentation-governance.md",
+      "authority_tier": "B-canon",
+      "historicity": "CurrentNormative",
+      "claim_type": "normative_requirement",
+      "summary": "Documentation authority tiers and status vocabulary prevent aspirational pages masquerading as shipped behavior.",
+      "evidence_hints": {
+        "contracts": ["contracts/documentation/canonical-map.v1.yaml"],
+        "code_globs": ["crates/vox-doc-pipeline/src/**/*.rs"]
+      }
+    },
+    {
+      "id": "claim.program.machine-readable",
+      "doc_path": "contracts/documentation/docs-reality-audit.program.v1.yaml",
+      "authority_tier": "A-spec",
+      "historicity": "CurrentNormative",
+      "claim_type": "operational_reference",
+      "summary": "Documentation Reality Audit taxonomy, scoring, and artifact paths are machine-readable and verified in CI.",
+      "evidence_hints": {
+        "contracts": [
+          "contracts/reports/docs-reality-audit/inventory.v1.schema.json",
+          "contracts/reports/docs-reality-audit/findings.v1.schema.json",
+          "contracts/reports/docs-reality-audit/metrics.v1.schema.json"
+        ],
+        "code_globs": ["crates/vox-cli/src/commands/ci/docs_reality_audit.rs"]
+      }
+    }
+  ]
+}

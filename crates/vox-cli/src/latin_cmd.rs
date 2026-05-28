@@ -7,7 +7,7 @@ use crate::cli_args::ScriptArgs;
 #[cfg(feature = "stub-check")]
 use crate::cli_args::StubCheckArgs;
 use crate::cli_args::{
-    BuildArgs, BundleArgs, CheckArgs, DevArgs, DoctorArgs, FmtArgs, RunArgs, TestArgs,
+    BuildArgs, BundleArgs, CheckArgs, CompileArgs, DevArgs, DoctorArgs, FmtArgs, RunArgs, TestArgs,
 };
 
 /// `vox fabrica …` — workshop / compiler lane (build, check, run, …).
@@ -25,6 +25,8 @@ pub enum FabricaCmd {
     Dev(DevArgs),
     /// Bundle a Vox source file into a complete web application
     Bundle(BundleArgs),
+    /// Compile installable artifacts (native binary, desktop/mobile hints, workspace)
+    Compile(CompileArgs),
     /// Format a Vox source file in place
     Fmt(FmtArgs),
     /// Run a `.vox` script (`fn main()`) via the native script cache

@@ -129,6 +129,35 @@ impl crate::VoxDb {
         Ok(out)
     }
 
+    /// Newest `research_metrics` rows for CLI `vox db mens-metrics` (prefix match on `session_id`).
+    ///
+    /// Returns `(session_id, metric_type, metric_value, metadata_json, created_at)` using the live
+    /// Arca column names (`metric_value`, `created_at` TEXT).
+    pub async fn list_research_metrics_for_session_prefix(
+        &self,
+        session_prefix: &str,
+        limit: i64,
+    ) -> Result<Vec<(String, String, Option<f64>, Option<String>, String)>, StoreError> {
+        let lim = limit.clamp(1, 10_000);
+        let pattern = format!("{session_prefix}%");
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT session_id, metric_type, metric_value, metadata_json, created_at
+                 FROM research_metrics
+                 WHERE session_id LIKE ?1
+                 ORDER BY id DESC LIMIT ?2",
+                params![pattern.as_str(), lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            crate::row_cols!(row; 0 => sid: String, 1 => mtype: String, 2 => mv: Option<f64>, 3 => meta: Option<String>, 4 => created: String);
+            out.push((sid, mtype, mv, meta, created));
+        }
+        Ok(out)
+    }
+
     // ── Trusted Evidence Bundles (trusted_evidence_bundles) ───────────────────
 
     /// Upsert a `trusted_evidence_bundles` row. Returns its `rowid`.

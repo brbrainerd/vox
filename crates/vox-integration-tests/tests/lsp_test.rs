@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 // B-092 / B-093 / endpoint-readiness: LSP validate_document integration tests
-use tower_lsp::lsp_types::DiagnosticSeverity;
+use tower_lsp_server::ls_types::DiagnosticSeverity;
 use vox_lsp::validate_document;
 
 /// B-092: validate_document returns type error diagnostic at correct byte offset.

@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 61;
+pub const BASELINE_VERSION: i64 = 67; // +1 for scheduled_runs table (Phase 4.1: @scheduled durable persistence)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -161,7 +161,7 @@ mod baseline_digest_manual {
     /// Run: `cargo test -p vox-db baseline_digest_manual -- --ignored --nocapture`
     /// then update `contracts/db/baseline-version-policy.yaml` when `SCHEMA_FRAGMENTS` change.
     #[test]
-    #[ignore = "manual: prints Keccak256 baseline digest for policy YAML"]
+    #[ignore = "manual: prints Keccak256 baseline digest for policy YAML — owner: db sunset: 2026-12-31"]
     fn print_digest_for_baseline_policy() {
         eprintln!("{}", schema_baseline_digest_hex());
     }

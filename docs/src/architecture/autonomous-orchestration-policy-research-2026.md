@@ -1,7 +1,7 @@
 ---
 title: "Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-Agent Behavior Switching (2026)"
 description: "Research synthesis of when an orchestrator can autonomously change models, switch modes, enter planning, invoke research (Socrates), spawn sub-agents, escalate to HITL, and recover from runaway loops. Maps the external state-of-the-art onto Vox's existing routing/policy surface and proposes decision-rule contracts for the gaps."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-08"
 authored: "2026-05-08"
@@ -12,7 +12,7 @@ vox_relevance:
   - "vox-socrates-policy: confidence gates, abstention, research-trigger thresholds"
   - "vox-populi: A2A handoff protocol, sub-agent dispatch over mesh"
   - "vox-db: telemetry feeding adaptive routers (model_scoreboard, llm_interactions)"
-  - "vox-clavis: privacy-tier routing constraints"
+  - "vox-secrets: privacy-tier routing constraints"
   - "vox-skills: skill / sub-agent description-driven dispatch"
 ---
 
@@ -377,7 +377,7 @@ The 2026 consensus on guardrails [^langchain-guardrails][^datadog-guardrails][^w
 - **Output guardrails** — PII / secrets / toxicity scan *before* output reaches the user
 - **Runtime guardrails** — tool-call authorization at the moment of invocation
 
-Each layer combines rule-based (deterministic, fast) and ML-based (catches paraphrased attacks). Vox's `vox-clavis` already enforces secret-egress prevention; the missing piece is **input PII detection** that *informs the routing decision* (not just blocks it).
+Each layer combines rule-based (deterministic, fast) and ML-based (catches paraphrased attacks). Vox's `vox-secrets` already enforces secret-egress prevention; the missing piece is **input PII detection** that *informs the routing decision* (not just blocks it).
 
 ---
 
@@ -471,7 +471,7 @@ These rules can be implemented on Vox's *current* surfaces (data, contracts, cra
 | **D6 doom-loop** | Five-signal circuit breaker (no-progress / same-error / tool-thrash / action-loop / drift) + graduated warnings | `orchestrator-companion-audit-findings-2026.md` FIX-B-11 | `CircuitBreaker` struct from §6.3 |
 | **D7 context** | Five-layer pipeline triggered at distinct thresholds | `vox-orchestrator` compaction code | Per-layer trigger config; agent-driven `compact_context` tool |
 | **D7 cache-aware** | Approximate radix tree per provider; route to longest-prefix match unless overridden | none yet (P2 in nextgen-orchestrator-research) | New routing dimension in `scoring.rs` |
-| **D8 privacy** | Two-pass PII detection → eligible-provider filter | `vox-clavis` egress guard | Input-side detector + filter wrapper |
+| **D8 privacy** | Two-pass PII detection → eligible-provider filter | `vox-secrets` egress guard | Input-side detector + filter wrapper |
 | **D9 HITL** | Risk×confidence matrix → interrupt or notify | none yet | Matrix evaluator + interrupt point |
 | **D10 calibration** | Daily recalibration + drift alert | `model_scoreboard` v59 | Background calibration job |
 

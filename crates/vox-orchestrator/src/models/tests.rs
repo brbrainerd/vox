@@ -138,7 +138,9 @@ mod key_guard_tests {
             std::env::remove_var("ANTHROPIC_API_KEY");
             std::env::remove_var("VOX_ANTHROPIC_API_KEY");
         }
-        let registry = ModelRegistry::new(); // uses default which has Mythos (Anthropic) for codegen
+        let registry = ModelRegistry::new();
+        // Default codegen premium-alias is `anthropic/claude-opus-4.7` (GA, 2026-Q2 refresh).
+        // Mythos preview was retired from the catalog 2026-05-15.
 
         let best = registry.best_for(TaskCategory::CodeGen, 5, CostPreference::Performance);
         assert!(
@@ -146,13 +148,17 @@ mod key_guard_tests {
             "Should find a fallback model even if key is missing"
         );
 
-        // Default router logic falls back from Mythos to the cheapest rank-matched paid model that is present,
-        // or a default fallback if none. If we wired sonnet 4.6 correctly, without anthropic key,
-        // it shouldn't pick Mythos. Wait, Sonnet is OpenRouter.
+        // Without an Anthropic API key, the router must NOT pick a direct-Anthropic model
+        // (Opus 4.7 / Haiku 4.5 / Sonnet 4.6 via Anthropic Direct). It should fall through
+        // to an OpenRouter or open-source rank-matched paid model.
         let m = best.unwrap();
         assert_ne!(
             m.id, "claude-mythos-preview-20260407",
-            "Should not pick Mythos when Anthropic API key is missing"
+            "Mythos preview was retired; should not appear in the registry at all"
+        );
+        assert_ne!(
+            m.id, "anthropic/claude-opus-4.7",
+            "Should not pick a direct-Anthropic model when Anthropic API key is missing"
         );
     }
 }

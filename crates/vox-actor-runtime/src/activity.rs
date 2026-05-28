@@ -213,7 +213,7 @@ where
                         if attempt < max_attempts {
                             // Retry on timeout
                             current_backoff =
-                                vox_primitives::backoff::next_exponential_backoff_duration(
+                                vox_foundation::primitives::backoff::next_exponential_backoff_duration(
                                     current_backoff,
                                     options.backoff_multiplier,
                                     options.max_backoff,
@@ -256,7 +256,7 @@ where
                         name
                     );
                     time::sleep(current_backoff).await;
-                    current_backoff = vox_primitives::backoff::next_exponential_backoff_duration(
+                    current_backoff = vox_foundation::primitives::backoff::next_exponential_backoff_duration(
                         current_backoff,
                         options.backoff_multiplier,
                         options.max_backoff,
@@ -352,7 +352,7 @@ mod tests {
     fn test_next_backoff_capped() {
         let opts = ActivityOptions::new().with_max_backoff(Duration::from_secs(5));
         // Starting from 4s with 2x multiplier should cap at 5s
-        let result = vox_primitives::backoff::next_exponential_backoff_duration(
+        let result = vox_foundation::primitives::backoff::next_exponential_backoff_duration(
             Duration::from_secs(4),
             opts.backoff_multiplier,
             opts.max_backoff,

@@ -25,7 +25,7 @@ pub struct SessionRetrievalEnvelope {
     pub chunk_hit_count: usize,
     #[serde(default)]
     pub repo_hit_count: usize,
-    /// RRF fused excerpt count (matches MCP [`RetrievalEvidenceEnvelope::rrf_fused_hit_count`] JSON).
+    /// RRF fused excerpt count (matches MCP `RetrievalEvidenceEnvelope::rrf_fused_hit_count` JSON).
     #[serde(default)]
     pub rrf_fused_hit_count: usize,
     #[serde(default)]
@@ -432,6 +432,7 @@ pub fn spawn_socrates_research_poller(orch: std::sync::Arc<crate::Orchestrator>)
                                 Some(target_agent_id.to_string()),
                                 None,
                                 Some(hints),
+                                None,
                                 None,
                             )
                             .await;

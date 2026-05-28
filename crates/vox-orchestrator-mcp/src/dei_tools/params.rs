@@ -1,4 +1,4 @@
-﻿//! JSON argument shapes for DEI MCP tools.
+//! JSON argument shapes for DEI MCP tools.
 
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -50,12 +50,15 @@ pub struct SubmitTaskParams {
     pub agent_id: Option<u64>,
     /// Optional session link (for chat/workflow grouping in Mens).
     pub session_id: Option<String>,
+    /// Optional tenant identifier for budget attribution.
+    #[serde(default)]
+    pub tenant_id: Option<String>,
 }
 
 /// MCP arguments: correlate IDE session ids with orchestrator agents.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct HeartbeatParams {
-    /// Client session string previously mapped via [`map_agent_session`].
+    /// Client session string previously mapped via `map_agent_session`.
     pub session_id: String,
 }
 

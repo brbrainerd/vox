@@ -1,0 +1,28 @@
+fn zip_sums(xs: list[int], ys: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let limit: int = if xs.len() < ys.len() { xs.len() } else { ys.len() }
+    let mut i: int = 0
+    while i < limit {
+        match xs[i] {
+            Some(x) => {
+                match ys[i] {
+                    Some(y) => {
+                        result.push(x + y)
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(zip_sums([1, 2, 3], [4, 5, 6]) == [5, 7, 9])
+    assert(zip_sums([], [1, 2]) == [])
+    assert(zip_sums([1, 2], [10]) == [11])
+    assert(zip_sums([1], [1]) == [2])
+    return "ok"
+}

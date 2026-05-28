@@ -108,6 +108,7 @@ fn scientia_novelty_prior_art_lowers_worthiness_novelty_metric() {
         repeated_unresolved_contradiction: false,
         claim_evidence_coverage: 0.95,
         artifact_replayability: 0.9,
+        artifact_replayability_measured: None,
         before_after_pair_integrity: 0.95,
         metadata_completeness: 0.95,
         ai_disclosure_compliance: 1.0,

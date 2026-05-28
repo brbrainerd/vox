@@ -1,7 +1,7 @@
 ---
 title: "LLM-Misleading-Content Cleanup Plan (2026-05-08)"
 description: "Comprehensive plan to eliminate stale syntax, retired-feature mentions, and dual-brain documentation that mislead future LLM tool calls. Converges every surface on single-source-of-truth current syntax via positive-example framing."
-category: "architecture"
+category: "Architecture SSOTs"
 status: roadmap
 last_updated: "2026-05-08"
 training_eligible: false
@@ -56,7 +56,7 @@ This is the *summary* of findings. The phase-by-phase steps below have the opera
 | `docs/src/archive/how-to-islands-and-pages.md:20–27` | Internal prose says `@island` is "scheduled for retirement" — the file's own frontmatter says it was retired 2026-05-03. Reconcile. | **I** |
 | `docs/src/architecture/gui-native-roadmap-status-2026.md` (TASK-7.3, TASK-8.2 verdicts) | Future-tense language for tasks that are complete-or-deferred (mixed). | **J** |
 | `docs/src/architecture/dashboard-migration-research-2026.md` (~line 50) | "future compiler roadmap will expose..." — flip to "deferred to Phase 9 (vox-gui-native-roadmap-2026.md)". | **J** |
-| `docs/superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md:5–6, 656` | Treats `import react` Phase 5 bridges as if working today. Add Phase-5-blocking note. | **K** |
+| `docs/superpowers/plans/ci/2026-05-03-vox-dashboard-claude-design-port.md:5–6, 656` | Treats `import react` Phase 5 bridges as if working today. Add Phase-5-blocking note. | **K** |
 | `docs/src/SUMMARY.md`, `docs/agents/doc-inventory.json`, `docs/agents/doc-inventory-index.json`, `architecture-index.md`, `feed.xml`, `.cursorignore`, `.aiignore`, `.aiexclude` | Auto-generated; potentially stale post-retirement. Re-run generators (do not hand-edit). | **L** |
 | (repo-wide) Three independent phase numbering systems | Frontend interop (Phases 1–5), GUI-native (Phases 0–9), workspace reorg (Phases 1–10). LLMs conflate them. | **M** |
 | `docs/src/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md:33` | Calls `@island` "active code on a known decommission timeline" — but it was decommissioned 2026-05-03. Tasks reference `v0_shadcn_island.vox` golden, also stale. | **N** |
@@ -113,7 +113,7 @@ Previously open questions:
 For each file below, read it first, then update `crates/vox-clavis/...` → `crates/vox-secrets/...`, `vox_clavis::` → `vox_secrets::`, `vox clavis` CLI verbs → `vox secrets`, and brand references `Clavis`/`clavis` → `Secrets`/`secrets`.
 
 Files (verified as of 2026-05-08):
-1. [`AGENTS.md`](../../AGENTS.md) — lines 75, 76, 77, 88, 89, 90 (the §Secret Management section). **Caveat:** if A.0 chose "full rename", also update `vox_clavis::resolve_secret(...)` → `vox_secrets::resolve_secret(...)` here. Otherwise leave the `vox_clavis::` Rust import path intact and let it be resolved by the Rust crate-rename in a separate dedicated PR.
+1. [`AGENTS.md`](../../../AGENTS.md) — lines 75, 76, 77, 88, 89, 90 (the §Secret Management section). **Caveat:** if A.0 chose "full rename", also update `vox_clavis::resolve_secret(...)` → `vox_secrets::resolve_secret(...)` here. Otherwise leave the `vox_clavis::` Rust import path intact and let it be resolved by the Rust crate-rename in a separate dedicated PR.
 2. [`.github/copilot-instructions.md`](../../../.github/copilot-instructions.md) — line 27.
 3. [`.cursor/rules/secrets-policy.mdc`](../../../.cursor/rules/secrets-policy.mdc) — lines 8, 9.
 4. [`.cursor/rules/data-storage-policy.mdc`](../../../.cursor/rules/data-storage-policy.mdc) — lines 11, 13.
@@ -154,7 +154,7 @@ architecture docs, contributor docs, and rule files.
 
 ### B.1 Reads first
 
-- [`AGENTS.md`](../../AGENTS.md) — read context around line 178.
+- [`AGENTS.md`](../../../AGENTS.md) — read context around line 178.
 - [`GEMINI.md`](../../../GEMINI.md) — read context around lines 29, 47.
 
 ### B.2 Edits
@@ -301,11 +301,11 @@ top-of-body banner pointing to the canonical successor.
 
 ### E.1 Reads first
 
-- [`crates/vox-compiler/tests/web_ir_lower_emit_test.rs`](../../crates/vox-compiler/tests/web_ir_lower_emit_test.rs) — read in full. Look for the test functions that produce the two snapshots:
+- [`crates/vox-compiler/tests/web_ir_lower_emit_test.rs`](../../../crates/vox-compiler/tests/web_ir_lower_emit_test.rs) — read in full. Look for the test functions that produce the two snapshots:
   - `reactive_smoke_test__island_mount_ast_z`
   - `reactive_smoke_test__parity_page_tsx_data_prop_label_op_s166`
-- [`crates/vox-compiler/tests/snapshots/reactive_smoke_test__island_mount_ast_z.snap`](../../crates/vox-compiler/tests/snapshots/reactive_smoke_test__island_mount_ast_z.snap)
-- [`crates/vox-compiler/tests/snapshots/reactive_smoke_test__parity_page_tsx_data_prop_label_op_s166.snap`](../../crates/vox-compiler/tests/snapshots/reactive_smoke_test__parity_page_tsx_data_prop_label_op_s166.snap)
+- [`crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap`](../../../crates/vox-compiler/tests/snapshots/reactive_smoke_test__counter_tsx_reactive_smoke.snap)
+- [`crates/vox-compiler/tests/snapshots/reactive_smoke_test__clicky_tsx_classname_onclick.snap`](../../../crates/vox-compiler/tests/snapshots/reactive_smoke_test__clicky_tsx_classname_onclick.snap)
 - The doc-comment at `web_ir_lower_emit_test.rs:954` says "Parity chain fixture (post-@island retirement)" — that suggests these are intentional regression pins.
 
 ### E.2 Decision tree
@@ -347,13 +347,13 @@ readers do not infer the attributes are a current emit target.
 
 For each file, read the surrounding ~30 lines. The inventory cited specific lines, but adjacent code may have related phase prose worth normalizing in the same edit.
 
-1. [`crates/vox-orchestrator/src/queue/priority.rs`](../../crates/vox-orchestrator/src/queue/priority.rs) — line ~233 ("Phase 5.1 additions").
-2. [`crates/vox-orchestrator/src/snapshot.rs`](../../crates/vox-orchestrator/src/snapshot.rs) — line ~21 (Phase 5 reorg note).
-3. [`crates/vox-orchestrator/src/workspace.rs`](../../crates/vox-orchestrator/src/workspace.rs) — line ~44 (Phase 5 reorg note).
-4. [`crates/vox-orchestrator-queue/src/lib.rs`](../../crates/vox-orchestrator-queue/src/lib.rs) — line ~4 (Phase 5 extraction).
-5. [`crates/vox-orchestrator-types/src/agent_types/file_affinity.rs`](../../crates/vox-orchestrator-types/src/agent_types/file_affinity.rs) — line ~1 (Phase 5 extraction).
-6. [`crates/vox-integration-tests/tests/pipeline/includes/include_01.rs`](../../crates/vox-integration-tests/tests/pipeline/includes/include_01.rs) — line ~502 ("Phase 5F").
-7. [`crates/vox-cli/src/commands/ci/nomenclature_guard.rs`](../../crates/vox-cli/src/commands/ci/nomenclature_guard.rs) — lines ~16, 40, 49–50 (Phase 2/3/5 markers in allowlist comments).
+1. [`crates/vox-orchestrator/src/queue/priority.rs`](../../../crates/vox-orchestrator/src/queue/priority.rs) — line ~233 ("Phase 5.1 additions").
+2. [`crates/vox-orchestrator/src/snapshot.rs`](../../../crates/vox-orchestrator/src/snapshot.rs) — line ~21 (Phase 5 reorg note).
+3. [`crates/vox-orchestrator/src/workspace.rs`](../../../crates/vox-orchestrator/src/workspace.rs) — line ~44 (Phase 5 reorg note).
+4. [`crates/vox-orchestrator-queue/src/lib.rs`](../../../crates/vox-orchestrator-queue/src/lib.rs) — line ~4 (Phase 5 extraction).
+5. [`crates/vox-orchestrator-types/src/agent_types/file_affinity.rs`](../../../crates/vox-orchestrator-types/src/agent_types/file_affinity.rs) — line ~1 (Phase 5 extraction).
+6. [`crates/vox-integration-tests/tests/pipeline/includes/include_01.rs`](../../../crates/vox-integration-tests/tests/pipeline/includes/include_01.rs) — line ~502 ("Phase 5F").
+7. [`crates/vox-cli/src/commands/ci/nomenclature_guard.rs`](../../../crates/vox-cli/src/commands/ci/nomenclature_guard.rs) — lines ~16, 40, 49–50 (Phase 2/3/5 markers in allowlist comments).
 
 ### F.2 Edit pattern
 
@@ -414,15 +414,15 @@ none exists.
 
 ### G.1 Reads first
 
-- [`crates/vox-cli/src/cli_args.rs`](../../crates/vox-cli/src/cli_args.rs) — line ~9.
-- [`crates/vox-config/src/config/gamify_web.rs`](../../crates/vox-config/src/config/gamify_web.rs) — lines 55–69 (the `BuildTarget` enum doc).
-- [`crates/vox-codegen/src/codegen_ts/emitter.rs`](../../crates/vox-codegen/src/codegen_ts/emitter.rs) — line ~149 (Express server gate).
+- [`crates/vox-cli/src/cli_args.rs`](../../../crates/vox-cli/src/cli_args.rs) — line ~9.
+- [`crates/vox-config/src/config/gamify_web.rs`](../../../crates/vox-config/src/config/gamify_web.rs) — lines 55–69 (the `BuildTarget` enum doc).
+- [`crates/vox-codegen/src/codegen_ts/emitter.rs`](../../../crates/vox-codegen/src/codegen_ts/emitter.rs) — line ~149 (Express server gate).
 
 ### G.2 Edits
 
 **`cli_args.rs:9`**
 - Old: `/// fullstack` is the default — existing projects are unaffected.`
-- New: `/// fullstack is the default. Use --target=server to emit Axum + api.ts only, or --target=client for the SDK shape.`
+- New: `/// fullstack is the default. Use --target=server for Rust-only (Axum), or --target=client for the TS SDK (`vox-client.ts`, `openapi.json`, …).`
 
 **`gamify_web.rs:62`** (and adjacent)
 - Old: ` ... and Axum Rust backend (existing default).`
@@ -431,7 +431,7 @@ none exists.
 
 **`emitter.rs:149`**
 - Old: `// Generate Express server only when explicitly requested (Axum + api.ts is canonical).`
-- New: `// Legacy Express server emission (deprecated; Axum + api.ts is canonical). Gated on VOX_EMIT_EXPRESS_SERVER=1.`
+- New: `// Legacy Express server emission (deprecated; Axum + typed vox-client.ts is canonical). Gated on VOX_EMIT_EXPRESS_SERVER=1.`
 - Add a `#[deprecated]` annotation to the Express-emit function if it has a clear function boundary; otherwise just the comment.
 
 ### G.3 Verification
@@ -464,8 +464,8 @@ flags the Express emit path as deprecated explicitly.
 
 ### H.1 Reads first
 
-- [`crates/vox-actor-runtime/src/builtins/mod.rs`](../../crates/vox-actor-runtime/src/builtins/mod.rs) — find the `vox_hash_fast` doc-comment.
-- [`crates/vox-config/src/env_parse.rs`](../../crates/vox-config/src/env_parse.rs) — read in full (it has multiple "Do NOT use this for secrets" comments).
+- [`crates/vox-actor-runtime/src/builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) — find the `vox_hash_fast` doc-comment.
+- [`crates/vox-config/src/env_parse.rs`](../../../crates/vox-config/src/env_parse.rs) — read in full (it has multiple "Do NOT use this for secrets" comments).
 
 ### H.2 Edit pattern
 
@@ -633,7 +633,7 @@ status field as authoritative.
 
 ### K.1 Reads first
 
-- [`docs/superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md`](../../superpowers/plans/2026-05-03-vox-dashboard-claude-design-port.md) — read in full (it's long; chunk by H2).
+- [`docs/superpowers/plans/ci/2026-05-03-vox-dashboard-claude-design-port.md`](../../superpowers/plans/ci/2026-05-03-vox-dashboard-claude-design-port.md) — read in full (it's long; chunk by H2).
 
 ### K.2 Edits
 
@@ -671,7 +671,7 @@ notes at each affected example.
 
 ### L.1 Reads first
 
-- [`AGENTS.md`](../../AGENTS.md) — find the §Doc Generation / §Ignore-File Generation sections to confirm canonical commands.
+- [`AGENTS.md`](../../../AGENTS.md) — find the §Doc Generation / §Ignore-File Generation sections to confirm canonical commands.
 
 Likely commands (verify in AGENTS.md before running):
 - `cargo run -p vox-doc-pipeline` (regenerates `SUMMARY.md`, `architecture-index.md`, `feed.xml`, `*.generated.md`).
@@ -735,7 +735,7 @@ plan-banner updates. No hand edits.
 ---
 title: "Phase Numbering Index (2026-05-08)"
 description: "Disambiguates the three independent phase sequences used in vox plans. When a plan or commit says \"Phase 5\", look here first."
-category: "architecture"
+category: "Architecture SSOTs"
 status: current
 last_updated: "2026-05-08"
 training_eligible: true
@@ -784,7 +784,7 @@ Add to:
 - [`docs/src/architecture/2026-05-08-workspace-reorg-design.md`](2026-05-08-workspace-reorg-design.md)
 
 Add a `Phase Numbering` link to:
-- [`AGENTS.md`](../../AGENTS.md) — under the architecture-index reference, one line.
+- [`AGENTS.md`](../../../AGENTS.md) — under the architecture-index reference, one line.
 
 ### M.3 Verification
 

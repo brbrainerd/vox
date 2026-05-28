@@ -9,126 +9,114 @@
 //
 // Usage: vox run scripts/check_dashboard_ssot.vox
 
-fn check_ssot() -> Result<(), String> {
-    println("Checking vox-dashboard generated/ SSoT integrity...");
+// Single .vox source that produces every .tsx under generated/. Commits
+// that touch generated/ MUST also touch this file; otherwise the .tsx
+// is hand-edited.
+fn canonical_vox_source() to str {
+    return "crates/vox-dashboard/app/src/app.vox"
+}
 
-    let generated_dir = "crates/vox-dashboard/app/src/generated";
-    let vox_source_dir = "crates/vox-dashboard/app/src";
+// Get the SHA of the commit that last touched the given path. Empty string
+// means the file is untracked (newly-created in the working tree).
+fn last_commit_for(file: str) to str {
+    let proc = process.run("git", ["log", "-1", "--format=%H", "--", file])
+    if proc is null { return "" }
+    let res = proc.unwrap()
+    if res.code != 0 { return "" }
+    return res.stdout.trim()
+}
 
-    // List .tsx files in generated/
-    let tsx_files = std::fs::read_dir(generated_dir)
-        .map_err(|e| format!("Cannot read {}: {}", generated_dir, e))?
-        .filter_map(|entry| {
-            let entry = entry.ok()?;
-            let path = entry.path();
-            if path.extension()?.to_str()? == "tsx" {
-                Some(path.to_string_lossy().to_string())
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-
-    if tsx_files.is_empty() {
-        println("No .tsx files in generated/ — nothing to check.");
-        return Ok(());
-    }
-
-    // List .vox sources
-    let vox_sources_exist = std::fs::read_dir(vox_source_dir)
-        .map_err(|e| format!("Cannot read {}: {}", vox_source_dir, e))?
-        .any(|entry| {
-            entry.ok()
-                .and_then(|e| {
-                    let p = e.path();
-                    if p.extension()?.to_str()? == "vox" { Some(()) } else { None }
-                })
-                .is_some()
-        });
-
-    if !vox_sources_exist {
-        return Err(format!(
-            "SSOT violation: {} contains .tsx files but {} has no .vox sources.\n\
-             Generated .tsx must come from vox build, not hand-written.",
-            generated_dir, vox_source_dir
-        ));
-    }
-
-    // Check git log: for each .tsx, verify its most recent commit also touched a .vox file.
-    // If git is unavailable (e.g. fresh checkout without git), skip this check.
-    let git_available = std::process::Command::new("git")
-        .args(["rev-parse", "--is-inside-work-tree"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-
-    if !git_available {
-        println("Warning: git not available — skipping commit-history check.");
-        println("OK: {} .tsx files found in generated/ with .vox sources present.", tsx_files.len());
-        return Ok(());
-    }
-
-    let mut violations: Vec<String> = Vec::new();
-
-    for tsx_path in &tsx_files {
-        // Get the most recent commit SHA that touched this file.
-        let last_commit = std::process::Command::new("git")
-            .args(["log", "-1", "--format=%H", "--", tsx_path])
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-            .unwrap_or_default();
-
-        if last_commit.is_empty() {
-            // Untracked file — warn but don't fail (new file in working tree).
-            continue;
-        }
-
-        // Check if that commit also touched any .vox file.
-        let files_in_commit = std::process::Command::new("git")
-            .args(["show", "--name-only", "--format=", &last_commit])
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-            .unwrap_or_default();
-
-        // All files in app/src/generated/ are produced by `vox build app/src/app.vox`.
-        // Require that specific source to be present in the commit — co-occurrence with
-        // any unrelated .vox elsewhere in the repo does not satisfy the SSOT invariant.
-        let vox_source = "crates/vox-dashboard/app/src/app.vox";
-        let touched_vox = files_in_commit
-            .lines()
-            .any(|line| line.trim() == vox_source);
-
-        if !touched_vox {
-            violations.push(format!(
-                "  {} (last commit {} did not touch {})",
-                tsx_path, &last_commit[..8], vox_source
-            ));
-        }
-    }
-
-    if violations.is_empty() {
-        println(
-            "OK: all {} .tsx files in generated/ are consistent with .vox sources.",
-            tsx_files.len()
-        );
-        Ok(())
-    } else {
-        Err(format!(
-            "SSOT violation: the following .tsx files in generated/ were not produced by \
-             `vox build` (their last git commit touched no .vox source).\n\
-             Hand-editing generated/ is forbidden — edit the .vox source and re-run `vox build`.\n{}",
-            violations.join("\n")
-        ))
-    }
+// Return the file list of a commit (one per line).
+fn files_in_commit(sha: str) to list[str] {
+    let proc = process.run("git", ["show", "--name-only", "--format=", sha])
+    if proc is null { return [] }
+    let res = proc.unwrap()
+    if res.code != 0 { return [] }
+    return res.stdout.split("\n")
 }
 
 fn main() {
-    match check_ssot() {
-        Ok(_) => std::process::exit(0),
-        Err(e) => {
-            eprintln("SSOT gate FAILED:");
-            eprintln(e);
-            std::process::exit(1);
+    print("Checking vox-dashboard generated/ SSoT integrity...")
+
+    let generated_dir = "crates/vox-dashboard/app/src/generated"
+    let vox_source_dir = "crates/vox-dashboard/app/src"
+
+    if not fs.exists(generated_dir) {
+        print("No generated/ directory — nothing to check.")
+        return
+    }
+
+    let tsx_glob = fs.glob(generated_dir + "/**/*.tsx")
+    if tsx_glob.is_err() {
+        log.error("Cannot read " + generated_dir + ": " + tsx_glob.unwrap_err())
+        process.exit(1)
+    }
+    let tsx_files = tsx_glob.unwrap()
+
+    if tsx_files.len() == 0 {
+        print("No .tsx files in generated/ — nothing to check.")
+        return
+    }
+
+    // Confirm at least one .vox source exists in the source dir.
+    let vox_glob = fs.glob(vox_source_dir + "/*.vox")
+    if vox_glob.is_err() {
+        log.error("Cannot enumerate .vox sources in " + vox_source_dir)
+        process.exit(1)
+    }
+    let vox_sources = vox_glob.unwrap()
+    if vox_sources.len() == 0 {
+        log.error("SSOT violation: " + generated_dir + " contains .tsx files but " + vox_source_dir + " has no .vox sources.")
+        log.error("Generated .tsx must come from vox build, not hand-written.")
+        process.exit(1)
+    }
+
+    // Check git is available. If not, downgrade to "files-exist" check.
+    let git_probe = process.run("git", ["rev-parse", "--is-inside-work-tree"])
+    let mut git_available = false
+    if git_probe isnt null {
+        git_available = git_probe.unwrap().code == 0
+    }
+
+    if not git_available {
+        log.warn("git not available — skipping commit-history check.")
+        print("OK: " + str(tsx_files.len()) + " .tsx files found in generated/ with .vox sources present.")
+        return
+    }
+
+    let canonical_source = canonical_vox_source()
+    let mut violations = []
+
+    for tsx_path in tsx_files {
+        let last_commit = last_commit_for(tsx_path)
+        if last_commit == "" {
+            // Untracked — newly-created, not yet committed. Skip.
+            continue
+        }
+
+        let touched = files_in_commit(last_commit)
+        let touched_canonical = touched.any(fn(line: str) to bool {
+            line.trim() == canonical_source
+        })
+
+        if not touched_canonical {
+            let short_sha = last_commit.slice(0, 8)
+            let msg = "  " + tsx_path + " (last commit " + short_sha + " did not touch " + canonical_source + ")"
+            violations.push(msg)
         }
     }
+
+    if violations.len() == 0 {
+        print("OK: all " + str(tsx_files.len()) + " .tsx files in generated/ are consistent with .vox sources.")
+        return
+    }
+
+    log.error("SSOT gate FAILED:")
+    log.error("The following .tsx files in generated/ were not produced by `vox build`")
+    log.error("(their last git commit touched no .vox source).")
+    log.error("Hand-editing generated/ is forbidden — edit the .vox source and re-run `vox build`.")
+    for v in violations {
+        log.error(v)
+    }
+    process.exit(1)
 }

@@ -1,0 +1,11 @@
+[problem]
+id = "120"
+title = "str_palindrome_ignore_case"
+prompt = """
+Check if a string is a palindrome ignoring case. Return true if the string reads the same forwards and backwards when lowercased.
+"""
+signature = "fn str_palindrome_ignore_case(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "palindrome"]

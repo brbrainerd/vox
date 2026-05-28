@@ -72,29 +72,26 @@ impl<'ast> Visit<'ast> for RustVisitor {
                 Some("from_nanos") => Some(UnitHint::Millis),
                 _ => None,
             };
-            if let Some(unit) = unit {
-                if let Some(arg) = node.args.first() {
-                    if let Expr::Lit(ExprLit {
-                        lit: Lit::Int(i), ..
-                    }) = arg
-                    {
-                        if let Ok(v) = i.base10_parse::<i64>() {
-                            let loc = Self::span_to_loc(i.span());
-                            // Remove the untagged entry visit_expr_lit already added
-                            self.features.numeric_literals.retain(|n| {
-                                !(n.unit.is_none()
-                                    && n.value == v as f64
-                                    && n.loc.line == loc.line
-                                    && n.loc.col == loc.col)
-                            });
-                            self.features.numeric_literals.push(NumericLoc {
-                                value: v as f64,
-                                unit: Some(unit),
-                                loc,
-                            });
-                        }
-                    }
-                }
+            if let Some(unit) = unit
+                && let Some(arg) = node.args.first()
+                && let Expr::Lit(ExprLit {
+                    lit: Lit::Int(i), ..
+                }) = arg
+                && let Ok(v) = i.base10_parse::<i64>()
+            {
+                let loc = Self::span_to_loc(i.span());
+                // Remove the untagged entry visit_expr_lit already added
+                self.features.numeric_literals.retain(|n| {
+                    !(n.unit.is_none()
+                        && n.value == v as f64
+                        && n.loc.line == loc.line
+                        && n.loc.col == loc.col)
+                });
+                self.features.numeric_literals.push(NumericLoc {
+                    value: v as f64,
+                    unit: Some(unit),
+                    loc,
+                });
             }
 
             // Record call site

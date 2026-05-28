@@ -1,7 +1,7 @@
 ---
 title: "Phase 1: Build Target Split Spec (2026)"
 description: "Design spec for vox build --target=server|fullstack|client, vox emit client, and vox init --kind=backend."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Implementation spec for the build target split; required reading before touching vox-cli build or Vox.toml manifest code."
@@ -96,7 +96,7 @@ has zero mandatory runtime dependencies.
 <out>/
   package.json        # name, version, "type":"module", exports, devDependencies (TS only)
   index.ts            # re-exports everything; barrel file
-  types.ts            # shared request/response types, generated from @table + @endpoint signatures
+  types.ts            # shared request/response types, generated from @table + @server/@query/@mutation signatures
   client.ts           # VoxClient class (fetch wrapper, see below)
   schemas.ts          # (optional, --zod flag) zod validators for each type
 ```
@@ -136,14 +136,14 @@ export class VoxClient {
     this.fetch = options.fetch ?? globalThis.fetch;
   }
 
-  // For each @endpoint(kind: query) fn user_count() to int:
+  // For each @query fn user_count() to int:
   async userCount(): Promise<number> {
     const res = await this.fetch(`${this.baseUrl}/user_count`);
     if (!res.ok) throw new Error(`userCount failed: ${res.status}`);
     return res.json();
   }
 
-  // For each @endpoint(kind: mutation) fn seed_user(name: str) to Unit:
+  // For each @mutation fn seed_user(name: str) to Unit:
   async seedUser(name: string): Promise<void> {
     const res = await this.fetch(`${this.baseUrl}/seed_user`, {
       method: "POST",
@@ -189,7 +189,7 @@ existing `UnlabeledCodeFence` lint) should enforce this over the output dir.
 my-api/
   Vox.toml            # [build] target = "server"
   src/
-    main.vox          # @endpoint stubs, no @page declarations
+    main.vox          # @query/@mutation/@server stubs, no @page declarations
   .gitignore
   README.md
 ```
@@ -197,7 +197,7 @@ my-api/
 `main.vox` stub:
 
 ```vox
-@endpoint(kind: query)
+@query
 fn hello() to str {
     return "hello from vox backend"
 }
@@ -292,7 +292,7 @@ approximately 200–350 MB depending on frontend dependencies.
 |---|---|
 | `vox-config` | Add `BuildTarget` enum + `build_target` field to `VoxConfig`; read from `[build] target` in `Vox.toml` |
 | `vox-cli` | Thread `BuildTarget` through `build::run` and `run::run`; add `--target` flag to `BuildArgs` in `cli_args.rs`; add `emit client` subcommand; add `init --kind` flag |
-| `vox-compiler` | Add `ClientSdkEmitter` (new file: `crates/vox-compiler/src/codegen_ts/client_sdk.rs`) that walks HIR endpoint_fns and produces `client.ts` / `types.ts` / `index.ts`; gate `generate_routes` / scaffold calls behind target flag in `CodegenOptions` |
+| `vox-compiler` | Add `ClientSdkEmitter` (new file: `crates/vox-codegen/src/codegen_ts/client_sdk.rs`) that walks HIR endpoint_fns and produces `client.ts` / `types.ts` / `index.ts`; gate `generate_routes` / scaffold calls behind target flag in `CodegenOptions` |
 
 ### Minimal diff shape
 

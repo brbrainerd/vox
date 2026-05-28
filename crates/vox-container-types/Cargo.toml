@@ -1,0 +1,17 @@
+[package]
+name = "vox-container-types"
+description = "Pure types and traits for OCI container runtime abstraction — zero I/O, L0 crate."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde = { workspace = true }
+workspace-hack = { workspace = true }

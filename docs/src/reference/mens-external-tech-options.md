@@ -1,7 +1,7 @@
 ---
 title: "Mens external technology options"
 description: "Adoption shortlist for constrained decoding, evaluation methodology, and documentation-to-code retrieval patterns relevant to VoxMens."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-28"
 training_eligible: false
 

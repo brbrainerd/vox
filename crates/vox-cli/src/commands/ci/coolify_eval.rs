@@ -74,7 +74,7 @@ pub async fn run(cmd: CoolifyEvalCmd) -> Result<()> {
 async fn discover() -> Result<()> {
     let base = base_url()?;
     let token = bearer_read()?;
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
 
     let ver_url = format!("{base}/api/v1/version");
     match client
@@ -182,7 +182,7 @@ async fn sync_compose(
     let raw = std::fs::read_to_string(&compose_path)
         .with_context(|| format!("read compose {}", compose_path.display()))?;
 
-    let client = vox_reqwest_defaults::client();
+    let client = vox_http_client::client();
 
     // Verify UUID exists and is compose-capable (read token).
     let get_url = format!("{base}/api/v1/applications/{uuid}");

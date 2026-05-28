@@ -16,7 +16,8 @@
 
 ## Architecture Authority
 - [Architecture Index](https://voxlang.org/architecture/architecture-index/): Master architecture map
-- [Research Index](https://voxlang.org/architecture/research-index/): All research documents
+- [Research Index](https://voxlang.org/architecture/research-index/): Architecture and research document map (hand-maintained)
+- [Where things live](https://voxlang.org/architecture/where-things-live/): Concept → crate lookup table
 - [Classification SSOT](https://voxlang.org/architecture/classification-ssot-2026/): Canonical surface classifications
 
 ## Contributor Hub

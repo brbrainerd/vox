@@ -311,12 +311,11 @@ const TRANSCRIPT_MARKERS: &[&str] = &[
 
 /// Returns `Some(marker)` if `text` contains a raw transcript marker.
 fn detect_transcript_bleed(text: &str) -> Option<&'static str> {
-    for &marker in TRANSCRIPT_MARKERS {
-        if text.contains(marker) {
-            return Some(marker);
-        }
-    }
-    None
+    TRANSCRIPT_MARKERS
+        .iter()
+        .find(|&&marker| text.contains(marker))
+        .copied()
+        .map(|v| v as _)
 }
 
 /// Ensure pending work always carries explicit verification steps for the receiver.
@@ -458,14 +457,14 @@ pub fn execute_handoff(
         .metadata
         .iter()
         .find(|(k, _)| k == "execution_role")
-        .and_then(|(_, v)| match v.to_lowercase().as_str() {
-            "planner" => Some(crate::topology::AgentRole::Planner),
-            "executor" | "builder" => Some(crate::topology::AgentRole::Executor),
-            "verifier" => Some(crate::topology::AgentRole::Verifier),
-            "synthesizer" => Some(crate::topology::AgentRole::Synthesizer),
-            "researcher" => Some(crate::topology::AgentRole::Researcher),
-            "observer" => Some(crate::topology::AgentRole::Observer),
-            _ => Some(crate::topology::AgentRole::Generalist),
+        .map(|(_, v)| match v.to_lowercase().as_str() {
+            "planner" => crate::topology::AgentRole::Planner,
+            "executor" | "builder" => crate::topology::AgentRole::Executor,
+            "verifier" => crate::topology::AgentRole::Verifier,
+            "synthesizer" => crate::topology::AgentRole::Synthesizer,
+            "researcher" => crate::topology::AgentRole::Researcher,
+            "observer" => crate::topology::AgentRole::Observer,
+            _ => crate::topology::AgentRole::Generalist,
         });
 
     tracing::info!(

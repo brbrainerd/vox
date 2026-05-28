@@ -1,0 +1,18 @@
+fn digits_to_int(ds: list[int]) to int {
+    let mut result: int = 0
+    for d in ds {
+        result = result * 10 + d
+    }
+    return result
+}
+
+fn main() to str {
+    assert(digits_to_int([1, 2, 3]) == 123)
+    assert(digits_to_int([0]) == 0)
+    assert(digits_to_int([]) == 0)
+    assert(digits_to_int([9]) == 9)
+    assert(digits_to_int([1, 0, 0]) == 100)
+    assert(digits_to_int([4, 2]) == 42)
+    assert(digits_to_int([1, 2, 3, 4]) == 1234)
+    return "ok"
+}

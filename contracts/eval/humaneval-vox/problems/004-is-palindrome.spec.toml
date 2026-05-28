@@ -1,0 +1,11 @@
+[problem]
+id = "004"
+title = "is_palindrome"
+prompt = """
+Return true if the string reads the same forwards and backwards (case-sensitive).
+"""
+signature = "fn is_palindrome(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

@@ -1,7 +1,7 @@
 ---
 title: "TOESTUB line limit and MENS corpus size research (2026)"
 description: "Investigation into Vox's actual TOESTUB God Object limits versus documentation, and research into optimal code file chunking for Qwen3-4B MENS training."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 18
 last_updated: "2026-04-12"

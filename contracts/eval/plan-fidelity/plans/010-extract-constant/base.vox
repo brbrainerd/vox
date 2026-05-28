@@ -1,0 +1,12 @@
+// Base source for plan-010-extract-constant.
+//
+// The plan asks the model to extract the literal `100` into a
+// `let MAX = 100` binding and reuse it at both occurrences. The fn
+// signature and observable behavior must not change.
+
+fn cap_score(score: int) to int {
+  if score > 100 {
+    return 100
+  }
+  return score
+}

@@ -1,0 +1,20 @@
+fn is_leap_divisible(year: int) to bool {
+    if year % 400 is 0 {
+        return true
+    }
+    if year % 100 is 0 {
+        return false
+    }
+    return year % 4 is 0
+}
+
+@test
+fn t_2024() to Unit { assert(is_leap_divisible(2024) is true) }
+@test
+fn t_2023() to Unit { assert(is_leap_divisible(2023) is false) }
+@test
+fn t_2000() to Unit { assert(is_leap_divisible(2000) is true) }
+@test
+fn t_1900() to Unit { assert(is_leap_divisible(1900) is false) }
+@test
+fn t_2100() to Unit { assert(is_leap_divisible(2100) is false) }

@@ -1,7 +1,7 @@
 ---
 title: "MCP exposure from the Vox language (SSOT)"
 description: "How @mcp.tool maps to shipped MCP surfaces, how this differs from vox-mcp, and how MCP relates to WebSocket, VoxDb, and future zero-wiring goals."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 45
 last_updated: "2026-03-29"

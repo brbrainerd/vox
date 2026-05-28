@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign — SP4 Implementation Plan (2026)"
 description: "Step-by-step implementation plan for Sub-Project 4: migrate the vox.compiler skill from vox-skills's compile-time builtins to a standalone skill-payload plugin loaded at runtime through vox-plugin-host."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Concrete TDD task plan for SP4; companion to the parent design spec."
@@ -14,14 +14,14 @@ training_rationale: "Concrete TDD task plan for SP4; companion to the parent des
 **Parent spec:** [`plugin-system-redesign-2026.md`](plugin-system-redesign-2026.md)
 **Predecessor plans:** [`SP1`](plugin-system-redesign-sp1-plan-2026.md) (catalog) AND [`SP2`](plugin-system-redesign-sp2-plan-2026.md) (host loader). Both must be merged before SP4 starts. SP4 is INDEPENDENT of SP3 — they can land in either order.
 
-**Goal:** Migrate ONE built-in skill — `vox.compiler` — from [`vox-skills`](../../../crates/vox-skills/)'s compile-time `include_str!` registry into a standalone skill-payload plugin discovered and loaded at runtime by `vox-plugin-host`. Migrate `vox-orchestrator`, `vox-runtime`, and `vox-integration-tests` consumers of that one skill to query through `vox-plugin-host`'s `SkillRegistry` instead of the old `vox_skills::SkillRegistry`. The other 8 skills stay in `vox-skills` and on the old code path until SP6.
+**Goal:** Migrate ONE built-in skill — `vox.compiler` — from [`vox-skills`](../../../crates/vox-skills/)'s compile-time `include_str!` registry into a standalone skill-payload plugin discovered and loaded at runtime by `vox-plugin-host`. Migrate `vox-orchestrator`, `vox-actor-runtime`, and `vox-integration-tests` consumers of that one skill to query through `vox-plugin-host`'s `SkillRegistry` instead of the old `vox_skills::SkillRegistry`. The other 8 skills stay in `vox-skills` and on the old code path until SP6.
 
 **Architecture:** `crates/vox-plugin-skill-compiler/` becomes a directory-only plugin (no Rust crate, just `Plugin.toml` + `compiler.skill.md` lifted verbatim from `crates/vox-skills/skills/compiler.skill.md`). `vox-skills`'s `install_builtins()` stops registering `vox.compiler`. The orchestrator's startup path now calls `vox_plugin_host::discover()` against the install dir AND `vox_skills::install_builtins()` for the other 8 skills (transitional state). MCP tool dispatch for the three compiler tools (`vox_validate_file`, `vox_run_tests`, `vox_check_workspace`) routes through `vox_plugin_host::SkillRegistry` instead of `vox_skills::SkillRegistry`.
 
 **Tech Stack:**
 - `vox-plugin-api` and `vox-plugin-host` from SP2
 - Existing `vox-skills` infrastructure (kept intact for the 8 unmigrated skills)
-- `vox-orchestrator`, `vox-runtime`, `vox-integration-tests` (consumers)
+- `vox-orchestrator`, `vox-actor-runtime`, `vox-integration-tests` (consumers)
 
 ---
 
@@ -42,7 +42,7 @@ training_rationale: "Concrete TDD task plan for SP4; companion to the parent des
 | `crates/vox-orchestrator/src/mcp_tools/server_state.rs`             | At startup, also `discover()` the install dir for skill plugins; merge into the existing skill registry view. |
 | `crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs`             | Same as server_state.rs (the `install_builtins` callsite at line 126).  |
 | `crates/vox-orchestrator/src/mcp_tools/skills_tools.rs`             | MCP-tool dispatch consults `vox_plugin_host::SkillRegistry` for the compiler skill (still uses `vox_skills` for the other 8). |
-| `crates/vox-runtime/src/builtins/mod.rs`                            | If it references `vox.compiler` skill specifically, route through `vox_plugin_host` instead.  |
+| `crates/vox-actor-runtime/src/builtins/mod.rs`                            | If it references `vox.compiler` skill specifically, route through `vox_plugin_host` instead.  |
 | `crates/vox-integration-tests/...`                                  | Find tests that exercise `vox.compiler` skill; migrate to use the new path. |
 | `Cargo.toml` (workspace)                                            | (No change. `vox-plugin-host` is already a workspace dep from SP2.)     |
 | Several Cargo.toml files                                            | Add `vox-plugin-host = { workspace = true }` to crates that need to query the new registry. |
@@ -196,15 +196,15 @@ fn lookup_skill(state: &ServerState, id: &str) -> Option<SkillInfo> {
 - [ ] **Step 2:** Test: a request for tool `vox_validate_file` should still resolve and dispatch correctly.
 - [ ] **Step 3:** Commit: `feat(vox-orchestrator): fall back to vox-plugin-host SkillRegistry for skill lookups`.
 
-### Task 6: Update `vox-runtime` consumer
+### Task 6: Update `vox-actor-runtime` consumer
 
-**Files:** `crates/vox-runtime/src/builtins/mod.rs` and any other location identified in Task 1.
+**Files:** `crates/vox-actor-runtime/src/builtins/mod.rs` and any other location identified in Task 1.
 
-If `vox-runtime` directly references `vox.compiler` (vs going through orchestrator), apply the same fallback pattern.
+If `vox-actor-runtime` directly references `vox.compiler` (vs going through orchestrator), apply the same fallback pattern.
 
 - [ ] **Step 1:** Check the file. If no direct compiler reference, no change needed.
 - [ ] **Step 2:** If reference exists, mirror Task 5's fallback pattern.
-- [ ] **Step 3:** `cargo check -p vox-runtime` — green.
+- [ ] **Step 3:** `cargo check -p vox-actor-runtime` — green.
 - [ ] **Step 4:** Commit if changes were made.
 
 ### Task 7: Update `vox-integration-tests`
@@ -255,7 +255,7 @@ The existing [`docs/src/reference/skill_marketplace.md`](../../../docs/src/refer
 - [ ] **Step 1:** `cargo build --workspace` — green.
 - [ ] **Step 2:** `cargo test -p vox-skills` — green (the 8 remaining builtins still work).
 - [ ] **Step 3:** `cargo test -p vox-orchestrator` — green.
-- [ ] **Step 4:** `cargo test -p vox-runtime` — green.
+- [ ] **Step 4:** `cargo test -p vox-actor-runtime` — green.
 - [ ] **Step 5:** `cargo test -p vox-integration-tests` — green.
 - [ ] **Step 6:** All four CI guards green: `plugin-catalog-parity`, `plugin-abi-parity`, `plugin-skill-parity`, `generate-plugin-catalog-docs --check`.
 - [ ] **Step 7:** Behavioral parity: an MCP client calling `vox_validate_file` gets the same response shape as before SP4.

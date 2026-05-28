@@ -1,24 +1,60 @@
 //! File-level affinity: which agent may write which paths.
 //!
-//! [`FileAffinityMap`](crate::affinity::FileAffinityMap) enforces single-writer ownership and records pattern
+//! [`crate::affinity::FileAffinityMap`] enforces single-writer ownership and records pattern
 //! experience so routing can prefer agents that have touched similar files.
+//!
+//! **Affinity is a hint, lock is hard.** Callers wishing to write must additionally hold a
+//! `WorkingTreeWrite` capability minted via `vox-orchestrator-cap-mint` and the lock-leader must
+//! have granted the lease (Phase 0 / P3-T5).
 use std::sync::Arc;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use serde::{Deserialize, Serialize};
+
 use crate::sync_lock;
 use vox_orchestrator_types::AgentId;
+
+// ---------------------------------------------------------------------------
+// Vector-clock affinity types (P3-T4)
+// ---------------------------------------------------------------------------
+
+/// Opaque identity of a daemon node (UUIDv4 bytes in network order).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct DaemonId(pub [u8; 16]);
+
+/// Lamport logical clock value. Higher beats lower; ties broken by `DaemonId` bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct Lamport(pub u64);
+
+/// Value stored in the vector-clock affinity map (`inner_v`).
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct AffinityValue {
+    pub daemon: DaemonId,
+    pub agent: AgentId,
+    pub lamport: Lamport,
+    /// Wall-clock ms when this entry was last written.
+    pub assigned_at_ms: u64,
+}
+
+/// Hold-down window: within 60 s of first assignment, higher-lamport remote asserts are ignored
+/// to give the local daemon time to propagate its claim.
+const HOLD_DOWN_MS: u64 = 60_000;
 
 /// Thread-safe map tracking which agent "owns" each file path.
 ///
 /// The single-writer principle: at most one agent holds write affinity
 /// for any given file. This prevents race conditions and lost updates.
+///
+/// **Affinity is a hint, lock is hard.** See module-level docs.
 #[derive(Clone)]
 pub struct FileAffinityMap {
     inner: Arc<std::sync::RwLock<HashMap<PathBuf, AgentId>>>,
     /// Tracks "experience" — agent_id -> { pattern -> count }
     experience: Arc<std::sync::RwLock<HashMap<AgentId, HashMap<String, u32>>>>,
+    /// Vector-clock affinity map for gossip-replicated LWW resolution (P3-T4).
+    inner_v: Arc<std::sync::RwLock<HashMap<PathBuf, AffinityValue>>>,
 }
 
 impl FileAffinityMap {
@@ -27,13 +63,68 @@ impl FileAffinityMap {
         Self {
             inner: Arc::new(std::sync::RwLock::new(HashMap::new())),
             experience: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            inner_v: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Vector-clock affinity (P3-T4)
+    // ---------------------------------------------------------------------------
+
+    /// Assign file affinity with Lamport LWW semantics and 60 s hold-down.
+    ///
+    /// Conflict resolution:
+    /// 1. If the current owner is a different daemon and the entry is less than
+    ///    `HOLD_DOWN_MS` old, the new claim is **ignored** (local stability wins).
+    /// 2. After the hold-down, the entry with the higher `lamport` wins;
+    ///    equal lamports break ties by daemon-id bytes (deterministic total order).
+    ///
+    /// **Affinity is a hint, lock is hard.** See module-level docs.
+    pub fn assign_v(
+        &self,
+        file: &Path,
+        daemon: DaemonId,
+        agent: AgentId,
+        lamport: Lamport,
+        now_ms: u64,
+    ) {
+        let mut g = sync_lock::rw_write(&*self.inner_v);
+        let new = AffinityValue {
+            daemon,
+            agent,
+            lamport,
+            assigned_at_ms: now_ms,
+        };
+        match g.get(file) {
+            None => {
+                g.insert(file.to_path_buf(), new);
+            }
+            Some(cur) => {
+                let in_holddown = cur.assigned_at_ms.saturating_add(HOLD_DOWN_MS) > now_ms
+                    && cur.daemon != daemon;
+                if in_holddown {
+                    return;
+                }
+                if new.lamport > cur.lamport
+                    || (new.lamport == cur.lamport && new.daemon.0 > cur.daemon.0)
+                {
+                    g.insert(file.to_path_buf(), new);
+                }
+            }
+        }
+    }
+
+    /// Look up the current vector-clock affinity owner for a file, if any.
+    ///
+    /// **Affinity is a hint, lock is hard.** See module-level docs.
+    pub fn lookup_v(&self, file: &Path) -> Option<AffinityValue> {
+        sync_lock::rw_read(&*self.inner_v).get(file).copied()
     }
 
     /// Record that an agent successfully worked on a file (dynamic learning).
     pub fn record_experience(&self, agent: AgentId, file: &Path) {
         let mut exp = sync_lock::rw_write(&*self.experience);
-        let agent_exp = exp.entry(agent).or_insert_with(HashMap::new);
+        let agent_exp = exp.entry(agent).or_default();
 
         // Increment for extension
         if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
@@ -283,6 +374,85 @@ mod tests {
             conflicts.is_empty(),
             "agent should not conflict with itself"
         );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Vector-clock affinity tests (P3-T4)
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn lww_with_holddown_keeps_local_for_60s_then_yields_to_higher_lamport() {
+        let aff = FileAffinityMap::new();
+        let local = DaemonId([1u8; 16]);
+        let remote = DaemonId([2u8; 16]);
+        let t0 = 1_700_000_000_000u64;
+
+        // Local claims at t0.
+        aff.assign_v(Path::new("a.rs"), local, AgentId(1), Lamport(100), t0);
+        assert_eq!(aff.lookup_v(Path::new("a.rs")).unwrap().daemon, local);
+
+        // Remote asserts higher lamport within 60s — ignored (hold-down).
+        aff.assign_v(
+            Path::new("a.rs"),
+            remote,
+            AgentId(7),
+            Lamport(200),
+            t0 + 1_000,
+        );
+        assert_eq!(aff.lookup_v(Path::new("a.rs")).unwrap().daemon, local);
+
+        // After 60 s, higher lamport wins.
+        aff.assign_v(
+            Path::new("a.rs"),
+            remote,
+            AgentId(7),
+            Lamport(200),
+            t0 + 60_001,
+        );
+        assert_eq!(aff.lookup_v(Path::new("a.rs")).unwrap().daemon, remote);
+    }
+
+    #[test]
+    fn lww_same_daemon_always_updates() {
+        let aff = FileAffinityMap::new();
+        let d = DaemonId([5u8; 16]);
+        let t0 = 1_000_000u64;
+        aff.assign_v(Path::new("b.rs"), d, AgentId(1), Lamport(10), t0);
+        // Same daemon: hold-down doesn't apply.
+        aff.assign_v(Path::new("b.rs"), d, AgentId(1), Lamport(20), t0 + 100);
+        assert_eq!(
+            aff.lookup_v(Path::new("b.rs")).unwrap().lamport,
+            Lamport(20)
+        );
+    }
+
+    #[test]
+    fn lww_lower_lamport_does_not_overwrite_after_holddown() {
+        let aff = FileAffinityMap::new();
+        let d1 = DaemonId([1u8; 16]);
+        let d2 = DaemonId([2u8; 16]);
+        let t0 = 1_000_000u64;
+        aff.assign_v(Path::new("c.rs"), d1, AgentId(1), Lamport(50), t0);
+        // After hold-down, lower lamport does NOT win.
+        aff.assign_v(Path::new("c.rs"), d2, AgentId(2), Lamport(40), t0 + 60_001);
+        assert_eq!(aff.lookup_v(Path::new("c.rs")).unwrap().daemon, d1);
+    }
+
+    #[test]
+    fn lww_equal_lamport_tiebreaks_by_daemon_id() {
+        let aff = FileAffinityMap::new();
+        let d1 = DaemonId([1u8; 16]);
+        let d2 = DaemonId([2u8; 16]); // higher bytes → wins
+        let t0 = 1_000_000u64;
+        aff.assign_v(Path::new("d.rs"), d1, AgentId(1), Lamport(10), t0);
+        aff.assign_v(Path::new("d.rs"), d2, AgentId(2), Lamport(10), t0 + 60_001);
+        assert_eq!(aff.lookup_v(Path::new("d.rs")).unwrap().daemon, d2);
+    }
+
+    #[test]
+    fn lookup_v_returns_none_for_unknown_file() {
+        let aff = FileAffinityMap::new();
+        assert!(aff.lookup_v(Path::new("ghost.rs")).is_none());
     }
 
     #[test]

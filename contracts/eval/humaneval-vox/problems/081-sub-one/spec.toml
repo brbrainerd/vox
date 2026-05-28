@@ -1,0 +1,8 @@
+id = "humaneval-vox-081-sub-one"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `sub_one(n: int) to int` returning n - 1 (the predecessor function).
+"""

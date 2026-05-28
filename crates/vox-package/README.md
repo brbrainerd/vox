@@ -1,4 +1,4 @@
-# vox-pm
+# vox-package
 
 Vox Package Manager — a content-addressable store (CAS) backend for Vox packages, artifacts, and agent memories. Built on **Turso** for local-first with optional cloud sync.
 

@@ -1,6 +1,6 @@
 //! Explicit multi-repo catalog and read-only polyrepo query tools.
 //!
-//! Cross-repo queries may append a **`benchmark_event`** row via [`record_query_metric`] (latency + trace metadata) when Codex
+//! Cross-repo queries may append a **`benchmark_event`** row via `record_query_metric` (latency + trace metadata) when Codex
 //! is attached — **no extra env gate** beyond having `VoxDb`. Mesh snapshot Codex mirroring is separate (see `dei_tools::orchestrator_snapshot`).
 
 use crate::params::ToolResult;

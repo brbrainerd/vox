@@ -16,17 +16,9 @@ This file is Antigravity-specific. It narrows behavior for this repo without rep
 - Use this file only for Antigravity-specific behavior and shell discipline.
 - Keep rules concise, concrete, and executable.
 
-## VoxScript-First Glue (Antigravity Reinforcement)
+## VoxScript-First Glue
 
-This repo has adopted `.vox` files as the **sole glue language**. Antigravity agents MUST follow this:
-
-- Write all new automation scripts as `.vox` and run them via `vox run scripts/foo.vox`
-- Use `vox run --interp scripts/foo.vox` for pure computation (no compile step, ~50ms)
-- Use `vox run scripts/foo.vox` for scripts needing file I/O or subprocess
-- **Never** generate a new `.ps1`, `.sh`, or `.py` automation script; point the user to the existing thin launchers if the bootstrap issue arises
-- The two retained launchers (`scripts/windows/vox-dev.ps1`, `scripts/vox-dev.sh`) are exempt — they are thin forwarders only
-
-See: [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md) and [`docs/src/archive/research-2026-q1/vox-as-glue-research-2026.md`](docs/src/archive/research-2026-q1/vox-as-glue-research-2026.md) (archived)
+Automation is **`.vox` only** (tiers: `--interp`, native, `--isolation wasm`); never new `.ps1` / `.sh` / `.py` glue. Bootstrap launchers stay thin. **Normative detail:** [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md).
 
 ## Shell Environment
 

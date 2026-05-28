@@ -16,10 +16,12 @@ fn default_config_values() {
     assert_eq!(cfg.queue_overflow_strategy, OverflowStrategy::SpawnNewAgent);
     assert_eq!(cfg.lock_timeout_ms, 30_000);
     assert!(cfg.toestub_gate);
+    assert!(cfg.behavioral_gate_on_complete);
+    assert!(cfg.completion_markdown_link_audit_enabled);
     assert!(cfg.fallback_to_single_agent);
     assert_eq!(cfg.min_agents, 1);
     assert!(!cfg.scaling_enabled);
-    assert_eq!(cfg.cost_preference, CostPreference::Performance);
+    assert_eq!(cfg.cost_preference, CostPreference::Economy);
     assert_eq!(cfg.repo_shard_specialization_weight, 1.5);
     assert_eq!(cfg.repo_shard_validation_failure_penalty, 0.8);
     assert_eq!(cfg.repo_reduce_conflict_cooldown_penalty, 2.5);
@@ -41,6 +43,8 @@ fn test_config_values() {
     assert_eq!(cfg.max_agents, 4);
     assert_eq!(cfg.lock_timeout_ms, 1000);
     assert!(!cfg.toestub_gate);
+    assert!(!cfg.behavioral_gate_on_complete);
+    assert!(!cfg.completion_markdown_link_audit_enabled);
     assert!(cfg.validate().is_ok());
 }
 
@@ -292,6 +296,41 @@ fn populi_remote_result_max_messages_env_override_applies() {
     let mut cfg = OrchestratorConfig::default();
     cfg.merge_env_overrides();
     assert_eq!(cfg.populi_remote_result_max_messages_per_poll, 17);
+
+    unsafe {
+        match prev {
+            None => std::env::remove_var(KEY),
+            Some(v) => std::env::set_var(KEY, v),
+        }
+    }
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn completion_markdown_link_audit_env_override_applies() {
+    let _guard = ENV_MUTEX.lock().expect("env test lock");
+    const KEY: &str = "VOX_ORCHESTRATOR_COMPLETION_MARKDOWN_LINK_AUDIT_ENABLED";
+    let prev = vox_secrets::resolve_secret(
+        vox_secrets::SecretId::VoxOrchestratorCompletionMarkdownLinkAuditEnabled,
+    )
+    .expose()
+    .map(ToString::to_string);
+
+    unsafe {
+        std::env::set_var(KEY, "false");
+    }
+    let mut cfg = OrchestratorConfig::default();
+    assert!(cfg.completion_markdown_link_audit_enabled);
+    cfg.merge_env_overrides();
+    assert!(!cfg.completion_markdown_link_audit_enabled);
+
+    unsafe {
+        std::env::set_var(KEY, "true");
+    }
+    let mut cfg_testing = OrchestratorConfig::for_testing();
+    assert!(!cfg_testing.completion_markdown_link_audit_enabled);
+    cfg_testing.merge_env_overrides();
+    assert!(cfg_testing.completion_markdown_link_audit_enabled);
 
     unsafe {
         match prev {

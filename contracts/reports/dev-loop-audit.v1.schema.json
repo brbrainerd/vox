@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/reports/dev-loop-audit.v1.schema.json",
+  "title": "dev-loop-audit-v1",
+  "description": "Output from `vox ci dev-loop-audit --json` (Cargo cache / verification-loop heuristics).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "repo_root_display",
+    "canonical_target_dir",
+    "effective_target_dir",
+    "fragmentation_risk",
+    "warnings",
+    "hints"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "repo_root_display": {
+      "type": "string"
+    },
+    "canonical_target_dir": {
+      "type": "string"
+    },
+    "cargo_target_dir_raw": {
+      "type": ["string", "null"]
+    },
+    "effective_target_dir": {
+      "type": "string"
+    },
+    "fragmentation_risk": {
+      "type": "string",
+      "enum": ["none", "medium", "high"]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

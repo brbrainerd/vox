@@ -4,11 +4,14 @@ use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub use vox_cli_core::cli_args::{BuildMode, BundleMode, CompileKind, UpgradeLane};
+
 /// Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.
 ///
-/// `fullstack` is the default build mode. Use `--target=server` to emit Axum + api.ts only,
-/// or `--target=client` for the client SDK shape.
+/// `fullstack` is the default build mode. Use `--target=server` for Rust-only (no `dist/` TS),
+/// or `--target=client` for Library-shaped TS (`vox-client.ts`, `openapi.json`, …; no `target/generated/`).
 #[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum BuildTargetArg {
     /// Emit TypeScript/React frontend **and** Axum Rust backend (default).
     #[default]
@@ -29,16 +32,6 @@ impl From<BuildTargetArg> for vox_config::BuildTarget {
     }
 }
 
-/// Build mode (`app` or `library`).
-#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq)]
-pub enum BuildMode {
-    /// Emit app code + components (default).
-    #[default]
-    App,
-    /// Emit UI-agnostic models, schemas, and client fetchers.
-    Library,
-}
-
 /// `vox build` / `vox fabrica build`
 #[derive(Args, Clone, Debug)]
 pub struct BuildArgs {
@@ -46,8 +39,8 @@ pub struct BuildArgs {
     #[arg(required = true)]
     pub file: PathBuf,
     /// Build mode (App or Library)
-    #[arg(long, value_enum, default_value_t = crate::cli_args::BuildMode::App)]
-    pub mode: crate::cli_args::BuildMode,
+    #[arg(long, value_enum, default_value_t = BuildMode::App)]
+    pub mode: BuildMode,
     /// Output directory for generated TypeScript
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
@@ -86,6 +79,18 @@ pub struct CheckArgs {
     /// (HIR module fields plus `module.web_ir` when present).
     #[arg(long)]
     pub emit_ir: bool,
+
+    /// Emit a single **stable JSON envelope** for LLM healing loops (includes structured diagnostics).
+    /// Implies machine-readable output on stdout; does not change rustc-style stderr for parse failures.
+    #[arg(long)]
+    pub for_llm: bool,
+
+    /// Treat **warnings** as errors — exit non-zero if any warning-severity diagnostic is produced.
+    ///
+    /// Required by CR-L2: `vox check --strict` is the gate used by `vox audit mens-on-distribution`
+    /// to measure on-distribution quality of MENS-emitted programs.
+    #[arg(long)]
+    pub strict: bool,
 }
 
 /// `vox test` / `vox fabrica test`
@@ -162,20 +167,43 @@ pub struct DevArgs {
     pub file: PathBuf,
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
+    /// Build target for watched rebuilds (`fullstack`, `server`, `client`). Same semantics as `vox build --target`.
+    #[arg(long = "target", value_enum)]
+    pub build_target: Option<BuildTargetArg>,
     #[arg(long)]
     pub port: Option<u16>,
     #[arg(long, default_value = "false")]
     pub open: bool,
 }
 
-/// Bundling mode: `app` (web + backend) or `script` (binary only).
-#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize)]
-pub enum BundleMode {
-    /// Web application with React frontend and Axum backend.
-    #[default]
-    App,
-    /// Native binary script for mesh/CLI execution.
-    Script,
+/// `vox emit openapi` — standalone OpenAPI 3.1 JSON from a Vox source file.
+#[derive(Args, Clone, Debug)]
+pub struct EmitOpenapiArgs {
+    /// Vox source file to compile.
+    #[arg(required = true)]
+    pub file: PathBuf,
+    /// Write OpenAPI JSON to this file (default: `openapi.json`).
+    #[arg(short, long, default_value = "openapi.json")]
+    pub out: PathBuf,
+    /// Package name for the `info.title` field.
+    #[arg(long, default_value = "vox-api")]
+    pub package_name: String,
+    /// Package version for the `info.version` field.
+    #[arg(long, default_value = "0.1.0")]
+    pub package_version: String,
+}
+
+/// `vox emit client` — Library-shaped TypeScript SDK only.
+#[derive(Args, Clone, Debug)]
+pub struct EmitClientArgs {
+    #[arg(required = true)]
+    pub file: PathBuf,
+    #[arg(short, long, default_value = "dist")]
+    pub out_dir: PathBuf,
+    #[arg(long = "mobile-target")]
+    pub mobile_target: Option<String>,
+    #[arg(long)]
+    pub emit_ir: bool,
 }
 
 /// `vox bundle` / `vox fabrica bundle`
@@ -192,6 +220,63 @@ pub struct BundleArgs {
     pub target: Option<String>,
     #[arg(long, default_value = "true")]
     pub release: bool,
+}
+
+/// `vox compile` / `vox fabrica compile`
+#[derive(Args, Clone, Debug)]
+pub struct CompileArgs {
+    /// Packaging target (`native-binary` matches `vox bundle-app`).
+    #[arg(long = "target", value_enum, default_value_t = CompileKind::NativeBinary)]
+    pub kind: CompileKind,
+    #[arg(short, long, default_value = "dist")]
+    pub out_dir: PathBuf,
+    /// Rust target triple for cross-compilation (archive layout uses `vox-release-artifacts`).
+    #[arg(long)]
+    pub triple: Option<String>,
+    #[arg(long, default_value_t = true)]
+    pub release: bool,
+    /// Build every `[workspace].members` package from repo-root `Vox.toml`.
+    #[arg(long, default_value_t = false)]
+    pub workspace: bool,
+    /// After compile, emit `.zip` / `.tar.gz` + `checksums-compile.txt` beside the binary.
+    #[arg(long, default_value_t = false)]
+    pub archive: bool,
+    /// Entry `.vox` file (optional when `--workspace`; positional must trail flags for stable clap parsing).
+    #[arg(value_name = "FILE")]
+    pub file: Option<PathBuf>,
+}
+
+#[cfg(test)]
+mod compile_args_parse_tests {
+    use super::CompileArgs;
+    use clap::Parser;
+    use vox_cli_core::cli_args::CompileKind;
+
+    /// Minimal wrapper so `CompileArgs` can be exercised without building the full `VoxCliRoot` tree.
+    /// Integration coverage for the full root parser lives in `tests/vox_cli_root_parsing.rs` (Windows:
+    /// those tests run clap work on an 8 MiB stack thread).
+    #[derive(Debug, Parser)]
+    #[command(name = "vox-compile-args-test")]
+    struct CompileArgsHarness {
+        #[command(flatten)]
+        inner: CompileArgs,
+    }
+
+    #[test]
+    fn desktop_target_and_trailing_file() {
+        let c = CompileArgsHarness::try_parse_from([
+            "vox-compile-args-test",
+            "--target",
+            "desktop",
+            "foo.vox",
+        ])
+        .expect("parse compile args");
+        assert_eq!(c.inner.kind, CompileKind::Desktop);
+        assert_eq!(
+            c.inner.file.as_deref(),
+            Some(std::path::Path::new("foo.vox"))
+        );
+    }
 }
 
 /// `vox fmt` / `vox fabrica fmt`
@@ -217,13 +302,27 @@ pub struct PlayArgs {
 /// `vox repair`
 #[derive(Args, Clone, Debug)]
 pub struct RepairArgs {
-    /// File to repair.
-    pub file: PathBuf,
+    /// File to repair. Required unless `--project` is set.
+    #[arg(required_unless_present = "project", conflicts_with = "project")]
+    pub file: Option<PathBuf>,
+    /// Project-scope mode (CR-L3): walk `PATH` for `.vox` files and run
+    /// the single-file repair loop on each one that produces error-level
+    /// diagnostics. PATH defaults to `.`. Aggregates outcomes into a
+    /// structured JSON report with `--json`.
+    #[arg(long, value_name = "PATH", num_args = 0..=1, default_missing_value = ".")]
+    pub project: Option<PathBuf>,
+    /// Emit a structured JSON report when running in `--project` mode.
+    /// Ignored in single-file mode (existing rustc-style output stays).
+    #[arg(long, default_value_t = false)]
+    pub json: bool,
 }
 
 /// `vox doctor` / `vox mens doctor`
 #[derive(Args, Clone, Debug)]
 pub struct DoctorArgs {
+    /// Preflight checks for `vox compile` / cross-target toolchains (rustup target, ANDROID_HOME, Xcode).
+    #[arg(long, value_name = "TRIPLE")]
+    pub compile_target: Option<String>,
     #[arg(long, default_value_t = false)]
     pub auto_heal: bool,
     #[arg(long, default_value_t = false)]
@@ -240,6 +339,12 @@ pub struct DoctorArgs {
     /// Prepend NVIDIA CUDA toolkit bin dirs to the User PATH and set User CUDA_PATH.
     #[arg(long, default_value_t = false)]
     pub fix_cuda_path: bool,
+    /// Project-health check mode (CR-L7): compile-check every `.vox` file under PATH.
+    /// When set, environment-check flags (--compile-target, --auto-heal, --test-health,
+    /// --build-perf, --scope, --probe, --fix-cuda-path) are ignored. Use `--json` for
+    /// structured output (the deploy integration test consumes this).
+    #[arg(long, value_name = "PATH", num_args = 0..=1, default_missing_value = ".")]
+    pub project: Option<PathBuf>,
 }
 
 /// `vox stub-check` / `vox mens stub-check`
@@ -373,16 +478,6 @@ pub enum UpgradeReleaseProvider {
     Http,
 }
 
-/// `vox upgrade` lane: release binary vs local repository checkout.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
-pub enum UpgradeLane {
-    /// Checksums-verified release archive into `CARGO_HOME/bin` (default).
-    #[default]
-    Release,
-    /// Fetch / fast-forward (or explicit `--ref`) then `cargo install --locked --path crates/vox-cli`.
-    Repo,
-}
-
 /// `vox upgrade` — toolchain only (never `Vox.toml` / `vox.lock`).
 #[derive(Args, Clone, Debug)]
 pub struct UpgradeToolchainArgs {
@@ -458,4 +553,11 @@ pub struct GenerateArgs {
     /// Inference server base URL (only used with `--legacy-direct`; default: http://127.0.0.1:7863).
     #[arg(long, value_name = "URL", requires = "legacy_direct")]
     pub server_url: Option<String>,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+pub struct GuiArgs {
+    /// Open directly to a specific command panel.
+    #[arg(long, value_name = "COMMAND", help = "Open to a specific command panel")]
+    pub command: Option<String>,
 }

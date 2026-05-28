@@ -1,0 +1,10 @@
+fn shout(s: str) to str {
+    return s + "!"
+}
+
+@test
+fn t_word() to Unit { assert(shout("hi") is "hi!") }
+@test
+fn t_empty() to Unit { assert(shout("") is "!") }
+@test
+fn t_sentence() to Unit { assert(shout("Hello world") is "Hello world!") }

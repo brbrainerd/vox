@@ -1,16 +1,16 @@
 //! DeI JSON-line RPC methods (`ai.*`, `config.get`) for `vox-orchestrator-d` stdio/TCP transport.
 //!
-//! These method ids are shared with `vox-cli` / `vox-mcp` ([`vox_protocol::dei_method`]).
+//! These method ids are shared with `vox-cli` / `vox-mcp` ([`vox_foundation::protocol::dei_method`]).
 
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use vox_protocol::dei_method;
+use vox_foundation::protocol::dei_method;
 
 use super::{response_err, response_result};
 use crate::Orchestrator;
 use crate::orchestrator::task_dispatch::submit::dei_plan_materialize;
-use vox_protocol::{DispatchRequest, DispatchResponse};
+use vox_foundation::protocol::{DispatchRequest, DispatchResponse};
 
 /// Dispatch `ai.*` / `config.get` when the incoming [`DispatchRequest::method`] matches DeI.
 pub async fn try_dispatch_dei(
@@ -192,11 +192,16 @@ async fn handle_plan_execute(
         Err(e) => return response_err(id, format!("db: {e}")),
     };
     let ver_u32: u32 = ver.clamp(1, i64::from(u32::MAX)) as u32;
+    let tenant_id = params
+        .get("tenant_id")
+        .and_then(|v| v.as_str())
+        .map(str::to_string);
     match crate::planning::schedule::enqueue_runnable_plan_nodes(
         orch.as_ref(),
         &session_id,
         ver_u32,
         origin,
+        tenant_id,
     )
     .await
     {

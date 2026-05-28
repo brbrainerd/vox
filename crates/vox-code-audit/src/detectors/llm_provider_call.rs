@@ -145,6 +145,17 @@ impl DetectionRule for LlmProviderCallDetector {
          GOOD:\n  let resp = populi.complete(model, prompt);"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — direct call to LLM provider hostname\n\
+             let body = { model: \"gpt-4\", messages: [] }\n\
+             let resp = std.http.post_json(\"https://api.openai.com/v1/chat/completions\", body)\n\
+             \n\
+             // FIX — use populi.* instead\n\
+             let resp = populi.complete(\"gpt-4\", prompt)",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

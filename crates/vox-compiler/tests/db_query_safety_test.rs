@@ -9,11 +9,11 @@ fn diagnostics_for(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_table_query_clause_is_lint_error() {
     let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q() to int {
+@query fn q() to int {
     db.User.query("active = 1")
     return 0
 }
@@ -30,7 +30,7 @@ fn db_table_query_clause_is_lint_error() {
 fn query_decl_rejects_insert_write_ops() {
     let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q() to int {
+@query fn q() to int {
     db.User.insert({ name: "a", active: true })
     return 0
 }
@@ -44,7 +44,7 @@ fn query_decl_rejects_insert_write_ops() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_chained_limit_no_longer_reports_unsupported_chain_error() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -61,7 +61,7 @@ fn q() to int {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_select_typechecks_when_non_optional_columns_included() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -77,7 +77,7 @@ fn q() to int {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn db_select_allows_partial_projection_records() {
     let src = r#"
 @table type User { name: str active: bool }

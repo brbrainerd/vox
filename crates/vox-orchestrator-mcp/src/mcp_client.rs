@@ -17,6 +17,12 @@ pub struct NativeToolRegistry {
     tools: HashMap<String, NativeToolFn>,
 }
 
+impl Default for NativeToolRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NativeToolRegistry {
     /// Build an empty registry (handlers added via [`Self::register`]).
     pub fn new() -> Self {
@@ -47,6 +53,12 @@ impl NativeToolRegistry {
 /// Represents the MCP client interface that agents use to invoke tools.
 pub struct McpClient {
     native_registry: NativeToolRegistry,
+}
+
+impl Default for McpClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl McpClient {

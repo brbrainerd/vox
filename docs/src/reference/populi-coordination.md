@@ -1,7 +1,7 @@
 ---
 title: "Mens Coordination & Database Write Safety"
 description: "Official documentation for Mens Coordination & Database Write Safety for the Vox language. Detailed technical reference, architecture gui"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 
@@ -25,7 +25,7 @@ reliably across process and machine boundaries.
 
 ## 1. Architecture Overview
 
-```
+```text
 ┌────────────────────────────────────┐  ┌────────────────────────────────────┐
 │       Mens Node A  (Device 1)      │  │       Mens Node B  (Device 2)      │
 │                                    │  │                                    │
@@ -127,7 +127,7 @@ Revisit when Turso marks it stable.
 When `VOX_MESH_ENABLED=1` + `VOX_DB_URL` + `VOX_DB_TOKEN` are all set, `VoxDb`
 automatically opens an **EmbeddedReplica** instead of a plain local file:
 
-```
+```bash
 VOX_MESH_ENABLED=1
 VOX_DB_URL=libsql://my-db.turso.io
 VOX_DB_TOKEN=<token>
@@ -142,7 +142,7 @@ asynchronously to flush.
 
 ## 5. A2A Cross-Node Message Delivery
 
-```
+```text
 Node A: MessageBus::send_routed(receiver, route=Remote { node_url })
           │
           ├─▶ Writes row to local a2a_messages (DB)
@@ -164,7 +164,7 @@ heartbeat cycle (≤60 s latency fallback).
 
 ### Connection Retries (Turso)
 
-```
+```text
 attempt 1 → 500ms
 attempt 2 → 1000ms + jitter(0..500ms)
 attempt 3 → 2000ms + jitter(0..500ms)
@@ -235,7 +235,7 @@ Lock TTL defaults: 30s for file edits, 5m for long-running tasks.
 
 ## Related Documents
 
-- `docs/src/adr/004-codex-arca-turso.md` — Turso naming conventions
+- `docs/src/adr/004-codex-arca-turso-ssot.md` — Turso naming conventions
 - `docs/src/reference/orchestration-unified.md` — Orchestrator internals
 - `docs/src/reference/external-repositories.md` — Repo discovery
 - `crates/vox-orchestrator/src/locks.rs` — In-process + distributed advisory locks

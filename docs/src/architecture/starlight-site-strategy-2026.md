@@ -1,7 +1,7 @@
 ---
 title: "Vox Docs Portal: Astro Starlight Strategy 2026"
 description: "Research findings, gap analysis, and execution roadmap for maximizing the Astro Starlight documentation portal against user journeys, AI-first indexing, and MENS pipeline integration."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Strategic documentation on documentation portal architecture, AI discoverability, and user experience design for the Vox programming language."

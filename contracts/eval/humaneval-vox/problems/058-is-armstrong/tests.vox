@@ -1,0 +1,53 @@
+fn pow_int(base: int, exp: int) to int {
+    let mut result: int = 1
+    let mut i: int = 0
+    while i < exp {
+        result = result * base
+        i = i + 1
+    }
+    return result
+}
+
+fn count_digits(n: int) to int {
+    if n == 0 {
+        return 1
+    }
+    let mut count: int = 0
+    let mut x: int = n
+    while x > 0 {
+        count = count + 1
+        x = x / 10
+    }
+    return count
+}
+
+fn is_armstrong(n: int) to bool {
+    if n < 0 {
+        return false
+    }
+    let num_digits: int = count_digits(n)
+    let mut total: int = 0
+    let mut x: int = n
+    while x > 0 {
+        let digit: int = x % 10
+        total = total + pow_int(digit, num_digits)
+        x = x / 10
+    }
+    if n == 0 {
+        return true
+    }
+    return total == n
+}
+
+fn main() to str {
+    assert(is_armstrong(1) == true)
+    assert(is_armstrong(153) == true)
+    assert(is_armstrong(370) == true)
+    assert(is_armstrong(371) == true)
+    assert(is_armstrong(407) == true)
+    assert(is_armstrong(0) == true)
+    assert(is_armstrong(10) == false)
+    assert(is_armstrong(100) == false)
+    assert(is_armstrong(1634) == true)
+    return "ok"
+}

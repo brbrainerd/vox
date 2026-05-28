@@ -48,6 +48,19 @@ impl DetectionRule for LineEndingDetector {
         Severity::Warning
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "# VIOLATION — file has Windows CRLF line endings (\\r\\n)\n\
+             # Each line ends with \\r\\n instead of \\n\n\
+             # This causes diff noise and may break Unix tooling\n\
+             \n\
+             # FIX — configure your editor/git to use LF endings\n\
+             # .gitattributes:\n\
+             * text=auto eol=lf\n\
+             # Or convert with: git add --renormalize .",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[
             Language::Rust,

@@ -1,0 +1,10 @@
+fn quintuple(n: int) to int {
+    return n * 5
+}
+
+@test
+fn t_zero() to Unit { assert(quintuple(0) is 0) }
+@test
+fn t_pos() to Unit { assert(quintuple(3) is 15) }
+@test
+fn t_neg() to Unit { assert(quintuple(-2) is -10) }

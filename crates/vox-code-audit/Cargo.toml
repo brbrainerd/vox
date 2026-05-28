@@ -12,13 +12,15 @@ walkdir = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 miette = { workspace = true }
 owo-colors = { workspace = true }
 thiserror = { workspace = true }
 similar = { workspace = true }
 globset = { workspace = true }
+glob = "0.3"
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
@@ -29,10 +31,12 @@ vox-bounded-fs = { workspace = true }
 vox-orchestrator-types = { workspace = true }
 vox-jsonschema-util = { workspace = true }
 vox-rule-pack = { workspace = true }
+vox-telemetry = { workspace = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

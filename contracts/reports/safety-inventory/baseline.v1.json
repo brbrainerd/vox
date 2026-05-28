@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "rust": {
+    "unsafe_brace_block_opens": 244,
+    "lines_unsafe_with_env_mutation": 56,
+    "ignored_test_functions_total": 240,
+    "ignored_test_governance_violation_count": 0,
+    "ignored_tests_top_files": [
+      {
+        "path": "crates/vox-compiler/tests/web_ir_lower_emit_test.rs",
+        "count": 77
+      },
+      {
+        "path": "crates/vox-compiler/tests/reactive_smoke_test.rs",
+        "count": 25
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_dashboard_composites_test.rs",
+        "count": 11
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs",
+        "count": 9
+      },
+      {
+        "path": "crates/vox-compiler/tests/state_machine_integration_test.rs",
+        "count": 9
+      },
+      {
+        "path": "crates/vox-compiler/tests/route_express_emit_test.rs",
+        "count": 8
+      },
+      {
+        "path": "crates/vox-compiler/src/hir/lower/mod.rs",
+        "count": 7
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_runs_surface_test.rs",
+        "count": 6
+      },
+      {
+        "path": "crates/vox-codegen/src/codegen_rust/mod.rs",
+        "count": 5
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_dashboard_chrome_test.rs",
+        "count": 5
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_mesh_surface_test.rs",
+        "count": 5
+      },
+      {
+        "path": "crates/vox-integration-tests/tests/orchestrator_e2e_test.rs",
+        "count": 5
+      },
+      {
+        "path": "crates/vox-integration-tests/tests/pipeline/includes/include_01.rs",
+        "count": 5
+      },
+      {
+        "path": "crates/vox-compiler/tests/db_query_safety_test.rs",
+        "count": 4
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_for_loop_test.rs",
+        "count": 4
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_svg_vuv_test.rs",
+        "count": 4
+      },
+      {
+        "path": "crates/vox-integration-tests/tests/parity_contracts_test.rs",
+        "count": 4
+      },
+      {
+        "path": "crates/vox-cli/tests/run_benchmark.rs",
+        "count": 3
+      },
+      {
+        "path": "crates/vox-compiler/tests/bug_handler_lambda_repro.rs",
+        "count": 3
+      },
+      {
+        "path": "crates/vox-compiler/tests/golden_svg_snake_case_test.rs",
+        "count": 3
+      },
+      {
+        "path": "crates/vox-integration-tests/tests/codegen_rust_test.rs",
+        "count": 3
+      },
+      {
+        "path": "crates/vox-compiler/tests/tombstone_test.rs",
+        "count": 2
+      },
+      {
+        "path": "crates/vox-compiler/tests/web_ir_environment_gates_test.rs",
+        "count": 2
+      },
+      {
+        "path": "crates/vox-integration-tests/tests/cli_test.rs",
+        "count": 2
+      },
+      {
+        "path": "crates/vox-orchestrator/tests/api_v2_health_test.rs",
+        "count": 2
+      }
+    ],
+    "crate_root_inner_allow_lines": 26,
+    "crate_root_inner_allow_files": [
+      "crates/vox-actor-runtime/src/lib.rs",
+      "crates/vox-cli/src/lib.rs",
+      "crates/vox-container/src/lib.rs",
+      "crates/vox-db-types/src/lib.rs",
+      "crates/vox-db/src/lib.rs",
+      "crates/vox-deploy-codegen/src/lib.rs",
+      "crates/vox-gamify/src/lib.rs",
+      "crates/vox-openclaw-runtime/src/lib.rs",
+      "crates/vox-orchestrator/src/lib.rs",
+      "crates/vox-package/src/lib.rs",
+      "crates/vox-plugin-api/src/lib.rs",
+      "crates/vox-plugin-host/src/lib.rs",
+      "crates/vox-skills/src/lib.rs"
+    ]
+  },
+  "typescript": {
+    "eslint_disable_directive_lines": 1,
+    "as_any_occurrences": 5,
+    "files_with_eslint_disable": [
+      "apps/vox-mental-tracker/src/runtime.ts"
+    ]
+  }
+}

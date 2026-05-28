@@ -22,6 +22,9 @@ struct CanonicalMap {
 struct DomainEntry {
     id: String,
     title: String,
+    /// When `B-canon`, `canon_doc` must not live under `docs/src/archive/`.
+    #[serde(default)]
+    tier: Option<String>,
     canon_doc: String,
     #[serde(default)]
     spec_paths: Vec<String>,
@@ -81,6 +84,17 @@ fn verify_paths(repo_root: &Path, map: &CanonicalMap) -> Result<()> {
     for d in &map.domains {
         if d.title.trim().is_empty() {
             return Err(anyhow!("canonical-map domain {} has empty title", d.id));
+        }
+        if d.tier.as_deref() == Some("B-canon")
+            && d.canon_doc
+                .replace('\\', "/")
+                .starts_with("docs/src/archive/")
+        {
+            return Err(anyhow!(
+                "canonical-map domain {} B-canon canon_doc must not point into docs/src/archive/ (got {})",
+                d.id,
+                d.canon_doc
+            ));
         }
         ensure_file(repo_root, &d.canon_doc, &d.id, "canon_doc")?;
         let canon_text = read_utf8_path_capped(&repo_root.join(&d.canon_doc))

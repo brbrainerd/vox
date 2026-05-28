@@ -1,0 +1,14 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "win-mcp-prompt-no-asr-route",
+  "compile_pass_at_1": 1.0,
+  "compile_pass_at_k": 1.0,
+  "evidence": "Prompt-only route bypasses ASR; HIR fixture tests cover expected Vox outputs.",
+  "latency_ms_median": 0.0,
+  "latency_ms_p95": 0.0,
+  "notes": "ASR WER/CER intentionally N/A.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "semantic_pass_rate": 1.0,
+  "status": "measured"
+}

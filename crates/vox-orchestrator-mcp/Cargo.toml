@@ -10,6 +10,7 @@ default = ["news-publish", "toestub-gate", "json-schema"]
 # axum/rmcp/schemars (mcp-native is the whole point), so those are not optional.
 news-publish = [
     "dep:vox-publisher",
+    "vox-orchestrator/news-publish",
     "vox-publisher/scientia-reddit",
     "vox-publisher/scientia-youtube",
     "vox-publisher/scholarly-external-jobs",
@@ -18,15 +19,15 @@ toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport"]
 oratio-rerank = ["dep:vox-oratio"]
-dashboard = ["dep:vox-dashboard"]
 
 [dependencies]
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
+vox-dei-shim = { workspace = true }
 
 # MCP-stack deps (always compiled when this crate is in the build)
-axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
-axum-extra = { version = "0.12.5", features = ["typed-header"] }
-rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
+axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
+axum-extra = { workspace = true, features = ["typed-header"] }
+rmcp = { workspace = true, features = ["server", "client", "transport-io"] }
 schemars = { workspace = true, features = ["derive"] }
 tower-http = { workspace = true, features = ["cors"] }
 
@@ -35,15 +36,16 @@ vox-compiler.workspace = true
 vox-grammar-export.workspace = true
 vox-mcp-registry.workspace = true
 vox-capability-registry.workspace = true
-vox-openai-wire.workspace = true
+vox-openai.workspace = true
 vox-project-scaffold.workspace = true
 vox-skills.workspace = true
 vox-openclaw-runtime.workspace = true
 vox-plugin-host.workspace = true
 vox-plugin-types.workspace = true
 vox-orchestrator-types.workspace = true
+
 vox-db.workspace = true
-vox-search.workspace = true
+vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape"] }
 vox-config.workspace = true
 vox-repository = { workspace = true, features = ["json-schema"] }
 vox-package.workspace = true
@@ -52,19 +54,19 @@ vox-corpus = { workspace = true, features = ["database"] }
 vox-secrets.workspace = true
 vox-telemetry.workspace = true
 vox-bounded-fs.workspace = true
-vox-protocol.workspace = true
+vox-jsonschema-util.workspace = true
+vox-foundation.workspace = true
 vox-mesh-types.workspace = true
+vox-research-events.workspace = true
 vox-crypto.workspace = true
 vox-actor-runtime.workspace = true
 vox-code-audit.workspace = true
 vox-lsp.workspace = true
 vox-populi = { workspace = true }
-tower-lsp = "0.20"
-tower-lsp-server = "0.23"
-vox-reqwest-defaults.workspace = true
+tower-lsp-server = { workspace = true }
+vox-http-client.workspace = true
 vox-publisher = { workspace = true, optional = true, default-features = false }
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
-vox-dashboard = { workspace = true, optional = true }
 
 # Standard deps
 tokio = { workspace = true }
@@ -74,21 +76,21 @@ serde_yaml.workspace = true
 toml = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
-async-trait = "0.1.89"
+async-trait = { workspace = true }
 anyhow.workspace = true
 futures-util = { workspace = true }
 async-stream.workspace = true
-parking_lot = "0.12"
+parking_lot = { workspace = true }
 chrono = { workspace = true }
-uuid = { version = "1.22.0", features = ["v4"] }
-regex = "1"
+uuid = { workspace = true, features = ["v4"] }
+regex = { workspace = true }
 glob.workspace = true
-ignore = "0.4.25"
+ignore = { workspace = true }
 walkdir.workspace = true
-sha2 = "0.10.8"
+sha2 = { workspace = true }
 sha3 = { workspace = true }
-hex = "0.4.3"
-hmac = "0.12.1"
+hex = { workspace = true }
+hmac = { workspace = true }
 blake3.workspace = true
 base64.workspace = true
 rand.workspace = true
@@ -96,14 +98,18 @@ governor = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 tempfile.workspace = true
 xxhash-rust = { workspace = true }
-tiktoken-rs = "0.6"
+tiktoken-rs = { workspace = true }
 dirs = { workspace = true }
-crossbeam-queue = "0.3.12"
-globset = "0.4"
+crossbeam-queue = { workspace = true }
+globset = { workspace = true }
 workspace-hack = { workspace = true }
 
+[build-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_yaml = { workspace = true }
+
 [dev-dependencies]
-tower = { version = "0.5", features = ["util"] }
+tower = { workspace = true, features = ["util"] }
 serial_test.workspace = true
 jsonschema.workspace = true
 
@@ -111,4 +117,12 @@ jsonschema.workspace = true
 unsafe_code = "warn"
 
 [lints.clippy]
-all = "allow"
+# Mirror the workspace `clippy::all = "warn"` baseline, with one per-rule
+# override: `collapsible_if` is allowed locally. This crate has ~80 instances
+# dominated by tool-dispatch `match` arms (chat_tools / dispatch.rs / llm_bridge)
+# that would only become marginally clearer when collapsed; the dispatch surface
+# is a planned restructuring target — not a per-site mechanical edit. Tracking
+# debt — see `docs/src/architecture/rust-warning-audit-backlog-2026.md`.
+all = { level = "warn", priority = -1 }
+collapsible_if = "allow"
+collapsible_match = "allow"

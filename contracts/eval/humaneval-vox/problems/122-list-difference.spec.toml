@@ -1,0 +1,11 @@
+[problem]
+id = "122"
+title = "list_difference"
+prompt = """
+Return elements in list a that are NOT in list b, maintaining the order of a and without duplicates.
+"""
+signature = "fn list_difference(a: list[int], b: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "sets"]

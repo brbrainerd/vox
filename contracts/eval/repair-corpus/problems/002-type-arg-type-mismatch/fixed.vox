@@ -1,0 +1,8 @@
+// Fix: pass an int literal, not a string.
+fn triple(n: int) to int {
+    return n * 3
+}
+
+fn main() to int {
+    return triple(7)
+}

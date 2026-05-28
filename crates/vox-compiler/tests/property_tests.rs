@@ -28,6 +28,10 @@ fn valid_ident() -> impl Strategy<Value = String> {
         })
         // "to" is a Vox keyword; avoid accidental keyword collisions for simple names
         .prop_filter("not a reserved keyword", |s| {
+            // `_` alone is a discard placeholder in fn contexts, not a declaration name.
+            if s == "_" {
+                return false;
+            }
             !matches!(
                 s.as_str(),
                 "fn" | "to"

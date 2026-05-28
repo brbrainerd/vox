@@ -1,4 +1,3 @@
-
 // ── Backward compat alias ─────────────────────────────────────────────────────
 
 /// Alias for [`CloudJobSpec`] — retained for any existing call-sites.
@@ -135,6 +134,9 @@ pub trait CloudProvider: Send + Sync {
 
     /// Retrieve the public endpoint URL for a serving job, if it is available.
     /// Returns `None` if the pod is not yet fully provisioned with network info.
-    async fn get_serve_url(&self, handle: &JobHandle, serve_port: u16) -> anyhow::Result<Option<String>>;
+    async fn get_serve_url(
+        &self,
+        handle: &JobHandle,
+        serve_port: u16,
+    ) -> anyhow::Result<Option<String>>;
 }
-

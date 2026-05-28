@@ -5,17 +5,23 @@ edition.workspace = true
 description = "CI guard: enforces the workspace layered-architecture model. See docs/src/architecture/2026-05-08-workspace-reorg-design.md."
 
 [dependencies]
-cargo_metadata = "0.20"
+cargo_metadata = { workspace = true }
 toml = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
 anyhow.workspace = true
+regex = { workspace = true }
+globset = { workspace = true }
+sha2 = { workspace = true }
 
 [[bin]]
 name = "vox-arch-check"
 path = "src/main.rs"
 
 [dev-dependencies]
-vox-compiler = { path = "../vox-compiler" }
+vox-rename-registry = { path = "../vox-rename-registry" }
+tempfile = { workspace = true }
 
 [build-dependencies]
 vox-build-meta = { workspace = true }

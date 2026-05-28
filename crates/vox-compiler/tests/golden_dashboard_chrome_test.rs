@@ -89,7 +89,7 @@ component StatusSegment(label: str, value: str, dot_color: str, highlighted: boo
 // ── TopBar ────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn top_bar_emits_workspace_and_status_chip() {
     let source = format!(
         "{}{}{}",
@@ -149,7 +149,7 @@ component TopBar(workspace: str, run_status: str, run_label: str) {
 // ── LeftRail (expanded) ───────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn left_rail_expanded_emits_all_nav_items() {
     let source = format!(
         "{}{}{}",
@@ -241,7 +241,7 @@ component LeftRail(active: str, collapsed: bool) {
 // ── LeftRail (collapsed) ──────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn left_rail_collapsed_emits_narrow_class() {
     // Identical source to the expanded test — we verify that BOTH width branches
     // compile into the conditional expression (the collapsed=true runtime path
@@ -308,7 +308,7 @@ component LeftRail(active: str, collapsed: bool) {
 // ── StatusBar ─────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn status_bar_active_mesh_emits_segments() {
     let source = format!(
         "{}{}",
@@ -388,7 +388,7 @@ component StatusBar(active: str) {
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn shell_wraps_top_bar_left_rail_status_bar() {
     // Minimal inline versions of the chrome sub-components so Shell can resolve
     // its component calls without needing cross-file import resolution.

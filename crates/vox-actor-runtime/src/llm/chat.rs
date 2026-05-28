@@ -51,7 +51,7 @@ pub async fn llm_chat(
                 ));
             }
 
-            let client = vox_reqwest_defaults::client();
+            let client = vox_http_client::client();
             let req_body = OpenRouterRequest {
                 model: &config.model,
                 messages: &messages,

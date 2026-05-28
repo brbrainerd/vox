@@ -1,7 +1,7 @@
 ---
 title: "Explanation: The Vox Runtime"
 description: "Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications."
-category: "explanation"
+category: "Concepts"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true
@@ -16,8 +16,8 @@ Understand the inner workings of the Vox runtime—the engine that powers AI-nat
 
 The runtime-facing story in today’s codebase is split across:
 
-- `crates/vox-runtime/src/lib.rs`: actor/process/runtime primitives and exported runtime modules.
-- `crates/vox-runtime/src/builtins.rs`: standard builtin implementations used by generated Rust code.
+- `crates/vox-actor-runtime/src/lib.rs`: actor/process/runtime primitives and exported runtime modules.
+- `crates/vox-actor-runtime/src/builtins/mod.rs`: standard builtin implementations used by generated Rust code.
 - `crates/vox-compiler/src/codegen_rust/emit/http.rs`: generated Axum app host for routes/server/query/mutation handlers.
 - `crates/vox-compiler/src/app_contract.rs`: app-surface contract projection used to keep route/RPC/server config mapping centralized.
 

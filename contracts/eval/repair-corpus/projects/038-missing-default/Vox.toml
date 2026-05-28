@@ -1,0 +1,5 @@
+[package]
+name = "repair-038-missing-default"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: exhaustiveness bug class. 4-variant Priority ADT match handles 3 variants; Critical is missing (no wildcard default)."

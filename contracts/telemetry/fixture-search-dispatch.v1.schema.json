@@ -1,0 +1,15 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/telemetry/fixture-search-dispatch.v1.schema.json",
+  "title": "fixture search dispatch telemetry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["corpus", "outcome"],
+  "properties": {
+    "corpus": { "type": "string", "minLength": 1 },
+    "outcome": { "type": "string", "minLength": 1 },
+    "error": { "type": ["string", "null"] },
+    "top_k": { "type": ["integer", "null"], "minimum": 1 }
+  }
+}

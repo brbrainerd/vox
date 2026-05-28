@@ -1,0 +1,37 @@
+id = "plan-010-extract-constant"
+wave = "wave_1"
+description = "Extract a magic-number literal into a named constant."
+max_steps = 3
+max_cost_usd = 0.50
+
+prompt = """
+The file declares fn `cap_score(score: int) to int` which clamps the
+input at the literal `100`. Extract that literal into a `let MAX =
+100` binding near the top of the fn and use `MAX` at the comparison
+site and the return site. The fn signature and observable behavior
+must not change.
+
+Vox conventions to honor:
+  - `let MAX = 100` introduces a local binding.
+  - Return arrow is `to T`, not `->`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Introduce `let MAX = 100` and reuse it at both literal sites."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes; observable behavior unchanged."
+
+[success_criteria]
+vox_check_passes = true
+constant_extracted = true
+fn_signature_unchanged = true

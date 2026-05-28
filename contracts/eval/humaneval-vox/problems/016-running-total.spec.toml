@@ -1,0 +1,11 @@
+[problem]
+id = "016"
+title = "running_total"
+prompt = """
+Return a list where each element is the running sum of the input list up to that index.
+"""
+signature = "fn running_total(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

@@ -67,6 +67,18 @@ impl DetectionRule for DuplicatePrefixDetector {
         Good: let user_id = ...;"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — identifiers with duplicated prefix segments\n\
+             let user_user_id = req.user.id;   // bad: user_user_id\n\
+             let order_order_ref = order.ref;  // bad: order_order_ref\n\
+             \n\
+             // FIX — remove the duplicate prefix\n\
+             let user_id   = req.user.id;\n\
+             let order_ref = order.ref;",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

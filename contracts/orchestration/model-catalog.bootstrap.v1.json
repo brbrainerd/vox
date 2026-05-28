@@ -1,8 +1,8 @@
 [
   {
     "x-vox-version": 1,
-    "id": "llama3:latest",
-    "canonical_slug": "local/llama3:latest",
+    "id": "qwen/qwen3-coder-next-32b",
+    "canonical_slug": "local/qwen3-coder-next-32b",
     "provider": "ollama",
     "provider_type": "ollama",
     "max_tokens": 128000,
@@ -10,15 +10,22 @@
     "cost_per_1k_input": 0.0,
     "cost_per_1k_output": 0.0,
     "is_free": true,
-    "strengths": ["codegen", "parsing"],
+    "strengths": [
+      "codegen",
+      "parsing"
+    ],
     "capabilities": {
-      "tier": "local",
-      "supports_json": false,
+      "tier": "free",
+      "supports_json": true,
       "supports_vision": false,
-      "supports_native_tools": false,
-      "max_context": 0
+      "supports_native_tools": true,
+      "max_context": 128000
     },
-    "supported_parameters": []
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ],
+    "_note": "2026-Q2 refresh: replaces aging `llama3:latest` as the canonical Local-tier default. <30ms code-suggestion latency in VS Code. Sized to fit 16-32GB GPU/Apple-silicon. See docs/src/architecture/model-selection-2026-q2.md \u00a73.4."
   },
   {
     "id": "qwen/qwen3-coder:free",
@@ -30,9 +37,12 @@
     "cost_per_1k_input": 0.0,
     "cost_per_1k_output": 0.0,
     "is_free": true,
-    "strengths": ["codegen", "parsing"],
+    "strengths": [
+      "codegen",
+      "parsing"
+    ],
     "capabilities": {
-      "tier": "light",
+      "tier": "free",
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": false,
@@ -50,9 +60,12 @@
     "cost_per_1k_input": 0.0,
     "cost_per_1k_output": 0.0,
     "is_free": true,
-    "strengths": ["inter_agent", "logic"],
+    "strengths": [
+      "inter_agent",
+      "logic"
+    ],
     "capabilities": {
-      "tier": "light",
+      "tier": "free",
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": false,
@@ -70,9 +83,12 @@
     "cost_per_1k_input": 0.0,
     "cost_per_1k_output": 0.0,
     "is_free": true,
-    "strengths": ["logic", "inter_agent"],
+    "strengths": [
+      "logic",
+      "inter_agent"
+    ],
     "capabilities": {
-      "tier": "light",
+      "tier": "free",
       "supports_json": false,
       "supports_vision": false,
       "supports_native_tools": true,
@@ -90,7 +106,10 @@
     "cost_per_1k_input": 0.02,
     "cost_per_1k_output": 0.1,
     "is_free": false,
-    "strengths": ["inter_agent", "logic"],
+    "strengths": [
+      "inter_agent",
+      "logic"
+    ],
     "capabilities": {
       "tier": "pro",
       "supports_json": false,
@@ -110,7 +129,10 @@
     "cost_per_1k_input": 0.014,
     "cost_per_1k_output": 0.28,
     "is_free": false,
-    "strengths": ["logic", "review"],
+    "strengths": [
+      "logic",
+      "review"
+    ],
     "capabilities": {
       "tier": "pro",
       "supports_json": false,
@@ -130,7 +152,10 @@
     "cost_per_1k_input": 1.25,
     "cost_per_1k_output": 5.0,
     "is_free": false,
-    "strengths": ["planning", "research"],
+    "strengths": [
+      "planning",
+      "research"
+    ],
     "capabilities": {
       "tier": "pro",
       "supports_json": false,
@@ -150,7 +175,12 @@
     "cost_per_1k_input": 3.0,
     "cost_per_1k_output": 15.0,
     "is_free": false,
-    "strengths": ["codegen", "review", "debugging", "security"],
+    "strengths": [
+      "codegen",
+      "review",
+      "debugging",
+      "security"
+    ],
     "capabilities": {
       "tier": "pro",
       "supports_json": false,
@@ -170,7 +200,10 @@
     "cost_per_1k_input": 0.05,
     "cost_per_1k_output": 0.2,
     "is_free": false,
-    "strengths": ["visus", "vision"],
+    "strengths": [
+      "visus",
+      "vision"
+    ],
     "capabilities": {
       "tier": "pro",
       "supports_json": false,
@@ -181,23 +214,440 @@
     "supported_parameters": []
   },
   {
-    "id": "claude-mythos-preview-20260407",
-    "canonical_slug": "anthropic/mythos-preview",
+    "id": "anthropic/claude-opus-4.7",
+    "canonical_slug": "anthropic/claude-opus-4.7",
     "provider": "anthropic",
     "provider_type": "anthropic",
-    "max_tokens": 200000,
-    "cost_per_1k": 125.0,
-    "cost_per_1k_input": 25.0,
-    "cost_per_1k_output": 125.0,
+    "max_tokens": 1000000,
+    "cost_per_1k": 25.0,
+    "cost_per_1k_input": 5.0,
+    "cost_per_1k_output": 25.0,
     "is_free": false,
-    "strengths": ["codegen", "debugging", "logic", "review", "research", "security"],
+    "strengths": [
+      "codegen",
+      "debugging",
+      "logic",
+      "review",
+      "research",
+      "security",
+      "long_context",
+      "planning"
+    ],
     "capabilities": {
       "tier": "elite",
       "supports_json": true,
       "supports_vision": true,
       "supports_native_tools": true,
-      "max_context": 0
+      "max_context": 1000000
     },
-    "supported_parameters": ["tools", "response_format", "reasoning"]
+    "supported_parameters": [
+      "tools",
+      "response_format",
+      "reasoning"
+    ],
+    "_note": "Released 2026-04-16. 87.6% SWE-bench Verified. Extended thinking with adaptive difficulty pre-classifier. Prompt cache reduces cached input to $0.50/MTok. 1M context flat-rate. Primary codegen/debugging/security alias as of 2026-05-15."
+  },
+  {
+    "id": "anthropic/claude-haiku-4.5",
+    "canonical_slug": "anthropic/claude-haiku-4.5",
+    "provider": "anthropic",
+    "provider_type": "anthropic",
+    "max_tokens": 200000,
+    "cost_per_1k": 5.0,
+    "cost_per_1k_input": 1.0,
+    "cost_per_1k_output": 5.0,
+    "is_free": false,
+    "strengths": [
+      "codegen",
+      "generalist",
+      "vision",
+      "inter_agent"
+    ],
+    "capabilities": {
+      "tier": "fast",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 200000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format",
+      "reasoning"
+    ],
+    "_note": "Premium cheap tier \u2014 retains computer-use, extended thinking, vision, and full Anthropic safety stack at $1/$5 per MTok."
+  },
+  {
+    "id": "openai/gpt-5.5-pro",
+    "canonical_slug": "openai/gpt-5.5-pro",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 400000,
+    "cost_per_1k": 30.0,
+    "cost_per_1k_input": 8.0,
+    "cost_per_1k_output": 30.0,
+    "is_free": false,
+    "strengths": [
+      "inter_agent",
+      "planning",
+      "logic",
+      "review"
+    ],
+    "capabilities": {
+      "tier": "elite",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 400000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format",
+      "reasoning"
+    ],
+    "_note": "Leads BenchLM agentic at 90.1. Primary planning alias. Best multi-step + tool-call reliability for CR-L0 spec-to-app loops."
+  },
+  {
+    "id": "openai/gpt-5.4",
+    "canonical_slug": "openai/gpt-5.4",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 400000,
+    "cost_per_1k": 20.0,
+    "cost_per_1k_input": 5.0,
+    "cost_per_1k_output": 20.0,
+    "is_free": false,
+    "strengths": [
+      "codegen",
+      "debugging",
+      "generalist",
+      "logic"
+    ],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 400000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format",
+      "reasoning"
+    ],
+    "_note": "75.1% Terminal-Bench leader. 57.7% SWE-bench Pro. Used as the gpt-frontier panel member for CR-L1 measurement."
+  },
+  {
+    "id": "openai/gpt-5-mini",
+    "canonical_slug": "openai/gpt-5-mini",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 200000,
+    "cost_per_1k": 10.0,
+    "cost_per_1k_input": 3.0,
+    "cost_per_1k_output": 10.0,
+    "is_free": false,
+    "strengths": [
+      "generalist",
+      "parsing",
+      "inter_agent"
+    ],
+    "capabilities": {
+      "tier": "fast",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 200000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ]
+  },
+  {
+    "id": "openai/gpt-5-nano",
+    "canonical_slug": "openai/gpt-5-nano",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 1.0,
+    "cost_per_1k_input": 0.05,
+    "cost_per_1k_output": 1.0,
+    "is_free": false,
+    "strengths": [
+      "parsing",
+      "generalist"
+    ],
+    "capabilities": {
+      "tier": "light",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 128000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ],
+    "_note": "Cheapest OpenAI-family classifier-grade option. Use for routing decisions, intent classification, simple extraction."
+  },
+  {
+    "id": "google/gemini-3.1-pro",
+    "canonical_slug": "google/gemini-3.1-pro",
+    "provider": "google_direct",
+    "provider_type": "google_direct",
+    "max_tokens": 1000000,
+    "cost_per_1k": 15.0,
+    "cost_per_1k_input": 3.5,
+    "cost_per_1k_output": 15.0,
+    "is_free": false,
+    "strengths": [
+      "research",
+      "logic",
+      "planning",
+      "visus",
+      "long_context",
+      "codegen"
+    ],
+    "capabilities": {
+      "tier": "elite",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 1000000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format",
+      "reasoning"
+    ],
+    "_note": "80.6% SWE-bench Verified. Leads ARC-AGI-2 abstract reasoning and GPQA at 94.3%. Primary research alias as of 2026-05-15."
+  },
+  {
+    "id": "google/gemini-3-flash",
+    "canonical_slug": "google/gemini-3-flash",
+    "provider": "google_direct",
+    "provider_type": "google_direct",
+    "max_tokens": 1000000,
+    "cost_per_1k": 3.0,
+    "cost_per_1k_input": 0.5,
+    "cost_per_1k_output": 3.0,
+    "is_free": false,
+    "strengths": [
+      "generalist",
+      "codegen",
+      "inter_agent"
+    ],
+    "capabilities": {
+      "tier": "fast",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 1000000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ]
+  },
+  {
+    "id": "google/gemini-3.1-flash-lite",
+    "canonical_slug": "google/gemini-3.1-flash-lite",
+    "provider": "google_direct",
+    "provider_type": "google_direct",
+    "max_tokens": 1000000,
+    "cost_per_1k": 1.5,
+    "cost_per_1k_input": 0.25,
+    "cost_per_1k_output": 1.5,
+    "is_free": false,
+    "strengths": [
+      "visus",
+      "generalist",
+      "parsing",
+      "long_context"
+    ],
+    "capabilities": {
+      "tier": "fast",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 1000000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ],
+    "_note": "Multimodal (audio/video/image input). ~363 tok/s output. MMLU-Pro 83%, BFCL v3 76.5%. Cheapest 1M-context multimodal option."
+  },
+  {
+    "id": "deepseek/deepseek-v4-pro",
+    "canonical_slug": "deepseek/deepseek-v4-pro",
+    "provider": "deepseek",
+    "provider_type": "open_router",
+    "max_tokens": 1000000,
+    "cost_per_1k": 2.0,
+    "cost_per_1k_input": 0.5,
+    "cost_per_1k_output": 2.0,
+    "is_free": false,
+    "strengths": [
+      "codegen",
+      "logic",
+      "long_context",
+      "review"
+    ],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 1000000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format",
+      "reasoning"
+    ],
+    "_note": "Released 2026-04-24. MIT license. 1.6T total / 49B active. LiveBench Coding 69.99 (May 12 snapshot). Cheap fallback for codegen alias."
+  },
+  {
+    "id": "deepseek/deepseek-v4-flash",
+    "canonical_slug": "deepseek/deepseek-v4-flash",
+    "provider": "deepseek",
+    "provider_type": "open_router",
+    "max_tokens": 1000000,
+    "cost_per_1k": 0.28,
+    "cost_per_1k_input": 0.07,
+    "cost_per_1k_output": 0.28,
+    "is_free": false,
+    "strengths": [
+      "codegen",
+      "generalist",
+      "long_context"
+    ],
+    "capabilities": {
+      "tier": "fast",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 1000000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ],
+    "_note": "MIT license. 284B total / 13B active. Cheapest competitive output cost ($0.28/MTok) at MIT licensing. Strong Light-tier default."
+  },
+  {
+    "id": "moonshot/kimi-k2.6-thinking",
+    "canonical_slug": "moonshot/kimi-k2.6-thinking",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 200000,
+    "cost_per_1k": 3.0,
+    "cost_per_1k_input": 0.8,
+    "cost_per_1k_output": 3.0,
+    "is_free": false,
+    "strengths": [
+      "codegen",
+      "inter_agent",
+      "logic",
+      "review"
+    ],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 200000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format",
+      "reasoning"
+    ],
+    "_note": "LiveBench Coding leader at 78.57, Agentic Coding 58.33 (May 2026). Open-source alternative to Claude/GPT for coding."
+  },
+  {
+    "id": "zhipu/glm-5.1",
+    "canonical_slug": "zhipu/glm-5.1",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 2.0,
+    "cost_per_1k_input": 0.5,
+    "cost_per_1k_output": 2.0,
+    "is_free": false,
+    "strengths": [
+      "codegen",
+      "logic"
+    ],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 128000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ],
+    "_note": "Single-call BFCL format-precision leader. Good for narrow tool-orchestration loops where format errors are expensive."
+  },
+  {
+    "id": "qwen/qwen-3.6-27b",
+    "canonical_slug": "qwen/qwen-3.6-27b",
+    "provider": "ollama",
+    "provider_type": "ollama",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.0,
+    "cost_per_1k_input": 0.0,
+    "cost_per_1k_output": 0.0,
+    "is_free": true,
+    "strengths": [
+      "codegen",
+      "generalist",
+      "logic"
+    ],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 128000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ],
+    "_note": "77.2% SWE-bench. Apache 2.0 (licensing-safe). Recommended MENS base-model migration target."
+  },
+  {
+    "id": "qwen/qwen-3.6-27b-openrouter",
+    "canonical_slug": "qwen/qwen-3.6-27b-secondary",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.5,
+    "cost_per_1k_input": 0.15,
+    "cost_per_1k_output": 0.5,
+    "is_free": false,
+    "strengths": [
+      "codegen",
+      "generalist",
+      "logic"
+    ],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": true,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 128000
+    },
+    "supported_parameters": [
+      "tools",
+      "response_format"
+    ],
+    "_note": "OpenRouter-hosted Qwen 3.6 27B for users without local Ollama. Cloud paid tier; the free local copy at id `qwen/qwen-3.6-27b` is the recommended path when Ollama is available."
   }
 ]

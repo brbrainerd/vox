@@ -1,7 +1,7 @@
 ---
 title: "Boilerplate metrics and KPI framework"
 description: "KPI framework for tracking accidental-complexity and boilerplate reduction across Vox roadmap waves."
-category: "reference"
+category: "CI & Quality"
 last_updated: "2026-03-25"
 training_eligible: true
 

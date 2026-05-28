@@ -1,0 +1,53 @@
+name: Mobile E2E (iOS)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *' # Run nightly
+
+jobs:
+  build-ios:
+    name: Build iOS App
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, x86_64-apple-ios, aarch64-apple-ios-sim
+
+      - uses: pnpm/action-setup@v6
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: cd apps/vox-mental-tracker && pnpm install --frozen-lockfile
+
+      - name: Cargo Cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-tauri-ios-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build vox CLI
+        run: cargo build -p vox-cli
+
+      - name: Build web bundle
+        run: cd apps/vox-mental-tracker && pnpm build
+
+      - name: Tauri mobile codegen (iOS)
+        run: |
+          cd apps/vox-mental-tracker
+          ../../target/debug/vox compile --target mobile-ios -o dist src/main.vox
+
+      - name: Verify generated Tauri workspace
+        run: test -f target/generated/src-tauri/tauri.conf.json

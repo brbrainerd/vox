@@ -1,9 +1,9 @@
 ---
 title: "Phase Numbering Index"
 description: "Disambiguates the three independent phase sequences used in vox plans. When a plan or commit says 'Phase N', look here first."
-category: "architecture"
+category: "Architecture SSOTs"
 status: current
-last_updated: "2026-05-08"
+last_updated: "2026-05-11"
 training_eligible: true
 audience: contributors
 ---
@@ -14,7 +14,7 @@ The vox project uses **three independent phase sequences**. They are not aligned
 
 | Sequence | Range | Topic | Canonical plan | As of 2026-05-08 |
 |---|---|---|---|---|
-| **Frontend interop** | Phases 1–5 | Build target split, TS-emit, HTTP ergonomics, schema codegen, bidirectional React interop | [external-frontend-interop-plan-2026](external-frontend-interop-plan-2026.md) | Phases 1–4 complete; Phase 5 in plan |
+| **Frontend interop** | Phases 1–5 | Build target split, TS-emit, HTTP ergonomics, schema codegen, bidirectional React interop | [external-frontend-interop-plan-2026](external-frontend-interop-plan-2026.md) | Phases 1–4 complete; Phase 5 in plan — see also **`vox emit client`**, **`vox dev --target=server`**, OpenAPI **`ErrorEnvelope`**, [`wire-format-v1-ssot.md`](wire-format-v1-ssot.md) |
 | **GUI-native language** | Phases 0–8 | Vox compiler primitives for native UI (VUV, reactive modules, typed fragments) | [vox-gui-native-roadmap-2026](vox-gui-native-roadmap-2026.md) | Phases 0–7 complete; 8 in plan/partial |
 | **Workspace reorg** | Phases 0–9 | Crate extraction, layer enforcement, dead-crate burn, build-time optimization | [2026-05-08-workspace-reorg-design](2026-05-08-workspace-reorg-design.md), [outcome](2026-05-08-workspace-reorg-outcome.md) | Phases 0, 1, 2, 4, 5, 9 complete; 3, 6, 7, 8 deferred |
 

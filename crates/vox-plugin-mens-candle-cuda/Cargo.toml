@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 vox-plugin-api = { workspace = true }
+vox-hf-layout = { workspace = true }
 vox-tensor = { workspace = true }
 vox-db = { workspace = true }
 vox-secrets = { workspace = true }

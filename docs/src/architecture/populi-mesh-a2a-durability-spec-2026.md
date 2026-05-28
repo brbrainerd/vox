@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh — A2A Durability Spec (S1, 2026-05-01)"
 description: "SUPERSEDED design spec for the SQLite/rusqlite mesh store. The shipped implementation uses VoxDb instead. Retained for historical context only."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "deprecated"
 training_eligible: false
 ---
@@ -25,7 +25,7 @@ training_eligible: false
 
 ## Part 1 — Current state
 
-[`vox-populi/src/transport/store.rs`](../../../crates/vox-populi/src/transport/store.rs) maintains three independent JSON files:
+[`vox-populi/src/transport/store.rs`](../../../crates/vox-populi/src/transport/store/mod.rs) maintains three independent JSON files:
 
 - `a2a-store.json` — `Vec<A2AStoredMessage>`
 - `exec-lease-store.json` — `Vec<RemoteExecLeaseRow>`

@@ -1,0 +1,7 @@
+// Mn-T11 — corpus harvest entrypoint: walks docs + `.vox` sources into JSONL staging.
+// Full indexer hooks into HF-Datasets export are tracked in mesh-mens plan §5.9.
+// Output paths must flow through `vox_config::paths` once the walker lands (data-storage policy).
+
+fn main() {
+    print("mens-corpus harvest: stub — add fs.walk via std.fs + resolve output dir through vox_config::paths.")
+}

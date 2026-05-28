@@ -1,0 +1,15 @@
+---
+source: crates/vox-codegen/tests/tauri_convergence_snapshots.rs
+expression: build_rs
+---
+fn main() {
+    tauri_build::try_build(
+        tauri_build::Attributes::new().plugin(
+            "vox-stt",
+            tauri_build::InlinedPlugin::new()
+                .commands(&["transcribe"])
+                .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
+        ),
+    )
+    .expect("failed to run tauri-build (ACL / codegen)");
+}

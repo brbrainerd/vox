@@ -1,0 +1,11 @@
+[problem]
+id = "001"
+title = "fizzbuzz"
+prompt = """
+Write a Vox function fizzbuzz(n: int) to list[str] that returns strings from 1 to n. Use "Fizz" for multiples of 3, "Buzz" for multiples of 5, "FizzBuzz" for both, else str(i).
+"""
+signature = "fn fizzbuzz(n: int) to list[str]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

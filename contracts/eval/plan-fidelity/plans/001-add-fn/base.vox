@@ -1,0 +1,13 @@
+// Base source for plan-001-add-fn.
+//
+// The plan asks the model to ADD a `double(n: int) to int` fn + a
+// matching @test block WITHOUT modifying the existing `add` fn.
+
+fn add(a: int, b: int) to int {
+  return a + b
+}
+
+@test
+fn test_add() to Unit {
+  assert(add(2, 3) is 5)
+}

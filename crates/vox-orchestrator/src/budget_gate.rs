@@ -45,6 +45,17 @@ impl BudgetDecision {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TenantTierLimit {
+    pub tier: String,
+    pub max_tokens_per_month: i64,
+    pub max_concurrent_sessions: u32,
+    #[serde(default)]
+    pub action: Option<String>,
+    #[serde(default)]
+    pub fallback_tier: Option<String>,
+}
+
 /// Thresholds loaded from contract YAML. Defaults mirror contract defaults.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BudgetGateConfig {
@@ -52,6 +63,8 @@ pub struct BudgetGateConfig {
     pub downgrade_fraction: f64,
     /// Fraction ≥ this → Halt.
     pub halt_fraction: f64,
+    #[serde(default)]
+    pub global_limits: Vec<TenantTierLimit>,
 }
 
 impl Default for BudgetGateConfig {
@@ -59,6 +72,29 @@ impl Default for BudgetGateConfig {
         Self {
             downgrade_fraction: 0.80,
             halt_fraction: 0.95,
+            global_limits: vec![
+                TenantTierLimit {
+                    tier: "free".to_string(),
+                    max_tokens_per_month: 1000000,
+                    max_concurrent_sessions: 2,
+                    action: Some("degrade_tier".to_string()),
+                    fallback_tier: Some("light".to_string()),
+                },
+                TenantTierLimit {
+                    tier: "pro".to_string(),
+                    max_tokens_per_month: 10000000,
+                    max_concurrent_sessions: 10,
+                    action: Some("block".to_string()),
+                    fallback_tier: None,
+                },
+                TenantTierLimit {
+                    tier: "enterprise".to_string(),
+                    max_tokens_per_month: -1,
+                    max_concurrent_sessions: 100,
+                    action: None,
+                    fallback_tier: None,
+                },
+            ],
         }
     }
 }
@@ -117,6 +153,30 @@ impl OrchestratorBudgetGate {
                 trigger
             },
         }
+    }
+
+    /// Evaluate tenant monthly token budget.
+    pub fn check_tenant_monthly_budget(
+        &self,
+        tier: &str,
+        current_tokens: i64,
+        estimated_task_tokens: i64,
+    ) -> Result<(), String> {
+        let limit = self.config.global_limits.iter().find(|l| l.tier == tier);
+        if let Some(limit) = limit {
+            if limit.max_tokens_per_month == -1 {
+                return Ok(());
+            }
+            if current_tokens + estimated_task_tokens > limit.max_tokens_per_month {
+                return Err(format!(
+                    "Tenant monthly token budget exceeded for tier '{}': {} used (limit: {})",
+                    tier,
+                    current_tokens + estimated_task_tokens,
+                    limit.max_tokens_per_month
+                ));
+            }
+        }
+        Ok(())
     }
 }
 

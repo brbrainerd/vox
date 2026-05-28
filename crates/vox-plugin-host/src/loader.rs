@@ -9,6 +9,8 @@
 //! Skill-payload plugins do NOT use this loader — they're parsed at
 //! discover() time and stored in the SkillRegistry directly.
 
+#![allow(clippy::result_large_err)]
+
 use crate::errors::{AbiMismatchError, LoadError};
 use crate::host_impl::DefaultVoxHost;
 use crate::telemetry;

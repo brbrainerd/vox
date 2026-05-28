@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/scientia/research-mesh-intake.v1.schema.json",
+  "title": "SCIENTIA research mesh intake record",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "finding_id",
+        "session_id",
+        "claim_ids",
+        "worthiness_score",
+        "received_at_ms"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "kind": { "type": "string", "const": "finding_proposed" },
+        "finding_id": { "type": "string", "minLength": 1 },
+        "session_id": { "type": "string", "minLength": 1 },
+        "claim_ids": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "worthiness_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "received_at_ms": { "type": "integer" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "manifest_id",
+        "received_at_ms",
+        "doi",
+        "nanopub_uris"
+      ],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "kind": { "type": "string", "const": "publication_succeeded" },
+        "manifest_id": { "type": "string", "minLength": 1 },
+        "received_at_ms": { "type": "integer" },
+        "doi": { "type": ["string", "null"] },
+        "nanopub_uris": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "kind", "manifest_id", "received_at_ms", "error"],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "kind": { "type": "string", "const": "publication_failed" },
+        "manifest_id": { "type": "string", "minLength": 1 },
+        "received_at_ms": { "type": "integer" },
+        "error": { "type": "string", "minLength": 1 }
+      }
+    }
+  ]
+}

@@ -66,9 +66,11 @@ mod tests {
 
     #[test]
     fn lease_gate_matches_configured_roles_only() {
-        let mut cfg = OrchestratorConfig::default();
-        cfg.populi_remote_lease_gating_enabled = true;
-        cfg.populi_remote_lease_gated_roles = vec![AgentExecutionRole::Builder];
+        let cfg = OrchestratorConfig {
+            populi_remote_lease_gating_enabled: true,
+            populi_remote_lease_gated_roles: vec![AgentExecutionRole::Builder],
+            ..OrchestratorConfig::default()
+        };
         let mut t = AgentTask::new(TaskId(1), "x", TaskPriority::Normal, vec![]);
         assert!(!task_matches_populi_remote_lease_gate(&t, &cfg));
         t.execution_role = Some(AgentExecutionRole::Builder);
@@ -79,9 +81,11 @@ mod tests {
 
     #[test]
     fn lease_gate_disabled_never_matches() {
-        let mut cfg = OrchestratorConfig::default();
-        cfg.populi_remote_lease_gating_enabled = false;
-        cfg.populi_remote_lease_gated_roles = vec![AgentExecutionRole::Builder];
+        let cfg = OrchestratorConfig {
+            populi_remote_lease_gating_enabled: false,
+            populi_remote_lease_gated_roles: vec![AgentExecutionRole::Builder],
+            ..OrchestratorConfig::default()
+        };
         let mut t = AgentTask::new(TaskId(1), "x", TaskPriority::Normal, vec![]);
         t.execution_role = Some(AgentExecutionRole::Builder);
         assert!(!task_matches_populi_remote_lease_gate(&t, &cfg));
@@ -89,9 +93,11 @@ mod tests {
 
     #[test]
     fn hints_merge_execution_role_for_gate() {
-        let mut cfg = OrchestratorConfig::default();
-        cfg.populi_remote_lease_gating_enabled = true;
-        cfg.populi_remote_lease_gated_roles = vec![AgentExecutionRole::Verifier];
+        let cfg = OrchestratorConfig {
+            populi_remote_lease_gating_enabled: true,
+            populi_remote_lease_gated_roles: vec![AgentExecutionRole::Verifier],
+            ..OrchestratorConfig::default()
+        };
         let mut t = AgentTask::new(TaskId(1), "x", TaskPriority::Normal, vec![]);
         let h = TaskEnqueueHints {
             execution_role: Some(AgentExecutionRole::Verifier),

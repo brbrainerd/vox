@@ -37,9 +37,9 @@ struct CatalogFile {
     bundles: Vec<BundleEntry>,
 }
 
-fn resolve_bundle<'a>(
+fn resolve_bundle(
     id: &str,
-    bundles: &'a [BundleEntry],
+    bundles: &[BundleEntry],
     visited: &mut std::collections::HashSet<String>,
 ) -> Vec<String> {
     if !visited.insert(id.to_string()) {
@@ -107,13 +107,13 @@ fn main() {
                 ));
             }
         }
-        if let Some(parent) = &b.extends {
-            if !bundle_ids.contains(parent) {
-                errors.push(format!(
-                    "bundle '{}' extends '{}', but no such bundle exists",
-                    b.id, parent
-                ));
-            }
+        if let Some(parent) = &b.extends
+            && !bundle_ids.contains(parent)
+        {
+            errors.push(format!(
+                "bundle '{}' extends '{}', but no such bundle exists",
+                b.id, parent
+            ));
         }
     }
 

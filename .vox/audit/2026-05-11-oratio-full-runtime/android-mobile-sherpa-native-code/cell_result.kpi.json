@@ -1,0 +1,10 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "android-mobile-sherpa-native-code",
+  "evidence": "adb exists at C:\\Users\\Owner\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe but reports no attached/emulated devices.",
+  "failure_category": "orchestration",
+  "notes": "Requires Android SDK plus attached device/emulator and app harness.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "status": "runtime_unavailable"
+}

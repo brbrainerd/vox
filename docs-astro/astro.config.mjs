@@ -4,9 +4,15 @@ import starlight from '@astrojs/starlight';
 import starlightLlmsTxt from 'starlight-llms-txt';
 import { voxGrammar } from './src/plugins/vox-grammar.mjs';
 import { getSidebar } from './src/utils/sidebar.mjs';
+import { remarkVoxInclude } from './src/plugins/remark-vox-include.mjs';
 
 export default defineConfig({
   site: 'https://voxlang.org/',
+  // Process {{#include path:anchor}} directives in code blocks (mdBook SSOT pattern).
+  // Build fails loudly for any unresolved path/anchor — preventing silent blank code blocks.
+  markdown: {
+    remarkPlugins: [remarkVoxInclude],
+  },
   integrations: [
     starlight({
       title: 'Vox: The AI-Native Programming Language',
@@ -32,6 +38,7 @@ export default defineConfig({
           llmsFullTxt: true,
         }),
       ],
+      lastUpdated: true,
       pagefind: true,
     }),
   ],

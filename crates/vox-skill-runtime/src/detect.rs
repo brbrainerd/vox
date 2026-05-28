@@ -18,7 +18,7 @@
 //! right architecture, but is deferred. This probe-based approach covers
 //! all current call sites.
 
-use crate::runtime::SkillRuntime;
+use crate::runtime::{SkillRuntime, Tier};
 use std::process::Command;
 
 /// Preferred skill runtime selection strategy.
@@ -155,6 +155,36 @@ pub fn detect_runtime(_preference: RuntimePreference) -> Option<Box<dyn SkillRun
     // Return None so the plugin host remains the authoritative dispatcher.
     // Use detect_choice() if you only need the RuntimeChoice enum.
     None
+}
+
+/// Choose the best available `RuntimeChoice` satisfying the minimum tier.
+///
+/// - `Tier::BareMetal` → `RuntimeChoice::Wasm` (WASM is the least available tier in the selector)
+/// - `Tier::Wasm` → `RuntimeChoice::Wasm`
+/// - `Tier::Container` → Docker or Podman if available, else error
+/// - `Tier::MicroVm` → always `Err` in Phase 6 (no real micro-VM backend)
+pub fn plan_for_min_tier(min_tier: Tier) -> anyhow::Result<RuntimeChoice> {
+    match min_tier {
+        Tier::BareMetal | Tier::Wasm => Ok(RuntimeChoice::Wasm),
+        Tier::Container => {
+            if probe_docker() {
+                Ok(RuntimeChoice::Docker)
+            } else if probe_podman() {
+                Ok(RuntimeChoice::Podman)
+            } else {
+                anyhow::bail!(
+                    "Tier::Container requested but neither docker nor podman is available.\n\
+                     Install from https://docs.docker.com/get-docker/ or https://podman.io/"
+                )
+            }
+        }
+        Tier::MicroVm => {
+            anyhow::bail!(
+                "Tier::MicroVm requested but no micro-VM backend is available in Phase 6.\n\
+                 Firecracker/Kata bindings are deferred to v1.x."
+            )
+        }
+    }
 }
 
 #[cfg(test)]

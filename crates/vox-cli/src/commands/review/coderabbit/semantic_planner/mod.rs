@@ -122,7 +122,10 @@ mod tests {
         assert_eq!(g("docs/SUMMARY.md"), "07_docs_other");
         assert_eq!(g("frontend/App.tsx"), "08_frontend");
         assert_eq!(g("examples/hello.vox"), "09_examples");
-        assert_eq!(g("vox-vscode/src/extension.ts"), "10_vscode_ext");
+        assert_eq!(
+            g("apps/editor/vox-vscode/src/extension.ts"),
+            "10_vscode_ext"
+        );
         assert_eq!(g("scripts/unlock.ps1"), "11_scripts_xtask");
         assert_eq!(g("mens/data/sft_pairs.jsonl"), "12_populi_ml");
         assert_eq!(g("tests/fixtures/minimal.vox"), "13_tests");

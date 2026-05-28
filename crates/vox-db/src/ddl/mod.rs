@@ -3,6 +3,7 @@
 //! This is the bridge between the Vox type system and SQLite's physical schema.
 //! It generates `CREATE TABLE`, `CREATE INDEX`, and type-safe DDL from the AST.
 
+pub mod activity_result_cache;
 mod diff;
 mod emit;
 

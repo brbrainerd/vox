@@ -1,10 +1,10 @@
-//! Thin TCP client for [`super::dispatch_request`] (newline-delimited [`vox_protocol::DispatchRequest`]).
+//! Thin TCP client for [`super::dispatch_request`] (newline-delimited [`vox_foundation::protocol::DispatchRequest`]).
 
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
-use vox_protocol::orch_daemon_method;
-use vox_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
+use vox_foundation::protocol::orch_daemon_method;
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 use super::normalize_tcp_bind_addr;
 

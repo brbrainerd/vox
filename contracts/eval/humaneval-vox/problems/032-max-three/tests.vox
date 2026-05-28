@@ -1,0 +1,21 @@
+fn max_three(a: int, b: int, c: int) to int {
+    let mut m = a
+    if b > m {
+        m = b
+    }
+    if c > m {
+        m = c
+    }
+    return m
+}
+
+@test
+fn t_ascending() to Unit { assert(max_three(1, 2, 3) is 3) }
+@test
+fn t_descending() to Unit { assert(max_three(9, 5, 1) is 9) }
+@test
+fn t_middle_max() to Unit { assert(max_three(2, 7, 3) is 7) }
+@test
+fn t_all_equal() to Unit { assert(max_three(4, 4, 4) is 4) }
+@test
+fn t_negatives() to Unit { assert(max_three(-5, -2, -10) is -2) }

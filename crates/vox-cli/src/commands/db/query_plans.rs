@@ -124,12 +124,27 @@ fn collect_query_plans_expr(
             collect_query_plans_expr(obj, out);
             collect_query_plans_expr(idx, out);
         }
+        HirExpr::AsyncView(v) => {
+            if let Some(arm) = &v.fetching_arm {
+                collect_query_plans_expr(arm, out);
+            }
+            if let Some(arm) = &v.empty_arm {
+                collect_query_plans_expr(arm, out);
+            }
+            if let Some(arm) = &v.error_arm {
+                collect_query_plans_expr(arm, out);
+            }
+            if let Some(arm) = &v.ok_arm {
+                collect_query_plans_expr(arm, out);
+            }
+        }
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
         | HirExpr::DecimalLit(_, _)
         | HirExpr::StringLit(_, _)
         | HirExpr::BoolLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        | HirExpr::Ident(_, _)
+        | HirExpr::WorkflowVersion(_) => {}
     }
 }
 

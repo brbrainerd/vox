@@ -1,7 +1,7 @@
 ---
 title: "Execution Time Budgeting and Agent Learning Research 2026"
 description: "Research and feasibility analysis for dynamic execution time budgeting, wait forecasting, and autonomous latency adaptation within Vox DEI and Arca architectures."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-10"
 

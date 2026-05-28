@@ -1,8 +1,9 @@
 ---
 title: "Tutorial: Building a Collaborative Task List"
 description: "Build a full-stack Task app end to end with Vox."
-category: "tutorials"
+category: "Tutorials"
 status: "current"
+sort_order: 2
 last_updated: "2026-04-06"
 training_eligible: true
 
@@ -42,7 +43,7 @@ Next, we add `@endpoint(kind: mutation)` and `@endpoint(kind: query)` functions 
 
 Now, we'll create the frontend using a `component` declaration. Vox components use a JSX-like syntax and compile to plain React/TSX components consumed by the external frontend.
 
-```tsx
+```vox
 {{#include ../../../examples/golden/getting_started.vox:ui}}
 ```
 

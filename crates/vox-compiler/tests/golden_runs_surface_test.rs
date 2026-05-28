@@ -28,31 +28,9 @@ fn compile_component(source: &str, component_name: &str) -> String {
 }
 
 // ── Shared sources ────────────────────────────────────────────────────────────
-
-const STATE_CHIP_SRC: &str = r#"
-component StateChip(status: str, label: str = "", dim: bool = false) {
-    view: row(items="center", gap=1, pad_x=2, pad_y=0, radius="full",
-              bg=if dim { "white/5" }
-                 else if (status is "running" or status is "ok" or status is "ready") { "emerald.400/15" }
-                 else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400/15" }
-                 else if (status is "error" or status is "failed" or status is "errored") { "rose.500/15" }
-                 else { "white/5" },
-              raw_class="h-5 inline-flex") {
-        panel(w=1, h=1, radius="full",
-              bg=if dim { "zinc.600" }
-                 else if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
-                 else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
-                 else if (status is "error" or status is "failed" or status is "errored") { "rose.500" }
-                 else { "zinc.600" })
-        text(size="xs", font_family="mono", tracking="widest", case="upper",
-             color=if dim { "zinc.500" }
-                   else if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
-                   else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
-                   else if (status is "error" or status is "failed" or status is "errored") { "rose.400" }
-                   else { "zinc.500" }) { if label is "" { status } else { label } }
-    }
-}
-"#;
+// Note: StateChip source removed; tests below operate on RunsToolbar / RunRow /
+// RunsTableHeader / EventRow directly. RunRow's status column is exercised via
+// raw class assertions, not by re-compiling the chip component itself.
 
 const RUNS_TOOLBAR_SRC: &str = r#"
 component RunsToolbar(live_tail: bool, on_toggle_live: fn() = fn() {}) {
@@ -145,7 +123,7 @@ component EventRow(kind: str, label: str, ts: str) {
 // ── RunsToolbar ───────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn runs_toolbar_emits_search_box_and_filter_chips() {
     let ts = compile_component(RUNS_TOOLBAR_SRC, "RunsToolbar");
 
@@ -171,7 +149,7 @@ fn runs_toolbar_emits_search_box_and_filter_chips() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn runs_toolbar_live_tail_toggle_is_conditional() {
     let ts = compile_component(RUNS_TOOLBAR_SRC, "RunsToolbar");
 
@@ -191,7 +169,7 @@ fn runs_toolbar_live_tail_toggle_is_conditional() {
 // ── RunRow ────────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn run_row_emits_seven_columns() {
     let ts = compile_component(RUN_ROW_SRC, "RunRow");
 
@@ -207,7 +185,7 @@ fn run_row_emits_seven_columns() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn run_row_applies_highlight_class_when_active() {
     let ts = compile_component(RUN_ROW_SRC, "RunRow");
 
@@ -227,7 +205,7 @@ fn run_row_applies_highlight_class_when_active() {
 // ── RunsTableHeader ───────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn runs_table_header_emits_seven_column_labels() {
     let ts = compile_component(RUNS_TABLE_HEADER_SRC, "RunsTableHeader");
 
@@ -246,7 +224,7 @@ fn runs_table_header_emits_seven_column_labels() {
 // ── EventRow ─────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn event_row_emits_timestamp_kind_and_label() {
     let ts = compile_component(EVENT_ROW_SRC, "EventRow");
 

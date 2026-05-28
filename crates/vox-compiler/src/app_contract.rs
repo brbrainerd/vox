@@ -5,9 +5,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::hir::{HirHttpMethod, HirModule};
+use crate::hir::HirModule;
 use crate::typeck::env::TypeEnv;
-use crate::typeck::registration::{resolve_hir_type, type_signature_from_hir};
+use crate::typeck::registration::type_signature_from_hir;
 
 /// Versioned schema for [`AppContractModule`].
 pub const APP_CONTRACT_SCHEMA_VERSION: u32 = 2;
@@ -82,15 +82,6 @@ pub struct AppServerConfigContract {
     pub static_assets_embed_dir: String,
 }
 
-fn method_to_string(method: HirHttpMethod) -> String {
-    match method {
-        HirHttpMethod::Get => "GET".to_string(),
-        HirHttpMethod::Post => "POST".to_string(),
-        HirHttpMethod::Put => "PUT".to_string(),
-        HirHttpMethod::Delete => "DELETE".to_string(),
-    }
-}
-
 fn fn_signature(params: &[crate::hir::HirParam], ret: Option<&crate::hir::HirType>) -> String {
     let env = TypeEnv::new();
     type_signature_from_hir(params, ret, &env)
@@ -98,20 +89,7 @@ fn fn_signature(params: &[crate::hir::HirParam], ret: Option<&crate::hir::HirTyp
 
 #[must_use]
 pub fn project_app_contract(module: &HirModule) -> AppContractModule {
-    let env = TypeEnv::new();
-    let http_routes = module
-        .routes
-        .iter()
-        .map(|r| AppHttpRouteContract {
-            method: method_to_string(r.method),
-            path: r.path.clone(),
-            route_contract: r.route_contract.clone(),
-            return_type: r
-                .return_type
-                .as_ref()
-                .map(|t| resolve_hir_type(t, &env).signature()),
-        })
-        .collect();
+    let http_routes = Vec::new();
 
     let server_fns = module
         .endpoint_fns

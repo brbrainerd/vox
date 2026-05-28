@@ -48,3 +48,22 @@ pub fn score_confidence(text: &str) -> f64 {
         1.0 - (entropy - 4.5) * (0.8 / 2.5)
     }
 }
+
+#[must_use]
+pub fn semantic_drift_sigma(completion_text: &str, session_baseline_entropy: f64) -> f64 {
+    let h = calculate_entropy(completion_text);
+    let delta = (h - session_baseline_entropy).abs();
+    delta / 0.75_f64.max(f64::EPSILON)
+}
+
+#[cfg(test)]
+mod drift_tests {
+    use super::*;
+
+    #[test]
+    fn semantic_drift_sigma_spikes_on_repetition() {
+        let baseline = calculate_entropy("The quick brown fox jumps over the lazy dog.");
+        let sigma = semantic_drift_sigma(&"a".repeat(400), baseline);
+        assert!(sigma >= 2.0, "sigma={sigma}");
+    }
+}

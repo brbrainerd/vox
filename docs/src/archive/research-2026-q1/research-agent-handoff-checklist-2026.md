@@ -1,6 +1,6 @@
 ---
 title: "Architecture Decision Checklist for Implementing Agent Handoff Continuity"
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: false
 

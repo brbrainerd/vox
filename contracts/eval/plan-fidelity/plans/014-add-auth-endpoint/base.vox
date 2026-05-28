@@ -1,0 +1,21 @@
+// Base source for plan-014-add-auth-endpoint.
+//
+// A single bearer-authed query endpoint is defined. The plan asks the
+// model to add a sibling endpoint with matching decorators.
+
+@table type Todo {
+    id: str,
+    title: str,
+    done: bool
+}
+
+type TodoError =
+    | Missing(text: str)
+
+@endpoint(kind: query) @auth(scheme: bearer)
+fn get_todo(id: str) to Result[Todo, TodoError] {
+    if len(id) is 0 {
+        return Error(Missing("id must not be empty"))
+    }
+    return Error(Missing("not found"))
+}

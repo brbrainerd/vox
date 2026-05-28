@@ -85,7 +85,7 @@ impl RegistryClient {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
             auth_token: None,
-            client: vox_reqwest_defaults::client(),
+            client: vox_http_client::client(),
         }
     }
 
@@ -94,7 +94,7 @@ impl RegistryClient {
         Self {
             base_url: base_url.trim_end_matches('/').to_string(),
             auth_token: Some(token.to_string()),
-            client: vox_reqwest_defaults::client(),
+            client: vox_http_client::client(),
         }
     }
 

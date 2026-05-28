@@ -79,10 +79,6 @@
       "role": "Codex / VoxDB relational store, schema, migrations, and typed SQL ops",
       "path_pattern": "crates/vox-db/**/*.rs"
     },
-    "vox-dei": {
-      "role": "Orchestrator-facing DEI integration surface (minimal workspace crate)",
-      "path_pattern": "crates/vox-dei/**/*.rs"
-    },
     "vox-doc-inventory": {
       "role": "Generate and verify docs/agents/doc-inventory.json (schema v3)",
       "path_pattern": "crates/vox-doc-inventory/**/*.rs"

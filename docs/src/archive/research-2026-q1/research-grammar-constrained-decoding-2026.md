@@ -2,7 +2,7 @@
 title: "LLM Grammar Constraints for Code"
 last_updated: "2026-04-09"
 research_source: "gemini_deep_research"
-category: "architecture"
+category: "Architecture SSOTs"
 description: "Research on grammar-constrained decoding for LLM code generation and output validity."
 research_date: "2026-04-08"
 status: "research"

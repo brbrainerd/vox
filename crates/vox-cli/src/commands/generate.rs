@@ -26,7 +26,7 @@ pub async fn run(
     let retries = max_retries.unwrap_or(3);
     let validate = !no_validate;
 
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .context("Failed to build HTTP client")?;
@@ -112,7 +112,7 @@ async fn run_via_orchestrator(
             .await
             .map_err(|e| {
                 eprintln!("⚠️  VoxLocal inference unavailable: {e}");
-                eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
+                eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
                 anyhow::anyhow!(e)
             })?;
 
@@ -141,10 +141,10 @@ async fn run_legacy_direct(
         }
         _ => {
             eprintln!("⚠️  Inference server not running at {}", url);
-            eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
+            eprintln!("   Start it with: vox run scripts/vox_populi::inference.vox --serve");
             eprintln!();
             eprintln!(
-                "   Or generate directly: vox run scripts/vox_inference.vox --prompt \"{}\"",
+                "   Or generate directly: vox run scripts/vox_populi::inference.vox --prompt \"{}\"",
                 prompt
             );
             anyhow::bail!("Inference server not available");

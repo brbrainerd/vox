@@ -1,0 +1,31 @@
+fn maybe_double(o: Option[int]) to Option[int] {
+    match o {
+        Some(n) => return Some(n * 2)
+        None    => return None
+    }
+}
+
+@test
+fn t_some() to Unit {
+    let r = maybe_double(Some(4))
+    match r {
+        Some(n) => assert(n is 8)
+        None    => assert(false)
+    }
+}
+@test
+fn t_none() to Unit {
+    let r = maybe_double(None)
+    match r {
+        Some(_) => assert(false)
+        None    => assert(true)
+    }
+}
+@test
+fn t_zero() to Unit {
+    let r = maybe_double(Some(0))
+    match r {
+        Some(n) => assert(n is 0)
+        None    => assert(false)
+    }
+}

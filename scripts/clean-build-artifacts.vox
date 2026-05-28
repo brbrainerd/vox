@@ -1,82 +1,177 @@
-// scripts/clean-build-artifacts.vox
-// Purges stale Cargo build artifacts to reclaim disk space.
+// vox:caps fs subprocess env
+// Reclaim disk from Cargo target/ trees: workspace root, optional worktrees, optional nested crates/*/target/.
 //
-// Run:  vox run scripts/clean-build-artifacts.vox
-// Safe: rebuilds from source on the next `cargo build`; no source is touched.
+// Default run is dry-run (lists candidates; does not delete or run cargo clean).
+// Destructive steps require VOX_CLEAN_EXECUTE=1.
 //
-// Background: `cargo` never garbage-collects hash-versioned rlibs in
-// target/debug/deps/.  After many incremental rebuilds a large crate like
-// vox-orchestrator accumulates dozens of stale copies (~1.7 GB each before
-// the debug=1 profile change, still 300-500 MB each after).  This script
-// purges the main workspace target and any orphaned worktree targets.
+// Env:
+//   VOX_REPO_ROOT — repo root (default "." relative to process CWD when you run vox; set explicitly when needed).
+//   VOX_CLEAN_EXECUTE=1 — run cargo clean at repo root and remove discovered target/ dirs.
+//   VOX_WORKTREE_BASE — worktree parent directory (default .claude/worktrees).
+//   VOX_CLEAN_NESTED_CRATE_TARGETS=1 — also scan crates/*/target/ (dry-run lists; deletes only with VOX_CLEAN_EXECUTE=1).
+//
+// See: docs/src/architecture/where-things-live.md (Rust workspace row) for CARGO_TARGET_DIR guidance.
 
-fn gb(bytes: int) to str {
-    let gb_val = bytes / 1073741824
-    return str(gb_val) + " GB"
+fn resolve_repo() to str {
+    let opt = std.env.get("VOX_REPO_ROOT");
+    if opt.is_some() {
+        return opt.unwrap();
+    }
+    return ".";
 }
 
-fn check_disk_pressure() to bool {
-    // vox:skip — fs.disk_free not yet in stdlib; use `df` at the shell level.
-    // Returns true if free space is below the safety threshold.
-    return false
+fn env_flag(name: str) to bool {
+    let opt = std.env.get(name);
+    if opt.is_some() {
+        return opt.unwrap() == "1";
+    }
+    return false;
 }
 
-fn clean_workspace_target() to Result[str] {
-    print("Workspace target/ (main repo) cleanup is currently MANUAL.")
-    print("  Run from /c/Users/Owner/vox:  cargo clean")
-    print("  Next build will recompile everything from scratch (~8-15 min).")
-    // vox:skip — shell.exec not yet stable; this stub does NOT execute cargo clean.
-    return Ok("skipped: manual `cargo clean` required (see prints above)")
+fn norm(p: str) to str {
+    return p.replace("\\", "/");
 }
 
-fn clean_worktree_targets() to Result[str] {
-    let worktree_base = ".claude/worktrees"
-    print("Worktree target/ sweep is currently MANUAL.")
-    print("  Delete directories matching " + worktree_base + "/*/target/")
-    print("  for any worktree you are no longer building.")
-    print("  Currently known orphans (>10 GB each):")
-    print("    loving-lamport-8a528f/target   (~22 GB)")
-    print("    lucid-varahamihira-11f7c2/target (~49 GB)")
-    // vox:skip — fs.walk + shell.rm_dir not yet stable; this stub does NOT delete anything.
-    return Ok("skipped: manual deletion required (see prints above)")
+fn collect_glob(pattern: str) to list[str] {
+    let g = std.fs.glob(pattern);
+    if g.is_err() {
+        print("  [warn] glob failed for pattern: " + pattern);
+        return [];
+    }
+    return g.unwrap();
 }
 
-fn print_size_report() to Unit {
-    print("")
-    print("=== Build Artifact Size Report ===")
-    print("Main target/debug/deps     ~74 GB  (stale rlibs; primary bloat)")
-    print("Main target/debug/incremental ~12 GB (incremental cache)")
-    print("loving-lamport worktree    ~22 GB  (orphaned)")
-    print("lucid-varahamihira worktree ~49 GB  (orphaned)")
-    print("~/.cargo registry           ~5 GB   (normal; leave alone)")
-    print("")
-    print("Profile rules now in place (Cargo.toml):")
-    print("  [profile.dev] debug = 1          — first-party rlibs: line tables only")
-    print("  [profile.dev.package.*] debug = 0 — dep rlibs: no debug info")
-    print("  Expected rlib size after next build: ~200-400 MB for large crates")
-    print("  Expected total target/ after clean + rebuild: ~10-20 GB")
-    print("")
+fn is_target_dir(p: str) to bool {
+    if not std.fs.is_dir(p) {
+        return false;
+    }
+    return norm(p).ends_with("/target");
 }
 
-fn main() to Unit {
-    print("=== Vox Build Artifact Cleanup ===")
-    print("")
-    print_size_report()
+fn worktree_target_pattern(base: str) to str {
+    let b = norm(base);
+    if b.ends_with("/") {
+        return b + "*/target";
+    }
+    return b + "/*/target";
+}
 
-    let ws = clean_workspace_target()
-    match ws {
-        Ok(msg) -> print("  [skipped] " + msg)
-        Error(e) -> print("  [err] " + e)
+fn nested_crate_target_pattern(repo: str) to str {
+    let r = norm(repo);
+    if r.ends_with("/") {
+        return r + "crates/*/target";
+    }
+    return r + "/crates/*/target";
+}
+
+fn main() {
+    let repo = resolve_repo();
+    let execute = env_flag("VOX_CLEAN_EXECUTE");
+    let nested = env_flag("VOX_CLEAN_NESTED_CRATE_TARGETS");
+
+    let wt_opt = std.env.get("VOX_WORKTREE_BASE");
+    let mut wt_base = ".claude/worktrees";
+    if wt_opt.is_some() {
+        wt_base = wt_opt.unwrap();
     }
 
-    let wt = clean_worktree_targets()
-    match wt {
-        Ok(msg) -> print("  [skipped] " + msg)
-        Error(e) -> print("  [err] " + e)
+    print("=== Vox build artifact cleanup ===");
+    print("Repo root: " + repo);
+    if execute {
+        print("Mode: EXECUTE (VOX_CLEAN_EXECUTE=1)");
+    } else {
+        print("Mode: DRY-RUN (no deletes, no `cargo clean`)");
     }
+    print("");
 
-    print("")
-    print("Disk recovered once orphaned worktree targets are deleted: ~71 GB")
-    print("Disk recovered after cargo clean + rebuild with new profile: ~60-70 GB")
-    print("Recommendation: add this to a weekly scheduled task or pre-commit hook threshold.")
+    print("--- Workspace `cargo clean` ---");
+    if execute {
+        let code_res = std.process.run_ex("cargo", ["clean"], repo, []);
+        match code_res {
+            Ok(code) => {
+                if code == 0 {
+                    print("  `cargo clean` finished with exit 0.");
+                } else {
+                    print("  [warn] `cargo clean` exited with code " + str(code));
+                }
+            }
+            Error(e) => print("  [err] `cargo clean` failed to spawn: " + e),
+        }
+    } else {
+        print("  Skipped. Set VOX_CLEAN_EXECUTE=1 to run `cargo clean` in the repo root above.");
+    }
+    print("");
+
+    print("--- Worktree target/ directories under " + wt_base + " ---");
+    if not std.fs.exists(wt_base) {
+        print("  (base missing; nothing to scan)");
+    } else {
+        let pattern = worktree_target_pattern(wt_base);
+        let hits = collect_glob(pattern);
+        let mut n = 0;
+        for p in hits {
+            if is_target_dir(p) {
+                n = n + 1;
+                let pn = norm(p);
+                if execute {
+                    let rm = std.fs.remove_dir_all(p);
+                    match rm {
+                        Ok(_) => print("  removed: " + pn)
+                        Error(e) => {
+                            print("  [err] remove_dir_all");
+                            print(pn);
+                            print(e);
+                        }
+                    }
+                } else {
+                    print("  would remove: " + pn);
+                }
+            }
+        }
+        if n == 0 {
+            print("  (no */target matches under worktree base)");
+        } else if not execute {
+            print("  Total candidates: " + str(n) + " (dry-run only)");
+        }
+    }
+    print("");
+
+    print("--- Nested crates/*/target/ (excluded-workspace crates) ---");
+    if nested {
+        let pattern = nested_crate_target_pattern(repo);
+        let hits = collect_glob(pattern);
+        let mut n = 0;
+        for p in hits {
+            if is_target_dir(p) {
+                n = n + 1;
+                let pn = norm(p);
+                if execute {
+                    let rm = std.fs.remove_dir_all(p);
+                    match rm {
+                        Ok(_) => print("  removed: " + pn)
+                        Error(e) => {
+                            print("  [err] remove_dir_all");
+                            print(pn);
+                            print(e);
+                        }
+                    }
+                } else {
+                    print("  would remove: " + pn);
+                }
+            }
+        }
+        if n == 0 {
+            print("  (no nested crate target/ trees found)");
+        } else if not execute {
+            print("  Total candidates: " + str(n) + " (dry-run; set VOX_CLEAN_EXECUTE=1 to delete)");
+        }
+    } else {
+        print("  Skipped. Set VOX_CLEAN_NESTED_CRATE_TARGETS=1 to scan crates/*/target/.");
+    }
+    print("");
+
+    print("Notes:");
+    print("  - Cargo never garbage-collects stale rlibs under target/debug/deps; periodic `cargo clean` is normal.");
+    print("  - Root Cargo.toml [profile.dev] rules reduce rlib bloat; see comments in Cargo.toml.");
+    print("  - Do not rely on this script for ~/.cargo/registry sizing; that cache is shared and usually left alone.");
 }

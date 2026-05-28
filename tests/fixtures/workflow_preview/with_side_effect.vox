@@ -1,0 +1,4 @@
+workflow main() to int {
+    let t = side_effect { time.now() }
+    return t
+}

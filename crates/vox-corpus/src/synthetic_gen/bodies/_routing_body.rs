@@ -114,11 +114,11 @@ pub fn generate_routing_decision_pairs(
             json!({"sender_id": 1, "receiver_id": 2, "msg_type": "plan_handoff", "payload": "{\"artifact\": \"src/login.vox\", \"status\": \"complete\"}"}),
         ),
         (
-            "Run the test suite for the vox-parser crate",
+            "Run the test suite for the vox-compiler crate",
             "tool_call",
             "vox_run_tests",
             "Direct test tool — not an implementation task, execute immediately",
-            json!({"crate_name": "vox-parser"}),
+            json!({"crate_name": "vox-compiler"}),
         ),
         (
             "Which LLM model should I use for a code generation task?",

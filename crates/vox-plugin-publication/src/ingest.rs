@@ -4,7 +4,7 @@
 use anyhow::Result;
 use std::sync::Arc;
 use vox_db::VoxDb;
-use vox_scientia_ingest::{FeedCrawler, IngestDeduplicator};
+use vox_scientia::ingest::{FeedCrawler, IngestDeduplicator};
 // `LlmConfig` is re-exported by `vox-search` so plugins can avoid a direct
 // `vox-actor-runtime` dependency (plugin boundary: plugins must not pull core
 // runtime crates).

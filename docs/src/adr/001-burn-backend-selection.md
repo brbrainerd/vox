@@ -1,7 +1,7 @@
 ---
 title: "ADR 001 — Burn Backend Selection for vox-tensor"
 description: "Official documentation for ADR 001 — Burn Backend Selection for vox-tensor for the Vox language. Detailed technical reference, architectu"
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-04-06"
 training_eligible: true
 

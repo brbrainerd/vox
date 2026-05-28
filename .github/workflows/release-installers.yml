@@ -9,6 +9,27 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  test-voxup-installer:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build voxup
+        run: cargo build --release -p voxup
+      - name: E2E Test voxup
+        run: |
+          mkdir -p /tmp/fake_home
+          HOME=/tmp/fake_home target/release/voxup install default
+          if [ ! -f /tmp/fake_home/.vox/bin/vox ]; then
+            echo "voxup failed to install the proxy binary."
+            exit 1
+          fi
+          # Test the proxy wrapper
+          HOME=/tmp/fake_home /tmp/fake_home/.vox/bin/vox --version || true
   build-windows-msi:
     runs-on: windows-latest
     steps:

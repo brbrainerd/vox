@@ -25,4 +25,30 @@ pub struct WorkerDonationPolicy {
     pub denied_users: Option<Vec<String>>,
     /// Optional list of federated mesh networks (scope IDs) to explicitly allow.
     pub allowed_mesh_networks: Option<Vec<String>>,
+    /// If `true`, this node is willing to accept workloads marked as handling
+    /// sensitive data (e.g. PII, health records). Defaults to `false` for
+    /// backwards compatibility with serialized policies that lack this field.
+    #[serde(default)]
+    pub accept_sensitive_workloads: bool,
+    /// Optional redundancy / replication policy for declared-deterministic tasks (P6-T4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redundancy: Option<crate::redundancy::RedundancyPolicy>,
+    /// Whether this node accepts mesh inference workloads (Mn-T7).
+    #[serde(default)]
+    pub accepts_inference_workloads: bool,
+    /// Whether this node accepts distributed training workloads (Mn-T7). CUDA training path only.
+    #[serde(default)]
+    pub accepts_training_workloads: bool,
+    /// Advertised CUDA tier for planners (`0` = none / unknown).
+    #[serde(default)]
+    pub cuda_tier: u8,
+    /// Advertised Metal tier for planners (`0` = none / unknown).
+    #[serde(default)]
+    pub metal_tier: u8,
+    /// Minimum VRAM (GiB) this node claims for training/inference scheduling hints.
+    #[serde(default)]
+    pub vram_min_gb: u32,
+    /// Distinct from [`Self::accept_sensitive_workloads`]: gates *training* data sensitivity (Mn-T7).
+    #[serde(default)]
+    pub accepts_sensitive_training_data: bool,
 }

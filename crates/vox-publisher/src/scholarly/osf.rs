@@ -24,7 +24,7 @@ pub struct OsfAdapter {
 
 impl OsfAdapter {
     pub fn new(base: String, token: String) -> Self {
-        let http = vox_reqwest_defaults::client_builder()
+        let http = vox_http_client::client_builder()
             .user_agent("vox-publisher/osf")
             .timeout(Duration::from_secs(30))
             .build()

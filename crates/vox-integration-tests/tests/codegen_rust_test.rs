@@ -174,7 +174,12 @@ fn codegen_mcp_server_produces_file() {
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    let output = vox_codegen::codegen_rust::generate(&hir, "my_mcp_tools").unwrap();
+    let output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "my_mcp_tools",
+        vox_codegen::codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .unwrap();
 
     assert!(
         output.files.contains_key("src/mcp_server.rs"),
@@ -216,7 +221,12 @@ fn hello(name: str) to str {
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    let output = vox_codegen::codegen_rust::generate(&hir, "test_no_mcp").unwrap();
+    let output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "test_no_mcp",
+        vox_codegen::codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .unwrap();
 
     assert!(
         !output.files.contains_key("src/mcp_server.rs"),
@@ -237,7 +247,12 @@ fn codegen_mcp_resource_emits_resources_handlers() {
     assert_eq!(hir.mcp_resources.len(), 1);
     assert_eq!(hir.mcp_resources[0].uri, "demo://x");
 
-    let output = vox_codegen::codegen_rust::generate(&hir, "with_res").unwrap();
+    let output = vox_codegen::codegen_rust::generate(
+        &hir,
+        "with_res",
+        vox_codegen::codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .unwrap();
     assert!(output.files.contains_key("src/mcp_server.rs"));
 
     let mcp = output.files.get("src/mcp_server.rs").unwrap();

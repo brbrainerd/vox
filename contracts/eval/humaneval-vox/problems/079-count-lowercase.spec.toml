@@ -1,0 +1,11 @@
+[problem]
+id = "079"
+title = "count-lowercase"
+prompt = """
+Write a Vox function count_lowercase(s: str) to int that returns the count of lowercase letters (a-z) in the string.
+"""
+signature = "fn count_lowercase(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

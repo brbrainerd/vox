@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS llm_interactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL,
     user_id TEXT,
+    tenant_id TEXT,
     prompt TEXT NOT NULL,
     response TEXT NOT NULL,
     model_version TEXT NOT NULL,
@@ -272,6 +273,7 @@ CREATE TABLE IF NOT EXISTS populi_reviews (
 CREATE TABLE IF NOT EXISTS agent_sessions (
     id TEXT PRIMARY KEY,
     agent_id TEXT NOT NULL,
+    tenant_id TEXT,
     agent_name TEXT,
     started_at TEXT NOT NULL DEFAULT (datetime('now')),
     ended_at TEXT,
@@ -304,6 +306,7 @@ CREATE TABLE IF NOT EXISTS cost_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id TEXT NOT NULL,
     session_id TEXT,
+    tenant_id TEXT,
     provider TEXT NOT NULL,
     model TEXT,
     input_tokens INTEGER NOT NULL DEFAULT 0,

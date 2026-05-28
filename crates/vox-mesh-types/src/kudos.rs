@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::attestation::Attestation;
+
 /// Primitives for the contribution reward system.
 /// Collapses compute donation and code contribution into one system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -30,6 +32,14 @@ impl RewardPrimitive {
             Self::DocsContribution => "docs_contribution",
         }
     }
+}
+
+/// Convert an `Attestation`'s `gpu_seconds` into integer milliseconds for the
+/// `GpuComputeMs` kudos primitive.
+///
+/// The conversion is `(gpu_seconds * 1000.0) as u64`, saturating at `u64::MAX`.
+pub fn gpu_compute_ms_from_attestation(a: &Attestation) -> u64 {
+    (a.gpu_seconds * 1000.0).min(u64::MAX as f64) as u64
 }
 
 /// Request to credit a user for a contribution.

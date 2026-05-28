@@ -15,8 +15,8 @@
 
 use std::collections::HashSet;
 
-use vox_compiler::lowering_shared::primitive_tags;
-use vox_compiler::parser::renames::{RenameKind, RenameRegistry};
+use vox_rename_registry::primitive_tags;
+use vox_rename_registry::renames::{RenameKind, RenameRegistry};
 
 #[test]
 fn registry_from_names_are_not_canonical_primitives() {
@@ -62,7 +62,7 @@ fn synthetic_violation_would_fail() {
         }}"#,
         pick
     );
-    let bad_registry = RenameRegistry::from_str(&bad_json).expect("parse bad registry");
+    let bad_registry = RenameRegistry::parse_json(&bad_json).expect("parse bad registry");
 
     let canonical_set: HashSet<&str> = canonical.iter().copied().collect();
 

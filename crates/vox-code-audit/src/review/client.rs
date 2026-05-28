@@ -16,7 +16,7 @@ pub struct ReviewClient {
 impl ReviewClient {
     /// Create a client with an explicit provider list.
     pub fn new(providers: Vec<ReviewProvider>) -> Self {
-        let http = vox_reqwest_defaults::client_builder()
+        let http = vox_http_client::client_builder()
             .timeout(Duration::from_secs(120))
             .user_agent("vox-review/0.1")
             .build()

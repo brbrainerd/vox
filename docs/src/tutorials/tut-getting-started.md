@@ -1,7 +1,7 @@
 ---
 title: "Getting Started with Vox"
 description: "Zero to full-stack in under 5 minutes. Initial setup, first app, and basic concepts."
-category: "getting-started"
+category: "Tutorials"
 sort_order: 1
 
 schema_type: "HowTo"
@@ -23,14 +23,13 @@ Before you begin, make sure you have:
 
 ## Step 1: Install Vox
 
-```bash
-# Mac/Linux unified install
-curl -fsSL https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.sh | bash -s -- --install
-```
+> [!IMPORTANT]
+> **Pre-Release Status:** Vox has not yet reached version 1.0. To use Vox today, you must build it from source.
 
-```powershell
-# Windows (PowerShell) install
-irm https://raw.githubusercontent.com/vox-foundation/vox/main/scripts/install.ps1 | iex
+```bash
+git clone https://github.com/vox-foundation/vox.git
+cd vox
+cargo install --path crates/vox-cli
 ```
 
 ## Step 2: Create a New Project

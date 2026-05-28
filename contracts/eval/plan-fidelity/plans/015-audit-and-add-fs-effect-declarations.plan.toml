@@ -1,0 +1,42 @@
+# vox:skip
+id = "plan-fidelity-015-audit-and-add-fs-effect-declarations"
+training_eligible = true
+wave = 3                                  # cross-cutting: effect-row audit across project
+
+[input]
+goal = """
+The project has three files — `src/storage.vox`, `src/logger.vox`, and `src/cache.vox` — \
+each containing functions that call `std.fs.read_file` or `std.fs.write_file` without \
+declaring the `Fs` effect. Undeclared filesystem effects are a compile error. \
+For every function in these three files that calls a `std.fs.*` builtin without \
+`@uses(fs)`, add `@uses(fs)` immediately before the `fn` keyword. \
+Do not add `@uses(fs)` to functions that do not call filesystem builtins. \
+Run `vox check --strict` to confirm all `vox/effect/missing-fs-decl` errors are gone.
+"""
+preconditions = """
+`src/storage.vox` has three functions calling `std.fs.read_file` / `std.fs.write_file` \
+without `@uses(fs)`. `src/logger.vox` has two such functions. `src/cache.vox` has one. \
+`vox check --strict` currently fails with `vox/effect/missing-fs-decl` across all three files. \
+No function in any of these files currently has `@uses(fs)`.
+"""
+
+[plan_expected_shape]
+min_steps = 5
+max_steps = 10
+must_include_tasks = [
+  "audit-fs-callers",
+  "fix-storage",
+  "fix-logger",
+  "fix-cache",
+  "verify-compile",
+]
+must_include_decorator_calls = ["@uses"]
+
+[success_criteria]
+command = "vox check --strict"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/storage.vox", regex = "@uses\\(fs\\)" },
+  { path = "src/logger.vox",  regex = "@uses\\(fs\\)" },
+  { path = "src/cache.vox",   regex = "@uses\\(fs\\)" },
+]

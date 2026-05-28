@@ -1,0 +1,1 @@
+fn audit_sample_5() to str {     return "ok" }

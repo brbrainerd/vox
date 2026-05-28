@@ -80,7 +80,8 @@ fn git_lists_path(repo: &Path, path: &Path) -> bool {
     if path.is_dir() && !rel_s.is_empty() && !rel_s.ends_with('/') {
         rel_s.push('/');
     }
-    let output = match Command::new("git")
+    let output = match // vox-arch-check: allow git-exec
+        Command::new("git")
         .current_dir(repo)
         .args(["ls-files", "-z", "--", &rel_s])
         .output()

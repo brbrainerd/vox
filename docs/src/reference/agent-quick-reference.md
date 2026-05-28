@@ -1,7 +1,7 @@
 ---
 title: "Agent Quick Reference"
 description: "A tightly condensed reference for essential agent tasks, constraints, and CI rules."
-category: "reference"
+category: "Language Reference"
 status: "current"
 last_updated: "2026-04-16"
 training_eligible: true
@@ -35,14 +35,14 @@ If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:
 
 | Retired / Deprecated | Canonical Replacement (Use Instead) |
 |---|---|
-| `vox-dei` (orchestrating logic) | `vox-orchestrator` |
-| `vox-ars` | `vox-ars-runtime` |
-| `vox-ludus` | `vox-gamify` |
-| `vox-lexer`, `vox-parser`, `vox-hir` | `vox-compiler` |
-| `@component fn Name()` | `component Name() {}` |
-| `TURSO_URL`, `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
-| `recall()` | `recall_async()` |
-| `persist_fact()` | `sync_to_db()` |
+| Legacy orchestrator packaging | `vox-orchestrator` |
+| Legacy ARS/OpenClaw predecessor crate | `vox-openclaw-runtime` |
+| Legacy gamification crate label | `vox-gamify` |
+| Legacy split compiler crates | `vox-compiler` |
+| Legacy React-interop component decorator | `component Name() {}` |
+| Legacy Turso-prefixed DB env aliases | `VOX_DB_URL` / `VOX_DB_TOKEN` |
+| Sync recall API | `recall_async()` |
+| Persist-fact API | `sync_to_db()` |
 
 ## Entry Points
 - Full cross-agent definitions: [`AGENTS.md`](../../../AGENTS.md)

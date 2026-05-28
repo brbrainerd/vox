@@ -1,0 +1,54 @@
+id = "plan-018-add-result-error"
+wave = "wave_2"
+description = "Add a third variant to a Result-error ADT and update callers."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The base file defines `TodoError` with two variants (`TitleEmpty`,
+`TitleTooLong`) plus an `add_todo` endpoint and a @test that
+match-dispatches on the error variants. Add a third variant
+`DuplicateTitle(text: str)` to the ADT and add the corresponding
+match arm to the existing test (`Error(DuplicateTitle(_)) =>
+assert(false)`). The endpoint body does not need to produce the new
+variant — just keep vox check clean and exhaustive match.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `DuplicateTitle("...")`),
+    not as `TodoError.DuplicateTitle(...)`.
+  - ADTs use `type X = | A | B(field: T)` syntax.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the TodoError ADT and the @test match block."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Add the third variant to the ADT."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Add the new match arm to the existing @test."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-tests"
+description = "Existing @test still runs clean with the new arm."
+
+[success_criteria]
+vox_check_passes = true
+new_variant_added = true
+existing_tests_pass = true
+match_arms_exhaustive = true

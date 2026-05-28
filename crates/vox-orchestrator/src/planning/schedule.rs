@@ -42,6 +42,7 @@ pub async fn enqueue_runnable_plan_nodes(
     plan_session_id: &str,
     plan_version: u32,
     session_id: Option<String>,
+    tenant_id: Option<String>,
 ) -> Result<Vec<TaskId>, OrchestratorError> {
     let Some(db) = orch.db() else {
         return Ok(vec![]);
@@ -74,6 +75,7 @@ pub async fn enqueue_runnable_plan_nodes(
             plan_session_id,
             plan_version,
             session_id.clone(),
+            tenant_id.clone(),
         )
         .await?;
         db.set_plan_node_status(plan_session_id, plan_version as i64, &r.node_id, "queued")

@@ -265,6 +265,7 @@ pub fn package_json(tanstack_start: bool, file_route_tsr_pregen: bool) -> String
     "@tanstack/react-router": "{tr}",
     "@tanstack/react-start": "{ts}",
     "@tanstack/react-query": "{rq}",
+    "@tauri-apps/api": "^2.0.0",
     "zod": "^3.23.0"
   }},
   "devDependencies": {{
@@ -304,6 +305,7 @@ pub fn package_json(tanstack_start: bool, file_route_tsr_pregen: bool) -> String
     "lucide-react": "^0.468.0",
     "@tanstack/react-router": "{tr}",
     "@tanstack/react-query": "{rq}",
+    "@tauri-apps/api": "^2.0.0",
     "zod": "^3.23.0"
   }},
   "devDependencies": {{

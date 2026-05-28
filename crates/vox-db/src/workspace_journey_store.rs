@@ -5,7 +5,7 @@
 //! `VOX_WORKSPACE_JOURNEY_STORE=canonical` to restore the legacy user-global / Turso canonical path.
 //!
 //! When the project store open fails and `VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL` is truthy
-//! (default), surfaces may fall back to [`super::connect_canonical_optional`].
+//! (default), surfaces may fall back to `super::connect_canonical_optional`.
 
 use std::path::Path;
 

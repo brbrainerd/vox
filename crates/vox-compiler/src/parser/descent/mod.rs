@@ -1,6 +1,6 @@
 //! Single-module recursive-descent parser implementation.
 //!
-//! **This is the only parser implementation** for `vox-parser`. There is no
+//! **This is the only parser implementation** for the Vox compiler (`vox-compiler`). There is no
 //! secondary parser, no multi-module rewrite, and no separate LSP tree-sitter
 //! layer in this crate. The public entry point is [`parse`].
 //!
@@ -12,17 +12,17 @@ use crate::lexer::cursor::Spanned;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass, ParseSeverity};
 
-/// Strict parse: returns [`Module`] or **all** accumulated [`ParseError`] values.
+/// Strict parse: returns [`crate::Module`] or **all** accumulated [`ParseError`] values.
 ///
-/// Defaults to [`FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
+/// Defaults to [`crate::module::FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
 /// path's classification (e.g., `.vox.ui`) needs to relax the grammar — see
 /// [ADR-032](../../../../../docs/src/adr/032-vox-ui-reactive-modules.md).
 pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
     parse_with_kind(tokens, crate::module::FileKind::Source)
 }
 
-/// Like [`parse`] but additionally tells the descent which [`FileKind`] the source
-/// belongs to. Currently only [`FileKind::ReactiveModule`] changes behavior — it
+/// Like [`parse`] but additionally tells the descent which [`crate::module::FileKind`] the source
+/// belongs to. Currently only [`crate::module::FileKind::ReactiveModule`] changes behavior — it
 /// permits module-scope reactive members per ADR-032.
 pub fn parse_with_kind(
     tokens: Vec<Spanned>,
@@ -126,7 +126,33 @@ impl Parser {
     /// Debug-only trace when `VOX_PARSER_DEBUG` is set in the environment (OP-0008 / OP-0031).
     pub(crate) fn maybe_parser_trace(&self, label: &'static str) {
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
-            eprintln!("[vox-parser:{label}] {:?}", self.peek());
+            eprintln!("[vox-compiler:{label}] {:?}", self.peek());
+        }
+    }
+
+    /// Consume a `(…)` arg list of any depth, discarding all tokens inside.
+    /// Call after the opening `(` has already been eaten.
+    pub(crate) fn skip_paren_args_inner(&mut self) {
+        let mut depth: u32 = 1;
+        while depth > 0 && !matches!(self.peek(), Token::Eof) {
+            match self.peek() {
+                Token::LParen => {
+                    depth += 1;
+                    self.advance();
+                }
+                Token::RParen => {
+                    depth -= 1;
+                    if depth > 0 {
+                        self.advance();
+                    } else {
+                        self.advance();
+                        break;
+                    }
+                }
+                _ => {
+                    self.advance();
+                }
+            }
         }
     }
 
@@ -196,12 +222,16 @@ impl Parser {
             let is_decl_position = matches!(
                 self.peek(),
                 Token::Import
+                    | Token::Extern
+                    | Token::Fragment
                     | Token::AtComponent
                     | Token::Component
                     | Token::AtLoading
                     | Token::AtTest
                     | Token::AtV0
-                    | Token::AtEndpoint
+                    | Token::AtQuery
+                    | Token::AtMutation
+                    | Token::AtServer
                     | Token::AtForall
                     | Token::AtScheduled
                     | Token::AtTool
@@ -220,6 +250,35 @@ impl Parser {
                     | Token::AtTable
                     | Token::AtIndex
                     | Token::Async
+                    // Phase M (json-as-rfc-2026-05-24): `@json_as(...)` always precedes `type`.
+                    | Token::AtJsonAs
+                    // Function-level effect/purity/deprecation decorators that precede `fn`.
+                    | Token::AtRequire
+                    | Token::AtEnsure
+                    | Token::AtInvariant
+                    | Token::AtFuzz
+                    | Token::AtPure
+                    | Token::AtReactive
+                    | Token::AtRemote
+                    | Token::AtAi
+                    | Token::AtPrompt
+                    | Token::AtSubagent
+                    | Token::AtSearch
+                    | Token::AtHole
+                    | Token::AtInference
+                    | Token::AtTrainingStep
+                    | Token::AtDeprecated
+                    | Token::AtNative
+                    | Token::AtUses
+                    | Token::AtAuth
+                    | Token::AtCors
+                    | Token::AtRateLimit
+                    | Token::AtPii
+                    | Token::AtEmbed
+                    | Token::AtWebhook
+                    | Token::AtOfflineCapable
+                    | Token::AtCollaborative
+                    | Token::AtLayer
             ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
 
             let is_tombstoned = matches!(
@@ -271,13 +330,44 @@ impl Parser {
                 is_deprecated: false,
                 is_pure: false,
                 is_reactive: false,
+                is_remote: false,
                 is_traced: false,
                 is_llm: false,
                 llm_model: None,
+                ai_structured_output_type: None,
+                ai_max_iterations: 3,
+                ai_task_category: None,
+                ai_strengths: vec![],
+                ai_tier_max: None,
+                ai_cost_ceiling_usd_per_call: None,
+                prompt_stage: None,
+                prompt_schema: None,
+                prompt_redact: vec![],
+                subagent_policy: None,
+                subagent_max_depth: None,
+                subagent_budget_usd: None,
+                subagent_description: None,
+                subagent_parallel: false,
+                subagent_complexity: None,
+                search_corpus: None,
+                search_query: None,
+                search_into: None,
+                search_top_k: None,
+                search_policy: None,
+                hole_spec: None,
+                hole_reviewer: None,
+                hole_cache_key: None,
+                hole_constraints: vec![],
+                embed: None,
                 is_pub: false,
                 auth_provider: None,
                 roles: vec![],
                 cors: None,
+                webhook: None,
+                cors_spec: None,
+                rate_limit: None,
+                pii: None,
+                layer: None,
                 preconditions: vec![],
                 postconditions: vec![],
                 invariants: vec![],
@@ -286,6 +376,8 @@ impl Parser {
                 is_mobile_native: false,
                 ts_extern_module: None,
                 effects: vec![],
+                inference_model: None,
+                training_step: false,
                 span: script_start.merge(script_end),
             };
             decls.push(Decl::Function(main_fn));
@@ -334,7 +426,9 @@ impl Parser {
                 | Token::Workflow
                 | Token::Http
                 | Token::AtTest
-                | Token::AtEndpoint
+                | Token::AtQuery
+                | Token::AtMutation
+                | Token::AtServer
                 | Token::AtTable
                 | Token::TypeKw
                 | Token::Agent
@@ -348,9 +442,25 @@ impl Parser {
                 | Token::AtFuzz
                 | Token::AtPure
                 | Token::AtReactive
+                | Token::AtRemote
                 | Token::AtAi
+                | Token::AtPrompt
+                | Token::AtSubagent
+                | Token::AtSearch
+                | Token::AtHole
                 | Token::AtDeprecated
                 | Token::AtLoading
+                | Token::AtTokens
+                | Token::AtUses
+                | Token::AtAuth
+                | Token::AtCors
+                | Token::AtRateLimit
+                | Token::AtPii
+                | Token::AtEmbed
+                | Token::AtWebhook
+                | Token::AtOfflineCapable
+                | Token::AtCollaborative
+                | Token::AtLayer
                 | Token::Let
                 | Token::Agent
                 | Token::Env
@@ -388,7 +498,9 @@ impl Parser {
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
-            Token::AtEndpoint => self.parse_endpoint(),
+            Token::AtQuery => self.parse_query(),
+            Token::AtMutation => self.parse_mutation(),
+            Token::AtServer => self.parse_server_endpoint(),
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),
             Token::AtTool | Token::AtMcpTool => self.parse_mcp_tool(),
@@ -424,9 +536,26 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtPrompt
+                    | Token::AtSubagent
+                    | Token::AtSearch
+                    | Token::AtHole
+                    | Token::AtInference
+                    | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative => {
+                    | Token::AtNative
+                    | Token::AtUses
+                    | Token::AtAuth
+                    | Token::AtCors
+                    | Token::AtRateLimit
+                    | Token::AtPii
+                    | Token::AtEmbed
+                    | Token::AtWebhook
+                    | Token::AtOfflineCapable
+                    | Token::AtCollaborative
+                    | Token::AtLayer => {
                         let mut f = self.parse_fn_decl(false)?;
                         f.is_async = true;
                         Ok(Decl::Function(f))
@@ -450,9 +579,26 @@ impl Parser {
             | Token::AtFuzz
             | Token::AtPure
             | Token::AtReactive
+            | Token::AtRemote
             | Token::AtAi
+            | Token::AtPrompt
+            | Token::AtSubagent
+            | Token::AtSearch
+            | Token::AtHole
+            | Token::AtInference
+            | Token::AtTrainingStep
             | Token::AtDeprecated
-            | Token::AtNative => {
+            | Token::AtNative
+            | Token::AtUses
+            | Token::AtAuth
+            | Token::AtCors
+            | Token::AtRateLimit
+            | Token::AtPii
+            | Token::AtEmbed
+            | Token::AtWebhook
+            | Token::AtOfflineCapable
+            | Token::AtCollaborative
+            | Token::AtLayer => {
                 let f = self.parse_fn_decl(false)?;
                 Ok(Decl::Function(f))
             }
@@ -465,9 +611,26 @@ impl Parser {
                     | Token::AtInvariant
                     | Token::AtFuzz
                     | Token::AtPure
+                    | Token::AtRemote
                     | Token::AtAi
+                    | Token::AtPrompt
+                    | Token::AtSubagent
+                    | Token::AtSearch
+                    | Token::AtHole
+                    | Token::AtInference
+                    | Token::AtTrainingStep
                     | Token::AtDeprecated
-                    | Token::AtNative => {
+                    | Token::AtNative
+                    | Token::AtUses
+                    | Token::AtAuth
+                    | Token::AtCors
+                    | Token::AtRateLimit
+                    | Token::AtPii
+                    | Token::AtEmbed
+                    | Token::AtWebhook
+                    | Token::AtOfflineCapable
+                    | Token::AtCollaborative
+                    | Token::AtLayer => {
                         let f = self.parse_fn_decl(true)?;
                         Ok(Decl::Function(f))
                     }
@@ -511,6 +674,8 @@ impl Parser {
             Token::AtBackButton => self.parse_back_button_decl(),
             Token::AtDeepLink => self.parse_deep_link_decl(),
             Token::AtPush => self.parse_push_decl(),
+            Token::AtTokens => self.parse_tokens_decl(),
+            Token::AtDistributedTrain => self.parse_distributed_train_workflow_decl(),
             Token::Workflow => self.parse_workflow_decl(),
             Token::Activity => self.parse_activity_decl(),
             Token::Actor => self.parse_actor_decl(),
@@ -551,6 +716,11 @@ impl Parser {
                 }
             }
             Token::AtTable => self.parse_table(),
+            // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)`
+            // immediately precedes a `type` definition. parse_json_as parses
+            // the decorator block, then delegates to parse_typedef and
+            // attaches the annotation to the produced TypeDefDecl.
+            Token::AtJsonAs => self.parse_json_as(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
                 self.errors.push(ParseError::classified(

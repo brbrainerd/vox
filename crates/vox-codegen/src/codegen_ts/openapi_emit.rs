@@ -1,7 +1,8 @@
 //! OpenAPI 3.1 emit driven by Contract IR.
 //!
 //! Reflects the [Wire Format v1 SSOT](../../../../../docs/src/architecture/wire-format-v1-ssot.md):
-//! - Base path `/api/v1/`
+//! - Paths are absolute from the API host root (`/api/query/…`, `/api/mutation/…`, `/api/<server>`).
+//! - `servers[0].url` is empty so OpenAPI tooling composes URLs without duplicating `/api`.
 //! - Query endpoints → `GET`, mutations / server-fns → `POST`
 //! - `Decimal` / `BigInt` → `type: string`
 //! - `DateTime` → `type: string, format: date-time`
@@ -40,18 +41,48 @@ fn emit_from_contract(ir: &ContractIr, package_name: &str, version: &str) -> Str
         json!({
             "title": package_name,
             "version": version,
-            "description": "Generated from Vox source. Conforms to wire-format-v1.",
+            "description": "Generated from Vox source. Conforms to wire-format-v1.\n\nQuery (`GET`) parameters: each query value is JSON text after URI decoding — see wire-format-v1 SSOT §2.1. The `schema` on each parameter describes the logical type after `JSON.parse`; it is not the raw query-string token shape.",
         }),
     );
-    spec.insert("servers".into(), json!([{ "url": "/api/v1" }]));
+    // Empty server URL: path keys are absolute (`/api/query/foo`). A non-empty base such as
+    // `/api/v1` would make standard clients request `/api/v1/api/query/foo` (broken).
+    spec.insert("servers".into(), json!([{ "url": "" }]));
     spec.insert("paths".into(), Value::Object(emit_paths(&ir.endpoints)));
+    let mut schemas = emit_schemas(&ir.types);
+    schemas.insert("ErrorEnvelope".into(), error_envelope_component_schema());
     spec.insert(
         "components".into(),
         json!({
-            "schemas": Value::Object(emit_schemas(&ir.types)),
+            "schemas": Value::Object(schemas),
         }),
     );
     serde_json::to_string_pretty(&Value::Object(spec)).expect("OpenAPI emit must serialize")
+}
+
+fn error_envelope_component_schema() -> Value {
+    json!({
+        "type": "object",
+        "description": "Wire-format v1 error body (SSOT §6). Returned for 4xx/5xx endpoint failures.",
+        "required": ["ok", "code", "message"],
+        "properties": {
+            "ok": { "type": "boolean", "const": false },
+            "code": { "type": "string", "description": "Stable SCREAMING_SNAKE_CASE machine code" },
+            "message": { "type": "string" },
+            "request_id": { "type": "string", "description": "Optional trace / request correlation id" },
+            "details": { "description": "Optional structured payload; shape is code-specific" }
+        }
+    })
+}
+
+fn json_response_ref(description: &str, schema_ref: &str) -> Value {
+    json!({
+        "description": description,
+        "content": {
+            "application/json": {
+                "schema": { "$ref": format!("#/components/schemas/{schema_ref}") }
+            }
+        }
+    })
 }
 
 fn emit_paths(endpoints: &[ContractEndpoint]) -> Map<String, Value> {
@@ -90,6 +121,7 @@ fn emit_operation(e: &ContractEndpoint) -> Value {
                         "name": f.name,
                         "in": "query",
                         "required": !f.optional,
+                        "description": "JSON-encoded value after URI decoding (`JSON.parse`), per wire-format-v1 §2.1.",
                         "schema": wire_schema(&f.ty),
                     })
                 })
@@ -126,19 +158,35 @@ fn emit_operation(e: &ContractEndpoint) -> Value {
         }
     }
 
-    op.insert(
-        "responses".into(),
+    let mut responses = Map::new();
+    responses.insert(
+        "200".into(),
         json!({
-            "200": {
-                "description": "Success",
-                "content": {
-                    "application/json": {
-                        "schema": wire_schema(&e.response),
-                    }
+            "description": "Success",
+            "content": {
+                "application/json": {
+                    "schema": wire_schema(&e.response),
                 }
             }
         }),
     );
+    responses.insert(
+        "400".into(),
+        json_response_ref("Bad request or malformed parameters", "ErrorEnvelope"),
+    );
+    responses.insert(
+        "429".into(),
+        json_response_ref("Rate limited", "ErrorEnvelope"),
+    );
+    responses.insert(
+        "500".into(),
+        json_response_ref("Internal server error", "ErrorEnvelope"),
+    );
+    responses.insert(
+        "default".into(),
+        json_response_ref("Error — see wire-format-v1 §6", "ErrorEnvelope"),
+    );
+    op.insert("responses".into(), Value::Object(responses));
     Value::Object(op)
 }
 
@@ -253,7 +301,7 @@ mod tests {
         let v = parse(&s);
         assert_eq!(v["openapi"], json!("3.1.0"));
         assert_eq!(v["info"]["title"], json!("demo"));
-        assert_eq!(v["servers"][0]["url"], json!("/api/v1"));
+        assert_eq!(v["servers"][0]["url"], json!(""));
         assert!(v["paths"].as_object().unwrap().is_empty());
     }
 
@@ -360,9 +408,77 @@ mod tests {
         assert_eq!(op["operationId"], json!("list_users"));
         assert_eq!(op["parameters"][0]["in"], json!("query"));
         assert_eq!(op["parameters"][0]["required"], json!(false));
+        assert!(
+            op["parameters"][0]["description"]
+                .as_str()
+                .unwrap_or("")
+                .contains("JSON"),
+            "expected JSON encoding hint on query params"
+        );
         let resp = &op["responses"]["200"]["content"]["application/json"]["schema"];
         assert_eq!(resp["type"], json!("array"));
         assert_eq!(resp["items"]["$ref"], json!("#/components/schemas/User"));
+    }
+
+    #[test]
+    fn components_include_error_envelope_and_errors_reference_it() {
+        let ir = ContractIr {
+            types: vec![],
+            endpoints: vec![ContractEndpoint {
+                kind: vox_compiler::contract_ir::ContractEndpointKind::Query,
+                name: "ping".into(),
+                method: HttpMethod::Get,
+                path: "/api/query/ping".into(),
+                params: vec![],
+                response: WireType::String,
+                is_pure: true,
+            }],
+        };
+        let v = parse(&emit_from_contract(&ir, "demo", "0.1.0"));
+        let env = &v["components"]["schemas"]["ErrorEnvelope"];
+        assert_eq!(env["properties"]["ok"]["const"], json!(false));
+        let op = &v["paths"]["/api/query/ping"]["get"];
+        assert_eq!(
+            op["responses"]["400"]["content"]["application/json"]["schema"]["$ref"],
+            json!("#/components/schemas/ErrorEnvelope")
+        );
+        assert_eq!(
+            op["responses"]["default"]["content"]["application/json"]["schema"]["$ref"],
+            json!("#/components/schemas/ErrorEnvelope")
+        );
+    }
+
+    #[test]
+    fn openapi_paths_do_not_double_api_segment_when_server_url_empty() {
+        let ir = ContractIr {
+            types: vec![],
+            endpoints: vec![ContractEndpoint {
+                kind: vox_compiler::contract_ir::ContractEndpointKind::Query,
+                name: "q".into(),
+                method: HttpMethod::Get,
+                path: "/api/query/q".into(),
+                params: vec![],
+                response: WireType::String,
+                is_pure: true,
+            }],
+        };
+        let v = parse(&emit_from_contract(&ir, "demo", "0.1.0"));
+        let server = v["servers"][0]["url"].as_str().unwrap_or("");
+        assert!(
+            server.is_empty(),
+            "expected empty server URL, got {server:?}"
+        );
+        for path_key in v["paths"].as_object().unwrap().keys() {
+            let composed = format!("{server}{path_key}");
+            assert!(
+                !composed.contains("/api/v1/api/"),
+                "unexpected doubled api segment in {composed}"
+            );
+            assert!(
+                composed.starts_with("/api/"),
+                "expected absolute /api path, got {composed}"
+            );
+        }
     }
 
     #[test]

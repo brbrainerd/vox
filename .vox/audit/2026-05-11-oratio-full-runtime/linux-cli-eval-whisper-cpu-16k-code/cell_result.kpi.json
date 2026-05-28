@@ -1,0 +1,10 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "linux-cli-eval-whisper-cpu-16k-code",
+  "evidence": "Current host is not Linux for this matrix cell.",
+  "failure_category": "orchestration",
+  "notes": "Run on Linux x64 to measure this cell.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "status": "runtime_unavailable"
+}

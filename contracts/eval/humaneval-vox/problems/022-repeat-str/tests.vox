@@ -1,0 +1,15 @@
+fn repeat_str(s: str, n: int) to str {
+    let mut result: str = ""
+    for _ in range(0, n) {
+        result = result + s
+    }
+    return result
+}
+
+fn main() to str {
+    assert(repeat_str("ab", 3) == "ababab")
+    assert(repeat_str("x", 0) == "")
+    assert(repeat_str("", 5) == "")
+    assert(repeat_str("ha", 1) == "ha")
+    return "ok"
+}

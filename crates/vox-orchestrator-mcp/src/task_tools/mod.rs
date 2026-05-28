@@ -3,7 +3,7 @@
 //! Covers: submit, status, complete, fail, cancel, reorder, drain, and publish.
 //!
 //! ## Policy side effects
-//! Submit/status paths participate in **interruption / attention policy** ([`super::attention_policy`]): they may call
+//! Submit/status paths participate in **interruption / attention policy** (`super::attention_policy`): they may call
 //! [`ServerState::record_attention_event`](crate::server_state::ServerState::record_attention_event) and read trust snapshots when
 //! questioning backlog or human-confirmation gates apply. That is **budget-plane telemetry**, not remote product analytics.
 

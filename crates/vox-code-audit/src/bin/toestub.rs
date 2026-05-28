@@ -49,7 +49,7 @@ struct Opt {
     /// Include fix suggestions in the task queue (Markdown / internal tooling).
     #[arg(long, default_value_t = false)]
     suggest_fixes: bool,
-    /// Only run rules whose [`DetectionRule::id`] starts with one of these prefixes (repeatable; e.g. `--rules scaling`).
+    /// Only run rules whose `DetectionRule::id` starts with one of these prefixes (repeatable; e.g. `--rules scaling`).
     #[arg(long = "rules", value_name = "PREFIX")]
     rule_prefix: Vec<String>,
     /// Structured suppressions JSON (`contracts/toestub/suppression.v1.schema.json`).

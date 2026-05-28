@@ -1,0 +1,128 @@
+# CR-L gate umbrella — runs `vox audit --gate all` on every PR + nightly.
+#
+# Per `docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md` §1.3,
+# this is the workflow that enforces the v1.0 acceptance bar:
+# `cargo run -p vox-cli -- audit --gate all --strict-block-ga` exits 0 iff
+# every block-GA gate reports `threshold.met == true && incomplete == false`.
+#
+# Posts the canonical snapshot (`contracts/reports/_snapshot/<UTC>.json`) and
+# every per-gate report (`contracts/reports/<gate>/<UTC>.json`) as workflow
+# artifacts so reviewers can audit the numbers without re-running locally.
+#
+# Two jobs:
+#   - `umbrella`: runs `--gate all` with `--strict-block-ga`. Fails the PR
+#     if any block-GA gate is unmet. This is the canonical v1.0 gate.
+#   - `arch-check-evidence`: runs `vox-arch-check` (which includes the
+#     evidence-ledger lint as Rule 14). Defaults to warn-only until the
+#     block-GA gates are met by real measurements — see the §10 acceptance
+#     of the honest completion plan for the strict-flip trigger.
+
+name: CR-L gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'crates/vox-audit/**'
+      - 'crates/vox-arch-check/**'
+      - 'crates/vox-cli/src/commands/audit.rs'
+      - 'contracts/eval/**'
+      - 'contracts/reports/evidence-ledger.v1.json'
+      - 'docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md'
+      - 'docs/src/architecture/v1-release-criteria.md'
+      - '.github/workflows/cr-l-gates.yml'
+  schedule:
+    # Nightly at 06:00 UTC. Catches the case where a fixture grows stale
+    # or a CR-L8 corpus-feedback artifact ages past its 90-day window.
+    - cron: '0 6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  umbrella:
+    name: vox audit --gate all --strict-block-ga
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-cr-l-gates-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build vox-cli
+        run: cargo build -p vox-cli --bin vox
+
+      - name: Run audit umbrella (strict)
+        id: umbrella
+        # CR-L gates that require an LLM panel (CR-L0/L1/L2/L3/L4) operate
+        # in corpus-validity mode without OPENROUTER_API_KEY; the snapshot
+        # records `incomplete: true` on those rows. `--strict-block-ga`
+        # fails only on block-GA gates that are unmet — that's the v1.0
+        # acceptance bar.
+        run: |
+          target/debug/vox audit --gate all --strict-block-ga
+        continue-on-error: true
+
+      - name: Upload canonical snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-l-gates-snapshot-${{ github.sha }}
+          path: |
+            contracts/reports/_snapshot/
+            contracts/reports/audit-all/
+
+      - name: Upload per-gate reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cr-l-per-gate-reports-${{ github.sha }}
+          path: |
+            contracts/reports/humaneval/
+            contracts/reports/mens-on-distribution/
+            contracts/reports/repair-corpus/
+            contracts/reports/plan-fidelity/
+            contracts/reports/aci-default/
+            contracts/reports/retirement/
+            contracts/reports/deploy/
+            contracts/reports/corpus-feedback/
+            contracts/reports/spec-to-app/
+
+      - name: Fail if umbrella reported block-GA violations
+        if: steps.umbrella.outcome == 'failure'
+        run: |
+          echo "::error::vox audit --strict-block-ga reported violations."
+          echo "::error::See the cr-l-gates-snapshot artifact for the snapshot JSON."
+          echo "::error::Per docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §10,"
+          echo "::error::no 'v1.0 ready' claim is permitted until this job exits 0."
+          exit 1
+
+  arch-check-evidence:
+    name: vox-arch-check evidence-ledger lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-arch-check-${{ hashFiles('**/Cargo.lock') }}
+
+      # Warn-only until the block-GA gates are met by real measurements
+      # (per the honest plan §10 acceptance). Adding `--strict-evidence`
+      # then turns missing/stale-artifact findings into a strict failure.
+      - name: Run vox-arch-check
+        run: cargo run --release -p vox-arch-check

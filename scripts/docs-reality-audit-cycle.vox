@@ -1,0 +1,33 @@
+// scripts/docs-reality-audit-cycle.vox
+// Weekly / monthly Documentation Reality Audit gate: verify artifacts, refresh metrics.
+// Usage: vox run scripts/docs-reality-audit-cycle.vox
+
+fn run_cargo_step(label: str, args: list[str]) to int {
+    print("docs-reality-audit: " + label)
+    let proc = process.run("cargo", args)
+    if proc is null {
+        log.error("docs-reality-audit: could not spawn cargo")
+        return 1
+    }
+    let res = proc.unwrap()
+    if res.code != 0 {
+        log.error("docs-reality-audit " + label + " failed (exit " + str(res.code) + ")")
+    }
+    return res.code
+}
+
+fn main() {
+    let verify_args = ["run", "-q", "-p", "vox-cli", "--", "ci", "docs-reality-audit", "verify"]
+    let verify_code = run_cargo_step("verify…", verify_args)
+    if verify_code != 0 {
+        process.exit(verify_code)
+    }
+
+    let metrics_args = ["run", "-q", "-p", "vox-cli", "--", "ci", "docs-reality-audit", "metrics", "--write"]
+    let metrics_code = run_cargo_step("metrics --write…", metrics_args)
+    if metrics_code != 0 {
+        process.exit(metrics_code)
+    }
+
+    print("docs-reality-audit cycle: OK")
+}

@@ -308,7 +308,7 @@ partial state_machine Broken {
     #[test]
     fn transition_from_undeclared_state_produces_error() {
         use crate::ast::span::Span;
-        use crate::hir::nodes::{HirSmField, HirSmState, HirSmTransition, HirStateMachineDecl};
+        use crate::hir::nodes::{HirSmState, HirSmTransition, HirStateMachineDecl};
         use crate::hir::{DefId, HirModule, HirSmFrom};
 
         let sp = Span::new(0, 0);

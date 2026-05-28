@@ -1,7 +1,7 @@
 ---
 title: "Telemetry Trust (SSoT)"
 description: "Canonical boundaries and trust policies for Vox telemetry."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 10
 status: "current"
 ---
@@ -13,7 +13,7 @@ status: "current"
 ## Core Policy
 
 1. **Zero-Surprise Telemetry**: All telemetry in Vox is opt-in or strictly locally-bounded by default. Remote sinks must be explicitly authorized.
-2. **Local-First Analysis**: The primary consumer of `vox` telemetry is the local `vox-dei` orchestrator.
+2. **Local-First Analysis**: The primary consumer of `vox` telemetry is the local **`vox-orchestrator`** stack (CLI + optional `vox-orchestrator-d`).
 3. **Data Residency**: No source code, secrets, or PII may be included in default telemetry payloads. 
 
 For implementation details and configuration of remote sinks, see:

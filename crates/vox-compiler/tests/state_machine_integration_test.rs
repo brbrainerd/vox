@@ -13,7 +13,7 @@ fn parse_and_lower(src: &str) -> vox_compiler::hir::HirModule {
 // ── Parser round-trip ─────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_parse_simple_state_machine() {
     let src = "
 state_machine Light {
@@ -33,7 +33,7 @@ state_machine Light {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_parse_partial_state_machine() {
     let src = "
 partial state_machine Lifecycle {
@@ -52,7 +52,7 @@ partial state_machine Lifecycle {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_parse_state_with_fields() {
     let src = "
 state_machine Counter {
@@ -69,7 +69,7 @@ state_machine Counter {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_parse_event_with_params() {
     let src = "
 partial state_machine Flow {
@@ -89,7 +89,7 @@ partial state_machine Flow {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_parse_from_any() {
     let src = "
 state_machine Lifecycle {
@@ -108,7 +108,7 @@ state_machine Lifecycle {
 // ── Type-checker integration ───────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_typecheck_complete_machine_no_errors() {
     let src = "
 state_machine Light {
@@ -128,7 +128,7 @@ state_machine Light {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_typecheck_non_exhaustive_machine_is_error() {
     let src = "
 state_machine Light {
@@ -155,7 +155,7 @@ state_machine Light {
 // ── Codegen emit ──────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_emit_includes_state_machines_ts() {
     let src = "
 state_machine Light {
@@ -171,7 +171,7 @@ state_machine Light {
 }
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_emit_terminal_state_not_in_reducer_switch() {
     let src = "
 partial state_machine Door {

@@ -514,8 +514,23 @@ fn apply_overlay_position(position: Option<&str>, classes: &mut Vec<String>) {
 
 fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
     if let Some(val) = z {
-        // Tailwind JIT arbitrary z-index: z-[100]
-        classes.push(format!("z-[{val}]"));
+        if let Some(tier) = crate::web_ir::ZTier::from_str(val) {
+            // ADR 034: Map tiers to fixed Tailwind z-index numbers.
+            // Within-tier ordering is deliberately unspecified.
+            let z_idx = match tier {
+                crate::web_ir::ZTier::Background => 0,
+                crate::web_ir::ZTier::Content => 10,
+                crate::web_ir::ZTier::Chrome => 20,
+                crate::web_ir::ZTier::Popover => 30,
+                crate::web_ir::ZTier::Modal => 40,
+                crate::web_ir::ZTier::Toast => 50,
+                crate::web_ir::ZTier::SystemOverlay => 100,
+            };
+            classes.push(format!("z-[{z_idx}]"));
+        } else {
+            // Tailwind JIT arbitrary z-index: z-[100]
+            classes.push(format!("z-[{val}]"));
+        }
     }
 }
 
@@ -760,6 +775,22 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
             _ => vec![format!("shadow-{v}")],
         },
         "opacity" => vec![format!("opacity-{v}")],
+        "z" => {
+            if let Some(tier) = crate::web_ir::ZTier::from_str(v) {
+                let z_idx = match tier {
+                    crate::web_ir::ZTier::Background => 0,
+                    crate::web_ir::ZTier::Content => 10,
+                    crate::web_ir::ZTier::Chrome => 20,
+                    crate::web_ir::ZTier::Popover => 30,
+                    crate::web_ir::ZTier::Modal => 40,
+                    crate::web_ir::ZTier::Toast => 50,
+                    crate::web_ir::ZTier::SystemOverlay => 100,
+                };
+                vec![format!("z-[{z_idx}]")]
+            } else {
+                vec![format!("z-[{v}]")]
+            }
+        }
         "raw_class" => v
             .split_whitespace()
             .map(std::string::ToString::to_string)

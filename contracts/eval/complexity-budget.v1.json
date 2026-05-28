@@ -1,6 +1,6 @@
 {
   "x-vox-version": 1,
-  "fixtures": 
+  "fixtures": {
     "agent_pipeline": 107,
     "checkout_workflow": 107,
     "ref_syntax": 197,

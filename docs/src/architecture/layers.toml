@@ -27,15 +27,26 @@
 # from the orphan rule and from the convention that workspace surfaces sit at L5.
 # Only product-shipped binaries (the user-visible CLI surface) live at L5.
 
+# Optional: extra directory *names* (final path component) skipped when
+# vox-arch-check walks the repo for Rule 9 + 11. Built-in skips always include
+# target, .git, node_modules, .pnpm-store, __pycache__, .venv, .mypy_cache,
+# .turbo, .next, .parcel-cache, .cargo — extras can only add, never remove.
+[arch_check.walk_prune]
+# extra_skip_dir_names = ["example_vendor"]
+
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
 # the --warn-only CLI flag). The other seven default to warn.
 fan_in            = "warn"
 loc_budget        = "warn"
-orphan            = "warn"
+orphan            = "error"  # promoted from warn post-Tier-A; no legitimate orphan libraries should exist
 docstring         = "warn"
 description       = "error"
 where_things_live = "error"
+# Rule 12: WTL / layers.toml / disk three-way parity.
+wtl_parity        = "error"
+# Rule 13: LoC delta regression. Warns when any budgeted crate has grown >15% vs last release tag.
+loc_delta         = "warn"
 # Rule 8: warns when a crate has no commits since the last CHANGELOG.md release date.
 # Silence for individual crates with staleness_exempt = true.
 staleness         = "warn"
@@ -58,29 +69,33 @@ forbidden = ["vox-search", "tantivy", "qdrant"]
 reason   = "vox-code-audit detectors must not pull search/vector deps (build-time neutrality)"
 
 [crates]
+vox-scientia = { layer = 3, staleness_exempt = true, max_loc = 15_000 }  # umbrella: +8 SCIENTIA sub-crates folded in (was ~2.5K, now ~8.8K)
 
 # ── L0 — pure types ───────────────────────────────────────────────────────────
 vox-orchestrator-types = { layer = 0 }
+
 vox-db-types           = { layer = 0 }
-vox-protocol           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
-vox-primitives         = { layer = 0 }
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
-vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable
+vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
+vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
+vox-shell-stdlib-types    = { layer = 0, staleness_exempt = true }   # VoxFileRecord + std.fs types; shared between compiler interp path and actor-runtime codegen path
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }
+vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1 }
-vox-secrets           = { layer = 1, max_dependents = 25 }
+vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
+
 vox-jsonschema-util   = { layer = 1 }
-vox-checksum-manifest = { layer = 1 }
+vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
+
 vox-identity          = { layer = 1 }
-vox-reqwest-defaults  = { layer = 1 }
+vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 20 }
 vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
-vox-openai-wire       = { layer = 1 }
-vox-openai-sse        = { layer = 1 }
-vox-exec-grammar      = { layer = 1 }
+vox-openai       = { layer = 1, staleness_exempt = true }
+
 vox-grammar-export    = { layer = 1 }
 vox-scaling-policy    = { layer = 1 }
 vox-package-types     = { layer = 1 }                            # pure-types L1 leaf
@@ -90,83 +105,98 @@ vox-research-events    = { layer = 1 }                            # SCIENTIA typ
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
-vox-config              = { layer = 2 }
+vox-config              = { layer = 2, max_dependents = 20 }
 vox-repository          = { layer = 2 }
+vox-populi-types        = { layer = 2, max_loc = 1_000 }  # ADR-042: NodeRecord + PopuliRegistryFile (pure-data, no async)
 vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2 }
-vox-install-policy      = { layer = 2 }
+
 vox-project-scaffold    = { layer = 2 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
-vox-claim-extractor     = { layer = 2, max_loc = 20_000 }               # SCIENTIA Phase 1: VeriScore + atomic + MiniCheck extraction
-vox-nanopub             = { layer = 2, max_loc = 10_000 }               # SCIENTIA Phase 4: TriG emit + ed25519 sign + Nanopub Network
-vox-prereg              = { layer = 2, max_loc = 8_000 }                # SCIENTIA Phase 2: PreregistrationV1 signing + deviation detection
-vox-ro-crate            = { layer = 2, max_loc = 12_000 }               # SCIENTIA Phase 4: RO-Crate 1.2 builder
-vox-share               = { layer = 2 }
+
+
+
+
+
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
 vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
 vox-corpus              = { layer = 3, max_loc = 15_000 }
-vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 35_000 }
-vox-codegen             = { layer = 3, max_loc = 20_000 }
+vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
+vox-codegen         = { layer = 3, max_loc = 25_000 }
+vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
+vox-tauri-stt           = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
+
+
+vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               # offline SCIENTIA JSON Schema → Rust (typify)
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
-vox-publisher           = { layer = 3, max_loc = 20_000 }
-vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 60_000 }
-vox-orchestrator-core   = { layer = 3, kind = "boundary-marker", max_loc = 20_000 } # C5: orchestrator/ router/dispatcher; extraction blocked by 30+ crate:: cross-cuts
+vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
+vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
+vox-dei-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
 vox-oratio              = { layer = 3 }
 vox-wasm-engine         = { layer = 3 }
+vox-container-types     = { layer = 0 }              # pure types: ContainerRuntime trait, BuildOpts/RunOpts, RuntimePreference, exec_grammar (D-9-rescope step 1)
 vox-container           = { layer = 3 }
 vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
-vox-dashboard           = { layer = 3 }
-vox-webhook             = { layer = 3 }
-vox-code-audit          = { layer = 3, max_loc = 15_000 }
-vox-drift-check         = { layer = 3, kind = "binary", max_loc = 8_000 }
+vox-distributed-training = { layer = 3, orphan_exempt = true }     # WIP/Mn-T1; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
+vox-inference           = { layer = 3, orphan_exempt = true }      # WIP/Mn-T2; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
+vox-mesh-policy  = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
+vox-code-audit          = { layer = 3, max_loc = 25_000 }
+vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
+vox-wire-format-validator    = { layer = 3, kind = "binary", max_loc = 4_000 }
 vox-lsp                 = { layer = 3 }
 vox-gamify              = { layer = 3, max_loc = 20_000 }
 vox-skills              = { layer = 3 }
 vox-cli-core            = { layer = 3 }
-vox-cli-ci              = { layer = 3, kind = "boundary-marker" } # C3: ci/ extraction boundary marker (full move pending bounded_read refactor)
+
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-search              = { layer = 3 }
-vox-scientia-ingest     = { layer = 3 }
-vox-ssg                 = { layer = 3 }
+
+
 vox-test-harness        = { layer = 3 }
+vox-plugin-test-harness = { layer = 3, kind = "test-only" }  # manifest fixture builders + PluginDir for plugin authors
 vox-doc-pipeline        = { layer = 3 }
 vox-deploy-codegen      = { layer = 3 }
 vox-package             = { layer = 3 }
+
+
 vox-tensor              = { layer = 3 }
 vox-plugin-host         = { layer = 3 }
 vox-plugin-catalog      = { layer = 3 }
-vox-inspect-bridge      = { layer = 3, max_loc = 15_000 }               # SCIENTIA Phase 5: UK AISI Inspect adapter
+
 
 # ── L4 — concrete plugins (cdylib only — never compile-time deps for L0..L3) ──
+# Note: Skill-only plugins (e.g., vox-plugin-skill-git) have no Cargo.toml and are
+# exempt from this file. They are validated separately.
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
 vox-plugin-cloud             = { layer = 4, kind = "plugin" }
-vox-plugin-grammar-export    = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin" }
+vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin" }
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
 vox-plugin-oratio            = { layer = 4, kind = "plugin" }
-vox-plugin-oratio-mic        = { layer = 4, kind = "plugin" }
 vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
 vox-plugin-publication       = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-container = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-wasm      = { layer = 4, kind = "plugin" }
-vox-plugin-script-execution  = { layer = 4, kind = "plugin" }
 vox-plugin-webhook           = { layer = 4, kind = "plugin" }
 
 # ── L5 — surfaces ─────────────────────────────────────────────────────────────
-vox-cli               = { layer = 5, kind = "binary", max_loc = 70_000 }
+vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000, max_workspace_deps = 60 }
+vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
+vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
+voxup                 = { layer = 5, kind = "binary" }
 
 
 # ── Permitted inversions ──────────────────────────────────────────────────────
@@ -179,7 +209,163 @@ to     = "vox-orchestrator"
 reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See build-time-log.md Phase 7 audit."
 
 [[known_inversions]]
-from   = "vox-arch-check"
-to     = "vox-compiler"
-reason = "dev-dependency only (rename-registry integration test added in feat(arch-check) VUV-9 task 8). The tool binary does not ship vox-compiler at runtime; remove once the test can be refactored to not need the full compiler crate."
+from   = "vox-ml-cli"
+to     = "vox-cli"
+reason = "Optional `mens-dei` workflow path shells out through `vox_cli::commands::build`, `build_service`, and `fs_utils` when `workflow-runtime` is disabled. Prefer extracting a shared L3 driver crate over tightening `vox-cli` deps."
+
+# ── Rule 11 (P3-T7): Forbidden code patterns ─────────────────────────────────
+# Forbid raw git invocations outside the concurrency-policy wrapper.
+# See docs/src/architecture/git-concurrency-policy.md.
+[[forbidden_pattern]]
+name             = "raw-git-exec"
+pattern          = 'Command::new\("git"\)'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-vcs-git/src/git_exec.rs",
+    "crates/vox-arch-check/src/main.rs",
+    "crates/vox-arch-check/src/forbidden_patterns.rs",
+    "crates/vox-orchestrator-mcp/src/git_tools.rs",
+    "crates/vox-repository/src/repo_catalog/query.rs",
+    "crates/vox-search/src/memory_hybrid.rs",
+    "crates/vox-git/src/bridge.rs",
+    "crates/vox-orchestrator-mcp/src/git_exec.rs",
+    "crates/vox-build-meta/src/lib.rs",
+    "crates/vox-cli/src/commands/ci/data_storage_guard.rs",
+    "crates/vox-cli/src/commands/ci/line_endings.rs",
+    "crates/vox-cli/src/commands/ci/pre_push.rs",
+    "crates/vox-cli/src/commands/ci/run_body_helpers/guards.rs",
+    "crates/vox-cli/src/commands/ci/watch_run.rs",
+    "crates/vox-cli/src/commands/ci/workspace_artifacts/mod.rs",
+    "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/toolchain.rs",
+    "crates/vox-cli/src/commands/repo_upgrade.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/git.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/baseline.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/stack.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/submit_branch.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/github/reviews/worktree.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/historical_planner.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/collector.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/semantic_planner/submit.rs",
+    "crates/vox-cli/src/commands/review/coderabbit/stack_planner/submit.rs",
+    "crates/vox-doc-pipeline/src/pipeline/lint.rs",
+]
+allow_annotation = "// vox-arch-check: allow git-exec"
+reason           = "All git invocations must go through GitExec to honor the concurrency policy."
+
+# Emit boundary (ADR 036 / projection bundle): do not re-lower or re-project HIR outside
+# `vox-codegen::projection_bundle` from TypeScript/Rust emitters — use `project_bundle_from_hir`.
+[[forbidden_pattern]]
+name             = "projection-bundle-ts-emit-boundary"
+pattern          = '(?-u)\b(lower_hir_to_web_ir|project_web_from_core|project_app_contract|project_runtime_from_hir|project_shell_from_hir|project_required_capabilities)\s*\('
+file_glob        = "crates/vox-codegen/src/codegen_ts/**/*.rs"
+allow_annotation = "// vox-arch-check: allow-direct-projection"
+reason           = "HIR projections for emit must go through projection_bundle (WebIR/AppContract/Runtime/Shell/RequiredCapabilities SSOT)."
+
+[[forbidden_pattern]]
+name             = "projection-bundle-rust-emit-boundary"
+pattern          = '(?-u)\b(lower_hir_to_web_ir|project_web_from_core|project_app_contract|project_runtime_from_hir|project_shell_from_hir|project_required_capabilities)\s*\('
+file_glob        = "crates/vox-codegen/src/codegen_rust/**/*.rs"
+allow_annotation = "// vox-arch-check: allow-direct-projection"
+reason           = "HIR projections for emit must go through projection_bundle (WebIR/AppContract/Runtime/Shell/RequiredCapabilities SSOT)."
+
+# Crate-level `unsafe_code` allows — keep list short; prefer `EnvScratch`, scoped `#[allow]`, or `// vox-arch-check: allow crate unsafe_code`.
+[[forbidden_pattern]]
+name             = "crate-allow-unsafe-code"
+pattern          = '#!\[allow\([^\]]*unsafe_code[^\]]*\)\]'
+file_glob        = "crates/**/*.rs"
+exempt_files     = [
+    "crates/vox-test-harness/src/env_scratch.rs",
+    "crates/vox-plugin-api/src/lib.rs",
+    "crates/vox-lsp/tests/diagnostic_tests.rs",
+
+
+
+    "crates/vox-populi/tests/ed25519_envelope.rs",
+    "crates/vox-compiler/tests/mens_decorators.rs",
+    "crates/vox-compiler/tests/reactive_smoke_test.rs",
+    "crates/vox-compiler/tests/web_ir_environment_gates_test.rs",
+    "crates/vox-compiler/tests/web_ir_lower_emit_test.rs",
+    "crates/vox-integration-tests/tests/pipeline_env_test.rs",
+    "crates/vox-integration-tests/tests/pipeline_test.rs",
+    "crates/vox-integration-tests/tests/ts_emit_typecheck_test.rs",
+    "crates/vox-orchestrator/tests/mesh_ai_fixture_relay.rs",
+]
+allow_annotation = "// vox-arch-check: allow crate unsafe_code"
+reason           = "New crate-root `#![allow(unsafe_code)]` must be reviewed; centralize test env mutation or document FFI invariants instead of widening the surface."
+
+# Tauri convergence (ADR 037): Capacitor and Axum-as-app surfaces are retired for
+# generated desktop/mobile applications. Current call sites remain as explicit
+# exemptions until the migration plan removes them task by task.
+[[forbidden_pattern]]
+name             = "no-capacitor-in-app-codegen"
+pattern          = '@capacitor/'
+file_glob        = "crates/vox-codegen/**/*.rs"
+allow_annotation = "// vox-arch-check: allow capacitor-codegen"
+reason           = "Generated app code must use @tauri-apps/* per ADR 037."
+
+[[forbidden_pattern]]
+name             = "no-cap-sync-in-cli"
+pattern          = 'npx\s+cap\s+(sync|run|update)'
+file_glob        = "crates/vox-cli/**/*.rs"
+allow_annotation = "// vox-arch-check: allow cap-sync"
+reason           = "`npx cap sync` is retired for app packaging; use Tauri mobile tooling per ADR 037."
+
+[[forbidden_pattern]]
+name             = "no-axum-in-generated-app-emit"
+pattern          = 'axum::serve|axum::Router::new|axum::routing'
+file_glob        = "crates/vox-codegen/src/codegen_rust/emit/**/*.rs"
+exempt_files     = [
+    "crates/vox-codegen/src/codegen_rust/emit/http.rs",
+]
+allow_annotation = "// vox-arch-check: allow axum-app-emit"
+reason           = "Generated desktop/mobile applications must use Tauri; Axum emit is reserved for native-binary, dashboard, server, and daemon/API lanes."
+
+[[forbidden_pattern]]
+name             = "no-rust-embed-in-generated-cargo"
+pattern          = 'rust-embed'
+file_glob        = "crates/vox-codegen/src/codegen_rust/emit/**/*.rs"
+exempt_files     = [
+    "crates/vox-codegen/src/codegen_rust/emit/mod.rs",
+]
+allow_annotation = "// vox-arch-check: allow rust-embed-app-emit"
+reason           = "Generated desktop/mobile applications bundle assets through Tauri `dist/`; rust-embed remains only for non-Tauri targets during migration."
+
+[[forbidden_pattern]]
+name             = "no-capacitor-deps-in-apps"
+pattern          = '"@capacitor/'
+file_glob        = "apps/**/package.json"
+allow_annotation = "// vox-arch-check: allow capacitor-app-dep"
+reason           = "Application package manifests use @tauri-apps/* per ADR 037."
+
+# ── Planned crates (in-flight design docs; not yet on disk) ──────────────────
+# Rule 12 (WTL parity check) consults this table before flagging a
+# where-things-live.md reference as a ghost.  Each entry must point to the
+# plan doc that owns the work so the next contributor can pick it up cold.
+#
+# Format: <crate-name> = { plan = "<doc path>", layer = <intended layer> }
+[planned]
+vox-claim-extractor      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-inspect-bridge       = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }
+vox-nanopub              = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-prereg               = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-ro-crate             = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 2 }
+vox-scientia-ingest      = { plan = "docs/src/architecture/scientia-phases-2026.md", layer = 3 }
+vox-mesh-models          = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
+vox-orchestrator-core    = { plan = "docs/src/architecture/2026-05-15-orchestrator-tier-d-plan.md", layer = 3 }
+vox-orchestrator-cap-mint = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 3 }
+vox-checksum-manifest    = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-release-artifacts    = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-assets               = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-exec-grammar         = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+vox-http-envelope        = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+# vox-openai-sse, vox-openai-wire — retired 2026-05-23; vox-openai already contains both (sse.rs + chat_completion.rs)
+vox-share                = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
+vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
+vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
+# vox-mesh-policy — promoted to [crates] 2026-05-24; renamed from vox-mesh
+# vox-distributed-training, vox-inference — promoted to [crates] (now on disk)
+vox-cli-ci               = { plan = "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", layer = 3 }
+vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
+vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
+vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
 

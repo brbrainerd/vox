@@ -1,10 +1,10 @@
 //! Lower [`vox_compiler::hir::HirModule`] into [`super::WebIrModule`] (ADR 012 Phase 1).
 //!
 //! **Lowering stages (OP-0065):**
-//! - **R (routes)** — `hir.client_routes` → [`super::RouteNode`] via [`lower_routes`]; HIR HTTP routes
+//! - **R (routes)** — `hir.client_routes` → [`super::RouteNode`] via `lower_routes`; HIR HTTP routes
 //!   and RPC endpoints → [`super::RouteNode::LoaderContract`] / [`super::ServerFnContract`] /
 //!   [`super::MutationContract`] (OP-0072).
-//! - **S (style)** — `@component` `style { }` blocks on [`vox_compiler::hir::HirComponent`] → [`super::StyleNode::Rule`]
+//! - **S (style)** — `@component` `style { }` blocks on `vox_compiler::hir::HirComponent` → [`super::StyleNode::Rule`]
 //!   with [`super::StyleSelector::Unparsed`] selectors (OP-0070).
 //! - **B (behavior)** — reactive state/derived/effect/mount/cleanup → [`super::BehaviorNode`].
 //! - **D (DOM)** — reactive `view:` [`HirExpr`] → [`super::DomNode`] arena + [`super::WebIrModule::view_roots`].
@@ -14,12 +14,12 @@
 //!
 //!
 //! **AST `HirComponent` (OP-0179):** JSX-shaped classic `@component fn` bodies lower into
-//! [`WebIrModule::view_roots`] using [`vox_compiler::hir::lower_classic_component_view`]. Components that
+//! [`WebIrModule::view_roots`] using `vox_compiler::hir::lower_classic_component_view`. Components that
 //! do not end in a supported JSX tail remain counted in [`WebIrLowerSummary::classic_components_deferred`].
 //!
 //! ## Blueprint batch OP-S057 / S085 / S133 / S155 / S189 / S052-route-style (supplemental)
-//! Keep style-only TODOs inside [`lower_styles_from_classic_components`] and HTTP/client route splits inside
-//! [`lower_http_routes`] / [`lower_routes`] — do not add parallel style string emit here. Interop hatch lowering
+//! Keep style-only TODOs inside `lower_styles_from_classic_components` (private) and HTTP/client route splits inside
+//! `lower_http_routes` / `lower_routes` — do not add parallel style string emit here. Interop hatch lowering
 //! stays denormalized into [`crate::web_ir::InteropNode`] when introduced; route contract ids must match
 //! validate-stage uniqueness.
 
@@ -418,16 +418,7 @@ fn mutation_payload_type(sf: &HirEndpointFn) -> String {
         .unwrap_or_else(|| "void".to_string())
 }
 
-fn slug_path_segment(p: &str) -> String {
-    let t = p.trim_matches('/');
-    if t.is_empty() {
-        "root".to_string()
-    } else {
-        t.chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .collect()
-    }
-}
+
 
 fn parse_style_selector(s: &str) -> StyleSelector {
     let s = s.trim();
@@ -574,32 +565,6 @@ fn lower_styles_from_classic_components(
     }
 }
 
-fn lower_http_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
-    for (i, r) in hir.routes.iter().enumerate() {
-        let slug = slug_path_segment(&r.path);
-        let route_id = format!("http_{i}_{slug}");
-        let return_ty = r
-            .return_type
-            .as_ref()
-            .map(map_hir_type_to_ts)
-            .unwrap_or_else(|| "void".to_string());
-        let contract = json!({
-            "kind": "http",
-            "method": r.method.as_str(),
-            "path": r.path,
-            "route_contract": r.route_contract,
-            "return_type": return_ty,
-        })
-        .to_string();
-        m.route_nodes.push(RouteNode::LoaderContract {
-            route_id,
-            contract,
-            span: None,
-        });
-        summary.http_loader_contracts += 1;
-    }
-}
-
 fn lower_endpoint_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     for sf in &hir.endpoint_fns {
         match sf.kind {
@@ -672,7 +637,6 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
 
     // Stage R — client `routes { }` blocks + HTTP handlers + RPC-shaped endpoints from HIR
     lower_client_routes(hir, &mut m, &mut summary);
-    lower_http_routes(hir, &mut m, &mut summary);
     lower_endpoint_contracts(hir, &mut m, &mut summary);
     lower_scheduled_jobs(hir, &mut m, &mut summary);
 

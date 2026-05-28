@@ -1,7 +1,7 @@
 ---
 title: "Codex / Arca compatibility boundaries"
 description: "Official documentation for Codex / Arca compatibility boundaries for the Vox language. Detailed technical reference, architecture guides,"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

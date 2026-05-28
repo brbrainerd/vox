@@ -49,19 +49,40 @@ fn check_overlay_children(
             continue;
         };
 
-        // Check z-index uniqueness.
+        // Check z-index uniqueness and discipline.
         if let Some(z_val) = attrs
             .iter()
             .find(|(k, _)| k == "data-vox-z")
             .map(|(_, v)| v.clone())
         {
+            // ADR 034: Warn on loose discipline (numeric z-index).
+            if z_val.chars().all(|c| c.is_ascii_digit()) {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.overlay.loose_z_index".to_string(),
+                    message: format!(
+                        "Numeric z-index '{z_val}' used — prefer named Z-tiers (background, content, popover, etc.) to prevent Z-fighting"
+                    ),
+                    span: None,
+                    category: Some("overlay".to_string()),
+                });
+            } else if crate::web_ir::ZTier::from_str(&z_val).is_none() {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.overlay.invalid_z_tier".to_string(),
+                    message: format!(
+                        "Invalid Z-tier '{z_val}' — must be one of the seven normative tiers"
+                    ),
+                    span: None,
+                    category: Some("overlay".to_string()),
+                });
+            }
+
             let count = seen_z.entry(z_val.clone()).or_insert(0);
             *count += 1;
             if *count == 2 {
                 out.push(WebIrDiagnostic {
                     code: "web_ir_validate.overlay.duplicate_z".to_string(),
                     message: format!(
-                        "Two overlay children share z-index '{z_val}' — stacking order is undefined"
+                        "Two overlay children share z-index '{z_val}' — stacking order is undefined (Z-fighting risk)"
                     ),
                     span: None,
                     category: Some("overlay".to_string()),
@@ -124,8 +145,31 @@ mod tests {
         assert!(out.is_empty(), "unexpected: {out:?}");
     }
 
+    /// Two overlay children with **distinct named** z-tiers should
+    /// produce no overlay-validator warnings. (ADR-034 added the
+    /// `loose_z_index` lint that fires on numeric `data-vox-z` values,
+    /// so this regression fixture switched from `"100"` / `"90"` to
+    /// the canonical named tiers `"content"` / `"popover"`.)
     #[test]
     fn overlay_unique_z_no_warning() {
+        // Named Z-tiers (ADR 034) — numeric z-indexes now trigger
+        // `loose_z_index` warnings regardless of uniqueness, so this
+        // test was updated to use the named-tier vocabulary.
+        let m = module_with_nodes(vec![
+            elem(0, vec![("data-vox-overlay", "true")], vec![1, 2]),
+            elem(1, vec![("data-vox-z", "content")], vec![]),
+            elem(2, vec![("data-vox-z", "popover")], vec![]),
+        ]);
+        let mut out = Vec::new();
+        validate_overlay(&m, &mut out);
+        assert!(out.is_empty(), "unexpected: {out:?}");
+    }
+
+    /// Companion regression: when the author writes numeric z-indices,
+    /// the loose_z_index lint fires (one diagnostic per numeric value)
+    /// even when each value is unique. This locks in the ADR-034 surface.
+    #[test]
+    fn overlay_loose_numeric_z_warns_per_value() {
         let m = module_with_nodes(vec![
             elem(0, vec![("data-vox-overlay", "true")], vec![1, 2]),
             elem(1, vec![("data-vox-z", "100")], vec![]),
@@ -133,7 +177,16 @@ mod tests {
         ]);
         let mut out = Vec::new();
         validate_overlay(&m, &mut out);
-        assert!(out.is_empty(), "unexpected: {out:?}");
+        let loose_count = out
+            .iter()
+            .filter(|d| d.code == "web_ir_validate.overlay.loose_z_index")
+            .count();
+        assert_eq!(loose_count, 2, "expected one loose_z_index per numeric value; got: {out:?}");
+        // No duplicate-z warning when the numeric values themselves are distinct.
+        assert!(
+            !out.iter().any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
+            "distinct numeric z-values must not trip duplicate_z; got: {out:?}"
+        );
     }
 
     #[test]

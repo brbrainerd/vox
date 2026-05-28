@@ -171,6 +171,33 @@ fn hir_type_json_schema_property(type_ann: Option<&HirType>) -> String {
     }
 }
 
+/// Emit the Rust expression that coerces a `serde_json::Value` MCP argument
+/// to the concrete type implied by `type_ann`. Extracted from the inline
+/// match closure in `emit_mcp_server` per CR-A1 (5 if-guarded arms → helper).
+fn mcp_coerce_param_expr(name: &str, type_ann: Option<&HirType>) -> String {
+    match type_ann {
+        Some(HirType::Named(t)) if t == "String" || t == "str" => {
+            format!("{name}.as_str().unwrap_or_default().to_string()")
+        }
+        Some(HirType::Named(t)) if t == "i64" || t == "int" => {
+            format!("{name}.as_i64().unwrap_or(0)")
+        }
+        Some(HirType::Named(t)) if t == "f64" || t == "float" => {
+            format!("{name}.as_f64().unwrap_or(0.0)")
+        }
+        Some(HirType::Named(t)) if t == "bool" => {
+            format!("{name}.as_bool().unwrap_or(false)")
+        }
+        Some(HirType::Named(t)) if t == "dec" => {
+            format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
+        }
+        Some(HirType::Decimal) => {
+            format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
+        }
+        _ => name.to_string(),
+    }
+}
+
 /// Generate the MCP (Model Context Protocol) JSON-RPC server binary.
 /// Communicates over stdio: reads JSON-RPC requests from stdin, writes responses to stdout.
 ///
@@ -205,31 +232,7 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
             .func
             .params
             .iter()
-            .map(|p| {
-                // Convert from serde_json::Value to the appropriate type
-                let name = &p.name;
-                match p.type_ann.as_ref() {
-                    Some(HirType::Named(t)) if t == "String" || t == "str" => {
-                        format!("{name}.as_str().unwrap_or_default().to_string()")
-                    }
-                    Some(HirType::Named(t)) if t == "i64" || t == "int" => {
-                        format!("{name}.as_i64().unwrap_or(0)")
-                    }
-                    Some(HirType::Named(t)) if t == "f64" || t == "float" => {
-                        format!("{name}.as_f64().unwrap_or(0.0)")
-                    }
-                    Some(HirType::Named(t)) if t == "bool" => {
-                        format!("{name}.as_bool().unwrap_or(false)")
-                    }
-                    Some(HirType::Named(t)) if t == "dec" => {
-                        format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
-                    }
-                    Some(HirType::Decimal) => {
-                        format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
-                    }
-                    _ => name.to_string(),
-                }
-            })
+            .map(|p| mcp_coerce_param_expr(&p.name, p.type_ann.as_ref()))
             .collect();
         out.push_str(&format!(
             "            let result = {}({});\n",
@@ -364,7 +367,19 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
         "        let method = request.get(\"method\").and_then(|m| m.as_str()).unwrap_or(\"\");\n",
     );
     out.push_str("        let params = request.get(\"params\").cloned().unwrap_or(json!({}));\n\n");
+    emit_mcp_method_dispatch(&mut out, module, package_name);
+    out.push_str("        writeln!(stdout, \"{}\", response).ok();\n");
+    out.push_str("        stdout.flush().ok();\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
 
+    out
+}
+
+/// Emit the `let response = match method { … };` block for the MCP stdio loop.
+/// Extracted from `emit_mcp_server` per CR-A1: the inline block had ~14 decision
+/// points (initialize if, tools/call inner match, resources conditional block).
+fn emit_mcp_method_dispatch(out: &mut String, module: &HirModule, package_name: &str) {
     out.push_str("        let response = match method {\n");
     // initialize
     out.push_str("            \"initialize\" => json!({\n");
@@ -393,6 +408,25 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("                })\n");
     out.push_str("            },\n");
     // tools/call
+    emit_mcp_tools_call_arm(out);
+    // resources/list + resources/read (only when module has resources)
+    if !module.mcp_resources.is_empty() {
+        emit_mcp_resource_arms(out);
+    }
+    // notifications (no-ops)
+    out.push_str(
+        "            \"notifications/initialized\" | \"notifications/cancelled\" => continue,\n",
+    );
+    // unknown method
+    out.push_str("            _ => json!({\n");
+    out.push_str("                \"jsonrpc\": \"2.0\",\n");
+    out.push_str("                \"id\": id,\n");
+    out.push_str("                \"error\": { \"code\": -32601, \"message\": format!(\"Method not found: {}\", method) }\n");
+    out.push_str("            }),\n");
+    out.push_str("        };\n\n");
+}
+
+fn emit_mcp_tools_call_arm(out: &mut String) {
     out.push_str("            \"tools/call\" => {\n");
     out.push_str("                let tool_name = params.get(\"name\").and_then(|n| n.as_str()).unwrap_or(\"\");\n");
     out.push_str("                let tool_args = params.get(\"arguments\").cloned().unwrap_or(json!({}));\n");
@@ -416,59 +450,41 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("                    }),\n");
     out.push_str("                }\n");
     out.push_str("            },\n");
-    // resources/list
-    if !module.mcp_resources.is_empty() {
-        out.push_str("            \"resources/list\" => {\n");
-        out.push_str("                let r = resource_list();\n");
-        out.push_str("                json!({\n");
-        out.push_str("                    \"jsonrpc\": \"2.0\",\n");
-        out.push_str("                    \"id\": id,\n");
-        out.push_str("                    \"result\": r\n");
-        out.push_str("                })\n");
-        out.push_str("            },\n");
-        out.push_str("            \"resources/read\" => {\n");
-        out.push_str(
-            "                let uri = params.get(\"uri\").and_then(|u| u.as_str()).unwrap_or(\"\");\n",
-        );
-        out.push_str("                match dispatch_resource(uri) {\n");
-        out.push_str("                    Ok(val) => {\n");
-        out.push_str(
-            "                        let text = serde_json::to_string(&val).unwrap_or_default();\n",
-        );
-        out.push_str("                        json!({\n");
-        out.push_str("                            \"jsonrpc\": \"2.0\",\n");
-        out.push_str("                            \"id\": id,\n");
-        out.push_str("                            \"result\": {\n");
-        out.push_str(
-            "                                \"contents\": [{ \"uri\": uri, \"mimeType\": \"text/plain\", \"text\": text }]\n",
-        );
-        out.push_str("                            }\n");
-        out.push_str("                        })\n");
-        out.push_str("                    }\n");
-        out.push_str("                    Err(e) => json!({\n");
-        out.push_str("                        \"jsonrpc\": \"2.0\",\n");
-        out.push_str("                        \"id\": id,\n");
-        out.push_str("                        \"error\": { \"code\": -32602, \"message\": e }\n");
-        out.push_str("                    }),\n");
-        out.push_str("                }\n");
-        out.push_str("            },\n");
-    }
-    // notifications (no-ops)
+}
+
+fn emit_mcp_resource_arms(out: &mut String) {
+    out.push_str("            \"resources/list\" => {\n");
+    out.push_str("                let r = resource_list();\n");
+    out.push_str("                json!({\n");
+    out.push_str("                    \"jsonrpc\": \"2.0\",\n");
+    out.push_str("                    \"id\": id,\n");
+    out.push_str("                    \"result\": r\n");
+    out.push_str("                })\n");
+    out.push_str("            },\n");
+    out.push_str("            \"resources/read\" => {\n");
     out.push_str(
-        "            \"notifications/initialized\" | \"notifications/cancelled\" => continue,\n",
+        "                let uri = params.get(\"uri\").and_then(|u| u.as_str()).unwrap_or(\"\");\n",
     );
-    // unknown method
-    out.push_str("            _ => json!({\n");
-    out.push_str("                \"jsonrpc\": \"2.0\",\n");
-    out.push_str("                \"id\": id,\n");
-    out.push_str("                \"error\": { \"code\": -32601, \"message\": format!(\"Method not found: {}\", method) }\n");
-    out.push_str("            }),\n");
-    out.push_str("        };\n\n");
-
-    out.push_str("        writeln!(stdout, \"{}\", response).ok();\n");
-    out.push_str("        stdout.flush().ok();\n");
-    out.push_str("    }\n");
-    out.push_str("}\n");
-
-    out
+    out.push_str("                match dispatch_resource(uri) {\n");
+    out.push_str("                    Ok(val) => {\n");
+    out.push_str(
+        "                        let text = serde_json::to_string(&val).unwrap_or_default();\n",
+    );
+    out.push_str("                        json!({\n");
+    out.push_str("                            \"jsonrpc\": \"2.0\",\n");
+    out.push_str("                            \"id\": id,\n");
+    out.push_str("                            \"result\": {\n");
+    out.push_str(
+        "                                \"contents\": [{ \"uri\": uri, \"mimeType\": \"text/plain\", \"text\": text }]\n",
+    );
+    out.push_str("                            }\n");
+    out.push_str("                        })\n");
+    out.push_str("                    }\n");
+    out.push_str("                    Err(e) => json!({\n");
+    out.push_str("                        \"jsonrpc\": \"2.0\",\n");
+    out.push_str("                        \"id\": id,\n");
+    out.push_str("                        \"error\": { \"code\": -32602, \"message\": e }\n");
+    out.push_str("                    }),\n");
+    out.push_str("                }\n");
+    out.push_str("            },\n");
 }

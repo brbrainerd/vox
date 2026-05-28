@@ -105,7 +105,7 @@ fn test_gbnf_no_left_recursion() {
     // If "expr ::= expr ..." appears that's left-recursion.
     let has_left_rec = gbnf.lines().any(|l| {
         l.starts_with("expr") && l.contains("::=") && {
-            let rhs = l.splitn(2, "::=").nth(1).unwrap_or("").trim();
+            let rhs = l.split_once("::=").map(|x| x.1.trim()).unwrap_or("");
             rhs.starts_with("expr")
         }
     });

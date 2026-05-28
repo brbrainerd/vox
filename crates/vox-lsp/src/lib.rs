@@ -2,17 +2,23 @@
 //!
 //! Shared validation helpers used by the LSP binary and MCP / orchestrator quality gates.
 
-use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
+use tower_lsp_server::ls_types::{
+    CodeAction, CodeActionKind, CodeActionOrCommand, Diagnostic, DiagnosticSeverity, NumberOrString,
+    Position, Range, TextEdit, Uri, WorkspaceEdit,
+};
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_ast_module;
 
+pub mod capabilities;
 pub mod code_lens;
 pub mod completions;
 pub mod grammar;
 pub mod symbols;
+
+pub use capabilities::server_capabilities;
 
 /// Convert UTF-8 byte index to LSP line / column (character count per line, not UTF-16 code units).
 pub fn byte_index_to_line_col(text: &str, index: usize) -> (u32, u32) {
@@ -129,6 +135,61 @@ pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic> {
     validate_document_impl(text, true)
 }
 
+/// Build quick-fix [`CodeAction`]s from diagnostics that carry structured `data.fixes`
+/// (parity with the stdio LSP `textDocument/codeAction` handler).
+#[must_use]
+pub fn quickfixes_for_diagnostics(uri: Uri, diagnostics: &[Diagnostic]) -> Vec<CodeActionOrCommand> {
+    let mut actions = Vec::new();
+
+    for diagnostic in diagnostics {
+        let Some(ref data) = diagnostic.data else {
+            continue;
+        };
+        let Ok(data) = serde_json::from_value::<serde_json::Value>(data.clone()) else {
+            continue;
+        };
+        let Some(fixes) = data.get("fixes").and_then(|f| f.as_array()) else {
+            continue;
+        };
+        for fix in fixes {
+            let label = fix.get("label").and_then(|l| l.as_str()).unwrap_or("Fix");
+            let replacement = fix
+                .get("replacement")
+                .and_then(|r| r.as_str())
+                .unwrap_or("");
+            let range = fix
+                .get("range")
+                .and_then(|r| serde_json::from_value::<Range>(r.clone()).ok());
+
+            if let Some(range) = range {
+                let mut changes = std::collections::HashMap::new();
+                changes.insert(
+                    uri.clone(),
+                    vec![TextEdit {
+                        range,
+                        new_text: replacement.to_string(),
+                    }],
+                );
+
+                let action = CodeAction {
+                    title: label.to_string(),
+                    kind: Some(CodeActionKind::QUICKFIX),
+                    diagnostics: Some(vec![diagnostic.clone()]),
+                    edit: Some(WorkspaceEdit {
+                        changes: Some(changes),
+                        ..Default::default()
+                    }),
+                    is_preferred: Some(true),
+                    ..Default::default()
+                };
+                actions.push(CodeActionOrCommand::CodeAction(action));
+            }
+        }
+    }
+
+    actions
+}
+
 fn vox_populi_enabled_from_env() -> bool {
     vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshEnabled)
         .expose()
@@ -144,12 +205,92 @@ fn mesh_workflow_env_warnings(
     text: &str,
     module: &vox_compiler::ast::decl::Module,
 ) -> Vec<Diagnostic> {
+    use vox_compiler::ast::decl::Decl;
+    use vox_compiler::ast::expr::Expr;
+    use vox_compiler::ast::span::Span;
+    use vox_compiler::ast::stmt::Stmt;
+
     if vox_populi_enabled_from_env() {
         return Vec::new();
     }
-    let spans: Vec<vox_compiler::ast::span::Span> = Vec::new();
-    // workflow construct is tombstoned; no workflow bodies to walk
-    let _ = module;
+
+    fn collect_mesh_calls_expr(expr: &Expr, out: &mut Vec<Span>) {
+        match expr {
+            Expr::Ident { name, span } if name.starts_with("mesh_") => {
+                out.push(*span);
+            }
+            Expr::Call { callee, args, .. } => {
+                collect_mesh_calls_expr(callee, out);
+                for a in args {
+                    collect_mesh_calls_expr(&a.value, out);
+                }
+            }
+            Expr::MethodCall { object, args, .. } => {
+                collect_mesh_calls_expr(object, out);
+                for a in args {
+                    collect_mesh_calls_expr(&a.value, out);
+                }
+            }
+            Expr::Binary { left, right, .. } => {
+                collect_mesh_calls_expr(left, out);
+                collect_mesh_calls_expr(right, out);
+            }
+            Expr::Unary { operand, .. } => collect_mesh_calls_expr(operand, out),
+            Expr::Block { stmts, .. } => {
+                for s in stmts {
+                    collect_mesh_calls_stmt(s, out);
+                }
+            }
+            Expr::If {
+                condition,
+                then_body,
+                else_body,
+                ..
+            } => {
+                collect_mesh_calls_expr(condition, out);
+                for s in then_body {
+                    collect_mesh_calls_stmt(s, out);
+                }
+                if let Some(es) = else_body {
+                    for s in es {
+                        collect_mesh_calls_stmt(s, out);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn collect_mesh_calls_stmt(stmt: &Stmt, out: &mut Vec<Span>) {
+        match stmt {
+            Stmt::Let { value, .. } => collect_mesh_calls_expr(value, out),
+            Stmt::Assign { value, target, .. } => {
+                collect_mesh_calls_expr(target, out);
+                collect_mesh_calls_expr(value, out);
+            }
+            Stmt::Expr { expr, .. } => collect_mesh_calls_expr(expr, out),
+            Stmt::Return { value: Some(e), .. } => collect_mesh_calls_expr(e, out),
+            Stmt::While {
+                condition, body, ..
+            } => {
+                collect_mesh_calls_expr(condition, out);
+                for s in body {
+                    collect_mesh_calls_stmt(s, out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut spans: Vec<Span> = Vec::new();
+    for decl in &module.declarations {
+        if let Decl::Workflow(w) = decl {
+            for s in &w.body {
+                collect_mesh_calls_stmt(s, &mut spans);
+            }
+        }
+    }
+
     spans
         .into_iter()
         .map(|span| {

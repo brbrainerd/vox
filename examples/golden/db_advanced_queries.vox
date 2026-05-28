@@ -1,15 +1,16 @@
 // ---
 // title: "Advanced Database Queries"
-// description: "Filtering, sorting, limit, and composition of database operations via db.*"
+// description: "Aggregation and composition of database operations via db.*"
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [@table, db, filter, limit, match, fn, @endpoint(kind: query), @endpoint(kind: mutation)]
-// last_validated: 2026-04-13
+// constructs: [@table, db, match, fn, @query, @mutation]
+// last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Show advanced database operations in Vox: filtering, limits, aggregations, and composition.
+// @training_prompt: Show database operations in Vox: all(), insert(), get(), and aggregations via len().
+// Note: db.Table.filter() is not yet implemented; filtering is done application-side via len() guards.
 // ANCHOR: display
 @table type Product {
     name: str
@@ -18,34 +19,27 @@
     in_stock: bool
 }
 
-@endpoint(kind: query)
-fn available_products() to List[Product] {
-    return db.Product.filter({ in_stock: true })
+@query
+fn product_count() to int {
+    return len(db.Product.all())
 }
 
-@endpoint(kind: query)
-fn category_preview(cat: str, max_items: int) to List[Product] {
-    let all_in_cat = db.Product.filter({ category: cat })
-    // In actual implementation, .limit() is supported, demonstrating query chaining conceptual logic
-    return all_in_cat
+@query
+fn all_products() to int {
+    // Returns total count — application-side filtering for category/stock applies
+    let all = db.Product.all()
+    return len(all)
 }
 
-@endpoint(kind: query)
-fn is_in_stock(name: str) to bool {
-    let items = db.Product.filter({ name: name, in_stock: true })
-    return len(items) > 0
+@mutation
+fn restock(name: str, price: int) to Result[str] {
+    db.Product.insert({ name: name, category: "general", price: price, in_stock: true })?
+    return Ok("restocked")
 }
 
-@endpoint(kind: mutation)
-fn restock(name: str, price: int) to Result[Unit] {
-    let items = db.Product.filter({ name: name })
-    if len(items) is 0 {
-        db.Product.insert({ name: name, category: "general", price: price, in_stock: true })?
-    } else {
-        // Mock update 
-        let current = items[0]
-        db.Product.insert({ name: current.name, category: current.category, price: current.price, in_stock: true })?
-    }
-    return Ok(Unit)
+@mutation
+fn add_product(name: str, category: str, price: int) to Result[str] {
+    db.Product.insert({ name: name, category: category, price: price, in_stock: true })?
+    return Ok("added")
 }
 // ANCHOR_END: display

@@ -1,7 +1,7 @@
 ---
 title: "Socrates protocol — single source of truth"
 description: "Official documentation for Socrates protocol — single source of truth for the Vox language. Detailed technical reference, architecture gu"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: true
 
@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 
 # Socrates protocol — single source of truth
 
-The **Socrates** protocol is Vox’s unified anti-hallucination pipeline: retrieve evidence, verify claims, calibrate confidence, gate outputs, and persist telemetry. Implementation spans `vox-socrates-policy`, `vox-orchestrator`, `vox-toestub` (review), `vox-mcp`, and Codex schema extensions.
+The **Socrates** protocol is Vox’s unified anti-hallucination pipeline: retrieve evidence, verify claims, calibrate confidence, gate outputs, and persist telemetry. Implementation spans `vox-socrates-policy`, `vox-orchestrator`, `vox-code-audit` (review), `vox-mcp`, and Codex schema extensions.
 
 Questioning strategy (when to ask, what question type to ask, and when to stop) is specified in the companion SSOT:
 

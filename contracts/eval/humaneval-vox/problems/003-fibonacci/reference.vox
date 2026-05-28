@@ -1,0 +1,14 @@
+fn fibonacci(n: int) to int {
+    if n == 0 { return 0 }
+    if n == 1 { return 1 }
+    let mut a = 0
+    let mut b = 1
+    let mut i = 2
+    while i <= n {
+        let c = a + b
+        a = b
+        b = c
+        i = i + 1
+    }
+    return b
+}

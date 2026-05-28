@@ -8,8 +8,8 @@ fn github_ci_doc_inventory_is_rust() {
         "/../../.github/workflows/ci.yml"
     ));
     assert!(
-        yml.contains("ci command-compliance"),
-        "ci.yml should run `vox ci command-compliance` for registry/docs/MCP parity"
+        yml.contains("ci command-compliance") || yml.contains("ci ssot-drift"),
+        "ci.yml should run `vox ci command-compliance` or `vox ci ssot-drift` (bundles command-compliance via run_ssot_drift)"
     );
     assert!(
         yml.contains("ci doc-inventory verify"),
@@ -72,6 +72,92 @@ fn github_ci_runs_llvm_cov_and_coverage_gates() {
     assert!(
         yml.contains("llvm-tools-preview"),
         "ci.yml Rust toolchain should include llvm-tools-preview for cargo-llvm-cov"
+    );
+}
+
+#[test]
+fn linux_ci_runs_workspace_tests_and_windows_stack_wrappers_stay_cfg_gated() {
+    let ci = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/ci.yml"
+    ));
+    assert!(
+        ci.contains("runs-on: [self-hosted, linux, x64]"),
+        "ci.yml should keep the main test job on the Linux self-hosted runner"
+    );
+    assert!(
+        ci.contains("cargo llvm-cov nextest --workspace")
+            && ci.contains("cargo nextest run --workspace"),
+        "Linux CI should execute the workspace test suite, including vox-cli integration tests"
+    );
+
+    let root_parsing = include_str!("vox_cli_root_parsing.rs");
+    let catalog = include_str!("command_catalog_paths_baseline.rs");
+    for source in [root_parsing, catalog] {
+        assert!(
+            source.contains("#[cfg(windows)]") && source.contains("#[cfg(not(windows))]"),
+            "large-stack test helpers must remain Windows-only with direct non-Windows execution"
+        );
+    }
+}
+
+#[test]
+fn compile_matrix_runs_compile_suite_workspace_smoke() {
+    let yml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../.github/workflows/compile-matrix.yml"
+    ));
+    assert!(
+        yml.contains("examples/compile-suite"),
+        "compile-matrix.yml should run from examples/compile-suite"
+    );
+    assert!(
+        yml.contains("compile --workspace --target native-binary"),
+        "compile-matrix.yml should smoke `vox compile --workspace --target native-binary`"
+    );
+    assert!(
+        yml.contains("compile --target desktop"),
+        "compile-matrix.yml should smoke desktop Tauri codegen via `vox compile --target desktop`"
+    );
+}
+
+#[test]
+fn command_registry_has_ci_retirement_audit() {
+    let reg = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../contracts/cli/command-registry.yaml"
+    ));
+    assert!(
+        reg.contains("retirement-audit"),
+        "command-registry should list `vox ci retirement-audit`"
+    );
+}
+
+#[test]
+fn packaging_ssot_matches_workspace_compile_behavior() {
+    let doc = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../docs/src/architecture/vox-application-packaging-ssot-2026.md"
+    ));
+    assert!(
+        doc.contains("builds every member package with the requested `--target`"),
+        "packaging SSOT should match compile.rs workspace behavior"
+    );
+    assert!(
+        !doc.contains("whose `[bundle]` / inferred target matches"),
+        "packaging SSOT must not promise target filtering that compile.rs does not implement"
+    );
+}
+
+#[test]
+fn packaging_ssot_documents_compile_matrix_locked_windows_fallback() {
+    let doc = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../docs/src/architecture/vox-application-packaging-ssot-2026.md"
+    ));
+    assert!(
+        doc.contains("run from the built `vox.exe`") && doc.contains("cargo run fails to relink"),
+        "packaging SSOT should document the locked-Windows-binary compile-matrix fallback"
     );
 }
 

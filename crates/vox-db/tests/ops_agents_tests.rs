@@ -12,7 +12,7 @@ async fn test_agent_session_lifecycle() {
 
     // Create
     store
-        .create_session(session_id, agent_id, Some("initial task"))
+        .create_session(session_id, agent_id, None, Some("initial task"))
         .await
         .unwrap();
 
@@ -28,7 +28,7 @@ async fn test_llm_interaction_logging() {
 
     let session_id = "sess_456";
     store
-        .create_session(session_id, "agent_beta", None)
+        .create_session(session_id, "agent_beta", None, None)
         .await
         .unwrap();
 

@@ -5,14 +5,14 @@ use crate::Preopen;
 /// Options controlling a single WASM module execution.
 #[derive(Debug, Clone, Default)]
 pub struct WasmExecOpts {
-    /// Command-line arguments passed to the WASM guest (not including argv[0]).
+    /// Command-line arguments passed to the WASM guest (not including `argv[0]`).
     pub args: Vec<String>,
 
     /// Preopened host directories exposed to the WASM sandbox.
     pub preopens: Vec<Preopen>,
 
     /// Per-execution fuel override.  Takes precedence over the host-level fuel
-    /// configured in [`WasmHost::with_fuel`].  `None` means "use the host default".
+    /// configured in `WasmHost::with_fuel`.  `None` means "use the host default".
     pub fuel_override: Option<u64>,
 
     /// Optional stdin bytes injected into the WASM guest.

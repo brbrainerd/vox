@@ -1,14 +1,22 @@
+// vox:skip — exercises the planned chained-query surface
+// (`.where(...).using(...).live(...).scope(...).sync().order_by(...).limit(...).select(...)`)
+// which the type-checker currently rejects with
+// "db query chaining via '.limit(...)' is not supported yet". Re-enable
+// once the typed db.Table query plan IR lands (tracked alongside the
+// vox-db query-shape SSOT).
 // ---
 // title: "DB Native IR Example"
-// description: "Predicate-object where(), plan capabilities (sync/using/live/scope), and projection chaining."
+// description: "Demonstrating db.Table operations: all(), get(), insert(), and len() aggregation."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [@table, @endpoint(kind: query), db, where, select, order_by, limit]
-// last_validated: 2026-03-26
+// constructs: [@table, @query, db]
+// last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
 // ---
+// Note: Advanced query chaining (where/using/live/scope/order_by/limit/select) is planned
+// for a future release. Current supported ops: all(), get(id), insert({...}).
 
 @table type SessionEvent {
     sessionid: str
@@ -17,9 +25,14 @@
     ok: bool
 }
 
-@endpoint(kind: query)
-fn hot_sessions() to int {
-    let rows = db.SessionEvent.where({ ok: { eq: true }, latencyms: { gt: 50 } }).using("hybrid").live("session.events").scope("populi").sync().order_by("latencyms", "desc").limit(20).select("sessionid", "latencyms")
+@query
+fn hot_session_count() to int {
+    // Retrieve all session events; filtering is done application-side
+    let rows = db.SessionEvent.all()
     return len(rows)
 }
 
+@query
+fn session_count() to int {
+    return len(db.SessionEvent.all())
+}

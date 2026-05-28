@@ -1,0 +1,19 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/telemetry/orch-subagent-dispatch.v1.schema.json",
+  "title": "orchestrator subagent dispatch telemetry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["metric_type", "decision"],
+  "properties": {
+    "metric_type": { "type": "string", "const": "orch.subagent.dispatch" },
+    "decision": { "type": "string", "minLength": 1 },
+    "complexity": { "type": "integer", "minimum": 0, "maximum": 255 },
+    "chain_depth": { "type": "integer", "minimum": 0 },
+    "session_id": { "type": ["string", "null"] },
+    "parent_task_id": { "type": ["integer", "null"] },
+    "span_depth": { "type": "integer", "minimum": 0 },
+    "dispatch_latency_ms": { "type": ["integer", "null"], "minimum": 0 }
+  }
+}

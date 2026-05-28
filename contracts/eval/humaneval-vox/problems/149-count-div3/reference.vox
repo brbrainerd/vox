@@ -1,0 +1,9 @@
+fn count_div3(xs: list[int]) to int {
+    let mut count: int = 0
+    for x in xs {
+        if x % 3 == 0 {
+            count = count + 1
+        }
+    }
+    return count
+}

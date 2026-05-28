@@ -212,6 +212,8 @@ pub fn for_each_vox_hook_call_in_expr(expr: &Expr, f: &mut impl FnMut(&str, Span
         | Expr::BoolLit { .. }
         | Expr::StringLit { .. }
         | Expr::Ident { .. }
-        | Expr::DecimalLit { .. } => {}
+        | Expr::DecimalLit { .. }
+        | Expr::SideEffect { .. }
+        | Expr::WorkflowVersion(_) => {}
     }
 }

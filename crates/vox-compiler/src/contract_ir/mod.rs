@@ -1,7 +1,7 @@
 //! Contract IR — the wire-format projection of HIR.
 //!
 //! Sits between [`crate::hir`] and the wire-format emitters
-//! ([`crate::codegen_ts::zod_emit`], the future OpenAPI emitter, JSON Schema, the
+//! (`vox_codegen::codegen_ts::zod_emit`, the future OpenAPI emitter, JSON Schema, the
 //! TS client SDK). Each consumer reads `ContractIr` rather than walking HIR
 //! independently — so the wire-format-v1 rules
 //! ([`docs/src/architecture/wire-format-v1-ssot.md`](../../../../docs/src/architecture/wire-format-v1-ssot.md))
@@ -205,4 +205,59 @@ impl ContractEndpointKind {
 /// wire-format projection without going via a full module.
 pub fn project_endpoint(e: &HirEndpointFn) -> ContractEndpoint {
     project::endpoint(e)
+}
+
+/// Map a [`WireType`] to its TypeScript type annotation string.
+///
+/// Wire-format-v1 string-encoded types (`Decimal`, `BigInt`, `DateTime`)
+/// become `string` in TS — the TS consumer is responsible for parsing them
+/// with a Decimal library / `BigInt()` / `new Date()`.
+///
+/// Used by the TS client emitter (`vox_client.rs`) and any other emitter that
+/// needs to annotate TS function signatures with the wire-level type.
+pub fn wire_type_to_ts(wt: &WireType) -> String {
+    match wt {
+        WireType::Number => "number".into(),
+        WireType::String => "string".into(),
+        WireType::Bool => "boolean".into(),
+        // Wire-format-v1: encoded as strings on the wire.
+        WireType::DecimalString => "string".into(),
+        WireType::BigIntString => "string".into(),
+        WireType::DateTimeString => "string".into(),
+        WireType::Array(inner) => format!("readonly {}[]", wire_type_to_ts(inner)),
+        WireType::Ref(name) => name.clone(),
+        WireType::Tuple(elems) => {
+            let parts: Vec<String> = elems.iter().map(wire_type_to_ts).collect();
+            format!("[{}]", parts.join(", "))
+        }
+        WireType::Unit => "void".into(),
+        WireType::Unknown => "unknown".into(),
+    }
+}
+
+/// Map a [`WireType`] to a Zod schema expression string.
+///
+/// This is the single authoritative `WireType → Zod` mapping.
+/// `vox_codegen::codegen_ts::zod_emit` delegates here so the rule lives in one place.
+///
+/// `DecimalString` and `BigIntString` validate as plain strings (precision is
+/// preserved in the string; downstream parsing is a client responsibility).
+/// `DateTimeString` validates with `.datetime({ offset: true })` for RFC 3339 UTC.
+pub fn wire_type_to_zod(wt: &WireType) -> String {
+    match wt {
+        WireType::Number => "z.number()".into(),
+        WireType::String => "z.string()".into(),
+        WireType::Bool => "z.boolean()".into(),
+        WireType::DecimalString => "z.string()".into(),
+        WireType::BigIntString => "z.string()".into(),
+        WireType::DateTimeString => "z.string().datetime({ offset: true })".into(),
+        WireType::Array(inner) => format!("z.array({})", wire_type_to_zod(inner)),
+        WireType::Tuple(elems) => {
+            let inner: Vec<String> = elems.iter().map(wire_type_to_zod).collect();
+            format!("z.tuple([{}])", inner.join(", "))
+        }
+        WireType::Ref(name) => format!("{}Schema", name),
+        WireType::Unit => "z.void()".into(),
+        WireType::Unknown => "z.any()".into(),
+    }
 }

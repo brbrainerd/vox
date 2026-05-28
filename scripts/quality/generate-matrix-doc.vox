@@ -1,94 +1,128 @@
+// generate-matrix-doc.vox — render AI-IDE feature matrix to Markdown from
+// the JSON SSOT. Migrated to the strict-Option Json API
+// (json-ergonomics-rfc-2026-05-23): every navigation hop returns Option,
+// leaf coercion via `.as_str()` / `.as_int()`, deep paths via `.pointer()`.
+//
+// @json_as types (json-as-rfc-2026-05-24): schema-document the two flat record
+// shapes in the JSON SSOT so `from_json` validates required fields at the
+// call site, replacing per-field Option ladders with a single err-check.
+
+@json_as(MatrixProduct)
+type MatrixProduct {
+    id: str,
+    name: str,
+}
+
+@json_as(MatrixFeature)
+type MatrixFeature {
+    name: str,
+    importance_1_to_5: int,
+}
+
+fn pid_at(product_order: Json, idx: int) to str {
+    return product_order.at(idx).and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
+}
+
+fn find_product_name(products: Json, id: str) to str {
+    let arr = products.as_array().unwrap_or([])
+    for p in arr {
+        let prod_res = MatrixProduct_from_json(p)
+        if prod_res.is_err() { continue }
+        let prod = prod_res.unwrap()
+        if prod.id == id {
+            return prod.name
+        }
+    }
+    return ""
+}
+
+fn format_support(s: str) to str {
+    if s == "strong" { return "✅" }
+    if s == "partial" { return "🟡" }
+    if s == "limited" { return "⚠️" }
+    if s == "none" { return "❌" }
+    return "?"
+}
+
 fn main() {
-    print("Generating AI IDE Feature Matrix Markdown...");
-    
-    let json_path = "docs/agents/ai-ide-feature-matrix-2026.json";
-    let output_path = "docs/src/reference/ai-ide-feature-matrix.md";
-    
-    let source = fs.read_file(json_path);
-    if source is null {
-        print("Error: Could not read " + json_path);
-        return;
+    print("Generating AI IDE Feature Matrix Markdown...")
+
+    let json_path = "docs/agents/ai-ide-feature-matrix-2026.json"
+    let output_path = "docs/src/reference/ai-ide-feature-matrix.md"
+
+    let source_res = fs.read_file(json_path)
+    if source_res.is_err() {
+        print("Error: Could not read " + json_path)
+        return
     }
-    
-    let data = json.parse(source.unwrap());
-    let products = data.get("products");
-    let features = data.get("feature_matrix");
-    let product_order = data.get("product_order");
-    
-    let mut md = "# AI IDE Feature Matrix (2026)\n\n";
-    md = md + "This matrix compares modern AI-native IDEs and agents against the Vox baseline. ";
-    md = md + "Data is derived from the machine-readable [feature-matrix.json](../../../docs/agents/ai-ide-feature-matrix-2026.json).\n\n";
-    
+    let parse_res = json.parse(source_res.unwrap())
+    if parse_res.is_err() {
+        print("Error: bad JSON in " + json_path)
+        return
+    }
+    let data = parse_res.unwrap()
+    let products = data.get("products").unwrap_or(data)
+    let features = data.get("feature_matrix").and_then(fn(j: Json) to Option[list[Json]] { j.as_array() }).unwrap_or([])
+    let product_order = data.get("product_order").unwrap_or(data)
+    let order_len = product_order.length().unwrap_or(0)
+
+    let mut md = "# AI IDE Feature Matrix (2026)\n\n"
+    md = md + "This matrix compares modern AI-native IDEs and agents against the Vox baseline. "
+    md = md + "Data is derived from the machine-readable [feature-matrix.json](../../../docs/agents/ai-ide-feature-matrix-2026.json).\n\n"
+
     // Header row
-    md = md + "| Feature | Importance |";
-    let mut h = 0;
-    while h < product_order.len() {
-        let pid = product_order.get(h);
-        let p = find_product(products, pid);
-        if p isnt null {
-            md = md + " " + p.get("name") + " |";
+    md = md + "| Feature | Importance |"
+    let mut h = 0
+    while h < order_len {
+        let pid = pid_at(product_order, h)
+        let nm = find_product_name(products, pid)
+        if nm != "" {
+            md = md + " " + nm + " |"
         }
-        h = h + 1;
+        h = h + 1
     }
-    md = md + " Vox Status |\n";
-    
+    md = md + " Vox Status |\n"
+
     // Alignment row
-    md = md + "|:---|:---:|";
-    let mut a = 0;
-    while a < product_order.len() {
-        md = md + ":---:|";
-        a = a + 1;
+    md = md + "|:---|:---:|"
+    let mut a = 0
+    while a < order_len {
+        md = md + ":---:|"
+        a = a + 1
     }
-    md = md + ":---:|\n";
-    
-    // Feature rows
-    let mut i = 0;
-    while i < features.len() {
-        let f = features.get(i);
-        md = md + "| **" + f.get("name") + "** | " + str(f.get("importance_1_to_5")) + "/5 |";
-        
-        let support = f.get("product_support");
-        let mut j = 0;
-        while j < product_order.len() {
-            let pid = product_order.get(j);
-            let s = support.get(pid);
-            if s is null {
-                md = md + " - |";
+    md = md + ":---:|\n"
+
+    // Feature rows — validate each feature record via @json_as; skip malformed entries.
+    for f in features {
+        let feat_res = MatrixFeature_from_json(f)
+        if feat_res.is_err() { continue }
+        let feat = feat_res.unwrap()
+        let fname = feat.name
+        let importance = feat.importance_1_to_5
+        md = md + "| **" + fname + "** | " + str(importance) + "/5 |"
+
+        let support = f.get("product_support").unwrap_or(f)
+        let mut j = 0
+        while j < order_len {
+            let pid = pid_at(product_order, j)
+            let s = support.get(pid).and_then(fn(j: Json) to Option[str] { j.as_str() })
+            if s.is_none() {
+                md = md + " - |"
             } else {
-                md = md + " " + format_support(s.unwrap()) + " |";
+                md = md + " " + format_support(s.unwrap()) + " |"
             }
-            j = j + 1;
+            j = j + 1
         }
-        
-        let v = f.get("vox");
-        md = md + " " + v.get("status") + " |\n";
-        i = i + 1;
-    }
-    
-    md = md + "\n\n---\n*Last updated: " + data.get("metadata").get("last_updated") + "*\n";
-    
-    let success = fs.write_file(output_path, md);
-    if success {
-        print("Successfully generated matrix to " + output_path);
-    }
-}
 
-fn find_product(products, id) {
-    let mut i = 0;
-    while i < products.len() {
-        let p = products.get(i);
-        if p.get("id") is id {
-            return p;
-        }
-        i = i + 1;
+        let v_status = f.pointer("/vox/status").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+        md = md + " " + v_status + " |\n"
     }
-    return null;
-}
 
-fn format_support(s) {
-    if s is "strong" { return "✅"; }
-    if s is "partial" { return "🟡"; }
-    if s is "limited" { return "⚠️"; }
-    if s is "none" { return "❌"; }
-    return "?";
+    let last_updated = data.pointer("/metadata/last_updated").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("unknown")
+    md = md + "\n\n---\n*Last updated: " + last_updated + "*\n"
+
+    let success = fs.write_file(output_path, md)
+    if success.is_ok() {
+        print("Successfully generated matrix to " + output_path)
+    }
 }

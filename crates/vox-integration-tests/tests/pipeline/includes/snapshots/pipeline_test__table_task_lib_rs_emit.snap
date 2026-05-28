@@ -1,15 +1,14 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+assertion_line: 311
 expression: lib_rs
 ---
 use serde::{Serialize, Deserialize};
 use vox_db::Codex;
-
 pub fn as_string<T: serde::Serialize>(v: &T) -> String {
     let val = serde_json::to_value(v).expect("vox codegen: serde_json::to_value failed");
     if let Some(s) = val.as_str() { s.to_string() } else { val.to_string() }
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -18,24 +17,30 @@ pub struct Task {
     pub done: bool,
     pub priority: i64,
 }
-
 impl Task {
     pub async fn insert(db: &Codex, item: &Self) -> Result<i64, turso::Error> {
-        db.connection().execute(
-            "INSERT INTO task (title, done, priority) VALUES (?1, ?2, ?3)",
-            turso::params![item.title.clone(), item.done.clone(), item.priority.clone()],
-        ).await?;
+        db.connection()
+            .execute(
+                "INSERT INTO task (title, done, priority) VALUES (?1, ?2, ?3)",
+                turso::params![
+                    item.title.clone(), item.done.clone(), item.priority.clone()
+                ],
+            )
+            .await?;
         Ok(db.connection().last_insert_rowid())
     }
-
     pub async fn get(db: &Codex, id: i64) -> Result<Option<Self>, turso::Error> {
-        let mut rows = db.connection().query("SELECT * FROM task WHERE _id = ?1", turso::params![id]).await?;
-        Ok(match rows.next().await? {
-            Some(row) => Some(Self::from_row(&row)?),
-            None => None,
-        })
+        let mut rows = db
+            .connection()
+            .query("SELECT * FROM task WHERE _id = ?1", turso::params![id])
+            .await?;
+        Ok(
+            match rows.next().await? {
+                Some(row) => Some(Self::from_row(&row)?),
+                None => None,
+            },
+        )
     }
-
     pub async fn all(db: &Codex) -> Result<Vec<Self>, turso::Error> {
         let mut rows = db.connection().query("SELECT * FROM task", ()).await?;
         let mut out = Vec::new();
@@ -44,8 +49,11 @@ impl Task {
         }
         Ok(out)
     }
-
-    pub async fn all_order_limit(db: &Codex, order_clause: &str, limit: Option<i64>) -> Result<Vec<Self>, turso::Error> {
+    pub async fn all_order_limit(
+        db: &Codex,
+        order_clause: &str,
+        limit: Option<i64>,
+    ) -> Result<Vec<Self>, turso::Error> {
         let mut sql = "SELECT * FROM task".to_string();
         if !order_clause.trim().is_empty() {
             sql.push_str(" ORDER BY ");
@@ -61,24 +69,41 @@ impl Task {
         }
         Ok(out)
     }
-
     pub async fn count(db: &Codex) -> Result<i64, turso::Error> {
         let mut rows = db.connection().query("SELECT COUNT(*) FROM task", ()).await?;
-        let row = rows.next().await?.ok_or_else(|| turso::Error::SqliteFailure(0, "count: empty result".into()))?;
+        let row = rows
+            .next()
+            .await?
+            .ok_or_else(|| turso::Error::SqliteFailure(
+                0,
+                "count: empty result".into(),
+            ))?;
         let c: i64 = row.get(0)?;
         Ok(c)
     }
-
-    pub async fn count_where(db: &Codex, where_clause: &str, params: impl turso::IntoParams + Send) -> Result<i64, turso::Error> {
+    pub async fn count_where(
+        db: &Codex,
+        where_clause: &str,
+        params: impl turso::IntoParams + Send,
+    ) -> Result<i64, turso::Error> {
         let sql = format!("SELECT COUNT(*) FROM task WHERE {}", where_clause);
         let mut rows = db.connection().query(&sql, params).await?;
-        let row = rows.next().await?.ok_or_else(|| turso::Error::SqliteFailure(0, "count_where: empty result".into()))?;
+        let row = rows
+            .next()
+            .await?
+            .ok_or_else(|| turso::Error::SqliteFailure(
+                0,
+                "count_where: empty result".into(),
+            ))?;
         let c: i64 = row.get(0)?;
         Ok(c)
     }
-
     /// `WHERE` fragment uses `?1`, `?2`, … placeholders; bind with `turso::params!`.
-    pub async fn filter_where(db: &Codex, where_clause: &str, params: impl turso::IntoParams + Send) -> Result<Vec<Self>, turso::Error> {
+    pub async fn filter_where(
+        db: &Codex,
+        where_clause: &str,
+        params: impl turso::IntoParams + Send,
+    ) -> Result<Vec<Self>, turso::Error> {
         let sql = format!("SELECT * FROM task WHERE {}", where_clause);
         let mut rows = db.connection().query(&sql, params).await?;
         let mut out = Vec::new();
@@ -87,8 +112,13 @@ impl Task {
         }
         Ok(out)
     }
-
-    pub async fn filter_where_order_limit(db: &Codex, where_clause: &str, params: impl turso::IntoParams + Send, order_clause: &str, limit: Option<i64>) -> Result<Vec<Self>, turso::Error> {
+    pub async fn filter_where_order_limit(
+        db: &Codex,
+        where_clause: &str,
+        params: impl turso::IntoParams + Send,
+        order_clause: &str,
+        limit: Option<i64>,
+    ) -> Result<Vec<Self>, turso::Error> {
         let mut sql = format!("SELECT * FROM task WHERE {}", where_clause);
         if !order_clause.trim().is_empty() {
             sql.push_str(" ORDER BY ");
@@ -104,9 +134,11 @@ impl Task {
         }
         Ok(out)
     }
-
     /// Builds `format!("SELECT * FROM <table> {}", clause)` — use [`Self::all`] or [`Self::get`] when possible.
-    pub async fn unsafe_query_raw_clause(db: &Codex, clause: &str) -> Result<Vec<Self>, turso::Error> {
+    pub async fn unsafe_query_raw_clause(
+        db: &Codex,
+        clause: &str,
+    ) -> Result<Vec<Self>, turso::Error> {
         let sql = format!("SELECT * FROM task {}", clause);
         let mut rows = db.connection().query(&sql, ()).await?;
         let mut out = Vec::new();
@@ -115,12 +147,13 @@ impl Task {
         }
         Ok(out)
     }
-
     pub async fn delete(db: &Codex, id: i64) -> Result<usize, turso::Error> {
-        let n = db.connection().execute("DELETE FROM task WHERE _id = ?1", turso::params![id]).await?;
+        let n = db
+            .connection()
+            .execute("DELETE FROM task WHERE _id = ?1", turso::params![id])
+            .await?;
         Ok(n as usize)
     }
-
     fn from_row(row: &turso::Row) -> Result<Self, turso::Error> {
         let _id_val: i64 = row.get(0)?;
         Ok(Self {

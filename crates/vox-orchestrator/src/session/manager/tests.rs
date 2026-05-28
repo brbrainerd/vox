@@ -31,7 +31,7 @@ fn test_config() -> (SessionConfig, TempDir) {
 fn create_and_retrieve_session() {
     let (cfg, _dir) = test_config();
     let mut mgr = SessionManager::new(cfg).expect("create manager");
-    let id = mgr.create(AgentId(1)).expect("create session");
+    let id = mgr.create(AgentId(1), None).expect("create session");
     let session = mgr.get(&id).expect("get session");
     assert_eq!(session.agent_id, AgentId(1));
     assert_eq!(session.state, SessionState::Active);
@@ -42,7 +42,7 @@ fn create_and_retrieve_session() {
 fn add_turn_and_check_tokens() {
     let (cfg, _dir) = test_config();
     let mut mgr = SessionManager::new(cfg).expect("create manager");
-    let id = mgr.create(AgentId(1)).expect("create");
+    let id = mgr.create(AgentId(1), None).expect("create");
     mgr.add_turn(&id, "user", "hello world", 3)
         .expect("add turn");
     let s = mgr.get(&id).expect("get");
@@ -56,7 +56,7 @@ fn add_turn_and_check_tokens() {
 fn reset_clears_history() {
     let (cfg, _dir) = test_config();
     let mut mgr = SessionManager::new(cfg).expect("create manager");
-    let id = mgr.create(AgentId(1)).expect("create");
+    let id = mgr.create(AgentId(1), None).expect("create");
     mgr.add_turn(&id, "user", "hello", 2).expect("add");
     mgr.add_turn(&id, "assistant", "hi", 1).expect("add");
     let cleared = mgr.reset(&id).expect("reset");
@@ -68,7 +68,7 @@ fn reset_clears_history() {
 fn compact_replaces_with_summary() {
     let (cfg, _dir) = test_config();
     let mut mgr = SessionManager::new(cfg).expect("create manager");
-    let id = mgr.create(AgentId(1)).expect("create");
+    let id = mgr.create(AgentId(1), None).expect("create");
     mgr.add_turn(&id, "user", "lots of content", 100)
         .expect("add");
     mgr.add_turn(&id, "assistant", "response", 50).expect("add");
@@ -84,7 +84,7 @@ fn compact_replaces_with_summary() {
 fn set_meta_persisted() {
     let (cfg, _dir) = test_config();
     let mut mgr = SessionManager::new(cfg).expect("create manager");
-    let id = mgr.create(AgentId(1)).expect("create");
+    let id = mgr.create(AgentId(1), None).expect("create");
     mgr.set_meta(&id, "model", "claude-sonnet-4")
         .expect("set meta");
     let val = mgr.get(&id).expect("get").meta.get("model").cloned();
@@ -99,9 +99,9 @@ fn max_sessions_limit() {
         ..base
     };
     let mut mgr = SessionManager::new(cfg).expect("create");
-    mgr.create(AgentId(1)).expect("1st");
-    mgr.create(AgentId(2)).expect("2nd");
-    let err = mgr.create(AgentId(3));
+    mgr.create(AgentId(1), None).expect("1st");
+    mgr.create(AgentId(2), None).expect("2nd");
+    let err = mgr.create(AgentId(3), None);
     assert!(matches!(err, Err(SessionError::MaxSessions(2))));
 }
 
@@ -114,7 +114,7 @@ fn lifecycle_tick_marks_idle_then_archives() {
         ..base
     };
     let mut mgr = SessionManager::new(cfg).expect("create");
-    let id = mgr.create(AgentId(1)).expect("create");
+    let id = mgr.create(AgentId(1), None).expect("create");
     // Force last_active to be far in the past
     if let Some(s) = mgr.get_mut(&id) {
         s.last_active = now_secs().saturating_sub(20);
@@ -133,7 +133,7 @@ fn cleanup_removes_archived_sessions() {
         ..base
     };
     let mut mgr = SessionManager::new(cfg).expect("create");
-    let id = mgr.create(AgentId(1)).expect("create");
+    let id = mgr.create(AgentId(1), None).expect("create");
     if let Some(s) = mgr.get_mut(&id) {
         s.state = SessionState::Archived;
     }
@@ -149,7 +149,7 @@ async fn session_db_replay_matches_in_memory_state() {
     let (mut cfg, _dir) = test_config();
     cfg.persist = false;
     let mut mgr = SessionManager::new(cfg).unwrap().with_db(db.clone());
-    let id = mgr.create(AgentId(11)).expect("create");
+    let id = mgr.create(AgentId(11), None).expect("create");
     mgr.add_turn(&id, "user", "hello", 5).expect("turn");
     mgr.set_meta(&id, "k", "v").expect("meta");
     mgr.set_plugin_state(&id, "p", serde_json::json!({"x": 1}))

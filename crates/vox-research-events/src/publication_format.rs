@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct ShortFormVariant {
     /// The claim text from which this variant was lifted.
     pub source_claim_text: String,
-    /// Nanopub URI that anchors this claim (e.g. "https://vox.scientia/np/RA...").
+    /// Nanopub URI that anchors this claim (e.g. `https://vox.scientia/np/RA...`).
     pub nanopub_uri: String,
     /// Target platform (e.g. "bluesky", "arxiv_abstract", "zenodo_description").
     pub platform: PublicationPlatform,

@@ -12,8 +12,8 @@ categories = ["game-development", "development-tools"]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 reqwest = { workspace = true }
-vox-reqwest-defaults = { workspace = true }
-vox-openai-sse = { workspace = true }
+vox-http-client = { workspace = true }
+vox-openai = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = { workspace = true }
 futures-util = { workspace = true }

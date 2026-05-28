@@ -1,7 +1,7 @@
 ---
 title: "GitHub-hosted runner exceptions"
 description: "Official documentation for GitHub-hosted runner exceptions for the Vox language. Detailed technical reference, architecture guides, and i"
-category: "reference"
+category: "CI & Quality"
 last_updated: "2026-03-24"
 training_eligible: true
 
@@ -19,6 +19,7 @@ The repository defaults to **self-hosted** runners for main Rust CI (see [runner
 | `link_checker.yml` | `ubuntu-latest` | External link checks; no secrets to self-hosted pool. |
 | `release-binaries.yml` | `windows-latest`, `macos-latest` (×2 targets: x86_64 and aarch64 macOS jobs) | Publish tagged Windows/macOS binaries; Linux **build** lane remains self-hosted; **publish** job runs on Linux self-hosted. |
 | `publish-ci-runner.yml` | `ubuntu-latest` | Chicken-and-egg: builds the self-hosted runner image itself; cannot run on the fleet it produces. Publishes to GHCR so contributors can `docker pull ghcr.io/<org>/vox-ci-runner:latest`. |
+| `deploy-hetzner.yml` (`smoke-ci`) | `ubuntu-latest` | Thin pre-deploy check: **`cargo build -p vox-cli --locked`** only. Full fmt/clippy/tests run on self-hosted **`ci.yml`** before merge to **`main`**. |
 
 Any new workflow using GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) must add a row here or switch to the self-hosted tuple.
 

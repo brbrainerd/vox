@@ -40,7 +40,7 @@ pub struct RuntimeProjectionModule {
     /// `VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE=1` (keeps default JSON stable across machines).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host_capability_probe: Option<TaskCapabilityHints>,
-    /// Distinct DB planning capability rows from all `db.Table.*` sites with a [`HirDbQueryPlan`].
+    /// Distinct DB planning capability rows from all `db.Table.*` sites with a [`crate::hir::HirDbQueryPlan`].
     pub db_planning_policies: Vec<DbPlanningPolicySnapshot>,
 }
 

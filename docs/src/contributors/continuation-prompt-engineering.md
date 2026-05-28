@@ -1,7 +1,7 @@
 ---
 title: "Continuation Prompt Engineering"
 description: "SSOT for the Vox continuation prompt, its design rationale, and the layered anti-skeleton defense model."
-category: "contributors"
+category: "Contributors"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true
@@ -24,7 +24,7 @@ The continuation prompt is **one layer** of a three-layer immune system. Each la
 distinct responsibilities — overlap is waste.
 
 | Layer | Lives In | Enforced By | Covers |
-|:---|:---|:---|:---|
+| :--- | :--- | :--- | :--- |
 | **System rules** | `AGENTS.md` + tool overlays (for example `GEMINI.md`) + `<user_rules>` | IDE injection (every turn) | Architecture pointers, secrets, SSOT locations, environment-specific shell discipline |
 | **Continuation prompt** | Human-entered periodically | Attention recency window | Behavioral directives, parallelism, anti-skeleton interrogation, task-specific scope |
 | **CI gates** | TOESTUB, `completion-policy.v1.yaml`, orchestrator `PolicyEngine` | `vox ci completion-gates`, `vox stub-check`, `cargo test` | Machine-verifiable constraints — stubs, empty bodies, victory claims, unwired modules |
@@ -44,7 +44,7 @@ Each section of the continuation prompt targets a specific failure mode document
 LLM code generation research (2025-2026):
 
 | Prompt Section | Failure Mode Targeted | Research Basis |
-|:---|:---|:---|
+| :--- | :--- | :--- |
 | `<execution_engine>` (DO NOT STOP) | Premature completion / early exit | Exploits recency bias to anchor final instructions (Liu et al., 2024). |
 | `<behavior>` (ACT DON'T NARRATE) | Token waste; sycophancy | Limits non-functional conversational filler (SycEval, 2025). |
 | `<state_management>` (Memory dump) | Attention decay; context rot | Mitigates "lost in the middle" token decay (Liu et al., 2024; extended 2025). |
@@ -135,6 +135,10 @@ When working specifically on the Vox codebase, append this tightly scoped block.
 
 ```xml
 <vox_context>
+<active_skill>
+- DYNAMIC INJECTION: The orchestrator will inject procedural workflows (e.g., `superpowers:test-driven-development`) here based on task state.
+- PRIORITY: If an active skill is present, its instructions supersede generic behavioral rules.
+</active_skill>
 <anti_skeleton>
 - TOESTUB BLOCKERS: `stub/todo`, `stub/unimplemented`, `empty-body`, `victory-claim/premature`, `unwired/module`, `arch/god_object`, `arch/sprawl`.
 - VERIFY: RUN `vox stub-check --path <changed-dirs>` and evaluate the output before completing work. Error-severity findings are hard blockers.
@@ -159,6 +163,7 @@ The continuation prompt intentionally uses generic tool names (e.g., `view_file`
 ## Maintenance
 
 This document is the SSOT for continuation prompt design. When modifying:
+
 1. Update the prompt text in the code block above.
 2. Update the rationale table if adding/removing sections.
 3. Run `vox ci check-docs-ssot` to verify links.
@@ -174,4 +179,3 @@ This document is the SSOT for continuation prompt design. When modifying:
 - AGENTS.md (repo root) — system-level rules
 - Attention decay / "lost in the middle" research (Liu et al., 2024; extended 2025)
 - SycEval / RLHF sycophancy persistence benchmarks (2025)
-

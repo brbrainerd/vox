@@ -1,0 +1,12 @@
+fn bmi_band_int(bmi: int) to str {
+    if bmi < 19 {
+        return "underweight"
+    }
+    if bmi <= 24 {
+        return "normal"
+    }
+    if bmi <= 29 {
+        return "overweight"
+    }
+    return "obese"
+}

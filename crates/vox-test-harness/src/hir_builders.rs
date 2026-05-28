@@ -3,7 +3,7 @@
 //! Provides zero-boilerplate constructors for common HIR nodes so that
 //! `minimal_module()` and similar helpers are never redefined per-file.
 
-use vox_compiler::hir::{HirFn, HirModule, HirRoute, HirTable};
+use vox_compiler::hir::{HirFn, HirModule, HirTable};
 
 use crate::spans::dummy_span;
 
@@ -34,34 +34,27 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_mobile_native: false,
         is_pure: false,
         is_reactive: false,
+        is_remote: false,
         is_deprecated: false,
         is_llm: false,
         llm_model: None,
+        ai_structured_output: None,
+        ai_fixture: None,
+        embed: None,
         schedule_interval: None,
         durability: None,
         actor_state_fields: vec![],
         postconditions: vec![],
         capabilities: vec![],
         ts_extern_module: None,
+        generated_hash: None,
         span: dummy_span(),
+        inference_model: None,
+        training_step: false,
+        distributed_train: None,
     }
 }
 
-/// Build a minimal GET [`HirRoute`] for the given path with no body.
-pub fn hir_get_route(path: impl Into<String>) -> HirRoute {
-    use vox_compiler::hir::HirHttpMethod;
-    let path = path.into();
-    let method = HirHttpMethod::Get;
-    let route_contract = format!("{} {}", method.as_str(), path);
-    HirRoute {
-        method,
-        path,
-        route_contract,
-        return_type: None,
-        body: vec![],
-        span: dummy_span(),
-    }
-}
 
 /// Build a minimal [`HirTable`] with the given name and no fields.
 pub fn hir_table(name: impl Into<String>) -> HirTable {

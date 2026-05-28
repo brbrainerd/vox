@@ -1,19 +1,13 @@
+use std::collections::HashMap;
+use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{HirFn, HirForall, HirModule, HirType};
 
-use super::stmt_expr::{emit_expr, emit_stmt};
 use super::tables::{collect_table_select_projections, emit_table_struct};
 use super::types::emit_type;
 
 pub fn emit_lib(module: &HirModule) -> String {
     let mut out = String::new();
     out.push_str("use serde::{Serialize, Deserialize};\n");
-
-    if module.functions.iter().any(|f| f.is_llm) {
-        out.push_str("use vox_secrets::{SecretId, resolve_secret};\n");
-        out.push_str(
-            "use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};\n",
-        );
-    }
 
     if !module.tables.is_empty() {
         out.push_str("use vox_db::Codex;\n");
@@ -36,32 +30,14 @@ pub fn emit_lib(module: &HirModule) -> String {
 
     // Types
     for typedef in &module.types {
-        // Struct typedef → `pub struct Foo { pub f: T, ... }`.
-        if typedef.variants.is_empty() && !typedef.fields.is_empty() {
-            out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
-            out.push_str(&format!("pub struct {} {{\n", typedef.name));
-            for (fname, ftype) in &typedef.fields {
-                out.push_str(&format!("    pub {}: {},\n", fname, emit_type(ftype)));
-            }
-            out.push_str("}\n\n");
-            continue;
-        }
-        // Sum type / ADT.
-        out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
-        out.push_str(&format!("pub enum {} {{\n", typedef.name));
-        for variant in &typedef.variants {
-            if variant.fields.is_empty() {
-                out.push_str(&format!("    {},\n", variant.name));
-            } else {
-                out.push_str(&format!("    {}(", variant.name));
-                for (_fname, ftype) in &variant.fields {
-                    out.push_str(&format!("{}, ", emit_type(ftype)));
-                }
-                out.push_str("),\n");
-            }
-        }
-        out.push_str("}\n\n");
+        emit_typedef(typedef, &mut out);
     }
+
+    // State Machines
+    out.push_str(&super::state_machine::emit_state_machine_decls(module));
+
+    // Actor state structs
+    out.push_str(&emit_actor_state_structs(module));
 
     // Table structs
     let table_projections = collect_table_select_projections(module);
@@ -74,19 +50,19 @@ pub fn emit_lib(module: &HirModule) -> String {
     }
 
     for func in &module.functions {
-        out.push_str(&emit_fn(func));
+        out.push_str(&emit_fn_with_actor_handlers(func, module));
     }
 
     // MCP tools and resources — must be `pub` so `mcp_server` binary can `use crate::*`.
     for t in &module.mcp_tools {
         let mut f = t.func.clone();
         f.is_pub = true;
-        out.push_str(&emit_fn(&f));
+        out.push_str(&emit_fn(&f, Some(&module.inferred_types), &[]));
     }
     for r in &module.mcp_resources {
         let mut f = r.func.clone();
         f.is_pub = true;
-        out.push_str(&emit_fn(&f));
+        out.push_str(&emit_fn(&f, Some(&module.inferred_types), &[]));
     }
 
     // Tests
@@ -96,18 +72,65 @@ pub fn emit_lib(module: &HirModule) -> String {
         } else {
             out.push_str("#[test]\n");
         }
-        out.push_str(&emit_fn(test));
+        out.push_str(&emit_fn(test, Some(&module.inferred_types), &[]));
     }
 
     // Property-based Tests (@forall)
     for forall in &module.foralls {
-        out.push_str(&emit_forall(forall));
+        out.push_str(&emit_forall(forall, Some(&module.inferred_types)));
     }
 
     out
 }
 
-fn emit_forall(forall: &HirForall) -> String {
+/// Emit a single HIR typedef (struct or ADT) as a Rust type definition.
+/// Extracted from `emit_lib` per CR-A1: the two-branch if-chain inside the
+/// for-loop contributed ~8 DPs (variants-empty/fields-empty, inner loops).
+fn emit_typedef(typedef: &vox_compiler::hir::HirTypeDef, out: &mut String) {
+    // Struct typedef → `pub struct Foo { pub f: T, ... }`.
+    if typedef.variants.is_empty() && !typedef.fields.is_empty() {
+        out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
+        out.push_str(&format!("pub struct {} {{\n", typedef.name));
+        for (fname, ftype) in &typedef.fields {
+            out.push_str(&format!("    pub {}: {},\n", fname, emit_type(ftype)));
+        }
+        out.push_str("}\n\n");
+        return;
+    }
+    // Sum type / ADT.
+    out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
+    out.push_str(&format!("pub enum {} {{\n", typedef.name));
+    for variant in &typedef.variants {
+        if variant.fields.is_empty() {
+            out.push_str(&format!("    {},\n", variant.name));
+        } else {
+            out.push_str(&format!("    {}(", variant.name));
+            for (_fname, ftype) in &variant.fields {
+                out.push_str(&format!("{}, ", emit_type(ftype)));
+            }
+            out.push_str("),\n");
+        }
+    }
+    out.push_str("}\n\n");
+}
+
+/// Emit a function together with its actor handler set (if it is an actor shell).
+/// Extracted from `emit_lib` per CR-A1: the `if !func.actor_state_fields.is_empty()`
+/// guard + the `filter` closure contributed ~3 DPs inside the for-loop.
+fn emit_fn_with_actor_handlers(func: &HirFn, module: &vox_compiler::hir::HirModule) -> String {
+    let handlers: Vec<&HirFn> = if !func.actor_state_fields.is_empty() {
+        module
+            .functions
+            .iter()
+            .filter(|f| f.name.starts_with(&format!("{}::", func.name)))
+            .collect()
+    } else {
+        vec![]
+    };
+    emit_fn(func, Some(&module.inferred_types), &handlers)
+}
+
+fn emit_forall(forall: &HirForall, inferred_types: Option<&HashMap<Span, HirType>>) -> String {
     let mut out = String::new();
     out.push_str("proptest::proptest! {\n");
     if forall.iterations > 0 {
@@ -118,7 +141,7 @@ fn emit_forall(forall: &HirForall) -> String {
     }
     out.push_str("    #[test]\n");
     // Indent the function emit to map inside the macro bounds cleanly
-    let func_code = emit_fn(&forall.func);
+    let func_code = emit_fn(&forall.func, inferred_types, &[]);
     for line in func_code.lines() {
         if line.trim().is_empty() {
             out.push('\n');
@@ -133,11 +156,23 @@ fn emit_forall(forall: &HirForall) -> String {
 }
 
 /// Emit a single HIR function (or test) as Rust source.
-pub fn emit_fn(func: &HirFn) -> String {
+pub fn emit_fn(
+    func: &HirFn,
+    inferred_types: Option<&HashMap<Span, HirType>>,
+    actor_handlers: &[&HirFn],
+) -> String {
     let mut out = String::new();
     let pub_kw = if func.is_pub { "pub " } else { "" };
-    let async_kw = if func.is_async { "async " } else { "" };
-    out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name));
+    let async_kw = if func.is_async || func.is_llm {
+        "async "
+    } else {
+        ""
+    };
+    out.push_str(&format!("{}{}fn {}(", pub_kw, async_kw, func.name.replace("::", "_")));
+    if func.name.contains("::") {
+        let actor_name = func.name.split("::").next().unwrap();
+        out.push_str(&format!("state: &mut {}State, ", actor_name));
+    }
     for param in &func.params {
         out.push_str(&format!(
             "{}: {}, ",
@@ -156,75 +191,56 @@ pub fn emit_fn(func: &HirFn) -> String {
     }
     out.push_str("{\n");
     if func.is_llm {
-        let model_init = if let Some(m) = func.llm_model.as_deref() {
-            format!(
-                "\"{}\".to_string()",
-                m.replace('\\', "\\\\").replace('"', "\\\"")
-            )
-        } else {
-            "openrouter_chat_model_preference()".to_string()
-        };
-        out.push_str("    let client = reqwest::Client::new();\n");
-        out.push_str("    let token = resolve_secret(SecretId::OpenRouterApiKey).expose().expect(\"LLM function requires OpenRouterApiKey\").to_string();\n");
-        out.push_str(&format!("    let model = {};\n", model_init));
-
-        // Build the prompt from parameters
-        out.push_str("    let mut prompt = String::new();\n");
-        out.push_str(&format!(
-            "    prompt.push_str(\"Implement the function: {}\\n\");\n",
-            func.name
-        ));
-        out.push_str("    prompt.push_str(\"Arguments:\\n\");\n");
-        for param in &func.params {
-            out.push_str(&format!(
-                "    prompt.push_str(&format!(\"- {}: {{:?}}\\n\", {}));\n",
-                param.name, param.name
-            ));
-        }
-        out.push_str("    prompt.push_str(\"\\nReturn ONLY the result as a valid JSON object matching the return type schema. Do not explain.\\n\");\n");
-
-        out.push_str("    let runtime = tokio::runtime::Handle::current();\n");
-        out.push_str("    let res = runtime.block_on(async {\n");
-        out.push_str("        client.post(OPENROUTER_CHAT_COMPLETIONS_URL)\n");
-        out.push_str("            .header(\"Authorization\", format!(\"Bearer {}\", token))\n");
-        out.push_str("            .json(&serde_json::json!({\n");
-        out.push_str("                \"model\": model,\n");
-        out.push_str(
-            "                \"messages\": [{ \"role\": \"user\", \"content\": prompt }],\n",
-        );
-        out.push_str("                \"temperature\": 0.1\n");
-        out.push_str("            }))\n");
-        out.push_str("            .send().await.unwrap()\n");
-        out.push_str("            .json::<serde_json::Value>().await.unwrap()\n");
-        out.push_str("    });\n");
-
-        out.push_str("    let content = res[\"choices\"][0][\"message\"][\"content\"].as_str().unwrap_or_default();\n");
-        if let Some(ret) = &func.return_type {
-            let ret_ty = emit_type(ret);
-            out.push_str(&format!("    let it = serde_json::from_str::<{}> (content.trim_matches('`').trim_start_matches(\"json\").trim()).expect(\"Failed to parse LLM response\");\n", ret_ty));
-
-            // Check postconditions for @ai functions
-            for pc in &func.postconditions {
-                let cond = emit_expr(&pc.condition);
-                if let Some(fb) = &pc.fallback {
-                    out.push_str(&format!("    if !({}) {{ return {}(", cond, fb));
-                    // Pass through same arguments if signatures match, but for now we assume zero-arg fallback or specific contract.
-                    // A better implementation would match signatures, but this fulfills the 'logic' requirement.
-                    out.push_str(").await; }\n");
-                } else {
-                    out.push_str(&format!(
-                        "    assert!({}, \"Postcondition failed\");\n",
-                        cond
-                    ));
-                }
-            }
-            out.push_str("    it\n");
-        }
+        super::ai_fixture::emit_llm_function_body(&mut out, func);
     } else {
-        for stmt in &func.body {
-            out.push_str(&emit_stmt(stmt, 1, false, false, false));
-        }
+        let usage = super::usage::UsageTracker::build(&func.body);
+        out.push_str(&super::durability_lower::emit_durable_body(
+            func,
+            inferred_types,
+            Some(&usage),
+            actor_handlers,
+        ));
     }
     out.push_str("}\n\n");
+    out
+}
+
+fn emit_actor_state_structs(module: &HirModule) -> String {
+    use vox_compiler::hir::DurabilityKind;
+    let mut out = String::new();
+    for func in &module.functions {
+        // Emit a state struct for every actor SHELL — i.e. an actor
+        // function whose name has no `::` (handlers are named
+        // "ActorName::event"). The emit_actor_body lowering refers to
+        // `<ActorName>State::default()` unconditionally; without a
+        // struct definition, rustc errors with E0412 / E0433. State
+        // fields are optional in the Vox surface — when absent, emit
+        // a unit-like struct so `::default()` still resolves. Per the
+        // 2026-05-23 slot-3 chat bring-up.
+        let is_actor_shell = matches!(func.durability, Some(DurabilityKind::Actor))
+            && !func.name.contains("::");
+        if !is_actor_shell {
+            continue;
+        }
+        if func.actor_state_fields.is_empty() {
+            out.push_str(&format!(
+                "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]\npub struct {}State;\n\n",
+                func.name
+            ));
+        } else {
+            out.push_str(&format!(
+                "#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]\npub struct {}State {{\n",
+                func.name
+            ));
+            for field in &func.actor_state_fields {
+                out.push_str(&format!(
+                    "    pub {}: {},\n",
+                    field.name,
+                    super::types::emit_type(&field.type_ann)
+                ));
+            }
+            out.push_str("}\n\n");
+        }
+    }
     out
 }

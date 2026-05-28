@@ -92,7 +92,7 @@ pub(crate) fn get_chunk_id(path: &str) -> (u32, &'static str) {
     if p.contains("frontend/") || p.contains("packages/") {
         return (20, "05_frontend");
     }
-    if p.contains("vox-vscode/") {
+    if p.contains("apps/editor/vox-vscode/") {
         return (22, "05_vscode_ext");
     }
 
@@ -130,18 +130,18 @@ pub(crate) fn get_chunk_id(path: &str) -> (u32, &'static str) {
         return (40, "09_tests");
     }
 
-    // ── Compiler front-end ───────────────────────────────────────────────
-    if p.contains("crates/vox-parser/") || p.contains("crates/vox-lexer/") {
-        return (50, "10_crate_parser_lexer");
+    // ── Compiler (monolith) ────────────────────────────────────────────────
+    if p.contains("crates/vox-compiler/src/parser") || p.contains("crates/vox-compiler/src/lexer") {
+        return (50, "10_compiler_parser_lexer");
     }
-    if p.contains("crates/vox-ast/") {
-        return (52, "10_crate_ast");
+    if p.contains("crates/vox-compiler/src/ast") {
+        return (52, "10_compiler_ast");
     }
-    if p.contains("crates/vox-hir/") {
-        return (54, "10_crate_hir");
+    if p.contains("crates/vox-compiler/src/hir") {
+        return (54, "10_compiler_hir");
     }
-    if p.contains("crates/vox-typeck/") {
-        return (56, "10_crate_typeck");
+    if p.contains("crates/vox-compiler/src/typeck") {
+        return (56, "10_compiler_typeck");
     }
 
     // ── Code generation ──────────────────────────────────────────────────
@@ -161,8 +161,8 @@ pub(crate) fn get_chunk_id(path: &str) -> (u32, &'static str) {
     }
 
     // ── Agent / MCP ───────────────────────────────────────────────────────
-    if p.contains("crates/vox-mcp/")
-        || p.contains("crates/vox-dei/")
+    if p.contains("crates/vox-orchestrator-mcp/")
+        || p.contains("crates/vox-mcp-registry/")
         || p.contains("crates/vox-codex")
         || p.contains("crates/vox-capability")
     {

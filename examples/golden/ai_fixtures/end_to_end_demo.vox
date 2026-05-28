@@ -1,0 +1,79 @@
+// ---
+// title: "AI fixtures — end-to-end demo module"
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// training_eligible: true
+// ---
+
+@ai(task_category = CodeGen, strengths = [codegen], tier_max = Pro)
+@uses(net)
+fn demo_intent_routed(spec: str) to str {
+    return spec
+}
+
+@prompt(stage = Planner, schema = PlanBlob, redact = [api_key])
+@uses(net)
+fn demo_prompt(plan: str) to str {
+    return plan
+}
+
+@subagent(policy = parallel, max_depth = 2)
+@uses(net, spawn)
+fn demo_subagent(goal: str) to str {
+    return goal
+}
+
+@search(corpus = docs, query = "ai fixtures demo", into = str, top_k = 3)
+@uses(fs, net)
+fn demo_search_docs() to str {
+    return "ok"
+}
+
+@search(corpus = memory, query = "demo:golden:fixture", into = str)
+@uses(net)
+fn demo_search_memory() to str {
+    return "ok"
+}
+
+@search(corpus = web, query = "Vox language AI fixtures", into = str)
+@uses(net)
+fn demo_search_web() to str {
+    return "ok"
+}
+
+@test
+fn test_demo_intent_routed() to Unit {
+    let out = demo_intent_routed("task")
+    assert(len(out) > 0)
+}
+
+@test
+fn test_demo_prompt() to Unit {
+    let out = demo_prompt("draft")
+    assert(len(out) > 0)
+}
+
+@test
+fn test_demo_subagent() to Unit {
+    let out = demo_subagent("fanout")
+    assert(len(out) > 0)
+}
+
+@test
+fn test_demo_search_docs() to Unit {
+    let out = demo_search_docs()
+    assert(len(out) > 0)
+}
+
+@test
+fn test_demo_search_memory() to Unit {
+    let out = demo_search_memory()
+    assert(len(out) > 0)
+}
+
+@test
+fn test_demo_search_web() to Unit {
+    let out = demo_search_web()
+    assert(len(out) > 0)
+}

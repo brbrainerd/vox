@@ -1,0 +1,22 @@
+fn gcd(a: int, b: int) to int {
+    let mut x: int = a
+    let mut y: int = b
+    while y != 0 {
+        let t: int = y
+        y = x % y
+        x = t
+    }
+    return x
+}
+
+fn lcm(a: int, b: int) to int {
+    return (a / gcd(a, b)) * b
+}
+
+fn main() to str {
+    assert(lcm(4, 6) == 12)
+    assert(lcm(3, 5) == 15)
+    assert(lcm(1, 7) == 7)
+    assert(lcm(6, 6) == 6)
+    return "ok"
+}

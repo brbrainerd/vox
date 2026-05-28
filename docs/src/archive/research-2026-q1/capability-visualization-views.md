@@ -1,7 +1,7 @@
 ---
 title: "Capability visualization views"
 description: "Planned IDE/dashboard views fed by the capability registry, model manifest, and repo discovery JSON."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 13
 last_updated: "2026-03-31"

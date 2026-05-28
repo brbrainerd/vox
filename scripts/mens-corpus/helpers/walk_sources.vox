@@ -1,0 +1,24 @@
+// walk_sources.vox — list `.vox` and `.rs` source files under a project's
+// `crates/` tree. Two separate globs concatenated; preserves the ordering
+// fs.glob gives us. Used by mens-corpus harvest to gather training inputs.
+
+pub fn walk_sources(root: str) to list[str] {
+    let crates_dir = root + "/crates"
+    if not fs.exists(crates_dir) {
+        return []
+    }
+    let mut results = []
+    let vox_glob = fs.glob(crates_dir + "/**/*.vox")
+    if vox_glob.is_ok() {
+        for f in vox_glob.unwrap() {
+            results = results.push(f)
+        }
+    }
+    let rs_glob = fs.glob(crates_dir + "/**/*.rs")
+    if rs_glob.is_ok() {
+        for f in rs_glob.unwrap() {
+            results = results.push(f)
+        }
+    }
+    return results
+}

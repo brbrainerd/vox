@@ -1,7 +1,7 @@
 ---
 title: "How To: Train Mens on RTX 4080 Super"
 description: "Official documentation for How To: Train Mens on RTX 4080 Super for the Vox language. Detailed technical reference, architecture guides"
-category: "how-to"
+category: "How-To Guides"
 last_updated: "2026-03-26"
 training_eligible: true
 
@@ -43,7 +43,7 @@ This runbook covers **two** native paths:
 3. **Corpus**: refresh `train.jsonl` or set **`VOX_TRAIN_SKIP_CORPUS_MIX=1`** when the mix step is unnecessary.
 4. **Run**: canonical QLoRA command from above with **`--log-dir mens/runs/logs`** (or your path); tail the log.
 5. **Acceptance**: first log lines show **finite** loss; optional **`--qlora-ce-last-k 4`** for a stronger suffix LM signal (see SSOT).
-6. Thin wrapper (optional): [`scripts/populi/dogfood_qlora_cuda.ps1`](../../../scripts/populi/dogfood_qlora_cuda.ps1).
+6. Thin wrapper (optional): [`scripts/mens/train_dogfood.vox`](../../../scripts/mens/train_dogfood.vox).
 
 - **Merge (Candle)**: in-tree **`vox mens merge-qlora`** (alias **`merge-adapter`**) or **`vox schola merge-qlora`** — same merge surface; produces **f32 safetensors** subsets — not Burn `*.bin`. See the SSOT train → merge → serve table in [`mens-training.md`](../reference/mens-training.md). **`vox mens serve` (Burn)** loads LoRA or merged **Burn** checkpoints; it does **not** load Candle merge-qlora safetensors. For querying merged QLoRA weights, use an external stack (e.g. export to HF/Ollama) or keep the **adapter** path your inference tool supports.
 
@@ -179,7 +179,7 @@ Use this before claiming a full dogfood run is complete (CI cannot substitute fo
 3. **Train**: `vox mens train --backend qlora --tokenizer hf --preset qwen_4080_16g` (or **`--preset 4080`**, same profile) + `--model`, `--data-dir`, `--output-dir`, `--device cuda`; keep `--qlora-require-full-proxy-stack` on for strict native shard completeness.
 4. **Artifacts**: Confirm **`candle_qlora_adapter.safetensors`**, **`candle_qlora_adapter_meta.json`**, **`populi_adapter_manifest_v3.json`**, **`training_manifest.json`**, **`telemetry.jsonl`** under the output dir.
 5. **Merge / serve**: Candle merge is **`vox schola merge-qlora`** (f32 shard subsets); **`vox mens serve`** stays Burn-only — see SSOT [Merge / export](../reference/mens-training.md#merge--export--inference).
-6. **Optional automation**: `scripts/populi/dogfood_qlora_cuda.ps1` builds (CUDA by default) and launches the canonical CLI in the background; see [scripts/README.md](../../../scripts/README.md).
+6. **Optional automation**: [`scripts/mens/train_dogfood.vox`](../../../scripts/mens/train_dogfood.vox) documents the native-tier dogfood entrypoint; see [scripts/README.md](../../../scripts/README.md).
 
 ## See Also
 

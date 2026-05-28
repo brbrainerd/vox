@@ -1,0 +1,15 @@
+fn product_list(xs: list[int]) to int {
+    let mut result: int = 1
+    for x in xs {
+        result = result * x
+    }
+    return result
+}
+
+fn main() to str {
+    assert(product_list([1, 2, 3, 4]) == 24)
+    assert(product_list([]) == 1)
+    assert(product_list([5]) == 5)
+    assert(product_list([2, 3, 0]) == 0)
+    return "ok"
+}

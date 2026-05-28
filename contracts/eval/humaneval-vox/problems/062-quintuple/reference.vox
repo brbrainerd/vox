@@ -1,0 +1,3 @@
+fn quintuple(n: int) to int {
+    return n * 5
+}

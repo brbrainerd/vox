@@ -16,7 +16,7 @@ fn try_emit(src: &str) -> Result<String, String> {
 #[test]
 fn route_with_loader_no_pending_fails() {
     let src = r#"
-@endpoint(kind: query) fn load() to int { return 1 }
+@query fn load() to int { return 1 }
 component X() { view: column(raw_class="x") { "x" } }
 routes {
     "/x" to X with (loader: load)
@@ -32,7 +32,7 @@ routes {
 #[test]
 fn route_with_loader_pending_but_no_error_fails() {
     let src = r#"
-@endpoint(kind: query) fn load() to int { return 1 }
+@query fn load() to int { return 1 }
 component X() { view: column(raw_class="x") { "x" } }
 component XLoading() { view: column(raw_class="l") { "..." } }
 routes {
@@ -49,7 +49,7 @@ routes {
 #[test]
 fn route_with_loader_pending_and_error_passes() {
     let src = r#"
-@endpoint(kind: query) fn load() to int { return 1 }
+@query fn load() to int { return 1 }
 component X() { view: column(raw_class="x") { "x" } }
 component XLoading() { view: column(raw_class="l") { "..." } }
 component XError() { view: column(raw_class="e") { "err" } }

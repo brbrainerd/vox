@@ -1,0 +1,14 @@
+// Repair-corpus fixture 039 — exhaustiveness bug class.
+// Custom binary Toggle ADT matched only on the Off variant; the On arm is missing.
+// (Mirrors the canonical bool-missing-true bug shape.)
+// Expected repair: add an `On => "yes"` arm.
+
+type Toggle =
+    | On
+    | Off
+
+fn yes_no(t: Toggle) to str {
+    match t {
+        Off => "no"
+    }
+}

@@ -1,7 +1,7 @@
 ---
 title: "Works Cited: Hallucination and Type-System Research"
 description: "Bibliography for the LLM-native language design and type-system hallucination research cluster."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

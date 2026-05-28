@@ -1,6 +1,6 @@
 # Release how-to
 
-Per-release ship checklist. Programmatic gates G1-G4 are validated by `scripts/release_check.sh`; manual gates G5-G8 are walked by hand.
+Per-release ship checklist. Programmatic gates G1-G4 are validated by `vox run apps/vox-mental-tracker/scripts/release_gates.vox` (repository root); manual gates G5-G8 are walked by hand.
 
 ## Programmatic gates
 
@@ -40,7 +40,7 @@ If an Apple toolchain is available: `npx cap add ios && npx cap sync ios && npx 
 
 ## Process
 
-1. From a clean working tree on the release commit, run `bash scripts/release_check.sh` (or `pwsh -File scripts/release_check.ps1` on Windows). Capture the output.
+1. From a clean working tree on the release commit, run `vox run apps/vox-mental-tracker/scripts/release_gates.vox` from the repository root. Capture the output.
 2. Walk gates G5-G8 manually; tick each in a copy of `RELEASE_CHECKLIST.md` (template at the app root).
 3. Tag the commit `vox-mental-tracker-vX.Y.Z` and push.
 4. Attach the filled `RELEASE_CHECKLIST.md` to the GitHub release.

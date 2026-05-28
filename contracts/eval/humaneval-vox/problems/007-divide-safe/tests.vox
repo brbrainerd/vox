@@ -1,0 +1,24 @@
+fn divide(a: int, b: int) to Result[int] {
+    if b is 0 {
+        return Error("division by zero")
+    }
+    return Ok(a / b)
+}
+
+@test
+fn test_divide_ok() to Unit {
+    let r = divide(10, 2)
+    match r {
+        Ok(n)    => assert(n is 5)
+        Error(_) => assert(false)
+    }
+}
+
+@test
+fn test_divide_zero() to Unit {
+    let r = divide(10, 0)
+    match r {
+        Ok(_)    => assert(false)
+        Error(_) => assert(true)
+    }
+}

@@ -13,6 +13,8 @@ default = []
 nvml-gpu-probe = []
 # Enable live-hardware integration tests (requires real GPU hardware; do not enable on CI).
 hw-probe-live-test = []
+# Optional rustls TLS termination on the populi HTTP plane (P0-T5).
+tls = ["dep:rustls", "dep:rustls-pemfile", "dep:tokio-rustls"]
 # DEPRECATED: HTTP control plane code extracted to vox-plugin-populi-mesh; rewire of
 # vox-cli/vox-ml-cli/vox-orchestrator callsites is pending (Unit 2 follow-up).
 # Keep this feature until all callers are rewired through MeshDriver.
@@ -20,7 +22,9 @@ transport = [
     "dep:axum",
     "dep:tokio",
     "dep:reqwest",
-    "dep:vox-reqwest-defaults",
+    "dep:reqwest-middleware",
+    "dep:vox-http-client",
+    "vox-http-client/middleware",
     "dep:tower-http",
     "dep:subtle",
     "dep:vox-bounded-fs",
@@ -47,6 +51,7 @@ mens = [
     "dep:vox-corpus",
     "dep:vox-db",
     "dep:vox-bounded-fs",
+    "dep:vox-hf-layout",
 ]
 mens-candle-qlora = [
     "mens",
@@ -66,7 +71,11 @@ mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
     "dep:reqwest",
-    "dep:vox-reqwest-defaults",
+    "dep:vox-http-client",
+]
+# Opt-in grand-network discovery publishing via the Provider Atlas (P6-T6).
+mesh-discovery-publish = [
+    "dep:vox-publisher",
 ]
 
 [dependencies]
@@ -77,19 +86,27 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-repository = { workspace = true }
-vox-primitives = { workspace = true }
+vox-foundation = { workspace = true }
 vox-secrets = { workspace = true }
 vox-plugin-host = { workspace = true, optional = true }
 vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
+vox-identity = { workspace = true }
 vox-mesh-types = { workspace = true }
+vox-populi-types = { workspace = true }
+
+# TLS (optional, P0-T5)
+rustls = { workspace = true, optional = true }
+rustls-pemfile = { workspace = true, optional = true }
+tokio-rustls = { workspace = true, optional = true }
 
 # Populi transport
 axum = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
-vox-reqwest-defaults = { workspace = true, optional = true }
+reqwest-middleware = { workspace = true, optional = true }
+vox-http-client = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true, features = ["trace", "request-id"] }
 vox-db = { workspace = true, optional = true }
 turso = { workspace = true, optional = true }
@@ -112,6 +129,7 @@ rand = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-corpus = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true, optional = true }
+vox-hf-layout = { workspace = true, optional = true }
 hf-hub = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
 candle-nn = { workspace = true, optional = true }
@@ -121,8 +139,13 @@ qlora-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
+vox-publisher = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }
+sha3.workspace = true
+uuid.workspace = true
+vox-package.workspace = true
+vox-orchestrator-queue.workspace = true
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }
@@ -135,10 +158,15 @@ jsonwebtoken = { workspace = true }
 ed25519-dalek = { workspace = true }
 blake3 = { workspace = true }
 tracing-test = { workspace = true }
+# TLS smoke test helpers (P0-T5)
+rcgen = "0.13"
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
 data-encoding = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
+wiremock = { workspace = true }
 
 [[test]]
 name = "http_control_plane"
@@ -167,6 +195,22 @@ required-features = ["mens"]
 [[test]]
 name = "training_presets_yaml_contract"
 required-features = ["mens"]
+
+[[test]]
+name = "ed25519_envelope"
+required-features = ["transport"]
+
+[[test]]
+name = "github_attestation"
+required-features = ["transport"]
+
+[[test]]
+name = "quota_bucket"
+required-features = ["transport"]
+
+[[test]]
+name = "pairing_e2e"
+required-features = ["transport"]
 
 [lints]
 workspace = true

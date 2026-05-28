@@ -14,29 +14,33 @@ fn emit(src: &str) -> String {
 }
 
 #[test]
-fn back_button_decl_emits_capacitor_app_listener() {
+fn back_button_decl_emits_tauri_listen() {
     let src = r#"
-@endpoint(kind: query) fn handle_back() to bool { return true }
+@query fn handle_back() to bool { return true }
 @back_button {
     on_press: handle_back
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("App.addListener('backButton'"), "got:\n{ts}");
+    assert!(ts.contains("listen('vox-back-button'"), "got:\n{ts}");
     assert!(ts.contains("handle_back("), "got:\n{ts}");
+    assert!(
+        ts.contains("@tauri-apps/api/event"),
+        "expected Tauri event API, got:\n{ts}"
+    );
 }
 
 #[test]
 fn back_button_with_fallback_emits_fallback_call() {
     let src = r#"
-@endpoint(kind: query) fn handle_back() to bool { return false }
-@endpoint(kind: mutation) fn navigate_home() to str { return "/" }
+@query fn handle_back() to bool { return false }
+@mutation fn navigate_home() to str { return "/" }
 @back_button {
     on_press: handle_back
     fallback: navigate_home
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("App.addListener('backButton'"), "got:\n{ts}");
+    assert!(ts.contains("listen('vox-back-button'"), "got:\n{ts}");
     assert!(ts.contains("navigate_home("), "got:\n{ts}");
 }

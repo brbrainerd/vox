@@ -3,7 +3,7 @@
 //! This module reads [`vox_compiler::contract_ir::ContractIr`] rather than walking HIR
 //! directly. The wire-format-v1 rules (Decimal/BigInt → string, Option →
 //! optional, sum types → `_tag`-discriminated unions) live in
-//! [`vox_compiler::contract_ir::project`] — Zod, OpenAPI, JSON Schema, and the TS
+//! `vox_compiler::contract_ir::project` (the function) — Zod, OpenAPI, JSON Schema, and the TS
 //! client SDK all share that single projection.
 
 use vox_compiler::contract_ir::{
@@ -108,26 +108,10 @@ fn field_zod(ty: &WireType, optional: bool) -> String {
     }
 }
 
+/// Delegates to [`vox_compiler::contract_ir::wire_type_to_zod`] — the single
+/// authoritative `WireType → Zod` mapping.
 fn wire_zod(ty: &WireType) -> String {
-    match ty {
-        WireType::Number => "z.number()".into(),
-        WireType::String => "z.string()".into(),
-        WireType::Bool => "z.boolean()".into(),
-        // Wire-format-v1: these encode as strings on the wire. Zod validates the
-        // string at the boundary; transformation to runtime value (Decimal /
-        // BigInt / Date) is a downstream step the TS client owns.
-        WireType::DecimalString => "z.string()".into(),
-        WireType::BigIntString => "z.string()".into(),
-        WireType::DateTimeString => "z.string().datetime({ offset: true })".into(),
-        WireType::Array(inner) => format!("z.array({})", wire_zod(inner)),
-        WireType::Tuple(elems) => {
-            let inner: Vec<String> = elems.iter().map(wire_zod).collect();
-            format!("z.tuple([{}])", inner.join(", "))
-        }
-        WireType::Ref(name) => format!("{}Schema", name),
-        WireType::Unit => "z.void()".into(),
-        WireType::Unknown => "z.any()".into(),
-    }
+    vox_compiler::contract_ir::wire_type_to_zod(ty)
 }
 
 /// Legacy helper kept for callers that still hand-build Zod from `HirType`.

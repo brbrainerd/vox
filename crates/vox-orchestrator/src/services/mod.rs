@@ -26,6 +26,7 @@
 
 pub mod discovery_gate;
 pub mod gateway;
+pub mod persistence_obs;
 // `routes` moved to vox-orchestrator-mcp in 2026-05-08 reorg Phase 4.
 // Compatibility stub below keeps old `vox_orchestrator::services::routes` call sites
 // compiling until they are updated to import from vox-orchestrator-mcp.

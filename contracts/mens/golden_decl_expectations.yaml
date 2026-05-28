@@ -1,3 +1,4 @@
+schema_version: 1
 # Golden declaration coverage (Mens / CI).
 # Histogram source: `vox ci corpus-decl-coverage` → `target/dogfood/corpus_decl_coverage.json`.
 # Cross-check with docs/src/reference/parser-feature-matrix.md when expanding parser surface.

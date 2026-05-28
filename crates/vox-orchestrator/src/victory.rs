@@ -61,7 +61,7 @@ impl VictoryEvaluator {
 
         // Behavioral check: use the recommended action from the observer.
         // If it's Continue or RequestMoreEvidence, we consider behavior "okay enough" for the tier.
-        let behavioral = observation.map_or(true, |o| {
+        let behavioral = observation.is_none_or(|o| {
             matches!(
                 o.recommended_action,
                 vox_db::store::types::ObserverAction::Continue
@@ -69,7 +69,7 @@ impl VictoryEvaluator {
             )
         });
 
-        let grounding = socrates_score.map_or(true, |s| s >= self.config.min_socrates_score);
+        let grounding = socrates_score.is_none_or(|s| s >= self.config.min_socrates_score);
 
         let passed = syntactic && structural && behavioral && grounding;
 

@@ -2,10 +2,11 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    BackButtonDecl, Decl, DeepLinkDecl, EffectDecl, EndpointDecl, EndpointKind, FieldConstraint,
-    FnDecl, ForallDecl, FormDecl, FormField, ImportDecl, ImportPath, ImportPathKind, LoadingDecl,
-    McpResourceDecl, McpToolDecl, OnCleanupDecl, OnMountDecl, PostCondition, PushDecl,
-    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, TestDecl,
+    AstColorToken, AstFontToken, AstScalarToken, BackButtonDecl, Decl, DeepLinkDecl, EffectDecl,
+    EndpointDecl, EndpointKind, FieldConstraint, FnDecl, ForallDecl, FormDecl, FormField,
+    ImportDecl, ImportPath, ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl,
+    OnCleanupDecl, OnMountDecl, PostCondition, PushDecl, ReactiveComponentDecl, ReactiveMemberDecl,
+    RustCrateImport, ScheduledDecl, TestDecl, TokensDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -17,6 +18,18 @@ impl Parser {
         self.advance(); // eat 'import'
         let mut paths = Vec::new();
         loop {
+            if self.try_parse_local_file_import(&mut paths)? {
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+                continue;
+            }
+            if self.try_parse_react_component_import(&mut paths)? {
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+                continue;
+            }
             // `rust:` imports use the full parse_import_path handler.
             // All symbol imports go through parse_symbol_import which also accepts
             // `/` as a path separator and `as { name1, name2 }` destructuring.
@@ -35,6 +48,108 @@ impl Parser {
             paths,
             span: start.merge(self.span()),
         }))
+    }
+
+    /// `import "./helpers/walk_docs.vox" [as alias]` — intra-project Vox file
+    /// import. Returns `Ok(false)` without consuming input when the next token
+    /// isn't a string literal. Rejects strings that don't end in `.vox` so
+    /// authors don't confuse this with arbitrary asset imports.
+    /// See `docs/src/architecture/intra-project-imports-rfc-2026-05-23.md`.
+    fn try_parse_local_file_import(
+        &mut self,
+        paths: &mut Vec<ImportPath>,
+    ) -> Result<bool, ()> {
+        let seg_start = self.span();
+        let path = match self.peek().clone() {
+            Token::StringLit(s) | Token::SingleStringLit(s) => s,
+            _ => return Ok(false),
+        };
+        self.advance();
+        if !path.ends_with(".vox") {
+            self.errors.push(ParseError::classified(
+                seg_start,
+                format!(
+                    "Intra-project import path must end with `.vox` (got `{path}`). Use `import \"./helpers/foo.vox\"`."
+                ),
+                vec!["\"./relative/path.vox\"".into()],
+                Some(path.clone()),
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        }
+        let alias = if matches!(self.peek(), Token::Ident(w) if w == "as") {
+            self.advance();
+            Some(self.parse_ident_name()?)
+        } else {
+            None
+        };
+        paths.push(ImportPath {
+            kind: ImportPathKind::LocalFile { path },
+            alias,
+            span: seg_start.merge(self.span()),
+        });
+        Ok(true)
+    }
+
+    /// `import react LocalName from "./Component.tsx"` — Phase 5 React interop.
+    ///
+    /// Returns `Ok(false)` without consuming input when this is not that form (including
+    /// `import react.use_state`, which starts with `react` then `.`).
+    fn try_parse_react_component_import(
+        &mut self,
+        paths: &mut Vec<ImportPath>,
+    ) -> Result<bool, ()> {
+        let save = self.pos;
+        let seg_start = self.span();
+        let Token::Ident(first) = self.peek().clone() else {
+            return Ok(false);
+        };
+        if first != "react" {
+            return Ok(false);
+        }
+        self.advance();
+        match self.peek().clone() {
+            Token::Dot | Token::Slash => {
+                self.pos = save;
+                Ok(false)
+            }
+            Token::Ident(local_name) | Token::TypeIdent(local_name) => {
+                let local_name = local_name.clone();
+                self.advance();
+                let Token::Ident(from_kw) = self.peek().clone() else {
+                    self.pos = save;
+                    return Ok(false);
+                };
+                if from_kw != "from" {
+                    self.pos = save;
+                    return Ok(false);
+                }
+                self.advance();
+                let module_specifier = match self.peek().clone() {
+                    Token::StringLit(s) | Token::SingleStringLit(s) => {
+                        self.advance();
+                        s
+                    }
+                    _ => {
+                        self.pos = save;
+                        return Ok(false);
+                    }
+                };
+                paths.push(ImportPath {
+                    kind: ImportPathKind::ReactComponent {
+                        local_name,
+                        module_specifier,
+                    },
+                    alias: None,
+                    span: seg_start.merge(self.span()),
+                });
+                Ok(true)
+            }
+            _ => {
+                self.pos = save;
+                Ok(false)
+            }
+        }
     }
 
     /// Parse one symbol import declaration, appending zero or more `ImportPath`s to `paths`.
@@ -644,7 +759,7 @@ impl Parser {
     pub(crate) fn parse_v0_prop_line(&mut self) -> Result<crate::ast::decl::V0Prop, ()> {
         let pname = self.parse_ident_name()?;
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
-            eprintln!("[vox-parser:v0.prop] name={pname:?} next={:?}", self.peek());
+            eprintln!("[vox-compiler:v0.prop] name={pname:?} next={:?}", self.peek());
         }
         let is_optional = self.eat(&Token::Question);
         self.expect(&Token::Colon)?;
@@ -839,52 +954,49 @@ impl Parser {
         Ok(Decl::Scheduled(ScheduledDecl { interval, func: f }))
     }
 
-    pub(crate) fn parse_endpoint(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat @endpoint
-        self.expect(&Token::LParen)?;
-        let mut kind = None;
-        if let Token::Ident(k) = self.peek().clone()
-            && k == "kind"
-        {
-            self.advance();
-            self.expect(&Token::Colon)?;
-            if let Token::Ident(v) = self.peek().clone() {
-                match v.as_str() {
-                    "query" => kind = Some(EndpointKind::Query),
-                    "mutation" => kind = Some(EndpointKind::Mutation),
-                    "server" => kind = Some(EndpointKind::Server),
-                    _ => {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            "Unknown endpoint kind. Expected query, mutation, or server.",
-                            vec!["query".into(), "mutation".into(), "server".into()],
-                            Some(v),
-                            ParseErrorClass::Declaration,
-                        ));
-                        return Err(());
-                    }
-                }
-                self.advance();
-            }
-        }
-        self.expect(&Token::RParen)?;
-        if kind.is_none() {
-            self.errors.push(ParseError::classified(
-                self.span(),
-                "Expected `kind: query`, `kind: mutation`, or `kind: server` inside `@endpoint(...)`.",
-                vec!["kind: query".into()],
-                Some(self.peek().to_string()),
-                ParseErrorClass::Declaration,
-            ));
-            return Err(());
-        }
+    /// Parse `@query fn ...` — first-class GET-style endpoint, no kind param.
+    /// Equivalent to `@endpoint(kind: query) fn ...` but lower K-complexity
+    /// (audit doc §11.2). Introduced 2026-05-23.
+    pub(crate) fn parse_query(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @query
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::Endpoint(EndpointDecl {
-            kind: kind.unwrap(),
+            kind: EndpointKind::Query,
             func: f,
         }))
     }
+
+    /// Parse `@mutation fn ...` — first-class POST/PUT/DELETE-style endpoint.
+    pub(crate) fn parse_mutation(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @mutation
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Endpoint(EndpointDecl {
+            kind: EndpointKind::Mutation,
+            func: f,
+        }))
+    }
+
+    /// Parse `@server fn ...` — first-class server-only endpoint (no client emit).
+    pub(crate) fn parse_server_endpoint(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @server
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Endpoint(EndpointDecl {
+            kind: EndpointKind::Server,
+            func: f,
+        }))
+    }
+
+    // `parse_endpoint` (the `@endpoint(kind: …)` decorator parser) was retired
+    // in v0.6.0 per `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`.
+    // The canonical bare-form decorators `@query` / `@mutation` / `@server`
+    // — parsed by `parse_query`, `parse_mutation`, `parse_server_endpoint`
+    // above — produce the same `EndpointDecl` AST node.  Any remaining
+    // `@endpoint` text in user source fails to lex; the
+    // `retired/decorator-usage` lint surfaces a friendly migration
+    // suggestion before that point.
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
         let start = self.span();
@@ -894,9 +1006,46 @@ impl Parser {
         let mut is_mobile_native = false;
         let mut is_pure = false;
         let mut is_reactive = false;
+        let mut is_remote = false;
         let mut is_deprecated = false;
         let mut is_llm = false;
         let mut llm_model = None;
+        let mut ai_structured_output_type: Option<String> = None;
+        let mut ai_max_iterations: u32 = 3;
+        let mut ai_task_category: Option<String> = None;
+        let mut ai_strengths: Vec<String> = Vec::new();
+        let mut ai_tier_max: Option<String> = None;
+        let mut ai_cost_ceiling_usd_per_call: Option<f64> = None;
+        let mut prompt_stage: Option<String> = None;
+        let mut prompt_schema: Option<String> = None;
+        let mut prompt_redact: Vec<String> = Vec::new();
+        let mut subagent_policy: Option<String> = None;
+        let mut subagent_max_depth: Option<u32> = None;
+        let mut subagent_budget_usd: Option<f64> = None;
+        let mut subagent_description: Option<String> = None;
+        let mut subagent_parallel = false;
+        let mut subagent_complexity: Option<u8> = None;
+        let mut search_corpus: Option<String> = None;
+        let mut search_query: Option<String> = None;
+        let mut search_into: Option<String> = None;
+        let mut search_top_k: Option<u32> = None;
+        let mut search_policy: Option<String> = None;
+        let mut hole_spec: Option<String> = None;
+        let mut hole_reviewer: Option<String> = None;
+        let mut hole_cache_key: Option<String> = None;
+        let mut hole_constraints: Vec<String> = Vec::new();
+        let mut embed_model: Option<String> = None;
+        let mut embed_dimensions: usize = 0;
+        let mut embed_source_field: Option<String> = None;
+        let mut embed_span: Option<crate::ast::span::Span> = None;
+        let mut inference_model: Option<String> = None;
+        let mut training_step = false;
+        let mut decorator_effects: Vec<crate::ast::decl::effect::EffectAnnotation> = Vec::new();
+        let mut webhook: Option<crate::ast::decl::webhook::AstWebhookSpec> = None;
+        let mut cors_spec: Option<crate::ast::decl::http_decorators::AstCorsSpec> = None;
+        let mut rate_limit: Option<crate::ast::decl::http_decorators::AstRateLimitSpec> = None;
+        let mut pii: Option<crate::ast::decl::http_decorators::AstPiiSpec> = None;
+        let mut layer: Option<crate::ast::decl::layer_decorator::AstLayerSpec> = None;
 
         loop {
             self.skip_newlines();
@@ -940,6 +1089,10 @@ impl Parser {
                     self.advance();
                     is_reactive = true;
                 }
+                Token::AtRemote => {
+                    self.advance();
+                    is_remote = true;
+                }
                 Token::AtDeprecated => {
                     self.advance();
                     is_deprecated = true;
@@ -948,21 +1101,828 @@ impl Parser {
                     self.advance();
                     is_mobile_native = true;
                 }
+                Token::AtInference => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                let key = key.clone();
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                if key == "model"
+                                    && let Token::StringLit(m) = self.peek().clone()
+                                {
+                                    self.advance();
+                                    inference_model = Some(m);
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                }
+                Token::AtTrainingStep => {
+                    self.advance();
+                    training_step = true;
+                }
+                Token::AtPrompt => {
+                    self.advance();
+                    is_llm = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "stage" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            prompt_stage = Some(v);
+                                        }
+                                    }
+                                    "schema" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            prompt_schema = Some(v);
+                                        }
+                                    }
+                                    "redact" => {
+                                        if self.eat(&Token::LBracket) {
+                                            let mut redact: Vec<String> = vec![];
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(
+                                                    self.peek(),
+                                                    Token::RBracket | Token::Eof
+                                                ) {
+                                                    break;
+                                                }
+                                                match self.peek().clone() {
+                                                    Token::Ident(v)
+                                                    | Token::TypeIdent(v)
+                                                    | Token::StringLit(v) => {
+                                                        self.advance();
+                                                        redact.push(v);
+                                                    }
+                                                    _ => {
+                                                        self.advance();
+                                                    }
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                            prompt_redact = redact;
+                                        }
+                                    }
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
+                }
+                Token::AtSubagent => {
+                    self.advance();
+                    is_llm = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "policy" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            subagent_policy = Some(v);
+                                        }
+                                    }
+                                    "max_depth" => {
+                                        if let Token::IntLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            if v >= 0 {
+                                                subagent_max_depth = Some(v as u32);
+                                            }
+                                        }
+                                    }
+                                    "budget_usd" => match self.peek().clone() {
+                                        Token::FloatLit(v) => {
+                                            self.advance();
+                                            subagent_budget_usd = Some(v);
+                                        }
+                                        Token::IntLit(v) => {
+                                            self.advance();
+                                            subagent_budget_usd = Some(v as f64);
+                                        }
+                                        _ => {}
+                                    },
+                                    "description" => {
+                                        if let Token::StringLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            subagent_description = Some(v);
+                                        }
+                                    },
+                                    "parallel" => match self.peek().clone() {
+                                        Token::True => {
+                                            self.advance();
+                                            subagent_parallel = true;
+                                        }
+                                        Token::False => {
+                                            self.advance();
+                                            subagent_parallel = false;
+                                        }
+                                        _ => {}
+                                    },
+                                    "complexity" => {
+                                        if let Token::IntLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            if (0..=10).contains(&v) {
+                                                subagent_complexity = Some(v as u8);
+                                            }
+                                        }
+                                    },
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
+                }
+                Token::AtSearch => {
+                    self.advance();
+                    is_llm = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "corpus" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            search_corpus = Some(v);
+                                        }
+                                    }
+                                    "query" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            search_query = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    "into" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            search_into = Some(v);
+                                        }
+                                    }
+                                    "top_k" => {
+                                        if let Token::IntLit(v) = self.peek().clone() {
+                                            self.advance();
+                                            if v >= 0 {
+                                                search_top_k = Some(v as u32);
+                                            }
+                                        }
+                                    }
+                                    "policy" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            search_policy = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
+                }
+                Token::AtHole => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "spec" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            hole_spec = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    "reviewer" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            hole_reviewer = Some(v);
+                                        }
+                                    }
+                                    "cache_key" => match self.peek().clone() {
+                                        Token::StringLit(v) | Token::Ident(v) | Token::TypeIdent(v) => {
+                                            self.advance();
+                                            hole_cache_key = Some(v);
+                                        }
+                                        _ => {}
+                                    },
+                                    "constraints" => {
+                                        if self.eat(&Token::LBracket) {
+                                            let mut constraints: Vec<String> = vec![];
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(self.peek(), Token::RBracket | Token::Eof)
+                                                {
+                                                    break;
+                                                }
+                                                match self.peek().clone() {
+                                                    Token::Ident(v)
+                                                    | Token::TypeIdent(v)
+                                                    | Token::StringLit(v) => {
+                                                        self.advance();
+                                                        constraints.push(v);
+                                                    }
+                                                    _ => {
+                                                        self.advance();
+                                                    }
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                            hole_constraints = constraints;
+                                        }
+                                    }
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                    }
+                }
                 Token::AtAi => {
                     self.advance();
                     is_llm = true;
                     if self.eat(&Token::LParen) {
-                        if let Token::Ident(key) = self.peek().clone()
-                            && key == "model"
-                        {
-                            self.advance();
-                            self.expect(&Token::Eq)?;
-                            if let Token::StringLit(m) = self.peek().clone() {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                let key = key.clone();
                                 self.advance();
-                                llm_model = Some(m);
+                                self.eat(&Token::Eq);
+                                match key.as_str() {
+                                    "model" => {
+                                        if let Token::StringLit(m) = self.peek().clone() {
+                                            self.advance();
+                                            llm_model = Some(m);
+                                        }
+                                    }
+                                    "structured_output" => {
+                                        let ty_opt = match self.peek().clone() {
+                                            Token::Ident(ty) | Token::TypeIdent(ty) => Some(ty),
+                                            _ => None,
+                                        };
+                                        if let Some(ty) = ty_opt {
+                                            self.advance();
+                                            ai_structured_output_type = Some(ty);
+                                        }
+                                    }
+                                    "max_iterations" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n > 0 {
+                                                ai_max_iterations = n as u32;
+                                            }
+                                        }
+                                    }
+                                    "task_category" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            ai_task_category = Some(v);
+                                        }
+                                    }
+                                    "strengths" => {
+                                        if self.eat(&Token::LBracket) {
+                                            let mut strengths: Vec<String> = vec![];
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(self.peek(), Token::RBracket | Token::Eof)
+                                                {
+                                                    break;
+                                                }
+                                                if let Token::Ident(v) | Token::TypeIdent(v) =
+                                                    self.peek().clone()
+                                                {
+                                                    self.advance();
+                                                    strengths.push(v);
+                                                } else {
+                                                    self.advance();
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                            ai_strengths = strengths;
+                                        }
+                                    }
+                                    "tier_max" => {
+                                        if let Token::Ident(v) | Token::TypeIdent(v) =
+                                            self.peek().clone()
+                                        {
+                                            self.advance();
+                                            match v.as_str() {
+                                                "Local" | "Light" | "Pro" | "Elite" => {
+                                                    ai_tier_max = Some(v);
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                    "cost_ceiling_usd_per_call" => match self.peek().clone() {
+                                        Token::FloatLit(v) => {
+                                            self.advance();
+                                            ai_cost_ceiling_usd_per_call = Some(v);
+                                        }
+                                        Token::IntLit(v) => {
+                                            self.advance();
+                                            ai_cost_ceiling_usd_per_call = Some(v as f64);
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
                             }
                         }
                         self.expect(&Token::RParen)?;
+                    }
+                }
+                Token::AtUses => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            match self.peek().clone() {
+                                Token::Ident(ref name) => {
+                                    let name = name.clone();
+                                    self.advance();
+                                    if let Some(eff) =
+                                        crate::ast::decl::effect::EffectAnnotation::from_keyword(
+                                            &name,
+                                        )
+                                    {
+                                        if name == "mcp" && self.eat(&Token::LParen) {
+                                            if let Token::Ident(tool) = self.peek().clone() {
+                                                self.advance();
+                                                decorator_effects.push(
+                                                    crate::ast::decl::effect::EffectAnnotation::Mcp(
+                                                        tool,
+                                                    ),
+                                                );
+                                            }
+                                            let _ = self.expect(&Token::RParen);
+                                        } else {
+                                            decorator_effects.push(eff);
+                                        }
+                                    }
+                                }
+                                // `env` lexes as a keyword (`Token::Env`) — mirror `parse_uses_clause`.
+                                Token::Env => {
+                                    self.advance();
+                                    decorator_effects.push(
+                                        crate::ast::decl::effect::EffectAnnotation::Env,
+                                    );
+                                }
+                                _ => {
+                                    self.advance();
+                                }
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                }
+                Token::AtWebhook => {
+                    let wh_start = self.span();
+                    self.advance();
+                    let mut provider = crate::ast::decl::webhook::AstWebhookProvider::Custom {
+                        secret_var: String::new(),
+                    };
+                    let mut replay_window_secs: u64 = 300;
+                    let mut idempotent = true;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                match key.as_str() {
+                                    "provider" => {
+                                        if let Token::Ident(v) = self.peek().clone() {
+                                            self.advance();
+                                            match v.as_str() {
+                                                "stripe" => provider = crate::ast::decl::webhook::AstWebhookProvider::Stripe,
+                                                "github" => provider = crate::ast::decl::webhook::AstWebhookProvider::Github,
+                                                "slack" => provider = crate::ast::decl::webhook::AstWebhookProvider::Slack,
+                                                "custom" => {} // keep current Custom (secret_var possibly empty)
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                    "secret" => {
+                                        if let Token::StringLit(s) = self.peek().clone() {
+                                            self.advance();
+                                            provider = crate::ast::decl::webhook::AstWebhookProvider::Custom { secret_var: s };
+                                        }
+                                    }
+                                    "replay_window_secs" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n >= 0 {
+                                                replay_window_secs = n as u64;
+                                            }
+                                        }
+                                    }
+                                    "idempotent" => match self.peek().clone() {
+                                        Token::True => {
+                                            self.advance();
+                                            idempotent = true;
+                                        }
+                                        Token::False => {
+                                            self.advance();
+                                            idempotent = false;
+                                        }
+                                        Token::Ident(v) => {
+                                            self.advance();
+                                            idempotent = v == "true";
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    webhook = Some(crate::ast::decl::webhook::AstWebhookSpec {
+                        provider,
+                        replay_window_secs,
+                        idempotent,
+                        span: wh_start.merge(self.span()),
+                    });
+                }
+                Token::AtCors => {
+                    let cs_start = self.span();
+                    self.advance();
+                    let mut origins: Vec<String> = vec![];
+                    let mut allow_credentials = false;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                match key.as_str() {
+                                    "origins" => {
+                                        if self.eat(&Token::LBracket) {
+                                            loop {
+                                                self.skip_newlines();
+                                                if matches!(
+                                                    self.peek(),
+                                                    Token::RBracket | Token::Eof
+                                                ) {
+                                                    break;
+                                                }
+                                                if let Token::StringLit(s) = self.peek().clone() {
+                                                    self.advance();
+                                                    origins.push(s);
+                                                } else {
+                                                    self.advance();
+                                                }
+                                                if !self.eat(&Token::Comma) {
+                                                    break;
+                                                }
+                                            }
+                                            let _ = self.expect(&Token::RBracket);
+                                        } else if let Token::StringLit(s) = self.peek().clone() {
+                                            self.advance();
+                                            origins.push(s);
+                                        }
+                                    }
+                                    "allow_credentials" => match self.peek().clone() {
+                                        Token::True => {
+                                            self.advance();
+                                            allow_credentials = true;
+                                        }
+                                        Token::False => {
+                                            self.advance();
+                                            allow_credentials = false;
+                                        }
+                                        Token::Ident(v) => {
+                                            self.advance();
+                                            allow_credentials = v == "true";
+                                        }
+                                        _ => {}
+                                    },
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    cors_spec = Some(crate::ast::decl::http_decorators::AstCorsSpec {
+                        origins,
+                        allow_credentials,
+                        span: cs_start.merge(self.span()),
+                    });
+                }
+                Token::AtRateLimit => {
+                    let rl_start = self.span();
+                    self.advance();
+                    let mut by = crate::ast::decl::http_decorators::AstRateLimitBy::Ip;
+                    let mut window_secs: u64 = 60;
+                    let mut max_requests: u64 = 100;
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                match key.as_str() {
+                                    "by" => {
+                                        if let Token::Ident(v) = self.peek().clone() {
+                                            self.advance();
+                                            by = match v.as_str() {
+                                                "user_id" | "user" => crate::ast::decl::http_decorators::AstRateLimitBy::UserId,
+                                                "api_key" => crate::ast::decl::http_decorators::AstRateLimitBy::ApiKey,
+                                                _ => crate::ast::decl::http_decorators::AstRateLimitBy::Ip,
+                                            };
+                                        }
+                                    }
+                                    "window_secs" | "window" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n > 0 {
+                                                window_secs = n as u64;
+                                            }
+                                        }
+                                    }
+                                    "max" | "max_requests" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            max_requests = n.max(0) as u64;
+                                        }
+                                    }
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    rate_limit = Some(crate::ast::decl::http_decorators::AstRateLimitSpec {
+                        by,
+                        window_secs,
+                        max_requests,
+                        span: rl_start.merge(self.span()),
+                    });
+                }
+                Token::AtPii => {
+                    let pii_start = self.span();
+                    self.advance();
+                    let mut class =
+                        crate::ast::decl::http_decorators::AstPiiClass::Other("unknown".into());
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                if key == "class" {
+                                    let _ = self.expect(&Token::Colon);
+                                    if let Token::Ident(v) = self.peek().clone() {
+                                        self.advance();
+                                        class = crate::ast::decl::http_decorators::AstPiiClass::from_str(&v);
+                                    }
+                                } else {
+                                    self.advance();
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    pii = Some(crate::ast::decl::http_decorators::AstPiiSpec {
+                        class,
+                        span: pii_start.merge(self.span()),
+                    });
+                }
+                Token::AtLayer => {
+                    let l_start = self.span();
+                    self.advance();
+                    let mut tier = String::from("content");
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                self.advance();
+                                let _ = self.expect(&Token::Colon);
+                                if key == "tier" {
+                                    if let Token::Ident(v) = self.peek().clone() {
+                                        self.advance();
+                                        tier = v;
+                                    }
+                                } else {
+                                    self.advance();
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                    }
+                    layer = Some(crate::ast::decl::layer_decorator::AstLayerSpec {
+                        tier,
+                        span: l_start.merge(self.span()),
+                    });
+                }
+                Token::AtEmbed => {
+                    let e_start = self.span();
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        loop {
+                            self.skip_newlines();
+                            if matches!(self.peek(), Token::RParen | Token::Eof) {
+                                break;
+                            }
+                            if let Token::Ident(key) = self.peek().clone() {
+                                let key = key.clone();
+                                self.advance();
+                                self.eat(&Token::Colon);
+                                match key.as_str() {
+                                    "model" => {
+                                        if let Token::StringLit(m) = self.peek().clone() {
+                                            self.advance();
+                                            embed_model = Some(m);
+                                        }
+                                    }
+                                    "dimensions" => {
+                                        if let Token::IntLit(n) = self.peek().clone() {
+                                            self.advance();
+                                            if n >= 0 {
+                                                embed_dimensions = n as usize;
+                                            }
+                                        }
+                                    }
+                                    "source_field" => {
+                                        if let Token::StringLit(f) = self.peek().clone() {
+                                            self.advance();
+                                            embed_source_field = Some(f);
+                                        }
+                                    }
+                                    _ => {
+                                        self.advance();
+                                    }
+                                }
+                            } else {
+                                self.advance();
+                            }
+                            if !self.eat(&Token::Comma) {
+                                break;
+                            }
+                        }
+                        let _ = self.expect(&Token::RParen);
+                        embed_span = Some(e_start.merge(self.span()));
+                    }
+                }
+                Token::AtAuth | Token::AtOfflineCapable | Token::AtCollaborative => {
+                    self.advance();
+                    if self.eat(&Token::LParen) {
+                        self.skip_paren_args_inner();
                     }
                 }
                 _ => break,
@@ -989,7 +1949,14 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let effects = self.parse_uses_clause();
+        let clause_effects = self.parse_uses_clause();
+        let effects = if decorator_effects.is_empty() {
+            clause_effects
+        } else {
+            let mut all = decorator_effects;
+            all.extend(clause_effects);
+            all
+        };
         let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
@@ -1011,13 +1978,49 @@ impl Parser {
             is_deprecated,
             is_pure,
             is_reactive,
+            is_remote,
             is_llm,
             llm_model,
+            ai_structured_output_type,
+            ai_max_iterations,
+            ai_task_category,
+            ai_strengths,
+            ai_tier_max,
+            ai_cost_ceiling_usd_per_call,
+            prompt_stage,
+            prompt_schema,
+            prompt_redact,
+            subagent_policy,
+            subagent_max_depth,
+            subagent_budget_usd,
+            subagent_description,
+            subagent_parallel,
+            subagent_complexity,
+            search_corpus,
+            search_query,
+            search_into,
+            search_top_k,
+            search_policy,
+            hole_spec,
+            hole_reviewer,
+            hole_cache_key,
+            hole_constraints,
+            embed: embed_span.map(|sp| crate::ast::decl::embed_decorator::AstEmbedSpec {
+                model: embed_model.unwrap_or_default(),
+                dimensions: embed_dimensions,
+                source_field: embed_source_field.unwrap_or_default(),
+                span: sp,
+            }),
             is_traced: false,
             is_pub,
             auth_provider: None,
             roles: vec![],
             cors: None,
+            webhook,
+            cors_spec,
+            rate_limit,
+            pii,
+            layer,
             preconditions,
             postconditions,
             invariants,
@@ -1026,6 +2029,8 @@ impl Parser {
             is_mobile_native,
             ts_extern_module: None,
             effects,
+            inference_model,
+            training_step,
             span: start.merge(self.span()),
         })
     }
@@ -1073,14 +2078,45 @@ impl Parser {
             is_deprecated: false,
             is_pure: false,
             is_reactive: false,
+            is_remote: false,
             effects: vec![],
             is_traced: false,
             is_llm: false,
             llm_model: None,
+            ai_structured_output_type: None,
+            ai_max_iterations: 3,
+            ai_task_category: None,
+            ai_strengths: vec![],
+            ai_tier_max: None,
+            ai_cost_ceiling_usd_per_call: None,
+            prompt_stage: None,
+            prompt_schema: None,
+            prompt_redact: vec![],
+            subagent_policy: None,
+            subagent_max_depth: None,
+            subagent_budget_usd: None,
+            subagent_description: None,
+            subagent_parallel: false,
+            subagent_complexity: None,
+            search_corpus: None,
+            search_query: None,
+            search_into: None,
+            search_top_k: None,
+            search_policy: None,
+            hole_spec: None,
+            hole_reviewer: None,
+            hole_cache_key: None,
+            hole_constraints: vec![],
+            embed: None,
             is_pub: true,
             auth_provider: None,
             roles: vec![],
             cors: None,
+            webhook: None,
+            cors_spec: None,
+            rate_limit: None,
+            pii: None,
+            layer: None,
             preconditions: vec![],
             postconditions: vec![],
             invariants: vec![],
@@ -1088,6 +2124,8 @@ impl Parser {
             test_strategy: None,
             is_mobile_native: false,
             ts_extern_module: Some(module),
+            inference_model: None,
+            training_step: false,
             span: start.merge(self.span()),
         }))
     }
@@ -1627,6 +2665,209 @@ impl Parser {
             universal_link,
             on_link,
             span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse `@tokens { color <name> light: "<hex>" dark: "<hex>" ... }`.
+    ///
+    /// Grammar per CC-23 / GA-20:
+    /// ```text
+    /// @tokens {
+    ///   color <name>   light: "<hex>" dark: "<hex>"
+    ///   spacing <name>: "<css-value>"
+    ///   radius  <name>: "<css-value>"
+    ///   shadow  <name>: "<css-value>"
+    ///   font    <name> family: "<stack>"
+    /// }
+    /// ```
+    pub(crate) fn parse_tokens_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @tokens
+        self.expect(&Token::LBrace)?;
+
+        let mut colors: Vec<AstColorToken> = Vec::new();
+        let mut spacing: Vec<AstScalarToken> = Vec::new();
+        let mut radius: Vec<AstScalarToken> = Vec::new();
+        let mut shadows: Vec<AstScalarToken> = Vec::new();
+        let mut fonts: Vec<AstFontToken> = Vec::new();
+
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            let kw = match self.peek().clone() {
+                Token::Ident(k) => {
+                    self.advance();
+                    k
+                }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Expected token category (color/spacing/radius/shadow/font) inside @tokens block, got `{other}`"),
+                        vec!["color".into(), "spacing".into(), "radius".into(), "shadow".into(), "font".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            let entry_start = self.span();
+            match kw.as_str() {
+                "color" => {
+                    let name = self.parse_ident_name()?;
+                    // `light: "<hex>"`
+                    let light_kw = self.parse_ident_name()?;
+                    if light_kw != "light" {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `light:` keyword in color token entry",
+                            vec!["light".into()],
+                            Some(light_kw),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                    self.expect(&Token::Colon)?;
+                    let light = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
+                        other => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected hex string after `light:`",
+                                vec!["\"#RRGGBB\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    let dark_kw = self.parse_ident_name()?;
+                    if dark_kw != "dark" {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `dark:` keyword in color token entry",
+                            vec!["dark".into()],
+                            Some(dark_kw),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                    self.expect(&Token::Colon)?;
+                    let dark = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
+                        other => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected hex string after `dark:`",
+                                vec!["\"#RRGGBB\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    colors.push(AstColorToken {
+                        name,
+                        light,
+                        dark,
+                        span: entry_start.merge(self.span()),
+                    });
+                }
+                "spacing" | "radius" | "shadow" => {
+                    let name = self.parse_ident_name()?;
+                    self.expect(&Token::Colon)?;
+                    let value = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
+                        other => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected CSS value string",
+                                vec!["\"8px\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    let tok = AstScalarToken {
+                        name,
+                        value,
+                        span: entry_start.merge(self.span()),
+                    };
+                    match kw.as_str() {
+                        "spacing" => spacing.push(tok),
+                        "radius" => radius.push(tok),
+                        "shadow" => shadows.push(tok),
+                        _ => unreachable!(),
+                    }
+                }
+                "font" => {
+                    let name = self.parse_ident_name()?;
+                    let fam_kw = self.parse_ident_name()?;
+                    if fam_kw != "family" {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `family:` keyword in font token entry",
+                            vec!["family".into()],
+                            Some(fam_kw),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
+                    }
+                    self.expect(&Token::Colon)?;
+                    let family = match self.peek().clone() {
+                        Token::StringLit(s) | Token::SingleStringLit(s) => {
+                            self.advance();
+                            s
+                        }
+                        other => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected font family string",
+                                vec!["\"Inter, sans-serif\"".into()],
+                                Some(other.to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    fonts.push(AstFontToken {
+                        name,
+                        family,
+                        span: entry_start.merge(self.span()),
+                    });
+                }
+                other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("Unknown token category `{other}`; expected color, spacing, radius, shadow, or font"),
+                        vec!["color".into(), "spacing".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            }
+            self.skip_newlines();
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(Decl::Tokens(TokensDecl {
+            span: start.merge(self.span()),
+            colors,
+            spacing,
+            radius,
+            shadows,
+            fonts,
         }))
     }
 

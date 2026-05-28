@@ -1,0 +1,15 @@
+// Bug: clamp() takes three args (value, lo, hi) but is called with four.
+fn clamp(value: int, lo: int, hi: int) to int {
+    if value < lo {
+        return lo
+    }
+    if value > hi {
+        return hi
+    }
+    return value
+}
+
+fn main() to int {
+    // BUG: clamp() takes 3 args; caller passes 4.
+    return clamp(5, 0, 10, 100)
+}

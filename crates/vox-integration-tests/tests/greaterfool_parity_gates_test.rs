@@ -31,7 +31,12 @@ fn greaterfool_reference_emits_secure_runtime_defaults() {
     let tokens = lex(REFERENCE_SRC);
     let module = parse(tokens).expect("reference example should parse");
     let hir = lower_module(&module);
-    let output = generate_rust(&hir, "gf_parity_ref").expect("rust codegen should succeed");
+    let output = generate_rust(
+        &hir,
+        "gf_parity_ref",
+        vox_codegen::codegen_rust::RustAppShell::default(),
+    )
+    .expect("rust codegen should succeed");
     let main_rs = output
         .files
         .get("src/main.rs")

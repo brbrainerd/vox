@@ -65,24 +65,27 @@ impl crate::VoxDb {
         &self,
         session_id: &str,
         agent_id: &str,
+        tenant_id: Option<&str>,
         task_snapshot: Option<&str>,
     ) -> Result<(), StoreError> {
         let session_id = session_id.to_string();
         let agent_id = agent_id.to_string();
+        let tenant_id = tenant_id.map(str::to_string);
         let task_snapshot = task_snapshot.map(str::to_string);
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker
             .call(|| async move {
                 conn.execute(
-                    "INSERT INTO agent_sessions (id, agent_id, task_snapshot, status, started_at)
-                     VALUES (?1, ?2, ?3, 'active', datetime('now'))
+                    "INSERT INTO agent_sessions (id, agent_id, tenant_id, task_snapshot, status, started_at)
+                     VALUES (?1, ?2, ?3, ?4, 'active', datetime('now'))
                      ON CONFLICT(id) DO UPDATE SET
                          task_snapshot = excluded.task_snapshot,
                          status        = 'active'",
                     params![
                         session_id.as_str(),
                         agent_id.as_str(),
+                        tenant_id.as_deref(),
                         task_snapshot.as_deref(),
                     ],
                 )
@@ -195,11 +198,12 @@ impl crate::VoxDb {
                 // 1. Insert detailed interaction
                 conn.execute(
                     "INSERT INTO llm_interactions
-                         (session_id, user_id, prompt, response, model_version, task_category, strength_tag, trace_id, context_utilization_pct, cache_read_tokens, success, latency_ms, input_tokens, output_tokens, cost_usd)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                         (session_id, user_id, tenant_id, prompt, response, model_version, task_category, strength_tag, trace_id, context_utilization_pct, cache_read_tokens, success, latency_ms, input_tokens, output_tokens, cost_usd)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                     params![
                         session_id.as_str(),
                         user_id.as_deref(),
+                        outcome.tenant_id,
                         prompt.as_str(),
                         response.as_str(),
                         model_id.as_str(),

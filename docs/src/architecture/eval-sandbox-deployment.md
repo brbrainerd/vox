@@ -1,7 +1,7 @@
 ---
 title: "Eval sandbox deployment (Coolify)"
 description: "Public MCP HTTP eval gateway at eval.voxlang.org — image, compose, DNS, Coolify API sync."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Operators need one place for eval stack topology and provisioning."
@@ -59,7 +59,7 @@ vox ci coolify-eval sync-compose \
   --domains https://eval.voxlang.org
 ```
 
-Verify **`COOLIFY_APP_UUID`** matches the eval compose application (**`vox ci coolify-eval discover`** prints **`uuid`** and **`fqdn`**). **`deploy-hetzner.yml`** Gate 3 assumes this UUID backs **`https://eval.voxlang.org/health`** unless **`COOLIFY_PUBLIC_EVAL_HEALTH_URL`** overrides it.
+Verify **`COOLIFY_APP_UUID`** matches the eval compose application (**`vox ci coolify-eval discover`** prints **`uuid`** and **`fqdn`**). **`deploy-hetzner.yml`** Gate 3 assumes this UUID backs **`https://eval.voxlang.org/health`** unless **`COOLIFY_PUBLIC_EVAL_HEALTH_URL`** overrides it. Gate 1 is only **`cargo build -p vox-cli --locked`** on **`ubuntu-latest`**; merge-quality gates live in **[`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)**.
 
 ### GitHub Actions
 

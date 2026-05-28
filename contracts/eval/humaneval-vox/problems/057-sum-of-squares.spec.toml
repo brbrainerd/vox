@@ -1,0 +1,13 @@
+[problem]
+id = "057"
+title = "sum_of_squares"
+prompt = """
+Return the sum of squares of integers from 1 to n inclusive.
+That is, return 1^2 + 2^2 + 3^2 + ... + n^2.
+For n <= 0, return 0.
+"""
+signature = "fn sum_of_squares(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

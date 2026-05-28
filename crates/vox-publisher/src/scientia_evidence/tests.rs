@@ -51,6 +51,7 @@ fn evidence_bumps_epistemic_when_socrates_clean() {
         repeated_unresolved_contradiction: false,
         claim_evidence_coverage: 0.92,
         artifact_replayability: 0.88,
+        artifact_replayability_measured: None,
         before_after_pair_integrity: 0.5,
         metadata_completeness: 0.9,
         ai_disclosure_compliance: 0.85,
@@ -74,8 +75,10 @@ fn evidence_bumps_epistemic_when_socrates_clean() {
 
 #[test]
 fn g2_low_citation_coverage_skips_contradiction_epistemic_shrink() {
-    let mut h = crate::scientia_heuristics::ScientiaHeuristics::default();
-    h.worthiness_contradiction_coverage_gate = 0.3;
+    let h = crate::scientia_heuristics::ScientiaHeuristics {
+        worthiness_contradiction_coverage_gate: 0.3,
+        ..crate::scientia_heuristics::ScientiaHeuristics::default()
+    };
     let agg_noisy = SocratesAggregateSnapshot {
         sample_size: 20,
         parsed_metadata_rows: 15,
@@ -101,6 +104,7 @@ fn g2_low_citation_coverage_skips_contradiction_epistemic_shrink() {
         repeated_unresolved_contradiction: false,
         claim_evidence_coverage: 0.1,
         artifact_replayability: 0.5,
+        artifact_replayability_measured: None,
         before_after_pair_integrity: 0.5,
         metadata_completeness: 0.5,
         ai_disclosure_compliance: 1.0,

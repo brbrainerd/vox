@@ -1,0 +1,414 @@
+x-vox-version: 2
+schema_version: 1
+fixtures:
+  - id: agent_control.cap_chain
+    class: agent_control
+    intent: Declare spawn vs inline sub-agent policy with bounded chain depth at call sites.
+    syntax_shape: "@subagent(policy = cap_chain, max_depth = 3) fn ..."
+    parsed_today: false
+    parser_evidence: none
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-orchestrator
+      module: subagent_dispatch
+      function: DispatchRouter::route
+    required_effects: [spawn, net]
+    required_capabilities: []
+    aci_mutation_kind: local_mutation
+    routing_hints: {}
+    safety_invariants:
+      - chain_depth MUST be <= DispatchConfig.max_chain_depth (default 5)
+    diagnostic_ids:
+      - vox/subagent/chain-depth-exceeded
+    telemetry_events:
+      - orch-subagent-dispatch
+    mcp_alignment:
+      - vox_chat_message
+    secret_surface: []
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Proposed call-site policy
+        code: |
+          // vox:skip — proposed syntax; not yet in lexer
+          @subagent(policy = cap_chain, max_depth = 3)
+          @uses(net, spawn)
+          fn delegate_review(pr: str) to str {
+            return ""
+          }
+    notes: "Maps to D4 in autonomous-orchestration-policy-research-2026.md."
+
+  - id: agent_control.parallel_fanout
+    class: agent_control
+    intent: Fan out independent subtasks under explicit parallelism and budget caps.
+    syntax_shape: "@subagent(policy = parallel, max_depth = 2) fn ..."
+    parsed_today: false
+    parser_evidence: none
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-orchestrator
+      module: subagent_dispatch
+      function: DispatchRouter::route
+    required_effects: [spawn, net]
+    required_capabilities: []
+    aci_mutation_kind: external_side_effect
+    routing_hints: {}
+    diagnostic_ids:
+      - vox/subagent/budget-exhausted-inline
+    mcp_alignment:
+      - vox_chat_message
+    secret_surface: []
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Proposed parallel fan-out
+        code: |
+          // vox:skip
+          @subagent(policy = parallel, max_depth = 2)
+          @uses(net, spawn)
+          fn fanout_summaries(paths: str) to str {
+            return ""
+          }
+    notes: "ACI external_side_effect when provider/network spend applies."
+
+  - id: model_selection.intent_routed
+    class: model_selection
+    intent: Route by task category and strength tags per model-routing.v1.yaml.
+    syntax_shape: "@ai(task_category = CodeGen, strengths = [codegen], tier_max = Pro) fn ..."
+    parsed_today: true
+    parser_evidence: "crates/vox-compiler/src/parser/descent/decl/head.rs extended @ai keys + HirAiFixture::IntentRouted lowering"
+    hir_lowering_today: true
+    codegen_today: true
+    runtime_hook:
+      crate: vox-actor-runtime
+      module: llm::cascade
+      function: cascade_for_research_stage
+    required_effects: [net]
+    required_capabilities: []
+    aci_mutation_kind: external_side_effect
+    routing_hints:
+      task_category: CodeGen
+      strengths: [codegen]
+      tier_max: Pro
+    diagnostic_ids:
+      - vox/ai/unknown-task-category
+    telemetry_events:
+      - fixture-model-intent-resolved
+    mcp_alignment:
+      - vox_suggest_model
+      - vox_list_models
+    secret_surface:
+      - OpenRouterApiKey
+    maturity: experimental
+    adr_required: false
+    examples:
+      - title: Extend @ai payload (proposed)
+        code: |
+          // vox:skip
+          @ai(task_category = CodeGen, strengths = [codegen], tier_max = Pro)
+          @uses(net)
+          fn codegen_stub(spec: str) to str {
+            return ""
+          }
+    notes: "Spike S1 extends parser keys only."
+
+  - id: model_selection.cost_ceiling
+    class: model_selection
+    intent: Cap per-call USD spend aligned with model-routing safety.max_cost_usd_per_request.
+    syntax_shape: "@ai(cost_ceiling_usd_per_call = 0.5) fn ..."
+    parsed_today: false
+    parser_evidence: none
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-orchestrator
+      module: gate
+      function: BudgetGate::check
+    required_effects: [net]
+    required_capabilities: []
+    aci_mutation_kind: unknown
+    routing_hints:
+      cost_ceiling_usd_per_call: 0.5
+    diagnostic_ids:
+      - vox/ai/cost-ceiling-exceeded
+    mcp_alignment:
+      - vox_get_active_model
+    secret_surface:
+      - OpenRouterApiKey
+    maturity: proposed
+    adr_required: false
+    examples:
+      - title: Cost ceiling on LLM fn
+        code: |
+          // vox:skip
+          @ai(cost_ceiling_usd_per_call = 0.5)
+          @uses(net)
+          fn cheap_stub(q: str) to str {
+            return ""
+          }
+    notes: "Task-level gate lives in gate.rs::BudgetGate::check; tie-in to orchestrator policy/budget overlays is follow-on work."
+
+  - id: query_template.structured_output
+    class: query_template
+    intent: Bind structured JSON/schema output to LlmConfig.response_format.
+    syntax_shape: "@ai(structured_output = MyDto) fn ..."
+    parsed_today: true
+    parser_evidence: "crates/vox-compiler/src/parser/descent/decl/head.rs:1090-1098"
+    hir_lowering_today: true
+    codegen_today: false
+    runtime_hook:
+      crate: vox-actor-runtime
+      module: llm::types
+      function: LlmConfig::response_format
+    required_effects: [net]
+    required_capabilities: []
+    aci_mutation_kind: external_side_effect
+    diagnostic_ids:
+      - vox/ai/structured-output-parse-failed
+    mcp_alignment:
+      - vox_generate_code
+    secret_surface:
+      - OpenRouterApiKey
+    maturity: candidate
+    adr_required: false
+    examples:
+      - title: Parsed today; codegen gap
+        code: |
+          @ai(structured_output = StubDto)
+          @uses(net)
+          fn with_schema(ctx: str) to str {
+            return ""
+          }
+    notes: "crates/vox-codegen/src/codegen_rust/emit/workflow.rs does not wire ai_structured_output_type."
+
+  - id: query_template.research_cascade
+    class: query_template
+    intent: Bind prompt template to ResearchStage defaults (temperature, max_tokens).
+    syntax_shape: "@prompt(stage = Planner, schema = PlanV1) fn ..." 
+    parsed_today: false
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-actor-runtime
+      module: llm::cascade
+      function: chat_with_cascade
+    required_effects: [net]
+    required_capabilities: []
+    aci_mutation_kind: external_side_effect
+    routing_hints:
+      cascade_stage: Planner
+    diagnostic_ids:
+      - vox/prompt/invalid-stage
+    mcp_alignment:
+      - vox_research_run
+    secret_surface:
+      - OpenRouterApiKey
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Proposed @prompt
+        code: |
+          // vox:skip
+          @prompt(stage = Planner, schema = PlanBlob)
+          @uses(net)
+          fn plan_next(spec: str) to str {
+            return ""
+          }
+    notes: "Spike S5; see cascade.rs apply_stage_defaults."
+
+  - id: deferred_fill.body_hole
+    class: deferred_fill
+    intent: Mark function body for deferred AI fill with reviewer and cache key.
+    syntax_shape: "@hole(spec, reviewer, cache_key) on fn body"
+    parsed_today: false
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-compiler
+      module: typeck
+      function: check_unfilled_fixture_holes
+    required_effects: []
+    required_capabilities: []
+    aci_mutation_kind: read_only
+    diagnostic_ids:
+      - vox/fixture/unfilled-hole
+      - vox/fixture/stale-hole
+    mcp_alignment: []
+    secret_surface: []
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Proposed body hole
+        code: |
+          // vox:skip
+          @hole(spec = "implement sort", reviewer = ci, cache_key = "sort-v1")
+          @pure
+          fn sort_items(items: str) to str {
+            return ""
+          }
+    notes: "Runtime hook is compile/diagnostic until fill pipeline exists."
+
+  - id: deferred_fill.expression_hole
+    class: deferred_fill
+    intent: Expression-position deferred fill (lower priority; hurts P3 locality).
+    syntax_shape: "?ai(\"intent\")"
+    parsed_today: false
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-compiler
+      module: parser
+      function: parse_expr_primary
+    required_effects: []
+    required_capabilities: []
+    aci_mutation_kind: read_only
+    diagnostic_ids:
+      - vox/fixture/expression-hole-unsupported
+    mcp_alignment: []
+    secret_surface: []
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Deferred expression form
+        code: |
+          // vox:skip
+          fn demo() to str {
+            return ?ai("fill greeting")
+          }
+    notes: "Prefer body @hole over expression ?ai for Vox P3 locality."
+
+  - id: search_substitution.docs_lookup
+    class: search_substitution
+    intent: Substitute code span with docs retrieval (read-only).
+    syntax_shape: "@search(corpus = docs, query = \"...\", into = str) fn ..."
+    parsed_today: false
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-search
+      module: execution
+      function: execute_search_plan
+    required_effects: [fs, net]
+    required_capabilities: []
+    aci_mutation_kind: read_only
+    diagnostic_ids:
+      - vox/search/corpus-denied
+    mcp_alignment:
+      - vox_repo_query_text
+      - vox_memory_search
+    secret_surface: []
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Proposed docs search
+        code: |
+          // vox:skip
+          @search(corpus = docs, query = "error handling policy", into = str)
+          @uses(fs, net)
+          fn load_policy_snippet() to str {
+            return ""
+          }
+    notes: "Align MCP tool names with contracts/mcp/tool-registry.canonical.yaml at wire time."
+
+  - id: search_substitution.memory_recall
+    class: search_substitution
+    intent: Substitute with MemoryManager lookup (not retired recall() API).
+    syntax_shape: "@search(corpus = memory, query = \"...\", into = T) fn ..."
+    parsed_today: false
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-orchestrator
+      module: memory::manager
+      function: MemoryManager::lookup_fact_by_key
+    required_effects: [db, net]
+    required_capabilities: []
+    aci_mutation_kind: read_only
+    diagnostic_ids:
+      - vox/search/memory-key-invalid
+    mcp_alignment:
+      - vox_memory_search
+    secret_surface: []
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Memory-backed substitution
+        code: |
+          // vox:skip
+          @search(corpus = memory, query = "project:default:onboarding", into = str)
+          @uses(db)
+          fn recall_onboarding() to str {
+            return ""
+          }
+    notes: "Use lookup_fact_by_key async boundary per AGENTS.md retired surfaces."
+
+  - id: search_substitution.web_with_cascade
+    class: search_substitution
+    intent: Web retrieval with cascade_for_research_stage / manual endpoint option.
+    syntax_shape: "@search(corpus = web, query = \"...\", into = str) fn ..."
+    parsed_today: false
+    hir_lowering_today: false
+    codegen_today: false
+    runtime_hook:
+      crate: vox-actor-runtime
+      module: llm::cascade
+      function: cascade_with_optional_manual
+    required_effects: [net]
+    required_capabilities: []
+    aci_mutation_kind: external_side_effect
+    routing_hints:
+      cascade_stage: Judge
+    diagnostic_ids:
+      - vox/search/web-policy-denied
+    mcp_alignment:
+      - vox_research_run
+    secret_surface:
+      - OpenRouterApiKey
+    maturity: proposed
+    adr_required: true
+    examples:
+      - title: Web search substitution
+        code: |
+          // vox:skip
+          @search(corpus = web, query = "latest WASM spec section", into = str)
+          @uses(net)
+          fn web_snip() to str {
+            return ""
+          }
+    notes: "Composes with deep-research and vox-search web tiers."
+
+  - id: model_selection.provider_pin_with_fallback
+    class: model_selection
+    intent: Escape hatch — pin model string with orchestrator fallback_kind semantics.
+    syntax_shape: "@ai(model = \"anthropic/claude-sonnet-4.6\") fn ..."
+    parsed_today: true
+    parser_evidence: "crates/vox-compiler/src/parser/descent/decl/head.rs:1083-1088"
+    hir_lowering_today: true
+    codegen_today: true
+    runtime_hook:
+      crate: vox-codegen
+      module: codegen_rust::emit::workflow
+      function: emit_workflow_fn
+    required_effects: [net]
+    required_capabilities: []
+    aci_mutation_kind: external_side_effect
+    diagnostic_ids:
+      - vox/ai/openrouter-parse-failed
+    mcp_alignment:
+      - vox_set_model
+      - vox_get_active_model
+    secret_surface:
+      - OpenRouterApiKey
+    maturity: experimental
+    adr_required: false
+    examples:
+      - title: Shipped @ai model pin
+        code: |
+          @ai(model = "openrouter/auto")
+          @uses(net)
+          fn llm_echo(msg: str) to str {
+            return ""
+          }
+    notes: "Today lowers to OpenRouter-only block_on in workflow.rs; durability gap S3."

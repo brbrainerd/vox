@@ -1,0 +1,16 @@
+fn square_int(n: int) to int {
+    let r = n * n
+    if r < 0 {
+        return -r
+    }
+    return r
+}
+
+@test
+fn t_zero() to Unit { assert(square_int(0) is 0) }
+@test
+fn t_pos() to Unit { assert(square_int(7) is 49) }
+@test
+fn t_neg() to Unit { assert(square_int(-7) is 49) }
+@test
+fn t_one() to Unit { assert(square_int(1) is 1) }

@@ -1,6 +1,11 @@
 # contracts/orchestration/socrates-fusion.v1.yaml
 # Composite confidence fusion thresholds for D3 Socrates invocation decision.
 # Mirrored by `crates/vox-orchestrator/src/confidence_fusion.rs::FusionConfig::default`.
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
 version: 1
 x-vox-version: 1
 description: "Composite confidence fusion for Socrates invocation decision (D3)"
@@ -9,13 +14,16 @@ description: "Composite confidence fusion for Socrates invocation decision (D3)"
 # invoke_threshold <= score < answer_threshold -> InvokeSocrates
 # score < invoke_threshold -> Insufficient (block / escalate)
 thresholds:
-  answer_threshold: 0.75
-  invoke_threshold: 0.55
+  ship: 0.85
+  resample: 0.70
+  retrieve: 0.50
+  spawn_socrates: 0.30
+  abstain: 0.0
 
 # Weights MUST sum to 1.0.
 weights:
-  evidence_quality: 0.35
-  citation_coverage: 0.25
-  source_diversity: 0.15
-  contradiction_penalty: 0.15
-  entropy_score: 0.10
+  evidence_quality: 0.15
+  citation_coverage: 0.15
+  logprob_entropy: 0.30
+  sep_estimate: 0.20
+  self_consistency: 0.20

@@ -82,7 +82,7 @@ impl VastClient {
 
     /// Construct with explicit API key.
     pub fn new(api_key: String, config: Arc<CloudProviderConfig>) -> Self {
-        let http = vox_reqwest_defaults::client_builder()
+        let http = vox_http_client::client_builder()
             .timeout(Duration::from_secs(30))
             .build()
             .expect("reqwest TLS stack must be available");

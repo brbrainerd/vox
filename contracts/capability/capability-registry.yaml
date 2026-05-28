@@ -56,6 +56,23 @@ curated:
   cli_path:
   - ars
   parameters: null
+- id: cli.audit
+  title: Audit
+  description_human: null
+  description_model: Run quality gates from contracts/ci/check-targets.v1.yaml; umbrella for lint, test, audit, doc, and arch checks.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - audit
+  parameters: null
 - id: cli.auth
   title: Auth
   description_human: null
@@ -235,9 +252,9 @@ curated:
   - build
   parameters: null
 - id: cli.bundle
-  title: Bundle
+  title: Bundle (plugins)
   description_human: null
-  description_model: CLI operation `vox bundle`
+  description_model: CLI operation `vox bundle` — plugin distribution bundles (`list`, `build`, `apply`)
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -284,6 +301,24 @@ curated:
   mcp_tool: null
   cli_path:
   - ci
+  parameters: null
+- id: cli.ci.ai-fixtures-coverage
+  title: Ci Ai-fixtures-coverage
+  description_human: null
+  description_model: CLI operation `vox ci ai-fixtures-coverage`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - ai-fixtures-coverage
   parameters: null
 - id: cli.ci.artifact-audit
   title: Ci Artifact-audit
@@ -465,24 +500,6 @@ curated:
   - ci
   - check-summary-drift
   parameters: null
-- id: cli.ci.secrets-parity
-  title: Ci Secrets-parity
-  description_human: null
-  description_model: CLI operation `vox ci secrets-parity`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - ci
-  - secrets-parity
-  parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
   description_human: null
@@ -518,6 +535,24 @@ curated:
   cli_path:
   - ci
   - command-sync
+  parameters: null
+- id: cli.ci.compile-matrix
+  title: Ci Compile-matrix
+  description_human: null
+  description_model: CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - compile-matrix
   parameters: null
 - id: cli.ci.completion-audit
   title: Ci Completion-audit
@@ -681,6 +716,42 @@ curated:
   - ci
   - data-ssot-guards
   parameters: null
+- id: cli.ci.db-schema-coverage
+  title: Ci Db-schema-coverage
+  description_human: null
+  description_model: Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - db-schema-coverage
+  parameters: null
+- id: cli.ci.dev-loop-audit
+  title: Ci Dev-loop-audit
+  description_human: null
+  description_model: CLI operation `vox ci dev-loop-audit`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - dev-loop-audit
+  parameters: null
 - id: cli.ci.doc-inventory
   title: Ci Doc-inventory
   description_human: null
@@ -698,6 +769,24 @@ curated:
   cli_path:
   - ci
   - doc-inventory
+  parameters: null
+- id: cli.ci.docs-reality-audit
+  title: Ci Docs-reality-audit
+  description_human: null
+  description_model: CLI operation `vox ci docs-reality-audit`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - docs-reality-audit
   parameters: null
 - id: cli.ci.eval-matrix
   title: Ci Eval-matrix
@@ -791,6 +880,24 @@ curated:
   - ci
   - feature-matrix
   parameters: null
+- id: cli.ci.flake-budget
+  title: Ci Flake-budget
+  description_human: null
+  description_model: CLI operation `vox ci flake-budget`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - flake-budget
+  parameters: null
 - id: cli.ci.grammar-drift
   title: Ci Grammar-drift
   description_human: null
@@ -826,6 +933,24 @@ curated:
   cli_path:
   - ci
   - gui-smoke
+  parameters: null
+- id: cli.ci.ignored-test-age
+  title: Ci Ignored-test-age
+  description_human: null
+  description_model: CLI operation `vox ci ignored-test-age`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - ignored-test-age
   parameters: null
 - id: cli.ci.line-endings
   title: Ci Line-endings
@@ -1087,6 +1212,24 @@ curated:
   - ci
   - operations-verify
   parameters: null
+- id: cli.ci.parse-status
+  title: Ci Parse-status
+  description_human: null
+  description_model: CLI operation `vox ci parse-status`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - parse-status
+  parameters: null
 - id: cli.ci.pm-provenance
   title: Ci Pm-provenance
   description_human: null
@@ -1104,6 +1247,24 @@ curated:
   cli_path:
   - ci
   - pm-provenance
+  parameters: null
+- id: cli.ci.policy-allowlist-parity
+  title: Ci Policy-allowlist-parity
+  description_human: null
+  description_model: CLI operation `vox ci policy-allowlist-parity`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - policy-allowlist-parity
   parameters: null
 - id: cli.ci.policy-smoke
   title: Ci Policy-smoke
@@ -1195,6 +1356,42 @@ curated:
   - ci
   - repo-guards
   parameters: null
+- id: cli.ci.retirement-audit
+  title: Ci Retirement-audit
+  description_human: null
+  description_model: CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - retirement-audit
+  parameters: null
+- id: cli.ci.runtime-regress
+  title: Ci Runtime-regress
+  description_human: null
+  description_model: CLI operation `vox ci runtime-regress`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - runtime-regress
+  parameters: null
 - id: cli.ci.rust-ecosystem-policy
   title: Ci Rust-ecosystem-policy
   description_human: null
@@ -1212,6 +1409,24 @@ curated:
   cli_path:
   - ci
   - rust-ecosystem-policy
+  parameters: null
+- id: cli.ci.safety-inventory
+  title: Ci Safety-inventory
+  description_human: null
+  description_model: CLI operation `vox ci safety-inventory`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - safety-inventory
   parameters: null
 - id: cli.ci.scaling-audit
   title: Ci Scaling-audit
@@ -1323,6 +1538,42 @@ curated:
   - ci
   - secret-env-guard
   parameters: null
+- id: cli.ci.secrets-parity
+  title: Ci Secrets-parity
+  description_human: null
+  description_model: CLI operation `vox ci secrets-parity`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - secrets-parity
+  parameters: null
+- id: cli.ci.speech-runtime-suite
+  title: Ci Speech-runtime-suite
+  description_human: null
+  description_model: CLI operation `vox ci speech-runtime-suite`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - speech-runtime-suite
+  parameters: null
 - id: cli.ci.sql-surface-guard
   title: Ci Sql-surface-guard
   description_human: null
@@ -1358,6 +1609,42 @@ curated:
   cli_path:
   - ci
   - ssot-drift
+  parameters: null
+- id: cli.ci.test-inventory
+  title: Ci Test-inventory
+  description_human: null
+  description_model: CLI operation `vox ci test-inventory`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - test-inventory
+  parameters: null
+- id: cli.ci.test-runtime-report
+  title: Ci Test-runtime-report
+  description_human: null
+  description_model: CLI operation `vox ci test-runtime-report`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - test-runtime-report
   parameters: null
 - id: cli.ci.toestub-scoped
   title: Ci Toestub-scoped
@@ -1430,131 +1717,6 @@ curated:
   cli_path:
   - ci
   - workflow-scripts
-  parameters: null
-- id: cli.secrets
-  title: Secrets
-  description_human: null
-  description_model: CLI operation `vox secrets`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - secrets
-  parameters: null
-- id: cli.secrets.backend-status
-  title: Secrets Backend-status
-  description_human: null
-  description_model: CLI operation `vox secrets backend-status`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - secrets
-  - backend-status
-  parameters: null
-- id: cli.secrets.get
-  title: Secrets Get
-  description_human: null
-  description_model: CLI operation `vox secrets get`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - secrets
-  - get
-  parameters: null
-- id: cli.secrets.login
-  title: Secrets Login
-  description_human: null
-  description_model: CLI operation `vox secrets login`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - secrets
-  - login
-  parameters: null
-- id: cli.secrets.migrate-auth-store
-  title: Secrets Migrate-auth-store
-  description_human: null
-  description_model: CLI operation `vox secrets migrate-auth-store`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - secrets
-  - migrate-auth-store
-  parameters: null
-- id: cli.secrets.set
-  title: Secrets Set
-  description_human: null
-  description_model: CLI operation `vox secrets set`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - secrets
-  - set
-  parameters: null
-- id: cli.secrets.status
-  title: Secrets Status
-  description_human: null
-  description_model: CLI operation `vox secrets status`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - secrets
-  - status
   parameters: null
 - id: cli.codex
   title: Codex
@@ -1733,6 +1895,23 @@ curated:
   mcp_tool: null
   cli_path:
   - commands
+  parameters: null
+- id: cli.compile
+  title: Compile
+  description_human: null
+  description_model: CLI operation `vox compile` — native / Tauri / script / workspace packaging umbrella
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - compile
   parameters: null
 - id: cli.completions
   title: Completions
@@ -2376,6 +2555,24 @@ curated:
   cli_path:
   - ludus
   - hud
+  parameters: null
+- id: cli.memory.search
+  title: Memory Search
+  description_human: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - memory
+  - search
   parameters: null
 - id: cli.mens
   title: Mens
@@ -3727,6 +3924,24 @@ curated:
   - repo
   - status
   parameters: null
+- id: cli.research.run
+  title: Research Run
+  description_human: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
+  description_model: null
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - research
+  - run
+  parameters: null
 - id: cli.review
   title: Review
   description_human: null
@@ -4334,6 +4549,131 @@ curated:
   mcp_tool: null
   cli_path:
   - script
+  parameters: null
+- id: cli.secrets
+  title: Secrets
+  description_human: null
+  description_model: CLI operation `vox secrets`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - secrets
+  parameters: null
+- id: cli.secrets.backend-status
+  title: Secrets Backend-status
+  description_human: null
+  description_model: CLI operation `vox secrets backend-status`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - secrets
+  - backend-status
+  parameters: null
+- id: cli.secrets.get
+  title: Secrets Get
+  description_human: null
+  description_model: CLI operation `vox secrets get`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - secrets
+  - get
+  parameters: null
+- id: cli.secrets.login
+  title: Secrets Login
+  description_human: null
+  description_model: CLI operation `vox secrets login`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - secrets
+  - login
+  parameters: null
+- id: cli.secrets.migrate-auth-store
+  title: Secrets Migrate-auth-store
+  description_human: null
+  description_model: CLI operation `vox secrets migrate-auth-store`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - secrets
+  - migrate-auth-store
+  parameters: null
+- id: cli.secrets.set
+  title: Secrets Set
+  description_human: null
+  description_model: CLI operation `vox secrets set`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - secrets
+  - set
+  parameters: null
+- id: cli.secrets.status
+  title: Secrets Status
+  description_human: null
+  description_model: CLI operation `vox secrets status`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - secrets
+  - status
   parameters: null
 - id: cli.share
   title: Share
@@ -5407,10 +5747,10 @@ curated:
   mcp_tool: vox_claim_file
   cli_path: null
   parameters: null
-- id: mcp.vox_secrets_doctor
-  title: Secrets Doctor
+- id: mcp.vox_code_audit_findings_upsert
+  title: Toestub Findings Upsert
   description_human: null
-  description_model: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  description_model: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -5420,7 +5760,7 @@ curated:
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
-  mcp_tool: vox_secrets_doctor
+  mcp_tool: vox_code_audit_findings_upsert
   cli_path: null
   parameters: null
 - id: mcp.vox_compaction_status
@@ -5967,6 +6307,166 @@ curated:
   mcp_tool: vox_file_graph
   cli_path: null
   parameters: null
+- id: mcp.vox_gamify_battle_start
+  title: Ludus Battle Start
+  description_human: null
+  description_model: Start a bug battle from a synthetic finding (companion name + rule + message).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_battle_start
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_battle_submit
+  title: Ludus Battle Submit
+  description_human: null
+  description_model: Submit code for the active bug battle for a companion (success flag).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_battle_submit
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_collegium_join
+  title: Ludus Collegium Join
+  description_human: null
+  description_model: Join a collegium and emit a Ludus collegium_joined policy event.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_collegium_join
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_notification_ack
+  title: Ludus Notification Ack
+  description_human: null
+  description_model: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_notification_ack
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_notifications_ack_all
+  title: Ludus Notifications Ack All
+  description_human: null
+  description_model: Mark all unread Ludus notifications as read for the canonical user.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_notifications_ack_all
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_notifications_list
+  title: Ludus Notifications List
+  description_human: null
+  description_model: List unread Ludus (gamification) notifications for the current canonical user from Codex.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_notifications_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_progress_snapshot
+  title: Ludus Progress Snapshot
+  description_human: null
+  description_model: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_progress_snapshot
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_quest_list
+  title: Ludus Quest List
+  description_human: null
+  description_model: List Ludus quests for the canonical user (read-only).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_quest_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_shop_buy
+  title: Ludus Shop Buy
+  description_human: null
+  description_model: Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_shop_buy
+  cli_path: null
+  parameters: null
+- id: mcp.vox_gamify_shop_catalog
+  title: Ludus Shop Catalog
+  description_human: null
+  description_model: Crystal shop catalog with effective prices for the current gamify mode.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_gamify_shop_catalog
+  cli_path: null
+  parameters: null
 - id: mcp.vox_generate_code
   title: Generate Code
   description_human: null
@@ -6290,166 +6790,6 @@ curated:
   mcp_tool: vox_lock_status
   cli_path: null
   parameters: null
-- id: mcp.vox_ludus_battle_start
-  title: Ludus Battle Start
-  description_human: null
-  description_model: Start a bug battle from a synthetic finding (companion name + rule + message).
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_battle_start
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_battle_submit
-  title: Ludus Battle Submit
-  description_human: null
-  description_model: Submit code for the active bug battle for a companion (success flag).
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_battle_submit
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_collegium_join
-  title: Ludus Collegium Join
-  description_human: null
-  description_model: Join a collegium and emit a Ludus collegium_joined policy event.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_collegium_join
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_notification_ack
-  title: Ludus Notification Ack
-  description_human: null
-  description_model: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_notification_ack
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_notifications_ack_all
-  title: Ludus Notifications Ack All
-  description_human: null
-  description_model: Mark all unread Ludus notifications as read for the canonical user.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_notifications_ack_all
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_notifications_list
-  title: Ludus Notifications List
-  description_human: null
-  description_model: List unread Ludus (gamification) notifications for the current canonical user from Codex.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_notifications_list
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_progress_snapshot
-  title: Ludus Progress Snapshot
-  description_human: null
-  description_model: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_progress_snapshot
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_quest_list
-  title: Ludus Quest List
-  description_human: null
-  description_model: List Ludus quests for the canonical user (read-only).
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_quest_list
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_shop_buy
-  title: Ludus Shop Buy
-  description_human: null
-  description_model: Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_shop_buy
-  cli_path: null
-  parameters: null
-- id: mcp.vox_ludus_shop_catalog
-  title: Ludus Shop Catalog
-  description_human: null
-  description_model: Crystal shop catalog with effective prices for the current gamify mode.
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_ludus_shop_catalog
-  cli_path: null
-  parameters: null
 - id: mcp.vox_map_agent_session
   title: Map Agent Session
   description_human: null
@@ -6549,7 +6889,7 @@ curated:
 - id: mcp.vox_memory_search
   title: Memory Search
   description_human: null
-  description_model: Search daily logs and MEMORY.md for a keyword query.
+  description_model: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -7476,6 +7816,70 @@ curated:
   mcp_tool: vox_repo_status
   cli_path: null
   parameters: null
+- id: mcp.vox_research_get
+  title: Research Session Result
+  description_human: null
+  description_model: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_get
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_run
+  title: Research Run
+  description_human: null
+  description_model: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_run
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_start
+  title: Research Start (async MCP)
+  description_human: null
+  description_model: MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_start
+  cli_path: null
+  parameters: null
+- id: mcp.vox_research_status
+  title: Research Session Status
+  description_human: null
+  description_model: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_research_status
+  cli_path: null
+  parameters: null
 - id: mcp.vox_resolve_conflict
   title: Resolve Conflict
   description_human: null
@@ -8036,6 +8440,38 @@ curated:
   mcp_tool: vox_scientia_worthiness_evaluate
   cli_path: null
   parameters: null
+- id: mcp.vox_secrets_doctor
+  title: Secrets Doctor
+  description_human: null
+  description_model: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_secrets_doctor
+  cli_path: null
+  parameters: null
+- id: mcp.vox_semantic_fs_discover
+  title: Semantic filesystem discover
+  description_human: null
+  description_model: Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_semantic_fs_discover
+  cli_path: null
+  parameters: null
 - id: mcp.vox_session_cleanup
   title: Session Cleanup
   description_human: null
@@ -8453,22 +8889,6 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_test_decision
-  cli_path: null
-  parameters: null
-- id: mcp.vox_code_audit_findings_upsert
-  title: Toestub Findings Upsert
-  description_human: null
-  description_model: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: vox_code_audit_findings_upsert
   cli_path: null
   parameters: null
 - id: mcp.vox_transfer_file

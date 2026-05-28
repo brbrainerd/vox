@@ -4,7 +4,7 @@ use super::type_maps::{hir_type_to_ts, hir_type_to_voxdb_validator, to_camel_cas
 
 /// Same as `generate_voxdb_schema` but reads canonical HIR vectors (tables, collections, indexes).
 ///
-/// Use this on [`HirModule`] after lowering so schema emission stays aligned with `legacy_ast_nodes` removal.
+/// Use this on `HirModule` after lowering so schema emission stays aligned with `legacy_ast_nodes` removal.
 pub fn generate_voxdb_schema_from_hir(module: &HirModule) -> String {
     let mut indexes: Vec<(String, String, Vec<String>)> = Vec::new();
     let mut vector_indexes: Vec<(String, String, String, u32, Vec<String>)> = Vec::new();

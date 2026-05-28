@@ -1,5 +1,36 @@
 # Frozen speech-to-code benchmark manifest (extend with real audio/transcript pairs).
-# Format: one path or label per line; CI can assert these exist before eval.
-#
+# Format: one legacy path per line, or audit triples: audio<TAB>transcript<TAB>expected_vox_or_dash<TAB>domain<TAB>sample_rate_hz.
+
 tests/speech-to-code/fixtures/p001_transcript.txt
 tests/speech-to-code/fixtures/p001_expected.vox
+
+tests/speech-to-code/fixtures/corpus_v1/utt_01.wav	tests/speech-to-code/fixtures/corpus_v1/utt_01.txt	tests/speech-to-code/fixtures/corpus_v1/utt_01.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_02.wav	tests/speech-to-code/fixtures/corpus_v1/utt_02.txt	tests/speech-to-code/fixtures/corpus_v1/utt_02.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_03.wav	tests/speech-to-code/fixtures/corpus_v1/utt_03.txt	tests/speech-to-code/fixtures/corpus_v1/utt_03.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_04.wav	tests/speech-to-code/fixtures/corpus_v1/utt_04.txt	tests/speech-to-code/fixtures/corpus_v1/utt_04.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_05.wav	tests/speech-to-code/fixtures/corpus_v1/utt_05.txt	tests/speech-to-code/fixtures/corpus_v1/utt_05.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_06.wav	tests/speech-to-code/fixtures/corpus_v1/utt_06.txt	tests/speech-to-code/fixtures/corpus_v1/utt_06.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_07.wav	tests/speech-to-code/fixtures/corpus_v1/utt_07.txt	tests/speech-to-code/fixtures/corpus_v1/utt_07.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_08.wav	tests/speech-to-code/fixtures/corpus_v1/utt_08.txt	tests/speech-to-code/fixtures/corpus_v1/utt_08.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_09.wav	tests/speech-to-code/fixtures/corpus_v1/utt_09.txt	tests/speech-to-code/fixtures/corpus_v1/utt_09.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_10.wav	tests/speech-to-code/fixtures/corpus_v1/utt_10.txt	tests/speech-to-code/fixtures/corpus_v1/utt_10.expected.vox	code-dictation	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_11.wav	tests/speech-to-code/fixtures/corpus_v1/utt_11.txt	-	command-phrasing	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_12.wav	tests/speech-to-code/fixtures/corpus_v1/utt_12.txt	-	command-phrasing	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_13.wav	tests/speech-to-code/fixtures/corpus_v1/utt_13.txt	-	command-phrasing	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_14.wav	tests/speech-to-code/fixtures/corpus_v1/utt_14.txt	-	command-phrasing	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_15.wav	tests/speech-to-code/fixtures/corpus_v1/utt_15.txt	-	command-phrasing	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_16.wav	tests/speech-to-code/fixtures/corpus_v1/utt_16.txt	-	command-phrasing	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_17.wav	tests/speech-to-code/fixtures/corpus_v1/utt_17.txt	-	identifier-heavy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_18.wav	tests/speech-to-code/fixtures/corpus_v1/utt_18.txt	-	identifier-heavy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_19.wav	tests/speech-to-code/fixtures/corpus_v1/utt_19.txt	-	identifier-heavy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_20.wav	tests/speech-to-code/fixtures/corpus_v1/utt_20.txt	-	identifier-heavy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_21.wav	tests/speech-to-code/fixtures/corpus_v1/utt_21.txt	-	identifier-heavy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_22.wav	tests/speech-to-code/fixtures/corpus_v1/utt_22.txt	-	identifier-heavy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_23.wav	tests/speech-to-code/fixtures/corpus_v1/utt_23.txt	-	mixed-natural	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_24.wav	tests/speech-to-code/fixtures/corpus_v1/utt_24.txt	-	mixed-natural	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_25.wav	tests/speech-to-code/fixtures/corpus_v1/utt_25.txt	-	mixed-natural	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_26.wav	tests/speech-to-code/fixtures/corpus_v1/utt_26.txt	-	mixed-natural	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_27.wav	tests/speech-to-code/fixtures/corpus_v1/utt_27.txt	-	noisy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_28.wav	tests/speech-to-code/fixtures/corpus_v1/utt_28.txt	-	noisy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_29.wav	tests/speech-to-code/fixtures/corpus_v1/utt_29.txt	-	noisy	16000
+tests/speech-to-code/fixtures/corpus_v1/utt_30.wav	tests/speech-to-code/fixtures/corpus_v1/utt_30.txt	-	noisy	16000

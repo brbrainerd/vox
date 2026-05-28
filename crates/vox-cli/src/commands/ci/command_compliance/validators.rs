@@ -18,7 +18,7 @@ use super::registry::{
 use crate::command_contract::{
     EMBEDDED_COMMAND_REGISTRY_YAML, merged_feature_gate_from_vox_cli_ops,
 };
-use vox_install_policy::{
+use crate::utils::install_policy::{
     DEFAULT_RELEASE_GITHUB_OWNER, DEFAULT_RELEASE_GITHUB_REPO, SOURCE_INSTALL_CLI_REL_PATH,
     SUPPORTED_RELEASE_TARGETS,
 };
@@ -157,11 +157,97 @@ pub(crate) fn check_env_var_ssot_index(reg: &RegistryFile, env_ssot_md: &str) ->
         let needle = format!("`{name}`");
         if !env_ssot_md.contains(&needle) {
             return Err(anyhow!(
-                "command-registry env_var_ssot_index: {needle} not found in docs/src/reference/env-vars.md (or env-vars-ssot.md)"
+                "command-registry env_var_ssot_index: {needle} not found in docs/src/reference/env-vars.md (canonical prose SSOT)"
             ));
         }
     }
     Ok(())
+}
+
+fn extract_env_var_tokens_from_prose_md(md: &str) -> HashSet<String> {
+    static NAME_RE: OnceLock<Regex> = OnceLock::new();
+    let name_re = NAME_RE.get_or_init(|| Regex::new(r"^(VOX|TURSO|XDG)_[A-Z0-9_]+$").unwrap());
+    static BTICK: OnceLock<Regex> = OnceLock::new();
+    let btick = BTICK.get_or_init(|| Regex::new(r"`([^`\n]+)`").unwrap());
+
+    let mut in_fence = false;
+    let mut cited = HashSet::new();
+    for line in md.lines() {
+        let t = line.trim_start();
+        if t.starts_with("```") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        for cap in btick.captures_iter(line) {
+            let inner = cap.get(1).unwrap().as_str();
+            for part in inner.split(['/', '|', ',', ' ']) {
+                let p = part.trim();
+                if p.is_empty() || p.contains('*') {
+                    continue;
+                }
+                if name_re.is_match(p) {
+                    cited.insert(p.to_string());
+                }
+            }
+        }
+    }
+    cited
+}
+
+/// Every `` `VOX_*` ``, `` `TURSO_*` ``, `` `XDG_*` `` token in the env-vars prose doc must exist in
+/// [`contracts/config/env-vars.v1.yaml`] (machine registry). Code fences are skipped.
+pub(crate) fn check_env_vars_doc_tokens_registered(
+    repo_root: &Path,
+    env_ssot_md: &str,
+) -> Result<()> {
+    let yaml_path = repo_root.join("contracts/config/env-vars.v1.yaml");
+    let yaml_raw = read_utf8_path_capped(&yaml_path)
+        .with_context(|| format!("read {}", yaml_path.display()))?;
+    let yaml_val: serde_yaml::Value = serde_yaml::from_str(&yaml_raw)
+        .with_context(|| format!("parse {}", yaml_path.display()))?;
+    let mut registered = HashSet::new();
+    if let Some(vars) = yaml_val.get("variables").and_then(|v| v.as_sequence()) {
+        for v in vars {
+            if let Some(name) = v.get("name").and_then(|n| n.as_str()) {
+                registered.insert(name.to_string());
+            }
+        }
+    }
+
+    let cited = extract_env_var_tokens_from_prose_md(env_ssot_md);
+    let mut missing: Vec<_> = cited.difference(&registered).cloned().collect();
+    missing.sort();
+    if !missing.is_empty() {
+        return Err(anyhow!(
+            "env-vars prose SSOT cites variables not present in contracts/config/env-vars.v1.yaml: {:?}. Register them in YAML or fix doc typos.",
+            missing
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod env_doc_token_tests {
+    use super::*;
+
+    #[test]
+    fn extract_skips_fenced_blocks() {
+        let md = "```text\n`VOX_SKIP_ME`\n```\nuse `VOX_KEEP` in tables.\n";
+        let got = extract_env_var_tokens_from_prose_md(md);
+        assert!(got.contains("VOX_KEEP"));
+        assert!(!got.contains("VOX_SKIP_ME"));
+    }
+
+    #[test]
+    fn extract_splits_slash_separated_names_in_one_span() {
+        let md = "pair `VOX_A` / `VOX_B` done.\n";
+        let got = extract_env_var_tokens_from_prose_md(md);
+        assert!(got.contains("VOX_A"));
+        assert!(got.contains("VOX_B"));
+    }
 }
 
 fn schema_string_enum(schema: &Value, pointer: &str, label: &str) -> Result<Vec<String>> {
@@ -587,6 +673,27 @@ pub(crate) fn check_dei(reg: &RegistryFile, dei: &str) -> Result<()> {
     Ok(())
 }
 
+/// Resolve `commands::<first_segment>::…` to the primary Rust module file for that segment.
+///
+/// This tightens compliance vs substring-only matches (comments / unrelated mentions).
+fn resolve_commands_handler_module_file(vox_cli_src: &Path, handler: &str) -> Option<PathBuf> {
+    let rest = handler.strip_prefix("commands::")?;
+    let first = rest.split("::").next()?.trim();
+    if first.is_empty() {
+        return None;
+    }
+    let commands_dir = vox_cli_src.join("commands");
+    let direct_rs = commands_dir.join(format!("{first}.rs"));
+    if direct_rs.is_file() {
+        return Some(direct_rs);
+    }
+    let nested_mod = commands_dir.join(first).join("mod.rs");
+    if nested_mod.is_file() {
+        return Some(nested_mod);
+    }
+    None
+}
+
 fn vox_cli_src_contains_needle(root: &Path, needle: &str) -> Result<bool> {
     fn walk(dir: &Path, needle: &str, found: &mut bool) -> Result<()> {
         use anyhow::Context;
@@ -643,6 +750,14 @@ pub(crate) fn check_registry_latin_and_handlers(
             if matches!(op.status.as_str(), "deprecated") {
                 continue;
             }
+            if h.starts_with("commands::") {
+                if resolve_commands_handler_module_file(vox_cli_src, h).is_none() {
+                    return Err(anyhow!(
+                        "command-registry: handler_rust `{h}` for path {:?} does not resolve to crates/vox-cli/src/commands/{{segment}}.rs or commands/{{segment}}/mod.rs",
+                        op.path
+                    ));
+                }
+            }
             if !vox_cli_src_contains_needle(vox_cli_src, h)? {
                 return Err(anyhow!(
                     "command-registry: handler_rust `{h}` for path {:?} not found under crates/vox-cli/src",
@@ -662,7 +777,7 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
     for triple in SUPPORTED_RELEASE_TARGETS {
         if !contract.contains(triple) {
             return Err(anyhow!(
-                "{}: missing release target `{triple}` (must match `vox_install_policy::SUPPORTED_RELEASE_TARGETS`)",
+                "{}: missing release target `{triple}` (must match `crate::utils::install_policy::SUPPORTED_RELEASE_TARGETS`)",
                 contract_path.display()
             ));
         }
@@ -691,7 +806,7 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
     let repo_up = repo_root.join("crates/vox-cli/src/commands/repo_upgrade.rs");
     let repo_up_txt =
         read_utf8_path_capped(&repo_up).with_context(|| format!("read {}", repo_up.display()))?;
-    if !repo_up_txt.contains("vox_install_policy::") {
+    if !repo_up_txt.contains("crate::utils::install_policy::") {
         return Err(anyhow!(
             "{}: must import `vox_install_policy` for `cargo install` argv + layout checks",
             repo_up.display()
@@ -700,7 +815,7 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
 
     let tu = repo_root.join("crates/vox-cli/src/commands/toolchain_upgrade.rs");
     let tu_txt = read_utf8_path_capped(&tu).with_context(|| format!("read {}", tu.display()))?;
-    if !tu_txt.contains("vox_install_policy::") {
+    if !tu_txt.contains("crate::utils::install_policy::") {
         return Err(anyhow!(
             "{}: must import `vox_install_policy` for default GitHub release coordinates",
             tu.display()
@@ -734,7 +849,7 @@ pub(crate) fn check_project_pm_commands_no_toolchain_lane(repo_root: &Path) -> R
         "repo_upgrade",
         "self_update",
         "UpgradeToolchainArgs",
-        "vox_install_policy::",
+        "crate::utils::install_policy::",
     ];
     for rel in FILES {
         let p = repo_root.join(rel);
@@ -1057,4 +1172,29 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod handler_module_resolution_tests {
+    use super::resolve_commands_handler_module_file;
+    use std::path::Path;
+
+    #[test]
+    fn resolves_plugin_bundle_module() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let p = resolve_commands_handler_module_file(&src, "commands::plugin_bundle::run")
+            .expect("plugin_bundle module path");
+        assert!(
+            p.ends_with("plugin_bundle.rs") || p.ends_with(Path::new("plugin_bundle/mod.rs")),
+            "{p:?}"
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_commands_segment() {
+        let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        assert!(
+            resolve_commands_handler_module_file(&src, "commands::not_a_real_module::x").is_none()
+        );
+    }
 }

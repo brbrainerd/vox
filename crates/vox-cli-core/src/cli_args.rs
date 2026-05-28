@@ -23,6 +23,27 @@ pub enum BundleMode {
     Script,
 }
 
+/// `vox compile --target …` packaging lane.
+#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum CompileKind {
+    /// Axum + embedded SPA single binary (same as `vox bundle-app`).
+    #[default]
+    NativeBinary,
+    /// Desktop installer path: bundle + Tauri packaging hints under `target/generated/tauri-packaging/`.
+    Desktop,
+    /// Android mobile (Tauri mobile toolchain; emits hints + requires Android SDK).
+    MobileAndroid,
+    /// iOS mobile (requires macOS + Xcode).
+    MobileIos,
+    /// OCI/server packaging — use `vox deploy` instead (compile prints guidance).
+    Server,
+    /// `fn main()` script binary (`script-execution` feature).
+    Script,
+    /// WASI wasm artifact (`script-execution`, isolation wasm).
+    Wasi,
+}
+
 /// `vox upgrade` lane: release binary vs local repository checkout.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UpgradeLane {

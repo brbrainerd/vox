@@ -1,7 +1,7 @@
 ---
 title: "Plugin System Redesign (2026)"
 description: "Design spec for unifying Vox's modularity surfaces — Cargo features, vox-skills, and capability registries — into a single runtime-loadable plugin system that supports lean per-deployment distribution bundles."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Architecture spec defining the unified plugin model, ABI, loader, CLI, and distribution-bundle story."
@@ -72,7 +72,7 @@ Skill plugins declare `payload-format-version` instead of an ABI version (curren
 ### D6. Breaking changes are accepted
 
 - Cargo feature aliases (`vox-cuda-release`, `vox-mens-dev`, `vox-mens-release` in [`.cargo/config.toml`](../../../.cargo/config.toml)) and `--features gpu,mens-candle-cuda` invocations stop working.
-- The [`vox-skills`](../../../crates/vox-skills/) crate is deleted. Direct importers ([`vox-orchestrator`](../../../crates/vox-orchestrator/Cargo.toml), [`vox-runtime`](../../../crates/vox-runtime/Cargo.toml), [`vox-cli`](../../../crates/vox-cli/Cargo.toml) under feature `ars`, and [`vox-integration-tests`](../../../crates/vox-integration-tests/Cargo.toml)) migrate to `vox-plugin-host`.
+- The [`vox-skills`](../../../crates/vox-skills/) crate is deleted. Direct importers ([`vox-orchestrator`](../../../crates/vox-orchestrator/Cargo.toml), [`vox-plugin-host`](../../../crates/vox-plugin-host/Cargo.toml), [`vox-cli`](../../../crates/vox-cli/Cargo.toml) under feature `ars`, and [`vox-integration-tests`](../../../crates/vox-integration-tests/Cargo.toml)) migrate to `vox-plugin-host`.
 - The `vox_skill_install` / `vox_skill_uninstall` / `vox_skill_list` / `vox_skill_search` / `vox_skill_info` MCP tools become `vox_plugin_*` aliases with the same shapes.
 - A migration doc maps every old workflow to its new equivalent.
 
@@ -118,7 +118,7 @@ A bundle is *the same host binary* + a curated `plugins/` directory. `vox bundle
 | `vox-populi`                | CHANGED  | `mens-*` features extracted to plugin crates. `default = []`.                        |
 | `vox-tensor`                | CHANGED  | `gpu`/`train` features extracted into a plugin crate. `default = []`.                |
 | `vox-orchestrator`          | CHANGED  | Skill consumption migrates from `vox-skills` to `vox-plugin-host`.                   |
-| `vox-runtime`               | CHANGED  | Same migration.                                                                      |
+| `vox-actor-runtime`               | CHANGED  | Same migration.                                                                      |
 | `vox-cli`                   | CHANGED  | New `plugin` and `bundle` subcommands. Removes `--features` plumbing.                |
 
 ### Plugin manifest schema (`Plugin.toml`)
@@ -225,32 +225,33 @@ id = "vox-fullstack"
 description = "Default developer experience with all built-in skill plugins."
 plugins = [
     "skill-compiler", "skill-testing", "skill-testing-validate", "skill-memory",
-    "skill-git", "skill-orchestrator", "skill-populi", "skill-v0", "skill-rag",
+    "skill-git", "skill-orchestrator", "skill-rag", "skill-v0",
+    "runtime-wasm",
 ]
 
 [[bundle]]
 id = "vox-ml"
 description = "Fullstack plus ML/GPU code plugins (NVIDIA CUDA stack)."
 extends = "vox-fullstack"
-plugins = ["tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe"]
+plugins = ["mens-candle-cuda", "nvml-probe"]
 
 [[bundle]]
 id = "vox-mesh"
 description = "Server-side mesh deployment with cloud sync."
 extends = "vox-base"
-plugins = ["populi-mesh", "cloud", "skill-populi", "skill-orchestrator"]
+plugins = ["populi-mesh", "cloud", "skill-orchestrator"]
 
 [[bundle]]
 id = "vox-server"
 description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
 extends = "vox-base"
-plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory"]
+plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory", "webhook"]
 
 [[bundle]]
 id = "vox-edge"
 description = "Edge / on-device deployment: lightweight runtime + local skills, no cloud or mesh."
 extends = "vox-base"
-plugins = ["skill-compiler", "skill-memory", "skill-v0"]
+plugins = ["skill-compiler", "skill-memory", "skill-v0", "runtime-wasm"]
 
 [[bundle]]
 id = "vox-cloud-only"
@@ -263,8 +264,10 @@ id = "vox-dev"
 description = "Contributor / power-user development environment: fullstack + ML + mesh + audio."
 extends = "vox-fullstack"
 plugins = [
-    "tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe",
+    "mens-candle-cuda", "nvml-probe",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
+    "script-execution", "browser", "webhook",
+    "grammar-export",
 ]
 ```
 
@@ -441,7 +444,7 @@ For skill plugins, the dispatch path on a missing skill returns `SkillNotInstall
    - `docs/src/reference/plugin-catalog.md` — hand-rolled prose.
    - `docs/src/reference/plugin-catalog.generated.md` — rolled from the catalog by the doc pipeline.
    - `docs/src/reference/distribution-bundles.generated.md` — rolled from bundle definitions.
-3. Empty stub of feature-stub fields in [`vox-build-meta/Cargo.toml`](../../../crates/vox-build-meta/Cargo.toml) and [`build.rs`](../../../crates/vox-build-meta/build.rs); `has`/`require`/`active_features` become deprecation shims that always return "this feature is now plugin `X`; install via `vox plugin install X`".
+3. Empty stub of feature-stub fields in [`vox-build-meta/Cargo.toml`](../../../crates/vox-build-meta/Cargo.toml) and [`vox-build-meta/src/lib.rs`](../../../crates/vox-build-meta/src/lib.rs); `has`/`require`/`active_features` become deprecation shims that always return "this feature is now plugin `X`; install via `vox plugin install X`".
 4. New CI guard `vox ci plugin-catalog-parity`: fails if a `Plugin.toml` exists in-tree for a plugin id not in the catalog, or vice versa.
 
 **Acceptance.**
@@ -485,6 +488,8 @@ For skill plugins, the dispatch path on a missing skill returns `SkillNotInstall
 
 **Risk.** `abi_stable`'s `#[sabi_trait]` ergonomics require care; the noop code plugin is the test bed for getting patterns right.
 
+<a id="sub-project-3-first-code-extension-point-mlbackend"></a>
+
 ## Sub-Project 3: First Code Extension Point — `MlBackend`
 
 **Scope.** Define `MlBackend` in `vox-plugin-api`. Extract `mens-candle-qlora` + `mens-candle-qlora-cuda` from [`vox-populi`](../../../crates/vox-populi/Cargo.toml) into a new `vox-plugin-mens-candle-cuda` crate. Wire `vox-populi` to consume `MlBackend` through `vox-plugin-host`. Demonstrate behavioral parity.
@@ -502,7 +507,7 @@ For skill plugins, the dispatch path on a missing skill returns `SkillNotInstall
    - Delete `mens-candle-qlora`, `mens-candle-qlora-cuda` features.
    - Replace direct candle calls with `host.ml_backend().ok_or(PluginMissingError { plugin_id: "mens-candle-cuda", … })?`.
 4. Update [`mens-training-ssot.md`](mens-training-ssot.md) with the plugin-based invocation.
-5. **CUDA-specific spike** — ✅ **completed 2026-05-03 on Windows MSVC + CUDA 13.1.** See [`crates/vox-plugin-cuda-spike/`](../../../crates/vox-plugin-cuda-spike/) and the "CUDA cdylib spike result" section below. Result: candle-core 0.9 with `features = ["cuda"]` builds cleanly inside a `cdylib`; resulting 193 KB `.dll` loads via `libloading::Library::new()`; exported `extern "C"` symbol calls into candle, initializes CUDA, opens device 0, returns success. nvcc-built kernels in the patched `candle-kernels` crate link correctly into the cdylib output. **Linux x86_64 verification deferred to SP3 implementation; design proceeds with the direct-cdylib pattern, no `staticlib` adapter needed.**
+5. **CUDA-specific spike** — ✅ **completed 2026-05-03 on Windows MSVC + CUDA 13.1.** See [`crates/vox-plugin-cuda-spike/`](plugin-system-redesign-2026.md#sub-project-3-first-code-extension-point-mlbackend) and the "CUDA cdylib spike result" section below. Result: candle-core 0.9 with `features = ["cuda"]` builds cleanly inside a `cdylib`; resulting 193 KB `.dll` loads via `libloading::Library::new()`; exported `extern "C"` symbol calls into candle, initializes CUDA, opens device 0, returns success. nvcc-built kernels in the patched `candle-kernels` crate link correctly into the cdylib output. **Linux x86_64 verification deferred to SP3 implementation; design proceeds with the direct-cdylib pattern, no `staticlib` adapter needed.**
 
 **Acceptance.**
 
@@ -526,7 +531,7 @@ For skill plugins, the dispatch path on a missing skill returns `SkillNotInstall
 2. `vox-orchestrator` changes:
    - Replace `vox_skills::SkillRegistry` use with `vox_plugin_host::SkillRegistry`.
    - Bootstrap path no longer calls `install_builtins()`; instead it scans the install dir.
-3. `vox-runtime` changes: same migration.
+3. `vox-actor-runtime` changes: same migration.
 4. MCP tool aliasing: `vox_skill_install` etc. start emitting deprecation warnings; new `vox_plugin_install` surfaces the unified path.
 5. End-to-end test: orchestrator + the migrated skill plugin installed → `vox_validate_file` works through the new plugin host registry.
 
@@ -587,7 +592,7 @@ The catalog's `bundled-in = […]` field is advisory: it tells `vox plugin info 
 
 **Deliverables.**
 
-1. `vox-populi`, `vox-tensor`, `vox-mens` (if still present), and any other identified crate: `default = []`.
+1. `vox-populi`, `vox-tensor`, `vox-ml-cli` (if still present), and any other identified crate: `default = []`.
 2. Delete `vox-cuda-release`, `vox-mens-dev`, `vox-mens-release`, `vox-schola-cuda` aliases from [`.cargo/config.toml`](../../../.cargo/config.toml). Replace the comment block with a pointer to the new plugin docs.
 3. Delete `vox-build-meta` entirely. Remove from `[workspace.members]`. Audit no dependent remains.
 4. Delete `vox-skills` entirely. The remaining 8 skills (`testing`, `testing.validate`, `memory`, `git`, `orchestrator`, `populi`, `v0`, `rag`) get migrated to standalone skill plugins as part of this sub-project (mechanical — same shape as SP4's `skill-compiler`).
@@ -667,7 +672,7 @@ Each iteration mirrors SP3's pattern: define trait → extract crate → wire ho
 - Architecture: this file.
 - Update [`AGENTS.md`](../../../AGENTS.md) "Auto-generated documentation files" list with `plugin-catalog.generated.md` and `distribution-bundles.generated.md`.
 - Update [`research-index.md`](research-index.md) to point at this spec.
-- Architecture index ([`architecture-index.md`](architecture-index.md)) and SUMMARY regenerate via `cargo run -p vox-doc-pipeline` — never hand-edited.
+- Architecture discovery: [`research-index.md`](research-index.md) and Starlight sidebar; run `cargo run -p vox-doc-pipeline -- --lint-only` after doc edits — do not hand-edit generated stubs listed in root `AGENTS.md`.
 
 ### Telemetry
 
@@ -702,7 +707,7 @@ Honest enumeration. Every item has a documented migration in SP6's `how-to-migra
 
 **Code consumers:**
 
-4. Any code importing `vox_skills::*` — four known importers (`vox-orchestrator`, `vox-runtime`, `vox-cli` under feature `ars`, `vox-integration-tests`); migrated in SP4 and SP6.
+4. Any code importing `vox_skills::*` — four known importers (`vox-orchestrator`, `vox-actor-runtime`, `vox-cli` under feature `ars`, `vox-integration-tests`); migrated in SP4 and SP6.
 5. Any code calling `vox_build_meta::has()` / `require()` / `active_features()` — replaced by host registry queries via `vox-plugin-host`.
 6. `vox-capability-registry` consumers — unchanged in SP1–SP6 (registry stays as the contract surface); a follow-up sub-project may collapse it once the plugin registry is proven.
 7. The ARS shim in `vox-skills/src/ars_shim/` — bridges OpenClaw to the skill registry. Either ports to `vox-plugin-host`'s skill registry or is retired with the OpenClaw integration. Decided in SP4 implementation plan.
@@ -722,7 +727,7 @@ CUDA is essential on the systems that need it; this spec must not break those pa
 
 | Risk                                                                                            | Likelihood | Mitigation                                                                                                                                                                       |
 | ----------------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Candle-CUDA's `nvcc`-built kernels may not link cleanly inside a `cdylib`.                      | **Resolved (2026-05-03)** | Spike at [`crates/vox-plugin-cuda-spike/`](../../../crates/vox-plugin-cuda-spike/) verified the direct-cdylib pattern works on Windows MSVC + CUDA 13.1. nvcc kernel build succeeds, dll is 193 KB, `libloading` opens it, candle initializes CUDA from inside the loaded dylib. Linux x86_64 still to verify in SP3 but no design pivot expected. Fallback (`staticlib` + thin cdylib, or IPC child process) deleted from the plan. |
+| Candle-CUDA's `nvcc`-built kernels may not link cleanly inside a `cdylib`.                      | **Resolved (2026-05-03)** | Spike at [`crates/vox-plugin-cuda-spike/`](plugin-system-redesign-2026.md#sub-project-3-first-code-extension-point-mlbackend) verified the direct-cdylib pattern works on Windows MSVC + CUDA 13.1. nvcc kernel build succeeds, dll is 193 KB, `libloading` opens it, candle initializes CUDA from inside the loaded dylib. Linux x86_64 still to verify in SP3 but no design pivot expected. Fallback (`staticlib` + thin cdylib, or IPC child process) deleted from the plan. |
 | CUDA toolkit (cudart, cublas, nvcc) presence at user runtime varies wildly.                     | High       | No regression — same problem today. `Plugin.toml` `requires.native-libs` makes the requirement explicit. `vox plugin doctor` reports missing libs with install guidance. Loader does not block: failure surfaces at first `MlBackend` call, not at process start. |
 | Two GPU plugins (e.g. `tensor-burn-wgpu` and `mens-candle-cuda`) might link incompatible versions of cudart or cublas. | Medium     | Plugins built in this repo pin native-lib versions in their `[plugin.payload.requires.native-libs]`. CI guard `vox ci plugin-native-lib-coherence` flags conflicting requirements across the catalog. Cross-version coexistence is not guaranteed; documented limitation. |
 | CUDA initializes process-wide context; multiple plugins sharing context could race.             | Low        | No regression — same in today's monolith. Document that CUDA-using plugins must not assume exclusive context. Add a `HardwareProbe::cuda_context_init()` host-mediated hook in SP7b for plugins that need explicit init ordering. |
@@ -734,13 +739,13 @@ The **gating commitment** for CUDA was met on 2026-05-03 for Windows MSVC + CUDA
 
 ### CUDA cdylib spike result (2026-05-03)
 
-The spike crate at [`crates/vox-plugin-cuda-spike/`](../../../crates/vox-plugin-cuda-spike/) is the smallest reproduction of the SP3 plugin pattern: a `cdylib` (+ `rlib` for in-process tests) depending on `candle-core` with `features = ["cuda"]`, exporting two `extern "C"` symbols.
+The spike crate at [`crates/vox-plugin-cuda-spike/`](plugin-system-redesign-2026.md#sub-project-3-first-code-extension-point-mlbackend) is the smallest reproduction of the SP3 plugin pattern: a `cdylib` (+ `rlib` for in-process tests) depending on `candle-core` with `features = ["cuda"]`, exporting two `extern "C"` symbols.
 
 **Environment.** Windows 11, MSVC 2022 Community via `vcvars64.bat`, NVCC 13.1, Rust edition 2024.
 
 **Build.** `cargo build --release -p vox-plugin-cuda-spike` finished in 1m 06s, producing `target/release/vox_plugin_cuda_spike.dll` (193 KB, 2.2 KB import library). The patched `candle-kernels` build script ran `bindgen-cuda` and nvcc successfully; kernel objects linked into the dylib.
 
-**Load test.** [`tests/load_via_dylib.rs`](../../../crates/vox-plugin-cuda-spike/tests/load_via_dylib.rs) opens the dylib via `libloading::Library::new()`, resolves both exported symbols, and calls them. Result:
+**Load test.** [`tests/load_via_dylib.rs`](plugin-system-redesign-2026.md#sub-project-3-first-code-extension-point-mlbackend) opens the dylib via `libloading::Library::new()`, resolves both exported symbols, and calls them. Result:
 
 ```
 test dlopen_resolves_smoke_symbol ... ok

@@ -16,7 +16,7 @@ pub fn stmt_has_async_call(stmt: &HirStmt, async_fn_names: &HashSet<String>) -> 
         HirStmt::Expr { expr, .. } => expr_has_async_call(expr, async_fn_names),
         HirStmt::Return { value, .. } => value
             .as_ref()
-            .map_or(false, |v| expr_has_async_call(v, async_fn_names)),
+            .is_some_and(|v| expr_has_async_call(v, async_fn_names)),
         HirStmt::While {
             condition, body, ..
         } => {
@@ -72,7 +72,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
                 || then_stmts
                     .iter()
                     .any(|s| stmt_has_async_call(s, async_fn_names))
-                || else_stmts.as_ref().map_or(false, |stmts| {
+                || else_stmts.as_ref().is_some_and(|stmts| {
                     stmts.iter().any(|s| stmt_has_async_call(s, async_fn_names))
                 })
         }
@@ -82,7 +82,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
                 || arms.iter().any(|arm| {
                     arm.guard
                         .as_ref()
-                        .map_or(false, |g| expr_has_async_call(g, async_fn_names))
+                        .is_some_and(|g| expr_has_async_call(g, async_fn_names))
                         || expr_has_async_call(&arm.body, async_fn_names)
                 })
         }
@@ -108,6 +108,22 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
         }
         // Lambda: do NOT cross the lambda boundary — it has its own async scope
         HirExpr::Lambda(_, _, _, _, _) => false,
+        // AsyncView: walk source and all optional arms
+        HirExpr::AsyncView(v) => {
+            expr_has_async_call(&v.source, async_fn_names)
+                || v.fetching_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+                || v.empty_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+                || v.error_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+                || v.ok_arm
+                    .as_ref()
+                    .is_some_and(|e| expr_has_async_call(e, async_fn_names))
+        }
         // Leaf nodes: no sub-expressions to walk
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
@@ -117,5 +133,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
         | HirExpr::Ident(..) => false,
         // JSX nodes: not in handler bodies, but walk for completeness
         HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) | HirExpr::JsxFragment(_, _) => false,
+        // WorkflowVersion is a leaf — no sub-expressions to walk
+        HirExpr::WorkflowVersion(_) => false,
     }
 }

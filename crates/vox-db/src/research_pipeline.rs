@@ -1,10 +1,11 @@
 //! Codex methods for the SCIENTIA research pipeline (Phase 0d).
 //!
-//! These implement the DB half of the stubs in `vox-orchestrator/src/dei_shim/research/orchestrator/pipeline.rs`.
+//! These implement the DB half of the stubs in `vox-dei-shim/src/research/orchestrator/pipeline.rs`.
 
 use crate::VoxDb;
 use crate::store::StoreError;
 use turso::params;
+use vox_db_types::{ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary};
 
 impl VoxDb {
     /// Create a new research session and return its row id.
@@ -53,6 +54,70 @@ impl VoxDb {
                 )
                 .await?;
                 Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Fetch one SCIENTIA research session by row id.
+    pub async fn get_research_session(
+        &self,
+        session_id: i64,
+    ) -> Result<Option<ResearchSessionRecord>, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT id, session_key, status, started_at_ms, finished_at_ms, query_text \
+                         FROM scientia_research_sessions WHERE id = ?1",
+                        params![session_id],
+                    )
+                    .await?;
+                let Some(row) = rows.next().await? else {
+                    return Ok::<Option<ResearchSessionRecord>, StoreError>(None);
+                };
+                Ok(Some(ResearchSessionRecord {
+                    id: row.get::<i64>(0)?,
+                    session_key: row.get::<String>(1)?,
+                    status: row.get::<String>(2)?,
+                    started_at_ms: row.get::<i64>(3)?,
+                    finished_at_ms: row.get::<Option<i64>>(4)?,
+                    query_text: row.get::<String>(5)?,
+                }))
+            })
+            .await
+    }
+
+    /// List recent SCIENTIA research sessions newest-first.
+    pub async fn list_recent_research_sessions(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<ResearchSessionSummary>, StoreError> {
+        let lim = limit.clamp(1, 200) as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT id, session_key, status, started_at_ms, finished_at_ms, query_text \
+                         FROM scientia_research_sessions ORDER BY started_at_ms DESC, id DESC LIMIT ?1",
+                        params![lim],
+                    )
+                    .await?;
+                let mut out = Vec::new();
+                while let Some(row) = rows.next().await? {
+                    out.push(ResearchSessionSummary {
+                        id: row.get::<i64>(0)?,
+                        session_key: row.get::<String>(1)?,
+                        status: row.get::<String>(2)?,
+                        started_at_ms: row.get::<i64>(3)?,
+                        finished_at_ms: row.get::<Option<i64>>(4)?,
+                        query_text: row.get::<String>(5)?,
+                    });
+                }
+                Ok::<Vec<ResearchSessionSummary>, StoreError>(out)
             })
             .await
     }
@@ -203,6 +268,66 @@ impl VoxDb {
                 )
                 .await?;
                 Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Upsert the durable artifact for a completed research session.
+    pub async fn store_research_artifact(
+        &self,
+        session_id: i64,
+        artifact_json: &str,
+        report_markdown: &str,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let artifact = artifact_json.to_string();
+        let report = report_markdown.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO scientia_research_artifacts \
+                     (session_id, artifact_json, report_markdown, created_at_ms, updated_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, ?4) \
+                     ON CONFLICT(session_id) DO UPDATE SET \
+                       artifact_json = excluded.artifact_json, \
+                       report_markdown = excluded.report_markdown, \
+                       updated_at_ms = excluded.updated_at_ms",
+                    params![session_id, artifact.as_str(), report.as_str(), now],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Fetch the latest durable artifact for a research session.
+    pub async fn get_research_artifact(
+        &self,
+        session_id: i64,
+    ) -> Result<Option<ResearchArtifactRecord>, StoreError> {
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let mut rows = conn
+                    .query(
+                        "SELECT session_id, artifact_json, report_markdown, created_at_ms, updated_at_ms \
+                         FROM scientia_research_artifacts WHERE session_id = ?1",
+                        params![session_id],
+                    )
+                    .await?;
+                let Some(row) = rows.next().await? else {
+                    return Ok::<Option<ResearchArtifactRecord>, StoreError>(None);
+                };
+                Ok(Some(ResearchArtifactRecord {
+                    session_id: row.get::<i64>(0)?,
+                    artifact_json: row.get::<String>(1)?,
+                    report_markdown: row.get::<String>(2)?,
+                    created_at_ms: row.get::<i64>(3)?,
+                    updated_at_ms: row.get::<i64>(4)?,
+                }))
             })
             .await
     }

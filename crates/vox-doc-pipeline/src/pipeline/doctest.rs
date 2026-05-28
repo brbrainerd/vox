@@ -4,7 +4,6 @@ use vox_compiler::pipeline::check_file;
 use crate::pipeline::types::{LintError, LintKind};
 
 pub fn check_doctests(path: &Path, content: &str, errors: &mut Vec<LintError>) {
-    println!("RUNNING check_doctests on {}", path.display());
     let mut in_fence = false;
     let mut current_block = String::new();
     let mut has_skip = false;
@@ -25,7 +24,9 @@ pub fn check_doctests(path: &Path, content: &str, errors: &mut Vec<LintError>) {
 
                 let count = trimmed.chars().take_while(|&c| c == '`').count();
                 let lang = trimmed[count..].trim();
-                is_vox = lang == "vox" || lang == "tsx";
+                // Only ```vox is Vox source. Other fences (tsx, rust, …) are illustrative;
+                // parsing them as Vox produces noisy false positives (e.g. `from` imports).
+                is_vox = lang == "vox";
             }
         } else if in_fence && is_vox {
             if trimmed.contains("vox:skip")

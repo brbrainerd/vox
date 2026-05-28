@@ -1,0 +1,9 @@
+component TaskPage(tasks: list[Task]) {
+    view: column() {
+        tasks.map(fn(t) {
+            row() {
+                text() { t.title }
+            }
+        })
+    }
+}

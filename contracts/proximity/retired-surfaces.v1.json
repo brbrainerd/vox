@@ -9,7 +9,8 @@
     },
     {
       "retired_symbol": "vox-ars",
-      "canonical_replacement": "vox-ars-runtime"
+      "canonical_replacement": "vox-openclaw-runtime",
+      "notes": "ARS/OpenClaw runtime types live in vox-openclaw-runtime (see contracts/documentation/retired-symbols.v1.yaml)."
     },
     {
       "retired_symbol": "vox-ludus",
@@ -50,12 +51,13 @@
     },
     {
       "retired_symbol": "recall()",
-      "canonical_replacement": "recall_async(query_spec)",
-      "notes": "Synchronous memory read."
+      "canonical_replacement": "lookup_fact_by_key",
+      "notes": "Deprecated sync read; use MemoryManager::lookup_fact_by_key or RAG."
     },
     {
-      "retired_symbol": "persist_fact()",
-      "canonical_replacement": "sync_to_db()"
+      "retired_symbol": "recall_async()",
+      "canonical_replacement": "lookup_fact_by_key",
+      "notes": "Deprecated alias; use MemoryManager::lookup_fact_by_key."
     },
     {
       "retired_symbol": "-> (return type)",

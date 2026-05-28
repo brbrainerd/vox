@@ -1,7 +1,7 @@
 ---
 title: "Vox full-stack ergonomics deep dive"
 description: "Repository-grounded full-stack boilerplate hotspots and implementation roadmap for Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-25"
 training_eligible: false
 
@@ -18,7 +18,7 @@ archived_date: 2026-04-18
 - HIR declaration model with `legacy_ast_nodes`: `crates/vox-compiler/src/hir/nodes/decl.rs`
 - Lowering entry: `crates/vox-compiler/src/hir/lower/mod.rs`
 - Rust route emit: `crates/vox-compiler/src/codegen_rust/emit/http.rs`
-- TS route emit: `crates/vox-compiler/src/codegen_ts/routes.rs`
+- TS route emit: `crates/vox-codegen/src/codegen_ts/routes.rs`
 - Shared path prefixes: `crates/vox-compiler/src/web_prefixes.rs`
 
 ### CLI and command contracts

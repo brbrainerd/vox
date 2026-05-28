@@ -94,14 +94,19 @@ impl ModelSelectionEngine {
                 context_fill_ratio,
                 preference,
                 availability_hint,
-            ) as f64;
+            );
             if prefer_reasoning_from_secrets() && m.capabilities.supports_reasoning {
                 base += 0.02;
             }
             let (s, f) = arm_stats.get(&m.id).copied().unwrap_or((0, 0));
+            // Free-by-default: Free and Fast tiers participate equally in the
+            // novelty exploration bonus so new free models get a fair trial.
             if self.policy.routing_objective.kind == "quality_first"
                 && s + f == 0
-                && matches!(m.capabilities.tier, ModelTier::Pro)
+                && matches!(
+                    m.capabilities.tier,
+                    ModelTier::Pro | ModelTier::Fast | ModelTier::Free
+                )
             {
                 base += 0.06;
             }
@@ -153,7 +158,7 @@ impl ModelSelectionEngine {
             m.id != best.id
                 && arm_stats
                     .get(&m.id)
-                    .map_or(true, |&(a, b)| a + b < min_samples)
+                    .is_none_or(|&(a, b)| a + b < min_samples)
         }) {
             return PickReason::PolicyExplore;
         }

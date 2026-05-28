@@ -3,7 +3,7 @@
 //!
 //! §1.A.3 repro: `.length()` lowers to a method call in TS where `length` is a property.
 //!
-//! Reference: docs/superpowers/plans/2026-05-08-handoff-zero-ts-vox-self-sufficient.md §1.A
+//! Reference: docs/superpowers/plans/handoff/2026-05-08-handoff-zero-ts-vox-self-sufficient.md §1.A
 
 const FIXTURE_LAMBDA_HANDLER: &str = r#"
 import react.use_state
@@ -57,7 +57,7 @@ fn emit(src: &str) -> String {
     let _diags = vox_compiler::typeck::typecheck_module(&module, "handler_test");
     let hir = vox_compiler::hir::lower_module(&module);
     let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
-    out.files.iter().map(|(_, b)| b.as_str()).collect()
+    out.files.values().map(|b| b.as_str()).collect()
 }
 
 /// §1.A.1 — simple assignment handler must be a callable arrow.
@@ -65,7 +65,7 @@ fn emit(src: &str) -> String {
 /// The emitted onClick must be `onClick={() => { set_status("clicked"); }}` or equivalent —
 /// NOT a bare expression like `onClick={(() => ...)}` that React never invokes.
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn handler_body_is_callable_arrow() {
     let body = emit(FIXTURE_LAMBDA_HANDLER);
     eprintln!("=== handler_body_is_callable_arrow ===\n{body}");
@@ -85,7 +85,7 @@ fn handler_body_is_callable_arrow() {
 
 /// §1.A.1 — match expression in handler must run when clicked, not wrap in an extra arrow.
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn match_handler_emits_invocable_arrow() {
     let body = emit(FIXTURE_MATCH_HANDLER);
     eprintln!("=== match_handler_emits_invocable_arrow ===\n{body}");
@@ -103,7 +103,7 @@ fn match_handler_emits_invocable_arrow() {
 
 /// §1.A.3 — `.length()` must lower to a property access `.length`, not a method call.
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn length_emits_as_property_not_method() {
     let body = emit(FIXTURE_LENGTH);
     eprintln!("=== length_emits_as_property_not_method ===\n{body}");

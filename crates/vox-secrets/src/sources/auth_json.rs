@@ -146,7 +146,31 @@ pub fn write_registry_token(
     }
     let auth_path = auth_path();
     let mut config = read_credentials_file(&auth_path)?;
-    let secure_store_ok = write_secure_token(registry, token).is_ok();
+
+    // Round-trip verify the keyring. On some platforms / sandboxes the
+    // backend accepts the write but the read returns nothing — silently
+    // storing the sentinel in that case would break `vox secrets get`.
+    // (Honest-completion plan §0: "code path ≠ measurement".) Verify
+    // before we commit the sentinel; fall back to plaintext otherwise.
+    let secure_store_ok = match write_secure_token(registry, token) {
+        Ok(()) => match read_secure_token(registry) {
+            Some(roundtripped) if roundtripped == token => true,
+            _ => {
+                // Best-effort scrub of the partially-written keyring entry
+                // so a future read can't return a stale or empty value.
+                if let Ok(entry) = secure_entry(registry) {
+                    let _ = entry.delete_credential();
+                }
+                eprintln!(
+                    "warning: secure store write for `{registry}` did not round-trip; \
+                     falling back to plaintext storage in {}",
+                    auth_path.display()
+                );
+                false
+            }
+        },
+        Err(_) => false,
+    };
 
     config.registries.insert(
         registry.to_string(),
@@ -192,11 +216,41 @@ mod tests {
     #[test]
     fn auth_path_uses_override() {
         let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp = std::env::temp_dir().join("vox-secrets-auth.json");
         unsafe {
-            std::env::set_var("VOX_SECRETS_AUTH_PATH", "/tmp/vox-secrets-auth.json");
+            std::env::set_var("VOX_SECRETS_AUTH_PATH", &tmp);
         }
         let got = auth_path();
         assert!(got.to_string_lossy().contains("vox-secrets-auth.json"));
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_AUTH_PATH");
+        }
+    }
+
+    /// Regression for the journey bug: `set` then `get` must round-trip.
+    /// On platforms where the keyring read-back fails after a successful
+    /// write, `write_registry_token` falls back to plaintext storage in
+    /// `auth.json` so the subsequent `read_registry_token` still works.
+    #[test]
+    fn write_then_read_round_trips_regardless_of_keyring_health() {
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let auth_file = tmp_dir.path().join("auth.json");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_AUTH_PATH", &auth_file);
+        }
+
+        // Use a registry name unlikely to collide with a real keyring
+        // entry on the test machine.
+        let reg = "vox-test-roundtrip-registry";
+        let token = "sk-test-roundtrip-abcdef0123456789";
+
+        let written = write_registry_token(reg, token, None).expect("write");
+        assert_eq!(written, auth_file);
+
+        let (read_back, _src) = read_registry_token(reg).expect("read");
+        assert_eq!(secrecy::ExposeSecret::expose_secret(&read_back), token);
+
         unsafe {
             std::env::remove_var("VOX_SECRETS_AUTH_PATH");
         }

@@ -1,7 +1,7 @@
 ---
 title: "Language Alias Canonicalization for LLM Target Languages (Research 2026)"
 description: "Analysis of the negative impact of language aliases and synonymous syntax on LLM hallucination rates and the architectural justification for strict canonicalization."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 7
 last_updated: "2026-04-17"

@@ -1,7 +1,7 @@
 ---
 title: "TOESTUB contributor guide"
 description: "Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes."
-category: "contributor"
+category: "Contributors"
 status: "current"
 last_updated: "2026-05-09"
 training_eligible: true
@@ -39,6 +39,7 @@ Schema: `contracts/toestub/toestub-run-json.v1.schema.json`.
 ## Rule-by-rule fix guide
 
 ### `arch/god_object` — Error
+
 **Triggers:** A `.rs` file exceeds 500 non-blank lines, or a struct/impl has
 more than 12 methods. Thresholds: 300 lines = Info, 400 = Warning, 500 = Error.
 
@@ -49,7 +50,8 @@ step by step — it has a PowerShell inventory script and a per-crate cargo test
 matrix.
 
 Typical split:
-```
+
+```text
 // Before: large_module.rs (600 lines)
 // After:
 //   large_module/
@@ -65,6 +67,7 @@ Add to `contracts/toestub/suppressions.v1.json` with a reason and owner.
 ---
 
 ### `arch/sprawl` — Error (forbidden names) / Warning (directory sprawl)
+
 **Triggers:** A directory contains more than 20 files, or a file uses a
 forbidden generic name (`utils.rs`, `helpers.rs`, `misc.rs`, etc.).
 
@@ -78,6 +81,7 @@ related files into it. Example: 22 files in `src/commands/` → split into
 ---
 
 ### `skeleton/no-test-for-pub-fn` — Warning
+
 **Triggers:** A `fn` in an `examples/golden/` Vox file is not called from any
 `@test` block in the same file. Scoped to golden examples only — scripts and
 non-golden `.vox` files are not checked.
@@ -112,6 +116,7 @@ will not trigger this rule — only completely uncovered functions fire.
 ---
 
 ### `skeleton/hollow-fn` — Warning
+
 **Triggers:** A function body returns only a trivially-default value with no
 side effects: `Ok(())`, `true`, `false`, `Vec::new()`, `None`, `String::new()`.
 
@@ -128,6 +133,7 @@ fn on_agent_pause(&self) -> Result<()> { Ok(()) }
 ---
 
 ### `arch/empty_body` — Warning
+
 **Triggers:** Empty or near-empty function bodies.
 
 **Fix:** Same as `skeleton/hollow-fn`. Implement or suppress with reason.
@@ -135,6 +141,7 @@ fn on_agent_pause(&self) -> Result<()> { Ok(()) }
 ---
 
 ### `stub/todo` / `stub/unimplemented` — Error
+
 **Triggers:** `todo!()`, `unimplemented!()`, or `todo!("...")` in production
 code paths (outside `tests/`).
 
@@ -148,9 +155,11 @@ near `unimplemented!()`. Do not add completion comments to stub code.
 ---
 
 ### `security/hardcoded-secret` — Error
+
 **Triggers:** High-entropy strings or credential-shaped literals in source code.
 
 **Fix:** Route through vox-secrets:
+
 ```rust
 use vox_secrets::resolve_secret;
 let key = resolve_secret(SecretId::MyApiKey)?;
@@ -165,30 +174,34 @@ with `// toestub-ignore(security/hardcoded-secret) — SHA256 test fixture`.
 ---
 
 ### `arch/schema_compliance` — Error
+
 **Triggers:** A `.vox` code block in `docs/src/` is neither included via
 `{{#include ../../../examples/golden/hello.vox:display}}` nor annotated with `// vox:skip`.
 
 **Fix:**
-```markdown
+
 <!-- Option A: include from golden (preferred — gets compiled in CI) -->
+
 ```vox
 {{#include ../../../examples/golden/hello.vox:display}}
 ```
 
 <!-- Option B: illustrative snippet not meant to compile -->
+
 ```vox
 // vox:skip
 fn illustrative_example() { ... }
-```
 ```
 
 ---
 
 ### `cross-platform/crlf` — Warning
+
 **Triggers:** CRLF (`\r\n`) line endings in tracked source files. Common on
 Windows with default git settings.
 
 **Fix:**
+
 ```bash
 # Prevent future CRLF on this machine
 git config --global core.autocrlf false
@@ -203,6 +216,7 @@ converting anyway, confirm `core.autocrlf` is `false` or `input`.
 ---
 
 ### `arch/unwired` — Warning
+
 **Triggers:** A `mod foo;` declaration in a `.rs` file where `foo` is never
 subsequently used (`use`, `pub use`, or direct path reference). Only private
 `mod` declarations are flagged; `pub mod` is assumed to be reachable from
@@ -214,6 +228,7 @@ declaration and its file if the module is unused.
 ---
 
 ### `dry-violation` — Warning
+
 **Triggers:** Near-duplicate blocks of code detected heuristically (typically
 ≥5 identical or near-identical lines appearing in multiple locations).
 
@@ -224,22 +239,24 @@ with a short reason comment.
 ---
 
 ### `deprecated-usage` — Warning
+
 **Triggers:** Use of a retired crate, symbol, or environment variable from the
 [AGENTS.md retired surfaces table](../../../AGENTS.md).
 
 **Fix:** Use the canonical replacement. Common cases:
 
 | Found | Replace with |
-|---|---|
-| `vox-dei` (as large orchestrator) | `vox-orchestrator` |
-| `vox-ars` | `vox-ars-runtime` |
-| `vox-ludus` | `vox-gamify` |
-| `recall()` | `recall_async()` |
-| `TURSO_URL` env var | `VOX_DB_URL` |
+| --- | --- |
+| Legacy orchestrator codename | `vox-orchestrator` |
+| Legacy ARS crate label | `vox-openclaw-runtime` |
+| Legacy Ludus crate label | `vox-gamify` |
+| Sync recall API | `recall_async()` |
+| Legacy Turso URL env alias | `VOX_DB_URL` |
 
 ---
 
 ### `rust/unwrap-call` — Info
+
 **Triggers:** `.unwrap()` in non-test code paths (heuristic; test paths are
 skipped).
 
@@ -249,6 +266,7 @@ the invariant is truly guaranteed. Prefer `?` in most cases.
 ---
 
 ### `victory-claim` — Warning
+
 **Triggers:** "Done / solved / fixed / complete" style comments or strings.
 `victory-claim/hack` (Info) fires for `HACK`, `FIXME` adjacent to stub code.
 
@@ -257,6 +275,7 @@ the invariant is truly guaranteed. Prefer `?` in most cases.
 ---
 
 ### `magic-value/*` — Warning / Error (sub-id varies)
+
 **Triggers:** Hard-coded ports, very long strings, large integer literals
 outside of clearly named constant context.
 
@@ -266,6 +285,7 @@ for values that belong to the policy surface.
 ---
 
 ### `stringly-typed-enum` — Warning
+
 **Triggers:** A struct field typed as `String` with a comment listing the
 valid values (common in config structs).
 
@@ -274,6 +294,7 @@ valid values (common in config structs).
 ---
 
 ### `scaling/surfaces` — Info/Warning (14 sub-rules)
+
 **Triggers:** Scaling anti-patterns: blocking I/O in async, unbounded reads,
 SQL `SELECT` without `LIMIT`, `Regex::new()` in a hot path, etc.
 
@@ -294,6 +315,7 @@ all 14 sub-rule IDs.
 ## Suppression syntax
 
 **Same-line inline suppression** (preferred for one-offs):
+
 ```rust
 // toestub-ignore(rule/id) — short reason why
 fn the_function() { ... }
@@ -301,6 +323,7 @@ fn the_function() { ... }
 
 **Persistent suppression contract** (for intentional waivers, especially
 legacy files): add an entry to `contracts/toestub/suppressions.v1.json`:
+
 ```json
 {
   "rule": "arch/god_object",
@@ -324,4 +347,3 @@ genuine waivers, not for avoiding the work.
 - [TOESTUB scaling rules SSOT](../archive/research-2026-q1/scaling-toestub-rules.md) — all 14 scaling sub-rules
 - [TOESTUB self-healing architecture](../archive/research-2026-q1/toestub-self-healing-architecture-2026.md) — research on where TOESTUB is going
 - [Contribution loop](contribution-loop.md) — why these rules also protect the training corpus
-

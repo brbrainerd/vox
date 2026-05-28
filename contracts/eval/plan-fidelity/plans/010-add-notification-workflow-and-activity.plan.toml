@@ -1,0 +1,36 @@
+# vox:skip
+id = "plan-fidelity-010-add-notification-workflow-and-activity"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+Create `src/notifications.vox` with two functions: \
+(1) `activity send_notification(user_id: int, msg: str) to Result[str]` — returns \
+`Ok("notification.sent")` (placeholder until the notification service is wired); \
+(2) `workflow notify_user(user_id: int, msg: str) to Result[str]` that calls \
+`send_notification(user_id, msg)?` and returns `Ok("workflow.complete")`. \
+Create `tests/notifications_test.vox` with `@test fn test_send_notification_returns_ok` \
+that calls `send_notification(1, "hello")` and asserts the result is `Ok`. \
+Run `vox check --strict && vox test --filter=test_send_notification_returns_ok`.
+"""
+preconditions = """
+`src/notifications.vox` does not yet exist. `tests/notifications_test.vox` does not \
+yet exist. `vox check --strict` passes at HEAD.
+"""
+
+[plan_expected_shape]
+min_steps = 4
+max_steps = 8
+must_include_tasks = ["create-source-file", "add-activity", "add-workflow", "add-test", "verify-compile"]
+must_include_decorator_calls = ["@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_send_notification_returns_ok"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/notifications.vox", regex = "^activity send_notification" },
+  { path = "src/notifications.vox", regex = "^workflow notify_user" },
+  { path = "tests/notifications_test.vox", regex = "test_send_notification_returns_ok" },
+  { path = "tests/notifications_test.vox", regex = "@test" },
+]

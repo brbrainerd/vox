@@ -1,7 +1,7 @@
 ---
 title: "Vox Configuration Architecture (SSOT)"
 description: "Single Source of Truth for Vox Configuration architecture and the three-tier precedence rules."
-category: "architecture"
+category: "Architecture SSOTs"
 training_eligible: false
 archived_date: 2026-04-18
 ---

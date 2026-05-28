@@ -9,24 +9,40 @@ rust-version.workspace = true
 description = "Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler."
 publish = false
 
+[features]
+default = []
+ai-fixtures-v1 = []
+
 [dependencies]
 vox-compiler = { workspace = true }
+vox-tauri-codegen = { workspace = true }
 workspace-hack = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 sha3 = { workspace = true }
 flate2 = "1.1.9"
-bzip2 = "0.6.1"
-zstd = "0.13.3"
+bzip2 = { workspace = true }
+zstd = { workspace = true }
 miette = { workspace = true }
 vox-secrets = { workspace = true }
 vox-config = { workspace = true }
 vox-deploy-codegen = { workspace = true }
+prettyplease = { workspace = true }
+syn = { workspace = true, features = ["full"] }
+walkdir.workspace = true
+vox-repository.workspace = true
+anyhow.workspace = true
 
 [dev-dependencies]
 insta = "1"
 proptest = { workspace = true }
+tempfile = { workspace = true }
+# Phase 1 closure test (`tests/durability_compiles.rs`) needs to `use` the
+# runtime symbols that codegen emits string references to, so that a rename
+# or removal breaks the test compile. Test-only — production codegen does
+# not link the runtime.
+vox-workflow-runtime = { workspace = true }
 
 [lints]
 workspace = true

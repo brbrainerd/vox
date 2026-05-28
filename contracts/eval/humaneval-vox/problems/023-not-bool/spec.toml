@@ -1,0 +1,9 @@
+id = "humaneval-vox-023-not-bool"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `negate(b: bool) to bool` returning the logical negation of b
+without using the `!` operator (use `is false` instead).
+"""

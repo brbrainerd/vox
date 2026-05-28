@@ -1,0 +1,28 @@
+// Fix: use >= for all boundary comparisons so scores at exact thresholds
+// receive the correct grade.
+fn letter_grade(score: int) to str {
+    if score >= 90 {
+        return "A"
+    }
+    if score >= 80 {
+        return "B"
+    }
+    if score >= 70 {
+        return "C"
+    }
+    if score >= 60 {
+        return "D"
+    }
+    return "F"
+}
+
+fn main() to str {
+    assert(letter_grade(95) == "A")
+    assert(letter_grade(90) == "A")
+    assert(letter_grade(85) == "B")
+    assert(letter_grade(80) == "B")
+    assert(letter_grade(70) == "C")
+    assert(letter_grade(60) == "D")
+    assert(letter_grade(55) == "F")
+    return "ok"
+}

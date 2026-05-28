@@ -4,7 +4,7 @@
 //!
 //! Keywords and lexer-backed decorators come from [`vox_compiler::language_surface`] (SSOT).
 
-use tower_lsp::lsp_types::*;
+use tower_lsp_server::ls_types::*;
 use vox_compiler::language_surface;
 
 pub struct CompletionEngine;

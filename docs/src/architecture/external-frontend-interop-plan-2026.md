@@ -1,7 +1,7 @@
 ---
 title: "External Frontend Interop Plan (2026)"
 description: "Five-phase plan to make Vox interoperable with the React/TS ecosystem in both directions: keep Vox's GUI authoring (TS/React emission), add bidirectional component interop, retire @island, and add a backend-only mode for users with an existing React frontend."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Strategic plan; canonical reference for backend-only mode, bidirectional Vox↔React component interop, and @island retirement."
@@ -49,15 +49,15 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - `--target=client` emits the TS client SDK only (see below).
 2. New subcommand `vox emit client --lang=ts --out=./api-client` produces a self-contained, npm-publishable package:
    - Own `package.json` with `name`, `version`, `exports` (ESM + CJS + `.d.ts`).
-   - Zero imports from `vox-runtime`, internal Vox surfaces, or the full-stack client emit. Lives in its own crate so the dependency graph is clean.
+   - Zero imports from `vox-actor-runtime`, internal Vox surfaces, or the full-stack client emit. Lives in its own crate so the dependency graph is clean.
    - Emits: types, optional Zod validators (flag), a fetch client class. Configurable `baseUrl` and a pluggable `fetch` (so users can wire RTK Query / TanStack Query / their own auth interceptor).
    - Reproducible output: identical input HIR → byte-identical files. Golden tests pin this.
 3. `vox dev --target=server` — dev-loop that doesn't touch a frontend. Hot-reloads the Axum binary.
 4. Project bootstrap: `vox init --kind=backend` produces a manifest with `target = "server"` and no React/Vite scaffolding. Existing `--kind=application` still produces a full-stack project.
-5. Update [Dockerfile](Dockerfile) and `vox deploy` to honor the manifest target — server-only deployments produce a leaner image with no Node/pnpm layer.
-6. Add backend-only golden examples. The existing full-stack goldens ([blog_fullstack.vox](examples/golden/blog_fullstack.vox), [dashboard_ui.vox](examples/golden/dashboard_ui.vox)) stay; new ones (`backend_only_crud.vox`, `backend_only_auth.vox`) demonstrate the server target.
+5. Update [Dockerfile](../../../Dockerfile) and `vox deploy` to honor the manifest target — server-only deployments produce a leaner image with no Node/pnpm layer.
+6. Add backend-only golden examples. The existing full-stack goldens ([blog_fullstack.vox](../../../examples/golden/blog_fullstack.vox), [dashboard_ui.vox](../../../examples/golden/dashboard_ui.vox)) stay; new ones (`backend_only_crud.vox`, `backend_only_auth.vox`) demonstrate the server target.
 
-**Deliverables:** target-flag plumbing, `vox emit client` subcommand, `vox dev --target=server`, new init kind, manifest schema update, backend-only goldens, [docs/src/reference/cli.md](docs/src/reference/cli.md) updates.
+**Deliverables:** target-flag plumbing, `vox emit client` subcommand, `vox dev --target=server`, new init kind, manifest schema update, backend-only goldens, [CLI reference](../reference/cli.md) updates.
 
 **Risks:** Two emit paths drift over time (full-stack client vs. standalone SDK emit produce different shapes). Mitigation: both consume the same OpenAPI artifact from Phase 2; the full-stack client becomes a thin specialization once Phase 2 lands.
 
@@ -87,7 +87,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 
 ## Phase 3 — HTTP ergonomics as decorators
 
-**Goal:** Express the things real backends need (explicit routes, methods, CORS, auth, rate-limits, path params) without inventing new bare keywords. Per [AGENTS.md §Grammar Unification](AGENTS.md), new behavior goes on decorators.
+**Goal:** Express the things real backends need (explicit routes, methods, CORS, auth, rate-limits, path params) without inventing new bare keywords. Per [AGENTS.md §Grammar Unification](../../../AGENTS.md), new behavior goes on decorators.
 
 **Scope:**
 
@@ -102,7 +102,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - `@auth(scheme: bearer)` — declarative; resolves to a Tower middleware in the generated Axum crate. Composable with custom auth functions.
    - `@rate_limit(per: "1m", max: 60, key: by_ip)` — emits a `tower_governor` (or equivalent) layer.
    - `@public` / `@authenticated` / `@role("admin")` — guard groups.
-3. Compile-time route conflict detection (already partially present in [routes.rs:70](crates/vox-compiler/src/codegen_ts/routes.rs:70); extend to handle path-param overlaps).
+3. Compile-time route conflict detection (already partially present in [`routes.rs`](../../../crates/vox-codegen/src/codegen_ts/routes.rs) near line 70; extend to handle path-param overlaps).
 4. OpenAPI emit (Phase 2) reflects all of the above as `securitySchemes`, `x-rate-limit`, CORS notes, and proper path-param `parameters`.
 5. Update auth-pattern golden examples to use the declarative form; keep one manual example as an escape hatch.
 
@@ -116,7 +116,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 
 **Scope:**
 
-1. **JWT verification primitive** in `vox-stdlib`, with key resolution through Clavis ([AGENTS.md §Secret Management](AGENTS.md)). RS256/ES256/HS256 supported; JWKS fetch with caching.
+1. **JWT verification primitive** in `vox-stdlib`, with key resolution through Clavis ([AGENTS.md §Secret Management](../../../AGENTS.md)). RS256/ES256/HS256 supported; JWKS fetch with caching.
 2. **Session store abstraction** over `@table`. Default schema, `verify_token() -> Result[Session]`, `revoke()`, idle and absolute timeouts.
 3. **Health and observability endpoints**:
    - `/healthz`, `/readyz` — auto-mounted, opt-out via flag.
@@ -147,7 +147,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - In the emitted TS output, the import passes through unchanged — no marshaling layer, the React component is rendered as-is.
    - Props passed from Vox to the React component are serialized through the wire-format SSOT (Phase 2) when they cross a serialization boundary; in-process they pass as native JS values.
 2. **React imports Vox (external React app uses emitted Vox components):**
-   - Vox component compilation produces `.tsx` files that are first-class React components: real `export`, real prop type aliases, no hidden runtime dependency on `vox-runtime` for component code.
+   - Vox component compilation produces `.tsx` files that are first-class React components: real `export`, real prop type aliases, no hidden runtime dependency on `vox-actor-runtime` for component code.
    - Output directory has a generated `package.json` so it can be a workspace package (or published to npm) and consumed via standard `import { MyVoxComponent } from "@myorg/vox-ui"`.
    - Re-emit-stable: re-running the compiler produces a clean diff. Developers should generally not hand-edit emitted files (the source of truth is the `.vox` source); a designated `// vox:user-edit` zone or sidecar override file is the escape hatch — exact mechanism in the sub-spec.
    - Emitted components are typed against the Phase-1 client SDK, so a button bound to a mutation gets the typed call for free.
@@ -157,7 +157,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
    - The `routes` block stays — it remains the way Vox authors a route tree.
    - `component` keyword stays — it remains the Vox UI authoring primitive.
 4. **Optional WASM-from-Node bridge** (lower priority; can defer to 5b):
-   - npm package `@vox/wasi-runtime` that loads a Vox-compiled `.wasm` (the existing `--isolation wasm` artifact, see [wasi.rs](crates/vox-cli/src/commands/runtime/run/backend/wasi.rs)) and exposes typed exported functions to Node.
+   - npm package `@vox/wasi-runtime` that loads a Vox-compiled `.wasm` (the existing `--isolation wasm` artifact, see [`wasi.rs`](../../../crates/vox-cli/src/commands/runtime/run/backend/wasi.rs)) and exposes typed exported functions to Node.
    - Use case: Node worker calling pure Vox computations in-process. Not for HTTP request handling — that path stays Axum.
    - Defer N-API/cdylib indefinitely unless concrete pull emerges.
 5. **Tutorials in `docs/src/tutorials/`:**
@@ -172,8 +172,8 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 ## Cross-cutting concerns
 
 - **Versioning:** `wire-format-v1` is independent of Vox compiler version. Breaking changes require a new major (`v2`) and a parallel-emit grace period.
-- **Documentation governance:** all five phases produce docs that go through [docs/src/contributors/documentation-governance.md](docs/src/contributors/documentation-governance.md) — auto-indexed via `vox-doc-pipeline`, never hand-edited indexes.
-- **Telemetry:** every new emit subcommand emits `vox.script.*`-class events for observability ([AGENTS.md §VoxScript-First Glue Code](AGENTS.md)).
+- **Documentation governance:** all five phases produce docs that go through [Documentation governance](../contributors/documentation-governance.md) — auto-indexed via `vox-doc-pipeline`, never hand-edited indexes.
+- **Telemetry:** every new emit subcommand emits `vox.script.*`-class events for observability ([AGENTS.md §VoxScript-First Glue Code](../../../AGENTS.md)).
 - **Security:** auth and CORS defaults must fail closed. CORS must reject by default; `@auth` must reject by default; rate-limit decorators must be additive, not subtractive.
 - **Migration support:** ship `vox migrate drop-island` (Phase 5) — rewrites `@island` use sites to the bidirectional import form — and `vox migrate wire-format` (Phase 2 → future v2) so users are never stranded.
 - **Emitted component code is generated, not authored.** Per the project's "auto-generated docs" policy, emitted `.tsx` files should not be hand-edited; the `.vox` source is canonical. Any escape-hatch user-edit zones must be explicitly delimited so the compiler can preserve them across re-emits.

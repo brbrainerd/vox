@@ -1,0 +1,10 @@
+
+warning: vox-dashboard@0.5.0: vox-dashboard: app.vox compiled to app/src/generated/
+crates\vox-codegen\src\codegen_ts\reactive.rs:29:21: warning: unused import: `WebIrDiagnostic`
+crates\vox-codegen\src\codegen_ts\reactive.rs:119:9: error[E0425]: cannot find function `web_ir_reactive_views_env_enabled` in this scope
+warning: `vox-codegen` (lib) generated 1 warning
+error: could not compile `vox-codegen` (lib) due to 1 previous error; 1 warning emitted
+warning: build failed, waiting for other jobs to finish...
+warning: `vox-codegen` (lib test) generated 1 warning (1 duplicate)
+error: could not compile `vox-codegen` (lib test) due to 1 previous error; 1 warning emitted
+

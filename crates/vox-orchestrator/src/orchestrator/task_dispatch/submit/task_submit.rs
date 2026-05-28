@@ -2,6 +2,7 @@ use crate::locks::LockKind;
 use crate::oplog::OperationKind;
 use crate::planning::PlanningTaskMeta;
 use crate::scope::ScopeEnforcement;
+use crate::services::persistence_obs::log_persistence_failure;
 use crate::services::{PolicyCheckResult, PolicyEngine, PolicyTrustRelax};
 use crate::types::{AccessKind, AgentTask, FileAffinity, TaskEnqueueHints, TaskId, TaskPriority};
 use std::path::PathBuf;
@@ -32,6 +33,7 @@ impl Orchestrator {
         file_manifest: Vec<FileAffinity>,
         priority: Option<TaskPriority>,
         session_id: Option<String>,
+        tenant_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
         self.submit_task_with_agent(
             description,
@@ -41,6 +43,7 @@ impl Orchestrator {
             None,
             None,
             session_id,
+            tenant_id,
         )
         .await
     }
@@ -55,6 +58,7 @@ impl Orchestrator {
         capability_requirements: Option<crate::contract::TaskCapabilityHints>,
         enqueue_hints: Option<TaskEnqueueHints>,
         session_id: Option<String>,
+        tenant_id: Option<String>,
     ) -> Result<TaskId, OrchestratorError> {
         let (default_priority, _scope_enforcement) = {
             let config_guard = crate::sync_lock::rw_read(&*self.config);
@@ -76,6 +80,7 @@ impl Orchestrator {
         let mut task = AgentTask::new(task_id, description, priority, file_manifest.clone());
         task.capability_requirements = capability_requirements.clone();
         task.session_id = session_id.clone();
+        task.tenant_id = tenant_id.clone();
         if let Some(h) = &enqueue_hints {
             task.apply_hints(h);
         }
@@ -90,14 +95,22 @@ impl Orchestrator {
         let _relay_harness_spec_json_seed = task.harness_spec_json.clone();
         task.start(); // ensure started_at_ms is populated for orchestrator-submitted tasks
         if let (Some(campaign_id), Some(tier)) = (task.campaign_id.clone(), task.benchmark_tier) {
-            let _ = self
+            if let Err(e) = self
                 .begin_reconstruction_campaign(
-                    campaign_id,
+                    campaign_id.clone(),
                     tier,
                     task.description.clone(),
                     session_id.as_deref(),
                 )
-                .await;
+                .await
+            {
+                // Campaign init failed; downstream lookups against this campaign_id would
+                // dangle. Surface the failure to operators and clear the id from the task
+                // so subsequent code paths don't reference a non-existent campaign row.
+                // Refs: docs/src/architecture/semantic-gap-audit-2026.md F5.
+                log_persistence_failure("submit.campaign_init", e);
+                task.campaign_id = None;
+            }
         }
 
         // Route to the right agent via RoutingService
@@ -179,6 +192,29 @@ impl Orchestrator {
         // gate evaluation, persistence). Per CodeRabbit review on PR #61: an agent
         // already in a doom loop or already over budget should be rejected before
         // it can incur additional Socrates / autonomous-research cost.
+
+        // Tenant budget enforcement (D7).
+        if let Some(ref tenant_id) = task.tenant_id {
+            let db_opt = crate::sync_lock::rw_read(&*self.db).clone();
+            if let Some(db) = db_opt {
+                let monthly_usage: i64 = vox_gamify::db::get_tenant_monthly_token_usage(&db, tenant_id)
+                    .await
+                    .unwrap_or(0);
+                let estimated_tokens = task.estimated_token_count();
+
+                // For now, assume "free" tier. A future lookup table in VoxDb will resolve this.
+                let tier = "free";
+
+                let gate = crate::sync_lock::rw_read(&*self.tenant_budget_gate);
+                if let Err(msg) =
+                    gate.check_tenant_monthly_budget(tier, monthly_usage, estimated_tokens as i64)
+                {
+                    tracing::error!(tenant_id = %tenant_id, %msg, "blocking submission: tenant budget exceeded");
+                    return Err(OrchestratorError::BudgetExceeded(msg));
+                }
+            }
+        }
+
         let gate_result = {
             let bm = crate::sync_lock::rw_read(&*self.budget_manager);
             crate::gate::BudgetGate::check_doom_loop(&bm, agent_id)
@@ -406,8 +442,7 @@ impl Orchestrator {
         #[cfg_attr(not(feature = "populi-transport"), allow(unused_variables))]
         let (lease_gated, remote_params, agent_busy) = {
             let c = crate::sync_lock::rw_read(&*self.config);
-            let lease_gated =
-                crate::populi_remote::task_matches_populi_remote_lease_gate(&task, &c);
+            let lease_gated = crate::populi_remote::task_matches_populi_remote_lease_gate(task, &c);
             let rp = if !cfg!(feature = "populi-transport") || !c.populi_remote_execute_experimental
             {
                 None
@@ -689,6 +724,8 @@ impl Orchestrator {
                         caller_agent_id: None,
                         trace_id: None,
                         span_depth: None,
+                        bundle_ref: None,
+                        bundle_inline_b64: None,
                     };
                     let relay_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
                         &base,
@@ -796,7 +833,7 @@ impl Orchestrator {
             let env = vox_actor_runtime::mailbox::Envelope::Message(
                 vox_actor_runtime::mailbox::Message {
                     from: vox_actor_runtime::Pid::new(),
-                    payload: vox_actor_runtime::mailbox::MessagePayload::Json(json),
+                    payload: vox_actor_runtime::mailbox::MessagePayload::Json(json.into()),
                 },
             );
             let handle: &vox_actor_runtime::process::ProcessHandle = &handle;
@@ -853,7 +890,7 @@ impl Orchestrator {
                 self.attach_goal_search_context_with_retrieval(
                     task_id,
                     &lineage_desc_preview,
-                    &file_manifest,
+                    file_manifest,
                 )
                 .await;
             }
@@ -930,6 +967,8 @@ impl Orchestrator {
                     caller_agent_id: None,
                     trace_id: None,
                     span_depth: None,
+                    bundle_ref: None,
+                    bundle_inline_b64: None,
                 };
                 if let Err(err) = crate::a2a::relay_remote_task_envelope(
                     &client,
@@ -969,7 +1008,7 @@ impl Orchestrator {
                     payload["orchestration_campaign_id"] = serde_json::Value::String(cid);
                 }
                 let payload_str = payload.to_string();
-                let _ = db
+                if let Err(e) = db
                     .append_orchestration_lineage_event(
                         &repo,
                         "task_submitted",
@@ -981,7 +1020,13 @@ impl Orchestrator {
                         None,
                         Some(payload_str.as_str()),
                     )
-                    .await;
+                    .await
+                {
+                    // Lineage write failures leave a permanent gap in the audit trail;
+                    // surface to operators rather than swallow.
+                    // Refs: docs/src/architecture/semantic-gap-audit-2026.md F4.
+                    log_persistence_failure("lineage.task_submitted", e);
+                }
             }
         }
 
@@ -998,6 +1043,7 @@ impl Orchestrator {
         capability_requirements: Option<crate::contract::TaskCapabilityHints>,
         session_id: Option<String>,
         enqueue_hints: Option<TaskEnqueueHints>,
+        tenant_id: Option<String>,
         planning_meta: Option<PlanningTaskMeta>,
     ) -> Result<TaskId, OrchestratorError> {
         let task_id = self
@@ -1009,6 +1055,7 @@ impl Orchestrator {
                 capability_requirements,
                 enqueue_hints,
                 session_id,
+                tenant_id,
             )
             .await?;
         if let Some(meta) = planning_meta

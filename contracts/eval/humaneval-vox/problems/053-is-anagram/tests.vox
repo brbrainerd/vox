@@ -1,0 +1,27 @@
+fn sort_chars(s: str) to str {
+    let chars: list[str] = s.to_lower().chars()
+    let sorted: list[str] = chars.sorted()
+    let mut result: str = ""
+    for c in sorted {
+        result = result + c
+    }
+    return result
+}
+
+fn is_anagram(a: str, b: str) to bool {
+    if a.len() != b.len() {
+        return false
+    }
+    return sort_chars(a) == sort_chars(b)
+}
+
+fn main() to str {
+    assert(is_anagram("listen", "silent") == true)
+    assert(is_anagram("Listen", "Silent") == true)
+    assert(is_anagram("hello", "world") == false)
+    assert(is_anagram("abc", "cba") == true)
+    assert(is_anagram("abc", "ab") == false)
+    assert(is_anagram("", "") == true)
+    assert(is_anagram("Rat", "tar") == true)
+    return "ok"
+}

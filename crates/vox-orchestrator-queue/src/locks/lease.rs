@@ -98,11 +98,14 @@ pub async fn prune_stale_distributed_locks(store: &vox_db::VoxDb) -> Result<u64,
 }
 
 impl FileLockManager {
-    /// Create a new, empty lock manager.
+    /// Create a new, empty in-memory-only lock manager (no DB persistence).
     pub fn new() -> Self {
         Self {
             locks: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
             queue: std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new())),
+            db: None,
+            node_id: String::new(),
+            repository_id: String::new(),
         }
     }
 

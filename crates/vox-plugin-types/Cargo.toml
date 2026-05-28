@@ -7,7 +7,7 @@ description = "Pure-types surface for the vox plugin system: manifests, skill ty
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
-async-trait = "0.1.89"
+async-trait = { workspace = true }
 thiserror = { workspace = true }
 
 [lints]

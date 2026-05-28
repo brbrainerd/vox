@@ -6,7 +6,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-/// Serializes `reactive_smoke` tests: `VOX_WEBIR_EMIT_REACTIVE_VIEWS` is process-global and `generate()` touches bridge counters.
+/// Serializes `reactive_smoke` tests that mutate process environment (deprecated `VOX_WEBIR_EMIT_REACTIVE_VIEWS` guards).
 static REACTIVE_SMOKE_SERIAL: Mutex<()> = Mutex::new(());
 
 #[derive(Debug, Deserialize)]
@@ -76,7 +76,7 @@ component Shell() {
 /// OP-S002 + OP-S004: K-metric registry fixture parses end-to-end; `routes` [`RoutesDecl::parse_summary`] is stable.
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn k_metric_branch_registry_parser_micro_gate() {
     use vox_compiler::ast::decl::Decl;
 
@@ -107,7 +107,7 @@ fn k_metric_branch_registry_parser_micro_gate() {
 /// `hir_emit::compat` is the single matrix for AST JSX re-exports (OP-0131).
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn jsx_and_hir_emit_share_compat_attr_matrix() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -136,7 +136,7 @@ fn jsx_and_hir_emit_share_compat_attr_matrix() {
 /// OP-S030: compatibility-tag DOM edges (`compat` fall-through vs mapped spellings); pairs OP-S029 / OP-S031.
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn op_s030_compat_tag_fixture_dom_and_a11y_edges() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -160,7 +160,7 @@ fn op_s030_compat_tag_fixture_dom_and_a11y_edges() {
 /// and codegen must stay byte-for-byte aligned with it.
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn gui_compatibility_contract_matches_attr_mapping_matrix() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -198,11 +198,11 @@ fn gui_compatibility_contract_matches_attr_mapping_matrix() {
     }
 }
 
-/// OP-S038: behavior adapter — with `VOX_WEBIR_EMIT_REACTIVE_VIEWS=0`, pathway tallies `LegacyEnvDisabled`.
+/// OP-S038 (historical): `VOX_WEBIR_EMIT_REACTIVE_VIEWS` is removed; reactive views always use Web IR when valid.
 #[serial_test::serial]
 #[test]
-#[ignore]
-fn op_s038_behavior_adapter_fixture_increments_legacy_pathway_without_webir_env() {
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
+fn op_s038_legacy_reactive_views_env_var_is_removed_noop() {
     use std::ffi::OsString;
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -237,18 +237,19 @@ component T() {
     let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let stats = out.reactive_stats;
     assert!(
-        stats.legacy_env_disabled >= 1,
-        "expected legacy pathway when bridge env off: {stats:?}"
+        stats.web_ir_view_emitted >= 1 || stats.web_ir_view_emitted_parity_mismatch >= 1,
+        "expected Web IR pathway with deprecated env cleared: {stats:?}"
     );
-    assert_eq!(
-        stats.web_ir_view_emitted, 0,
-        "unexpected Web IR selection with reactive views explicitly off: {stats:?}"
+    assert!(
+        stats.reactive_view_emit_failures.is_empty(),
+        "unexpected failures: {:?}",
+        stats.reactive_view_emit_failures
     );
 }
 
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn test_reactive_codegen_smoke() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -290,7 +291,7 @@ component Counter(initial: int) {
 
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_hook_codegen_is_deterministic_across_lowering_runs() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -331,7 +332,7 @@ component Tick() {
 
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn web_ir_preview_emit_maps_class_attr_to_class_name() {
     use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
@@ -353,29 +354,13 @@ component T() {
     );
 }
 
-/// `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1`: codegen still succeeds; view uses Web IR when parity matches (OP-0208).
+/// Path C reactive `view:` always uses Web IR preview TSX when validate is clean (ADR 036 / bundle SSOT).
 #[serial_test::serial]
 #[test]
-#[ignore]
-fn reactive_codegen_with_web_ir_view_env_still_succeeds() {
+fn reactive_codegen_uses_webir_canonical_view() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
-    const KEY: &str = "VOX_WEBIR_EMIT_REACTIVE_VIEWS";
-    struct Guard {
-        prev: Option<OsString>,
-    }
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            match &self.prev {
-                Some(v) => unsafe { std::env::set_var(KEY, v) },
-                None => unsafe { std::env::remove_var(KEY) },
-            }
-        }
-    }
-    let prev = std::env::var_os(KEY);
-    unsafe { std::env::set_var(KEY, "1") };
-    let _guard = Guard { prev };
 
     let source = r#"
 component Counter(initial: int) {
@@ -403,12 +388,23 @@ component Counter(initial: int) {
         .find(|(f, _)| f == "Counter.tsx")
         .map(|(_, c)| c)
         .expect("Counter.tsx");
-    insta::assert_snapshot!("counter_tsx_with_web_ir_view_on", ts);
+    insta::assert_snapshot!("counter_tsx_with_web_ir_canonical_view", ts);
+    assert!(
+        output.reactive_stats.web_ir_view_emitted >= 1
+            || output.reactive_stats.web_ir_view_emitted_parity_mismatch >= 1,
+        "expected a Web IR pathway tally: {:?}",
+        output.reactive_stats
+    );
+    assert!(
+        output.reactive_stats.reactive_view_emit_failures.is_empty(),
+        "unexpected reactive view failures: {:?}",
+        output.reactive_stats.reactive_view_emit_failures
+    );
 }
 
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_view_bridge_stats_legacy_when_web_ir_env_off() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -443,14 +439,14 @@ component C() {
     let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let after = out.reactive_stats;
     assert!(
-        after.legacy_env_disabled >= 1,
-        "expected LegacyEnvDisabled tally after view emit, after={after:?}"
+        after.web_ir_view_emitted >= 1 || after.web_ir_view_emitted_parity_mismatch >= 1,
+        "expected Web IR pathway even when deprecated env is 0: {after:?}"
     );
 }
 
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_view_bridge_stats_env_on_uses_non_legacy_pathways() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -494,18 +490,17 @@ component Counter(initial: int) {
     let hir = vox_compiler::hir::lower_module(&module);
     let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let after = out.reactive_stats;
-    assert_eq!(
-        after.legacy_env_disabled, 0,
-        "env on must not tally LegacyEnvDisabled; after={after:?}"
-    );
     let d_web = after.web_ir_view_emitted;
-    let d_val = after.legacy_fallback_validate_failed;
-    let d_tsx = after.legacy_fallback_no_component_tsx;
     let d_par = after.web_ir_view_emitted_parity_mismatch;
     assert_eq!(
-        d_web + d_val + d_tsx + d_par,
+        d_web + d_par,
         1,
-        "exactly one bridge decision per reactive view; deltas web={d_web} val={d_val} tsx={d_tsx} par={d_par} after={after:?}"
+        "exactly one bridge decision per reactive view; web={d_web} par={d_par} after={after:?}"
+    );
+    assert!(
+        after.reactive_view_emit_failures.is_empty(),
+        "unexpected failures: {:?}",
+        after.reactive_view_emit_failures
     );
 }
 
@@ -521,7 +516,7 @@ fn assert_contains_all(haystack: &str, needles: &[&str], ctx: &str) {
 /// OP-0267: single fixture exercising multiple grammar-branch families (side-by-side schema §A3: G01–G08).
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_branch_registry_fixture_parses_and_lowers() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -554,7 +549,7 @@ fn reactive_smoke_branch_registry_fixture_parses_and_lowers() {
 /// OP-0268: K-metric appendix §A1 token-class markers appear verbatim in the branch-registry source (recomputable trace input).
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn worked_app_k_metric_appendix_token_classes_are_traceable_in_source() {
     struct Row {
         label: &'static str,
@@ -591,7 +586,7 @@ fn worked_app_k_metric_appendix_token_classes_are_traceable_in_source() {
 /// OP-0259 / OP-0266: class → `className` and `on:click` → `onClick` in reactive emit.
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_class_and_event_mapping_path_c() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -626,7 +621,7 @@ component Clicky() {
 /// OP-0263: reactive Path C `component` + top-level `style { }` emits `*.css` and TSX imports it.
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_style_block_emits_css_module_import() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -663,7 +658,7 @@ raw_css {
 /// OP-0271 / OP-0272: explicit no-regression label for the reactive smoke module gate.
 #[serial_test::serial]
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn reactive_smoke_gate_label_smoke_tests_module() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -680,7 +675,6 @@ fn reactive_smoke_gate_label_smoke_tests_module() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s074_s075_behavior_view_fixture() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -708,7 +702,6 @@ component V() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s078_wrapper_inventory_fixture() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -736,7 +729,6 @@ component Clicky() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s114_behavior_contract_fixture_a() {
     reactive_smoke_assert_derived_harness_in_d_tsx();
 }
@@ -745,7 +737,6 @@ fn reactive_smoke_op_s114_behavior_contract_fixture_a() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s125_fixture_pack_d1() {
     reactive_smoke_op_s074_s075_behavior_view_fixture();
 }
@@ -754,7 +745,6 @@ fn reactive_smoke_op_s125_fixture_pack_d1() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s162_component_adapter_fixture_b() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -778,7 +768,6 @@ raw_css {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -793,7 +782,6 @@ fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s177_fixture_pack_f1() {
     reactive_smoke_assert_derived_harness_in_d_tsx();
 }
@@ -802,7 +790,6 @@ fn reactive_smoke_op_s177_fixture_pack_f1() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s205_fixture_pack_g1() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -838,7 +825,6 @@ component Counter(initial: int) {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
     assert!(!env!("CARGO_MANIFEST_DIR").is_empty());
 }
@@ -847,7 +833,6 @@ fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_legacy_vs_web_ir_view_whitespace_parity() {
     use std::collections::HashSet;
 

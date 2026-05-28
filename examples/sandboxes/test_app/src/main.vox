@@ -1,0 +1,41 @@
+# Vox Dashboard — data table with route params
+#
+# Run with: vox build src/main.vox -o dist && vox run src/main.vox
+
+@table type Item {
+    id: str
+    name: str
+    value: int
+    created_at: str
+}
+
+@query fn list_items() to list[Item] {
+    return []
+}
+
+@mutation fn add_item(name: str, value: int) to Result[str] {
+    return Ok("Added: {name}")
+}
+
+component Dashboard() {
+    state items: list[str] = ["System active", "Data synchronized"]
+    view: <div class="dashboard">
+        <h1>"Dashboard"</h1>
+        <ul>
+            for item in items {
+                <li>{item}</li>
+            }
+        </ul>
+    </div>
+}
+
+component ItemDetail(id: str) {
+    view: <div>
+        <h2>"Item: {id}"</h2>
+    </div>
+}
+
+routes {
+    "/" to Dashboard
+    "/items/:id" to ItemDetail
+}

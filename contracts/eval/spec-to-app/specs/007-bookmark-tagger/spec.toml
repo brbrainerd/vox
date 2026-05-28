@@ -1,0 +1,49 @@
+id = "spec-to-app-007-bookmark-tagger"
+tier = "T2"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a Vox single-tenant Bookmarks app skeleton with cross-table
+references:
+
+  - @table type Tag { name: str }
+  - @table type Bookmark { url: str, title: str, tag: str }
+  - type BookmarkError =
+      | EmptyUrl(text: str)
+      | EmptyTitle(text: str)
+      | UnknownTag(text: str)
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      list_bookmarks() to List[Bookmark] returning an empty list.
+  - @endpoint(kind: query) @auth(scheme: bearer)
+      list_tags() to List[Tag] returning an empty list.
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      add_bookmark(url: str, title: str, tag: str)
+        to Result[str, BookmarkError]
+        that validates url + title non-empty and returns:
+          - Error(EmptyUrl("...")) when url is empty,
+          - Error(EmptyTitle("...")) when title is empty,
+          - Ok("queued") on success.
+  - @endpoint(kind: mutation) @auth(scheme: bearer)
+      add_tag(name: str) to Result[str, BookmarkError]
+        that returns Ok("queued") (validation deferred).
+
+Include two @test blocks covering EmptyUrl and EmptyTitle paths via
+match-arm dispatch.
+
+Vox conventions:
+  - `len(s) is 0` for emptiness check.
+  - `Error(VariantName("..."))` for ADT errors.
+  - bare variant constructors.
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 2
+auth_decorator_required = true
+endpoint_kind_required = true
+multiple_tables_required = true

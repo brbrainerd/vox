@@ -11,6 +11,7 @@ fn fake_skill(id: &str) -> LoadedSkill {
             version: "0.1.0".to_string(),
             description: "fake".to_string(),
             tools: vec![],
+            ..Default::default()
         },
         body: "# fake".to_string(),
         exposed_tools: vec![],

@@ -251,5 +251,6 @@ fn format_pricing_source(source: &PricingSource) -> String {
         PricingSource::LiteLLM => "litellm".blue().to_string(),
         PricingSource::UserConfig => "user-config".magenta().to_string(),
         PricingSource::Telemetry => "telemetry".green().to_string(),
+        PricingSource::Unknown => "unknown".red().to_string(),
     }
 }

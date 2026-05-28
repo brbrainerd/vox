@@ -48,7 +48,7 @@ impl VoxDb {
         })
     }
 
-    /// Ensure a [`conversations`] row exists for the MCP / workspace session (structured transcript SSOT).
+    /// Ensure a `conversations` row exists for the MCP / workspace session (structured transcript SSOT).
     pub async fn chat_ensure_workspace_conversation(
         &self,
         repository_id: &str,

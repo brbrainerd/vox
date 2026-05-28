@@ -1,0 +1,55 @@
+id = "plan-027-tighten-result-error"
+wave = "wave_2"
+description = "Tighten Result[str, str] to a proper ADT error and update one caller."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The base file's `add_todo` endpoint returns `Result[str, str]`,
+mixing payload + error in untyped strings. Define a new ADT
+`type TodoError = | TitleEmpty(text: str) | TitleTooLong(text: str)`
+and change the endpoint return type to `Result[str, TodoError]`,
+replacing `Error("...")` with `Error(TitleEmpty(...))` /
+`Error(TitleTooLong(...))` at the two call sites inside the
+endpoint. Update the existing @test's match block so the arms
+discriminate the new variants instead of matching on `Error(_)`.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `TitleEmpty("...")`),
+    not as `TodoError.TitleEmpty(...)`.
+  - ADTs use `type X = | A | B(field: T)` syntax.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the `add_todo` endpoint and its @test."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Define the `TodoError` ADT."
+
+[[steps]]
+step = 3
+verb = "edit"
+description = "Switch the endpoint to `Result[str, TodoError]` with variant errors."
+
+[[steps]]
+step = 4
+verb = "callsite-update"
+description = "Update the @test match arms to the new variants."
+
+[[steps]]
+step = 5
+verb = "verify"
+description = "vox check passes and the existing @test still runs."
+
+[success_criteria]
+vox_check_passes = true
+adt_error_introduced = true
+endpoint_return_tightened = true
+existing_tests_pass = true

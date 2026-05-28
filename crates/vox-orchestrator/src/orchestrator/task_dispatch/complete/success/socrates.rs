@@ -139,25 +139,37 @@ impl Orchestrator {
             );
         }
 
-        let mut research_results = Vec::new();
-        if outcome.research_decision.should_research {
-            let queries = outcome
-                .research_decision
-                .suggested_query
-                .clone()
-                .map(|q| vec![q])
-                .unwrap_or_else(|| vec![task.description.clone()]);
-            let trigger = outcome.research_decision.trigger.clone();
-
-            let results = self
-                .perform_autonomous_research(Some(agent_id), Some(task_id), queries, &trigger)
-                .await
-                .unwrap_or_default();
-            research_results = results;
-        }
-
         let is_low_confidence = outcome.confidence < 0.7 || outcome.contradiction_ratio > 0.3;
         let bypass_disallowed = bypass_blocked && is_low_confidence;
+
+        // `evaluate_socrates_gate` may recommend web/autonomous research even when no gate is
+        // enabled to *consume* those results (shadow/off configs). Running `perform_autonomous_research`
+        // unconditionally dominated integration tests and stress drains — skip unless a policy
+        // surface actually needs retrieval telemetry or enforcement inputs.
+        let mut research_results = Vec::new();
+        if outcome.research_decision.should_research {
+            let autonomous_research_needed = force_research
+                || socrates_enforce
+                || socrates_shadow
+                || grounding_enforce
+                || grounding_shadow
+                || bypass_disallowed;
+            if autonomous_research_needed {
+                let queries = outcome
+                    .research_decision
+                    .suggested_query
+                    .clone()
+                    .map(|q| vec![q])
+                    .unwrap_or_else(|| vec![task.description.clone()]);
+                let trigger = outcome.research_decision.trigger.clone();
+
+                let results = self
+                    .perform_autonomous_research(Some(agent_id), Some(task_id), queries, &trigger)
+                    .await
+                    .unwrap_or_default();
+                research_results = results;
+            }
+        }
 
         if (socrates_enforce || bypass_disallowed)
             && !trust_relax_gates
@@ -222,5 +234,50 @@ impl Orchestrator {
         } else {
             Ok(GateOutcome { requeue: None })
         }
+    }
+}
+
+#[cfg(test)]
+mod autonomous_research_short_circuit_tests {
+    use super::*;
+    use crate::config::OrchestratorConfig;
+    use crate::sync_lock;
+    use crate::types::{FileAffinity, TaskPriority};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn completion_does_not_call_autonomous_research_when_gates_disabled() {
+        let mut cfg = OrchestratorConfig::for_testing();
+        cfg.socrates_gate_enforce = false;
+        cfg.socrates_gate_shadow = false;
+        cfg.completion_grounding_enforce = false;
+        cfg.completion_grounding_shadow = false;
+        cfg.max_agents = 4;
+
+        let orch = Orchestrator::new(cfg);
+        orch.submit_task(
+            "explore factual claims about rust async runtimes",
+            vec![FileAffinity::write("src/a.rs")],
+            Some(TaskPriority::Normal),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+        let aid = orch.agent_ids()[0];
+        let task_id = {
+            let q = orch.get_agent_queue_mut(aid).unwrap();
+            let mut w = sync_lock::rw_write(&*q);
+            w.dequeue().map(|t| t.id).expect("task dequeued")
+        };
+
+        tokio::time::timeout(
+            Duration::from_secs(8),
+            orch.complete_task_with_attestation(task_id, Some(CompletionAttestation::default())),
+        )
+        .await
+        .expect("completion must not block on autonomous research when gates are off")
+        .expect("complete ok");
     }
 }

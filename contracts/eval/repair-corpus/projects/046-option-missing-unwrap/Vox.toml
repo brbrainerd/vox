@@ -1,0 +1,5 @@
+[package]
+name = "repair-046-option-missing-unwrap"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. A fn expecting an int is called with an Option[int] without first unwrapping or matching."

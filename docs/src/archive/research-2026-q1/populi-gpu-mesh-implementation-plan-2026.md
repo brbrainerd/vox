@@ -1,7 +1,7 @@
 ---
 title: "Populi GPU mesh implementation plan 2026"
 description: "Roadmap for evolving Populi into a user-owned GPU mesh with phased rollout, ADR boundaries, and a first execution ownership model."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-03-29"
 training_eligible: false

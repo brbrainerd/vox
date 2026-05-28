@@ -1,0 +1,15 @@
+id = "007"
+title = "FizzBuzz: range starts at 0 instead of 1"
+description = """
+The FizzBuzz loop uses range(0, n) which iterates 0 through n-1.
+This causes: (a) 0 % 15 == 0 fires, prepending "FizzBuzz" at index 0,
+(b) the value n is never reached. The fix is range(1, n + 1).
+"""
+bug_class = "logic"
+difficulty = "easy"
+scope = "single-file"
+detection_mode = "runtime"
+expected_diagnostics = []
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

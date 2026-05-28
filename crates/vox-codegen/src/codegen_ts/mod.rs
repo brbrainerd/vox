@@ -20,6 +20,8 @@ pub mod fragment_emit;
 pub mod hir_emit;
 /// JSX lowering and attribute handling.
 pub mod jsx;
+/// `package.json` skeleton for Library / client-target SDK folders.
+pub mod library_package_emit;
 /// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
 pub mod mobile_emit;
 /// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
@@ -35,8 +37,7 @@ pub mod route_manifest;
 /// Segment-aware route-pattern parser and overlap detection (Phase C of the
 /// Svelte-mineable features plan; not yet wired into [`routes`]).
 pub mod route_pattern;
-/// File-based routes → TS route tables.
-pub mod routes;
+
 /// One-time SPA / shadcn / Tailwind scaffold (user-owned files).
 pub mod scaffold;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).

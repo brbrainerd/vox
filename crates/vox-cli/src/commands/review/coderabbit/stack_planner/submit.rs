@@ -22,7 +22,8 @@ pub async fn run_stack_submit(
     dry_run: bool,
 ) -> Result<()> {
     // 1. Gather files via git bridge or CLI wrapper
-    let output = tokio::process::Command::new("git")
+    let output = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["ls-files"])
         .current_dir(path)
         .output()
@@ -140,7 +141,8 @@ async fn run_stack_submit_core(
     }
 
     // Save current branch before destructive orphan checkout; restore even if chunk loop fails.
-    let current_branch = tokio::process::Command::new("git")
+    let current_branch = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(path)
         .output()
@@ -205,7 +207,8 @@ async fn run_stack_submit_core(
     }
     .await;
 
-    let restore_st = tokio::process::Command::new("git")
+    let restore_st = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["checkout", &current_branch])
         .current_dir(path)
         .status()

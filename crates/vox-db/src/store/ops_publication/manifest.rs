@@ -198,6 +198,134 @@ impl VoxDb {
             >= 2)
     }
 
+    // ── Phase D — solo-critic gate ────────────────────────────────────────
+
+    /// Record an [`ApproverRole::AuditedLLMCritic`]-shaped approval bound to
+    /// the same digest as the human approvers. The Rust caller is
+    /// responsible for having already validated the critic via
+    /// `vox_critic_gate::evaluate_gate`; this store op simply persists.
+    ///
+    /// [`ApproverRole::AuditedLLMCritic`]: vox_critic_gate::ApproverRole::AuditedLLMCritic
+    pub async fn record_publication_critic_approval_for_digest(
+        &self,
+        publication_id: &str,
+        content_sha3_256: &str,
+        critic_id: &str,
+        critic_fingerprint_json: &str,
+        critic_report_uri: Option<&str>,
+    ) -> Result<(), StoreError> {
+        let publication_id = publication_id.to_string();
+        let content_sha3_256 = content_sha3_256.to_string();
+        let critic_id = critic_id.to_string();
+        let fingerprint = critic_fingerprint_json.to_string();
+        let report = critic_report_uri.map(str::to_string);
+        let ts = crate::store::ops_publication::manifest::now_ms();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT OR REPLACE INTO publication_approvals (\
+                        publication_id, content_sha3_256, approver, approved_at_ms, \
+                        approver_role, critic_fingerprint_json, critic_report_uri\
+                     ) VALUES (?1, ?2, ?3, ?4, 'audited_llm_critic', ?5, ?6)",
+                    (
+                        publication_id,
+                        content_sha3_256,
+                        critic_id,
+                        ts,
+                        fingerprint,
+                        report,
+                    ),
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Return `(human_count, critic_count)` distinct approvers for id+digest.
+    pub async fn count_publication_approvers_by_role(
+        &self,
+        publication_id: &str,
+        content_sha3_256: &str,
+    ) -> Result<(i64, i64), StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT \
+                    SUM(CASE WHEN approver_role = 'human' THEN 1 ELSE 0 END), \
+                    SUM(CASE WHEN approver_role = 'audited_llm_critic' THEN 1 ELSE 0 END) \
+                 FROM (SELECT DISTINCT approver, approver_role \
+                       FROM publication_approvals \
+                       WHERE publication_id = ?1 AND content_sha3_256 = ?2)",
+                (publication_id.to_string(), content_sha3_256.to_string()),
+            )
+            .await?;
+        let row = rows.first().ok_or_else(|| {
+            StoreError::Db("publication approval by-role count: no row".into())
+        })?;
+        // SUM(...) returns NULL when there are no matching rows; coerce to 0.
+        let human: Option<i64> =
+            row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        let critic: Option<i64> =
+            row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok((human.unwrap_or(0), critic.unwrap_or(0)))
+    }
+
+    /// List every approval row for id+digest, projected for the critic-gate
+    /// evaluator. Critics carry their fingerprint JSON; humans don't.
+    pub async fn list_publication_approvals_for_digest(
+        &self,
+        publication_id: &str,
+        content_sha3_256: &str,
+    ) -> Result<Vec<PublicationApprovalRow>, StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT approver, approver_role, critic_fingerprint_json, \
+                        critic_report_uri, approved_at_ms \
+                 FROM publication_approvals \
+                 WHERE publication_id = ?1 AND content_sha3_256 = ?2 \
+                 ORDER BY approved_at_ms ASC",
+                (publication_id.to_string(), content_sha3_256.to_string()),
+            )
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for r in rows {
+            out.push(PublicationApprovalRow {
+                approver: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                approver_role: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                critic_fingerprint_json: r
+                    .get(2)
+                    .map_err(|e| StoreError::Db(e.to_string()))?,
+                critic_report_uri: r
+                    .get(3)
+                    .map_err(|e| StoreError::Db(e.to_string()))?,
+                approved_at_ms: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+            });
+        }
+        Ok(out)
+    }
+}
+
+/// Approval row projected for callers that need role information.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PublicationApprovalRow {
+    pub approver: String,
+    /// `'human'` or `'audited_llm_critic'`.
+    pub approver_role: String,
+    pub critic_fingerprint_json: Option<String>,
+    pub critic_report_uri: Option<String>,
+    pub approved_at_ms: i64,
+}
+
+impl PublicationApprovalRow {
+    /// Convenience: `approver_role == "audited_llm_critic"`.
+    pub fn is_critic(&self) -> bool {
+        self.approver_role == "audited_llm_critic"
+    }
+}
+
+impl VoxDb {
     /// Record one publication attempt outcome for a delivery channel.
     pub async fn record_publication_attempt(
         &self,

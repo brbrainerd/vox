@@ -1,7 +1,7 @@
 ---
 title: "HF fine-tuning capability matrix (code-grounded)"
 description: "Official documentation for HF fine-tuning capability matrix (code-grounded) for the Vox language. Detailed technical reference, architect"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

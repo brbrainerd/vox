@@ -99,6 +99,17 @@ impl DetectionRule for SecretSpanDetector {
         Redact secrets before logging, or avoid logging them entirely."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — token value logged directly to a tracing span\n\
+             tracing::info!(user = %user_id, token = %auth_token, \"request processed\");\n\
+             \n\
+             // FIX — omit the secret field entirely, or use a redacted placeholder\n\
+             tracing::info!(user = %user_id, \"request processed\");  // omit token\n\
+             // or: tracing::info!(user = %user_id, token = \"[REDACTED]\", \"request processed\");",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,
@@ -160,39 +171,39 @@ impl DetectionRule for SecretSpanDetector {
             }
 
             // Check `span.record("secret_name", ...)` calls
-            if let Some(caps) = self.span_record.captures(line) {
-                if let Some(field_match) = caps.get(1) {
-                    let field_name = field_match.as_str().to_ascii_lowercase();
-                    if SECRET_NAMES.iter().any(|s| field_name.contains(s)) {
-                        findings.push(Finding {
-                            rule_id: self.id().to_string(),
-                            diagnostic_id: self.diagnostic_id().map(str::to_string),
-                            rule_name: self.name().to_string(),
-                            severity: Severity::Warning,
-                            file: file.path.clone(),
-                            line: line_num,
-                            column: 0,
-                            message: format!(
-                                "Secret-shaped field name `{}` passed to `span.record(...)` — \
+            if let Some(caps) = self.span_record.captures(line)
+                && let Some(field_match) = caps.get(1)
+            {
+                let field_name = field_match.as_str().to_ascii_lowercase();
+                if SECRET_NAMES.iter().any(|s| field_name.contains(s)) {
+                    findings.push(Finding {
+                        rule_id: self.id().to_string(),
+                        diagnostic_id: self.diagnostic_id().map(str::to_string),
+                        rule_name: self.name().to_string(),
+                        severity: Severity::Warning,
+                        file: file.path.clone(),
+                        line: line_num,
+                        column: 0,
+                        message: format!(
+                            "Secret-shaped field name `{}` passed to `span.record(...)` — \
                                 this may leak credentials into trace spans.",
-                                field_match.as_str()
-                            ),
-                            suggestion: Some(
-                                "Omit secret-shaped fields from span records. \
+                            field_match.as_str()
+                        ),
+                        suggestion: Some(
+                            "Omit secret-shaped fields from span records. \
                                 If needed, use a redacted placeholder."
-                                    .into(),
-                            ),
-                            alternatives: vec![],
-                            rationale: Some(
-                                "Recording secret-shaped values in spans can expose credentials \
+                                .into(),
+                        ),
+                        alternatives: vec![],
+                        rationale: Some(
+                            "Recording secret-shaped values in spans can expose credentials \
                                 to any trace collector or observability backend."
-                                    .into(),
-                            ),
-                            context: file.context_around(line_num, 2),
-                            confidence: Some(FindingConfidence::High),
-                            evidence: None,
-                        });
-                    }
+                                .into(),
+                        ),
+                        context: file.context_around(line_num, 2),
+                        confidence: Some(FindingConfidence::High),
+                        evidence: None,
+                    });
                 }
             }
         }

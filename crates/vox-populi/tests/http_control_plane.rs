@@ -1,6 +1,8 @@
 #![allow(missing_docs)]
-#![allow(clippy::await_holding_lock)] // Env lock serializes transport tests across whole async bodies.
+#![allow(clippy::await_holding_lock)]
+// Env lock serializes transport tests across whole async bodies.
 // `#[serial]` serializes all tests in this binary: `VOX_MESH_*` env is process-wide (see e.g. `VOX_MESH_A2A_MAX_MESSAGES`).
+//! Axum readiness polls `/health`; prune/maintenance paths use bounded condition waits instead of fixed sleeps.
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Mutex;
@@ -15,6 +17,45 @@ use vox_populi::{node_record_for_current_process, transport};
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
+/// Bounded async polling helper for integration tests; panics with `label` on timeout.
+async fn wait_until_async<F, Fut>(
+    label: &str,
+    timeout: Duration,
+    interval: Duration,
+    mut condition: F,
+) where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        if condition().await {
+            return;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            panic!("{label}: timed out after {timeout:?}");
+        }
+        tokio::time::sleep(interval).await;
+    }
+}
+
+/// Waits until the spawned Axum server responds on `/health` instead of a fixed sleep.
+async fn wait_populi_http_ready(base: &str) {
+    let url = format!("{base}/health");
+    wait_until_async(
+        "Populi HTTP server accepting connections (/health)",
+        Duration::from_secs(15),
+        Duration::from_millis(5),
+        || async {
+            match reqwest::get(&url).await {
+                Ok(r) => r.status().is_success(),
+                Err(_) => false,
+            }
+        },
+    )
+    .await;
+}
+
 #[tokio::test]
 #[serial]
 async fn join_list_heartbeat_roundtrip() {
@@ -28,9 +69,8 @@ async fn join_list_heartbeat_roundtrip() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
     let client = PopuliHttpClient::new(&base);
     let empty = client.list_nodes().await.unwrap();
     assert!(empty.nodes.is_empty());
@@ -61,9 +101,8 @@ async fn leave_removes_node() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
     let client = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("gone".into(), None);
     client.join(&node).await.unwrap();
@@ -92,9 +131,8 @@ async fn mesh_token_requires_bearer() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
     let no_auth = PopuliHttpClient::new(&base);
     assert!(no_auth.list_nodes().await.is_err());
 
@@ -120,9 +158,8 @@ async fn health_ok_without_bearer_when_token_required() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
     let url = format!("{base}/health");
     let r = reqwest::get(&url).await.unwrap();
     assert_eq!(r.status(), reqwest::StatusCode::OK);
@@ -144,9 +181,8 @@ async fn join_rejected_when_scope_mismatch() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
     let client = PopuliHttpClient::new(&base);
     let mut node = node_record_for_current_process("wrong-scope".into(), None);
     node.scope_id = Some("cluster-b".into());
@@ -173,9 +209,8 @@ async fn join_ok_when_scope_matches() {
         axum::serve(listener, app).await.unwrap();
     });
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
     let client = PopuliHttpClient::new(&base);
     let mut node = node_record_for_current_process("scoped-node".into(), None);
     node.scope_id = Some("cluster-a".into());
@@ -206,20 +241,21 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let client = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("stale-a".into(), None);
     client.join(&node).await.unwrap();
     assert_eq!(client.list_nodes().await.unwrap().nodes.len(), 1);
 
-    tokio::time::sleep(Duration::from_millis(40)).await;
-    let listed = client.list_nodes().await.unwrap();
-    assert!(
-        listed.nodes.is_empty(),
-        "expected stale node hidden after prune window"
-    );
+    wait_until_async(
+        "stale mesh nodes pruned from list (VOX_MESH_SERVER_STALE_PRUNE_MS)",
+        Duration::from_secs(5),
+        Duration::from_millis(5),
+        || async { client.list_nodes().await.unwrap().nodes.is_empty() },
+    )
+    .await;
 
     server.abort();
     unsafe {
@@ -250,9 +286,9 @@ async fn a2a_deliver_respects_in_memory_cap() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = reqwest::Client::new();
     for i in 0..5 {
         let r = http
@@ -298,9 +334,9 @@ async fn a2a_deliver_rejects_non_numeric_agent_ids() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = reqwest::Client::new();
     for (sender, receiver) in [("bad", "1"), ("1", "r"), ("", "1"), ("1", "  ")] {
         let r = http
@@ -335,9 +371,9 @@ async fn oversized_json_body_returns_413() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let pad = "x".repeat(600 * 1024);
     let http = reqwest::Client::new();
     let r = http
@@ -402,9 +438,9 @@ async fn bootstrap_exchange_works_once() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
-
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let client = reqwest::Client::new();
     let first = client
         .post(format!("{base}/v1/populi/bootstrap/exchange"))
@@ -459,8 +495,9 @@ async fn quarantine_blocks_claim_until_cleared() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("q-worker".into(), None);
     http.join(&node).await.unwrap();
@@ -530,8 +567,9 @@ async fn maintenance_blocks_claim_and_lease_renew() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
 
     let worker = node_record_for_current_process("maint-worker".into(), None);
@@ -634,8 +672,9 @@ async fn maintenance_deadline_expires_and_claims_resume() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
 
     let worker = node_record_for_current_process("maint-deadline-worker".into(), None);
@@ -681,21 +720,28 @@ async fn maintenance_deadline_expires_and_claims_resume() {
         .unwrap();
     assert_eq!(blocked["messages"].as_array().unwrap().len(), 0);
 
-    tokio::time::sleep(Duration::from_millis(150)).await;
-
-    let claimed: serde_json::Value = reqwest::Client::new()
-        .post(format!("{base}/v1/populi/a2a/inbox"))
-        .json(&serde_json::json!({
-            "receiver_agent_id": "901",
-            "claimer_node_id": "maint-deadline-worker",
-        }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    assert_eq!(claimed["messages"].as_array().unwrap().len(), 1);
+    let inbox_client = reqwest::Client::new();
+    wait_until_async(
+        "maintenance_for_ms elapsed; inbox claims resume",
+        Duration::from_secs(5),
+        Duration::from_millis(10),
+        || async {
+            let claimed: serde_json::Value = inbox_client
+                .post(format!("{base}/v1/populi/a2a/inbox"))
+                .json(&serde_json::json!({
+                    "receiver_agent_id": "901",
+                    "claimer_node_id": "maint-deadline-worker",
+                }))
+                .send()
+                .await
+                .unwrap()
+                .json()
+                .await
+                .unwrap();
+            claimed["messages"].as_array().unwrap().len() == 1
+        },
+    )
+    .await;
 
     server.abort();
 }
@@ -711,8 +757,9 @@ async fn a2a_lease_renew_requires_holder() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("lease-a".into(), None);
     http.join(&node).await.unwrap();
@@ -780,8 +827,9 @@ async fn remote_exec_lease_grant_renew_release_happy_path() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("exec-worker".into(), None);
     http.join(&node).await.unwrap();
@@ -838,8 +886,9 @@ async fn exec_lease_list_reflects_grant_and_sweep() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     assert!(http.list_exec_leases().await.unwrap().leases.is_empty());
 
@@ -879,8 +928,9 @@ async fn admin_exec_lease_revoke_removes_row_without_holder_release() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("exec-revoke-worker".into(), None);
     http.join(&node).await.unwrap();
@@ -923,8 +973,9 @@ async fn exec_lease_release_succeeds_under_maintenance_for_holder_cleanup() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("exec-maint-release".into(), None);
     http.join(&node).await.unwrap();
@@ -978,8 +1029,9 @@ async fn remote_exec_lease_grant_idempotent_for_same_holder() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let node = node_record_for_current_process("exec-same".into(), None);
     http.join(&node).await.unwrap();
@@ -1015,8 +1067,9 @@ async fn remote_exec_lease_renew_requires_holder() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     http.join(&node_record_for_current_process("rex-a".into(), None))
         .await
@@ -1055,8 +1108,9 @@ async fn remote_exec_lease_second_holder_gets_409() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     http.join(&node_record_for_current_process("exec-a".into(), None))
         .await
@@ -1092,8 +1146,9 @@ async fn a2a_inbox_non_claimer_honors_max_messages() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
 
     for i in 0..3 {
@@ -1147,8 +1202,9 @@ async fn a2a_inbox_non_claimer_honors_before_message_cursor() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
 
     for i in 0..3 {
@@ -1197,8 +1253,9 @@ async fn a2a_inbox_all_paged_collects_full_inbox() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
 
     for i in 0..5 {
@@ -1239,8 +1296,9 @@ async fn a2a_inbox_pager_next_page_walks_until_empty() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
 
     for i in 0..4 {
@@ -1302,8 +1360,9 @@ async fn exec_lease_store_survives_restart_when_path_configured() {
         let server = tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap();
         });
-        tokio::time::sleep(Duration::from_millis(50)).await;
         let base = format!("http://{}", bound);
+        wait_populi_http_ready(&base).await;
+
         let http = PopuliHttpClient::new(&base);
         http.join(&node_record_for_current_process(
             "persist-worker".into(),
@@ -1330,8 +1389,9 @@ async fn exec_lease_store_survives_restart_when_path_configured() {
     let server2 = tokio::spawn(async move {
         axum::serve(listener2, app2).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base2 = format!("http://{}", bound2);
+    wait_populi_http_ready(&base2).await;
+
     let http2 = PopuliHttpClient::new(&base2);
     http2
         .join(&node_record_for_current_process(
@@ -1380,8 +1440,9 @@ async fn mesh_jwt_hs256_accepts_and_rejects_jti_replay() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let exp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -1426,8 +1487,9 @@ async fn job_result_attestation_requires_full_key_when_fields_present() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let err = http
         .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
@@ -1480,8 +1542,9 @@ async fn job_result_attestation_accepts_valid_signature() {
     let server = tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
+    wait_populi_http_ready(&base).await;
+
     let http = PopuliHttpClient::new(&base);
     let payload = r#"{"status":"ok"}"#;
     let digest = *blake3::hash(payload.as_bytes()).as_bytes();

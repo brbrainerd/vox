@@ -1,0 +1,27 @@
+fn hamming_distance(a: str, b: str) to int {
+    let ca: list[str] = a.chars()
+    let cb: list[str] = b.chars()
+    let mut count: int = 0
+    let mut i: int = 0
+    while i < ca.len() {
+        let mut va: str = ""
+        let mut vb: str = ""
+        match ca[i] {
+            Some(c) => {
+                va = c
+            }
+            None => {}
+        }
+        match cb[i] {
+            Some(c) => {
+                vb = c
+            }
+            None => {}
+        }
+        if va != vb {
+            count = count + 1
+        }
+        i = i + 1
+    }
+    return count
+}

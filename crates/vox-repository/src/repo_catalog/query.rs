@@ -406,7 +406,8 @@ pub fn repo_query_history(
         let Some(repository_id) = repo.repository_id.clone() else {
             continue;
         };
-        let mut cmd = std::process::Command::new("git");
+        let mut cmd = std::process::// vox-arch-check: allow git-exec
+        Command::new("git");
         cmd.current_dir(&cwd).args([
             "log",
             "--oneline",

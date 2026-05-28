@@ -11,7 +11,7 @@ use crate::store::types::StoreError;
 
 pub use vox_db_types::{BuildDependencyShape, BuildHealthSummary, CrateSample, RegressionRow};
 
-/// One warning row returned by [`VoxDb::query_build_warnings`].
+/// One warning row returned by `VoxDb::query_build_warnings`.
 #[derive(Debug, Clone, Serialize)]
 pub struct WarningRow {
     /// Crate that generated the warning.

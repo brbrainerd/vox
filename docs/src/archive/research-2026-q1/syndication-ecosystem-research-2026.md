@@ -1,7 +1,7 @@
 ---
 title: "Syndication SDK Deep Research & Strangler-Fig Migration Plan 2026"
 description: "Honest, code-grounded research on whether to adopt platform SDKs for vox-publisher adapters, with a strangler-fig migration strategy and per-platform ROI analysis."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 11
 last_updated: "2026-04-14"

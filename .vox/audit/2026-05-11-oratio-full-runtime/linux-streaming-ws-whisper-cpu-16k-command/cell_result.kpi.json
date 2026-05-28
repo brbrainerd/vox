@@ -1,0 +1,10 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "linux-streaming-ws-whisper-cpu-16k-command",
+  "evidence": "vox-oratio exposes HTTP POST /transcribe; advertised Oratio WS stream route has no matching server route.",
+  "failure_category": "orchestration",
+  "notes": "Streaming cell remains a transport gap.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "status": "measured_gap"
+}

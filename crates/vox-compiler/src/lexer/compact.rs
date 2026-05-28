@@ -9,11 +9,11 @@ use crate::lexer::token::Token;
 ///
 /// # Example
 ///
-/// ```no_run
-/// // use crate::lexer::compact::compact; // module is pub(crate)
-/// // let src = "fn greet(name: str) to str {\n    return \"Hello, \" + name\n}";
-/// // let out = compact(src);
-/// // assert!(!out.contains('\n'));
+/// ```text
+/// use crate::lexer::compact::compact; // module is pub(crate)
+/// let src = "fn greet(name: str) to str {\n    return \"Hello, \" + name\n}";
+/// let out = compact(src);
+/// assert!(!out.contains('\n'));
 /// ```
 pub fn compact(source: &str) -> String {
     let tokens = lex(source);

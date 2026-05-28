@@ -1,7 +1,7 @@
 ---
 title: "TypeScript boundary policy"
 description: "Official documentation for TypeScript boundary policy for the Vox language. Detailed technical reference, architecture guides, and implem"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 
@@ -13,7 +13,7 @@ archived_date: 2026-04-18
 
 | Class | Decision | Rationale |
 |-------|----------|-----------|
-| **`editors/vox-vscode/**`** | **Keep TS** | VS Code extension host APIs are TS-first; no Rust replacement without a separate LSP bridge. |
+| **`editors/apps/editor/vox-vscode/**`** | **Keep TS** | VS Code extension host APIs are TS-first; no Rust replacement without a separate LSP bridge. |
 | **Generated Vite apps (`dist/app`)** | **Keep TS/React** | Frontend output of `vox build` / `vox run`; migrate only via Vox→TS codegen. |
 | **`.opencode/scripts/**`** | **Keep** per file unless a `vox ci` guard subsumes it; then **wrap** with a one-line delegate to **`vox ci …`** (or `cargo run -p vox-cli -- ci …` when `vox` is not on `PATH`). | Low ROI to rewrite ad-hoc JS; prefer SSOT in Rust for CI. |
 | **Repo policy / guard scripts** | **Migrate to `vox ci`** | Done for doc inventory + SSOT + Mens matrix; wrappers must stay **thin** (see [command surface duals](../ci/command-surface-duals.md)). |

@@ -1,0 +1,16 @@
+fn remove_last(xs: list[int]) to list[int] {
+    let n: int = xs.len()
+    if n == 0 {
+        return xs
+    }
+    let mut result: list[int] = []
+    let mut i: int = 0
+    while i < n - 1 {
+        match xs[i] {
+            Some(v) => { result.push(v) }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}

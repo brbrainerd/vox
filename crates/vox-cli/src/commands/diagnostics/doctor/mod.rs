@@ -6,11 +6,13 @@ mod checks_standard;
 mod common;
 mod output;
 mod provider_policy;
+pub mod project_check;
 
 use anyhow::Result;
 
 /// Run the `vox doctor` environment check and health audit.
 pub async fn run(
+    compile_target: Option<&str>,
     auto_heal: bool,
     test_health: bool,
     build_perf: bool,
@@ -67,7 +69,7 @@ pub async fn run(
         return Ok(());
     }
 
-    checks_standard::run_checks(auto_heal, test_health, &mut checks).await;
+    checks_standard::run_checks(auto_heal, test_health, compile_target, &mut checks).await;
 
     let failed = checks.iter().filter(|c| !c.pass).count();
     if probe {
@@ -129,7 +131,7 @@ mod tests {
     #[tokio::test]
     #[cfg(not(feature = "codex"))]
     async fn extended_doctor_flags_require_codex_build() {
-        let err = run(false, false, true, false, false, false, false)
+        let err = run(None, false, false, true, false, false, false, false)
             .await
             .expect_err("build_perf without codex doctor should error");
         let s = err.to_string();
@@ -142,7 +144,7 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "codex")]
     async fn build_perf_runs_when_codex_enabled() {
-        let r = run(false, false, true, false, false, false, false).await;
+        let r = run(None, false, false, true, false, false, false, false).await;
         assert!(r.is_ok(), "expected build_perf path to complete: {r:?}");
     }
 }

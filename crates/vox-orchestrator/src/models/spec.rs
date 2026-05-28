@@ -16,6 +16,8 @@ pub enum PricingSource {
     /// Compile-time bootstrap JSON (may be stale). Used only as a cold-start fallback.
     #[default]
     Bootstrap,
+    /// We know this model exists but have no pricing data.
+    Unknown,
     /// Fetched from OpenRouter `/api/v1/models` at runtime.
     OpenRouter,
     /// Fetched directly from the Anthropic `/v1/models` API (key-gated).
@@ -55,6 +57,12 @@ pub struct ModelCapabilities {
     pub supports_audio_input: bool,
     #[serde(default)]
     pub supports_audio_output: bool,
+    /// Whether the model accepts file attachments (PDFs, documents, etc.) as input.
+    #[serde(default)]
+    pub supports_file_input: bool,
+    /// Whether the model can consume and produce JSON-Lines streams.
+    #[serde(default)]
+    pub supports_jsonl: bool,
     pub max_context: u64,
     pub tier: ModelTier,
     /// Provider-reported RPM limit (e.g. from OpenRouter `per_request_limits`).
@@ -178,6 +186,30 @@ pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
 }
 
 impl ModelSpec {
+    /// Whether the model supports native web-search grounding.
+    ///
+    /// This is a convenience forwarder to [`ModelCapabilities::supports_web_search`] so callers
+    /// can query the capability directly on the spec without drilling into `.capabilities`.
+    #[must_use]
+    #[inline]
+    pub fn supports_web_search(&self) -> bool {
+        self.capabilities.supports_web_search
+    }
+
+    /// Whether the model accepts file attachments as context.
+    #[must_use]
+    #[inline]
+    pub fn supports_file_input(&self) -> bool {
+        self.capabilities.supports_file_input
+    }
+
+    /// Whether the model supports JSON-Lines streaming output.
+    #[must_use]
+    #[inline]
+    pub fn supports_jsonl(&self) -> bool {
+        self.capabilities.supports_jsonl
+    }
+
     /// Keys for daily quota rows in `provider_usage` (aligned with `usage` module limits; OpenRouter `:free` aggregate, Ollama `*`).
     #[must_use]
     pub fn llm_usage_key(&self) -> LlmUsageKey {
@@ -245,25 +277,7 @@ impl ModelSpec {
     }
 }
 
-/// Default [`ModelConfig::premium_alias`] entries (portable defaults; override in `models.toml`).
-pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
-    let mut map = HashMap::new();
-    let mythos_id = "claude-mythos-preview-20260407".to_string();
-    let sonnet_id = "anthropic/claude-sonnet-4.6".to_string();
-    let pro_planning_id = "google/gemini-2.5-pro-preview".to_string();
-    let r1_id = "deepseek/deepseek-r1".to_string();
 
-    map.insert("codegen".to_string(), mythos_id.clone());
-    map.insert("debugging".to_string(), mythos_id.clone());
-    map.insert("security".to_string(), mythos_id.clone());
-    map.insert("research".to_string(), pro_planning_id.clone());
-    map.insert("planning".to_string(), pro_planning_id.clone());
-    map.insert("review".to_string(), sonnet_id.clone());
-    map.insert("logic".to_string(), r1_id.clone());
-    map.insert("visus".to_string(), "qwen/qwen-3.5-vl".to_string());
-    // Fallback aliases will be handled by the updated registry logic soon
-    map
-}
 
 fn premium_alias_toml_default() -> HashMap<String, String> {
     let m = HashMap::new();
@@ -299,11 +313,14 @@ impl Default for ModelConfig {
                 m.id = local_model.clone();
                 m.canonical_slug = format!("local/{}", local_model);
             }
+            if m.capabilities.max_context == 0 {
+                m.capabilities.max_context = m.max_tokens;
+            }
         }
 
         Self {
             models,
-            premium_alias: built_in_premium_alias(),
+            premium_alias: vox_config::load_model_routing_config().premium_alias,
         }
     }
 }

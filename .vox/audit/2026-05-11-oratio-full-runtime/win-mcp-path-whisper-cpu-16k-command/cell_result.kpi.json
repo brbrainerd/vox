@@ -1,0 +1,16 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "win-mcp-path-whisper-cpu-16k-command",
+  "cer": 0.0976,
+  "compile_pass_at_1": 1.0,
+  "compile_pass_at_k": 1.0,
+  "evidence": "vox-ml-cli oratio eval over spoken corpus fixture manifest",
+  "latency_ms_median": 1094.0,
+  "latency_ms_p95": 1094.0,
+  "notes": "CPU Candle backend measured using audit-local Oratio plugin when VOX_PLUGINS_DIR is supplied.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "semantic_pass_rate": 1.0,
+  "status": "measured",
+  "wer": 0.1071
+}

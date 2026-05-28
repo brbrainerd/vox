@@ -1,7 +1,7 @@
 ---
 title: "Wire Format v1 SSOT"
 description: "Versioned specification for how Vox types are encoded over HTTP between a Vox backend and any TypeScript/React consumer."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Canonical wire format contract; required reading for any Vox API consumer or emitter."
@@ -12,7 +12,7 @@ training_rationale: "Canonical wire format contract; required reading for any Vo
 ## 1. Scope and version
 
 This document is the single source of truth for how Vox types are serialized over HTTP.
-Version: **v1**. The version is embedded in every API base URL (see §2).
+Version: **v1** (logical contract version). Current compiler paths are under **`/api/…`** without a **`/v1`** segment (see §2); breaking generations use a new path prefix (e.g. **`/api/v2/`**, §7).
 
 **Semver discipline for breaking changes:**
 - A *breaking change* increments the major version (v1 → v2) and requires a new base-path segment.
@@ -25,7 +25,7 @@ Version: **v1**. The version is embedded in every API base URL (see §2).
 
 | Concern | Rule |
 |---|---|
-| Base URL | `https://<host>/api/v1/` |
+| Host and path roots | HTTPS base `https://<host>/`. Endpoints live under **`/api/`** with **no `/v1` segment** in current compiler output: **`/api/query/<name>`** (query), **`/api/mutation/<name>`** (mutation), **`/api/<name>`** (server fn). Constants: [`web_prefixes.rs`](../../../crates/vox-compiler/src/web_prefixes.rs). A future breaking generation would move under **`/api/v2/`** (see §7). |
 | Query endpoints (`@endpoint(kind: query)`) | HTTP `GET`; parameters as query string (see §2.1) |
 | Mutation/server endpoints (`@endpoint(kind: mutation)`, `@endpoint(kind: server)`) | HTTP `POST`; JSON body |
 | Request `Content-Type` | `application/json` |
@@ -37,6 +37,8 @@ Version: **v1**. The version is embedded in every API base URL (see §2).
 
 `@endpoint(kind: query)` endpoint parameters are serialized as a query string with keys in **sorted lexicographic order**. Each value is `encodeURIComponent(JSON.stringify(value))`.
 
+**OpenAPI:** generated specs describe each query parameter with a `schema` for the logical type **after** URI decoding and `JSON.parse`. Parameter descriptions reference this section. Tools that generate clients from OpenAPI alone must still apply JSON parsing per value (not treat raw query tokens as primitive strings).
+
 ```vox
 // vox:skip — illustrative endpoint definition
 @endpoint(kind: query)
@@ -45,8 +47,9 @@ fn search_items(filter: str, limit: int) to str { return "" }
 
 Wire URL:
 ```
-GET /api/v1/search_items?filter=%7B%22category%22%3A%22books%22%7D&limit=20
+GET /api/query/search_items?filter=%22books%22&limit=20
 ```
+(Values are JSON text after encoding, per §2.1; the illustrative `filter` value is a quoted JSON string.)
 
 ### 2.2 Mutation body encoding
 
@@ -248,4 +251,4 @@ Wire example:
 
 ## 8. Golden test requirement
 
-Any change to type encoding, the error envelope shape, or query parameter serialization MUST update the corresponding golden test fixtures in `tests/golden/wire-format/` before the change is merged; CI enforces this with `--check` mode.
+Any change to type encoding, the error envelope shape, or query parameter serialization MUST update the corresponding golden test fixtures under `crates/vox-codegen/tests/golden/wire-format/` (see `crates/vox-codegen/tests/wire_format_golden.rs`) before the change is merged. Expand that directory as new wire fixtures are added.

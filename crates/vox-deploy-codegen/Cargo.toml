@@ -11,9 +11,9 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-# vox-container is a temporary Phase 1 dep: deploy_target.rs uses ContainerRuntime trait
-# for OCI build/push/tag/login operations. Removed in Phase 5 when vox-container is deleted.
-vox-container.workspace = true
+# D-9-rescope step 2: migrated from vox-container (L3) to vox-container-types (L0).
+# Only pure types (BuildOpts, ContainerRuntime trait) are needed here; no runtime backends.
+vox-container-types.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde = { workspace = true }

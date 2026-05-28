@@ -1,0 +1,23 @@
+// Base source for plan-032-convert-to-result.
+//
+// `lookup` returns Option[int] today; the plan asks the model to
+// convert it to Result[int, FooError] using the existing FooError ADT.
+
+type FooError =
+    | NotFound(text: str)
+
+fn lookup(id: str) to Option[int] {
+    if len(id) is 0 {
+        return None
+    }
+    return Some(42)
+}
+
+@test
+fn test_lookup_empty_returns_none() to Unit {
+    let r = lookup("")
+    match r {
+        None    => assert(true)
+        Some(_) => assert(false)
+    }
+}

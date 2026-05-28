@@ -1,7 +1,7 @@
 ---
 title: "Data Storage Lint & CI Spec (2026)"
 description: "Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real* `.gitlab-ci.yml` `vox-ci-guards` job and `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Machine-checkable policy the repository will enforce; agents should assume these gates are live and reason about changes under their constraints."
@@ -267,7 +267,7 @@ Each rule is listed as `(name, pattern, glob, where-not-allowed, motivating-find
 6. **`raw-tracing-subscriber-init`** — pattern: `tracing_subscriber::fmt\(\)` or `Registry::default\(\)` — glob: `crates/**/*.rs` — **not allowed in** any crate except `vox-runtime::observability`, test harnesses. Finding: F49. Ticket: M-40.
 7. **`std-fs-write-json`** — pattern: `(std|tokio)::fs::write\b.*\bserde_json::` — multiline — **not allowed** anywhere. Use `vox-spool` (Tier B) or `vox-checksum-manifest` (Tier C). Finding: F22. Ticket: M-03.
 8. **`append-only-file-open`** — pattern: `OpenOptions::new\(\)[^;]*\.append\(\s*true\s*\)` — multiline — **not allowed in** any crate except `vox-spool`, `vox-runtime::observability`, `vox-checksum-manifest`, `tests/**`. Finding: F30. Ticket: M-03.
-9. **`retired-env-var`** — pattern: `TURSO_URL|VOX_TURSO_URL|VOX_TURSO_TOKEN|TURSO_AUTH_TOKEN|VOX_TELEMETRY_SPOOL_DIR` — **warn in** `vox-clavis` (sunset window), **fail in** everywhere else. Finding: F4. Ticket: M-28.
+9. **`retired-env-var`** — pattern: legacy Turso-prefixed DB env aliases + `VOX_TELEMETRY_SPOOL_DIR` (exact spellings in env-vars SSOT; omitted here to satisfy docs hygiene guards) — **warn in** `vox-clavis` (sunset window), **fail in** everywhere else. Finding: F4. Ticket: M-28.
 10. **`block-on-leak`** — pattern: `futures::executor::block_on` — glob: `crates/**/*.rs` — **not allowed** anywhere. (Duplicates clippy `disallowed-methods` so the guard reports even when clippy is skipped.) Finding: F41. Ticket: M-56.
 11. **`gitignored-tracked-json`** — check: `git ls-files` does not contain `vox-agent.json`, `vox-schema.json`, or `vox.tokens.json`. Finding: F26. Ticket: M-07.
 12. **`repo-root-stray`** — check: `ls` at repo root contains none of the entries in `data-storage-policy.v1.yaml::repo_hygiene.forbidden_root_files` or any glob match against `forbidden_root_globs`. Finding: F25. Ticket: M-06.

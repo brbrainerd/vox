@@ -1,6 +1,6 @@
 ﻿{
     "schema_version":  1,
-    "description":  "Canonical script / guard inventory: ownership, CI usage, replacement command.",
+    "description":  "Canonical script / guard inventory: ownership, CI usage, replacement command. Many legacy shell paths were migrated to `vox ci` / `vox run`; rows may reference files no longer in-tree — use `replacement` and `status` (removed/legacy/operator) as SSOT.",
     "families":  [
                      {
                          "id":  "ci-guards-rust",
@@ -55,7 +55,7 @@
                     {
                         "path":  "scripts/check_vox_cli_no_vox_dei.sh",
                         "invoked_by_ci":  false,
-                        "replacement":  "vox ci no-vox-dei-import",
+                        "replacement":  "vox ci no-dei-import",
                         "status":  "wrapper"
                     },
                     {
@@ -67,13 +67,13 @@
                     {
                         "path":  "scripts/examples_strict_parse.sh",
                         "invoked_by_ci":  false,
-                        "replacement":  "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test parity_test",
+                        "replacement":  "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test golden_examples_strict_parse",
                         "status":  "wrapper"
                     },
                     {
                         "path":  "scripts/examples_strict_parse.ps1",
                         "invoked_by_ci":  false,
-                        "replacement":  "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test parity_test",
+                        "replacement":  "VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test golden_examples_strict_parse",
                         "status":  "wrapper"
                     },
                     {
@@ -92,7 +92,8 @@
                         "path":  "scripts/populi_release_gate.ps1",
                         "invoked_by_ci":  false,
                         "replacement":  "vox ci mesh-gate --profile m1m4",
-                        "status":  "wrapper"
+                        "status":  "removed",
+                        "notes":  "Path removed from tree; use replacement."
                     },
                     {
                         "path":  "scripts/populi/release_training_gate.sh",
@@ -108,11 +109,11 @@
                         "notes":  "Delegates to Rust isolated runner; --detach via nohup"
                     },
                     {
-                        "path":  "scripts/ci/prep_mens_mix_inputs.sh",
+                        "path":  "scripts/ci/corpus_prep.vox",
                         "invoked_by_ci":  true,
-                        "replacement":  null,
-                        "status":  "ci-helper",
-                        "notes":  "Writes minimal JSONL under mens/data for strict vox mens corpus mix in CI"
+                        "replacement":  "cargo run -p vox-cli -- run --interp scripts/ci/corpus_prep.vox",
+                        "status":  "native-vox",
+                        "notes":  "Writes minimal JSONL under mens/data for strict vox mens corpus mix in CI (replaces prep_mens_mix_inputs.sh)"
                     },
                     {
                         "path":  "scripts/mens/release_training_gate.sh",
@@ -144,14 +145,15 @@
                         "path":  "scripts/run_qwen35_qlora_real_4080.ps1",
                         "invoked_by_ci":  false,
                         "replacement":  "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_real --device cuda --background --log-dir mens/runs/logs (SSOT base model when --model omitted; build: cargo vox-cuda-release)",
-                        "status":  "operator",
-                        "notes":  "Windows helper: build + background QLoRA (Qwen 3.5 SSOT). Deprecated alias: scripts/run_qwen25_qlora_real_4080.ps1. See docs/src/architecture/mens-training-ssot.md"
+                        "status":  "removed",
+                        "notes":  "Script path removed; use replacement via `vox mens train`. See docs/src/architecture/mens-training-ssot.md"
                     },
                     {
                         "path":  "scripts/populi/dogfood_qlora_cuda.ps1",
                         "invoked_by_ci":  false,
                         "replacement":  "vox mens train --preset qwen_4080_16g --data-dir target/dogfood --output-dir mens/runs/qwen35_qlora_dogfood --device cuda --background --log-dir mens/runs/logs",
-                        "status":  "operator"
+                        "status":  "removed",
+                        "notes":  "Path removed; use replacement."
                     },
                     {
                         "path":  "scripts/install.sh",
@@ -191,14 +193,15 @@
                         "path":  "scripts/populi/cursor_background_train_example.ps1",
                         "invoked_by_ci":  false,
                         "replacement":  "vox mens train --background --log-dir ...",
-                        "status":  "operator"
+                        "status":  "removed",
+                        "notes":  "Path removed; use replacement."
                     },
                     {
                         "path":  "scripts/populi/vox_continuous_trainer.ps1",
                         "invoked_by_ci":  false,
                         "replacement":  "vox mens corpus … + vox mens pipeline",
-                        "status":  "legacy",
-                        "notes":  "Deprecated in-script; bat-driven loop"
+                        "status":  "removed",
+                        "notes":  "Path removed; use replacement."
                     },
                     {
                         "path":  "scripts/toestub_self_apply.sh",

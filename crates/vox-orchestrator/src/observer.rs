@@ -92,7 +92,7 @@ impl Observer {
     /// Observe a file at `path` and produce an `ObservationReport`.
     ///
     /// This performs a lightweight structural analysis — no LLM is invoked.
-    /// For Rust files, delegates to [`observe_rust_file`] for richer diagnostics.
+    /// For Rust files, delegates to `observe_rust_file` for richer diagnostics.
     pub fn observe_file(&self, session_id: &str, task_id: &str, path: &Path) -> ObservationReport {
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
         let report = match ext {
@@ -323,7 +323,7 @@ impl Observer {
             .enumerate()
             .max_by_key(|&(_, c)| *c)
             .unwrap_or((0, &0));
-        let dominant_action = all_actions[dom_idx].clone();
+        let dominant_action = all_actions[dom_idx];
 
         let had_escalation = task_reports
             .iter()

@@ -1,0 +1,11 @@
+[package]
+name = "compile-suite-root"
+version = "0.0.0"
+
+[workspace]
+members = ["packages/desktop", "packages/server"]
+
+[bundle]
+identifier = "dev.vox.compile_suite"
+display_name = "Compile Suite Fixture"
+version = "0.0.0"

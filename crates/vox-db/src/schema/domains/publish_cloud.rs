@@ -127,6 +127,14 @@ CREATE TABLE IF NOT EXISTS publication_approvals (
     content_sha3_256 TEXT NOT NULL,
     approver TEXT NOT NULL,
     approved_at_ms INTEGER NOT NULL,
+    -- Phase D solo-critic gate columns. `approver_role` is one of
+    --   'human' | 'audited_llm_critic'
+    -- enforced at the Rust layer (Turso does not support CHECK).
+    -- `critic_fingerprint_json` and `critic_report_uri` are populated only
+    -- when approver_role = 'audited_llm_critic'.
+    approver_role TEXT NOT NULL DEFAULT 'human',
+    critic_fingerprint_json TEXT,
+    critic_report_uri TEXT,
     PRIMARY KEY (publication_id, content_sha3_256, approver)
 );
 

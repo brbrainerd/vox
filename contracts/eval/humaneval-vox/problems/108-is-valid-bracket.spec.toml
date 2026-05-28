@@ -1,0 +1,11 @@
+[problem]
+id = "108"
+title = "is_valid_bracket"
+prompt = """
+Given a string of only '(' and ')', check if it is a balanced bracket sequence. Return true if balanced, false otherwise.
+"""
+signature = "fn is_valid_bracket(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "stack"]

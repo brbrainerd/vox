@@ -1,7 +1,7 @@
 //! Sensitivity classifier and privacy-level-aware routing (D8).
 //!
-//! [`PrivacyClassifier`] maps structured detection signals to a [`PrivacyLevel`].
-//! Adds [`route_for_level`] on top of the existing [`crate::privacy_router::PrivacyRouter`]
+//! `PrivacyClassifier` maps structured detection signals to a [`PrivacyLevel`].
+//! Adds `route_for_level` on top of the existing [`crate::privacy_router::PrivacyRouter`]
 //! so callers can route by level rather than raw PII bool.
 //! All logic is pure: no async, no I/O.
 

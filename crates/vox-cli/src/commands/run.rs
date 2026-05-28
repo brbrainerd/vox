@@ -1,4 +1,5 @@
 // toestub-ignore(arch/sprawl)
+use crate::cli_args::BuildMode;
 use crate::commands::build;
 use crate::config;
 use crate::frontend;
@@ -34,52 +35,62 @@ pub fn parse_run_mode_from_str(s: &str) -> RunMode {
     }
 }
 
+/// Run a `.vox` file via the tree-walking HIR interpreter (no native compile step).
+/// Extracted so it can be invoked from both `--mode interp` and the `--mode auto`
+/// fallback path when `script-execution` Cargo feature is not compiled in.
+async fn run_interp(file: &Path, _args: &[String]) -> Result<()> {
+    let source = std::fs::read_to_string(file).context("Failed to read file")?;
+
+    let mut caps = std::collections::HashSet::new();
+    let mut has_caps_directive = false;
+    if let Some(first_line) = source.lines().next() {
+        if first_line.starts_with("// vox:caps ") {
+            has_caps_directive = true;
+            for cap in first_line
+                .trim_start_matches("// vox:caps ")
+                .split_whitespace()
+            {
+                caps.insert(cap.to_string());
+            }
+        }
+    }
+
+    let tokens = vox_compiler::lexer::lex(&source);
+    let module = vox_compiler::parser::parse_script(tokens)
+        .map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
+    if has_caps_directive {
+        interpreter.caps = Some(caps);
+    }
+    if let Ok(abs) = std::fs::canonicalize(file) {
+        interpreter.set_source_path(abs);
+    } else {
+        interpreter.set_source_path(file.to_path_buf());
+    }
+
+    interpreter
+        .run_module(&lowered)
+        .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
+
+    let res = interpreter
+        .call("main", vec![])
+        .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
+    // Only print the return value when it's meaningful (non-Null). Suppresses
+    // the spurious trailing `Null` that scripts using bare `return;` produced.
+    if !matches!(res, vox_compiler::eval::value::VoxValue::Null) {
+        println!("{:?}", res);
+    }
+
+    vox_compiler::eval::builtins::vox_flush_exit_commands();
+    Ok(())
+}
+
 /// Execute the `vox run` command (dispatch to App or Script mode).
 pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     if mode == RunMode::Interp {
-        let source = std::fs::read_to_string(file).context("Failed to read file")?;
-
-        let mut caps = std::collections::HashSet::new();
-        let mut has_caps_directive = false;
-        if let Some(first_line) = source.lines().next() {
-            if first_line.starts_with("// vox:caps ") {
-                has_caps_directive = true;
-                for cap in first_line
-                    .trim_start_matches("// vox:caps ")
-                    .split_whitespace()
-                {
-                    caps.insert(cap.to_string());
-                }
-            }
-        }
-
-        let tokens = vox_compiler::lexer::lex(&source);
-        // Use parse_script so top-level statements are wrapped in a synthetic
-        // fn main() — this is what makes `vox run --interp scripts/foo.vox`
-        // work without requiring a hand-written fn main (audit item A.1).
-        let module = vox_compiler::parser::parse_script(tokens)
-            .map_err(|e| anyhow::anyhow!("Parse failed: {:?}", e))?;
-        let lowered = vox_compiler::hir::lower::lower_module(&module);
-
-        // Use default high step limit for non-looping scripts typically used as A2A
-        let mut interpreter = vox_compiler::eval::Interpreter::new(10_000_000);
-        if has_caps_directive {
-            interpreter.caps = Some(caps);
-        }
-
-        interpreter
-            .run_module(&lowered)
-            .map_err(|e| anyhow::anyhow!("Eval failed: {:?}", e))?;
-
-        // Pass CLI args to main if we can, but main takes no args currently.
-        let res = interpreter
-            .call("main", vec![])
-            .map_err(|e| anyhow::anyhow!("Eval failed calling main: {:?}", e))?;
-        println!("{:?}", res);
-
-        vox_compiler::eval::builtins::vox_flush_exit_commands();
-
-        return Ok(());
+        return run_interp(file, args).await;
     }
 
     let use_script = match mode {
@@ -117,8 +128,24 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
 
     #[cfg(not(feature = "script-execution"))]
     if use_script {
+        if matches!(mode, RunMode::Auto) {
+            // Build was compiled without `script-execution`. Auto mode falls
+            // through to the always-available HIR interpreter rather than
+            // emitting an undiscoverable feature-gate error. Users who want
+            // native script execution can build with `--features
+            // script-execution` or pass `--mode script` explicitly to opt in
+            // to the error path below.
+            tracing::info!(
+                target: "vox.script",
+                path = %file.display(),
+                "script-execution feature absent; auto-falling back to --mode interp"
+            );
+            return run_interp(file, args).await;
+        }
         anyhow::bail!(
-            "script run mode requires `vox` built with `--features script-execution` (file: {})",
+            "`vox run --mode script` requires a vox build with `--features script-execution`. \
+             Try `vox run --mode interp {}` (interpreter is always available), \
+             or rebuild with `cargo build --features script-execution`.",
             file.display()
         );
     }
@@ -131,9 +158,11 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
         file,
         &out_dir,
         None,
+        None,
         false,
         false,
-        crate::cli_args::BuildMode::App,
+        BuildMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await?;
 

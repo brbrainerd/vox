@@ -1,8 +1,8 @@
 ---
 title: "Reference: Type System"
-description: "Deep dive into the Vox type system: ADTs, generics, zero-null discipline, and bidirectional inference."
-category: "reference"
-last_updated: "2026-04-05"
+description: "Deep dive into the Vox type system: ADTs, parametric types (list/Option/Result/Id), zero-null discipline, and bidirectional inference."
+category: "Language Reference"
+last_updated: "2026-05-11"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -107,6 +107,14 @@ fn get_user_email(id: int) to Option[str] {
 
 ---
 
+## 6b. Parametric types and generics (current surface)
+
+Vox supports **type constructors** such as `list[T]`, `map[K, V]`, `Option[T]`, `Result[T, E]`, and branded identifiers `Id[Entity]` at the language level. These are the primary **generic-style** forms authors use today.
+
+**Not yet a full Rust-like trait system:** user-defined type-parameter declarations on `fn` / `type` (beyond what the compiler accepts for specific builtins) remain roadmap-governed — see [`gui-native-roadmap-status-2026.md`](../architecture/gui-native-roadmap-status-2026.md) and language enforcement phases. Prefer concrete `type` aliases and ADTs until a trait / constraint story is explicitly shipped.
+
+---
+
 ## 7. Bidirectional Type Inference
 
 You rarely need Type annotations for local variables. Vox infers them from the right-hand side or from how the variable is used.
@@ -144,5 +152,7 @@ A collection of key-value pairs.
 - **[Language Guide](./ref-syntax.md)** — General syntax overview.
 - **[Decorator Registry](./ref-decorators.md)** — How types interact with `@table` and `@endpoint`.
 - **[Functions](./ref-syntax.md)** — Detailed function signature reference.
+- **[Literals](./ref-literals.md)** — Numeric and string literal rules.
+- **[Diagnostic ID policy](./ref-diagnostic-id-policy.md)** — Stable compiler vs audit identifiers.
 
 

@@ -1,0 +1,18 @@
+fn count_uppercase(s: str) to int {
+    let chars: list[str] = s.chars()
+    let mut count: int = 0
+    let mut i: int = 0
+    while i < chars.len() {
+        match chars[i] {
+            Some(c) => {
+                let code: int = c.ord()
+                if code >= 65 and code <= 90 {
+                    count = count + 1
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return count
+}

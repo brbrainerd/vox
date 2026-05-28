@@ -1,20 +1,20 @@
 //! Shared Route Intermediate Representation — the single source of truth for HTTP route
 //! contracts that both Rust (Axum) and TypeScript (Express) codegen emit against.
 //!
-//! Neither [`crate::codegen_rust::emit::http`] nor [`crate::codegen_ts::routes`] should
+//! Neither `crate::codegen_rust::emit::http` nor [`crate::codegen_ts::routes`] should
 //! re-derive route metadata independently — they should consume [`RouteIR`] slices instead.
 //!
 //! ## Design Contract
 //!
 //! * `RouteIR` carries only what both Rust and TS backends need: method, path, param names,
 //!   and return-type presence. Body stmts stay in HIR and are emitted by each backend.
-//! * Lowering is additive: the existing HIR structs ([`HirRoute`], [`HirServerFn`]) are
+//! * Lowering is additive: the existing HIR structs ([`HirRoute`], `HirServerFn`) are
 //!   unchanged — `RouteIR` is a read-only projection computed at codegen time.
-use vox_compiler::hir::{HirEndpointFn, HirHttpMethod, HirModule, HirParam, HirRoute};
+use vox_compiler::hir::{HirEndpointFn, HirModule, HirParam};
 
 /// Unified HTTP route contract used by Rust and TypeScript backends.
 ///
-/// Every HTTP endpoint derivable from a Vox module (explicit `route` or `@endpoint`)
+/// Every HTTP endpoint derivable from a Vox module (explicit `route` or `@query`/`@mutation`/`@server`)
 /// maps to one `RouteIR` entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteIR {
@@ -66,17 +66,6 @@ impl RouteMethod {
     }
 }
 
-impl From<HirHttpMethod> for RouteMethod {
-    fn from(m: HirHttpMethod) -> Self {
-        match m {
-            HirHttpMethod::Get => Self::Get,
-            HirHttpMethod::Post => Self::Post,
-            HirHttpMethod::Put => Self::Put,
-            HirHttpMethod::Delete => Self::Delete,
-        }
-    }
-}
-
 /// A single named parameter carried by this route.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteParam {
@@ -106,21 +95,6 @@ pub enum RouteKind {
 }
 
 impl RouteIR {
-    /// Lower a `HirRoute` (explicit route block) into a `RouteIR`.
-    #[must_use]
-    pub fn from_hir_route(route: &HirRoute) -> Self {
-        let method = RouteMethod::from(route.method);
-        let contract_key = format!("{} {}", method.as_uppercase_str(), route.path);
-        Self {
-            method,
-            path: route.path.clone(),
-            contract_key,
-            params: Vec::new(), // explicit routes extract from `request` JSON dynamically
-            has_return_value: route.return_type.is_some(),
-            kind: RouteKind::Explicit,
-        }
-    }
-
     /// Lower a `HirServerFn` into a `RouteIR` with typed params.
     #[must_use]
     pub fn from_server_fn(sf: &HirEndpointFn, kind: RouteKind) -> Self {
@@ -147,17 +121,6 @@ impl RouteIR {
 #[must_use]
 pub fn lower_module_routes(module: &HirModule) -> Vec<RouteIR> {
     let mut out: Vec<RouteIR> = Vec::new();
-
-    // Explicit HTTP routes
-    let mut http_routes: Vec<&HirRoute> = module.routes.iter().collect();
-    http_routes.sort_by(|a, b| {
-        a.path
-            .cmp(&b.path)
-            .then_with(|| (a.method as u8).cmp(&(b.method as u8)))
-    });
-    for r in http_routes {
-        out.push(RouteIR::from_hir_route(r));
-    }
 
     // Server / query / mutation functions
     let mut fns: Vec<(&HirEndpointFn, RouteKind)> = module
@@ -194,7 +157,7 @@ mod tests {
     #[test]
     fn lower_module_routes_yields_stable_order() {
         let src = r#"
-@endpoint(kind: server) fn greet(name: str) to str {
+@server fn greet(name: str) to str {
     return name
 }
 "#;
@@ -217,7 +180,7 @@ mod tests {
     #[test]
     fn route_ir_contract_key_matches_hir_contract() {
         let src = r#"
-@endpoint(kind: server) fn ping() to str {
+@server fn ping() to str {
     return "pong"
 }
 "#;
@@ -237,7 +200,7 @@ mod tests {
     #[test]
     fn route_ir_query_uses_get_contract_key() {
         let src = r#"
-@endpoint(kind: query) fn items() to int {
+@query fn items() to int {
     return 0
 }
 "#;

@@ -9,25 +9,33 @@
 pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
 mod build_lock;
-mod build_service;
+pub use vox_cli_core::build_service;
 pub mod cli_actions;
 pub mod cli_args;
+/// Re-exported from `vox-codegen` for callers that drive the build pipeline
+/// without taking a direct `vox-codegen` dependency.
+pub use vox_codegen::codegen_rust::RustAppShell;
 mod cli_dispatch;
 mod codex_cmd;
 mod command_contract;
-mod command_registry_model;
+pub mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
-pub mod artifact_policy;
+pub use vox_cli_core::artifact_policy;
 pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
-/// External `vox-dei-d` RPC boundary (method id SSOT).
+/// External `vox-orchestrator-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).
 pub mod diagnostics;
-mod dispatch;
-pub mod dispatch_protocol;
+/// Daemon newline-JSON IPC (`call_daemon`, …) — SSOT in `vox-cli-core::daemon_ipc`.
+pub mod dispatch {
+    pub use vox_cli_core::daemon_ipc::dispatch::*;
+}
+pub mod dispatch_protocol {
+    pub use vox_cli_core::daemon_ipc::dispatch_protocol::*;
+}
 /// Vite/React scaffold helpers and shared **pnpm** executable resolution (`pnpm_executable`).
 pub mod frontend;
 pub mod fs_utils;
@@ -45,9 +53,12 @@ mod latin_cmd;
 ))]
 mod lock_telemetry;
 pub mod pipeline;
-mod process_supervision;
+pub mod process_supervision {
+    pub use vox_cli_core::daemon_ipc::process_supervision::*;
+}
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
+pub mod telemetry_corpus_feedback_sink;
 pub mod telemetry_sink;
 pub mod telemetry_spool;
 pub mod templates;
@@ -92,7 +103,7 @@ pub use vox_cli_core::init_tracing_for_cli;
 #[command(
     name = "vox",
     about = "The Vox AI-native language compiler",
-    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested",
+    long_about = "The Vox AI-native language compiler.\n\nDiscover commands dynamically:\n  vox commands --recommended\n  vox commands --format json --include-nested\n\nVisualization:\n  vox gui           — launch the native agent dashboard and command catalog",
     version = VOX_VERSION
 )]
 pub struct VoxCliRoot {
@@ -190,6 +201,12 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::BuildArgs,
     },
+    /// Compile native / mobile packaging artifacts (`vox fabrica compile`).
+    Compile {
+        /// Arguments.
+        #[command(flatten)]
+        args: cli_args::CompileArgs,
+    },
     /// Type-check a Vox source file without producing output
     Check {
         /// Arguments.
@@ -216,6 +233,7 @@ pub enum Cli {
         args: cli_args::ScriptArgs,
     },
     #[cfg(not(feature = "script-execution"))]
+    /// Execute a standalone Vox script
     #[command(name = "script")]
     ScriptStub {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
@@ -226,6 +244,12 @@ pub enum Cli {
         /// Arguments.
         #[command(flatten)]
         args: cli_args::DevArgs,
+    },
+    /// Emit focused codegen artifacts (`emit client`, …).
+    Emit {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::emit::EmitCmd,
     },
     /// In-process orchestrator event dashboard (requires `--features live`)
     #[cfg(feature = "live")]
@@ -366,11 +390,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::visus::VisusCmd,
     },
-    /// Launch the local orchestration dashboard in a browser (`vox dashboard`).
-    #[cfg(feature = "dashboard")]
-    Dashboard {
+    /// Launch the native Vox GUI (Tauri) for real-time orchestration visualization and discovery.
+    /// Use --command <view> to open directly to a specific surface (e.g., 'catalog', 'flow').
+    #[cfg(feature = "gui")]
+    Gui {
         #[command(flatten)]
-        args: crate::commands::dashboard::DashboardArgs,
+        args: cli_args::GuiArgs,
     },
     /// Toolchain upgrade: `--source release` (checksums.txt binary) or `--source repo` (git + `cargo install --locked`); never edits `Vox.toml` / `vox.lock`.
     Upgrade {
@@ -450,6 +475,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::db_cli::DbCli,
     },
+    /// Hybrid retrieval over memory logs and project DB (`memory search`).
+    Memory {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::memory_cli::MemoryCmd,
+    },
     /// Manage the `.vox/repositories.yaml` cross-repo catalog.
     Catalog {
         /// Subcommand.
@@ -512,7 +543,7 @@ pub enum Cli {
         args: commands::drift_check::DriftCheckArgs,
     },
 
-    /// Unified research operations: infrastructure (up/down/status) and eval.
+    /// Unified research operations: infrastructure (up/down/status), eval harness, and `run` (`run_research`).
     Research {
         /// Subcommand.
         #[command(subcommand)]
@@ -571,6 +602,40 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::snapshot::SnapshotCmd,
     },
+
+    /// Roll back the orchestration stack or task execution state using the vox-bounded-fs ledger.
+    Rollback {
+        /// Optional specific task or transaction ID to roll back.
+        #[arg(long)]
+        id: Option<String>,
+    },
+
+    /// Workflow introspection: dry-run schedule preview and analysis (P1-T8).
+    Workflow {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::workflow::WorkflowCmd,
+    },
+
+    /// Dispatch-time routing preview — project what the dispatcher would do (P2-T6).
+    Dispatch {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::dispatch::DispatchCmd,
+    },
+}
+
+/// A sink that emits each event as a compact JSON line to stderr.
+/// Activated when `VOX_TELEMETRY=debug`. Useful for local development and
+/// diagnosing telemetry plumbing without reading the database.
+struct StderrDebugSink;
+
+impl vox_telemetry::TelemetryRecorder for StderrDebugSink {
+    fn record(&self, event: &vox_telemetry::TelemetryEvent) {
+        if let Ok(line) = serde_json::to_string(event) {
+            eprintln!("[vox-telemetry:debug] {line}");
+        }
+    }
 }
 
 /// Register the process-wide telemetry sinks.
@@ -592,6 +657,25 @@ pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
         crate::telemetry_spool::spool_root(),
     )));
 
+    // CR-L8 corpus-feedback events sink (P2.1c, ratified 2026-05-15).
+    // Filters to the four CR-L8 telemetry variants (LintFinding, LintAutofix,
+    // RepairAttempt, RepairOutcome) and persists them to
+    // `<cwd>/contracts/reports/corpus-feedback-events/<YYYY-MM-DD>.jsonl`. The
+    // `vox audit corpus-feedback` subcommand reads these files to aggregate
+    // the quarterly substantive report. Override / disable via
+    // `$VOX_CORPUS_FEEDBACK_EVENTS_DIR`.
+    if let Some(root) = crate::telemetry_corpus_feedback_sink::resolve_events_root() {
+        sinks.push(Arc::new(
+            crate::telemetry_corpus_feedback_sink::CorpusFeedbackJsonlSink::new(root),
+        ));
+    }
+
+    // Phase D: if VOX_TELEMETRY=debug, also emit every event as JSON to stderr.
+    let cfg = vox_telemetry::TelemetryConfig::from_env();
+    if cfg.debug_to_stderr {
+        sinks.push(Arc::new(StderrDebugSink));
+    }
+
     vox_telemetry::set_global_recorder(Arc::new(CompositeRecorder::new(sinks)));
 }
 
@@ -601,13 +685,23 @@ pub async fn run_vox_cli() -> anyhow::Result<()> {
     run_vox_cli_from_parsed(root).await
 }
 
-/// Run after parsing a [`VoxCliRoot`]: optional `RUST_LOG=debug` for `--verbose`, [`init_tracing_for_cli`], then dispatch.
+/// Run after parsing a [`VoxCliRoot`]: global env hints (`VOX_CLI_*`, `RUST_LOG`), [`init_tracing_for_cli`], then dispatch.
 #[allow(unsafe_code)]
 pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
-    if root.global.verbose > 0 && std::env::var_os("RUST_LOG").is_none() {
-        // SAFETY: CLI startup is single-threaded before Tokio workers read `RUST_LOG`.
-        unsafe {
-            crate::config::set_process_env("RUST_LOG", "debug");
+    // SAFETY: CLI startup is single-threaded before Tokio workers read env vars used by tracing/subcommands.
+    unsafe {
+        if root.global.json {
+            crate::config::set_process_env("VOX_CLI_GLOBAL_JSON", "1");
+        }
+        if root.global.quiet {
+            crate::config::set_process_env("VOX_CLI_QUIET", "1");
+        }
+        if std::env::var_os("RUST_LOG").is_none() {
+            if root.global.verbose > 0 {
+                crate::config::set_process_env("RUST_LOG", "debug");
+            } else if root.global.quiet {
+                crate::config::set_process_env("RUST_LOG", "warn");
+            }
         }
     }
     init_tracing_for_cli();
@@ -618,3 +712,5 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
     apply_global_opts(&root.global);
     cli_dispatch::dispatch_cli(root.cmd, &root.global).await
 }
+
+pub mod utils;

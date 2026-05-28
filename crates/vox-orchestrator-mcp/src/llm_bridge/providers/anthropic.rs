@@ -52,17 +52,17 @@ pub(crate) async fn http_anthropic_direct(
     spec: &vox_orchestrator::models::ModelSpec,
     model: &str,
     system: &str,
-    user: vox_openai_wire::ChatMessageContent<'_>,
+    user: vox_openai::ChatMessageContent<'_>,
     max_tokens: u64,
     temperature: Option<f32>,
     top_p: Option<f32>,
 ) -> Result<(String, u32, u32, HttpCallMetadata), HttpInferError> {
     let user_text = match user {
-        vox_openai_wire::ChatMessageContent::Text(t) => t,
-        vox_openai_wire::ChatMessageContent::Parts(ref p) => p
+        vox_openai::ChatMessageContent::Text(t) => t,
+        vox_openai::ChatMessageContent::Parts(ref p) => p
             .iter()
             .find_map(|part| match part {
-                vox_openai_wire::ChatMessagePart::Text { text } => Some(*text),
+                vox_openai::ChatMessagePart::Text { text } => Some(*text),
                 _ => None,
             })
             .unwrap_or(""),

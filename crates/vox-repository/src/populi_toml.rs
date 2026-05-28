@@ -7,6 +7,22 @@ use serde::Deserialize;
 use thiserror::Error;
 use tracing::warn;
 
+/// Mesh transport options (TLS, WireGuard hints).
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct VoxMeshTransport {
+    /// PEM-encoded TLS certificate path. When `None`, server runs plain HTTP.
+    pub tls_cert_path: Option<std::path::PathBuf>,
+    /// PEM-encoded private key path. Required when `tls_cert_path` is set.
+    pub tls_key_path: Option<std::path::PathBuf>,
+    /// Optional minimum TLS version label: `"1.2"` or `"1.3"` (default `"1.3"`).
+    pub tls_min_version: Option<String>,
+    /// Documentation pointer: when set, operators are running behind a
+    /// WireGuard sidecar (e.g., Tailscale Funnel). The server itself does
+    /// nothing with this value — it is read by `vox doctor mesh`.
+    pub wireguard_endpoint: Option<String>,
+}
+
 /// Parsed mesh coordination table from `Vox.toml` (`[mesh]` or legacy `[mens]`).
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
 #[serde(default)]
@@ -27,6 +43,9 @@ pub struct VoxMeshToml {
     /// Maps to `OrchestratorConfig::populi_inference_base_url` (operators still set `POPULI_URL` unless tooling applies this).
     #[serde(default)]
     pub inference_base_url: Option<String>,
+    /// Optional `[mesh.transport]` sub-table for TLS and WireGuard hints.
+    #[serde(default)]
+    pub transport: Option<VoxMeshTransport>,
 }
 
 /// Error reading or parsing `Vox.toml` for the mesh section only.
@@ -62,6 +81,7 @@ fn is_empty_mesh(m: &VoxMeshToml) -> bool {
         && m.scope_id.is_none()
         && m.advertise_gpu.is_none()
         && m.inference_base_url.is_none()
+        && m.transport.is_none()
         && labels_empty
 }
 
@@ -176,5 +196,30 @@ control_url = "http://mens-ignored.example"
     fn missing_file_returns_none() {
         let p = Path::new("/nonexistent/Vox.toml");
         assert!(read_vox_populi_toml(p).unwrap().is_none());
+    }
+
+    #[test]
+    fn reads_mesh_transport_section() {
+        let d = TempDir::new().unwrap();
+        let p = d.path().join("Vox.toml");
+        fs::write(
+            &p,
+            r#"
+[mesh]
+control_url = "http://127.0.0.1:9999"
+[mesh.transport]
+tls_cert_path = "/etc/vox/cert.pem"
+tls_key_path  = "/etc/vox/key.pem"
+tls_min_version = "1.3"
+"#,
+        )
+        .unwrap();
+        let m = read_vox_populi_toml(&p).unwrap().expect("mesh");
+        let t = m.transport.expect("transport");
+        assert_eq!(
+            t.tls_cert_path.unwrap(),
+            std::path::PathBuf::from("/etc/vox/cert.pem")
+        );
+        assert_eq!(t.tls_min_version.as_deref(), Some("1.3"));
     }
 }

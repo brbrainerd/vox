@@ -1,0 +1,32 @@
+// ---
+// title: "AgentOS mutation_kind from Vox (std.agentos)"
+// description: "Classify canonical MCP tool names to ACI mutation_kind strings — same SSOT as orchestrator MCP dispatch."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, std.agentos, @test, assert]
+// last_validated: 2026-05-10
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// CI note: `vox ci script-hygiene` does not run `vox check` on every file under scripts/.
+// Committed `.vox` automation still benefits from `vox check <path>` when you edit it; golden
+// examples here stay part of the corpus and are validated by the normal example pipelines.
+//
+// @training_prompt: Call std.agentos.mutation_kind_for_tool for MCP tools and assert ACI buckets.
+// ANCHOR: display
+
+/// Returns ACI mutation_kind for a canonical MCP tool name (`vox_*`).
+fn classify_tool(canonical: str) to str {
+    return std.agentos.mutation_kind_for_tool(canonical)
+}
+
+@test
+fn agentos_mutation_kind_matches_aci_buckets() to Unit {
+    assert(classify_tool("vox_git_status") is "read_only")
+    assert(classify_tool("vox_run_shell") is "external_side_effect")
+    assert(classify_tool("vox_write_file") is "local_mutation")
+    assert(std.agentos.mutation_kind_for_tool("vox_submit_task") is "external_side_effect")
+}
+
+// ANCHOR_END: display

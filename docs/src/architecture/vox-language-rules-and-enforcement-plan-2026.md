@@ -1,7 +1,7 @@
 ---
 title: "Vox Language Rules & Enforcement — Top-Level Plan (2026-05-09)"
 description: "Five-phase plan to close the gap between Vox's stated language-design philosophy (LANGUAGE_DESIGN_PRIORITIES.md P0–P5, C1–C5) and machine-checkable enforcement. Absorbs a 73-item cross-language audit (Rust↔Vox AI-rules interplay) into Vox-only sequenced work. Optimizes for Vox as a large-language-model destination target: stable diagnostic IDs, generated-hash codegen provenance, single-source-of-truth across the Rust↔Vox seam, runtime fuel/panic-trap monitors, and an effect system that makes wrong programs structurally unrepresentable."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Canonical sequencing for Vox-language enforcement work; downstream phase plans (phase1..phase5) reference this document as parent."
@@ -25,6 +25,8 @@ vox_relevance:
 > - [Phase 4 — Runtime monitors (Rust-only domain)](vox-language-rules-phase4-runtime-monitors-2026.md)
 > - [Phase 5 — Effect system + workflow determinism](vox-language-rules-phase5-effects-determinism-2026.md)
 >
+> **Language platform orientation (2026):** [Compiler pipeline map](vox-compiler-architecture-research-2026.md), [LSP capability matrix](vox-lsp-capabilities-ssot-2026.md), [Diagnostic UX taxonomy](vox-diagnostic-ux-ssot-2026.md) — also listed in [research-index.md](research-index.md) (*Language platform (compiler, LSP, diagnostics)*).
+>
 > **Source audit:** A 73-item Rust↔Vox AI-rules interplay audit, originally generated against a sister project (FableForge) and re-scoped to Vox-only. The audit's item numbers are referenced inline as `[A.NN]` so a reader can trace any plan task back to the original observation.
 
 ---
@@ -34,7 +36,7 @@ vox_relevance:
 Vox's [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md) P0–P5 + C1–C5 already encode the *philosophy* of strict, LLM-friendly language design — stronger than any project-level convention because the priorities operate at language-design time. But three gaps separate philosophy from enforcement today:
 
 1. **Many policies are advisory prose, not gates.** The bare-keyword vs decorator rule ([AGENTS.md:131–164](../../../AGENTS.md)), the VoxScript-first glue rule ([AGENTS.md:100–129](../../../AGENTS.md)), `vox_secrets::resolve_secret` SSOT ([AGENTS.md:73–93](../../../AGENTS.md)), and the cryptography ban-list ([AGENTS.md:95–98](../../../AGENTS.md)) are all enforced only by reviewer attention. There is no compiler-side rejection for `env.get("OPENAI_KEY")` in Vox source, nor for direct `std.http.post_json` to LLM provider hostnames.
-2. **The Rust↔Vox seam is hand-mirrored in 3+ places.** [`builtin_registry.rs`](../../../crates/vox-actor-runtime/src/builtins/builtin_registry.rs) is the SSOT for host functions on the Rust side, but the typechecker, the LSP completions, the [`mens/config/system_prompt.txt`](../../../mens/config/system_prompt.txt), and the docs page each maintain a parallel mirror. Drift is constant.
+2. **The Rust↔Vox seam is hand-mirrored in 3+ places.** [`builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) is the SSOT for host functions on the Rust side, but the typechecker, the LSP completions, the [`mens/config/system_prompt.txt`](../../../mens/config/system_prompt.txt), and the docs page each maintain a parallel mirror. Drift is constant.
 3. **No per-call resource caps, no panic-trap boundary, no machine-checked effect surface.** `vox-capability-registry` exists as a crate; `vox-bounded-fs` exists; but neither participates in source-level type checking, and `vox eval` has no fuel mechanism — a runaway script can hang CI.
 
 This plan closes those gaps in five sequenced phases, each independently shippable.

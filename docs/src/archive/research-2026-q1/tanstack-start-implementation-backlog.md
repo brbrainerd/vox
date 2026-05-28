@@ -1,7 +1,7 @@
 ---
 title: "TanStack Start Implementation Backlog"
 description: "Complete checkbox-by-checkbox implementation backlog for Vox TanStack Start fullstack codegen. 200+ tasks organized by wave, with exact file names, line numbers, and code shapes for each change."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 
@@ -27,9 +27,9 @@ Use this table **before** implementing any checkbox below. Rows summarize what s
 |------|--------|----------------------|
 | **A** | **Mostly done** | [`RouteEntry`](../../../crates/vox-compiler/src/ast/decl/ui.rs): `loader_name`, `pending_component_name`, nested `children`; `redirect` / `is_wildcard` exist on AST but parser leaves defaults. [`RoutesDecl`](../../../crates/vox-compiler/src/ast/decl/ui.rs): `not_found_component`, `error_component`. Parser: [`tail.rs`](../../../crates/vox-compiler/src/parser/descent/decl/tail.rs) — `with loader:` / `pending:`, nested `{ }`, `not_found:`, `error:`. **Deferred:** `under LayoutName` / separate `layout_name` on `RouteEntry` (use nested route children); spec `layout_name` field in older docs does not match current AST. |
 | **B–C** | **Partly obviated** | HIR ownership / legacy retirement evolved with Path C + `vox migrate web`. Verify current [`hir/nodes/decl.rs`](../../../crates/vox-compiler/src/hir/nodes/decl.rs) before acting on B/C checklists. |
-| **D** | **Cancelled (shape)** | “New scaffold emitter” in compiler **exists** as opt-in [`codegen_ts/scaffold.rs`](../../../crates/vox-compiler/src/codegen_ts/scaffold.rs); **primary** one-time files come from **`vox-cli`** [`spa.rs`](../../../crates/vox-cli/src/templates/spa.rs) / [`tanstack.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) / [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs). Do not recreate D2–D4 Start-only `client.tsx` / `router.tsx` **from compiler alone** unless charter reopens that scope. |
-| **E** | **Cancelled (product)** | Programmatic `__root.tsx` / `*.route.tsx` / `app/routes.ts` **virtual tree** from compiler is **gone**. Parity is [`route_manifest.rs`](../../../crates/vox-compiler/src/codegen_ts/route_manifest.rs) + TanStack **file** routes + optional `vox-manifest-route-adapter`. E6 “retired” already applies. |
-| **F** | **Superseded** | `vox-client.ts` + Axum emit replaced `serverFns.ts` / `createServerFn`; see [`vox_client.rs`](../../../crates/vox-compiler/src/codegen_ts/vox_client.rs), [`http.rs`](../../../crates/vox-compiler/src/codegen_rust/emit/http.rs). |
+| **D** | **Cancelled (shape)** | “New scaffold emitter” in compiler **exists** as opt-in [`codegen_ts/scaffold.rs`](../../../crates/vox-codegen/src/codegen_ts/scaffold.rs); **primary** one-time files come from **`vox-cli`** [`spa.rs`](../../../crates/vox-cli/src/templates/spa.rs) / [`tanstack.rs`](../../../crates/vox-cli/src/templates/tanstack.rs) / [`frontend.rs`](../../../crates/vox-cli/src/frontend.rs). Do not recreate D2–D4 Start-only `client.tsx` / `router.tsx` **from compiler alone** unless charter reopens that scope. |
+| **E** | **Cancelled (product)** | Programmatic `__root.tsx` / `*.route.tsx` / `app/routes.ts` **virtual tree** from compiler is **gone**. Parity is [`route_manifest.rs`](../../../crates/vox-codegen/src/codegen_ts/route_manifest.rs) + TanStack **file** routes + optional `vox-manifest-route-adapter`. E6 “retired” already applies. |
+| **F** | **Superseded** | `vox-client.ts` + Axum emit replaced `serverFns.ts` / `createServerFn`; see [`vox_client.rs`](../../../crates/vox-codegen/src/codegen_ts/vox_client.rs), [`http.rs`](../../../crates/vox-compiler/src/codegen_rust/emit/http.rs). |
 | **G–K** | **Docs / tests polish** | Many G-items overlap [`react-interop-implementation-plan-2026.md`](./react-interop-implementation-plan-2026.md) Wave 7; tests exist under different names in `vox-compiler` / `vox-integration-tests`. |
 
 **LLM guardrail:** If a task references `tanstack_programmatic_routes.rs` or “emit `app/routes.ts` from compiler,” treat it as **historical** unless you are explicitly restoring that architecture in a new ADR.
@@ -223,24 +223,24 @@ These changes retired code paths that truly have no TanStack mapping. Do after W
 - [ ] Message: `"page: declarations are retired. Use routes { } with TanStack Router."`
 
 ### C5 — Emitter: Remove classic `components` loop
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs` lines ~96–107
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs` lines ~96–107
 - [ ] Remove the loop `for hir_comp in &hir.components { ... }`
 - [ ] Remove the matching CSS loop `for hir_comp in &hir.components { if !comp.styles.is_empty() { ... } }` (lines ~233–257)
 - [ ] These loops emit the old `@component fn` TypeScript — now superseded by Path C
 
 ### C6 — Emitter: Remove `v0_components` placeholder loop
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs` lines ~125–137
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs` lines ~125–137
 - [ ] Remove the loop `for hir_v0 in &hir.v0_components { ... }`
 - [ ] `@v0` directives should be handled via `@island` with a v0 download note — no separate loop needed
 - [ ] Verify: is `@v0` still parsed and lowered to `HirV0Component`? If so, update lowering to convert to `HirIsland` with a special `is_v0` flag, or emit a deprecation error at parse time
 
 ### C7 — Emitter: Remove web_projection_cache check for `hir.components`
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs` lines ~86–93
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs` lines ~86–93
 - [ ] The `web_projection_cache` condition checks `hir.components.is_empty()` — after removing the components loop, this check is still valid but update to reflect new semantics
 - [ ] New condition: `if hir.reactive_components.is_empty() && hir.loadings.is_empty()`
 
 ### C8 — `#[allow(deprecated)]` audit in `generate_with_options`
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs` line ~63
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs` line ~63
 - [ ] After C5–C7, audit which deprecated fields `generate_with_options` still touches
 - [ ] For fields still needed (e.g. `client_routes`, `islands`, `loadings` — now de-deprecated), remove from allow list
 - [ ] For fields truly removed (components, v0_components), remove the allow
@@ -276,7 +276,7 @@ archived_date: 2026-04-18
 
 Create the scaffold emission system from scratch.
 
-### D1 — Create `crates/vox-compiler/src/codegen_ts/scaffold.rs` [NEW FILE]
+### D1 — Create `crates/vox-codegen/src/codegen_ts/scaffold.rs` [NEW FILE]
 - [ ] Create file with module doc: `//! Scaffold file emitter for TanStack Start projects. See tanstack-start-codegen-spec.md §8.3`
 - [ ] Add `pub fn generate_scaffold_files(hir: &HirModule, project_name: &str) -> Vec<(String, String)>`
 - [ ] Implement all sub-functions as listed below
@@ -313,7 +313,7 @@ Create the scaffold emission system from scratch.
 - [ ] Do NOT include `"app/routes.ts"` here — that is generated by the route emitter since it changes on every build
 
 ### D9 — `scaffold.rs`: Add to `codegen_ts/mod.rs`
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/mod.rs`
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/mod.rs`
 - [ ] Add: `pub mod scaffold;`
 - [ ] Add: `pub use scaffold::generate_scaffold_files;`
 
@@ -341,7 +341,7 @@ Create the scaffold emission system from scratch.
 This wave historically targeted `tanstack_programmatic_routes.rs` virtual file routes.
 
 ### E1 — Add `fn emit_root_tsx()` ~~to `tanstack_programmatic_routes.rs`~~
-- [ ] **File:** ~~`crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs`~~ — use `route_manifest.rs` / user `__root.tsx`
+- [ ] **File:** ~~`crates/vox-codegen/src/codegen_ts/tanstack_programmatic_routes.rs`~~ — use `route_manifest.rs` / user `__root.tsx`
 - [ ] New function signature: `fn emit_root_tsx(not_found: Option<&str>, error_comp: Option<&str>, global_loading: Option<&str>) -> String`
 - [ ] Emits `__root.tsx` with `createRootRoute`, `HeadContent`, `Scripts`, `Outlet`
 - [ ] Conditionally includes `notFoundComponent` and `errorComponent` lines if present
@@ -370,7 +370,7 @@ This wave historically targeted `tanstack_programmatic_routes.rs` virtual file r
 - [ ] Wildcard routes (`is_wildcard: true`) use `route("$",...)`
 
 ### E5 — Refactor `push_route_tree_files()` to use new functions
-- [ ] **File:** ~~`crates/vox-compiler/src/codegen_ts/tanstack_programmatic_routes.rs`~~ — see `emitter.rs` + `route_manifest.rs`
+- [ ] **File:** ~~`crates/vox-codegen/src/codegen_ts/tanstack_programmatic_routes.rs`~~ — see `emitter.rs` + `route_manifest.rs`
 - [ ] Replace the current body of `push_route_tree_files` with calls to E1–E4
 - [ ] For each `HirRoutes` entry in `hir.client_routes`:
   - Call E1 → push `("__root.tsx", content)`
@@ -386,7 +386,7 @@ This wave historically targeted `tanstack_programmatic_routes.rs` virtual file r
 - [ ] If `app/router.tsx` is now the canonical router entry, `App.tsx` is no longer needed
 
 ### E7 — Update `emitter.rs` to call `push_route_tree_files` with correct args
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs` line ~259
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs` line ~259
 - [ ] Current: `push_route_tree_files(&mut files, hir, options.tanstack_start);`
 - [ ] After E5, the function signature may change — update call site
 - [ ] Also: `app/routes.ts` is now in `files` — this is an `app/` prefixed path. Ensure the CLI's file writer handles `app/` subdirectory creation.
@@ -413,13 +413,13 @@ archived_date: 2026-04-18
 Fix the broken `serverFns.ts` emission.
 
 ### F1 — Add `fn emit_params_ts()` helper to `emitter.rs`
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs`
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs`
 - [ ] New private function: `fn emit_params_ts(params: &[HirParam]) -> String`
 - [ ] Returns TypeScript parameter list: `"title: string, body: string"`
 - [ ] Uses `crate::codegen_ts::hir_emit::map_hir_type_to_ts` for type mapping
 
 ### F2 — Add `fn emit_return_type_ts()` helper to `emitter.rs`
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs`
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs`
 - [ ] New private function: `fn emit_return_type_ts(ret: &Option<HirTypeRef>) -> String`
 - [ ] Returns `"any"` if None, mapped type otherwise
 
@@ -428,7 +428,7 @@ Fix the broken `serverFns.ts` emission.
 - [ ] Returns true if `path.contains('$')` (TanStack path param syntax)
 
 ### F4 — Replace server fn emission block in `emitter.rs` — @query fns
-- [ ] **File:** `crates/vox-compiler/src/codegen_ts/emitter.rs` lines ~176–230
+- [ ] **File:** `crates/vox-codegen/src/codegen_ts/emitter.rs` lines ~176–230
 - [ ] Remove the existing block (save the structure for reference)
 - [ ] Write new block for `@query` fns:
   - `method: "GET"`

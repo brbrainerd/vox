@@ -8,8 +8,10 @@ use crate::types::{AgentTask, TaskCategory};
 
 use super::key_guard::provider_secret_is_available;
 use super::spec::{
-    ModelConfig, ModelSpec, ProviderType, built_in_premium_alias, task_category_strength,
+    ModelConfig, ModelSpec, ProviderType, task_category_strength,
 };
+
+const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
 
 /// A performance score from the `model_scoreboard`.
 #[derive(Debug, Clone, Default)]
@@ -132,7 +134,10 @@ impl ModelRegistry {
 
         for (litellm_id, entry) in entries {
             // Build a candidate list of IDs to try (exact → prefixed → suffix).
-            let suffix = litellm_id.split('/').last().unwrap_or(litellm_id.as_str());
+            let suffix = litellm_id
+                .split('/')
+                .next_back()
+                .unwrap_or(litellm_id.as_str());
             let with_provider = entry
                 .litellm_provider
                 .as_deref()
@@ -273,7 +278,7 @@ impl ModelRegistry {
                     .await
                     .map_err(|_| anyhow::anyhow!("db error"))?;
                 if let Ok(Some(last_str)) = db
-                    .get_user_preference("global", "openrouter_catalog_refresh")
+                    .get_user_preference("global", MODEL_CATALOG_LAST_REFRESH_KEY)
                     .await
                 {
                     if let Ok(last_secs) = last_str.parse::<u64>() {
@@ -307,21 +312,21 @@ impl ModelRegistry {
 
                 // Fetch AnthropicDirect catalog (key-gated; silently skipped when no key is
                 // present) so background refresh stays in parity with run_foreground_refresh().
-                match crate::catalog::AnthropicDirectCatalog::new().refresh().await {
-                    Ok(mut anthropic_models) => {
-                        for m in &mut anthropic_models {
-                            if m.pricing_source == crate::models::spec::PricingSource::Bootstrap {
-                                m.pricing_source =
-                                    crate::models::spec::PricingSource::AnthropicDirect;
-                            }
-                        }
-                        for m in anthropic_models {
-                            if !models.iter().any(|existing| existing.id == m.id) {
-                                models.push(m);
-                            }
+                // no Anthropic key is expected in many environments
+                if let Ok(mut anthropic_models) =
+                    crate::catalog::AnthropicDirectCatalog::new().refresh().await
+                {
+                    for m in &mut anthropic_models {
+                        if m.pricing_source == crate::models::spec::PricingSource::Bootstrap {
+                            m.pricing_source =
+                                crate::models::spec::PricingSource::AnthropicDirect;
                         }
                     }
-                    Err(_) => {} // no Anthropic key is expected in many environments
+                    for m in anthropic_models {
+                        if !models.iter().any(|existing| existing.id == m.id) {
+                            models.push(m);
+                        }
+                    }
                 }
 
                 #[cfg(feature = "populi-transport")]
@@ -357,7 +362,7 @@ impl ModelRegistry {
                                         cost_per_1k_output: 0.0,
                                         is_free: true,
                                         strengths: vec![
-                                            crate::models::StrengthTag::from_str(&kind_str).unwrap_or(crate::models::StrengthTag::Unknown),
+                                            kind_str.parse::<crate::models::StrengthTag>().unwrap_or(crate::models::StrengthTag::Unknown),
                                             crate::models::StrengthTag::Generalist,
                                         ],
                                         capabilities: crate::models::spec::ModelCapabilities {
@@ -380,7 +385,7 @@ impl ModelRegistry {
                 let _ = db
                     .set_user_preference(
                         "global",
-                        "catalog_refresh",
+                        MODEL_CATALOG_LAST_REFRESH_KEY,
                         &now_secs.to_string(),
                     )
                     .await;
@@ -468,7 +473,7 @@ impl ModelRegistry {
                     let cfg: super::spec::ModelConfig = toml::from_str(&contents)
                         .unwrap_or_else(|_| super::spec::ModelConfig::default());
                     registry.premium_alias = if cfg.premium_alias.is_empty() {
-                        built_in_premium_alias()
+                        vox_config::load_model_routing_config().premium_alias
                     } else {
                         cfg.premium_alias.clone()
                     };
@@ -484,7 +489,7 @@ impl ModelRegistry {
             for model in super::spec::ModelConfig::default().models {
                 registry.register(model);
             }
-            registry.premium_alias = built_in_premium_alias();
+            registry.premium_alias = vox_config::load_model_routing_config().premium_alias;
         }
 
         let cache_file = vox_config::paths::dot_vox_user_dir()
@@ -539,7 +544,7 @@ impl ModelRegistry {
         };
 
         registry.premium_alias = if model_config.premium_alias.is_empty() {
-            built_in_premium_alias()
+            vox_config::load_model_routing_config().premium_alias
         } else {
             model_config.premium_alias.clone()
         };
@@ -569,6 +574,19 @@ impl ModelRegistry {
 
     /// Register a new model specification.
     pub fn register(&mut self, spec: ModelSpec) {
+        use super::spec::PricingSource;
+        if let Some(existing) = self.models.get(&spec.id) {
+            if existing.pricing_source == PricingSource::Telemetry {
+                // Merge non-pricing fields only
+                let mut merged = existing.clone();
+                merged.capabilities = spec.capabilities;
+                merged.strengths = spec.strengths;
+                merged.max_tokens = spec.max_tokens;
+                merged.supported_parameters = spec.supported_parameters;
+                self.models.insert(spec.id.clone(), merged);
+                return;
+            }
+        }
         self.models.insert(spec.id.clone(), spec);
     }
 
@@ -657,6 +675,8 @@ impl ModelRegistry {
                 if respect_penalties && self.is_penalized(&m.id, _task_type) {
                     return false;
                 }
+                // Removed W1-2 block. The runtime filter will handle dropping Unknown models
+                // if the daily exploration budget is exceeded.
                 if preference == CostPreference::Performance && m.is_free {
                     return false; // Skip free models in performance mode unless they are explicitly mapped
                 }
@@ -920,6 +940,13 @@ impl ModelRegistry {
     /// Get a specific model definition by ID.
     pub fn get(&self, model_id: &str) -> Option<ModelSpec> {
         self.models.get(model_id).cloned()
+    }
+
+    /// Lookup the premium-alias model id for a routing key
+    /// (see `contracts/orchestration/model-routing.v1.yaml`).
+    /// Used by `select()` to honor task-pinned premium aliases.
+    pub fn premium_alias_for(&self, key: &str) -> Option<&str> {
+        self.premium_alias.get(key).map(String::as_str)
     }
 
     /// Set an explicit model override for a specific agent.

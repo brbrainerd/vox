@@ -14,8 +14,8 @@ fn plugin_list_prints_catalog() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     // Should contain at least one known plugin id.
     assert!(
-        stdout.contains("noop-skill"),
-        "expected noop-skill in plugin list output, got:\n{stdout}"
+        stdout.contains("skill-compiler"),
+        "expected skill-compiler in plugin list output, got:\n{stdout}"
     );
     assert!(
         stdout.contains("Install root:"),
@@ -38,7 +38,7 @@ fn bundle_list_prints_bundles() {
         "expected vox-fullstack in bundle list output, got:\n{stdout}"
     );
     assert!(
-        stdout.contains("8 bundle(s) defined."),
+        stdout.contains("10 bundle(s) defined."),
         "expected bundle count line, got:\n{stdout}"
     );
 }
@@ -51,10 +51,15 @@ fn plugin_install_path_and_remove() {
     let tmp = std::env::temp_dir().join(format!("vox-plugin-test-{}", std::process::id()));
     std::fs::create_dir_all(&tmp).expect("create tmp dir");
 
-    // Resolve the noop-skill path relative to the workspace root (two levels up from crates/vox-cli).
+    // Resolve the noop-skill path (fixture lives in vox-plugin-host/tests/fixtures/noop-skill/).
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root = manifest_dir.parent().unwrap().parent().unwrap();
-    let noop_skill_path = workspace_root.join("crates").join("vox-plugin-noop-skill");
+    let noop_skill_path = workspace_root
+        .join("crates")
+        .join("vox-plugin-host")
+        .join("tests")
+        .join("fixtures")
+        .join("noop-skill");
 
     let status = Command::new(env!("CARGO_BIN_EXE_vox"))
         .args([

@@ -3,14 +3,15 @@
 vox-schola-dev       = "run -p vox-schola --"
 
 [build]
-# Use all available CPU cores for rustc parallelism
-jobs = 8
+# i9-14900KS has 32 logical threads; 24 leaves headroom for llvm-cov instrumentation.
+# Baseline warm build-only: 57s at jobs=8; expect ~25-35s at jobs=24.
+jobs = 24
 rustdocflags = ["-D", "warnings"]
 
 [target.x86_64-pc-windows-msvc]
-# Use lld linker for faster linking on Windows (rustup component add llvm-tools)
-# Uncomment the line below if lld is available:
-# linker = "lld-link"
+# lld-link is available (C:\Program Files\LLVM\bin\lld-link.exe) but causes
+# permission-denied errors on Windows when overwriting locked test binaries.
+# Keeping MSVC linker (default). Revisit when lld-link Windows file-locking is fixed.
 rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]

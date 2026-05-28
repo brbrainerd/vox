@@ -4,9 +4,9 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
-use tower_lsp::jsonrpc::Result;
-use tower_lsp::lsp_types::*;
-use tower_lsp::{Client, LanguageServer, LspService, Server};
+use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::ls_types::*;
+use tower_lsp_server::{Client, LanguageServer, LspService, Server};
 use tracing::info;
 
 use vox_compiler::lexer::lex;
@@ -41,59 +41,14 @@ async fn cached_project_db() -> Option<Arc<vox_db::VoxDb>> {
 struct Backend {
     client: Client,
     /// Latest full document text per URI (FULL sync) for hover and validation.
-    documents: Mutex<HashMap<Url, String>>,
+    documents: Mutex<HashMap<Uri, String>>,
 }
 
-#[tower_lsp::async_trait]
 impl LanguageServer for Backend {
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         info!("Vox LSP initializing...");
         Ok(InitializeResult {
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Kind(
-                    TextDocumentSyncKind::FULL,
-                )),
-                hover_provider: Some(HoverProviderCapability::Simple(true)),
-                semantic_tokens_provider: Some(
-                    SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(
-                        SemanticTokensRegistrationOptions {
-                            text_document_registration_options: TextDocumentRegistrationOptions {
-                                document_selector: Some(vec![DocumentFilter {
-                                    language: Some("vox".to_string()),
-                                    scheme: Some("file".to_string()),
-                                    pattern: None,
-                                }]),
-                            },
-                            semantic_tokens_options: SemanticTokensOptions {
-                                work_done_progress_options: WorkDoneProgressOptions {
-                                    work_done_progress: None,
-                                },
-                                range: None,
-                                full: Some(SemanticTokensFullOptions::Bool(true)),
-                                legend: SemanticTokensLegend {
-                                    token_types: vox_lsp::grammar::SEMANTIC_TOKEN_TYPES.to_vec(),
-                                    token_modifiers: vec![
-                                        SemanticTokenModifier::DECLARATION,
-                                        SemanticTokenModifier::DEFINITION,
-                                        SemanticTokenModifier::READONLY,
-                                    ],
-                                },
-                            },
-                            static_registration_options: StaticRegistrationOptions { id: None },
-                        },
-                    ),
-                ),
-                completion_provider: Some(CompletionOptions {
-                    trigger_characters: Some(vec!["@".to_string(), ".".to_string()]),
-                    ..Default::default()
-                }),
-                document_symbol_provider: Some(OneOf::Left(true)),
-                code_lens_provider: Some(CodeLensOptions {
-                    resolve_provider: Some(false),
-                }),
-                code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
-                ..Default::default()
-            },
+            capabilities: vox_lsp::server_capabilities(),
             ..Default::default()
         })
     }
@@ -110,51 +65,8 @@ impl LanguageServer for Backend {
     }
 
     async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
-        let mut actions = Vec::new();
         let uri = params.text_document.uri;
-
-        for diagnostic in params.context.diagnostics {
-            if let Some(ref data) = diagnostic.data
-                && let Ok(data) = serde_json::from_value::<serde_json::Value>(data.clone())
-                && let Some(fixes) = data.get("fixes").and_then(|f| f.as_array())
-            {
-                for fix in fixes {
-                    let label = fix.get("label").and_then(|l| l.as_str()).unwrap_or("Fix");
-                    let replacement = fix
-                        .get("replacement")
-                        .and_then(|r| r.as_str())
-                        .unwrap_or("");
-                    let range = fix
-                        .get("range")
-                        .and_then(|r| serde_json::from_value::<Range>(r.clone()).ok());
-
-                    if let Some(range) = range {
-                        let mut changes = HashMap::new();
-                        changes.insert(
-                            uri.clone(),
-                            vec![TextEdit {
-                                range,
-                                new_text: replacement.to_string(),
-                            }],
-                        );
-
-                        let action = CodeAction {
-                            title: label.to_string(),
-                            kind: Some(CodeActionKind::QUICKFIX),
-                            diagnostics: Some(vec![diagnostic.clone()]),
-                            edit: Some(WorkspaceEdit {
-                                changes: Some(changes),
-                                ..Default::default()
-                            }),
-                            is_preferred: Some(true),
-                            ..Default::default()
-                        };
-                        actions.push(CodeActionOrCommand::CodeAction(action));
-                    }
-                }
-            }
-        }
-
+        let actions = vox_lsp::quickfixes_for_diagnostics(uri, &params.context.diagnostics);
         if actions.is_empty() {
             Ok(None)
         } else {
@@ -276,35 +188,7 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let tokens = lex(&text);
-        let mut last_line = 0;
-        let mut last_char = 0;
-        let mut data = Vec::new();
-
-        for token in tokens {
-            if let Some(token_type) = vox_lsp::grammar::token_to_semantic_type(&token.token) {
-                let (line, col) = vox_lsp::byte_index_to_line_col(&text, token.span.start);
-                let length = (token.span.end - token.span.start) as u32;
-
-                let delta_line = line - last_line;
-                let delta_char = if delta_line == 0 {
-                    col - last_char
-                } else {
-                    col
-                };
-
-                data.push(SemanticToken {
-                    delta_line,
-                    delta_start: delta_char,
-                    length,
-                    token_type,
-                    token_modifiers_bitset: 0,
-                });
-
-                last_line = line;
-                last_char = col;
-            }
-        }
+        let data = vox_lsp::grammar::encode_semantic_tokens(&text);
 
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
             result_id: None,
@@ -331,17 +215,20 @@ impl LanguageServer for Backend {
             self.validate_document(uri, text).await;
             return;
         }
-        let Ok(path) = uri.to_file_path() else {
+        let Some(path) = uri.to_file_path() else {
             let _ = self
                 .client
                 .log_message(
                     MessageType::WARNING,
-                    format!("did_save: cannot map URI to file path: {uri}"),
+                    format!(
+                        "did_save: cannot map URI to file path: {}",
+                        uri.as_str()
+                    ),
                 )
                 .await;
             return;
         };
-        match std::fs::read_to_string(&path) {
+        match std::fs::read_to_string(path.as_ref()) {
             Ok(text) => self.validate_document(uri, text).await,
             Err(e) => {
                 let _ = self
@@ -357,7 +244,7 @@ impl LanguageServer for Backend {
 }
 
 impl Backend {
-    async fn validate_document(&self, uri: Url, text: String) {
+    async fn validate_document(&self, uri: Uri, text: String) {
         {
             let mut guard = match self.documents.lock() {
                 Ok(g) => g,
@@ -385,7 +272,7 @@ impl Backend {
             .await;
 
         if !ludus_lsp_events_disabled() {
-            let uri_s = uri.to_string();
+            let uri_s = uri.as_str().to_owned();
             tokio::spawn(async move {
                 let Some(db) = cached_project_db().await else {
                     return;
@@ -405,10 +292,7 @@ impl Backend {
 #[tokio::main]
 async fn main() {
     // Initialize logging
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .with_writer(std::io::stderr)
-        .try_init();
+    vox_foundation::tracing::try_init_from_default_env_stderr();
 
     let stdin = tokio::io::stdin();
     let stdout = tokio::io::stdout();

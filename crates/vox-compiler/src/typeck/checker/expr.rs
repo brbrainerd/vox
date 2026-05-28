@@ -147,7 +147,7 @@ impl<'a> Checker<'a> {
         }
     }
     pub fn check_expr(&mut self, expr: &HirExpr, expected: Option<&Ty>) -> Ty {
-        match expr {
+        let ty = match expr {
             HirExpr::IntLit(_, _) => Ty::Int,
             HirExpr::FloatLit(_, _) => Ty::Float,
             HirExpr::StringLit(_, _) => Ty::Str,
@@ -177,15 +177,23 @@ impl<'a> Checker<'a> {
                             ast_node_kind: None,
                         });
                     }
-                    binding.ty.clone()
+                    // Instantiate any GenericParam nodes with fresh TypeVars so that
+                    // polymorphic constants like `None : Option[T]` get a fresh inference
+                    // variable each time they are referenced, enabling proper unification
+                    // with the surrounding type context (e.g. `Option[int]`).
+                    let ty = binding.ty.clone();
+                    self.uf.instantiate(&ty)
                 } else if let Some(ty) = self.builtins.lookup_var(name) {
-                    ty
+                    self.uf.instantiate(&ty)
                 } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Undefined variable: {name}"),
-                        *span,
-                        self.source,
-                    ));
+                    self.diags.push(
+                        Diagnostic::error(
+                            format!("Undefined variable: {name}"),
+                            *span,
+                            self.source,
+                        )
+                        .with_code(crate::typeck::diagnostics::codes::TYPES_UNDEFINED_VARIABLE),
+                    );
                     Ty::Error
                 }
             }
@@ -202,15 +210,33 @@ impl<'a> Checker<'a> {
                             }
                         }
                         Ty::Named(n) => {
-                            // Struct type: pull declared fields from the env so an anonymous
-                            // record literal `{ f: e, ... }` ascribed to `Named(Foo)` checks
-                            // against the struct's shape and unifies with `Named(Foo)`.
+                            if n == "Json" || n == "JsonBody" {
+                                // An object literal `{ k: v, ... }` is a valid JSON object.
+                                // Type-check all field values independently and return `Json`
+                                // rather than an anonymous Record so the return type matches.
+                                for (_fname, fexpr) in fields {
+                                    self.check_expr(fexpr, Some(&Ty::Named("Json".to_string())));
+                                }
+                                return Ty::Named(n.clone());
+                            }
                             if let Some(adt) = self.env.lookup_adt(n) {
                                 if !adt.fields.is_empty() {
+                                    // Struct type: pull declared fields from the env so an anonymous
+                                    // record literal `{ f: e, ... }` ascribed to `Named(Foo)` checks
+                                    // against the struct's shape and unifies with `Named(Foo)`.
                                     for (fname, fty) in &adt.fields {
                                         expected_fields.insert(fname.clone(), fty.clone());
                                     }
                                     struct_name = Some(n.clone());
+                                } else if !adt.variants.is_empty() {
+                                    // Variant-based ADT (enum): an object literal used as a variant
+                                    // payload (e.g. from @json_as generated code) should produce
+                                    // Named(n) rather than Record([...]).  The lowering is generated
+                                    // code we control; trust it here and just type the fields.
+                                    for (_fname, fexpr) in fields {
+                                        self.check_expr(fexpr, None);
+                                    }
+                                    return Ty::Named(n.clone());
                                 }
                             }
                         }
@@ -300,6 +326,43 @@ impl<'a> Checker<'a> {
                 let callee_ty = self.uf.instantiate(&callee_ty);
                 match callee_ty {
                     Ty::Fn(params, ret) => {
+                        // Special case: `range(n)` is the single-arg shorthand for
+                        // `range(0, n)`.  The runtime already handles it; the typechecker
+                        // would otherwise raise a spurious arg-count error because `range` is
+                        // registered as `(int, int) → list[int]`.
+                        let is_range_one_arg = args.len() == 1
+                            && params.len() == 2
+                            && matches!(callee.as_ref(), HirExpr::Ident(name, _) if name == "range");
+                        if is_range_one_arg {
+                            let arg_ty = self.check_expr(&args[0].value, Some(&Ty::Int));
+                            let _ = self.uf.unify(&Ty::Int, &arg_ty);
+                            return ret.as_ref().clone();
+                        }
+                        // Special case: `print(value)` accepts any type.  The
+                        // stdlib registers print as `(str) → Unit` for the common
+                        // case but LLM-generated code frequently calls
+                        // `print(42)`, `print(true)`, `print(list)`, etc.  Rather
+                        // than force every caller to `print(str(x))`, we skip the
+                        // strict Str constraint when the callee is the builtin
+                        // `print` and there is exactly one argument.
+                        let is_print_call = args.len() == 1
+                            && matches!(callee.as_ref(), HirExpr::Ident(name, _) if name == "print");
+                        if is_print_call {
+                            // Type-check the argument (so inner errors are still caught)
+                            // but don't enforce the Str param constraint.
+                            let _ = self.check_expr(&args[0].value, None);
+                            return Ty::Unit;
+                        }
+                        // Pre-bind generic type variables by unifying the declared return type
+                        // with the expected type *before* checking arguments.  This lets
+                        // `Ok(ObjectLit)` propagate `Result[T] ~ Result[MatrixProduct]` →
+                        // `T = MatrixProduct` into the argument expected-type context so that
+                        // the `ObjectLit` is checked against `Named("MatrixProduct")` rather
+                        // than an unresolved fresh variable.  Unification failure is silently
+                        // ignored here; the outer Return/Assign site will report the mismatch.
+                        if let Some(exp) = expected {
+                            let _ = self.uf.unify(ret.as_ref(), exp);
+                        }
                         self.check_arguments(&params, args, *span);
                         ret.as_ref().clone()
                     }
@@ -327,6 +390,23 @@ impl<'a> Checker<'a> {
                 }
                 let obj_ty = self.check_expr(object, None);
                 let obj_ty = self.uf.resolve(&obj_ty);
+
+                // Namespace-method dispatch on Record-typed receivers — used
+                // by alias-form intra-project imports
+                // (`import "./util.vox" as u` → `u.fn_name(...)`). When the
+                // receiver is a Ty::Record whose field with this method name
+                // is itself a Ty::Fn, route through that signature.
+                // See RFC §11 and audit §11.7.
+                if let Ty::Record(fields) = &obj_ty {
+                    if let Some((_, field_ty)) = fields.iter().find(|(k, _)| k == method) {
+                        let field_ty = self.uf.resolve(field_ty);
+                        if let Ty::Fn(params, ret) = field_ty {
+                            self.check_arguments(&params, args, *span);
+                            return ret.as_ref().clone();
+                        }
+                    }
+                }
+
                 if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
                     let bindings = match &obj_ty {
                         Ty::List(inner)
@@ -361,19 +441,29 @@ impl<'a> Checker<'a> {
                                 Ty::Error
                             }
                         } else {
-                            self.diags.push(Diagnostic::error(
-                                format!("Method '{method}' not found on actor '{actor_name}'"),
-                                *span,
-                                self.source,
-                            ));
+                            self.diags.push(
+                                Diagnostic::error(
+                                    format!("Method '{method}' not found on actor '{actor_name}'"),
+                                    *span,
+                                    self.source,
+                                )
+                                .with_code(
+                                    crate::typeck::diagnostics::codes::TYPES_METHOD_NOT_FOUND,
+                                ),
+                            );
                             Ty::Error
                         }
                     } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Unknown actor '{actor_name}' for method call"),
-                            *span,
-                            self.source,
-                        ));
+                        self.diags.push(
+                            Diagnostic::error(
+                                format!("Unknown actor '{actor_name}' for method call"),
+                                *span,
+                                self.source,
+                            )
+                            .with_code(
+                                crate::typeck::diagnostics::codes::TYPES_UNDEFINED_VARIABLE,
+                            ),
+                        );
                         Ty::Error
                     }
                 } else if let Ty::Named(n) = &obj_ty {
@@ -388,6 +478,12 @@ impl<'a> Checker<'a> {
                         "StdTimeNs" => Some("time"),
                         "StdMobileNs" => Some("mobile"),
                         "StdRegexNs" => Some("regex"),
+                        "StdAgentosNs" => Some("agentos"),
+                        "StdCsvNs" => Some("csv"),
+                        "StdTomlNs" => Some("toml"),
+                        "StdYamlNs" => Some("yaml"),
+                        "StdIoNs" => Some("io"),
+                        "StdPathNs" => Some("path"),
                         _ => None,
                     };
                     if let Some(ns) = ns {
@@ -402,27 +498,15 @@ impl<'a> Checker<'a> {
                                 Ty::Error
                             }
                         } else {
-                            self.diags.push(Diagnostic::error(
-                                format!("Method '{method}' not found on {obj_ty:?}"),
-                                *span,
-                                self.source,
-                            ));
+                            self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
                             Ty::Error
                         }
                     } else {
-                        self.diags.push(Diagnostic::error(
-                            format!("Method '{method}' not found on {obj_ty:?}"),
-                            *span,
-                            self.source,
-                        ));
+                        self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
                         Ty::Error
                     }
                 } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Method '{method}' not found on {obj_ty:?}"),
-                        *span,
-                        self.source,
-                    ));
+                    self.diags.push(method_not_found_diag(method, &obj_ty, *span, self.source));
                     Ty::Error
                 }
             }
@@ -647,10 +731,53 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Index(object, index, _) => {
-                let _ = self.check_expr(object.as_ref(), None);
+                // Strict-Option subscript per the typed-subscript decision
+                // 2026-05-23. `list[T] [i]` returns `Option[T]` (None on
+                // out-of-bounds), matching the no-silent-failure principle
+                // and the `Json.at(i)` / `Json.get(k)` strict-Option idiom.
+                // Map[K, V] subscript returns Option[V]; Str subscript
+                // returns Option[Str] (single-char slice). Unknown receivers
+                // still fall back to a fresh inference variable so legacy
+                // code without type info doesn't degrade.
+                let obj_ty = self.check_expr(object.as_ref(), None);
                 let _ = self.check_expr(index.as_ref(), None);
-                self.uf.fresh_var()
+                let obj_ty = self.uf.resolve(&obj_ty);
+                match obj_ty {
+                    Ty::List(elem) => Ty::Option(elem),
+                    Ty::Map(_, val) => Ty::Option(val),
+                    Ty::Str => Ty::Option(Box::new(Ty::Str)),
+                    Ty::Tuple(elems) => {
+                        // For literal-index tuple access we'd want the
+                        // element type, but at this level we don't know the
+                        // index. Return a fresh var — the caller will
+                        // unify against whatever follows.
+                        if let Some(first) = elems.into_iter().next() {
+                            first
+                        } else {
+                            self.uf.fresh_var()
+                        }
+                    }
+                    _ => self.uf.fresh_var(),
+                }
             }
+
+            HirExpr::AsyncView(v) => {
+                let _ = self.check_expr(&v.source, None);
+                if let Some(a) = &v.fetching_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                if let Some(a) = &v.empty_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                if let Some(a) = &v.error_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                if let Some(a) = &v.ok_arm {
+                    let _ = self.check_expr(a, None);
+                }
+                Ty::Unit
+            }
+            HirExpr::WorkflowVersion(_) => Ty::Unit,
 
             HirExpr::Try(hir_try) => {
                 let inner_ty = self.check_expr(hir_try.target.as_ref(), None);
@@ -704,6 +831,41 @@ impl<'a> Checker<'a> {
                     }
                 }
             }
-        }
+        };
+        let resolved = self.uf.resolve(&ty);
+        let hir_ty = resolved.to_hir_type();
+        self.inferred_types.insert(super::hir_expr_span(expr), hir_ty);
+        ty
     }
+}
+
+/// Build a "method not found" diagnostic that uses the human-readable
+/// type renderer instead of the `{ty:?}` Debug repr. Mirrors the form
+/// established in `mod.rs` (closures-rfc-2026-05-23.md §11 Q4):
+/// no internal TypeVar IDs leak into user-facing error messages.
+fn method_not_found_diag(
+    method: &str,
+    obj_ty: &Ty,
+    span: crate::ast::span::Span,
+    source: &str,
+) -> Diagnostic {
+    let pretty = super::pretty_print_unresolved_type(obj_ty);
+    let hint = if pretty == "<unknown>" {
+        format!(
+            "Add an explicit type annotation upstream so the receiver type \
+             can be resolved. For closure params use `fn(x: <Type>) {{ ... }}` \
+             per the closures RFC §11."
+        )
+    } else {
+        format!(
+            "If `{pretty}` is unexpected, check whether the value came from \
+             an `Option` or `Result` you forgot to `.unwrap()`."
+        )
+    };
+    Diagnostic::error(
+        format!("Method `{method}` not found on {pretty}.\n{hint}"),
+        span,
+        source,
+    )
+    .with_code(crate::typeck::diagnostics::codes::TYPES_METHOD_NOT_FOUND)
 }

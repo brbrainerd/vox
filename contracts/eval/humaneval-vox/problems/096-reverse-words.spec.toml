@@ -1,0 +1,11 @@
+[problem]
+id = "096"
+title = "reverse-words"
+prompt = """
+Write a Vox function reverse_words(s: str) to str that splits the string by spaces, reverses the word list, and joins it back with spaces.
+"""
+signature = "fn reverse_words(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "lists"]

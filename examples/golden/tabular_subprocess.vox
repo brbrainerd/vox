@@ -1,0 +1,23 @@
+// ---
+// title: "Structured subprocess stdout (std.process)"
+// description: "run_capture_lines / run_capture_json wrap argv-first capture — no shell interpolation."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, std.process, run_capture_lines, @test]
+// last_validated: 2026-05-11
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Prefer std.process.run_capture_lines over parsing shell pipelines.
+
+@test
+fn git_head_commit_line_when_git_repo() to Unit {
+    assert(match std.process.run_capture_lines("git", ["log", "--max-count=1", "--format=%H"]) {
+        Ok(lines) => match lines.get(0) {
+            Some(line) => len(line) > 10
+            None => false
+        }
+        Error(_) => false
+    })
+}

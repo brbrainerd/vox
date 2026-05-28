@@ -54,14 +54,33 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
         }
     }
 
-    let citation_score = match manifest.citations_json.as_deref() {
-        Some(raw) if !raw.trim().is_empty() => match serde_json::from_str::<serde_json::Value>(raw)
-        {
-            Ok(v) if v.as_array().is_some_and(|a| !a.is_empty()) => clamp01(0.55 + 0.45 * r),
-            Ok(_) => clamp01(0.35 + 0.35 * r),
-            Err(_) => clamp01(0.3 * r),
-        },
-        _ => clamp01(0.35 * r),
+    // Phase D wiring — prefer the *measured* claim support ratio over the
+    // citation-presence heuristic when the most recent
+    // `publication-extract-claims` run wrote a summary into
+    // `metadata_json.scientia_evidence.extracted_claims`. A measured
+    // value of `support_ratio = supported / total_atomic` is a direct
+    // (not derived) signal for `claim_evidence_coverage`.
+    let measured_claim_coverage: Option<f64> =
+        crate::scientia_evidence::parse_scientia_evidence(manifest.metadata_json.as_deref())
+            .and_then(|e| e.extracted_claims)
+            .filter(|s| s.total_atomic > 0)
+            .map(|s| s.support_ratio());
+
+    let citation_score = if let Some(measured) = measured_claim_coverage {
+        clamp01(measured)
+    } else {
+        match manifest.citations_json.as_deref() {
+            Some(raw) if !raw.trim().is_empty() => {
+                match serde_json::from_str::<serde_json::Value>(raw) {
+                    Ok(v) if v.as_array().is_some_and(|a| !a.is_empty()) => {
+                        clamp01(0.55 + 0.45 * r)
+                    }
+                    Ok(_) => clamp01(0.35 + 0.35 * r),
+                    Err(_) => clamp01(0.3 * r),
+                }
+            }
+            _ => clamp01(0.35 * r),
+        }
     };
 
     let sci = parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
@@ -167,6 +186,10 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
         repeated_unresolved_contradiction: false,
         claim_evidence_coverage: citation_score,
         artifact_replayability: repro_score,
+        // Phase B: measured value is written back by `vox-replay-runner` after
+        // a sandboxed re-execution of the manifest's RO-Crate `mainEntity`.
+        // Absent here means downstream gates fall back to the declared score.
+        artifact_replayability_measured: None,
         before_after_pair_integrity: before_after,
         metadata_completeness: meta_score,
         ai_disclosure_compliance: ai_disclosure,

@@ -2,16 +2,16 @@
 //!
 //! **Legacy / compat (OP-0145, ADR 012):** structural view parity is [`crate::web_ir`]. This module
 //! remains for AST-shaped trees; attribute names use [`crate::codegen_ts::hir_emit::compat`] so HIR,
-//! Web IR, and AST paths share one React mapping matrix ([`super::hir_emit::map_jsx_attr_name`]).
+//! Web IR, and AST paths share one React mapping matrix (`super::hir_emit::map_jsx_attr_name`).
 //!
 //! **Disposition (OP-0158):** this file remains the AST codegen surface for `@component fn` and
 //! shared stmt/expr helpers; do not grow new JSX semantics here—extend Web IR instead.
 //!
-//! **Compatibility tags (OP-S031):** AST path must stay aligned with [`super::hir_emit`] (OP-S029) via
-//! [`map_jsx_attr_name`]; new attrs or event spellings belong in [`crate::codegen_ts::hir_emit::compat`]
+//! **Compatibility tags (OP-S031):** AST path must stay aligned with `super::hir_emit` (OP-S029) via
+//! `map_jsx_attr_name`; new attrs or event spellings belong in `crate::codegen_ts::hir_emit::compat`
 //! first, then Web IR lowering / validate.
 //!
-//! **Wrapper inventory B/C (OP-S077 / S167):** [`emit_jsx_element`] / [`emit_jsx_self_closing`] are the only
+//! **Wrapper inventory B/C (OP-S077 / S167):** `emit_jsx_element` / `emit_jsx_self_closing` are the only
 //! supported AST JSX emit entry points; extend [`crate::web_ir`] for new view semantics.
 
 use crate::codegen_ts::hir_emit::{ts_string_literal, wrap_jsx_hir_child_expr};
@@ -665,6 +665,11 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::Index { object, index, .. } => {
             format!("{}[{}]", emit_expr(object), emit_expr(index))
         }
+        // side_effect desugars to a synthesised activity call at HIR time; should not
+        // reach the AST-level TS codegen path.
+        Expr::SideEffect { .. } => "__side_effect__(/* P1-T7 */)".to_string(),
+        // WorkflowVersion is not representable as a TS expression in this emit path
+        Expr::WorkflowVersion(_) => String::new(),
     }
 }
 
@@ -726,7 +731,7 @@ fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
         let after_lt = &jsx[lt_pos..];
         // Find the end of the opening tag — first '>' or '/' before '>'.
         // We want to insert before the first '>' or '/>' in the opening tag.
-        if let Some(rel_end) = after_lt.find(|c: char| c == '>' || c == '/') {
+        if let Some(rel_end) = after_lt.find(['>', '/']) {
             let insert_at = lt_pos + rel_end;
             return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
         }

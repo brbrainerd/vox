@@ -22,9 +22,9 @@ fn test_config(dir: &TempDir) -> MemoryConfig {
 fn long_term_memory_set_and_get() {
     let dir = memory_workdir();
     let mem = LongTermMemory::open(&dir.path().join("MEMORY.md")).expect("open");
-    mem.set("current_crate", "vox-parser").expect("set");
+    mem.set("current_crate", "vox-compiler").expect("set");
     let val = mem.get("current_crate").expect("get");
-    assert_eq!(val.as_deref(), Some("vox-parser"));
+    assert_eq!(val.as_deref(), Some("vox-compiler"));
 }
 
 #[test]
@@ -99,7 +99,7 @@ async fn flush_before_compaction_persists_facts() {
     let mut facts = HashMap::new();
     facts.insert(
         "lock_file".to_string(),
-        "crates/vox-parser/src/parser.rs".to_string(),
+        "crates/vox-compiler/src/parser/mod.rs".to_string(),
     );
     facts.insert("agent_state".to_string(), "building".to_string());
     let flushed = mgr

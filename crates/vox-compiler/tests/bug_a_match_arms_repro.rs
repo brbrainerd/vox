@@ -1,5 +1,5 @@
 //! Bug A repro: `match` arms emit `case _:` literal patterns and lose Ok/Error bindings,
-//! per docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
+//! per docs/superpowers/plans/language/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
 
 const FIXTURE: &str = r#"
 import react.use_state
@@ -25,14 +25,14 @@ component VoicePage() {
 "#;
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn match_result_arms_emit_tagged_union_dispatch() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");
     let _diags = vox_compiler::typeck::typecheck_module(&module, "bug_a_match");
     let hir = vox_compiler::hir::lower_module(&module);
     let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
-    let body: String = out.files.iter().map(|(_, b)| b.as_str()).collect();
+    let body: String = out.files.values().map(|b| b.as_str()).collect();
     eprintln!("=== files ===");
     for (n, b) in &out.files {
         if b.contains("case _") || n.contains("VoicePage") {

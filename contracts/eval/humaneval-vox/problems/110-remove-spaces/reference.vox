@@ -1,0 +1,10 @@
+fn remove_spaces(s: str) to str {
+    let mut result: str = ""
+    let chars: list[str] = s.chars()
+    for c in chars {
+        if c != " " {
+            result = result + c
+        }
+    }
+    return result
+}

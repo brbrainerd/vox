@@ -36,6 +36,7 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         | Cli::Run { .. }
         | Cli::Dev { .. }
         | Cli::BundleApp { .. }
+        | Cli::Compile { .. }
         | Cli::Fmt { .. } => {
             std::unreachable!("top-level fabrica shims are routed before this match")
         }
@@ -43,6 +44,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             use clap::CommandFactory;
             let mut cmd = VoxCliRoot::command();
             clap_complete::generate(shell, &mut cmd, "vox", &mut std::io::stdout());
+        }
+        Cli::Emit { cmd } => {
+            crate::commands::emit::run(cmd).await?;
         }
         Cli::Commands {
             format,
@@ -142,9 +146,13 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         #[cfg(not(feature = "script-execution"))]
         Cli::ScriptStub { .. } => {
             anyhow::bail!(
-                "This Vox capability requires the 'script-execution' plugin, which is not installed.\n\n\
-                 To install it, run:\n\n  vox plugin install script-execution\n\n\
-                 See: docs/src/reference/plugins.md"
+                "{}\n\nThis binary was built without the `script-execution` cargo feature. \
+                 Resolve by either (a) installing the runtime plugin or (b) rebuilding with the feature:\n\n{}",
+                "vox script requires the 'script-execution' capability, which is not available in this build.",
+                vox_plugin_host::format_install_hint(
+                    "script-execution",
+                    Some("cargo build -p vox-cli --release --features script-execution")
+                )
             );
         }
         #[cfg(feature = "live")]
@@ -238,6 +246,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Db { cmd } => {
             crate::commands::db_cli::run(cmd).await?;
+        }
+        Cli::Memory { cmd } => {
+            crate::commands::memory_cli::run(cmd).await?;
         }
         Cli::Scientia { cmd } => {
             crate::commands::scientia::run(cmd).await?;
@@ -355,9 +366,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                 .await
                 .map_err(|e| anyhow::anyhow!("{:?}", e))?;
         }
-        #[cfg(feature = "dashboard")]
-        Cli::Dashboard { args } => {
-            crate::commands::dashboard::run(args).await?;
+        #[cfg(feature = "gui")]
+        Cli::Gui { args } => {
+            crate::commands::gui::run(args).await?;
         }
         Cli::DriftCheck { args } => {
             crate::commands::drift_check::run(args).await?;
@@ -378,6 +389,15 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Snapshot { cmd } => {
             crate::commands::snapshot::run(&cmd)?;
+        }
+        Cli::Rollback { id } => {
+            crate::commands::rollback::run(id).await?;
+        }
+        Cli::Workflow { cmd } => {
+            crate::commands::workflow::run(cmd).await?;
+        }
+        Cli::Dispatch { cmd } => {
+            crate::commands::dispatch::run(cmd).await?;
         }
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);

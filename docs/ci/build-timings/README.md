@@ -15,6 +15,18 @@ cargo run -p vox-cli --quiet -- ci build-timings --crates --json > docs/ci/build
 
 Each output line is one JSON object: `lane`, `ok`, `duration_ms`, optional `error`.
 
+## AI / agent loop thresholds (informal)
+
+These are **not** CI gates — use them to spot regressions when agents alternate shells or rerun **`vox ci pre-push`** excessively.
+
+| Check | Tool | Advisory threshold |
+|-------|------|---------------------|
+| Target-dir fragmentation | **`vox ci dev-loop-audit --json`** | **`fragmentation_risk`** should be **`none`** for routine coding |
+| Pre-push wall-clock | **`vox ci pre-push --report-json …`** | Compare **`total_ms`** trend vs your baseline; investigate if **`--quick`** exceeds ~5 min cold without code changes |
+| Heavy iteration smell | **`VOX_PREPUSH_AUDIT_LOG`** JSONL | More than **~2 full default pre-push runs per hour** per agent session — prefer **`cargo check -p`** between runs |
+
+See [AI dev loop overhead (2026)](../../src/architecture/ai-dev-loop-overhead-2026.md).
+
 ## Soft budgets
 
 **SSOT:** `budgets.json` is the only definition of soft caps — `vox ci build-timings` loads this file when either env var below is set (no duplicate literals in Rust).

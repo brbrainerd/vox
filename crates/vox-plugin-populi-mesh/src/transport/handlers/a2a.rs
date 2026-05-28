@@ -52,57 +52,54 @@ fn claim_policy_allows_worker(
     }
 
     // 2. Donation Policy Check (for public mesh).
-    if is_public {
-        if let Some(policy) = &worker.donation_policy {
-            // Opt-out check.
-            if !policy.public_mesh_opt_in {
+    if is_public && let Some(policy) = &worker.donation_policy {
+        // Opt-out check.
+        if !policy.public_mesh_opt_in {
+            return false;
+        }
+
+        // Priority check.
+        if msg.priority < policy.min_priority {
+            return false;
+        }
+
+        // Task Kind check.
+        if let Some(msg_kind) = &msg.task_kind {
+            let allowed = policy.slots.iter().any(|s| {
+                let s_kind = format!("{:?}", s.task_kind).to_lowercase();
+                s_kind == msg_kind.to_lowercase()
+            });
+            if !allowed {
                 return false;
             }
+        }
 
-            // Priority check.
-            if msg.priority < policy.min_priority {
-                return false;
-            }
+        // Identity checks.
+        if let Some(denied) = &policy.denied_users
+            && let Some(owner) = sender_owner_id
+            && denied.contains(&owner.to_string())
+        {
+            return false;
+        }
 
-            // Task Kind check.
-            if let Some(msg_kind) = &msg.task_kind {
-                let allowed = policy.slots.iter().any(|s| {
-                    let s_kind = format!("{:?}", s.task_kind).to_lowercase();
-                    s_kind == msg_kind.to_lowercase()
-                });
-                if !allowed {
-                    return false;
-                }
-            }
-
-            // Identity checks.
-            if let Some(denied) = &policy.denied_users {
-                if let Some(owner) = sender_owner_id {
-                    if denied.contains(&owner.to_string()) {
+        if let Some(allowed) = &policy.allowed_users {
+            match sender_owner_id {
+                Some(owner) => {
+                    if !allowed.contains(&owner.to_string()) {
                         return false;
                     }
                 }
+                None => return false, // If allowed_users is set, anonymous tasks are rejected.
             }
+        }
 
-            if let Some(allowed) = &policy.allowed_users {
-                match sender_owner_id {
-                    Some(owner) => {
-                        if !allowed.contains(&owner.to_string()) {
-                            return false;
-                        }
-                    }
-                    None => return false, // If allowed_users is set, anonymous tasks are rejected.
-                }
-            }
-
-            // Allowed Scopes check.
-            if let Some(_allowed_scopes) = &policy.allowed_scopes {
-                // If we don't know the sender's scope, we can't verify, so we skip if policy is strict.
-                // (In a real federation, we'd have the sender's scope in the message envelope).
-                // For now, if sender_node_id is present, we check it.
-                // Since we don't have easy access to the whole registry here without passing it,
-                // we'll assume for Phase 1 that allowed_scopes: None means "all public".
-            }
+        // Allowed Scopes check.
+        if let Some(_allowed_scopes) = &policy.allowed_scopes {
+            // If we don't know the sender's scope, we can't verify, so we skip if policy is strict.
+            // (In a real federation, we'd have the sender's scope in the message envelope).
+            // For now, if sender_node_id is present, we check it.
+            // Since we don't have easy access to the whole registry here without passing it,
+            // we'll assume for Phase 1 that allowed_scopes: None means "all public".
         }
     }
 
@@ -600,38 +597,37 @@ pub(crate) async fn a2a_ack(
         );
 
         // Wave 2: Kudos crediting for job results.
-        if msg.message_type == "job_result" {
-            if let (Ok(result), Some(db), Some(node_id)) = (
+        if msg.message_type == "job_result"
+            && let (Ok(result), Some(db), Some(node_id)) = (
                 serde_json::from_str::<vox_mesh_types::TaskResult>(&msg.payload),
                 &st.db,
                 &msg.sender_node_id,
-            ) {
-                if result.success {
-                    let owner_id = {
-                        let reg = st.inner.read().await;
-                        reg.nodes
-                            .iter()
-                            .find(|n| n.id == *node_id)
-                            .and_then(|n| n.owner_vox_user_id.clone())
-                    };
+            )
+            && result.success
+        {
+            let owner_id = {
+                let reg = st.inner.read().await;
+                reg.nodes
+                    .iter()
+                    .find(|n| n.id == *node_id)
+                    .and_then(|n| n.owner_vox_user_id.clone())
+            };
 
-                    if let Some(vox_user_id) = owner_id {
-                        let credit = vox_mesh_types::kudos::CreditJobRequest {
-                            vox_user_id,
-                            node_id: node_id.clone(),
-                            primitive: vox_mesh_types::kudos::RewardPrimitive::GpuComputeMs,
-                            amount: result.duration_ms,
-                            task_id: Some(msg.id.to_string()),
-                            metadata_json: None,
-                        };
-                        let db = db.clone();
-                        tokio::spawn(async move {
-                            if let Err(e) = db.credit_kudos(&credit).await {
-                                tracing::error!("failed to credit kudos: {:?}", e);
-                            }
-                        });
+            if let Some(vox_user_id) = owner_id {
+                let credit = vox_mesh_types::kudos::CreditJobRequest {
+                    vox_user_id,
+                    node_id: node_id.clone(),
+                    primitive: vox_mesh_types::kudos::RewardPrimitive::GpuComputeMs,
+                    amount: result.duration_ms,
+                    task_id: Some(msg.id.to_string()),
+                    metadata_json: None,
+                };
+                let db = db.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = db.credit_kudos(&credit).await {
+                        tracing::error!("failed to credit kudos: {:?}", e);
                     }
-                }
+                });
             }
         }
 

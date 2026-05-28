@@ -4,6 +4,8 @@
 //! is available in [`crate::pipeline`] for a single frontend; `build` and `check` here still use the
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
+mod command_registry_handler_needles;
+
 pub mod add;
 
 /// Quality-gate umbrella command (`vox audit`); reads `contracts/ci/check-targets.v1.yaml`.
@@ -25,6 +27,8 @@ pub mod check;
 pub mod ci;
 /// Codex integration logic for `vox db` subcommands.
 pub mod codex;
+/// Native / workspace compile umbrella (`vox compile`).
+pub mod compile;
 /// `vox config` CLI endpoint logic.
 pub mod config;
 /// Training data extraction / mixing pipelines (`vox corpus`).
@@ -54,10 +58,14 @@ pub mod dev;
 pub mod diagnostics;
 /// API documentation generator wrapper (`vox doc`).
 pub mod doc;
+/// Narrow codegen (`vox emit client`, …).
+pub mod emit;
 /// Extension lane: unified entry for legacy/ML subcommands (ars, ludus, oratio, schola).
 pub mod ext;
 /// Supplemental subcommands (snippet, share, ars).
 pub mod extras;
+/// Hybrid retrieval CLI (`vox memory search`).
+pub mod memory_cli;
 /// Socrates / evidence fusion for scientia worthiness (`metadata_json.scientia_evidence`).
 pub mod scientia_worthiness_enrich;
 /// ARS `vox skill` implementation (`extras::ars`); re-exported for internal call sites and any out-of-tree dispatch shims.
@@ -116,6 +124,14 @@ pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
 pub(crate) mod scientia_ledger_contract;
+/// `vox scientia scout` — Phase F single-command surface over the Phase A
+/// signal producers in `vox-scientia-producers`.
+pub mod scout;
+/// Thin CLI handlers wrapping the pure-library SCIENTIA Phase B / C / D / E
+/// / G / H crates (`vox-replay-runner`, `vox-manuscript-scaffold`,
+/// `vox-critic-gate`, `vox-class-routing`, `vox-findings-site`,
+/// `vox-scientia-dashboard`).
+pub mod scientia_phase_handlers;
 /// Public-URL tunnel for Vox apps (`vox share`). S1: LAN backend only.
 pub mod share;
 /// Optional telemetry upload queue (`vox telemetry`).
@@ -148,12 +164,22 @@ pub mod generate;
 #[cfg(feature = "dei")]
 pub mod visus;
 
-/// Local orchestration dashboard (`vox dashboard`).
-#[cfg(feature = "dashboard")]
-pub mod dashboard;
+
+/// Native Tauri 2 GUI (`vox gui`).
+#[cfg(feature = "gui")]
+pub mod gui;
 
 /// Workspace drift and pattern-repetition linter (`vox drift-check`).
 pub mod drift_check;
 
 /// Insta snapshot helpers: orphan detection and cleanup (`vox snapshot`).
 pub mod snapshot;
+
+/// Rollback
+pub mod rollback;
+
+/// Workflow introspection: dry-run schedule preview (`vox workflow preview`) (P1-T8).
+pub mod workflow;
+
+/// Dispatch-time routing preview — `vox dispatch preview` (P2-T6).
+pub mod dispatch;

@@ -1,7 +1,7 @@
 ---
 title: "GUI Authoring Syntax (2026): Vox UI as Values (VUV)"
 description: "Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to React/TSX/Tailwind unchanged."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-05-02"
 training_eligible: true
@@ -11,7 +11,7 @@ training_rationale: "Records the canonical GUI authoring shape MENS should learn
 # GUI Authoring Syntax (2026): Vox UI as Values (VUV)
 
 **Status:** **VUV-1 through VUV-6 implemented** (2026-05-08). VUV-7 in progress; VUV-8 in this commit. See [§Implementation Status](#implementation-status-2026-05-08) for per-phase landing details.
-**Scope:** authoring surface only. Web IR ([`crates/vox-compiler/src/web_ir/mod.rs`](../../../crates/vox-compiler/src/web_ir/mod.rs)) and the TSX backend ([`crates/vox-compiler/src/web_ir/emit_tsx.rs`](../../../crates/vox-compiler/src/web_ir/emit_tsx.rs)) keep their contracts. This note changes how source lowers *into* `DomNode` and how style is expressed.
+**Scope:** authoring surface only. Web IR ([`crates/vox-codegen/src/web_ir/mod.rs`](../../../crates/vox-codegen/src/web_ir/mod.rs)) and the TSX backend ([`crates/vox-codegen/src/web_ir/emit_tsx.rs`](../../../crates/vox-codegen/src/web_ir/emit_tsx.rs)) keep their contracts. This note changes how source lowers *into* `DomNode` and how style is expressed.
 
 ## Motivation
 
@@ -27,7 +27,7 @@ Vox is an **output language for large language models**. Every syntactic family 
 | HTML tag names | `<row>`, `<panel>` | Phase 6 partial |
 | ARIA / a11y attribute strings | `aria-label="…"` | Phase 6 partial |
 
-A single `text` element in [`speak.vox:28`](../../../crates/vox-dashboard/app/src/tabs/speak.vox) carries six independent Tailwind tokens jammed into one opaque string. Removing only the angle brackets would not address any of this.
+A single `text` element in [`speak.vox:28`](../../../crates/vox-dashboard/app/src/surfaces/speak.vox) carries six independent Tailwind tokens jammed into one opaque string. Removing only the angle brackets would not address any of this.
 
 VUV addresses the surface as a whole: **one syntax (function calls), one type system (Vox tokens), one validator (the compiler). No string-typed sub-languages.**
 
@@ -48,7 +48,7 @@ A call with no children is just a call. A call with no props is `name() { … }`
 
 ### Rule 2 — No class strings. Style is typed named args drawing from the token registry
 
-The Phase 4.4 token system (`contracts/tokens/tokens.v1.json`, validated by [`web_ir/validate.rs`](../../../crates/vox-compiler/src/web_ir/validate.rs)) already has typed colors, spacing, and surfaces. Today they are invisible at the authoring layer because users write Tailwind class strings *that happen to map to tokens*. VUV inverts this: **users write tokens directly; the compiler emits Tailwind / CSS / inline styles**.
+The Phase 4.4 token system (`contracts/tokens/tokens.v1.json`, validated by [`web_ir/validate.rs`](../../../crates/vox-codegen/src/web_ir/validate.rs)) already has typed colors, spacing, and surfaces. Today they are invisible at the authoring layer because users write Tailwind class strings *that happen to map to tokens*. VUV inverts this: **users write tokens directly; the compiler emits Tailwind / CSS / inline styles**.
 
 Style axes become enumerated kwargs: `font`, `weight`, `case`, `color`, `bg`, `pad`, `pad_x`, `pad_y`, `gap`, `align`, `justify`, `radius`, `border`, `surface`, `max_w`, `min_h`, `leading`, `tracking`, `mb`, `mt`, …
 
@@ -74,7 +74,7 @@ button(on_click: submit, disabled: is_submitting) { text("Send") }
 
 ## Before / after
 
-Source: [`crates/vox-dashboard/app/src/tabs/speak.vox`](../../../crates/vox-dashboard/app/src/tabs/speak.vox), `ChatMessage`.
+Source: [`crates/vox-dashboard/app/src/tabs/speak.vox`](../../../crates/vox-dashboard/app/src/surfaces/speak.vox), `ChatMessage`.
 
 **Today (JSX + Tailwind strings):**
 
@@ -136,7 +136,7 @@ Counting independent grammar rules and string-typed sub-languages a model must l
 
 ## Why this is React-friendlier, not React-hostile
 
-- **`emit_tsx` is unchanged.** It walks `DomNode` and emits TSX. The lowering step gains a token-resolution phase that turns `color: zinc.400` into either `className="text-zinc-400"` or `style={{color: 'var(--zinc-400)'}}` — a local decision in [`web_ir/lower.rs`](../../../crates/vox-compiler/src/web_ir/lower.rs).
+- **`emit_tsx` is unchanged.** It walks `DomNode` and emits TSX. The lowering step gains a token-resolution phase that turns `color: zinc.400` into either `className="text-zinc-400"` or `style={{color: 'var(--zinc-400)'}}` — a local decision in [`web_ir/lower.rs`](../../../crates/vox-codegen/src/web_ir/lower.rs).
 - **Calling existing React components stays a normal function call.** `react(SomeReactComponent, prop1: x, prop2: y) { children }` lowers to `<SomeReactComponent prop1={x} prop2={y}>{children}</SomeReactComponent>`. No special syntax.
 - **Tailwind becomes a backend, not a surface.** You can swap to vanilla CSS, CSS modules, styled-components, or zero-runtime CSS-in-JS by changing the lowering, not the source.
 
@@ -148,8 +148,8 @@ This is the phasing the codebase change must follow. Each phase is independently
 |---|---|---|---|---|
 | **VUV-1** Token vocabulary expansion | Add font sizes, weights, leading, tracking, justification, alignment, max-width scale, padding scale, radius scale, border presets, state-variant scaffolding to `contracts/tokens/tokens.v1.json` and `tokens/mod.rs`. Validator stays passing on existing inputs. | `contracts/tokens/`, `crates/vox-compiler/src/tokens/`, tests | medium | Existing dashboard still builds |
 | **VUV-2** Trailing-block parser + AST | Add optional `children: Vec<Expr>` to `Expr::Call`. Parse trailing `{…}` after a call. Behind `VOX_VUV=1` until VUV-3 lands. | `crates/vox-compiler/src/parser/`, AST, parser tests | medium | New tests green; old grammar untouched when flag off |
-| **VUV-3** Lowering: trailing-block-call → `DomNode::Element` | When call resolves to a UI primitive or `component`, lower to `DomNode::Element { tag, attrs, children }`. JSX path retained in parallel. | `crates/vox-compiler/src/web_ir/lower.rs`, integration tests | medium | One hand-written `.vox` view round-trips JSX→VUV with byte-identical TSX output |
-| **VUV-4** Typed style kwargs | Recognize style axes (`font`, `color`, `pad`, …) on UI primitive calls; resolve to tokens; emit Tailwind classes via `tokens_emit`. Reject unknown style kwargs. `raw_class()` escape hatch. | `crates/vox-compiler/src/web_ir/lower.rs`, `crates/vox-compiler/src/codegen_ts/tokens_emit.rs`, validators | large | Hand-written sample component compiles to identical TSX as today |
+| **VUV-3** Lowering: trailing-block-call → `DomNode::Element` | When call resolves to a UI primitive or `component`, lower to `DomNode::Element { tag, attrs, children }`. JSX path retained in parallel. | `crates/vox-codegen/src/web_ir/lower.rs`, integration tests | medium | One hand-written `.vox` view round-trips JSX→VUV with byte-identical TSX output |
+| **VUV-4** Typed style kwargs | Recognize style axes (`font`, `color`, `pad`, …) on UI primitive calls; resolve to tokens; emit Tailwind classes via `tokens_emit`. Reject unknown style kwargs. `raw_class()` escape hatch. | `crates/vox-codegen/src/web_ir/lower.rs`, `crates/vox-codegen/src/codegen_ts/tokens_emit.rs`, validators | large | Hand-written sample component compiles to identical TSX as today |
 | **VUV-5** Typed event handler kwargs | Normalize `on_click`, `on_change`, `on_submit`, … to React event names in lowering. Retire `on:click` JSX form. | lower.rs, emit_tsx, react_bridge | small | Dashboard event handlers all on the new shape |
 | **VUV-6** Dashboard migration (cutover) | Rewrite `app.vox`, `tabs/forge.vox`, `tabs/speak.vox`, `tabs/command.vox`, `tabs/network.vox` to VUV. Delete the JSX path from the parser. Remove `VOX_VUV` flag. | dashboard `.vox`, parser cleanup | large | Dashboard renders identically; visual diff = 0 |
 | **VUV-7** Golden corpus + MENS retraining | Rewrite `examples/golden/*.vox` and `crates/vox-compiler/tests/llm_fixtures/*.vox` UI fixtures. Retrain MENS on VUV-only corpus. | corpus, MENS pipeline | large | Eval scores ≥ pre-cutover baseline |
@@ -164,8 +164,8 @@ This is the phasing the codebase change must follow. Each phase is independently
 | **VUV-1** Token vocabulary | ✅ Done | Phase 4.4 + Phase 6 (TASK-6.1/6.3) of the GUI-native roadmap. `web_ir/primitives/mod.rs` ships 14 primitives + `UNIVERSAL_STYLE_KWARGS`. |
 | **VUV-2** Trailing-block parser | ✅ Done | [parser/descent/expr/pratt_match.rs](../../../crates/vox-compiler/src/parser/descent/expr/pratt_match.rs) lines ~262–308: `Ident(args) { children }` lowers to `Expr::Jsx`. Trigger: capitalized callee, recognized primitive, or HTML allowlist. |
 | **VUV-3** Lowering trailing-block → DomNode | ✅ Done | View-call form lowers through `Expr::Jsx` → `web_ir::DomNode`. Same Web IR contract; emit_tsx unchanged. |
-| **VUV-4** Typed style kwargs | ✅ Done | [web_ir/primitives/mod.rs](../../../crates/vox-compiler/src/web_ir/primitives/mod.rs) `UNIVERSAL_STYLE_KWARGS`. Style axes (`color`, `pad`, `gap`, …) lower to Tailwind via `tokens_emit`. `raw_class()` escape hatch preserved. |
-| **VUV-5** Typed event handler kwargs | ✅ Done | [codegen_ts/hir_emit/compat.rs](../../../crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs) `map_jsx_attr_name` normalizes `on_click`/`on:click` → `onClick`, etc. **No `.vox` source uses the colon form** — `on_click` is canonical; the `on:` aliases remain as compatibility for future Svelte-mineable directive families (`bind:`, `class:`, `style:`). |
+| **VUV-4** Typed style kwargs | ✅ Done | [web_ir/primitives/mod.rs](../../../crates/vox-codegen/src/web_ir/primitives/mod.rs) `UNIVERSAL_STYLE_KWARGS`. Style axes (`color`, `pad`, `gap`, …) lower to Tailwind via `tokens_emit`. `raw_class()` escape hatch preserved. |
+| **VUV-5** Typed event handler kwargs | ✅ Done | [codegen_ts/hir_emit/compat.rs](../../../crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs) `map_jsx_attr_name` normalizes `on_click`/`on:click` → `onClick`, etc. **No `.vox` source uses the colon form** — `on_click` is canonical; the `on:` aliases remain as compatibility for future Svelte-mineable directive families (`bind:`, `class:`, `style:`). |
 | **VUV-6** Dashboard cutover | ✅ Done | Angle-bracket JSX parser entry retired (parser/descent/expr/mod.rs comment: "pratt_jsx retired"). Dashboard `.vox` files (`app.vox`, all 4 tabs) authored on the view-call form (TASK-7.1/7.2). `Expr::Jsx` AST node retained as internal sugar from view-calls — no longer parsed from `<>`. |
 | **VUV-7** Golden corpus + MENS | 🟡 Partial | Corpus already migrated (TASK-8.1, commit `135b7591`). MENS retraining run pending operator action (TASK-8.2). |
 | **VUV-8** Docs sweep | ✅ Done | This block. |

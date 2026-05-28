@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Vox Imperium · Agentic Orchestrator</title>
+<meta name="viewport" content="width=1480" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brass: "#d4af37",
+        },
+        fontFamily: {
+          sans:    ['Inter','ui-sans-serif','system-ui','sans-serif'],
+          display: ['Rajdhani','Inter','ui-sans-serif','sans-serif'],
+          mono:    ['"JetBrains Mono"','ui-monospace','monospace'],
+        },
+        animation: {
+          'vox-ping':      'vox-ping 1.8s cubic-bezier(0,0,0.2,1) infinite',
+          'vox-dash':      'vox-dash 1.6s linear infinite',
+          'vox-shimmer':   'vox-shimmer 2.4s linear infinite',
+          'vox-spin-slow': 'vox-spin-slow 16s linear infinite',
+          'vox-hex-pulse': 'vox-hex-pulse 2.6s ease-in-out infinite',
+          'vox-toast-in':  'vox-toast-in 220ms cubic-bezier(0.16,1,0.3,1) both',
+        },
+        keyframes: {
+          'vox-ping':      { '75%,100%': { transform: 'scale(2.4)', opacity: '0' } },
+          'vox-dash':      { 'to': { strokeDashoffset: '-28' } },
+          'vox-shimmer':   { '0%': { transform: 'translateX(-100%)' }, '100%': { transform: 'translateX(100%)' } },
+          'vox-spin-slow': { 'to': { transform: 'rotate(360deg)' } },
+          'vox-hex-pulse': { '0%,100%': { opacity: '0.4' }, '50%': { opacity: '0.95' } },
+          'vox-toast-in':  { '0%': { opacity: '0', transform: 'translateY(8px) scale(0.98)' }, '100%': { opacity: '1', transform: 'translateY(0) scale(1)' } },
+        }
+      }
+    }
+  };
+</script>
+<style>
+  html, body { background: #09090b; color: #e4e4e7; }
+  body { font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  ::selection { background: rgba(212,175,55,0.35); color: #fff; }
+
+  /* Custom scrollbars */
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 999px; }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.12); }
+
+  /* Range slider */
+  input.vox-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px;
+    background: linear-gradient(to right, #d4af37 var(--p,50%), rgba(255,255,255,0.08) var(--p,50%)); }
+  input.vox-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%; background: #d4af37;
+    box-shadow: 0 0 14px rgba(212,175,55,0.55); cursor: pointer; }
+  input.vox-range::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%;
+    background: #d4af37; box-shadow: 0 0 14px rgba(212,175,55,0.55); cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="root" data-screen-label="Vox Imperium"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="data.js"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="topbar.jsx"></script>
+<script type="text/babel" src="dashboard.jsx"></script>
+<script type="text/babel" src="flow.jsx"></script>
+<script type="text/babel" src="catalog.jsx"></script>
+<script type="text/babel" src="intention.jsx"></script>
+<script type="text/babel" src="loquela.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

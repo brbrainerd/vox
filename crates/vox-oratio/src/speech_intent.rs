@@ -213,8 +213,10 @@ mod tests {
 
     #[test]
     fn fill_slots_contextual_this_file() {
-        let mut ctx = crate::routing::IdeContext::default();
-        ctx.active_file = Some("src/lib.vox".to_string());
+        let ctx = crate::routing::IdeContext {
+            active_file: Some("src/lib.vox".to_string()),
+            ..crate::routing::IdeContext::default()
+        };
         let (p, _s) = fill_slots_heuristic("fix this file", Some(&ctx));
         assert_eq!(p.as_deref(), Some("src/lib.vox"));
     }

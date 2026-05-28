@@ -75,7 +75,7 @@ impl<'a> AttentionTracker<'a> {
                 events.push(ev);
             }
         }
-        events.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+        events.sort_by_key(|e| std::cmp::Reverse(e.timestamp_ms));
         events.truncate(limit as usize);
         Ok(events)
     }

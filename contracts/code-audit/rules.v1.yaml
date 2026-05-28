@@ -373,8 +373,8 @@ rules:
 
   - id: rust/unwrap-call
     name: "Unwrap call (heuristic)"
-    description: "Heuristic: .unwrap() in Rust (info); skips common test paths and cfg(test) lines."
-    severity: info
+    description: "Heuristic: .unwrap() in Rust (warning); skips common test paths and cfg(test) lines."
+    severity: warning
     languages: [rust]
     match:
       kind: line-regex
@@ -386,6 +386,38 @@ rules:
         - "fixtures/rust-unwrap/unwrap_pos.txt"
       negative:
         - "fixtures/rust-unwrap/unwrap_neg.txt"
+
+  - id: rust/expect-call
+    name: "Expect call (heuristic)"
+    description: "Heuristic: .expect(...) in Rust; skips common test paths and cfg(test) lines."
+    severity: warning
+    languages: [rust]
+    match:
+      kind: line-regex
+      pattern: "\\.expect\\s*\\("
+    message: "`.expect(...)` — prefer `?` with context in production paths"
+    suggestion: "Prefer propagating errors with `?` and `.context(...)` over infallible `.expect(...)` in production code."
+    fixtures:
+      positive:
+        - "fixtures/rust-expect/expect_pos.txt"
+      negative:
+        - "fixtures/rust-expect/expect_neg.txt"
+
+  - id: rust/panic-call
+    name: "Panic macro (heuristic)"
+    description: "Heuristic: `panic!(...)` in Rust; skips common test paths and cfg(test) lines."
+    severity: warning
+    languages: [rust]
+    match:
+      kind: line-regex
+      pattern: "\\bpanic!\\s*\\("
+    message: "`panic!` — return `Result` or use structured error handling in production paths"
+    suggestion: "Replace `panic!` with recoverable errors unless this is truly unreachable after invariants."
+    fixtures:
+      positive:
+        - "fixtures/rust-panic/panic_pos.txt"
+      negative:
+        - "fixtures/rust-panic/panic_neg.txt"
 
   # ── stringly-typed-enum ───────────────────────────────────────────────────────
 

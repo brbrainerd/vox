@@ -42,6 +42,10 @@ pub enum SecretId {
     VoxMeshSubmitterToken,
     VoxMeshAdminToken,
     VoxMeshJwtHmacSecret,
+    /// Wire auth scheme: "ed25519-envelope" (default) | "jwt-hs256" | "both" (P5-T1c).
+    VoxMeshAuthScheme,
+    /// Raw URL of this node's attestation Gist (P5-T2c).
+    VoxMeshGithubAttestationGistUrl,
     VoxMeshWorkerResultVerifyKey,
     VoxNewsTwitterBearer,
     VoxSocialBlueskyHandle,
@@ -123,6 +127,9 @@ pub enum SecretId {
     VoxOpenReviewHttpMaxAttempts,
     VoxScholarlyJobLockOwner,
     VoxScientiaCrossrefMailto,
+    VoxScientiaResearchMeshConsumerPollEnabled,
+    VoxScientiaResearchMeshConsumerPollIntervalMs,
+    VoxScientiaResearchMeshIntakeWriterEnabled,
     VoxMeshBootstrapToken,
     VoxMeshBootstrapExpiresUnixMs,
     VoxIdentityKeyPath,
@@ -203,6 +210,8 @@ pub enum SecretId {
     VoxOrchestratorChatmlStrict,
     VoxOrchestratorCompletionGroundingShadow,
     VoxOrchestratorCompletionGroundingEnforce,
+    /// Env override for orchestrator `completion_markdown_link_audit_enabled` (after Vox.toml merge).
+    VoxOrchestratorCompletionMarkdownLinkAuditEnabled,
     VoxOrchestratorPlanningLlmSynthesisEnabled,
     VoxOrchestratorPlanningLlmSynthesisModel,
     VoxOrchestratorPlanningEnabled,
@@ -243,6 +252,12 @@ pub enum SecretId {
     VoxOrchestratorExecTimeDefaultBudgetMs,
     VoxOrchestratorExecTimeHistoryWindowDays,
     VoxOrchestratorCampaignId,
+    /// Env override for orchestrator `agentos_aci_envelope_enabled` (after Vox.toml merge).
+    VoxOrchestratorAgentosAciEnvelopeEnabled,
+    /// Env override for orchestrator `agentos_guardrail_kernel_enabled`.
+    VoxOrchestratorAgentosGuardrailKernelEnabled,
+    /// Env override for orchestrator `agentos_checkpoint_hints_enabled`.
+    VoxOrchestratorAgentosCheckpointHintsEnabled,
     VoxRepositoryRoot,
     VoxProviderDailyLimitDefault,
     VoxProviderLimitProviders,
@@ -252,6 +267,9 @@ pub enum SecretId {
     VoxOpenRouterCatalogMinRefreshIntervalSecs,
     VoxOpenRouterCatalogRefreshJitterMs,
     VoxOrchestratorHarnessCompletionGuard,
+    /// Stress integration tests only: periodic stderr progress in `crates/vox-orchestrator/tests/stress_test.rs`.
+    /// Not merged into orchestrator `merge_env_overrides`; read via `resolve_secret`.
+    VoxOrchestratorStressDebug,
     VoxOrchestratorMeshExecLeaseReconcile,
     VoxOrchestratorMeshExecLeaseAutoRevoke,
     VoxWorkspaceRoot,
@@ -348,6 +366,10 @@ pub enum SecretId {
     VoxSearchScraperRobotsRespect,
     VoxSearchScraperMinDensity,
     VoxSearchMaxHops,
+    /// When truthy, skip persisting SearXNG/DDG/Tavily web hits into `search_documents`.
+    VoxSearchPersistWebHitsDisabled,
+    /// Embedding model id (`VOX_EMBEDDING_MODEL`); non-secret config surfaced via secrets resolver for parity.
+    VoxEmbeddingModel,
     VoxSocialWorthinessEnforce,
     VoxReviewRepositoryId,
     VoxRegistryToken,

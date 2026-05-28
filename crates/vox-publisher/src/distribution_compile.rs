@@ -424,8 +424,10 @@ mod tests {
 
     #[test]
     fn unknown_profile_warns_and_falls_back() {
-        let mut syn = SyndicationConfig::default();
-        syn.rss = true;
+        let mut syn = SyndicationConfig {
+            rss: true,
+            ..SyndicationConfig::default()
+        };
         syn.distribution_policy.channel_policy.insert(
             "rss".to_string(),
             ChannelPolicyConfig {

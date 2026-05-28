@@ -51,16 +51,12 @@ pub(crate) fn read_cli_reference_for_compliance(repo_root: &Path) -> Result<Stri
 }
 
 pub(crate) fn read_env_vars_ssot_doc(repo_root: &Path) -> Result<String> {
-    let preferred = repo_root.join("docs/src/reference/env-vars-ssot.md");
-    if preferred.is_file() {
-        return read_utf8_path_capped(&preferred)
-            .with_context(|| format!("read {}", preferred.display()));
-    }
-    let fallback = repo_root.join("docs/src/reference/env-vars.md");
-    read_utf8_path_capped(&fallback).with_context(|| {
+    // Always load the prose SSOT tables — `docs/src/ref/env-vars-ssot.md` is a stub redirect only.
+    let canonical = repo_root.join("docs/src/reference/env-vars.md");
+    read_utf8_path_capped(&canonical).with_context(|| {
         format!(
-            "read {} (fallback when docs/src/reference/env-vars-ssot.md is absent)",
-            fallback.display()
+            "read {} (canonical env-var prose SSOT)",
+            canonical.display()
         )
     })
 }

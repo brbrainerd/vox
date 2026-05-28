@@ -3,7 +3,7 @@
 
 fn run_step(name: str, args: list[str]) -> bool {
     print("[cycle] " + name)
-    print("  cmd: vox " + " ".join(args))
+    print("  cmd: vox " + args.join(" "))
     
     let mut proc = process.run("vox", args)
     if proc is null {
@@ -15,7 +15,7 @@ fn run_step(name: str, args: list[str]) -> bool {
     }
 
     match proc {
-        Some(res) -> {
+        Some(res) => {
             if res.code == 0 {
                 print("  ✓ step complete.")
                 return true
@@ -24,7 +24,7 @@ fn run_step(name: str, args: list[str]) -> bool {
                 return false
             }
         }
-        None -> {
+        None => {
             print("  ✗ failed to execute step.")
             return false
         }

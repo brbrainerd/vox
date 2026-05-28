@@ -59,6 +59,81 @@ pub struct FnDecl {
     pub is_llm: bool,
     /// Optional specific LLM model to use for implementation.
     pub llm_model: Option<String>,
+    /// `structured_output: TypeName` arg from `@ai(structured_output = TypeName)` (GA-21).
+    #[serde(default)]
+    pub ai_structured_output_type: Option<String>,
+    /// `max_iterations: N` arg from `@ai(max_iterations = N)` (GA-21). Default 3.
+    #[serde(default)]
+    pub ai_max_iterations: u32,
+    /// `task_category: Name` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_task_category: Option<String>,
+    /// `strengths: [name, ...]` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_strengths: Vec<String>,
+    /// `tier_max: Local|Light|Pro|Elite` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_tier_max: Option<String>,
+    /// `cost_ceiling_usd_per_call: N` arg from extended `@ai(...)` fixture routing.
+    #[serde(default)]
+    pub ai_cost_ceiling_usd_per_call: Option<f64>,
+    /// `@prompt(stage = ..., schema = ...)` proposed fixture stage.
+    #[serde(default)]
+    pub prompt_stage: Option<String>,
+    /// `@prompt(stage = ..., schema = ...)` proposed fixture schema type.
+    #[serde(default)]
+    pub prompt_schema: Option<String>,
+    /// Optional `redact` list from `@prompt(...)`.
+    #[serde(default)]
+    pub prompt_redact: Vec<String>,
+    /// `@subagent(policy = ..., max_depth = ...)` proposed fixture policy.
+    #[serde(default)]
+    pub subagent_policy: Option<String>,
+    /// Optional max dispatch chain depth from `@subagent`.
+    #[serde(default)]
+    pub subagent_max_depth: Option<u32>,
+    /// Optional per-call budget ceiling from `@subagent`.
+    #[serde(default)]
+    pub subagent_budget_usd: Option<f64>,
+    /// Optional dispatch description from `@subagent`.
+    #[serde(default)]
+    pub subagent_description: Option<String>,
+    /// Optional explicit parallel fan-out toggle from `@subagent`.
+    #[serde(default)]
+    pub subagent_parallel: bool,
+    /// Optional task complexity 0–10 for `@subagent(complexity = N)` dispatch routing.
+    #[serde(default)]
+    pub subagent_complexity: Option<u8>,
+    /// `@search(corpus = ...)` corpus selector.
+    #[serde(default)]
+    pub search_corpus: Option<String>,
+    /// `@search(query = ...)` query template.
+    #[serde(default)]
+    pub search_query: Option<String>,
+    /// `@search(into = ...)` projection target type.
+    #[serde(default)]
+    pub search_into: Option<String>,
+    /// Optional top-k count for search corpus calls.
+    #[serde(default)]
+    pub search_top_k: Option<u32>,
+    /// Optional policy string for search routing guardrails.
+    #[serde(default)]
+    pub search_policy: Option<String>,
+    /// `@hole(spec = ...)` deferred-fill spec text.
+    #[serde(default)]
+    pub hole_spec: Option<String>,
+    /// `@hole(reviewer = ...)` reviewer mode.
+    #[serde(default)]
+    pub hole_reviewer: Option<String>,
+    /// `@hole(cache_key = ...)` deterministic key.
+    #[serde(default)]
+    pub hole_cache_key: Option<String>,
+    /// Optional constraints list from `@hole(...)`.
+    #[serde(default)]
+    pub hole_constraints: Vec<String>,
+    /// `@embed(model: "...", dimensions: N, source_field: "...")` decorator (GA-24).
+    #[serde(default)]
+    pub embed: Option<super::embed_decorator::AstEmbedSpec>,
     /// Whether the function serves as a page layout.
     /// Whether the function is public.
     pub is_pub: bool,
@@ -71,6 +146,21 @@ pub struct FnDecl {
     pub roles: Vec<String>,
     /// Optional CORS policy configuration.
     pub cors: Option<String>,
+    /// `@webhook(provider:, secret:, replay_window_secs:)` decorator (GA-16).
+    #[serde(default)]
+    pub webhook: Option<super::webhook::AstWebhookSpec>,
+    /// `@cors(origins:, allow_credentials:)` decorator (GA-06).
+    #[serde(default)]
+    pub cors_spec: Option<super::http_decorators::AstCorsSpec>,
+    /// `@rate_limit(by:, window_secs:, max:)` decorator (GA-06).
+    #[serde(default)]
+    pub rate_limit: Option<super::http_decorators::AstRateLimitSpec>,
+    /// `@pii(class:)` decorator — marks this fn as handling PII data (GA-23).
+    #[serde(default)]
+    pub pii: Option<super::http_decorators::AstPiiSpec>,
+    /// `@layer(tier:)` decorator — declares the Z-tier for a component (GA-26).
+    #[serde(default)]
+    pub layer: Option<super::layer_decorator::AstLayerSpec>,
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
     /// Postcondition expressions from `@ensure(expr)` decorators.
@@ -89,6 +179,16 @@ pub struct FnDecl {
     /// error (see plan 6).
     #[serde(default)]
     pub ts_extern_module: Option<String>,
+    /// Whether the function is marked `@remote` — eligible for cross-node dispatch
+    /// via the mesh (P1-T3). All parameters must be serializable.
+    #[serde(default)]
+    pub is_remote: bool,
+    /// `@inference(model = "...")` — MENS inference routing (Mn-T4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inference_model: Option<String>,
+    /// `@training_step` — CUDA-gated training step surface (Mn-T5).
+    #[serde(default)]
+    pub training_step: bool,
     /// Source location.
     pub span: Span,
 }

@@ -1,8 +1,8 @@
 ---
 title: "Explanation: Compiler Lowering Phases"
 description: "Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,"
-category: "explanation"
-last_updated: "2026-03-26"
+category: "Concepts"
+last_updated: "2026-05-11"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -28,47 +28,59 @@ The **Lowering** phase begins by transforming the AST into the HIR.
 
 ## 3. HIR to WebIR and LIR (Low-level intermediate layers)
 
-[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-compiler/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` trees (from view-call syntax) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** provides WebIR TSX projection used by the reactive bridge.
+[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-codegen/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` trees (from view-call syntax) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** provides WebIR TSX projection used by the reactive bridge.
 
 Current production behavior (important for migration planning):
 
 - `codegen_ts` still assembles production TS/TSX output on the primary path.
-- `VOX_WEBIR_VALIDATE=1` runs WebIR lower/validate as a fail-fast gate.
-- `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` bridge output via WebIR projection.
-- Parity mismatches no longer force fallback to legacy string emit; WebIR output now remains canonical while mismatch counts are tracked in bridge stats.
-- The two flags are related but not equivalent; validation can be enabled without switching reactive view emission.
+- `VOX_WEBIR_VALIDATE` runs WebIR lower/validate as a fail-fast gate (default on).
+- Reactive `view:` emission is **WebIR-only** (no legacy env toggle): validated WebIR TSX is canonical; blocking validate failures or missing Web IR view roots fail fast with diagnostics recorded in [`ReactiveViewBridgeStats::reactive_view_emit_failures`](../../../crates/vox-codegen/src/codegen_ts/reactive.rs); `emit_hir_expr` is used **only** for parity classification (`WebIrViewEmitted` vs `WebIrViewEmittedParityMismatch`).
 
 Migration milestones for deprecating legacy emit reliance:
 
 - **M1 (shipped):** WebIR validate gate defaults on.
 - **M2 (shipped):** Reactive bridge emits WebIR view output even when parity differs.
-- **M3 (pending):** Remove legacy parity comparison path once mismatch counters stay at zero across CI baselines.
+- **M3 (shipped):** Legacy reactive env toggle removed; fail-fast on blocking WebIR validate errors for reactive views; `vox-codegen::projection_bundle::project_bundle_from_hir` is the SSOT entry for emit-time projections.
 
-**Operations catalog + gates:** [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) and [acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) (includes supplemental **OP-S049–OP-S220** rustc/doc gates). **Roadmap link pass A (OP-S130, OP-S131, OP-S209–OP-S211):** keep lowering docs aligned when renaming validation stages.
+**Decision-of-record (2026-05-11):** Keep **HIR as semantic core** and **WebIR as the web UI projection** (do not fold WebIR into HIR as a single IR type for this phase). Rationale, rubric, and platform follow-ups: [ADR 036](../adr/036-webir-hir-unification-compare-both.md); concrete dual-path inventory: [WebIR/HIR split-brain inventory](../architecture/webir-hir-split-brain-inventory-2026.md).
+
+**Operations catalog + gates:** [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) and [acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) (includes supplemental **OP-S049–OP-S220** rustc/doc gates). **Roadmap link pass A (OP-S130, OP-S131, OP-S209–OP-S211):** keep lowering docs aligned when renaming validation stages.
 
 Separately, **backend-oriented** lowering remains optimized for Rust emission (database, actors, HTTP). The older “Frontend LIR” label maps to this split: **WebIR** for structured web UI, **HIR emitters** for expedient TS until the printer fully migrates.
 
-### 3b. HIR to AppContract and RuntimeProjection (contract layers)
+### 3b. Projection bundle (emit SSOT)
 
-Two additional HIR-derived contract layers are authoritative for non-UI emitters and orchestration:
+[`vox_codegen::projection_bundle::project_bundle_from_hir`](../../../crates/vox-codegen/src/projection_bundle.rs) builds one in-memory bundle per module:
+
+- `WebIrModule` (via `lower_hir_to_web_ir` **only inside the bundle**),
+- `AppContractModule` (`project_app_contract`),
+- `RuntimeProjectionModule` (`project_runtime_from_hir`),
+- `ShellProjectionModule` (`project_shell_from_hir` — `@back_button` / `@deep_link` / `@push`),
+- `RequiredRuntimeCapabilities` (`project_required_capabilities` — packaging capability id set).
+
+`codegen_ts` / `codegen_rust` emitters consume bundle fields; `vox-arch-check` **forbidden_pattern** rules block direct `lower_hir_to_web_ir` / `project_*` calls under `codegen_ts/**` and `codegen_rust/**` outside this module (see `docs/src/architecture/layers.toml`).
+
+### 3c. HIR to AppContract and RuntimeProjection (contract layers; also in bundle)
+
+Two additional HIR-derived contract layers are authoritative for non-UI emitters and orchestration (also reachable as `bundle.app` / `bundle.runtime`):
 
 - `app_contract::project_app_contract` produces `AppContractModule` (HTTP routes, server/query/mutation functions, client routes, server config).
 - `runtime_projection::project_runtime_from_hir` produces `RuntimeProjectionModule` (DB planning policy snapshots and inferred task capability hints).
 
-These projections are generated from the same lowered HIR input as WebIR and are validated in parity tests to prevent split semantic ownership.
+These projections are generated from the same lowered HIR input as WebIR and are validated in parity tests to prevent split semantic ownership. Prefer **`project_bundle_from_hir`** for emit paths so WebIR, contracts, shell, and required capabilities stay in lockstep.
 
 ## 4. Code Generation (Emission)
 
 The final phase where lowered IR is converted into source files:
-- **`vox-compiler::codegen_rust`**: Produces generated Rust app files (`src/main.rs`, `src/lib.rs`, API client output, and DB scaffolding).
-- **`vox-compiler::codegen_ts`**: Produces TS/TSX output (`App.tsx`/route trees, server-fn wrappers, component files, and generated contracts).
+- **`vox-codegen::codegen_rust`**: Produces generated Rust app files (`src/main.rs`, `src/lib.rs`, API client output, and DB scaffolding).
+- **`vox-codegen::codegen_ts`**: Produces TS/TSX output (`App.tsx`/route trees, server-fn wrappers, component files, and generated contracts).
 
 For frontend IR layering and migration phases, see [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
 For detailed implementation sequencing, see [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
-For ordered file-by-file migration operations, see [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
-For exact current-vs-target representation mapping, see [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md).
-For quantified token+grammar+escape-hatch savings on the canonical app, see [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
-For reproducible counting registries and equation trace, see [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
+For ordered file-by-file migration operations, see [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
+For exact current-vs-target representation mapping, see [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
+For quantified token+grammar+escape-hatch savings on the canonical app, see [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
+For reproducible counting registries and equation trace, see [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 
 ## 5. Why Lowering Matters?
 
@@ -78,5 +90,5 @@ By having multiple intermediate representations, Vox can perform complex archite
 
 **Related Reference**:
 - [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
-- [Archived: vox-hir crate](../archive/vox-hir.md) — Historical reference for the HIR data structures from the pre-monolith compiler split.
+- Historical HIR reference material lives under `crates/vox-compiler/src/hir/` (monolith); older standalone crate docs were folded into this tree.
 

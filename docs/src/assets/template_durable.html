@@ -70,8 +70,8 @@
             21%, 23% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 3vh var(--err)); }
             24%, 100% { filter: brightness(0.1) grayscale(1); }
         }
-        #node-worker1 .label { animation: nx-w1l 34s infinite; }
-        #node-worker1 .label::after { content: "COMPUTE NODE A"; animation: nx-w1lt 34s infinite; }
+        #node-worker1 .label { animation: nx-w1l 34s infinite; font-size: 0; }
+        #node-worker1 .label::after { content: "COMPUTE NODE A"; font-size: 2.4vh; animation: nx-w1lt 34s infinite; }
         @keyframes nx-w1l {
             0%, 18% { border-color: #444; color: white; }
             19%, 23% { border-color: var(--amber); color: var(--amber); }
@@ -89,8 +89,8 @@
             69%, 78% { filter: brightness(2) drop-shadow(0 0 2vh var(--emerald)); }
             79%, 100% { filter: brightness(0.5); }
         }
-        #node-worker2 .label { animation: nx-w2l 34s infinite; }
-        #node-worker2 .label::after { content: "COMPUTE NODE B"; animation: nx-w2lt 34s infinite; }
+        #node-worker2 .label { animation: nx-w2l 34s infinite; font-size: 0; }
+        #node-worker2 .label::after { content: "COMPUTE NODE B"; font-size: 2.4vh; animation: nx-w2lt 34s infinite; }
         @keyframes nx-w2l {
             0%, 68% { border-color: #444; color: #555; }
             69%, 78% { border-color: var(--emerald); color: var(--emerald); }

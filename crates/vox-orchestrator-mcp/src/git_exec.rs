@@ -39,7 +39,8 @@ pub enum GitExecError {
 /// strict-prefix) lets us catch banned subcommands that follow leading
 /// `-c key=val` configuration overrides. See `is_banned` for the matcher.
 ///
-/// Phase 2 will add an arch-check rule covering `Command::new("git")`
+/// Phase 2 will add an arch-check rule covering `// vox-arch-check: allow git-exec
+///         Command::new("git")`
 /// outside `git_exec.rs`, which removes the need to enumerate every
 /// destructive variant here. Until then, additions to this list should
 /// also include the `-ffd` / permuted-flag forms when the bypass risk is
@@ -81,7 +82,8 @@ impl GitExec {
             return Err(GitExecError::Banned(phrase));
         }
         let started = Instant::now();
-        let output = tokio::process::Command::new("git")
+        let output = tokio::process::// vox-arch-check: allow git-exec
+        Command::new("git")
             .current_dir(&self.cwd)
             .args(args)
             .output()

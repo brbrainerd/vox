@@ -1,0 +1,5 @@
+[package]
+name = "repair-039-missing-bool-true"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: exhaustiveness bug class. Custom binary Toggle ADT match missing the On arm (bool-missing-true shape)."

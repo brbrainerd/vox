@@ -32,8 +32,9 @@ async fn discord_auto_truncation_check() {
     let item = item_fixture();
     let mut publisher_cfg = config_fixture(None);
     publisher_cfg.discord_webhook_url = Some("http://localhost/dummy".to_string());
-    let mut cfg = DiscordOverride::default();
-    cfg.message = Some("x".repeat(2001));
+    let cfg = DiscordOverride {
+        message: Some("x".repeat(2001)),
+    };
 
     let res = discord::post(&publisher_cfg, &item, Some(&cfg), true).await;
     assert!(res.is_ok());

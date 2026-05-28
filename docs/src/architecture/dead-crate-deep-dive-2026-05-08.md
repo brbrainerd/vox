@@ -1,7 +1,7 @@
 ---
 title: "Dead Crate Deep Dive (2026-05-08)"
 description: "Code-level investigation of uncertain DEAD crates: what's unique, what's obviated, where unique code should be preserved."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Detailed per-crate analysis of preservation vs deletion decisions, useful for plugin migration work."

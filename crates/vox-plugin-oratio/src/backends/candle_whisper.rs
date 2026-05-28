@@ -37,11 +37,7 @@ fn cache() -> &'static Mutex<Option<Session>> {
 }
 
 fn pick_device() -> Result<Device> {
-    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioCuda)
-        .expose()
-        .as_deref()
-        == Some("1")
-    {
+    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioCuda).expose() == Some("1") {
         #[cfg(feature = "cuda")]
         {
             return Device::new_cuda(0).map_err(|e| anyhow::anyhow!("CUDA: {e}"));
@@ -408,7 +404,7 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     }
 
     let language_override = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioLanguage);
-    let (text, _) = transcribe_pcm_internal(&pcm, language_override.expose().as_deref())?;
+    let (text, _) = transcribe_pcm_internal(&pcm, language_override.expose())?;
     Ok(text)
 }
 
@@ -419,7 +415,7 @@ pub fn transcribe_pcm_internal(
 ) -> Result<(String, Vec<crate::backends::asr_backend::TimedSegment>)> {
     let model_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioModel)
         .expose()
-        .unwrap_or_else(|| "openai/whisper-tiny.en")
+        .unwrap_or("openai/whisper-tiny.en")
         .to_string();
     let rev_secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRevision);
     let revision = rev_secret
@@ -480,7 +476,7 @@ pub fn transcribe_pcm_internal(
         let prefix = 30usize.saturating_mul(SAMPLE_RATE);
         &pcm[..pcm.len().min(prefix)]
     } else {
-        &pcm
+        pcm
     };
 
     let lang_mel = audio::pcm_to_mel(&sess.config, lang_pcm_slice, &sess.mel_filters);
@@ -548,15 +544,10 @@ pub fn transcribe_pcm_internal(
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(299_792_458);
-    let verbose = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioVerbose)
-        .expose()
-        .as_deref()
-        == Some("1");
+    let verbose =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioVerbose).expose() == Some("1");
 
-    let task = match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioTask)
-        .expose()
-        .as_deref()
-    {
+    let task = match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioTask).expose() {
         Some(v) if v.trim() == "translate" => Some(DecodeTask::Translate),
         Some(v) if v.trim() == "transcribe" || v.trim().is_empty() => Some(DecodeTask::Transcribe),
         None => Some(DecodeTask::Transcribe),
@@ -576,7 +567,7 @@ pub fn transcribe_pcm_internal(
     let frame_to_ms = |frames: usize| -> u64 { (frames * 10 * 160) as u64 / 16 };
 
     if windows.len() == 1 {
-        let decoder = match build_decoder(
+        let mut decoder = match build_decoder(
             whisper,
             tokenizer_clone,
             seed,
@@ -596,9 +587,25 @@ pub fn transcribe_pcm_internal(
             processor = decoder.processor_name(),
             "decoder processor selected"
         );
-        // FORCE OOM for testing
-        let text_res: Result<String, anyhow::Error> =
-            Err(anyhow::anyhow!("out of memory simulated for testing"));
+        let text_res = decoder.run_streaming(&lang_mel_tensor, emit_tokens, |ev| {
+            if let StreamEvent::SegmentText {
+                segment_index,
+                text,
+                start_frame,
+                end_frame,
+                ..
+            } = &ev
+            {
+                output_segments.push(crate::backends::asr_backend::TimedSegment {
+                    start_ms: frame_to_ms(*start_frame),
+                    end_ms: frame_to_ms(*end_frame),
+                    text: text.clone(),
+                });
+                if let Some(ep) = emit_partial.as_ref() {
+                    let _ = append_partial_transcript_jsonl(ep, *segment_index, 1, text);
+                }
+            }
+        });
         let text = match text_res {
             Ok(t) => t,
             Err(e) => {
@@ -696,6 +703,19 @@ pub fn transcribe_pcm_internal(
     }
 
     Ok((merge_transcript_chunk_strings(parts), output_segments))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn single_window_branch_does_not_force_simulated_oom() {
+        let source = include_str!("candle_whisper.rs");
+        let forbidden = ["out of memory", "simulated", "for testing"].join(" ");
+        assert!(
+            !source.contains(&forbidden),
+            "single-window Whisper inference must call the decoder instead of a forced test error"
+        );
+    }
 }
 
 /// Like [`transcribe_audio_file`], but honors an per-call language hint (Whisper token id / ISO code).

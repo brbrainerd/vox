@@ -32,6 +32,7 @@ impl VoxDb {
         &self,
         agent_id: &str,
         session_id: Option<&str>,
+        tenant_id: Option<&str>,
         provider: &str,
         model: Option<&str>,
         input_tokens: i64,
@@ -39,11 +40,12 @@ impl VoxDb {
         cost_usd: f64,
     ) -> Result<i64, StoreError> {
         self.conn.execute(
-            "INSERT INTO cost_records (agent_id, session_id, provider, model, input_tokens, output_tokens, cost_usd, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))",
+            "INSERT INTO cost_records (agent_id, session_id, tenant_id, provider, model, input_tokens, output_tokens, cost_usd, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, datetime('now'))",
             params![
                 agent_id,
                 session_id,
+                tenant_id,
                 provider,
                 model,
                 input_tokens,
@@ -123,6 +125,7 @@ impl VoxDb {
         &self,
         agent_id: &str,
         session_id: &str,
+        tenant_id: Option<&str>,
         repository_id: &str,
         event_kind: &str,
         tool_name: Option<&str>,
@@ -137,12 +140,13 @@ impl VoxDb {
         self.conn
             .execute(
                 "INSERT INTO agent_telemetry_flat (
-                agent_id, session_id, repository_id, event_kind, tool_name, model_id, provider, 
+                agent_id, session_id, tenant_id, repository_id, event_kind, tool_name, model_id, provider, 
                 duration_ms, input_tokens, output_tokens, cost_usd, payload_json, recorded_at_ms
-             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, unixepoch('now') * 1000)",
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, unixepoch('now') * 1000)",
                 params![
                     agent_id,
                     session_id,
+                    tenant_id,
                     repository_id,
                     event_kind,
                     tool_name,

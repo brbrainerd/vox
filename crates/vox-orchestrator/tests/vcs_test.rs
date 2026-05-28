@@ -4,12 +4,31 @@
 
 use std::path::PathBuf;
 use vox_orchestrator::{
-    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, conflicts::ConflictResolution,
-    snapshot::SnapshotId, workspace::ChangeStatus,
+    AgentId, CompletionAttestation, FileAffinity, Orchestrator, OrchestratorConfig, TaskId,
+    conflicts::ConflictResolution, snapshot::SnapshotId, workspace::ChangeStatus,
 };
 
 fn test_config() -> OrchestratorConfig {
     OrchestratorConfig::for_testing()
+}
+
+fn completion_attestation_for_tests() -> CompletionAttestation {
+    CompletionAttestation {
+        checks_passed: vec!["human_review_approved".to_string()],
+        ..Default::default()
+    }
+}
+
+/// `complete_task*` requires the task to be dequeued into `in_progress` (see `orch_smoke::complete_task_flow`).
+async fn dequeue_and_complete(orch: &Orchestrator, agent_id: AgentId, task_id: TaskId) {
+    orch.agent_queue(agent_id)
+        .expect("agent queue")
+        .write()
+        .unwrap()
+        .dequeue();
+    orch.complete_task_with_attestation(task_id, Some(completion_attestation_for_tests()))
+        .await
+        .expect("complete should succeed");
 }
 
 #[tokio::test]
@@ -23,13 +42,12 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
             vec![FileAffinity::write("src/lib.rs")],
             None,
             None,
+            None,
         )
         .await
         .expect("submit should succeed");
     let agent_a = *orch.agent_ids().first().expect("should have an agent");
-    orch.complete_task(task_id)
-        .await
-        .expect("complete should succeed");
+    dequeue_and_complete(&orch, agent_a, task_id).await;
 
     // 1. Create workspace for agent A
     let ss_lock = orch.snapshot_store_mut();
@@ -47,6 +65,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
         .submit_task(
             "test task",
             vec![FileAffinity::write("src/lib.rs")],
+            None,
             None,
             None,
         )
@@ -71,9 +90,7 @@ async fn vcs_lifecycle_snapshot_oplog_conflict() {
     assert!(ss_lock.read().unwrap().count() >= 2);
 
     // 3. Complete the task — should capture post-task snapshot
-    orch.complete_task(task_id)
-        .await
-        .expect("complete should succeed");
+    dequeue_and_complete(&orch, agent_a, task_id).await;
 
     {
         let oplog = orch.oplog_mut();

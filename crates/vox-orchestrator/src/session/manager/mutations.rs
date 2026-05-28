@@ -29,28 +29,34 @@ impl SessionManager {
         self.db = Some(db);
     }
 
-    /// Create a new session for the given agent. Persists immediately.
-    pub fn create(&mut self, agent_id: AgentId) -> Result<String, SessionError> {
+    /// Create a new session for the given agent and optional tenant. Persists immediately.
+    pub fn create(
+        &mut self,
+        agent_id: AgentId,
+        tenant_id: Option<String>,
+    ) -> Result<String, SessionError> {
         if self.sessions.len() >= self.config.max_sessions {
             return Err(SessionError::MaxSessions(self.config.max_sessions));
         }
-        let session = Session::new(agent_id);
+        let session = Session::new(agent_id, tenant_id.clone());
         let id = session.id.clone();
 
         if let Some(db) = &self.db {
             let db = db.clone();
             let sid = id.clone();
             let aid_str = agent_id.0.to_string();
+            let tid = tenant_id.clone();
             let created_at = session.created_at;
             let event = SessionEvent::Created {
                 session_id: id.clone(),
                 agent_id: agent_id.0,
+                tenant_id: tenant_id.clone(),
                 created_at,
             };
             let payload = serde_json::to_string(&event).map_err(SessionError::Serialize)?;
             let meta = format!("{{\"agent_id\":\"{aid_str}\",\"state\":\"active\"}}");
             run_session_db_io(async move {
-                db.create_session(&sid, &aid_str, Some(meta.as_str()))
+                db.create_session(&sid, &aid_str, tid.as_deref(), Some(meta.as_str()))
                     .await?;
                 db.append_session_event(&sid, "created", &payload).await?;
                 Ok(())

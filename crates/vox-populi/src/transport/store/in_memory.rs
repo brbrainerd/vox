@@ -1,6 +1,6 @@
 //! In-memory [`MeshStore`] — for unit tests and migration staging.
 //!
-//! No persistence; behaviourally identical to [`VoxDbMeshStore`] except:
+//! No persistence; behaviourally identical to `VoxDbMeshStore` except:
 //! - `schema_version()` always returns 1.
 //! - `integrity_check()` validates dedupe but never returns sqlite-level findings.
 //! - `LockContention` is never returned.

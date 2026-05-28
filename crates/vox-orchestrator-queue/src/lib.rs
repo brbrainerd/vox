@@ -7,4 +7,6 @@
 pub mod affinity;
 pub mod locks;
 pub mod oplog;
+pub mod projection;
+pub mod projections;
 pub mod sync_lock;

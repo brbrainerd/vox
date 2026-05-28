@@ -2,7 +2,10 @@
 
 use clap::{Parser, Subcommand};
 
+pub mod cas;
+pub mod classify;
 pub mod costs;
+pub mod council_report;
 pub mod discover;
 pub mod explain;
 pub mod list;
@@ -21,6 +24,11 @@ pub struct ModelArgs {
 
 #[derive(Subcommand)]
 pub enum ModelCmd {
+    /// Mesh CAS model bundles (SafeTensors; Mn-T8).
+    Cas {
+        #[command(subcommand)]
+        cmd: cas::CasCmd,
+    },
     /// Refresh the model catalog from all sources (discovery).
     Discover(discover::DiscoverArgs),
     /// Perform batch aggregation of telemetry into the scoreboard.
@@ -39,10 +47,15 @@ pub enum ModelCmd {
     Costs(costs::CostsArgs),
     /// Manage and view observed pricing SSOT.
     Pricing(pricing::PricingArgs),
+    /// L2 — Build/inspect the classifier prompt for a model id (autonomic system).
+    Classify(classify::ClassifyArgs),
+    /// L3 — Render the quarterly model-council report (autonomic system).
+    CouncilReport(council_report::CouncilReportArgs),
 }
 
 pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
     match cmd {
+        ModelCmd::Cas { cmd } => cas::run(cmd).await,
         ModelCmd::Discover(args) => discover::run(args).await,
         ModelCmd::Rollup(args) => rollup::run(args).await,
         ModelCmd::Scoreboard(args) => scoreboard::run(args).await,
@@ -52,5 +65,7 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Explain(args) => explain::run(args).await,
         ModelCmd::Costs(args) => costs::run(args).await,
         ModelCmd::Pricing(args) => pricing::run(args).await,
+        ModelCmd::Classify(args) => classify::run(args).await,
+        ModelCmd::CouncilReport(args) => council_report::run(args).await,
     }
 }

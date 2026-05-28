@@ -1,6 +1,6 @@
 //! Codex / VoxDB research ingest, refresh, and reliability listing (`vox db` / codex paths).
 //!
-//! Re-exported from [`super::db`] for a flat `commands::db::*` surface.
+//! Re-exported from `super::db` for a flat `commands::db::*` surface.
 
 mod helpers;
 mod ingest;

@@ -1,7 +1,7 @@
 ---
 title: MCP tool registry contract
 description: Canonical MCP tool registry contract, metadata, and compliance checks.
-category: reference
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

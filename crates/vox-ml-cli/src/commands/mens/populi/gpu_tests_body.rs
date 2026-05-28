@@ -95,7 +95,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     let base_path = dir.path().join("base.safetensors");
     std::fs::write(
         &base_path,
-        safetensors::serialize(&base_map, &None).unwrap(),
+        safetensors::serialize(&base_map, None).unwrap(),
     )
     .unwrap();
 
@@ -119,7 +119,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
         TensorView::new(Dtype::F32, vec![vocab, rank], bb.as_slice()).unwrap(),
     );
     let ad_path = dir.path().join("adapter.safetensors");
-    std::fs::write(&ad_path, safetensors::serialize(&ad_map, &None).unwrap()).unwrap();
+    std::fs::write(&ad_path, safetensors::serialize(&ad_map, None).unwrap()).unwrap();
 
     let meta_path = dir.path().join("meta.json");
     std::fs::write(
@@ -196,7 +196,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     let base_path = dir.path().join("base.safetensors");
     std::fs::write(
         &base_path,
-        safetensors::serialize(&base_map, &None).unwrap(),
+        safetensors::serialize(&base_map, None).unwrap(),
     )
     .unwrap();
 
@@ -220,7 +220,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
         TensorView::new(Dtype::F32, vec![vocab, rank], bb.as_slice()).unwrap(),
     );
     let ad_path = dir.path().join("adapter.safetensors");
-    std::fs::write(&ad_path, safetensors::serialize(&ad_map, &None).unwrap()).unwrap();
+    std::fs::write(&ad_path, safetensors::serialize(&ad_map, None).unwrap()).unwrap();
 
     // Build a v3 manifest JSON directly (no typed enum imports from vox-populi needed).
     let v3_json = serde_json::json!({

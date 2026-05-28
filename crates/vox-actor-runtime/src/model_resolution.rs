@@ -4,11 +4,12 @@
 //!
 //! ## Backend lane alignment (orchestrator / MCP)
 //!
-//! [`ChatRouteBackend`] mirrors [`vox_orchestrator::models::ModelRouteBackend`] semantics for telemetry and
-//! cross-surface dashboards. `vox-actor-runtime` does **not** depend on `vox-orchestrator` (avoids cycles); keep the
-//! two enums logically in sync with [`vox_orchestrator::models::route_backend_for_model`] for registry-backed models.
+//! `ChatRouteBackend` (defined in `vox-orchestrator-types`) mirrors
+//! `vox_orchestrator::models::ModelRouteBackend` semantics for telemetry and cross-surface dashboards.
+//! `vox-actor-runtime` does **not** depend on `vox-orchestrator` (avoids cycles); keep the
+//! two enums logically in sync with `vox_orchestrator::models::route_backend_for_model` for registry-backed models.
 //! Chat-only routes add extra shapes (HF router/dedicated, manual OpenAI-compatible); those map to
-//! [`ChatRouteBackend::CascadeFallback`] unless the manual URL is Google Generative Language API (→ [`ChatRouteBackend::GeminiDirect`]).
+//! `ChatRouteBackend::CascadeFallback` unless the manual URL is Google Generative Language API (→ `ChatRouteBackend::GeminiDirect`).
 
 use crate::inference_env::{self, PopuliCapabilitySnapshot};
 use crate::llm::LlmConfig;

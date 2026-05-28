@@ -153,4 +153,8 @@ pub struct AgentSummary {
     pub agent_session_id: Option<String>,
     /// Maximum handoff count observed in this agent's queue.
     pub max_handoff_count: u8,
+    /// Active procedural skill (e.g. tdd) for the current task.
+    pub active_skill: Option<String>,
+    /// Current execution phase (Wave 2 OOPAV).
+    pub current_phase: Option<crate::types::TaskPhase>,
 }

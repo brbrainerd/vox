@@ -1,7 +1,7 @@
 ---
 title: "Fast LLM instruction plan"
 description: "Deterministic planning instruction set for creating and revising Vox planning artifacts quickly without implementation leakage."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-03-26"
 training_eligible: true
 

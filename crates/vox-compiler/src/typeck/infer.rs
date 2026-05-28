@@ -387,6 +387,15 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             let _ = infer_expr(index, ctx, builtins);
             ctx.fresh_var()
         }
+        // side_effect { … } desugars to a call at HIR time; infer as a fresh type var.
+        Expr::SideEffect { stmts, .. } => {
+            for s in stmts {
+                infer_stmt(s, ctx, builtins);
+            }
+            ctx.fresh_var()
+        }
+        // workflow.version is a patch-marker primitive; infer as unit.
+        Expr::WorkflowVersion(_) => Ty::Unit,
     }
 }
 

@@ -6,6 +6,7 @@
 // AUTO-GENERATED parts included below.
 
 pub mod agent_types;
+pub mod merge_outcome;
 pub mod socrates_policy;
 pub mod vcs_capability;
 
@@ -15,9 +16,10 @@ pub use vcs_capability::{
 
 pub use agent_types::{
     AccessKind, AgentId, AgentIdGenerator, BatchId, ChangeId, CorrelationId,
-    CorrelationIdGenerator, FileAffinity, IdParseError, LockToken, SnapshotId, SnapshotIdGenerator,
-    SwitchAccessMode, SwitchAction, SwitchActionType, TaskId, TaskIdGenerator,
+    CorrelationIdGenerator, FileAffinity, IdParseError, LockToken, PrioritySource, SnapshotId,
+    SnapshotIdGenerator, SwitchAccessMode, SwitchAction, SwitchActionType, TaskId, TaskIdGenerator,
 };
+pub use merge_outcome::{DaemonId, MergeOutcome};
 
 include!(concat!(env!("OUT_DIR"), "/generated_providers.rs"));
 

@@ -1,0 +1,13 @@
+@remote fn fetch_url(u: str) to str {
+    return u
+}
+
+activity parse_response(s: str) to str {
+    return s
+}
+
+workflow process(u: str) to str {
+    let raw = fetch_url(u)
+    let j = parse_response(raw)
+    return j
+}

@@ -119,3 +119,20 @@ async fn retrieval_bundle_prefers_bm25_before_lexical_fallback() {
     assert!(!bundle.evidence.used_lexical_fallback);
     assert_eq!(bundle.evidence.retrieval_tier, "bm25");
 }
+
+#[test]
+fn semantic_fs_discover_ranks_paths_by_intent_tokens() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("semantic_fs_note.rs"), b"fn main() {}").expect("write");
+    let policy = vox_search::SearchPolicy::default();
+    let hits = super::semantic_fs_discover(dir.path(), "semantic fs note", 8, &policy);
+    assert!(
+        hits.iter().any(|h| {
+            h["path"]
+                .as_str()
+                .unwrap_or("")
+                .contains("semantic_fs_note")
+        }),
+        "{hits:?}"
+    );
+}

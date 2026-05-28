@@ -26,7 +26,7 @@ chrono = { workspace = true }
 blake3 = { workspace = true }
 data-encoding = { workspace = true }
 keyring = { workspace = true }
-uuid = { version = "1.0", features = ["v4", "serde"] }
+uuid = { workspace = true, features = ["v4", "serde"] }
 vox-mesh-types = { workspace = true }
 vox-telemetry = { workspace = true }
 workspace-hack = { workspace = true }

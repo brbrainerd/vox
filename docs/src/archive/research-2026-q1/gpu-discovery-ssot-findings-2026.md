@@ -1,7 +1,7 @@
 ---
 title: "GPU Discovery & C++ Retirement Strategy (2026)"
 description: "Authoritative reference for hardware discovery logic and C++ decommissioning status."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-04-18"
 training_eligible: false

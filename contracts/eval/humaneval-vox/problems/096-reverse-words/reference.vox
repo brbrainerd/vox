@@ -1,0 +1,5 @@
+fn reverse_words(s: str) to str {
+    let words: list[str] = s.split(" ")
+    let rev: list[str] = words.reversed()
+    return rev.join(" ")
+}

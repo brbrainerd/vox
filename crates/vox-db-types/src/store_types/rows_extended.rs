@@ -188,7 +188,7 @@ pub struct QuestionStopEventRow {
     pub created_at_ms: i64,
 }
 
-/// One unacknowledged row from `a2a_messages` as returned by [`crate::VoxDb::poll_a2a_inbox`].
+/// One unacknowledged row from `a2a_messages` as returned by `vox_db::VoxDb::poll_a2a_inbox`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct A2AMessageRow {
     pub id: i64,

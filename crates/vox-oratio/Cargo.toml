@@ -15,10 +15,10 @@ categories = ["multimedia::audio"]
 # only need lightweight surfaces like `refine`, `routing`, or `runtime_config`.
 default = []
 # DEPRECATED: The Candle Whisper code has been extracted into vox-plugin-oratio (Unit 4 of the
-# vox-populi extraction follow-up plan). vox-audio-ingress still enables this feature while the
-# plugin-host rewire is pending. Once the ingress is rewired through vox-plugin-host::load_code_plugin
+# vox-populi extraction follow-up plan). Historical audio-ingress docs/env rows still point here while the
+# plugin-host rewire is pending. Once ingress is rewired through vox-plugin-host::load_code_plugin
 # + as_speech_to_text(), this feature and its heavy deps will be deleted from this crate.
-# TODO(extraction-unit4-followup): drop stt-candle after vox-audio-ingress rewire.
+# TODO(extraction-unit4-followup): drop stt-candle after audio-ingress rewire/retirement.
 stt-candle = [
     "dep:candle-core",
     "dep:candle-nn",
@@ -27,21 +27,21 @@ stt-candle = [
     "dep:tokenizers",
     "dep:symphonia",
     "dep:rubato",
-    "dep:rand",
+    "dep:rand09",
     "dep:byteorder",
 ]
 # Prefer transcript hypotheses that lex/parse/typecheck as Vox better (for speech-to-code).
 compiler-rerank = ["dep:vox-compiler"]
 cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 stt-sherpa = ["dep:sherpa-onnx"]
-cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-reqwest-defaults", "dep:async-trait", "dep:reqwest"]
-serve = ["dep:axum", "dep:tokio", "stt-candle"]
+cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-http-client", "dep:async-trait", "dep:reqwest"]
+serve = ["dep:axum", "axum/multipart", "dep:tokio", "stt-candle"]
 
 [dependencies]
 vox-populi = { workspace = true, optional = true, features = ["mens-cloud"] }
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
-vox-reqwest-defaults = { workspace = true, optional = true }
+vox-http-client = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 anyhow = { workspace = true }
 vox-compiler = { workspace = true, optional = true }
@@ -50,12 +50,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 axum = { workspace = true, optional = true }
-candle-core = { version = "0.9.1", optional = true }
-candle-nn = { version = "0.9.1", optional = true }
-candle-transformers = { version = "0.9.1", optional = true }
+candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
+candle-transformers = { workspace = true, optional = true }
 hf-hub = { workspace = true, optional = true }
-tokenizers = { version = "0.21", optional = true }
-symphonia = { version = "0.5.4", optional = true, default-features = false, features = [
+tokenizers = { workspace = true, optional = true }
+symphonia = { workspace = true, optional = true, default-features = false, features = [
     "aac",
     "alac",
     "flac",
@@ -65,9 +65,9 @@ symphonia = { version = "0.5.4", optional = true, default-features = false, feat
     "vorbis",
     "wav",
 ] }
-rubato = { version = "0.15.0", optional = true }
-rand = { version = "0.9", optional = true }
-byteorder = { version = "1.5", optional = true }
+rubato = { workspace = true, optional = true }
+rand09 = { workspace = true, optional = true }
+byteorder = { workspace = true, optional = true }
 uuid = { workspace = true }
 tempfile = { workspace = true }
 sherpa-onnx = { workspace = true, optional = true }

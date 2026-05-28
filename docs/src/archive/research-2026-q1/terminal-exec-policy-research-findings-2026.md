@@ -1,7 +1,7 @@
 ---
 title: "Terminal execution policy research findings 2026"
 description: "Evidence-backed synthesis for PowerShell-first agent shells, IDE allow/deny limitations, and a single-source terminal policy model aligned with Vox operations SSOT."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-02"
 training_eligible: false

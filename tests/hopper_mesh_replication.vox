@@ -1,0 +1,9 @@
+// P6-T9 acceptance test: two-daemon hopper convergence via federation envelope.
+// vox:skip — integration test requiring two running daemons; CI runs via
+// cargo test -p vox-orchestrator hopper_mesh_replication (Rust harness).
+fn main() {
+    // This acceptance test documents the P6-T9 two-daemon convergence contract.
+    // The Rust integration test at crates/vox-orchestrator/tests/hopper_mesh_replication.rs
+    // exercises the actual protocol.
+    print("P6-T9 hopper mesh replication acceptance test (see Rust harness)")
+}

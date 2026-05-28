@@ -22,7 +22,7 @@ fn registry_rejects_duplicate_from_keys() {
           { "from": "Box", "to": "container", "kind": "primitive", "since": "0.5.0" }
         ]
     }"#;
-    let result = RenameRegistry::from_str(json);
+    let result = RenameRegistry::parse_json(json);
     assert!(result.is_err(), "duplicate `from` keys must be rejected");
 }
 
@@ -36,21 +36,21 @@ fn registry_rejects_alias_chain() {
           { "from": "container", "to": "panel",     "kind": "primitive", "since": "0.5.0" }
         ]
     }"#;
-    let result = RenameRegistry::from_str(json);
+    let result = RenameRegistry::parse_json(json);
     assert!(result.is_err(), "alias chains must be rejected");
 }
 
 #[test]
 fn registry_accepts_empty_entries() {
     let json = r#"{ "version": 1, "entries": [] }"#;
-    let result = RenameRegistry::from_str(json);
+    let result = RenameRegistry::parse_json(json);
     assert!(result.is_ok(), "empty registry must be valid");
 }
 
 #[test]
 fn registry_rejects_unsupported_version() {
     let json = r#"{ "version": 99, "entries": [] }"#;
-    let result = RenameRegistry::from_str(json);
+    let result = RenameRegistry::parse_json(json);
     assert!(result.is_err(), "version != 1 must be rejected");
 }
 
@@ -64,7 +64,7 @@ fn deprecated_primitive_resolves_with_warning() {
           { "from": "Box", "to": "panel", "kind": "primitive", "since": "0.5.0" }
         ]
     }"#;
-    let registry = RenameRegistry::from_str(registry_json).unwrap();
+    let registry = RenameRegistry::parse_json(registry_json).unwrap();
 
     let source = "component App() { view: Box() { } }";
     let result = parser::parse_with_registry(source, &registry).expect("source should parse");
@@ -121,7 +121,7 @@ fn registry_rejects_empty_from() {
         ]
     }"#;
     assert!(
-        RenameRegistry::from_str(json).is_err(),
+        RenameRegistry::parse_json(json).is_err(),
         "empty `from` must be rejected"
     );
 }
@@ -135,7 +135,7 @@ fn registry_rejects_self_rename() {
         ]
     }"#;
     assert!(
-        RenameRegistry::from_str(json).is_err(),
+        RenameRegistry::parse_json(json).is_err(),
         "self-rename (from == to) must be rejected"
     );
 }

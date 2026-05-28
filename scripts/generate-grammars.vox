@@ -1,57 +1,60 @@
 import fs
 import regex
 
-// THE SINGLE SOURCE OF TRUTH (SSOT)
-let KEYWORDS = "fn let mut if else match for in to return import type pub with on actor workflow spawn http activity component routes struct enum trait impl message state from use style return as try catch throw await yield while const async"
-let LITERALS = "true false Unit"
-let BUILTINS = "list map int float str bool Option Result Some None Ok Err Id List Map Set"
-let DECORATORS = "table|query|mutation|action|collection|index|vector_index|search_index|layout|loading|not_found|error_boundary|test|fixture|mock|trace|health|metric|scheduled|mcp\\\\.tool|mcp\\\\.resource|agent_def|skill|v0|py_import|deprecated|pure|require|theme|keyframes|server"
+// THE SINGLE SOURCE OF TRUTH (SSOT) — kept in `main()` because Vox does not yet
+// surface module-level `const` to function scopes (audit 2026-05-23). Helpers
+// take the SSOT strings as parameters.
 
-fn update_hljs() {
+fn update_hljs(keywords: str, literals: str, builtins: str) {
     let path = "docs/theme/highlight-vox.js"
-    let content = fs.read_file(path)
-    
-    let content = regex.replace(content, "/\\*SSOT_HJS_KW\\*/.*?/\\*END_SSOT_HJS_KW\\*/", "/*SSOT_HJS_KW*/" + KEYWORDS + "/*END_SSOT_HJS_KW*/")
-    let content = regex.replace(content, "/\\*SSOT_HJS_LIT\\*/.*?/\\*END_SSOT_HJS_LIT\\*/", "/*SSOT_HJS_LIT*/" + LITERALS + "/*END_SSOT_HJS_LIT*/")
-    let content = regex.replace(content, "/\\*SSOT_HJS_BUILTIN\\*/.*?/\\*END_SSOT_HJS_BUILTIN\\*/", "/*SSOT_HJS_BUILTIN*/" + BUILTINS + "/*END_SSOT_HJS_BUILTIN*/")
-    
+    let content = fs.read_file(path).unwrap()
+
+    let content = regex.replace(content, "/\\*SSOT_HJS_KW\\*/.*?/\\*END_SSOT_HJS_KW\\*/", "/*SSOT_HJS_KW*/" + keywords + "/*END_SSOT_HJS_KW*/")
+    let content = regex.replace(content, "/\\*SSOT_HJS_LIT\\*/.*?/\\*END_SSOT_HJS_LIT\\*/", "/*SSOT_HJS_LIT*/" + literals + "/*END_SSOT_HJS_LIT*/")
+    let content = regex.replace(content, "/\\*SSOT_HJS_BUILTIN\\*/.*?/\\*END_SSOT_HJS_BUILTIN\\*/", "/*SSOT_HJS_BUILTIN*/" + builtins + "/*END_SSOT_HJS_BUILTIN*/")
+
     fs.write_file(path, content)
     print("Updated " + path)
 }
 
-fn update_textmate() {
-    let path = "vox-vscode/syntaxes/vox.tmLanguage.json"
-    let content = fs.read_file(path)
-    
-    let tm_keywords = regex.replace(KEYWORDS, " ", "|")
-    let tm_builtins = regex.replace(BUILTINS, " ", "|")
+fn update_textmate(keywords: str, builtins: str, decorators: str) {
+    let path = "apps/editor/vox-vscode/syntaxes/vox.tmLanguage.json"
+    let content = fs.read_file(path).unwrap()
+
+    let tm_keywords = regex.replace(keywords, " ", "|")
+    let tm_builtins = regex.replace(builtins, " ", "|")
     let tm_all = tm_keywords + "|" + tm_builtins
-    
+
     let content = regex.replace(content, "/\\*SSOT_TM_ALL\\*/.*?/\\*END_SSOT_TM_ALL\\*/", "/*SSOT_TM_ALL*/" + tm_all + "/*END_SSOT_TM_ALL*/")
-    let content = regex.replace(content, "/\\*SSOT_TM_DEC\\*/.*?/\\*END_SSOT_TM_DEC\\*/", "/*SSOT_TM_DEC*/" + DECORATORS + "/*END_SSOT_TM_DEC*/")
-    
+    let content = regex.replace(content, "/\\*SSOT_TM_DEC\\*/.*?/\\*END_SSOT_TM_DEC\\*/", "/*SSOT_TM_DEC*/" + decorators + "/*END_SSOT_TM_DEC*/")
+
     fs.write_file(path, content)
     print("Updated " + path)
 }
 
-fn update_treesitter() {
+fn update_treesitter(keywords: str) {
     let path = "tree-sitter-vox/grammar.js"
-    let content = fs.read_file(path)
-    
+    let content = fs.read_file(path).unwrap()
+
     // Convert to quoted JS array string
-    let words = regex.replace(KEYWORDS, " ", "', '")
+    let words = regex.replace(keywords, " ", "', '")
     let ts_arr = "'" + words + "'"
-    
+
     let content = regex.replace(content, "/\\*SSOT_TS_KW\\*/.*?/\\*END_SSOT_TS_KW\\*/", "/*SSOT_TS_KW*/" + ts_arr + "/*END_SSOT_TS_KW*/")
-    
+
     fs.write_file(path, content)
     print("Updated " + path)
 }
 
 fn main() {
+    let keywords = "fn let mut if else match for in to return import type pub with on actor workflow spawn http activity component routes struct enum trait impl message state from use style return as try catch throw await yield while const async"
+    let literals = "true false Unit"
+    let builtins = "list map int float str bool Option Result Some None Ok Err Id List Map Set"
+    let decorators = "table|query|mutation|action|collection|index|vector_index|search_index|layout|loading|not_found|error_boundary|test|fixture|mock|trace|health|metric|scheduled|mcp\\\\.tool|mcp\\\\.resource|agent_def|skill|v0|py_import|deprecated|pure|require|theme|keyframes|server"
+
     print("Regenerating grammar fragments from SSOT...")
-    update_hljs()
-    update_textmate()
-    update_treesitter()
+    update_hljs(keywords, literals, builtins)
+    update_textmate(keywords, builtins, decorators)
+    update_treesitter(keywords)
     print("Grammars sync complete.")
 }

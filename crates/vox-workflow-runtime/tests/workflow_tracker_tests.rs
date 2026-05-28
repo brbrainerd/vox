@@ -21,6 +21,9 @@ impl RecordingTracker {
 }
 
 impl WorkflowTracker for RecordingTracker {
+    // The trait uses RPIT (`impl Future + Send`) so implementors keep the same
+    // signature; rewriting as `async fn` is not equivalent here.
+    #[allow(clippy::manual_async_fn)]
     fn is_activity_completed(
         &self,
         _wf: &str,

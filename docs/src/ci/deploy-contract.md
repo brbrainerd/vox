@@ -1,7 +1,7 @@
 ---
 title: "Coolify Deployment Contract"
 description: "Automated CI/CD pipeline definition for the Hetzner VPS including LLM auto-healing loops."
-category: "ci"
+category: "CI & Quality"
 ---
 # Coolify Deployment Contract
 
@@ -20,6 +20,10 @@ graph TD
   D -->|Failure| G[Fetch logs & artifact]
   G --> F
 ```
+
+## Gate 1 — Deploy smoke (minimal)
+
+The repository merge gate on **`main`** is **[`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)** (format, clippy, guards, tests). **`deploy-hetzner.yml`** does not repeat fmt/clippy; Gate 1 only runs **`cargo build -p vox-cli --locked`** on **`ubuntu-latest`** so the deploy pipeline catches GitHub-hosted portability or lockfile drift before Coolify is triggered. Use **`workflow_dispatch`** with **`skip_tests: true`** only when that check must be bypassed.
 
 ## Gate 3 — Production HTTPS (eval sandbox)
 

@@ -8,7 +8,7 @@
 //! - List and resolve pending approval requests from the approval broker
 
 use clap::Subcommand;
-use vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
+use crate::utils::install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
 use vox_openclaw_runtime::{
     DefaultOpenClawRuntimeAdapter, OpenClawClient, OpenClawConnectionOverrides,
     OpenClawDiscoveryOverrides, OpenClawRemoteConfig, OpenClawRuntimeAdapter,
@@ -548,7 +548,7 @@ async fn cmd_approvals(mcp_url: String, json: bool) -> anyhow::Result<()> {
             "arguments": {}
         }
     });
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()?;
     let resp = client.post(&url).json(&body).send().await;
@@ -592,7 +592,7 @@ async fn cmd_resolve(
             "arguments": args
         }
     });
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()?;
     match client.post(&url).json(&body).send().await {
@@ -791,7 +791,7 @@ async fn cmd_doctor(
         "{}/v1/skills",
         resolved.http_gateway_url.trim_end_matches('/')
     );
-    let http_status = vox_reqwest_defaults::client_builder()
+    let http_status = vox_http_client::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()?
         .get(&http_probe_url)
@@ -848,7 +848,7 @@ async fn cmd_doctor(
                         break;
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
-                    backoff_ms = vox_primitives::backoff::next_backoff_ms_double_clamped(
+                    backoff_ms = vox_foundation::primitives::backoff::next_backoff_ms_double_clamped(
                         backoff_ms, 100, 30_000,
                     );
                 }

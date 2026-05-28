@@ -1,7 +1,7 @@
 ---
 title: "Mens laziness and accuracy audit"
 description: "Severity-ranked audit of the current VoxMens research implementation, focusing on LLM-style mistakes, drift, brittle heuristics, and durability risks."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-28"
 training_eligible: false
 
@@ -24,14 +24,14 @@ This is a research audit, not a remediation plan. The next pass should convert t
 Primary implementation surfaces reviewed:
 
 - [`crates/vox-cli/src/commands/ci/mens_scorecard.rs`](../../../crates/vox-cli/src/commands/ci/mens_scorecard.rs)
-- [`crates/vox-cli/src/commands/ai/generate.rs`](../../../crates/vox-cli/src/commands/ai/generate.rs)
-- [`crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs)
-- [`crates/vox-orchestrator/src/mcp_tools/speech_constraints.rs`](../../../crates/vox-orchestrator/src/mcp_tools/speech_constraints.rs)
-- [`crates/vox-orchestrator/src/mcp_tools/tools/text_normalization.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/text_normalization.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora_train/epoch_boundary.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/epoch_boundary.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora_train/finalize.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/finalize.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora_train/db_thread.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/db_thread.rs)
+- [`crates/vox-cli/src/commands/generate.rs`](../../../crates/vox-cli/src/commands/generate.rs)
+- [`crates/vox-orchestrator-mcp/src/compiler_tools.rs`](../../../crates/vox-orchestrator-mcp/src/compiler_tools.rs)
+- [`crates/vox-orchestrator-mcp/src/speech_constraints.rs`](../../../crates/vox-orchestrator-mcp/src/speech_constraints.rs)
+- [`crates/vox-orchestrator-mcp/src/text_normalization.rs`](../../../crates/vox-orchestrator-mcp/src/text_normalization.rs)
+- [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
+- [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
+- [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
+- [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
 - [`contracts/eval/mens-scorecard.schema.json`](../../../contracts/eval/mens-scorecard.schema.json)
 - [`contracts/eval/mens-scorecard.baseline.json`](../../../contracts/eval/mens-scorecard.baseline.json)
 

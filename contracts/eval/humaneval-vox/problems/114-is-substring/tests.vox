@@ -1,0 +1,14 @@
+fn is_substring(haystack: str, needle: str) to bool {
+    return haystack.contains(needle)
+}
+
+fn main() to str {
+    assert(is_substring("hello world", "world") == true)
+    assert(is_substring("hello world", "xyz") == false)
+    assert(is_substring("abcdef", "cd") == true)
+    assert(is_substring("", "") == true)
+    assert(is_substring("abc", "") == true)
+    assert(is_substring("", "a") == false)
+    assert(is_substring("racecar", "ace") == true)
+    return "ok"
+}

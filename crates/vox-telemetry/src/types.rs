@@ -78,6 +78,8 @@ pub const METRIC_TYPE_BANDIT_UPDATE: &str = "orch.calibration.bandit_update";
 pub const METRIC_TYPE_SUBAGENT_DISPATCH: &str = "orch.subagent.dispatch";
 /// D4: Sub-agent chain depth exceeded configured cap.
 pub const METRIC_TYPE_CHAIN_DEPTH_ALERT: &str = "orch.subagent.chain_depth_alert";
+/// S1 — AgentOS guardrail denied a tool preflight (mutation / destructive heuristic).
+pub const METRIC_TYPE_AGENTOS_GUARDRAIL_DENY: &str = "orch.agentos.guardrail_deny";
 
 // ── New metric types (Phase B–D) — defined here, used when emit sites are added ─
 
@@ -89,6 +91,15 @@ pub const METRIC_TYPE_TASK_ROOT_SUMMARY: &str = "task.root_summary";
 pub const METRIC_TYPE_BUILD_SUMMARY_EVENT: &str = "build.summary";
 /// S1 — Generic subsystem error / retry event. (Phase D)
 pub const METRIC_TYPE_ERROR_EVENT: &str = "telemetry.error";
+
+/// S1 — AI-first `@ai` fixture: intent routing metadata (task category, strengths).
+pub const METRIC_TYPE_FIXTURE_MODEL_INTENT: &str = "fixture.model.intent_resolved";
+/// S1 — AI-first `@prompt` fixture: cascade dispatch observation.
+pub const METRIC_TYPE_FIXTURE_PROMPT_DISPATCH: &str = "fixture.prompt.dispatch";
+/// S1 — AI-first `@search` fixture: retrieval dispatch observation.
+pub const METRIC_TYPE_FIXTURE_SEARCH_DISPATCH: &str = "fixture.search.dispatch";
+/// S1 — AI-first `@hole` fixture: compile-time hole observed (staleness / inventory).
+pub const METRIC_TYPE_FIXTURE_HOLE_OBSERVED: &str = "fixture.hole.observed";
 
 // ── Session id prefixes ──────────────────────────────────────────────────────
 
@@ -145,6 +156,25 @@ impl<'a> TelemetryWriteOptions<'a> {
     pub fn session_route(&self) -> String {
         format!("{SESSION_PREFIX_ROUTE}{}", self.repository_id)
     }
+
+    /// Session ID for `vox.lint.*` events (P2.1). Aggregator buckets by repo.
+    #[inline]
+    pub fn session_lint(&self) -> String {
+        format!("{SESSION_PREFIX_LINT}{}", self.repository_id)
+    }
+
+    /// Session ID for `vox.repair.*` events (P2.1). One session id per repair
+    /// invocation; the [`RepairOutcomeEvent`] closes it.
+    #[inline]
+    pub fn session_repair(&self) -> String {
+        format!("{SESSION_PREFIX_REPAIR}{}", self.repository_id)
+    }
+
+    /// Session ID for `vox.audit.*` events (A11).
+    #[inline]
+    pub fn session_audit(&self) -> String {
+        format!("{SESSION_PREFIX_AUDIT}{}", self.repository_id)
+    }
 }
 
 // ── Validation ───────────────────────────────────────────────────────────────
@@ -157,7 +187,7 @@ fn valid_metric_type_chars(s: &str) -> bool {
 
 /// Validate inputs before `INSERT INTO research_metrics`.
 ///
-/// Called by [`vox_db::VoxDb::append_research_metric`] on every write.
+/// Called by `vox_db::VoxDb::append_research_metric` on every write.
 pub fn validate_research_metric_row(
     session_id: &str,
     metric_type: &str,
@@ -229,7 +259,119 @@ pub enum TelemetryEvent {
     BuildSummary(BuildSummaryEvent),
     /// Subsystem error / retry event (Phase D).
     Error(ErrorEvent),
+    /// AI-first language fixtures (`@ai`, `@prompt`, `@subagent`, `@search`, `@hole`).
+    AiFixture(AiFixtureEvent),
+    /// CR-L8 corpus-feedback: one `vox-code-audit` finding (P2.1).
+    LintFinding(LintFindingEvent),
+    /// CR-L8 corpus-feedback: autofix accepted or rejected (P2.1).
+    /// The wrapping `metric_type` disambiguates `applied` vs `rejected`.
+    LintAutofix(LintAutofixEvent),
+    /// CR-L8 corpus-feedback: one outer-loop attempt of `vox repair` (P2.1).
+    RepairAttempt(RepairAttemptEvent),
+    /// CR-L8 corpus-feedback: terminal outcome of a `vox repair` session (P2.1).
+    RepairOutcome(RepairOutcomeEvent),
+    /// Per `vox audit <thing>` run (A11; contract-required per
+    /// `contracts/ci/vox-audit-contract.v1.yaml` §telemetry).
+    AuditRun(AuditRunEvent),
+    /// One `select()` call — L0 of the model-autonomic system.
+    /// `metric_type = METRIC_TYPE_SELECTION_DECISION`.
+    /// See [`docs/src/architecture/model-autonomic-system-2026.md`] §4.
+    SelectionDecision(SelectionDecisionEvent),
+    /// A model id appeared in an upstream catalog that wasn't in the prior
+    /// snapshot. L1 of the model-autonomic system.
+    /// `metric_type = METRIC_TYPE_MODEL_DISCOVERY`.
+    ModelDiscovery(DiscoveryEvent),
+    /// Classifier LLM emitted tier/strengths/confidence for a model.
+    /// L2 of the model-autonomic system.
+    /// `metric_type = METRIC_TYPE_MODEL_CLASSIFICATION`.
+    ModelClassification(ClassificationEvent),
+    /// A model crossed a confidence boundary (Provisional→Shadowed→Confirmed).
+    /// L2/L3 of the model-autonomic system.
+    /// `metric_type = METRIC_TYPE_CONFIDENCE_PROMOTION`.
+    ConfidencePromotion(ConfidencePromotionEvent),
+    /// One `vox doctor --project <path>` health-check run.
+    /// `metric_type = METRIC_TYPE_DOCTOR_PROJECT_CHECK`.
+    /// CR-L7's third leg (after `vox new` + `vox deploy`): the doctor mode
+    /// invoked by the deploy integration test to verify post-deploy health.
+    DoctorProjectCheck(DoctorProjectCheckEvent),
 }
+
+/// Payload aligned with `contracts/telemetry/fixture-model-intent-resolved.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct FixtureModelIntentResolvedEvent {
+    pub task_category: String,
+    #[serde(default)]
+    pub strengths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier_max: Option<String>,
+    pub resolved_model_hint: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+}
+
+/// Payload aligned with `contracts/telemetry/orch-subagent-dispatch.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct SubagentDispatchTelemetryPayload {
+    pub metric_type: String,
+    pub decision: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub complexity: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chain_depth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_task_id: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span_depth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispatch_latency_ms: Option<u64>,
+}
+
+/// Payload aligned with `contracts/telemetry/fixture-prompt-dispatch.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct PromptDispatchTelemetryEvent {
+    pub stage: String,
+    pub outcome: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(default)]
+    pub redact_count: u32,
+}
+
+/// Payload aligned with `contracts/telemetry/fixture-search-dispatch.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct SearchDispatchTelemetryEvent {
+    pub corpus: String,
+    pub outcome: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+}
+
+/// Payload aligned with `contracts/telemetry/fixture-hole-observed.v1.schema.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct HoleObservedTelemetryEvent {
+    pub cache_key: String,
+    pub observation: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewer: Option<String>,
+}
+
+/// Tagged union for AI fixture telemetry (serialized as JSON `metadata_json` in research_metrics).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(tag = "fixture_kind", rename_all = "snake_case")]
+pub enum AiFixtureEvent {
+    ModelIntent(FixtureModelIntentResolvedEvent),
+    SubagentDispatch(SubagentDispatchTelemetryPayload),
+    PromptDispatch(PromptDispatchTelemetryEvent),
+    SearchDispatch(SearchDispatchTelemetryEvent),
+    HoleObserved(HoleObservedTelemetryEvent),
+}
+
+/// Back-compat alias for older docs / actor-runtime re-exports.
+pub type OrchSubagentDispatchEvent = SubagentDispatchTelemetryPayload;
 
 /// Payload for a `TelemetryEvent::ResearchMetric`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -340,6 +482,313 @@ pub struct ErrorEvent {
     pub trace_id: Option<String>,
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// CR-L8 corpus-feedback events (council ratified 2026-05-15, P2.1).
+//
+// Feed the quarterly export pipeline at
+// `contracts/reports/corpus-feedback/<quarter>.json` per
+// `docs/src/architecture/v1-llm-target-implementation-plan-2026.md` §1.3 P2.1.
+//
+// Sensitivity: **S1 (OperationalTracing)** — rule-id + span info are not
+// secret-bearing; consumers MUST NOT include source text in `metadata_json`.
+// ───────────────────────────────────────────────────────────────────────────
+
+/// S1 — `vox-code-audit` emitted one [`LintFindingEvent`] per finding.
+pub const METRIC_TYPE_LINT_FINDING: &str = "vox.lint.finding";
+
+/// S1 — `vox-code-audit` autofix accepted by user / pipeline.
+pub const METRIC_TYPE_LINT_AUTOFIX_APPLIED: &str = "vox.lint.autofix_applied";
+
+/// S1 — `vox-code-audit` autofix rejected by user / pipeline.
+pub const METRIC_TYPE_LINT_AUTOFIX_REJECTED: &str = "vox.lint.autofix_rejected";
+
+/// S1 — `vox repair` LLM attempt observation (one event per outer-loop attempt).
+pub const METRIC_TYPE_REPAIR_ATTEMPT: &str = "vox.repair.attempt";
+
+/// S1 — `vox repair` terminal outcome (one event per session).
+pub const METRIC_TYPE_REPAIR_OUTCOME: &str = "vox.repair.outcome";
+
+/// Session-ID prefix for `vox.lint.*` events.
+pub const SESSION_PREFIX_LINT: &str = "lint:";
+
+/// Session-ID prefix for `vox.repair.*` events.
+pub const SESSION_PREFIX_REPAIR: &str = "repair:";
+
+/// Payload aligned with `metric_type = METRIC_TYPE_LINT_FINDING`.
+///
+/// One event per [`crate::types::TelemetryEvent::LintFinding`]; aggregated by
+/// the CR-L8 quarterly export pipeline into the "Top-50 firing diagnostics"
+/// section of `contracts/reports/corpus-feedback/<quarter>.json`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct LintFindingEvent {
+    /// Rule id as returned by `DetectionRule::id()` (e.g. `retired/decorator-usage`).
+    pub rule_id: String,
+    /// Stable diagnostic id from `vox_code_audit::diagnostics::catalog`
+    /// (e.g. `vox/retired/decorator-usage`). `None` when the rule has no
+    /// catalog binding yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic_id: Option<String>,
+    /// Lowercase severity name: `info` | `warning` | `error` | `critical`.
+    pub severity: String,
+    /// Relative path within the repo (no absolute paths — keeps the event S1).
+    pub relative_path: String,
+    /// 1-based line number where the finding fires.
+    pub line: u32,
+    /// True when the rule provided a structured autofix descriptor.
+    pub autofix_available: bool,
+    /// Confidence tag: `high` | `medium` | `low` (informational; aligns with
+    /// the lint Phase-2 plan's confidence ladder).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<String>,
+    /// Repository identifier (typically the workspace root's basename) so the
+    /// aggregator can roll up by repo. Optional for ad-hoc runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
+
+/// Outcome of an autofix offer — applied (accepted) or rejected.
+///
+/// Used by both [`METRIC_TYPE_LINT_AUTOFIX_APPLIED`] and
+/// [`METRIC_TYPE_LINT_AUTOFIX_REJECTED`] event payloads (the metric_type
+/// disambiguates the outcome; the payload shape is shared for aggregator
+/// simplicity).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct LintAutofixEvent {
+    pub rule_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostic_id: Option<String>,
+    /// `"applied"` | `"rejected"` — must match the wrapping `metric_type`.
+    pub outcome: String,
+    /// Free-form reason when rejected (e.g., "user dismissed", "conflict",
+    /// "low-confidence"); empty / absent when applied cleanly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub relative_path: String,
+    pub line: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
+
+/// One outer-loop attempt of `vox repair`. Multiple attempts may share a
+/// session id; the [`RepairOutcomeEvent`] closes the session.
+///
+/// `PartialEq` only (no `Eq`) because `cost_usd: f64` does not implement `Eq`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct RepairAttemptEvent {
+    /// 1-based attempt index within the session.
+    pub attempt_number: u32,
+    /// Diagnostics observed at the start of this attempt.
+    pub diagnostics_in: u32,
+    /// Diagnostics observed at the end of this attempt.
+    pub diagnostics_out: u32,
+    /// Files the LLM patch touched in this attempt.
+    pub files_touched: u32,
+    /// Cost (USD) attributable to this attempt across the panel.
+    pub cost_usd: f64,
+    /// Wall-clock duration of this attempt.
+    pub duration_ms: u64,
+    /// `panel_member_id` of the LLM that produced the patch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub panel_member_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
+
+/// S1 — One [`AuditRunEvent`] per `vox audit <thing>` run.
+///
+/// Required per `contracts/ci/vox-audit-contract.v1.yaml` §telemetry. Council
+/// ratified 2026-05-15 (A11 contract-compliance follow-on).
+pub const METRIC_TYPE_AUDIT_RUN: &str = "vox.audit.run";
+
+/// Session-ID prefix for `vox.audit.*` events.
+pub const SESSION_PREFIX_AUDIT: &str = "audit:";
+
+/// Per-`vox audit <thing>` run observation.
+///
+/// Aligned with `contracts/ci/vox-audit-contract.v1.yaml` §telemetry
+/// `required_fields`: `corpus_hash`, `panel_version`, `duration_seconds`,
+/// `outcome`, `cumulative_cost_usd`, `unreachable_panel_member_count`. The
+/// `thing` field disambiguates which gate the event is for (the metric_type
+/// in research_metrics is the constant; consumers use `thing` to slice).
+///
+/// `PartialEq` only (no `Eq`) because `cumulative_cost_usd: f64` does not
+/// implement `Eq`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct AuditRunEvent {
+    /// CR-L gate name (e.g., `retirement`, `humaneval`, `corpus-feedback`,
+    /// or `all` for the umbrella run).
+    pub thing: String,
+    /// `"ok"` | `"bar_missed"` | `"infra_error"` | `"invalid_input"` matching
+    /// the [`crate::types::TelemetryEvent`] exit-code-to-string mapping.
+    pub outcome: String,
+    /// BLAKE3 content hash of the corpus / contract this gate measured against.
+    pub corpus_hash: String,
+    /// Number of fixtures / events the gate observed.
+    pub corpus_size: u32,
+    pub duration_seconds: f64,
+    /// Cumulative LLM cost across the panel for this run. Zero for
+    /// non-cost-metered gates (retirement, aci-default, corpus-feedback).
+    pub cumulative_cost_usd: f64,
+    /// Number of panel members that were unreachable during this run
+    /// (rate-limited, API down, etc.). Zero for non-cost-metered gates.
+    #[serde(default)]
+    pub unreachable_panel_member_count: u32,
+    /// Pinned panel version (e.g. `2026-05-15`). `None` for non-LLM-panel gates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub panel_version: Option<String>,
+    /// Was this run inside `vox audit all` (umbrella) vs a direct gate call?
+    #[serde(default)]
+    pub umbrella_run: bool,
+    /// Optional repository identifier (for per-workspace rollups).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
+
+/// Terminal outcome of a `vox repair` session (one per session).
+///
+/// `PartialEq` only (no `Eq`) because `total_cost_usd: f64` does not implement `Eq`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct RepairOutcomeEvent {
+    /// `"success"` | `"partial"` | `"abandoned"` | `"infra_error"`.
+    pub final_state: String,
+    pub attempts_used: u32,
+    pub attempts_budget: u32,
+    pub total_cost_usd: f64,
+    pub total_duration_ms: u64,
+    /// Number of diagnostics still firing at end of session (0 on success).
+    pub residual_diagnostics: u32,
+    /// Optional human-readable note (e.g. error class when `infra_error`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
+
+// ─── Model-autonomic system events (L0–L3) ────────────────────────────────
+//
+// Council-ratified 2026-05-15. SSOT: `docs/src/architecture/model-autonomic-system-2026.md`.
+// All four events together form the feedback flywheel that auto-classifies new
+// frontier models and promotes them into the registry without manual PRs.
+
+/// L0 — one `select(intent, registry)` decision.
+pub const METRIC_TYPE_SELECTION_DECISION: &str = "vox.model.selection_decision";
+/// L1 — a model id was seen in upstream catalog that wasn't in prior snapshot.
+pub const METRIC_TYPE_MODEL_DISCOVERY: &str = "vox.model.discovery";
+/// L2 — classifier LLM tagged a model with tier/strengths/confidence.
+pub const METRIC_TYPE_MODEL_CLASSIFICATION: &str = "vox.model.classification";
+/// L2/L3 — a model crossed a confidence-state boundary.
+pub const METRIC_TYPE_CONFIDENCE_PROMOTION: &str = "vox.model.confidence_promotion";
+
+/// Session-ID prefix for `vox.model.*` autonomic-system events.
+pub const SESSION_PREFIX_MODEL_AUTONOMIC: &str = "model_autonomic:";
+
+// ─── vox doctor — project-health events (CR-L7) ───────────────────────────
+
+/// Per-`vox doctor --project <path>` health-check observation.
+///
+/// CR-L7 names `vox doctor` as the third leg of `vox new → vox deploy →
+/// vox doctor` and asks for `vox.doctor.*` telemetry alongside structured
+/// JSON output. This is the project-scope health-check event; the existing
+/// `vox doctor` (environment / cross-compile preflight) is a separate
+/// surface and does not emit this event.
+pub const METRIC_TYPE_DOCTOR_PROJECT_CHECK: &str = "vox.doctor.project_check";
+
+/// Payload for [`crate::types::TelemetryEvent::DoctorProjectCheck`].
+///
+/// `PartialEq` only (no `Eq`) because `duration_seconds: f64` does not
+/// implement `Eq`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct DoctorProjectCheckEvent {
+    /// Absolute or workspace-relative project root that was scanned.
+    pub project_root: String,
+    /// Total `.vox` files discovered under `project_root`.
+    pub files_total: u32,
+    /// Files that produced zero error-severity diagnostics.
+    pub files_passing: u32,
+    /// Files that produced at least one error-severity diagnostic.
+    pub files_failing: u32,
+    /// `"green"` | `"red"` | `"infra_error"`.
+    pub outcome: String,
+    /// Wall-clock duration of the entire check run.
+    pub duration_seconds: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
+
+/// One `select()` decision. Carries enough context to reconstruct *why* this
+/// model was chosen for this caller at this moment without re-running the
+/// scorer. Drives the L3 council report.
+///
+/// Sensitivity: **S1 (OperationalTracing)** — no prompt content, no PII.
+/// `PartialEq` only (no `Eq`) because the axes are stored as `u8` triples
+/// (which would actually be `Eq`-able), but the field is kept open for
+/// future float weights — pre-emptively `PartialEq`-only matches the rest
+/// of the model events in this module.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct SelectionDecisionEvent {
+    /// Free-form caller identifier (e.g. `"repair-loop"`, `"research"`).
+    /// `None` when caller didn't set `SelectionIntent::caller_hint`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intent_caller: Option<String>,
+    /// `TaskCategory` as a snake_case string (avoids cross-crate enum drift).
+    pub task: String,
+    /// `(cost, responsiveness, intelligence)` axis weights at decision time.
+    pub axes: (u8, u8, u8),
+    /// Model id chosen.
+    pub chosen_model: String,
+    /// Why this model was chosen: `"premium_alias"` | `"scored"` |
+    /// `"local_only"` | `"env_override"`.
+    pub reason: String,
+    /// Optional alias-key when reason = `"premium_alias"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub premium_alias_key: Option<String>,
+    /// Optional repository id for per-workspace rollups.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repository_id: Option<String>,
+}
+
+/// L1 — a model id appeared in an upstream catalog that wasn't in the prior
+/// snapshot. Emitted once per (source, model_id) per refresh cycle.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct DiscoveryEvent {
+    /// `"openrouter"` | `"litellm"` | `"anthropic_direct"` | `"populi_mesh"`.
+    pub source: String,
+    pub model_id: String,
+    /// Optional model description text from upstream (useful for L2 classifier).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Optional context-window size reported by upstream.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_context_tokens: Option<u32>,
+}
+
+/// L2 — classifier LLM emitted tier/strengths/confidence for a model.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct ClassificationEvent {
+    pub model_id: String,
+    /// Which classifier produced this judgement (e.g. `"anthropic/claude-haiku-4.5"`).
+    pub classifier_model: String,
+    /// `ModelTier` as a snake_case string.
+    pub tier: String,
+    /// `StrengthTag`s as snake_case strings.
+    pub strengths: Vec<String>,
+    /// 0.0–1.0 self-reported confidence from the classifier.
+    pub confidence: f32,
+}
+
+/// L2/L3 — a model crossed a confidence-state boundary
+/// (Provisional → Shadowed → Confirmed, or any state → Deprecated).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ConfidencePromotionEvent {
+    pub model_id: String,
+    /// Previous state (`"provisional"` | `"shadowed"` | `"confirmed"` | `"deprecated"`).
+    pub from: String,
+    pub to: String,
+    /// What evidence triggered the promotion: `"scoreboard_threshold"` |
+    /// `"council_approval"` | `"shadow_eval"` | `"failure_threshold"`.
+    pub evidence: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,12 +836,201 @@ mod tests {
             METRIC_TYPE_TASK_ROOT_SUMMARY,
             METRIC_TYPE_BUILD_SUMMARY_EVENT,
             METRIC_TYPE_ERROR_EVENT,
+            METRIC_TYPE_FIXTURE_MODEL_INTENT,
+            METRIC_TYPE_FIXTURE_PROMPT_DISPATCH,
+            METRIC_TYPE_FIXTURE_SEARCH_DISPATCH,
+            METRIC_TYPE_FIXTURE_HOLE_OBSERVED,
         ] {
             assert!(
                 validate_research_metric_row("sess", mt, None).is_ok(),
                 "{mt} failed validation"
             );
         }
+    }
+
+    #[test]
+    fn ai_fixture_event_round_trip() {
+        let ev = AiFixtureEvent::ModelIntent(FixtureModelIntentResolvedEvent {
+            task_category: "CodeGen".into(),
+            strengths: vec!["codegen".into()],
+            tier_max: Some("Pro".into()),
+            resolved_model_hint: "openrouter/auto".into(),
+            trace_id: Some("t1".into()),
+        });
+        let outer = TelemetryEvent::AiFixture(ev.clone());
+        let json = serde_json::to_string(&outer).expect("serialize");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("deserialize");
+        let TelemetryEvent::AiFixture(AiFixtureEvent::ModelIntent(m)) = back else {
+            panic!("variant lost");
+        };
+        assert_eq!(m.task_category, "CodeGen");
+        assert_eq!(m.resolved_model_hint, "openrouter/auto");
+    }
+
+    // ─── CR-L8 corpus-feedback events (P2.1) ──────────────────────────────
+
+    #[test]
+    fn lint_finding_event_round_trip() {
+        let e = LintFindingEvent {
+            rule_id: "retired/decorator-usage".into(),
+            diagnostic_id: Some("vox/retired/decorator-usage".into()),
+            severity: "warning".into(),
+            relative_path: "examples/old.vox".into(),
+            line: 42,
+            autofix_available: true,
+            confidence: Some("high".into()),
+            repository_id: Some("vox".into()),
+        };
+        let outer = TelemetryEvent::LintFinding(e.clone());
+        let json = serde_json::to_string(&outer).expect("serialize");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("deserialize");
+        let TelemetryEvent::LintFinding(back) = back else {
+            panic!("LintFinding variant lost in round trip");
+        };
+        assert_eq!(back, e);
+    }
+
+    #[test]
+    fn lint_autofix_event_round_trip() {
+        let e = LintAutofixEvent {
+            rule_id: "retired/decorator-usage".into(),
+            diagnostic_id: Some("vox/retired/decorator-usage".into()),
+            outcome: "applied".into(),
+            reason: None,
+            relative_path: "src/main.vox".into(),
+            line: 7,
+            repository_id: None,
+        };
+        let outer = TelemetryEvent::LintAutofix(e.clone());
+        let json = serde_json::to_string(&outer).expect("serialize");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("deserialize");
+        let TelemetryEvent::LintAutofix(back) = back else {
+            panic!("LintAutofix variant lost");
+        };
+        assert_eq!(back, e);
+    }
+
+    #[test]
+    fn repair_attempt_event_round_trip() {
+        let e = RepairAttemptEvent {
+            attempt_number: 2,
+            diagnostics_in: 5,
+            diagnostics_out: 1,
+            files_touched: 3,
+            cost_usd: 0.42,
+            duration_ms: 8200,
+            panel_member_id: Some("claude-sonnet".into()),
+            repository_id: Some("vox".into()),
+        };
+        let outer = TelemetryEvent::RepairAttempt(e.clone());
+        let json = serde_json::to_string(&outer).expect("serialize");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("deserialize");
+        let TelemetryEvent::RepairAttempt(back) = back else {
+            panic!("RepairAttempt variant lost");
+        };
+        assert_eq!(back, e);
+    }
+
+    #[test]
+    fn repair_outcome_event_round_trip() {
+        let e = RepairOutcomeEvent {
+            final_state: "success".into(),
+            attempts_used: 2,
+            attempts_budget: 3,
+            total_cost_usd: 0.72,
+            total_duration_ms: 14500,
+            residual_diagnostics: 0,
+            note: None,
+            repository_id: Some("vox".into()),
+        };
+        let outer = TelemetryEvent::RepairOutcome(e.clone());
+        let json = serde_json::to_string(&outer).expect("serialize");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("deserialize");
+        let TelemetryEvent::RepairOutcome(back) = back else {
+            panic!("RepairOutcome variant lost");
+        };
+        assert_eq!(back, e);
+    }
+
+    #[test]
+    fn audit_run_event_round_trip() {
+        let e = AuditRunEvent {
+            thing: "retirement".into(),
+            outcome: "ok".into(),
+            corpus_hash: "blake3:abc".into(),
+            corpus_size: 16,
+            duration_seconds: 0.42,
+            cumulative_cost_usd: 0.0,
+            unreachable_panel_member_count: 0,
+            panel_version: None,
+            umbrella_run: false,
+            repository_id: Some("vox".into()),
+        };
+        let outer = TelemetryEvent::AuditRun(e.clone());
+        let json = serde_json::to_string(&outer).expect("ser");
+        let back: TelemetryEvent = serde_json::from_str(&json).expect("de");
+        let TelemetryEvent::AuditRun(back) = back else {
+            panic!("AuditRun variant lost");
+        };
+        assert_eq!(back, e);
+    }
+
+    #[test]
+    fn audit_session_helper_composes_correctly() {
+        let opts = TelemetryWriteOptions::new("my-repo");
+        assert_eq!(opts.session_audit(), "audit:my-repo");
+    }
+
+    #[test]
+    fn audit_run_metric_type_passes_validation() {
+        assert!(
+            validate_research_metric_row("audit:vox", METRIC_TYPE_AUDIT_RUN, None).is_ok(),
+            "metric_type {METRIC_TYPE_AUDIT_RUN} failed validation"
+        );
+    }
+
+    #[test]
+    fn cr_l8_metric_types_pass_validation() {
+        for mt in [
+            METRIC_TYPE_LINT_FINDING,
+            METRIC_TYPE_LINT_AUTOFIX_APPLIED,
+            METRIC_TYPE_LINT_AUTOFIX_REJECTED,
+            METRIC_TYPE_REPAIR_ATTEMPT,
+            METRIC_TYPE_REPAIR_OUTCOME,
+        ] {
+            assert!(
+                validate_research_metric_row("lint:vox", mt, None).is_ok(),
+                "metric_type {mt} failed validation"
+            );
+        }
+    }
+
+    #[test]
+    fn cr_l8_session_helpers_compose_correctly() {
+        let opts = TelemetryWriteOptions::new("vox");
+        assert_eq!(opts.session_lint(), "lint:vox");
+        assert_eq!(opts.session_repair(), "repair:vox");
+    }
+
+    #[test]
+    fn lint_finding_optional_fields_skip_when_none() {
+        let e = LintFindingEvent {
+            rule_id: "stub".into(),
+            diagnostic_id: None,
+            severity: "info".into(),
+            relative_path: "x.rs".into(),
+            line: 1,
+            autofix_available: false,
+            confidence: None,
+            repository_id: None,
+        };
+        let json = serde_json::to_string(&e).expect("serialize");
+        assert!(
+            !json.contains("\"diagnostic_id\""),
+            "None diagnostic_id should skip in JSON; got {json}"
+        );
+        assert!(!json.contains("\"confidence\""));
+        assert!(!json.contains("\"repository_id\""));
     }
 
     #[test]

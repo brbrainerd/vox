@@ -1,0 +1,11 @@
+[problem]
+id = "111"
+title = "capitalize_words"
+prompt = """
+Capitalize the first letter of each word in a space-separated string (title case). Words separated by a single space; empty words are left as-is.
+"""
+signature = "fn capitalize_words(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["strings"]

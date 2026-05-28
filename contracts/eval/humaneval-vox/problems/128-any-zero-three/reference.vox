@@ -1,0 +1,9 @@
+fn any_zero_three(a: int, b: int, c: int) to bool {
+    if a is 0 {
+        return true
+    }
+    if b is 0 {
+        return true
+    }
+    return c is 0
+}

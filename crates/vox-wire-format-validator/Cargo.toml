@@ -1,0 +1,21 @@
+[package]
+name = "vox-wire-format-validator"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "CI guard: enforces that the Wire Format v1 SSOT and the Contract IR implementation have not drifted apart. Run via `cargo run -p vox-wire-format-validator`."
+publish = false
+
+[[bin]]
+name = "vox-wire-format-validator"
+path = "src/main.rs"
+
+[dependencies]
+blake3 = { workspace = true }
+anyhow = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,7 +1,7 @@
 ---
 title: "Documentation authority pointers"
 description: "CI-facing pointer index to canonical documentation authority pages. Keep behavior in reference docs; this page exists for stable guard paths."
-category: "ci"
+category: "CI & Quality"
 status: "current"
 last_updated: "2026-04-06"
 
@@ -26,7 +26,12 @@ This page is a CI-facing pointer surface for documentation authority. Canonical 
 
 - `vox ci check-docs-ssot`
 - `vox ci command-compliance`
+- `vox ci ssot-drift` (bundle that includes check-docs-ssot, check-codex-ssot, and command-compliance)
 - `vox ci doc-inventory verify`
 - `vox ci check-links`
+
+## RCICD audit
+
+- [RCICD coverage and cost matrix (2026)](rcicd-coverage-cost-matrix-2026.md)
 
 

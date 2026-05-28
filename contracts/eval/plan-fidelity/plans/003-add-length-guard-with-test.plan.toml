@@ -1,0 +1,32 @@
+# vox:skip
+id = "plan-fidelity-003-add-length-guard-with-test"
+training_eligible = true
+wave = 1                                  # single-file, no cross-cutting
+
+[input]
+goal = """
+In `src/todos.vox`, extend the function `validate_title(title: str) to bool` so that \
+it also returns `false` when `len(title) > 500` (titles over 500 characters are \
+invalid). Add `@test fn test_validate_title_too_long` that asserts a 501-character \
+title is rejected. Run `vox check --strict && vox test --filter=test_validate_title_too_long`.
+"""
+preconditions = """
+`src/todos.vox` defines `fn validate_title(title: str) to bool` that currently only \
+checks `len(title) > 0`. Tests for the existing behaviour already pass. \
+`vox check --strict` passes at HEAD.
+"""
+
+[plan_expected_shape]
+min_steps = 3
+max_steps = 6
+must_include_tasks = ["add-guard", "add-test", "verify-compile"]
+must_include_decorator_calls = ["@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_validate_title_too_long"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/todos.vox", regex = "500" },
+  { path = "src/todos.vox", regex = "@test" },
+  { path = "src/todos.vox", regex = "test_validate_title_too_long" },
+]

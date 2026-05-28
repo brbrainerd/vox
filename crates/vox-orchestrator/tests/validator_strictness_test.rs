@@ -3,7 +3,7 @@ use vox_orchestrator::mcp_tools::params::{ValidateFileParams, VoxCheckParams};
 use vox_orchestrator::mcp_tools::server_state::ServerState;
 
 #[tokio::test]
-#[ignore = "pending MCP code_validator implementation"]
+#[ignore = "pending MCP code_validator implementation — owner: orchestrator sunset: 2026-12-31"]
 async fn test_orchestrator_rejects_syntactic_configurability() {
     let config_opts = vox_orchestrator::OrchestratorConfig::default();
     let state = ServerState::new_full(config_opts);

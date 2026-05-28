@@ -1,7 +1,7 @@
 use super::*;
 use serde::{Deserialize, Serialize};
 
-/// Root [`PublicationManifest::metadata_json`] key for this block.
+/// Root `PublicationManifest::metadata_json` key for this block.
 pub const METADATA_KEY_SCIENTIA_EVIDENCE: &str = "scientia_evidence";
 
 /// Optional [`NoveltyEvidenceBundleV1`](crate::scientia_finding_ledger::NoveltyEvidenceBundleV1) under manifest metadata (prior-art scan results).

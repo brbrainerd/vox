@@ -1,0 +1,94 @@
+# Vox Model Pins — Council-Reviewed SSOT
+#
+# Council-ratified 2026-05-15. Companion to model-routing.v1.yaml + model-catalog.bootstrap.v1.json.
+#
+# Role:
+#   - This file is the SSOT for *pinned* model decisions: premium aliases, version locks for
+#     reproducibility-critical contexts (CR-L0 eval panel), and council rotation IDs.
+#   - It is decoupled from `model-catalog.bootstrap.v1.json` (which is the *catalog fallback*
+#     for cold-start / offline use, and may be auto-refreshed by L1 discovery).
+#
+# Lifecycle:
+#   - Reviewed quarterly by the model council (rotation_id below).
+#   - Changes require council signoff and a corresponding entry in
+#     docs/src/architecture/model-selection-2026-q2.md.
+#
+# See docs/src/architecture/model-autonomic-system-2026.md §3.1 for design rationale.
+
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
+schema: vox.orchestration.pins/v1
+
+# Premium-alias map: task-category → pinned model id.
+# When SelectionIntent.axes.intelligence >= 50, `select()` honors these pins
+# over scorer output. This is how a council-chosen model wins over a
+# higher-scoring discovered alternative.
+#
+# Migration note: this duplicates `premium_alias:` in model-routing.v1.yaml during the
+# 2026-Q2 transition. When `select()` migrates to read pins.yaml directly, the routing.yaml
+# entries become aliases of these.
+premium_alias:
+  codegen: "anthropic/claude-opus-4.7"
+  debugging: "anthropic/claude-opus-4.7"
+  security: "anthropic/claude-opus-4.7"
+  research: "google/gemini-3.1-pro"
+  planning: "openai/gpt-5.5-pro"
+  review: "anthropic/claude-sonnet-4.6"
+  logic: "deepseek/deepseek-r1"
+  visus: "qwen/qwen-3.5-vl"
+
+# Version pins for reproducibility-critical contexts (CR-L0 eval panel members).
+# When the council requires that "version X must produce identical eval outputs on
+# Tuesday and Friday," pin the exact upstream version here.
+#
+# These are consulted by:
+#   - contracts/eval/llm-panel.v1.yaml (members.*.version_pinned)
+#   - CR-L0 benchmark runners
+#
+# Format: {panel_member_id}: {upstream_version_string}
+version_pins:
+  llm-panel.claude-sonnet: "claude-sonnet-4-6"
+  llm-panel.gpt-frontier: "gpt-5.4"
+  # CR-L0 panel substitute (used when primary is rate-limited):
+  llm-panel.gpt-frontier-substitute: "gpt-5.5-pro"
+
+# CR-L8 corpus-feedback flywheel pins the *classifier* used for L2 auto-classification.
+# This is a budget-critical pin: classifier runs on every newly discovered model id.
+classifier:
+  # Cheapest classifier-grade model with structured output + prompt caching.
+  # Trade-off: Haiku 4.5 has 200K ctx and cache-hit pricing at $0.075/MTok input.
+  primary: "anthropic/claude-haiku-4.5"
+  # Backup if Anthropic is unreachable (Gemini 3.1 Flash-Lite supports JSON-schema mode).
+  fallback: "google/gemini-3.1-flash-lite"
+  # Promotion-threshold defaults (override per-deployment via env).
+  promotion_thresholds:
+    # Minimum successful calls before Provisional → Shadowed.
+    min_successful_calls: 30
+    # Maximum p50 latency relative to catalog median.
+    max_p50_latency_multiple: 2.0
+    # Minimum self-reported classifier confidence to accept its tags.
+    min_classifier_confidence: 0.70
+
+# Council signoff metadata. Lint job (vox audit pins) verifies this is current.
+council_signoff:
+  rotation_id: "2026-Q2-rotation-2"
+  approved_by:
+    - council
+  approved_at: "2026-05-15"
+  next_review_due: "2026-08-15"
+  rationale_doc: "docs/src/architecture/model-selection-2026-q2.md"
+
+# Retirement awareness — list of model ids that have been explicitly retired
+# and should NOT be auto-classified or shadow-evaluated even if they reappear
+# in an upstream catalog (e.g. via OpenRouter alias).
+retired_ids:
+  - "claude-mythos-preview-20260407"
+  - "anthropic/claude-3.5-sonnet"
+  - "anthropic/claude-3.5-sonnet:beta"
+  - "openai/gpt-4o"
+  - "openai/gpt-4o-mini"
+  - "google/gemini-2.5-flash"
+  - "google/gemini-2.5-pro"

@@ -1,0 +1,3 @@
+import rust:serde_json(version: "1") as sj_a
+import rust:serde_json(version: "2") as sj_b
+fn main() {}

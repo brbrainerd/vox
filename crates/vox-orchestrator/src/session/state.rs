@@ -53,6 +53,7 @@ pub enum SessionEvent {
     Created {
         session_id: String,
         agent_id: u64,
+        tenant_id: Option<String>,
         created_at: u64,
     },
     TurnAdded {
@@ -103,6 +104,8 @@ pub struct SessionTurn {
 pub struct Session {
     pub id: String,
     pub agent_id: AgentId,
+    #[serde(default)]
+    pub tenant_id: Option<String>,
     pub state: SessionState,
     pub created_at: u64,
     pub last_active: u64,
@@ -122,12 +125,13 @@ pub struct Session {
 }
 
 impl Session {
-    /// Create a new session for the given agent.
-    pub fn new(agent_id: AgentId) -> Self {
+    /// Create a new session for the given agent and optional tenant.
+    pub fn new(agent_id: AgentId, tenant_id: Option<String>) -> Self {
         let now = now_secs();
         Self {
             id: new_session_id(),
             agent_id,
+            tenant_id,
             state: SessionState::Active,
             created_at: now,
             last_active: now,

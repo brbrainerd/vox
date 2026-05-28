@@ -1,11 +1,15 @@
 use super::config::memory_config_for_state;
 use super::params::{
     KnowledgeQueryParams, MemoryLogParams, MemoryRecallParams, MemorySearchParams,
-    MemoryStoreParams,
+    MemoryStoreParams, ResearchRunParams, ResearchSessionParams, ResearchStartParams,
+    SemanticFsDiscoverParams,
 };
 use super::retrieval::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
+
+use serde_json::json;
+use vox_search::SearchPolicy;
 
 const REM_MEMORY_VOXDB: &str =
     "Attach VoxDb (`VOX_DB_PATH` / `VOX_DB_URL`) to the MCP server for knowledge-graph queries.";
@@ -18,6 +22,7 @@ const REM_MEMORY_RETRIEVAL: &str =
     "Verify corpus/index paths and RAG settings; see orchestrator memory configuration.";
 const REM_MEMORY_KG_QUERY: &str =
     "Check Turso connectivity, vox-db migrations, and that the knowledge graph tables exist.";
+const REM_RESEARCH_RUN: &str = "Configure web backends (`VOX_SEARCH_SEARXNG_URL`, DuckDuckGo fallback, optional Tavily per Tavily SSOT). For synthesis/judge, set LLM endpoint env used by orchestrator.";
 
 /// Persist a key-value fact to long-term memory (MEMORY.md + VoxDb).
 pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> String {
@@ -55,8 +60,8 @@ pub async fn memory_store(state: &ServerState, params: MemoryStoreParams) -> Str
 
 /// Retrieve a fact from long-term memory by key.
 ///
-/// Uses the same [`MemoryConfig`] as [`memory_store`] (`state.orchestrator_config.memory`).
-/// When `state.db` is set, recall includes Codex `memories` after file miss ([`MemoryManager::lookup_fact_by_key`]).
+/// Uses the same `MemoryConfig` as `memory_store` (`state.orchestrator_config.memory`).
+/// When `state.db` is set, recall includes Codex `memories` after file miss (`MemoryManager::lookup_fact_by_key`).
 pub async fn memory_recall(state: &ServerState, params: MemoryRecallParams) -> String {
     let config = memory_config_for_state(state);
     match vox_orchestrator::MemoryManager::new(config) {
@@ -166,6 +171,19 @@ pub async fn memory_search(state: &ServerState, params: MemorySearchParams) -> S
     }
 }
 
+/// Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
+pub async fn semantic_fs_discover_mcp(
+    state: &ServerState,
+    params: SemanticFsDiscoverParams,
+) -> String {
+    let policy = SearchPolicy::from_env();
+    let lim_raw = params.limit.unwrap_or(16);
+    let limit = lim_raw.clamp(1, 256) as usize;
+    let hits =
+        super::semantic_fs_discover(&state.repository.root, params.intent.trim(), limit, &policy);
+    ToolResult::ok(json!({ "hits": hits })).to_json()
+}
+
 /// Append an entry to today's daily memory log.
 ///
 /// Uses the same orchestrator-scoped memory paths as other memory tools.
@@ -241,5 +259,263 @@ pub async fn knowledge_query(state: &ServerState, params: KnowledgeQueryParams) 
             REM_MEMORY_VOXDB,
         )
         .to_json()
+    }
+}
+
+/// Run the orchestrator research pipeline (`run_research`): web gather via `vox-search`, synthesis, judge.
+pub async fn research_run(state: &ServerState, params: ResearchRunParams) -> String {
+    use vox_dei_shim::research::{
+        ResearchConfig, ResearchQuery, ResearchScope, run_research_with_context,
+    };
+    use vox_search::SearchRuntimeContext;
+
+    let scope_label = params.scope.as_deref().map(str::trim).unwrap_or("both");
+    let scope = match scope_label.to_ascii_lowercase().as_str() {
+        "" | "both" => ResearchScope::Both,
+        "local" => ResearchScope::Local,
+        "web" => ResearchScope::Web,
+        other => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("invalid scope {other:?}: use web|local|both"),
+                REM_RESEARCH_RUN,
+            )
+            .to_json();
+        }
+    };
+
+    let rq = ResearchQuery {
+        query: params.query,
+        scope,
+        max_sources: params.max_sources.unwrap_or(10).clamp(1, 50),
+        persist_to_docs: false,
+        verify_claims: params.verify_claims.unwrap_or(false),
+        site_scope: params.site_scope,
+    };
+
+    let config = ResearchConfig {
+        event_emitter: Some(std::sync::Arc::new(
+            vox_dei_shim::research::BroadcastEmitter::new(
+                state.research_events.clone(),
+            ),
+        )),
+        ..ResearchConfig::default()
+    };
+    let ctx = SearchRuntimeContext::new(
+        state.repository.root.clone(),
+        state.db.clone(),
+        state.orchestrator_config.memory.log_dir.clone(),
+        state.orchestrator_config.memory.memory_md_path.clone(),
+    );
+
+    match run_research_with_context(rq, Some(&ctx), state.db.as_deref(), &config).await {
+        Ok(result) => {
+            if params.json {
+                match serde_json::to_string(&result) {
+                    Ok(s) => ToolResult::ok(s).to_json(),
+                    Err(e) => ToolResult::<String>::err_with_remediation(
+                        format!("serialize failed: {e}"),
+                        REM_RESEARCH_RUN,
+                    )
+                    .to_json(),
+                }
+            } else {
+                let mut out = String::new();
+                out.push_str(&result.answer);
+                out.push_str("\n\n## Sources\n");
+                for h in &result.sources {
+                    out.push_str(&format!("- {} — {}\n", h.title, h.url));
+                }
+                ToolResult::ok(out).to_json()
+            }
+        }
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_RESEARCH_RUN).to_json()
+        }
+    }
+}
+
+pub async fn research_start(state: &ServerState, params: ResearchStartParams) -> String {
+    use vox_dei_shim::research::{
+        ResearchConfig, ResearchQuery, run_research_with_context_and_session,
+    };
+    use vox_search::SearchRuntimeContext;
+
+    let Some(db) = state.db.clone() else {
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb not attached to MCP server.".to_string(),
+            REM_MEMORY_VOXDB,
+        )
+        .to_json();
+    };
+    let scope = match parse_research_scope(params.scope.as_deref()) {
+        Ok(scope) => scope,
+        Err(msg) => {
+            return ToolResult::<String>::err_with_remediation(msg, REM_RESEARCH_RUN).to_json();
+        }
+    };
+    let query = params.query.trim().to_string();
+    if query.is_empty() {
+        return ToolResult::<String>::err_with_remediation(
+            "query must not be empty".to_string(),
+            REM_RESEARCH_RUN,
+        )
+        .to_json();
+    }
+    let session_key = format!("research_async:{}", uuid::Uuid::new_v4());
+    let session_id = match db.create_research_session(&session_key, &query).await {
+        Ok(id) => id,
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(format!("{e}"), REM_RESEARCH_RUN)
+                .to_json();
+        }
+    };
+    let _ = db
+        .update_research_session_status(session_id, "running")
+        .await;
+
+    let state = state.clone();
+    tokio::spawn(async move {
+        let rq = ResearchQuery {
+            query,
+            scope,
+            max_sources: params.max_sources.unwrap_or(10).clamp(1, 50),
+            persist_to_docs: false,
+            verify_claims: params.verify_claims.unwrap_or(false),
+            site_scope: params.site_scope,
+        };
+        let ctx = SearchRuntimeContext::new(
+            state.repository.root.clone(),
+            state.db.clone(),
+            state.orchestrator_config.memory.log_dir.clone(),
+            state.orchestrator_config.memory.memory_md_path.clone(),
+        );
+        let config = ResearchConfig {
+            event_emitter: Some(std::sync::Arc::new(
+                vox_dei_shim::research::BroadcastEmitter::new(
+                    state.research_events.clone(),
+                ),
+            )),
+            ..ResearchConfig::default()
+        };
+        let outcome = run_research_with_context_and_session(
+            rq,
+            Some(&ctx),
+            state.db.as_deref(),
+            &config,
+            Some(session_id),
+        )
+        .await;
+        if let Some(db) = state.db.as_ref() {
+            if outcome.is_err() {
+                let _ = db
+                    .update_research_session_status(session_id, "failed")
+                    .await;
+            }
+        }
+    });
+
+    ToolResult::ok(
+        serde_json::json!({
+            "session_id": session_id,
+            "task_id": format!("research-{session_id}"),
+            "status": "running"
+        })
+        .to_string(),
+    )
+    .to_json()
+}
+
+pub async fn research_status(state: &ServerState, params: ResearchSessionParams) -> String {
+    let Some(db) = state.db.as_ref() else {
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb not attached to MCP server.".to_string(),
+            REM_MEMORY_VOXDB,
+        )
+        .to_json();
+    };
+    match db.get_research_session(params.session_id).await {
+        Ok(Some(row)) => {
+            let percent_complete = match row.status.as_str() {
+                "completed" => 1.0,
+                "failed" => 1.0,
+                "running" | "active" => 0.5,
+                _ => 0.1,
+            };
+            ToolResult::ok(
+                serde_json::json!({
+                    "session_id": row.id,
+                    "stage": row.status,
+                    "percent_complete": percent_complete,
+                    "query": row.query_text,
+                    "last_event_ts": row.finished_at_ms.unwrap_or(row.started_at_ms)
+                })
+                .to_string(),
+            )
+            .to_json()
+        }
+        Ok(None) => ToolResult::<String>::err_with_remediation(
+            format!("research session {} not found", params.session_id),
+            REM_RESEARCH_RUN,
+        )
+        .to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(format!("{e}"), REM_RESEARCH_RUN).to_json()
+        }
+    }
+}
+
+pub async fn research_get(state: &ServerState, params: ResearchSessionParams) -> String {
+    let Some(db) = state.db.as_ref() else {
+        return ToolResult::<String>::err_with_remediation(
+            "VoxDb not attached to MCP server.".to_string(),
+            REM_MEMORY_VOXDB,
+        )
+        .to_json();
+    };
+    let session = match db.get_research_session(params.session_id).await {
+        Ok(Some(row)) => row,
+        Ok(None) => {
+            return ToolResult::<String>::err_with_remediation(
+                format!("research session {} not found", params.session_id),
+                REM_RESEARCH_RUN,
+            )
+            .to_json();
+        }
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(format!("{e}"), REM_RESEARCH_RUN)
+                .to_json();
+        }
+    };
+    let artifact = match db.get_research_artifact(params.session_id).await {
+        Ok(artifact) => artifact,
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(format!("{e}"), REM_RESEARCH_RUN)
+                .to_json();
+        }
+    };
+    ToolResult::ok(
+        serde_json::json!({
+            "session": session,
+            "artifact": artifact,
+        })
+        .to_string(),
+    )
+    .to_json()
+}
+
+fn parse_research_scope(
+    scope: Option<&str>,
+) -> Result<vox_dei_shim::research::ResearchScope, String> {
+    use vox_dei_shim::research::ResearchScope;
+    match scope
+        .map(str::trim)
+        .unwrap_or("both")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "" | "both" => Ok(ResearchScope::Both),
+        "local" => Ok(ResearchScope::Local),
+        "web" => Ok(ResearchScope::Web),
+        other => Err(format!("invalid scope {other:?}: use web|local|both")),
     }
 }

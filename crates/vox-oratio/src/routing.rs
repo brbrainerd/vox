@@ -151,21 +151,22 @@ fn classify_intent(transcript: &str, context: &IdeContext) -> (IntentKind, f32) 
         if lower.contains("edit this") || lower.contains("change this") {
             return (IntentKind::CodeEdit, 0.85);
         }
-        if lower.contains("fix this") || !context.recent_errors.is_empty() && lower.contains("fix")
-        {
-            return (IntentKind::CodeEdit, 0.82);
-        }
 
-        // Error keyword bias: if user mentions a word from a recent error
+        // Error keyword bias: if user mentions a word from a recent error, check first
+        // (more specific than generic "fix" → higher confidence 0.88).
         for err in &context.recent_errors {
             let err_lower = err.to_lowercase();
             let err_tokens = word_tokens(&err_lower);
-            // Ignore very common short words
             for et in err_tokens {
                 if et.len() > 3 && tokens.contains(&et) {
                     return (IntentKind::CodeEdit, 0.88);
                 }
             }
+        }
+
+        if lower.contains("fix this") || !context.recent_errors.is_empty() && lower.contains("fix")
+        {
+            return (IntentKind::CodeEdit, 0.82);
         }
     }
 
@@ -631,8 +632,10 @@ mod tests {
     #[test]
     fn test_contextual_edit_this() {
         let rt = OratioRuntimeConfig::default();
-        let mut ctx = IdeContext::default();
-        ctx.active_file = Some("src/main.rs".to_string());
+        let ctx = IdeContext {
+            active_file: Some("src/main.rs".to_string()),
+            ..IdeContext::default()
+        };
 
         let out = route_transcript_with_options(
             RouteMode::Tool,
@@ -649,8 +652,10 @@ mod tests {
     #[test]
     fn test_error_keyword_bias() {
         let rt = OratioRuntimeConfig::default();
-        let mut ctx = IdeContext::default();
-        ctx.active_file = Some("src/lib.rs".to_string());
+        let mut ctx = IdeContext {
+            active_file: Some("src/lib.rs".to_string()),
+            ..IdeContext::default()
+        };
         ctx.recent_errors
             .push("unresolved import 'vox_core'".to_string());
 
@@ -664,8 +669,10 @@ mod tests {
     #[test]
     fn test_clarify_multiple_errors() {
         let rt = OratioRuntimeConfig::default();
-        let mut ctx = IdeContext::default();
-        ctx.active_file = Some("src/lib.rs".to_string());
+        let mut ctx = IdeContext {
+            active_file: Some("src/lib.rs".to_string()),
+            ..IdeContext::default()
+        };
         ctx.recent_errors.push("Error 1".to_string());
         ctx.recent_errors.push("Error 2".to_string());
 

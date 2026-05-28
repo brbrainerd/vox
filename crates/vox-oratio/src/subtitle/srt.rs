@@ -1,3 +1,13 @@
+#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+use std::fs::File;
+#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+use std::io::Write;
+#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+use std::path::{Path, PathBuf};
+
+#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
+use anyhow::Context;
+
 use crate::backends::asr_backend::TimedSegment;
 
 /// Formats a list of segments into an SRT subtitle string.

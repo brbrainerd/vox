@@ -1,0 +1,26 @@
+
+error: unresolved link to `self::catalog`
+error: could not document `vox-code-audit`
+crates\vox-wasm-engine\src\exec.rs:8:77: error: unresolved link to `0`: no item named `0` in scope
+crates\vox-wasm-engine\src\exec.rs:15:25: error: unresolved link to `WasmHost::with_fuel`: no item named `WasmHost` in scope
+error: could not document `vox-wasm-engine`
+error: unresolved link to `BenchmarkEventMeta`
+error: unresolved link to `embedding_candidate_cap`
+error: unresolved link to `probe_sqlite_capabilities`
+crates\vox-db\src\codex_chat.rs:51:20: error: unresolved link to `conversations`: no item named `conversations` in scope
+crates\vox-db\src\schema\domains\ci_completion.rs:3:102: error: unresolved link to `crate::store::ops_completion`: no item named `ops_completion` in module `store`
+error: public documentation for `store` links to private item `VoxDb::conn`
+error: unresolved link to `crate::store::VoxDb::connection`
+crates\vox-db\src\store\open.rs:50:87: error: public documentation for `drop_all_user_tables` links to private item `Self::migrate`: this item is private
+crates\vox-db\src\store\ops_a2a.rs:91:38: error: public documentation for `poll_a2a_inbox` links to private item `default_a2a_consumer_id`: this item is private
+crates\vox-db\src\store\ops_build.rs:14:35: error: unresolved link to `VoxDb::query_build_warnings`: no item named `VoxDb` in scope
+crates\vox-db\src\store\ops_mcp_diagnostics.rs:118:69: error: unresolved link to `journey_id`: no item named `journey_id` in scope
+crates\vox-db\src\store\ops_questioning.rs:272:33: error: unresolved link to `question_events`: no item named `question_events` in scope
+crates\vox-db\src\store\mod.rs:12:50: error: unresolved link to `VoxDb`: no item named `VoxDb` in scope
+crates\vox-db\src\codex_legacy.rs:88:67: error: public documentation for `LEGACY_EXPORT_SKIP_TABLES` links to private item `crate::VoxDb::migrate`: this item is private
+crates\vox-db\src\config.rs:204:51: error: unresolved link to `crate::store::VoxDb`: no item named `VoxDb` in module `store`
+crates\vox-db\src\config.rs:241:77: error: unresolved link to `Self::EmbeddedReplica`: the enum `DbConfig` has no variant or associated item named `EmbeddedReplica`
+error: unresolved link to `super::connect_canonical_optional`
+crates\vox-db\src\facade\connect.rs:7:32: error: unresolved link to `VoxDb`: no item named `VoxDb` in scope
+error: could not document `vox-db`
+

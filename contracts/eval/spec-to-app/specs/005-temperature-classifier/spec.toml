@@ -1,0 +1,33 @@
+id = "spec-to-app-005-temperature-classifier"
+tier = "T1"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a tiny Vox utility exposing a single function
+`classify_temperature(celsius: int) to str` that returns:
+  - "freezing" when celsius <= 0
+  - "cold"     when 1 <= celsius <= 10
+  - "mild"     when 11 <= celsius <= 20
+  - "warm"     when 21 <= celsius <= 30
+  - "hot"      when celsius > 30
+
+Include four @test blocks: one for each non-overlapping boundary
+(classify_temperature(0) is "freezing", (10) is "cold", (20) is
+"mild", (40) is "hot").
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly.
+
+Vox conventions:
+  - `to T` for return arrow, not `->`.
+  - `assert(X is Y)` for equality.
+  - explicit `return expr` in every branch.
+  - prefer chained `if … return …` over a `match` on integer ranges.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 4
+endpoint_kind_required = false

@@ -12,7 +12,7 @@ pub(crate) async fn http_gemini_with_metadata(
     api_key: &str,
     spec: &vox_orchestrator::models::ModelSpec,
     system: &str,
-    user: vox_openai_wire::ChatMessageContent<'_>,
+    user: vox_openai::ChatMessageContent<'_>,
     max_tokens: u64,
     temperature: Option<f32>,
     top_p: Option<f32>,
@@ -41,22 +41,22 @@ pub(crate) async fn http_gemini_with_metadata(
 
     let mut parts = Vec::new();
     match user {
-        vox_openai_wire::ChatMessageContent::Text(t) => {
+        vox_openai::ChatMessageContent::Text(t) => {
             parts.push(GeminiPartOut {
                 text: Some(t),
                 inline_data: None,
             });
         }
-        vox_openai_wire::ChatMessageContent::Parts(p) => {
+        vox_openai::ChatMessageContent::Parts(p) => {
             for part in p {
                 match part {
-                    vox_openai_wire::ChatMessagePart::Text { text } => {
+                    vox_openai::ChatMessagePart::Text { text } => {
                         parts.push(GeminiPartOut {
                             text: Some(text),
                             inline_data: None,
                         });
                     }
-                    vox_openai_wire::ChatMessagePart::ImageUrl { image_url } => {
+                    vox_openai::ChatMessagePart::ImageUrl { image_url } => {
                         // Gemini expects data format. We assume data:mime;base64,data
                         if image_url.url.starts_with("data:") {
                             if let Some(comma_pos) = image_url.url.find(',') {

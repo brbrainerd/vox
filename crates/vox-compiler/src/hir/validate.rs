@@ -37,15 +37,15 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         if s.route_path.is_empty() {
             let (hint, kind_str) = match s.kind {
                 crate::hir::HirEndpointKind::Server => (
-                    "@endpoint(kind: server) must declare a route, e.g. @endpoint(kind: server) fn foo()",
-                    "server fn",
+                    "@server fn must declare a route, e.g. @server fn foo(\"/path\")",
+                    "@server fn",
                 ),
                 crate::hir::HirEndpointKind::Query => (
-                    "@endpoint(kind: query) must declare a route, e.g. @endpoint(kind: query) fn foo()",
+                    "@query fn must declare a route, e.g. @query fn foo(\"/path\")",
                     "@query fn",
                 ),
                 crate::hir::HirEndpointKind::Mutation => (
-                    "@endpoint(kind: mutation) must declare a route, e.g. @endpoint(kind: mutation) fn foo()",
+                    "@mutation fn must declare a route, e.g. @mutation fn foo(\"/path\")",
                     "@mutation fn",
                 ),
             };
@@ -101,17 +101,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         );
     }
 
-    for r in &module.routes {
-        if r.path.trim().is_empty() {
-            errors.push(HirValidationError {
-                message: "HTTP route path is empty".into(),
-                span: r.span,
-                correction_hint: Some(
-                    "Specify a path for the route, e.g. routes { \"/\" to Home }".into(),
-                ),
-            });
-        }
-    }
+
 
     for table in &module.tables {
         if table.name.is_empty() {

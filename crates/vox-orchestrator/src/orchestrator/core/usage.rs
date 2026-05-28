@@ -12,6 +12,7 @@ impl crate::orchestrator::Orchestrator {
         output_tokens: u32,
         cost_usd: f64,
         header_cost_usd: Option<f64>,
+        pricing_source: Option<crate::models::spec::PricingSource>,
     ) {
         let provider_str: String = provider.into();
         let model_str: String = model.into();
@@ -52,11 +53,11 @@ impl crate::orchestrator::Orchestrator {
         {
             let budget = crate::sync_lock::rw_write(&*self.budget_manager);
             budget.record_usage(agent_id, (input_tokens + output_tokens) as usize);
-            budget.record_cost(agent_id, cost_usd);
+            budget.record_cost(agent_id, cost_usd, pricing_source);
         }
 
         if let Some(db) = self.db() {
-            let tracker = crate::usage::UsageTracker::new_ref(&*db);
+            let tracker = crate::usage::UsageTracker::new_ref(&db);
             let _ = tracker
                 .record_call_detailed(
                     &provider_str,

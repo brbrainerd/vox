@@ -1,0 +1,20 @@
+# Agent-Computer Interface (ACI) contract v1 — metadata SSOT.
+# Runtime JSON envelopes are validated against agent-computer-interface.v1.schema.json.
+x-vox-version: 1
+version: 1
+title: Vox AgentOS ACI v1
+description: >
+  Contract-first envelope for MCP tool results and shell-backed probes.
+  Extends legacy ToolResult JSON with a sibling `aci` object so existing clients
+  that only read `success` / `data` remain compatible.
+
+mutation_kind:
+  read_only: Effects limited to observation; safe to replay from cache without FS rollback.
+  local_mutation: Mutates workspace-local artifacts (files, git index, etc.).
+  external_side_effect: Network, billing, or host-global mutation beyond the repo sandbox.
+  unknown: Tool not classified yet; conservative handling applies.
+
+shell_backend:
+  contract_first: Shell-agnostic; backend binding supplied separately (Phase 2).
+  powershell: Host PowerShell adapter (policy-aligned).
+  nushell: Optional structured-shell adapter (feature-flagged).

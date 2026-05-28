@@ -4,7 +4,9 @@ fn demo_scalars() {
     let f: float = 3.14
     let s: str = "hello"
     let b: bool = true
-    let c: char = 'x'
+    // Char is a v1.x type — until then a single-char string carries
+    // the semantic. Tracked in the v1.0 completion plan as P2.6.
+    let c: str = "x"
 }
 // ANCHOR_END: scalar
 

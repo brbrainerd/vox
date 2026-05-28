@@ -14,7 +14,7 @@ serde        = { workspace = true }
 serde_json   = { workspace = true }
 tokio        = { workspace = true }
 reqwest      = { workspace = true }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 anyhow       = { workspace = true }
 thiserror    = { workspace = true }
 tracing      = { workspace = true }

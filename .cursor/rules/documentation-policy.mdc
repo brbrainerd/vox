@@ -5,7 +5,7 @@ globs: ["docs/**/*.md", "*.md"]
 # Documentation policy
 
 - ALL research, architecture, and knowledge artifacts for this repo → `docs/src/architecture/` (NOT IDE knowledge bases)
-- `.vox` and `.tsx` code blocks in `docs/src/` must use `{{#include}}` from `examples/golden/` OR be annotated `// vox:skip`
+- In `docs/src/`, only fenced blocks whose language tag is `vox` are passed through the Vox compiler for doctest; use `{{#include}}` from `examples/golden/` or `// vox:skip` only when a `vox` snippet is intentionally non-normative (archived, pseudo-code, or invalid-on-purpose). Other language tags (`tsx`, `rust`, …) are not parsed as Vox
 - Do NOT edit derived ignore files (`.cursorignore`, `.aiignore`, `.aiexclude`) — edit `.voxignore` and run `vox ci sync-ignore-files`
 - Do NOT read or modify `docs/src/archive/` for new feature work
 - New doc pages must include `category`, `status`, `last_updated`, and `training_eligible` frontmatter

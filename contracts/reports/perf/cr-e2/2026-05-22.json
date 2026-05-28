@@ -1,0 +1,57 @@
+{
+  "criterion": "CR-E2",
+  "errors": [],
+  "measured_at": "2026-05-22T01:22:04.568658400+00:00",
+  "measurement_notes": [
+    "Source-bundle gzip (sum of per-file gzipped sizes across the app source tree).",
+    "Conservative upper bound vs the post-vite-build JS bundle; vite tree-shakes + minifies.",
+    "Excludes: Dockerfile, package-lock, pnpm-lock, tsconfig*, vite.config; and node_modules/, target/, dist/, build/, .vox/ dirs.",
+    "Final-bundle measurement (running `pnpm build` + sizing dist/) is a v1.x follow-on."
+  ],
+  "per_app": [
+    {
+      "files_measured": 7,
+      "fixture_path": "apps/interop/marquee_app",
+      "gzip_bytes": 3287,
+      "gzip_kb": 3.2099609375,
+      "id": "marquee-app",
+      "met": true,
+      "raw_bytes": 6444,
+      "status": "real",
+      "threshold_kb_gzip": 800
+    },
+    {
+      "files_measured": 2,
+      "fixture_path": "apps/marquee/todo-auth",
+      "gzip_bytes": 2327,
+      "gzip_kb": 2.2724609375,
+      "id": "marquee-todo-auth",
+      "met": true,
+      "raw_bytes": 6685,
+      "status": "real",
+      "threshold_kb_gzip": 800
+    },
+    {
+      "files_measured": 2,
+      "fixture_path": "apps/marquee/chat",
+      "gzip_bytes": 1375,
+      "gzip_kb": 1.3427734375,
+      "id": "marquee-chat",
+      "met": true,
+      "raw_bytes": 4203,
+      "status": "real",
+      "threshold_kb_gzip": 800
+    }
+  ],
+  "results": {
+    "apps_measured": 3,
+    "apps_met": 3,
+    "max_gzip_kb": 3
+  },
+  "schema_version": 1,
+  "threshold": {
+    "met": true,
+    "target_per_app_kb_gzip": 800
+  },
+  "threshold_kb_gzip_default": 800
+}

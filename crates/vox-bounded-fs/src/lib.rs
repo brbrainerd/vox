@@ -3,6 +3,8 @@
 //! This crate is the workspace SSOT for scaling-policy-aware capped reads used by CI, MCP,
 //! publisher, Populi, and other crates. Prefer it over per-crate copies of `bounded_fs`.
 
+#![forbid(unsafe_code)]
+
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;

@@ -1,7 +1,7 @@
 ---
 title: "ADR 012 — Internal Web IR strategy for Vox"
 description: "Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu"
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 status: "deprecated"
 last_updated: "2026-03-26"
 training_eligible: false
@@ -21,11 +21,11 @@ schema_type: "TechArticle"
 
 ## Interop policy
 
-`InteropNode` in `crates/vox-compiler/src/web_ir/mod.rs` records escape hatches and external refs; `validate::validate_web_ir` rejects empty interop fields before emit. Prefer narrow imports over raw `EscapeHatchExpr` fragments (see `crates/vox-compiler/src/web_ir/validate.rs`).
+`InteropNode` in `crates/vox-codegen/src/web_ir/mod.rs` records escape hatches and external refs; `validate::validate_web_ir` rejects empty interop fields before emit. Prefer narrow imports over raw `EscapeHatchExpr` fragments (see `crates/vox-codegen/src/web_ir/validate.rs`).
 
 ## Codegen naming (TypeScript / React)
 
-Emitted TS/React identifiers should follow **English-first** naming where practical; stable `data-vox-*` DOM contracts remain until a versioned WebIR migration replaces them. Avoid **duplicate `Vox` tokens** in generated symbol names (`VoxVox*`). Details and side-by-side status: [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#nomenclature-for-emitted-typescript--react).
+Emitted TS/React identifiers should follow **English-first** naming where practical; stable `data-vox-*` DOM contracts remain until a versioned WebIR migration replaces them. Avoid **duplicate `Vox` tokens** in generated symbol names (`VoxVox*`). Details and side-by-side status: [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 
 ## Context
 
@@ -43,13 +43,13 @@ This yields higher maintenance cost, divergence risk, and higher k-complexity fo
 ## Current vs target representation (side-by-side)
 
 Canonical mapping and full legacy registry:
-[Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md).
+[Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 Quantified token+grammar+escape-hatch delta:
-[WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+[WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 Reproducible counting appendix:
-[K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
+[K-metric appendix](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 Ordered file-operation roadmap:
-[Operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
+[Operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 
 ### Current island schema (implemented)
 
@@ -58,7 +58,7 @@ Source anchors:
 - `crates/vox-compiler/src/parser/descent/decl/head.rs` (`parse_island`)
 - `crates/vox-compiler/src/ast/decl/ui.rs` (`IslandDecl`, `IslandProp`)
 - `crates/vox-compiler/src/hir/lower/mod.rs` (`Decl::Island -> HirIsland`)
-- `crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs` + `codegen_ts/jsx.rs` (dual island mount rewrite)
+- `crates/vox-codegen/src/codegen_ts/hir_emit/mod.rs` + `codegen_ts/jsx.rs` (dual island mount rewrite)
 - `crates/vox-cli/src/templates/islands.rs` (runtime hydration parse)
 
 Current shape:
@@ -75,10 +75,10 @@ Current shape:
 
 Source anchors:
 
-- `crates/vox-compiler/src/web_ir/mod.rs`
-- `crates/vox-compiler/src/web_ir/lower.rs`
-- `crates/vox-compiler/src/web_ir/validate.rs`
-- `crates/vox-compiler/src/web_ir/emit_tsx.rs`
+- `crates/vox-codegen/src/web_ir/mod.rs`
+- `crates/vox-codegen/src/web_ir/lower.rs`
+- `crates/vox-codegen/src/web_ir/validate.rs`
+- `crates/vox-codegen/src/web_ir/emit_tsx.rs`
 
 Target shape:
 
@@ -109,7 +109,7 @@ Non-parser forms and speculative grammar are out of scope for this ADR revision.
 
 ## Interop policy (OP-S103, OP-S104, OP-S150, OP-S183, OP-S213)
 
-Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../../crates/vox-codegen/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../../crates/vox-codegen/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 
 ### Gate naming alignment (OP-S051)
 
@@ -238,7 +238,7 @@ Confidence tags:
 ### Acceptance gates
 
 - Canonical gate IDs and thresholds for this ADR are maintained in the blueprint table:
-  [Acceptance gates (G1-G6)](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+  [Acceptance gates (G1-G6)](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 - This ADR intentionally references that single-source table to avoid drift between ADR prose and rollout thresholds.
 
 ---
@@ -335,7 +335,7 @@ flowchart LR
 - Frontend codegen in `codegen_ts` moves to printer-over-WebIR architecture.
 - New frontend features should land in WebIR lowering + validation first, then emitters.
 - Documentation and implementation blueprint must stay linked to this ADR.
-- Normative schema, `validate::validate_web_ir`, **`lower::lower_hir_to_web_ir`**, and **`emit_tsx::emit_component_view_tsx`** live in `crates/vox-compiler/src/web_ir/`. The main TS codegen path still uses `codegen_ts` directly; WebIR is the convergence layer for tests and future printer migration.
+- Normative schema, `validate::validate_web_ir`, **`lower::lower_hir_to_web_ir`**, and **`emit_tsx::emit_component_view_tsx`** live in `crates/vox-codegen/src/web_ir/`. The main TS codegen path still uses `codegen_ts` directly; WebIR is the convergence layer for tests and future printer migration.
 - Adjacent non-UI SSOT contracts now live in `crates/vox-compiler/src/app_contract.rs` and `crates/vox-compiler/src/runtime_projection.rs`; CI enforces parity tests so WebIR/AppContract/RuntimeProjection remain derived from the same HIR semantics.
 
 ---
@@ -344,7 +344,7 @@ flowchart LR
 
 - [ADR 010 — TanStack web spine](010-tanstack-web-spine.md)
 - [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md)
-- [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md)
+- [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md)
 - [Compiler Architecture](../explanation/expl-architecture.md)
 - [Compiler Lowering Phases](../explanation/expl-compiler-lowering.md)
 - [Vox web stack SSOT](../reference/vox-web-stack.md)

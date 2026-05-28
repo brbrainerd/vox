@@ -1,0 +1,9 @@
+fn clamp_byte(n: int) to int {
+    if n < 0 {
+        return 0
+    }
+    if n > 255 {
+        return 255
+    }
+    return n
+}

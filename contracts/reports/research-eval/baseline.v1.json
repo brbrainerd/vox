@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "run_id": "baseline-local-offline",
+  "suite": "local",
+  "total_samples": 30,
+  "metrics": {
+    "citation_precision": 0.6,
+    "citation_recall": 0.0,
+    "answer_factuality": 0.6,
+    "abstention_rate": 0.0,
+    "avg_latency_ms": 0.0
+  }
+}

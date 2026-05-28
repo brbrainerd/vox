@@ -26,6 +26,7 @@ Primary navigation:
 - Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
 - See [phase-numbering-index](docs/src/architecture/phase-numbering-index.md) for disambiguation of the three independent phase sequences used in plans (frontend interop, GUI-native language, workspace reorg).
 - Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
+- AgentOS / ACI SSOT: [`docs/src/architecture/agentos-ssot-2026.md`](docs/src/architecture/agentos-ssot-2026.md)
 - Agent discovery index: [`docs/src/.well-known/llms.txt`](docs/src/.well-known/llms.txt)
 
 ## Research and Documentation Storage (IDE Agent Directive)
@@ -121,7 +122,7 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 **Security invariants:**
 - Scripts that modify the Vox repository MUST be committed to VCS before an agent executes them
 - No `.vox` script may use `shell_exec` to bypass the compiler sandbox
-- Subprocess calls go through `vox-runtime` process primitives (telemetry-observable)
+- Subprocess calls go through `vox-actor-runtime` process primitives (telemetry-observable)
 - Use the secrets crate (`vox_secrets::resolve_secret(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
 
 **Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
@@ -135,33 +136,51 @@ Vox source follows one rule for top-level declarations:
 > **Bare-keyword blocks declare scope. Decorators modify declarations.**
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
-`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`,
-`workflow`, `activity`.
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`.
+**Reserved (ADR-028, not yet implemented):** `workflow`, `activity`.
 
 **Decorators** (modifiers composed on top of a declaration):
-`@table`, `@endpoint`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
-`@durable`, `@v0`, `@test`, `@scheduled`.
+`@table`, `@query`, `@mutation`, `@server`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
+`@v0`, `@test`.
+**Reserved (ADR-028, not yet implemented):** `@durable`, `@scheduled`.
+**Removed in v0.6.0:** `@endpoint` (see §Retired Surfaces).
 
 Decorators compose with bare-keyword blocks:
 
 ```vox
 // vox:skip
 @table type Task { … }                        // decorator on a type declaration
-@endpoint(kind: query) fn list_tasks() { … }  // decorator on a function
-@durable fn process_order(id: OrderId) { … }  // durability via decorator, not keyword
+@query fn list_tasks() { … }  // decorator on a function
+@pure fn checksum(payload: bytes) { … }       // purity declared via decorator
 ```
 
 **Rule for new features:** Do NOT introduce a new bare keyword for behavior
 that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
-**Implementation status (Phase 2):** `actor`, `workflow`, and `activity` are
-fully supported bare keywords as of **TASK-2.6 Path A** (commit `080b3f86`).
-They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate
-HIR node types. The tombstone that previously rejected these keywords has been
-removed; source files may freely use `actor`, `workflow`, and `activity` forms.
+**Implementation status (2026-05-23, ADR-041 supersedes ADR-028).** `actor`,
+`workflow`, `activity`, `@durable`, and `@scheduled` are **stable public-grammar
+features** backed by a real durable runtime for the supported subset (see
+[ADR-019](docs/src/adr/019-durable-workflow-journal-contract-v1.md),
+[ADR-021](docs/src/adr/021-generated-workflow-durability-parity.md), and
+[ADR-041](docs/src/adr/041-durable-functions-completion-2026.md)). The earlier
+`check_adr028_reserved_keywords` source-text gate in `crates/vox-compiler/src/pipeline.rs`
+that emitted error code `E028` has been **removed**; E028 is retired.
+Out-of-subset behavior (arbitrary `match` replay, unbounded loops, non-deterministic
+ops in workflow bodies) is still policed — but by the determinism lint pass, not
+the old reservation gate. The 2026-05-01 stub-only state described in
+[`durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md)
+was closed by Phases 1–6 of
+[`docs/superpowers/plans/2026-05-23-durable-functions-completion.md`](docs/superpowers/plans/2026-05-23-durable-functions-completion.md).
 
-See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2.
+The `vox ci retirement-audit` gate (planned per
+[CR-L6](docs/src/architecture/v1-llm-target-implementation-plan-2026.md) P1.3)
+will fail CI on drift between this section and the actual parse-time enforcement
+in `pipeline.rs`. Until that gate lands, the
+[`docs-reality-audit-program`](docs/src/contributors/docs-reality-audit-program.md)
+catches this drift quarterly.
+
+See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2; [`docs/src/architecture/durability-runtime-audit-2026.md`](docs/src/architecture/durability-runtime-audit-2026.md).
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 
@@ -177,7 +196,7 @@ See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/archit
 Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md). If Claude Code is in use, also see [`CLAUDE.md`](CLAUDE.md) for Claude-specific additions.
 For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — four `.mdc` rule files control build environment, CI runner conventions, CLI registry, and source hygiene.
 
-Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
+Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). **Vox stdlib vs shells:** [`docs/src/architecture/vox-shell-stdlib-ssot-2026.md`](docs/src/architecture/vox-shell-stdlib-ssot-2026.md) — `std.fs` / `std.process` are argv‑first Rust builtins; they do not lower to PowerShell/bash. Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
 
 ## Test-First Policy (Required, Cross-Tool)
 
@@ -215,15 +234,25 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | Retired / Deprecated | Canonical Replacement (Use Instead) |
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
-| `vox-ars` (crate) | `vox-ars-runtime` |
+| `vox-ars` (crate) | `vox-openclaw-runtime` |
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
-| `@server fn`, `@query fn`, `@mutation fn` | `@endpoint(kind: server\|query\|mutation) fn` |
+| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `@server fn` / `@query fn` / `@mutation fn` |
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
-| `recall()` (synchronous memory read) | `recall_async(query_spec)` |
-| `persist_fact()` | `sync_to_db()` |
+| `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
+| `@capacitor/*`, `npx cap sync` | `@tauri-apps/plugin-*`, `cargo tauri build` |
+| `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
+| `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-stt` (native Tauri STT plugin) |
+
+### Deprecation Annotations
+
+Any vestigial code remaining from an active migration (e.g. Tauri convergence) MUST be marked with an inline deprecation annotation so `vox ci retirement-audit` can track it.
+Marker syntax:
+`// vox-deprecated-since="0.6.0" retire-by="0.7.0" reason="tauri-convergence" canonical="..."`
+
+Every vestigial call site must carry this marker until it is fully removed by its respective migration task.
 
 ## Versioning Policy (SSOT)
 
@@ -231,7 +260,7 @@ The workspace uses a **single source of truth** for all crate versions:
 
 ```toml
 # Cargo.toml [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 ```
 
 All first-party crates inherit this via `version.workspace = true`. Plugin crates (`vox-plugin-*`) maintain independent versions on their own release cadence.
@@ -264,12 +293,12 @@ Agents and contributors must strictly adhere to architectural invariants. Ensure
 These rules apply to `.vox` source files and are enforced by `vox stub-check` (static) and the Vox runtime (dynamic). Agents writing Vox code MUST follow them.
 
 **Effect declarations (Phase 5):**
-- Any `pub fn` or `@endpoint fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
+- Any `pub fn`, `@query fn`, `@mutation fn`, or `@server fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
 - A `@pure fn` MUST NOT call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or any `async/await` — the compiler will reject it.
 - Workflow bodies (`workflow { }`) MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`. Use `activity` functions for side-effectful work instead.
 
 **Type boundaries (Phase 3):**
-- ID parameters on `@endpoint`, `@activity`, or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
+- ID parameters on `@query`, `@mutation`, `@server`, `@activity`, or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
 - Error types on public boundaries MUST be named ADTs — `Result[T, str]` is flagged by `vox/types/anonymous-error-type`.
 
 **Decorator position (Phase 2):**
@@ -277,7 +306,7 @@ These rules apply to `.vox` source files and are enforced by `vox stub-check` (s
 - See the Grammar Unification section above for the full keyword table.
 
 **Auth / access control:**
-- Every `@endpoint fn` MUST carry either `@auth(...)` or `@public`. An endpoint with neither is flagged `vox/auth/endpoint-missing-decorator`.
+- Every `@query fn`, `@mutation fn`, or `@server fn` should carry either `@auth(...)` for authenticated routes or an explicit open-access annotation. The legacy `vox/auth/endpoint-missing-decorator` lint targeted `@endpoint fn`, which was removed in v0.6.0; auth decoration enforcement for the bare-form decorators is tracked in Phase 6 of the language-rules plan.
 
 **State machines:**
 - Every state in a `state_machine { }` block must have at least one `->` outgoing transition, or be marked as a terminal state with a `// terminal` comment. Flagged by `vox/state-machine/unreachable-state`.
@@ -289,6 +318,7 @@ Full details and per-rule fix patterns: [`docs/src/architecture/vox-language-rul
 
 ## Related Operational Surfaces
 
+- Canonical vs deprecated runtime names (daemon binary, MCP prefixes, env families): [`docs/src/architecture/canonical-runtime-names.md`](docs/src/architecture/canonical-runtime-names.md)
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
 - Search & retrieval (agent corpora, MCP tools, policy): [`docs/src/architecture/search-retrieval-ssot-2026.md`](docs/src/architecture/search-retrieval-ssot-2026.md)
 - Workspace artifact hygiene and governance policy: [`docs/agents/governance.md`](docs/agents/governance.md)

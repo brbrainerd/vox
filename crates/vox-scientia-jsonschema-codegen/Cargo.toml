@@ -1,0 +1,24 @@
+[package]
+name = "vox-scientia-jsonschema-codegen"
+description = "Offline generator: contracts/scientia *.schema.json → vox-research-events Rust types."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "scientia-jsonschema-codegen"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+prettyplease = { workspace = true }
+schemars08 = { workspace = true }
+serde_json = { workspace = true }
+syn = { workspace = true, features = ["full"] }
+typify = { workspace = true }
+walkdir = { workspace = true }
+workspace-hack = { workspace = true }
+
+[lints]
+workspace = true

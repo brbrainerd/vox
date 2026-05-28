@@ -304,7 +304,7 @@ impl crate::orchestrator::Orchestrator {
 
         if auto_continue {
             let stall_threshold_ms = (task_timeout_ms / 2).max(60_000);
-            let active_agents: Vec<(AgentId, usize, bool, u64)> = {
+            let active_agents: Vec<(AgentId, usize, bool, u64, Option<String>)> = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
                 agents
                     .iter()
@@ -319,7 +319,8 @@ impl crate::orchestrator::Orchestrator {
                             .map(|started| now_ms.saturating_sub(started))
                             .filter(|elapsed| has_in_progress && *elapsed >= stall_threshold_ms)
                             .unwrap_or(0);
-                        (*id, pending_total, has_in_progress, stalled_in_progress_ms)
+                        let active_skill = queue.current_task().and_then(|t| t.active_skill.clone());
+                        (*id, pending_total, has_in_progress, stalled_in_progress_ms, active_skill)
                     })
                     .collect()
             };
@@ -340,6 +341,7 @@ impl crate::orchestrator::Orchestrator {
                         vec![],
                         Some(crate::types::TaskPriority::Background),
                         Some(agent_name),
+                        None,
                         None,
                         None,
                         None,

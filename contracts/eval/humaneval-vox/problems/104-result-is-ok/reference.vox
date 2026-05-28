@@ -1,0 +1,6 @@
+fn result_is_ok(r: Result[int]) to bool {
+    match r {
+        Ok(_)    => return true
+        Error(_) => return false
+    }
+}

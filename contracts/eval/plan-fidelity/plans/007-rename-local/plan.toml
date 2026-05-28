@@ -1,0 +1,36 @@
+id = "plan-007-rename-local"
+wave = "wave_1"
+description = "Rename a single local variable inside one fn without touching types or signatures."
+max_steps = 3
+max_cost_usd = 0.50
+
+prompt = """
+Inside fn `sum_first_n(limit: int) to int`, rename the local variable
+`n` to `count` everywhere it appears in the fn body. Do not change
+the parameter name, the return type, or any other fn. The behavior
+must be identical.
+
+Vox conventions to honor:
+  - `let` introduces locals; the local being renamed is `let n = 0`.
+  - Return arrow is `to T`, not `->`.
+"""
+
+[[steps]]
+step = 1
+verb = "read"
+description = "Read the existing source file."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Rename the local `n` to `count` inside the fn body."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes; fn signature unchanged."
+
+[success_criteria]
+vox_check_passes = true
+local_renamed = true
+fn_signature_unchanged = true

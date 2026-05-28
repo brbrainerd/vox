@@ -1,7 +1,7 @@
 ---
 title: "ADR 004: Codex over Arca over Turso"
 description: "Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a"
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-24"
 training_eligible: true
 
@@ -36,8 +36,8 @@ Vox persisted data through `vox-db` (`VoxDb` / **Codex**), with related crates (
 
 > Nomenclature note (2026-05-08): `vox-pm` was renamed to `vox-package`; references in this ADR are historical.
 - `VoxDb` remains the stable Rust identifier for ABI/compatibility; prefer **Codex** in user-facing text and new modules.
-- Compatibility aliases **`VOX_TURSO_URL`** / **`VOX_TURSO_TOKEN`** map to the same remote resolution as `VOX_DB_URL` / `VOX_DB_TOKEN` in `vox_db::DbConfig::resolve_standalone` (after canonical env, before legacy Turso names).
-- Legacy env vars `TURSO_URL` / `TURSO_AUTH_TOKEN` are **deprecated**; they remain a last-resort shim in `resolve_standalone` alongside `VOX_TURSO_*`.
+- Compatibility aliases for legacy Turso-prefixed env names map to the same remote resolution as `VOX_DB_URL` / `VOX_DB_TOKEN` in `vox_db::DbConfig::resolve_standalone` (after canonical env, before older Turso spellings listed in [env-vars SSOT](../reference/env-vars.md)).
+- Older first-party Turso env spellings are **deprecated**; they remain last-resort shims in `resolve_standalone` alongside the `VOX_TURSO_*` compatibility tier (ordering in env-vars SSOT).
 - Direct `turso::` usage outside `vox-db` (and documented exceptions) is discouraged; domain code should call **`VoxDb` / `Codex` APIs** (`store/ops_*.rs`). See [direct Turso allowlist](../archive/research-2026-q1/codex-turso-allowlist.md) for the current enforcement story.
 
 ## References

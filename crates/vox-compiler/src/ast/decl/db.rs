@@ -13,6 +13,12 @@ pub struct TableDecl {
     pub cors: Option<String>,
     pub is_pub: bool,
     pub is_deprecated: bool,
+    /// Primary-key field name. `Some(name)` when the author wrote
+    /// `@table(pk: name)`; `None` falls back to the default `"id"` lookup
+    /// at typeck time. Either way, the typeck enforces that the resolved
+    /// field exists on the table — there is no "table without a primary
+    /// key" surface (2026-05-19 explicit-pk decision).
+    pub primary_key: Option<String>,
     pub span: Span,
 }
 

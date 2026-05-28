@@ -1,0 +1,72 @@
+// vox:caps fs process
+// gui-build.vox — Build the native Vox GUI (Tauri frontend + Rust core).
+// Migrated 2026-05-23 to the strict-Option / Result-discipline stdlib:
+//   - process.run_ex(cmd, args, cwd) for subprocesses with a working directory
+//   - .is_err() / .unwrap() for Result handling
+//   - .code (not .exit_code) on the {stdout,stderr,code} record
+//   - log.error instead of bare print for failure paths
+
+fn run_in(cmd: str, args: list[str], cwd: str, label: str) to bool {
+    let res = process.run_ex(cmd, args, cwd)
+    if res.is_err() {
+        log.error(label + " failed to spawn: " + res.unwrap_err())
+        return false
+    }
+    let out = res.unwrap()
+    if out.code != 0 {
+        log.error(label + " failed (exit " + str(out.code) + "): " + out.stderr)
+        return false
+    }
+    return true
+}
+
+fn main() {
+    let ui_dir = "crates/vox-gui/ui"
+
+    print("Building Vox GUI Frontend...")
+
+    if not fs.exists(ui_dir + "/node_modules") {
+        print("  - Installing NPM dependencies...")
+        if not run_in("pnpm", ["install"], ui_dir, "NPM install") {
+            return
+        }
+    }
+
+    print("  - Building production assets...")
+    if not run_in("pnpm", ["build"], ui_dir, "Frontend build") {
+        return
+    }
+    print("GUI Frontend build complete.")
+
+    print("  - Building backend CLI...")
+    if not run_in("cargo", ["build", "-p", "vox-cli", "--release"], ".", "Backend build") {
+        return
+    }
+
+    print("  - Preparing Tauri external sidecar binaries...")
+
+    let rustc_res = process.run_ex("rustc", ["-vV"], ".")
+    let mut host_triple = "x86_64-unknown-linux-gnu"
+    if rustc_res.is_ok() {
+        let rustc_out = rustc_res.unwrap()
+        for line in rustc_out.stdout.split("\n") {
+            if line.starts_with("host: ") {
+                host_triple = line.replace("host: ", "").trim()
+            }
+        }
+    }
+
+    let ext = if host_triple.contains("windows") { ".exe" } else { "" }
+    let source_bin = "target/release/vox" + ext
+    let target_bin = "target/release/vox-" + host_triple + ext
+
+    if fs.exists(source_bin) {
+        let _ = fs.copy(source_bin, target_bin)
+        print("  Copied " + source_bin + " to " + target_bin)
+    } else {
+        log.warn("Source binary not found: " + source_bin)
+    }
+
+    print("GUI build pipeline complete.")
+    print("To build the final GUI binary, run: cargo tauri build")
+}

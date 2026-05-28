@@ -1,7 +1,7 @@
 ---
 title: "Burn Framework Necessity Audit (2026-05-08)"
 description: "Does the Vox codebase need Burn at all? Production fine-tuning uses Candle; Burn is legacy NdArray dogfood + 4,526 LOC of LoRA scaffolding behind a feature flag. Recommendation: delete unless cross-vendor GPU is a roadmap commitment."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "deprecated"
 training_eligible: true
 training_rationale: "Snapshot of ML framework usage; clarifies Burn vs Candle roles and proposes a deletion path with an explicit fork point for cross-vendor GPU."

@@ -1,0 +1,11 @@
+[problem]
+id = "024"
+title = "is_balanced_parens"
+prompt = """
+Return true if every opening parenthesis has a matching closing parenthesis in the correct order.
+"""
+signature = "fn is_balanced_parens(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

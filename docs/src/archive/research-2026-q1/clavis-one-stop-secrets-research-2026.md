@@ -1,7 +1,7 @@
 ---
 title: "Clavis as a one-stop secrets manager: research findings 2026"
 description: "Comprehensive research synthesis on secret sprawl, env-var taxonomy, user-facing feature requirements, AI-agent credential flows, A2A delegation, and the roadmap for evolving Vox Clavis into a full-lifecycle secrets management platform."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-12"
 training_eligible: false

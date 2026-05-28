@@ -14,6 +14,7 @@ use vox_actor_runtime::{
 use crate::events::AgentEventKind;
 use crate::models::{ModelRouteBackend, route_backend_for_model};
 use crate::orchestrator::Orchestrator;
+use crate::planning::prompts::SUPERPOWERS_PROMPT;
 use crate::services::{ScalingAction, ScalingService};
 use crate::types::AgentId;
 use crate::types::TaskId;
@@ -118,10 +119,19 @@ impl AiTaskProcessor {
             }
         }
 
+        let mut skill_block = String::new();
+        if let Some(ref skill) = task.active_skill {
+            skill_block.push_str("\n### Procedural Skill (Active Methodology)\n");
+            skill_block.push_str(&format!("ACTIVE_SKILL: {}\n", skill));
+            skill_block.push_str(SUPERPOWERS_PROMPT);
+            skill_block.push_str("\n\n");
+        }
+
         let prompt = format!(
-            "Task: {}\n\n{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
+            "Task: {}\n\n{}{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
             task.description,
             history_block,
+            skill_block,
             phase.as_str(),
             task.task_category,
             usage_model,
@@ -154,7 +164,7 @@ impl TaskProcessor for AiTaskProcessor {
         let cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
         let mut allowed_providers = std::collections::HashSet::new();
         if let Some(db) = self.orchestrator.db() {
-            let tracker = crate::usage::UsageTracker::new_ref(&*db);
+            let tracker = crate::usage::UsageTracker::new_ref(&db);
             if let Ok(budgets) = tracker.remaining_all().await {
                 for b in budgets {
                     if b.remaining > 0 && !b.rate_limited {
@@ -167,10 +177,21 @@ impl TaskProcessor for AiTaskProcessor {
         let models_handle = self.orchestrator.models_handle();
         let routed = {
             let registry = crate::sync_lock::rw_read(&*models_handle);
+            let exploration_spent = crate::sync_lock::rw_read(&*self.orchestrator.budget_manager).global_exploration_cost_usd();
+            let exploration_limit = vox_config::load_model_routing_config().exploration.budget_usd_per_day;
+
             if allowed_providers.is_empty() {
-                registry.best_for_task(&task, cost_pref)
+                registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                    if m.pricing_source == crate::models::spec::PricingSource::Unknown && exploration_spent >= exploration_limit {
+                        return false;
+                    }
+                    true
+                })
             } else {
                 registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                    if m.pricing_source == crate::models::spec::PricingSource::Unknown && exploration_spent >= exploration_limit {
+                        return false;
+                    }
                     let provider_str = match m.provider_type {
                         crate::models::ProviderType::OpenRouter => "openrouter",
                         crate::models::ProviderType::Ollama => "ollama",
@@ -301,6 +322,7 @@ impl TaskProcessor for AiTaskProcessor {
                     }
                 }
             }
+            self.orchestrator.record_workflow_phase_change(task.id, phase).await;
             self.event_bus.emit(AgentEventKind::TaskPhaseChanged {
                 task_id: task.id,
                 agent_id,
@@ -394,6 +416,7 @@ impl TaskProcessor for AiTaskProcessor {
                     .lock()
                     .ok()
                     .and_then(|lock| if *lock > 0.0 { Some(*lock) } else { None }),
+                routed.as_ref().map(|m| m.pricing_source.clone()),
             )
             .await;
 
@@ -468,7 +491,7 @@ impl ActorAgent {
                 if let Some(envelope) = msg {
                     if let vox_actor_runtime::mailbox::Envelope::Message(msg) = envelope {
                         if let MessagePayload::Json(json_data) = msg.payload {
-                            if let Ok(cmd) = serde_json::from_str::<AgentCommand>(&json_data) {
+                            if let Ok(cmd) = serde_json::from_slice::<AgentCommand>(&json_data) {
                                 Self::handle_command(cmd, agent_id, &orchestrator, &processor)
                                     .await;
                             }

@@ -1,9 +1,9 @@
 //! External **DeI JSON-line RPC** integration boundary.
 //!
-//! The resolved process binary is **`vox-orchestrator-d`** ([`BINARY`]); docs and hints may still
-//! say `vox-dei-d` as the logical service name for the same wire protocol.
+//! The resolved process binary is **`vox-orchestrator-d`** (see `BINARY`); docs and hints may still
+//! Historical docs may say `vox-dei-d`; the shipped binary is `BINARY` (`vox-orchestrator-d`).
 //!
-//! The staging `crates/vox-dei` library is not linked into `vox-cli` (see `vox ci no-vox-dei-import`). All DeI RPC that the
+//! The staging `crates/vox-dei` library is not linked into `vox-cli` (see `vox ci no-dei-import`). All DeI RPC that the
 //! slim CLI performs goes through the same JSON-line [`DispatchRequest`] / [`DispatchResponse`]
 //! protocol as [`crate::dispatch::call_daemon`], with method names centralized here to avoid drift.
 
@@ -34,7 +34,7 @@ pub mod method {
     pub const AI_PLAN_EXECUTE: &str = "ai.plan.execute";
 }
 
-/// Invoke `vox-dei-d` with `method` / `params` and return the final `Result` JSON value.
+/// Invoke `BINARY` (the daemon binary) with `method` / `params` and return the final `Result` JSON value.
 ///
 /// Maps common spawn failures to an actionable hint (install / PATH / sibling binary).
 pub async fn call(method: &str, params: Value, auto_open: bool) -> anyhow::Result<Value> {
@@ -48,7 +48,7 @@ fn enrich_dei_daemon_error(err: anyhow::Error) -> anyhow::Error {
     if display.contains(crate::dispatch::DAEMON_SPAWN_FAILED_PREFIX) {
         anyhow::anyhow!(
             "{display}\n\
-             Hint: install **`vox-orchestrator-d`** on `PATH` (logical name: `vox-dei-d`), or place the binary next to `vox` (see `docs/src/reference/cli.md`)."
+             Hint: install **`vox-orchestrator-d`** on `PATH`, or place the binary next to `vox` (see `docs/src/reference/cli.md`)."
         )
     } else {
         err
@@ -59,7 +59,7 @@ fn enrich_dei_daemon_error(err: anyhow::Error) -> anyhow::Error {
 mod tests {
     use super::method::*;
 
-    /// Guard against accidental renames: MCP / `vox-dei-d` must agree on these ids.
+    /// Guard against accidental renames: MCP / orchestrator daemon must agree on these ids.
     #[test]
     fn dei_method_ids_stable() {
         assert_eq!(AI_CHECK, "ai.check");
@@ -82,7 +82,7 @@ mod tests {
     #[test]
     fn enrich_maps_spawn_failure() {
         let inner = anyhow::anyhow!(
-            "{} 'vox-dei-d': no such file",
+            "{} 'vox-orchestrator-d': no such file",
             crate::dispatch::DAEMON_SPAWN_FAILED_PREFIX
         );
         let out = super::enrich_dei_daemon_error(inner);

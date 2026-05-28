@@ -1,0 +1,38 @@
+// gui-e2e-check.vox
+// CI guard to validate the reactive push pipeline (Rust EventBus -> Tauri -> React State).
+
+// vox:caps fs process env
+import fs;
+import path;
+import process;
+
+fn main() {
+    print("Running GUI E2E validation suite via Playwright...");
+
+    let ui_dir = "crates/vox-gui/ui";
+    if not fs.exists(ui_dir) {
+        log.error("GUI directory not found");
+        process.exit(1);
+    }
+    
+    // We execute pnpm exec playwright test to run the suite.
+    // process.run_ex(cmd, args, cwd) returns Result[Record] — the 3-arg form
+    // that supports a working directory. `process.run` is 2-arg only.
+    print("Installing playwright browsers...");
+    let install_res = process.run_ex("pnpm", ["exec", "playwright", "install", "chromium"], ui_dir).unwrap();
+    if install_res.code isnt 0 {
+        log.error("Failed to install playwright browsers:");
+        log.error(install_res.stderr);
+    }
+
+    print("Executing tests...");
+    let test_res = process.run_ex("pnpm", ["run", "test:e2e"], ui_dir).unwrap();
+    if test_res.code isnt 0 {
+        log.error("Playwright suite failed:");
+        print(test_res.stdout);
+        log.error(test_res.stderr);
+        process.exit(1);
+    }
+
+    print("gui-e2e-check passed.");
+}

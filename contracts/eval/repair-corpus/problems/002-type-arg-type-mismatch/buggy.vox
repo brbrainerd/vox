@@ -1,0 +1,8 @@
+// Bug: triple() expects int but the call site passes a str literal.
+fn triple(n: int) to int {
+    return n * 3
+}
+
+fn main() to int {
+    return triple("7")  // BUG: "7" is str, triple expects int
+}

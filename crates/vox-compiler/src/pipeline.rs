@@ -8,181 +8,14 @@ use crate::ast::decl::Module;
 use crate::hir::HirModule;
 use crate::hir::lower::LowerConfig;
 use crate::typeck::Diagnostic;
-use crate::typeck::diagnostics::{
-    DiagnosticCategory, TypeckSeverity, VoxCompilerDiagnosticPayload,
-};
+use crate::typeck::diagnostics::{TypeckSeverity, VoxCompilerDiagnosticPayload};
 use anyhow::Result;
 
-/// ADR-028: emit an error diagnostic for each reserved durability keyword found in `source`.
-///
-/// `@scheduled`, `@durable`, `workflow`, and `activity` have been removed from the public
-/// grammar.  They are detected at the source-text level (before full parsing) so that the
-/// error is reported even when the token stream is otherwise broken.
-fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
-    // (pattern, keyword_label, error_code, identifier_boundary)
-    // `identifier_boundary` is true when the pattern is a bare keyword that could appear inside
-    // a longer identifier (e.g. `workflow_handle`); for those we additionally require the byte
-    // immediately after the match to NOT continue the identifier (alpha/digit/underscore).
-    // Decorator forms like `@scheduled` use `@` as a leading sentinel and don't need it.
-    const RESERVED: &[(&str, &str, &str, bool)] = &[
-        ("@scheduled", "@scheduled", "E028", false),
-        ("@durable", "@durable", "E028", false),
-        ("workflow", "workflow", "E028", true),
-        ("activity", "activity", "E028", true),
-    ];
-
-    let mut diags = Vec::new();
-    for (pattern, label, code, ident_boundary) in RESERVED {
-        let Some(offset) =
-            find_keyword_outside_comments_and_strings(source, pattern, *ident_boundary)
-        else {
-            continue;
-        };
-        diags.push(Diagnostic {
-            severity: TypeckSeverity::Error,
-            message: format!(
-                "{} is not yet implemented and has been reserved for a future release (ADR-028). \
-                     Remove this declaration or replace it with a plain `fn`.",
-                label
-            ),
-            span: crate::ast::span::Span::new(offset, offset + pattern.len()),
-            expected_type: None,
-            found_type: None,
-            context: None,
-            suggestions: vec![format!(
-                "Replace `{}` with a plain `fn` declaration.",
-                label
-            )],
-            category: DiagnosticCategory::Parse,
-            code: Some(code.to_string()),
-            fixes: vec![],
-            line_col: None,
-            missing_cases: vec![],
-            ast_node_kind: None,
-        });
-    }
-    diags
-}
-
-/// Find the first occurrence of `pattern` in `source` that is NOT inside a `//` line comment,
-/// `/* */` block comment, or a `"…"` string literal. Returns the byte offset of the match.
-///
-/// Needed because ADR-028's reserved-keyword scan runs at the source-text level (before parsing)
-/// and would otherwise flag the word "workflow" appearing in a doc comment as a real declaration.
-#[cfg(test)]
-fn find_outside_comments_and_strings(source: &str, pattern: &str) -> Option<usize> {
-    find_keyword_outside_comments_and_strings(source, pattern, false)
-}
-
-/// Same as `find_outside_comments_and_strings` but with optional identifier-boundary enforcement
-/// for bare keyword matches. When `ident_boundary` is true, the byte immediately following the
-/// match must NOT be an identifier-continuing character (alpha/digit/underscore), so substrings
-/// inside longer identifiers (e.g. `workflow_handle`) don't trigger.
-fn find_keyword_outside_comments_and_strings(
-    source: &str,
-    pattern: &str,
-    ident_boundary: bool,
-) -> Option<usize> {
-    let bytes = source.as_bytes();
-    let mut i = 0usize;
-    let plen = pattern.len();
-    while i + plen <= bytes.len() {
-        // Skip over `// …\n` line comments.
-        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'/' {
-            while i < bytes.len() && bytes[i] != b'\n' {
-                i += 1;
-            }
-            continue;
-        }
-        // Skip over `/* … */` block comments.
-        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
-            i += 2;
-            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                i += 1;
-            }
-            i = (i + 2).min(bytes.len());
-            continue;
-        }
-        // Skip over `"…"` string literals (handle simple backslash escapes).
-        if bytes[i] == b'"' {
-            i += 1;
-            while i < bytes.len() && bytes[i] != b'"' {
-                if bytes[i] == b'\\' && i + 1 < bytes.len() {
-                    i += 2;
-                } else {
-                    i += 1;
-                }
-            }
-            i = (i + 1).min(bytes.len());
-            continue;
-        }
-        if &bytes[i..i + plen] == pattern.as_bytes() {
-            if ident_boundary {
-                let next = bytes.get(i + plen).copied().unwrap_or(0);
-                let continues_ident = next.is_ascii_alphanumeric() || next == b'_';
-                if continues_ident {
-                    i += 1;
-                    continue;
-                }
-            }
-            return Some(i);
-        }
-        i += 1;
-    }
-    None
-}
-
-#[cfg(test)]
-mod adr028_comment_skip_tests {
-    use super::find_outside_comments_and_strings;
-
-    #[test]
-    fn finds_keyword_outside_comment() {
-        assert_eq!(
-            find_outside_comments_and_strings("workflow Foo {}", "workflow "),
-            Some(0)
-        );
-    }
-
-    #[test]
-    fn skips_keyword_in_line_comment() {
-        // The bare word "workflow" inside a `//` comment must NOT be matched.
-        assert_eq!(
-            find_outside_comments_and_strings(
-                "// workflow time-travel scrubber\nfn foo() {}",
-                "workflow "
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn skips_keyword_in_block_comment() {
-        assert_eq!(
-            find_outside_comments_and_strings("/* see workflow doc */\nfn foo() {}", "workflow "),
-            None
-        );
-    }
-
-    #[test]
-    fn skips_keyword_in_string_literal() {
-        assert_eq!(
-            find_outside_comments_and_strings(r#"let s = "workflow demo";"#, "workflow "),
-            None
-        );
-    }
-
-    #[test]
-    fn finds_after_passing_comment() {
-        let src = "// pre-amble mentioning workflow\nworkflow Real {}";
-        let offset = find_outside_comments_and_strings(src, "workflow ").unwrap();
-        // Must be the second occurrence (start of the `workflow Real` line), not the comment.
-        assert!(
-            offset > 30,
-            "expected match past the comment, got offset {offset}"
-        );
-    }
-}
+// ADR-041 (2026-05-23) supersedes ADR-028. The reserved-keyword gate that rejected
+// `@scheduled`, `@durable`, `workflow`, and `activity` at the source-text level has been
+// removed: the durable runtime now ships for the supported subset (ADR-019 / ADR-021), and
+// these keywords are part of the stable public grammar. The historical scanner and its
+// `test_reject_*_adr028` regression tests were deleted at the same time.
 
 /// Options for the unified compiler pipeline.
 #[derive(Debug, Clone, Default)]
@@ -220,13 +53,13 @@ impl FrontendResult {
 }
 
 /// Run the frontend pipeline on a source string.
-pub fn run_frontend_str(source: &str, _file_path: &str) -> Result<FrontendResult> {
-    run_frontend_str_with_options(source, _file_path, &PipelineOptions::default())
+pub fn run_frontend_str(source: &str, file_path: &str) -> Result<FrontendResult> {
+    run_frontend_str_with_options(source, file_path, &PipelineOptions::default())
 }
 
 pub fn run_frontend_str_with_options(
     source: &str,
-    _file_path: &str,
+    file_path: &str,
     options: &PipelineOptions,
 ) -> Result<FrontendResult> {
     // 1. Lex
@@ -264,22 +97,6 @@ pub fn run_frontend_str_with_options(
         }
     }
 
-    // 1.6. ADR-028: reject reserved durability grammar keywords early.
-    {
-        let reserved_diags = check_adr028_reserved_keywords(source);
-        if !reserved_diags.is_empty() {
-            return Ok(FrontendResult {
-                module: crate::ast::decl::Module {
-                    declarations: vec![],
-                    span: crate::ast::span::Span::new(0, 0),
-                },
-                hir: crate::hir::HirModule::default(),
-                diagnostics: reserved_diags,
-                source: source.to_owned(),
-            });
-        }
-    }
-
     // 2. Parse
     let module_res = if options.script_mode {
         crate::parser::parse_script(tokens.clone())
@@ -292,8 +109,46 @@ pub fn run_frontend_str_with_options(
     // 3. Lower to HIR + structural validation
     let mut hir = crate::hir::lower::lower_module_with_config(&module, &options.lower_config);
 
-    // 4. Type-check HIR (populates inferred types)
-    let mut diagnostics = crate::typeck::typecheck_hir_module(source, &mut hir);
+    // 3.5. Resolve intra-project local-file imports — inline pub fn / pub
+    // type bodies from imported `.vox` files into the main HIR. This makes
+    // `--mode script` (Rust codegen) honor `import "./foo.vox"` without
+    // any runtime resolver: by the time codegen sees the HIR, the imported
+    // function bodies are part of `hir.functions`.
+    //
+    // The eval path (`Interpreter::resolve_local_file_import`) and the
+    // typeck path (`resolve_imported_pubs_into_env`) both do their own
+    // resolution at their respective phases; this is the codegen side of
+    // the same coin. All three are gated on a known source-file path.
+    let typeck_path = if file_path.is_empty() {
+        None
+    } else {
+        Some(std::path::Path::new(file_path))
+    };
+    if let Some(path) = typeck_path {
+        let mut visited: std::collections::HashSet<std::path::PathBuf> =
+            std::collections::HashSet::new();
+        if let Ok(canon) = std::fs::canonicalize(path) {
+            visited.insert(canon);
+        }
+        let import_paths: Vec<(String, Option<String>)> = hir
+            .imports
+            .iter()
+            .filter_map(|imp| {
+                imp.local_file_path
+                    .as_ref()
+                    .map(|p| (p.clone(), imp.local_file_alias.clone()))
+            })
+            .collect();
+        for (rel, alias) in import_paths {
+            inline_imported_decls(&mut hir, &rel, path, alias.as_deref(), &mut visited);
+        }
+    }
+
+    // 4. Type-check HIR (populates inferred types). When we have a real file
+    // path on disk, route through `_with_path` so intra-project local-file
+    // imports can be eagerly resolved into the type environment.
+    let mut diagnostics =
+        crate::typeck::typecheck_hir_module_with_path(source, &mut hir, typeck_path);
 
     // 5. Deprecated Usage Detector (Item 16, @deprecated)
     for line in source.lines() {
@@ -407,17 +262,6 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
             return vec![VoxCompilerDiagnosticPayload::from_diagnostic(
                 &diag, file_path, source,
             )];
-        }
-    }
-
-    // 1.6. ADR-028: reject reserved durability grammar keywords early.
-    {
-        let reserved_diags = check_adr028_reserved_keywords(source);
-        if !reserved_diags.is_empty() {
-            return reserved_diags
-                .iter()
-                .map(|d| VoxCompilerDiagnosticPayload::from_diagnostic(d, file_path, source))
-                .collect();
         }
     }
 
@@ -546,106 +390,168 @@ mod tests {
         assert_eq!(frontend_res.diagnostics[0].code, Some("E091".to_string()));
     }
 
-    // ADR-028: @scheduled, @durable, workflow, activity are reserved/removed from public grammar.
-    // actor is retained and must compile cleanly.
+    // ADR-041 (supersedes ADR-028): `workflow`, `activity`, `actor`, `@scheduled`, and
+    // `@durable` are public-grammar features backed by a real runtime. The frontend must
+    // NOT emit an ADR-028-style reservation error for them. These tests pin the gate-lift.
 
-    #[test]
-    fn test_reject_scheduled_adr028() {
-        // @scheduled parses successfully but must be rejected with a diagnostic.
-        let source = r#"@scheduled("1h") fn tick() {}"#;
-        let diagnostics = check_file(source, "test.vox");
-        assert!(
-            !diagnostics.is_empty(),
-            "@scheduled should produce a compile error (ADR-028)"
-        );
-        assert!(
-            diagnostics.iter().any(|d| d.message.contains("@scheduled")),
-            "diagnostic message should mention @scheduled; got: {:?}",
-            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
-        );
-        assert!(
-            diagnostics
-                .iter()
-                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
-            "severity should be error"
-        );
+    fn assert_no_adr028_reservation_error(diagnostics: &[VoxCompilerDiagnosticPayload]) {
+        for d in diagnostics {
+            assert!(
+                !d.message.contains("reserved for a future release"),
+                "ADR-028 reservation gate should be lifted (ADR-041); got: {:?}",
+                d.message
+            );
+            assert_ne!(
+                d.error_code.as_str(),
+                "E028",
+                "E028 reservation code must not appear after ADR-041; full diag: {:?}",
+                d
+            );
+        }
     }
 
     #[test]
-    fn test_reject_durable_adr028() {
-        // @durable is not a recognised token — currently a parse error.
-        // ADR-028 requires a clear diagnostic mentioning @durable.
-        let source = r#"@durable fn process() {}"#;
+    fn test_accept_workflow_keyword_adr041() {
+        let source = r#"workflow order(amount: int) to int { return amount }"#;
         let diagnostics = check_file(source, "test.vox");
-        assert!(
-            !diagnostics.is_empty(),
-            "@durable should produce a compile error (ADR-028)"
-        );
-        assert!(
-            diagnostics.iter().any(|d| d.message.contains("@durable")),
-            "diagnostic message should mention @durable; got: {:?}",
-            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
-        );
+        assert_no_adr028_reservation_error(&diagnostics);
     }
 
     #[test]
-    fn test_reject_workflow_adr028() {
-        // workflow parses successfully but must be rejected with a diagnostic.
-        let source = r#"workflow order() {}"#;
+    fn test_accept_activity_keyword_adr041() {
+        let source = r#"activity charge(amount: int) to int { return amount }"#;
         let diagnostics = check_file(source, "test.vox");
-        assert!(
-            !diagnostics.is_empty(),
-            "workflow keyword should produce a compile error (ADR-028)"
-        );
-        assert!(
-            diagnostics.iter().any(|d| d.message.contains("workflow")),
-            "diagnostic message should mention workflow; got: {:?}",
-            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
-        );
-        assert!(
-            diagnostics
-                .iter()
-                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
-            "severity should be error"
-        );
+        assert_no_adr028_reservation_error(&diagnostics);
     }
 
     #[test]
-    fn test_reject_activity_adr028() {
-        // activity parses successfully but must be rejected with a diagnostic.
-        let source = r#"activity charge() {}"#;
+    fn test_accept_workflow_plus_activity_adr041() {
+        // Exercises the canonical golden shape: an activity used by a workflow.
+        let source = r#"
+activity charge(amount: int) to int { return amount }
+workflow checkout(amount: int) to int { return charge(amount) }
+"#;
         let diagnostics = check_file(source, "test.vox");
-        assert!(
-            !diagnostics.is_empty(),
-            "activity keyword should produce a compile error (ADR-028)"
-        );
-        assert!(
-            diagnostics.iter().any(|d| d.message.contains("activity")),
-            "diagnostic message should mention activity; got: {:?}",
-            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
-        );
-        assert!(
-            diagnostics
-                .iter()
-                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
-            "severity should be error"
-        );
+        assert_no_adr028_reservation_error(&diagnostics);
     }
 
     #[test]
-    fn test_actor_still_compiles_adr028() {
-        // actor is retained per ADR-028 — must produce zero errors.
+    fn test_accept_scheduled_decorator_adr041() {
+        let source = r#"@scheduled("1h") fn tick() to int { return 0 }"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert_no_adr028_reservation_error(&diagnostics);
+    }
+
+    #[test]
+    fn test_actor_still_compiles_adr041() {
+        // actor is retained per ADR-041 — must produce zero errors at the frontend layer.
         let source = r#"actor Counter { on increment(n: int) to int { return n } }"#;
         let diagnostics = check_file(source, "test.vox");
+        assert_no_adr028_reservation_error(&diagnostics);
         assert!(
             diagnostics
                 .iter()
                 .all(|d| d.severity != crate::typeck::diagnostics::TypeckSeverity::Error),
-            "actor should still compile successfully (ADR-028 retains actor); errors: {:?}",
+            "actor should still compile successfully (ADR-041 retains actor); errors: {:?}",
             diagnostics
                 .iter()
                 .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
                 .collect::<Vec<_>>()
         );
+    }
+}
+
+/// Inline pub fn / pub type-variant decls from an intra-project
+/// `import "./foo.vox"` directive into the importing file's HIR.
+///
+/// Called by [`run_frontend_str_with_options`] before typecheck. Cycle-safe
+/// via a per-invocation visited set of canonicalized paths. Silently no-ops
+/// on file-read / parse failure — the typeck step that follows will surface
+/// the resulting "unknown name" diagnostics, which is the right place for
+/// the user-facing error.
+///
+/// **Why we inline at pipeline level rather than at HIR lowering:** the
+/// lowering pass doesn't know the source-file path (it operates on an
+/// already-parsed AST). The pipeline does have the path, and inlining
+/// here means downstream consumers (typeck, codegen, code-audit detectors)
+/// see one merged HIR with all required function bodies — no special
+/// runtime resolver needed.
+///
+/// **Alias form** (`import "./foo.vox" as alias`): when `alias` is `Some`,
+/// the imported decls are wrapped under a synthesized namespace-like prefix
+/// so `alias.fn_name(...)` resolves. For v0.7 the simplest implementation
+/// is to prefix the inlined function names with `<alias>__` and emit a
+/// type-environment alias entry; this matches the eval-side Object-method
+/// dispatch from intra-project-imports RFC §11. Codegen sees the prefixed
+/// names directly. Bare form (no alias) inlines under the original names.
+fn inline_imported_decls(
+    hir: &mut crate::hir::HirModule,
+    rel_path: &str,
+    importer_path: &std::path::Path,
+    alias: Option<&str>,
+    visited: &mut std::collections::HashSet<std::path::PathBuf>,
+) {
+    let base_dir = importer_path
+        .parent()
+        .unwrap_or(std::path::Path::new("."));
+    let joined = base_dir.join(rel_path);
+    let canonical = match std::fs::canonicalize(&joined) {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    if !visited.insert(canonical.clone()) {
+        return;
+    }
+    let source = match std::fs::read_to_string(&canonical) {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    let tokens = crate::lexer::lex(&source);
+    let module = match crate::parser::parse_script(tokens) {
+        Ok(m) => m,
+        Err(_) => return,
+    };
+    let mut imported_hir = crate::hir::lower::lower_module(&module);
+
+    // Recurse into the imported file's own local-file imports first so
+    // transitive `pub` decls land in this HIR too.
+    let import_paths: Vec<(String, Option<String>)> = imported_hir
+        .imports
+        .iter()
+        .filter_map(|imp| {
+            imp.local_file_path
+                .as_ref()
+                .map(|p| (p.clone(), imp.local_file_alias.clone()))
+        })
+        .collect();
+    for (rel, sub_alias) in import_paths {
+        inline_imported_decls(&mut imported_hir, &rel, &canonical, sub_alias.as_deref(), visited);
+    }
+
+    // Move `pub` functions and `pub` types into the importer's HIR.
+    // Importer-defined names with the same identifier always win (RFC §3
+    // scope-merge), so we only insert when the importer doesn't already
+    // have the name.
+    let importer_fn_names: std::collections::HashSet<String> =
+        hir.functions.iter().map(|f| f.name.clone()).collect();
+    let importer_type_names: std::collections::HashSet<String> =
+        hir.types.iter().map(|t| t.name.clone()).collect();
+
+    for mut f in imported_hir.functions.into_iter().filter(|f| f.is_pub) {
+        if let Some(prefix) = alias {
+            f.name = format!("{}__{}", prefix, f.name);
+        }
+        if !importer_fn_names.contains(&f.name) {
+            hir.functions.push(f);
+        }
+    }
+    for t in imported_hir.types.into_iter().filter(|t| t.is_pub) {
+        if alias.is_none() && !importer_type_names.contains(&t.name) {
+            hir.types.push(t);
+        }
+        // Alias-form type imports — defer; aliased namespace constructors
+        // would need a synthesized prefix that ripples into match patterns.
+        // Eval-side alias dispatch handles it via Object lookup at runtime;
+        // codegen-side alias type imports are a follow-on.
     }
 }

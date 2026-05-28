@@ -1,0 +1,67 @@
+// Base source for plan-043-extract-workflow-step.
+//
+// The orchestration fn `process_order` inlines four sequential
+// steps. The plan asks the model to extract step #3 (ship) into
+// a named helper `ship_order(order_id: str) to Result[str]`.
+
+fn validate_order(order_id: str) to Result[str] {
+    if len(order_id) is 0 {
+        return Error("order id must not be empty")
+    }
+    return Ok("validated")
+}
+
+fn charge_card(order_id: str) to Result[str] {
+    if len(order_id) is 0 {
+        return Error("order id must not be empty")
+    }
+    return Ok("charged")
+}
+
+fn log_event(order_id: str) to Result[str] {
+    return Ok("logged")
+}
+
+fn process_order(order_id: str) to Result[str] {
+    let v = validate_order(order_id)
+    match v {
+        Error(msg) => return Error(msg)
+        Ok(_) => assert(true)
+    }
+    let c = charge_card(order_id)
+    match c {
+        Error(msg) => return Error(msg)
+        Ok(_) => assert(true)
+    }
+    // Step 3: ship — inlined here. The plan asks the model to
+    // extract this block into `ship_order(order_id) to Result[str]`.
+    if len(order_id) is 0 {
+        return Error("order id must not be empty")
+    }
+    let shipped = "shipped"
+    let _ = shipped
+    let l = log_event(order_id)
+    match l {
+        Error(msg) => return Error(msg)
+        Ok(_) => assert(true)
+    }
+    return Ok("done")
+}
+
+@test
+fn test_process_order_empty_rejects() to Unit {
+    let r = process_order("")
+    match r {
+        Error(_) => assert(true)
+        Ok(_) => assert(false)
+    }
+}
+
+@test
+fn test_process_order_typical_succeeds() to Unit {
+    let r = process_order("order-42")
+    match r {
+        Ok(s) => assert(s is "done")
+        Error(_) => assert(false)
+    }
+}

@@ -1,0 +1,5 @@
+[package]
+name = "repair-003-logic"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Test asserts incorrect output (off-by-one)."

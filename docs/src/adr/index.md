@@ -1,7 +1,7 @@
 ---
 title: "Architecture Decision Records (ADR)"
 description: "Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a"
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-04-01"
 training_eligible: true
 
@@ -40,13 +40,18 @@ This directory contains ADRs for the Vox project.
 | [025](025-multi-agent-lock-coherence.md) | **Multi-Agent Lock Coherence and Lease Propagation** |
 | [026](026-third-party-code-provenance.md) | **Third-Party Code Provenance Policy** |
 | [027](027-dual-track-ui-surfaces.md) | **Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)** |
-| [028](028-deprecate-stub-durability-grammar.md) | **Remove stub durability/scheduling grammar (`@scheduled`, `@durable`, `workflow`, `activity`)** |
+| [028](028-deprecate-stub-durability-grammar.md) | **Remove stub durability/scheduling grammar (`@scheduled`, `@durable`, `workflow`, `activity`)** — superseded by ADR-041 (2026-05-23) |
 | [029](029-formal-intent.md) | **Formal Intent and Tool Receipt Auditing** (renumbered from 024 on 2026-05-02) |
 | [030](030-state-machine-ssot.md) | **State machine SSOT** |
 | [031](031-deprecate-vox-vscode.md) | **Deprecate vox-vscode** |
 | [032](032-vox-ui-reactive-modules.md) | **`.vox.ui` reactive modules** (gates Phase D of the Svelte-mineable features plan) |
 | [033](033-typed-fragment-primitive.md) | **Typed parametric fragment primitive** (gates Phase F; deferred until Phase 6 primitives stabilize) |
+| [034](034-candle-qlora-stack-upgrades.md) | **Candle / QLoRA stack upgrades** (deferred batch; GPU CI) |
+| [035](035-swc-parser-alternatives-eval.md) | **SWC parser vs alternatives** (evaluation only; no silent migration) |
+| [036](036-webir-hir-unification-compare-both.md) | **WebIR vs HIR unification (compare-both)** — core+projection decision, rubric, capability wiring |
+| [037](037-tauri-convergence.md) | **Tauri convergence** — generated desktop/mobile app shell, Capacitor retirement, Sherpa plugin port |
+| [041](041-durable-functions-completion-2026.md) | **Durable functions completion** — closes ADR-028; `workflow`/`activity`/`@scheduled`/`actor` now backed by real runtime (Stable for ADR-019 subset) |
 
-See also: [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320), [WebIR supplemental execution map](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#supplemental-execution-map-op-s050-op-s103-op-s149-op-s182), [Acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds), [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md), [WebIR appendix — tooling registry](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#appendix--tooling-registry-and-offline-gates-op-s049-op-s101-op-s102-op-s181), [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification), [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible), [Codex vNext schema](../archive/research-2026-q1/codex-vnext-schema.md), [Codex BaaS](../archive/research-2026-q1/codex-baas.md).
+See also: [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR supplemental execution map](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [Acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR appendix — tooling registry](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [Codex vNext schema](../archive/research-2026-q1/codex-vnext-schema.md), [Codex BaaS](../archive/research-2026-q1/codex-baas.md).
 
 

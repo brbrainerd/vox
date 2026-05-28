@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/reports/hardcoded-values/findings.v1.schema.json",
+  "title": "Hardcoded Values Audit Findings",
+  "type": "object",
+  "required": ["schema_version", "captured_at_utc", "scope", "category_stats", "findings"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "1" },
+    "captured_at_utc": { "type": "string", "format": "date-time" },
+    "scope": {
+      "type": "object",
+      "required": ["description", "include_globs", "exclude_globs"],
+      "properties": {
+        "description": { "type": "string" },
+        "include_globs": { "type": "array", "items": { "type": "string" } },
+        "exclude_globs": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "category_stats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["category_index", "category_slug", "raw_match_count", "itemized_count"],
+        "properties": {
+          "category_index": { "type": "integer", "minimum": 1, "maximum": 99 },
+          "category_slug": { "type": "string" },
+          "raw_match_count": { "type": "integer", "minimum": 0 },
+          "itemized_count": { "type": "integer", "minimum": 0 },
+          "cap_applied": { "type": "boolean" }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": [
+        "id",
+        "category",
+        "category_index",
+        "file",
+        "line",
+        "language",
+        "severity",
+        "confidence",
+        "evidence_line",
+        "matched_substring",
+        "why_it_matters",
+        "suggested_fix",
+        "verification_command"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^hv-[0-9]{4}$"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "hardcoded-urls",
+            "hardcoded-ports",
+            "hardcoded-ips",
+            "hardcoded-filesystem-paths",
+            "hardcoded-timeouts",
+            "hardcoded-retry-counts",
+            "hardcoded-buffer-sizes",
+            "hardcoded-version-strings",
+            "hardcoded-model-names",
+            "hardcoded-env-var-names",
+            "brittle-string-needles",
+            "brittle-regex-patterns",
+            "hardcoded-extensions-globs",
+            "hardcoded-date-literals",
+            "hardcoded-ansi-codes",
+            "hardcoded-magic-numbers",
+            "hardcoded-canonical-keys",
+            "hardcoded-provider-names",
+            "hardcoded-test-data-in-prod",
+            "hardcoded-retired-runtime-names"
+          ]
+        },
+        "category_index": { "type": "integer", "minimum": 1, "maximum": 99 },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "language": {
+          "type": "string",
+          "enum": ["rust", "typescript", "vox", "yaml", "json", "markdown", "other"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error"]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "evidence_line": { "type": "string" },
+        "matched_substring": { "type": "string" },
+        "why_it_matters": { "type": "string" },
+        "suggested_fix": {
+          "type": "object",
+          "required": ["kind", "replacement_snippet"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "extract-to-env-var",
+                "register-env-and-use-secrets",
+                "extract-named-constant",
+                "use-config-path",
+                "normalize-input-or-casefold",
+                "fix-regex-unicode-or-quantifiers",
+                "centralize-in-contract",
+                "use-provider-enum",
+                "replace-retired-symbol",
+                "remove-test-data-from-prod",
+                "use-theme-aware-styles",
+                "review-intentional"
+              ]
+            },
+            "env_var_canonical": { "type": "string" },
+            "register_in": { "type": "string" },
+            "replacement_snippet": { "type": "string" },
+            "notes": { "type": "string" }
+          }
+        },
+        "verification_command": { "type": "string" },
+        "related_ssot": { "type": "string" }
+      }
+    }
+  }
+}

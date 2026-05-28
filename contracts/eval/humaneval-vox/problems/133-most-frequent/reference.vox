@@ -1,0 +1,34 @@
+fn most_frequent(xs: list[int]) to int {
+    let mut unique: list[int] = []
+    for x in xs {
+        if not unique.contains(x) {
+            unique.push(x)
+        }
+    }
+    let mut best_val: int = 0
+    let mut best_count: int = 0
+    let mut first: bool = true
+    for u in unique {
+        let mut count: int = 0
+        for x in xs {
+            if x == u {
+                count = count + 1
+            }
+        }
+        if first {
+            best_val = u
+            best_count = count
+            first = false
+        } else {
+            if count > best_count {
+                best_val = u
+                best_count = count
+            } else {
+                if count == best_count and u < best_val {
+                    best_val = u
+                }
+            }
+        }
+    }
+    return best_val
+}

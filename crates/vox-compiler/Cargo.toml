@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 description = "Unified Vox compiler crate containing lexer, parser, AST, HIR, typechecker, and codegen."
 
+[features]
+default = []
+ai-fixtures-v1 = []
+
 [dependencies]
 logos = { workspace = true }
 vox-eval = { workspace = true }
@@ -17,8 +21,8 @@ thiserror = { workspace = true }
 miette = { workspace = true }
 sha3 = { workspace = true }
 flate2 = "1.1.9"
-bzip2 = "0.6.1"
-zstd = "0.13.3"
+bzip2 = { workspace = true }
+zstd = { workspace = true }
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
 vox-secrets.workspace = true
@@ -26,8 +30,16 @@ vox-config.workspace = true
 secrecy = { workspace = true }
 which = { workspace = true }
 glob = "0.3.1"
+regex = { workspace = true }
 workspace-hack = { workspace = true }
+vox-foundation.workspace = true
 tokio = { workspace = true }
+csv = { workspace = true }
+toml = { workspace = true }
+serde_yaml = { workspace = true }
+rayon = { workspace = true }
+tracing = { workspace = true }
+vox-shell-stdlib-types = { workspace = true }
 
 [build-dependencies]
 serde = { workspace = true, features = ["derive"] }
@@ -43,6 +55,7 @@ vox-test-harness = { path = "../vox-test-harness" }
 insta = { workspace = true }
 criterion = { workspace = true }
 proptest = { workspace = true }
+tempfile = { workspace = true }
 
 [[bench]]
 name = "compiler_pipeline"

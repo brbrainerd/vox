@@ -1,0 +1,9 @@
+// Repair-corpus fixture 015 — effect-violation bug class.
+// @pure fn performs stdout-style IO via `env.println()` (Env capability).
+// Expected repair: drop @pure and declare `uses env`, or remove the IO call.
+
+@pure
+fn announce(msg: str) to str {
+    env.println(msg)
+    return msg
+}

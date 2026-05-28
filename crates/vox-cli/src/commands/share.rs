@@ -3,11 +3,17 @@
 //! S1: LAN backend only. S2 adds Cloudflare default. S3 adds localhost.run fallback.
 //! S8: bundle/dev integration — pass a .vox FILE to auto-build and serve.
 
+use crate::cli_args::BundleMode;
 use anyhow::{Context as _, Result};
 use clap::Args;
 use std::time::Duration;
-use vox_share::auth::AuthMode;
-use vox_share::{BackendKind, ShareConfig, ShareSession};
+use crate::utils::share::auth::AuthMode;
+use crate::utils::share::{BackendKind, ShareConfig, ShareSession};
+
+/// Timeout for the initial connection from the share proxy to the upstream app.
+/// Configurable at compile time; override via `VOX_SHARE_CONNECT_TIMEOUT_SECS` at runtime
+/// if finer control is needed without a rebuild.
+const SHARE_CONNECT_TIMEOUT_SECS: u64 = 10;
 
 #[derive(Args, Debug)]
 #[command(about = "Share a Vox app via a public URL tunnel")]
@@ -64,7 +70,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     println!("[vox share] Backend: {}", backend);
 
     if matches!(backend, BackendKind::Cloudflare) {
-        vox_share::consent::ensure_consent(args.accept_tos, false)
+        crate::utils::share::consent::ensure_consent(args.accept_tos, false)
             .map_err(|e| anyhow::anyhow!("{}", e))?;
     }
 
@@ -87,7 +93,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
             );
         }
         // No file given: assume the app is already running on --port (pre-S8 behavior).
-        // TODO: resolve `target/` paths relative to workspace root, not cwd
+        // When no file is provided we are not building — no target/ paths are used.
         println!(
             "[vox share] Note: pass a .vox FILE to auto-build. Sharing port {} directly.",
             args.port
@@ -100,13 +106,18 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     // we still allow fallback only for Cloudflare (it's the fallback-eligible backend).
     let allow_fallback = matches!(backend, BackendKind::Cloudflare);
 
+    let connect_secs = std::env::var("VOX_SHARE_CONNECT_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(SHARE_CONNECT_TIMEOUT_SECS);
+
     let cfg = ShareConfig {
         backend,
         upstream_port: args.port,
         proxy_port: 0,
         duration,
         app_binary,
-        connect_timeout: Duration::from_secs(10),
+        connect_timeout: Duration::from_secs(connect_secs),
         allow_fallback,
         auth_mode,
         allow_buffered_streaming: args.allow_buffered_streaming,
@@ -125,7 +136,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
     if let Some(d) = duration {
         println!(
             "[vox share] Auto-shutdown in {}",
-            vox_share::lifecycle::format_duration(d)
+            crate::utils::share::lifecycle::format_duration(d)
         );
     }
     session.wait().await;
@@ -141,8 +152,9 @@ async fn build_or_reuse_bundle(file: &std::path::Path) -> anyhow::Result<std::pa
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_else(|| "app".to_string());
     let ext = if cfg!(windows) { ".exe" } else { "" };
-    // TODO: anchor to workspace root rather than cwd when multi-crate workspace support needed
-    let bundle_dir = std::path::PathBuf::from("target/share-bundle");
+    // Anchor to workspace root so `vox share` works from any subdirectory.
+    let ws_root = find_workspace_root(file)?;
+    let bundle_dir = ws_root.join("target").join("share-bundle");
     let binary_path = bundle_dir.join(format!("{}{}", app_name, ext));
     let hash_path = bundle_dir.join(".last-hash");
 
@@ -171,14 +183,15 @@ async fn build_or_reuse_bundle(file: &std::path::Path) -> anyhow::Result<std::pa
 
     // Cold build
     println!("[vox share] Building app from {}...", file.display());
-    let build_out = std::path::PathBuf::from("target/share-build");
+    let build_out = ws_root.join("target").join("share-build");
     tokio::fs::create_dir_all(&build_out).await?;
     crate::commands::bundle::run(
         file,
         &build_out,
         None,  // native target
         false, // not release
-        crate::cli_args::BundleMode::App,
+        BundleMode::App,
+        vox_codegen::codegen_rust::RustAppShell::default(),
     )
     .await
     .with_context(|| format!("vox bundle failed for {}", file.display()))?;
@@ -259,6 +272,41 @@ async fn wait_for_port(port: u16, timeout: std::time::Duration) -> anyhow::Resul
         }
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
+}
+
+/// Walk up the directory tree from `start` to find the workspace root.
+///
+/// The workspace root is the first ancestor directory that contains a
+/// `Cargo.toml` with a `[workspace]` table or a `Vox.toml`.  Falls back
+/// to the current working directory if no workspace root is found.
+fn find_workspace_root(start: &std::path::Path) -> anyhow::Result<std::path::PathBuf> {
+    let start = if start.is_file() {
+        start.parent().unwrap_or(start)
+    } else {
+        start
+    };
+    let mut dir = start.to_path_buf();
+    loop {
+        // `Vox.toml` — Vox workspace manifest
+        if dir.join("Vox.toml").exists() {
+            return Ok(dir);
+        }
+        // `Cargo.toml` with `[workspace]` — Rust workspace root
+        let cargo_toml = dir.join("Cargo.toml");
+        if cargo_toml.exists() {
+            if let Ok(content) = std::fs::read_to_string(&cargo_toml) {
+                if content.contains("[workspace]") {
+                    return Ok(dir);
+                }
+            }
+        }
+        match dir.parent() {
+            Some(p) => dir = p.to_path_buf(),
+            None => break,
+        }
+    }
+    // Fallback: use cwd
+    std::env::current_dir().context("could not determine working directory")
 }
 
 fn parse_duration(s: &str) -> Result<Option<Duration>> {

@@ -4,7 +4,9 @@ use crate::ast::decl::{Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::expr::{Expr, StringPart};
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
-use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
+use crate::typeck::diagnostics::{
+    Diagnostic, DiagnosticCategory, DiagnosticFix, TypeckSeverity, codes,
+};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
 
@@ -342,7 +344,11 @@ fn first_shallow_pure_violation_in_expr(e: &Expr) -> Option<crate::ast::span::Sp
         | Expr::StringLit { .. }
         | Expr::BoolLit { .. }
         | Expr::DecimalLit { .. }
-        | Expr::Ident { .. } => None,
+        | Expr::Ident { .. }
+        // side_effect blocks are sanctioned non-determinism; skip them in the pure-fn check.
+        | Expr::SideEffect { .. }
+        // workflow.version is a metadata marker; not a pure violation.
+        | Expr::WorkflowVersion(_) => None,
     }
 }
 
@@ -462,5 +468,504 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
         });
     }
 
+    // P1-T1: DurablePromise arity check — bare `DurablePromise` without a type argument.
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            // Check return type.
+            if let Some(ret) = &f.return_type {
+                check_durable_promise_arity(ret, &mut diags);
+            }
+            // Check param type annotations.
+            for p in &f.params {
+                if let Some(ann) = &p.type_ann {
+                    check_durable_promise_arity(ann, &mut diags);
+                }
+            }
+        });
+    }
+
+    // P1-T2: Deprecate Future[T] / Promise[T] — warn with DurablePromise[T] rewrite fix.
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            if let Some(ret) = &f.return_type {
+                check_deprecated_type_aliases(ret, &mut diags);
+            }
+            for p in &f.params {
+                if let Some(ann) = &p.type_ann {
+                    check_deprecated_type_aliases(ann, &mut diags);
+                }
+            }
+        });
+    }
+
+    // P1-T5: Workflow determinism check — forbid time.now and random.* in workflow bodies.
+    for decl in &module.declarations {
+        if let Decl::Workflow(w) = decl {
+            for stmt in &w.body {
+                check_workflow_stmt_determinism(stmt, &w.name, &mut diags);
+            }
+        }
+    }
+
+    // P1-T7: Flag side_effect { } blocks used outside a workflow body (no journal to bind to).
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            for stmt in &f.body {
+                check_side_effect_outside_workflow_stmt(stmt, &f.name, &mut diags);
+            }
+        });
+    }
+
+    // P1-T3: @remote param serializability check.
+    for decl in &module.declarations {
+        visit_fn_decl_in_decl(decl, &mut |f: &FnDecl| {
+            if !f.is_remote {
+                return;
+            }
+            for p in &f.params {
+                if let Some(ann) = &p.type_ann {
+                    check_remote_param_serializable(ann, &p.name, &f.name, &mut diags);
+                }
+            }
+        });
+    }
+
     diags
+}
+
+/// Emit `vox/remote/param-not-serializable` when an `@remote fn` has a non-serializable param type.
+///
+/// Function-typed parameters cannot cross a serialization boundary.
+fn check_remote_param_serializable(
+    te: &TypeExpr,
+    param_name: &str,
+    fn_name: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    if matches!(te, TypeExpr::Function { .. }) {
+        diags.push(Diagnostic {
+            message: format!(
+                "@remote fn `{fn_name}`: parameter `{param_name}` has a function type, \
+                 which cannot be serialized for cross-node dispatch."
+            ),
+            span: te.span(),
+            severity: TypeckSeverity::Error,
+            expected_type: Some("a serializable type (int, str, bool, a struct, …)".into()),
+            found_type: Some("function type".into()),
+            context: None,
+            suggestions: vec![
+                "Replace the function parameter with a serializable value or use a local closure instead.".into(),
+            ],
+            category: DiagnosticCategory::Typecheck,
+            code: Some(codes::REMOTE_NON_SERIALIZABLE_PARAM.into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
+    }
+}
+
+/// Emit `vox/types/durable-promise-arity` when `DurablePromise` appears without a type argument.
+fn check_durable_promise_arity(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
+    match te {
+        TypeExpr::Named { name, span } if name == "DurablePromise" => {
+            diags.push(Diagnostic {
+                message: "type `DurablePromise` expects 1 type argument, found 0.\n\
+                          help: write `DurablePromise[T]` where T is the awaited value type."
+                    .to_string(),
+                span: *span,
+                severity: TypeckSeverity::Error,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some("DurablePromise".into()),
+                context: None,
+                suggestions: vec![
+                    "Add a type argument: `DurablePromise[int]`, `DurablePromise[str]`, etc."
+                        .into(),
+                ],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(codes::TYPES_DURABLE_PROMISE_ARITY.into()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        TypeExpr::Generic { name, args, span } if name == "DurablePromise" && args.len() != 1 => {
+            diags.push(Diagnostic {
+                message: format!(
+                    "type `DurablePromise` expects 1 type argument, found {}.",
+                    args.len()
+                ),
+                span: *span,
+                severity: TypeckSeverity::Error,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some(format!("DurablePromise[{} args]", args.len())),
+                context: None,
+                suggestions: vec![
+                    "Write `DurablePromise[T]` with exactly one type argument.".into(),
+                ],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(codes::TYPES_DURABLE_PROMISE_ARITY.into()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        _ => {}
+    }
+}
+
+/// Render a `TypeExpr` as a Vox type string (for constructing fix replacements).
+fn type_expr_to_str(te: &TypeExpr) -> String {
+    match te {
+        TypeExpr::Named { name, .. } => name.clone(),
+        TypeExpr::Generic { name, args, .. } => {
+            let args_str: Vec<_> = args.iter().map(type_expr_to_str).collect();
+            format!("{}[{}]", name, args_str.join(", "))
+        }
+        TypeExpr::Function {
+            params,
+            return_type,
+            ..
+        } => {
+            let ps: Vec<_> = params.iter().map(type_expr_to_str).collect();
+            format!("fn({}) to {}", ps.join(", "), type_expr_to_str(return_type))
+        }
+        TypeExpr::Tuple { elements, .. } => {
+            let els: Vec<_> = elements.iter().map(type_expr_to_str).collect();
+            format!("({})", els.join(", "))
+        }
+        TypeExpr::Unit { .. } => "Unit".to_string(),
+        TypeExpr::Infer { .. } => "_".to_string(),
+        TypeExpr::Decimal { .. } => "decimal".to_string(),
+    }
+}
+
+/// Emit a deprecation warning when `Future[T]` or `Promise[T]` appears in a type position.
+///
+/// Both types are aliases for `DurablePromise[T]` during the v0.6 deprecation window.
+/// They will be removed in v0.7 (SSOT release-contract table).
+fn check_deprecated_type_aliases(te: &TypeExpr, diags: &mut Vec<Diagnostic>) {
+    match te {
+        TypeExpr::Named { name, span } if name == "Future" || name == "Promise" => {
+            let (code, old) = if name == "Future" {
+                (codes::TYPES_FUTURE_DEPRECATED, "Future")
+            } else {
+                (codes::TYPES_PROMISE_DEPRECATED, "Promise")
+            };
+            diags.push(Diagnostic {
+                message: format!(
+                    "type `{old}` is deprecated and will be removed in v0.7; \
+                     use `DurablePromise[T]` instead."
+                ),
+                span: *span,
+                severity: TypeckSeverity::Warning,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some(old.into()),
+                context: None,
+                suggestions: vec![format!("Replace `{old}` with `DurablePromise[T]`.")],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(code.into()),
+                fixes: vec![DiagnosticFix {
+                    label: format!("Replace `{old}` with `DurablePromise`"),
+                    span: *span,
+                    replacement: "DurablePromise".into(),
+                }],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        TypeExpr::Generic { name, args, span } if name == "Future" || name == "Promise" => {
+            let (code, old) = if name == "Future" {
+                (codes::TYPES_FUTURE_DEPRECATED, "Future")
+            } else {
+                (codes::TYPES_PROMISE_DEPRECATED, "Promise")
+            };
+            let arg_str = args
+                .first()
+                .map(type_expr_to_str)
+                .unwrap_or_else(|| "T".to_string());
+            let replacement = format!("DurablePromise[{}]", arg_str);
+            diags.push(Diagnostic {
+                message: format!(
+                    "type `{old}[T]` is deprecated and will be removed in v0.7; \
+                     use `DurablePromise[T]` instead."
+                ),
+                span: *span,
+                severity: TypeckSeverity::Warning,
+                expected_type: Some("DurablePromise[T]".into()),
+                found_type: Some(format!("{old}[T]")),
+                context: None,
+                suggestions: vec![format!(
+                    "Replace `{old}[{arg_str}]` with `DurablePromise[{arg_str}]`."
+                )],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(code.into()),
+                fixes: vec![DiagnosticFix {
+                    label: format!("Replace `{old}[{arg_str}]` with `DurablePromise[{arg_str}]`"),
+                    span: *span,
+                    replacement,
+                }],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        _ => {}
+    }
+}
+
+/// Walk a workflow statement and flag non-deterministic calls.
+fn check_workflow_stmt_determinism(stmt: &Stmt, wf_name: &str, diags: &mut Vec<Diagnostic>) {
+    match stmt {
+        Stmt::Let { value, .. } => {
+            check_workflow_expr_determinism(value, wf_name, diags);
+        }
+        Stmt::Return { value: Some(v), .. } => {
+            check_workflow_expr_determinism(v, wf_name, diags);
+        }
+        Stmt::Return { value: None, .. } => {}
+        Stmt::Assign { value, .. } => {
+            check_workflow_expr_determinism(value, wf_name, diags);
+        }
+        Stmt::Expr { expr, .. } => {
+            check_workflow_expr_determinism(expr, wf_name, diags);
+        }
+        Stmt::While {
+            condition, body, ..
+        } => {
+            check_workflow_expr_determinism(condition, wf_name, diags);
+            for s in body {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+        }
+        Stmt::Loop { body, .. } => {
+            for s in body {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+        }
+        Stmt::Break { .. } | Stmt::Continue { .. } => {}
+    }
+}
+
+/// The set of forbidden non-deterministic call patterns in workflow bodies.
+/// Each entry is `(receiver_name, method_name_or_wildcard)`.
+const NON_DETERMINISTIC_CALLS: &[(&str, Option<&str>)] = &[
+    ("time", Some("now")),
+    ("random", None), // any method on `random`
+];
+
+fn is_non_deterministic_call(object_name: &str, method_name: &str) -> bool {
+    for &(receiver, method) in NON_DETERMINISTIC_CALLS {
+        if object_name == receiver {
+            match method {
+                Some(m) if method_name == m => return true,
+                None => return true,
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
+fn check_workflow_expr_determinism(expr: &Expr, wf_name: &str, diags: &mut Vec<Diagnostic>) {
+    match expr {
+        Expr::MethodCall {
+            object,
+            method,
+            args,
+            span,
+        } => {
+            if let Expr::Ident { name: obj_name, .. } = object.as_ref() {
+                if is_non_deterministic_call(obj_name, method) {
+                    diags.push(Diagnostic {
+                        message: format!(
+                            "workflow `{wf_name}`: call to `{obj_name}.{method}()` is \
+                             non-deterministic and will break replay. Use `side_effect {{ }}` \
+                             or move the call into an `activity`."
+                        ),
+                        span: *span,
+                        severity: TypeckSeverity::Error,
+                        expected_type: None,
+                        found_type: None,
+                        context: None,
+                        suggestions: vec![
+                            "Wrap the call in `activity { … }` or `side_effect { … }`.".into(),
+                        ],
+                        category: DiagnosticCategory::Typecheck,
+                        code: Some(codes::WORKFLOW_NON_DETERMINISTIC_CALL.into()),
+                        fixes: vec![],
+                        line_col: None,
+                        missing_cases: vec![],
+                        ast_node_kind: None,
+                    });
+                }
+            }
+            // Recurse into the receiver and args regardless.
+            check_workflow_expr_determinism(object, wf_name, diags);
+            for arg in args {
+                check_workflow_expr_determinism(&arg.value, wf_name, diags);
+            }
+        }
+        Expr::Call { callee, args, .. } => {
+            check_workflow_expr_determinism(callee, wf_name, diags);
+            for arg in args {
+                check_workflow_expr_determinism(&arg.value, wf_name, diags);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for s in stmts {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+        }
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
+            check_workflow_expr_determinism(condition, wf_name, diags);
+            for s in then_body {
+                check_workflow_stmt_determinism(s, wf_name, diags);
+            }
+            if let Some(body) = else_body {
+                for s in body {
+                    check_workflow_stmt_determinism(s, wf_name, diags);
+                }
+            }
+        }
+        Expr::Binary { left, right, .. } => {
+            check_workflow_expr_determinism(left, wf_name, diags);
+            check_workflow_expr_determinism(right, wf_name, diags);
+        }
+        Expr::Unary { operand, .. } => {
+            check_workflow_expr_determinism(operand, wf_name, diags);
+        }
+        Expr::FieldAccess { object, .. } => {
+            check_workflow_expr_determinism(object, wf_name, diags);
+        }
+        Expr::Match { subject, arms, .. } => {
+            check_workflow_expr_determinism(subject, wf_name, diags);
+            for arm in arms {
+                check_workflow_expr_determinism(&arm.body, wf_name, diags);
+            }
+        }
+        Expr::For { iterable, body, .. } => {
+            check_workflow_expr_determinism(iterable, wf_name, diags);
+            check_workflow_expr_determinism(body, wf_name, diags);
+        }
+        Expr::Lambda { body, .. } => {
+            check_workflow_expr_determinism(body, wf_name, diags);
+        }
+        Expr::Pipe { left, right, .. } => {
+            check_workflow_expr_determinism(left, wf_name, diags);
+            check_workflow_expr_determinism(right, wf_name, diags);
+        }
+        Expr::ListLit { elements, .. } => {
+            for item in elements {
+                check_workflow_expr_determinism(item, wf_name, diags);
+            }
+        }
+        Expr::TupleLit { elements, .. } => {
+            for item in elements {
+                check_workflow_expr_determinism(item, wf_name, diags);
+            }
+        }
+        Expr::ObjectLit { fields, .. } => {
+            for (_, v) in fields {
+                check_workflow_expr_determinism(v, wf_name, diags);
+            }
+        }
+        // Terminal / irreducible — nothing to recurse into.
+        Expr::IntLit { .. }
+        | Expr::FloatLit { .. }
+        | Expr::StringLit { .. }
+        | Expr::BoolLit { .. }
+        | Expr::DecimalLit { .. }
+        | Expr::Ident { .. } => {}
+        // Remaining variants — don't recurse (safe to skip for MVP).
+        _ => {}
+    }
+}
+
+/// Walk a non-workflow function body and flag any `side_effect { }` blocks (P1-T7).
+/// Outside a workflow body there is no replay journal, so `side_effect` has no meaning.
+fn check_side_effect_outside_workflow_stmt(
+    stmt: &Stmt,
+    fn_name: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    match stmt {
+        Stmt::Let { value, .. } => check_side_effect_outside_workflow_expr(value, fn_name, diags),
+        Stmt::Return { value: Some(v), .. } => {
+            check_side_effect_outside_workflow_expr(v, fn_name, diags)
+        }
+        Stmt::Return { value: None, .. } => {}
+        Stmt::Expr { expr: e, .. } => check_side_effect_outside_workflow_expr(e, fn_name, diags),
+        Stmt::Assign { value, .. } => {
+            check_side_effect_outside_workflow_expr(value, fn_name, diags)
+        }
+        _ => {}
+    }
+}
+
+fn check_side_effect_outside_workflow_expr(
+    expr: &Expr,
+    fn_name: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    match expr {
+        Expr::SideEffect { span, .. } => {
+            diags.push(Diagnostic {
+                message: format!(
+                    "function `{fn_name}`: `side_effect {{ }}` can only appear inside a \
+                     `workflow` body — there is no replay journal here."
+                ),
+                span: *span,
+                severity: TypeckSeverity::Error,
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec!["Move the `side_effect` block into a `workflow`.".into()],
+                category: DiagnosticCategory::Typecheck,
+                code: Some(codes::WORKFLOW_SIDE_EFFECT_OUTSIDE_WORKFLOW.into()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+        // Recurse into nested expressions but stop at SideEffect boundaries.
+        Expr::Call { callee, args, .. } => {
+            check_side_effect_outside_workflow_expr(callee, fn_name, diags);
+            for arg in args {
+                check_side_effect_outside_workflow_expr(&arg.value, fn_name, diags);
+            }
+        }
+        Expr::Block { stmts, .. } => {
+            for s in stmts {
+                check_side_effect_outside_workflow_stmt(s, fn_name, diags);
+            }
+        }
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
+            check_side_effect_outside_workflow_expr(condition, fn_name, diags);
+            for s in then_body {
+                check_side_effect_outside_workflow_stmt(s, fn_name, diags);
+            }
+            if let Some(body) = else_body {
+                for s in body {
+                    check_side_effect_outside_workflow_stmt(s, fn_name, diags);
+                }
+            }
+        }
+        _ => {}
+    }
 }

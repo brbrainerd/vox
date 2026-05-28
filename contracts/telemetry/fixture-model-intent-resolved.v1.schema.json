@@ -1,0 +1,19 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/telemetry/fixture-model-intent-resolved.v1.schema.json",
+  "title": "fixture model intent resolved telemetry v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_category", "resolved_model_hint"],
+  "properties": {
+    "task_category": { "type": "string", "minLength": 1 },
+    "strengths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tier_max": { "type": "string" },
+    "resolved_model_hint": { "type": "string", "minLength": 1 },
+    "trace_id": { "type": "string" }
+  }
+}

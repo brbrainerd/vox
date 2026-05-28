@@ -9,7 +9,7 @@
 
 use std::sync::Mutex;
 
-use tower_lsp::lsp_types::DiagnosticSeverity;
+use tower_lsp_server::ls_types::DiagnosticSeverity;
 use vox_lsp::validate_document;
 
 /// Serialises all env-mutating tests to prevent cross-test pollution.

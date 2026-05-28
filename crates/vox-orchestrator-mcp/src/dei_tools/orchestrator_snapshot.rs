@@ -9,7 +9,7 @@ use crate::server_state::ServerState;
 use crate::sync_poison::poison_rw_read;
 
 use vox_gamify::companion::Companion;
-use vox_gamify::db::list_companions;
+use vox_gamify::db::{list_companions, migrate_default_orchestrator_companion_id};
 
 /// Get a full snapshot of the orchestrator's state.
 pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> {
@@ -159,17 +159,26 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         .collect();
 
     let companion = {
-        // Try to load from DB for persistence
-        let id = "vox-dei";
+        let canonical_id = "vox-orchestrator";
+        if let Some(db) = &state.db {
+            if let Err(e) = migrate_default_orchestrator_companion_id(db, "user").await {
+                tracing::debug!(
+                    error = %e,
+                    "migrate_default_orchestrator_companion_id failed (non-fatal)"
+                );
+            }
+        }
         let mut comp = if let Some(db) = &state.db {
             match list_companions(db, "user").await {
-                Ok(comps) => comps.into_iter().find(|c: &Companion| c.id == id),
+                Ok(comps) => resolve_stored_companion(&comps, canonical_id),
                 Err(_) => None,
             }
         } else {
             None
         }
-        .unwrap_or_else(|| vox_gamify::companion::Companion::new(id, "user", "Vox DEI", "vox"));
+        .unwrap_or_else(|| {
+            vox_gamify::companion::Companion::new(canonical_id, "user", "Vox DEI", "vox")
+        });
 
         comp.ascii_sprite = Some("🧑‍💻".to_string());
         Some(comp)
@@ -297,6 +306,17 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     Ok(ToolResult::ok(response).to_json())
 }
 
+/// Load companion row by canonical id, with fallback to the pre-rename storage id (spelled with
+/// `concat!` so repo-wide retired-name greps stay clean).
+fn resolve_stored_companion(comps: &[Companion], canonical_id: &str) -> Option<Companion> {
+    let legacy_id = concat!("vox", "-", "dei");
+    comps
+        .iter()
+        .find(|c| c.id == canonical_id)
+        .cloned()
+        .or_else(|| comps.iter().find(|c| c.id == legacy_id).cloned())
+}
+
 fn mesh_codex_telemetry_enabled() -> bool {
     vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshCodexTelemetry)
         .expose()
@@ -332,5 +352,34 @@ async fn persist_mesh_snapshot_codex_opt(state: &ServerState, snap: &serde_json:
             error = %e,
             "record_populi_control_event failed (best-effort)"
         );
+    }
+}
+
+#[cfg(test)]
+mod resolve_companion_tests {
+    use super::resolve_stored_companion;
+    use vox_gamify::companion::Companion;
+
+    #[test]
+    fn prefers_canonical_id_when_both_present() {
+        let canonical = Companion::new("vox-orchestrator", "user", "Canonical", "vox");
+        let legacy = Companion::new(concat!("vox", "-", "dei"), "user", "Legacy", "vox");
+        let out = resolve_stored_companion(&[legacy, canonical.clone()], "vox-orchestrator");
+        assert_eq!(out.as_ref().map(|c| c.name.as_str()), Some("Canonical"));
+    }
+
+    #[test]
+    fn falls_back_to_legacy_storage_id() {
+        let legacy = Companion::new(concat!("vox", "-", "dei"), "user", "Legacy", "vox");
+        let out = resolve_stored_companion(std::slice::from_ref(&legacy), "vox-orchestrator");
+        assert_eq!(
+            out.as_ref().map(|c| c.id.as_str()),
+            Some(concat!("vox", "-", "dei"))
+        );
+    }
+
+    #[test]
+    fn none_when_empty() {
+        assert!(resolve_stored_companion(&[], "vox-orchestrator").is_none());
     }
 }

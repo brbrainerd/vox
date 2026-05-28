@@ -1,7 +1,7 @@
 ---
 title: "How-To: The Database Layer"
 description: "How to perform CRUD operations, type-safe queries, and indexing using Vox's integrated database layer."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 last_updated: "2026-04-06"
 training_eligible: true

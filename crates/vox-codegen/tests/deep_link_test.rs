@@ -14,16 +14,16 @@ fn emit(src: &str) -> String {
 }
 
 #[test]
-fn deep_link_emits_app_url_open_listener() {
+fn deep_link_emits_tauri_listen() {
     let src = r#"
-@endpoint(kind: query) fn handle_link(url: str) to str { return "/" }
+@query fn handle_link(url: str) to str { return "/" }
 @deep_link {
     scheme: "voxmental"
     on_link: handle_link
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("appUrlOpen"), "got:\n{ts}");
+    assert!(ts.contains("vox-deep-link"), "got:\n{ts}");
     assert!(ts.contains("handle_link("), "got:\n{ts}");
     assert!(
         ts.contains("useNavigate"),
@@ -33,21 +33,24 @@ fn deep_link_emits_app_url_open_listener() {
         ts.contains("useEffect"),
         "must import useEffect, got:\n{ts}"
     );
+    assert!(
+        ts.contains("@tauri-apps/api/event"),
+        "must use Tauri listen API, got:\n{ts}"
+    );
 }
 
 #[test]
-fn back_button_and_deep_link_deduplicates_app_import() {
+fn back_button_and_deep_link_deduplicates_event_import() {
     let src = r#"
-@endpoint(kind: query) fn handle_back() to bool { return true }
-@endpoint(kind: query) fn handle_link(url: str) to str { return "/" }
+@query fn handle_back() to bool { return true }
+@query fn handle_link(url: str) to str { return "/" }
 @back_button { on_press: handle_back }
 @deep_link { scheme: "vox" on_link: handle_link }
 "#;
     let ts = emit(src);
-    // App import must appear exactly once.
-    let count = ts.matches("from '@capacitor/app'").count();
+    let count = ts.matches("from '@tauri-apps/api/event'").count();
     assert_eq!(
         count, 1,
-        "App import should appear once, got {count} times in:\n{ts}"
+        "@tauri-apps/api/event import should appear once, got {count} times in:\n{ts}"
     );
 }

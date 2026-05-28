@@ -1,0 +1,21 @@
+// Base source for plan-022-add-public-decorator.
+//
+// Both endpoints currently require bearer auth. The plan asks the
+// model to expose `health_check` publicly via @public and drop its
+// @auth decorator.
+
+type TodoError =
+    | Empty(text: str)
+
+@endpoint(kind: query) @auth(scheme: bearer)
+fn health_check() to str {
+    return "ok"
+}
+
+@endpoint(kind: mutation) @auth(scheme: bearer)
+fn add_todo(title: str) to Result[str, TodoError] {
+    if len(title) is 0 {
+        return Error(Empty("title must not be empty"))
+    }
+    return Ok(title)
+}

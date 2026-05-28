@@ -191,6 +191,27 @@ impl DetectionRule for DryViolationDetector {
     fn severity(&self) -> Severity {
         Severity::Warning
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — near-duplicate function bodies (copy-paste)\n\
+             fn validate_email(s: &str) -> bool {\n\
+             \x20   let s = s.trim();\n\
+             \x20   s.contains('@') && s.len() > 3 && !s.starts_with('@')\n\
+             }\n\
+             fn validate_login(s: &str) -> bool {\n\
+             \x20   let s = s.trim();\n\
+             \x20   s.contains('@') && s.len() > 3 && !s.starts_with('@')  // identical body!\n\
+             }\n\
+             \n\
+             // FIX — extract the shared logic\n\
+             fn is_valid_email_format(s: &str) -> bool {\n\
+             \x20   let s = s.trim();\n\
+             \x20   s.contains('@') && s.len() > 3 && !s.starts_with('@')\n\
+             }\n\
+             fn validate_email(s: &str) -> bool { is_valid_email_format(s) }\n\
+             fn validate_login(s: &str) -> bool { is_valid_email_format(s) }",
+        )
+    }
     fn languages(&self) -> &[Language] {
         &[Language::Rust, Language::TypeScript, Language::Python]
     }

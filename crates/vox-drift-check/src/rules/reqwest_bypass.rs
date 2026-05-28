@@ -48,7 +48,7 @@ impl DriftRule for ReqwestBypassRule {
                     cs.path.join("::")
                 ),
                 suggestion: Some(
-                    "Use `vox_reqwest_defaults::client_builder()` or `vox_reqwest_defaults::client()`".into(),
+                    "Use `vox_http_client::client_builder()` or `vox_http_client::client()`".into(),
                 ),
                 context: format!("crate: {}", crate_name),
                 confidence: Some(FindingConfidence::High),

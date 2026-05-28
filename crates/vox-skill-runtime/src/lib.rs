@@ -18,7 +18,11 @@
 //! ```
 
 pub mod detect;
+pub mod microvm;
 pub mod runtime;
 
-pub use detect::{RuntimeChoice, RuntimePreference, detect_choice, detect_runtime};
-pub use runtime::{BuildOpts, RunOpts, RunOutcome, SkillRuntime};
+pub use detect::{
+    RuntimeChoice, RuntimePreference, detect_choice, detect_runtime, plan_for_min_tier,
+};
+pub use microvm::MicroVmRuntime;
+pub use runtime::{BuildOpts, RunOpts, RunOutcome, SkillRuntime, Tier};

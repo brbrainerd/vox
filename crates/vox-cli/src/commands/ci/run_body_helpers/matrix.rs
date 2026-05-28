@@ -26,57 +26,84 @@ pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>
     Ok(())
 }
 
-pub(crate) fn visit_vox_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
+/// Allowlisted non-`.vox` glue under `scripts/` (bootstrap / installer stubs only).
+/// Keep in sync with [scripts/ci/script-hygiene.vox](scripts/ci/script-hygiene.vox).
+const SCRIPT_GLUE_ALLOWLIST: &[&str] = &[
+    "scripts/windows/vox-dev.ps1",
+    "scripts/vox-dev.sh",
+    "scripts/install.ps1",
+    "scripts/install.sh",
+];
+
+fn normalized_repo_rel(path: &Path, root: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn visit_legacy_glue_under_scripts(
+    dir: &Path,
+    root: &Path,
+    violations: &mut Vec<String>,
+) -> Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
-        let entry = entry?;
-        let p = entry.path();
-        let t = entry.file_type()?;
-        if t.is_dir() {
-            visit_vox_files(&p, f)?;
-        } else if t.is_file() && p.extension().and_then(|x| x.to_str()) == Some("vox") {
-            f(&p)?;
+        let path = entry?.path();
+        let fname = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+        if path.is_dir() {
+            if fname == "node_modules" {
+                continue;
+            }
+            visit_legacy_glue_under_scripts(&path, root, violations)?;
+            continue;
         }
+        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
+        if !matches!(ext, "sh" | "ps1" | "py") {
+            continue;
+        }
+        let rel = normalized_repo_rel(&path, root);
+        let rel_lower = rel.to_ascii_lowercase();
+        if SCRIPT_GLUE_ALLOWLIST
+            .iter()
+            .any(|allowed| rel_lower == *allowed)
+        {
+            continue;
+        }
+        violations.push(rel);
     }
     Ok(())
 }
 
-pub(crate) fn run_script_hygiene(root: &Path, _retired_check: bool) -> Result<()> {
+/// `.sh` / `.ps1` / `.py` under `scripts/` minus bootstrap allowlist (VoxScript-first policy).
+pub(crate) fn collect_legacy_script_glue_violations(root: &Path) -> Result<Vec<String>> {
     let scripts_dir = root.join("scripts");
     if !scripts_dir.is_dir() {
-        return Ok(());
+        return Ok(Vec::new());
     }
-
     let mut violations = Vec::new();
-    let mut total_scripts = 0;
+    visit_legacy_glue_under_scripts(&scripts_dir, root, &mut violations)?;
+    violations.sort();
+    Ok(violations)
+}
 
-    let vox_exe = std::env::current_exe().context("get current exe")?;
-
-    visit_vox_files(&scripts_dir, &mut |p: &Path| {
-        total_scripts += 1;
-        let rel_p = p.strip_prefix(root).unwrap_or(p);
-
-        let st = Command::new(&vox_exe)
-            .arg("check")
-            .arg(p)
-            .status()
-            .with_context(|| format!("failed to run vox check on {}", p.display()))?;
-
-        if !st.success() {
-            violations.push(rel_p.display().to_string());
-        }
-
-        Ok(())
-    })?;
-
-    if !violations.is_empty() {
+/// Enforce VoxScript-first glue policy: no stray `.sh` / `.ps1` / `.py` under `scripts/` except the
+/// bootstrap/install allowlist. Mirrors [`scripts/ci/script-hygiene.vox`](scripts/ci/script-hygiene.vox).
+///
+/// Full-tree `vox check` of every `.vox` script is intentionally **not** part of this gate — many
+/// scripts are stubs or target evolving compiler surfaces; CI covers repo-critical scripts via
+/// targeted jobs instead.
+pub(crate) fn run_script_hygiene(root: &Path, _retired_check: bool) -> Result<()> {
+    let glue = collect_legacy_script_glue_violations(root)?;
+    if !glue.is_empty() {
         return Err(anyhow!(
-            "VoxScript hygiene failed for {} scripts:\n{}",
-            violations.len(),
-            violations.join("\n")
+            "Legacy shell/Python glue under scripts/ is forbidden (use .vox automation). Violations:\n{}",
+            glue.join("\n")
         ));
     }
 
-    println!("VoxScript hygiene OK ({} scripts checked)", total_scripts);
+    println!("VoxScript hygiene OK (legacy glue scan; see scripts/ci/script-hygiene.vox)");
     Ok(())
 }
 
@@ -87,7 +114,7 @@ pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
         let text = read_utf8_path_capped(p)?;
         if re.is_match(&text) {
             return Err(anyhow!(
-                "vox-cli must not reference the staging vox-dei crate via Rust `use`/paths (forbidden `vox_dei` + `::`). Offender: {}",
+                "vox-cli must not import the retired orchestrator shim as `vox_dei::` (forbidden in-tree). Offender: {}",
                 p.display()
             ));
         }

@@ -1,0 +1,6 @@
+fn is_divisible_three_or_five(n: int) to bool {
+    if n % 3 is 0 {
+        return true
+    }
+    return n % 5 is 0
+}

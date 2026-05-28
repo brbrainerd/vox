@@ -15,7 +15,7 @@ pub struct RemotePopuliRoutingHint {
     pub node_id: String,
     /// Full remote capability snapshot copied from `NodeRecord.capabilities`.
     pub capabilities: TaskCapabilityHints,
-    /// Labels from the remote node's [`vox_orchestrator::TaskCapabilityHints::labels`].
+    /// Labels from the remote node's `vox_orchestrator::TaskCapabilityHints::labels`.
     pub labels: Vec<String>,
     /// Remote node advertises CUDA.
     pub gpu_cuda: bool,

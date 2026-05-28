@@ -55,6 +55,15 @@ jobs:
       - name: Doctest extraction and check (SSG-agnostic)
         run: cargo run -p vox-cli -- ci doctest-md --strict
 
+      - name: Internal Markdown link check
+        run: cargo run -p vox-cli -- ci check-links
+
+      - name: Retired symbol prose guard
+        run: cargo run -p vox-cli -- ci retired-symbol-check
+
+      - name: Canonical documentation map verify
+        run: cargo run -p vox-cli -- ci canonical-map-verify
+
       - name: Install docs-astro deps
         working-directory: docs-astro
         run: pnpm install --frozen-lockfile
@@ -65,7 +74,7 @@ jobs:
         run: pnpm build
 
       # Hard gate: graduated from continue-on-error after baseline stabilised.
-      # Covers docs-astro, apps/vox-mental-tracker, tools/visualizer, vox-codegen TS tests.
+      # Covers docs-astro, apps/vox-mental-tracker, apps/experimental/visualizer, vox-codegen TS tests.
       - name: TypeScript lint (biome)
         run: npx @biomejs/biome@1.9.4 lint --reporter=github
 
@@ -96,4 +105,4 @@ jobs:
 
       # Hard gate: was continue-on-error.
       - name: Check CLI command surface
-        run: cargo run -p vox-cli --quiet -- ci command-sync --check
+        run: cargo run -p vox-cli --quiet -- ci command-sync

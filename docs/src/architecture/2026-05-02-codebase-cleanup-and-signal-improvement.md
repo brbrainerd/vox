@@ -1,7 +1,7 @@
 ---
 title: "Codebase Cleanup & Signal Improvement Plan (2026-05-02)"
 description: "Six-phase plan to retire stale code, fix broken references, and converge on single sources of truth."
-category: "architecture"
+category: "Architecture SSOTs"
 status: roadmap
 last_updated: "2026-05-08"
 training_eligible: false
@@ -163,9 +163,9 @@ The middle comment block of `.cursorignore`, `.aiignore`, and `.aiexclude` has b
 **Files referenced by audit (no documented source/generator):**
 - `contracts/capability/model-manifest.generated.json`
 - `contracts/scientia/social-execution-board.generated.yaml`
-- `vox-vscode/src/core/mcpToolRegistry.generated.ts`
+- `apps/editor/vox-vscode/src/core/mcpToolRegistry.generated.ts`
 
-- [ ] **Step 1: For each, find the generator.** Run: `grep -rn "model-manifest.generated\|social-execution-board.generated\|mcpToolRegistry.generated" --include='*.rs' --include='*.vox' --include='*.mjs' --include='*.ts' --include='*.toml' --include='*.json'`. The vscode one is almost certainly `vox-vscode/scripts/generate-mcp-tool-registry.mjs` per Phase 5 audit. The contracts ones are unknown.
+- [ ] **Step 1: For each, find the generator.** Run: `grep -rn "model-manifest.generated\|social-execution-board.generated\|mcpToolRegistry.generated" --include='*.rs' --include='*.vox' --include='*.mjs' --include='*.ts' --include='*.toml' --include='*.json'`. The vscode one is almost certainly `apps/editor/vox-vscode/scripts/generate-mcp-tool-registry.mjs` per Phase 5 audit. The contracts ones are unknown.
 - [ ] **Step 2: For each generator found, ensure the *generated* file has a header comment block stating: source file(s), generator command, and a `DO NOT EDIT` notice.** If the file already has this, skip. If not, the fix is in the *generator*, not the output (so the next regen re-emits it correctly).
 - [ ] **Step 3: For any file with no findable generator,** flag as a separate investigation task. Do not delete; the file may be checked-in golden output of a one-shot script no longer in the tree, or be a stranded artifact.
 - [ ] **Step 4: Commit.** `git commit -m "chore: document provenance for *.generated.* files"`
@@ -272,7 +272,7 @@ The `path-b-decommission-2026.md` (cited by audit) claims these were scrubbed; t
 Per `docs/src/architecture/external-frontend-interop-plan-2026.md`, the `@island` directive is retired *in plan* but the implementation phase (Phase 5 of the interop plan) has not landed. The audit identified the following surfaces tied to `@island`:
 
 - `crates/vox-cli/src/commands/island/` (entire directory: `generate`, `upgrade`, `list`, `cache`, `build`)
-- `crates/vox-compiler/src/codegen_ts/island_emit.rs`
+- `crates/vox-codegen/src/codegen_ts/island_emit.rs`
 - `crates/vox-cli/src/templates/islands.rs`
 - `examples/golden/v0_shadcn_island.vox`
 - `docs/src/how-to/how-to-islands-and-pages.md`
@@ -320,7 +320,7 @@ These came up in the audit but need maintainer judgment or larger scope before c
 
 1. **`crates/vox-orchestrator/src/dei_shim/`** — DEPRECATED-marked shim. Audit could not determine if callers still exist. Owner: orchestrator track.
 2. **`VOX_MENS_EXPERIMENTAL_OPTIMIZER`** — experimental feature flag in `vox-men`. Decide: productionize, gate more strictly, or remove. Owner: mens track.
-3. **`HISTORICAL_ALLOWLIST` for `vox-dei`/`vox-ars`** — grandfathered names being migrated to `vox-orchestrator`/`vox-skills`. Migration in progress; remove allowlist entries as renames complete. Owner: rename-tracking task.
+3. **`HISTORICAL_ALLOWLIST` for retired orchestrator / ARS codenames** — grandfathered labels being migrated to `vox-orchestrator` / OpenClaw runtime paths. Migration in progress; remove allowlist entries as renames complete. Owner: rename-tracking task.
 4. **293 files in `docs/src/archive/research-2026-q1/`** — fenced from AI context (Phase 5.3 above) but still indexed by full-text search and visible to humans browsing. Question for maintainer: move deeper (e.g. to `.git/archive/` orphan branch) or accept the noise floor.
 5. **Naming-overlap of `telemetry-trust-ssot.md`** (active stub, 21 lines) vs `archive/.../telemetry-trust-ssot.md` (frozen 81-line research). Same filename, different scope. Renaming the archive file would break archive integrity (frozen-by-convention); renaming the active file weakens the SSOT signal. Probably leave as-is, but flag.
 

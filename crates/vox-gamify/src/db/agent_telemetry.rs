@@ -148,19 +148,21 @@ pub async fn insert_cost_record(
     input_tokens: i64,
     output_tokens: i64,
     cost_usd: f64,
+    tenant_id: Option<&str>,
 ) -> Result<()> {
     let agent_id = agent_id.to_string();
     let session_id = session_id.map(str::to_string);
     let provider = provider.to_string();
     let model = model.map(str::to_string);
+    let tenant_id = tenant_id.map(str::to_string);
     let breaker = db.breaker().clone();
     let conn = db.connection().clone();
     breaker
         .call(|| async move {
             conn.execute(
                 "INSERT INTO cost_records (agent_id, session_id, provider, model,
-                 input_tokens, output_tokens, cost_usd)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                 input_tokens, output_tokens, cost_usd, tenant_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     agent_id.as_str(),
                     session_id.as_deref(),
@@ -168,7 +170,8 @@ pub async fn insert_cost_record(
                     model.as_deref(),
                     input_tokens,
                     output_tokens,
-                    cost_usd
+                    cost_usd,
+                    tenant_id.as_deref(),
                 ],
             )
             .await?;
@@ -193,6 +196,23 @@ pub async fn get_agent_cost_usd(db: &Codex, agent_id: &str) -> Result<f64> {
         .await?
         .map(|r| r.get::<f64>(0).unwrap_or(0.0))
         .unwrap_or(0.0))
+}
+
+/// Get total token usage for a tenant in the current month.
+pub async fn get_tenant_monthly_token_usage(db: &Codex, tenant_id: &str) -> Result<i64> {
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT COALESCE(SUM(input_tokens + output_tokens), 0) FROM cost_records 
+             WHERE tenant_id = ?1 AND timestamp >= datetime('now', 'start of month')",
+            params![tenant_id],
+        )
+        .await?;
+    Ok(rows
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(0))
+        .unwrap_or(0))
 }
 
 /// Get cost records for an agent, most recent first.
@@ -247,6 +267,8 @@ pub struct AgentSessionRecord {
     pub task_snapshot: Option<String>,
     /// Summarized context carried across compaction boundaries.
     pub context_summary: Option<String>,
+    /// Optional tenant identifier.
+    pub tenant_id: Option<String>,
 }
 
 /// Insert a new agent session.
@@ -333,7 +355,7 @@ pub async fn list_active_sessions(db: &Codex) -> Result<Vec<AgentSessionRecord>>
     let mut rows = db
         .connection()
         .query(
-            "SELECT id, agent_id, agent_name, started_at, ended_at, status, task_snapshot, context_summary
+            "SELECT id, agent_id, agent_name, started_at, ended_at, status, task_snapshot, context_summary, tenant_id
              FROM agent_sessions WHERE status='active' ORDER BY started_at DESC",
             (),
         )
@@ -349,9 +371,37 @@ pub async fn list_active_sessions(db: &Codex) -> Result<Vec<AgentSessionRecord>>
             status: row.get::<String>(5)?,
             task_snapshot: row.get::<Option<String>>(6)?,
             context_summary: row.get::<Option<String>>(7)?,
+            tenant_id: row.get::<Option<String>>(8)?,
         });
     }
     Ok(sessions)
+}
+
+/// Get a single agent session by ID.
+pub async fn get_agent_session(db: &Codex, id: &str) -> Result<Option<AgentSessionRecord>> {
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT id, agent_id, agent_name, started_at, ended_at, status, task_snapshot, context_summary, tenant_id
+             FROM agent_sessions WHERE id = ?1",
+            params![id],
+        )
+        .await?;
+    if let Some(row) = rows.next().await? {
+        Ok(Some(AgentSessionRecord {
+            id: row.get::<String>(0)?,
+            agent_id: row.get::<String>(1)?,
+            agent_name: row.get::<Option<String>>(2)?,
+            started_at: row.get::<String>(3)?,
+            ended_at: row.get::<Option<String>>(4)?,
+            status: row.get::<String>(5)?,
+            task_snapshot: row.get::<Option<String>>(6)?,
+            context_summary: row.get::<Option<String>>(7)?,
+            tenant_id: row.get::<Option<String>>(8)?,
+        }))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Upsert an aggregated metric for an agent.

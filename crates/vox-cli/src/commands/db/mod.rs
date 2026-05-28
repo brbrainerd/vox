@@ -66,7 +66,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "db manifest topic-pack hydration; owner: publisher sunset: 2026-12-31"]
     fn publication_item_from_manifest_hydrates_topic_pack() {
         let row = vox_db::PublicationManifestRow {
             publication_id: "p1".to_string(),
@@ -105,7 +105,7 @@ mod tests {
     fn collect_query_fn_plans_extracts_hir_db_query_plan_rows() {
         let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q1() to int {
+@query fn q1() to int {
     return len(db.User.filter({ active: true }).limit(5))
 }
 "#;
@@ -125,8 +125,8 @@ mod tests {
     fn collect_query_fn_plans_honors_query_name_filter() {
         let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn qa() to int { return len(db.User.all()) }
-@endpoint(kind: query) fn qb() to int { return len(db.User.filter({ active: true })) }
+@query fn qa() to int { return len(db.User.all()) }
+@query fn qb() to int { return len(db.User.filter({ active: true })) }
 "#;
         let tokens = vox_compiler::lexer::lex(src);
         let module = vox_compiler::parser::parse(tokens).expect("parse");

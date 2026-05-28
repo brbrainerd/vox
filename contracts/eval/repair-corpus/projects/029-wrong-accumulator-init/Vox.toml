@@ -1,0 +1,5 @@
+[package]
+name = "repair-029-wrong-accumulator-init"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. Sum-loop accumulator initialized to 1 instead of 0."

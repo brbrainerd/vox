@@ -1,7 +1,7 @@
 ---
 title: "Mens Cloud GPU Training Strategy"
 description: "Official documentation for Mens Cloud GPU Training Strategy for the Vox language. Detailed technical reference, architecture guides, an"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-29"
 training_eligible: true
 

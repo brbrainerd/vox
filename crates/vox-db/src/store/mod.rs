@@ -1,15 +1,15 @@
 //! Turso-backed Arca [`VoxDb`]: CAS (`objects`), logical `names`, and typed SQL tables.
 //!
-//! **Cross-crate SQL access:** the connection lives in the public field [`VoxDb::conn`]. For a
+//! **Cross-crate SQL access:** the connection lives in the public field `VoxDb::conn`. For a
 //! stable borrowed accessor (used by `vox-db` research paths and other crates), prefer
-//! [`VoxDb::connection`](crate::store::VoxDb::connection) (see `store/ops.rs`) instead of
+//! `VoxDb::connection` (see `store/ops.rs`) instead of
 //! reaching for `.conn` ad hoc in new call sites.
 
 pub mod types;
 
 mod row_cols;
 
-/// Default relative path for the project Arca [`VoxDb`] SQLite file (under the repo/working tree).
+/// Default relative path for the project Arca `VoxDb` SQLite file (under the repo/working tree).
 pub const DEFAULT_PROJECT_STORE_PATH: &str = ".vox/store.db";
 
 pub use types::{
@@ -49,6 +49,7 @@ pub mod ops_build;
 mod ops_cas;
 mod ops_codex;
 mod ops_completion;
+pub mod ops_convergence;
 mod ops_developer_journeys;
 pub mod ops_exec_time;
 mod ops_external_intelligence;
@@ -66,6 +67,11 @@ mod ops_planning;
 mod ops_publication;
 mod ops_questioning;
 mod ops_retention;
+mod ops_finding_candidates;
 mod ops_scientia;
+
+pub use ops_finding_candidates::{
+    FindingCandidateClass, FindingCandidateRow, InsertOutcome,
+};
 mod ops_secrets_cloudless;
 mod ops_visus;

@@ -1,7 +1,7 @@
 //! Unified benchmark telemetry via `research_metrics` (no extra DDL).
 //!
 //! Session key pattern: `bench:<repository_id>`; metric type: `benchmark_event`.
-//! Serialized [`BenchmarkEventMeta`] is subject to [`crate::research_metrics_contract::RESEARCH_METRICS_METADATA_JSON_MAX_BYTES`]
+//! Serialized `BenchmarkEventMeta` is subject to `crate::research_metrics_contract::RESEARCH_METRICS_METADATA_JSON_MAX_BYTES`
 //! via [`crate::VoxDb::append_research_metric`] → [`crate::research_metrics_contract::validate_research_metric_row`].
 
 use serde::Serialize;

@@ -1,0 +1,12 @@
+// jsonl_writer.vox — line-delimited JSON writer for corpus staging.
+// Each entry on its own line; trailing newline preserved so downstream
+// `wc -l` matches entry count.
+
+pub fn write_jsonl(path: str, lines: list[str]) to bool {
+    let mut content = ""
+    for line in lines {
+        content = content + line + "\n"
+    }
+    let res = fs.write_file(path, content)
+    return res.is_ok()
+}

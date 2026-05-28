@@ -28,7 +28,7 @@ const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend
 const REM_PLAN_JSON: &str = "Retry planning with a simpler goal or lower `max_tasks`; ensure the model returns valid JSON in a ```json block.";
 const REM_PLAN_ADEQUACY_ENFORCE: &str = "Widen scope with concrete steps, paths, and verification; increase `plan_depth`; enable refinement (`loop_mode`) or raise caps; or set `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE=false` on the MCP host.";
 const REM_DEI_DAEMON: &str =
-    "Start `vox-dei-d` (DeI daemon) or verify IPC/socket configuration for this workspace.";
+    "Start `vox-orchestrator-d` or verify IPC/socket configuration for this workspace.";
 
 /// When true, `vox_plan` must not return success if the tier‑1 report is still thin.
 pub(crate) fn plan_result_blocked_by_adequacy_enforce(

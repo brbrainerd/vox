@@ -8,6 +8,7 @@ fn loaded_skill_round_trip_construct_and_read() {
         version: "0.1.0".to_string(),
         description: "Foo skill.".to_string(),
         tools: vec!["foo_tool".to_string()],
+        ..Default::default()
     };
     let skill = LoadedSkill {
         plugin_id: manifest.id.clone(),

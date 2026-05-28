@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/reports/pre-push-report.v1.schema.json",
+  "title": "pre-push-report-v1",
+  "description": "Structured timing output from `vox ci pre-push --report-json`. schema_version 2 adds `profile` and `complete`; schema_version 3 adds `with_coverage` and new profile values (`full+cov`, `full+since`, `full+cov+since`).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile",
+    "ok",
+    "quick",
+    "complete",
+    "full",
+    "with_coverage",
+    "dry_run",
+    "total_ms",
+    "steps"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [1, 2, 3]
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["fast", "complete", "full", "full+cov", "full+since", "full+cov+since"]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "quick": {
+      "type": "boolean"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "full": {
+      "type": "boolean"
+    },
+    "with_coverage": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "total_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "elapsed_ms"],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "elapsed_ms": {
+            "anyOf": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

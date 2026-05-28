@@ -1,7 +1,7 @@
 ---
 title: "Agent Mesh Economics & Token Costs"
 description: "Synthesis of multi-agent swarm architecture costs, cascade routing, and local GPU vs API breakevens."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

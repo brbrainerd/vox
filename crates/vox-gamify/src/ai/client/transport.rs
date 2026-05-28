@@ -191,7 +191,7 @@ impl FreeAiClient {
                     status, body_txt
                 )))?
             };
-            use vox_openai_sse::{Utf8LineBuffer, sse_data_line_delta};
+            use vox_openai::sse::{Utf8LineBuffer, sse_data_line_delta};
             let mut line_buf = Utf8LineBuffer::new();
             while let Some(item) = bytes_stream.next().await {
                 let chunk: Bytes = item.map_err(AiError::Http)?;

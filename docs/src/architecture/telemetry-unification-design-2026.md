@@ -1,7 +1,7 @@
 ---
 title: "Telemetry unification design 2026"
 description: "Runtime architecture for unifying Vox telemetry emission behind an L1 facade crate, with default-on local collection, durable model performance metrics, and propagated agent call trees. Supersedes the deferred 'open questions' from the 2026-Q1 trust-governance pass."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 last_updated: "2026-05-09"
 training_eligible: false
@@ -32,7 +32,7 @@ This document closes those questions. It defines a runtime architecture that:
 ## Status
 
 - **Type:** design (not yet implemented)
-- **Supersedes:** the open questions in [Telemetry unification research findings 2026](archive/research-2026-q1/telemetry-unification-research-findings-2026.md)
+- **Supersedes:** the open questions in [Telemetry unification research findings 2026](../archive/research-2026-q1/telemetry-unification-research-findings-2026.md)
 - **Builds on:** [Telemetry trust SSoT](telemetry-trust-ssot.md), [ADR 023](../adr/023-optional-telemetry-remote-upload.md)
 - **Next step:** implementation plan via the writing-plans skill, then phased PRs
 
@@ -217,7 +217,7 @@ Unlocks: per-subsystem reliability, retry-storm detection.
 | **A** | Create `vox-telemetry` crate. Move metric type constants from `vox-db::research_metrics_contract` to `vox-telemetry::types`. `vox-db` re-exports for compatibility. Add `TelemetryRecorder` trait, no-op default, `record_event!` macro, `TelemetryConfig`, `TraceContext`. Wire `ResearchMetricsSink` in `vox-db`, `SpoolSink` in `vox-cli`. Add row to `where-things-live.md`. No semantic change to existing emissions. | New crate; existing telemetry behavior preserved. | Pure additive. |
 | **B** | Persist `model_call_event` through facade. Replace the discard-on-bus path in `llm_bridge/infer.rs` with a sink call. Migrate one existing wrapper module (start with `benchmark_telemetry`) to register through the facade as a proof of pattern. Subsequent wrappers migrate opportunistically; the old `append_research_metric` direct path remains a valid sink-internal call. | Cache hit rate, cost-per-call, model latency are durable. | Additive; old path stays. |
 | **C** | Trace context propagation. Add fields to A2A envelope, MCP dispatch, and LLM call sites. Emit `agent_dispatch_event` enrichment and `task_root_summary` at task completion. | Call trees reconstructable; cost-per-task computable. | Schema additive on `metadata_json`; new metric type for task summary. |
-| **D** | Master switch `VOX_TELEMETRY=on/off/debug`. Default-on flip for local writes (per-category legacy env vars stay as overrides). `vox doctor telemetry` subcommand. `BuildSummarySink` mirroring `build_run` summaries. `error_event` emission at known retry sites. | User-visible default change — CHANGELOG entry under Telemetry. ADR 023 unchanged. | Behavior change in one direction; reversible by env var. |
+| **D** ✓ | Master switch `VOX_TELEMETRY=on/off/debug`. Default-on flip for local writes (per-category legacy env vars stay as overrides). `vox doctor telemetry` subcommand. `BuildSummarySink` mirroring `build_run` summaries. `error_event` emission at known retry sites. **Landed 2026-05-27**: org-policy file hard-off (`/etc/vox/telemetry-policy.toml`), `debug_to_stderr` + `StderrDebugSink`, `wall_time_ms` aggregation via `record_task_started`, accurate `retry_attempt` + per-fallback `ErrorEvent` in LLM retry loop, build-failure telemetry. Layer 2 (user config TOML) deferred. | User-visible default change — CHANGELOG entry under Telemetry. ADR 023 unchanged. | Behavior change in one direction; reversible by env var. |
 
 Each phase is independently shippable. Phase A is a refactor with no semantic change.
 
@@ -239,7 +239,7 @@ This design preserves the trust posture established by the 2026-Q1 effort:
 | Moving metric type constants down to L1 breaks external readers of `vox-db::research_metrics_contract`. | Re-export in place. The module path and constant identifiers stay stable. CI guards in `data-ssot-guards` continue to verify constants are documented. |
 | Trace context overhead on hot paths (every LLM call, every dispatch). | `task_local!` is sub-nanosecond on read. The macro's no-op path when no recorder is registered keeps test/library overhead at zero. Benchmarked in Phase A. |
 | Default-on local collection surprises users. | CHANGELOG entry under Telemetry; `vox doctor telemetry` makes the state visible; master switch makes opt-out one step. |
-| Confusion between `vox-telemetry` (facade) and the `vox-ml-cli` "Telemetry" branding. | The `vox-ml-cli` description references ML/AI/Telemetry CLI command surfaces. The facade is plumbing. The `where-things-live.md` row will distinguish them. |
+| Confusion between `vox-telemetry` (facade) and Populi CLI “Telemetry” branding. | The Populi (`vox-populi`) crate owns ML/AI/Telemetry CLI command surfaces. The facade is plumbing. The `where-things-live.md` row distinguishes them. |
 | Sink fan-out latency on high-frequency emit. | `CompositeRecorder` dispatches synchronously by default but each sink can opt into async/buffered behavior. `SpoolSink` always buffers. |
 
 ## Open questions
@@ -253,7 +253,7 @@ This design preserves the trust posture established by the 2026-Q1 effort:
 Each phase MUST satisfy:
 
 - `cargo run -p vox-arch-check` green (layer enforcement).
-- Existing `vox ci` gates green; `data-ssot-guards` extended in Phase A to require new metric type constants are documented in [telemetry-metric-contract](../reference/telemetry-metric-contract.md) and [telemetry-taxonomy-contracts-ssot](telemetry-taxonomy-contracts-ssot.md).
+- Existing `vox ci` gates green; `data-ssot-guards` extended in Phase A to require new metric type constants are documented in [telemetry-metric-contract](../reference/telemetry-metric-contract.md) and [telemetry-taxonomy-contracts-ssot](../archive/research-2026-q1/telemetry-taxonomy-contracts-ssot.md).
 - CHANGELOG entries under the Telemetry subsection for any user-visible behavior change.
 - For Phase B: a test that asserts `cache_read_input_tokens` from a recorded model call survives round-trip to `research_metrics`.
 - For Phase C: a test that asserts a synthetic 3-deep agent call tree records correct `parent_task_id` and `span_depth` at every level.
@@ -262,7 +262,7 @@ Each phase MUST satisfy:
 
 - [Telemetry trust SSoT](telemetry-trust-ssot.md) — overriding policy
 - [ADR 023 — optional telemetry remote upload](../adr/023-optional-telemetry-remote-upload.md) — unchanged
-- [Telemetry implementation blueprint 2026](archive/research-2026-q1/telemetry-implementation-blueprint-2026.md) — completed governance pass
-- [Telemetry unification research findings 2026](archive/research-2026-q1/telemetry-unification-research-findings-2026.md) — original research; this design closes its open questions
+- [Telemetry implementation blueprint 2026](../archive/research-2026-q1/telemetry-implementation-blueprint-2026.md) — completed governance pass
+- [Telemetry unification research findings 2026](../archive/research-2026-q1/telemetry-unification-research-findings-2026.md) — original research; this design closes its open questions
 - [where-things-live.md](where-things-live.md) — to be updated with `vox-telemetry` row in Phase A
 - [layers.toml](layers.toml) — L1 placement enforcement

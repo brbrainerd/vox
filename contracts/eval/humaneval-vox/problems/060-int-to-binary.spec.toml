@@ -1,0 +1,12 @@
+[problem]
+id = "060"
+title = "int_to_binary"
+prompt = """
+Convert a non-negative integer to its binary string representation.
+For example: 5 -> "101", 0 -> "0", 8 -> "1000".
+"""
+signature = "fn int_to_binary(n: int) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

@@ -14,6 +14,15 @@ use crate::transport::{
     RemoteExecLeaseRenewRequest,
 };
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
+use reqwest_middleware::ClientWithMiddleware;
+use serde::Serialize;
+
+fn populi_retry_transient_from_env() -> bool {
+    match std::env::var("VOX_POPULI_HTTP_RETRY_TRANSIENT") {
+        Ok(v) => matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"),
+        Err(_) => false,
+    }
+}
 
 /// Iterator-style paging cursor for non-claimer A2A inbox reads.
 #[derive(Debug, Clone)]
@@ -61,11 +70,20 @@ impl A2AInboxPager {
 }
 
 /// Call the populi HTTP API (join / list / heartbeat / leave).
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PopuliHttpClient {
-    client: reqwest::Client,
+    client: ClientWithMiddleware,
     base: String,
     bearer: Option<String>,
+}
+
+impl std::fmt::Debug for PopuliHttpClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PopuliHttpClient")
+            .field("base", &self.base)
+            .field("bearer_set", &self.bearer.is_some())
+            .finish_non_exhaustive()
+    }
 }
 
 impl PopuliHttpClient {
@@ -114,10 +132,14 @@ impl PopuliHttpClient {
         while base.ends_with('/') {
             base.pop();
         }
-        let client = vox_reqwest_defaults::client_builder()
+        let inner = vox_http_client::client_builder()
             .timeout(timeout)
             .build()
             .expect("reqwest TLS stack must be available (platform TLS missing or misconfigured)");
+        let client = vox_http_client::populi_control_plane_client(
+            inner,
+            populi_retry_transient_from_env(),
+        );
         Self {
             client,
             base,
@@ -136,12 +158,8 @@ impl PopuliHttpClient {
     /// If **`VOX_MESH_TOKEN`** is set and non-empty, same as [`Self::with_bearer`] with that value.
     #[must_use]
     pub fn with_env_token(self) -> Self {
-        if let Some(token) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
-            .expose()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-        {
-            self.with_bearer(token.to_string())
+        if let Some(token) = crate::http_auth::mesh_worker_plane_bearer_string() {
+            self.with_bearer(token)
         } else {
             self
         }
@@ -150,38 +168,32 @@ impl PopuliHttpClient {
     /// Bearer for **`POST /v1/populi/a2a/deliver`**: first non-empty among mesh, submitter, then admin tokens.
     #[must_use]
     pub fn with_env_deliver_token(self) -> Self {
-        let mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
-            .expose()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .map(ToString::to_string);
-        if let Some(t) = mesh {
-            return self.with_bearer(t);
+        if let Some(t) = crate::http_auth::deliver_bearer_string() {
+            self.with_bearer(t)
+        } else {
+            self
         }
-        let sub = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshSubmitterToken)
-            .expose()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .map(ToString::to_string);
-        if let Some(t) = sub {
-            return self.with_bearer(t);
-        }
-        let adm = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshAdminToken)
-            .expose()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .map(ToString::to_string);
-        if let Some(t) = adm {
-            return self.with_bearer(t);
-        }
-        self
     }
 
-    fn auth(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
+    fn auth(&self, rb: reqwest_middleware::RequestBuilder) -> reqwest_middleware::RequestBuilder {
         match &self.bearer {
             Some(t) => rb.bearer_auth(t),
             None => rb,
         }
+    }
+
+    fn post_json<T: Serialize>(
+        &self,
+        url: &str,
+        payload: &T,
+    ) -> Result<reqwest_middleware::RequestBuilder, PopuliRegistryError> {
+        let body =
+            serde_json::to_vec(payload).map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        Ok(self
+            .client
+            .post(url.to_string())
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(body))
     }
 
     async fn ensure_success_with_context(
@@ -251,7 +263,7 @@ impl PopuliHttpClient {
     ) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/federation/announce", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -267,7 +279,7 @@ impl PopuliHttpClient {
     pub async fn join(&self, node: &NodeRecord) -> Result<NodeRecord, PopuliRegistryError> {
         let url = format!("{}/v1/populi/join", self.base);
         let resp = self
-            .auth(self.client.post(url).json(node))
+            .auth(self.post_json(&url, node)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -283,7 +295,7 @@ impl PopuliHttpClient {
     pub async fn heartbeat(&self, node: &NodeRecord) -> Result<NodeRecord, PopuliRegistryError> {
         let url = format!("{}/v1/populi/heartbeat", self.base);
         let resp = self
-            .auth(self.client.post(url).json(node))
+            .auth(self.post_json(&url, node)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -308,9 +320,7 @@ impl PopuliHttpClient {
             bootstrap_token: bootstrap_token.to_string(),
         };
         let resp = self
-            .client
-            .post(url)
-            .json(&req)
+            .post_json(&url, &req)?
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -325,10 +335,11 @@ impl PopuliHttpClient {
     /// `POST /v1/populi/leave` — returns `true` if the node was present and removed.
     pub async fn leave(&self, node_id: &str) -> Result<bool, PopuliRegistryError> {
         let url = format!("{}/v1/populi/leave", self.base);
+        let leave_req = LeaveRequest {
+            id: node_id.to_string(),
+        };
         let resp = self
-            .auth(self.client.post(url).json(&LeaveRequest {
-                id: node_id.to_string(),
-            }))
+            .auth(self.post_json(&url, &leave_req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -347,7 +358,7 @@ impl PopuliHttpClient {
     pub async fn relay_a2a(&self, req: &A2ADeliverRequest) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/a2a/deliver", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -379,7 +390,7 @@ impl PopuliHttpClient {
             before_message_id,
         };
         let resp = self
-            .auth(self.client.post(url).json(&req))
+            .auth(self.post_json(&url, &req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -415,11 +426,12 @@ impl PopuliHttpClient {
         message_id: u64,
     ) -> Result<bool, PopuliRegistryError> {
         let url = format!("{}/v1/populi/a2a/ack", self.base);
+        let ack_req = A2AAckRequest {
+            receiver_agent_id: receiver_agent_id.to_string(),
+            message_id,
+        };
         let resp = self
-            .auth(self.client.post(url).json(&A2AAckRequest {
-                receiver_agent_id: receiver_agent_id.to_string(),
-                message_id,
-            }))
+            .auth(self.post_json(&url, &ack_req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -441,7 +453,7 @@ impl PopuliHttpClient {
     ) -> Result<RemoteExecLeaseGrantResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/exec/lease/grant", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -476,7 +488,7 @@ impl PopuliHttpClient {
     ) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/exec/lease/renew", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -491,7 +503,7 @@ impl PopuliHttpClient {
     ) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/exec/lease/release", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -506,7 +518,7 @@ impl PopuliHttpClient {
     ) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/a2a/lease-renew", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -521,7 +533,7 @@ impl PopuliHttpClient {
     ) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/admin/quarantine", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -536,7 +548,7 @@ impl PopuliHttpClient {
     ) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/admin/maintenance", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -551,7 +563,7 @@ impl PopuliHttpClient {
     ) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/admin/exec-lease/revoke", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -566,7 +578,7 @@ impl PopuliHttpClient {
     ) -> Result<DispatchResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/dispatch", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
@@ -585,7 +597,7 @@ impl PopuliHttpClient {
     ) -> Result<DispatchResponse, PopuliRegistryError> {
         let url = format!("{}/v1/populi/worker/execute", self.base);
         let resp = self
-            .auth(self.client.post(url).json(req))
+            .auth(self.post_json(&url, req)?)
             .send()
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;

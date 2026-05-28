@@ -1,0 +1,70 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/aci/agent-computer-interface.v1.schema.json",
+  "title": "Vox Agent-Computer Interface tool response v1",
+  "$defs": {
+    "aci_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "tool", "mutation_kind"],
+      "properties": {
+        "version": {
+          "type": "integer",
+          "const": 1
+        },
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mutation_kind": {
+          "type": "string",
+          "enum": ["read_only", "local_mutation", "external_side_effect", "unknown"]
+        },
+        "shell_backend": {
+          "type": ["string", "null"],
+          "description": "When set, names the structured-shell adapter used for execution_probe."
+        },
+        "error_kind": {
+          "type": ["string", "null"],
+          "description": "Normalized failure bucket when success is false."
+        },
+        "execution_probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "stdout": { "type": "string" },
+            "stderr": { "type": "string" },
+            "exit_code": { "type": ["integer", "null"] }
+          }
+        },
+        "side_effects": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Declared coarse-grained side effect tags for guardrails / checkpointing."
+        },
+        "checkpoint_hint": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sparse_checkpoint_recommended": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "mcp_tool_response_v1": {
+      "type": "object",
+      "required": ["success", "aci"],
+      "additionalProperties": true,
+      "properties": {
+        "success": { "type": "boolean" },
+        "data": {},
+        "error": { "type": ["string", "null"] },
+        "remediation": { "type": ["string", "null"] },
+        "meta": {},
+        "aci": { "$ref": "#/$defs/aci_metadata" }
+      }
+    }
+  },
+  "$ref": "#/$defs/mcp_tool_response_v1"
+}

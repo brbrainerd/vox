@@ -1,0 +1,13 @@
+[problem]
+id = "066"
+title = "max_subarray_sum"
+prompt = """
+Find the maximum sum of any contiguous subarray of xs using Kadane's algorithm.
+If the list is empty, return 0.
+The subarray must contain at least one element.
+"""
+signature = "fn max_subarray_sum(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

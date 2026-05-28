@@ -1,0 +1,11 @@
+[problem]
+id = "035"
+title = "str_length"
+prompt = """
+Return the number of characters in a string.
+"""
+signature = "fn str_length(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

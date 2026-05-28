@@ -38,18 +38,24 @@ impl MlBackend for CandleCudaPlugin {
     fn load_model(&self, model_path: RStr<'_>) -> RResult<RBox<MlModelHandle>, RBoxError> {
         match crate::model::CandleModel::load_from_path(model_path.as_str()) {
             Ok(model) => {
-                // SAFETY: we box the model and store the raw pointer as an opaque usize.
-                // The pointer is reconstituted in subsequent calls (train_step, eval_step,
-                // save_checkpoint). Memory is intentionally leaked here — the model lives
-                // until the plugin dylib is unloaded.
-                //
-                // TODO(batch 4): add `unload_model(handle)` to MlBackend trait to allow
-                // explicit deallocation via `Box::from_raw(handle.opaque as *mut CandleModel)`.
+                // SAFETY: usize holds `Box::into_raw` from `CandleModel`; freed by `unload_model`.
                 let raw = Box::into_raw(Box::new(model)) as usize;
                 RResult::ROk(RBox::new(MlModelHandle { opaque: raw }))
             }
             Err(e) => RResult::RErr(anyhow_to_rbox(e)),
         }
+    }
+
+    fn unload_model(&self, model: &MlModelHandle) -> RResult<(), RBoxError> {
+        if model.opaque == 0 {
+            return RResult::ROk(());
+        }
+        #[allow(unsafe_code)]
+        // SAFETY: pointer came from `Box::into_raw` in `load_model` for this plugin.
+        unsafe {
+            drop(Box::from_raw(model.opaque as *mut crate::model::CandleModel));
+        }
+        RResult::ROk(())
     }
 
     fn train_step(

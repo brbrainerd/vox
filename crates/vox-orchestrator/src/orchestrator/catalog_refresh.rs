@@ -1,9 +1,9 @@
 //! Background catalog refresh loop.
 //!
 //! Runs as a long-lived `tokio::spawn` task launched from
-//! [`Orchestrator::spawn_background_tasks`]. Every [`REFRESH_INTERVAL_SECS`] (default 6 h,
+//! [`Orchestrator::spawn_background_tasks`]. Every `REFRESH_INTERVAL_SECS` (default 6 h,
 //! ±20 min jitter) it fetches the OpenRouter model catalog and the LiteLLM pricing oracle,
-//! merges the results into the live [`ModelRegistry`], and persists the result to
+//! merges the results into the live `ModelRegistry`, and persists the result to
 //! `~/.vox/cache/model-catalog.v1.json` so the next cold-start loads fresh data.
 //!
 //! The loop is entirely opt-out: if either upstream fetch fails the registry keeps whatever
@@ -153,11 +153,30 @@ async fn refresh_once(orch: &Arc<Orchestrator>) {
         "background catalog refresh applied"
     );
 
-    // ── 5. Persist updated catalog to cache file ──────────────────────────────
-    let snapshot: Vec<crate::models::ModelSpec> = {
+    // ── 5. Run Admission Filter & Persist updated catalog ─────────────────────
+    let mut snapshot: Vec<crate::models::ModelSpec> = {
         let registry = orch.models.read().unwrap();
         registry.list_models()
     };
+
+    if let Some(db) = orch.db() {
+        match crate::models::admission::ModelAdmissionFilter::promote_calibrated_models(&db, &mut snapshot).await {
+            Ok(count) if count > 0 => {
+                tracing::info!(target: "vox.orchestrator.catalog_refresh", promoted = count, "models promoted to telemetry status");
+                // Re-register promoted models back into the active registry
+                let mut registry = orch.models.write().unwrap();
+                for m in &snapshot {
+                    if m.pricing_source == crate::models::spec::PricingSource::Telemetry {
+                        registry.register(m.clone());
+                    }
+                }
+            }
+            Err(e) => {
+                tracing::warn!(target: "vox.orchestrator.catalog_refresh", error = %e, "model admission filter failed");
+            }
+            _ => {}
+        }
+    }
 
     if let Ok(json) = serde_json::to_string(&snapshot) {
         let cache_file = vox_config::paths::dot_vox_user_dir()
@@ -240,26 +259,36 @@ pub async fn run_foreground_refresh() -> anyhow::Result<RefreshReport> {
 
     // ── 4. Anthropic direct catalog (key-gated) ────────────────────────────────
     let mut anthropic_count = 0usize;
-    match AnthropicDirectCatalog::new().refresh().await {
-        Ok(mut models) => {
-            for m in &mut models {
-                if m.pricing_source == PricingSource::Bootstrap {
-                    m.pricing_source = PricingSource::AnthropicDirect;
-                }
+    // No key — expected in most environments.
+    if let Ok(mut models) = AnthropicDirectCatalog::new().refresh().await {
+        for m in &mut models {
+            if m.pricing_source == PricingSource::Bootstrap {
+                m.pricing_source = PricingSource::AnthropicDirect;
             }
-            anthropic_count = models.len();
-            for m in models {
-                // Don't overwrite an OpenRouter-sourced entry.
-                if registry.get(&m.id).is_none() {
-                    registry.register(m);
+        }
+        anthropic_count = models.len();
+        for m in models {
+            // Don't overwrite an OpenRouter-sourced entry.
+            if registry.get(&m.id).is_none() {
+                registry.register(m);
+            }
+        }
+    }
+
+    // ── 5. Run Admission Filter & Persist ─────────────────────────────────────
+    let mut snapshot = registry.list_models();
+    if let Ok(db) = vox_db::VoxDb::open_default().await {
+        if let Ok(count) = crate::models::admission::ModelAdmissionFilter::promote_calibrated_models(&db, &mut snapshot).await {
+            if count > 0 {
+                for m in &snapshot {
+                    if m.pricing_source == PricingSource::Telemetry {
+                        registry.register(m.clone());
+                    }
                 }
             }
         }
-        Err(_) => {} // No key — expected in most environments.
     }
 
-    // ── 5. Persist ────────────────────────────────────────────────────────────
-    let snapshot = registry.list_models();
     let total_written = snapshot.len();
     let cache_file = vox_config::paths::dot_vox_user_dir()
         .join("cache")

@@ -1,31 +1,147 @@
-use vox_compiler::app_contract::project_app_contract;
-use vox_compiler::hir::{HirHttpMethod, HirModule, HirRoute};
+use vox_compiler::app_contract::AppContractModule;
+use vox_compiler::hir::http_ergonomics::{HirCorsPolicy, RateLimitBy};
+use std::collections::HashMap;
+use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{DurabilityKind, HirEndpointFn, HirEndpointKind, HirModule, HirType};
 
+use super::main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, BootPropagation};
 use super::stmt_expr::emit_stmt;
 use super::tables::emit_db_setup;
 
-pub fn emit_main(module: &HirModule, package_name: &str) -> String {
-    let app_contract = project_app_contract(module);
+fn endpoint_fn_by_name<'a>(
+    module: &'a HirModule,
+    name: &str,
+    kind: HirEndpointKind,
+) -> Option<&'a HirEndpointFn> {
+    module
+        .endpoint_fns
+        .iter()
+        .find(|e| e.name == name && e.kind == kind)
+}
+
+fn safe_ident_suffix(name: &str) -> String {
+    name.chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect()
+}
+
+fn emit_cors_layer_value(policy: &HirCorsPolicy) -> String {
+    if policy.origins.iter().any(|o| o == "*") {
+        return concat!(
+            "tower_http::cors::CorsLayer::new()\n",
+            "            .allow_methods(tower_http::cors::Any)\n",
+            "            .allow_headers(tower_http::cors::Any)\n",
+            "            .allow_origin(tower_http::cors::AllowOrigin::any())\n",
+            "            .allow_credentials(false)",
+        )
+        .to_string();
+    }
+    let mut lines = String::from(
+        "tower_http::cors::CorsLayer::new()\n\
+            .allow_methods(tower_http::cors::Any)\n\
+            .allow_headers(tower_http::cors::Any)\n\
+            .allow_origin(tower_http::cors::AllowOrigin::list({\n\
+                let mut __vox_origins = Vec::new();\n",
+    );
+    for o in &policy.origins {
+        let escaped = o.replace('\\', "\\\\").replace('"', "\\\"");
+        lines.push_str(&format!(
+            "                __vox_origins.push(\"{escaped}\".parse::<axum::http::HeaderValue>().unwrap());\n"
+        ));
+    }
+    lines.push_str(&format!(
+        "                __vox_origins\n\
+            }}))\n\
+            .allow_credentials({})",
+        policy.allow_credentials
+    ));
+    lines
+}
+
+fn emit_ip_rate_limit_prelude(sf: &HirEndpointFn, prefix: &str) -> String {
+    let Some(ref rl) = sf.rate_limit else {
+        return String::new();
+    };
+    if rl.by != RateLimitBy::Ip {
+        return String::new();
+    }
+    let suffix = safe_ident_suffix(&format!("{prefix}{}", sf.name));
+    let static_name = format!("VOX_RL_{suffix}");
+    let fn_name = format!("vox_rl_guard_{suffix}");
+    let window = rl.window_secs.max(1);
+    let max_r = rl.max_requests.max(1).min(u64::from(u32::MAX)) as u32;
+    format!(
+        r#"static {static_name}: std::sync::OnceLock<std::sync::Arc<governor::RateLimiter<
+    std::net::IpAddr,
+    governor::state::keyed::DefaultKeyedStateStore<std::net::IpAddr>,
+    governor::clock::DefaultClock,
+>>> = std::sync::OnceLock::new();
+
+async fn {fn_name}(
+    axum::extract::ConnectInfo(addr): axum::extract::ConnectInfo<std::net::SocketAddr>,
+    req: axum::http::Request<axum::body::Body>,
+    next: axum::middleware::Next,
+) -> Result<axum::response::Response, axum::response::Response> {{
+    let lim = {static_name}.get_or_init(|| {{
+        let q = governor::Quota::with_period(std::time::Duration::from_secs({window}))
+            .expect("vox codegen: rate limit window")
+            .allow_burst(std::num::NonZeroU32::new({max_r}).expect("vox codegen: rate limit burst"));
+        std::sync::Arc::new(governor::RateLimiter::keyed(q))
+    }});
+    match lim.check_key(&addr.ip()) {{
+        Ok(_) => Ok(next.run(req).await),
+        Err(_) => Err((StatusCode::TOO_MANY_REQUESTS, Json(vox_http_client::envelope::error_json(
+            "RATE_LIMITED",
+            "Too many requests",
+            None,
+            None,
+        ))).into_response()),
+    }}
+}}
+
+"#
+    )
+}
+
+fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) -> String {
+    let Some(sf) = sf else {
+        return method_router_expr;
+    };
+    let mut out = method_router_expr;
+    if let Some(ref rl) = sf.rate_limit {
+        if rl.by == RateLimitBy::Ip {
+            let suffix_raw = match sf.kind {
+                HirEndpointKind::Query => format!("q_{}", sf.name),
+                HirEndpointKind::Mutation => format!("m_{}", sf.name),
+                HirEndpointKind::Server => format!("sf_{}", sf.name),
+            };
+            let suffix = safe_ident_suffix(&suffix_raw);
+            let fn_name = format!("vox_rl_guard_{suffix}");
+            out = format!("{out}.layer(axum::middleware::from_fn({fn_name}))");
+        }
+    }
+    if let Some(ref cors) = sf.cors {
+        let cors_ex = emit_cors_layer_value(cors);
+        out = format!("{out}.layer({cors_ex})");
+    }
+    out
+}
+
+pub fn emit_main(
+    module: &HirModule,
+    package_name: &str,
+    app_contract: &AppContractModule,
+) -> String {
     let mut out = String::new();
     out.push_str("// Generated by Vox Compiler\n");
 
     let has_tables = !module.tables.is_empty();
 
-    let routes = crate::codegen_shared::lower_module_routes(module);
-
-    // Collect which routing methods are actually used
     let mut needs_get = false;
     let mut needs_post = false;
-    let mut needs_put = false;
-    let mut needs_delete = false;
-    for route in &routes {
-        match route.method {
-            crate::codegen_shared::RouteMethod::Get => needs_get = true,
-            crate::codegen_shared::RouteMethod::Post => needs_post = true,
-            crate::codegen_shared::RouteMethod::Put => needs_put = true,
-            crate::codegen_shared::RouteMethod::Delete => needs_delete = true,
-        }
-    }
+    let needs_put = false;
+    let needs_delete = false;
+
     // `@query` handlers are GET + query-string args; `@server` / `@mutation` stay POST + JSON body.
     for sf in &module.endpoint_fns {
         if sf.kind == vox_compiler::hir::HirEndpointKind::Query {
@@ -57,6 +173,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             routing_methods.join(", ")
         ));
     }
+    out.push_str("use axum::extract::Extension;\n");
     if module
         .endpoint_fns
         .iter()
@@ -67,11 +184,14 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("use axum::response::{Response, IntoResponse};\n");
     out.push_str("use axum::body::Body;\n");
     out.push_str("use axum::http::{StatusCode, header};\n");
+    out.push_str("use axum::middleware;\n");
+    out.push_str("use axum::extract::ConnectInfo;\n");
+    out.push_str("use tower_http::trace::TraceLayer;\n");
+    out.push_str("use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};\n");
     out.push_str("use std::net::SocketAddr;\n");
     out.push_str("use rust_embed::Embed;\n");
     if has_tables {
         out.push_str("use std::sync::Arc;\n");
-        out.push_str("use axum::extract::Extension;\n");
         out.push_str("use vox_db::Codex;\n");
     }
 
@@ -119,9 +239,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str(
         "                    let target = format!(\"{}{}\", base.trim_end_matches('/'), uri);\n",
     );
-    out.push_str(
-        "                    if let Ok(client) = vox_reqwest_defaults::client_builder()\n",
-    );
+    out.push_str("                    if let Ok(client) = vox_http_client::client_builder()\n");
     out.push_str("                        .timeout(std::time::Duration::from_secs(60))\n");
     out.push_str("                        .build()\n");
     out.push_str("                    {\n");
@@ -159,6 +277,23 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("    serve_embedded(uri).await\n");
     out.push_str("}\n\n");
 
+    for sf in &module.endpoint_fns {
+        let pfx = match sf.kind {
+            HirEndpointKind::Query => "q_",
+            HirEndpointKind::Mutation => "m_",
+            HirEndpointKind::Server => "sf_",
+        };
+        out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
+    }
+
+    out.push_str(
+        "async fn vox_copy_request_id(mut req: axum::http::Request<Body>, next: middleware::Next) -> Response {\n",
+    );
+    out.push_str("    let rid = req.extensions().get::<tower_http::request_id::RequestId>().and_then(|id| id.header_value().to_str().ok().map(|s| s.to_string()));\n");
+    out.push_str("    req.extensions_mut().insert(rid);\n");
+    out.push_str("    next.run(req).await\n");
+    out.push_str("}\n\n");
+
     out.push_str("#[tokio::main]\n");
     out.push_str("async fn main() {\n");
     out.push_str("    tracing_subscriber::fmt::init();\n");
@@ -168,40 +303,73 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         out.push_str(&emit_db_setup(module));
     }
 
-    out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
-    out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
-    out.push_str("        if !wf_name.is_empty() {\n");
-    out.push_str(
-        "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
-    );
-    out.push_str(
-        "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
-    );
-    out.push_str("                Ok(v) => v,\n");
-    out.push_str("                Err(e) => {\n");
-    out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
-    out.push_str("                    std::process::exit(2);\n");
-    out.push_str("                }\n");
-    out.push_str("            };\n");
-    out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
-    out.push_str("                Ok(()) => {\n");
-    out.push_str("                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n");
-    out.push_str("                    return;\n");
-    out.push_str("                }\n");
-    out.push_str("                Err(e) => {\n");
-    out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
-    out.push_str("                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n");
-    out.push_str("                    std::process::exit(2);\n");
-    out.push_str("                }\n");
-    out.push_str("            }\n");
-    out.push_str("        }\n");
-    out.push_str("    }\n");
+    // P9 (2026-05-24): Durable boot prelude — connects `vox_durable_db`
+    // (Arc<vox_db::VoxDb>, distinct from the `db: Arc<Codex>` produced by
+    // `emit_db_setup`), registers the process-global HirModule so
+    // `current_hir_module()` resolves in workflow bodies (ADR-041 §6(b)),
+    // and registers + starts every `@scheduled` function. Must run BEFORE
+    // the VOX_RUN_WORKFLOW dispatch branch because that branch calls
+    // workflow functions which rely on `current_hir_module()`.
+    //
+    // Uses `BootPropagation::Expect` because the production `main()`
+    // signature is `async fn main()` (no `Result` return) today. P10
+    // will migrate `emit_main` to `Result<()>` so the prelude can use
+    // `Try` everywhere — see ADR-041 §6(c) /
+    // http-runtime-extraction-2026.md.
+    //
+    // The companion `load_hir_module_from_embedded` fn is appended below,
+    // after `main()` closes. See `emit_durable_boot_helpers`.
+    out.push_str(&emit_durable_boot_prelude(
+        module,
+        "vox_durable_db",
+        /* include_db_connect = */ true,
+        BootPropagation::Expect,
+    ));
 
-    let has_routes = !module.routes.is_empty() || !module.endpoint_fns.is_empty();
+    if module
+        .functions
+        .iter()
+        .any(|f| f.durability == Some(DurabilityKind::Workflow))
+    {
+        out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
+        out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
+        out.push_str("        if !wf_name.is_empty() {\n");
+        out.push_str(
+            "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
+        );
+        out.push_str(
+            "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
+        );
+        out.push_str("                Ok(v) => v,\n");
+        out.push_str("                Err(e) => {\n");
+        out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
+        out.push_str("                    std::process::exit(2);\n");
+        out.push_str("                }\n");
+        out.push_str("            };\n");
+        out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
+        out.push_str("                Ok(()) => {\n");
+        out.push_str(
+            "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
+        );
+        out.push_str("                    return;\n");
+        out.push_str("                }\n");
+        out.push_str("                Err(e) => {\n");
+        out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
+        out.push_str(
+            "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
+        );
+        out.push_str("                    std::process::exit(2);\n");
+        out.push_str("                }\n");
+        out.push_str("            }\n");
+        out.push_str("        }\n");
+        out.push_str("    }\n");
+    }
+
+    let has_routes = !module.endpoint_fns.is_empty();
 
     // Setup routes
     if has_routes {
-        out.push_str("    let app = Router::new()\n");
+        out.push_str("    let mut app = Router::new()\n");
         // Manual routes
         for route in &app_contract.http_routes {
             let method = route_method_from_contract(route.method.as_str());
@@ -214,30 +382,30 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         }
         // Auto-generated server function routes
         for sf in &app_contract.server_fns {
-            out.push_str(&format!(
-                "        .route(\"{}\", post(handle_sf_{}))\n",
-                sf.route_path, sf.name
-            ));
+            let hir_sf = endpoint_fn_by_name(module, &sf.name, HirEndpointKind::Server);
+            let mr = wrap_method_router(format!("post(handle_sf_{})", sf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", sf.route_path));
         }
         // `@query` — GET /api/query/<name> + deterministic JSON-in-query encoding (see vox-client.ts).
         for qf in &app_contract.query_fns {
-            out.push_str(&format!(
-                "        .route(\"{}\", get(handle_q_{}))\n",
-                qf.route_path, qf.name
-            ));
+            let hir_sf = endpoint_fn_by_name(module, &qf.name, HirEndpointKind::Query);
+            let mr = wrap_method_router(format!("get(handle_q_{})", qf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", qf.route_path));
         }
         // `@mutation` — POST /api/mutation/<name>
         for mf in &app_contract.mutation_fns {
-            out.push_str(&format!(
-                "        .route(\"{}\", post(handle_m_{}))\n",
-                mf.route_path, mf.name
-            ));
+            let hir_sf = endpoint_fn_by_name(module, &mf.name, HirEndpointKind::Mutation);
+            let mr = wrap_method_router(format!("post(handle_m_{})", mf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", mf.route_path));
         }
         out.push_str("        .fallback(serve_dispatch);\n\n");
-
         if has_tables {
-            out.push_str("    let app = app.layer(Extension(db.clone()));\n");
+            out.push_str("    app = app.layer(Extension(db.clone()));\n");
         }
+        out.push_str("    app = app.layer(middleware::from_fn(vox_copy_request_id));\n");
+        out.push_str("    app = app.layer(PropagateRequestIdLayer::x_request_id());\n");
+        out.push_str("    app = app.layer(SetRequestIdLayer::x_request_id(MakeRequestUuid));\n");
+        out.push_str("    app = app.layer(TraceLayer::new_for_http());\n\n");
 
         out.push_str(&format!(
             "    let port: u16 = std::env::var(\"{}\")\n",
@@ -258,7 +426,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             "    let listener = tokio::net::TcpListener::bind(addr).await.expect(\"Failed to bind TCP listener\");\n",
         );
         out.push_str(
-            "    axum::serve(listener, app).await.expect(\"Server exited with error\");\n",
+            "    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())\n        .await\n        .expect(\"Server exited with error\");\n",
         );
         out.push_str("    vox_actor_runtime::builtins::vox_flush_exit_commands();\n");
     } else {
@@ -266,19 +434,25 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     }
     out.push_str("}\n\n");
 
-    // Generate route handlers
-    for route in &module.routes {
-        out.push_str(&emit_route_handler(route, has_tables));
-    }
-
     let mut mutation_idx = 0;
     for sf in &module.endpoint_fns {
         match sf.kind {
             vox_compiler::hir::HirEndpointKind::Server => {
-                out.push_str(&emit_server_fn_handler(sf, has_tables, "handle_sf_", false));
+                out.push_str(&emit_server_fn_handler(
+                    sf,
+                    has_tables,
+                    "handle_sf_",
+                    false,
+                    Some(&module.inferred_types),
+                ));
             }
             vox_compiler::hir::HirEndpointKind::Query => {
-                out.push_str(&emit_query_fn_handler(sf, has_tables, "handle_q_"));
+                out.push_str(&emit_query_fn_handler(
+                    sf,
+                    has_tables,
+                    "handle_q_",
+                    Some(&module.inferred_types),
+                ));
             }
             vox_compiler::hir::HirEndpointKind::Mutation => {
                 let wrap_mutation_tx = app_contract
@@ -291,11 +465,17 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
                     has_tables,
                     "handle_m_",
                     wrap_mutation_tx,
+                    Some(&module.inferred_types),
                 ));
                 mutation_idx += 1;
             }
         }
     }
+
+    // P9 (2026-05-24): Append the durable boot helpers (currently just
+    // `load_hir_module_from_embedded()`) so the prelude injected into
+    // `main()` above has a callable companion. Must live at file scope.
+    out.push_str(&emit_durable_boot_helpers(module));
 
     out
 }
@@ -313,49 +493,15 @@ fn route_method_from_contract(method: &str) -> &'static str {
 fn route_handler_name_from_contract(
     route: &vox_compiler::app_contract::AppHttpRouteContract,
 ) -> String {
-    let method = match route.method.as_str() {
-        "GET" => HirHttpMethod::Get,
-        "POST" => HirHttpMethod::Post,
-        "PUT" => HirHttpMethod::Put,
-        "DELETE" => HirHttpMethod::Delete,
-        _ => HirHttpMethod::Get,
-    };
-    route_handler_name(&route.path, &method)
-}
-
-fn route_handler_name(path: &str, method: &HirHttpMethod) -> String {
-    let clean_path = path.replace('/', "_").replace(['{', '}'], "");
-    let m = match method {
-        HirHttpMethod::Get => "get",
-        HirHttpMethod::Post => "post",
-        HirHttpMethod::Put => "put",
-        HirHttpMethod::Delete => "delete",
+    let clean_path = route.path.replace('/', "_").replace(['{', '}'], "");
+    let m = match route.method.as_str() {
+        "GET" => "get",
+        "POST" => "post",
+        "PUT" => "put",
+        "DELETE" => "delete",
+        _ => "get",
     };
     format!("handle_{}{}", m, clean_path)
-}
-
-fn emit_route_handler(route: &HirRoute, has_tables: bool) -> String {
-    let handler_name = route_handler_name(&route.path, &route.method);
-    let mut out = String::new();
-    out.push_str(&format!("async fn {handler_name}("));
-    if has_tables {
-        out.push_str("Extension(db): Extension<Arc<Codex>>, ");
-    }
-    out.push_str("Json(request): Json<serde_json::Value>) -> Json<serde_json::Value> {\n");
-
-    let mut has_return = false;
-    for stmt in &route.body {
-        let emitted = emit_stmt(stmt, 1, true, false, false);
-        if emitted.contains("return Json(") {
-            has_return = true;
-        }
-        out.push_str(&emitted);
-    }
-    if !has_return {
-        out.push_str("    Json(serde_json::Value::Null)\n");
-    }
-    out.push_str("}\n\n");
-    out
 }
 
 /// Generate an Axum handler for a server function.
@@ -364,13 +510,17 @@ fn emit_server_fn_handler(
     has_tables: bool,
     name_prefix: &str,
     wrap_mutation_tx: bool,
+    inferred_types: Option<&HashMap<Span, HirType>>,
 ) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
+    out.push_str("Extension(vox_rid): Extension<Option<String>>, ");
     if has_tables {
         out.push_str("Extension(db): Extension<Arc<Codex>>, ");
     }
-    out.push_str("Json(request): Json<serde_json::Value>) -> Json<serde_json::Value> {\n");
+    out.push_str(
+        "Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
+    );
 
     // Extract params from request JSON
     for param in &sf.params {
@@ -380,12 +530,14 @@ fn emit_server_fn_handler(
         ));
     }
 
+    let rid = Some("vox_rid.clone()");
     if wrap_mutation_tx && has_tables {
         out.push_str("    let db = (*db).clone();\n");
         out.push_str("    match db.transaction(async move {\n");
         let mut has_return = false;
+        let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 2, true, false, true);
+            let emitted = emit_stmt(stmt, 2, true, false, true, inferred_types, Some(&usage), rid);
             if emitted.contains("return Ok(Json(") || emitted.contains("return Json(") {
                 has_return = true;
             }
@@ -395,20 +547,23 @@ fn emit_server_fn_handler(
             out.push_str("        Ok(Json(serde_json::Value::Null))\n");
         }
         out.push_str("    }).await {\n");
-        out.push_str("        Ok(resp) => resp,\n");
-        out.push_str("        Err(e) => Json(serde_json::json!({\"error\": e.to_string()})),\n");
+        out.push_str("        Ok(resp) => Ok(resp),\n");
+        out.push_str(
+            "        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, Json(vox_http_client::envelope::error_json(\"INTERNAL_ERROR\", e.to_string(), vox_rid.clone(), None)))),\n",
+        );
         out.push_str("    }\n");
     } else {
         let mut has_return = false;
+        let usage = super::usage::UsageTracker::build(&sf.body);
         for stmt in &sf.body {
-            let emitted = emit_stmt(stmt, 1, true, false, false);
-            if emitted.contains("return Json(") {
+            let emitted = emit_stmt(stmt, 1, true, false, false, inferred_types, Some(&usage), rid);
+            if emitted.contains("return Ok(Json(") {
                 has_return = true;
             }
             out.push_str(&emitted);
         }
         if !has_return {
-            out.push_str("    Json(serde_json::Value::Null)\n");
+            out.push_str("    Ok(Json(serde_json::Value::Null))\n");
         }
     }
     out.push_str("}\n\n");
@@ -420,33 +575,43 @@ fn emit_query_fn_handler(
     sf: &vox_compiler::hir::HirEndpointFn,
     has_tables: bool,
     name_prefix: &str,
+    inferred_types: Option<&HashMap<Span, HirType>>,
 ) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
+    out.push_str("Extension(vox_rid): Extension<Option<String>>, ");
     if has_tables {
         out.push_str("Extension(db): Extension<Arc<Codex>>, ");
     }
     out.push_str(
-        "Query(q): Query<std::collections::BTreeMap<String, String>>) -> Json<serde_json::Value> {\n",
+        "Query(q): Query<std::collections::BTreeMap<String, String>>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
     );
 
     for param in &sf.params {
+        let pname = param.name.replace('\\', "\\\\").replace('"', "\\\"");
         out.push_str(&format!(
-            "    let {} = q.get(\"{}\").and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok()).unwrap_or(serde_json::Value::Null);\n",
-            param.name, param.name
+            "    let {} = match q.get(\"{}\") {{\n",
+            param.name, pname
+        ));
+        out.push_str("        None => serde_json::Value::Null,\n");
+        out.push_str(&format!(
+            "        Some(__s) => match serde_json::from_str::<serde_json::Value>(__s) {{\n            Ok(v) => v,\n            Err(__e) => {{\n                return Err((StatusCode::BAD_REQUEST, Json(vox_http_client::envelope::error_json(\n                    \"BAD_REQUEST\",\n                    format!(\"Invalid JSON for query parameter \\\"{0}\\\": {{}}\", __e),\n                    vox_rid.clone(),\n                    Some(serde_json::json!({{\"param\": \"{0}\"}})),\n                ))));\n            }}\n        }},\n    }};\n",
+            pname
         ));
     }
 
+    let rid = Some("vox_rid.clone()");
     let mut has_return = false;
+    let usage = super::usage::UsageTracker::build(&sf.body);
     for stmt in &sf.body {
-        let emitted = emit_stmt(stmt, 1, true, false, false);
-        if emitted.contains("return Json(") {
+        let emitted = emit_stmt(stmt, 1, true, false, false, inferred_types, Some(&usage), rid);
+        if emitted.contains("return Ok(Json(") {
             has_return = true;
         }
         out.push_str(&emitted);
     }
     if !has_return {
-        out.push_str("    Json(serde_json::Value::Null)\n");
+        out.push_str("    Ok(Json(serde_json::Value::Null))\n");
     }
     out.push_str("}\n\n");
     out
@@ -460,7 +625,23 @@ mod tests {
     use vox_compiler::parser::parse;
 
     #[test]
-    #[ignore]
+    fn emit_main_omits_workflow_dispatch_without_workflows() {
+        let src = r#"
+@query fn health() to str {
+    return "ok"
+}
+"#;
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse");
+        let hir = lower_module(&module);
+        let bundle = crate::projection_bundle::project_bundle_from_hir(&hir);
+        let output = emit_main(&hir, "generated-demo", &bundle.app);
+        assert!(!output.contains("__vox_run_workflow"));
+        assert!(!output.contains("VOX_RUN_WORKFLOW"));
+    }
+
+    #[test]
+    #[ignore = "owner: codegen — sunset: 2026-08-01 — workflow dispatch env branch pending DSL parity"]
     fn emit_main_includes_generated_workflow_dispatch_env_branch() {
         let src = r#"
 workflow hello() {
@@ -470,7 +651,8 @@ workflow hello() {
         let tokens = lex(src);
         let module = parse(tokens).expect("parse");
         let hir = lower_module(&module);
-        let output = emit_main(&hir, "generated-demo");
+        let bundle = crate::projection_bundle::project_bundle_from_hir(&hir);
+        let output = emit_main(&hir, "generated-demo", &bundle.app);
         assert!(output.contains("VOX_RUN_WORKFLOW"));
         assert!(output.contains("VOX_WORKFLOW_ARGS"));
         assert!(output.contains("__vox_run_workflow(&wf_name, &args).await"));

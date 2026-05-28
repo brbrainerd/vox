@@ -1,0 +1,282 @@
+{
+  "aggregate_exit_code": 0,
+  "block_ga_violations": [],
+  "gates": {
+    "aci-default": {
+      "corpus_hash": "blake3:85d28978c8d29b58f394b558e16f849a4946b5241c6ae096803e708c92400998",
+      "corpus_size": 1,
+      "llm_panel": [],
+      "measured_at": "2026-05-22T09:29:35.645375900+00:00",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "overall_pass_rate": 1.0
+      },
+      "schema_version": 1,
+      "thing": "aci-default",
+      "threshold": {
+        "met": true,
+        "target": 1.0
+      }
+    },
+    "corpus-feedback": {
+      "corpus_hash": "blake3:events-count-0",
+      "corpus_size": 0,
+      "llm_panel": [],
+      "measured_at": "2026-05-22T09:29:35.720215600+00:00",
+      "note": "no events this run; existing report at C:\\Users\\Owner\\vox\\.claude\\worktrees\\jovial-buck-e93ac0\\contracts/reports/corpus-feedback\\2026-Q2.json is 0 days old (within 90-day window)",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "overall_pass_rate": 1.0
+      },
+      "schema_version": 1,
+      "thing": "corpus-feedback",
+      "threshold": {
+        "met": true,
+        "target": 1.0
+      }
+    },
+    "deploy": {
+      "corpus_hash": "blake3:08c60f00cd626681c359be138157469f2517ab928264ca56633710c4d26a012b",
+      "corpus_size": 3,
+      "llm_panel": [],
+      "measured_at": "2026-05-22T09:29:35.716616+00:00",
+      "note": "doctor leg: 3/3 marquee fixtures green (0.01s). new leg: ok (0.00s). deploy --dry-run leg: ok (0.00s). scaffold doctor leg: ok (0.00s). new+deploy+doctor trio: 0.00s vs 120s CR-P3 budget. total: 0.02s.",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "overall_pass_rate": 1.0
+      },
+      "schema_version": 1,
+      "thing": "deploy",
+      "threshold": {
+        "met": true,
+        "target": 1.0
+      }
+    },
+    "humaneval": {
+      "corpus_hash": "blake3:feaf32ed39b465f134bc1e4af700374361091fa6190d940ad4ed34efbbc59d2a",
+      "corpus_size": 164,
+      "llm_panel": [
+        {
+          "id": "claude-sonnet",
+          "version": "claude-sonnet-4-6"
+        },
+        {
+          "id": "gpt-frontier",
+          "version": "gpt-5.4"
+        }
+      ],
+      "measured_at": "2026-05-22T00:03:48.242711800+00:00",
+      "note": "panel mode: 2 routable member(s) measured against 164/164 fixtures; 1 unroutable member(s) skipped (mens-current). panel cost: $1.156 of $20.00 budget",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "median_pass_rate": 0.9390243902439024,
+        "overall_pass_rate": 0.9390243902439024,
+        "per_llm": [
+          {
+            "id": "claude-sonnet",
+            "median_cost_usd": 0.003708,
+            "pass_rate": 0.9146341463414634,
+            "unreachable_count": 0
+          },
+          {
+            "id": "gpt-frontier",
+            "median_cost_usd": 0.0025575,
+            "pass_rate": 0.9634146341463414,
+            "unreachable_count": 0
+          }
+        ]
+      },
+      "schema_version": 1,
+      "thing": "humaneval",
+      "threshold": {
+        "met": true,
+        "target": 0.8
+      }
+    },
+    "mens-on-distribution": {
+      "corpus_hash": "blake3:reusing-cr-l1-corpus-164",
+      "corpus_size": 164,
+      "llm_panel": [],
+      "measured_at": "2026-05-22T09:29:35.643465600+00:00",
+      "note": "corpus-routing mode: CR-L2 reuses the CR-L1 corpus (164 fixture(s)). On-distribution rate (the 95% bar) requires --llm-panel + MENS sampling via the `mens-current` panel member. Without those, this runner reports corpus inventory only, not a real on-distribution number.",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "overall_pass_rate": 1.0
+      },
+      "schema_version": 1,
+      "thing": "mens-on-distribution",
+      "threshold": {
+        "met": false,
+        "target": 0.95
+      }
+    },
+    "plan-fidelity": {
+      "corpus_hash": "blake3:7b981f6dab062671a978dcc0f69c41804e32a1d2bb8b1e8c46e5ae2a78762e6f",
+      "corpus_size": 5,
+      "llm_panel": [
+        {
+          "id": "claude-sonnet",
+          "version": "claude-sonnet-4-6"
+        },
+        {
+          "id": "gpt-frontier",
+          "version": "gpt-5.4"
+        }
+      ],
+      "measured_at": "2026-05-22T01:32:47.005208300+00:00",
+      "note": "panel mode: 2 routable member(s) against 5/5 plans; 0 unreachable + 0 budget-skipped. panel cost: $0.155 of $20.00 budget. Scoring is vox_check_passes only (existing_fns_unchanged needs base sources, deferred to §4.3 corpus expansion).",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "median_pass_rate": 0.6,
+        "overall_pass_rate": 0.6,
+        "per_llm": [
+          {
+            "id": "claude-sonnet",
+            "median_cost_usd": 0.005322,
+            "pass_rate": 0.6,
+            "unreachable_count": 0
+          },
+          {
+            "id": "gpt-frontier",
+            "median_cost_usd": 0.0063,
+            "pass_rate": 0.6,
+            "unreachable_count": 0
+          }
+        ]
+      },
+      "schema_version": 1,
+      "thing": "plan-fidelity",
+      "threshold": {
+        "met": false,
+        "target": 0.85
+      }
+    },
+    "repair-corpus": {
+      "corpus_hash": "blake3:6fe2ac5928db92f5420476f310db696389ce754cb79c049f670bbffba6cc5fb0",
+      "corpus_size": 5,
+      "llm_panel": [
+        {
+          "id": "claude-sonnet",
+          "version": "claude-sonnet-4-6"
+        },
+        {
+          "id": "gpt-frontier",
+          "version": "gpt-5.4"
+        }
+      ],
+      "measured_at": "2026-05-22T00:04:01.091229900+00:00",
+      "note": "panel mode: 2 routable member(s) against 5/5 projects; 0 unreachable + 0 budget-skipped. panel cost: $0.031 of $20.00 budget",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "median_pass_rate": 0.8,
+        "overall_pass_rate": 0.8,
+        "per_llm": [
+          {
+            "id": "claude-sonnet",
+            "median_cost_usd": 0.002526,
+            "pass_rate": 0.8,
+            "unreachable_count": 0
+          },
+          {
+            "id": "gpt-frontier",
+            "median_cost_usd": 0.003125,
+            "pass_rate": 0.8,
+            "unreachable_count": 0
+          }
+        ]
+      },
+      "schema_version": 1,
+      "thing": "repair-corpus",
+      "threshold": {
+        "met": true,
+        "target": 0.7
+      }
+    },
+    "retirement": {
+      "corpus_hash": "blake3:3b29aaad06f0eb7d1cc0a627e0e48de2495281cb515768e9cd1bbdf49373a888",
+      "corpus_size": 16,
+      "llm_panel": [],
+      "measured_at": "2026-05-22T09:29:35.696743+00:00",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "overall_pass_rate": 1.0
+      },
+      "schema_version": 1,
+      "thing": "retirement",
+      "threshold": {
+        "met": true,
+        "target": 1.0
+      }
+    },
+    "spec-to-app": {
+      "corpus_hash": "blake3:7b407a7c3ded8de63e9fbfdff99e9a2971ee3b5f5885ccfc8bb260f16b382db1",
+      "corpus_size": 3,
+      "llm_panel": [],
+      "measured_at": "2026-05-22T00:03:35.472496200+00:00",
+      "note": "panel mode: 3 spec(s) (T1=1, T2=1, T3=1); 6 attempts scored; 0 panel-unreachable/budget-skipped. panel cost: $0.196 of $20.00 budget. scoring=median-of-members; mens excluded per ratified policy.",
+      "reproducibility": {
+        "attempts_per_fixture": 5,
+        "seed": 42,
+        "temperature": 0.0
+      },
+      "results": {
+        "median_pass_rate": 0.6666666666666666,
+        "overall_pass_rate": 0.6666666666666666,
+        "per_llm": [
+          {
+            "id": "claude-sonnet",
+            "median_cost_usd": 0.057453,
+            "pass_rate": 0.3333333333333333,
+            "unreachable_count": 0
+          },
+          {
+            "id": "gpt-frontier",
+            "median_cost_usd": 0.02613,
+            "pass_rate": 1.0,
+            "unreachable_count": 0
+          }
+        ]
+      },
+      "schema_version": 1,
+      "thing": "spec-to-app",
+      "threshold": {
+        "met": true,
+        "target": 0.6
+      }
+    }
+  },
+  "measured_at": "2026-05-22T09:29:35.736792300+00:00",
+  "schema_version": 1
+}

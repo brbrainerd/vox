@@ -125,12 +125,80 @@ mod tests {
         assert_eq!(tokens, expected);
     }
 
+    /// `!` must lex as `Token::BangInvalid` (a distinct token whose only
+    /// purpose is to let the parser emit a clear "use `not`" error). Prior
+    /// to this token, the bare `!` was silently dropped by the lexer,
+    /// causing `if !x` to parse as `if x` — a silent wrong-output bug.
+    /// Vox commits to phonetic operators only (`not`, `and`, `or`,
+    /// `is`, `isnt`) per the K-complexity / phonetic-aesthetic decision
+    /// in docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md §8.
+    #[test]
+    fn test_bang_lexes_as_invalid_distinct_from_not() {
+        let tokens = lex_tokens("!true");
+        assert_eq!(
+            tokens,
+            vec![Token::BangInvalid, Token::True, Token::Eof],
+            "`!` must lex as Token::BangInvalid so the parser can emit a clear error"
+        );
+    }
+
+    /// `@query` and `@mutation` are first-class decorators replacing the
+    /// awkward `@endpoint(kind: query)` / `@endpoint(kind: mutation)`
+    /// spellings — ~65 % K-complexity reduction per call site (audit doc
+    /// §11.2). The legacy `@endpoint` token was retired in v0.6.0 per
+    /// `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`; `@endpoint`
+    /// text no longer lexes as a known decorator and the parser reports
+    /// it as an unknown token (the `retired/decorator-usage` lint surfaces
+    /// a friendly migration suggestion before that point).
+    #[test]
+    fn test_query_and_mutation_lex_as_distinct_tokens() {
+        let tokens = lex_tokens("@query @mutation @server");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::AtQuery,
+                Token::AtMutation,
+                Token::AtServer,
+                Token::Eof,
+            ],
+        );
+    }
+
+    /// `!=` must still lex as `NotEq` (one token), not `!` + `=`.
+    /// Logos longest-match makes this work, but lock it in with a test.
+    #[test]
+    fn test_bang_eq_still_one_token() {
+        let tokens = lex_tokens("a != b");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Ident("a".into()),
+                Token::NotEq,
+                Token::Ident("b".into()),
+                Token::Eof,
+            ],
+        );
+    }
+
     #[test]
     fn test_string_literals() {
         let tokens = lex_tokens(r#""hello world""#);
         assert_eq!(
             tokens,
             vec![Token::StringLit("hello world".into()), Token::Eof]
+        );
+    }
+
+    #[test]
+    fn test_string_literal_with_backticks_and_colon() {
+        // Regression: markdown-style `…` inside strings must not break lexing (match arms, prints).
+        let tokens = lex_tokens(r#""  [err] `cargo clean` failed to spawn: ""#);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::StringLit("  [err] `cargo clean` failed to spawn: ".into()),
+                Token::Eof,
+            ]
         );
     }
 

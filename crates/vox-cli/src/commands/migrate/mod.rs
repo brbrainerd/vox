@@ -1,7 +1,7 @@
 //! `vox migrate` — incremental source migrations for web/React interop.
 //!
 //! Reporting uses the compiler AST lints (`lint_ast_declarations`) so diagnostics stay aligned with
-//! [`vox_compiler::typeck::ast_decl_lints`].
+//! `vox_compiler::typeck::ast_decl_lints`.
 
 use std::path::{Path, PathBuf};
 
@@ -158,7 +158,7 @@ fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Res
                 continue;
             }
             walk_for_names(&path, out)?;
-        } else if path.extension().map_or(false, |e| e == "vox") {
+        } else if path.extension().is_some_and(|e| e == "vox") {
             out.push(path);
         }
     }
@@ -172,7 +172,7 @@ fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Res
 /// - Substring matches inside unrelated identifiers (e.g. `MyBox`, `Boxes`) are
 ///   never rewritten — only exact whole-identifier tokens are matched.
 /// - Comments and whitespace are preserved byte-for-byte (gaps between token
-///   spans are copied verbatim; comments are emitted via [`lex_preserving`]).
+///   spans are copied verbatim; comments are emitted via `lex_preserving`).
 /// - On lex failure the function is not applicable: the logos lexer is infallible
 ///   (it skips unknown characters rather than returning an error), so in practice
 ///   the source is always tokenised. Any unrecognised bytes are faithfully copied

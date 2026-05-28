@@ -167,7 +167,8 @@ impl GitBridge {
         // Use gix to initialize.
         // gix::init(&path)?;
         // For now, fall back to git command (temporary until gix init API is stable).
-        let status = std::process::Command::new("git")
+        let status = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
             .args(["init", "--initial-branch=main"])
             .arg(&path)
             .status()

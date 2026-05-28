@@ -1,0 +1,5 @@
+[package]
+name = "repair-044-len-on-int"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: api-misuse bug class. range (a stdlib numeric API in the len/range family) is called with a str argument where an int is required."

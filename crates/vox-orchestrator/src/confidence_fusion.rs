@@ -1,7 +1,7 @@
 //! Composite confidence fusion for Socrates invocation decision (D3).
 //!
 //! Blends five evidence signals into a single score, then applies thresholds
-//! from [`FusionConfig`] to decide whether to invoke Socrates or answer directly.
+//! from `FusionConfig` to decide whether to invoke Socrates or answer directly.
 //! Thresholds mirror `contracts/orchestration/socrates-fusion.v1.yaml`.
 //! All checks are pure: no async, no I/O.
 
@@ -14,19 +14,19 @@ use crate::socrates::SocratesTaskContext;
 pub struct FusionWeights {
     pub evidence_quality: f64,
     pub citation_coverage: f64,
-    pub source_diversity: f64,
-    pub contradiction_penalty: f64,
-    pub entropy_score: f64,
+    pub logprob_entropy: f64,
+    pub sep_estimate: f64,
+    pub self_consistency: f64,
 }
 
 impl Default for FusionWeights {
     fn default() -> Self {
         Self {
-            evidence_quality: 0.35,
-            citation_coverage: 0.25,
-            source_diversity: 0.15,
-            contradiction_penalty: 0.15,
-            entropy_score: 0.10,
+            evidence_quality: 0.15,
+            citation_coverage: 0.15,
+            logprob_entropy: 0.30,
+            sep_estimate: 0.20,
+            self_consistency: 0.20,
         }
     }
 }
@@ -38,12 +38,12 @@ pub struct FusionInputs {
     pub evidence_quality: f64,
     /// Retrieval-side citation coverage proxy in `[0, 1]`.
     pub citation_coverage: f64,
-    /// Number of distinct source corpora (normalized to `[0, 1]` via saturation at 5).
-    pub source_diversity_norm: f64,
-    /// Contradiction mass in `[0, 1]`; inverted before weighting.
-    pub contradiction_ratio: f64,
-    /// Entropy-derived confidence in `[0, 1]` from the most recent completion text.
-    pub entropy_score: f64,
+    /// Model log probability entropy.
+    pub logprob_entropy: f64,
+    /// Semantic entropy estimate based on meaning clustering.
+    pub sep_estimate: f64,
+    /// Self-consistency across multiple samples.
+    pub self_consistency: f64,
 }
 
 impl FusionInputs {
@@ -53,19 +53,20 @@ impl FusionInputs {
         ctx: &SocratesTaskContext,
         completion_entropy_score: Option<f64>,
     ) -> Self {
-        let contradiction_ratio = match ctx.contradiction_hints {
-            0 => 0.0,
-            1 => 0.15,
-            2 => 0.28,
-            n => ((n as f64) * 0.22).min(1.0),
+        let logprob_entropy = completion_entropy_score.unwrap_or(0.5).clamp(0.0, 1.0);
+        let sep_estimate = (ctx.source_diversity as f64 / 5.0).clamp(0.0, 1.0);
+        let self_consistency = match ctx.contradiction_hints {
+            0 => 1.0,
+            1 => 0.7,
+            2 => 0.4,
+            _ => 0.1,
         };
-        let source_diversity_norm = (ctx.source_diversity as f64 / 5.0).clamp(0.0, 1.0);
         Self {
             evidence_quality: ctx.evidence_quality.clamp(0.0, 1.0),
             citation_coverage: ctx.citation_coverage.clamp(0.0, 1.0),
-            source_diversity_norm,
-            contradiction_ratio,
-            entropy_score: completion_entropy_score.unwrap_or(0.5).clamp(0.0, 1.0),
+            logprob_entropy,
+            sep_estimate,
+            self_consistency,
         }
     }
 }
@@ -73,20 +74,21 @@ impl FusionInputs {
 /// Outcome of the fusion step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FusionDecision {
-    /// Score ≥ `answer_threshold`; confidence sufficient to answer directly.
-    AnswerDirectly,
-    /// Score in `[invoke_threshold, answer_threshold)`; invoke Socrates to strengthen evidence.
-    InvokeSocrates,
-    /// Score < `invoke_threshold`; insufficient confidence, block or escalate.
-    Insufficient,
+    Ship,
+    Resample,
+    Retrieve,
+    SpawnSocrates,
+    Abstain,
 }
 
 impl std::fmt::Display for FusionDecision {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::AnswerDirectly => write!(f, "answer-directly"),
-            Self::InvokeSocrates => write!(f, "invoke-socrates"),
-            Self::Insufficient => write!(f, "insufficient"),
+            Self::Ship => write!(f, "ship"),
+            Self::Resample => write!(f, "resample"),
+            Self::Retrieve => write!(f, "retrieve"),
+            Self::SpawnSocrates => write!(f, "spawn-socrates"),
+            Self::Abstain => write!(f, "abstain"),
         }
     }
 }
@@ -94,18 +96,22 @@ impl std::fmt::Display for FusionDecision {
 /// Threshold configuration. Defaults mirror contract defaults.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FusionConfig {
-    /// Score ≥ this → answer directly.
-    pub answer_threshold: f64,
-    /// Score in `[invoke_threshold, answer_threshold)` → invoke Socrates.
-    pub invoke_threshold: f64,
+    pub ship: f64,
+    pub resample: f64,
+    pub retrieve: f64,
+    pub spawn_socrates: f64,
+    pub abstain: f64,
     pub weights: FusionWeights,
 }
 
 impl Default for FusionConfig {
     fn default() -> Self {
         Self {
-            answer_threshold: 0.75,
-            invoke_threshold: 0.55,
+            ship: 0.85,
+            resample: 0.70,
+            retrieve: 0.50,
+            spawn_socrates: 0.30,
+            abstain: 0.0,
             weights: FusionWeights::default(),
         }
     }
@@ -128,13 +134,11 @@ impl ConfidenceFuser {
     #[inline]
     pub fn score(&self, inputs: &FusionInputs) -> f64 {
         let w = &self.config.weights;
-        let contradiction_contribution =
-            (1.0 - inputs.contradiction_ratio) * w.contradiction_penalty;
         (inputs.evidence_quality * w.evidence_quality
             + inputs.citation_coverage * w.citation_coverage
-            + inputs.source_diversity_norm * w.source_diversity
-            + contradiction_contribution
-            + inputs.entropy_score * w.entropy_score)
+            + inputs.logprob_entropy * w.logprob_entropy
+            + inputs.sep_estimate * w.sep_estimate
+            + inputs.self_consistency * w.self_consistency)
             .clamp(0.0, 1.0)
     }
 
@@ -142,12 +146,16 @@ impl ConfidenceFuser {
     #[must_use]
     #[inline]
     pub fn decide(&self, score: f64) -> FusionDecision {
-        if score >= self.config.answer_threshold {
-            FusionDecision::AnswerDirectly
-        } else if score >= self.config.invoke_threshold {
-            FusionDecision::InvokeSocrates
+        if score >= self.config.ship {
+            FusionDecision::Ship
+        } else if score >= self.config.resample {
+            FusionDecision::Resample
+        } else if score >= self.config.retrieve {
+            FusionDecision::Retrieve
+        } else if score >= self.config.spawn_socrates {
+            FusionDecision::SpawnSocrates
         } else {
-            FusionDecision::Insufficient
+            FusionDecision::Abstain
         }
     }
 
@@ -193,9 +201,9 @@ mod tests {
         FusionInputs {
             evidence_quality: 0.9,
             citation_coverage: 0.85,
-            source_diversity_norm: 0.8,
-            contradiction_ratio: 0.0,
-            entropy_score: 0.8,
+            logprob_entropy: 0.9,
+            sep_estimate: 0.8,
+            self_consistency: 1.0,
         }
     }
 
@@ -203,55 +211,38 @@ mod tests {
         FusionInputs {
             evidence_quality: 0.1,
             citation_coverage: 0.1,
-            source_diversity_norm: 0.0,
-            contradiction_ratio: 0.8,
-            entropy_score: 0.2,
+            logprob_entropy: 0.1,
+            sep_estimate: 0.0,
+            self_consistency: 0.1,
         }
     }
 
     #[test]
-    fn high_quality_answers_directly() {
+    fn high_quality_ships() {
         let f = fuser();
         let (_, decision) = f.evaluate(&high_quality_inputs());
-        assert_eq!(decision, FusionDecision::AnswerDirectly);
+        assert_eq!(decision, FusionDecision::Ship);
     }
 
     #[test]
-    fn low_quality_is_insufficient() {
+    fn low_quality_abstains() {
         let f = fuser();
         let (_, decision) = f.evaluate(&low_quality_inputs());
-        assert_eq!(decision, FusionDecision::Insufficient);
+        assert_eq!(decision, FusionDecision::Abstain);
     }
 
     #[test]
-    fn mid_quality_invokes_socrates() {
+    fn mid_quality_spawns_socrates() {
         let f = fuser();
         let inputs = FusionInputs {
-            evidence_quality: 0.6,
-            citation_coverage: 0.5,
-            source_diversity_norm: 0.4,
-            contradiction_ratio: 0.1,
-            entropy_score: 0.6,
+            evidence_quality: 0.4,
+            citation_coverage: 0.4,
+            logprob_entropy: 0.4,
+            sep_estimate: 0.4,
+            self_consistency: 0.4,
         };
         let (_, decision) = f.evaluate(&inputs);
-        assert_eq!(decision, FusionDecision::InvokeSocrates);
-    }
-
-    #[test]
-    fn contradiction_penalty_lowers_score() {
-        let f = fuser();
-        let base = FusionInputs {
-            evidence_quality: 0.8,
-            citation_coverage: 0.8,
-            source_diversity_norm: 0.6,
-            contradiction_ratio: 0.0,
-            entropy_score: 0.7,
-        };
-        let contradicted = FusionInputs {
-            contradiction_ratio: 0.8,
-            ..base.clone()
-        };
-        assert!(f.score(&base) > f.score(&contradicted));
+        assert_eq!(decision, FusionDecision::SpawnSocrates);
     }
 
     #[test]
@@ -260,12 +251,12 @@ mod tests {
         let extreme = FusionInputs {
             evidence_quality: 2.0,
             citation_coverage: 2.0,
-            source_diversity_norm: 2.0,
-            contradiction_ratio: -1.0,
-            entropy_score: 2.0,
+            logprob_entropy: 2.0,
+            sep_estimate: -1.0,
+            self_consistency: 2.0,
         };
         let score = f.score(&extreme);
-        assert!(score >= 0.0 && score <= 1.0);
+        assert!((0.0..=1.0).contains(&score));
     }
 
     #[test]
@@ -280,38 +271,38 @@ mod tests {
         let inputs = FusionInputs::from_task_context(&ctx, Some(0.65));
         assert!((inputs.evidence_quality - 0.7).abs() < 1e-9);
         assert!((inputs.citation_coverage - 0.6).abs() < 1e-9);
-        assert!((inputs.source_diversity_norm - 0.6).abs() < 1e-9);
-        assert!((inputs.contradiction_ratio - 0.15).abs() < 1e-9);
-        assert!((inputs.entropy_score - 0.65).abs() < 1e-9);
+        assert!((inputs.logprob_entropy - 0.65).abs() < 1e-9);
+        assert!((inputs.sep_estimate - 0.6).abs() < 1e-9);
+        assert!((inputs.self_consistency - 0.7).abs() < 1e-9);
     }
 
     #[test]
     fn fusion_event_has_correct_metric_type() {
-        let event = FusionEvent::new(0.8, FusionDecision::AnswerDirectly, None);
+        let event = FusionEvent::new(0.9, FusionDecision::Ship, None);
         assert_eq!(event.metric_type, "orch.socrates.fusion");
     }
 
     #[test]
-    fn decide_at_exact_answer_threshold() {
+    fn decide_at_exact_ship_threshold() {
         let f = fuser();
-        assert_eq!(f.decide(0.75), FusionDecision::AnswerDirectly);
+        assert_eq!(f.decide(0.85), FusionDecision::Ship);
     }
 
     #[test]
-    fn decide_just_below_answer_threshold() {
+    fn decide_just_below_ship_threshold() {
         let f = fuser();
-        assert_eq!(f.decide(0.74), FusionDecision::InvokeSocrates);
+        assert_eq!(f.decide(0.84), FusionDecision::Resample);
     }
 
     #[test]
-    fn decide_at_exact_invoke_threshold() {
+    fn decide_at_exact_spawn_socrates_threshold() {
         let f = fuser();
-        assert_eq!(f.decide(0.55), FusionDecision::InvokeSocrates);
+        assert_eq!(f.decide(0.30), FusionDecision::SpawnSocrates);
     }
 
     #[test]
-    fn decide_just_below_invoke_threshold() {
+    fn decide_just_below_spawn_socrates_threshold() {
         let f = fuser();
-        assert_eq!(f.decide(0.54), FusionDecision::Insufficient);
+        assert_eq!(f.decide(0.29), FusionDecision::Abstain);
     }
 }

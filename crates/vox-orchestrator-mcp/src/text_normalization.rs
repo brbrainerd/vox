@@ -35,7 +35,7 @@ pub(crate) fn validate_llm_surface(original: &str, corrected: &str) -> bool {
     if corrected.is_empty() {
         return false;
     }
-    let max_len = original.len().saturating_mul(5).max(1024).min(32_768);
+    let max_len = original.len().saturating_mul(5).clamp(1024, 32_768);
     if corrected.len() > max_len {
         return false;
     }

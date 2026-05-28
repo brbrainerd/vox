@@ -1,0 +1,14 @@
+fn str_count_words_unique(s: str) to int {
+    if s.trim().len() == 0 {
+        return 0
+    }
+    let words: list[str] = s.split(" ")
+    let mut seen: list[str] = []
+    for word in words {
+        let lower: str = word.to_lower()
+        if lower.len() > 0 and not seen.contains(lower) {
+            seen.push(lower)
+        }
+    }
+    return seen.len()
+}

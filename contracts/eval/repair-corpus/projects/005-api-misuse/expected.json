@@ -1,0 +1,7 @@
+{
+  "id": "repair-005-api-misuse",
+  "bug_class": "api-misuse",
+  "post_repair_criterion": "vox_check_clean",
+  "expected_diagnostic_count_before_min": 1,
+  "expected_diagnostic_substring_before": "Cannot unify Str with Int"
+}

@@ -1,0 +1,38 @@
+[package]
+name = "vox-http-client"
+description = "Shared reqwest ClientBuilder presets and JSON error envelopes."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+middleware = [
+    "dep:async-trait",
+    "dep:http",
+    "dep:reqwest-middleware",
+    "dep:reqwest-retry",
+    "dep:tracing",
+]
+
+[dependencies]
+async-trait = { workspace = true, optional = true }
+http = { workspace = true, optional = true }
+reqwest = { workspace = true }
+reqwest-middleware = { workspace = true, optional = true }
+reqwest-retry = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+workspace-hack = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+reqwest = { workspace = true }
+
+[[test]]
+name = "middleware_stack_smoke"
+path = "tests/middleware_stack_smoke.rs"
+required-features = ["middleware"]
+
+[lints]
+workspace = true

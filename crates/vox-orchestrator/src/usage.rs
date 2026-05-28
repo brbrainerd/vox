@@ -12,10 +12,10 @@ use serde_json::json;
 /// Default `retry_after_secs` when a provider row is marked rate-limited ([`BudgetGate`](crate::gate::BudgetGate)).
 pub const DEFAULT_RATE_LIMIT_RETRY_SECS: u64 = 60;
 
-/// Keys rows in `provider_usage` / [`LIMITS`] for gating and accounting (not the API model slug).
+/// Keys rows in `provider_usage` / `LIMITS` for gating and accounting (not the API model slug).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct LlmUsageKey {
-    /// Provider namespace matching [`LIMITS`] (`google`, `openrouter`, `ollama`).
+    /// Provider namespace matching `LIMITS` (`google`, `openrouter`, `ollama`).
     pub provider: String,
     /// Model id or aggregate bucket (`:free` for all OpenRouter free models, `*` for Ollama).
     pub model: String,
@@ -481,7 +481,7 @@ impl<'a> UsageTracker<'a> {
             }
         }
 
-        candidates.sort_by(|a, b| b.0.remaining.cmp(&a.0.remaining));
+        candidates.sort_by_key(|c| std::cmp::Reverse(c.0.remaining));
 
         if let Some((best, _)) = candidates.first() {
             let default_model = match best.provider.as_str() {

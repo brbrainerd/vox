@@ -1,0 +1,11 @@
+[problem]
+id = "081"
+title = "repeat-list"
+prompt = """
+Write a Vox function repeat_list(items: list[int], n: int) to list[int] that returns the list concatenated n times. For example, [1,2] with n=3 returns [1,2,1,2,1,2].
+"""
+signature = "fn repeat_list(items: list[int], n: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

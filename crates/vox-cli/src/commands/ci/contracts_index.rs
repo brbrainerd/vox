@@ -21,6 +21,11 @@ const YAML_CONTRACT_SCHEMA_ID_OVERRIDES: &[(&str, &str)] = &[
         "scientia-distribution-default",
         "scientia-distribution-schema",
     ),
+    // YAML SSOT defines mutation_kind vocabulary; sibling .schema.json is the MCP response envelope.
+    (
+        "agent-computer-interface-v1",
+        "agent-computer-interface-v1-ssot-schema",
+    ),
 ];
 
 #[derive(Debug, Deserialize)]

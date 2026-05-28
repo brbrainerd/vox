@@ -1,4 +1,4 @@
-//! Lower AST [`Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
+//! Lower AST [`crate::Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
 //!
 //! This module is the **HIR boundary** before `vox_codegen::web_ir::lower::project_web_from_core`.
 //! Declaration arms here define what structured data reaches WebIR (`HirRoutes`,
@@ -26,6 +26,7 @@ mod contracts;
 mod db_select_normalize;
 mod decl;
 mod expr_db;
+mod json_as;
 #[path = "expr.rs"]
 mod lowering_expr;
 #[path = "stmt.rs"]
@@ -44,6 +45,8 @@ fn cap_to_effect_kind(cap: &HirCapability) -> Option<crate::hir::nodes::effect::
         HirCapability::Clock => Some(HirEffectKind::Clock),
         HirCapability::Random => Some(HirEffectKind::Random),
         HirCapability::Spawn => Some(HirEffectKind::Spawn),
+        HirCapability::GpuCompute => Some(HirEffectKind::GpuCompute),
+        HirCapability::Mutate => Some(HirEffectKind::Mutate),
         HirCapability::Mcp(t) => Some(HirEffectKind::Mcp(t.clone())),
         HirCapability::Nothing => None,
     }
@@ -70,6 +73,11 @@ pub fn lower_module_with_config(module: &Module, config: &LowerConfig) -> HirMod
 struct LowerCtx {
     def_map: DefMap,
     config: LowerConfig,
+    /// Auto-incremented counter for synthesised `__side_effect_<n>` activity names (P1-T7).
+    synthesis_counter: usize,
+    /// Inline activities synthesised from `side_effect { … }` blocks during lowering.
+    /// Drained into `HirModule::functions` after the main declaration pass completes.
+    synthesised_fns: Vec<crate::hir::nodes::HirFn>,
 }
 
 impl LowerCtx {
@@ -77,7 +85,15 @@ impl LowerCtx {
         Self {
             def_map: DefMap::new(),
             config,
+            synthesis_counter: 0,
+            synthesised_fns: Vec::new(),
         }
+    }
+
+    pub(crate) fn next_synthesis_counter(&mut self) -> usize {
+        let n = self.synthesis_counter;
+        self.synthesis_counter += 1;
+        n
     }
 
     fn lower(&mut self, module: &Module) -> HirModule {
@@ -99,6 +115,9 @@ impl LowerCtx {
                                 hir.imports.push(HirImport {
                                     module_path: mod_path,
                                     item: path.alias.clone().unwrap_or(item),
+                                    es_module_specifier: None,
+                                    local_file_path: None,
+                                    local_file_alias: None,
                                     span: path.span,
                                 });
                             }
@@ -117,6 +136,33 @@ impl LowerCtx {
                                     span: path.span,
                                 });
                             }
+                            ImportPathKind::ReactComponent {
+                                local_name,
+                                module_specifier,
+                            } => {
+                                hir.imports.push(HirImport {
+                                    module_path: Vec::new(),
+                                    item: local_name.clone(),
+                                    es_module_specifier: Some(module_specifier.clone()),
+                                    local_file_path: None,
+                                    local_file_alias: None,
+                                    span: path.span,
+                                });
+                            }
+                            ImportPathKind::LocalFile { path: file_path } => {
+                                // Intra-project Vox file import (RFC 2026-05-23).
+                                // Resolution + cycle detection happens at
+                                // `Interpreter::run_module` time via
+                                // `local_file_path`.
+                                hir.imports.push(HirImport {
+                                    module_path: Vec::new(),
+                                    item: String::new(),
+                                    es_module_specifier: None,
+                                    local_file_path: Some(file_path.clone()),
+                                    local_file_alias: path.alias.clone(),
+                                    span: path.span,
+                                });
+                            }
                         }
                     }
                 }
@@ -125,10 +171,14 @@ impl LowerCtx {
                 }
                 Decl::TypeDef(t) => {
                     hir.types.push(self.lower_typedef(t));
+                    // RFC json-as-rfc-2026-05-24 §6: synthesise from_json / to_json for
+                    // `@json_as`-annotated types. The synthesised HirFns are collected here
+                    // and drained into hir.functions (below) so typeck / eval / codegen see
+                    // them as ordinary top-level functions — no special-casing needed.
+                    hir.functions
+                        .extend(json_as::synthesise_json_as_fns(self, t));
                 }
-                Decl::HttpRoute(r) => {
-                    hir.routes.push(self.lower_route(r));
-                }
+
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func);
                     hir.mcp_tools.push(HirMcpTool {
@@ -173,6 +223,71 @@ impl LowerCtx {
                         }
                     };
                     let route_path = format!("{prefix}{}", lowered.name);
+                    let webhook = e.func.webhook.as_ref().map(|w| {
+                        use crate::ast::decl::webhook::AstWebhookProvider as A;
+                        use crate::hir::nodes::boilerplate_grafts::{
+                            HirWebhookDecl, WebhookProvider as H,
+                        };
+                        let provider = match &w.provider {
+                            A::Stripe => H::Stripe,
+                            A::Github => H::Github,
+                            A::Slack => H::Slack,
+                            A::Custom { secret_var } => H::Custom {
+                                secret_var: secret_var.clone(),
+                            },
+                        };
+                        HirWebhookDecl {
+                            provider,
+                            idempotent: w.idempotent,
+                            replay_window_secs: w.replay_window_secs,
+                            span: w.span,
+                        }
+                    });
+                    let cors = e.func.cors_spec.as_ref().map(|c| {
+                        crate::hir::nodes::http_ergonomics::HirCorsPolicy {
+                            origins: c.origins.clone(),
+                            allow_credentials: c.allow_credentials,
+                            span: c.span,
+                        }
+                    });
+                    let rate_limit = e.func.rate_limit.as_ref().map(|r| {
+                        use crate::ast::decl::http_decorators::AstRateLimitBy as A;
+                        use crate::hir::nodes::http_ergonomics::{
+                            HirRateLimitPolicy, RateLimitBy as H,
+                        };
+                        HirRateLimitPolicy {
+                            by: match r.by {
+                                A::Ip => H::Ip,
+                                A::UserId => H::UserId,
+                                A::ApiKey => H::ApiKey,
+                            },
+                            window_secs: r.window_secs,
+                            max_requests: r.max_requests,
+                            span: r.span,
+                        }
+                    });
+                    let pii = e.func.pii.as_ref().map(|p| {
+                        use crate::ast::decl::http_decorators::AstPiiClass as A;
+                        use crate::hir::nodes::boilerplate_grafts::{HirPiiMarker, PiiClass as H};
+                        let class = match &p.class {
+                            A::Name => H::Name,
+                            A::Email => H::Email,
+                            A::Phone => H::Phone,
+                            A::Ip => H::Ip,
+                            A::FinancialData => H::FinancialData,
+                            A::BiometricData => H::BiometricData,
+                            A::Other(_) => H::Email, // best-effort fallback
+                        };
+                        HirPiiMarker {
+                            class,
+                            span: p.span,
+                        }
+                    });
+                    let layer = e.func.layer.as_ref().and_then(|l| {
+                        crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {
+                            crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
+                        })
+                    });
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind,
                         id: lowered.id,
@@ -187,6 +302,11 @@ impl LowerCtx {
                             .iter()
                             .filter_map(cap_to_effect_kind)
                             .collect(),
+                        webhook,
+                        cors,
+                        rate_limit,
+                        pii,
+                        layer,
                         span: lowered.span,
                     });
                 }
@@ -228,6 +348,10 @@ impl LowerCtx {
                 }
                 Decl::Routes(r) => {
                     hir.client_routes.push(r.clone());
+                    // GA-09a: derive typed RouteId from each route entry.
+                    for entry in &r.entries {
+                        hir.route_ids.push(route_entry_to_route_id(entry));
+                    }
                 }
                 Decl::Form(f) => {
                     hir.forms.push(self.lower_form(f));
@@ -318,11 +442,13 @@ impl LowerCtx {
                 Decl::Workflow(w) => {
                     let mut f = self.lower_workflow(w);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Workflow);
+                    f.generated_hash = Some(stamp_durable_hash(&f));
                     hir.functions.push(f);
                 }
                 Decl::Activity(a) => {
                     let mut f = self.lower_activity(a);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Activity);
+                    f.generated_hash = Some(stamp_durable_hash(&f));
                     hir.functions.push(f);
                 }
                 Decl::Actor(a) => {
@@ -370,6 +496,60 @@ impl LowerCtx {
                         span: p.span,
                     });
                 }
+                Decl::Tokens(t) => {
+                    use crate::hir::nodes::tokens::{
+                        HirColorToken, HirFontToken, HirScalarToken, HirShadowToken, HirTokensDecl,
+                    };
+                    hir.token_decls.push(HirTokensDecl {
+                        span: t.span,
+                        colors: t
+                            .colors
+                            .iter()
+                            .map(|c| HirColorToken {
+                                name: c.name.clone(),
+                                light: c.light.clone(),
+                                dark: c.dark.clone(),
+                                span: c.span,
+                            })
+                            .collect(),
+                        spacing: t
+                            .spacing
+                            .iter()
+                            .map(|s| HirScalarToken {
+                                name: s.name.clone(),
+                                value: s.value.clone(),
+                                span: s.span,
+                            })
+                            .collect(),
+                        radius: t
+                            .radius
+                            .iter()
+                            .map(|r| HirScalarToken {
+                                name: r.name.clone(),
+                                value: r.value.clone(),
+                                span: r.span,
+                            })
+                            .collect(),
+                        shadows: t
+                            .shadows
+                            .iter()
+                            .map(|s| HirShadowToken {
+                                name: s.name.clone(),
+                                value: s.value.clone(),
+                                span: s.span,
+                            })
+                            .collect(),
+                        fonts: t
+                            .fonts
+                            .iter()
+                            .map(|f| HirFontToken {
+                                name: f.name.clone(),
+                                family: f.family.clone(),
+                                span: f.span,
+                            })
+                            .collect(),
+                    });
+                }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
                 }
@@ -390,8 +570,90 @@ impl LowerCtx {
 
         db_select_normalize::normalize_db_select_projections(&mut hir);
 
+        // Drain synthesised side_effect activities (P1-T7) into the function list.
+        hir.functions.append(&mut self.synthesised_fns);
+
         hir
     }
+}
+
+/// GA-09a: Derive a typed `HirRouteId` from a single `RouteEntry`.
+///
+/// Extracts `:param` segments from the path and derives the analytics slug
+/// from the component name via snake_case conversion.
+fn route_entry_to_route_id(
+    entry: &crate::ast::decl::ui::RouteEntry,
+) -> crate::hir::nodes::boilerplate_grafts::HirRouteId {
+    let params: Vec<(String, String)> = entry
+        .path
+        .split('/')
+        .filter(|seg| seg.starts_with(':'))
+        .map(|seg| (seg[1..].to_string(), "string".to_string()))
+        .collect();
+    let analytics_slug = pascal_to_snake(&entry.component_name);
+    crate::hir::nodes::boilerplate_grafts::HirRouteId {
+        name: entry.component_name.clone(),
+        url_pattern: entry.path.clone(),
+        params,
+        analytics_slug,
+        span: entry.span,
+    }
+}
+
+fn pascal_to_snake(s: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.push(c.to_ascii_lowercase());
+    }
+    out
+}
+
+/// Compute a deterministic SHA3-512 hex hash over a durable function's compile inputs.
+///
+/// Inputs: durability label, name, param names+types (Debug repr), return type, body
+/// (Debug repr), and vox compiler version. Whitespace/comment changes in the source do
+/// not affect this hash — HIR Debug output is canonical.
+fn strip_spans(v: &mut serde_json::Value) {
+    // Span objects serialize as {"start": N, "end": N} — detect by shape.
+    if let serde_json::Value::Object(map) = v {
+        if map.len() == 2 && map.contains_key("start") && map.contains_key("end") {
+            *v = serde_json::Value::Null;
+            return;
+        }
+        // Named "span" field on a struct — remove it then recurse.
+        map.remove("span");
+        for val in map.values_mut() {
+            strip_spans(val);
+        }
+        return;
+    }
+    if let serde_json::Value::Array(arr) = v {
+        for val in arr.iter_mut() {
+            strip_spans(val);
+        }
+    }
+}
+
+fn stamp_durable_hash(f: &crate::hir::nodes::HirFn) -> String {
+    use sha3::{Digest, Sha3_512};
+    // Serialize only semantic fields, then strip all span objects so that
+    // whitespace-only edits (which change source positions) don't bust the hash.
+    let semantic = serde_json::json!({
+        "kind": f.durability.as_ref().map(|d| d.label()),
+        "name": f.name,
+        "params": serde_json::to_value(&f.params).unwrap_or(serde_json::Value::Null),
+        "return_type": serde_json::to_value(&f.return_type).unwrap_or(serde_json::Value::Null),
+        "body": serde_json::to_value(&f.body).unwrap_or(serde_json::Value::Null),
+        "ver": env!("CARGO_PKG_VERSION"),
+    });
+    let mut semantic = semantic;
+    strip_spans(&mut semantic);
+    let canonical = serde_json::to_string(&semantic).unwrap_or_default();
+    let digest = Sha3_512::digest(canonical.as_bytes());
+    digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[cfg(test)]
@@ -409,7 +671,7 @@ mod tests {
 
     /// Fully lowered web constructs must not pile into `legacy_ast_nodes` (Path C / HIR bridge).
     #[test]
-    #[ignore = "Path B removed"]
+    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_leaves_no_legacy_nodes_for_core_web_decls() {
         let src = r#"
 import react.use_state
@@ -432,9 +694,7 @@ http post "/chat" to Result { return Ok(0) }
             hir.legacy_ast_nodes
         );
         assert_eq!(hir.tables.len(), 1);
-        assert_eq!(hir.routes.len(), 1);
         assert_eq!(hir.endpoint_fns.len(), 1);
-        assert_eq!(hir.routes[0].route_contract, "POST /chat");
         assert_eq!(
             hir.endpoint_fns[0].route_path,
             format!("{SERVER_FN_API_PREFIX}{}", "doThing")
@@ -442,7 +702,7 @@ http post "/chat" to Result { return Ok(0) }
     }
 
     #[test]
-    #[ignore = "Path B removed"]
+    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
     fn golden_crud_api_vox_lowers_without_legacy_nodes() {
         let src = include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -458,11 +718,10 @@ http post "/chat" to Result { return Ok(0) }
         );
         assert_eq!(hir.tables.len(), 1);
         assert_eq!(hir.endpoint_fns.len(), 3);
-        assert_eq!(hir.routes.len(), 1);
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db filter record lowering parity — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_filter_becomes_filter_record_ir() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -484,10 +743,10 @@ fn f() to int {
                 dbg!(&cargs[0].value);
                 if let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
                     &cargs[0].value
+                    && method == "filter"
+                    && plan.op == crate::hir::HirDbTableOp::FilterRecord
                 {
-                    if method == "filter" && plan.op == crate::hir::HirDbTableOp::FilterRecord {
-                        found = true;
-                    }
+                    found = true;
                 }
             }
         }
@@ -495,7 +754,7 @@ fn f() to int {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db filter+count chain lowering — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_filter_count_chain_becomes_count_with_filter_args() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -539,7 +798,7 @@ fn f() to Unit {
             if let crate::hir::HirStmt::Expr { expr, .. } = st
                 && let crate::hir::HirExpr::MethodCall(_, _, _, Some(plan), _) = expr
                 && plan.op == crate::hir::HirDbTableOp::FilterRecord
-                && matches!(plan.order_by, Some(ref ob) if ob.0 == "name" && ob.1 == false)
+                && matches!(plan.order_by, Some(ref ob) if ob.0 == "name" && !ob.1)
                 && plan.has_limit
             {
                 found = true;
@@ -549,7 +808,7 @@ fn f() to Unit {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db all().select projection — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_all_select_sets_projection() {
         let src = r#"
 @table type User { name: str active: bool }
@@ -582,7 +841,7 @@ fn f() to int {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "HIR db where object predicate plan — owner: compiler sunset: 2026-12-31"]
     fn hir_lowering_db_where_object_builds_predicate_plan() {
         let src = r#"
 @table type User { name: str age: int active: bool }
@@ -641,12 +900,16 @@ fn f() to Unit {
         );
     }
 
+    /// `@query` and `@mutation` are the canonical replacements for the
+    /// v0.5-era `@endpoint(kind: query)` / `@endpoint(kind: mutation)`
+    /// forms (retired in v0.6.0 per Phase H step 18).  Both produce
+    /// `HirEndpointFn` entries with the same `route_path` prefix.
     #[test]
     fn hir_lowering_maps_endpoint_query_and_mutation_decls() {
         let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q1() to int { return 0 }
-@endpoint(kind: mutation) fn m1() to Unit {
+@query fn q1() to int { return 0 }
+@mutation fn m1() to Unit {
     db.User.insert({ name: "a", active: true })
 }
 "#;
@@ -737,7 +1000,7 @@ fn f() to Unit {
     }
 
     #[test]
-    #[ignore = "Path B removed"]
+    #[ignore = "Path B removed — owner: compiler sunset: 2026-12-31"]
     fn test_hir_lowering_environment() {
         let tokens = crate::lexer::lex(
             r#"

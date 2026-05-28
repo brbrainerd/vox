@@ -1,0 +1,5 @@
+[package]
+name = "repair-011-type-mismatch-return-branch"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: type-error bug class. Two branches return different types."

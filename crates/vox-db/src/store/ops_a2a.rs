@@ -88,7 +88,7 @@ impl crate::VoxDb {
 
     /// Poll unacknowledged messages for an agent in a repository.
     ///
-    /// Claims a bounded batch for [`default_a2a_consumer_id`] so concurrent poll workers do not
+    /// Claims a bounded batch for `default_a2a_consumer_id` so concurrent poll workers do not
     /// receive duplicate rows until the claim lease expires. Override the consumer via
     /// `VOX_A2A_CONSUMER_ID` or call [`Self::poll_a2a_inbox_claimed`].
     pub async fn poll_a2a_inbox(

@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA implementation wave playbook 2026"
 description: "Execution playbook for the 232-task SCIENTIA implementation program with wave-by-wave acceptance criteria, sequencing, and operator checkpoints."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 sort_order: 15
 last_updated: "2026-04-06"

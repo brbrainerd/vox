@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.local/contracts/reports/research-eval/results.v1.schema.json",
+  "title": "Vox Research Evaluation Results",
+  "type": "object",
+  "required": ["schema_version", "run_id", "suite", "total_samples", "metrics"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "suite": { "type": "string", "minLength": 1 },
+    "total_samples": { "type": "integer", "minimum": 0 },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "citation_precision",
+        "citation_recall",
+        "answer_factuality",
+        "abstention_rate",
+        "avg_latency_ms"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "citation_precision": { "type": "number", "minimum": 0, "maximum": 1 },
+        "citation_recall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "answer_factuality": { "type": "number", "minimum": 0, "maximum": 1 },
+        "abstention_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "avg_latency_ms": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

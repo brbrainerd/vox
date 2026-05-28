@@ -171,6 +171,12 @@ impl ProbePipeline {
         }
         // nvml.rs deleted: NVML probing is owned by vox-plugin-nvml-probe.
         // wgpu_probe deleted: Burn/wgpu removed.
+        #[cfg(target_os = "windows")]
+        {
+            pipeline = pipeline.with_probe(Box::new(
+                crate::mens::hardware::windows_fallback::WindowsFallbackProbe,
+            ));
+        }
 
         pipeline
     }

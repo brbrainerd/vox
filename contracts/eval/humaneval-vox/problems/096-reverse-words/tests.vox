@@ -1,0 +1,14 @@
+fn reverse_words(s: str) to str {
+    let words: list[str] = s.split(" ")
+    let rev: list[str] = words.reversed()
+    return rev.join(" ")
+}
+
+fn main() to str {
+    assert(reverse_words("hello world") == "world hello")
+    assert(reverse_words("one two three") == "three two one")
+    assert(reverse_words("single") == "single")
+    assert(reverse_words("a b c d") == "d c b a")
+    assert(reverse_words("foo bar baz") == "baz bar foo")
+    return "ok"
+}

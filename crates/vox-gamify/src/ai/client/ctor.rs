@@ -13,10 +13,10 @@ use super::{AiReportFn, CostReportFn, FreeAiClient, LudusStreamBackend, StreamRo
 impl FreeAiClient {
     /// Create a client with an explicit provider list.
     pub fn new(providers: Vec<FreeAiProvider>) -> Self {
-        let http = vox_reqwest_defaults::client_builder()
+        let http = vox_http_client::client_builder()
             .timeout(std::time::Duration::from_secs(HTTP_TIMEOUT_SECS))
             .build()
-            .unwrap_or_else(|_| vox_reqwest_defaults::client());
+            .unwrap_or_else(|_| vox_http_client::client());
         Self {
             providers,
             http,
@@ -94,10 +94,10 @@ impl FreeAiClient {
 
     /// Check if Ollama is reachable at the given URL.
     pub(crate) async fn probe_ollama(url: &str) -> bool {
-        let probe_client = vox_reqwest_defaults::client_builder()
+        let probe_client = vox_http_client::client_builder()
             .timeout(std::time::Duration::from_secs(OLLAMA_PROBE_TIMEOUT_SECS))
             .build()
-            .unwrap_or_else(|_| vox_reqwest_defaults::client());
+            .unwrap_or_else(|_| vox_http_client::client());
         probe_client
             .get(format!("{}/api/version", url))
             .send()

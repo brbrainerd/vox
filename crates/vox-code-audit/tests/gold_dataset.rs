@@ -162,19 +162,10 @@ fn gold_eval_precision_recall_by_rule_prefix() {
             .filter(|f| f.line == case.line && f.rule_id.starts_with(&case.rule_id_prefix))
             .collect();
 
-        match case.label.as_str() {
-            "true_positive" => {
-                if matches_line.is_empty() {
-                    fn_ct += 1;
-                } else {
-                    tp += 1;
-                }
-            }
-            "false_positive" => {
-                if !matches_line.is_empty() {
-                    fp += 1;
-                }
-            }
+        match (case.label.as_str(), matches_line.is_empty()) {
+            ("true_positive", true) => fn_ct += 1,
+            ("true_positive", false) => tp += 1,
+            ("false_positive", false) => fp += 1,
             _ => {}
         }
     }

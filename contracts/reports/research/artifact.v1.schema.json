@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.local/contracts/reports/research/artifact.v1.schema.json",
+  "title": "Vox Research Run Artifact",
+  "type": "object",
+  "required": ["schema_version", "query", "plan", "result", "report_markdown"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "query": {
+      "type": "object"
+    },
+    "plan": {
+      "type": "object"
+    },
+    "result": {
+      "type": "object",
+      "required": ["answer", "sources", "citations", "research_metadata"],
+      "additionalProperties": true,
+      "properties": {
+        "answer": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array"
+        },
+        "citations": {
+          "type": "array"
+        },
+        "research_metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "report_markdown": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

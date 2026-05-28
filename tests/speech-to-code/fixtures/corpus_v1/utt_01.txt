@@ -1,0 +1,1 @@
+create function audit sample 1 returns ok

@@ -7,18 +7,45 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
 
 <vox-playground data-initial-code={initialCode}>
   <div class="vox-playground">
-    <div class="notice-banner">
-      <strong>Note:</strong> Live execution is currently disabled on the static GitHub Pages deployment. A dedicated sandbox backend is pending in a future update.
+    <!-- Shown only when backend health probe succeeds (JS enables it) -->
+    <div class="live-ui" style="display:none">
+      <div class="editor-container">
+        <textarea class="code-editor" spellcheck="false" aria-label="Vox Code Editor"></textarea>
+      </div>
+      <div class="actions">
+        <button class="run-btn" aria-label="Run Vox code">Run</button>
+        <span class="status-msg"></span>
+      </div>
+      <div class="output-container">
+        <pre class="output-display"></pre>
+      </div>
     </div>
-    <div class="editor-container">
-      <textarea class="code-editor" spellcheck="false" aria-label="Vox Code Editor"></textarea>
-    </div>
-    <div class="actions">
-      <button class="run-btn" disabled title="Pending backend deployment">Run Code</button>
-      <span class="status-msg">Execution Offline</span>
-    </div>
-    <div class="output-container">
-      <pre class="output-display">Waiting for backend...</pre>
+
+    <!-- Default state when backend is offline: clean static code demo, no broken banner -->
+    <div class="static-demo">
+      <div class="demo-label">Vox — Language at a Glance</div>
+      <pre class="demo-code"><code>// One declaration → schema, API, typed client
+@table type Task &#123;
+    title:    str
+    done:     bool
+    priority: int
+&#125;
+
+// Compile-enforced: every caller handles both branches
+@endpoint(kind: query)
+fn get_tasks() to List[Task] &#123;
+    return db.Task.all()
+&#125;
+
+// Expose to AI agents via MCP
+@mcp.tool "Mark a task complete"
+fn complete(id: Id[Task]) to Result[Unit] &#123;
+    db.Task.delete(id)
+    return Ok(Unit)
+&#125;</code></pre>
+      <div class="demo-footer">
+        <span class="demo-note">Live execution coming soon — <a href="/tutorials/tut-getting-started/">install Vox locally</a> to run code now.</span>
+      </div>
     </div>
   </div>
 </vox-playground>
@@ -31,16 +58,8 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
     margin: 1.5rem 0;
     background-color: var(--sl-color-bg);
   }
-  .notice-banner {
-    background-color: var(--sl-color-orange-low);
-    color: var(--sl-color-orange-high);
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    border-bottom: 1px solid var(--sl-color-gray-5);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
+
+  /* ── Live editor (hidden until backend confirms healthy) ── */
   .editor-container {
     border-bottom: 1px solid var(--sl-color-gray-5);
   }
@@ -77,13 +96,8 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
     cursor: pointer;
     transition: background-color 0.2s;
   }
-  .run-btn:hover {
-    background-color: var(--sl-color-accent-high);
-  }
-  .run-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  .run-btn:hover { background-color: var(--sl-color-accent-high); }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .status-msg {
     font-size: 0.875rem;
     color: var(--sl-color-gray-3);
@@ -101,64 +115,95 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
     white-space: pre-wrap;
     word-break: break-all;
   }
+
+  /* ── Static demo (shown when backend is offline — the default) ── */
+  .static-demo {
+    background: var(--sl-color-black);
+  }
+  .demo-label {
+    padding: 0.6rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+  .demo-code {
+    margin: 0;
+    padding: 1.25rem 1rem;
+    overflow-x: auto;
+  }
+  .demo-code code {
+    font-family: var(--sl-font-mono);
+    font-size: 0.875rem;
+    color: var(--sl-color-gray-2);
+    white-space: pre;
+  }
+  .demo-footer {
+    padding: 0.6rem 1rem;
+    border-top: 1px solid var(--sl-color-gray-5);
+    background-color: var(--sl-color-gray-6);
+  }
+  .demo-note {
+    font-size: 0.8rem;
+    color: var(--sl-color-gray-3);
+  }
+  .demo-note a {
+    color: var(--sl-color-accent);
+    text-decoration: none;
+  }
+  .demo-note a:hover { text-decoration: underline; }
 </style>
 
 <script>
   class VoxPlayground extends HTMLElement {
     constructor() {
       super();
-      const initialCode = this.dataset.initialCode || "";
-      const editor = this.querySelector(".code-editor");
-      const runBtn = this.querySelector(".run-btn");
-      const statusMsg = this.querySelector(".status-msg");
-      const outputDisplay = this.querySelector(".output-display");
-      const noticeBanner = this.querySelector(".notice-banner");
+      const initialCode = this.dataset.initialCode || '';
+      const liveUi = this.querySelector('.live-ui');
+      const staticDemo = this.querySelector('.static-demo');
+      const editor = this.querySelector('.code-editor');
+      const runBtn = this.querySelector('.run-btn');
+      const statusMsg = this.querySelector('.status-msg');
+      const outputDisplay = this.querySelector('.output-display');
 
-      if (editor) editor.value = initialCode;
-      
-      const evalUrl = import.meta.env?.PUBLIC_VOX_EVAL_ENDPOINT || localStorage.getItem("VOX_EVAL_ENDPOINT") || "https://eval.voxlang.org/v1/eval";
-      const healthUrl = evalUrl.replace("/v1/eval", "/health");
+      const evalUrl =
+        import.meta.env?.PUBLIC_VOX_EVAL_ENDPOINT ||
+        localStorage.getItem('VOX_EVAL_ENDPOINT') ||
+        'https://eval.voxlang.org/v1/eval';
+      const healthUrl = evalUrl.replace('/v1/eval', '/health');
 
-      // Auto-detect backend health on mount
-      if (runBtn && noticeBanner && statusMsg) {
-        fetch(healthUrl, { signal: AbortSignal.timeout(2000) })
-          .then(res => {
-            if (res.ok) {
-              runBtn.disabled = false;
-              runBtn.title = "Run Vox Code";
-              statusMsg.textContent = "Ready";
-              noticeBanner.style.display = "none";
-              outputDisplay.textContent = "Ready.";
-            }
-          })
-          .catch(() => {
-            // Fails silently; remains in default offline state (disabled + banner showing)
-          });
-      }
+      // Probe backend; swap to live editor only if healthy
+      fetch(healthUrl, { signal: AbortSignal.timeout(2500) })
+        .then((res) => {
+          if (!res.ok) throw new Error('unhealthy');
+          if (staticDemo) staticDemo.style.display = 'none';
+          if (liveUi) liveUi.style.display = '';
+          if (editor) editor.value = initialCode;
+          if (outputDisplay) outputDisplay.textContent = 'Ready.';
+        })
+        .catch(() => {
+          // Remain in static-demo state — intentional, no banner needed
+        });
 
       if (runBtn) {
-        runBtn.addEventListener("click", async () => {
+        runBtn.addEventListener('click', async () => {
           const code = editor.value;
           if (!code.trim()) return;
-
           runBtn.disabled = true;
-          statusMsg.textContent = "Executing...";
-          outputDisplay.textContent = "";
+          statusMsg.textContent = 'Executing…';
+          outputDisplay.textContent = '';
 
           try {
-            const token = localStorage.getItem("VOX_EVAL_TOKEN") || "";
-
-            const headers = {
-              "Content-Type": "application/json",
-            };
-            if (token) {
-              headers["Authorization"] = `Bearer ${token}`;
-            }
+            const token = localStorage.getItem('VOX_EVAL_TOKEN') || '';
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
 
             const res = await fetch(evalUrl, {
-              method: "POST",
+              method: 'POST',
               headers,
-              body: JSON.stringify({ code })
+              body: JSON.stringify({ code }),
             });
 
             if (!res.ok) {
@@ -169,18 +214,20 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
             const data = await res.json();
             if (data.error) {
               outputDisplay.textContent = `Error: ${data.error}\n\n${data.stderr}`;
-              outputDisplay.style.color = "var(--sl-color-text-error, #f87171)";
+              outputDisplay.style.color = 'var(--sl-color-text-error, #f87171)';
             } else {
-              let out = data.stdout || "";
+              let out = data.stdout || '';
               if (data.stderr) out += `\n[stderr]\n${data.stderr}`;
-              outputDisplay.textContent = out || "(no output)";
-              outputDisplay.style.color = data.success ? "var(--sl-color-gray-2)" : "var(--sl-color-text-error, #f87171)";
+              outputDisplay.textContent = out || '(no output)';
+              outputDisplay.style.color = data.success
+                ? 'var(--sl-color-gray-2)'
+                : 'var(--sl-color-text-error, #f87171)';
             }
-            statusMsg.textContent = "Done";
+            statusMsg.textContent = 'Done';
           } catch (err) {
-            outputDisplay.textContent = `Execution Failed: ${err.message}`;
-            outputDisplay.style.color = "var(--sl-color-text-error, #f87171)";
-            statusMsg.textContent = "Error";
+            outputDisplay.textContent = `Execution failed: ${err.message}`;
+            outputDisplay.style.color = 'var(--sl-color-text-error, #f87171)';
+            statusMsg.textContent = 'Error';
           } finally {
             runBtn.disabled = false;
           }
@@ -189,5 +236,5 @@ const { initialCode = '// Write some Vox code here\nfn main() {\n    print("Hell
     }
   }
 
-  customElements.define("vox-playground", VoxPlayground);
+  customElements.define('vox-playground', VoxPlayground);
 </script>

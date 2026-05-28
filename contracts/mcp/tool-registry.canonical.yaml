@@ -243,8 +243,8 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
-- name: vox_secrets_doctor
-  description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+- name: vox_code_audit_findings_upsert
+  description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
   product_lane: platform
   http_read_role_eligible: false
   tier: core
@@ -418,6 +418,56 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_gamify_battle_start
+  description: Start a bug battle from a synthetic finding (companion name + rule + message).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_battle_submit
+  description: Submit code for the active bug battle for a companion (success flag).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_collegium_join
+  description: Join a collegium and emit a Ludus collegium_joined policy event.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_notification_ack
+  description: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_notifications_ack_all
+  description: Mark all unread Ludus notifications as read for the canonical user.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_notifications_list
+  description: List unread Ludus (gamification) notifications for the current canonical user from Codex.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_progress_snapshot
+  description: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_quest_list
+  description: List Ludus quests for the canonical user (read-only).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_shop_buy
+  description: Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_gamify_shop_catalog
+  description: Crystal shop catalog with effective prices for the current gamify mode.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
 - name: vox_generate_code
   description: Generate validated Vox code from a prompt; optional `output_path` (repo-relative) writes UTF-8 and returns `meta.file_outcomes`; optional `vcs_agent_id` captures a post-write snapshot id in `meta.file_outcomes.post_write_snapshot_id`.
   product_lane: ai
@@ -518,56 +568,6 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
-- name: vox_ludus_battle_start
-  description: Start a bug battle from a synthetic finding (companion name + rule + message).
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_battle_submit
-  description: Submit code for the active bug battle for a companion (success flag).
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_collegium_join
-  description: Join a collegium and emit a Ludus collegium_joined policy event.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_notification_ack
-  description: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_notifications_ack_all
-  description: Mark all unread Ludus notifications as read for the canonical user.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_notifications_list
-  description: List unread Ludus (gamification) notifications for the current canonical user from Codex.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_progress_snapshot
-  description: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_quest_list
-  description: List Ludus quests for the canonical user (read-only).
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_shop_buy
-  description: Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
-- name: vox_ludus_shop_catalog
-  description: Crystal shop catalog with effective prices for the current gamify mode.
-  product_lane: ai
-  http_read_role_eligible: false
-  tier: core
 - name: vox_map_agent_session
   description: 'Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session).'
   product_lane: ai
@@ -599,7 +599,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_memory_search
-  description: Search daily logs and MEMORY.md for a keyword query.
+  description: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   product_lane: ai
   http_read_role_eligible: false
   tier: core
@@ -883,6 +883,26 @@ tools:
   product_lane: platform
   http_read_role_eligible: true
   tier: core
+- name: vox_research_get
+  description: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_research_run
+  description: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_research_start
+  description: MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_research_status
+  description: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
 - name: vox_resolve_conflict
   description: Resolve a file conflict.
   product_lane: ai
@@ -1058,6 +1078,16 @@ tools:
   product_lane: data
   http_read_role_eligible: false
   tier: core
+- name: vox_secrets_doctor
+  description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_semantic_fs_discover
+  description: Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
 - name: vox_session_cleanup
   description: Tick lifecycle and remove archived sessions.
   product_lane: ai
@@ -1187,11 +1217,6 @@ tools:
   description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
   product_lane: ai
   http_read_role_eligible: true
-  tier: core
-- name: vox_code_audit_findings_upsert
-  description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
-  product_lane: platform
-  http_read_role_eligible: false
   tier: core
 - name: vox_transfer_file
   description: Transfer ownership of a file to another agent.

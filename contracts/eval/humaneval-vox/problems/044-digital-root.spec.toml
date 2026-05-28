@@ -1,0 +1,11 @@
+[problem]
+id = "044"
+title = "digital_root"
+prompt = """
+Compute the digital root of a non-negative integer: repeatedly sum its digits until a single digit remains. digital_root(0) = 0.
+"""
+signature = "fn digital_root(n: int) to int"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

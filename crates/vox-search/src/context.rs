@@ -10,7 +10,7 @@ use vox_db::VoxDb;
 pub struct SearchRuntimeContext {
     /// Repository root used for inventory / path lexical matches.
     pub repo_root: PathBuf,
-    /// Optional Codex handle (knowledge graph, chunk hybrid, embeddings).
+    /// Optional [`vox_db::VoxDb`] handle (knowledge graph, chunk hybrid, embeddings).
     pub db: Option<Arc<VoxDb>>,
     /// Directory scanned for markdown memory files (daily logs tree).
     pub memory_log_dir: PathBuf,

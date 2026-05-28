@@ -1,7 +1,7 @@
 ---
 title: "Research Synthesis: Grand Strategy Seed 2026"
 description: "Presents an overarching strategic map linking the 9 deep research tracks (Cluster A, B, and C) into a cohesive foundation for Vox's future architectural implementations."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_date: "2026-04-08"
 training_eligible: false

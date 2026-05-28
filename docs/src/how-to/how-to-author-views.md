@@ -1,7 +1,7 @@
 ---
 title: "How to author Vox views (VUV)"
 description: "Practical guide to writing UI in Vox using the view-call (VUV) authoring syntax. Covers primitives, typed style kwargs, conditionals, components, and escape hatches."
-category: "how-to"
+category: "How-To Guides"
 status: "current"
 last_updated: "2026-05-03"
 training_eligible: true
@@ -133,7 +133,7 @@ button(on_click={count = count + 1}) { "Increment" }
 input(on_change={fn(e) handle(e)}, attr_type="text")
 ```
 
-Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`, `on_keyup`, `on_mouseenter`, `on_mouseleave`. Add more in [`crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs`](../../../crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs).
+Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`, `on_keyup`, `on_mouseenter`, `on_mouseleave`. Add more in [`crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs`](../../../crates/vox-codegen/src/codegen_ts/hir_emit/compat.rs).
 
 ## Reserved-keyword attribute names
 
@@ -244,4 +244,4 @@ The `surface` kwarg pulls a registered foreground/background pair from the token
 - [GUI Authoring Syntax 2026 (design rationale)](../architecture/gui-authoring-syntax-2026.md)
 - [Phase 6 primitive set + Web IR primitives](../architecture/gui-native-roadmap-status-2026.md)
 - [Token registry and contrast validation](../reference/token-system.md)
-- [Web IR ADR (`crate::web_ir`)](../../../crates/vox-compiler/src/web_ir/mod.rs)
+- [Web IR ADR (`crate::web_ir`)](../../../crates/vox-codegen/src/web_ir/mod.rs)

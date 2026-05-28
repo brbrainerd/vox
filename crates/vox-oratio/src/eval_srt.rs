@@ -41,7 +41,7 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "requires network/large file"]
+    #[ignore = "requires network/large file — owner: oratio sunset: 2026-12-31"]
     fn test_sintel_frame_to_ms_accuracy() {
         // Pseudo-test logic:
         // 1. Download/extract 1-minute sintel clip (e.g. Sintel.2010.720p.mkv segments).

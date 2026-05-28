@@ -2,7 +2,7 @@
 
 use super::super::Parser;
 use crate::ast::expr::{
-    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp,
+    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, StringPart, UnOp, WorkflowVersionCall,
 };
 use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
@@ -26,10 +26,19 @@ impl Parser {
                     span: start,
                 }
             }
-            Token::StringLit(s) | Token::SingleStringLit(s) => {
+            Token::StringLit(s) | Token::SingleStringLit(s) | Token::RawStringLit(s) => {
                 self.advance();
                 Expr::StringLit {
                     value: s,
+                    span: start,
+                }
+            }
+            Token::TemplateStringLit(s) => {
+                self.advance();
+                // Parse template string with interpolation
+                let parts = self.parse_template_string_parts(s, start)?;
+                Expr::StringInterp {
+                    parts,
                     span: start,
                 }
             }
@@ -63,6 +72,22 @@ impl Parser {
                     operand: Box::new(operand),
                     span: start.merge(self.span()),
                 }
+            }
+            Token::BangInvalid => {
+                // `!` is not a valid Vox operator. Vox uses phonetic operators
+                // (`not`, `and`, `or`, `is`, `isnt`). Emit a clear error pointing
+                // at the canonical form, then advance past the `!` so the parser
+                // can keep going and report any other issues in the same pass.
+                self.errors.push(ParseError::classified(
+                    start,
+                    "`!` is not a valid operator in Vox; use `not` instead. \
+                     (Vox uses phonetic operators: `not`, `and`, `or`, `is`, `isnt`.)",
+                    vec!["not".to_string()],
+                    Some("!".to_string()),
+                    ParseErrorClass::Expression,
+                ));
+                self.advance();
+                return Err(());
             }
             Token::Minus => {
                 self.advance();
@@ -201,6 +226,104 @@ impl Parser {
                     target: Box::new(target),
                     span: start.merge(self.span()),
                 }
+            }
+            Token::SideEffect => {
+                self.advance(); // eat `side_effect`
+                self.expect(&Token::LBrace)?;
+                let stmts = self.parse_block()?;
+                Expr::SideEffect {
+                    stmts,
+                    span: start.merge(self.span()),
+                }
+            }
+            // P2-T2: `workflow.version("change-id", min, max)` patch-marker.
+            Token::Workflow => {
+                self.advance(); // eat `workflow`
+                self.expect(&Token::Dot)?;
+                let method = self.parse_ident_name()?;
+                if method != "version" {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!("expected `version` after `workflow.`, got `{method}`"),
+                        vec!["version".into()],
+                        Some(method),
+                        ParseErrorClass::Expression,
+                    ));
+                    return Err(());
+                }
+                self.expect(&Token::LParen)?;
+                let args = self.parse_args()?;
+                self.expect(&Token::RParen)?;
+                let span = start.merge(self.span());
+                let change_id = match args.first().map(|a| &a.value) {
+                    Some(Expr::StringLit { value, .. }) => value.clone(),
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            span,
+                            "workflow.version arg 1 must be a string literal",
+                            vec!["string literal".into()],
+                            None,
+                            ParseErrorClass::Expression,
+                        ));
+                        return Err(());
+                    }
+                };
+                let min = match args.get(1).map(|a| &a.value) {
+                    Some(Expr::IntLit { value, .. }) => match u32::try_from(*value) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.errors.push(ParseError::classified(
+                                span,
+                                "workflow.version arg 2 must be a non-negative int",
+                                vec!["non-negative integer".into()],
+                                None,
+                                ParseErrorClass::Expression,
+                            ));
+                            return Err(());
+                        }
+                    },
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            span,
+                            "workflow.version arg 2 must be a non-negative int",
+                            vec!["non-negative integer".into()],
+                            None,
+                            ParseErrorClass::Expression,
+                        ));
+                        return Err(());
+                    }
+                };
+                let max = match args.get(2).map(|a| &a.value) {
+                    Some(Expr::IntLit { value, .. }) => match u32::try_from(*value) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            self.errors.push(ParseError::classified(
+                                span,
+                                "workflow.version arg 3 must be a non-negative int",
+                                vec!["non-negative integer".into()],
+                                None,
+                                ParseErrorClass::Expression,
+                            ));
+                            return Err(());
+                        }
+                    },
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            span,
+                            "workflow.version arg 3 must be a non-negative int",
+                            vec!["non-negative integer".into()],
+                            None,
+                            ParseErrorClass::Expression,
+                        ));
+                        return Err(());
+                    }
+                };
+                Expr::WorkflowVersion(WorkflowVersionCall {
+                    change_id,
+                    min,
+                    max,
+                    span,
+                })
             }
             // VUV: angle-bracket JSX (`<tag attr=...>`) was retired as a parser entry point.
             // View calls are now `Ident(kwargs) { children }`. Hitting `<` here is a real
@@ -548,6 +671,9 @@ impl Parser {
                 span: arm_start.merge(self.span()),
             });
             self.skip_newlines();
+            // Rust-style separators: `arm => expr,` (including trailing comma before `}`).
+            let _ = self.eat(&Token::Comma);
+            self.skip_newlines();
         }
         self.eat(&Token::RBrace);
         Ok(Expr::Match {
@@ -592,10 +718,19 @@ impl Parser {
     pub(crate) fn parse_for(&mut self) -> Result<Expr, ()> {
         let start = self.span();
         self.advance(); // eat 'for'
-        let binding = self.parse_ident_name()?;
+        // Accept `_` as a wildcard binding (e.g. `for _ in range(0, n)`)
+        let binding = if self.eat(&Token::Underscore) {
+            "_".to_string()
+        } else {
+            self.parse_ident_name()?
+        };
         // Optional index variable: `for x, i in ...`
         let index = if self.eat(&Token::Comma) {
-            Some(self.parse_ident_name()?)
+            if self.eat(&Token::Underscore) {
+                Some("_".to_string())
+            } else {
+                Some(self.parse_ident_name()?)
+            }
         } else {
             None
         };
@@ -732,5 +867,83 @@ impl super::super::Parser {
             self.skip_newlines();
         }
         Ok(children)
+    }
+
+    /// Parse template string parts from a raw string with {expr} interpolation markers.
+    /// This is a simple parser that splits on { and } and parses expressions between them.
+    fn parse_template_string_parts(&mut self, s: String, start_span: crate::ast::span::Span) -> Result<Vec<StringPart>, ()> {
+        let mut parts = Vec::new();
+        let mut current = String::new();
+        let mut chars = s.chars().peekable();
+        let mut in_interp = false;
+
+        while let Some(c) = chars.next() {
+            if c == '{' && !in_interp {
+                // Start of interpolation
+                if !current.is_empty() {
+                    parts.push(StringPart::Literal(current));
+                    current = String::new();
+                }
+                in_interp = true;
+            } else if c == '}' && in_interp {
+                // End of interpolation - parse the expression
+                in_interp = false;
+                let expr_str = current.clone();
+                current = String::new();
+
+                // Parse the expression from the string
+                // For now, we'll use a simple approach: tokenize and parse the expression
+                // This is a simplified implementation - a full implementation would need
+                // to properly handle nested braces and other edge cases
+                let expr = self.parse_expression_from_string(&expr_str)?;
+                parts.push(StringPart::Interpolation(Box::new(expr)));
+            } else {
+                current.push(c);
+            }
+        }
+
+        // Add remaining literal part
+        if !current.is_empty() {
+            parts.push(StringPart::Literal(current));
+        }
+
+        // If we're still in interpolation at the end, that's an error
+        if in_interp {
+            self.errors.push(ParseError::classified(
+                start_span,
+                "Unclosed interpolation in template string",
+                vec!["}".into()],
+                None,
+                ParseErrorClass::Expression,
+            ));
+            return Err(());
+        }
+
+        Ok(parts)
+    }
+
+    /// Parse an expression from a string (simplified for template string interpolation).
+    /// This is a temporary implementation - a full implementation would need to handle
+    /// the token stream properly rather than parsing from a string.
+    fn parse_expression_from_string(&mut self, s: &str) -> Result<Expr, ()> {
+        // For now, treat simple identifiers as expressions
+        // A full implementation would need to tokenize and parse the expression properly
+        if s.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            Ok(Expr::Ident {
+                name: s.to_string(),
+                span: self.span(),
+            })
+        } else {
+            // For more complex expressions, we'd need to tokenize and parse properly
+            // For now, return an error
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "Complex expressions in template strings not yet supported",
+                vec!["identifier".into()],
+                Some(s.to_string()),
+                ParseErrorClass::Expression,
+            ));
+            Err(())
+        }
     }
 }

@@ -199,6 +199,20 @@ fn collect_unknown_calls(expr: &HirExpr, known: &HashSet<String>, out: &mut Vec<
             collect_unknown_calls(a, known, out);
             collect_unknown_calls(b, known, out);
         }
+        HirExpr::AsyncView(v) => {
+            if let Some(a) = &v.fetching_arm {
+                collect_unknown_calls(a, known, out);
+            }
+            if let Some(a) = &v.empty_arm {
+                collect_unknown_calls(a, known, out);
+            }
+            if let Some(a) = &v.error_arm {
+                collect_unknown_calls(a, known, out);
+            }
+            if let Some(a) = &v.ok_arm {
+                collect_unknown_calls(a, known, out);
+            }
+        }
         // Leaf nodes — no sub-expressions to recurse.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
@@ -213,6 +227,8 @@ fn collect_unknown_calls(expr: &HirExpr, known: &HashSet<String>, out: &mut Vec<
             collect_unknown_calls(iter, known, out);
             collect_unknown_calls(body, known, out);
         }
+        // workflow.version is a patch-marker leaf; no calls to track.
+        HirExpr::WorkflowVersion(_) => {}
     }
 }
 

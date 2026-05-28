@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/manifest/vox-bundle.v1.schema.json",
+  "title": "Vox.toml bundle section (v1)",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "identifier": {
+      "type": "string",
+      "description": "Reverse-DNS app identifier (e.g. com.example.myapp)."
+    },
+    "display_name": { "type": "string" },
+    "version": { "type": "string" },
+    "license": { "type": "string" },
+    "desktop": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "targets": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "installer": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "mobile": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "android": { "type": "object", "additionalProperties": true },
+        "ios": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "icons": { "type": "string" },
+        "splash": { "type": "string" },
+        "ml_models": { "type": "array", "items": { "type": "string" } },
+        "fonts": { "type": "array", "items": { "type": "string" } },
+        "lazy": { "type": "boolean" }
+      }
+    },
+    "plugins": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "strategy": { "type": "string", "enum": ["auto", "static", "cdylib"] },
+        "deny": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "signing": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "windows_cert_thumbprint_env": { "type": "string" },
+        "macos_team_id_env": { "type": "string" },
+        "macos_notarize": { "type": "boolean" },
+        "android_keystore_env": { "type": "string" },
+        "ios_profile_env": { "type": "string" }
+      }
+    }
+  }
+}

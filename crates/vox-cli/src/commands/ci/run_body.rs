@@ -3,10 +3,13 @@
 use anyhow::{Result, anyhow};
 use std::process::Command;
 
+use super::ai_fixtures_coverage;
 use super::build_timings;
+use super::canonical_docs;
 use super::check_links;
 use super::cmd_enums::{
-    CiCmd, DocInventoryCmd, EvalMatrixCmd, MensScorecardCmd, OperationsSyncTarget,
+    CiCmd, DocInventoryCmd, DocsRealityAuditCmd, EvalMatrixCmd, MensScorecardCmd,
+    OperationsSyncTarget,
 };
 use super::command_compliance;
 use super::command_sync;
@@ -22,6 +25,7 @@ use super::grammar_ssot_parity;
 use super::line_endings;
 use super::mens_scorecard;
 use super::openclaw_contract;
+use super::parse_status;
 use super::release_build;
 use super::scaling_audit;
 use super::scientia_heuristics_parity;
@@ -54,8 +58,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
         CiCmd::CheckFrozen => super::frozen_crates::check_frozen_crates(&root),
+        CiCmd::GuiCatalogParity => super::gui_catalog_parity::run(&root),
+        CiCmd::ModelRoutingCheck => super::model_routing_check::run(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
+        CiCmd::AiFixturesCoverage => ai_fixtures_coverage::run(&root),
         CiCmd::ExecPolicyContract => exec_policy_contract::run(&root),
         CiCmd::OpenClawContract => openclaw_contract::run(&root),
         CiCmd::OperationsVerify => super::operations_catalog::verify(&root),
@@ -72,21 +79,50 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ScientiaWorthinessContract => scientia_worthiness_contract::run(&root),
         CiCmd::ScientiaHeuristicsParity => scientia_heuristics_parity::run(&root),
         CiCmd::ScientiaNoveltyLedgerContracts => scientia_novelty_ledger_contract::run(&root),
+        CiCmd::SpeechRuntimeSuite {
+            run_id,
+            limit,
+            eval_manifest,
+            plugins_dir,
+            skip_runtime,
+        } => super::speech_runtime_suite::run(
+            &root,
+            super::speech_runtime_suite::SpeechRuntimeSuiteOpts {
+                run_id,
+                limit,
+                eval_manifest,
+                plugins_dir,
+                skip_runtime,
+            },
+        ),
         CiCmd::SsotDrift => run_ssot_drift(&root),
         CiCmd::PrePush {
             quick,
+            complete,
             full,
             dry_run,
             act,
+            report_json,
+            include_slow,
+            with_coverage,
+            since,
+            enforce_budgets,
         } => super::pre_push::run(
             &root,
             super::pre_push::PrePushOpts {
                 quick,
+                complete,
                 full,
                 dry_run,
                 act,
+                report_json,
+                include_slow,
+                with_coverage,
+                since,
+                enforce_budgets,
             },
         ),
+        CiCmd::DevLoopAudit { json } => super::dev_loop_audit::run(&root, json),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::DataStorageGuard(opts) => {
@@ -103,6 +139,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             Ok(())
         }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
+        CiCmd::CompileMatrix => super::compile_matrix::run(&root),
+        CiCmd::RetirementAudit => super::retirement_audit::run(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
         CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),
         CiCmd::CheckSummaryDrift => {
@@ -166,6 +204,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 Ok(())
             }
         },
+        CiCmd::DocsRealityAudit { cmd: sub } => match sub {
+            DocsRealityAuditCmd::Verify => super::docs_reality_audit::run_verify(&root),
+            DocsRealityAuditCmd::Metrics { write } => {
+                super::docs_reality_audit::run_metrics(&root, write)
+            }
+        },
         CiCmd::EvalMatrix { cmd: sub } => match sub {
             EvalMatrixCmd::Verify => eval_matrix::run_verify(&root),
             EvalMatrixCmd::Run { milestone } => {
@@ -191,6 +235,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
         CiCmd::LineEndings { all, base, autofix } => line_endings::run(&root, all, base, autofix),
+        CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {
             profile,
             isolated_runner,
@@ -377,6 +422,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             root: provenance_root,
         } => super::pm_provenance::run(&root, &provenance_root, strict),
         CiCmd::CheckLinks { target } => check_links::run(&root, target.as_deref()),
+        CiCmd::CanonicalMapVerify => canonical_docs::run(&root),
         CiCmd::ReleaseBuild {
             target,
             version,
@@ -398,6 +444,86 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::DeterminismAudit => determinism_audit::run(&root),
         CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
         CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
+        CiCmd::TestInventory {
+            json,
+            output,
+            markdown,
+            check,
+        } => super::test_inventory::run(
+            &root,
+            super::test_inventory::TestInventoryOpts {
+                json_stdout: json,
+                output,
+                markdown,
+                check,
+            },
+        ),
+        CiCmd::SafetyInventory {
+            json,
+            output,
+            check,
+        } => super::safety_inventory::run(
+            &root,
+            super::safety_inventory::SafetyInventoryOpts {
+                json_stdout: json,
+                output,
+                check,
+            },
+        ),
+        CiCmd::TestRuntimeReport {
+            junit,
+            json,
+            markdown,
+            top,
+            fail_over_ms,
+            fail_retry_count,
+        } => super::test_runtime_report::run(
+            &root,
+            super::test_runtime_report::TestRuntimeReportOpts {
+                junit,
+                json,
+                markdown,
+                top,
+                fail_over_ms,
+                fail_retry_candidates: fail_retry_count,
+            },
+        ),
+        CiCmd::IgnoredTestAge {
+            mode,
+            inventory,
+            json,
+        } => super::test_governance::run_ignored_test_age(&root, mode, inventory, json),
+        CiCmd::FlakeBudget {
+            mode,
+            report_json,
+            junit,
+            top,
+            max_candidates,
+            json,
+        } => super::test_governance::run_flake_budget(
+            &root,
+            mode,
+            report_json,
+            junit,
+            top,
+            max_candidates,
+            json,
+        ),
+        CiCmd::RuntimeRegress {
+            mode,
+            current,
+            baseline,
+            percent,
+            absolute_ms,
+            json,
+        } => super::test_governance::run_runtime_regress(
+            mode,
+            current,
+            baseline,
+            percent,
+            absolute_ms,
+            json,
+        ),
         CiCmd::DeployStatus { write_to } => super::deploy_status::run(write_to).await,
         CiCmd::GeneratePluginCatalogDocs {
             catalog_out,
@@ -405,6 +531,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             check,
         } => super::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
         CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
+        CiCmd::NoTauriInCore => super::no_tauri_in_core::check(&root),
+        CiCmd::NoPluginCdylibAsCompileDep => super::no_plugin_cdylib_as_compile_dep::check(&root),
         CiCmd::PluginAbiParity => super::plugin_abi_parity::run(),
         CiCmd::PluginSkillParity => super::plugin_skill_parity::run(),
         CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),

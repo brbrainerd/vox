@@ -1,7 +1,7 @@
 ---
 title: "Gradio & Streamlit Research (2026): What VUV Should Steal, Adapt, and Reject"
 description: "Primary-source history and architectural review of Gradio and Streamlit, the two dominant Python web-GUI libraries, framed as design input to Vox's VUV authoring layer. Records what each got right, where each falls below Vox's quality bar, and what translates well or badly to LLM-emitted GUI code."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-05-08"
 training_eligible: true
@@ -308,7 +308,7 @@ These surface from the research but are deliberately not answered here. Each is 
 3. **What is Vox's equivalent of `share=True`?** Gradio's killer feature. Likely lives at the `vox deploy` layer, not at VUV. Doc somewhere in deploy roadmap.
 4. **How does VUV handle the per-session state primitive?** Reactive state is per-session by default; do we need an explicit `@session` decorator for state that survives rerenders but not page loads? Compare with `gr.State` and `st.session_state` directly.
 5. **Cache discipline.** Streamlit's `cache_data`/`cache_resource` split codifies a real distinction. Do we need a Vox equivalent? Where does it live (decorator on `fn`, decorator on `view`, neither)?
-6. **Migration corpus discipline.** ✅ **Resolved by VUV-9 (landed 2026-05-09).** See [VUV-9 Implementation Plan](../../superpowers/plans/2026-05-08-vuv-improvement-roadmap.md) and the [Naming Policy](vuv-naming-policy-2026.md). Original question: Both libraries demonstrate that major-version churn poisons training data. What is Vox's policy for renaming a primitive, a kwarg, or a decorator? (Probably: never silently; deprecation alias for at least one major; explicit codemod.)
+6. **Migration corpus discipline.** ✅ **Resolved by VUV-9 (landed 2026-05-09).** See [VUV-9 Implementation Plan](../../superpowers/plans/tooling/2026-05-08-vuv-improvement-roadmap.md) and the [Naming Policy](vuv-naming-policy-2026.md). Original question: Both libraries demonstrate that major-version churn poisons training data. What is Vox's policy for renaming a primitive, a kwarg, or a decorator? (Probably: never silently; deprecation alias for at least one major; explicit codemod.)
 
 ---
 

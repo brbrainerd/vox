@@ -1,0 +1,10 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "linux-cli-eval-sherpa-cpu-16k-code",
+  "evidence": "Sherpa backend is not wired in vox-plugin-oratio on this host.",
+  "failure_category": "orchestration",
+  "notes": "Requires Linux plus Sherpa-capable backend/model dir.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "status": "runtime_unavailable"
+}

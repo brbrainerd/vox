@@ -25,3 +25,15 @@ pub use params::*;
 pub use retrieval::{
     RetrievalBundle, RetrievalEvidenceEnvelope, RetrievalTriggerMode, run_retrieval_bundle,
 };
+
+use std::path::Path;
+
+/// AgentOS semantic-fs bridge: rank workspace paths from an `intent` string.
+pub fn semantic_fs_discover(
+    repo_root: &Path,
+    intent: &str,
+    limit: usize,
+    policy: &vox_search::SearchPolicy,
+) -> Vec<serde_json::Value> {
+    vox_search::semantic_fs::discover_files_for_intent(repo_root, intent, limit, policy)
+}

@@ -47,7 +47,7 @@ impl crate::VoxDb {
         Ok(())
     }
 
-    /// Drop every user-defined table (not `sqlite_%`). Caller usually follows with [`Self::migrate`].
+    /// Drop every user-defined table (not `sqlite_%`). Caller usually follows with `Self::migrate`.
     #[cfg(feature = "local")]
     pub async fn drop_all_user_tables(conn: &turso::Connection) -> Result<(), StoreError> {
         conn.execute("PRAGMA foreign_keys = OFF", ())

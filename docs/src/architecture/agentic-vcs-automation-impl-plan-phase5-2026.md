@@ -1,7 +1,7 @@
 ---
 title: "Agentic VCS Automation — Phase 5 Implementation Plan (2026-05-09)"
 description: "Step-by-step TDD plan that swaps the GitExec backend for hot-path operations from tokio::process::Command to gix (libgit2-equivalent in pure Rust), keeps shell-out for low-frequency or compatibility-sensitive commands, and evaluates jj-lib for change-id tracking on the write side. The GitExec interface does not change. Includes a feature-flag rollout, a benchmark harness, and a migration plan."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Phase 5 is the optional optimisation pass that takes the central GitExec wrapper and substitutes a more efficient implementation for hot-path ops (status, log, diff, rev-parse) without changing the surface. Concrete benchmark methodology, exact feature-flag plumbing, exact migration order. Future agents executing this plan should not need to invent code."
@@ -575,8 +575,8 @@ instead of `GitExec::new(cwd)`. To disable the gix backend globally,
 build without the `gix-backend` feature.
 
 `jj-lib` is **not** used as a backend in Phase 5. Benchmark data and
-the Phase 5.5 reconsider criteria live in
-[agentic-vcs-phase5-bench-results.md](agentic-vcs-phase5-bench-results.md).
+the Phase 5.5 reconsider criteria live in `agentic-vcs-phase5-bench-results.md`
+once that artifact is generated (not committed yet when this plan was written).
 ```
 
 - [ ] **Step 3: Regenerate**

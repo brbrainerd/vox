@@ -1,7 +1,7 @@
 ---
 title: "Vox Developer User Journeys: Intent vs. Actualization"
 description: "Baseline target workflows mapping how real human developers interface with the Vox orchestrator system."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-05"
 training_eligible: false

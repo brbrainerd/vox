@@ -1,7 +1,9 @@
 ---
 title: "CLI command surface (generated)"
 description: "Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox ci operations-sync --target cli --write then vox ci command-sync --write."
-category: "reference"
+category: "Language Reference"
+status: current
+last_updated: "2026-05-27"
 ---
 
 <!--
@@ -21,7 +23,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 262
+**schema_version:** `1` · **vox-cli operations:** 278
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -39,9 +41,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox auth untrust` | active | — | ars | platform | — |
 | `vox auth whoami` | active | — | ars | platform | — |
 | `vox build` | active | — | fabrica | app | — |
-| `vox bundle` | active | — | fabrica | app | — |
+| `vox bundle` | active | — | fabrica | platform | — |
 | `vox check` | active | — | fabrica | app | — |
 | `vox ci` | active | — | ci | platform | — |
+| `vox ci ai-fixtures-coverage` | active | — | — | platform | — |
 | `vox ci artifact-audit` | active | — | — | platform | — |
 | `vox ci artifact-prune` | active | — | — | platform | — |
 | `vox ci backend-tests` | active | — | — | platform | — |
@@ -54,6 +57,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci check-summary-drift` | active | — | — | platform | — |
 | `vox ci command-compliance` | active | — | — | platform | — |
 | `vox ci command-sync` | active | — | — | platform | — |
+| `vox ci compile-matrix` | active | — | — | platform | — |
 | `vox ci completion-audit` | active | — | — | platform | — |
 | `vox ci completion-gates` | active | — | — | platform | — |
 | `vox ci completion-ingest` | active | — | — | platform | — |
@@ -64,14 +68,18 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci cuda-release-build` | active | — | — | platform | — |
 | `vox ci data-ssot-guards` | active | — | — | platform | — |
 | `vox ci db-schema-coverage` | active | — | — | platform | — |
+| `vox ci dev-loop-audit` | active | — | — | platform | — |
 | `vox ci doc-inventory` | active | — | — | platform | — |
+| `vox ci docs-reality-audit` | active | — | — | platform | — |
 | `vox ci eval-matrix` | active | — | — | platform | — |
 | `vox ci eval-matrix run` | active | — | — | platform | — |
 | `vox ci eval-matrix verify` | active | — | — | platform | — |
 | `vox ci exec-policy-contract` | active | — | — | platform | — |
 | `vox ci feature-matrix` | active | — | — | platform | — |
+| `vox ci flake-budget` | active | — | — | platform | — |
 | `vox ci grammar-drift` | active | — | — | platform | — |
 | `vox ci gui-smoke` | active | — | — | platform | — |
+| `vox ci ignored-test-age` | active | — | — | platform | — |
 | `vox ci line-endings` | active | — | — | platform | — |
 | `vox ci manifest` | active | — | — | platform | — |
 | `vox ci mens-scorecard` | active | — | — | platform | — |
@@ -86,6 +94,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci openclaw-contract` | active | — | — | platform | — |
 | `vox ci operations-sync` | active | — | — | platform | — |
 | `vox ci operations-verify` | active | — | — | platform | — |
+| `vox ci parse-status` | active | — | — | platform | — |
 | `vox ci pm-provenance` | active | — | — | platform | — |
 | `vox ci policy-allowlist-parity` | active | — | — | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
@@ -93,7 +102,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci query-all-guard` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
+| `vox ci retirement-audit` | active | — | — | platform | — |
+| `vox ci runtime-regress` | active | — | — | platform | — |
 | `vox ci rust-ecosystem-policy` | active | — | — | platform | — |
+| `vox ci safety-inventory` | active | — | — | platform | — |
 | `vox ci scaling-audit` | active | — | — | platform | — |
 | `vox ci scaling-audit emit-reports` | active | — | — | platform | — |
 | `vox ci scaling-audit verify` | active | — | — | platform | — |
@@ -101,8 +113,11 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci scientia-worthiness-contract` | active | — | — | platform | — |
 | `vox ci secret-env-guard` | active | — | — | platform | — |
 | `vox ci secrets-parity` | active | — | — | platform | — |
+| `vox ci speech-runtime-suite` | active | — | — | platform | — |
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
+| `vox ci test-inventory` | active | — | — | platform | — |
+| `vox ci test-runtime-report` | active | — | — | platform | — |
 | `vox ci toestub-scoped` | active | — | — | platform | — |
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |
@@ -117,6 +132,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox codex socrates-metrics` | active | — | codex | data | — |
 | `vox codex verify` | active | — | codex | data | — |
 | `vox commands` | active | — | — | platform | — |
+| `vox compile` | active | — | fabrica | app | — |
 | `vox completions` | active | — | fabrica | app | — |
 | `vox db` | active | — | codex | data | — |
 | `vox db audit` | active | — | codex | data | — |
@@ -153,6 +169,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox lsp` | active | — | fabrica | app | — |
 | `vox ludus` | active | extras-ludus | ars | ai | — |
 | `vox ludus hud` | active | ludus-hud | ars | ai | — |
+| `vox memory search` | active | — | codex | ai | — |
 | `vox mens` | active | mens-base|gpu | mens | ai | — |
 | `vox mens bench-completion` | active | mens-base | mens | ai | — |
 | `vox mens check` | active | mens-dei | mens | ai | — |
@@ -228,6 +245,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox repo query history` | active | — | codex | platform | — |
 | `vox repo query text` | active | — | codex | platform | — |
 | `vox repo status` | active | — | codex | platform | — |
+| `vox research run` | active | — | — | ai | — |
 | `vox review` | active | coderabbit | recensio | ai | — |
 | `vox run` | active | — | fabrica | app | — |
 | `vox scientia` | active | — | codex | data | — |

@@ -1,0 +1,15 @@
+fn power(base: int, exp: int) to int {
+    let mut result: int = 1
+    for _ in range(0, exp) {
+        result = result * base
+    }
+    return result
+}
+
+fn main() to str {
+    assert(power(2, 10) == 1024)
+    assert(power(3, 0) == 1)
+    assert(power(5, 1) == 5)
+    assert(power(2, 8) == 256)
+    return "ok"
+}

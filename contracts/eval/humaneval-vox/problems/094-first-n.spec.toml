@@ -1,0 +1,11 @@
+[problem]
+id = "094"
+title = "first-n"
+prompt = """
+Write a Vox function first_n(items: list[int], n: int) to list[int] that returns the first n elements of the list. If n >= len(items), returns the whole list.
+"""
+signature = "fn first_n(items: list[int], n: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

@@ -1,7 +1,7 @@
 ---
 title: "Outbound HTTP policy (reqwest / vox-reqwest-defaults)"
 description: "Single policy for building reqwest clients across Vox crates; migration order and exceptions."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 sort_order: 0
 last_updated: "2026-03-29"

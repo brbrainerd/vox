@@ -1,0 +1,75 @@
+// scripts/pre-claim.vox
+//
+// Pre-flight guard for *claims of closure* against the v1.0 audit scorecard.
+//
+// Per `docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md` §1.4,
+// any contributor or agent about to edit
+// `docs/src/architecture/vox-as-llm-target-audit-and-plan-2026.md` to assert
+// that something is "CLOSED" / "PASSING" must first run this script. It:
+//
+//   1. Re-runs `vox audit --gate all` to produce the day's fresh snapshot at
+//      `contracts/reports/_snapshot/<UTC>.json`.
+//   2. Re-runs with `--strict-block-ga` to enforce: any unmet block-GA gate
+//      exits non-zero, listing the violations so a would-be "closed" claim
+//      can be matched against actual measured state.
+//
+// This is the runtime symmetric of the evidence-ledger lint
+// (`crates/vox-arch-check/src/evidence_ledger.rs`): the lint catches stale
+// or missing artifacts at CI time; this script catches premature "closed"
+// claims at commit time.
+//
+// Usage: vox run scripts/pre-claim.vox
+// Source of truth: docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §10.
+
+fn main() {
+    println("Running pre-claim: refreshing CR-L gate snapshot...");
+
+    let refresh = std::process::Command::new("cargo")
+        .args(["run", "-q", "-p", "vox-cli", "--", "audit", "--gate", "all"])
+        .status();
+
+    match refresh {
+        Ok(_status) => {
+            println("pre-claim: snapshot refreshed at contracts/reports/_snapshot/<UTC>.json");
+        }
+        Err(e) => {
+            eprintln("pre-claim: could not refresh snapshot: {}", e);
+            std::process::exit(2);
+        }
+    }
+
+    println("Running pre-claim: enforcing --strict-block-ga...");
+    let strict = std::process::Command::new("cargo")
+        .args([
+            "run", "-q", "-p", "vox-cli", "--",
+            "audit", "--gate", "all",
+            "--strict-block-ga", "--no-canonical-report",
+        ])
+        .status();
+
+    match strict {
+        Ok(status) => {
+            if status.success() {
+                println("pre-claim: all block-GA gates met ✓");
+                std::process::exit(0);
+            } else {
+                eprintln("");
+                eprintln("pre-claim: REFUSED");
+                eprintln("");
+                eprintln("One or more block-GA gates is not met. New 'CLOSED' /");
+                eprintln("'PASSING' claims in the audit scorecard are forbidden");
+                eprintln("until the corresponding gate is green.");
+                eprintln("");
+                eprintln("Inspect contracts/reports/_snapshot/<today>.json,");
+                eprintln("close the failing gate, then re-run this script.");
+                eprintln("");
+                let code = status.code().unwrap_or(3);
+                std::process::exit(code);
+            }
+        }
+        Err(e) => {
+            eprintln("pre-claim: could not invoke strict gate: {}", e);
+            std::process::exit(2);
+        }
+    }
+}

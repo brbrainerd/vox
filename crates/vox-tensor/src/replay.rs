@@ -176,7 +176,7 @@ impl ReplayBuffer {
     /// When mix-CD is enabled, at-risk samples (loss increased) are
     /// preferentially selected. Otherwise, round-robin selection is used.
     ///
-    /// Returns indices into the internal sample buffer. Use [`get_pair`] to
+    /// Returns indices into the internal sample buffer. Use [`Self::get_pair`] to
     /// retrieve the actual `TrainingPair` for each index.
     pub fn select_replay_indices(&mut self, count: usize) -> Vec<usize> {
         if self.samples.is_empty() || count == 0 {

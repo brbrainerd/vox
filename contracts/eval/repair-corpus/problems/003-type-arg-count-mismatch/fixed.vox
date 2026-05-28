@@ -1,0 +1,14 @@
+// Fix: remove the extra argument; clamp takes exactly 3 args.
+fn clamp(value: int, lo: int, hi: int) to int {
+    if value < lo {
+        return lo
+    }
+    if value > hi {
+        return hi
+    }
+    return value
+}
+
+fn main() to int {
+    return clamp(5, 0, 10)
+}

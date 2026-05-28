@@ -11,7 +11,8 @@ pub fn push_baseline_from_origin(
     default_branch: &str,
     empty: bool,
 ) -> Result<String> {
-    let status = Command::new("git")
+    let status = // vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["fetch", "origin", default_branch])
         .current_dir(repo)
         .status()
@@ -20,7 +21,8 @@ pub fn push_baseline_from_origin(
         anyhow::bail!("git fetch origin {default_branch} failed");
     }
     let remote_ref = format!("origin/{default_branch}");
-    let out = Command::new("git")
+    let out = // vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["rev-parse", &remote_ref])
         .current_dir(repo)
         .output()
@@ -37,7 +39,8 @@ pub fn push_baseline_from_origin(
         // Create an empty tree
         let empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"; // git mktree < NUL
 
-        let commit_out = Command::new("git")
+        let commit_out = // vox-arch-check: allow git-exec
+        Command::new("git")
             .args([
                 "commit-tree",
                 empty_tree,
@@ -64,7 +67,8 @@ pub fn push_baseline_from_origin(
     };
 
     let refspec = format!("{push_sha}:refs/heads/{baseline_name}");
-    let status = Command::new("git")
+    let status = // vox-arch-check: allow git-exec
+        Command::new("git")
         .args(["push", "-f", "origin", &refspec])
         .current_dir(repo)
         .status()
@@ -88,7 +92,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let repo = dir.path();
         assert!(
-            Command::new("git")
+            // vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["init"])
                 .current_dir(repo)
                 .status()
@@ -96,7 +101,8 @@ mod tests {
                 .success()
         );
         assert!(
-            Command::new("git")
+            // vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["config", "user.email", "t@e.st"])
                 .current_dir(repo)
                 .status()
@@ -104,7 +110,8 @@ mod tests {
                 .success()
         );
         assert!(
-            Command::new("git")
+            // vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["config", "user.name", "t"])
                 .current_dir(repo)
                 .status()
@@ -113,7 +120,8 @@ mod tests {
         );
         fs::write(repo.join("f.txt"), "x").unwrap();
         assert!(
-            Command::new("git")
+            // vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["add", "f.txt"])
                 .current_dir(repo)
                 .status()
@@ -121,7 +129,8 @@ mod tests {
                 .success()
         );
         assert!(
-            Command::new("git")
+            // vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["commit", "-m", "init"])
                 .current_dir(repo)
                 .status()
@@ -130,7 +139,8 @@ mod tests {
         );
 
         let parent = String::from_utf8_lossy(
-            &Command::new("git")
+            &// vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["rev-parse", "HEAD"])
                 .current_dir(repo)
                 .output()
@@ -141,7 +151,8 @@ mod tests {
         .to_string();
 
         let empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
-        let commit_out = Command::new("git")
+        let commit_out = // vox-arch-check: allow git-exec
+        Command::new("git")
             .args([
                 "commit-tree",
                 empty_tree,
@@ -163,7 +174,8 @@ mod tests {
             .to_string();
 
         let tree = String::from_utf8_lossy(
-            &Command::new("git")
+            &// vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["rev-parse", &format!("{commit}^{{tree}}")])
                 .current_dir(repo)
                 .output()
@@ -175,7 +187,8 @@ mod tests {
         assert_eq!(tree, empty_tree);
 
         let first_parent = String::from_utf8_lossy(
-            &Command::new("git")
+            &// vox-arch-check: allow git-exec
+        Command::new("git")
                 .args(["rev-parse", &format!("{commit}^")])
                 .current_dir(repo)
                 .output()

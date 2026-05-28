@@ -36,4 +36,3 @@ pub fn finalize_candle_qlora_training_manifest(
     std::fs::write(&p, serde_json::to_string_pretty(&m)?)?;
     Ok(())
 }
-

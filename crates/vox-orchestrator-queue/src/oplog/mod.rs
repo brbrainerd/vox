@@ -1,8 +1,13 @@
 //! Append-only operation log for durable orchestration history.
 
+pub mod backfill;
+pub mod checkpoint;
+pub mod persist;
 mod query;
+pub mod sign;
 mod store;
 
+pub use persist::PersistError;
 pub use query::list_from_db;
 pub use store::{append_to_db, append_to_db_with_breaker, mark_undone_in_db};
 
@@ -111,6 +116,25 @@ pub enum OperationKind {
     SkillUninstall { skill_name: String },
     /// Generic/custom operation.
     Custom { label: String },
+    /// Tier-3 cold compaction: encodes projection state for ops in (op_id_lo..=op_id_hi].
+    /// Allows replay to start from the most recent checkpoint instead of replaying from zero.
+    Checkpoint {
+        op_id_lo: u64,
+        op_id_hi: u64,
+        /// blake3 over the deterministically encoded projection snapshot.
+        projection_blake3: [u8; 32],
+        /// Reference into vox-db blob storage with the actual snapshot bytes.
+        payload_blob_id: u64,
+    },
+    /// MENS: references a signed SafeTensors checkpoint bundle in CAS (Mn-T6).
+    TrainingCheckpoint {
+        session_id: String,
+        /// Lowercase SHA3-512 hex (128 chars).
+        bundle_hash: String,
+        /// Lowercase SHA3-512 hex (128 chars).
+        optimizer_state_hash: String,
+        step: u64,
+    },
 }
 
 /// A single entry in the operation log.
@@ -149,6 +173,14 @@ pub struct OperationEntry {
     /// SHA-3-256 hash of the previous operation's ID + timestamp, forming a
     /// cryptographic chain. Allows tamper detection in the audit trail.
     pub predecessor_hash: Option<String>,
+    /// Ed25519 signature over the canonical payload (P3-T2). `None` for legacy entries.
+    pub signature: Option<Vec<u8>>,
+    /// 32-byte id (blake3 of pubkey) of the daemon key used to sign. `None` for legacy.
+    pub signing_key_id: Option<Vec<u8>>,
+    /// Daemon UUID that produced this entry (16 bytes, all-zero for local-only entries).
+    pub daemon_id: [u8; 16],
+    /// Parent op-ids (DAG). Usually a single predecessor; multi-parent for merge ops.
+    pub parent_op_ids: Vec<u64>,
 }
 
 // ---------------------------------------------------------------------------
@@ -162,6 +194,8 @@ pub struct OpLog {
     pub(crate) db_snap_id_gen: AtomicU64,
     pub(crate) entries: VecDeque<OperationEntry>,
     pub(crate) max_entries: usize,
+    /// Optional vox-db persistence context (set by [`OpLog::with_db`]).
+    pub(crate) persist: Option<std::sync::Arc<persist::PersistContext>>,
 }
 
 #[cfg(test)]

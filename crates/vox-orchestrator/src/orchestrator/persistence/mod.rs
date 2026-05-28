@@ -1,6 +1,6 @@
 //! Persistence degradation outbox: periodic drain/prune and health counters.
 //!
-//! Entries are stored at [`lifecycle::PERSISTENCE_OUTBOX_KEY`] as a JSON array of objects
+//! Entries are stored at `lifecycle::PERSISTENCE_OUTBOX_KEY` as a JSON array of objects
 //! with `lane`, `error`, `first_seen_unix_ms`, and `retry_count`.
 
 pub(crate) mod lifecycle;

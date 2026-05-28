@@ -1,0 +1,11 @@
+[problem]
+id = "148"
+title = "is_sorted_unique"
+prompt = """
+Check if a list of ints has no duplicate values AND is sorted in strictly ascending order. Return true only if both conditions hold. An empty list or single-element list returns true.
+"""
+signature = "fn is_sorted_unique(xs: list[int]) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "sorting"]

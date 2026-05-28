@@ -10,6 +10,9 @@ license.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
+[dev-dependencies]
+serde_json = { workspace = true }
+
 [build-dependencies]
 serde_yaml = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

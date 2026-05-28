@@ -1,6 +1,6 @@
 ---
 title: "build-stabilization-findings-2026"
-category: "reference"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---
@@ -22,9 +22,9 @@ Structural changes to the transcription backend caused a signature mismatch in t
 - **Problem**: `transcribe_pcm_internal` was being called with a redundant `config` argument, and the return type lacked the `AsrOutput` wrapper expected by the JSON extractor.
 - **Fix**: Synchronized the call site in `serve.rs` and implemented proper result wrapping.
 
-### F3: Feature Gate & Type Inference Ambiguities (vox-mens)
+### F3: Feature Gate & Type Inference Ambiguities (vox-ml-cli)
 Consuming crates required explicit opt-in for certain transitive capabilities that were previously implicit or handled via Hallucinated APIs.
-- **Problem**: `vox-bounded-fs` required the `async` feature, and `vox-corpus` required the `database` feature to be enabled within `vox-mens`.
+- **Problem**: `vox-bounded-fs` required the `async` feature, and `vox-corpus` required the `database` feature to be enabled within `vox-ml-cli`.
 - **Problem**: Type inference for `read_utf8_path_capped_async` was ambiguous in `corpus/mod.rs`.
 - **Fix**: Updated `Cargo.toml` and applied explicit `String` type annotations to resolve E0282.
 

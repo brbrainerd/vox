@@ -1,4 +1,4 @@
-//! Resilient HTTP with geometric backoff ([`vox_primitives::backoff`]).
+//! Resilient HTTP with geometric backoff ([`vox_foundation::primitives::backoff`]).
 //!
 //! **`backon` (crate):** evaluated and not adopted here: our retry surface is
 //! endpoint fallback + capped geometric delay only; `backon` would add another
@@ -47,7 +47,7 @@ impl ResilientHttpClient {
     /// Wraps a fresh `reqwest` client with the given retry policy.
     pub fn new(policy: RetryPolicy) -> Self {
         Self {
-            client: vox_reqwest_defaults::client(),
+            client: vox_http_client::client(),
             policy,
         }
     }
@@ -101,7 +101,7 @@ impl ResilientHttpClient {
     }
 
     fn backoff_duration(&self, attempt: usize) -> Duration {
-        let ms = vox_primitives::backoff::backoff_ms_geometric_attempt(
+        let ms = vox_foundation::primitives::backoff::backoff_ms_geometric_attempt(
             attempt as u32,
             self.policy.base_delay_ms,
             60_000,

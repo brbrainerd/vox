@@ -1,0 +1,37 @@
+# Wire-level MCP tool aliases (same JSON args as canonical tools).
+# Source of truth for `vox-orchestrator-mcp` `TOOL_WIRE_ALIASES` (generated at build time).
+x-vox-version: 1
+version: 1
+aliases:
+  - alias: vox_get_config
+    canonical: vox_config_get
+  - alias: vox_set_config
+    canonical: vox_config_set
+  - alias: vox_map_opencode_session
+    canonical: vox_map_agent_session
+  - alias: vox_map_vscode_session
+    canonical: vox_map_agent_session
+  - alias: vox_budget_history
+    canonical: vox_cost_history
+  - alias: vox_model_list
+    canonical: vox_list_models
+  - alias: vox_ludus_notifications_list
+    canonical: vox_gamify_notifications_list
+  - alias: vox_ludus_progress_snapshot
+    canonical: vox_gamify_progress_snapshot
+  - alias: vox_ludus_notification_ack
+    canonical: vox_gamify_notification_ack
+  - alias: vox_ludus_notifications_ack_all
+    canonical: vox_gamify_notifications_ack_all
+  - alias: vox_ludus_quest_list
+    canonical: vox_gamify_quest_list
+  - alias: vox_ludus_shop_catalog
+    canonical: vox_gamify_shop_catalog
+  - alias: vox_ludus_shop_buy
+    canonical: vox_gamify_shop_buy
+  - alias: vox_ludus_collegium_join
+    canonical: vox_gamify_collegium_join
+  - alias: vox_ludus_battle_start
+    canonical: vox_gamify_battle_start
+  - alias: vox_ludus_battle_submit
+    canonical: vox_gamify_battle_submit

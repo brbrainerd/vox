@@ -12,7 +12,7 @@ static WEBIR_VALIDATE_EMITTER_LOCK: Mutex<()> = Mutex::new(());
 
 /// OP-S026 / OP-S025: `generate_with_options` runs WebIR validate by default (`VOX_WEBIR_VALIDATE` unset).
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn codegen_emitter_honors_vox_webir_validate_success_path() {
     let _lock = WEBIR_VALIDATE_EMITTER_LOCK
         .lock()
@@ -58,7 +58,7 @@ routes {
 /// `routes { }` blocks are silently dropped (Path B decommission, TASK-2.1); the validation gate
 /// is tested via the literal-color-value error instead.
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn codegen_emitter_vox_webir_validate_fails_on_literal_style_color() {
     let _lock = WEBIR_VALIDATE_EMITTER_LOCK
         .lock()

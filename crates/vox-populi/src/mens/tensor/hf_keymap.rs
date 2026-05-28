@@ -1,6 +1,6 @@
 //! Shared Hugging Face weight **key naming** for transformer blocks (Burn + Candle).
 //!
-//! Candle QLoRA also uses [`super::candle_qlora_weights`] for safetensors I/O (key union, logging).
+//! Candle QLoRA also uses `super::candle_qlora_weights` for safetensors I/O (key union, logging).
 
 use std::collections::HashSet;
 

@@ -1,4 +1,3 @@
-
 /// Single constructor for the initial manifest row so Burn and Candle stay in sync when [`TrainingManifest`] grows fields.
 pub fn initial_training_manifest(
     arch: ArchParams,

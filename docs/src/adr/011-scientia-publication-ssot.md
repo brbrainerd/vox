@@ -1,7 +1,7 @@
 ---
 title: "ADR 011: Scientia publication manifest SSOT"
 description: "Unifies Scientia, news, and scholarly submission around one publication manifest and digest-bound approvals."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-25"
 training_eligible: true
 

@@ -666,15 +666,17 @@ mod tests {
 
     #[test]
     fn retry_plan_skips_explicit_channel_already_success() {
-        let mut r = SyndicationResult::default();
-        r.twitter = ChannelOutcome::Success {
-            external_id: Some("1".into()),
-        };
-        r.github = ChannelOutcome::Failed {
-            code: "x".into(),
-            message: "m".into(),
-            retryable: true,
-            failure_class: None,
+        let r = SyndicationResult {
+            twitter: ChannelOutcome::Success {
+                external_id: Some("1".into()),
+            },
+            github: ChannelOutcome::Failed {
+                code: "x".into(),
+                message: "m".into(),
+                retryable: true,
+                failure_class: None,
+            },
+            ..SyndicationResult::default()
         };
         let json = serde_json::to_string(&r).expect("json");
         let attempts = [AttemptOutcome {
@@ -695,15 +697,17 @@ mod tests {
 
     #[test]
     fn retry_auto_mode_lists_only_failed() {
-        let mut r = SyndicationResult::default();
-        r.twitter = ChannelOutcome::Success {
-            external_id: Some("1".into()),
-        };
-        r.github = ChannelOutcome::Failed {
-            code: "x".into(),
-            message: "m".into(),
-            retryable: true,
-            failure_class: None,
+        let r = SyndicationResult {
+            twitter: ChannelOutcome::Success {
+                external_id: Some("1".into()),
+            },
+            github: ChannelOutcome::Failed {
+                code: "x".into(),
+                message: "m".into(),
+                retryable: true,
+                failure_class: None,
+            },
+            ..SyndicationResult::default()
         };
         let json = serde_json::to_string(&r).expect("json");
         let attempts = [AttemptOutcome {

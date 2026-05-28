@@ -65,6 +65,7 @@ impl Orchestrator {
             );
             task.capability_requirements = desc.capability_requirements.clone();
             task.session_id = desc.session_id.clone();
+            task.tenant_id = desc.tenant_id.clone();
             if desc.requires_approval {
                 task.status = crate::types::TaskStatus::BlockedOnApproval;
             }
@@ -219,7 +220,7 @@ impl Orchestrator {
                 let env = vox_actor_runtime::mailbox::Envelope::Message(
                     vox_actor_runtime::mailbox::Message {
                         from: vox_actor_runtime::Pid::new(),
-                        payload: vox_actor_runtime::mailbox::MessagePayload::Json(json),
+                        payload: vox_actor_runtime::mailbox::MessagePayload::Json(json.into()),
                     },
                 );
                 let handle: &vox_actor_runtime::process::ProcessHandle = &handle;
@@ -310,6 +311,7 @@ impl Orchestrator {
                 thread_id: None,
                 requires_approval: false,
                 test_decision: None,
+                tenant_id: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -325,6 +327,7 @@ impl Orchestrator {
                 thread_id: None,
                 requires_approval: false,
                 test_decision: None,
+                tenant_id: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -340,6 +343,7 @@ impl Orchestrator {
                 thread_id: None,
                 requires_approval: false,
                 test_decision: None,
+                tenant_id: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -355,6 +359,7 @@ impl Orchestrator {
                 thread_id: None,
                 requires_approval: false,
                 test_decision: None,
+                tenant_id: None,
             },
         ];
         self.submit_batch(descriptors).await
@@ -547,6 +552,7 @@ fn build_repo_shard_descriptors(
             thread_id: None,
                 requires_approval: false,
                 test_decision: None,
+                tenant_id: None,
         });
         gen_descriptor_index_by_shard.insert(*shard_idx, descriptor_idx);
     }
@@ -570,6 +576,7 @@ fn build_repo_shard_descriptors(
             thread_id: None,
                 requires_approval: false,
                 test_decision: None,
+                tenant_id: None,
         });
         validation_temp_deps.push(descriptors.len().saturating_sub(1));
     }
@@ -589,6 +596,7 @@ fn build_repo_shard_descriptors(
         thread_id: None,
                 requires_approval: false,
                 test_decision: None,
+                tenant_id: None,
     });
 
     descriptors

@@ -1,7 +1,7 @@
 ---
 title: "Doc-to-code acceptance checklist"
 description: "High-value checks for keeping Vox documentation aligned with the current code, contracts, and contributor workflow."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-03-28"
 training_eligible: false
@@ -27,6 +27,6 @@ Use this before merging changes that affect user-visible behavior or agent guida
 - [ ] **`cargo run -p vox-cli -- ci check-codex-ssot`** passes (or shim `scripts/check_codex_ssot.sh`).
 - [ ] **`cargo run -p vox-cli -- ci check-docs-ssot`** passes (or shim `scripts/check_docs_ssot.sh`).
 - [ ] **`cargo run -p vox-cli -- ci check-links`** passes for internal docs links.
-- [ ] When **`vox-vscode/`** (extension host, webview, Oratio/MCP wiring) changes { **`npm run compile`** and **`npm run lint`** in **`vox-vscode`** pass; update [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md) and speech/Oratio docs ([speech capture](../reference/speech-capture-architecture.md), [Oratio SSOT](../reference/oratio-speech.md)) if tool names, activation, or capture contracts change.
+- [ ] When **`apps/editor/vox-vscode/`** (extension host, webview, Oratio/MCP wiring) changes { **`npm run compile`** and **`npm run lint`** in **`vox-vscode`** pass; update [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md) and speech/Oratio docs ([speech capture](../reference/speech-capture-architecture.md), [Oratio SSOT](../reference/oratio-speech.md)) if tool names, activation, or capture contracts change.
 
 

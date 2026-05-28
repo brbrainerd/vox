@@ -1,0 +1,8 @@
+id = "humaneval-vox-064-percent"
+training_eligible = true
+provenance = "hand-authored"
+derived_from = "hand-authored-2026-05"
+
+prompt = """
+Write `percent(part: int, whole: int) to int` returning the integer percentage part/whole, rounded down. Assume whole > 0.
+"""

@@ -32,7 +32,7 @@ pub struct McpInferRouting<'a> {
     /// Resolver marked this path as free-tier (`ModelSpec.is_free` should match; enforced at infer).
     pub free_only: bool,
     /// When cloud gate denies (daily cap, in-memory budget) or HTTP fails, try local Ollama.
-    /// Effective only if **`VOX_INFERENCE_PROFILE`** allows local Ollama HTTP (`desktop_ollama` or `lan_gateway`).
+    /// Effective only if **`vox_populi::inference_PROFILE`** allows local Ollama HTTP (`desktop_ollama` or `lan_gateway`).
     pub allow_cloud_ollama_fallback: bool,
     /// Optional tenant/session usage partition key for centralized accounting.
     pub user_id: Option<&'a str>,
@@ -178,6 +178,35 @@ fn google_direct_fallback_for_gemini(
     .get(&targets.google_direct_model)
 }
 
+/// Phase D telemetry helper: emit one `ErrorEvent` for a failed LLM call.
+///
+/// `retry_attempt` is the 0-based count of retries already attempted before this
+/// error. `retried` is `true` when the caller is about to switch to a fallback model
+/// (`continue` in the retry loop), `false` when the error is terminal.
+fn emit_llm_error_event(
+    error_class: &str,
+    http_status: Option<u16>,
+    retry_attempt: u32,
+    retried: bool,
+    model_id: &str,
+    provider: &str,
+) {
+    let trace_ctx = vox_telemetry::current_trace_ctx();
+    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+        vox_telemetry::ErrorEvent {
+            subsystem: "llm.http".into(),
+            error_class: error_class.into(),
+            http_status,
+            retry_attempt,
+            retried,
+            model: Some(model_id.to_owned()),
+            provider: Some(provider.to_owned()),
+            task_id: trace_ctx.task_id,
+            trace_id: Some(trace_ctx.trace_id.to_string()),
+        }
+    ));
+}
+
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.).
 pub async fn mcp_infer_completion(
     state: &ServerState,
@@ -211,6 +240,7 @@ pub async fn mcp_infer_completion(
 }
 
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.) with explicit tools/tool_choice.
+#[allow(clippy::too_many_arguments)]
 pub async fn mcp_infer_tool_completion(
     state: &ServerState,
     mut model: ModelSpec,
@@ -240,6 +270,8 @@ pub async fn mcp_infer_tool_completion(
     let mut tried_local_fallback = false;
     let mut tried_google_direct_fallback = false;
     let mut tried_secondary_cloud = false;
+    // Phase D: track how many fallback retries have occurred for telemetry.
+    let mut retry_attempt: u32 = 0;
 
     let mut first_pass = true;
 
@@ -350,7 +382,7 @@ pub async fn mcp_infer_tool_completion(
                         if allow_ollama_fallback {
                             "LLM daily quota or rate limit active for this provider; try a local Ollama model or wait."
                         } else {
-                            "LLM daily quota or rate limit active for this provider; configure cloud keys, set VOX_INFERENCE_PROFILE=desktop_ollama or lan_gateway to allow Ollama fallback, or wait."
+                            "LLM daily quota or rate limit active for this provider; configure cloud keys, set vox_populi::inference_PROFILE=desktop_ollama or lan_gateway to allow Ollama fallback, or wait."
                         }
                         .into(),
                     );
@@ -388,7 +420,7 @@ pub async fn mcp_infer_tool_completion(
             (system_prompt, routing.user_prompt)
         };
 
-        let mut user_parts = vec![vox_openai_wire::ChatMessagePart::Text { text: final_user }];
+        let mut user_parts = vec![vox_openai::ChatMessagePart::Text { text: final_user }];
         if let Some(ref manifest) = attachment_manifest {
             if let Some(db) = state.db.as_ref() {
                 for attachment in &manifest.attachments {
@@ -397,8 +429,8 @@ pub async fn mcp_infer_tool_completion(
                             Ok(bytes) => {
                                 let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
                                 let url = format!("data:{};base64,{}", attachment.mime_type, b64);
-                                user_parts.push(vox_openai_wire::ChatMessagePart::ImageUrl {
-                                    image_url: vox_openai_wire::ImageUrl {
+                                user_parts.push(vox_openai::ChatMessagePart::ImageUrl {
+                                    image_url: vox_openai::ImageUrl {
                                         url: Box::leak(url.into_boxed_str()),
                                     },
                                 });
@@ -413,9 +445,9 @@ pub async fn mcp_infer_tool_completion(
         }
 
         let user_content = if user_parts.len() > 1 {
-            vox_openai_wire::ChatMessageContent::Parts(user_parts)
+            vox_openai::ChatMessageContent::Parts(user_parts)
         } else {
-            vox_openai_wire::ChatMessageContent::Text(final_user)
+            vox_openai::ChatMessageContent::Text(final_user)
         };
 
         let temperature = temperature_override
@@ -485,6 +517,11 @@ pub async fn mcp_infer_tool_completion(
                     None => (estimated_usd, "estimated"),
                 };
                 let infer_latency_ms = infer_start.elapsed().as_millis() as u64;
+                // Phase C: populate trace fields from the ambient TRACE_CTX set by
+                // dispatch::handle_tool_call's TRACE_CTX::scope wrapper.  Outside any
+                // dispatch scope the default context still provides a fresh UUID trace_id,
+                // which preserves the prior per-call behavior for orphan callers.
+                let trace_ctx = vox_telemetry::current_trace_ctx();
 
                 vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::ModelCall(
                     vox_telemetry::ModelCallEvent {
@@ -499,11 +536,11 @@ pub async fn mcp_infer_tool_completion(
                         cost_usd: reconciled_usd,
                         cost_source: cost_source.to_string(),
                         error_class: None,
-                        retry_attempt: 0,
-                        task_id: None,
-                        parent_task_id: None,
-                        trace_id: None,
-                        caller_agent_id: None,
+                        retry_attempt,
+                        task_id: trace_ctx.task_id,
+                        parent_task_id: trace_ctx.parent_task_id,
+                        trace_id: Some(trace_ctx.trace_id.to_string()),
+                        caller_agent_id: trace_ctx.caller_agent_id,
                     }
                 ));
 
@@ -597,6 +634,7 @@ pub async fn mcp_infer_tool_completion(
                     }
                 }
 
+                // Persist rate-limit state for budget tracking (unchanged).
                 if e.status == 429 {
                     if let Some(db) = state.db.as_ref() {
                         let tracker = if let Some(user_id) = routing.user_id {
@@ -608,25 +646,39 @@ pub async fn mcp_infer_tool_completion(
                             .mark_rate_limited(&usage.provider, &usage.model)
                             .await;
                     }
-                    let trace_ctx = vox_telemetry::current_trace_ctx();
-                    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
-                        vox_telemetry::ErrorEvent {
-                            subsystem: "llm.http".into(),
-                            error_class: "rate-limited".into(),
-                            http_status: Some(429),
-                            retry_attempt: 0,
-                            retried: true,
-                            model: Some(model.id.clone()),
-                            provider: Some(format!("{:?}", model.provider_type)),
-                            task_id: trace_ctx.task_id,
-                            trace_id: Some(trace_ctx.trace_id.to_string()),
-                        }
-                    ));
                 }
+
+                // Phase D: classify error once, then emit at each decision branch so
+                // `retried` accurately reflects whether a fallback is actually taken.
+                let error_class: &str = if e.status == 429 {
+                    "rate-limited"
+                } else if e.status == 408
+                    || e.status == 504
+                    || e.message.to_ascii_lowercase().contains("timeout")
+                {
+                    "connection-timeout"
+                } else if e.status == 0 {
+                    "transport-error"
+                } else {
+                    "llm-api-error"
+                };
+                let http_status_opt: Option<u16> =
+                    if e.status > 0 { Some(e.status) } else { None };
+                let provider_str = format!("{:?}", model.provider_type);
+
                 if !tried_google_direct_fallback {
                     if let Some(fb) = google_direct_fallback_for_gemini(state, &model) {
+                        emit_llm_error_event(
+                            error_class,
+                            http_status_opt,
+                            retry_attempt,
+                            true,
+                            &model.id,
+                            &provider_str,
+                        );
                         model = fb;
                         tried_google_direct_fallback = true;
+                        retry_attempt += 1;
                         continue;
                     }
                 }
@@ -635,18 +687,45 @@ pub async fn mcp_infer_tool_completion(
                     && !matches!(model.provider_type, ProviderType::Ollama)
                 {
                     if let Some(fb) = best_ollama_model(state).await {
+                        emit_llm_error_event(
+                            error_class,
+                            http_status_opt,
+                            retry_attempt,
+                            true,
+                            &model.id,
+                            &provider_str,
+                        );
                         model = fb;
                         tried_local_fallback = true;
+                        retry_attempt += 1;
                         continue;
                     }
                 }
                 if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud {
                     if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                        emit_llm_error_event(
+                            error_class,
+                            http_status_opt,
+                            retry_attempt,
+                            true,
+                            &model.id,
+                            &provider_str,
+                        );
                         model = fb;
                         tried_secondary_cloud = true;
+                        retry_attempt += 1;
                         continue;
                     }
                 }
+                // No fallback available — terminal failure.
+                emit_llm_error_event(
+                    error_class,
+                    http_status_opt,
+                    retry_attempt,
+                    false,
+                    &model.id,
+                    &provider_str,
+                );
                 return Err(e.to_string());
             }
         }
@@ -689,7 +768,7 @@ pub async fn call_llm(
         (model, free_only, resolution_template)
     };
 
-    let max_tokens = model.max_tokens.min(HTTP_MAX_OUTPUT_TOKENS_CAP).max(1);
+    let max_tokens = model.max_tokens.clamp(1, HTTP_MAX_OUTPUT_TOKENS_CAP);
     let routing = McpInferRouting {
         user_prompt,
         sticky_model_pref: pref.as_deref(),

@@ -1,7 +1,7 @@
 ---
 title: "Populi Mesh North-Star (2026-05-01)"
 description: "Design intent and capability-slice plan for taking the Populi mesh from single-node-correct to multi-node power-user dogfood. Decomposes seven workstreams into three sequenced slices with a child-spec roadmap."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Architectural plan-of-record for Populi mesh evolution; names the workstreams, slices, and child specs that subsequent work decomposes into."
@@ -318,9 +318,9 @@ These decisions are deferred to the child specs because making them here would f
 
 For agents and contributors: which existing code each workstream most touches.
 
-- **W1 leases:** [`vox-orchestrator/src/a2a/dispatch/`](../../../crates/vox-orchestrator/src/a2a/dispatch/), [`vox-orchestrator/src/orchestrator/`](../../../crates/vox-orchestrator/src/orchestrator/), [`vox-populi/src/transport/handlers.rs`](../../../crates/vox-populi/src/transport/handlers.rs), [`vox-mesh-types/src/`](../../../crates/vox-mesh-types/src/) (lease record types).
+- **W1 leases:** [`vox-orchestrator/src/a2a/dispatch/`](../../../crates/vox-orchestrator/src/a2a/dispatch/), [`vox-orchestrator/src/orchestrator/`](../../../crates/vox-orchestrator/src/orchestrator/), [`vox-populi/src/transport/handlers.rs`](../../../crates/vox-populi/src/transport/handlers/mod.rs), [`vox-mesh-types/src/`](../../../crates/vox-mesh-types/src/) (lease record types).
 - **W2 GPU truth:** [`vox-populi/src/mens/hardware/`](../../../crates/vox-populi/src/mens/hardware/), [`vox-populi/src/node_registry.rs`](../../../crates/vox-populi/src/node_registry.rs), orchestrator planner.
-- **W3 secret pairing:** [`vox-orchestrator/src/a2a/jwe.rs`](../../../crates/vox-orchestrator/src/a2a/jwe.rs), [`vox-orchestrator/src/a2a/dispatch/mesh.rs`](../../../crates/vox-orchestrator/src/a2a/dispatch/mesh.rs), [`vox-populi/src/transport/handlers.rs`](../../../crates/vox-populi/src/transport/handlers.rs), [`vox-crypto/src/facades.rs`](../../../crates/vox-crypto/src/facades.rs), new pairing storage.
+- **W3 secret pairing:** [`vox-orchestrator/src/a2a/jwe.rs`](../../../crates/vox-orchestrator/src/a2a/jwe.rs), [`vox-orchestrator/src/a2a/dispatch/mesh.rs`](../../../crates/vox-orchestrator/src/a2a/dispatch/mesh.rs), [`vox-populi/src/transport/handlers.rs`](../../../crates/vox-populi/src/transport/handlers/mod.rs), [`vox-crypto/src/facades.rs`](../../../crates/vox-crypto/src/facades.rs), new pairing storage.
 - **W4 model discovery:** new endpoint in [`vox-populi/src/transport/`](../../../crates/vox-populi/src/transport/), new poll job in [`vox-orchestrator/src/orchestrator/`](../../../crates/vox-orchestrator/src/orchestrator/), [`vox-orchestrator/src/models/registry.rs`](../../../crates/vox-orchestrator/src/models/registry.rs).
 - **W5 observability:** [`vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`vox-populi/src/transport/`](../../../crates/vox-populi/src/transport/), telemetry sink crate.
 - **W6 test coverage:** [`crates/vox-populi/tests/`](../../../crates/vox-populi/tests/), inline `#[cfg(test)]` modules in probe and cloud-provider files.

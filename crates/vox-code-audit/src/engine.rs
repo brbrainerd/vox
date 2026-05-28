@@ -59,6 +59,11 @@ pub struct ToestubConfig {
     pub prelude_allowlist_path: Option<PathBuf>,
     /// Staged detector flags (e.g. `unwired-graph`, `scaling-fs-ast-only`).
     pub feature_flags: Vec<String>,
+    /// Workspace / repository identifier surfaced in `vox.lint.*` telemetry
+    /// events so the CR-L8 aggregator can roll up by repo. `None` = unset
+    /// (events are emitted with `repository_id: None`). Council-ratified
+    /// 2026-05-15 (P2.1c); landed alongside the engine emission hookup.
+    pub repository_id: Option<String>,
 }
 
 impl Default for ToestubConfig {
@@ -79,6 +84,7 @@ impl Default for ToestubConfig {
             tests_mode: crate::run_context::ToestubTestsMode::default(),
             prelude_allowlist_path: None,
             feature_flags: Vec::new(),
+            repository_id: None,
         }
     }
 }
@@ -194,6 +200,70 @@ impl ToestubEngine {
         Self { rules, config }
     }
 
+    /// Run lint rules on a single pre-loaded source file without a filesystem scan.
+    ///
+    /// This is a lightweight alternative to [`run`] for `vox check --for-llm` and
+    /// similar single-file consumers that already have source in memory.  Unlike
+    /// [`run`], this method:
+    /// - Skips the [`Scanner`] (no directory walk).
+    /// - Does **not** emit telemetry (no CR-L8 corpus events).
+    /// - Does **not** apply suppression rules.
+    /// - Sets up a default [`RunContext`] (safe for single-file Vox linting; some
+    ///   Rust-specific rules that depend on workspace cross-refs will produce no
+    ///   findings on Vox files regardless).
+    ///
+    /// Severity filtering and deterministic sort are still applied so callers
+    /// receive findings in the same order as a full [`run`].
+    ///
+    /// # Thread safety
+    /// [`RunContext`] uses a process-global mutex.  Concurrent calls to this method
+    /// (or to [`run`]) will serialize; do not hold the returned `Vec<Finding>` across
+    /// a second call on a different thread without copying first.
+    pub fn check_source_file(&self, file: &crate::rules::SourceFile) -> Vec<Finding> {
+        let _guard = crate::run_context::RunContextGuard::new(
+            crate::run_context::RunContext::default(),
+        );
+
+        let rust_ctx_owned = if file.language == crate::rules::Language::Rust {
+            Some(RustFileContext::parse(&file.content))
+        } else {
+            None
+        };
+        let rust_ctx = rust_ctx_owned.as_ref();
+
+        let mut findings: Vec<Finding> = Vec::new();
+        for rule in &self.rules {
+            if !rule.languages().contains(&file.language) {
+                continue;
+            }
+            findings.extend(rule.detect(file, rust_ctx));
+        }
+
+        // Apply severity filter (same as full run).
+        findings.retain(|f| f.severity >= self.config.min_severity);
+
+        // Deterministic sort: critical first, then stable tie-breakers.
+        findings.sort_by(|a, b| {
+            b.severity
+                .cmp(&a.severity)
+                .then_with(|| a.deterministic_key().cmp(&b.deterministic_key()))
+        });
+
+        findings
+    }
+
+    /// Build a `rule_id → minimal_repro` lookup table for all registered rules.
+    ///
+    /// Used by `vox check --for-llm` to attach per-rule minimal reproduction snippets
+    /// to [`LintFindingPayload`] without modifying the [`Finding`] struct (which would
+    /// require updating every detector constructor).
+    pub fn minimal_repro_table(&self) -> HashMap<&'static str, &'static str> {
+        self.rules
+            .iter()
+            .filter_map(|r| r.minimal_repro().map(|mr| (r.id(), mr)))
+            .collect()
+    }
+
     /// Run the full analysis pipeline and return findings.
     pub fn run(&self) -> AnalysisResult {
         let roots = self.get_roots();
@@ -274,6 +344,12 @@ impl ToestubEngine {
                 .cmp(&a.severity)
                 .then_with(|| a.deterministic_key().cmp(&b.deterministic_key()))
         });
+
+        // 4b. CR-L8 corpus-feedback: emit one `vox.lint.finding` event per
+        // emitted finding. `record_event!` is a no-op when no recorder is
+        // registered (the v0.5.x default), so this adds zero overhead to
+        // existing toestub runs. Council-ratified 2026-05-15 (P2.1b).
+        emit_lint_finding_telemetry(&all_findings, self.config.repository_id.as_deref());
 
         // 5. Build the task queue
         let task_queue = if self.config.suggest_fixes {
@@ -397,4 +473,61 @@ pub struct SeveritySummary {
     pub warning: usize,
     pub error: usize,
     pub critical: usize,
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// CR-L8 corpus-feedback telemetry emission (P2.1b).
+// ───────────────────────────────────────────────────────────────────────────
+
+/// Emit one `vox.lint.finding` event per emitted finding.
+///
+/// `vox_telemetry::record_event!` is a no-op when no global recorder has been
+/// registered, so this function adds zero observable cost to existing toestub
+/// runs (the v0.5.x default). When the CR-L8 export pipeline registers a
+/// recorder, every finding flows into the quarterly corpus-feedback artifact
+/// at `contracts/reports/corpus-feedback/<quarter>.json`.
+///
+/// Council-ratified 2026-05-15 (D8 / §1.3 P2.1b in
+/// `docs/src/architecture/v1-llm-target-implementation-plan-2026.md`).
+///
+/// `repository_id` is the workspace identifier from `ToestubConfig`; when
+/// `None`, events are emitted without a repo label (P2.1c lands the threading,
+/// callers configure it).
+fn emit_lint_finding_telemetry(findings: &[Finding], repository_id: Option<&str>) {
+    use vox_telemetry::{LintFindingEvent, TelemetryEvent, record_event};
+
+    for finding in findings {
+        let event = TelemetryEvent::LintFinding(LintFindingEvent {
+            rule_id: finding.rule_id.clone(),
+            diagnostic_id: finding.diagnostic_id.clone(),
+            severity: severity_label(finding.severity).to_string(),
+            relative_path: finding.file.to_string_lossy().into_owned(),
+            line: finding.line as u32,
+            // Autofix is "available" if the rule supplied either a suggestion
+            // string or alternative fix descriptors. The aggregator uses this
+            // bit to compute per-rule autofix-coverage rates.
+            autofix_available: finding.suggestion.is_some() || !finding.alternatives.is_empty(),
+            confidence: finding.confidence.map(|c| confidence_label(c).to_string()),
+            repository_id: repository_id.map(str::to_string),
+        });
+        record_event!(&event);
+    }
+}
+
+fn severity_label(s: Severity) -> &'static str {
+    match s {
+        Severity::Info => "info",
+        Severity::Warning => "warning",
+        Severity::Error => "error",
+        Severity::Critical => "critical",
+    }
+}
+
+fn confidence_label(c: crate::rules::FindingConfidence) -> &'static str {
+    use crate::rules::FindingConfidence;
+    match c {
+        FindingConfidence::High => "high",
+        FindingConfidence::Medium => "medium",
+        FindingConfidence::Low => "low",
+    }
 }

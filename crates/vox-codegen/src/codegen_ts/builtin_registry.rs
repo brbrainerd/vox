@@ -58,6 +58,7 @@ impl BuiltinRegistry {
         );
         functions.insert(("len", 1), BuiltinLowering::FunctionRename("__vox_len"));
         functions.insert(("str", 1), BuiltinLowering::FunctionRename("String"));
+        functions.insert(("print", 1), BuiltinLowering::FunctionRename("console.log"));
 
         let mut namespaces = HashMap::new();
         namespaces.insert("Speech", "Speech");

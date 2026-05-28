@@ -201,6 +201,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             None,
             None,
             params.session_id,
+            params.tenant_id,
         )
         .await
     {
@@ -260,6 +261,12 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
 
     if let Some(id) = target_id {
         if let Some(db) = &state.db {
+            let tenant_id = vox_gamify::db::get_agent_session(db, &params.session_id)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|s| s.tenant_id);
+
             let _ = vox_gamify::db::insert_cost_record(
                 db,
                 &id.0.to_string(),
@@ -269,6 +276,7 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
                 params.input_tokens as i64,
                 params.output_tokens as i64,
                 params.cost_usd,
+                tenant_id.as_deref(),
             )
             .await;
         }

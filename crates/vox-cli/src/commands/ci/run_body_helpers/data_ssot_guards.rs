@@ -194,6 +194,52 @@ fn run_routing_ssot_guard(root: &Path) -> Result<()> {
     Ok(())
 }
 
+fn run_telemetry_events_catalog_guard(root: &Path) -> Result<()> {
+    let catalog_path = root.join("contracts/telemetry/events.v1.yaml");
+    let raw = read_utf8_path_capped(&catalog_path)
+        .with_context(|| format!("read {}", catalog_path.display()))?;
+    let y: serde_yaml::Value =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", catalog_path.display()))?;
+    let events = y
+        .get("events")
+        .and_then(serde_yaml::Value::as_sequence)
+        .ok_or_else(|| anyhow!("{} must define `events: []`", catalog_path.display()))?;
+    if events.is_empty() {
+        return Err(anyhow!(
+            "{} must include at least one telemetry event entry",
+            catalog_path.display()
+        ));
+    }
+    for ev in events {
+        let id = ev
+            .get("id")
+            .and_then(serde_yaml::Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| anyhow!("{} contains event with missing id", catalog_path.display()))?;
+        let schema_path = ev
+            .get("schema_path")
+            .and_then(serde_yaml::Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                anyhow!(
+                    "{} event `{id}` missing schema_path",
+                    catalog_path.display()
+                )
+            })?;
+        let abs = root.join(schema_path);
+        if !abs.is_file() {
+            return Err(anyhow!(
+                "{} event `{id}` references missing schema {}",
+                catalog_path.display(),
+                schema_path
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn run_provider_secret_parity_guard(root: &Path) -> Result<()> {
     let providers_path = root.join("contracts/orchestration/providers.v1.yaml");
     let providers_txt = read_utf8_path_capped(&providers_path)
@@ -328,6 +374,7 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
         }
     }
     run_scientia_consumption_registry_guard(root, &ix)?;
+    run_telemetry_events_catalog_guard(root)?;
     run_provider_secret_parity_guard(root)?;
 
     let env_vars = root.join("contracts/config/env-vars.v1.yaml");

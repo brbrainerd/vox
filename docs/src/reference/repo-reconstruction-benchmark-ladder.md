@@ -1,7 +1,7 @@
 ---
 title: "Repo reconstruction benchmark ladder"
 description: "Progressive benchmark tiers, KPI examples, and pointers to the reconstruction JSON Schema and durable DB tables."
-category: "reference"
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

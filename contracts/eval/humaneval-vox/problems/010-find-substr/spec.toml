@@ -1,0 +1,10 @@
+id = "humaneval-vox-010-find-substr"
+training_eligible = false
+provenance = "examples-golden-lift"
+derived_from = "examples/golden/str_utils.vox"
+
+prompt = """
+Write a Vox function `find(haystack: str, needle: str) to Option[int]`
+that returns `Some(index)` of the first occurrence of `needle` in
+`haystack`, or `None` if not found. Use the str.index_of method.
+"""

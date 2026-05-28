@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-use tower_lsp::lsp_types::DiagnosticSeverity;
+use tower_lsp_server::ls_types::DiagnosticSeverity;
 use vox_code_audit::{Severity, ToestubConfig, ToestubEngine};
 
 use crate::types::{AgentTask, CompletionAttestation};

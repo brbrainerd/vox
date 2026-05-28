@@ -1,6 +1,6 @@
 //! Five-signal circuit breaker for orchestrator doom-loop detection (D6).
 //!
-//! Reads thresholds from [`CircuitBreakerConfig`] which mirrors
+//! Reads thresholds from `CircuitBreakerConfig` which mirrors
 //! `contracts/orchestration/circuit-breaker.v1.yaml`.
 //! All trip / tier checks are pure: no async, no I/O, no allocations on the hot path.
 //! The `bigram_jaccard` helper is the lone exception — it allocates two small

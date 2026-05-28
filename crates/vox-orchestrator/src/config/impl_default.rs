@@ -9,6 +9,7 @@ use super::defaults::*;
 use super::enums::{OverflowStrategy, ScalingProfile};
 use super::news::NewsConfig;
 use super::orchestrator_fields::OrchestratorConfig;
+use super::scientia_research_mesh::ScientiaResearchMeshConfig;
 
 impl Default for OrchestratorConfig {
     fn default() -> Self {
@@ -21,6 +22,8 @@ impl Default for OrchestratorConfig {
             bulletin_capacity: 256,
             fallback_to_single_agent: true,
             toestub_gate: true,
+            behavioral_gate_on_complete: default_true(),
+            completion_markdown_link_audit_enabled: default_true(),
             max_debug_iterations: 3,
             max_toestub_debug_iterations: default_max_toestub_debug_iterations(),
             max_socrates_debug_iterations: default_max_socrates_debug_iterations(),
@@ -93,7 +96,7 @@ impl Default for OrchestratorConfig {
                 vox_secrets::SecretId::VoxOrchestratorPlanningLlmSynthesisEnabled,
             )
             .expose()
-            .map(|v| v != "0" && v.to_ascii_lowercase() != "false")
+            .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
             .unwrap_or(false),
             planning_shadow_mode: default_false(),
             research_model_enabled: default_false(),
@@ -131,6 +134,7 @@ impl Default for OrchestratorConfig {
             tier_gate: crate::attention::TierGateConfig::default(),
             interruption_calibration: crate::attention::InterruptionCalibrationConfig::default(),
             news: NewsConfig::default(),
+            scientia_research_mesh: ScientiaResearchMeshConfig::default(),
             observer_enabled: false,
             observer_model: None,
             observer_poll_interval_ms: default_observer_poll_interval_ms(),
@@ -140,11 +144,15 @@ impl Default for OrchestratorConfig {
             exec_time_timeout_rate_alert: default_exec_time_timeout_rate_alert(),
             exec_time_default_budget_ms: default_exec_time_default_budget_ms(),
             exec_time_history_window_days: default_exec_time_history_window_days(),
+            agentos_aci_envelope_enabled: default_true(), // CR-L5: on by default since v0.6
+            agentos_guardrail_kernel_enabled: default_false(),
+            agentos_checkpoint_hints_enabled: default_false(),
             local_breakeven_tokens: super::defaults::default_local_breakeven_tokens(),
             research_max_hops: super::defaults::default_research_max_hops(),
             research_quality_gate_enabled: default_true(),
             research_quality_target: super::defaults::default_research_quality_target(),
             tool_ledger_key: String::new(),
+            budget_gate_config: None,
         }
     }
 }

@@ -114,7 +114,7 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
     let train_jsonl = data_dir.join("train.jsonl");
     ensure_train_jsonl(&train_jsonl, data_dir)?;
     let body = std::fs::read(&train_jsonl)?;
-    let client = vox_reqwest_defaults::client_builder()
+    let client = vox_http_client::client_builder()
         .build()
         .map_err(|e| anyhow::anyhow!("reqwest client: {}", e))?;
     let part = reqwest::multipart::Part::bytes(body).file_name("train.jsonl");

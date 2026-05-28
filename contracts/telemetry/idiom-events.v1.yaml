@@ -1,0 +1,21 @@
+x-vox-version: 1
+schema_version: 1
+description: >
+  Planned opt-in telemetry events for language-quality feedback (Phase 4 runtime monitors).
+  Do not emit until implementation registers these families in the telemetry sink with
+  privacy review per docs/src/architecture/telemetry-trust-ssot.md.
+
+families:
+  - id: vox.idiom.pattern
+    status: planned
+    summary: Fingerprint of recurring AST/type shapes observed at runtime (aggregated).
+    pii_policy: Must not include raw source or filesystem paths.
+  - id: vox.idiom.diagnostic_cluster
+    status: planned
+    summary: Cluster id for repeated compiler diagnostic codes in a session (hashed).
+    pii_policy: Codes only; no free-form message text in default tier.
+
+notes:
+  - Register concrete JSON shapes in a follow-up contract bump before enabling emission.
+  - Cross-reference mesh/MENS eval gating in mesh-mens-distributed-training-and-execution-plan-2026.md.
+

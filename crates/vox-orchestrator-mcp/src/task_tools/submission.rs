@@ -141,6 +141,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
         return None;
     }
     Some(TaskEnqueueHints {
+        tenant_id: params.tenant_id.clone(),
         task_category: category,
         complexity: params.complexity.map(|c| c.clamp(1, 10)),
         model_preference: params.model_preference.clone(),
@@ -162,6 +163,7 @@ pub fn enqueue_hints_from_submit_params(params: &SubmitTaskParams) -> Option<Tas
             max_latency_ms: b.max_latency_ms,
         }),
         trace_id: params.trace_id.clone(),
+        active_skill: params.active_skill.clone(),
     })
 }
 
@@ -552,15 +554,17 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             .map(str::trim)
             .filter(|s| !s.is_empty())
     {
-        let base: Option<vox_orchestrator::ContextEnvelope> =
-            if let Some((ref env, _)) = explicit_context_envelope {
-                Some(env.clone())
-            } else if let Some(retrieval) = explicit_retrieval {
-                Some(retrieval.to_context_envelope(repo_id, Some(sid)))
-            } else {
-                None
-            };
+        let base: Option<vox_orchestrator::ContextEnvelope> = if let Some((ref env, _)) =
+            explicit_context_envelope
+        {
+            Some(env.clone())
+        } else {
+            explicit_retrieval.map(|retrieval| retrieval.to_context_envelope(repo_id, Some(sid)))
+        };
         if let Some(mut base) = base {
+            if base.agentos.is_none() {
+                base = base.with_agentos_intent_hints(&description, 4);
+            }
             apply_mcp_trace_to_context_envelope(
                 &mut base,
                 params.trace_id.as_deref(),
@@ -645,6 +649,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             planning_mode,
             normalized_session_id.clone(),
             enqueue_hints,
+            params.tenant_id.clone(),
         )
         .await
         .map_err(|e| e.to_string())
@@ -659,6 +664,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 params.capabilities.clone(),
                 enqueue_hints,
                 normalized_session_id.clone(),
+                params.tenant_id.clone(),
             )
             .await
             .map_err(|e| e.to_string())
@@ -811,7 +817,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             .to_json()
         }
         Err(e) => {
-            let msg = format!("{e}");
+            let msg = e.to_string();
             let remediation =
                 if msg.contains("scope") || msg.contains("Scope") || msg.contains("outside") {
                     REM_TASK_SCOPE

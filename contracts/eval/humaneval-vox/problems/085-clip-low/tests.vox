@@ -1,0 +1,15 @@
+fn clip_low(n: int, lo: int) to int {
+    if n < lo {
+        return lo
+    }
+    return n
+}
+
+@test
+fn t_below() to Unit { assert(clip_low(-5, 0) is 0) }
+@test
+fn t_equal() to Unit { assert(clip_low(0, 0) is 0) }
+@test
+fn t_above() to Unit { assert(clip_low(5, 0) is 5) }
+@test
+fn t_neg_floor() to Unit { assert(clip_low(-3, -10) is -3) }

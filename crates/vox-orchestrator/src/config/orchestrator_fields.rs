@@ -11,6 +11,7 @@ use vox_orchestrator_types::socrates_policy::ConfidencePolicyOverride;
 use super::defaults::*;
 use super::enums::{CostPreference, OverflowStrategy, ScalingProfile};
 use super::news::NewsConfig;
+use super::scientia_research_mesh::ScientiaResearchMeshConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, default)]
@@ -34,6 +35,14 @@ pub struct OrchestratorConfig {
     pub test_decision_policy: crate::planning::TestDecisionPolicy,
     /// Whether to run TOESTUB validation after each completed task (default: true).
     pub toestub_gate: bool,
+    /// When true, task completion runs the behavioral gate (nested workspace `cargo test` / npm test).
+    /// Disabled in [`OrchestratorConfig::for_testing`] so integration tests do not recurse into Cargo.
+    #[serde(default = "default_true")]
+    pub behavioral_gate_on_complete: bool,
+    /// When true, completion verifies Markdown writes via nested `vox ci check-links` (default: true).
+    /// Disabled in [`OrchestratorConfig::for_testing`] so integration/stress tests avoid subprocess-heavy audits.
+    #[serde(default = "default_true")]
+    pub completion_markdown_link_audit_enabled: bool,
     /// Maximum number of times a task can be re-routed due to validation failures (default: 3).
     pub max_debug_iterations: u8,
     /// TOESTUB-specific max auto-debug retries (default: 3).
@@ -51,7 +60,7 @@ pub struct OrchestratorConfig {
     /// Blend `agent_reliability` (Arca V10) into routing when a VoxDb is attached (default: false).
     #[serde(default = "default_false")]
     pub socrates_reputation_routing: bool,
-    /// Optional Socrates confidence thresholds merged onto [`ConfidencePolicy::workspace_default`].
+    /// Optional Socrates confidence thresholds merged onto `ConfidencePolicy::workspace_default`.
     #[serde(default)]
     pub socrates_policy: Option<ConfidencePolicyOverride>,
     /// Prefer the dedicated research synthesis lane when orchestrator wiring exposes it (Lane G).
@@ -130,7 +139,7 @@ pub struct OrchestratorConfig {
     /// Whether dynamic scaling is enabled (default: false).
     #[serde(default = "default_false")]
     pub scaling_enabled: bool,
-    /// Preference for cost vs performance (default: Performance).
+    /// Preference for cost vs performance (default: Economy — free-by-default product directive).
     #[serde(default = "default_cost_preference")]
     pub cost_preference: CostPreference,
     /// Number of ticks to look back for predictive scaling (default: 5).
@@ -214,7 +223,7 @@ pub struct OrchestratorConfig {
     )]
     pub populi_rebalance_on_remote_schedulable_drop: bool,
     /// When [`Self::populi_routing_experimental`] is on and federation-schedulable remote node count
-    /// **drops**, re-run [`RoutingService::route`] for each **queued** (not in-progress) task and move
+    /// **drops**, re-run `RoutingService::route` for each **queued** (not in-progress) task and move
     /// tasks whose preferred agent changed (after optional rebalance). Default off.
     #[serde(
         default = "default_false",
@@ -397,6 +406,9 @@ pub struct OrchestratorConfig {
     /// Configuration for the unified news publisher (docs/news/ → RSS/X/GitHub).
     #[serde(default)]
     pub news: NewsConfig,
+    /// SCIENTIA research mesh on-disk intake and optional promoted-ledger consumer.
+    #[serde(default)]
+    pub scientia_research_mesh: ScientiaResearchMeshConfig,
 
     // ── Phase 16: OAPV Observer ─────────────────────────────────────────────
     /// Enable the autonomous Observer loop (OAPV). Default: false.
@@ -426,6 +438,18 @@ pub struct OrchestratorConfig {
     #[serde(default = "default_exec_time_history_window_days")]
     pub exec_time_history_window_days: u32,
 
+    // ── AgentOS (ACI envelopes + guardrails) ─────────────────────────────────
+    /// When true, MCP tool JSON responses include a validated sibling `aci` block.
+    /// Default: `true` since v0.6 (CR-L5; council D20, 2026-05-15).
+    #[serde(default = "default_true")]
+    pub agentos_aci_envelope_enabled: bool,
+    /// When true, [`crate::agentos::guardrail_kernel`] runs before mutating / dangerous tools.
+    #[serde(default = "default_false")]
+    pub agentos_guardrail_kernel_enabled: bool,
+    /// When true, orchestrator may emit sparse checkpoint hints for telemetry consumers.
+    #[serde(default = "default_false")]
+    pub agentos_checkpoint_hints_enabled: bool,
+
     /// Daily local token threshold before enforcing local-tier inference. Default: 9.1M.
     #[serde(default = "default_local_breakeven_tokens")]
     pub local_breakeven_tokens: u64,
@@ -444,4 +468,7 @@ pub struct OrchestratorConfig {
     /// If empty, a new key is generated each session (ephemeral).
     #[serde(default)]
     pub tool_ledger_key: String,
+    /// Optional configuration for the orchestrator-policy budget gate (D7).
+    #[serde(default)]
+    pub budget_gate_config: Option<crate::budget_gate::BudgetGateConfig>,
 }

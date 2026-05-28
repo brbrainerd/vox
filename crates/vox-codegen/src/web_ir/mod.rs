@@ -20,9 +20,14 @@
 //! [`validate::validate_web_ir`] (non-empty specifiers / escape-hatch reasons). Route+data shape
 //! notes: [`RouteContract`] JSON in [`RouteNode::RouteTree`] must stay serde-stable for tooling (OP-S153).
 
+pub mod async_state;
 pub mod emit_tsx;
+pub mod href_emit;
+pub mod layer_emit;
 pub mod lower;
+pub mod paginated_emit;
 pub mod primitives;
+pub mod semantic_ui_emit;
 pub mod validate;
 pub mod validate_a11y;
 pub mod validate_keys;
@@ -40,6 +45,48 @@ pub enum WebIrVersion {
     /// Initial frozen placeholder (Phase 0).
     #[default]
     V0_1,
+}
+
+/// Normative Z-tiers for the seven-tier ladder (ADR 034 / VUV Layered Layout Discipline).
+///
+/// **Rule 2:** within-tier ordering is deliberately unspecified.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ZTier {
+    Background,
+    Content,
+    Chrome,
+    Popover,
+    Modal,
+    Toast,
+    SystemOverlay,
+}
+
+impl ZTier {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "background" => Some(Self::Background),
+            "content" => Some(Self::Content),
+            "chrome" => Some(Self::Chrome),
+            "popover" => Some(Self::Popover),
+            "modal" => Some(Self::Modal),
+            "toast" => Some(Self::Toast),
+            "system_overlay" => Some(Self::SystemOverlay),
+            _ => None,
+        }
+    }
+
+    pub fn to_str(self) -> &'static str {
+        match self {
+            Self::Background => "background",
+            Self::Content => "content",
+            Self::Chrome => "chrome",
+            Self::Popover => "popover",
+            Self::Modal => "modal",
+            Self::Toast => "toast",
+            Self::SystemOverlay => "system_overlay",
+        }
+    }
 }
 
 /// Web-facing projection IR — same serde layout as [`WebIrModule`]; use this name at core/projection boundaries.
@@ -466,6 +513,7 @@ impl WebIrDiagnostic {
             "web_ir_validate.a11y.anchor_missing_href"
                 | "web_ir_validate.a11y.input_missing_label"
                 | "web_ir_validate.a11y.low_contrast"
+                | "vox/codegen/missing-ts-ai-lowering"
         ) {
             WebIrDiagnosticSeverity::Warning
         } else {

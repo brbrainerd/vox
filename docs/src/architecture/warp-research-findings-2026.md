@@ -1,7 +1,7 @@
 ---
 title: "Warp Terminal Research Findings (2026)"
 description: "Systematic scan of warpdotdev/warp for high-value primitives, license compatibility, and feature gaps relevant to Vox."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 last_updated: "2026-04-29"
 training_eligible: true
@@ -53,7 +53,7 @@ Warp is a Rust-based terminal emulator ("agentic development environment") with:
 | `computer_use` | Anthropic computer-use tool surface (screenshot, click, key-chord) | `vox-skills` `@mcp.tool` set for desktop-control agent capability |
 | `isolation_platform` | OS-level process sandboxing abstraction | Vox has `--isolation wasm`; this covers the OS-process-isolation tier |
 | `settings_value_derive` | Derive macro for compile-time config schema | `vox-config` hardening |
-| `channel_versions` | Versioned async channels | `vox-runtime` mailbox/`vox-orchestrator` typed message versioning |
+| `channel_versions` | Versioned async channels | `vox-actor-runtime` mailbox/`vox-orchestrator` typed message versioning |
 
 ### Tier B — Alternate Apache-2.0 source available
 

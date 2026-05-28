@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA publication worthiness rules"
 description: "Rules and metrics for classifying findings as publishable, evidence-incomplete, or non-publishable."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-25"
 training_eligible: true
 

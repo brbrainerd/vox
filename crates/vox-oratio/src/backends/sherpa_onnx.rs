@@ -8,6 +8,9 @@ use anyhow::Result;
 use sherpa_onnx::{OfflineRecognizer, OfflineRecognizerConfig, OfflineWhisperModelConfig};
 use std::sync::Mutex;
 
+const SHERPA_DEFAULT_THREADS: u32 = 4;
+const ASR_CONFIDENCE_UNAVAILABLE: f32 = 0.85; // per AsrOutput docs
+
 /// Oratio Sherpa-ONNX backend. Thread-safe via Mutex; one session per process.
 pub struct SherpaOnnxBackend {
     inner: Mutex<OfflineRecognizer>,
@@ -25,7 +28,7 @@ impl SherpaOnnxBackend {
             ..Default::default()
         };
         config.model_config.tokens = Some(paths.tokens.to_string_lossy().to_string());
-        config.model_config.num_threads = 4;
+        config.model_config.num_threads = SHERPA_DEFAULT_THREADS as i32;
         config.model_config.debug = false;
 
         let recognizer = OfflineRecognizer::create(&config).ok_or_else(|| {
@@ -68,7 +71,7 @@ impl AsrBackend for SherpaOnnxBackend {
             raw_text: result
                 .map(|r| r.text.trim().to_string())
                 .unwrap_or_default(),
-            confidence: 0.85,
+            confidence: ASR_CONFIDENCE_UNAVAILABLE,
             n_best: Vec::new(),
             segments: Vec::new(), // TODO: map timestamps to segments
         })

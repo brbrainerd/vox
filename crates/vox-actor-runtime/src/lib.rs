@@ -12,6 +12,8 @@ pub mod builtins;
 #[cfg(feature = "database")]
 /// Optional Codex / Turso database handle when the `database` feature is enabled.
 pub mod db;
+/// Durable / cron scheduler primitives for `@scheduled` + `@durable` (GA-11).
+pub mod durable_scheduler;
 /// Garbage collection arena and !Send pointers for actor memory isolation.
 pub mod gc;
 /// Hugging Face router, Hub listings, and Mens/Ollama capability probes.
@@ -26,8 +28,12 @@ pub mod mailbox;
 pub mod mens;
 /// SSOT chat routing: manual URL, Mens, HF dedicated/router, OpenRouter.
 pub mod model_resolution;
+/// Multi-channel notification dispatch (GA-14): Email / SMS / WebPush.
+pub mod notify;
 /// Opaque process identifiers for actors and messaging.
 pub mod pid;
+/// Cursor-presence channel for real-time multiplayer (GA-25).
+pub mod presence;
 /// Actor `ProcessContext`, `ProcessHandle`, and `spawn_process`.
 pub mod process;
 /// Prompt normalization, conflict detection, and safety pass for LLM ingress.
@@ -57,12 +63,12 @@ pub use llm_result::{LlmError, LlmResult, StdLlmResult};
 pub use mailbox::{Envelope, Message, MessagePayload, Request};
 pub use pid::Pid;
 pub use process::{CallError, ProcessContext, ProcessHandle, spawn_process};
-pub use registry::{ProcessRegistry, RegistryError};
+pub use registry::{ActorHandler, ActorRegistry, ProcessRegistry, RegistryError};
 pub use resilient_http::RetryPolicy;
 pub use retrieval::{ContextBudget, ProvenanceRecord, RetrievedChunk, apply_context_budget};
 pub use subscription::SubscriptionManager;
 
-/// Re-exported pure backoff math ([`vox_primitives::backoff`]).
-pub use vox_primitives::backoff;
-/// Re-exported cheap hex ids ([`vox_primitives::id`]).
-pub use vox_primitives::id as simple_id;
+/// Re-exported pure backoff math ([`vox_foundation::primitives::backoff`]).
+pub use vox_foundation::primitives::backoff;
+/// Re-exported cheap hex ids ([`vox_foundation::primitives::id`]).
+pub use vox_foundation::primitives::id as simple_id;

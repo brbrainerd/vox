@@ -1,9 +1,9 @@
 //! Environment-driven knobs for Turso-backed search and retrieval.
 //!
-//! ANN / sqlite-vss integration is deferred; [`embedding_candidate_cap`] tunes the brute-force
+//! ANN / sqlite-vss integration is deferred; `embedding_candidate_cap` tunes the brute-force
 //! embedding window without code changes.
 //!
-//! [`probe_sqlite_capabilities`] reads a handful of PRAGMAs once at runtime so routing / compilers
+//! `probe_sqlite_capabilities` reads a handful of PRAGMAs once at runtime so routing / compilers
 //! can pick FTS vs fallback paths without hard-coding build flavor.
 
 /// Observed libSQL/SQLite behavior for strategy selection (best-effort; never panics on parse).

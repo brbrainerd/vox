@@ -1,0 +1,14 @@
+fn roundtrip_some(n: int) to int {
+    let o = Some(n)
+    match o {
+        Some(v) => return v
+        None    => return 0
+    }
+}
+
+@test
+fn t_zero() to Unit { assert(roundtrip_some(0) is 0) }
+@test
+fn t_pos() to Unit { assert(roundtrip_some(7) is 7) }
+@test
+fn t_neg() to Unit { assert(roundtrip_some(-3) is -3) }

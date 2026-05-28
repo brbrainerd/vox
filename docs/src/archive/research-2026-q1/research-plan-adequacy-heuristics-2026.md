@@ -1,7 +1,7 @@
 ---
 title: "Evaluating AI Plan Adequacy Heuristics"
 description: "Research on plan adequacy scoring via heuristic complexity and word-count signals."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

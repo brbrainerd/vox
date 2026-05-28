@@ -141,6 +141,22 @@ impl DetectionRule for ReachabilityDetector {
     fn severity(&self) -> Severity {
         Severity::Warning
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — pub fn declared but returns trivial default and is never called\n\
+             pub fn process_events(events: Vec<Event>) -> Vec<Result<(), Error>> {\n\
+             \x20   Vec::new()  // trivial default: not actually processing anything\n\
+             }\n\
+             // (no test or entry point ever calls process_events)\n\
+             \n\
+             // FIX — implement the function and wire it into a test\n\
+             pub fn process_events(events: Vec<Event>) -> Vec<Result<(), Error>> {\n\
+             \x20   events.into_iter().map(|e| handle_event(e)).collect()\n\
+             }\n\
+             #[test]\n\
+             fn test_process_events() { assert!(!process_events(sample()).is_empty()); }",
+        )
+    }
     fn languages(&self) -> &[Language] {
         &[Language::Rust]
     }

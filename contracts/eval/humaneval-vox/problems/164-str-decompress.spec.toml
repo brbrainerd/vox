@@ -1,0 +1,11 @@
+[problem]
+id = "164"
+title = "str_decompress"
+prompt = """
+Run-length decode a string: parse alternating character and single-digit count pairs to reconstruct the original string. For example, "a3b2c1" -> "aaabbc". Assumes well-formed input with single-digit counts (1-9).
+"""
+signature = "fn str_decompress(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["strings", "encoding"]

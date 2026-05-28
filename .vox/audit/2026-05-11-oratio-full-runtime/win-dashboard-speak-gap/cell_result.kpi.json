@@ -1,0 +1,15 @@
+{
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "win-dashboard-speak-gap",
+  "compile_pass_at_1": 0.0,
+  "compile_pass_at_k": 0.0,
+  "evidence": "Dashboard source/probe has no microphone capture path to Oratio.",
+  "failure_category": "orchestration",
+  "latency_ms_median": 0.0,
+  "latency_ms_p95": 0.0,
+  "notes": "Loquela remains text chat only.",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "schema_version": "1",
+  "semantic_pass_rate": 0.0,
+  "status": "measured_gap"
+}

@@ -15,7 +15,7 @@ impl SessionManager {
     /// List all sessions sorted by last_active descending.
     pub fn list_sessions(&self) -> Vec<&Session> {
         let mut sessions: Vec<&Session> = self.sessions.values().collect();
-        sessions.sort_by(|a, b| b.last_active.cmp(&a.last_active));
+        sessions.sort_by_key(|s| std::cmp::Reverse(s.last_active));
         sessions
     }
 

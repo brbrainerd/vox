@@ -95,9 +95,11 @@ async fn test_routing_service_load_balancing() {
 
 #[tokio::test]
 async fn test_routing_exploration_epsilon_fallback() {
-    let mut config = OrchestratorConfig::default();
-    config.attention_enabled = true;
-    config.routing_exploration_epsilon = 1.0; // 100% random exploration
+    let config = OrchestratorConfig {
+        attention_enabled: true,
+        routing_exploration_epsilon: 1.0, // 100% random exploration
+        ..OrchestratorConfig::default()
+    };
 
     let affinity_map = FileAffinityMap::new();
     let groups = AffinityGroupRegistry::defaults();

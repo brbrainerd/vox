@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/telemetry/research-event-bridge.v1.schema.json",
+  "title": "ResearchEvent metrics bridge metadata",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["telemetry_catalog_id", "event_type"],
+  "properties": {
+    "telemetry_catalog_id": {
+      "type": "string",
+      "const": "research-event-bridge"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "TelemetryObservation",
+        "AggregateComputed",
+        "FindingCandidateProposed",
+        "ClaimVerified"
+      ]
+    },
+    "provider": { "type": "string" },
+    "metric_type": { "type": "string" },
+    "recorded_at_ms": { "type": "integer" },
+    "window_start_ms": { "type": "integer" },
+    "window_end_ms": { "type": "integer" },
+    "sample_count": { "type": "integer", "minimum": 0 },
+    "finding_id": { "type": "string" },
+    "claim_ids": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 }
+    },
+    "claim_id": { "type": "integer", "minimum": 0 },
+    "verdict": { "type": "string" },
+    "confidence": { "type": "number" },
+    "verifier_model": { "type": "string" }
+  }
+}

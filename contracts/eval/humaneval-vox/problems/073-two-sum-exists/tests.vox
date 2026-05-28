@@ -1,0 +1,37 @@
+fn two_sum_exists(xs: list[int], target: int) to bool {
+    let n: int = xs.len()
+    let mut i: int = 0
+    while i < n {
+        let mut j: int = i + 1
+        while j < n {
+            match xs[i] {
+                Some(a) => {
+                    match xs[j] {
+                        Some(b) => {
+                            if a + b == target {
+                                return true
+                            }
+                        }
+                        None => {}
+                    }
+                }
+                None => {}
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return false
+}
+
+fn main() to str {
+    assert(two_sum_exists([1, 2, 3, 4], 5) == true)
+    assert(two_sum_exists([1, 2, 3, 4], 8) == false)
+    assert(two_sum_exists([3, 3], 6) == true)
+    assert(two_sum_exists([1], 2) == false)
+    assert(two_sum_exists([], 0) == false)
+    assert(two_sum_exists([-1, 1, 0], 0) == true)
+    assert(two_sum_exists([5, 7, 1, 2, 8, 4, 3], 10) == true)
+    assert(two_sum_exists([5, 7, 1, 2, 8, 4, 3], 20) == false)
+    return "ok"
+}

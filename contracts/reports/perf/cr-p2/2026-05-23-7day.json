@@ -1,0 +1,46 @@
+{
+  "criterion": "CR-P2",
+  "measured_at": "2026-05-23T08:01:17.043810600+00:00",
+  "measurement_notes": [
+    "Log shape: JSONL rows {ts, app, live, http_status?, error?} appended on each probe-mode invocation.",
+    "Run `cargo run -p vox-audit --bin cr-p2` on a cron (every 1-5 min) to accumulate evidence.",
+    "`--compute-only` skips the probe step and just rolls up the existing log.",
+    "First-run sample count will be tiny; published evidence accrues over time."
+  ],
+  "monitor_log_path": "C:\\Users\\Owner\\vox\\.claude\\worktrees\\jovial-buck-e93ac0\\contracts/reports/perf/cr-p2/monitor.jsonl",
+  "per_app": [
+    {
+      "app": "marquee-app",
+      "live_samples": 0,
+      "met_per_app": false,
+      "samples_in_window": 1,
+      "uptime_pct": 0.0
+    },
+    {
+      "app": "marquee-chat",
+      "live_samples": 0,
+      "met_per_app": false,
+      "samples_in_window": 1,
+      "uptime_pct": 0.0
+    },
+    {
+      "app": "marquee-todo-auth",
+      "live_samples": 0,
+      "met_per_app": false,
+      "samples_in_window": 1,
+      "uptime_pct": 0.0
+    }
+  ],
+  "results": {
+    "overall_uptime_pct": 0.0,
+    "total_live_samples": 0,
+    "total_samples_in_window": 3
+  },
+  "schema_version": 1,
+  "threshold": {
+    "met": false,
+    "target_per_app_uptime": 0.999
+  },
+  "uptime_target": 0.999,
+  "window_days": 7
+}

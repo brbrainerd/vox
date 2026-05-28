@@ -1,0 +1,88 @@
+---
+source: crates/vox-compiler/tests/diagnostic_snapshots.rs
+assertion_line: 7
+expression: diags
+---
+[
+  {
+    "error_code": "E0000",
+    "severity": "Warning",
+    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+    "file_path": "fixture.vox",
+    "span": {
+      "start_line": 1,
+      "start_col": 8,
+      "end_line": 2,
+      "end_col": 1
+    },
+    "ast_node_kind": null,
+    "missing_cases": [],
+    "expected_type": null,
+    "found_type": null,
+    "correction_hints": [],
+    "suggested_fixes": [],
+    "related_spans": [],
+    "excerpt": {
+      "lines": [
+        1,
+        2,
+        3
+      ],
+      "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+    }
+  },
+  {
+    "error_code": "E0000",
+    "severity": "Warning",
+    "message": "Rust import 'serde_json' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+    "file_path": "fixture.vox",
+    "span": {
+      "start_line": 2,
+      "start_col": 8,
+      "end_line": 3,
+      "end_col": 1
+    },
+    "ast_node_kind": null,
+    "missing_cases": [],
+    "expected_type": null,
+    "found_type": null,
+    "correction_hints": [],
+    "suggested_fixes": [],
+    "related_spans": [],
+    "excerpt": {
+      "lines": [
+        1,
+        2,
+        3
+      ],
+      "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+    }
+  },
+  {
+    "error_code": "E0000",
+    "severity": "Error",
+    "message": "Conflicting dependency specifications for rust crate 'serde_json': versions/path/git metadata must match across imports for the same crate name",
+    "file_path": "fixture.vox",
+    "span": {
+      "start_line": 2,
+      "start_col": 8,
+      "end_line": 3,
+      "end_col": 1
+    },
+    "ast_node_kind": null,
+    "missing_cases": [],
+    "expected_type": null,
+    "found_type": null,
+    "correction_hints": [],
+    "suggested_fixes": [],
+    "related_spans": [],
+    "excerpt": {
+      "lines": [
+        1,
+        2,
+        3
+      ],
+      "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+    }
+  }
+]

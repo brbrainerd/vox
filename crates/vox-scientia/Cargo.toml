@@ -1,0 +1,42 @@
+[package]
+name = "vox-scientia"
+description = "SCIENTIA: semantic search, knowledge-chunk ingestion, and RAG orchestration for the Vox corpus."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sha2 = { workspace = true }
+sha3 = { workspace = true }
+hex = { workspace = true }
+vox-crypto = { workspace = true }
+vox-research-events = { workspace = true }
+vox-db = { workspace = true }
+vox-db-types = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true, features = ["v4", "serde"] }
+thiserror = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+async-trait = { workspace = true }
+gix = { workspace = true }
+turso = { workspace = true }
+
+anyhow = { workspace = true }
+url = { workspace = true }
+chrono = { workspace = true }
+base64 = { workspace = true }
+regex = { workspace = true }
+tokio = { workspace = true }
+pulldown-cmark = { workspace = true }
+tar = { workspace = true }
+flate2 = { workspace = true }
+
+tokio-stream = { workspace = true }
+scraper = { workspace = true }
+vox-search.workspace = true
+feed-rs = "2.3.1"
+
+[dev-dependencies]
+tempfile = { workspace = true }

@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "code": "BAD_REQUEST",
+  "message": "Invalid JSON for query parameter \"limit\": expected value at line 1 column 1",
+  "request_id": "example-req-id",
+  "details": {
+    "param": "limit"
+  }
+}

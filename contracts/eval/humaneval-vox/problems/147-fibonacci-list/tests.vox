@@ -1,0 +1,28 @@
+fn fibonacci_list(n: int) to list[int] {
+    let mut result: list[int] = []
+    if n == 0 {
+        return result
+    }
+    let mut a: int = 0
+    let mut b: int = 1
+    let mut i: int = 0
+    while i < n {
+        result.push(a)
+        let t: int = a + b
+        a = b
+        b = t
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(fibonacci_list(0) == [])
+    assert(fibonacci_list(1) == [0])
+    assert(fibonacci_list(2) == [0, 1])
+    assert(fibonacci_list(5) == [0, 1, 1, 2, 3])
+    assert(fibonacci_list(7) == [0, 1, 1, 2, 3, 5, 8])
+    assert(fibonacci_list(3) == [0, 1, 1])
+    assert(fibonacci_list(8) == [0, 1, 1, 2, 3, 5, 8, 13])
+    return "ok"
+}

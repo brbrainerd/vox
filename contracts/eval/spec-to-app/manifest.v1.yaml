@@ -1,0 +1,68 @@
+x-vox-version: 1
+schema_version: 1
+
+# Spec-to-app manifest (CR-L0 — the v1.0 LLM-target integration test).
+#
+# References:
+#   - docs/src/architecture/v1-release-criteria.md [CR-L0]
+#   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.6, §7.1
+
+corpus:
+  id: spec-to-app
+  schema_version: 1
+  status: target-met                        # 10 fixtures landed 2026-05-23 (honest plan §4.1)
+  bar:
+    pass_rate_target: 0.60
+    cost_ceiling_usd_median: 5.00
+    sub_bar_block_ga_pass_rate: 0.40      # CR-L0 sub-bar blocks GA outright
+    sub_bar_block_ga_cost: 10.00          # cost ceiling >$10/spec median also blocks GA
+  count_target: 10
+  count_current: 10
+  corpus_hash: "blake3:populated-by-SpecToAppRunner-at-run-time"
+
+difficulty_distribution:
+  # Reconciled 2026-05-23 with honest plan §4.1 ("at least 3 T1, 3 T2,
+  # 4 T3"); earlier 4/4/2 was the pre-honest-plan target.
+  T1: 3                                   # single-archetype, single-file scope (≥ 3)
+  T2: 3                                   # multi-feature with auth (≥ 3)
+  T3: 4                                   # marquee-class (≥ 4)
+
+fixtures: []
+
+ci:
+  minimum_viable:
+    count: 3                              # 1 per tier to land the harness
+    tier_distribution_required: true
+  rate_measurement:
+    temperature: 0.0
+    seed: 42
+    attempts_per_fixture: 5
+    scoring: "majority-success"
+    iteration_budget_per_spec: 25         # outer loop cap
+  cost_metering:
+    enabled: true
+    per_spec_currency: USD
+    panel_pricing_pinned_at: "2026-05-15"
+    repricing_on_release_candidate: true  # see OQ-10 in implementation plan §8
+
+# Block-GA semantics (the *only* CR-L with absolute GA-block).
+block_ga_policy:
+  rationale: >
+    CR-L0 is the integration test for the entire v1.0 LLM-target claim.
+    Other CR-L items can demote with public release-note honesty; CR-L0
+    cannot, because its failure means "humans-as-orchestrators" is marketing
+    rather than engineering.
+
+council_ratification_log:
+  - id: spec-to-app-cost-ceiling-rebaseline
+    decision: "Re-baseline $5/spec at release-candidate tag against panel pricing."
+    ratified_at: "2026-05-15"
+    rationale: "2026 LLM pricing drops ~30% per 6 months; rebaselining keeps the bar fair."
+  - id: spec-to-app-tier-mix
+    decision: "4 T1 + 4 T2 + 2 T3 (10 specs total)."
+    ratified_at: "2026-05-15"
+    rationale: "Bias toward T1/T2 since v1.0 marquee surface emphasizes single-archetype + auth lanes."
+  - id: spec-to-app-budget-iterations
+    decision: "25 outer-loop iterations per spec."
+    ratified_at: "2026-05-15"
+    rationale: "Allows 2-3 plan/repair cycles at $5/spec ceiling under panel rates."

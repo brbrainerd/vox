@@ -1,7 +1,7 @@
 ---
 title: "Telemetry and research_metrics contract"
 description: "research_metrics row shape, write validation, session_id prefix conventions, key metric_type semantics, Mens telemetry.jsonl envelope and KPI tiers, deprecation notes, and related CI guards."
-category: "reference"
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---
@@ -60,6 +60,25 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `socrates_surface` | `mcp:<repository_id>` | Hallucination-risk proxy | Prefer metadata for interpretability; eval summaries inject explicit denominators (below). |
 | `agent_exec_time` | `mcp:<repository_id>` | Optional | Tool execution duration/budget events used for execution-time calibration. |
 | `model_route_event` | `route:<repository_id>` | Optional | Runtime/orchestrator route decisions. `metadata_json` must include `trace_id` and `route_policy_profile`. |
+| `model_call_event` | `route:` / `mcp:` / producer-defined | Optional | Per-call LLM / provider invocation audit row (latency, provider id, tokens when present). |
+| `task.root_summary` | producer-defined | Optional | High-level task / conversation rollup for dashboards. |
+| `build.summary` | `bench:` | Optional | Build or CI lane rollup (`METRIC_TYPE_BUILD_SUMMARY_EVENT`). |
+| `telemetry.error` | producer-defined | Optional | Structured error / fault envelope (`METRIC_TYPE_ERROR_EVENT`); use for HTTP failures, rate limits, and similar fault paths. |
+| `orch.circuit_breaker.trip` | `route:<repository_id>` or orchestrator session key | Optional counter / trip marker | Emitted when the orchestrator doom-loop circuit breaker transitions to **Open** (`METRIC_TYPE_CIRCUIT_BREAKER_TRIP`). |
+| `orch.socrates.fusion` | orchestrator / MCP session | Optional | Socrates eval fusion rollup (`METRIC_TYPE_SOCRATES_FUSION`). |
+| `orch.routing.tier` | `route:<repository_id>` | Optional | Tier routing decision telemetry (`METRIC_TYPE_MODEL_TIER_ROUTE`). |
+| `orch.plan.mode_decision` | orchestrator session | Optional | Plan-mode selection (`METRIC_TYPE_PLAN_MODE_DECISION`). |
+| `orch.hitl.interrupt` | orchestrator session | Optional | Human-in-the-loop interrupt signal (`METRIC_TYPE_HITL_INTERRUPT`). |
+| `orch.risk.score` | orchestrator session | Optional | Orchestrator risk scoring (`METRIC_TYPE_RISK_SCORE`). |
+| `orch.privacy.route_decision` | orchestrator session | Optional | Privacy-aware routing outcome (`METRIC_TYPE_PRIVACY_ROUTE_DECISION`). |
+| `orch.cache.hit_prediction` | orchestrator session | Optional | Cache hit / predictor telemetry (`METRIC_TYPE_CACHE_HIT_PREDICTION`). |
+| `orch.budget.decision` | orchestrator session | Optional | Budget gate decisions (`METRIC_TYPE_BUDGET_DECISION`). |
+| `orch.calibration.run` | orchestrator session | Optional | Calibration job lifecycle (`METRIC_TYPE_CALIBRATION_RUN`). |
+| `orch.calibration.drift_alert` | orchestrator session | Optional | Model / signal drift alert (`METRIC_TYPE_DRIFT_ALERT`). |
+| `orch.calibration.bandit_update` | orchestrator session | Optional | Bandit / Thompson-style policy update (`METRIC_TYPE_BANDIT_UPDATE`). |
+| `orch.subagent.dispatch` | orchestrator session | Optional | Sub-agent dispatch (`METRIC_TYPE_SUBAGENT_DISPATCH`). |
+| `orch.subagent.chain_depth_alert` | orchestrator session | Optional | Deep sub-agent chain warning (`METRIC_TYPE_CHAIN_DEPTH_ALERT`). |
+| `orch.agentos.guardrail_deny` | orchestrator session | Optional | AgentOS guardrail denial (`METRIC_TYPE_AGENTOS_GUARDRAIL_DENY`). |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 
@@ -128,4 +147,4 @@ Envelope per line: `{ "ts_ms", "event", "payload" }`. Payload keys are defined i
 ## CI
 
 - `vox ci data-ssot-guards` — asserts watch-telemetry references schema keys and `research_metrics` list API avoids `COALESCE(metric_value, 0.0)`.
-- Web IR structural gate: workflow sets `VOX_WEBIR_VALIDATE=1` and runs `cargo test -p vox-compiler --test web_ir_lower_emit` (see `.github/workflows/ci.yml`).
+- Web IR structural gate: workflow sets `VOX_WEBIR_VALIDATE=1` and runs `cargo nextest run -p vox-compiler --test web_ir_lower_emit_test --run-ignored ignored-only` (see `.github/workflows/ci.yml`).

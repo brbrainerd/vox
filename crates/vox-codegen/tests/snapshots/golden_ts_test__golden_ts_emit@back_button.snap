@@ -3,17 +3,22 @@ source: crates/vox-codegen/tests/golden_ts_test.rs
 expression: combined
 ---
 === mobile.ts ===
+// Capability-driven Android/iOS manifest hints share SSOT:
+// contracts/capability/runtime-capabilities.v1.yaml → runtime-capabilities.projection.json
+// (emitted beside Tauri packaging hints on `vox compile` when contracts root is found).
+//
 import * as endpoints from './vox-client';
-import { App } from '@capacitor/app';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 
 let __backHandlerRegistered = false;
 export function installBackButtonHandler() {
   if (__backHandlerRegistered) return;
   __backHandlerRegistered = true;
-  App.addListener('backButton', async () => {
+  void listen('vox-back-button', async () => {
     const handled = await endpoints.on_back();
     if (!handled) {
-      App.exitApp();
+      await invoke('plugin:process|exit');
     }
   });
 }
@@ -31,6 +36,7 @@ export function installBackButtonHandler() {
     }
   ],
   "mutation_fns": [],
+  "stream_fns": [],
   "mcp_tools": [],
   "mcp_resources": [],
   "server_config": {
@@ -77,14 +83,66 @@ export function useVoxServerQuery<TData>(
 // Do not edit; regenerate with `vox build`.
 
 import { z } from "zod";
+/** Wire-format v1 error body when the server returns SSOT §6 JSON (`ok` is always false). */
+export type VoxWireError = {
+  ok: false;
+  code: string;
+  message: string;
+  request_id?: string;
+  details?: unknown;
+};
+
+const VoxErrorEnvelopeSchema = z.object({
+  ok: z.literal(false),
+  code: z.string(),
+  message: z.string(),
+  request_id: z.string().optional(),
+  details: z.unknown().optional(),
+});
+
+function parseVoxWireError(text: string): VoxWireError | undefined {
+  const s = text.trim();
+  if (!s.startsWith("{")) return undefined;
+  try {
+    const j: unknown = JSON.parse(s);
+    const p = VoxErrorEnvelopeSchema.safeParse(j);
+    return p.success ? (p.data as VoxWireError) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export class VoxApiError extends Error {
-  constructor(public readonly status: number, public readonly path: string, public readonly responseText: string) {
-    super(`${path} failed: ${status}${responseText ? ` — ${responseText.slice(0, 200)}` : ""}`);
+  constructor(
+    public readonly status: number,
+    public readonly path: string,
+    /** Raw response body (often JSON text). */
+    public readonly responseText: string,
+    /** Parsed §6 envelope when the body matches `VoxWireError`. */
+    public readonly wireError?: VoxWireError,
+  ) {
+    const detail =
+      wireError !== undefined
+        ? `${wireError.code}: ${wireError.message}`
+        : responseText
+          ? responseText.slice(0, 280)
+          : "";
+    super(detail ? `${path} failed: ${status} — ${detail}` : `${path} failed: ${status}`);
     this.name = "VoxApiError";
   }
 }
 
-const BASE = ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "");
+let __voxApiBaseRuntime: string | undefined;
+
+/** Override the API base URL at runtime (e.g. after reading a host-injected config). Precedence: this value, then `import.meta.env.VITE_API_URL`, then relative paths. */
+export function configureVoxApiBase(base: string | undefined): void {
+  __voxApiBaseRuntime = base;
+}
+
+function voxApiBase(): string {
+  if (__voxApiBaseRuntime !== undefined) return __voxApiBaseRuntime;
+  return ((import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "");
+}
 
 /** Build `?a=<json>&b=<json>` with keys sorted lexicographically (matches Axum BTreeMap decode). */
 function voxQueryString(query: Record<string, unknown>): string {
@@ -97,19 +155,21 @@ function voxQueryString(query: Record<string, unknown>): string {
 }
 
 async function $get<T>(path: string, schema?: { parse: (x: any) => T }, query?: Record<string, unknown>, init?: RequestInit): Promise<T> {
-  const url = BASE ? `${BASE}${path}` : path;
+  const base = voxApiBase();
+  const url = base ? `${base}${path}` : path;
   const qs = query && Object.keys(query).length > 0 ? voxQueryString(query) : "";
   const r = await fetch(`${url}${qs}`, { method: "GET", ...init });
   if (!r.ok) {
     const t = await r.text().catch(() => "");
-    throw new VoxApiError(r.status, path, t);
+    throw new VoxApiError(r.status, path, t, parseVoxWireError(t));
   }
   const data = await r.json();
   return schema ? schema.parse(data) : (data as T);
 }
 
 async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: unknown, init?: RequestInit): Promise<T> {
-  const url = BASE ? `${BASE}${path}` : path;
+  const base = voxApiBase();
+  const url = base ? `${base}${path}` : path;
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -118,14 +178,29 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
   });
   if (!r.ok) {
     const t = await r.text().catch(() => "");
-    throw new VoxApiError(r.status, path, t);
+    throw new VoxApiError(r.status, path, t, parseVoxWireError(t));
   }
   const data = await r.json();
   return schema ? schema.parse(data) : (data as T);
 }
 
+function isTauri(): boolean {
+  return typeof window !== "undefined" && typeof (window as any).__TAURI_INVOKE__ !== "undefined";
+}
+
+async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { parse: (x: any) => T }): Promise<T> {
+  try {
+    // @ts-ignore
+    const data = await (window as any).__TAURI_INVOKE__(cmd, { request: args });
+    return schema ? schema.parse(data) : (data as T);
+  } catch (e: any) {
+    throw new VoxApiError(500, cmd, e.toString(), undefined);
+  }
+}
+
 /** @query `on_back` → `/api/query/on_back` (GET) */
 export async function on_back(init?: RequestInit): Promise<boolean> {
+  if (isTauri()) return $tauri<boolean>("on_back", {}, z.boolean());
   return $get<boolean>("/api/query/on_back", z.boolean(), undefined, init);
 }
 
@@ -134,10 +209,40 @@ export async function on_back(init?: RequestInit): Promise<boolean> {
 === openapi.json ===
 {
   "components": {
-    "schemas": {}
+    "schemas": {
+      "ErrorEnvelope": {
+        "description": "Wire-format v1 error body (SSOT §6). Returned for 4xx/5xx endpoint failures.",
+        "properties": {
+          "code": {
+            "description": "Stable SCREAMING_SNAKE_CASE machine code",
+            "type": "string"
+          },
+          "details": {
+            "description": "Optional structured payload; shape is code-specific"
+          },
+          "message": {
+            "type": "string"
+          },
+          "ok": {
+            "const": false,
+            "type": "boolean"
+          },
+          "request_id": {
+            "description": "Optional trace / request correlation id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
+          "code",
+          "message"
+        ],
+        "type": "object"
+      }
+    }
   },
   "info": {
-    "description": "Generated from Vox source. Conforms to wire-format-v1.",
+    "description": "Generated from Vox source. Conforms to wire-format-v1.\n\nQuery (`GET`) parameters: each query value is JSON text after URI decoding — see wire-format-v1 SSOT §2.1. The `schema` on each parameter describes the logical type after `JSON.parse`; it is not the raw query-string token shape.",
     "title": "vox-app",
     "version": "0.1.0"
   },
@@ -157,6 +262,46 @@ export async function on_back(init?: RequestInit): Promise<boolean> {
               }
             },
             "description": "Success"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Bad request or malformed parameters"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Internal server error"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            },
+            "description": "Error — see wire-format-v1 §6"
           }
         },
         "summary": "GET /api/query/on_back"
@@ -165,7 +310,7 @@ export async function on_back(init?: RequestInit): Promise<boolean> {
   },
   "servers": [
     {
-      "url": "/api/v1"
+      "url": ""
     }
   ]
 }

@@ -1,0 +1,13 @@
+fn is_power_of_n(x: int, base: int) to bool {
+    if x < 1 {
+        return false
+    }
+    let mut n: int = x
+    while n > 1 {
+        if n % base != 0 {
+            return false
+        }
+        n = n / base
+    }
+    return true
+}

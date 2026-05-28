@@ -1,7 +1,7 @@
 ---
 title: "Search & Retrieval SSOT (2026)"
 description: "Single baseline for how agent-facing retrieval works across vox-db contracts, vox-search execution, orchestrator MCP tools, and dashboard transport — including the two distinct \"VoxDB\" surfaces."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 52
 status: "current"
 last_updated: "2026-05-05"
@@ -49,7 +49,7 @@ Hybrid chunk retrieval merges lexical hits (`chunk_id` = `search_document_chunks
 
 ### 3.2 Generated `voxdb/server` (TypeScript schema)
 
-The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` on `@table` declarations (see `crates/vox-compiler/src/codegen_ts/schema/from_hir.rs`). That targets the **app author's** Convex-compatible runtime and is **not** invoked by `vox-search`.
+The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` on `@table` declarations (see `crates/vox-codegen/src/codegen_ts/schema/from_hir.rs`). That targets the **app author's** Convex-compatible runtime and is **not** invoked by `vox-search`.
 
 ## Language surface (decision)
 
@@ -65,6 +65,8 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 | Knowledge graph | SQLite FTS / LIKE on `knowledge_nodes` | Exposed as MCP `vox_knowledge_query` |
 | Ingested doc chunks (RAG) | FTS5 / LIKE + `embeddings` hybrid | Fusion weight: `chunk_vector_fusion_weight`, passed into `query_search_document_chunks_hybrid` (not hard-coded in `vox-db`) |
 | Repo inventory | Bounded filesystem walk + token overlap | Interim until persistent code indexes exist |
+| Symbol proximity | `vox-search::symbol_proximity` (`scan_symbol_proximity`) | Contracts-aware lexical proximity vs optional query vectors; planner corpus `SymbolProximity` |
+| Semantic FS (intent paths) | `vox-search::semantic_fs` (`discover_files_for_intent`, `retrieve_evidence_for_intent`) | Same inventory ranker as repo paths; MCP exposes `semantic_fs_discover` for AgentOS intent-shaped discovery |
 | Docs mirror (optional) | Tantivy (`tantivy-lexical` feature) | Supplemental |
 | Sidecar ANN (optional) | Qdrant (`qdrant-vector` feature) | Parallel to DB chunk search |
 | Web | SearXNG / DDG / optional Tavily | Policy-gated |
@@ -73,6 +75,12 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 
 - **Memory hybrid:** `VOX_SEARCH_MEMORY_VECTOR_WEIGHT` → `SearchPolicy.memory_vector_fusion_weight` (default `0.55`).
 - **Chunk hybrid:** `VOX_SEARCH_CHUNK_VECTOR_WEIGHT` → `SearchPolicy.chunk_vector_fusion_weight` (default `0.60`), threaded into `VoxDb::query_search_document_chunks_hybrid` as a scalar so `vox-db` stays free of `SearchPolicy`.
+- **BM25 (memory index):** `VOX_SEARCH_BM25_K1`, `VOX_SEARCH_BM25_B` → clamped into `MemorySearchEngine` via `SearchPolicy` (`memory_bm25_k1` / `memory_bm25_b`).
+- **RRF fusion:** `VOX_SEARCH_RRF_K` → reciprocal-rank constant for `rrf_merge_line_lists`.
+- **Web hit persistence:** `VOX_SEARCH_PERSIST_WEB_HITS_DISABLED` — when unset/false, `execute_search_plan` mirrors SearXNG/DDG/Tavily-style web hits into `search_documents` / chunks (`web-ingest:*` URIs) alongside the Tavily CRAG path in `bundle.rs`.
+- **Embedding model name:** `VOX_EMBEDDING_MODEL` (`SecretId::VoxEmbeddingModel`) — resolved in `embedding_env.rs` per provider (HF / OpenAI / OpenRouter defaults remain at the call site when unset).
+
+**Dependency slimming:** consumers that only need `EmbeddingService` (e.g. `vox-scientia-ingest`, `vox-plugin-publication`) should depend on `vox-search` with **`default-features = false`** and enable only `tantivy-lexical` / `web-scrape` as needed — avoids pulling default `qdrant-vector` + `tavily`.
 
 ## 6. MCP tools and GUI
 
@@ -80,6 +88,7 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 |------|---------|
 | `vox_memory_search` | Full retrieval bundle (memory, knowledge, chunks, repo, optional RRF / web paths per plan) |
 | `vox_knowledge_query` | Narrow query against `knowledge_nodes` only |
+| `vox_research_run` | Orchestrator `run_research` pipeline: `vox-search` web tier (SearXNG → DDG → Tavily) + optional CRAG hops + synthesis/judge when LLM env is configured — see [`deep-research-prior-art-and-vox-roadmap-2026.md`](deep-research-prior-art-and-vox-roadmap-2026.md) |
 
 **Dashboard:** use `POST /v1/tools/call` (`voxTransport.callTool`). No client-side BM25/vector index unless there is an explicit offline product requirement.
 

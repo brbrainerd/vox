@@ -81,8 +81,7 @@ pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskP
     let orch = &state.orchestrator;
 
     if let Err(e) = orch.cancel_task(TaskId(params.task_id)) {
-        return ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_TASK)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_TASK).to_json();
     }
     ToolResult::ok(format!("Task {} cancelled", params.task_id)).to_json()
 }
@@ -98,8 +97,7 @@ pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTas
     };
 
     if let Err(e) = orch.reorder_task(TaskId(params.task_id), priority) {
-        return ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_TASK)
-            .to_json();
+        return ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_TASK).to_json();
     }
     ToolResult::ok(format!(
         "Task {} reordered to {:?}",
@@ -168,8 +166,9 @@ pub async fn map_agent_session(
             params.session_id, params.agent_id
         ))
         .to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP).to_json()
+        }
     }
 }
 
@@ -307,7 +306,7 @@ pub async fn config_get(state: &ServerState) -> String {
     ToolResult::ok(serde_json::Value::Object(merged)).to_json()
 }
 
-/// Patch [`OrchestratorConfig`] by shallow-merging JSON keys into the live instance.
+/// Patch `OrchestratorConfig` by shallow-merging JSON keys into the live instance.
 /// Deep-merge `params` into the current orchestrator JSON config (mutates in-memory orchestrator).
 pub async fn config_set(state: &ServerState, params: serde_json::Value) -> String {
     let orch = &state.orchestrator;
@@ -452,7 +451,7 @@ pub async fn spawn_agent(state: &ServerState, params: crate::params::SpawnAgentP
     } else {
         state.orchestrator.spawn_agent(&out_name)
     };
-    match res.map_err(|e| format!("{}", e)) {
+    match res.map_err(|e| e.to_string()) {
         Ok(id) => ToolResult::ok(serde_json::json!({
             "agent_id": id.0,
             "name": out_name,
@@ -461,11 +460,10 @@ pub async fn spawn_agent(state: &ServerState, params: crate::params::SpawnAgentP
             "source_task_id": out_source,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
-            format!("{}", e),
-            REM_ORCH_AGENT_OP,
-        )
-        .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP)
+                .to_json()
+        }
     }
 }
 
@@ -481,11 +479,10 @@ pub async fn retire_agent(state: &ServerState, params: crate::params::AgentIdToo
             "remaining_tasks": remaining_tasks,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
-            format!("{}", e),
-            REM_ORCH_AGENT_OP,
-        )
-        .to_json(),
+        Err(e) => {
+            ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP)
+                .to_json()
+        }
     }
 }
 
@@ -496,8 +493,9 @@ pub async fn pause_agent(state: &ServerState, params: crate::params::AgentIdTool
         .pause_agent(vox_orchestrator::AgentId(params.agent_id))
     {
         Ok(()) => ToolResult::ok(format!("Agent {} paused", params.agent_id)).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP).to_json()
+        }
     }
 }
 
@@ -508,7 +506,8 @@ pub async fn resume_agent(state: &ServerState, params: crate::params::AgentIdToo
         .resume_agent(vox_orchestrator::AgentId(params.agent_id))
     {
         Ok(()) => ToolResult::ok(format!("Agent {} resumed", params.agent_id)).to_json(),
-        Err(e) => ToolResult::<String>::err_with_remediation(format!("{}", e), REM_ORCH_AGENT_OP)
-            .to_json(),
+        Err(e) => {
+            ToolResult::<String>::err_with_remediation(e.to_string(), REM_ORCH_AGENT_OP).to_json()
+        }
     }
 }

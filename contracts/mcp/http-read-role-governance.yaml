@@ -16,6 +16,7 @@ read_role_tools:
   - vox_repo_query_history
   - vox_repo_query_text
   - vox_repo_status
+  - vox_semantic_fs_discover
   - vox_task_status
   - vox_test_decision
   - vox_workspace_modules

@@ -1,0 +1,12 @@
+// Repair-corpus fixture 011 — type-error bug class.
+// The fn signature says `to int`, but the else-branch returns the
+// str "two" while the then-branch returns the int 1. Expected
+// repair: have both branches return an int, or change the return
+// type to a sum/union.
+
+fn pick(x: bool) to int {
+    if x {
+        return 1
+    }
+    return "two"
+}

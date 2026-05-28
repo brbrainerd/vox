@@ -1,7 +1,7 @@
 ---
 title: "Crate Organization Follow-up — SSOT, Naming, and Sprawl"
 description: "Follow-up to the 2026-05-08 workspace reorg: closes SSOT/discoverability drift, picks up deferred Phase 3/6/7 extractions, and adds enforcement so the gains stick."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."
@@ -15,6 +15,8 @@ Companion to:
 - [2026-05-08-naming-and-guards-design.md](./2026-05-08-naming-and-guards-design.md) — naming-and-anti-entanglement-guards series
 
 This document specifies the next round. It is the source-of-truth spec for the implementation plan that follows.
+
+> **Status (2026-05-15):** All six PRs landed. Track A (SSOT + A4 WTL coverage + A5 orphan → error), Track B (19 description rewrites + binary-layer note), C1 (vox-mcp-meta merge), C2 (vox-package-types split), C4 (ops_ludus → vox-gamify), C5 side-quest (mcp-server feature gate), PR6 (arch-check lints: `description_present`, `where_things_live_coverage`, docstring L0–L2 strict) — all clean. C3 (vox-cli-ci) and C5/Tier D (vox-orchestrator-core) are deferred with dedicated plan docs: [`2026-05-15-cli-ci-extraction-plan.md`](2026-05-15-cli-ci-extraction-plan.md) and [`2026-05-15-orchestrator-tier-d-plan.md`](2026-05-15-orchestrator-tier-d-plan.md).
 
 ## Problem statement
 

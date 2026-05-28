@@ -167,8 +167,8 @@ fn mcp_extract_matches_workspace_vox_orchestrator_mcp_tools_mod_rs() {
         read_utf8_path_capped(&base.join("lib.rs")).expect("read vox-orchestrator-mcp lib.rs");
     let dispatch = read_utf8_path_capped(&base.join("dispatch.rs"))
         .expect("read vox-orchestrator-mcp dispatch.rs");
-    let aliases = read_utf8_path_capped(&base.join("tool_aliases.rs"))
-        .expect("read vox-orchestrator-mcp tool_aliases.rs");
+    let aliases = read_utf8_path_capped(&repo_root.join("contracts/mcp/tool-wire-aliases.v1.yaml"))
+        .expect("read tool-wire-aliases.v1.yaml");
     let reg = extract_mcp_registry_tool_names(repo_root).expect("registry tools");
     let han = extract_mcp_handler_tools(&dispatch).expect("handler tools");
     let missing: Vec<&String> = reg.iter().filter(|t| !han.contains(*t)).collect();

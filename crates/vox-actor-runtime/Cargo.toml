@@ -13,14 +13,13 @@ database = ["dep:vox-db"]
 tokio = { workspace = true }
 tokio-stream = { workspace = true }
 async-stream = { workspace = true }
-vox-openai-sse = { workspace = true }
-vox-openai-wire = { workspace = true }
+vox-openai = { workspace = true }
 futures-util = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-config.workspace = true
 vox-orchestrator-types.workspace = true
-vox-primitives.workspace = true
+vox-foundation.workspace = true
 vox-secrets = { workspace = true }
 vox-plugin-host = { workspace = true }
 vox-skills.workspace = true
@@ -28,18 +27,27 @@ vox-openclaw-runtime = { workspace = true }
 vox-db = { workspace = true, optional = true }
 vox-telemetry = { workspace = true }
 reqwest = { workspace = true, features = ["stream"] }
-vox-reqwest-defaults = { workspace = true }
+vox-http-client = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+toml = { workspace = true }
+csv = { workspace = true }
 glob = { workspace = true }
 which = "8"
 xxhash-rust = { workspace = true }
 blake3 = { workspace = true }
 rust_decimal = { workspace = true }
 workspace-hack = { workspace = true }
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 regex = { workspace = true }
+bytes = { workspace = true }
+anyhow = { workspace = true }
+vox-shell-stdlib-types = { workspace = true }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }

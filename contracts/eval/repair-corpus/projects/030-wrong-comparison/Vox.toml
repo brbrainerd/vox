@@ -1,0 +1,5 @@
+[package]
+name = "repair-030-wrong-comparison"
+version = "0.1.0"
+kind = "library"
+description = "Repair-corpus fixture: logic bug class. max() returns the smaller of two values."

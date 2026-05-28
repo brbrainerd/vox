@@ -5,7 +5,7 @@ use vox_compiler::{
 #[test]
 fn form_lowered_with_correct_field_count() {
     let src = r#"
-@endpoint(kind: mutation) fn save_x(s: int, n: str) to int { return 1 }
+@mutation fn save_x(s: int, n: str) to int { return 1 }
 @form X {
     field s: int required
     field n: str optional
@@ -22,7 +22,7 @@ fn form_lowered_with_correct_field_count() {
 #[test]
 fn form_with_field_type_mismatch_errors() {
     let src = r#"
-@endpoint(kind: mutation) fn save_x(s: str) to int { return 1 }
+@mutation fn save_x(s: str) to int { return 1 }
 @form X {
     field s: int required
     on_submit: save_x

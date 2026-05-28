@@ -9,7 +9,7 @@
     "include": [
       "docs-astro/src/**/*.{ts,tsx,js,jsx,astro}",
       "apps/vox-mental-tracker/src/**/*.{ts,tsx}",
-      "tools/visualizer/src/**/*.{ts,tsx}",
+      "apps/experimental/visualizer/src/**/*.{ts,tsx}",
       "crates/vox-codegen/codegen_ts/tests/**/*.ts"
     ],
     "ignore": [

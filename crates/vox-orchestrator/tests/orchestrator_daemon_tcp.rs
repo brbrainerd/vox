@@ -1,14 +1,49 @@
 //! Round-trip TCP daemon for `orch.ping` / `orch.task_status`.
+//!
+//! Daemon readiness waits on a successful `ping()` instead of a fixed sleep after spawn.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::net::TcpListener;
 use vox_orchestrator::{
     AgentTask, Orchestrator, OrchestratorConfig, TaskId, TaskPriority, orch_daemon,
 };
 
+async fn wait_until_async<F, Fut>(
+    label: &str,
+    timeout: Duration,
+    interval: Duration,
+    mut condition: F,
+) where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        if condition().await {
+            return;
+        }
+        if tokio::time::Instant::now() >= deadline {
+            panic!("{label}: timed out after {timeout:?}");
+        }
+        tokio::time::sleep(interval).await;
+    }
+}
+
+/// Wall-clock ceiling so local TCP daemon tests cannot stall indefinitely if readiness RPC regresses.
+const DAEMON_TEST_TIMEOUT: Duration = Duration::from_secs(60);
+
 #[tokio::test]
 async fn orchestrator_daemon_ping_and_task_status() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_ping_and_task_status_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_ping_and_task_status exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_ping_and_task_status_inner() {
     let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
     let aid = orch.spawn_agent("d1").expect("spawn");
     let tid = TaskId(4242);
@@ -32,9 +67,19 @@ async fn orchestrator_daemon_ping_and_task_status() {
         o,
     ));
 
-    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        Duration::from_secs(15),
+        Duration::from_millis(5),
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
 
-    let client = orch_daemon::OrchDaemonClient::new(addr.to_string());
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
     let ping = client.ping().await.expect("ping");
     assert_eq!(ping["repository_id"], "ut-repo");
     assert_eq!(ping["protocol"], "vox.orchestrator_daemon/v1");
@@ -63,6 +108,14 @@ async fn orchestrator_daemon_ping_and_task_status() {
 
 #[tokio::test]
 async fn orchestrator_daemon_task_and_agent_write_methods() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_task_and_agent_write_methods_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_task_and_agent_write_methods exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_task_and_agent_write_methods_inner() {
     let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
     let aid = orch.spawn_agent("writer").expect("spawn");
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
@@ -73,8 +126,18 @@ async fn orchestrator_daemon_task_and_agent_write_methods() {
         "ut-repo".to_string(),
         orch.clone(),
     ));
-    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-    let client = orch_daemon::OrchDaemonClient::new(addr.to_string());
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        Duration::from_secs(15),
+        Duration::from_millis(5),
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
 
     let submitted = client
         .submit_task(serde_json::json!({
@@ -102,6 +165,14 @@ async fn orchestrator_daemon_task_and_agent_write_methods() {
         .await
         .expect("submit_task_2");
     let task_id2 = submitted2["task_id"].as_u64().expect("task_id2");
+    // `fail_task` / `complete_task` apply to the agent's in-progress task; dequeue first
+    // so the RPC exercises real queue semantics (queued-only tasks are not mark_failed).
+    {
+        let ql = orch.agent_queue(aid).expect("queue for fail path");
+        let mut q = ql.write().unwrap();
+        let t = q.dequeue().expect("dequeue task 2");
+        assert_eq!(t.id.0, task_id2);
+    }
     let _ = client
         .fail_task(task_id2, "expected fail".to_string())
         .await
@@ -117,6 +188,12 @@ async fn orchestrator_daemon_task_and_agent_write_methods() {
         .await
         .expect("submit_task_3");
     let task_id3 = submitted3["task_id"].as_u64().expect("task_id3");
+    {
+        let ql = orch.agent_queue(aid).expect("queue for complete path");
+        let mut q = ql.write().unwrap();
+        let t = q.dequeue().expect("dequeue task 3");
+        assert_eq!(t.id.0, task_id3);
+    }
     let _ = client
         .complete_task(task_id3, None)
         .await

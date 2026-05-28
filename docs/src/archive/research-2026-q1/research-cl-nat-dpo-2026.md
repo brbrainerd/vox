@@ -1,7 +1,7 @@
 ---
 title: "Utilizing Parse Failures as Negative Examples"
 description: "Research on negative-aware training, DPO-style contrastive updates, and parse failures as learning signals."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 research_source: "gemini_deep_research"
 research_date: "2026-04-08"

@@ -1,0 +1,21 @@
+fn sum_above_avg(xs: list[int]) to int {
+    if xs.len() == 0 { return 0 }
+    let avg: float = float(xs.sum()) / float(xs.len())
+    let mut total: int = 0
+    for x in xs {
+        if float(x) > avg {
+            total = total + x
+        }
+    }
+    return total
+}
+
+fn main() to str {
+    assert(sum_above_avg([1, 2, 3, 4, 5]) == 9)
+    assert(sum_above_avg([10, 10, 10]) == 0)
+    assert(sum_above_avg([]) == 0)
+    assert(sum_above_avg([1, 100]) == 100)
+    assert(sum_above_avg([1, 2, 3]) == 3)
+    assert(sum_above_avg([5, 5, 10]) == 10)
+    return "ok"
+}

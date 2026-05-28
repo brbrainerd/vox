@@ -1,0 +1,9 @@
+// Repair-corpus fixture 014 — type-error bug class.
+// The fn signature is `Result[int]`, so the Ok payload must be an
+// int. The body returns `Ok("hello")` (a str payload). Expected
+// repair: return `Ok(42)` (or any int), or change the return type
+// to `Result[str]`.
+
+fn fetch_count() to Result[int] {
+    return Ok("hello")
+}

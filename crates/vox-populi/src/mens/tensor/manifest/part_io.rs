@@ -50,4 +50,3 @@ pub fn validate_checkpoint_manifest(
     let _ = params.kind;
     Ok(())
 }
-

@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "captured_at_utc": "2026-05-11T13:09:50Z",
+  "correlation_id": "2026-05-11-oratio-full-runtime-win-cli-eval-whisper-cpu-16k-all",
+  "wer": 0.1071,
+  "cer": 0.0976,
+  "compile_pass_at_1": 1.0,
+  "compile_pass_at_k": 1.0,
+  "semantic_pass_rate": 1.0,
+  "latency_ms_median": 1002,
+  "latency_ms_p95": 1002,
+  "notes": "Measured CPU Candle Oratio canary from vox ci speech-runtime-suite over tests/speech-to-code/fixtures/corpus_v1/eval_audio_runtime_no_lang.jsonl using the spoken 16 kHz fixture set."
+}

@@ -1,8 +1,8 @@
 //! Capability registry: transport-independent SSOT in [`contracts/capability/capability-registry.yaml`](../../contracts/capability/capability-registry.yaml).
 //!
-//! - Mens chat uses [`default_registry`](crate::default_registry) (curated MCP rows).
+//! - Mens chat uses [`default_registry`] (curated MCP rows).
 //! - `vox ci command-compliance` validates cross-registry consistency.
-//! - [`build_model_manifest`](crate::manifest::build_model_manifest) emits planner / external-model JSON.
+//! - [`crate::manifest::build_model_manifest`] emits planner / external-model JSON.
 
 mod command_registry;
 mod document;

@@ -1,8 +1,0 @@
-{
-  "compiler_version": "0.4.0",
-  "curriculum_ordered": true,
-  "generated_by": "vox corpus pairs",
-  "negative_pairs": 93,
-  "schema_version": "vox_dogfood_v1",
-  "total_pairs": 760
-}

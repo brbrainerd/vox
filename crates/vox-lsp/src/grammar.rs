@@ -3,7 +3,7 @@
 //! Maps [`vox_compiler::lexer::token::Token`] variants to LSP semantic token type indices
 //! matching the `SEMANTIC_TOKEN_TYPES` legend order.
 
-use tower_lsp::lsp_types::SemanticTokenType;
+use tower_lsp_server::ls_types::{SemanticToken, SemanticTokenType};
 use vox_compiler::lexer::token::Token;
 
 /// Maps a Vox lexer [`Token`] to an LSP semantic token type index, or `None`
@@ -90,3 +90,39 @@ pub const SEMANTIC_TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::DECORATOR, // 7
     SemanticTokenType::PARAMETER, // 8
 ];
+
+/// Encode semantic tokens for a full document (same encoding as the LSP `semanticTokens/full` handler).
+#[must_use]
+pub fn encode_semantic_tokens(text: &str) -> Vec<SemanticToken> {
+    let tokens = vox_compiler::lexer::lex(text);
+    let mut last_line = 0u32;
+    let mut last_char = 0u32;
+    let mut data = Vec::new();
+
+    for token in tokens {
+        if let Some(token_type) = token_to_semantic_type(&token.token) {
+            let (line, col) = crate::byte_index_to_line_col(text, token.span.start);
+            let length = (token.span.end - token.span.start) as u32;
+
+            let delta_line = line.saturating_sub(last_line);
+            let delta_char = if delta_line == 0 {
+                col.saturating_sub(last_char)
+            } else {
+                col
+            };
+
+            data.push(SemanticToken {
+                delta_line,
+                delta_start: delta_char,
+                length,
+                token_type,
+                token_modifiers_bitset: 0,
+            });
+
+            last_line = line;
+            last_char = col;
+        }
+    }
+
+    data
+}

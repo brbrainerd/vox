@@ -1,0 +1,43 @@
+id = "plan-029-actor-rename-handler"
+wave = "wave_2"
+description = "Rename an actor handler and update its callers."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base has `actor Heartbeat { on tick() to str { ... } }`. Rename
+`on tick` to `on heartbeat`. There are no external callers in the
+base — the only reference is the actor declaration itself. After the
+rename, `vox check` must remain clean.
+
+Vox conventions (the base already uses them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Find every `tick` reference in the file."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Rename the handler from `tick` to `heartbeat`."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+handler_renamed = true
+no_dangling_references = true

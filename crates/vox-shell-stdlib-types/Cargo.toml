@@ -1,0 +1,12 @@
+[package]
+name = "vox-shell-stdlib-types"
+description = "Shared data types for the Vox shell stdlib surface (std.fs.*, std.csv). L0 — zero workspace deps. Consumed by vox-compiler (interp path) and vox-actor-runtime (codegen path) to break the compiler↔runtime cycle."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

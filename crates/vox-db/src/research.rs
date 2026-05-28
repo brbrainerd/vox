@@ -457,6 +457,7 @@ impl VoxDb {
             .insert_telemetry_flat_raw(
                 "eval-harness",
                 &rec.run_id,
+                None,
                 "vox-research",
                 "ResearchEvalSample",
                 Some("eval-search"),

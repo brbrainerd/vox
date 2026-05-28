@@ -1,7 +1,7 @@
 ---
 title: "ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate)"
 description: "Official documentation for ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate) for the Vox language."
-category: "reference"
+category: "Architecture Decisions (ADRs)"
 last_updated: "2026-03-24"
 training_eligible: true
 

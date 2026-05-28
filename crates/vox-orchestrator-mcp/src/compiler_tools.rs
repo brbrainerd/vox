@@ -3,7 +3,7 @@
 //! Covers: validate_file, run_tests, check_workspace, test_all, build_crate,
 //! lint_crate, coverage_report, generate_vox_code.
 //!
-//! Subprocess and file reads use Tokio async I/O so [`super::handle_tool_call`] does not block
+//! Subprocess and file reads use Tokio async I/O so `super::handle_tool_call` does not block
 //! the runtime. TOESTUB runs inside [`tokio::task::spawn_blocking`] because the engine is synchronous.
 
 use std::collections::hash_map::DefaultHasher;

@@ -2,10 +2,12 @@
 //!
 //! The in-memory `ContextStore` is serialized to JSON for crash-recovery
 //! snapshots. It is **not** in the DB because:
-//!   * the snapshot is written on a "fast" path during shutdown, before any
-//!     async runtime guarantee,
-//!   * the data is opaque to other consumers (orchestrator-internal),
-//!   * keeping it out of the DB avoids schema churn for orchestrator changes.
+//!
+//! * the snapshot is written on a "fast" path during shutdown, before any
+//!   async runtime guarantee,
+//! * the data is opaque to other consumers (orchestrator-internal),
+//! * keeping it out of the DB avoids schema churn for orchestrator changes.
+//!
 //! If cross-process visibility is needed, add a `vox_db::ops_orchestrator_context`
 //! module instead.
 

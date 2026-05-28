@@ -144,6 +144,15 @@ impl AgentQueue {
         task_id: TaskId,
         meta: &crate::planning::PlanningTaskMeta,
     ) -> bool {
+        let active_skill = meta
+            .execution_policy_json
+            .as_ref()
+            .and_then(|json| {
+                serde_json::from_str::<crate::planning::ExecutionPolicy>(json)
+                    .ok()
+                    .and_then(|p| p.allowed_skills.first().cloned())
+            });
+
         if let Some(t) = self.in_progress.as_mut()
             && t.id == task_id
         {
@@ -151,6 +160,9 @@ impl AgentQueue {
             t.plan_node_id = Some(meta.plan_node_id.clone());
             t.plan_version = Some(meta.plan_version);
             t.execution_policy_json = meta.execution_policy_json.clone();
+            if t.active_skill.is_none() {
+                t.active_skill = active_skill.clone();
+            }
             return true;
         }
         for t in self.tasks.iter_mut() {
@@ -159,6 +171,9 @@ impl AgentQueue {
                 t.plan_node_id = Some(meta.plan_node_id.clone());
                 t.plan_version = Some(meta.plan_version);
                 t.execution_policy_json = meta.execution_policy_json.clone();
+                if t.active_skill.is_none() {
+                    t.active_skill = active_skill.clone();
+                }
                 return true;
             }
         }
@@ -262,6 +277,14 @@ impl AgentQueue {
     /// Restore pending tasks after route replay (replaces the pending deque).
     pub(crate) fn restore_pending_tasks(&mut self, tasks: VecDeque<AgentTask>) {
         self.tasks = tasks;
+    }
+
+    /// Returns an iterator over all pending and in-progress tasks.
+    pub fn all_tasks(&self) -> impl Iterator<Item = &AgentTask> {
+        self.in_progress
+            .as_ref()
+            .into_iter()
+            .chain(self.tasks.iter())
     }
 
     /// Returns a mutable iterator over all pending and in-progress tasks.

@@ -12,24 +12,24 @@
     "rust_parse_failures",
     "findings"
   ],
-  "properties": 
-    "schema_version":  "type": "integer", "const": 1 },
-    "tool_version":  "type": "string" },
-    "files_scanned":  "type": "integer", "minimum": 0 },
-    "rules_applied":  "type": "integer", "minimum": 0 },
-    "rust_parse_failures":  "type": "integer", "minimum": 0 },
-    "unresolved_ref_hot_callers": 
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "tool_version": { "type": "string" },
+    "files_scanned": { "type": "integer", "minimum": 0 },
+    "rules_applied": { "type": "integer", "minimum": 0 },
+    "rust_parse_failures": { "type": "integer", "minimum": 0 },
+    "unresolved_ref_hot_callers": {
       "type": "array",
-      "items":  "type": "object" }
+      "items": { "type": "object" }
     },
-    "suppressions_applied":  "type": "integer", "minimum": 0 },
-    "suppression_counts_by_family": 
+    "suppressions_applied": { "type": "integer", "minimum": 0 },
+    "suppression_counts_by_family": {
       "type": "object",
-      "additionalProperties":  "type": "integer", "minimum": 0 }
+      "additionalProperties": { "type": "integer", "minimum": 0 }
     },
-    "findings": 
+    "findings": {
       "type": "array",
-      "items":  "type": "object" }
+      "items": { "type": "object" }
     }
   },
   "additionalProperties": true

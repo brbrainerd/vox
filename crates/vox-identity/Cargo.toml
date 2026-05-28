@@ -11,8 +11,8 @@ argon2 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-zeroize = { version = "1.8", features = ["zeroize_derive"] }
+zeroize = { workspace = true }
 rand = { workspace = true }
 dirs = { workspace = true }
 chrono = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }

@@ -1,0 +1,11 @@
+fn some_zero() to Option[int] {
+    return Some(0)
+}
+
+@test
+fn t_returns_some_zero() to Unit {
+    match some_zero() {
+        Some(n) => assert(n is 0)
+        None    => assert(false)
+    }
+}

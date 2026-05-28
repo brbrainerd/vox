@@ -1,7 +1,7 @@
 ---
 title: "Classification Taxonomy SSoT"
 description: "Single Source of Truth for Vox component classification and naming conventions."
-category: "architecture"
+category: "Architecture SSOTs"
 sort_order: 15
 status: "current"
 ---
@@ -14,8 +14,8 @@ This document serves as the canonical map for the structural classification of V
 
 | Domain | Crate Prefix | Responsibility |
 |---|---|---|
-| **Core Compiler** | `vox-compiler` | Lexing, parsing, HIR lowering, type checking, and IR emission. (Replaces legacy `vox-lexer`, `vox-parser`, etc.) |
-| **Orchestration** | `vox-orchestrator` | Agent execution loop, multi-agent coordination, DEI engine. |
+| **Core Compiler** | `vox-compiler` | Lexing, parsing, HIR lowering, type checking, and IR emission. (Replaces the legacy split lexer/parser crates.) |
+| **Orchestration** | `vox-orchestrator` | Agent execution loop, multi-agent coordination, task dispatch/session orchestration (historical `vox-dei` retired — see root `AGENTS.md` retired surfaces). |
 | **Capabilities** | `vox-skills` | Isolated agent capabilities (e.g., file system access, network requests). |
 | **Game/Combat** | `vox-gamify` | Dystopia MUD modernization, Monte Carlo simulations. |
 | **Security/Secrets**| `vox-secrets` | Secret management, API key resolution. |

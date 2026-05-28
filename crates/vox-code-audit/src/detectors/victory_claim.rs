@@ -57,6 +57,23 @@ impl DetectionRule for VictoryClaimDetector {
         ]
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — TODO/FIXME markers and premature completion comment\n\
+             fn apply_discount(price: f64, user: &User) -> f64 {\n\
+             \x20   // TODO: apply loyalty tier discount\n\
+             \x20   // HACK: just return full price for now\n\
+             \x20   price  // Done! (not actually done)\n\
+             }\n\
+             \n\
+             // FIX — implement fully and remove markers\n\
+             fn apply_discount(price: f64, user: &User) -> f64 {\n\
+             \x20   let rate = user.loyalty_tier.discount_rate();\n\
+             \x20   price * (1.0 - rate)\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,
@@ -115,7 +132,7 @@ mod tests {
     fn detects_victory_comment() {
         let d = VictoryClaimDetector::new();
         let snippet = concat!("// ", "D", "one!", " Implementation complete\nfn foo() {}");
-        let f = source("rs", &snippet);
+        let f = source("rs", snippet);
         let findings = d.detect(&f, None);
         assert!(
             findings
@@ -143,7 +160,7 @@ mod tests {
     fn detects_fixme() {
         let d = VictoryClaimDetector::new();
         let snippet = concat!("// ", "FIX", "ME this is broken\nconst x = 1;");
-        let f = source("ts", &snippet);
+        let f = source("ts", snippet);
         let findings = d.detect(&f, None);
         assert!(
             findings.iter().any(|f| f.rule_id == "victory-claim/fixme"),

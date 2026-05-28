@@ -115,6 +115,51 @@ pub struct FragmentDecl {
     pub span: Span,
 }
 
+/// Project-level design-token declaration block (`@tokens { … }`).
+///
+/// Groups tokens by category. Lowered to [`crate::hir::nodes::tokens::HirTokensDecl`]
+/// at the HIR layer where the contrast typecheck pass validates color pairs.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct TokensDecl {
+    /// Source span of the entire `@tokens { … }` block.
+    pub span: Span,
+    /// Color token entries: `color <name> light: "<hex>" dark: "<hex>"`.
+    pub colors: Vec<AstColorToken>,
+    /// Spacing entries: `spacing <name>: "<css-value>"`.
+    pub spacing: Vec<AstScalarToken>,
+    /// Border-radius entries: `radius <name>: "<css-value>"`.
+    pub radius: Vec<AstScalarToken>,
+    /// Box-shadow entries: `shadow <name>: "<css-value>"`.
+    pub shadows: Vec<AstScalarToken>,
+    /// Font-family entries: `font <name> family: "<stack>"`.
+    pub fonts: Vec<AstFontToken>,
+}
+
+/// A color token with mandatory light/dark pair.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct AstColorToken {
+    pub name: String,
+    pub light: String,
+    pub dark: String,
+    pub span: Span,
+}
+
+/// A scalar token (spacing, radius, shadow).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct AstScalarToken {
+    pub name: String,
+    pub value: String,
+    pub span: Span,
+}
+
+/// A font-family token.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct AstFontToken {
+    pub name: String,
+    pub family: String,
+    pub span: Span,
+}
+
 /// `.vox.ui` reactive module declaration (ADR-032).
 ///
 /// A top-level container for reactive members shared across components in the same file.

@@ -1,0 +1,31 @@
+id = "spec-to-app-004-fizzbuzz"
+tier = "T1"
+max_iterations = 25
+max_cost_usd = 5.00
+
+prompt = """
+Build a tiny Vox utility exposing a single function `fizzbuzz(n: int)
+to str` that returns:
+  - "FizzBuzz" when n is divisible by 15
+  - "Fizz" when n is divisible by 3 (but not 15)
+  - "Buzz" when n is divisible by 5 (but not 15)
+  - the decimal string form of n otherwise (e.g. `1` → "1", `7` → "7").
+
+Include three @test blocks: one exercising the n=15 / "FizzBuzz" path,
+one exercising n=4 / "4", and one exercising n=9 / "Fizz".
+
+The deliverable is a single .vox file that passes `vox check` and
+whose @test blocks execute cleanly under the in-process @test runner.
+
+Vox conventions:
+  - `to T` for return arrow, not `->`.
+  - `assert(X is Y)` for equality.
+  - explicit `return expr` in every branch.
+  - `@test\\nfn name() to Unit { ... }` for tests.
+"""
+
+[success_criteria]
+vox_check_passes = true
+test_runs_clean = true
+test_count_min = 3
+endpoint_kind_required = false

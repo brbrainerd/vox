@@ -44,50 +44,46 @@ fn test_all_markdown_vox_blocks_parse() {
 
         for event in parser {
             match event {
-                Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(ref lang))) => {
-                    if lang.as_ref() == "vox" {
-                        in_vox_block = true;
-                        current_block.clear();
-                    }
+                Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(ref lang)))
+                    if lang.as_ref() == "vox" =>
+                {
+                    in_vox_block = true;
+                    current_block.clear();
                 }
-                Event::Text(text) => {
-                    if in_vox_block {
-                        current_block.push_str(&text);
-                    }
+                Event::Text(text) if in_vox_block => {
+                    current_block.push_str(&text);
                 }
-                Event::End(TagEnd::CodeBlock) => {
-                    if in_vox_block {
-                        in_vox_block = false;
+                Event::End(TagEnd::CodeBlock) if in_vox_block => {
+                    in_vox_block = false;
 
-                        // Ignore skipped blocks or ones with intentional warning placeholders.
-                        // `// vox:skip` is the canonical CLAUDE.md skip sentinel.
-                        // `{{#include ...}}` blocks are mdBook directives, not raw Vox.
-                        if current_block.contains("vox:skip")
-                            || current_block.contains("Skip-Test")
-                            || current_block.contains("todo!(")
-                            || current_block.contains("empty-body")
-                            || current_block.contains("{{#include")
-                        {
-                            continue;
+                    // Ignore skipped blocks or ones with intentional warning placeholders.
+                    // `// vox:skip` is the canonical CLAUDE.md skip sentinel.
+                    // `{{#include ...}}` blocks are mdBook directives, not raw Vox.
+                    if current_block.contains("vox:skip")
+                        || current_block.contains("Skip-Test")
+                        || current_block.contains("todo!(")
+                        || current_block.contains("empty-body")
+                        || current_block.contains("{{#include")
+                    {
+                        continue;
+                    }
+
+                    // Ignore things known to be partial snippets unless wrapped in fn
+                    // We will just attempt to parse them. If they fail, we can add a skip.
+
+                    let tokens = lex(&current_block);
+                    if let Err(errs) = parse(tokens) {
+                        println!(
+                            "Failed to parse vox block in {:?} \nBlock:\n{}\nErrors:\n",
+                            entry.path(),
+                            current_block
+                        );
+                        for e in errs {
+                            println!("{:?}", e);
                         }
-
-                        // Ignore things known to be partial snippets unless wrapped in fn
-                        // We will just attempt to parse them. If they fail, we can add a skip.
-
-                        let tokens = lex(&current_block);
-                        if let Err(errs) = parse(tokens) {
-                            println!(
-                                "Failed to parse vox block in {:?} \nBlock:\n{}\nErrors:\n",
-                                entry.path(),
-                                current_block
-                            );
-                            for e in errs {
-                                println!("{:?}", e);
-                            }
-                            failed = true;
-                        } else {
-                            parsed_blocks += 1;
-                        }
+                        failed = true;
+                    } else {
+                        parsed_blocks += 1;
                     }
                 }
                 _ => {}

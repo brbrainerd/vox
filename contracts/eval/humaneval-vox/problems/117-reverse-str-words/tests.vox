@@ -1,0 +1,20 @@
+fn reverse_str_words(s: str) to str {
+    let words: list[str] = s.split(" ")
+    let mut result: list[str] = []
+    for word in words {
+        let chars: list[str] = word.chars()
+        let rev: list[str] = chars.reversed()
+        result.push(rev.join(""))
+    }
+    return result.join(" ")
+}
+
+fn main() to str {
+    assert(reverse_str_words("hello world") == "olleh dlrow")
+    assert(reverse_str_words("abc def") == "cba fed")
+    assert(reverse_str_words("vox") == "xov")
+    assert(reverse_str_words("") == "")
+    assert(reverse_str_words("racecar") == "racecar")
+    assert(reverse_str_words("one two three") == "eno owt eerht")
+    return "ok"
+}

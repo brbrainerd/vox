@@ -10,6 +10,8 @@ pub mod chat_fallback_tools;
 pub mod params;
 pub mod server_state;
 
+pub mod aci;
+mod agentos_telemetry;
 pub(crate) mod attention_policy;
 /// Benchmark telemetry query tools (`research_metrics`).
 pub mod benchmark_tools;

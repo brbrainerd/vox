@@ -78,7 +78,7 @@ fn process_chat(prompt: str, request_id: str, conversation_id: str) to Result[st
     response
 }
 
-@endpoint(kind: server) fn chat(prompt: str, request_id: str, conversation_id: str) to Result[str] {
+@server fn chat(prompt: str, request_id: str, conversation_id: str) to Result[str] {
     let _ = start_run(request_id, conversation_id)
     return process_chat(prompt, request_id, conversation_id)
 }

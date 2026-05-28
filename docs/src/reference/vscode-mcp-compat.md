@@ -1,7 +1,7 @@
 ---
 title: "VS Code extension and vox-mcp compatibility"
 description: "Maps canonical MCP registry, VS Code parity scripts, activation model, wire aliases, MCP-related settings, release checklist, and manual compatibility/theme verification between the extension and vox-mcp."
-category: "reference"
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---
@@ -13,12 +13,12 @@ schema_type: "TechArticle"
 | Artifact | Role |
 |----------|------|
 | [`contracts/mcp/tool-registry.canonical.yaml`](../../../contracts/mcp/tool-registry.canonical.yaml) | Canonical MCP tool **names**, descriptions, and **`product_lane`** (builds `vox-mcp-registry`; each listed tool exposes `_meta.vox_product_lane` in its tool descriptor) |
-| [`vox-vscode/scripts/check-mcp-tool-parity.mjs`](../../../vox-vscode/scripts/check-mcp-tool-parity.mjs) | **`npm run compile`** (and CI) runs this after registry generation: every `call('…')` / `callTool({ name: … })` in extension sources resolves to the canonical registry; aliases from [`tool_aliases.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tool_aliases.rs) |
-| `vox-vscode/scripts/check-activation-parity.mjs` | **`npm run compile`** (and CI): every `contributes.commands` id has matching `onCommand:…` in `activationEvents` |
-| [`vox-vscode/scripts/generate-mcp-tool-registry.mjs`](../../../vox-vscode/scripts/generate-mcp-tool-registry.mjs) | First step of **`npm run compile`**: emits `mcpToolRegistry.generated.ts` (canonical tool names + `MCP_EXTENSION_EXPECTED_TOOLS`) |
+| [`apps/editor/vox-vscode/scripts/check-mcp-tool-parity.mjs`](../../../apps/editor/vox-vscode/scripts/check-mcp-tool-parity.mjs) | **`npm run compile`** (and CI) runs this after registry generation: every `call('…')` / `callTool({ name: … })` in extension sources resolves to the canonical registry; aliases from [`tool_aliases.rs`](../../../crates/vox-orchestrator-mcp/src/tool_aliases.rs) |
+| `apps/editor/vox-vscode/scripts/check-activation-parity.mjs` | **`npm run compile`** (and CI): every `contributes.commands` id has matching `onCommand:…` in `activationEvents` |
+| [`apps/editor/vox-vscode/scripts/generate-mcp-tool-registry.mjs`](../../../apps/editor/vox-vscode/scripts/generate-mcp-tool-registry.mjs) | First step of **`npm run compile`**: emits `mcpToolRegistry.generated.ts` (canonical tool names + `MCP_EXTENSION_EXPECTED_TOOLS`) |
 | Runtime `list_tools` | **Actual** advertised tools (includes skill-merged tools); `CapabilityRegistry` stores a fingerprint |
-| [`vox-vscode/src/protocol/hostToWebviewMessages.ts`](../../../vox-vscode/src/protocol/hostToWebviewMessages.ts) | zod schema for **host → webview** posts (`SidebarProvider.postMessage` validates before `postMessage`) |
-| [`vox-vscode/scripts/smoke-host-messages.mjs`](../../../vox-vscode/scripts/smoke-host-messages.mjs) | Runs after `tsc` to ensure the host schema still accepts representative payloads |
+| [`apps/editor/vox-vscode/src/types/index.ts`](../../../apps/editor/vox-vscode/src/types/index.ts) (`WebviewMessage` and related protocol types) | zod schema for **host → webview** posts (`SidebarProvider.postMessage` validates before `postMessage`) |
+| [`apps/editor/vox-vscode/scripts/smoke-host-messages.mjs`](../../../apps/editor/vox-vscode/scripts/smoke-host-messages.mjs) | Runs after `tsc` to ensure the host schema still accepts representative payloads |
 
 ## Activation (lazy load)
 
@@ -26,7 +26,7 @@ The extension is **not** `onStartupFinished`. It activates when:
 
 - the workspace contains **`*.vox`**, or
 - the user opens the **Vox Workspace** sidebar (`onView:vox-sidebar.chat`) or **Snapshots** (`onView:vox-snapshots`), or
-- the user runs **any** contributed **`vox.*`** command (see `activationEvents` in [`vox-vscode/package.json`](../../../vox-vscode/package.json): build/run/LSP, inline edit family including **`vox.inlineEdit.accept`** / **`vox.inlineEdit.escapeReject`**, snapshots/VCS, plan, agent, model picker, Oratio, command catalog, etc.).
+- the user runs **any** contributed **`vox.*`** command (see `activationEvents` in [`apps/editor/vox-vscode/package.json`](../../../apps/editor/vox-vscode/package.json): build/run/LSP, inline edit family including **`vox.inlineEdit.accept`** / **`vox.inlineEdit.escapeReject`**, snapshots/VCS, plan, agent, model picker, Oratio, command catalog, etc.).
 
 **`vox.inlineEdit.reject`** / **`vox.inlineEdit.regenerate`** are primarily CodeLens-driven; they also have **`onCommand`** activation so a bound key or replay does not depend on a prior command.
 
@@ -35,7 +35,7 @@ The extension is **not** `onStartupFinished`. It activates when:
 - `vox_budget_history` → `vox_cost_history`
 - `vox_model_list` → `vox_list_models`
 - `vox_map_vscode_session` → `vox_map_agent_session`
-- (etc. — keep parity script in sync with [`crates/vox-orchestrator/src/mcp_tools/tool_aliases.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tool_aliases.rs))
+- (etc. — keep parity script in sync with [`crates/vox-orchestrator-mcp/src/tool_aliases.rs`](../../../crates/vox-orchestrator-mcp/src/tool_aliases.rs))
 
 ## Client disclosure (telemetry / debug surfaces)
 
@@ -60,7 +60,7 @@ MCP currently probes TCP peers only (stdio transport is valid for the daemon pro
 ## Release checklist
 
 1. Bump `vox-vscode` `package.json` version with the MCP/server bundle you test against.
-2. `cd vox-vscode && npm run compile && npm run lint` (`compile` runs MCP + activation parity checks after registry generation)
+2. `cd apps/editor/vox-vscode && npm run compile && npm run lint` (`compile` runs MCP + activation parity checks after registry generation)
 3. Manual smoke { connect MCP, open **Vox Workspace** (or **Vox: Open Chat** from the palette in a folder without `*.vox`), confirm the status strip shows `execution_mode` and tool count; test **Explorer** right-click on an audio file plus **Vox: Oratio —** transcribe / speech-to-code when `vox_oratio_transcribe` / `vox_speech_to_code` are advertised.
 
 ## Compatibility matrix (manual)

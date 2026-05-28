@@ -33,7 +33,7 @@ pub struct A2ARetrievalResponse {
     pub request_id: String,
     pub memory_excerpts: Vec<String>,
     pub knowledge_excerpts: Vec<String>,
-    /// Codex chunks plus Tantivy doc mirror and Qdrant ANN sidecar lines (same as MCP `chunk_lines` bundle).
+    /// Document chunks (RAG corpus) plus Tantivy doc mirror and Qdrant ANN sidecar lines (same as MCP `chunk_lines` bundle).
     pub chunk_excerpts: Vec<String>,
     pub repo_paths: Vec<String>,
     /// Cross-corpus RRF ordering when enabled in policy (else empty).

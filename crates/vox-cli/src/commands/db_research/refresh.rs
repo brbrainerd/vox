@@ -192,11 +192,11 @@ async fn research_refresh_context_capability_map() -> anyhow::Result<()> {
         (
             "working_memory",
             "Active prompt, current files, recent messages, tool outputs",
-            "MCP chat_tools, Dei context_window",
+            "MCP chat_tools, orchestrator memory window",
             "partial",
             "vox_ahead",
             "Reuse in Mens generate",
-            "crates/vox-mcp/src/tools/chat_tools.rs, crates/vox-dei/src/memory/context_window.rs",
+            "crates/vox-mcp/src/tools/chat_tools.rs, crates/vox-orchestrator/src/memory/manager.rs",
         ),
         (
             "episodic_memory",
@@ -250,7 +250,7 @@ async fn research_refresh_context_capability_map() -> anyhow::Result<()> {
             "partial",
             "parity",
             "Wire vox_a2a_edges for handoff chains",
-            "crates/vox-dei/src/coordination/handoff.rs",
+            "crates/vox-orchestrator/src/handoff.rs",
         ),
         (
             "observability",
@@ -259,7 +259,7 @@ async fn research_refresh_context_capability_map() -> anyhow::Result<()> {
             "partial",
             "external_ahead",
             "Instrument LLM spans",
-            "crates/vox-dei/, crates/vox-mcp/",
+            "crates/vox-orchestrator/, crates/vox-mcp/",
         ),
         (
             "evals",

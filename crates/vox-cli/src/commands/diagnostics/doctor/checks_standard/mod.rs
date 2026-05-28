@@ -1,5 +1,6 @@
 //! Default `vox doctor` checks: optional test-health tools, then full toolchain audit.
 
+mod compile_target;
 mod gpu_hardware;
 mod llm_routing;
 mod model_catalog;
@@ -13,7 +14,15 @@ mod web_frontend;
 
 use super::common::Check;
 
-pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Check>) {
+pub async fn run_checks(
+    auto_heal: bool,
+    test_health: bool,
+    compile_target: Option<&str>,
+    checks: &mut Vec<Check>,
+) {
+    if let Some(t) = compile_target.filter(|s| !s.is_empty()) {
+        compile_target::run(t, checks);
+    }
     if test_health::run(test_health, checks).await {
         return;
     }

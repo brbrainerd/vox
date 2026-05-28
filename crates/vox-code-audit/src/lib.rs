@@ -27,6 +27,20 @@ pub mod run_context;
 /// Structured suppression store (`contracts/toestub/suppression.v1.schema.json`).
 pub mod suppression;
 
+/// CR-L6 retirement-guard parity check — cross-references
+/// `contracts/retirement/retired-surfaces.v1.yaml` against the registered
+/// detectors and diagnostic IDs. Library home of the planned
+/// `vox ci retirement-audit` CLI command.
+pub mod retirement_parity;
+
+/// Stdlib-coverage parity check (non-CR-L tooling gate). Three-way diff
+/// between binary registrations in `crates/vox-compiler/src/eval/builtins.rs`,
+/// doc claims in `docs/src/reference/ref-builtins-stdlib.md`, and corpus
+/// call sites under `scripts/`. Library home of the
+/// `vox audit stdlib-coverage` subcommand. See
+/// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §10 / §12.D.
+pub mod stdlib_parity;
+
 /// Runs configured detectors over a [`scanner::Scanner`] snapshot and aggregates [`rules::Finding`]s.
 pub mod engine;
 /// Renders findings to the terminal, JSON, or Markdown for CI and local CLI output.
@@ -41,6 +55,7 @@ pub mod scanner;
 pub mod task_queue;
 
 pub use ai_analyze::{AiAnalyzer, AiProvider};
+pub use detectors::import_cycles::{detect_import_cycles_in_batch, extract_vox_imports};
 pub use analysis::{NonCodeKind, RustFileContext, TokenMap};
 pub use engine::{ToestubConfig, ToestubEngine, ToestubRunMode};
 pub use report::{OutputFormat, Reporter, RunSnapshot, ToestubJsonReportV1};

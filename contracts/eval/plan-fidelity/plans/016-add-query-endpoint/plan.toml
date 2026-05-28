@@ -1,0 +1,47 @@
+id = "plan-016-add-query-endpoint"
+wave = "wave_2"
+description = "Add a query @endpoint that reads from an existing @table."
+max_steps = 4
+max_cost_usd = 0.75
+
+prompt = """
+The base file defines a `Note` @table and a mutation endpoint that
+adds notes. Add a new query endpoint
+`@endpoint(kind: query) fn list_notes() to List[Note]` that returns an
+empty `List[Note]` placeholder (`return []`). Do not modify the
+existing table or mutation.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `Empty("...")`),
+    not as `NoteError.Empty(...)`.
+  - ADTs use `type X = | A | B(field: T)` syntax.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Read the existing @table and mutation."
+
+[[steps]]
+step = 2
+verb = "add"
+description = "Append the `list_notes` query endpoint."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 4
+verb = "verify-tests"
+description = "Existing @test blocks still run clean."
+
+[success_criteria]
+vox_check_passes = true
+new_endpoint_added = true
+query_kind_present = true
+existing_table_unchanged = true

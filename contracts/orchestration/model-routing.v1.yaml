@@ -1,16 +1,12 @@
 x-vox-version: 3
 schema_version: 3
+# CR-A4 lifecycle metadata declared via the nested `lifecycle:` block below
+# (`maturity` + `migration_window_days`), per honest-completion plan §5.8.
 
 # SSOT for quality-first routing, exploration, and outage fallback (overridable via Clavis).
 routing_objective:
   kind: quality_first
 
-quality_weights:
-  socrates_factuality: 0.25
-  contradiction_inverse: 0.15
-  success_rate: 0.25
-  p50_latency_inverse: 0.15
-  cost_inverse: 0.2
 
 exploration:
   algorithm: thompson_beta
@@ -33,6 +29,8 @@ fallback_graph:
 tiers:
   - Unknown
   - Local
+  - Free      # zero-cost API models (e.g. OpenRouter :free variants); rate-limited, variable quality
+  - Fast      # speed-optimised, lower-cost than Pro (Haiku/Flash class)
   - Light
   - Pro
   - Elite
@@ -69,24 +67,22 @@ task_categories:
   - ToolOrchestration
   - Visus
 
-scoring:
-  weights:
-    efficiency: 1
-    precision: 1
-    latency: 1
-    availability: 1
-    balance: 1
-    mobile: 1
-  latency_bands:
-    excellent_ms: 500
-    poor_ms: 8000
+# VOX_AUTO_ROUTING_PRIORITY env var is the SSOT for weight distributions (efficiency, precision, etc).
+latency_bands:
+  excellent_ms: 500
+  poor_ms: 8000
 
 premium_alias:
-  codegen: "claude-mythos-preview-20260407"
-  debugging: "claude-mythos-preview-20260407"
-  security: "claude-mythos-preview-20260407"
-  research: "google/gemini-2.5-pro-preview"
-  planning: "google/gemini-2.5-pro-preview"
+  # 2026-Q2 refresh — see docs/src/architecture/model-selection-2026-q2.md
+  # for rationale, benchmarks, and rollback guidance. Mythos preview retired
+  # from premium aliases (preview-tier at $125/MTok; #3 on BFCL); replaced
+  # with Opus 4.7 GA (87.6% SWE-bench Verified at $5/$25). Gemini 2.5 Pro
+  # Preview rotated to Gemini 3.1 Pro (current GA; ARC-AGI-2 + GPQA leader).
+  codegen: "anthropic/claude-opus-4.7"
+  debugging: "anthropic/claude-opus-4.7"
+  security: "anthropic/claude-opus-4.7"
+  research: "google/gemini-3.1-pro"
+  planning: "openai/gpt-5.5-pro"
   review: "anthropic/claude-sonnet-4.6"
   logic: "deepseek/deepseek-r1"
   visus: "qwen/qwen-3.5-vl"

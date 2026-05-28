@@ -1,8 +1,8 @@
 ---
 title: "ADR-025: Multi-Agent Lock Coherence and Lease Propagation"
 description: "Architecture Decision Record for multi-agent lock coherence and lease propagation in the Vox ecosystem."
-category: "architecture"
-status: "current"
+category: "Architecture Decisions (ADRs)"
+status: "research"
 ---
 # ADR 025: Multi-Agent Lock Coherence and Lease Propagation
 

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Vox dashboard — composable cards</title>
+  <style>
+    :root { --bg:#09090b; --panel:#18181b; --border:#27272a; --text:#fafafa; --muted:#a1a1aa; --accent:#3b82f6; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+    header { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--border); background:#0c0c0e; flex-wrap:wrap; }
+    header h1 { font-size:14px; font-weight:600; margin:0; letter-spacing:.02em; }
+    #statusBar { font-size:12px; color:var(--muted); flex:1; display:flex; gap:16px; flex-wrap:wrap; }
+    #statusBar span { cursor:pointer; }
+    #statusBar span:hover { color:var(--text); }
+    main { flex:1; padding:12px; display:grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 72px; gap:8px; align-content:start; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:8px 10px; overflow:auto; position:relative; grid-column: span 3; grid-row: span 2; }
+    .card header-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+    .card h2 { font-size:12px; margin:0; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+    .card button.x { background:transparent; border:none; color:var(--muted); cursor:pointer; font-size:16px; line-height:1; padding:2px 6px; }
+    .card button.x:hover { color:#f87171; }
+    .card pre { margin:0; font-size:11px; white-space:pre-wrap; word-break:break-word; color:#d4d4d8; max-height:calc(100% - 28px); overflow:auto; }
+    #palette { position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; align-items:flex-end; z-index:20; }
+    #palette button { background:var(--accent); color:white; border:none; border-radius:999px; padding:10px 16px; font-weight:600; cursor:pointer; box-shadow:0 4px 20px rgba(59,130,246,.35); }
+    #palettePanel { display:none; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px; min-width:220px; max-height:320px; overflow:auto; }
+    #palettePanel.open { display:block; }
+    #palettePanel button.row { display:block; width:100%; text-align:left; margin:4px 0; padding:8px; background:#27272a; border:1px solid var(--border); border-radius:6px; color:var(--text); cursor:pointer; font-size:13px; }
+    #palettePanel button.row:hover { border-color:var(--accent); }
+    #cmdk { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:50; align-items:flex-start; justify-content:center; padding-top:12vh; }
+    #cmdk.open { display:flex; }
+    #cmdk dialog { width:min(560px, 94vw); background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:0; overflow:hidden; }
+    #cmdk input { width:100%; padding:14px 16px; border:none; border-bottom:1px solid var(--border); background:#0f0f12; color:var(--text); font-size:15px; outline:none; }
+    #cmdk ul { list-style:none; margin:0; padding:8px; max-height:320px; overflow:auto; }
+    #cmdk li { padding:8px 10px; border-radius:6px; cursor:pointer; font-size:13px; color:#e4e4e7; }
+    #cmdk li:hover, #cmdk li.active { background:#27272a; }
+    #runDrawer { display:none; position:fixed; left:0; right:0; bottom:0; max-height:42vh; background:var(--panel); border-top:1px solid var(--border); z-index:40; flex-direction:column; box-shadow:0 -8px 32px rgba(0,0,0,.45); }
+    #runDrawer.open { display:flex; }
+    #runDrawer header { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid var(--border); font-size:12px; color:var(--muted); }
+    #runDrawer pre { margin:0; padding:12px; overflow:auto; flex:1; font-size:11px; color:#d4d4d8; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Vox — composable dashboard</h1>
+    <div id="statusBar" aria-live="polite"></div>
+    <button type="button" id="cmdkTrigger" style="background:#27272a;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;">⌘K / Ctrl+K</button>
+  </header>
+  <main id="grid"></main>
+  <div id="palette">
+    <div id="palettePanel"></div>
+    <button type="button" id="addCardBtn">+ Add card</button>
+  </div>
+  <div id="runDrawer" aria-label="Run drawer">
+    <header>
+      <span>Runs (recent tasks)</span>
+      <button type="button" id="runDrawerClose" style="background:#27272a;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;">Close</button>
+    </header>
+    <pre id="runDrawerBody">Open from the status bar or command palette.</pre>
+  </div>
+  <div id="cmdk" role="dialog" aria-modal="true" aria-label="Command palette">
+    <dialog open style="margin:0;border:none;padding:0;background:transparent;">
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+        <input id="cmdkInput" type="search" placeholder="Jump to card or action…" autocomplete="off"/>
+        <ul id="cmdkList"></ul>
+        <div class="hint" style="font-size:11px;color:var(--muted);padding:8px 16px 12px;">Esc to close · Enter to focus card</div>
+      </div>
+    </dialog>
+  </div>
+  <script>
+    const STORAGE_KEY = 'vox.dashboard.layout.v1';
+    const BEARER_STORAGE_KEY = 'vox.dashboard.bearerToken';
+    const CARD_TYPES = [
+      { type: 'speak', title: 'Speak' },
+      { type: 'mesh', title: 'Mesh' },
+      { type: 'forge', title: 'Forge' },
+      { type: 'code', title: 'Code' },
+      { type: 'models', title: 'Models' },
+      { type: 'runs', title: 'Runs' },
+      { type: 'settings', title: 'Settings' },
+    ];
+
+    function authHeaders() {
+      try {
+        const tok = (localStorage.getItem(BEARER_STORAGE_KEY) || '').trim();
+        return tok ? { Authorization: 'Bearer ' + tok } : {};
+      } catch {
+        return {};
+      }
+    }
+
+    async function apiGet(path) {
+      const r = await fetch(path, { headers: { ...authHeaders() } });
+      return r.json();
+    }
+    async function apiPut(path, body) {
+      const r = await fetch(path, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify(body),
+      });
+      return r.json();
+    }
+
+    function envelopeData(j) { return j && j.data !== undefined ? j.data : j; }
+
+    let layout = { version: 1, items: [] };
+    let lastRunsText = '(fetch /api/v2/runs/recent — set VOX_DASHBOARD_LIVE_RUNS=1 for live tasks)';
+
+    function itemType(it) { return it.type || it.type_; }
+
+    function uid() { return 'c-' + Math.random().toString(36).slice(2, 10); }
+
+    function saveLocal() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    }
+
+    function loadLocal() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw);
+      } catch { return null; }
+    }
+
+    function applyLayout(l) {
+      if (l && l.version === 1 && Array.isArray(l.items)) layout = l;
+    }
+
+    function gridStyle(item) {
+      return {
+        gridColumn: `${item.x + 1} / span ${item.w}`,
+        gridRow: `${item.y + 1} / span ${item.h}`,
+      };
+    }
+
+    async function cardBody(type) {
+      if (type === 'mesh') {
+        const j = await apiGet('/api/v2/mesh/nodes');
+        const d = envelopeData(j);
+        let topo = '';
+        if (Array.isArray(d.nodes) && d.nodes.length) {
+          topo = '\n\n— topology index —\n' + d.nodes.slice(0, 16).map((n, i) => `[${i}] ${n.id || n.name || 'node'}`).join('\n');
+        }
+        return JSON.stringify(d, null, 2) + topo;
+      }
+      if (type === 'runs') {
+        const j = await apiGet('/api/v2/runs/recent');
+        const d = envelopeData(j);
+        lastRunsText = JSON.stringify(d, null, 2);
+        return lastRunsText;
+      }
+      if (type === 'models' || type === 'routing') {
+        const j = await apiGet('/api/v2/routing/summary');
+        const d = envelopeData(j);
+        return JSON.stringify(d, null, 2);
+      }
+      return `Card type "${type}" — embed full surface here (Vox-compiled SPA or React island).\n\nUse mesh / routing cards for live API envelopes when flags are enabled.`;
+    }
+
+    async function render() {
+      const g = document.getElementById('grid');
+      g.innerHTML = '';
+      for (const item of layout.items) {
+        const el = document.createElement('section');
+        el.className = 'card';
+        el.dataset.id = item.id;
+        Object.assign(el.style, gridStyle(item));
+        const t = itemType(item);
+        const meta = CARD_TYPES.find(c => c.type === t) || { title: t };
+        const head = document.createElement('div');
+        head.className = 'header-row';
+        head.innerHTML = `<h2>${meta.title}</h2>`;
+        const x = document.createElement('button');
+        x.className = 'x';
+        x.type = 'button';
+        x.textContent = '×';
+        x.title = 'Remove card';
+        x.addEventListener('click', () => {
+          layout.items = layout.items.filter(i => i.id !== item.id);
+          saveLocal();
+          void persistServer();
+          render();
+        });
+        head.appendChild(x);
+        el.appendChild(head);
+        const pre = document.createElement('pre');
+        pre.textContent = 'Loading…';
+        el.appendChild(pre);
+        g.appendChild(el);
+        pre.textContent = await cardBody(t);
+      }
+    }
+
+    async function persistServer() {
+      try {
+        await apiPut('/api/v2/dashboard/layout', { layout });
+      } catch (e) { /* workspace may be unset */ }
+    }
+
+    async function hydrate() {
+      const remote = await apiGet('/api/v2/dashboard/layout');
+      const d = envelopeData(remote);
+      if (d.layout && d.persisted) applyLayout(d.layout);
+      else {
+        const loc = loadLocal();
+        if (loc) applyLayout(loc);
+        else if (d.layout) applyLayout(d.layout);
+      }
+      await render();
+      await refreshStatus();
+    }
+
+    function openRunDrawer(title) {
+      const el = document.getElementById('runDrawer');
+      const body = document.getElementById('runDrawerBody');
+      const titleEl = document.querySelector('#runDrawer > header > span');
+      if (titleEl) titleEl.textContent = title || 'Runs (recent tasks)';
+      body.textContent = lastRunsText;
+      el.classList.add('open');
+    }
+    function closeRunDrawer() { document.getElementById('runDrawer').classList.remove('open'); }
+
+    async function refreshStatus() {
+      const bar = document.getElementById('statusBar');
+      let mesh = 'mesh: …';
+      try {
+        const j = await apiGet('/api/v2/mesh/nodes');
+        const d = envelopeData(j);
+        const n = (d.nodes && d.nodes.length) || 0;
+        mesh = `mesh: ${n} nodes (${d.source || '?'})`;
+      } catch { mesh = 'mesh: offline'; }
+      let arms = '';
+      try {
+        const r = await apiGet('/api/v2/routing/summary');
+        const rd = envelopeData(r);
+        if (rd.arm_count !== undefined) arms = ` · routing arms: ${rd.arm_count}`;
+      } catch {}
+      let runs = 'runs: …';
+      try {
+        const jr = await apiGet('/api/v2/runs/recent');
+        const rd = envelopeData(jr);
+        lastRunsText = JSON.stringify(rd, null, 2);
+        const rc = rd.run_count !== undefined ? rd.run_count : (rd.runs && rd.runs.length) || 0;
+        runs = `runs: ${rc} (${rd.source || '?'})`;
+      } catch { runs = 'runs: offline'; }
+      bar.innerHTML = `<span data-go="mesh">${mesh}</span><span data-go="models">models</span><span data-go="runs">${runs}</span><span data-run-drawer="1">drawer</span><span>layout: ${layout.items.length} cards</span>${arms}`;
+      bar.querySelectorAll('[data-go]').forEach(el => {
+        el.addEventListener('click', () => {
+          const t = el.getAttribute('data-go');
+          const hit = layout.items.find(i => itemType(i) === t);
+          if (hit) document.querySelector(`[data-id="${hit.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      });
+      bar.querySelectorAll('[data-run-drawer]').forEach(el => {
+        el.addEventListener('click', () => openRunDrawer());
+      });
+    }
+
+    function addCard(type) {
+      const id = uid();
+      let x = 0, y = 0;
+      if (layout.items.length) {
+        const last = layout.items[layout.items.length - 1];
+        x = (last.x + last.w) % 9;
+        y = last.y + (last.x + last.w >= 9 ? last.h : 0);
+      }
+      layout.items.push({ id, type, x, y, w: 3, h: 2, props: {} });
+      saveLocal();
+      void persistServer();
+      void render();
+      document.getElementById('palettePanel').classList.remove('open');
+    }
+
+    function buildPalette() {
+      const p = document.getElementById('palettePanel');
+      p.innerHTML = '<div style="font-size:11px;color:#a1a1aa;margin-bottom:6px;">Add from former pages</div>';
+      for (const c of CARD_TYPES) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'row';
+        b.textContent = c.title;
+        b.addEventListener('click', () => addCard(c.type));
+        p.appendChild(b);
+      }
+      const r = document.createElement('button');
+      r.type = 'button';
+      r.className = 'row';
+      r.textContent = 'Routing summary (viz flag)';
+      r.addEventListener('click', () => addCard('routing'));
+      p.appendChild(r);
+    }
+
+    function cmdkOpen() {
+      const k = document.getElementById('cmdk');
+      k.classList.add('open');
+      const inp = document.getElementById('cmdkInput');
+      inp.value = '';
+      cmdkPopulate('');
+      inp.focus();
+    }
+    function cmdkClose() { document.getElementById('cmdk').classList.remove('open'); }
+    function cmdkPopulate(q) {
+      const ul = document.getElementById('cmdkList');
+      ul.innerHTML = '';
+      const ql = q.trim().toLowerCase();
+      const actions = [
+        { label: 'Add Speak card', run: () => addCard('speak') },
+        { label: 'Add Mesh card', run: () => addCard('mesh') },
+        { label: 'Refresh status bar', run: () => void refreshStatus() },
+        { label: 'Open run drawer', run: () => openRunDrawer() },
+        { label: 'Reload layout from server', run: () => void hydrate() },
+        { label: 'Routing SSOT (read-only)', run: async () => {
+            const j = await apiGet('/api/v2/routing/manual-ssot');
+            lastRunsText = JSON.stringify(envelopeData(j), null, 2);
+            openRunDrawer('Routing policy SSOT');
+          } },
+      ];
+      let idx = 0;
+      for (const it of layout.items) {
+        const t = itemType(it);
+        const meta = CARD_TYPES.find(c => c.type === t) || { title: t };
+        if (ql && !meta.title.toLowerCase().includes(ql) && !String(t).toLowerCase().includes(ql)) continue;
+        const li = document.createElement('li');
+        li.textContent = `Focus: ${meta.title}`;
+        li.dataset.idx = String(idx++);
+        li.addEventListener('click', () => {
+          document.querySelector(`[data-id="${it.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cmdkClose();
+        });
+        ul.appendChild(li);
+      }
+      for (const a of actions) {
+        if (ql && !a.label.toLowerCase().includes(ql)) continue;
+        const li = document.createElement('li');
+        li.textContent = a.label;
+        li.addEventListener('click', () => { a.run(); cmdkClose(); });
+        ul.appendChild(li);
+      }
+    }
+
+    document.getElementById('addCardBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('palettePanel').classList.toggle('open');
+    });
+    document.addEventListener('click', () => document.getElementById('palettePanel').classList.remove('open'));
+
+    document.getElementById('cmdkTrigger').addEventListener('click', cmdkOpen);
+    document.getElementById('cmdkInput').addEventListener('input', (e) => cmdkPopulate(e.target.value));
+    document.getElementById('cmdk').addEventListener('click', (e) => { if (e.target.id === 'cmdk') cmdkClose(); });
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); cmdkOpen(); }
+      if (e.key === 'Escape') { cmdkClose(); closeRunDrawer(); }
+    });
+
+    document.getElementById('runDrawerClose').addEventListener('click', closeRunDrawer);
+
+    buildPalette();
+    void hydrate();
+    setInterval(() => void refreshStatus(), 8000);
+  </script>
+</body>
+</html>

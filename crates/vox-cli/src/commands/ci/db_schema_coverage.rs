@@ -167,9 +167,8 @@ pub fn run(root: &Path) -> Result<()> {
     }
 
     println!(
-        "db-schema-coverage OK ({} CREATE {} statements, all in owner crates)",
-        hits.len(),
-        "TABLE"
+        "db-schema-coverage OK ({} CREATE TABLE statements, all in owner crates)",
+        hits.len()
     );
     Ok(())
 }

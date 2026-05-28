@@ -1,0 +1,12 @@
+[problem]
+id = "055"
+title = "remove_vowels"
+prompt = """
+Remove all vowels (a, e, i, o, u and their uppercase equivalents) from the string s
+and return the result.
+"""
+signature = "fn remove_vowels(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

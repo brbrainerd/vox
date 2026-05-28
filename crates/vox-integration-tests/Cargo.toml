@@ -12,9 +12,12 @@ vox-test-harness = { path = "../vox-test-harness" }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
-tower-lsp = "0.20"
-tower-lsp-server = "0.23"
+wiremock = { workspace = true }
+# Force deadpool's `rt_tokio_1` feature (see root Cargo.toml).
+deadpool = { workspace = true }
+tower-lsp-server = { workspace = true }
 vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
@@ -30,7 +33,14 @@ vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-secrets = { workspace = true }
+vox-oratio = { workspace = true }
 
+
+# Windows UAC installer-detection elevates any .exe whose name contains "install".
+# Rename the test binary so it doesn't trigger that heuristic.
+[[test]]
+name = "skill_deploy_test"
+path = "tests/skill_install_test.rs"
 
 [lints]
 workspace = true

@@ -1,7 +1,7 @@
 ---
 title: "TanStack SSR with Axum (development topology)"
 description: "Official documentation for TanStack SSR with Axum (development topology) for the Vox language. Detailed technical reference, architecture"
-category: "reference"
+category: "How-To Guides"
 last_updated: "2026-03-24"
 training_eligible: true
 

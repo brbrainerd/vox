@@ -240,7 +240,7 @@ pub struct PlanParams {
     pub top_p: Option<f32>,
 }
 
-/// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-dei-d` is available.
+/// Arguments for `vox_replan` — forwards to DeI `ai.plan.replan` when `vox-orchestrator-d` is available.
 #[derive(Debug, Deserialize)]
 pub struct PlanReplanParams {
     /// Session id from a prior `vox_plan` or `ai.plan.new`.

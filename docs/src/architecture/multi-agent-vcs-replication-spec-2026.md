@@ -1,7 +1,7 @@
 ---
 title: "Multi-Agent VCS Replication — Architecture Spec (2026-05-03)"
 description: "Architecture spec for op-log gossip on top of jj-lib and the Populi mesh. Defines the AgentChange / OpFragment / Convergence Set primitives, the gossip wire protocol, the auto-merge / escalation policy, and the four-phase rollout (local multi-agent → conflict UX → mesh gossip → policy/safety). Implements Path 1 from the research findings."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
 training_rationale: "Canonical architecture for how Vox eliminates manual merging across local multi-agent fleets and mesh peers. Names the new primitives (AgentChange, OpFragment, ConvergenceSet, MergePolicy), the wire protocol, and the four implementation phases."
@@ -193,8 +193,8 @@ A peer joining a convergence set mid-stream requests an op-log range starting fr
 When two `OpFragment`s touch the same commit or file range, `MergePolicy` returns one of:
 
 1. **Auto-merge** — patches commute (non-overlapping line ranges, distinct symbols, additive changes). Apply both; no human involved. Borrows from Pijul's patch theory: independent patches commute.
-2. **Surface as conflict** — patches overlap and the bytes don't match. Materialize via `jj_backend.rs::ContentMerge::n_way` and route to the existing [`conflict_manager`](../../../crates/vox-orchestrator/src/mcp_tools/vcs_tools/). Conflicts become first-class artifacts, not transient diffs in a working tree.
-3. **Escalate to Socrates arbitration** — patches overlap but are semantically related (e.g., both rename the same symbol). [`vox-socrates-policy`](../../../crates/vox-socrates-policy/) scores each side's hallucination risk + author trust and may auto-pick a winner; otherwise falls through to (2).
+2. **Surface as conflict** — patches overlap and the bytes don't match. Materialize via `jj_backend.rs::ContentMerge::n_way` and route to the existing [`conflict_manager`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/mod.rs). Conflicts become first-class artifacts, not transient diffs in a working tree.
+3. **Escalate to Socrates arbitration** — patches overlap but are semantically related (e.g., both rename the same symbol). [`vox-orchestrator-types::socrates_policy`](../../../crates/vox-orchestrator-types/src/socrates_policy/mod.rs) scores each side's hallucination risk + author trust and may auto-pick a winner; otherwise falls through to (2).
 4. **Policy block** — the change violates a project rule (e.g., "agents can't edit `vox-secrets/src/spec.rs` without human review"). Hold the op; surface to a human.
 
 The classifier is informed by:
@@ -299,5 +299,5 @@ These are explicit follow-ups. They're not part of this spec because each requir
 - **Mesh:** [`populi-mesh-north-star-2026.md`](populi-mesh-north-star-2026.md), [`populi-mesh-improvement-backlog-2026.md`](populi-mesh-improvement-backlog-2026.md), [`populi-mesh-config-baseline-spec-2026.md`](populi-mesh-config-baseline-spec-2026.md).
 - **Orchestrator context:** [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md).
 - **Security / signing:** [`cryptography-ssot-2026.md`](cryptography-ssot-2026.md), `crates/vox-secrets/` for agent identity.
-- **Code surfaces:** [`crates/vox-orchestrator/src/jj_backend.rs`](../../../crates/vox-orchestrator/src/jj_backend.rs), [`crates/vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`crates/vox-orchestrator/src/mcp_tools/vcs_tools/`](../../../crates/vox-orchestrator/src/mcp_tools/vcs_tools/), [`crates/vox-git/`](../../../crates/vox-git/), [`crates/vox-socrates-policy/`](../../../crates/vox-socrates-policy/).
+- **Code surfaces:** [`crates/vox-orchestrator/src/jj_backend.rs`](../../../crates/vox-orchestrator/src/jj_backend.rs), [`crates/vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`crates/vox-orchestrator/src/mcp_tools/vcs_tools/`](../../../crates/vox-orchestrator-mcp/src/vcs_tools/mod.rs), [`crates/vox-git/`](../../../crates/vox-git/), [`crates/vox-orchestrator-types/src/socrates_policy/`](../../../crates/vox-orchestrator-types/src/socrates_policy/mod.rs).
 - **Implementation plan:** [`multi-agent-vcs-replication-impl-plan-phase1-2026.md`](multi-agent-vcs-replication-impl-plan-phase1-2026.md) — Phase 1 step-by-step. Phases 2–4 will be drafted as separate plans when each is queued.

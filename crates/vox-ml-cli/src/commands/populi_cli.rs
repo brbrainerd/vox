@@ -241,6 +241,13 @@ pub enum PopuliCli {
         #[command(subcommand)]
         cmd: PopuliIdentityCmd,
     },
+    /// Publish or fetch a signed public attestation manifest (P6-T2).
+    Attest {
+        #[command(subcommand)]
+        cmd: crate::commands::populi_attest::AttestCmd,
+    },
+    /// Join the grand volunteer network via an invite URL (P6-T7).
+    Join(crate::commands::populi_join::JoinArgs),
 }
 
 #[derive(Subcommand)]
@@ -1120,7 +1127,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 let id = env
                     .node_id
                     .clone()
-                    .unwrap_or_else(|| format!("node-{}", vox_primitives::id::simple_hex_id()));
+                    .unwrap_or_else(|| format!("node-{}", vox_foundation::primitives::id::simple_hex_id()));
 
                 let mut record =
                     vox_populi::node_record_for_current_process(id, Some(bind.clone()));
@@ -1558,7 +1565,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
 
                         #[cfg(feature = "extras-ludus")]
                         {
-                            vox_cli_core::ludus_shim::record_cli_event_fire_and_forget(
+                            vox_cli_core::gamify_shim::record_cli_event_fire_and_forget(
                                 "mens_flywheel_triggered",
                                 true,
                                 Some("mens-corpus"),
@@ -1677,5 +1684,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 }
             }
         },
+        PopuliCli::Attest { cmd } => crate::commands::populi_attest::run(cmd).await,
+        PopuliCli::Join(args) => crate::commands::populi_join::run(args).await,
     }
 }

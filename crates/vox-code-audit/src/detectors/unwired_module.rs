@@ -221,6 +221,18 @@ impl DetectionRule for UnwiredModuleDetector {
     fn severity(&self) -> Severity {
         Severity::Warning
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — module declared but never imported elsewhere\n\
+             // In lib.rs:\n\
+             mod analytics;  // declared — but nothing imports it!\n\
+             mod payments;   // declared and used ✓\n\
+             \n\
+             // FIX — either use the module or remove the declaration\n\
+             mod analytics;   // now used in routes\n\
+             pub use analytics::track_event;  // wired in",
+        )
+    }
     fn languages(&self) -> &[Language] {
         &[Language::Rust]
     }

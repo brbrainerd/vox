@@ -1,7 +1,7 @@
 ---
 title: "Mens measurement gap analysis"
 description: "KPI contract draft and metric-gap analysis for VoxMens `.vox` accuracy, error rate, repair cost, and speed."
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-28"
 training_eligible: false
 
@@ -42,9 +42,9 @@ Those are useful signals. They are not the top-line KPI.
 Primary sources:
 
 - [`crates/vox-populi/src/mens/tensor/telemetry_schema.rs`](../../../crates/vox-populi/src/mens/tensor/telemetry_schema.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora_train/epoch_boundary.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/epoch_boundary.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora_train/finalize.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/finalize.rs)
+- [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
+- [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
+- [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
 - [`crates/vox-db/src/training_run.rs`](../../../crates/vox-db/src/training_run.rs)
 
 What these surfaces currently measure well:
@@ -68,7 +68,7 @@ What they do **not** directly measure:
 
 Primary source:
 
-- [`crates/vox-cli/src/commands/corpus/stats.rs`](../../../crates/vox-cli/src/commands/corpus/stats.rs)
+- [`crates/vox-cli/src/commands/ci/run_body_helpers/corpus_decl_coverage.rs`](../../../crates/vox-cli/src/commands/ci/run_body_helpers/corpus_decl_coverage.rs)
 
 What this layer measures well:
 
@@ -88,11 +88,11 @@ What it does **not** measure:
 
 Primary sources:
 
-- [`crates/vox-cli/src/commands/mens/eval_local.rs`](../../../crates/vox-cli/src/commands/mens/eval_local.rs)
-- [`crates/vox-cli/src/commands/mens/eval_gate/check_run.rs`](../../../crates/vox-cli/src/commands/mens/eval_gate/check_run.rs)
+- [`crates/vox-ml-cli/src/commands/mens/eval_local.rs`](../../../crates/vox-ml-cli/src/commands/mens/eval_local.rs)
+- [`crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs`](../../../crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs)
 - [`crates/vox-cli/src/commands/ci/mens_scorecard.rs`](../../../crates/vox-cli/src/commands/ci/mens_scorecard.rs)
-- [`crates/vox-cli/src/commands/ai/generate.rs`](../../../crates/vox-cli/src/commands/ai/generate.rs)
-- [`crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs)
+- [`crates/vox-cli/src/commands/generate.rs`](../../../crates/vox-cli/src/commands/generate.rs)
+- [`crates/vox-orchestrator-mcp/src/compiler_tools.rs`](../../../crates/vox-orchestrator-mcp/src/compiler_tools.rs)
 
 What this layer measures reasonably well already:
 
@@ -120,8 +120,8 @@ One of the most important findings is that producer and consumer surfaces still 
 
 Relevant files:
 
-- producer: [`crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs)
-- consumer: [`crates/vox-cli/src/commands/mens/eval_gate/check_run.rs`](../../../crates/vox-cli/src/commands/mens/eval_gate/check_run.rs)
+- producer: [`crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs`](../../../crates/vox-populi/src/mens/tensor/backend_candle_qlora.rs)
+- consumer: [`crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs`](../../../crates/vox-ml-cli/src/commands/mens/eval_gate/check_run.rs)
 
 Observed drift:
 
@@ -138,7 +138,7 @@ This means the gate can be logically correct but practically underfed.
 
 Relevant files:
 
-- [`crates/vox-cli/src/commands/mens/eval_local.rs`](../../../crates/vox-cli/src/commands/mens/eval_local.rs)
+- [`crates/vox-ml-cli/src/commands/mens/eval_local.rs`](../../../crates/vox-ml-cli/src/commands/mens/eval_local.rs)
 - [`crates/vox-cli/src/commands/ci/mens_scorecard.rs`](../../../crates/vox-cli/src/commands/ci/mens_scorecard.rs)
 
 Observed drift:
@@ -152,8 +152,8 @@ Observed drift:
 
 Relevant files:
 
-- [`crates/vox-cli/src/commands/ai/generate.rs`](../../../crates/vox-cli/src/commands/ai/generate.rs)
-- [`crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs)
+- [`crates/vox-cli/src/commands/generate.rs`](../../../crates/vox-cli/src/commands/generate.rs)
+- [`crates/vox-orchestrator-mcp/src/compiler_tools.rs`](../../../crates/vox-orchestrator-mcp/src/compiler_tools.rs)
 
 Observed drift:
 

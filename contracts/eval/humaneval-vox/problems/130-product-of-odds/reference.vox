@@ -1,0 +1,9 @@
+fn product_of_odds(xs: list[int]) to int {
+    let mut product: int = 1
+    for x in xs {
+        if x % 2 != 0 {
+            product = product * x
+        }
+    }
+    return product
+}

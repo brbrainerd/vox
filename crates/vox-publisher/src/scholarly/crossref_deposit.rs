@@ -2,7 +2,7 @@
 //!
 //! Builds a minimal Crossref Deposit XML schema v5.3.1 document and POSTs it
 //! as multipart/form-data. Uses `VoxCrossrefPlusApiKey` as `login_passwd`.
-//! Reference: https://www.crossref.org/documentation/member-setup/direct-deposit-xml/
+//! Reference: <https://www.crossref.org/documentation/member-setup/direct-deposit-xml/>
 
 use std::time::Duration;
 
@@ -26,7 +26,7 @@ pub struct CrossrefDepositAdapter {
 
 impl CrossrefDepositAdapter {
     pub fn new(endpoint: String, login_id: String, login_passwd: String) -> Self {
-        let http = vox_reqwest_defaults::client_builder()
+        let http = vox_http_client::client_builder()
             .user_agent("vox-publisher/crossref")
             .timeout(Duration::from_secs(60))
             .build()

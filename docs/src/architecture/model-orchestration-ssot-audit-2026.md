@@ -1,7 +1,7 @@
 ---
 title: "Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)"
 description: "Audit of Vox model selection, orchestration, telemetry, discovery, and mesh-secret distribution; proposes a single source of truth and a concrete backlog of ~70 improvements."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Core orchestration architecture reference; names all files touching the model-routing surface."
@@ -29,7 +29,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 
 **What is broken or drifting.**
 
-1. **Model-selection logic is split across 5 crates with two different `ModelTier` enums** (`crates/vox-orchestrator/src/models/spec.rs:14`, `crates/vox-orchestrator/src/models/routing_table.rs:6`) and two different `ChatRouteBackend`-like enums (`vox-orchestrator` vs `vox-runtime/src/model_resolution.rs:22`).
+1. **Model-selection logic is split across 5 crates with two different `ModelTier` enums** (`crates/vox-orchestrator/src/models/spec.rs:14`, `crates/vox-orchestrator/src/models/routing_table.rs:6`) and two different `ChatRouteBackend`-like enums (`vox-orchestrator` vs `vox-actor-runtime/src/model_resolution.rs:22`).
 2. **Strength tags are free-form strings materialized from three independent heuristics** (`spec.rs:230`, `catalog.rs:107`, `routing_table.rs:30`). No enum, no parity check.
 3. **10 model IDs are hardcoded as defaults** in `spec.rs:273-482` with their own cost/context data, duplicating whatever OpenRouter returns live. Drift is silent.
 4. **No model scoreboard.** `eval_runs` and `llm_feedback` exist but are never aggregated per `(model_id, task_category)` and never fed back to `best_for()`.
@@ -38,7 +38,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 7. **Direct env reads for secret-ish values leak outside vox-secrets.** Confirmed violation in `crates/vox-schola/src/curator.rs` (`OPENAI_API_KEY`) and suspected drift for `TOGETHER_FINETUNE_MODEL` (`crates/vox-cli/src/commands/ai/train.rs`), `GEMINI_DIRECT_MODEL`/`OPENROUTER_GEMINI_MODEL` (`crates/vox-config/src/routing_policy.rs`).
 8. **No cross-node secret sync.** `A2ADeliverRequest.jwe_payload` is plumbed but never populated (`crates/vox-populi/src/transport/mod.rs:76`). `vox-crypto` has ChaCha20-Poly1305 and Ed25519 but **no X25519 KEM** for wrapping secrets to another node.
 9. **No device-pairing flow.** A user with 3 mesh nodes must install `OPENROUTER_API_KEY` three times by hand.
-10. **Retired-surface drift.** `vox_dei::model_route` is still used as the `tracing` target in `crates/vox-runtime/src/model_resolution.rs:183-246` (harmless in theory, but violates the retired-symbol policy in `AGENTS.md:140`).
+10. **Retired-surface drift.** `vox_dei::model_route` is still used as the `tracing` target in `crates/vox-actor-runtime/src/model_resolution.rs:183-246` (harmless in theory, but violates the retired-symbol policy in `AGENTS.md:140`).
 
 **What this document proposes.**
 
@@ -63,7 +63,7 @@ This is what "converged" looks like. Every bullet below is also a "FIX" in Part 
 | Task-category → strength mapping, preferred tier, context floor | `contracts/orchestration/model-routing.v1.yaml` | codegen → `crates/vox-orchestrator/src/models/routing_table.rs` (generated) |
 | Scoring weights (efficiency/precision/latency/availability/balance/mobile) | `contracts/orchestration/model-routing.v1.yaml` `[scoring]` | `crates/vox-orchestrator/src/models/scoring.rs` |
 | Provider enum, secret-id mapping | `contracts/orchestration/providers.v1.yaml` | codegen → `crates/vox-orchestrator/src/models/spec.rs::ProviderType`, `crates/vox-orchestrator/src/models/key_guard.rs` |
-| Telemetry event attributes (GenAI) | `contracts/orchestration/model-telemetry.v1.yaml` (mirrors OTel GenAI semconv v1.37) | `crates/vox-runtime/src/routing_telemetry.rs`, `crates/vox-db/src/research_metrics_contract.rs` |
+| Telemetry event attributes (GenAI) | `contracts/orchestration/model-telemetry.v1.yaml` (mirrors OTel GenAI semconv v1.37) | `crates/vox-actor-runtime/src/routing_telemetry.rs`, `crates/vox-db/src/research_metrics_contract.rs` |
 | Secrets & env var names | `crates/vox-secrets/src/spec/**` (unchanged authority) | `vox_secrets::resolve_secret(...)` |
 | Env-variable allowlist (non-secret tuning) | `crates/vox-secrets/src/lib.rs::OPERATOR_TUNING_ENVS` (extend) | `secret-env-guard` |
 | `.voxignore` derived ignore files | `.voxignore` (unchanged) | `vox ci sync-ignore-files` |
@@ -163,18 +163,18 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Move the 10 bootstrap entries into `contracts/orchestration/model-catalog.bootstrap.v1.json`. At runtime, `Registry::load()` reads bootstrap, then merges from `~/.vox/cache/model-catalog.v1.json` (persisted by the discovery job — FIX-30). Delete the literal `ModelSpec::new(...)` calls at `spec.rs:301, 318, 335, 353, 370, 387, 405, 428, 447`.
 - *Success.* `rg 'ModelSpec::new\(' crates/vox-orchestrator` returns zero hits; bootstrap lives in JSON; cache auto-refreshes.
 
-**FIX-06. [FIXED] Delete the duplicate `ChatRouteBackend` in `vox-runtime`.**
-- *Problem.* `crates/vox-runtime/src/model_resolution.rs:22-32` redefines `ChatRouteBackend`; `vox-orchestrator/src/models/spec.rs::ProviderType` is the canonical one. Intentional decoupling exists to avoid a cycle but produces drift.
-- *Operation.* Extract `ProviderType`, `ChatRouteBackend`, `ChatProviderRouteKind` into a new tiny leaf crate `crates/vox-orchestrator-types/` (generated from `providers.v1.yaml`). Both `vox-orchestrator` and `vox-runtime` depend on it; cycle broken.
+**FIX-06. [FIXED] Delete the duplicate `ChatRouteBackend` in `vox-actor-runtime`.**
+- *Problem.* `crates/vox-actor-runtime/src/model_resolution.rs:22-32` redefines `ChatRouteBackend`; `vox-orchestrator/src/models/spec.rs::ProviderType` is the canonical one. Intentional decoupling exists to avoid a cycle but produces drift.
+- *Operation.* Extract `ProviderType`, `ChatRouteBackend`, `ChatProviderRouteKind` into a new tiny leaf crate `crates/vox-orchestrator-types/` (generated from `providers.v1.yaml`). Both `vox-orchestrator` and `vox-actor-runtime` depend on it; cycle broken.
 - *Success.* `rg 'enum ChatRouteBackend|pub enum ProviderType' crates/` returns exactly one hit each.
 
 **FIX-07. [FIXED] Kill `vox_dei::model_route` tracing targets.**
-- *Problem.* Retired crate name still appears as `tracing` span target at `crates/vox-runtime/src/model_resolution.rs:183,203,219,232,246`. Violates `AGENTS.md:140` and confuses log aggregation.
+- *Problem.* Retired crate name still appears as `tracing` span target at `crates/vox-actor-runtime/src/model_resolution.rs:183,203,219,232,246`. Violates `AGENTS.md:140` and confuses log aggregation.
 - *Operation.* Replace `target: "vox_dei::model_route"` with `target: "vox_orchestrator::model_route"`. Add a lint in `vox ci run` guards to fail if `vox_dei::` appears anywhere outside comments or tombstone archive.
 - *Success.* `rg '"vox_dei::'` returns zero code hits.
 
 **FIX-08. [FIXED] Resolve the `ModelSpec` vs. `ModelRegistryEntry` vs. `ModelCatalogEntry` name collision.**
-- *Problem.* Three structs (`spec.rs::ModelSpec`, `vox-runtime/src/llm/types.rs::ModelRegistryEntry`, proposed `ModelCatalogEntry`) will exist simultaneously during migration.
+- *Problem.* Three structs (`spec.rs::ModelSpec`, `vox-actor-runtime/src/llm/types.rs::ModelRegistryEntry`, proposed `ModelCatalogEntry`) will exist simultaneously during migration.
 - *Operation.* Keep `ModelCatalogEntry` as the wire/file type, have `ModelSpec` derive `From<&ModelCatalogEntry>`, then remove `ModelRegistryEntry` by inlining its two useful fields into `ModelSpec`.
 - *Success.* Two structs remain (`ModelCatalogEntry` for serde, `ModelSpec` for in-memory).
 
@@ -202,12 +202,12 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 
 **FIX-13. [DONE] Emit `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.response.finish_reasons` on every LLM call.**
 - *Problem.* No OpenTelemetry GenAI semconv emitted. `llm_interactions.token_count` was one integer, conflating input and output.
-- *Operation.* In `crates/vox-runtime/src/llm/types.rs::ModelMetric::from_response`, populate the six required GenAI span attributes per OTel GenAI v1.37. Extended `llm_interactions` to accept detailed metrics. Split `token_count` into `input_tokens` and `output_tokens` columns.
+- *Operation.* In `crates/vox-actor-runtime/src/llm/types.rs::ModelMetric::from_response`, populate the six required GenAI span attributes per OTel GenAI v1.37. Extended `llm_interactions` to accept detailed metrics. Split `token_count` into `input_tokens` and `output_tokens` columns.
 - *Success.* `llm_interactions` (v59) rows contain `gen_ai`-aligned attributes for every call.
 
 **FIX-14. [DONE] Add a trace ID that follows user-request → orchestrator → provider.**
 - *Problem.* `journey_id`, `session_id`, `run_id` are subsystem-local; no causal chain.
-- *Operation.* Generate a single `trace_id` (UUIDv7) at the top of `vox_orchestrator::handle_task()`. Propagate via `AgentTask.trace_id`; include in every telemetry row; set outbound HTTP `traceparent` header (OTel W3C) in `crates/vox-runtime/src/http` for OpenRouter / Anthropic / Google calls.
+- *Operation.* Generate a single `trace_id` (UUIDv7) at the top of `vox_orchestrator::handle_task()`. Propagate via `AgentTask.trace_id`; include in every telemetry row; set outbound HTTP `traceparent` header (OTel W3C) in `crates/vox-actor-runtime/src/http` for OpenRouter / Anthropic / Google calls.
 - *Success.* `SELECT trace_id, count(*) FROM research_metrics WHERE trace_id IS NOT NULL GROUP BY 1` shows every user turn as one trace.
 
 **FIX-75. [DONE] Implement observed-cost feedback loop via `model_pricing_catalog`.**
@@ -238,7 +238,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 
 **FIX-16. [DONE] Track retry / fallback chains.**
 - *Problem.* Only the final result lands in `llm_interactions`; retries are invisible.
-- *Operation.* New table `llm_attempt` with `(trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class)`; `llm_interactions` retains one row per final outcome. `vox-runtime` writes `llm_attempt` rows during its fallback loop (`crates/vox-runtime/src/model_resolution.rs:162`).
+- *Operation.* New table `llm_attempt` with `(trace_id, attempt_number, model_id, provider, outcome, latency_ms, error_class)`; `llm_interactions` retains one row per final outcome. `vox-actor-runtime` writes `llm_attempt` rows during its fallback loop (`crates/vox-actor-runtime/src/model_resolution.rs:162`).
 - *Success.* A forced OpenRouter 5xx triggers a row with attempt_number=1 (failed) and a row in `llm_interactions` referencing the successful retry.
 
 **FIX-17. [DONE] Track OpenRouter cache-hit savings.**
@@ -274,7 +274,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Success.* After `ollama pull llama3.2`, `vox model list --source Ollama` shows it.
 
 **FIX-23. [DONE] Add `HuggingFaceCatalog`.**
-- *Problem.* `fetch_hf_hub_text_generation_models()` (`crates/vox-runtime/src/inference_env.rs`) fetches models for display but never writes them to the registry.
+- *Problem.* `fetch_hf_hub_text_generation_models()` (`crates/vox-actor-runtime/src/inference_env.rs`) fetches models for display but never writes them to the registry.
 - *Operation.* New `crates/vox-orchestrator/src/catalog/hf_hub.rs`. Pages through `/api/models?filter=text-generation&sort=downloads&direction=-1&limit=200`. Marks entries `provider_route.primary = HuggingFaceRouter`. Stores a fingerprint to avoid full re-ingest.
 - *Success.* `vox model list --source HuggingFaceRouter | head` shows top 20 most-popular HF text-gen models; dedup works across refreshes.
 
@@ -355,7 +355,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 
 **FIX-38. Emit telemetry via OTel OTLP when `VoxTelemetryUploadUrl` is set.**
 - *Problem.* Telemetry sinks only to local `research_metrics`; remote upload exists (`docs/src/adr/023-optional-telemetry-remote-upload.md`) but isn't OTel-shaped.
-- *Operation.* Add `vox-runtime/src/telemetry/otlp.rs` exporter that mirrors each `gen_ai.*` span to OTLP HTTP when the upload URL is configured. Respect `VoxTelemetryUploadToken` (vox-secrets).
+- *Operation.* Add `vox-actor-runtime/src/telemetry/otlp.rs` exporter that mirrors each `gen_ai.*` span to OTLP HTTP when the upload URL is configured. Respect `VoxTelemetryUploadToken` (vox-secrets).
 - *Success.* `vox telemetry test` delivers a span to a local Jaeger/OTel-collector.
 
 **FIX-39. Document and enforce the `trace_id` contract.**
@@ -439,7 +439,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 
 **FIX-53. Add structured log redaction middleware.**
 - *Problem.* No central redactor; a developer adding `debug!("{:?}", secret)` could leak.
-- *Operation.* `crates/vox-runtime/src/telemetry/redact.rs`: a `tracing` layer that scans each event's fields for known patterns (regex: `sk-[A-Za-z0-9_]{20,}`, `xoxp-…`, `AIza[0-9A-Za-z\\-_]{35}`, etc.) and replaces matches with `<REDACTED:<kind>>`. Install in the default subscriber.
+- *Operation.* `crates/vox-actor-runtime/src/telemetry/redact.rs`: a `tracing` layer that scans each event's fields for known patterns (regex: `sk-[A-Za-z0-9_]{20,}`, `xoxp-…`, `AIza[0-9A-Za-z\\-_]{35}`, etc.) and replaces matches with `<REDACTED:<kind>>`. Install in the default subscriber.
 - *Success.* `tracing::debug!("{}", "sk-live-abcdefghijklmnopqrstuvwx")` emits `<REDACTED:openai>`.
 
 **FIX-54. Format-string leak audit.**
@@ -489,10 +489,10 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Change semantics: `models.toml` contains ONLY `[premium_alias]` and `[overrides.<model_id>]` sections; no `[[models]]` arrays. Migration: on first boot after this change, rewrite existing `models.toml` stripping the `[[models]]` table and leaving a comment pointer.
 - *Success.* A pristine install has a minimal `models.toml`; overrides survive.
 
-**FIX-63. Archive the `vox-dei` module name in logs / docs / symbols.**
-- *Problem.* Mixed references; developers expect the retired name to exist somewhere.
-- *Operation.* Grep for `vox_dei|vox-dei|dei_` across `crates/**/src/**.rs` and either rename or add `#[allow(dead_code)] mod dei_shim` with a doc comment pointing to the new home. (One known non-code hit is `docs/src/reference/` — leave archival mentions in `docs/src/archive`.)
-- *Success.* Only the archived directory and the retirement table in `AGENTS.md` mention `vox-dei`.
+**FIX-63. Retired naming — archive legacy orchestrator DEI identifiers in logs / docs / symbols.**
+- *Problem.* Mixed references; developers expect the retired orchestrator codename to exist somewhere.
+- *Operation.* Grep for `vox_dei`, `dei_`, and hyphenated legacy spellings across `crates/**/src/**.rs` and either rename or add `#[allow(dead_code)] mod dei_shim` with a doc comment pointing to the new home. (One known non-code hit is `docs/src/reference/` — leave archival mentions in `docs/src/archive`.)
+- *Success.* Only the archived directory and the retirement table in `AGENTS.md` mention the legacy orchestrator codename.
 
 **FIX-64. Gate MENS training scripts behind `vox ci secret-env-guard`.**
 - *Problem.* Training scripts under `scripts/mens/` may read envs directly.

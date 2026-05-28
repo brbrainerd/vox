@@ -1,0 +1,3 @@
+fn int_equals(a: int, b: int) to bool {
+    return a is b
+}

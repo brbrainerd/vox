@@ -115,7 +115,7 @@ impl crate::VoxDb {
             .await
     }
 
-    /// Persist a bounded routing summary row (local-first; joins [`journey_id`] across telemetry).
+    /// Persist a bounded routing summary row (local-first; joins `journey_id` across telemetry).
     pub async fn record_routing_decision(
         &self,
         journey_id: Option<&str>,

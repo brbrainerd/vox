@@ -42,6 +42,15 @@ checks:
     rust_only: false
     command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "ssot-drift"]
 
+  - id: docs-reality-audit
+    description: "vox ci docs-reality-audit verify (also runs inside vox ci ssot-drift; standalone for targeted CI jobs)"
+    category: audit
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "docs-reality-audit", "verify"]
+
   - id: doc-frontmatter
     description: "vox-doc-pipeline --lint-only (frontmatter + code fences)"
     category: doc
@@ -61,6 +70,38 @@ checks:
       - ci
     rust_only: false
     command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "doctest-md", "--strict"]
+
+  - id: check-links
+    description: "vox ci check-links (internal Markdown relative-link resolver)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "check-links"]
+
+  - id: retired-symbol-check
+    description: "vox ci retired-symbol-check (banned terminology in prose)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command:
+      ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "retired-symbol-check"]
+
+  - id: canonical-map-verify
+    description: "vox ci canonical-map-verify (documentation canonical-map structural guard)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command:
+      ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "canonical-map-verify"]
 
   - id: drift-check
     description: "vox-drift-check workspace (pattern-repetition linter)"
@@ -122,6 +163,16 @@ checks:
     rust_only: true
     command: ["cargo", "run", "-p", "vox-arch-check"]
 
+  - id: ai-fixtures-coverage
+    description: "vox ci ai-fixtures-coverage (AI-first fixtures catalog parity)"
+    category: audit
+    blocking: true
+    runs_on:
+      - pre-push
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "ai-fixtures-coverage"]
+
   - id: coverage-gates
     description: "cargo llvm-cov --workspace coverage gates"
     category: test
@@ -177,7 +228,7 @@ checks:
     command: ["cargo", "deny", "check"]
 
   - id: biome-ts-lint
-    description: "biome lint (TypeScript/TSX/JSX across docs-astro, vox-mental-tracker, tools/visualizer)"
+    description: "biome lint (TypeScript/TSX/JSX across docs-astro, vox-mental-tracker, apps/experimental/visualizer)"
     category: lint
     blocking: true
     runs_on:

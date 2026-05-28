@@ -1,4 +1,5 @@
 use super::{AgentBudgetAllocation, BudgetManager};
+use crate::services::persistence_obs::log_persistence_failure;
 use crate::types::AgentId;
 use std::sync::Arc;
 
@@ -86,9 +87,14 @@ impl BudgetManager {
     ) {
         if let Some(db) = self.db() {
             if timed_out {
-                let _ = db
+                if let Err(e) = db
                     .record_exec_timeout(tool_key, repository_id, duration_ms)
-                    .await;
+                    .await
+                {
+                    // Lost exec-timeout rows under-count agent usage against budgets.
+                    // Refs: docs/src/architecture/semantic-gap-audit-2026.md F6.
+                    log_persistence_failure("budget.exec_timeout", e);
+                }
             } else {
                 let record = vox_db::ExecTimeRecord {
                     tool_key,
@@ -100,7 +106,12 @@ impl BudgetManager {
                     attention_cost_ms: None,
                     outcome: vox_db::ExecOutcome::Success,
                 };
-                let _ = db.record_exec_time(&record).await;
+                if let Err(e) = db.record_exec_time(&record).await {
+                    // Lost exec-time rows under-count agent usage against budgets;
+                    // budget gate cannot enforce limits it doesn't see.
+                    // Refs: docs/src/architecture/semantic-gap-audit-2026.md F6.
+                    log_persistence_failure("budget.exec_time", e);
+                }
             }
         }
     }

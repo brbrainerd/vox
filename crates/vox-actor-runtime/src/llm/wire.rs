@@ -1,7 +1,7 @@
 //! Wire JSON shapes and API key resolution for chat / stream.
 
 use serde::Serialize;
-pub use vox_openai_wire::{
+pub use vox_openai::{
     ChatCompletionResponse as OpenRouterResponse, ChatCompletionUsage as OpenRouterUsage,
 };
 

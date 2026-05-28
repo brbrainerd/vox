@@ -1,7 +1,7 @@
 ---
 title: "Mens training data (JSONL) contract"
 description: "Contract for Mens JSONL: preflight rules, loader policies (VOX_MENS_TRAIN_JSONL_STRICT), mix/filter semantics, optional lane metadata, and how documentation extraction relates to the default code-only production mix."
-category: "reference"
+category: "Language Reference"
 
 schema_type: "TechArticle"
 ---

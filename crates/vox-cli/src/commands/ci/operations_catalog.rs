@@ -31,6 +31,25 @@ const MCP_TOOL_WIRE_ALIASES: &[(&str, &str)] = &[
     ("vox_map_vscode_session", "vox_map_agent_session"),
     ("vox_budget_history", "vox_cost_history"),
     ("vox_model_list", "vox_list_models"),
+    (
+        "vox_ludus_notifications_list",
+        "vox_gamify_notifications_list",
+    ),
+    (
+        "vox_ludus_progress_snapshot",
+        "vox_gamify_progress_snapshot",
+    ),
+    ("vox_ludus_notification_ack", "vox_gamify_notification_ack"),
+    (
+        "vox_ludus_notifications_ack_all",
+        "vox_gamify_notifications_ack_all",
+    ),
+    ("vox_ludus_quest_list", "vox_gamify_quest_list"),
+    ("vox_ludus_shop_catalog", "vox_gamify_shop_catalog"),
+    ("vox_ludus_shop_buy", "vox_gamify_shop_buy"),
+    ("vox_ludus_collegium_join", "vox_gamify_collegium_join"),
+    ("vox_ludus_battle_start", "vox_gamify_battle_start"),
+    ("vox_ludus_battle_submit", "vox_gamify_battle_submit"),
 ];
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -591,7 +610,7 @@ fn verify_catalog_read_role_vs_governance(
 }
 
 fn tool_input_schema_fn_slice(repo_root: &Path) -> Result<String> {
-    let p = repo_root.join("crates/vox-orchestrator/src/mcp_tools/input_schemas.rs");
+    let p = repo_root.join("crates/vox-orchestrator-mcp/src/input_schemas.rs");
     let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
     let start = s
         .find("pub(super) fn tool_input_schema")
@@ -633,7 +652,7 @@ fn verify_mcp_input_schema_coverage(repo_root: &Path, mcp_names: &BTreeSet<Strin
         let needle = format!("\"{name}\"");
         if !body.contains(&needle) {
             return Err(anyhow!(
-                "MCP tool `{raw_name}` has no explicit `tool_input_schema` arm (missing {needle} in crates/vox-orchestrator/src/mcp_tools/input_schemas.rs)"
+                "MCP tool `{raw_name}` has no explicit `tool_input_schema` arm (missing {needle} in crates/vox-orchestrator-mcp/src/input_schemas.rs)"
             ));
         }
     }
@@ -672,7 +691,7 @@ fn verify_derived_registry_artifacts(repo_root: &Path, catalog: &OperationsCatal
 }
 
 fn verify_mcp_dispatch_coverage(repo_root: &Path, mcp_names: &BTreeSet<String>) -> Result<()> {
-    let dispatch_path = repo_root.join("crates/vox-orchestrator/src/mcp_tools/dispatch.rs");
+    let dispatch_path = repo_root.join("crates/vox-orchestrator-mcp/src/dispatch.rs");
     let dispatch = read_utf8_path_capped(&dispatch_path)
         .with_context(|| format!("read {}", dispatch_path.display()))?;
     for name in mcp_names {
@@ -1037,6 +1056,7 @@ fn verify_catalog_nomenclature(catalog: &OperationsCatalog) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
 
     fn create_row(
         id: &str,
@@ -1179,5 +1199,22 @@ mod tests {
         };
         let res = verify_catalog_nomenclature(&cat);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn mcp_dispatch_and_input_schema_paths_exist() {
+        let repo_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        assert!(
+            repo_root
+                .join("crates/vox-orchestrator-mcp/src/dispatch.rs")
+                .is_file(),
+            "expected vox-orchestrator-mcp dispatch.rs (operations-verify anchor)"
+        );
+        assert!(
+            repo_root
+                .join("crates/vox-orchestrator-mcp/src/input_schemas.rs")
+                .is_file(),
+            "expected vox-orchestrator-mcp input_schemas.rs (operations-verify anchor)"
+        );
     }
 }

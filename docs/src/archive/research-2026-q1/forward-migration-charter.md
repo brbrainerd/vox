@@ -1,7 +1,7 @@
 ---
 title: "Forward-only migration charter"
 description: "Official documentation for Forward-only migration charter for the Vox language. Detailed technical reference, architecture guides, and im"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

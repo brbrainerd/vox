@@ -1,0 +1,11 @@
+[problem]
+id = "023"
+title = "longest_word"
+prompt = """
+Return the longest string in the list. If the list is empty, return an empty string. If there are ties, return the first one.
+"""
+signature = "fn longest_word(words: list[str]) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

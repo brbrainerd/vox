@@ -13,7 +13,7 @@ Policy: **`vox ci`** is canonical; scripts here are optional thin delegates — 
 | `check_vox_cli_feature_matrix.sh` | `vox ci feature-matrix` |
 | `check_vox_cli_no_vox_dei.sh` | `vox ci no-dei-import` (alias `no-vox-dei-import`) |
 | `check_cuda_feature_builds.sh` | `vox ci cuda-features` |
-| `examples_strict_parse.sh` / `.ps1` | Optional: `VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-parser --test parity_test` (see `examples/PARSE_STATUS.md`) |
+| `examples_strict_parse.sh` / `.ps1` | Optional: `VOX_EXAMPLES_STRICT_PARSE=1 cargo test -p vox-compiler --test golden_examples_strict_parse` (see `examples/PARSE_STATUS.md`) |
 | _(no shell twin)_ | `vox ci line-endings` (forward-only LF policy; Rust implementation) |
 | `quality/toestub_scoped.sh` | `vox ci toestub-scoped [ROOT]` |
 | `populi_release_gate.sh` / `.ps1` (legacy wrappers) | **`vox ci mesh-gate --profile m1m4`** |

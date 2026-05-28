@@ -112,6 +112,22 @@ impl TaskPhase {
     }
 }
 
+impl std::str::FromStr for TaskPhase {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "inspect" => Ok(Self::Inspect),
+            "localize" => Ok(Self::Localize),
+            "hypothesize" => Ok(Self::Hypothesize),
+            "act" => Ok(Self::Act),
+            "verify" => Ok(Self::Verify),
+            "decide" => Ok(Self::Decide),
+            _ => Err(format!("Unknown TaskPhase: {}", s)),
+        }
+    }
+}
+
 impl fmt::Display for TaskPhase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
@@ -226,10 +242,10 @@ pub struct TaskEnqueueHints {
     /// Optional portable harness contract supplied by the caller.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness_spec_json: Option<String>,
-    /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).
+    /// Optional tool declaration hints (e.g. `[[tool:vox_run_tests]]`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_hints: Vec<String>,
-    /// Optional research intent hints (e.g. [[research:vector]]).
+    /// Optional research intent hints (e.g. `[[research:vector]]`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub research_hints: Vec<String>,
     /// Optional labels for mesh capability routing.
@@ -247,6 +263,12 @@ pub struct TaskEnqueueHints {
     /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+    /// Optional procedural skill to guide the agent (e.g. `superpowers:tdd`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_skill: Option<String>,
+    /// Optional tenant ID for budget tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<String>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
@@ -309,6 +331,9 @@ pub struct TaskDescriptor {
     /// Explicit testing requirement for this task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub test_decision: Option<crate::planning::TestDecision>,
+    /// Optional tenant ID for budget tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<String>,
 }
 
 /// A unit of work to be executed by an agent.
@@ -439,6 +464,12 @@ pub struct AgentTask {
     /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+    /// Procedural skill currently guiding the agent's behavior (e.g. `superpowers:test-driven-development`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_skill: Option<String>,
+    /// Optional tenant ID for budget tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_id: Option<String>,
 }
 
 impl AgentTask {
@@ -506,6 +537,8 @@ impl AgentTask {
             transcript: Vec::new(),
             current_phase: None,
             attachment_manifest: None,
+            active_skill: None,
+            tenant_id: None,
         }
     }
 
@@ -654,6 +687,12 @@ impl AgentTask {
         if let Some(ref budget) = h.budget {
             self.budget = Some(budget.clone());
         }
+        if let Some(ref skill) = h.active_skill {
+            self.active_skill = Some(skill.clone());
+        }
+        if let Some(ref tenant_id) = h.tenant_id {
+            self.tenant_id = Some(tenant_id.clone());
+        }
     }
 
     /// Mark the task as started, recording the start timestamp.
@@ -686,7 +725,7 @@ impl AgentTask {
             self.transcript.remove(0);
         }
     }
-
+ 
     /// Enforce state machine transitions for the task status.
     pub fn transition_to(&mut self, new_status: TaskStatus) -> Result<(), String> {
         // Allow self-transitions
@@ -846,6 +885,8 @@ mod tests {
             attachment_manifest: None,
             trace_id: None,
             budget: None,
+            active_skill: None,
+            tenant_id: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");

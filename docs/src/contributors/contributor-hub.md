@@ -1,7 +1,7 @@
 ---
 title: "Contributor hub"
 description: "Start here for contributor-facing Vox documentation, governance, inventories, and review checklists."
-category: "contributor"
+category: "Contributors"
 status: "current"
 sort_order: 0
 last_updated: "2026-04-12"
@@ -22,6 +22,7 @@ If you are evaluating Vox as a language or product, start with the [project READ
 - [Agent instruction architecture](agent-instruction-architecture.md) - instruction layering model (`AGENTS.md`, tool overlays, continuation prompts, CI gates).
 - [Coding Agent Instructions](coding-agents.md) - heuristics and rules for agents, including god object constraints and stale docs guidelines.
 - [Documentation governance](documentation-governance.md) - where docs live, which surface owns what, status vocabulary, and review cadence.
+- [Documentation Reality Audit Program](docs-reality-audit-program.md) - doc/code/contract triage backlog, scoring, and `vox ci docs-reality-audit`.
 - [CI runner contract](../ci/runner-contract.md) - canonical `vox ci` guidance, runner labels, and line-ending policy.
 - [Doc inventory verifier](../reference/doc-inventory.md) - machine-readable doc inventory workflow and drift expectations.
 - [Architectural governance (TOESTUB)](../../agents/governance.md) - repository governance, organization rules, and quality policy.
@@ -32,7 +33,7 @@ If you are evaluating Vox as a language or product, start with the [project READ
 Quick routing by goal. All links resolve from this directory.
 
 | Goal | Start here |
-|---|---|
+| --- | --- |
 | Fix a TOESTUB / stub-check CI failure | [TOESTUB contributor guide](toestub-contributor-guide.md) |
 | Fix a `god_object` or `sprawl` violation | [TOESTUB contributor guide](toestub-contributor-guide.md) (god-object rules) |
 | Understand why my code affects model quality | [Contribution loop](contribution-loop.md) |
@@ -43,7 +44,7 @@ Quick routing by goal. All links resolve from this directory.
 | Add a CLI command | [CLI reference](../reference/cli.md) + [Command compliance](../reference/command-compliance.md) |
 | Work with secrets or credentials | [Secrets SSOT](../reference/secrets-ssot.md) |
 | Understand the agentic quality model | [Coding agent instructions](coding-agents.md) + [Governance (TOESTUB)](../../agents/governance.md) |
-| Read architecture or research context | [Architecture index](../architecture/architecture-index.md) → contributor-relevant section |
+| Read architecture or research context | [Research index](../architecture/research-index.md) |
 
 ## Contributor map
 
@@ -59,11 +60,11 @@ Use these surfaces intentionally:
 | CLI or command-surface changes | [CLI reference](../reference/cli.md), [Command compliance](../reference/command-compliance.md) |
 | Documentation updates or new docs | [Documentation governance](documentation-governance.md) |
 | Telemetry, metrics, privacy boundaries | [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md), [Telemetry metric contract](../reference/telemetry-metric-contract.md) |
-| Architecture or roadmap context | [Architecture index](../architecture/architecture-index.md), [Research index](../architecture/research-index.md) |
+| Architecture or roadmap context | [Where things live](../architecture/where-things-live.md), [Research index](../architecture/research-index.md) |
 | Contracts and schema-backed behavior | [contracts/README.md](../../../contracts/README.md), related reference pages under `docs/src/reference/` |
 | MCP, HTTP, Populi mesh, SSE, WebSockets | [Communication protocols](../reference/communication-protocols.md), [protocol catalog](../../../contracts/communication/protocol-catalog.yaml); research [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) |
-| CI, workflow, or policy guardrails | [CI runner contract](../ci/runner-contract.md), [Pre-push local CI parity](#pre-push-local-ci-parity) (below), [Architectural governance (TOESTUB)](../../agents/governance.md) |
-| VS Code / Cursor extension, MCP tool calls from the editor, Oratio speech UX | [`vox-vscode/README.md`](../../../vox-vscode/README.md), [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md), [Speech capture architecture](../reference/speech-capture-architecture.md) |
+| CI, workflow, or policy guardrails | [CI runner contract](../ci/runner-contract.md), [Dependency policy](dependency-policy.md), [Pre-push local CI parity](#pre-push-local-ci-parity) (below), [Architectural governance (TOESTUB)](../../agents/governance.md) |
+| VS Code / Cursor extension, MCP tool calls from the editor, Oratio speech UX | [`apps/editor/vox-vscode/README.md`](../../../apps/editor/vox-vscode/README.md), [VS Code ↔ MCP compatibility](../reference/vscode-mcp-compat.md), [Speech capture architecture](../reference/speech-capture-architecture.md) |
 
 Fast local policy rerun for this lane:
 
@@ -71,9 +72,8 @@ Fast local policy rerun for this lane:
 
 ## Pre-push: local CI parity
 
-Run the merge-blocking subset before pushing: **`vox ci pre-push`**
-(install once via `vox ci install-hooks`).
-See [local CI parity](local-ci-pre-push.md) for modes and tuning.
+**Default `git push` hook:** **`vox ci pre-push`** runs the **fast** profile (scoped docs + critical guards). Use **`vox ci pre-push --complete`** for the full static gate before risky merges; CI still runs the heavy docs-quality sweep.
+Install once via **`vox ci install-hooks`**. See [local CI parity](local-ci-pre-push.md) for **`--full`**, heartbeats, **`--no-verify`** policy, and tuning **`VOX_PREPUSH_BASE`**.
 
 ## Contributor expectations
 
@@ -81,4 +81,3 @@ See [local CI parity](local-ci-pre-push.md) for modes and tuning.
 - When code changes alter public behavior, update the corresponding docs in the same PR.
 - Treat `contracts/` as machine SSOT, `docs/src/reference/` as human lookup, `docs/src/architecture/` as design and rationale, and `docs/agents/` as contributor and automation support.
 - Use `vox ci` guards where they exist instead of replacing them with one-off shell checks.
-

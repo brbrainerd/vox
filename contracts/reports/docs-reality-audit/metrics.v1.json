@@ -1,0 +1,15 @@
+{
+  "counts_by_classification": {},
+  "counts_by_priority_band": {},
+  "counts_by_status": {},
+  "findings_closed": 0,
+  "findings_open": 0,
+  "findings_total": 0,
+  "generated_at": "2026-05-12T07:40:35Z",
+  "inventory_claim_count": 10,
+  "open_p0": 0,
+  "open_p1": 0,
+  "rollout_milestone_pct": 25,
+  "rollout_notes": "Computed by `vox ci docs-reality-audit metrics`; see contracts/documentation/docs-reality-audit.program.v1.yaml.",
+  "schema_version": 1
+}

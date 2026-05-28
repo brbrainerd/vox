@@ -1,16 +1,16 @@
 //! Rust source code corpus extractor for Mens training data.
 //!
 //! Walks `crates/**/*.rs` and extracts function-level doc comment + signature + body
-//! triples as `prompt`/`response` [`TrainingPair`](vox_tensor::data::TrainingPair)-compatible
-//! JSONL rows.
+//! triples as `prompt`/`response` JSONL rows compatible with
+//! `vox_tensor::data::TrainingPair`.
 //!
 //! ## Extraction strategy
 //! - **Prompt**: concatenation of `///` doc lines immediately preceding the `pub fn` / `fn`
 //!   signature. If no doc is found, a generic imperative template is generated from the
 //!   function name and crate category tag.
 //! - **Response**: the full function signature + body block (collected by brace-depth tracking).
-//! - **Category**: inferred from the file path (`crates/vox-parser` → `parser`,
-//!   `crates/vox-typeck` → `typeck`, etc.).
+//! - **Category**: inferred from the file path (`crates/vox-compiler` → `compiler`;
+//!   the compiler monolith under `vox-compiler`).
 //! - **Minimum body lines**: functions with fewer than `min_body_lines` non-empty body lines
 //!   are skipped (avoids training on trivial stubs).
 //! - **Test modules**: `#[cfg(test)]` blocks are excluded by default.
@@ -86,7 +86,7 @@ impl RsTrainingPair {
 
 /// Infer a corpus category tag from a crate path component.
 fn infer_category(path: &Path) -> String {
-    // Walk path components to find crate name like `vox-parser`
+    // Walk path components to find crate name like `vox-compiler`
     for component in path.components() {
         let s = component.as_os_str().to_string_lossy();
         if s.starts_with("vox-") {
@@ -480,11 +480,11 @@ mod tests {
 
     #[test]
     fn infers_category_from_crate_path() {
-        let p = Path::new("crates/vox-parser/src/grammar.rs");
-        assert_eq!(infer_category(p), "parser");
+        let p = Path::new("crates/vox-compiler/src/parser/grammar.rs");
+        assert_eq!(infer_category(p), "compiler");
 
-        let p2 = Path::new("crates/vox-typeck/src/infer.rs");
-        assert_eq!(infer_category(p2), "typeck");
+        let p2 = Path::new("crates/vox-actor-runtime/src/lib.rs");
+        assert_eq!(infer_category(p2), "actor_runtime");
     }
 
     #[test]

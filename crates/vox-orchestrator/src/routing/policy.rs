@@ -1,4 +1,4 @@
-//! Embedded [`contracts/orchestration/model-routing.v1.yaml`] with Clavis overrides.
+//! Embedded `contracts/orchestration/model-routing.v1.yaml` with Clavis overrides.
 //!
 //! Contract version is carried as `x-vox-version` in the YAML (see file on disk).
 

@@ -1,0 +1,15 @@
+// Bug: TaskState has four variants but the match in priority_label only
+// covers two (Pending and Running). Both Blocked and Done are missing.
+type TaskState =
+    | Pending
+    | Running
+    | Blocked(reason: str)
+    | Done(result: str)
+
+fn priority_label(state: TaskState) to str {
+    match state {
+        Pending => "low"
+        Running => "high"
+        // BUG: Blocked and Done variants not covered — non-exhaustive match
+    }
+}

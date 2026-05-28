@@ -1,4 +1,4 @@
-x-vox-version: 1
+x-vox-version: 2
 schema_version: 1
 capability:
   auto_mcp_capabilities: true
@@ -1134,6 +1134,32 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
+- id: compile
+  title: Compile
+  description: CLI operation `vox compile` — native / Tauri / script / workspace packaging umbrella
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - compile
+    status: active
+    latin_ns: fabrica
+    handler_rust: commands::compile
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: build.crate
   title: Build Crate
   description: Run cargo build for a crate or the whole workspace.
@@ -1175,10 +1201,10 @@ operations:
     tier: core
   cli: null
 - id: bundle
-  title: Bundle
-  description: CLI operation `vox bundle`
+  title: Bundle (plugins)
+  description: CLI operation `vox bundle` — plugin distribution bundles (`list`, `build`, `apply`)
   description_human: null
-  product_lane: app
+  product_lane: platform
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1195,7 +1221,7 @@ operations:
     - bundle
     status: active
     latin_ns: fabrica
-    handler_rust: commands::bundle
+    handler_rust: commands::plugin_bundle
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -2076,6 +2102,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.dev-loop-audit
+  title: Ci Dev-loop-audit
+  description: CLI operation `vox ci dev-loop-audit`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - dev-loop-audit
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.doc-inventory
   title: Ci Doc-inventory
   description: CLI operation `vox ci doc-inventory`
@@ -2096,6 +2149,168 @@ operations:
     path:
     - ci
     - doc-inventory
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.test-inventory
+  title: Ci Test-inventory
+  description: CLI operation `vox ci test-inventory`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - test-inventory
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.safety-inventory
+  title: Ci Safety-inventory
+  description: CLI operation `vox ci safety-inventory`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - safety-inventory
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.test-runtime-report
+  title: Ci Test-runtime-report
+  description: CLI operation `vox ci test-runtime-report`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - test-runtime-report
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.ignored-test-age
+  title: Ci Ignored-test-age
+  description: CLI operation `vox ci ignored-test-age`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - ignored-test-age
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.flake-budget
+  title: Ci Flake-budget
+  description: CLI operation `vox ci flake-budget`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - flake-budget
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.runtime-regress
+  title: Ci Runtime-regress
+  description: CLI operation `vox ci runtime-regress`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - runtime-regress
     status: active
     latin_ns: null
     handler_rust: null
@@ -2240,6 +2455,60 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.compile-matrix
+  title: Ci Compile-matrix
+  description: CLI operation `vox ci compile-matrix` — smoke `vox compile --help` via cargo (matches compile-matrix workflow)
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - compile-matrix
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.retirement-audit
+  title: Ci Retirement-audit
+  description: CLI operation `vox ci retirement-audit` — scan `vox-deprecated-since` / `retire-by` markers vs workspace semver
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - retirement-audit
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.grammar-drift
   title: Ci Grammar-drift
   description: CLI operation `vox ci grammar-drift`
@@ -2314,6 +2583,33 @@ operations:
     path:
     - ci
     - line-endings
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.parse-status
+  title: Ci Parse-status
+  description: CLI operation `vox ci parse-status`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - parse-status
     status: active
     latin_ns: null
     handler_rust: null
@@ -2761,6 +3057,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.ai-fixtures-coverage
+  title: Ci Ai-fixtures-coverage
+  description: CLI operation `vox ci ai-fixtures-coverage`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - ai-fixtures-coverage
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.pre-push
   title: Ci Pre-push
   description: CLI operation `vox ci pre-push`
@@ -3087,6 +3410,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.speech-runtime-suite
+  title: Ci Speech-runtime-suite
+  description: CLI operation `vox ci speech-runtime-suite`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - speech-runtime-suite
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.ssot-drift
   title: Ci Ssot-drift
   description: CLI operation `vox ci ssot-drift`
@@ -3107,6 +3457,33 @@ operations:
     path:
     - ci
     - ssot-drift
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.docs-reality-audit
+  title: Ci Docs-reality-audit
+  description: CLI operation `vox ci docs-reality-audit`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - docs-reality-audit
     status: active
     latin_ns: null
     handler_rust: null
@@ -5739,7 +6116,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_battle_start
+    name: vox_gamify_battle_start
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5759,7 +6136,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_battle_submit
+    name: vox_gamify_battle_submit
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5779,7 +6156,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_collegium_join
+    name: vox_gamify_collegium_join
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5826,7 +6203,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_notification_ack
+    name: vox_gamify_notification_ack
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5846,7 +6223,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_notifications_ack_all
+    name: vox_gamify_notifications_ack_all
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5866,7 +6243,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_notifications_list
+    name: vox_gamify_notifications_list
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5886,7 +6263,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_progress_snapshot
+    name: vox_gamify_progress_snapshot
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5906,7 +6283,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_quest_list
+    name: vox_gamify_quest_list
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5926,7 +6303,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_shop_buy
+    name: vox_gamify_shop_buy
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -5946,7 +6323,7 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_ludus_shop_catalog
+    name: vox_gamify_shop_catalog
     http_read_role_eligible: false
     tier: core
   cli: null
@@ -6072,7 +6449,7 @@ operations:
   cli: null
 - id: memory.search
   title: Memory Search
-  description: Search daily logs and MEMORY.md for a keyword query.
+  description: Hybrid retrieval over memory logs, VoxDb document chunks, and repo inventory (`vox memory search`; MCP `vox_memory_search`).
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -6088,6 +6465,36 @@ operations:
   mcp:
     name: vox_memory_search
     http_read_role_eligible: false
+    tier: core
+  cli:
+    path:
+    - memory
+    - search
+    status: active
+    latin_ns: codex
+    handler_rust: commands::memory_cli
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: memory.semantic-fs-discover
+  title: Semantic filesystem discover
+  description: Rank workspace paths for an intent via the semantic-fs bridge (read-only inventory search).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_semantic_fs_discover
+    http_read_role_eligible: true
     tier: core
   cli: null
 - id: memory.store
@@ -8472,6 +8879,96 @@ operations:
   latin_aliases: null
   mcp:
     name: vox_reorder_task
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: research.run
+  title: Research Run
+  description: CLI `vox research run` and MCP `vox_research_run` — orchestrator `run_research` pipeline (web retrieval via `vox-search`, synthesis, judge when LLM configured).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_run
+    http_read_role_eligible: false
+    tier: core
+  cli:
+    path:
+    - research
+    - run
+    status: active
+    latin_ns: null
+    handler_rust: commands::research::run_research_query
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: research.start
+  title: Research Start (async MCP)
+  description: MCP `vox_research_start` — creates a persisted research session and runs the same web-retrieval pipeline as `vox_research_run` in the background (returns session_id immediately).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_start
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: research.status
+  title: Research Session Status
+  description: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_status
+    http_read_role_eligible: false
+    tier: core
+  cli: null
+- id: research.get
+  title: Research Session Result
+  description: MCP `vox_research_get` — fetch the completed research payload (answer + sources) for a session when available.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_research_get
     http_read_role_eligible: false
     tier: core
   cli: null

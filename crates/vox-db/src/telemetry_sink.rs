@@ -7,9 +7,11 @@
 use std::sync::Arc;
 
 use vox_telemetry::{
-    BuildSummaryEvent, ErrorEvent, METRIC_TYPE_BUILD_SUMMARY_EVENT, METRIC_TYPE_ERROR_EVENT,
-    METRIC_TYPE_MODEL_CALL_EVENT, METRIC_TYPE_TASK_ROOT_SUMMARY, ModelCallEvent,
-    ResearchMetricEvent, TaskRootSummaryEvent, TelemetryEvent, TelemetryRecorder,
+    AiFixtureEvent, BuildSummaryEvent, ErrorEvent, METRIC_TYPE_BUILD_SUMMARY_EVENT,
+    METRIC_TYPE_ERROR_EVENT, METRIC_TYPE_FIXTURE_HOLE_OBSERVED, METRIC_TYPE_FIXTURE_MODEL_INTENT,
+    METRIC_TYPE_FIXTURE_PROMPT_DISPATCH, METRIC_TYPE_FIXTURE_SEARCH_DISPATCH,
+    METRIC_TYPE_MODEL_CALL_EVENT, METRIC_TYPE_SUBAGENT_DISPATCH, METRIC_TYPE_TASK_ROOT_SUMMARY,
+    ModelCallEvent, ResearchMetricEvent, TaskRootSummaryEvent, TelemetryEvent, TelemetryRecorder,
 };
 
 /// `TelemetryRecorder` sink backed by a live `VoxDb` connection.
@@ -132,6 +134,56 @@ impl TelemetryRecorder for ResearchMetricsSink {
                         .await
                     {
                         tracing::warn!(?err, "ResearchMetricsSink: Error write failed");
+                    }
+                });
+            }
+            TelemetryEvent::AiFixture(ev) => {
+                let db = Arc::clone(&self.db);
+                let ev = ev.clone();
+                tokio::spawn(async move {
+                    let (session_id, metric_type, metadata_json) = match &ev {
+                        AiFixtureEvent::ModelIntent(m) => {
+                            let sid = format!(
+                                "fixture:intent:{}",
+                                m.trace_id.as_deref().unwrap_or("unknown")
+                            );
+                            let meta = serde_json::to_string(&ev).ok();
+                            (sid, METRIC_TYPE_FIXTURE_MODEL_INTENT, meta)
+                        }
+                        AiFixtureEvent::SubagentDispatch(p) => {
+                            let sid = format!(
+                                "fixture:subagent:{}",
+                                p.session_id.as_deref().unwrap_or("unknown")
+                            );
+                            let meta = serde_json::to_string(&ev).ok();
+                            (sid, METRIC_TYPE_SUBAGENT_DISPATCH, meta)
+                        }
+                        AiFixtureEvent::PromptDispatch(p) => {
+                            let sid = format!("fixture:prompt:{}", p.stage);
+                            let meta = serde_json::to_string(&ev).ok();
+                            (sid, METRIC_TYPE_FIXTURE_PROMPT_DISPATCH, meta)
+                        }
+                        AiFixtureEvent::SearchDispatch(s) => {
+                            let sid = format!("fixture:search:{}", s.corpus);
+                            let meta = serde_json::to_string(&ev).ok();
+                            (sid, METRIC_TYPE_FIXTURE_SEARCH_DISPATCH, meta)
+                        }
+                        AiFixtureEvent::HoleObserved(h) => {
+                            let sid = format!("fixture:hole:{}", h.cache_key);
+                            let meta = serde_json::to_string(&ev).ok();
+                            (sid, METRIC_TYPE_FIXTURE_HOLE_OBSERVED, meta)
+                        }
+                    };
+                    if let Err(err) = db
+                        .append_research_metric(
+                            &session_id,
+                            metric_type,
+                            None,
+                            metadata_json.as_deref(),
+                        )
+                        .await
+                    {
+                        tracing::warn!(?err, "ResearchMetricsSink: AiFixture write failed");
                     }
                 });
             }

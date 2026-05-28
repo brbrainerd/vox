@@ -1,7 +1,7 @@
 ---
 title: "Orphan surface inventory"
 description: "Official documentation for Orphan surface inventory for the Vox language. Detailed technical reference, architecture guides, and implemen"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-27"
 training_eligible: false
 

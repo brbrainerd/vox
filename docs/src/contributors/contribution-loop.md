@@ -1,9 +1,9 @@
 ---
 title: "The Vox Contribution Loop"
 description: "How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible."
-category: "contributor"
+category: "Contributors"
 status: "current"
-last_updated: "2026-04-17"
+last_updated: "2026-05-11"
 training_eligible: true
 training_rationale: "Core motivational narrative for the contribution-to-corpus feedback loop."
 
@@ -16,13 +16,13 @@ Every quality gate in this repository has two jobs: (1) keep the codebase sound,
 
 ## The shipped loop (today)
 
-```
+```text
 ① WRITE
   .vox files, Rust code, golden examples
   │
 ② VERIFY  ← where most of your friction happens
   vox stub-check      — zero stubs / hollow fns
-  cargo check/test    — compiler + unit tests green
+  cargo check/test    — compiler + unit tests green (prefer `-p <crate>` / nextest — see [AI dev loop overhead](../architecture/ai-dev-loop-overhead-2026.md))
   vox corpus eval     — .vox parse_rate ≥ 99.5%
   │                    ↓ fails here → negative example pool
 ③ INGEST
@@ -47,7 +47,7 @@ contributions with stubs, hollow functions, or parse failures become
 To land in the positive training pool, a `.vox` file or Rust change must:
 
 | Check | Command | Threshold |
-|---|---|---|
+| --- | --- | --- |
 | Zero stubs and hollow fns | `vox stub-check --path <dir>` | No `Error` findings |
 | Compiler clean | `cargo check -p <crate>` | Zero errors |
 | Tests present and passing | `cargo test -p <crate>` | Green |
@@ -86,7 +86,7 @@ for "implementation complete" adjacent to `unimplemented!()`.
 
 The highest-signal contribution you can make to MENS is a well-formed golden example that follows @test-first (see §@test-first for golden examples above):
 
-```
+```text
 examples/golden/<capability>.vox
 ```
 
@@ -111,10 +111,10 @@ cargo test -p your-crate
 # 3. .vox corpus quality (if you touched .vox files)
 cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
 
-# 4. Full pre-push parity
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo run -p vox-cli -- ci ssot-drift
+# 4. Push-ready parity (single command — mirrors merge-blocking CI subset)
+cargo run -p vox-cli -- ci pre-push
+# Narrow doc-only iteration: `vox ci pre-push --quick` still runs doc lint + doctest-md + drift-check
+# Optional timings artifact: add `--report-json target/local/pre-push-last.json`
 ```
 
 ## After merging a snapshot-touching PR
@@ -158,6 +158,7 @@ Sessions that trigger multiple replans auto-ingest as negative examples.
 
 **GRPO reward shaping (Wave 9):** Instead of SFT-only training, the model will
 be scored on three signals per generated candidate:
+
 - `r_syntax` — parse passes (0/1)
 - `r_test` — `@test` block pass rate
 - `r_coverage` — AST construct richness
@@ -171,4 +172,3 @@ coverage inside `.vox` files a first-class quality signal.
 - [Vox source → MENS pipeline SSOT](../archive/research-2026-q1/vox-source-to-mens-pipeline-ssot.md) — authoritative technical crosswalk
 - [Mens native training SSOT](../reference/mens-training.md) — training pipeline reference
 - [AI agent panic and shortcut pathology](../archive/research-2026-q1/research-ai-panic-shortcuts-2026.md) — why shortcuts harm the corpus
-

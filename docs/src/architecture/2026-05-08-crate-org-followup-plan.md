@@ -1,7 +1,7 @@
 ---
 title: "Crate Org Follow-up — Implementation Plan"
 description: "Step-by-step plan to land the 6 PRs from 2026-05-08-crate-org-followup-design.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation plan; transient artifact."
@@ -33,6 +33,8 @@ training_rationale: "Implementation plan; transient artifact."
 - Use `Edit`/`Write`/`Read`/`Glob`/`Grep` tools, not `cat`/`sed`/`awk`/`echo`.
 
 ---
+
+> **Status (2026-05-15):** All PRs 1–6 landed in one session (2026-05-15). The 156 checkboxes below were not individually ticked — see the status callout in [2026-05-08-crate-org-followup-design.md](2026-05-08-crate-org-followup-design.md) for the authoritative summary. C3 and Tier D (C5) are deferred with their own plan docs. `vox-arch-check` reports clean.
 
 ## Pre-flight (do once before starting)
 
@@ -722,7 +724,7 @@ The crate is canonical `vox-gamify`. Every live doc claiming `vox-ludus` is cano
   git push -u origin HEAD
   gh pr create --title "refactor: SSOT/discoverability fixes + crate descriptions + vox-mcp-meta merge" --body "$(cat <<'EOF'
   ## Summary
-  - PR1 of [2026-05-08 crate-org-followup](docs/src/architecture/2026-05-08-crate-org-followup-design.md).
+  - PR1 of [2026-05-08 crate-org-followup](./2026-05-08-crate-org-followup-design.md).
   - Fixes SSOT drift across ~37 live docs + 19 missing Cargo.toml descriptions.
   - Merges vox-mcp-meta into vox-mcp-registry.
 

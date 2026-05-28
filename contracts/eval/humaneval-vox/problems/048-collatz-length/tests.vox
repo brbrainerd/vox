@@ -1,0 +1,21 @@
+fn collatz_length(n: int) to int {
+    let mut steps: int = 0
+    let mut x: int = n
+    while x != 1 {
+        if x % 2 == 0 {
+            x = x / 2
+        } else {
+            x = 3 * x + 1
+        }
+        steps = steps + 1
+    }
+    return steps
+}
+
+fn main() to str {
+    assert(collatz_length(1) == 0)
+    assert(collatz_length(2) == 1)
+    assert(collatz_length(6) == 8)
+    assert(collatz_length(27) == 111)
+    return "ok"
+}

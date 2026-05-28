@@ -1,0 +1,11 @@
+[problem]
+id = "101"
+title = "is_abundant"
+prompt = """
+Return true if n is an abundant number. A number is abundant if the sum of its proper divisors (all divisors excluding n itself) is greater than n.
+"""
+signature = "fn is_abundant(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math", "divisors"]

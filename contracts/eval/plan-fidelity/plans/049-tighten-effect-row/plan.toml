@@ -1,0 +1,55 @@
+id = "plan-049-tighten-effect-row"
+wave = "wave_3"
+description = "Tighten an over-broad ADT to remove unused error variants."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The `LookupError` ADT declares three variants — `NotFound`,
+`Unauthorized`, and `Throttled` — but the only fn that produces a
+`LookupError` (`fetch_user`) only ever returns `NotFound`. Tighten
+the ADT to a single variant `NotFound(text: str)` by removing the
+two unused variants. Update the `@test` block's `match` arms so the
+ADT exhaustively covers the tightened variant set. The `fetch_user`
+signature must not change.
+
+Vox conventions to honor (the base source already follows them):
+  - ADTs: `type Name = | A | B(field: T)`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `NotFound("...")`),
+    not as `LookupError.NotFound(...)`.
+  - Use `match` to discriminate Result variants; after tightening,
+    the match must exhaustively cover Ok + Error(NotFound).
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Identify which LookupError variants are actually produced."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Remove the unused variants from the type declaration."
+
+[[steps]]
+step = 3
+verb = "callsite-update"
+description = "Update the @test match arms to cover only NotFound + Ok."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "Existing @test still runs clean."
+
+[success_criteria]
+vox_check_passes = true
+unused_variants_removed = true
+fetch_user_signature_unchanged = true
+existing_tests_pass = true

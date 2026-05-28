@@ -1,5 +1,19 @@
 name: Mobile E2E - Android
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - 'apps/vox-mental-tracker/**'
+      - 'crates/vox-cli/**'
+      - 'crates/vox-codegen/**'
+      - 'crates/vox-tauri-codegen/**'
+      - '.github/workflows/mobile-e2e-android.yml'
+  pull_request:
+    paths:
+      - 'apps/vox-mental-tracker/**'
+      - 'crates/vox-cli/**'
+      - 'crates/vox-codegen/**'
+      - 'crates/vox-tauri-codegen/**'
+      - '.github/workflows/mobile-e2e-android.yml'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -9,27 +23,23 @@ jobs:
     runs-on: macos-13
     steps:
       - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'pnpm'
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
       - name: Install dependencies
         run: cd apps/vox-mental-tracker && pnpm install --frozen-lockfile
-      - name: Build web + sync Android
-        run: cd apps/vox-mental-tracker && pnpm build && npx cap sync android
-      - name: Run E2E on emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          target: google_apis
-          arch: x86_64
-          script: |
-            cd apps/vox-mental-tracker
-            ./android/gradlew -p android assembleDebug
-            adb install android/app/build/outputs/apk/debug/app-debug.apk
-            pnpm e2e:android
+      - name: Build vox CLI
+        run: cargo build -p vox-cli
+      - name: Build web bundle
+        run: cd apps/vox-mental-tracker && pnpm build
+      - name: Tauri mobile codegen (Android)
+        run: |
+          cd apps/vox-mental-tracker
+          ../../target/debug/vox compile --target mobile-android -o dist src/main.vox
+      - name: Verify generated Tauri workspace
+        run: test -f target/generated/src-tauri/tauri.conf.json
+      - name: Run Playwright (web)
+        run: cd apps/vox-mental-tracker && pnpm e2e

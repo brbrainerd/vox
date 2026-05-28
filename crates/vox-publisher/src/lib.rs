@@ -13,6 +13,7 @@ pub mod openreview_api_types;
 pub mod publication;
 pub mod publication_preflight;
 pub mod publication_worthiness;
+pub mod research_mesh;
 pub mod scientia_contracts;
 pub mod scientia_discovery;
 pub mod scientia_evidence;
@@ -27,6 +28,7 @@ pub mod distribution_compile;
 pub mod peer_review_gate;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scholarly_remote_status;
+pub mod scientia_scholarly;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scientia_worthiness_enrich;
 pub mod scientific_metadata;

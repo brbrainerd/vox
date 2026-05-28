@@ -1,4 +1,4 @@
-//! Hybrid BM25 + optional vector search over markdown memory docs in Codex.
+//! Hybrid BM25 + optional vector search over markdown memory docs persisted via `vox-db`.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -43,9 +43,54 @@ fn tokenize(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Simple BM25 scoring configuration.
-const K1: f64 = 1.2;
-const B: f64 = 0.75;
+/// Latest commit unix time (seconds) per repo-relative path (`/` separators), from one `git log` walk.
+pub type GitMtimeMap = HashMap<String, u64>;
+
+fn parse_git_log_ct_name_only(stdout: &str) -> GitMtimeMap {
+    let mut map = GitMtimeMap::new();
+    let mut cur_ts: Option<u64> = None;
+    for line in stdout.lines() {
+        let t = line.trim();
+        if t.is_empty() {
+            continue;
+        }
+        if t.chars().all(|c| c.is_ascii_digit()) {
+            cur_ts = t.parse().ok();
+        } else if let Some(ts) = cur_ts {
+            map.entry(t.replace('\\', "/")).or_insert(ts);
+        }
+    }
+    map
+}
+
+/// One subprocess: recent commit timestamps for paths under `under` (relative to `repo_root`).
+#[must_use]
+pub fn git_latest_mtime_map(repo_root: &Path, under: &Path) -> Option<GitMtimeMap> {
+    let rel = under
+        .strip_prefix(repo_root)
+        .ok()?
+        .to_string_lossy()
+        .replace('\\', "/");
+    let output = std::process::// vox-arch-check: allow git-exec
+        Command::new("git")
+        .current_dir(repo_root)
+        .args([
+            "log",
+            "--pretty=format:%ct",
+            "--name-only",
+            "--no-renames",
+            "--",
+            rel.trim_end_matches('/'),
+        ])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(parse_git_log_ct_name_only(&String::from_utf8_lossy(
+        &output.stdout,
+    )))
+}
 
 #[derive(Clone)]
 struct IndexedDocument {
@@ -86,8 +131,13 @@ fn parse_frontmatter_meta(content: &str) -> (String, Option<String>) {
     (status, last_updated)
 }
 
-fn get_git_last_updated_unix(path: &Path) -> u64 {
-    let output = std::process::Command::new("git")
+fn get_git_last_updated_unix(path: &Path, cwd: Option<&Path>) -> u64 {
+    let mut cmd = std::process::// vox-arch-check: allow git-exec
+        Command::new("git");
+    if let Some(root) = cwd {
+        cmd.current_dir(root);
+    }
+    let output = cmd
         .args(["log", "-1", "--format=%ct", "--"])
         .arg(path)
         .output();
@@ -103,6 +153,18 @@ fn get_git_last_updated_unix(path: &Path) -> u64 {
     0
 }
 
+fn resolve_last_updated_unix(path: &Path, repo_root: &Path, git_map: Option<&GitMtimeMap>) -> u64 {
+    if let Some(map) = git_map
+        && let Ok(rel) = path.strip_prefix(repo_root)
+    {
+        let key = rel.to_string_lossy().replace('\\', "/");
+        if let Some(&ts) = map.get(&key) {
+            return ts;
+        }
+    }
+    get_git_last_updated_unix(path, Some(repo_root))
+}
+
 /// Search engine combining local file BM25 and DB vector search.
 #[derive(Clone)]
 pub struct MemorySearchEngine {
@@ -114,6 +176,8 @@ pub struct MemorySearchEngine {
     total_docs: usize,
     /// DB for vector searches (schema V7 `embeddings` or similar table).
     db: Option<Arc<VoxDb>>,
+    bm25_k1: f64,
+    bm25_b: f64,
 }
 
 impl Default for MemorySearchEngine {
@@ -132,7 +196,17 @@ impl MemorySearchEngine {
             df: HashMap::new(),
             total_docs: 0,
             db: None,
+            bm25_k1: 1.2,
+            bm25_b: 0.75,
         }
+    }
+
+    /// Override BM25 tuning (typically from [`crate::policy::SearchPolicy`]).
+    #[must_use]
+    pub fn with_bm25_params(mut self, k1: f64, b: f64) -> Self {
+        self.bm25_k1 = k1;
+        self.bm25_b = b;
+        self
     }
 
     /// Enables embedding-backed recall against the `embeddings` table (schema V7+).
@@ -141,8 +215,18 @@ impl MemorySearchEngine {
         self
     }
 
-    /// Recursively index all markdown files in a directory.
+    /// Recursively index all markdown files in a directory (best-effort git times per file).
     pub fn index_dir(&mut self, dir: &Path) {
+        self.index_dir_with_repo(dir, dir, None);
+    }
+
+    /// Like [`Self::index_dir`], but resolves git mtimes relative to `repo_root` and optional bulk map.
+    pub fn index_dir_with_repo(
+        &mut self,
+        dir: &Path,
+        repo_root: &Path,
+        git_map: Option<&GitMtimeMap>,
+    ) {
         let entries = match fs::read_dir(dir) {
             Ok(e) => e,
             Err(_) => return,
@@ -150,16 +234,27 @@ impl MemorySearchEngine {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                self.index_dir(&path);
+                self.index_dir_with_repo(&path, repo_root, git_map);
             } else if path.extension().unwrap_or_default() == "md" {
-                self.index_file(&path);
+                self.index_file_with_repo(&path, repo_root, git_map);
             }
         }
         self.recompute_stats();
     }
 
-    /// Index a single file.
+    /// Index a single file (legacy: treats parent dir as repo root for git probes).
     pub fn index_file(&mut self, path: &Path) {
+        let repo_root = path.parent().unwrap_or_else(|| Path::new("."));
+        self.index_file_with_repo(path, repo_root, None);
+    }
+
+    /// Index a single markdown file under `repo_root` with optional bulk git timestamps.
+    pub fn index_file_with_repo(
+        &mut self,
+        path: &Path,
+        repo_root: &Path,
+        git_map: Option<&GitMtimeMap>,
+    ) {
         let content = match vox_bounded_fs::read_utf8_path_capped(path) {
             Ok(c) => c,
             Err(_) => return,
@@ -187,7 +282,7 @@ impl MemorySearchEngine {
         }
 
         let (status, _) = parse_frontmatter_meta(&content);
-        let last_updated_unix = get_git_last_updated_unix(path);
+        let last_updated_unix = resolve_last_updated_unix(path, repo_root, git_map);
 
         self.docs.push(IndexedDocument {
             path: path.to_string_lossy().to_string(),
@@ -240,8 +335,10 @@ impl MemorySearchEngine {
                 let f = *doc.term_freq.get(q).unwrap_or(&0) as f64;
                 if f > 0.0 {
                     let idf = self.idf(q);
-                    let len_norm = 1.0 - B + B * (doc.length as f64 / self.avg_doc_len);
-                    score += idf * (f * (K1 + 1.0)) / (f + K1 * len_norm);
+                    let b = self.bm25_b;
+                    let k1 = self.bm25_k1;
+                    let len_norm = 1.0 - b + b * (doc.length as f64 / self.avg_doc_len);
+                    score += idf * (f * (k1 + 1.0)) / (f + k1 * len_norm);
                 }
             }
             if score > 0.0 {

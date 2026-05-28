@@ -23,13 +23,14 @@ pub fn item_fixture() -> UnifiedNewsItem {
 
 #[cfg(test)]
 pub fn config_fixture(base_url: Option<String>) -> PublisherConfig {
-    let mut cfg = PublisherConfig::default();
-    cfg.dry_run = false;
-    cfg.site = NewsSiteConfig::default();
-    cfg.twitter_api_base = base_url.clone();
-    cfg.linkedin_api_base = base_url.clone();
-    cfg.reddit_api_base = base_url;
-    cfg
+    PublisherConfig {
+        dry_run: false,
+        site: NewsSiteConfig::default(),
+        twitter_api_base: base_url.clone(),
+        linkedin_api_base: base_url.clone(),
+        reddit_api_base: base_url,
+        ..PublisherConfig::default()
+    }
 }
 
 #[cfg(test)]

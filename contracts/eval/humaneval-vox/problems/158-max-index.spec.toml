@@ -1,0 +1,11 @@
+[problem]
+id = "158"
+title = "max_index"
+prompt = """
+Return the index of the maximum element in a list of ints. Return -1 if the list is empty. If there are multiple maximum elements, return the index of the first one.
+"""
+signature = "fn max_index(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

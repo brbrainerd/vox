@@ -1,0 +1,54 @@
+name: Setup Pipeline E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 2 * * *' # Run nightly
+
+jobs:
+  test-setup:
+    name: Clean Room Setup + Idempotency
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v6
+
+      # Strip pre-installed toolchains to ensure setup.vox works from scratch
+      - name: Strip runner (Clean Room)
+        shell: bash
+        run: |
+          rustup self uninstall -y || true
+          rm -rf ~/.cargo || true
+          # Node and other pre-installed tools might exist, but setup.vox should 
+          # detect them or reinstall/warn if incorrect. 
+
+      - name: Bootstrap vox runtime
+        # Since we removed rustup, we need it just enough to run `cargo run -p vox-cli`
+        # In reality, users have the CLI binary from voxup, or they use cargo. 
+        # For this test, we re-install the bare minimum stable rust to compile vox-cli.
+        shell: bash
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
+          rustup default stable
+      
+      - name: Run setup.vox (First run - Provision)
+        shell: bash
+        run: |
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
+          cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
+
+      - name: Run setup.vox (Second run - Idempotency)
+        # Timeout on Unix, on Windows we can use PowerShell timeout or just let it run.
+        shell: bash
+        run: |
+          source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            timeout 10s cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
+          else
+            cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
+          fi

@@ -1,7 +1,7 @@
 ---
 title: "SCIENTIA impact, readership, and citation-adjacent signals (research seed)"
 description: "External landscape for what gets read and cited; feasibility for Vox; seeds for a projection layer orthogonal to novelty; critique of prior heuristic implementation."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 12
 last_updated: "2026-04-12"

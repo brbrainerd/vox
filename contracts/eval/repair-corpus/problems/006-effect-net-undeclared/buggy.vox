@@ -1,0 +1,11 @@
+// Bug: function performs a network request (std.http.get_text) but does
+// not declare the Net effect with @uses(net). Vox requires callers to
+// declare any effects their functions use.
+fn check_health(url: str) to str {
+    // BUG: Net effect used but @uses(net) is missing from the declaration.
+    let response = std.http.get_text(url)
+    if len(response) > 0 {
+        return "ok"
+    }
+    return "empty"
+}

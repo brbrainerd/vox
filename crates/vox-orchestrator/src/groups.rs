@@ -70,20 +70,20 @@ impl AffinityGroupRegistry {
             AffinityGroup {
                 name: "lexer-parser-group".to_string(),
                 patterns: vec![
-                    "**/vox-lexer/**".to_string(),
-                    "**/vox-parser/**".to_string(),
-                    "**/vox-ast/**".to_string(),
+                    "**/vox-compiler/src/lexer/**".to_string(),
+                    "**/vox-compiler/src/parser/**".to_string(),
+                    "**/vox-compiler/src/ast/**".to_string(),
                 ],
                 default_agent: None,
             },
             AffinityGroup {
                 name: "typeck-group".to_string(),
-                patterns: vec!["**/vox-typeck/**".to_string()],
+                patterns: vec!["**/vox-compiler/src/typeck/**".to_string()],
                 default_agent: None,
             },
             AffinityGroup {
                 name: "hir-group".to_string(),
-                patterns: vec!["**/vox-hir/**".to_string()],
+                patterns: vec!["**/vox-compiler/src/hir/**".to_string()],
                 default_agent: None,
             },
             AffinityGroup {
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn defaults_resolve_parser_files() {
         let reg = AffinityGroupRegistry::defaults();
-        let group = reg.resolve(Path::new("crates/vox-parser/src/grammar.rs"));
+        let group = reg.resolve(Path::new("crates/vox-compiler/src/parser/mod.rs"));
         assert!(group.is_some());
         assert_eq!(group.unwrap().name, "lexer-parser-group");
     }
@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn defaults_resolve_typeck_files() {
         let reg = AffinityGroupRegistry::defaults();
-        let group = reg.resolve(Path::new("crates/vox-typeck/src/infer.rs"));
+        let group = reg.resolve(Path::new("crates/vox-compiler/src/typeck/infer.rs"));
         assert!(group.is_some());
         assert_eq!(group.unwrap().name, "typeck-group");
     }

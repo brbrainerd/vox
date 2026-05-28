@@ -1,7 +1,7 @@
 ---
 title: "Detector & Heuristic Rule SSOT — Design"
 description: "Single source of truth for detector regex/heuristic patterns and Scientia heuristics, with authoring-time benchmarking and no new runtime dependencies on vox-search."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: true
 training_rationale: "Architectural SSOT; load-bearing for code-audit and Scientia heuristic surfaces."

@@ -65,5 +65,7 @@ fn has_async_expr(e: &HirExpr) -> bool {
         HirExpr::Block(stmts, _) => has_async_stmts(stmts),
         HirExpr::Try(t) => has_async_expr(t.target.as_ref()),
         HirExpr::Index(obj, idx, _) => has_async_expr(obj) || has_async_expr(idx),
+        HirExpr::AsyncView(_) => true,
+        HirExpr::WorkflowVersion(_) => false,
     }
 }

@@ -86,6 +86,38 @@ fn legacy_dotted_form_unchanged() {
     // `react` is the module, `use_state` is the item.
     assert_eq!(imports[0].module_path, &["react"]);
     assert_eq!(imports[0].item, "use_state");
+    assert!(imports[0].es_module_specifier.is_none());
+}
+
+// ── Phase 5 React `.tsx` bridge ───────────────────────────────────────────────
+
+#[test]
+fn react_component_import_lowers_with_es_specifier() {
+    let imports = parse_imports(r#"import react MyButton from "../ui/MyButton.tsx""#);
+    assert_eq!(imports.len(), 1);
+    assert_eq!(imports[0].item, "MyButton");
+    assert_eq!(imports[0].module_path, Vec::<String>::new());
+    assert_eq!(
+        imports[0].es_module_specifier.as_deref(),
+        Some("../ui/MyButton.tsx")
+    );
+}
+
+#[test]
+fn react_component_import_coexists_with_react_dot_import() {
+    let src = r#"
+import react.use_state
+import react Sheet from "./Sheet.tsx"
+"#;
+    let imports = parse_imports(src);
+    assert_eq!(imports.len(), 2);
+    assert_eq!(imports[0].module_path, &["react"]);
+    assert_eq!(imports[0].item, "use_state");
+    assert_eq!(imports[1].item, "Sheet");
+    assert_eq!(
+        imports[1].es_module_specifier.as_deref(),
+        Some("./Sheet.tsx")
+    );
 }
 
 // ── full app.vox import block ─────────────────────────────────────────────────

@@ -26,7 +26,7 @@ const MCP_ROADMAP_DECORATORS: &[&str] = &[
 ];
 
 /// `vox_language_surface` — keywords/types/builtins from `vox_compiler::language_surface`; decorators =
-/// lexer-backed + [`MCP_ROADMAP_DECORATORS`].
+/// lexer-backed + `MCP_ROADMAP_DECORATORS`.
 pub fn language_surface() -> Value {
     let mut keywords: Vec<&str> = language_surface::LEXER_KEYWORDS.to_vec();
     for &(w, _) in language_surface::LSP_KEYWORD_SNIPPETS {

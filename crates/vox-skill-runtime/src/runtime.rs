@@ -84,11 +84,30 @@ impl RunOutcome {
     }
 }
 
+/// Sandbox isolation tier for skill execution (P6-T3).
+///
+/// Ordered from least to most isolated. The planner prefers the highest tier
+/// available that satisfies the skill's declared requirements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Tier {
+    /// Bare-metal (trusted process fork). Fastest; zero isolation.
+    BareMetal = 0,
+    /// In-process WASM (wasmtime WASI sandbox). Strong isolation; no syscalls.
+    Wasm = 1,
+    /// OCI container (Docker/Podman). Full filesystem + network isolation.
+    Container = 2,
+    /// Micro-VM (Firecracker/Kata). Strongest isolation; hardware-enforced.
+    /// Not yet available in this phase — `MicroVmRuntime` always returns
+    /// `Err(NotImplemented)`.
+    MicroVm = 3,
+}
+
 /// Abstract sandbox runtime for skill execution.
 ///
 /// Implementations exist for:
 /// - WASM (`vox-plugin-runtime-wasm`, the default for pure-compute skills)
 /// - Docker/Podman (`vox-plugin-runtime-container`, fallback for subprocess/GPU skills)
+/// - MicroVm (`MicroVmRuntime` stub, always returns `Err(NotImplemented)` in this phase)
 ///
 /// The runtime is selected by `vox-skill-runtime::detect::detect_runtime()` based
 /// on the skill's declared requirements.
@@ -107,4 +126,29 @@ pub trait SkillRuntime: Send + Sync {
 
     /// Run the skill in its sandbox and return the outcome.
     fn run(&self, opts: &RunOpts) -> anyhow::Result<RunOutcome>;
+
+    /// Return the sandbox isolation tier for this runtime.
+    ///
+    /// Default is `Tier::Container`; override in concrete impls as appropriate.
+    fn tier(&self) -> Tier {
+        Tier::Container
+    }
+
+    /// Run a skill with task-scoped secret env vars merged into `opts.env`.
+    ///
+    /// Default impl extends `opts.env` with `secret_env` and calls `run`.
+    /// Implementors may override to filter by a per-runtime allowlist.
+    /// Phase 5 sandbox tiering overrides this to gate injection by trust level.
+    fn run_with_secrets(
+        &self,
+        opts: &RunOpts,
+        secret_env: &[(String, String)],
+    ) -> anyhow::Result<RunOutcome> {
+        if secret_env.is_empty() {
+            return self.run(opts);
+        }
+        let mut merged = opts.clone();
+        merged.env.extend(secret_env.iter().cloned());
+        self.run(&merged)
+    }
 }

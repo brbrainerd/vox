@@ -1,6 +1,5 @@
 ---
 source: crates/vox-codegen/tests/golden_ts_test.rs
-assertion_line: 28
 expression: combined
 ---
 === Timer.tsx ===
@@ -14,7 +13,7 @@ export function Timer({ initial }: TimerProps): React.ReactElement {
   const [count, set_count] = useState(initial);
   const label = useMemo(() => "Count: " + String(count), [count]);
   useEffect(() => {
-    print("count changed to " + String(count));
+    console.log("count changed to " + String(count));
   }, [count]);
   return (
     <div className={["flex", "flex-col"].filter(Boolean).join(" ")}>
@@ -38,6 +37,7 @@ export function Timer({ initial }: TimerProps): React.ReactElement {
   "server_fns": [],
   "query_fns": [],
   "mutation_fns": [],
+  "stream_fns": [],
   "mcp_tools": [],
   "mcp_resources": [],
   "server_config": {

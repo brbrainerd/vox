@@ -1,7 +1,7 @@
 ---
 title: "Vox-Populi Extraction Follow-Up Plan (2026)"
 description: "Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor, vox-oratio Whisper, and vox-browser extraction into their respective plugin scaffolds."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 training_eligible: true
 training_rationale: "Honest accounting of what plugin extractions are still pending after the foundation landed; sequencing for follow-up sessions."
@@ -53,7 +53,7 @@ The foundation is sound: ABI-versioned `vox-plugin-host` loader works end-to-end
 - **vox-dashboard**: Axum SPA host with embedded assets.
 - **vox-publisher**: social/news publishing adapters.
 - **vox-scientia-***: scholarly ingestion + publishing pipeline.
-- **vox-ludus**: gamification.
+- **vox-gamify**: gamification.
 - **vox-audio-ingress**: standalone binary that unconditionally pulls `stt-candle` from vox-oratio.
 
 ## Slim-core diagnostic
@@ -143,8 +143,8 @@ These accompany or follow Unit 1–5:
 ### CC-1: Retire `vox-skills` shim entirely
 
 **ARS shim relocation — DONE (2026-05-03).**
-Created `crates/vox-ars` as a thin re-export facade over `vox_skills::ars_shim`.
-All external consumers (vox-cli, vox-runtime, vox-orchestrator) migrated to `vox_ars::*` import paths.
+Created `crates/vox-openclaw-runtime` as the ARS/OpenClaw facade (successor to the retired three-letter ARS crate name).
+All external consumers (vox-cli, vox-actor-runtime, vox-orchestrator) migrated to canonical OpenClaw runtime import paths.
 Physical move of the 12 `ars_shim/` files out of vox-skills is **deferred** — `ars_shim/mod.rs` re-exports
 `crate::parser::parse_skill_md`, `crate::SkillRegistry`, and `crate::install_builtins` from the vox-skills
 crate root, creating a circular dependency if extracted. Those types need to move into `vox-plugin-host` first.

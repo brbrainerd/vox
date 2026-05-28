@@ -1,0 +1,19 @@
+fn common_elements(a: list[int], b: list[int]) to list[int] {
+    let mut result: list[int] = []
+    for x in a {
+        if b.contains(x) and not result.contains(x) {
+            result.push(x)
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(common_elements([1, 2, 3], [2, 3, 4]) == [2, 3])
+    assert(common_elements([1, 2, 2, 3], [2, 3]) == [2, 3])
+    assert(common_elements([1, 5, 9], [3, 7]) == [])
+    assert(common_elements([], [1, 2]) == [])
+    assert(common_elements([4, 4, 4], [4]) == [4])
+    assert(common_elements([1, 2, 3, 4, 5], [2, 4, 6]) == [2, 4])
+    return "ok"
+}

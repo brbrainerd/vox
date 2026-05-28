@@ -1,0 +1,10 @@
+{
+  "name": "render-durable-animation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Headless-Chrome frame capture for docs/src/assets/durable_essentialist_loop.webp. Driven by scripts/render-durable-animation.vox (apps/build-tools/render-durable-animation).",
+  "dependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}

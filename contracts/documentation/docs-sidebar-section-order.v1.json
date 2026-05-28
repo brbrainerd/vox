@@ -1,0 +1,24 @@
+{
+  "x-vox-version": 1,
+  "sections": [
+    "Getting Started",
+    "Tutorials",
+    "How-To Guides",
+    "Language Reference",
+    "API Reference — Crates",
+    "Examples",
+    "Concepts",
+    "Architecture Decisions (ADRs)",
+    "Architecture SSOTs",
+    "Contributors",
+    "CI & Quality",
+    "Operations"
+  ],
+  "collapsed_sections": [
+    "Architecture Decisions (ADRs)",
+    "Architecture SSOTs",
+    "Contributors",
+    "CI & Quality",
+    "Operations"
+  ]
+}

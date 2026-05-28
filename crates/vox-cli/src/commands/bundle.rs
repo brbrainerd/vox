@@ -1,6 +1,6 @@
 //! `vox bundle` — production-style packaging: codegen, React/Vite app, **pnpm** install/build, embed static files, ship one binary.
 
-use crate::cli_args::BundleMode;
+use crate::cli_args::{BuildMode, BundleMode};
 use crate::commands::build;
 #[cfg(feature = "script-execution")]
 use crate::commands::runtime::run::script;
@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::process::Command;
+use vox_codegen::codegen_rust::RustAppShell;
 
 /// Bundle a Vox source file into a complete, runnable web application or script binary.
 ///
@@ -20,9 +21,10 @@ pub async fn run(
     target: Option<&str>,
     release: bool,
     mode: BundleMode,
+    rust_app_shell: RustAppShell,
 ) -> Result<()> {
     match mode {
-        BundleMode::App => run_app_bundle(file, out_dir, target, release).await,
+        BundleMode::App => run_app_bundle(file, out_dir, target, release, rust_app_shell).await,
         BundleMode::Script => {
             #[cfg(feature = "script-execution")]
             {
@@ -88,6 +90,7 @@ async fn run_app_bundle(
     out_dir: &Path,
     target: Option<&str>,
     release: bool,
+    rust_app_shell: RustAppShell,
 ) -> Result<()> {
     // Step 1: Run the standard build pipeline
     println!("=== Step 1/5: Compiling Vox source ===");
@@ -95,9 +98,11 @@ async fn run_app_bundle(
         file,
         out_dir,
         target.map(|s| s.to_string()),
+        None,
         false,
         false,
-        crate::cli_args::BuildMode::App,
+        BuildMode::App,
+        rust_app_shell,
     )
     .await?;
 
@@ -150,7 +155,7 @@ async fn run_app_bundle(
 
     // Step 4: Copy built assets to backend public dir
     println!("=== Step 4/5: Packaging static assets ===");
-    let generated_dir = PathBuf::from("target").join("generated");
+    let generated_dir = crate::fs_utils::run_target_dir_for_workspace(None).join("generated");
     let public_dir = generated_dir.join("public");
     copy_built_assets(&app_dir.join("dist"), &public_dir).await?;
 
@@ -231,13 +236,17 @@ async fn copy_built_assets(from: &Path, to: &Path) -> Result<()> {
     .map_err(|e| anyhow::anyhow!("copy task join: {e}"))?
 }
 
-/// Build the generated Rust backend into a single binary.
-/// Optionally cross-compiles for a specific target triple.
+/// Build the generated Rust backend, or run `cargo tauri build` when the Tauri workspace layout is present.
 async fn build_single_binary(
     generated_dir: &Path,
     target: Option<&str>,
     release: bool,
 ) -> Result<PathBuf> {
+    let tauri_manifest = generated_dir.join("src-tauri").join("Cargo.toml");
+    if tauri_manifest.is_file() {
+        return build_tauri_app(generated_dir, target, release).await;
+    }
+
     if let Some(target_triple) = target {
         println!("  Installing target: {}", target_triple);
         let rustup = if cfg!(windows) {
@@ -279,12 +288,72 @@ async fn build_single_binary(
         anyhow::bail!("cargo build failed");
     }
 
+    binary_artifact_path(generated_dir, target, release, "vox_generated_app")
+}
+
+async fn build_tauri_app(
+    generated_dir: &Path,
+    target: Option<&str>,
+    release: bool,
+) -> Result<PathBuf> {
+    if let Some(target_triple) = target {
+        println!("  Installing target: {}", target_triple);
+        let rustup = if cfg!(windows) {
+            "rustup.exe"
+        } else {
+            "rustup"
+        };
+        let _ = Command::new(rustup)
+            .args(["target", "add", target_triple])
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .status()
+            .await;
+    }
+
+    let cargo = if cfg!(windows) { "cargo.exe" } else { "cargo" };
+    let mut cmd = Command::new(cargo);
+    cmd.args(["tauri", "build", "--no-bundle"]);
+    if release {
+        cmd.arg("--release");
+    }
+    if let Some(target_triple) = target {
+        cmd.args(["--target", target_triple]);
+    }
+    cmd.current_dir(generated_dir)
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit());
+
+    println!(
+        "  Running `cargo tauri build` in {} (install tauri-cli v2 if this fails: `cargo install tauri-cli --version '^2'`)",
+        generated_dir.display()
+    );
+    let status = cmd
+        .status()
+        .await
+        .context(
+            "Failed to run `cargo tauri build` — ensure tauri-cli v2 is installed (`cargo install tauri-cli --version '^2'`)",
+        )?;
+
+    if !status.success() {
+        anyhow::bail!("cargo tauri build failed");
+    }
+
+    binary_artifact_path(generated_dir, target, release, "vox_generated_app")
+}
+
+fn binary_artifact_path(
+    generated_dir: &Path,
+    target: Option<&str>,
+    release: bool,
+    binary_stem: &str,
+) -> Result<PathBuf> {
     let profile = if release { "release" } else { "debug" };
     let binary_name =
         if target.is_some_and(|t| t.contains("windows")) || (cfg!(windows) && target.is_none()) {
-            "vox_generated_app.exe"
+            format!("{binary_stem}.exe")
         } else {
-            "vox_generated_app"
+            binary_stem.to_string()
         };
 
     let binary_path = if let Some(target_triple) = target {
@@ -292,12 +361,15 @@ async fn build_single_binary(
             .join("target")
             .join(target_triple)
             .join(profile)
-            .join(binary_name)
+            .join(&binary_name)
     } else {
-        generated_dir.join("target").join(profile).join(binary_name)
+        generated_dir
+            .join("target")
+            .join(profile)
+            .join(&binary_name)
     };
 
-    if !fs::try_exists(&binary_path).await.unwrap_or(false) {
+    if !binary_path.exists() {
         anyhow::bail!("Binary not found at {}", binary_path.display());
     }
 

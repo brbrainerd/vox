@@ -4,9 +4,9 @@
 use anyhow::{Error as E, Result};
 use candle_core::{D, Device, IndexOp, Tensor};
 use candle_nn::ops::{log_softmax, softmax};
-use rand::SeedableRng;
-use rand::distr::Distribution;
-use rand::distr::weighted::WeightedIndex;
+use rand09::SeedableRng;
+use rand09::distr::Distribution;
+use rand09::distr::weighted::WeightedIndex;
 use tokenizers::Tokenizer;
 use tracing::{debug, trace};
 
@@ -79,7 +79,7 @@ struct DecodingResult {
 
 pub(crate) struct Decoder {
     model: WhisperModel,
-    rng: rand::rngs::StdRng,
+    rng: rand09::rngs::StdRng,
     task: Option<DecodeTask>,
     timestamps: bool,
     max_initial_timestamp_index: Option<u32>,
@@ -165,7 +165,7 @@ impl Decoder {
         };
         Ok(Self {
             model,
-            rng: rand::rngs::StdRng::seed_from_u64(seed),
+            rng: rand09::rngs::StdRng::seed_from_u64(seed),
             tokenizer,
             task,
             timestamps,

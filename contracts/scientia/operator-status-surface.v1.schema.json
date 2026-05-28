@@ -13,41 +13,44 @@
     "next_actions",
     "route_readiness"
   ],
-  "properties": 
-    "publication_id":  "type": "string", "minLength": 1 },
-    "profile":  "type": "string", "minLength": 1 },
-    "snapshot_summary": 
+  "properties": {
+    "publication_id": { "type": "string", "minLength": 1 },
+    "profile": { "type": "string", "minLength": 1 },
+    "snapshot_summary": {
       "type": "object",
       "additionalProperties": false,
       "required": ["hard_gate_failures", "soft_gate_failures"],
-      "properties": 
-        "hard_gate_failures":  "type": "integer", "minimum": 0 },
-        "soft_gate_failures":  "type": "integer", "minimum": 0 },
-        "diagnostic_count":  "type": "integer", "minimum": 0 }
+      "properties": {
+        "hard_gate_failures": { "type": "integer", "minimum": 0 },
+        "soft_gate_failures": { "type": "integer", "minimum": 0 },
+        "diagnostic_count": { "type": "integer", "minimum": 0 }
       }
     },
-    "next_actions": 
+    "next_actions": {
       "type": "array",
-      "items": 
+      "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["priority", "action"],
-        "properties": 
-          "priority":  "type": "integer", "minimum": 1, "maximum": 999 },
-          "action":  "type": "string" }
+        "properties": {
+          "priority": { "type": "integer", "minimum": 1, "maximum": 999 },
+          "action": { "type": "string" }
         }
       }
     },
-    "route_readiness": 
+    "route_readiness": {
       "type": "array",
-      "items": 
+      "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["route", "ready"],
-        "properties": 
-          "route":  "type": "string" },
-          "ready":  "type": "boolean" },
-          "missing_required":  "type": "array", "items":  "type": "string" } }
+        "properties": {
+          "route": { "type": "string" },
+          "ready": { "type": "boolean" },
+          "missing_required": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
         }
       }
     }

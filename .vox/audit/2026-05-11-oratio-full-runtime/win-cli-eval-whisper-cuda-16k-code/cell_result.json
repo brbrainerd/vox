@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "run_id": "2026-05-11-oratio-full-runtime",
+  "captured_at_utc": "2026-05-11T13:21:26Z",
+  "cell_id": "win-cli-eval-whisper-cuda-16k-code",
+  "status": "runtime_unavailable",
+  "failure_category": "orchestration",
+  "evidence": "CUDA toolkit is visible, but CUDA build must pass before runtime decode can be measured.",
+  "notes": "Gate this cell on `cargo build -p vox-plugin-oratio --features cuda` until Candle CUDA link symbols are resolved."
+}

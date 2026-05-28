@@ -18,7 +18,7 @@ pub(super) fn enforce_free_tier_if_needed(
         .best_free_for_with_filter(task, mcp_local_model_allowed)
         .or_else(|| registry.cheapest_free_with_filter(mcp_local_model_allowed))
         .ok_or_else(|| {
-            "No free-tier model available (enforce_free_tier_only) after VOX_INFERENCE_PROFILE rules; clear sticky override, allow desktop_ollama/lan_gateway for Ollama, or add a non-Ollama free model in models.toml".to_string()
+            "No free-tier model available (enforce_free_tier_only) after vox_populi::inference_PROFILE rules; clear sticky override, allow desktop_ollama/lan_gateway for Ollama, or add a non-Ollama free model in models.toml".to_string()
         })
 }
 

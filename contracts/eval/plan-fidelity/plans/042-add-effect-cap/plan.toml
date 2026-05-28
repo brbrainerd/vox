@@ -1,0 +1,54 @@
+id = "plan-042-add-effect-cap"
+wave = "wave_3"
+description = "Resolve a @pure violation by removing the disallowed side effect."
+max_steps = 5
+max_cost_usd = 0.75
+
+prompt = """
+The function `classify(n: int) to str` is annotated `@pure` but calls
+the non-pure builtin `print(n)`. Resolve the effect-capability
+violation by removing the `print(n)` call from the body so that the
+`@pure` annotation is honored. Do not change the function signature
+and do not remove the `@pure` annotation. The classification logic
+(returning `"zero"` for 0, `"nonzero"` otherwise) must remain.
+
+Vox conventions to honor (the base source already follows them):
+  - `len(s)` (builtin), not `s.len()`.
+  - `Error(VariantName(payload))` for ADT errors, not `Err(...)`.
+  - `Ok(x)` / `Error(...)` are the Result constructors.
+  - Variant constructors are referenced bare (e.g. `Empty("...")`),
+    not as `TodoError.Empty(...)`.
+  - `@pure` functions must not call side-effectful builtins like
+    `print`; the body must be observably side-effect free.
+"""
+
+[[steps]]
+step = 1
+verb = "scan"
+description = "Locate the @pure fn that calls print."
+
+[[steps]]
+step = 2
+verb = "edit"
+description = "Remove the offending print call."
+
+[[steps]]
+step = 3
+verb = "verify"
+description = "Confirm the @pure annotation is still present."
+
+[[steps]]
+step = 4
+verb = "verify"
+description = "vox check passes."
+
+[[steps]]
+step = 5
+verb = "verify-test"
+description = "Existing @test still runs clean via the in-process interpreter."
+
+[success_criteria]
+vox_check_passes = true
+pure_annotation_preserved = true
+print_call_removed = true
+existing_tests_pass = true

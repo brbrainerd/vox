@@ -1,7 +1,7 @@
 ---
 title: "Design token system"
 description: "How vox.tokens.json is validated by the compiler and how tokens map to CSS custom properties."
-category: "reference"
+category: "Language Reference"
 status: "current"
 training_eligible: true
 

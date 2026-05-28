@@ -1,7 +1,7 @@
 ---
 title: "Network Neuroscience Theory and AI Agent Orchestration (Research 2026)"
 description: "Research findings on applying Network Neuroscience Theory to Vox's multi-agent orchestrator architecture."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 185
 last_updated: "2026-04-16"

@@ -7,7 +7,7 @@ Released by: `<name>`
 
 ## Programmatic gates
 
-Run `bash apps/vox-mental-tracker/scripts/release_check.sh` from a clean working tree.
+Run `vox run apps/vox-mental-tracker/scripts/release_gates.vox` from a clean working tree (repository root).
 
 - [x] G1 — Vitest passes
 - [x] G2 — Playwright passes (web)

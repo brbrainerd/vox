@@ -21,19 +21,23 @@ const SIMPLE_SNIPPETS: &[&str] = &[
     // Minimal — no declarations
     "",
     // Single endpoint function
-    r#"@endpoint(kind: query) fn get_count() to int { return 0 }"#,
+    r#"@query fn get_count() to int { return 0 }"#,
     // Mutation endpoint
-    r#"@endpoint(kind: mutation) fn update_count(n: int) to int { return n }"#,
+    r#"@mutation fn update_count(n: int) to int { return n }"#,
     // Two functions
-    r#"@endpoint(kind: query) fn ping() to int { return 1 }
-@endpoint(kind: mutation) fn pong(x: int) to int { return x }"#,
+    r#"@query fn ping() to int { return 1 }
+@mutation fn pong(x: int) to int { return x }"#,
 ];
 
 fn generate_rust_output(src: &str) -> Result<String, String> {
     let m = parse(lex(src)).map_err(|e| format!("parse error: {e:?}"))?;
     let hir = lower_module(&m);
-    let out =
-        codegen_rust::generate(&hir, "test_pkg").map_err(|e| format!("codegen error: {e}"))?;
+    let out = codegen_rust::generate(
+        &hir,
+        "test_pkg",
+        codegen_rust::RustAppShell::AxumLocalServer,
+    )
+    .map_err(|e| format!("codegen error: {e}"))?;
     // Concatenate all file contents to a single comparable string.
     let mut keys: Vec<_> = out.files.keys().collect();
     keys.sort();

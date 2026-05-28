@@ -59,7 +59,7 @@ component OrchNode(points: str, id: str, selected: str, orch_stroke: str, on_cli
 // ── MeshSummaryBar ────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn mesh_summary_bar_emits_six_kpi_chips() {
     let source = format!(
         "{}{}",
@@ -107,7 +107,7 @@ component MeshSummaryBar(nodes: str, active: str, blocked: str, errors: str, tok
 // ── AgentNode ─────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn agent_node_emits_circle_with_conditional_stroke() {
     let ts = compile_component(AGENT_NODE_SRC, "AgentNode");
     println!("AgentNode.tsx:\n{ts}");
@@ -132,7 +132,7 @@ fn agent_node_emits_circle_with_conditional_stroke() {
 // ── OrchNode ──────────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn orch_node_emits_polygon_with_conditional_stroke() {
     let ts = compile_component(ORCH_NODE_SRC, "OrchNode");
     println!("OrchNode.tsx:\n{ts}");
@@ -158,7 +158,7 @@ fn orch_node_emits_polygon_with_conditional_stroke() {
 // ── MeshTopology ─────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn mesh_topology_emits_svg_with_all_nodes_and_edges() {
     let source = format!(
         "{}{}{}{}",
@@ -260,7 +260,7 @@ component MeshTopology() {
 // ── ActivityStrip ─────────────────────────────────────────────────────────────
 
 #[test]
-#[ignore]
+#[ignore = "owner: platform-ci — sunset: 2026-08-01 — compiler test baseline; safety burndown"]
 fn activity_strip_emits_svg_rect_bars() {
     let source = r##"
 component ActivityStrip() {

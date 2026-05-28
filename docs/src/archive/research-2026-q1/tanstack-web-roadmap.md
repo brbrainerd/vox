@@ -1,7 +1,7 @@
 ---
 title: "TanStack web roadmap"
 description: "Official documentation for TanStack web roadmap for the Vox language. Detailed technical reference, architecture guides, and implementati"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-24"
 training_eligible: false
 

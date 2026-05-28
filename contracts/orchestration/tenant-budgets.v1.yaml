@@ -1,0 +1,28 @@
+# CR-A4 lifecycle metadata (added 2026-05-21 per honest-completion plan §5.8).
+# v1 schemas are considered stable. Bump to a v2 file (with explicit
+# migration_window) when introducing breaking changes.
+lifecycle: stable
+
+schema_version: 1
+
+policy:
+  global_limits:
+    - tier: "free"
+      max_tokens_per_month: 1000000
+      max_concurrent_sessions: 2
+      action: "degrade_tier"
+      fallback_tier: "light"
+    - tier: "pro"
+      max_tokens_per_month: 10000000
+      max_concurrent_sessions: 10
+      action: "block"
+    - tier: "enterprise"
+      max_tokens_per_month: -1 # unlimited
+      max_concurrent_sessions: 100
+
+  alerts:
+    warning_threshold_pct: 0.80
+    critical_threshold_pct: 0.95
+
+notes:
+  - "This contract drives the multi-tenant budget routing in crates/vox-orchestrator/src/models/scoring.rs and crates/vox-search/src/tavily_budget.rs"

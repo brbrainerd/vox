@@ -1,7 +1,7 @@
 ---
 title: "vox-visus-vlm-implementation-plan-2026.md"
 description: "Documentation for vox-visus-vlm-implementation-plan-2026.md."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: false
 training_rationale: "Project architecture context."

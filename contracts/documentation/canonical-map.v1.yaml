@@ -1,4 +1,4 @@
-x-vox-version: 2
+x-vox-version: 6
 schema_version: 1
 
 domains:
@@ -40,6 +40,8 @@ domains:
     tier: B-canon
     status: current
     spec_paths:
+      - contracts/config/env-vars.v1.yaml
+      - contracts/config/env-vars.v1.schema.json
       - contracts/db/baseline-version-policy.yaml
       - contracts/terminal/exec-policy.v1.yaml
     canon_doc: docs/src/reference/env-vars.md
@@ -65,6 +67,7 @@ domains:
     owning_crate_globs:
       - crates/vox-doc-inventory/src/**/*.rs
       - crates/vox-cli/src/commands/ci/**/*.rs
+      - apps/build-tools/**
 
   - id: command-compliance
     title: Command compliance and operation parity
@@ -90,6 +93,8 @@ domains:
     tier: B-canon
     status: current
     spec_paths:
+      - contracts/telemetry/events.v1.yaml
+      - contracts/telemetry/events.v1.schema.json
       - contracts/orchestration/context-lifecycle-telemetry.schema.json
       - contracts/telemetry/completion-run.v1.schema.json
       - contracts/telemetry/completion-finding.v1.schema.json
@@ -124,9 +129,9 @@ domains:
     aliases: []
     owning_crate_globs:
       - crates/vox-dashboard/**
-      - tools/visualizer/**
-      - marquee_app/**
-      - test_app_bundle/**
+      - apps/experimental/visualizer/**
+      - apps/interop/marquee_app/**
+      - tests/fixtures/frontend/test_app_bundle/**
 
   - id: hitl-doubt
     title: HITL Doubt Flow and Resolution
@@ -163,7 +168,7 @@ domains:
     tier: B-canon
     status: current
     spec_paths: []
-    canon_doc: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md
+    canon_doc: docs/src/architecture/context-isolation-ssot-2026.md
     aliases: []
 
   - id: ai-ide-feature-matrix
@@ -182,3 +187,54 @@ domains:
     spec_paths: []
     canon_doc: docs/agents/governance.md
     aliases: []
+
+  - id: docs-reality-audit
+    title: Documentation Reality Audit
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/documentation/docs-reality-audit.program.v1.yaml
+      - contracts/reports/docs-reality-audit/inventory.v1.schema.json
+      - contracts/reports/docs-reality-audit/findings.v1.schema.json
+      - contracts/reports/docs-reality-audit/metrics.v1.schema.json
+      - contracts/reports/docs-reality-audit/inventory.v1.json
+      - contracts/reports/docs-reality-audit/findings.v1.json
+      - contracts/reports/docs-reality-audit/metrics.v1.json
+    canon_doc: docs/src/contributors/docs-reality-audit-program.md
+    generated_docs: []
+    aliases: []
+    owning_crate_globs:
+      - crates/vox-cli/src/commands/ci/docs_reality_audit.rs
+
+  - id: diagnostic-id-policy
+    title: Diagnostic identifier stability policy
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/diagnostics/registry.v1.yaml
+    canon_doc: docs/src/reference/ref-diagnostic-id-policy.md
+    aliases: []
+    owning_crate_globs:
+      - crates/vox-compiler/src/**/*.rs
+      - crates/vox-code-audit/src/**/*.rs
+
+  - id: language-stdlib-index
+    title: Standard library namespace index
+    tier: B-canon
+    status: current
+    spec_paths: []
+    canon_doc: docs/src/reference/ref-stdlib-index.md
+    aliases: []
+    owning_crate_globs:
+      - crates/vox-compiler/src/**/*.rs
+
+  - id: package-manager-reference
+    title: Package manager and manifest reference
+    tier: B-canon
+    status: current
+    spec_paths: []
+    canon_doc: docs/src/reference/ref-package-manager.md
+    aliases: []
+    owning_crate_globs:
+      - crates/vox-package/src/**/*.rs
+      - crates/vox-package-types/src/**/*.rs

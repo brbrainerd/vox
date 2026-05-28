@@ -1,0 +1,11 @@
+[problem]
+id = "006"
+title = "reverse_string"
+prompt = """
+Return the string reversed character by character.
+"""
+signature = "fn reverse_string(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

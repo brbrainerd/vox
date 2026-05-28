@@ -1,7 +1,7 @@
 ---
 title: "FFScript Linter Engine Design (T-046)"
 description: "TypeScript interface for the pluggable FFScript linter: LintRule shape, severity levels, default rule catalogue with per-rule acceptance criteria, and integration points."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 training_rationale: "Implementation spec for a separate codebase (FableForge)."

@@ -33,6 +33,7 @@ pub struct FormField {
 
 /// Constraints on a form field value.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum FieldConstraint {
     Range(Expr, Expr),
     MaxLen(usize),

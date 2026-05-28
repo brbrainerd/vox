@@ -1,7 +1,7 @@
 ---
 title: "React interop full-repo migration charter (2026)"
 description: "Governance, KPIs, cutover policy, and completion checkpoints for the framework-agnostic React + islands + v0/shadcn/Tailwind migration."
-category: "architecture"
+category: "Architecture SSOTs"
 last_updated: "2026-04-08"
 training_eligible: false
 
@@ -71,7 +71,7 @@ Compiler deliverables stop at **manifest + components + client**; frameworks own
 
 ## Acceptance gates (summary)
 
-Full numeric gates (G1–G6) and file/test mapping: [internal-web-ir-implementation-blueprint.md — Acceptance gates](./internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds). Charter-level minimum:
+Full numeric gates (G1–G6) and file/test mapping: [internal-web-ir-implementation-blueprint.md — Acceptance gates](./internal-web-ir-implementation-blueprint.md). Charter-level minimum:
 
 - **G-manifest:** emitted manifest parses and matches HIR/WebIR route set (parity tests).
 - **G-client:** `vox-client.ts` has deterministic HTTP methods and URL shapes; no forbidden substrings in generated TS (`createServerFn`, legacy filenames).

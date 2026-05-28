@@ -1,51 +1,19 @@
-//! Simplified DeI JSON-line RPC integration boundary for vox-ml-cli.
-//! Used primarily for AI-assisted corpus curation via vox-orchestrator-d.
+//! JSON-line RPC to `vox-orchestrator-d` for vox-ml-cli (corpus / AI-assisted flows).
+//! Wire types are [`vox_protocol`](https://docs.rs/vox-protocol) — shared with `vox-cli` and the daemon.
 
 use serde_json::Value;
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::Command;
+
+use vox_foundation::protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
 pub const BINARY: &str = "vox-orchestrator-d";
 
-// Method constants are owned by `vox-protocol` (single source of truth shared
-// with vox-cli, vox-orchestrator, etc.).  Re-exported here so existing call
-// sites (`crate::dei_daemon::method::*`) continue to resolve without a second
-// definition that can drift.
-pub use vox_protocol::dei_method as method;
-
-#[derive(serde::Serialize)]
-struct DispatchRequest {
-    id: String,
-    method: String,
-    params: Value,
-}
-
-#[derive(serde::Deserialize)]
-struct DispatchResponse {
-    payload: DispatchPayload,
-}
-
-#[derive(serde::Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum DispatchPayload {
-    Log {
-        level: String,
-        msg: String,
-    },
-    Done {
-        result: Value,
-    },
-    Error {
-        code: i32,
-        message: String,
-    },
-    #[serde(other)]
-    Unknown,
-}
+/// Method constants (`ai.check`, `config.get`, …) — SSOT in `vox-protocol`.
+pub use vox_foundation::protocol::dei_method as method;
 
 pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Result<Value> {
-    use std::process::Stdio;
-    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-    use tokio::process::Command;
-
     let mut child = Command::new(BINARY)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -69,23 +37,67 @@ pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Resu
 
     let mut reader = BufReader::new(stdout).lines();
     let mut final_result = Value::Null;
+    let mut had_error: Option<String> = None;
+    let mut exit_code = 0i32;
 
     while let Ok(Some(line)) = reader.next_line().await {
-        if let Ok(resp) = serde_json::from_str::<DispatchResponse>(&line) {
-            match resp.payload {
+        match serde_json::from_str::<DispatchResponse>(&line) {
+            Ok(resp) => match resp.payload {
                 DispatchPayload::Log { level, msg } => {
                     eprintln!("[{}] {}", level.to_uppercase(), msg);
                 }
-                DispatchPayload::Done { result } => {
-                    final_result = result;
+                DispatchPayload::Diag {
+                    severity,
+                    message,
+                    file,
+                    line,
+                    col,
+                } => {
+                    eprintln!(
+                        "{}: {}:{}:{} — {}",
+                        severity.to_uppercase(),
+                        file,
+                        line,
+                        col,
+                        message
+                    );
+                }
+                DispatchPayload::Artifact { path } => {
+                    eprintln!("✓ artifact: {}", path);
+                }
+                DispatchPayload::Progress { percent, status } => {
+                    eprintln!("[{:.0}%] {}", percent, status);
+                }
+                DispatchPayload::Chunk { text } => {
+                    use std::io::Write;
+                    print!("{}", text);
+                    let _ = std::io::stdout().flush();
+                }
+                DispatchPayload::Result { value } => {
+                    final_result = value;
+                }
+                DispatchPayload::Error { message, code } => {
+                    had_error = Some(format!("Daemon error (code {}): {}", code, message));
+                }
+                DispatchPayload::Done { exit } => {
+                    exit_code = exit;
                     break;
                 }
-                DispatchPayload::Error { code, message } => {
-                    anyhow::bail!("Daemon error (code {}): {}", code, message);
-                }
-                DispatchPayload::Unknown => {}
+            },
+            Err(_) => {
+                // Unstructured daemon stdout line — mirror thin CLI behavior for resilience.
+                eprintln!("{}", line);
             }
         }
+    }
+
+    let _ = child.wait().await;
+
+    if let Some(err) = had_error {
+        anyhow::bail!("{}", err);
+    }
+    if exit_code != 0 {
+        anyhow::bail!("Daemon '{}' exited with code {}", BINARY, exit_code);
     }
 
     Ok(final_result)

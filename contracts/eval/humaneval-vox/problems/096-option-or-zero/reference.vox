@@ -1,0 +1,6 @@
+fn option_or_zero(o: Option[int]) to int {
+    match o {
+        Some(n) => return n
+        None    => return 0
+    }
+}

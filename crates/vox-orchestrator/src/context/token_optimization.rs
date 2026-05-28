@@ -37,7 +37,7 @@ pub fn prioritize_context(
     max_total_tokens: usize,
 ) -> String {
     let mut sorted = snippets.clone();
-    sorted.sort_by(|a, b| b.1.cmp(&a.1)); // Higher priority first
+    sorted.sort_by_key(|s| std::cmp::Reverse(s.1)); // Higher priority first
 
     let mut total_tokens = 0;
     let mut result = String::new();

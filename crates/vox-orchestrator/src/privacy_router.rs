@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+use crate::models::ModelSpec;
+use crate::models::spec::ProviderType;
+
 /// Sensitivity level of a task or file context.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum PrivacyLevel {
@@ -71,6 +74,15 @@ impl std::fmt::Display for PrivacyRoutingDecision {
     }
 }
 
+#[must_use]
+#[inline]
+pub fn model_supports_privacy_local_inference(model: &ModelSpec) -> bool {
+    matches!(
+        model.provider_type,
+        ProviderType::Ollama | ProviderType::VoxLocal
+    )
+}
+
 /// A router that filters model candidates based on privacy constraints.
 pub struct PrivacyRouter {
     pub policy: PrivacyRoutingPolicy,
@@ -110,7 +122,7 @@ impl PrivacyRouter {
 
                 // 2. Enforce local-only for Private+ if configured
                 if self.policy.force_local_for_private && level >= PrivacyLevel::Private {
-                    if m.provider != "ollama" && m.provider != "local" {
+                    if !model_supports_privacy_local_inference(m) {
                         return false;
                     }
                 }
@@ -118,5 +130,48 @@ impl PrivacyRouter {
                 true
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::ModelCapabilities;
+    use crate::models::spec::PricingSource;
+
+    fn dummy_llm(id: &str, provider_type: ProviderType, provider: &str) -> ModelSpec {
+        ModelSpec {
+            id: id.to_string(),
+            canonical_slug: id.to_string(),
+            provider: provider.to_string(),
+            provider_type,
+            max_tokens: 8192,
+            cost_per_1k: 0.01,
+            cost_per_1k_input: 0.01,
+            cost_per_1k_output: 0.01,
+            observed_cost_per_1k: None,
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::Bootstrap,
+            is_free: false,
+            strengths: vec![],
+            capabilities: ModelCapabilities::default(),
+            supported_parameters: vec![],
+        }
+    }
+
+    #[test]
+    fn local_inference_predicate_tracks_provider_type() {
+        assert!(model_supports_privacy_local_inference(&dummy_llm(
+            "x",
+            ProviderType::Ollama,
+            "ollama"
+        )));
+        assert!(!model_supports_privacy_local_inference(&dummy_llm(
+            "z",
+            ProviderType::OpenRouter,
+            "openrouter"
+        )));
     }
 }

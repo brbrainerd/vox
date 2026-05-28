@@ -234,6 +234,13 @@ pub fn run() {
                         value
                     );
                 }
+                LintKind::BrokenIncludeFile { file } => {
+                    eprintln!(
+                        "  ERROR  {} — `{{{{#include {}}}}}` target file not found. The Starlight build will fail at runtime.",
+                        rel.display(),
+                        file
+                    );
+                }
                 LintKind::BrokenIncludeAnchor { file, anchor } => {
                     eprintln!(
                         "  ERROR  {} — unresolved anchor `:{}` in `{{{{#include ...}}}}` (target {}). Check if REGION exists in the golden file.",
@@ -260,6 +267,28 @@ pub fn run() {
                         at_line,
                     );
                 }
+                LintKind::DuplicateFrontmatter {
+                    second_block_start_line,
+                } => {
+                    eprintln!(
+                        "  ERROR  {}:{} — duplicate YAML frontmatter block (frontmatter/duplicate-block)",
+                        rel.display(),
+                        second_block_start_line,
+                    );
+                }
+                LintKind::LastUpdatedStale {
+                    declared,
+                    git_tip,
+                    delta_days,
+                } => {
+                    eprintln!(
+                        "  WARN   {} — frontmatter/last-updated-stale: last_updated={} vs git tip {} (Δ{} days)",
+                        rel.display(),
+                        declared,
+                        git_tip,
+                        delta_days,
+                    );
+                }
             }
         }
 
@@ -274,10 +303,12 @@ pub fn run() {
                         | LintKind::UnknownCategory { .. }
                         | LintKind::UnknownStatus { .. }
                         | LintKind::UnknownSchemaType { .. }
+                        | LintKind::BrokenIncludeFile { .. }
                         | LintKind::BrokenIncludeAnchor { .. }
                         | LintKind::WholeFileIncludeHasTrainingHeader { .. }
                         | LintKind::MissingTrainingRationale
                         | LintKind::DocTestFailed { .. }
+                        | LintKind::DuplicateFrontmatter { .. }
                 )
             })
             .count();

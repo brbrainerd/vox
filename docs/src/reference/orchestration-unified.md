@@ -1,7 +1,7 @@
 ---
 title: "Unified orchestration — SSOT"
 description: "Official documentation for Unified orchestration — SSOT for the Vox language. Detailed technical reference, architecture guides, and impl"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-04-29"
 training_eligible: true
 
@@ -28,16 +28,16 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 
 | Concern | Embedded MCP (`vox-mcp`) | `vox-orchestrator-d` (daemon) | VoxDb / Turso |
 | --- | --- | --- | --- |
-| Session chat transcript (RAM) | Orchestrator [`ContextStore`](../../../crates/vox-orchestrator/src/context.rs) in-process | Same process model per ADR 022 until RPC parity | — |
+| Session chat transcript (RAM) | Orchestrator [`ContextStore`](../../../crates/vox-orchestrator/src/context/mod.rs) in-process | Same process model per ADR 022 until RPC parity | — |
 | Structured chat turns | `chat_append_workspace_message` + journey envelope v1 | Future `orch.*` parity for remote clients | `conversation_messages`, `conversations` |
 | Legacy `chat_transcripts` rows | MCP chat path (dual-write) | Not primary writer today | `chat_transcripts` |
 | Workspace journey attach / diagnostics | `connect_workspace_journey_optional`, MCP tooling | JSON-RPC `orch.workspace_journey` | journey + repo bind rows |
 | Routing decisions (`routing_decisions`) | MCP chat / codegen tools; **orchestrator `AiTaskProcessor`** when DB attached | Same table when daemon shares DB | local-first SQLite |
-| Unified routing experiment flag | — | — | `VOX_UNIFIED_ROUTING` (telemetry reason shape in `vox-runtime::routing_telemetry`) |
+| Unified routing experiment flag | — | — | `VOX_UNIFIED_ROUTING` (telemetry reason shape in `vox-actor-runtime::routing_telemetry`) |
 
 ## HITL Doubt Flow
 
-When agents detect ambiguity, they invoke the `vox_doubt_task` MCP tool. This transitions the task to `TaskStatus::Doubted` and emits a `TaskDoubted` event; the resolution agent inside `vox-orchestrator` (see [`crates/vox-orchestrator/src/orchestrator/agent/doubt.rs`](../../../crates/vox-orchestrator/src/orchestrator/agent/doubt.rs)) takes over to resolve the doubt with the user and submits an audit report that hooks into the gamification system (`vox-ludus`). For structural details, see the canonical [HITL & Doubt reference](hitl-and-doubt.md).
+When agents detect ambiguity, they invoke the `vox_doubt_task` MCP tool. This transitions the task to `TaskStatus::Doubted` and emits a `TaskDoubted` event; the resolution agent inside `vox-orchestrator` (see [`crates/vox-orchestrator/src/orchestrator/agent/doubt.rs`](../../../crates/vox-orchestrator/src/orchestrator/agent/doubt.rs)) takes over to resolve the doubt with the user and submits an audit report that hooks into the gamification system (`vox-gamify`). For structural details, see the canonical [HITL & Doubt reference](hitl-and-doubt.md).
 
 ## Contract surfaces
 
@@ -185,7 +185,7 @@ Effective Socrates thresholds still merge from `vox-socrates-policy` with option
 
 ## Related docs
 
-- [ADR 017: Populi lease-based remote execution](../adr/017-populi-lease-remote-execution.md) — ownership model (design intent).
+- [ADR 017: Populi lease-based remote execution](../adr/017-populi-lease-remote-execution.md) — **Accepted (implemented)**; lease-based authoritative remote execution contract.
 - [ADR 018: Populi GPU truth layering](../adr/018-populi-gpu-truth-layering.md) — verified inventory vs labels.
 - [Populi work-type placement matrix](populi-work-type-placement-matrix.md) — local / LAN / overlay policy.
 - [`external-repositories.md`](external-repositories.md) — `repository_id`, sessions, cache layout.

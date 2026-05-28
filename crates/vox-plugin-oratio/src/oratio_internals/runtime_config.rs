@@ -429,7 +429,7 @@ impl OratioRuntimeConfig {
             self.asr.backend = s.trim().to_ascii_lowercase();
         }
         if let Ok(s) = var("VOX_ORATIO_DOMAIN_MODE") {
-            if s.trim().to_ascii_lowercase() == "code" {
+            if s.trim().eq_ignore_ascii_case("code") {
                 self.asr.domain_mode = crate::oratio_internals::domain_mode::DomainMode::Code;
             } else {
                 self.asr.domain_mode = crate::oratio_internals::domain_mode::DomainMode::General;

@@ -117,41 +117,39 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
         "expected hooks demo class/root in preview:\n{preview}"
     );
 
-    // Mixed surface: Path C `Shell` (hooks) + Path C `Dash` — `VOX_WEBIR_EMIT_REACTIVE_VIEWS` runs the bridge
-    // for `Dash` (Web IR preview when normalized JSX matches legacy, else parity fallback).
+    // Mixed surface: Path C `Shell` (hooks) + Path C `Dash` — reactive `view:` uses Web IR preview TSX.
     let mix_tokens = lex(MIXED_SURFACE_SRC);
     let mix_mod = parse(mix_tokens).expect("parse MIXED_SURFACE");
     let mix_hir = vox_compiler::hir::lower_module(&mix_mod);
     // Do not nest `with_web_ir_validate_cleared` here: it also takes `ENV_MUTEX` and would deadlock.
-    with_reactive_emit_views_enabled(|| {
+    let _env_guard = ENV_MUTEX.lock().expect("ENV_MUTEX poisoned");
 
-        let out = generate(&mix_hir).expect("MIXED_SURFACE codegen");
-        let dash = out
-            .files
-            .iter()
-            .find(|(n, _)| n == "Dash.tsx")
-            .map(|(_, c)| c.as_str())
-            .expect("Dash.tsx");
-        assert!(
-            dash.contains("Dash") || dash.contains("dashboard"),
-            "Dash should reference its own component name or class:\n{dash}"
-        );
-        let shell = out
-            .files
-            .iter()
-            .find(|(n, _)| n == "Shell.tsx")
-            .map(|(_, c)| c.as_str())
-            .expect("Shell.tsx");
-        assert!(
-            shell.contains("useState"),
-            "Shell retains hooks:\n{shell}"
-        );
-        let stats = out.reactive_stats;
-        assert!(
-            stats.web_ir_view_emitted >= 1,
-            "expected Web IR preview for reactive Dash; stats={stats:?}"
-        );
-    });
+    let out = generate(&mix_hir).expect("MIXED_SURFACE codegen");
+    let dash = out
+        .files
+        .iter()
+        .find(|(n, _)| n == "Dash.tsx")
+        .map(|(_, c)| c.as_str())
+        .expect("Dash.tsx");
+    assert!(
+        dash.contains("Dash") || dash.contains("dashboard"),
+        "Dash should reference its own component name or class:\n{dash}"
+    );
+    let shell = out
+        .files
+        .iter()
+        .find(|(n, _)| n == "Shell.tsx")
+        .map(|(_, c)| c.as_str())
+        .expect("Shell.tsx");
+    assert!(
+        shell.contains("useState"),
+        "Shell retains hooks:\n{shell}"
+    );
+    let stats = out.reactive_stats;
+    assert!(
+        stats.web_ir_view_emitted >= 1,
+        "expected Web IR preview for reactive Dash; stats={stats:?}"
+    );
 }
 
 // v0_component.vox
@@ -174,7 +172,7 @@ fn pipeline_v0_parse() {
 }
 
 #[test]
-#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated"]
+#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated — owner: integration-tests sunset: 2026-12-31"]
 fn pipeline_v0_codegen() {
     let tokens = lex(V0_COMPONENT_SRC);
     let module = parse(tokens).unwrap();

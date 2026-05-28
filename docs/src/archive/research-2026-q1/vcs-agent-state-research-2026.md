@@ -1,7 +1,7 @@
 ---
 title: "VCS for agent state and artifact snapshotting research 2026"
 description: "Research on using Jujutsu, Sapling, and other VCS strategies to automatically snapshot agent state, replace manual Git, and harden artifact history."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "research"
 sort_order: 6
 last_updated: "2026-04-11"

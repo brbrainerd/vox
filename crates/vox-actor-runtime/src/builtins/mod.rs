@@ -200,105 +200,103 @@ pub fn vox_regex_compile(pattern: &str) -> Result<VoxRegex, String> {
 pub struct VoxJson(pub serde_json::Value);
 
 impl VoxJson {
-    pub fn get_str(&self, key: String) -> Result<String, String> {
-        let obj = self
-            .0
+    // ── Navigation (single hop, returns Option) ─────────────────────────
+    // RFC json-ergonomics-rfc-2026-05-23 §4.2.
+
+    /// Object key access. `None` if receiver is not an object or key is absent.
+    pub fn get(&self, key: String) -> Option<VoxJson> {
+        self.0
             .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_str()
-            .map(|s| s.to_string())
-            .ok_or_else(|| format!("json: key '{key}' is not a string"))
+            .and_then(|o| o.get(&key))
+            .map(|v| VoxJson(v.clone()))
     }
-    pub fn get_int(&self, key: String) -> Result<i64, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_i64()
-            .ok_or_else(|| format!("json: key '{key}' is not an integer"))
+
+    /// Array index access. `None` if receiver is not an array or index is OOB.
+    /// Negative indices are not supported and yield `None`.
+    pub fn at(&self, idx: i64) -> Option<VoxJson> {
+        if idx < 0 {
+            return None;
+        }
+        self.0
+            .as_array()
+            .and_then(|a| a.get(idx as usize))
+            .map(|v| VoxJson(v.clone()))
     }
-    pub fn get_float(&self, key: String) -> Result<f64, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_f64()
-            .ok_or_else(|| format!("json: key '{key}' is not a number"))
+
+    /// RFC 6901 JSON Pointer navigation. `None` if the path does not resolve.
+    /// `data.pointer("/products/0/name")` is the canonical deep-access tool.
+    pub fn pointer(&self, path: String) -> Option<VoxJson> {
+        self.0.pointer(&path).map(|v| VoxJson(v.clone()))
     }
-    pub fn get_bool(&self, key: String) -> Result<bool, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        v.as_bool()
-            .ok_or_else(|| format!("json: key '{key}' is not a bool"))
+
+    // ── Leaf coercion (returns Option[T]) ───────────────────────────────
+    // RFC §4.3. None on wrong type OR is-null (mirrors serde_json's `as_*`).
+
+    pub fn as_str(&self) -> Option<String> {
+        self.0.as_str().map(|s| s.to_string())
     }
-    pub fn get_object(&self, key: String) -> Result<VoxJson, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        if v.is_object() {
-            Ok(VoxJson(v.clone()))
+    pub fn as_int(&self) -> Option<i64> {
+        self.0.as_i64()
+    }
+    pub fn as_float(&self) -> Option<f64> {
+        self.0.as_f64()
+    }
+    pub fn as_bool(&self) -> Option<bool> {
+        self.0.as_bool()
+    }
+    pub fn as_array(&self) -> Option<Vec<VoxJson>> {
+        self.0
+            .as_array()
+            .map(|a| a.iter().map(|v| VoxJson(v.clone())).collect())
+    }
+    /// Asserts the receiver is a JSON object. Returns the receiver itself so
+    /// chains continue navigating; use `keys()` / `has()` to inspect.
+    pub fn as_object(&self) -> Option<VoxJson> {
+        if self.0.is_object() {
+            Some(VoxJson(self.0.clone()))
         } else {
-            Err(format!("json: key '{key}' is not an object"))
+            None
         }
     }
-    pub fn get_array(&self, key: String) -> Result<VoxJson, String> {
-        let obj = self
-            .0
-            .as_object()
-            .ok_or_else(|| "json: receiver is not an object".to_string())?;
-        let v = obj
-            .get(&key)
-            .ok_or_else(|| format!("json: missing key '{key}'"))?;
-        if v.is_array() {
-            Ok(VoxJson(v.clone()))
-        } else {
-            Err(format!("json: key '{key}' is not an array"))
-        }
-    }
+
+    // ── Inspection (no Option) ──────────────────────────────────────────
+    // RFC §4.4.
+
+    /// True iff the value is the JSON `null` literal (the *value*; not absence).
     pub fn is_null(&self) -> bool {
         self.0.is_null()
     }
-    pub fn length(&self) -> i64 {
-        self.0.as_array().map(|a| a.len() as i64).unwrap_or(0)
+
+    /// Convenience for `self.get(key).is_some()`. Sugar shipped by user
+    /// request 2026-05-23.
+    pub fn has(&self, key: String) -> bool {
+        self.0.as_object().is_some_and(|o| o.contains_key(&key))
     }
-    pub fn at(&self, idx: i64) -> Result<VoxJson, String> {
-        if idx < 0 {
-            return Err(format!("json: negative array index {idx}"));
+
+    /// `Some(n)` when receiver is an array (n=len) or object (n=#keys);
+    /// `None` for scalars/null. Changed from `i64` to `Option[i64]` in the
+    /// strict-Option API — scalar receivers have no length.
+    pub fn length(&self) -> Option<i64> {
+        if let Some(a) = self.0.as_array() {
+            Some(a.len() as i64)
+        } else if let Some(o) = self.0.as_object() {
+            Some(o.len() as i64)
+        } else {
+            None
         }
-        let arr = self
-            .0
-            .as_array()
-            .ok_or_else(|| "json: receiver is not an array".to_string())?;
-        arr.get(idx as usize)
-            .map(|v| VoxJson(v.clone()))
-            .ok_or_else(|| format!("json: index {idx} out of bounds (len={})", arr.len()))
     }
-    pub fn keys(&self) -> Vec<String> {
+
+    /// `Some(keys)` when receiver is an object; `None` otherwise.
+    pub fn keys(&self) -> Option<Vec<String>> {
         self.0
             .as_object()
             .map(|o| o.keys().cloned().collect())
-            .unwrap_or_default()
     }
-    pub fn to_string(&self) -> String {
-        self.0.to_string()
+}
+
+impl std::fmt::Display for VoxJson {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -307,6 +305,11 @@ pub fn vox_json_parse(s: &str) -> Result<VoxJson, String> {
     serde_json::from_str::<serde_json::Value>(s)
         .map(VoxJson)
         .map_err(|e| e.to_string())
+}
+
+/// Render a `VoxJson` value to a JSON string.
+pub fn vox_json_render(v: &VoxJson) -> Result<String, String> {
+    serde_json::to_string(&v.0).map_err(|e| e.to_string())
 }
 
 /// Read a process environment variable (`std.env.get` in Vox scripts).
@@ -323,6 +326,347 @@ pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
         out.push(ent.file_name().to_string_lossy().into_owned());
     }
     Ok(out)
+}
+
+pub use vox_shell_stdlib_types::fs_types::VoxFileRecord;
+
+fn vox_file_record_from_meta(
+    full_path: &str,
+    name: &str,
+    meta: &std::fs::Metadata,
+) -> VoxFileRecord {
+    let modified_ms = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let ft = meta.file_type();
+    let len = meta.len();
+    let size = i64::try_from(len).unwrap_or(i64::MAX);
+    VoxFileRecord {
+        name: name.to_string(),
+        path: full_path.to_string(),
+        size,
+        modified_ms,
+        is_dir: ft.is_dir(),
+        is_file: ft.is_file(),
+        is_symlink: ft.is_symlink(),
+    }
+}
+
+/// Structured directory listing (`std.fs.list_dir_detailed`).
+pub fn vox_fs_list_dir_detailed(dir: &str) -> Result<Vec<VoxFileRecord>, String> {
+    let rd = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for ent in rd {
+        let ent = ent.map_err(|e| e.to_string())?;
+        let path_buf = ent.path();
+        let name = ent.file_name().to_string_lossy().into_owned();
+        let meta = match std::fs::symlink_metadata(&path_buf) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let full = path_buf.to_string_lossy().into_owned();
+        out.push(vox_file_record_from_meta(&full, &name, &meta));
+    }
+    Ok(out)
+}
+
+/// Metadata for a single path (`std.fs.stat`).
+pub fn vox_fs_stat(path: &str) -> Result<VoxFileRecord, String> {
+    let meta = std::fs::symlink_metadata(path).map_err(|e| e.to_string())?;
+    let name = std::path::Path::new(path)
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string());
+    Ok(vox_file_record_from_meta(path, &name, &meta))
+}
+
+/// RFC 4180-style CSV parse → JSON array of string arrays (`std.csv.parse`).
+pub fn vox_csv_parse(text: &str) -> Result<serde_json::Value, String> {
+    let mut rdr = csv::ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(text.as_bytes());
+    let mut rows = Vec::new();
+    for rec in rdr.records() {
+        let rec = rec.map_err(|e| e.to_string())?;
+        let row: Vec<serde_json::Value> = rec
+            .iter()
+            .map(|f| serde_json::Value::String(f.to_string()))
+            .collect();
+        rows.push(serde_json::Value::Array(row));
+    }
+    Ok(serde_json::Value::Array(rows))
+}
+
+/// CSV with header row → JSON array of objects (`std.csv.parse_records`).
+pub fn vox_csv_parse_records(text: &str) -> Result<serde_json::Value, String> {
+    let mut rdr = csv::ReaderBuilder::new()
+        .flexible(true)
+        .from_reader(text.as_bytes());
+    let headers = rdr
+        .headers()
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>();
+    let mut rows = Vec::new();
+    for rec in rdr.records() {
+        let rec = rec.map_err(|e| e.to_string())?;
+        let mut obj = serde_json::Map::new();
+        for (i, cell) in rec.iter().enumerate() {
+            let key = headers
+                .get(i)
+                .cloned()
+                .unwrap_or_else(|| format!("column_{i}"));
+            obj.insert(key, serde_json::Value::String(cell.to_string()));
+        }
+        rows.push(serde_json::Value::Object(obj));
+    }
+    Ok(serde_json::Value::Array(rows))
+}
+
+/// Serialize rows as CSV (`std.csv.render`).
+pub fn vox_csv_render(rows: &[Vec<String>]) -> Result<String, String> {
+    let mut wtr = csv::WriterBuilder::new()
+        .has_headers(false)
+        .from_writer(Vec::new());
+    for row in rows {
+        wtr.write_record(row).map_err(|e| e.to_string())?;
+    }
+    wtr.into_inner()
+        .map_err(|e| e.to_string())
+        .and_then(|b| String::from_utf8(b).map_err(|e| e.to_string()))
+}
+
+/// TOML documents must be tables at the root. Json arrays/scalars are wrapped for render and
+/// unwrapped on parse — kept in sync with `vox_compiler::eval::shell_stdlib`.
+const VOX_TOML_JSON_ROOT_KEY: &str = "__vox_json_root";
+
+fn json_value_to_toml(j: &serde_json::Value) -> Result<toml::Value, String> {
+    Ok(match j {
+        serde_json::Value::Null => toml::Value::String(String::new()),
+        serde_json::Value::Bool(b) => toml::Value::Boolean(*b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                toml::Value::Integer(i)
+            } else if let Some(u) = n.as_u64() {
+                toml::Value::Integer(
+                    i64::try_from(u).map_err(|_| "json number too large for TOML Integer".to_string())?,
+                )
+            } else {
+                toml::Value::Float(n.as_f64().unwrap_or(0.0))
+            }
+        }
+        serde_json::Value::String(s) => toml::Value::String(s.clone()),
+        serde_json::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for item in arr {
+                out.push(json_value_to_toml(item)?);
+            }
+            toml::Value::Array(out)
+        }
+        serde_json::Value::Object(map) => {
+            let mut table = toml::map::Map::new();
+            for (k, v) in map {
+                table.insert(k.clone(), json_value_to_toml(v)?);
+            }
+            toml::Value::Table(table)
+        }
+    })
+}
+
+fn toml_value_to_json(v: &toml::Value) -> Result<serde_json::Value, String> {
+    Ok(match v {
+        toml::Value::String(s) => serde_json::Value::String(s.clone()),
+        toml::Value::Integer(i) => serde_json::Value::Number((*i).into()),
+        toml::Value::Float(f) => serde_json::Number::from_f64(*f)
+            .map(serde_json::Value::Number)
+            .unwrap_or(serde_json::Value::Null),
+        toml::Value::Boolean(b) => serde_json::Value::Bool(*b),
+        toml::Value::Datetime(dt) => serde_json::Value::String(dt.to_string()),
+        toml::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for item in arr {
+                out.push(toml_value_to_json(item)?);
+            }
+            serde_json::Value::Array(out)
+        }
+        toml::Value::Table(t) => {
+            let mut map = serde_json::Map::new();
+            for (k, val) in t {
+                map.insert(k.clone(), toml_value_to_json(val)?);
+            }
+            serde_json::Value::Object(map)
+        }
+    })
+}
+
+/// Parse TOML text to JSON (`std.toml.parse`).
+pub fn vox_toml_parse(text: &str) -> Result<serde_json::Value, String> {
+    let v: toml::Value = toml::from_str(text).map_err(|e| e.to_string())?;
+    let j = toml_value_to_json(&v)?;
+    Ok(match j {
+        serde_json::Value::Object(ref map)
+            if map.len() == 1 && map.contains_key(VOX_TOML_JSON_ROOT_KEY) =>
+        {
+            map.get(VOX_TOML_JSON_ROOT_KEY).cloned().unwrap_or(j)
+        }
+        _ => j,
+    })
+}
+
+/// Render JSON as pretty TOML (`std.toml.render`).
+pub fn vox_toml_render(value: &serde_json::Value) -> Result<String, String> {
+    let wrapped = match value {
+        serde_json::Value::Object(_) => value.clone(),
+        serde_json::Value::Array(_)
+        | serde_json::Value::String(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Null => {
+            let mut m = serde_json::Map::new();
+            m.insert(VOX_TOML_JSON_ROOT_KEY.to_string(), value.clone());
+            serde_json::Value::Object(m)
+        }
+    };
+    let tv = json_value_to_toml(&wrapped)?;
+    toml::to_string_pretty(&tv).map_err(|e| e.to_string())
+}
+
+/// Parse YAML text to JSON (`std.yaml.parse`).
+pub fn vox_yaml_parse(text: &str) -> Result<serde_json::Value, String> {
+    serde_yaml::from_str::<serde_json::Value>(text).map_err(|e| e.to_string())
+}
+
+/// Render JSON as YAML (`std.yaml.render`).
+pub fn vox_yaml_render(value: &serde_json::Value) -> Result<String, String> {
+    serde_yaml::to_string(value).map_err(|e| e.to_string())
+}
+
+fn vox_csv_save_from_json(value: &serde_json::Value) -> Result<String, String> {
+    match value {
+        serde_json::Value::Array(rows) => {
+            if rows.is_empty() {
+                return Ok(String::new());
+            }
+            let mut out_rows: Vec<Vec<String>> = Vec::new();
+            if rows.iter().all(|r| r.is_object()) {
+                let keys: Vec<String> = rows[0]
+                    .as_object()
+                    .expect("object row")
+                    .keys()
+                    .cloned()
+                    .collect();
+                out_rows.push(keys.clone());
+                for row in rows {
+                    let obj = row
+                        .as_object()
+                        .ok_or_else(|| "csv save: expected object".to_string())?;
+                    let mut line = Vec::new();
+                    for k in &keys {
+                        let cell = obj.get(k).map(json_scalar_to_string).unwrap_or_default();
+                        line.push(cell);
+                    }
+                    out_rows.push(line);
+                }
+            } else if rows.iter().all(|r| r.is_array()) {
+                for row in rows {
+                    let arr = row
+                        .as_array()
+                        .ok_or_else(|| "csv save: expected array row".to_string())?;
+                    let line: Vec<String> = arr.iter().map(json_scalar_to_string).collect();
+                    out_rows.push(line);
+                }
+            } else {
+                return Err("csv save: array must be all objects or all arrays".into());
+            }
+            vox_csv_render(&out_rows)
+        }
+        _ => Err("csv save: expected JSON array".into()),
+    }
+}
+
+fn json_scalar_to_string(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::Null => String::new(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => s.clone(),
+        _ => v.to_string(),
+    }
+}
+
+/// Polymorphic read by extension (`std.io.open`).
+pub fn vox_io_open(path: &str) -> Result<serde_json::Value, String> {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    match ext.as_str() {
+        "json" => serde_json::from_str(&text).map_err(|e| e.to_string()),
+        "toml" => vox_toml_parse(&text),
+        "yaml" | "yml" => vox_yaml_parse(&text),
+        "csv" => vox_csv_parse_records(&text),
+        _ => Ok(serde_json::Value::String(text)),
+    }
+}
+
+/// Polymorphic write by extension (`std.io.save`).
+pub fn vox_io_save(path: &str, value: &serde_json::Value) -> Result<(), String> {
+    let ext = std::path::Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    let data: Vec<u8> = match ext.as_str() {
+        "json" => serde_json::to_string_pretty(value)
+            .map_err(|e| e.to_string())?
+            .into_bytes(),
+        "toml" => vox_toml_render(value)?.into_bytes(),
+        "yaml" | "yml" => vox_yaml_render(value)?.into_bytes(),
+        "csv" => vox_csv_save_from_json(value)?.into_bytes(),
+        _ => {
+            let s = match value {
+                serde_json::Value::String(s) => s.clone(),
+                _ => {
+                    return Err(
+                        "std.io.save: non-structured extension expects a JSON string value".into(),
+                    );
+                }
+            };
+            s.into_bytes()
+        }
+    };
+    std::fs::write(path, data).map_err(|e| e.to_string())
+}
+
+/// Run subprocess and parse stdout as JSON (`std.process.run_capture_json`).
+pub fn vox_process_run_capture_json(
+    cmd: &str,
+    args: &[String],
+) -> Result<serde_json::Value, String> {
+    let cap = vox_process_run_capture(cmd, args)?;
+    serde_json::from_str(cap.stdout.trim()).map_err(|e| format!("stdout is not valid JSON: {e}"))
+}
+
+/// Run subprocess; on success return stdout split into lines (`std.process.run_capture_lines`).
+pub fn vox_process_run_capture_lines(cmd: &str, args: &[String]) -> Result<Vec<String>, String> {
+    let cap = vox_process_run_capture(cmd, args)?;
+    if cap.exit != 0 {
+        return Err(format!(
+            "process exited with code {} (stderr: {})",
+            cap.exit, cap.stderr
+        ));
+    }
+    Ok(cap
+        .stdout
+        .lines()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>())
 }
 
 /// Spawn a subprocess; on success returns exit code (`std.process.run`).
@@ -351,6 +695,12 @@ pub fn vox_process_which(cmd: &str) -> Option<String> {
     which::which(cmd)
         .ok()
         .map(|p| p.to_string_lossy().into_owned())
+}
+
+/// MCP canonical tool name → ACI `mutation_kind` string (`std.agentos.mutation_kind_for_tool`).
+#[must_use]
+pub fn agentos_mutation_kind_for_tool(name: &str) -> String {
+    vox_foundation::primitives::agentos_mutation::mutation_kind_for_tool(name).to_string()
 }
 
 /// Terminate the current process with an exit code (`std.process.exit` in Vox scripts).
@@ -648,7 +998,7 @@ fn http_worker() -> &'static HttpWorker {
                     .map_err(|e| format!("http runtime init failed: {e}"));
                 match runtime {
                     Ok(rt) => {
-                        let client = vox_reqwest_defaults::client();
+                        let client = vox_http_client::client();
                         while let Ok(req) = rx.recv() {
                             let result = rt.block_on(handle_http_op(&client, req.op));
                             let _ = req.reply_tx.send(result);
@@ -1026,6 +1376,153 @@ pub fn vox_fs_read(path: &str) -> Result<String, String> {
 
 pub fn vox_fs_write(path: &str, content: &str) -> Result<(), String> {
     std::fs::write(path, content).map_err(|e| e.to_string())
+}
+
+/// Create a directory recursively (`std.fs.mkdir`).
+pub fn vox_fs_mkdir(path: &str) -> Result<(), String> {
+    std::fs::create_dir_all(path).map_err(|e| e.to_string())
+}
+
+// ── Phase K stdlib parity (2026-05-23) ──────────────────────────────────
+// 14 primitives bringing `--mode script` (actor-runtime) up to parity with
+// `--mode interp` (eval). Punchlist source:
+// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §Phase K.
+
+/// `std.fs.exists(path) -> bool` — does the path exist on disk?
+pub fn vox_fs_exists(path: &str) -> bool {
+    std::path::Path::new(path).exists()
+}
+
+/// `std.fs.is_file(path) -> bool` — exists AND is a regular file.
+pub fn vox_fs_is_file(path: &str) -> bool {
+    std::path::Path::new(path).is_file()
+}
+
+/// `std.fs.is_dir(path) -> bool` — exists AND is a directory.
+pub fn vox_fs_is_dir(path: &str) -> bool {
+    std::path::Path::new(path).is_dir()
+}
+
+/// `std.fs.remove(path) -> Result[Unit]` — delete a file (NOT a directory;
+/// use `vox_fs_remove_dir_all` for trees).
+pub fn vox_fs_remove(path: &str) -> Result<(), String> {
+    std::fs::remove_file(path).map_err(|e| e.to_string())
+}
+
+/// `std.path.extension(p) -> Option[str]` — file extension without the dot;
+/// `None` if the path has no extension.
+pub fn vox_path_extension(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.parent(p) -> Option[str]` — parent directory of a path; `None`
+/// for the root or empty path.
+pub fn vox_path_parent(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .parent()
+        .and_then(|p| p.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.file_name(p) -> Option[str]` — final component of a path,
+/// including extension; `None` if the path ends in `..`.
+pub fn vox_path_file_name(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.stem(p) -> Option[str]` — final component without the extension.
+pub fn vox_path_stem(p: &str) -> Option<String> {
+    std::path::Path::new(p)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+}
+
+/// `std.path.is_absolute(p) -> bool` — true when the path is absolute on the
+/// current platform (drive letter on Windows, leading `/` on Unix).
+pub fn vox_path_is_absolute(p: &str) -> bool {
+    std::path::Path::new(p).is_absolute()
+}
+
+/// `std.path.resolve(p) -> Result[str]` — canonicalize the path against the
+/// current working directory. Errors when the path does not exist.
+pub fn vox_path_resolve(p: &str) -> Result<String, String> {
+    std::fs::canonicalize(p)
+        .map_err(|e| e.to_string())
+        .and_then(|pb| {
+            pb.to_str()
+                .map(|s| s.to_string())
+                .ok_or_else(|| "vox_path_resolve: non-utf8 path".to_string())
+        })
+}
+
+/// `std.env.args() -> list[str]` — process command-line arguments
+/// (including the program name at index 0, matching `std::env::args` Rust
+/// behavior).
+pub fn vox_env_args() -> Vec<String> {
+    std::env::args().collect()
+}
+
+/// `std.env.set(key, value)` — set an environment variable for the current
+/// process and its children. Unconditional; matches `std::env::set_var`.
+#[allow(unsafe_code)]
+pub fn vox_env_set(key: &str, value: &str) {
+    // SAFETY: `set_var` was marked unsafe in Rust 2024 due to multithreaded
+    // hazards. Vox scripts call this from the main thread before spawning
+    // subprocesses, matching the documented safe pattern.
+    unsafe { std::env::set_var(key, value); }
+}
+
+/// `std.regex.replace(pattern, haystack, replacement) -> Result[str]` —
+/// replace all matches of `pattern` in `haystack` with `replacement`.
+/// `std.regex.replace(haystack, pattern, replacement) -> Result[str]`
+/// Replace all non-overlapping matches of `pattern` in `haystack` with `replacement`.
+/// `$0`/`$1`/… expansion works as in the `regex` crate.
+pub fn vox_regex_replace(
+    haystack: &str,
+    pattern: &str,
+    replacement: &str,
+) -> Result<String, String> {
+    let re = regex::Regex::new(pattern).map_err(|e| e.to_string())?;
+    Ok(re.replace_all(haystack, replacement).to_string())
+}
+
+/// `std.regex.find(haystack, pattern) -> Result[Option[str]]` — first match
+/// substring; `Ok(None)` when no match, `Err(msg)` only on bad pattern.
+pub fn vox_regex_find(
+    haystack: &str,
+    pattern: &str,
+) -> Result<Option<String>, String> {
+    let re = regex::Regex::new(pattern).map_err(|e| e.to_string())?;
+    Ok(re.find(haystack).map(|m| m.as_str().to_string()))
+}
+
+/// `std.regex.is_match(haystack, pattern) -> bool`
+/// Returns `true` if `pattern` matches anywhere in `haystack`.
+/// Returns `false` on bad pattern (silent fail, consistent with eval-tier).
+pub fn vox_regex_is_match(haystack: &str, pattern: &str) -> bool {
+    regex::Regex::new(pattern)
+        .map(|re| re.is_match(haystack))
+        .unwrap_or(false)
+}
+
+/// `std.regex.captures(haystack, pattern) -> Option[list[str]]`
+/// Returns all capture groups (including group 0 = whole match) if the pattern
+/// matches, `None` if it doesn't or the pattern is invalid.
+pub fn vox_regex_captures(haystack: &str, pattern: &str) -> Option<Vec<String>> {
+    let re = regex::Regex::new(pattern).ok()?;
+    let caps = re.captures(haystack)?;
+    Some(
+        caps.iter()
+            .map(|m| m.map(|x| x.as_str().to_string()).unwrap_or_default())
+            .collect(),
+    )
 }
 
 /// Convert a `dec` value to a string (`std.dec.to_string`).

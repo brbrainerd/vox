@@ -21,7 +21,7 @@ use vox_plugin_api::host::VoxHost_TO;
 
 // Re-export public surface from dependent libraries so hosts can reach them
 // without depending on those crates directly.
-pub use vox_scientia_ingest::{FeedCrawler, FeedSource, InboundItem, IngestDeduplicator};
+pub use vox_scientia::ingest::{FeedCrawler, FeedSource, InboundItem, IngestDeduplicator};
 
 pub mod ingest;
 pub use ingest::ingest_tick;

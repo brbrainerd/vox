@@ -221,7 +221,7 @@ pub async fn submit_with_adapter(
     submit_for_adapter_normalized(manifest, k).await
 }
 
-/// Resolve [`VOX_SCHOLARLY_ADAPTER`] (default `local_ledger`) and submit.
+/// Resolve `VOX_SCHOLARLY_ADAPTER` (default `local_ledger`) and submit.
 ///
 /// Supported: `local_ledger`, `echo_ledger`, `zenodo`, `openreview`, `arxiv_assist`, `osf`, `crossref_deposit`.
 /// Live adapters honor `VOX_SCHOLARLY_DISABLE`, `VOX_SCHOLARLY_DISABLE_LIVE`, and per-adapter `VOX_SCHOLARLY_DISABLE_*`.

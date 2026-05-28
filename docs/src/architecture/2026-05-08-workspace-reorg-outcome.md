@@ -1,7 +1,7 @@
 ---
 title: "Workspace Reorg Outcome (2026-05-08)"
 description: "Outcome report for the 2026-05-08 workspace reorg: phases completed, build-time gains, and naming history."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 training_eligible: false
 ---
@@ -12,6 +12,8 @@ training_eligible: false
 
 Companion to [2026-05-08-workspace-reorg-design.md](./2026-05-08-workspace-reorg-design.md).
 Records what was delivered across the 10 phases.
+
+> **Follow-up landed (2026-05-15):** The [crate-org followup design](./2026-05-08-crate-org-followup-design.md) delivered C1 (vox-mcp-meta merge), C2 (vox-package-types split — removed both vox-package inversions), C4 (ops_ludus → vox-gamify), the mcp-server feature-gate side-quest, all Track A SSOT fixes, Track B description rewrites, and PR6 arch-check lints. Workspace now ~91 crates. `vox-orchestrator` has regrown to 65.5K LoC. C3 (vox-cli-ci, 22K LoC) and C5 (vox-orchestrator-core) are deferred with plan docs.
 
 ## Phases delivered (5 of 10)
 
@@ -43,7 +45,7 @@ Records what was delivered across the 10 phases.
 - vox-orchestrator drops the `mcp-native` feature and 14 deps that mcp now
   owns (schemars, axum, rmcp, tower-http, vox-compiler, vox-grammar-export,
   vox-mcp-registry, vox-capability-registry, vox-openai-wire,
-  vox-project-scaffold, vox-skills, vox-ars-runtime, vox-plugin-host).
+  vox-project-scaffold, vox-skills, vox-openclaw-runtime, vox-plugin-host).
 - vox-cli's `mcp-server` feature wires through to the new crate.
 - Orchestrator incremental: **5.59s → 4.06s (−27%)**. MCP edits are now isolated.
 
@@ -92,9 +94,11 @@ from extracting `vox-orchestrator-mcp` (33K) and `vox-orchestrator-queue` (3K).
 3. **The plugin-host inversion stays fixed.** `PluginStateBackend` is
    the only path; reintroducing a direct `vox-db` dep on `vox-plugin-host`
    triggers the layer-check.
-4. **Three known inversions are documented:**
+4. **Three known inversions are documented** (current as of 2026-05-15):
    - vox-cli → vox-orchestrator (deliberate; runtime/observability surfaces)
-   - vox-pm → vox-compiler/db (transitional; future re-tier)
+   - vox-arch-check → vox-compiler (dev-dependency only; integration test)
+   - vox-ml-cli → vox-cli (optional mens-dei workflow path)
+   - *(The `vox-pm → vox-compiler/db` inversion listed here at reorg time was removed in C2 when `vox-package` was split into `vox-package-types` (L1) + `vox-package` (L3).)*
 
 ## New workspace shape
 
@@ -113,8 +117,10 @@ Crates added to `vox-orchestrator-types`:
 
 ## Remaining work for future sessions
 
-If/when build-time pain on the **remaining 52K** orchestrator core or the
-63K vox-cli justifies further work, the deferred extractions (Phases 3, 6, 7)
-can be picked up incrementally. The infrastructure (layer-check, layers.toml,
-build-time-log.md, hakari exclusions) is in place to support that. Each
-deferred phase has a concrete cost/benefit writeup in `build-time-log.md`.
+`vox-orchestrator` has regrown from 52K → **65.5K LoC** (94% of budget). `vox-cli` is at **71.3K LoC** (79% of budget). The deferred extractions have been redesigned:
+
+- **Phase 6 replacement → C5 / Tier D:** Extract `src/orchestrator/` (12.8K LoC) + `Orchestrator` struct into `vox-orchestrator-core`. Full plan with Rust coherence analysis at [`2026-05-15-orchestrator-tier-d-plan.md`](./2026-05-15-orchestrator-tier-d-plan.md). Start when Rule 13 fires (>15% LoC growth since last tag).
+- **Phase 7 replacement → C3:** Extract `src/commands/ci/` (22K LoC, 74 files) into `vox-cli-ci`. Three shared modules must move to `vox-cli-core` first. Full plan at [`2026-05-15-cli-ci-extraction-plan.md`](./2026-05-15-cli-ci-extraction-plan.md). Start when `vox-cli` exceeds 72K LoC (80% budget).
+- **Phase 3 (vox-db-stores):** Still deferred. 67 `impl VoxDb` blocks need extension-trait migration.
+
+The infrastructure (arch-check, layers.toml, hakari exclusions) is in place to support all of these.

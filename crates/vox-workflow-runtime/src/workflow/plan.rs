@@ -2,7 +2,7 @@
 
 use anyhow::Context;
 use std::collections::HashSet;
-use vox_compiler::hir::{HirBinOp, HirExpr, HirModule, HirStmt, HirUnOp};
+use vox_compiler::hir::{HirBinOp, HirExpr, HirModule, HirStmt, HirUnOp, HirWorkflowVersion};
 
 use super::types::{PlannedActivity, PopuliHttpOp, ReplayNode, WorkflowReplayIr};
 
@@ -15,8 +15,9 @@ pub fn plan_workflow_activities(
     Ok(ir
         .nodes
         .into_iter()
-        .map(|node| match node {
-            ReplayNode::Activity(activity) => activity,
+        .filter_map(|node| match node {
+            ReplayNode::Activity(activity) => Some(activity),
+            ReplayNode::WorkflowPatch { .. } => None,
         })
         .collect())
 }
@@ -67,9 +68,7 @@ pub fn plan_workflow_replay_ir(
         &mut branch_counter,
     )?;
 
-    Ok(WorkflowReplayIr {
-        nodes: out.into_iter().map(ReplayNode::Activity).collect(),
-    })
+    Ok(WorkflowReplayIr { nodes: out })
 }
 
 #[derive(Clone, Default, Debug)]
@@ -156,23 +155,22 @@ fn parse_retries(expr: &HirExpr) -> anyhow::Result<u32> {
     }
 }
 
+/// Adapt the shared SSOT duration parser to the `u64`-millisecond shape the
+/// planner stores. Delegates to
+/// [`crate::duration_literal::parse_duration_str`] so the runtime and the
+/// `vox-codegen` emit agree on every unit (ms / s / m / h / d) and on error
+/// messages (ADR-041 M-7).
+///
+/// **Behavior note (post-M-7 consolidation, 2026-05-24):** a bare integer like
+/// `workflow_wait(30)` is now interpreted as 30 **seconds** (the cron-style
+/// ergonomic default the shared parser uses), where the legacy local parser
+/// here interpreted it as 30 **milliseconds**. No golden uses the bare-integer
+/// form so blast radius is zero, but if a workflow author wants milliseconds
+/// they must write `workflow_wait("30ms")` explicitly.
 fn parse_duration_ms_str(s: &str) -> anyhow::Result<u64> {
-    let s = s.trim();
-    if let Ok(n) = s.parse::<u64>() {
-        return Ok(n);
-    }
-    if let Some(rest) = s.strip_suffix("ms") {
-        return Ok(rest.trim().parse()?);
-    }
-    if let Some(rest) = s.strip_suffix('s') {
-        let n: u64 = rest.trim().parse()?;
-        return Ok(n.saturating_mul(1000));
-    }
-    if let Some(rest) = s.strip_suffix('m') {
-        let n: u64 = rest.trim().parse()?;
-        return Ok(n.saturating_mul(60_000));
-    }
-    anyhow::bail!("expected duration like 5000, \"30s\", \"500ms\", \"2m\"");
+    crate::duration_literal::parse_duration_str(s)
+        .map(|d| d.as_millis().min(u64::MAX as u128) as u64)
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 fn parse_populi_control_op(s: &str) -> anyhow::Result<PopuliHttpOp> {
@@ -210,7 +208,7 @@ fn collect_activity_calls_from_stmts(
     stmts: &[HirStmt],
     ctx: &ActivityWithOpts,
     activity_names: &HashSet<&str>,
-    out: &mut Vec<PlannedActivity>,
+    out: &mut Vec<ReplayNode>,
     branch_counter: &mut usize,
 ) -> anyhow::Result<()> {
     for s in stmts {
@@ -264,7 +262,7 @@ fn collect_from_expr(
     expr: &HirExpr,
     ctx: &ActivityWithOpts,
     activity_names: &HashSet<&str>,
-    out: &mut Vec<PlannedActivity>,
+    out: &mut Vec<ReplayNode>,
     branch_counter: &mut usize,
 ) -> anyhow::Result<()> {
     match expr {
@@ -297,7 +295,7 @@ fn collect_from_expr(
 
                 if name == "workflow_wait" {
                     let wait_ms = parse_workflow_wait_ms(args)?;
-                    out.push(PlannedActivity {
+                    out.push(ReplayNode::Activity(PlannedActivity {
                         name: "__durable_timer_wait".to_string(),
                         mens: false,
                         activity_id: ctx.activity_id.clone(),
@@ -307,12 +305,14 @@ fn collect_from_expr(
                         populi_op: PopuliHttpOp::Noop,
                         required_labels: None,
                         is_detached: false,
-                    });
+                        arguments: vec![],
+                        dedup_window_ms: None,
+                    }));
                     return Ok(());
                 }
                 if name == "workflow_wait_signal" {
                     let signal_key = parse_workflow_signal_key(args)?;
-                    out.push(PlannedActivity {
+                    out.push(ReplayNode::Activity(PlannedActivity {
                         name: format!("__durable_signal_wait:{signal_key}"),
                         mens: false,
                         activity_id: ctx.activity_id.clone(),
@@ -322,7 +322,9 @@ fn collect_from_expr(
                         populi_op: PopuliHttpOp::Noop,
                         required_labels: None,
                         is_detached: false,
-                    });
+                        arguments: vec![],
+                        dedup_window_ms: None,
+                    }));
                     return Ok(());
                 }
                 // Only plan calls to declared activities (DurabilityKind::Activity) or
@@ -338,7 +340,7 @@ fn collect_from_expr(
                     );
                 }
                 let populi_op = resolve_populi_http_op(name, ctx.mesh_key.as_deref())?;
-                out.push(PlannedActivity {
+                out.push(ReplayNode::Activity(PlannedActivity {
                     name: name.clone(),
                     mens: is_mesh,
                     activity_id: ctx.activity_id.clone(),
@@ -348,7 +350,9 @@ fn collect_from_expr(
                     populi_op,
                     required_labels: ctx.required_labels.clone(),
                     is_detached: ctx.is_detached,
-                });
+                    arguments: vec![],
+                    dedup_window_ms: None,
+                }));
             } else {
                 collect_from_expr(
                     workflow_name,
@@ -378,7 +382,7 @@ fn collect_from_expr(
             })?;
             let branch_id = *branch_counter;
             *branch_counter = branch_counter.saturating_add(1);
-            out.push(PlannedActivity {
+            out.push(ReplayNode::Activity(PlannedActivity {
                 name: if take_then {
                     "__branch_decision_then".to_string()
                 } else {
@@ -392,7 +396,9 @@ fn collect_from_expr(
                 populi_op: PopuliHttpOp::Noop,
                 required_labels: None,
                 is_detached: false,
-            });
+                arguments: vec![],
+                dedup_window_ms: None,
+            }));
             if take_then {
                 collect_activity_calls_from_stmts(
                     workflow_name,
@@ -501,6 +507,18 @@ fn collect_from_expr(
             out,
             branch_counter,
         )?,
+        // `?` operator: walk the inner expression so activity calls like
+        // `charge_card(amount)?` are not silently dropped from the plan.
+        // (The error-propagation semantics are interpreter-side; the planner
+        // only cares about which activities run.)
+        HirExpr::Try(t) => collect_from_expr(
+            workflow_name,
+            &t.target,
+            ctx,
+            activity_names,
+            out,
+            branch_counter,
+        )?,
         HirExpr::ListLit(items, _) => {
             for it in items {
                 collect_from_expr(workflow_name, it, ctx, activity_names, out, branch_counter)?;
@@ -510,6 +528,18 @@ fn collect_from_expr(
             for (_, v) in fields {
                 collect_from_expr(workflow_name, v, ctx, activity_names, out, branch_counter)?;
             }
+        }
+        HirExpr::WorkflowVersion(HirWorkflowVersion {
+            change_id,
+            min,
+            max,
+            ..
+        }) => {
+            out.push(super::types::ReplayNode::WorkflowPatch {
+                change_id: change_id.clone(),
+                min: *min,
+                max: *max,
+            });
         }
         _ => {}
     }

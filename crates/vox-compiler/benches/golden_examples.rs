@@ -7,7 +7,7 @@
 //! Run:
 //!   cargo bench -p vox-compiler --bench golden_examples
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use criterion::{BatchSize, BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use vox_codegen::codegen_ts::generate;
@@ -29,15 +29,15 @@ fn load_golden_sources() -> Vec<(String, String)> {
     if let Ok(entries) = std::fs::read_dir(&golden) {
         for entry in entries.flatten() {
             let p = entry.path();
-            if p.extension().is_some_and(|e| e == "vox") {
-                if let Ok(src) = std::fs::read_to_string(&p) {
-                    let name = p
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("unknown")
-                        .to_owned();
-                    out.push((name, src));
-                }
+            if p.extension().is_some_and(|e| e == "vox")
+                && let Ok(src) = std::fs::read_to_string(&p)
+            {
+                let name = p
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_owned();
+                out.push((name, src));
             }
         }
     }

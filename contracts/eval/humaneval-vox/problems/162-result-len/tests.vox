@@ -1,0 +1,13 @@
+fn result_len(r: Result[str]) to int {
+    match r {
+        Ok(s)    => return len(s)
+        Error(_) => return 0
+    }
+}
+
+@test
+fn t_ok() to Unit { assert(result_len(Ok("hello")) is 5) }
+@test
+fn t_empty() to Unit { assert(result_len(Ok("")) is 0) }
+@test
+fn t_err() to Unit { assert(result_len(Error("boom")) is 0) }

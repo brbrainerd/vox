@@ -1,7 +1,7 @@
 ---
 title: "Deployment: Docker, Compose, Coolify, CI (SSOT)"
 description: "Official documentation for Deployment: Docker, Compose, Coolify, CI (SSOT) for the Vox language. Detailed technical reference, architectu"
-category: "reference"
+category: "Language Reference"
 last_updated: "2026-03-29"
 training_eligible: true
 
@@ -19,7 +19,7 @@ schema_type: "TechArticle"
 | **MCP single-node** | Run `vox mcp` with API keys + optional Codex (Turso) | Repo root [`docker-compose.yml`](../../../docker-compose.yml) | Root [`Dockerfile`](../../../Dockerfile) (`CMD vox mcp`) | **3000** |
 | **MCP + mens (multi-service)** | Control plane + MCP + worker; shared registry volume | [`examples/mens-compose.yml`](../../../docker-compose.yml) | Same `Dockerfile` with build-arg `VOX_CLI_FEATURES=mens,script-execution` | **9847** (mens), **3000** (MCP) |
 | **Codex API (BaaS template)** | Self-hosted Codex-style HTTP API on Turso (placeholder service name) | [`infra/coolify/docker-compose.yml`](../../../infra/coolify/docker-compose.yml) | **`VOX_CODEX_IMAGE`** (you build/push); not the default `vox` MCP image unless you retag/repurpose | **8080** (template) |
-| **Generated app stack** | `vox deploy` / `vox-container` sample (Node + nginx + optional mens env) | Emitted by [`generate_compose_file`](../../../crates/vox-container/src/generate.rs) | Project `Dockerfile` from `@environment` / package flow | **3000** + **80/443** |
+| **Generated app stack** | `vox deploy` / `vox-container` sample (Node + nginx + optional mens env) | Emitted by [`generate_compose_file`](../../../crates/vox-deploy-codegen/src/generate.rs) | Project `Dockerfile` from `@environment` / package flow | **3000** + **80/443** |
 
 **Do not** assume root `docker-compose.yml` and `infra/coolify/docker-compose.yml` are interchangeable: they target **different workloads** (MCP vs Codex API template). See [Codex BaaS](../archive/research-2026-q1/codex-baas.md) and [infra/coolify/README.md](../adr/index.md).
 
@@ -41,7 +41,7 @@ Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` a
 
 ## Runtimes: Docker vs Podman
 
-- **CLI / deploy:** [`vox-container`](../../../crates/vox-container/src/lib.rs) implements **`ContainerRuntime`** for Docker and Podman; Compose execution prefers **`podman-compose`** then **`docker compose`** ([`deploy_target.rs`](../../../crates/vox-container/src/deploy_target.rs)).
+- **CLI / deploy:** [`vox-container`](../../../crates/vox-container/src/lib.rs) implements **`ContainerRuntime`** for Docker and Podman; Compose execution prefers **`podman-compose`** then **`docker compose`** ([`deploy_target.rs`](../../../crates/vox-deploy-codegen/src/deploy_target.rs)).
 - **CI:** GitHub self-hosted jobs use **Docker** (see [workflow enumeration](../ci/workflow-enumeration.md)). Validate Podman locally for rootless/volume/DNS differences before claiming parity.
 
 ## Coolify

@@ -1,0 +1,6 @@
+
+warning: vox-dashboard@0.5.0: vox-dashboard: app.vox compiled to app/src/generated/
+crates\vox-codegen\src\codegen_ts\reactive.rs:56:5: error[E0369]: binary operation `==` cannot be applied to type `Vec<WebIrDiagnostic>`
+crates\vox-codegen\src\codegen_ts\reactive.rs:56:5: error[E0277]: the trait bound `WebIrDiagnostic: std::cmp::Eq` is not satisfied: the trait `std::cmp::Eq` is not implemented for `WebIrDiagnostic`
+error: could not compile `vox-codegen` (lib) due to 2 previous errors
+
