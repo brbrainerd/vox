@@ -88,3 +88,278 @@ events:
       research_started, sources_total, self_verification_reliability, citation_precision,
       retrieval_hit_rate, scientia.finding_candidate_proposed, scientia.claim_verified.
       Plan JSON for subqueries_emitted remains a direct record_research_metric row (no duplicate bus row).
+
+# ─────────────────────────────────────────────────────────────────────────────
+# metric_types — every `METRIC_TYPE_*` constant from
+# `crates/vox-telemetry/src/types.rs`. Schema-less events use the generic
+# `ResearchMetric` envelope; their payload contract lives in the emitting
+# crate's source. Listed here so a developer asking "what events does the
+# workspace emit?" can answer it without grepping. To find the emit site,
+# grep for the constant name. Sensitivity codes from the source docstring:
+#   S0 = no PII / public; S1 = internal observability; S2 = redacted payload.
+# ─────────────────────────────────────────────────────────────────────────────
+metric_types:
+  - id: benchmark_event
+    constant: METRIC_TYPE_BENCHMARK_EVENT
+    owner_crate: vox-telemetry
+    sensitivity: S0
+    description: "Coarse benchmark names, timings, ratios."
+
+  - id: syntax_k_event
+    constant: METRIC_TYPE_SYNTAX_K_EVENT
+    owner_crate: vox-compiler
+    sensitivity: S0
+    description: "Compiler / fixture ids; payload may reach S1."
+
+  - id: socrates_surface
+    constant: METRIC_TYPE_SOCRATES_SURFACE
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "MCP surface calibration; payload may reach S2."
+
+  - id: memory_hybrid_fusion
+    constant: METRIC_TYPE_MEMORY_HYBRID_FUSION
+    owner_crate: vox-orchestrator
+    sensitivity: S2
+    description: "BM25/vector retrieval fusion stats."
+
+  - id: workflow_journal_entry
+    constant: METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY
+    owner_crate: vox-workflow-runtime
+    sensitivity: S1
+    description: "Durable workflow journal JSON; payload may reach S2."
+
+  - id: populi_control_event
+    constant: METRIC_TYPE_POPULI_CONTROL_EVENT
+    owner_crate: vox-populi
+    sensitivity: S1
+    description: "Mesh/registry audit; must not store bearer tokens."
+
+  - id: questioning_event
+    constant: METRIC_TYPE_QUESTIONING_EVENT
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "Questioning KPIs; payload may reach S2."
+
+  - id: agent_exec_time
+    constant: METRIC_TYPE_AGENT_EXEC_TIME
+    owner_crate: vox-actor-runtime
+    sensitivity: S1
+    description: "Tool execution tracking (duration, timeouts, compute/cost)."
+
+  - id: model_route_event
+    constant: METRIC_TYPE_MODEL_ROUTE_EVENT
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "Routing policy / capability-gate events from runtime/orchestrator."
+
+  - id: orch.circuit_breaker.trip
+    constant: METRIC_TYPE_CIRCUIT_BREAKER_TRIP
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D6 — Circuit breaker trip; doom-loop detected. Reasons: NoProgress, SameError, ToolThrash, NgramOverlap, SemanticDrift."
+
+  - id: orch.socrates.fusion
+    constant: METRIC_TYPE_SOCRATES_FUSION
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D3 — Socrates confidence fusion decision."
+
+  - id: orch.routing.tier
+    constant: METRIC_TYPE_MODEL_TIER_ROUTE
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D1 — Model tier routing decision (Economy / Standard / Strong)."
+
+  - id: orch.plan.mode_decision
+    constant: METRIC_TYPE_PLAN_MODE_DECISION
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D2 — Plan-mode vs. ReAct mode decision."
+
+  - id: orch.hitl.interrupt
+    constant: METRIC_TYPE_HITL_INTERRUPT
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D9 — HITL interrupt; human-in-the-loop escalation triggered."
+
+  - id: orch.risk.score
+    constant: METRIC_TYPE_RISK_SCORE
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D5 — Risk matrix score event."
+
+  - id: orch.privacy.route_decision
+    constant: METRIC_TYPE_PRIVACY_ROUTE_DECISION
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D8 — Privacy routing decision."
+
+  - id: orch.cache.hit_prediction
+    constant: METRIC_TYPE_CACHE_HIT_PREDICTION
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D7 — Cache hit prediction for provider routing."
+
+  - id: orch.budget.decision
+    constant: METRIC_TYPE_BUDGET_DECISION
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D7 — Budget gate decision (Proceed / Downgrade / Halt)."
+
+  - id: orch.calibration.run
+    constant: METRIC_TYPE_CALIBRATION_RUN
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D10 — Calibration loop run observation."
+
+  - id: orch.calibration.drift_alert
+    constant: METRIC_TYPE_DRIFT_ALERT
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D10 — Calibration drift alert; predicted vs. observed confidence diverging."
+
+  - id: orch.calibration.bandit_update
+    constant: METRIC_TYPE_BANDIT_UPDATE
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D10 — Contextual bandit arm update."
+
+  - id: orch.subagent.dispatch
+    constant: METRIC_TYPE_SUBAGENT_DISPATCH
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D4 — Sub-agent dispatched."
+
+  - id: orch.subagent.chain_depth_alert
+    constant: METRIC_TYPE_CHAIN_DEPTH_ALERT
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "D4 — Sub-agent chain depth exceeded configured cap."
+
+  - id: orch.agentos.guardrail_deny
+    constant: METRIC_TYPE_AGENTOS_GUARDRAIL_DENY
+    owner_crate: vox-orchestrator
+    sensitivity: S1
+    description: "AgentOS guardrail denied a tool preflight (mutation / destructive heuristic)."
+
+  - id: model_call_event
+    constant: METRIC_TYPE_MODEL_CALL_EVENT
+    owner_crate: vox-orchestrator-mcp
+    sensitivity: S1
+    description: "Phase B — Per-LLM-call record: tokens, cache, latency, cost, error class."
+
+  - id: task.root_summary
+    constant: METRIC_TYPE_TASK_ROOT_SUMMARY
+    owner_crate: vox-telemetry
+    sensitivity: S1
+    description: "Phase C — Top-level task completion rollup: total tokens, cost, wall time, depth."
+
+  - id: build.summary
+    constant: METRIC_TYPE_BUILD_SUMMARY_EVENT
+    owner_crate: vox-cli
+    sensitivity: S0
+    description: "Phase D — Build summary mirrored from `vox ci build-timings`."
+
+  - id: telemetry.error
+    constant: METRIC_TYPE_ERROR_EVENT
+    owner_crate: vox-telemetry
+    sensitivity: S1
+    description: "Phase D — Generic subsystem error / retry event; subsystem, error_class, http_status, retry_attempt, retried."
+
+  - id: vox.lint.finding
+    constant: METRIC_TYPE_LINT_FINDING
+    owner_crate: vox-code-audit
+    sensitivity: S1
+    description: "CR-L8 — `vox-code-audit` emitted one finding."
+
+  - id: vox.lint.autofix_applied
+    constant: METRIC_TYPE_LINT_AUTOFIX_APPLIED
+    owner_crate: vox-code-audit
+    sensitivity: S1
+    description: "CR-L8 — `vox-code-audit` autofix accepted."
+
+  - id: vox.lint.autofix_rejected
+    constant: METRIC_TYPE_LINT_AUTOFIX_REJECTED
+    owner_crate: vox-code-audit
+    sensitivity: S1
+    description: "CR-L8 — `vox-code-audit` autofix rejected."
+
+  - id: vox.repair.attempt
+    constant: METRIC_TYPE_REPAIR_ATTEMPT
+    owner_crate: vox-cli
+    sensitivity: S1
+    description: "`vox repair` LLM attempt observation (one event per outer-loop attempt)."
+
+  - id: vox.repair.outcome
+    constant: METRIC_TYPE_REPAIR_OUTCOME
+    owner_crate: vox-cli
+    sensitivity: S1
+    description: "`vox repair` terminal outcome (one event per session)."
+
+  - id: vox.audit.run
+    constant: METRIC_TYPE_AUDIT_RUN
+    owner_crate: vox-code-audit
+    sensitivity: S1
+    description: "Ratified 2026-05-15 (A11 contract-compliance follow-on) — `vox audit` summary."
+
+  - id: vox.model.selection_decision
+    constant: METRIC_TYPE_SELECTION_DECISION
+    owner_crate: vox-populi
+    sensitivity: S1
+    description: "L0 — one `select(intent, registry)` decision."
+
+  - id: vox.model.discovery
+    constant: METRIC_TYPE_MODEL_DISCOVERY
+    owner_crate: vox-populi
+    sensitivity: S1
+    description: "L1 — a model id was seen in upstream catalog that wasn't in prior snapshot."
+
+  - id: vox.model.classification
+    constant: METRIC_TYPE_MODEL_CLASSIFICATION
+    owner_crate: vox-populi
+    sensitivity: S1
+    description: "L2 — classifier LLM tagged a model with tier/strengths/confidence."
+
+  - id: vox.model.confidence_promotion
+    constant: METRIC_TYPE_CONFIDENCE_PROMOTION
+    owner_crate: vox-populi
+    sensitivity: S1
+    description: "L2/L3 — a model crossed a confidence-state boundary (Provisional / Shadowed / Confirmed)."
+
+  - id: vox.doctor.project_check
+    constant: METRIC_TYPE_DOCTOR_PROJECT_CHECK
+    owner_crate: vox-cli
+    sensitivity: S0
+    description: "`vox doctor` project-level check rollup."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# blind_spots — failure modes the workspace cares about that emit NO event
+# today. Each entry is a tracked gap. When a metric_type is added to address
+# one, move the entry here into `metric_types` above and delete it from this
+# list.
+# ─────────────────────────────────────────────────────────────────────────────
+blind_spots:
+  - failure_mode: plugin_load_failure
+    description: "vox-plugin-host fails to load a cdylib plugin (missing symbol, ABI mismatch, panic at init)."
+    owner_crate: vox-plugin-host
+    proposed_metric_type: plugin.load_failure
+    notes: "Error paths exist in actor-runtime/src/builtins/mod.rs but no record_event! call."
+
+  - failure_mode: sandbox_timeout
+    description: "vox-scientia / actor-runtime sandbox terminated a child process after timeout."
+    owner_crate: vox-actor-runtime
+    proposed_metric_type: sandbox.timeout_kill
+    notes: "agent_exec_time tracks durations but not timeout-terminated runs."
+
+  - failure_mode: cache_miss
+    description: "LLM-provider response cache lookup missed (currently only hits are tracked via cache_read_input_tokens)."
+    owner_crate: vox-orchestrator-mcp
+    proposed_metric_type: orch.cache.miss
+    notes: "Asymmetry with cache_read_input_tokens on ModelCallEvent — miss rates are computed offline today."
+
+  - failure_mode: task_cancellation
+    description: "A task was explicitly cancelled mid-execution (user interrupt, parent timeout, etc.)."
+    owner_crate: vox-orchestrator
+    proposed_metric_type: orch.task.cancelled
+    notes: "No ErrorEvent fires on cancel today; cancellation paths are invisible in research_metrics."
