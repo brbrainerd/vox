@@ -199,6 +199,11 @@ impl LowerCtx {
                         hir.tests.push(self.lower_fn(&t.func));
                     }
                 }
+                Decl::Example(e) => {
+                    // Examples are not stripped by `strip_tests` — they serve as
+                    // canonical demonstrations for corpus mining and docs tooling.
+                    hir.examples.push(self.lower_fn(&e.func));
+                }
                 Decl::Forall(f) => {
                     let func = self.lower_fn(&f.func);
                     hir.foralls.push(HirForall {
@@ -565,6 +570,11 @@ impl LowerCtx {
         for t in &mut hir.tests {
             if async_flags::has_async_stmts(&t.body) {
                 t.is_async = true;
+            }
+        }
+        for e in &mut hir.examples {
+            if async_flags::has_async_stmts(&e.body) {
+                e.is_async = true;
             }
         }
 
@@ -954,6 +964,7 @@ fn f() to Unit {
             cors: None,
             is_pub: true,
             is_deprecated: false,
+            primary_key: None,
             span: sp,
         };
         let col = CollectionDecl {

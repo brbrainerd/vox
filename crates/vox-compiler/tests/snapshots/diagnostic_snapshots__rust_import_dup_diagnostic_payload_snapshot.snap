@@ -1,6 +1,5 @@
 ---
 source: crates/vox-compiler/tests/diagnostic_snapshots.rs
-assertion_line: 7
 expression: diags
 ---
 [
@@ -22,6 +21,16 @@ expression: diags
     "correction_hints": [],
     "suggested_fixes": [],
     "related_spans": [],
+    "minimal_repro": {
+      "excerpt": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}",
+      "excerpt_first_line": 1,
+      "local_span": {
+        "start_line": 1,
+        "start_col": 8,
+        "end_line": 2,
+        "end_col": 1
+      }
+    },
     "excerpt": {
       "lines": [
         1,
@@ -49,6 +58,16 @@ expression: diags
     "correction_hints": [],
     "suggested_fixes": [],
     "related_spans": [],
+    "minimal_repro": {
+      "excerpt": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}",
+      "excerpt_first_line": 1,
+      "local_span": {
+        "start_line": 2,
+        "start_col": 8,
+        "end_line": 3,
+        "end_col": 1
+      }
+    },
     "excerpt": {
       "lines": [
         1,
@@ -76,6 +95,16 @@ expression: diags
     "correction_hints": [],
     "suggested_fixes": [],
     "related_spans": [],
+    "minimal_repro": {
+      "excerpt": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}",
+      "excerpt_first_line": 1,
+      "local_span": {
+        "start_line": 2,
+        "start_col": 8,
+        "end_line": 3,
+        "end_col": 1
+      }
+    },
     "excerpt": {
       "lines": [
         1,

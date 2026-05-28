@@ -190,6 +190,7 @@ pub fn typecheck_hir_module_with_path(
         .functions
         .iter()
         .chain(hir.tests.iter())
+        .chain(hir.examples.iter())
         .chain(hir.foralls.iter().map(|p| &p.func))
         .chain(hir.mcp_tools.iter().map(|t| &t.func))
         .chain(hir.mcp_resources.iter().map(|r| &r.func));

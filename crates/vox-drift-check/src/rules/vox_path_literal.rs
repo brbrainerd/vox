@@ -4,7 +4,8 @@ use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct VoxPathLiteralRule;
 
-const ALLOWED_CRATES: &[&str] = &["vox-config", "vox-db"];
+// vox-drift-check: contains the pattern strings the rule searches for as test fixtures.
+const ALLOWED_CRATES: &[&str] = &["vox-config", "vox-db", "vox-drift-check"];
 
 impl DriftRule for VoxPathLiteralRule {
     fn id(&self) -> &'static str {

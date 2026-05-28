@@ -216,6 +216,20 @@ pub struct TestDecl {
     pub func: FnDecl,
 }
 
+/// Example declaration (wraps a function with @example semantics).
+///
+/// Examples are authored reference demonstrations lowered into
+/// [`crate::hir::nodes::decl::HirModule::examples`] rather than `tests` so
+/// corpus-mining and doc tooling can enumerate them without scanning the
+/// regression-test set.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ExampleDecl {
+    /// Optional human-readable label supplied via `@example("label")`.
+    pub label: String,
+    /// The underlying function implementing the example.
+    pub func: FnDecl,
+}
+
 /// Property-based test declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ForallDecl {

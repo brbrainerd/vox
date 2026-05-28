@@ -64,6 +64,10 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
         "Read-only MCP resource (URI + description; nullary fn body).",
     ),
     ("@test", "Marks a function as a test case."),
+    (
+        "@example",
+        "Marks a function as a reference example for corpus / docs tooling.",
+    ),
     ("@placeholder", "Placeholder for generated UI hook."),
     (
         "@require",
@@ -186,6 +190,7 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@forall",
     "@fuzz",
     "@test",
+    "@example",
     "@server",
     "@query",
     "@mutation",

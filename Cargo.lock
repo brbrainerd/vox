@@ -13751,6 +13751,7 @@ dependencies = [
  "vox-skill-runtime",
  "vox-skills",
  "vox-telemetry",
+ "vox-test-harness",
  "walkdir",
  "workspace-hack",
  "xxhash-rust",

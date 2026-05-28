@@ -89,13 +89,18 @@ async fn main() {
     // ── Database setup (Codex / vox_db) ──
     let cfg = vox_db::DbConfig::resolve_canonical().expect("resolve Codex DB config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)");
     let codex = vox_db::Codex::connect(cfg).await.expect("Failed to open Codex database");
-    codex.connection().execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;").await.expect("PRAGMA failed");
+    {
+        let mut __vox_jm = codex.connection().query("PRAGMA journal_mode=WAL;", ()).await
+            .expect("PRAGMA journal_mode failed");
+        while __vox_jm.next().await.expect("PRAGMA journal_mode row").is_some() {}
+    }
+    codex.connection().execute_batch("PRAGMA foreign_keys=ON;").await.expect("PRAGMA foreign_keys failed");
     codex.connection().execute_batch(r#"
 CREATE TABLE IF NOT EXISTS t (
 _id INTEGER PRIMARY KEY AUTOINCREMENT,
     a TEXT NOT NULL
 );
-#"#).await.expect("schema migration failed");
+"#).await.expect("schema migration failed");
     let db = Arc::new(codex);
 
     // 1. Initialize the durable database.
@@ -152,7 +157,7 @@ async fn handle_m_m_save(Extension(vox_rid): Extension<Option<String>>, Extensio
 /// `HirModule`. Called once from `main()` to register the process-global
 /// module for `current_hir_module()` lookups (ADR-041 §6(b)).
 fn load_hir_module_from_embedded() -> ::vox_compiler::hir::HirModule {
-    const EMBEDDED_HIR: &str = r#"{"imports":[],"rust_imports":[],"functions":[],"types":[],"tests":[],"foralls":[],"endpoint_fns":[{"kind":"Mutation","id":1,"name":"m_save","params":[],"return_type":{"Named":"int"},"body":[{"Return":{"value":{"IntLit":[1,{"start":69,"end":70}]},"span":{"start":62,"end":71}}}],"route_path":"/api/mutation/m_save","is_pure":false,"webhook":null,"cors":null,"rate_limit":null,"pii":null,"layer":null,"span":{"start":37,"end":73}}],"tables":[{"id":0,"name":"T","fields":[{"name":"a","type_ann":{"Named":"str"},"span":{"start":17,"end":25}}],"is_pub":false,"is_deprecated":false,"span":{"start":1,"end":26}}],"indexes":[],"collections":[],"vector_indexes":[],"search_indexes":[],"mcp_tools":[],"mcp_resources":[],"agents":[],"environments":[],"components":[],"client_routes":[],"url_decls":[],"state_machines":[],"fragments":[],"reactive_modules":[],"forms":[],"back_button":null,"deep_link":null,"push":null,"token_decls":[],"route_ids":[],"inferred_types":{},"legacy_ast_nodes":[]}"#;
+    const EMBEDDED_HIR: &str = r#"{"imports":[],"rust_imports":[],"functions":[],"types":[],"tests":[],"examples":[],"foralls":[],"endpoint_fns":[{"kind":"Mutation","id":1,"name":"m_save","params":[],"return_type":{"Named":"int"},"body":[{"Return":{"value":{"IntLit":[1,{"start":69,"end":70}]},"span":{"start":62,"end":71}}}],"route_path":"/api/mutation/m_save","is_pure":false,"webhook":null,"cors":null,"rate_limit":null,"pii":null,"layer":null,"span":{"start":37,"end":73}}],"tables":[{"id":0,"name":"T","fields":[{"name":"a","type_ann":{"Named":"str"},"span":{"start":17,"end":25}}],"is_pub":false,"is_deprecated":false,"span":{"start":1,"end":26}}],"indexes":[],"collections":[],"vector_indexes":[],"search_indexes":[],"mcp_tools":[],"mcp_resources":[],"agents":[],"environments":[],"components":[],"client_routes":[],"url_decls":[],"state_machines":[],"fragments":[],"reactive_modules":[],"forms":[],"back_button":null,"deep_link":null,"push":null,"token_decls":[],"route_ids":[],"inferred_types":{},"legacy_ast_nodes":[]}"#;
     ::serde_json::from_str(EMBEDDED_HIR)
         .expect("embedded HirModule deserializes (codegen wrote it; should round-trip)")
 }

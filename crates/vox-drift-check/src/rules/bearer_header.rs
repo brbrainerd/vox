@@ -16,6 +16,11 @@ impl DriftRule for BearerHeaderRule {
     }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
+        // Self-exemption: this rule's own implementation contains "Bearer " in
+        // test fixtures and assertion messages.
+        if features.crate_name.as_deref() == Some("vox-drift-check") {
+            return vec![];
+        }
         features.string_literals.iter()
             .filter(|lit| {
                 matches!(lit.ctx, LiteralContext::Code)
@@ -30,7 +35,7 @@ impl DriftRule for BearerHeaderRule {
                 column: lit.loc.col,
                 message: "Inline Bearer token literal — use `vox_http_client::bearer_auth_header(token)` helper".into(),
                 suggestion: Some(
-                    "Add `bearer_auth_header(token: &str) -> HeaderValue` to vox-reqwest-defaults".into(),
+                    "Use `vox_http_client::bearer_auth_header(token)` (defined in vox-http-client)".into(),
                 ),
                 context: String::new(),
                 confidence: Some(FindingConfidence::High),

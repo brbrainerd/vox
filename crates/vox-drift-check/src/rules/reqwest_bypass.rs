@@ -4,7 +4,7 @@ use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct ReqwestBypassRule;
 
-const ALLOWED_CRATES: &[&str] = &["vox-reqwest-defaults"];
+const ALLOWED_CRATES: &[&str] = &["vox-http-client"];
 const FORBIDDEN: &[&[&str]] = &[
     &["reqwest", "Client", "new"],
     &["reqwest", "Client", "builder"],
@@ -46,7 +46,7 @@ impl DriftRule for ReqwestBypassRule {
                 line: cs.loc.line,
                 column: cs.loc.col,
                 message: format!(
-                    "Direct reqwest `{}` bypasses vox-reqwest-defaults (timeouts, UA, pooling)",
+                    "Direct reqwest `{}` bypasses vox-http-client (timeouts, UA, pooling)",
                     cs.path.join("::")
                 ),
                 suggestion: Some(

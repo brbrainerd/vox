@@ -15,6 +15,9 @@ sandbox_roots:
   # compile-suite: a multi-package (desktop+server) sample project used for
   # end-to-end compile testing. Added 2026-05-25.
   - examples/compile-suite
+  # cli-tour: walkthrough snippets used in the `vox` CLI tour docs.
+  # Not corpus goldens — added 2026-05-28.
+  - examples/cli-tour
 
 negative_roots:
   - examples/parser-inventory

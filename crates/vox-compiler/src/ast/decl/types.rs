@@ -97,6 +97,8 @@ pub enum Decl {
     McpResource(McpResourceDecl),
     /// Unit test entrypoint.
     Test(TestDecl),
+    /// Authored reference example (corpus / docs surface).
+    Example(ExampleDecl),
     /// Property-based test declaration.
     Forall(ForallDecl),
     /// Codex table schema.
@@ -179,6 +181,7 @@ impl Decl {
             Decl::HttpRoute(h) => h.span,
             Decl::McpTool(m) => m.func.span,
             Decl::Test(t) => t.func.span,
+            Decl::Example(e) => e.func.span,
             Decl::Forall(f) => f.func.span,
             Decl::Table(t) => t.span,
             Decl::Collection(c) => c.span,

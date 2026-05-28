@@ -119,6 +119,7 @@ impl Printer {
                 self.print_fn_body(&s.func.params, &s.func.return_type, &s.func.body);
             }
             Decl::Test(t) => self.print_fn(&t.func, "@test "),
+            Decl::Example(e) => self.print_fn(&e.func, "@example "),
             Decl::McpTool(m) => {
                 self.write_indent();
                 self.out

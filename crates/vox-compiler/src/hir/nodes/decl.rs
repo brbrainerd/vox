@@ -39,6 +39,9 @@ pub struct HirModule {
 
     /// `@test` functions.
     pub tests: Vec<HirFn>,
+    /// `@example` functions — authored reference demonstrations for corpus / docs.
+    #[serde(default)]
+    pub examples: Vec<HirFn>,
     /// `@forall` properties.
     pub foralls: Vec<HirForall>,
     /// Unified endpoint functions (`@endpoint`, `@server`, `@query`, `@mutation`).
