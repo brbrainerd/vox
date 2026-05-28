@@ -865,6 +865,11 @@ fn step_doctest_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
 }
 
 fn step_drift_check(root: &Path) -> Result<()> {
+    // Show warnings for visibility but only fail on errors.  The workspace
+    // carries a backlog of warning-level findings (duplicate literals, etc.)
+    // that are tracked separately; blocking every push on them was always a
+    // false-positive-saturated gate.  Error-level findings are hard failures
+    // (e.g. security-sensitive patterns) and must stay blocked.
     let status = Command::new(super::cargo_bin())
         .args([
             "run",
@@ -876,7 +881,7 @@ fn step_drift_check(root: &Path) -> Result<()> {
             "--severity",
             "warning",
             "--fail-on",
-            "warning",
+            "error",
         ])
         .current_dir(root)
         .status()

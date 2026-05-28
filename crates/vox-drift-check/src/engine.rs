@@ -42,7 +42,11 @@ impl DriftEngine {
                     _ => return None,
                 };
                 let hash = FeatureCache::hash_file(&content);
-                if let Some(cached) = cache.load(&hash) {
+                if let Some(mut cached) = cache.load(&hash) {
+                    // Always use the current path — the cached entry may have been
+                    // recorded from a different location (e.g. an agent worktree) with
+                    // identical content.
+                    cached.file = p.clone();
                     return Some(cached);
                 }
                 let result = extractor.extract(p, &content).ok()?;
@@ -95,12 +99,13 @@ impl DriftEngine {
                 let name = e.file_name().to_string_lossy();
                 !matches!(
                     name.as_ref(),
-                    "target" | "node_modules" | ".git" | "archive"
+                    "target" | "node_modules" | ".git" | "archive" | ".claude"
                 ) && name != ".vox-cache"
             })
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().is_file())
             .map(|e| e.into_path())
+            .filter(|p| !path_contains_claude(p))
             .filter(|p| {
                 matches!(
                     detect_language(p),
@@ -109,6 +114,12 @@ impl DriftEngine {
             })
             .collect()
     }
+}
+
+/// Returns true if any path component equals `.claude` (agent worktree root).
+/// Belt-and-suspenders guard alongside the `filter_entry` name check above.
+fn path_contains_claude(path: &Path) -> bool {
+    path.components().any(|c| c.as_os_str() == ".claude")
 }
 
 pub fn detect_language(path: &Path) -> Language {
