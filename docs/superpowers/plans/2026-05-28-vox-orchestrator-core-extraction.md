@@ -35,7 +35,7 @@
 - Read: `docs/src/architecture/layers.toml` (verify `vox-orchestrator.max_loc`)
 - Read: `vox-arch-check` output
 
-- [ ] **Step 1: Run arch-check and capture vox-orchestrator findings**
+- [x] **Step 1: Run arch-check and capture vox-orchestrator findings**
 
 Run:
 ```powershell
@@ -46,17 +46,19 @@ Expected output: zero or more lines mentioning `vox-orchestrator`. Look specific
 - A Rule 13 (LoC delta) warning of the form `vox-orchestrator: current_loc N grew M% vs baseline …` — if present, the gate has FIRED.
 - A Rule 3 (LoC budget) line of the form `vox-orchestrator: NNNNN / 70000 LoC` — capture the current LoC.
 
-- [ ] **Step 2: Compute headroom**
+- [x] **Step 2: Compute headroom**
 
 Headroom = (70000 − current_loc) / 70000 × 100.
 
-- [ ] **Step 3: Decide continue or exit**
+- [x] **Step 3: Decide continue or exit**
 
 Continue to D1 if EITHER:
 - Rule 13 fired against `vox-orchestrator`, OR
 - Headroom < 5% (current_loc > 66,500)
 
 Otherwise: **STOP the plan here.** Record the current LoC in this plan doc below this checkbox, commit the doc update with message `docs(plan): D0 gate check 2026-MM-DD — not tripped (N LoC, M% headroom)`, and re-run D0 at the next release tag.
+
+**D0 result (recorded 2026-05-28):** Gate NOT tripped. vox-orchestrator at 61061 LoC, 12.8% headroom against max_loc=70_000. Rule 13: not firing. Plan exits here; re-run D0 at the next release tag.
 
 - [ ] **Step 4: (If continuing) Verify no active MENS / mesh sprint touches `vox-orchestrator/src/`**
 
