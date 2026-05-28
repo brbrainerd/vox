@@ -68,7 +68,15 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::ReactiveComponent(r) => ("reactive_component".into(), r.name.clone()),
         Decl::ReactiveModule(r) => ("reactive_module".into(), r.name.clone()),
         Decl::Fragment(f) => ("fragment".into(), f.name.clone()),
-        Decl::Endpoint(e) => ("endpoint".into(), e.func.name.clone()),
+        Decl::Endpoint(e) => {
+            use vox_compiler::ast::decl::EndpointKind;
+            let kind_label = match e.kind {
+                EndpointKind::Query => "query",
+                EndpointKind::Mutation => "mutation",
+                EndpointKind::Server => "server_fn",
+            };
+            (kind_label.into(), e.func.name.clone())
+        }
         Decl::Url(u) => ("url".into(), u.name.clone()),
         Decl::StateMachine(s) => ("state_machine".into(), s.name.clone()),
         Decl::Workflow(w) => ("workflow".into(), w.name.clone()),

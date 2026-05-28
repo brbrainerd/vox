@@ -2,9 +2,13 @@ schema_version: 1
 # Golden declaration coverage (Mens / CI).
 # Histogram source: `vox ci corpus-decl-coverage` → `target/dogfood/corpus_decl_coverage.json`.
 # Cross-check with docs/src/reference/parser-feature-matrix.md when expanding parser surface.
+#
+# Excluded from required_decl_kinds (add back once grammar is active):
+#   - actor      : TASK-2.6 — native actor block grammar not yet reinstated
+#   - http_route : Token::Http tombstoned in parser/descent/mod.rs (use @query/@mutation instead)
+#   - agent      : Token::Agent tombstoned in parser/descent/mod.rs (sunset 2026-08-01 in tests)
 required_decl_kinds:
   - fn
-  - actor
   - workflow
   - activity
   - type
@@ -15,8 +19,6 @@ required_decl_kinds:
   - table
   - query
   - mutation
-  - http_route
   - server_fn
   - reactive_component
   - routes
-  - agent
