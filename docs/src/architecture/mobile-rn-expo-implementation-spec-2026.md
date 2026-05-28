@@ -253,7 +253,7 @@ The emitter never sees `@tauri-apps/api/event` or `BackHandler` directly. It onl
 | `clients/runtime-rn/src/index.ts` (Expo stubs in Phase 1; real in Phase 3) | 300 | Phase 1 stubs / Phase 3 real |
 | `clients/runtime-rn/package.json` | 35 | Phase 1 |
 
-The `clients/` top-level directory is new. Existing repo precedent for npm-published artifacts: review `pkgs/` if one exists; otherwise `clients/` is the conventional location (consistent with [Codegen SSOT Unification 2026](codegen-ssot-unification-design-2026.md)'s planned `@vox/runtime` ship).
+The `clients/` top-level directory is new. Existing repo precedent for npm-published artifacts: review `pkgs/` if one exists; otherwise `clients/` is the conventional location (consistent with Codegen SSOT Unification 2026 (design doc not yet filed)'s planned `@vox/runtime` ship).
 
 ### §3.4 Emitter refactor (`mobile_emit.rs` changes)
 
@@ -1162,7 +1162,7 @@ This is a significant net deletion. The deleted code's responsibilities are abso
 
 **Deliverables:**
 
-- Per [Codegen SSOT Unification 2026](codegen-ssot-unification-design-2026.md): VUV-style IR formally adopted by both translators. The branch in `emitter.rs` (§6.2) collapses to a dispatch table.
+- Per Codegen SSOT Unification 2026 (design doc not yet filed): VUV-style IR formally adopted by both translators. The branch in `emitter.rs` (§6.2) collapses to a dispatch table.
 - `@vox/runtime` and `@vox/runtime-rn` interface types are published from a shared `clients/runtime-types/` package consumed by both.
 - Single golden-test harness validates BOTH lowerings per `.vox` file (one new snapshot, two snap files).
 
@@ -1223,7 +1223,7 @@ This is in the 5-10K-LoC range originally estimated. The deletions (vox-tauri-st
 - Decision rationale: [mobile-target-evaluation-2026.md](mobile-target-evaluation-2026.md)
 - Architecture overview: [mobile-rn-expo-architecture-and-migration-2026.md](mobile-rn-expo-architecture-and-migration-2026.md)
 - ADR scoping Tauri to desktop: [adr-NNN-scope-tauri-desktop-only.md](adr-NNN-scope-tauri-desktop-only.md)
-- Absorbing into emit-unification: [codegen-ssot-unification-design-2026.md](codegen-ssot-unification-design-2026.md)
+- Absorbing into emit-unification: `codegen-ssot-unification-design-2026.md` (design doc not yet filed)
 - The existing migration plan that this supersedes for Phase 5+: [tauri-convergence-migration-plan-2026.md](tauri-convergence-migration-plan-2026.md)
 
 ---
