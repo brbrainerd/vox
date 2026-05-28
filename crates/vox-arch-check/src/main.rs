@@ -1195,6 +1195,20 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     Ok(report)
 }
 
+/// Count lines in a byte slice with the same semantics as
+/// `std::str::Lines::count()`: lines are split on `\n` (or `\r\n`), and a
+/// trailing newline does NOT add an empty trailing line.
+///
+/// Used by Rule 13 to match what the original per-file `git show` + `lines().count()`
+/// produced, now that we read blobs directly via `git cat-file --batch`.
+fn count_lines_in_bytes(body: &[u8]) -> usize {
+    if body.is_empty() {
+        return 0;
+    }
+    let nl = body.iter().filter(|&&b| b == b'\n').count();
+    if body.last() == Some(&b'\n') { nl } else { nl + 1 }
+}
+
 /// Rule 13 helper — count LoC in every budgeted crate's `src/` tree at the given
 /// git tag, using a single `git cat-file --batch` invocation.
 ///
@@ -1315,12 +1329,8 @@ fn git_loc_at_tag_batch(
         let parts: Vec<&str> = header.split_whitespace().collect();
         if parts.len() == 3 && parts[1] == "blob" {
             let size: usize = parts[2].parse().ok()?;
-            // Count newlines in body
             let body_end = (idx + size).min(buf.len());
-            let lines = buf[idx..body_end].iter().filter(|&&b| b == b'\n').count();
-            // git omits a trailing newline if the file doesn't end with one;
-            // approximate by counting newlines (matches the prior implementation
-            // which used `lines().count()` — close enough for a regression check).
+            let lines = count_lines_in_bytes(&buf[idx..body_end]);
             let md = &blob_to_manifest[blob_i];
             *result.entry(md.clone()).or_insert(0) += lines;
             idx = body_end + 1; // skip trailing '\n' after blob body
@@ -1630,6 +1640,32 @@ mod walk_and_staleness_tests {
             !files.iter().any(|p| p.to_string_lossy().contains("target")),
             "must not descend into target/: {files:?}"
         );
+    }
+
+    /// Locks in the Rule 13 line-count semantics. The batched
+    /// `git cat-file --batch` reader counts lines manually from raw bytes, so
+    /// we explicitly assert it matches `str::lines().count()` for every edge
+    /// case that mattered in the original per-file `git show` path.
+    #[test]
+    fn count_lines_in_bytes_matches_str_lines() {
+        for s in &[
+            "",
+            "\n",
+            "foo",
+            "foo\n",
+            "foo\nbar",
+            "foo\nbar\n",
+            "foo\nbar\nbaz\n",
+            "\n\n\n",
+            "a\r\nb",
+            "a\r\nb\r\n",
+        ] {
+            assert_eq!(
+                count_lines_in_bytes(s.as_bytes()),
+                s.lines().count(),
+                "line count mismatch for {s:?}"
+            );
+        }
     }
 
     #[test]
