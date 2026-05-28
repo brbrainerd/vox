@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use vox_repository::resolve_repo_root_for_ci;
 
-const ROLLBACK_REL: &str = ".vox/toolchain-upgrade-rollback.json";
+const ROLLBACK_REL: &str = vox_config::paths::REPO_TOOLCHAIN_ROLLBACK_FILE;
 const ROLLBACK_SCHEMA: u32 = 1;
 
 #[derive(Serialize, Deserialize)]

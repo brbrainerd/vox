@@ -92,7 +92,7 @@ pub async fn generate() -> Result<()> {
         return Ok(());
     }
 
-    let agents_dir = Path::new(".vox/agents");
+    let agents_dir = Path::new(vox_config::paths::REPO_AGENTS_DIR);
     fs::create_dir_all(agents_dir).context("Failed to create .vox/agents directory")?;
 
     for entry in fs::read_dir(crates_dir)? {

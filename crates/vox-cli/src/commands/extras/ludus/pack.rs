@@ -7,7 +7,7 @@ use owo_colors::OwoColorize;
 pub async fn pack_list() -> Result<()> {
     // Try to load Lex Pack from project root
     let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let pack_path = root.join(".vox/ludus/lex-pack.toml");
+    let pack_path = root.join(vox_config::paths::REPO_LUDUS_PACK_FILE);
 
     println!(
         "{}",
@@ -75,7 +75,7 @@ pub async fn pack_list() -> Result<()> {
 /// Initialize a new Lex Pack.
 pub async fn pack_init(template: &str) -> Result<()> {
     let root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let ludus_dir = root.join(".vox/ludus");
+    let ludus_dir = root.join(vox_config::paths::REPO_LUDUS_DIR);
     if !ludus_dir.exists() {
         std::fs::create_dir_all(&ludus_dir)?;
     }

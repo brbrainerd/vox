@@ -23,7 +23,10 @@ async fn test_linkedin_post_success() {
 
     Mock::given(method("POST"))
         .and(path("/rest/posts"))
-        .and(header("Authorization", "Bearer test-token"))
+        .and(header(
+            "Authorization",
+            vox_http_client::bearer_auth_header_string("test-token").as_str(),
+        ))
         .and(header("Linkedin-Version", "202504"))
         .and(header("X-RestLi-Protocol-Version", "2.0.0"))
         .respond_with(ResponseTemplate::new(201).insert_header("x-restli-id", "urn:li:share:456"))

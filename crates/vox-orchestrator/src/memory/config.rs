@@ -73,6 +73,6 @@ impl MemoryConfig {
 
 impl Default for MemoryConfig {
     fn default() -> Self {
-        Self::for_account("global", ".vox/memory")
+        Self::for_account("global", vox_config::paths::REPO_MEMORY_DIR)
     }
 }

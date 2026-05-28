@@ -38,6 +38,7 @@ cloud = ["dep:vox-populi", "dep:tokio", "dep:vox-http-client", "dep:async-trait"
 serve = ["dep:axum", "axum/multipart", "dep:tokio", "stt-candle"]
 
 [dependencies]
+vox-config = { workspace = true }
 vox-populi = { workspace = true, optional = true, features = ["mens-cloud"] }
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }

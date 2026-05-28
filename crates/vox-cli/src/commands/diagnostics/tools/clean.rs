@@ -18,7 +18,7 @@ pub async fn run(all: bool) -> Result<()> {
         cleaned += 1;
     }
 
-    let cache_dir = std::path::PathBuf::from(".vox-cache");
+    let cache_dir = std::path::PathBuf::from(vox_config::paths::REPO_DOT_VOX_CACHE_DIR);
     if tokio::fs::try_exists(&cache_dir).await.unwrap_or(false) {
         crate::diagnostics::print_info("Cleaning .vox-cache/...");
         tokio::fs::remove_dir_all(&cache_dir).await?;

@@ -190,6 +190,8 @@ pub const REPO_AGENTS_DIR: &str = ".vox/agents";
 pub const REPO_AGENTS_GLOB: &str = ".vox/agents/**";
 /// `.vox/cache/` repo subdirectory.
 pub const REPO_CACHE_DIR: &str = ".vox/cache";
+/// `.vox/cache/` prefix (with trailing slash; for ignore-list prefix matching).
+pub const REPO_CACHE_DIR_PREFIX: &str = ".vox/cache/";
 /// `.vox/cache/drift` — drift-check cache root.
 pub const REPO_DRIFT_CACHE_DIR: &str = ".vox/cache/drift";
 /// `.vox/cache/drift/baseline.json` — drift-check baseline snapshot.

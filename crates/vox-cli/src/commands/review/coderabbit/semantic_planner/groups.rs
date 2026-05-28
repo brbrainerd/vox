@@ -14,7 +14,7 @@ pub(crate) static IGNORED_DIRS: &[&str] = &[
     ".cargo-targets/",
     "docs/book/",          // generated mdBook HTML (in .gitignore but sometimes tracked)
     ".vox-research-data/", // local SQLite cache
-    ".vox/cache/",
+    vox_config::paths::REPO_CACHE_DIR_PREFIX,
     ".gemini/",
     ".cursor/",
     "node_modules/",

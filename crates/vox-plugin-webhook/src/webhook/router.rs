@@ -122,7 +122,7 @@ async fn bearer_auth_middleware(
                 .headers()
                 .get("Authorization")
                 .and_then(|v| v.to_str().ok())
-                .and_then(|v| v.strip_prefix("Bearer "));
+                .and_then(|v| v.strip_prefix(vox_http_client::BEARER_PREFIX));
 
             if provided == Some(expected_token.as_ref()) {
                 next.run(request).await

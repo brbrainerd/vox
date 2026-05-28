@@ -278,7 +278,7 @@ fn load_lexicon_from_env() -> Option<crate::oratio_internals::speech_lexicon::Sp
     let repo_root_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot);
     let repo_root = repo_root_resolved.expose();
     if let Some(root) = repo_root {
-        let candidate = Path::new(root.trim()).join(".vox/speech_lexicon.json");
+        let candidate = Path::new(root.trim()).join(vox_config::paths::REPO_SPEECH_LEXICON_FILE);
         if let Some(lex) = try_load_lexicon_path(&candidate) {
             acc.merge_from(lex);
         }

@@ -13,6 +13,7 @@ replication = ["vox-db/replication"]
 
 [dependencies]
 vox-package-types = { workspace = true }
+vox-config = { workspace = true }
 vox-db = { workspace = true }
 vox-compiler = { workspace = true }
 bincode = { workspace = true }

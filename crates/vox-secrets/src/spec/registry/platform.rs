@@ -433,7 +433,7 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Bearer token for private registry access.",
+        remediation: "Token for private registry access (sent as a Bearer Authorization header).",
         scope_description: "",
     },
     SecretSpec {
@@ -664,7 +664,7 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Bearer token for MCP HTTP server.",
+        remediation: "Token for MCP HTTP server (sent as a Bearer Authorization header).",
         scope_description: "",
     },
     SecretSpec {

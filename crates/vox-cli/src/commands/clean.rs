@@ -21,7 +21,7 @@ pub async fn run(all: bool) -> Result<()> {
     }
 
     // Clean the project-local artifact cache
-    let cache_dir = std::path::PathBuf::from(".vox-cache");
+    let cache_dir = std::path::PathBuf::from(vox_config::paths::REPO_DOT_VOX_CACHE_DIR);
     if cache_dir.exists() {
         println!("Cleaning .vox-cache/...");
         tokio::fs::remove_dir_all(&cache_dir).await?;

@@ -23,7 +23,10 @@ async fn test_twitter_post_success() {
 
     Mock::given(method("POST"))
         .and(path("/2/tweets"))
-        .and(header("Authorization", "Bearer test-token"))
+        .and(header(
+            "Authorization",
+            vox_http_client::bearer_auth_header_string("test-token").as_str(),
+        ))
         .and(body_json(json!({"text": "Test Content"})))
         .respond_with(ResponseTemplate::new(201).set_body_json(json!({
             "data": { "id": "tweet-123" }

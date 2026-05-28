@@ -77,7 +77,7 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
         prompt.push_str("\n\n");
     } else {
         // Legacy layout (pre–`.vox/memory/`): single file at repo `.vox/MEMORY.md`
-        let legacy = ws_root.join(".vox/MEMORY.md");
+        let legacy = ws_root.join(vox_config::paths::REPO_MEMORY_INDEX_FILE);
         if legacy != memory_path {
             if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(&legacy) {
                 prompt.push_str("## Repository memory (.vox/MEMORY.md legacy)\n\n");

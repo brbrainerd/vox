@@ -28,6 +28,7 @@ cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 [dependencies]
 vox-plugin-api = { workspace = true }
 abi_stable = { workspace = true }
+vox-config = { workspace = true }
 vox-secrets = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true }

@@ -131,7 +131,7 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
                     .headers()
                     .get(header::AUTHORIZATION)
                     .and_then(|h| h.to_str().ok())
-                    .and_then(|s| s.strip_prefix("Bearer "))
+                    .and_then(|s| s.strip_prefix(vox_http_client::BEARER_PREFIX))
                     .map(str::trim)
                     .filter(|t| !t.is_empty());
                 let Some(presented) = token else {

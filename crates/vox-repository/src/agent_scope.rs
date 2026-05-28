@@ -10,7 +10,7 @@ pub fn agents_dir(repo_root: &Path) -> PathBuf {
 
 /// Repo-relative glob for agent definitions (for `scope:` documentation defaults).
 pub fn agents_glob_repo_relative() -> &'static str {
-    ".vox/agents/**"
+    vox_config::paths::REPO_AGENTS_GLOB
 }
 
 /// Read `scope:` from `.vox/agents/{agent_name}.md` front matter (first `scope:` line wins).

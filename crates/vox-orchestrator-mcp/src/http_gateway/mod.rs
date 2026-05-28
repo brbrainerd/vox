@@ -454,7 +454,7 @@ pub(super) fn resolve_access_role(
 
     if let Some(auth) = headers.get("authorization").and_then(|v| v.to_str().ok()) {
         got = auth
-            .strip_prefix("Bearer ")
+            .strip_prefix(vox_http_client::BEARER_PREFIX)
             .unwrap_or_default()
             .trim()
             .to_string();

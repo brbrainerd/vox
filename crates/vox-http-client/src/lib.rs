@@ -7,6 +7,9 @@ pub mod envelope;
 use reqwest::header::{HeaderValue, InvalidHeaderValue};
 use std::time::Duration;
 
+/// `Authorization: Bearer ` prefix — single literal for both senders and parsers.
+pub const BEARER_PREFIX: &str = "Bearer ";
+
 /// Default connect timeout for outbound HTTP (15s — interactive CLI / service).
 pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 /// Idle connection pool timeout (90s).
@@ -39,14 +42,14 @@ pub fn client() -> reqwest::Client {
 ///
 /// SSOT for bearer-token formatting — drift-check flags inline `"Bearer {token}"` strings.
 pub fn bearer_auth_header(token: &str) -> Result<HeaderValue, InvalidHeaderValue> {
-    let mut v = HeaderValue::from_str(&format!("Bearer {token}"))?;
+    let mut v = HeaderValue::from_str(&bearer_auth_header_string(token))?;
     v.set_sensitive(true);
     Ok(v)
 }
 
 /// As [`bearer_auth_header`], formatted as a raw `String` (for headers maps keyed by string).
 pub fn bearer_auth_header_string(token: &str) -> String {
-    format!("Bearer {token}")
+    format!("{BEARER_PREFIX}{token}")
 }
 
 #[cfg(feature = "middleware")]

@@ -68,7 +68,7 @@ impl ArtifactCache {
 
     /// Open the default project-local cache at `<project_root>/.vox-cache`.
     pub fn default_for(project_root: &Path) -> io::Result<Self> {
-        Self::new(project_root.join(".vox-cache"))
+        Self::new(project_root.join(vox_config::paths::REPO_DOT_VOX_CACHE_DIR))
     }
 
     /// Compute a cache key from a set of input paths.

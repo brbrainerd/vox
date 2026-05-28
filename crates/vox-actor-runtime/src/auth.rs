@@ -62,8 +62,7 @@ pub fn authorize_request(
 /// Parse `Authorization: Bearer <token>`.
 pub fn parse_bearer_token(header: Option<&str>) -> Option<&str> {
     let value = header?.trim();
-    let prefix = "Bearer ";
-    value.strip_prefix(prefix)
+    value.strip_prefix(vox_http_client::BEARER_PREFIX)
 }
 
 /// Constant-time byte comparison to avoid timing side channels.
