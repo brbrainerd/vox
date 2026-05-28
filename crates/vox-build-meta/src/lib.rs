@@ -44,3 +44,14 @@ fn git_stdout(args: &[&str]) -> Option<String> {
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn git_stdout_with_bogus_arg_returns_none() {
+        // A non-existent git subcommand must not panic; should return None.
+        assert!(git_stdout(&["this-is-not-a-real-git-subcommand-xyz"]).is_none());
+    }
+}

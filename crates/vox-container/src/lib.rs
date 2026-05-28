@@ -23,6 +23,24 @@ pub use detect::detect_runtime;
 pub use vox_container_types::exec_grammar;
 pub use vox_container_types::{BuildOpts, ContainerRuntime, RunOpts, RuntimePreference};
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn runtime_preference_default_is_sensible() {
+        // Default preference must be a valid variant — just exercise it for module-load signal.
+        let pref = RuntimePreference::default();
+        let _debug = format!("{pref:?}");
+    }
+
+    #[test]
+    fn log_exec_risk_does_not_panic_on_garbage() {
+        // Unparseable input should be logged at debug, never panic.
+        log_exec_risk("\0\0\0not a command");
+    }
+}
+
 /// Classify the exec risk of a container image or command string and log the result.
 ///
 /// Called before any container run dispatch. Uses `vox-exec-grammar`'s risk classifier.

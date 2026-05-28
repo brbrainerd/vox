@@ -5,3 +5,16 @@
 
 pub mod primitive_tags;
 pub mod renames;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn primitives_include_core_gui_tags() {
+        assert!(primitive_tags::is_primitive("stack"));
+        assert!(primitive_tags::is_primitive("button"));
+        assert!(!primitive_tags::is_primitive("not-a-real-primitive"));
+        assert!(!primitive_tags::all_primitives().is_empty());
+    }
+}

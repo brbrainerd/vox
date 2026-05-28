@@ -23,3 +23,14 @@ pub use node_record::{
     filter_registry_by_max_stale_ms, node_maintenance_blocks_new_work,
     sweep_expired_maintenance_on_nodes,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn max_maintenance_is_seven_days_in_ms() {
+        // Documented contract: 7d cap on operator maintenance windows.
+        assert_eq!(MAX_MAINTENANCE_FOR_MS, 7 * 24 * 60 * 60 * 1000);
+    }
+}

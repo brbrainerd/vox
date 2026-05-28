@@ -17,3 +17,16 @@ pub use plugin_manifest::{
 };
 pub use skill_manifest::{SkillCategory, SkillManifest, SkillPermission};
 pub use state_backend::{PluginStateBackend, PluginStateError, PluginStateSkillEntry};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skill_manifest_default_has_empty_id() {
+        let m = SkillManifest::default();
+        assert_eq!(m.id, "");
+        assert!(m.permissions.is_empty());
+        assert!(m.tools.is_empty());
+    }
+}

@@ -109,3 +109,17 @@ impl MockBulletinBoard {
         self.messages.lock().unwrap().clear();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mock_bulletin_board_starts_empty_and_clears() {
+        let board = MockBulletinBoard::new();
+        assert_eq!(board.message_count(), 0);
+        assert!(board.recorded_messages().is_empty());
+        board.clear();
+        assert_eq!(board.message_count(), 0);
+    }
+}
