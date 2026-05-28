@@ -207,6 +207,9 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         opts.report_json.as_deref(),
     )?;
     append_prepush_audit_log(root, &opts, total_ms)?;
+    if opts.enforce_budgets {
+        check_tier_budget(root, profile_name(&opts), total_ms)?;
+    }
     Ok(())
 }
 
@@ -282,6 +285,66 @@ struct PrePushAuditLine {
     complete: bool,
     full: bool,
     with_coverage: bool,
+}
+
+/// Map a profile name to the corresponding key in `test-tier-budgets.v1.yaml`.
+///
+/// `full+since` and `full+cov+since` reuse the `full` / `full_cov` budgets — they should be
+/// faster (impacted-crate subset), so they will pass trivially. If `--since` somehow falls
+/// back to workspace, the budget check catches the regression.
+fn tier_budget_key(profile: &str) -> Option<&'static str> {
+    match profile {
+        "fast" => Some("fast"),
+        "complete" => Some("complete"),
+        "full" | "full+since" => Some("full"),
+        "full+cov" | "full+cov+since" => Some("full_cov"),
+        _ => None,
+    }
+}
+
+/// Read `contracts/budgets/test-tier-budgets.v1.yaml` and compare `total_ms` against the
+/// `warn_ms` / `fail_ms` thresholds for the current tier.
+///
+/// - Returns `Ok(())` immediately if the budgets file is absent (safe on first clone).
+/// - Prints a warning to stderr when `total_ms > warn_ms` (1.2× baseline).
+/// - Returns `Err` when `total_ms > fail_ms` (1.5× baseline), causing the command to fail.
+fn check_tier_budget(root: &Path, profile: &str, total_ms: u64) -> Result<()> {
+    let budgets_path = root.join("contracts/budgets/test-tier-budgets.v1.yaml");
+    if !budgets_path.exists() {
+        return Ok(());
+    }
+    let raw = std::fs::read_to_string(&budgets_path)
+        .with_context(|| format!("read {}", budgets_path.display()))?;
+    let doc: serde_yaml::Value =
+        serde_yaml::from_str(&raw).with_context(|| format!("parse {}", budgets_path.display()))?;
+    let Some(tier_key) = tier_budget_key(profile) else {
+        return Ok(());
+    };
+    let Some(tiers) = doc.get("tiers") else {
+        return Ok(());
+    };
+    let Some(tier) = tiers.get(tier_key) else {
+        return Ok(());
+    };
+    let warn_ms = tier.get("warn_ms").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
+    let fail_ms = tier.get("fail_ms").and_then(|v| v.as_u64()).unwrap_or(u64::MAX);
+    if total_ms > fail_ms {
+        bail!(
+            "pre-push budget exceeded: profile `{}` took {}ms > fail threshold {}ms \
+             (see contracts/budgets/test-tier-budgets.v1.yaml)",
+            profile,
+            total_ms,
+            fail_ms
+        );
+    }
+    if total_ms > warn_ms {
+        eprintln!(
+            "pre-push budget warning: profile `{}` took {}ms > warn threshold {}ms \
+             (see contracts/budgets/test-tier-budgets.v1.yaml)",
+            profile, total_ms, warn_ms
+        );
+    }
+    Ok(())
 }
 
 fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> Result<()> {
@@ -1092,4 +1155,106 @@ fn changed_dirs_under_crates(root: &Path) -> Result<Vec<PathBuf>> {
         }
     }
     Ok(seen.into_iter().collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn write_budget_yaml(dir: &std::path::Path, yaml: &str) {
+        let budgets_dir = dir.join("contracts/budgets");
+        std::fs::create_dir_all(&budgets_dir).expect("create budgets dir");
+        std::fs::write(budgets_dir.join("test-tier-budgets.v1.yaml"), yaml)
+            .expect("write budget yaml");
+    }
+
+    #[test]
+    fn budget_missing_file_is_noop() {
+        let dir = tempdir().unwrap();
+        // No budgets file present — must never fail regardless of elapsed.
+        assert!(
+            check_tier_budget(dir.path(), "fast", u64::MAX).is_ok(),
+            "missing budgets file must be a no-op"
+        );
+    }
+
+    #[test]
+    fn budget_under_warn_threshold_is_clean() {
+        let dir = tempdir().unwrap();
+        write_budget_yaml(
+            dir.path(),
+            "schema_version: 1\ntiers:\n  fast:\n    measured_ms: 1000\n    warn_ms: 1200\n    fail_ms: 1500\n",
+        );
+        assert!(
+            check_tier_budget(dir.path(), "fast", 1000).is_ok(),
+            "elapsed < warn_ms must be OK"
+        );
+    }
+
+    #[test]
+    fn budget_between_warn_and_fail_is_warning_only() {
+        let dir = tempdir().unwrap();
+        write_budget_yaml(
+            dir.path(),
+            "schema_version: 1\ntiers:\n  fast:\n    measured_ms: 1000\n    warn_ms: 1200\n    fail_ms: 1500\n",
+        );
+        // Over warn but under fail — should succeed (warning printed to stderr but no error).
+        assert!(
+            check_tier_budget(dir.path(), "fast", 1300).is_ok(),
+            "warn_ms < elapsed < fail_ms must still return Ok"
+        );
+    }
+
+    #[test]
+    fn budget_over_fail_threshold_returns_err() {
+        let dir = tempdir().unwrap();
+        write_budget_yaml(
+            dir.path(),
+            "schema_version: 1\ntiers:\n  fast:\n    measured_ms: 1000\n    warn_ms: 1200\n    fail_ms: 1500\n",
+        );
+        assert!(
+            check_tier_budget(dir.path(), "fast", 1600).is_err(),
+            "elapsed > fail_ms must return Err"
+        );
+    }
+
+    #[test]
+    fn budget_unknown_profile_is_noop() {
+        let dir = tempdir().unwrap();
+        write_budget_yaml(
+            dir.path(),
+            "schema_version: 1\ntiers:\n  fast:\n    measured_ms: 1000\n    warn_ms: 1200\n    fail_ms: 1500\n",
+        );
+        // "full+since" maps to "full" which is absent in this minimal file — no-op.
+        assert!(
+            check_tier_budget(dir.path(), "full+since", u64::MAX).is_ok(),
+            "profile with no matching tier must be a no-op"
+        );
+    }
+
+    #[test]
+    fn budget_full_since_maps_to_full_tier() {
+        let dir = tempdir().unwrap();
+        write_budget_yaml(
+            dir.path(),
+            "schema_version: 1\ntiers:\n  full:\n    measured_ms: 495000\n    warn_ms: 594000\n    fail_ms: 743000\n",
+        );
+        // full+since re-uses the `full` budget row; should succeed well under threshold.
+        assert!(
+            check_tier_budget(dir.path(), "full+since", 20_000).is_ok(),
+            "full+since must use full budget row"
+        );
+    }
+
+    #[test]
+    fn tier_budget_key_coverage() {
+        assert_eq!(tier_budget_key("fast"), Some("fast"));
+        assert_eq!(tier_budget_key("complete"), Some("complete"));
+        assert_eq!(tier_budget_key("full"), Some("full"));
+        assert_eq!(tier_budget_key("full+since"), Some("full"));
+        assert_eq!(tier_budget_key("full+cov"), Some("full_cov"));
+        assert_eq!(tier_budget_key("full+cov+since"), Some("full_cov"));
+        assert_eq!(tier_budget_key("unknown"), None);
+    }
 }
