@@ -1,0 +1,7 @@
+required = [
+  "Home.tsx",
+  "About.tsx",
+  "routes.manifest.ts",
+  "vox-app-contract.json",
+]
+emits_rust_backend = true

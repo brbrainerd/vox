@@ -1,0 +1,6 @@
+required = [
+  "vox-app-contract.json",
+  "vox-client.ts",
+  "openapi.json",
+]
+emits_rust_backend = true

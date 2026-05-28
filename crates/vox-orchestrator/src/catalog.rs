@@ -457,8 +457,71 @@ impl PopuliMeshCatalog {
 #[async_trait::async_trait]
 impl ModelCatalog for PopuliMeshCatalog {
     async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
-        // In a real implementation, this would poll the mesh discovery DHT or a registry node.
-        // For now, we return an empty list or a placeholder.
+        discover_populi_mesh_models().await
+    }
+}
+
+/// Live Populi mesh model discovery via federation directory (mirrors registry refresh).
+pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Error> {
+    #[cfg(feature = "populi-transport")]
+    {
+        let mut control_url_opt = vox_secrets::resolve_secret(
+            vox_secrets::SecretId::VoxOrchestratorMeshControlUrl,
+        )
+        .expose()
+        .map(|s| s.to_string());
+        if control_url_opt.is_none() {
+            control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr)
+                .expose()
+                .map(|s| s.to_string());
+        }
+        let Some(control_url) = control_url_opt else {
+            return Ok(vec![]);
+        };
+        let client =
+            vox_populi::http_client::PopuliHttpClient::new(control_url.trim()).with_env_token();
+        let dir = client.federation_directory().await?;
+        let mut specs = Vec::new();
+        for peer in dir.entries {
+            for kind in peer.task_kinds {
+                let kind_str = serde_json::to_value(&kind)
+                    .ok()
+                    .and_then(|v| v.as_str().map(str::to_string))
+                    .unwrap_or_else(|| "general".to_string());
+                specs.push(ModelSpec {
+                    id: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                    canonical_slug: format!("mesh/{}/{}", peer.scope_id, kind_str),
+                    provider: "mens".to_string(),
+                    provider_type: ProviderType::PopuliMesh,
+                    max_tokens: 128_000,
+                    cost_per_1k: 0.0,
+                    cost_per_1k_input: 0.0,
+                    cost_per_1k_output: 0.0,
+                    is_free: true,
+                    strengths: vec![
+                        kind_str
+                            .parse::<StrengthTag>()
+                            .unwrap_or(StrengthTag::Unknown),
+                        StrengthTag::Generalist,
+                    ],
+                    capabilities: ModelCapabilities {
+                        tier: crate::models::ModelTier::Local,
+                        ..Default::default()
+                    },
+                    supported_parameters: vec![],
+                    observed_cost_per_1k: None,
+                    cache_creation_cost_per_1k: 0.0,
+                    cache_read_cost_per_1k: 0.0,
+                    supports_prompt_caching: false,
+                    pricing_source: crate::models::spec::PricingSource::Bootstrap,
+                });
+            }
+        }
+        return Ok(specs);
+    }
+    #[cfg(not(feature = "populi-transport"))]
+    {
+        let _ = ();
         Ok(vec![])
     }
 }

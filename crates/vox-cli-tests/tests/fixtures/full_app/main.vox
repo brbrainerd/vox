@@ -1,0 +1,36 @@
+// A representative cross-section: component + state + route + form + endpoint +
+// state machine. Exercises the orchestration paths that smaller fixtures don't.
+
+@mutation fn add_item(name: str) to int { return 0 }
+
+@form NewItem {
+    field name: str required label("Item name")
+    on_submit: add_item
+}
+
+partial state_machine Loader {
+  state Idle
+  state Loading
+  terminal state Done
+
+  on Start from Idle -> Loading
+  on Finish from Loading -> Done
+}
+
+component HomeScreen() {
+    state count: int = 0
+
+    view: column() {
+        heading(level=1) { "Full App" }
+        button(on_click={count = count + 1}) { "Increment" }
+    }
+}
+
+component AboutScreen() {
+    view: text() { "About" }
+}
+
+routes {
+    "/" to HomeScreen
+    "/about" to AboutScreen
+}

@@ -1,0 +1,18 @@
+# Mobile target. Expects RN component + Expo scaffolding. No Rust backend.
+extra_args = ["--target", "mobile"]
+emits_rust_backend = false
+required = [
+  "Counter.tsx",
+  "App.tsx",
+  "app.json",
+  "babel.config.js",
+  "metro.config.js",
+  "eas.json",
+  "tsconfig.json",
+  "package.json",
+  "vox-app-contract.json",
+]
+forbidden = [
+  # The default web-target file. Its absence on mobile is the regression gate.
+  "vox-tanstack-query.tsx",
+]

@@ -1,0 +1,18 @@
+@query fn load_home() to int { return 0 }
+
+@loading fn HomePending() to Element {
+    return text() { "Loading..." }
+}
+
+component Home() {
+    view: text() { "Home" }
+}
+
+component About() {
+    view: text() { "About" }
+}
+
+routes {
+    "/" to Home
+    "/about" to About
+}

@@ -1,0 +1,7 @@
+state_machine Light {
+  state On
+  state Off
+
+  on Toggle from On -> Off
+  on Toggle from Off -> On
+}

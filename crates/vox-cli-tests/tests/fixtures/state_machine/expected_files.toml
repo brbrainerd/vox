@@ -1,0 +1,5 @@
+required = [
+  "state_machines.ts",
+  "vox-app-contract.json",
+]
+emits_rust_backend = true
