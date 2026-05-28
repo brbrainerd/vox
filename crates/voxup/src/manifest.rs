@@ -14,3 +14,16 @@ impl WorkspaceToolchain {
         serde_yaml::from_str(content)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_minimal_toolchain_yaml() {
+        let yaml = "schema: '1'\nversions: {}\ntargets: {}\ncomponents: {}\n";
+        let tc = WorkspaceToolchain::parse(yaml).unwrap();
+        assert_eq!(tc.schema, "1");
+        assert!(tc.versions.is_empty());
+    }
+}

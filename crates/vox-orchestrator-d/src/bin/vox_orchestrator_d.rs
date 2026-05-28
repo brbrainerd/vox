@@ -12,6 +12,18 @@ use vox_orchestrator::{
     clarification_db_inbox_poll, mesh_federation_poll, orch_daemon,
 };
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn orchestrator_config_default_constructs() {
+        // Cheap smoke: the daemon binary can at least build a default config.
+        let cfg = OrchestratorConfig::default();
+        let _debug = format!("{cfg:?}");
+    }
+}
+
 fn load_config() -> OrchestratorConfig {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let mut candidates = Vec::new();

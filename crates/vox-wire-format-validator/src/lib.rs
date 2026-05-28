@@ -92,3 +92,16 @@ pub fn compute_ssot_hash(repo_root: &Path) -> anyhow::Result<String> {
     let content = std::fs::read(&ssot_path)?;
     Ok(blake3::hash(&content).to_hex().to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expected_hash_is_64_hex_chars() {
+        // blake3 hex digests are exactly 64 lowercase hex chars.
+        assert_eq!(EXPECTED_SSOT_HASH.len(), 64);
+        assert!(EXPECTED_SSOT_HASH.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(DRIFT_DIAGNOSTIC_ID, "vox/wire-format/spec-drift");
+    }
+}

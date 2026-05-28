@@ -647,6 +647,43 @@ fn cargo_status(root: &Path, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+/// Returns a `Command` that invokes the current `vox` binary.
+///
+/// On Windows, `cargo run -p vox-cli` would try to relink `vox.exe`, which
+/// fails with "Access is denied" (os error 5) because the currently running
+/// process holds a lock on the executable. We avoid this by resolving
+/// `current_exe()` and invoking it directly — the binary is already fresh
+/// (we just ran it). On non-Windows platforms we keep using `cargo run` so
+/// that sub-commands always run against the latest source.
+fn vox_self_cmd(root: &Path) -> Command {
+    #[cfg(target_os = "windows")]
+    {
+        let exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("vox.exe"));
+        let mut cmd = Command::new(exe);
+        cmd.current_dir(root);
+        cmd
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let mut cmd = cargo();
+        cmd.args(["run", "-q", "-p", "vox-cli", "--"]);
+        cmd.current_dir(root);
+        cmd
+    }
+}
+
+/// Run a `vox` sub-command from the currently running binary (Windows-safe).
+fn vox_self_status(root: &Path, args: &[&str]) -> Result<()> {
+    let status = vox_self_cmd(root)
+        .args(args)
+        .status()
+        .with_context(|| format!("spawn vox {}", args.join(" ")))?;
+    if !status.success() {
+        bail!("vox {} exited with {:?}", args.join(" "), status.code());
+    }
+    Ok(())
+}
+
 fn git_diff_name_only_for_prepush(root: &Path) -> Result<String> {
     let primary = std::env::var("VOX_PREPUSH_BASE").unwrap_or_else(|_| "origin/main".into());
     let attempt = |base: &str| -> Result<String> {
@@ -725,70 +762,27 @@ fn step_fmt(root: &Path) -> Result<()> {
 }
 
 fn step_line_endings(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &["run", "-q", "-p", "vox-cli", "--", "ci", "line-endings"],
-    )
+    vox_self_status(root, &["ci", "line-endings"])
 }
 
 fn step_ssot_drift(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &["run", "-q", "-p", "vox-cli", "--", "ci", "ssot-drift"],
-    )
+    vox_self_status(root, &["ci", "ssot-drift"])
 }
 
 fn step_check_links(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &["run", "-q", "-p", "vox-cli", "--", "ci", "check-links"],
-    )
+    vox_self_status(root, &["ci", "check-links"])
 }
 
 fn step_retired_symbol_check(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &[
-            "run",
-            "-q",
-            "-p",
-            "vox-cli",
-            "--",
-            "ci",
-            "retired-symbol-check",
-        ],
-    )
+    vox_self_status(root, &["ci", "retired-symbol-check"])
 }
 
 fn step_canonical_map_verify(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &[
-            "run",
-            "-q",
-            "-p",
-            "vox-cli",
-            "--",
-            "ci",
-            "canonical-map-verify",
-        ],
-    )
+    vox_self_status(root, &["ci", "canonical-map-verify"])
 }
 
 fn step_doc_inventory(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &[
-            "run",
-            "-q",
-            "-p",
-            "vox-cli",
-            "--",
-            "ci",
-            "doc-inventory",
-            "verify",
-        ],
-    )
+    vox_self_status(root, &["ci", "doc-inventory", "verify"])
 }
 
 fn step_clippy(root: &Path) -> Result<()> {
@@ -812,25 +806,12 @@ fn step_toestub_changed(root: &Path) -> Result<()> {
         println!("    (no crate changes vs. base — skipping scoped TOESTUB)");
         return Ok(());
     }
-    let mut cmd = cargo();
-    cmd.args([
-        "run",
-        "-q",
-        "-p",
-        "vox-cli",
-        "--",
-        "ci",
-        "toestub-scoped",
-        "--mode",
-        "enforce-warn",
-    ]);
+    let mut cmd = vox_self_cmd(root);
+    cmd.args(["ci", "toestub-scoped", "--mode", "enforce-warn"]);
     for d in &dirs {
         cmd.arg(d);
     }
-    let status = cmd
-        .current_dir(root)
-        .status()
-        .context("spawn vox ci toestub-scoped")?;
+    let status = cmd.status().context("spawn vox ci toestub-scoped")?;
     if !status.success() {
         bail!("toestub-scoped exited with {:?}", status.code());
     }
@@ -863,19 +844,7 @@ fn step_doc_frontmatter_scoped(root: &Path, rel_paths: &[String]) -> Result<()> 
 }
 
 fn step_doctest_md_full(root: &Path) -> Result<()> {
-    cargo_status(
-        root,
-        &[
-            "run",
-            "-q",
-            "-p",
-            "vox-cli",
-            "--",
-            "ci",
-            "doctest-md",
-            "--strict",
-        ],
-    )
+    vox_self_status(root, &["ci", "doctest-md", "--strict"])
 }
 
 fn step_doctest_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
@@ -883,24 +852,12 @@ fn step_doctest_scoped(root: &Path, rel_paths: &[String]) -> Result<()> {
         println!("    (no changed markdown for doctest-md — skipping)");
         return Ok(());
     }
-    let mut cmd = cargo();
-    cmd.args([
-        "run",
-        "-q",
-        "-p",
-        "vox-cli",
-        "--",
-        "ci",
-        "doctest-md",
-        "--strict",
-    ]);
+    let mut cmd = vox_self_cmd(root);
+    cmd.args(["ci", "doctest-md", "--strict"]);
     for rel in rel_paths.iter() {
         cmd.arg(format!("docs/src/{rel}"));
     }
-    let status = cmd
-        .current_dir(root)
-        .status()
-        .context("spawn vox ci doctest-md (scoped)")?;
+    let status = cmd.status().context("spawn vox ci doctest-md (scoped)")?;
     if !status.success() {
         bail!("doctest-md exited with {:?}", status.code());
     }

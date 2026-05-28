@@ -30,3 +30,14 @@ fn manifest_json() -> RString {
 fn init(host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError> {
     sync::make_plugin(host)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_advertises_cloud_id() {
+        let json = manifest_json();
+        assert!(json.as_str().contains("\"cloud\""));
+    }
+}

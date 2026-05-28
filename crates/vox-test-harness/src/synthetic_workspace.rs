@@ -213,10 +213,15 @@ fn write_member(root: &Path, spec: &MemberSpec) -> Result<()> {
     }
     fs::write(crate_dir.join("Cargo.toml"), cargo_toml)?;
 
-    let source = spec.source_override.clone().unwrap_or_else(|| match spec.kind {
-        MemberKind::Library => format!("//! {} library.\npub fn placeholder() {{}}\n", spec.name),
-        MemberKind::Binary => format!("//! {} binary.\nfn main() {{}}\n", spec.name),
-    });
+    let source = spec
+        .source_override
+        .clone()
+        .unwrap_or_else(|| match spec.kind {
+            MemberKind::Library => {
+                format!("//! {} library.\npub fn placeholder() {{}}\n", spec.name)
+            }
+            MemberKind::Binary => format!("//! {} binary.\nfn main() {{}}\n", spec.name),
+        });
     let source_name = match spec.kind {
         MemberKind::Library => "lib.rs",
         MemberKind::Binary => "main.rs",
@@ -287,11 +292,14 @@ mod tests {
     fn extra_files_land_at_expected_path() {
         let ws = SyntheticWorkspaceBuilder::new()
             .member(MemberSpec::library("alpha"))
-            .with_extra_file("docs/src/architecture/layers.toml", "[crates.alpha]\nlayer = 0\n")
+            .with_extra_file(
+                "docs/src/architecture/layers.toml",
+                "[crates.alpha]\nlayer = 0\n",
+            )
             .build()
             .unwrap();
-        let layers = fs::read_to_string(ws.root().join("docs/src/architecture/layers.toml"))
-            .unwrap();
+        let layers =
+            fs::read_to_string(ws.root().join("docs/src/architecture/layers.toml")).unwrap();
         assert!(layers.contains("[crates.alpha]"));
     }
 

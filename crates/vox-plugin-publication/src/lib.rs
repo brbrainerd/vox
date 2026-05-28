@@ -49,6 +49,17 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     RResult::ROk(to)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_advertises_publication_id() {
+        assert!(manifest_json().as_str().contains("\"publication\""));
+        assert_eq!(PublicationPlugin.id().as_str(), "publication");
+    }
+}
+
 #[derive(Clone)]
 struct PublicationPlugin;
 

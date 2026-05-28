@@ -38,6 +38,17 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     RResult::ROk(to)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_advertises_nvml_probe_id() {
+        assert!(manifest_json().as_str().contains("\"nvml-probe\""));
+        assert_eq!(NvmlProbePlugin.id().as_str(), "nvml-probe");
+    }
+}
+
 #[derive(Clone)]
 struct NvmlProbePlugin;
 

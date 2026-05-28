@@ -6,6 +6,11 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Contract schema version — increment when the schema changes in a backward-incompatible way.",
+      "minimum": 1
+    },
     "channels": {
       "type": "array",
       "items": {

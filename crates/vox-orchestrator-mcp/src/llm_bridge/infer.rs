@@ -178,6 +178,48 @@ fn google_direct_fallback_for_gemini(
     .get(&targets.google_direct_model)
 }
 
+/// Emit one `orch.cache.miss` `ResearchMetric` event when an LLM call returned
+/// without any prompt-cache hit. A miss is defined as "no
+/// `cache_read_input_tokens` field, or zero cached tokens". The payload mirrors
+/// the relevant subset of `ModelCallEvent` so consumers can join hit/miss rows
+/// without extra trace context lookups.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn emit_cache_miss_if_applicable(
+    model_id: &str,
+    provider: &str,
+    tool: &str,
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    cache_read_input_tokens: Option<u32>,
+    cache_creation_input_tokens: Option<u32>,
+    task_id: Option<u64>,
+    trace_id: &str,
+) {
+    let cache_miss = cache_read_input_tokens.unwrap_or(0) == 0;
+    if !cache_miss {
+        return;
+    }
+    let metadata_json = serde_json::json!({
+        "model": model_id,
+        "provider": provider,
+        "tool": tool,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "cache_creation_input_tokens": cache_creation_input_tokens,
+        "task_id": task_id,
+        "trace_id": trace_id,
+    })
+    .to_string();
+    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::ResearchMetric(
+        vox_telemetry::ResearchMetricEvent {
+            session_id: format!("mcp:{model_id}"),
+            metric_type: vox_telemetry::METRIC_TYPE_ORCH_CACHE_MISS.into(),
+            metric_value: Some(prompt_tokens as f64),
+            metadata_json: Some(metadata_json),
+        }
+    ));
+}
+
 /// Phase D telemetry helper: emit one `ErrorEvent` for a failed LLM call.
 ///
 /// `retry_attempt` is the 0-based count of retries already attempted before this
@@ -555,6 +597,21 @@ pub async fn mcp_infer_tool_completion(
                         "prompt cache hit"
                     );
                 }
+
+                // Emit one `orch.cache.miss` event when the call ran without
+                // any prompt-cache hit (so miss rates can be computed online
+                // alongside `cache_read_input_tokens` hits on ModelCallEvent).
+                emit_cache_miss_if_applicable(
+                    &model.id,
+                    &format!("{:?}", model.provider_type),
+                    tool,
+                    pt,
+                    ct,
+                    cache_read_input_tokens,
+                    cache_creation_input_tokens,
+                    trace_ctx.task_id,
+                    &trace_ctx.trace_id.to_string(),
+                );
 
                 if let Some(db) = state.db.as_ref() {
                     let tracker = if let Some(user_id) = routing.user_id {

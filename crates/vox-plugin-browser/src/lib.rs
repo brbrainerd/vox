@@ -42,6 +42,19 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
 #[derive(Clone)]
 struct BrowserPluginHost;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_advertises_browser_id() {
+        let json = manifest_json();
+        assert!(json.as_str().contains("\"browser\""));
+        let plugin = BrowserPluginHost;
+        assert_eq!(plugin.id().as_str(), "browser");
+    }
+}
+
 impl VoxPlugin for BrowserPluginHost {
     fn id(&self) -> RString {
         RString::from("browser")

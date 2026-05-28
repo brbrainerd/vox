@@ -44,7 +44,11 @@ fn load_failed_emits_plugin_load_failure_event() {
     let load_failure_rows: Vec<_> = events
         .iter()
         .filter_map(|e| match e {
-            TelemetryEvent::ResearchMetric(r) if r.metric_type == METRIC_TYPE_PLUGIN_LOAD_FAILURE => Some(r),
+            TelemetryEvent::ResearchMetric(r)
+                if r.metric_type == METRIC_TYPE_PLUGIN_LOAD_FAILURE =>
+            {
+                Some(r)
+            }
             _ => None,
         })
         .collect();

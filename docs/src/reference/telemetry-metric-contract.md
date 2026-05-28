@@ -93,6 +93,11 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `vox.model.discovery` | `model_autonomic:<id>` | Optional | Model-autonomic L1: new model id discovered in upstream catalog (`METRIC_TYPE_MODEL_DISCOVERY`). |
 | `vox.model.classification` | `model_autonomic:<id>` | Optional | Model-autonomic L2: classifier tagged a model with tier/strengths/confidence (`METRIC_TYPE_MODEL_CLASSIFICATION`). |
 | `vox.model.confidence_promotion` | `model_autonomic:<id>` | Optional | Model-autonomic L2/L3: model crossed a confidence-state boundary (`METRIC_TYPE_CONFIDENCE_PROMOTION`). |
+| `plugin.load_failure` | `plugin:<plugin_id>` | Optional | Plugin failed to load (ABI mismatch, missing entrypoint, or init error) (`METRIC_TYPE_PLUGIN_LOAD_FAILURE`). |
+| `sandbox.timeout_kill` | activity session | Optional | Activity sandbox killed after exceeding its configured timeout — distinct from `agent_exec_time` which only tracks completed runs (`METRIC_TYPE_SANDBOX_TIMEOUT_KILL`). |
+| `orch.cache.miss` | orchestrator session | Optional | LLM provider prompt-cache lookup missed; enables online miss-rate computation alongside `cache_read_input_tokens` on `ModelCallEvent` (`METRIC_TYPE_ORCH_CACHE_MISS`). |
+| `orch.task.cancelled` | orchestrator session | Optional | Task was explicitly cancelled mid-execution (user interrupt, parent timeout, or lease loss) (`METRIC_TYPE_ORCH_TASK_CANCELLED`). |
+| `vox.doctor.project_check` | `doctor:<path>` | Optional | CR-L7: per-`vox doctor --project <path>` health-check run — structured outcome alongside human-readable output (`METRIC_TYPE_DOCTOR_PROJECT_CHECK`). |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 

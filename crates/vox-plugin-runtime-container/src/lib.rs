@@ -214,3 +214,14 @@ impl VoxPlugin for RuntimeContainerPlugin {
 
 // Re-export detect_runtime and RuntimePreference for consumers of the plugin as an rlib.
 pub use vox_container::{detect::RuntimePreference, detect_runtime};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn manifest_advertises_runtime_container_id() {
+        assert!(manifest_json().as_str().contains("\"runtime-container\""));
+        assert_eq!(RuntimeContainerPlugin.id().as_str(), "runtime-container");
+    }
+}
