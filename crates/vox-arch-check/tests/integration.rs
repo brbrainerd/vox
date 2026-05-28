@@ -7,21 +7,15 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::OnceLock;
 
-/// Build the binary once; return its path.
+/// Return the path of the already-built `vox-arch-check` binary.
 ///
-/// Multiple tests call `arch_check_binary()` — using `OnceLock` ensures we
-/// compile exactly once and avoid the Windows "access denied" race where two
-/// `cargo run` calls try to overwrite the exe simultaneously.
+/// Cargo and nextest both build binary targets of the crate-under-test before
+/// running its tests, so the exe is guaranteed to exist. We do NOT call
+/// `cargo build` here — parallel nextest test processes would race for the
+/// `target/debug/vox-arch-check.exe` file lock on Windows.
 fn arch_check_binary() -> &'static PathBuf {
     static BIN: OnceLock<PathBuf> = OnceLock::new();
     BIN.get_or_init(|| {
-        let build = Command::new("cargo")
-            .args(["build", "-p", "vox-arch-check"])
-            .status()
-            .expect("failed to build vox-arch-check");
-        assert!(build.success(), "cargo build -p vox-arch-check failed");
-
-        // `CARGO_MANIFEST_DIR` is `crates/vox-arch-check`, so workspace root is two levels up.
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let workspace_root = manifest_dir
             .parent()
@@ -29,15 +23,9 @@ fn arch_check_binary() -> &'static PathBuf {
             .parent()
             .expect("workspace root");
         let exe = if cfg!(target_os = "windows") {
-            workspace_root
-                .join("target")
-                .join("debug")
-                .join("vox-arch-check.exe")
+            workspace_root.join("target/debug/vox-arch-check.exe")
         } else {
-            workspace_root
-                .join("target")
-                .join("debug")
-                .join("vox-arch-check")
+            workspace_root.join("target/debug/vox-arch-check")
         };
         assert!(exe.exists(), "expected binary at {}", exe.display());
         exe

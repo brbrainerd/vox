@@ -34,27 +34,26 @@ impl ArchCheckFixture {
         self.dir.path()
     }
 
-    /// Path to the built vox-arch-check binary (built once per test session).
+    /// Path to the built vox-arch-check binary. Relies on cargo/nextest having
+    /// built it before tests run (which both do for binary targets in the same
+    /// crate). We do NOT call `cargo build` here — each fixture test runs in
+    /// its own process under nextest, and parallel `cargo build` calls race
+    /// for the same target/debug/*.exe lock on Windows.
     pub fn binary() -> PathBuf {
         static BIN: OnceLock<PathBuf> = OnceLock::new();
         BIN.get_or_init(|| {
-            let status = std::process::Command::new("cargo")
-                .args(["build", "-p", "vox-arch-check"])
-                .status()
-                .expect("cargo build vox-arch-check");
-            assert!(status.success(), "vox-arch-check build failed");
             let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            let ws_root = manifest_dir
-                .parent()
-                .unwrap()
-                .parent()
-                .unwrap();
+            let ws_root = manifest_dir.parent().unwrap().parent().unwrap();
             let exe = if cfg!(windows) {
                 ws_root.join("target/debug/vox-arch-check.exe")
             } else {
                 ws_root.join("target/debug/vox-arch-check")
             };
-            assert!(exe.exists(), "vox-arch-check binary not found at {}", exe.display());
+            assert!(
+                exe.exists(),
+                "vox-arch-check binary not found at {} (nextest should have built it)",
+                exe.display()
+            );
             exe
         })
         .clone()
