@@ -9,7 +9,8 @@ pub use vox_cli_core::cli_args::{BuildMode, BundleMode, CompileKind, UpgradeLane
 /// Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.
 ///
 /// `fullstack` is the default build mode. Use `--target=server` for Rust-only (no `dist/` TS),
-/// or `--target=client` for Library-shaped TS (`vox-client.ts`, `openapi.json`, …; no `target/generated/`).
+/// or `--target=client` for Library-shaped TS (`vox-client.ts`, `openapi.json`, …; no `target/generated/`),
+/// or `--target=mobile` for React Native + Expo TS that runs through `@vox/runtime-rn`.
 #[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum BuildTargetArg {
@@ -20,6 +21,10 @@ pub enum BuildTargetArg {
     Server,
     /// Emit a zero-runtime TypeScript SDK package only; skip Rust codegen.
     Client,
+    /// Emit React Native + Expo (Expo Router) TS; skip Axum Rust backend.
+    /// The device-side Rust runtime ships via the uniffi-bridged `@vox/runtime-rn`
+    /// package, not via this codegen path.
+    Mobile,
 }
 
 impl From<BuildTargetArg> for vox_config::BuildTarget {
@@ -28,6 +33,7 @@ impl From<BuildTargetArg> for vox_config::BuildTarget {
             BuildTargetArg::Fullstack => vox_config::BuildTarget::Fullstack,
             BuildTargetArg::Server => vox_config::BuildTarget::Server,
             BuildTargetArg::Client => vox_config::BuildTarget::Client,
+            BuildTargetArg::Mobile => vox_config::BuildTarget::Mobile,
         }
     }
 }
