@@ -1,37 +1,57 @@
 //! Builds a minimal synthetic workspace for arch-check integration tests.
 //!
-//! Creates a temp dir with:
-//! - `Cargo.toml` (workspace with 2 members: vox-alpha, vox-beta)
-//! - `crates/vox-alpha/` and `crates/vox-beta/` with minimal source
-//! - `docs/src/architecture/layers.toml` and `where-things-live.md`
-//! - `CHANGELOG.md` with a released version for the staleness rule
-//! - `.git/` stub so git commands don't error
+//! Wraps [`vox_test_harness::synthetic_workspace::SyntheticWorkspaceBuilder`]
+//! with the extras that arch-check expects on top of a generic workspace:
+//! `docs/src/architecture/layers.toml` and `where-things-live.md`.
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use tempfile::TempDir;
+
+use vox_test_harness::synthetic_workspace::{
+    MemberSpec, SyntheticWorkspace, SyntheticWorkspaceBuilder,
+};
+
+const LONG_DESCRIPTION: &str =
+    "A fixture crate for testing the arch-check rules with enough characters.";
 
 pub struct ArchCheckFixture {
-    pub dir: TempDir,
+    ws: SyntheticWorkspace,
 }
 
 impl ArchCheckFixture {
     /// Minimal clean workspace — both crates pass all checks.
     pub fn clean() -> Self {
-        let dir = TempDir::new().expect("tempdir");
-        Self::write_all(dir.path(), false);
-        Self { dir }
+        Self::new_with(LONG_DESCRIPTION)
     }
 
     /// Workspace with a description violation on vox-beta (too short).
     pub fn with_description_violation() -> Self {
-        let dir = TempDir::new().expect("tempdir");
-        Self::write_all(dir.path(), true);
-        Self { dir }
+        Self::new_with("short")
+    }
+
+    fn new_with(beta_description: &str) -> Self {
+        let layers_toml = "[crates.vox-alpha]\nlayer = 0\n\n[crates.vox-beta]\nlayer = 1\n";
+        let wtl_md = format!(
+            "# WTL\n\n`crates/vox-alpha/` — {LONG_DESCRIPTION}\n`crates/vox-beta/` — {beta_description}\n"
+        );
+        let ws = SyntheticWorkspaceBuilder::new()
+            .member(MemberSpec::library("vox-alpha").with_description(LONG_DESCRIPTION))
+            .member(
+                MemberSpec::library("vox-beta")
+                    .with_description(beta_description)
+                    .with_dep("vox-alpha"),
+            )
+            .with_git_stub()
+            .with_changelog("0.1.0", "2020-01-01")
+            .with_extra_file("docs/src/architecture/layers.toml", layers_toml)
+            .with_extra_file("docs/src/architecture/where-things-live.md", wtl_md)
+            .build()
+            .expect("build arch-check fixture");
+        Self { ws }
     }
 
     pub fn root(&self) -> &Path {
-        self.dir.path()
+        self.ws.root()
     }
 
     /// Path to the built vox-arch-check binary. Relies on cargo/nextest having
@@ -57,65 +77,5 @@ impl ArchCheckFixture {
             exe
         })
         .clone()
-    }
-
-    fn write_all(root: &Path, short_description: bool) {
-        use std::fs;
-        let long_desc = "A fixture crate for testing the arch-check rules with enough characters.";
-        let beta_desc = if short_description {
-            "short"
-        } else {
-            long_desc
-        };
-
-        // Workspace Cargo.toml
-        fs::write(root.join("Cargo.toml"), "[workspace]\nmembers = [\"crates/vox-alpha\", \"crates/vox-beta\"]\nresolver = \"2\"\n").unwrap();
-
-        // Cargo.lock stub (needed for cache key)
-        fs::write(root.join("Cargo.lock"), "# workspace lock\n").unwrap();
-
-        // CHANGELOG.md with one released version (for staleness rule)
-        fs::write(
-            root.join("CHANGELOG.md"),
-            "## [0.1.0] - 2020-01-01\n\n- initial\n",
-        )
-        .unwrap();
-
-        // .git stub — prevents git commands from walking up to the real repo
-        fs::create_dir_all(root.join(".git")).unwrap();
-        fs::write(root.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
-
-        // docs/src/architecture/
-        fs::create_dir_all(root.join("docs/src/architecture")).unwrap();
-        fs::write(
-            root.join("docs/src/architecture/layers.toml"),
-            "[crates.vox-alpha]\nlayer = 0\n\n[crates.vox-beta]\nlayer = 1\n",
-        )
-        .unwrap();
-        fs::write(
-            root.join("docs/src/architecture/where-things-live.md"),
-            format!(
-                "# WTL\n\n`crates/vox-alpha/` — {long_desc}\n`crates/vox-beta/` — {beta_desc}\n"
-            ),
-        )
-        .unwrap();
-
-        // vox-alpha
-        fs::create_dir_all(root.join("crates/vox-alpha/src")).unwrap();
-        fs::write(root.join("crates/vox-alpha/Cargo.toml"), format!("[package]\nname = \"vox-alpha\"\nversion = \"0.1.0\"\nedition = \"2021\"\ndescription = \"{long_desc}\"\n")).unwrap();
-        fs::write(
-            root.join("crates/vox-alpha/src/lib.rs"),
-            "//! Alpha crate.\npub fn alpha() {}\n",
-        )
-        .unwrap();
-
-        // vox-beta
-        fs::create_dir_all(root.join("crates/vox-beta/src")).unwrap();
-        fs::write(root.join("crates/vox-beta/Cargo.toml"), format!("[package]\nname = \"vox-beta\"\nversion = \"0.1.0\"\nedition = \"2021\"\ndescription = \"{beta_desc}\"\n\n[dependencies]\nvox-alpha = {{ path = \"../vox-alpha\" }}\n")).unwrap();
-        fs::write(
-            root.join("crates/vox-beta/src/lib.rs"),
-            "//! Beta crate.\npub fn beta() {}\n",
-        )
-        .unwrap();
     }
 }

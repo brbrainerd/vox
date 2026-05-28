@@ -20,5 +20,6 @@ pub mod hir_builders;
 pub mod pipeline;
 pub mod portpicker;
 pub mod spans;
+pub mod synthetic_workspace;
 pub mod temp_root;
 pub mod workspace_paths;
