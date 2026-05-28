@@ -6,16 +6,19 @@ schema_version: 1
 # References:
 #   - docs/src/architecture/v1-release-criteria.md [CR-L4] (and the [CR-D1] number it operationalizes)
 #   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.4
+#
+# Landed: 2026-05-27 (minimum-viable: 15 fixtures, 3 per wave × 3 waves is the floor;
+#   actual split is 3 wave-1 + 9 wave-2 + 3 wave-3 per ci.minimum_viable)
 
 corpus:
   id: plan-fidelity
   schema_version: 1
-  status: stub
+  status: minimum-viable             # stub | minimum-viable | complete
   bar:
     target: 0.85                          # matches [CR-D1] 85% Wave-2 success
     sub_bar_block_demote: 0.65
   count_target: 50
-  count_current: 0
+  count_current: 15
   corpus_hash: "blake3:0000000000000000000000000000000000000000000000000000000000000000"
 
 wave_distribution:
@@ -23,7 +26,125 @@ wave_distribution:
   wave_2: 30                              # the [CR-D1] wave — multi-file, decorator coverage
   wave_3: 10                              # cross-cutting (effects / workflow purity / retirement)
 
-fixtures: []
+# ── Training eligibility policy ──────────────────────────────────────────────
+#
+# Plan-fidelity fixtures describe tasks (goal + preconditions + success criteria).
+# They do NOT contain reference implementations or buggy code.
+# All fixture TOML files are training_eligible = true by default.
+#
+# Agent attempt transcripts produced during measurement runs must NOT be fed
+# back into MENS general training without human review; they belong in the
+# repair-fine-tuning pipeline only (separate from general MENS training).
+
+# Fixtures (15 minimum-viable: 3 wave-1, 9 wave-2, 3 wave-3).
+fixtures:
+  # ── Wave 1: single-file, no cross-cutting (3) ───────────────────────────────
+  - id: "001"
+    slug: "001-add-clamp-helper-with-test"
+    title: "Add pure clamp() helper with @test in single file"
+    wave: 1
+    training_eligible: true
+    file: "plans/001-add-clamp-helper-with-test.plan.toml"
+
+  - id: "002"
+    slug: "002-rename-function-update-callers"
+    title: "Rename format_greeting to format_user_greeting, update same-file callers"
+    wave: 1
+    training_eligible: true
+    file: "plans/002-rename-function-update-callers.plan.toml"
+
+  - id: "003"
+    slug: "003-add-length-guard-with-test"
+    title: "Add >500-char length guard to validate_title with @test"
+    wave: 1
+    training_eligible: true
+    file: "plans/003-add-length-guard-with-test.plan.toml"
+
+  # ── Wave 2: multi-file, decorator discipline (9) ────────────────────────────
+  - id: "004"
+    slug: "004-add-get-user-query-endpoint"
+    title: "@query @auth get_user endpoint + test in separate test file"
+    wave: 2
+    training_eligible: true
+    file: "plans/004-add-get-user-query-endpoint.plan.toml"
+
+  - id: "005"
+    slug: "005-add-update-todo-mutation-endpoint"
+    title: "@mutation @auth update_todo endpoint + two tests"
+    wave: 2
+    training_eligible: true
+    file: "plans/005-add-update-todo-mutation-endpoint.plan.toml"
+
+  - id: "006"
+    slug: "006-add-delete-todo-mutation-endpoint"
+    title: "@mutation @auth delete_todo endpoint + test"
+    wave: 2
+    training_eligible: true
+    file: "plans/006-add-delete-todo-mutation-endpoint.plan.toml"
+
+  - id: "007"
+    slug: "007-extract-shared-types-to-module"
+    title: "Move @table types to src/types.vox, add import in src/main.vox"
+    wave: 2
+    training_eligible: true
+    file: "plans/007-extract-shared-types-to-module.plan.toml"
+
+  - id: "008"
+    slug: "008-add-net-effect-config-fetch"
+    title: "@uses(net) fetch fn + @query endpoint + test across two files"
+    wave: 2
+    training_eligible: true
+    file: "plans/008-add-net-effect-config-fetch.plan.toml"
+
+  - id: "009"
+    slug: "009-add-paginated-list-messages-endpoint"
+    title: "@query @auth list_messages with limit guard + test"
+    wave: 2
+    training_eligible: true
+    file: "plans/009-add-paginated-list-messages-endpoint.plan.toml"
+
+  - id: "010"
+    slug: "010-add-notification-workflow-and-activity"
+    title: "New activity + workflow in src/notifications.vox + test"
+    wave: 2
+    training_eligible: true
+    file: "plans/010-add-notification-workflow-and-activity.plan.toml"
+
+  - id: "011"
+    slug: "011-add-post-body-validation-helper"
+    title: "Pure validation helper, wire into @mutation endpoint, add tests"
+    wave: 2
+    training_eligible: true
+    file: "plans/011-add-post-body-validation-helper.plan.toml"
+
+  - id: "012"
+    slug: "012-add-health-check-query-endpoint"
+    title: "@query health_check endpoint + test in separate test file"
+    wave: 2
+    training_eligible: true
+    file: "plans/012-add-health-check-query-endpoint.plan.toml"
+
+  # ── Wave 3: cross-cutting (effects / workflow purity / retirement) (3) ──────
+  - id: "013"
+    slug: "013-migrate-workflow-purity-violations"
+    title: "Move std.time.now_ms() from workflow bodies to activities across 3 files"
+    wave: 3
+    training_eligible: true
+    file: "plans/013-migrate-workflow-purity-violations.plan.toml"
+
+  - id: "014"
+    slug: "014-retire-pure-annotation-on-net-callers"
+    title: "Replace @pure with @uses(net) on HTTP callers across 3 files"
+    wave: 3
+    training_eligible: true
+    file: "plans/014-retire-pure-annotation-on-net-callers.plan.toml"
+
+  - id: "015"
+    slug: "015-audit-and-add-fs-effect-declarations"
+    title: "Add missing @uses(fs) declarations to std.fs.* callers across 3 files"
+    wave: 3
+    training_eligible: true
+    file: "plans/015-audit-and-add-fs-effect-declarations.plan.toml"
 
 ci:
   minimum_viable:
@@ -52,3 +173,14 @@ council_ratification_log:
       wave-distribution gaps if harvested transcripts skew toward one wave.
     ratified_at: "2026-05-15"
     rationale: "Real transcripts produce realistic plans; gaps filled by hand."
+  - id: plan-fidelity-training-eligibility
+    decision: >
+      Fixture TOML files are training_eligible = true (task descriptions + success
+      criteria, no buggy code). Agent attempt transcripts from measurement runs must
+      NOT enter MENS general training without human review; they are supervised
+      (task→plan→outcome) signals suitable only for plan-fidelity fine-tuning.
+    ratified_at: "2026-05-27"
+    rationale: >
+      Parallel policy to repair-corpus training-eligibility guard. Plan-fidelity
+      fixtures describe good tasks; the agent's attempts (successful or failed)
+      are a different pipeline from general positive-example training.

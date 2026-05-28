@@ -1,0 +1,42 @@
+# vox:skip
+id = "plan-fidelity-014-retire-pure-annotation-on-net-callers"
+training_eligible = true
+wave = 3                                  # cross-cutting: effect-row retirement / annotation fix
+
+[input]
+goal = """
+Three files — `src/integrations.vox`, `src/webhooks.vox`, and `src/fetch.vox` — \
+each contain one or more functions annotated `@pure` whose bodies call \
+`std.http.get_text` or `std.http.post_json`. A `@pure` function must not perform \
+any I/O; the correct annotation for HTTP callers is `@uses(net)`. \
+For every such function in all three files, replace `@pure` with `@uses(net)`. \
+Do not change any other annotations or logic. \
+Run `vox check --strict` to confirm all effect-violation diagnostics are resolved.
+"""
+preconditions = """
+`src/integrations.vox` has two functions annotated `@pure` that call `std.http.get_text`. \
+`src/webhooks.vox` has one `@pure` function calling `std.http.post_json`. \
+`src/fetch.vox` has one `@pure` function calling `std.http.get_text`. \
+`vox check --strict` currently fails with `vox/effect/pure-violation` in all three files.
+"""
+
+[plan_expected_shape]
+min_steps = 5
+max_steps = 10
+must_include_tasks = [
+  "audit-pure-annotations",
+  "fix-integrations",
+  "fix-webhooks",
+  "fix-fetch",
+  "verify-compile",
+]
+must_include_decorator_calls = ["@uses"]
+
+[success_criteria]
+command = "vox check --strict"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/integrations.vox", regex = "@uses\\(net\\)" },
+  { path = "src/webhooks.vox",     regex = "@uses\\(net\\)" },
+  { path = "src/fetch.vox",        regex = "@uses\\(net\\)" },
+]

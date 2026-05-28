@@ -2,8 +2,13 @@
 //!
 //! Each subcommand in this file emits a structurally complete
 //! [`AuditReport`] with `incomplete: true` and exit code
-//! [`ExitCode::InfrastructureError`] until its corpus reaches
-//! `minimum-viable` per `contracts/eval/<thing>/manifest.v1.yaml`.
+//! [`ExitCode::InfrastructureError`] until its measurement *harness* is
+//! implemented (P2.x in the v1 LLM-target implementation plan).
+//!
+//! A corpus reaching `minimum-viable` status (fixtures authored) does NOT
+//! retire the stub — the harness must also exist. Stubs for corpora that are
+//! already `minimum-viable` (repair-corpus, plan-fidelity as of 2026-05-27)
+//! continue to return `InfrastructureError` until the P2.6/P2.7 harnesses land.
 //!
 //! Per `contracts/ci/vox-audit-contract.v1.yaml` §exit-codes (ratified by
 //! D22 2026-05-15), exit-code-2 logs telemetry and does NOT block CI.
@@ -17,10 +22,16 @@ use crate::{
 };
 
 /// Compose an infra-error outcome for a corpus-stub subcommand.
+///
+/// The message is intentionally status-agnostic: corpora may be `stub` (no
+/// fixtures) or `minimum-viable` (fixtures authored) — both still return
+/// `InfrastructureError` until the measurement harness is implemented.
 fn corpus_stub_outcome(gate: CrlGate, manifest_relpath: &str) -> RunOutcome {
     let note = format!(
-        "corpus stub: `{manifest}` declares `status: stub`. Harness lands per implementation-plan \
-         phasing. Re-run after fixtures are authored.",
+        "corpus stub: measurement harness not yet implemented for `{manifest}`. \
+         Fixtures may be authored (check `status` field in the manifest); the \
+         harness lands per implementation-plan phasing (P2.6/P2.7). \
+         Re-run after the harness is implemented.",
         manifest = manifest_relpath,
     );
     RunOutcome {

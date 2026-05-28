@@ -1,0 +1,31 @@
+# vox:skip
+id = "plan-fidelity-001-add-clamp-helper-with-test"
+training_eligible = true
+wave = 1                                  # single-file, no cross-cutting
+
+[input]
+goal = """
+In `src/math.vox`, add a pure function `clamp(value: int, lo: int, hi: int) to int` \
+that returns `lo` when `value < lo`, `hi` when `value > hi`, and `value` otherwise. \
+Add `@test fn test_clamp` that asserts correct behaviour for a value below the range, \
+within the range, and above the range. Run `vox check --strict` at the end to verify.
+"""
+preconditions = """
+`src/math.vox` exists and compiles clean. It currently defines `fn square(n: int) to int` \
+and has no `clamp` function. `vox check --strict` passes at HEAD.
+"""
+
+[plan_expected_shape]
+min_steps = 3
+max_steps = 6
+must_include_tasks = ["add-function", "add-test", "verify-compile"]
+must_include_decorator_calls = ["@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_clamp"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/math.vox", regex = "fn clamp" },
+  { path = "src/math.vox", regex = "@test" },
+  { path = "src/math.vox", regex = "test_clamp" },
+]

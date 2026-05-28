@@ -1,0 +1,33 @@
+# vox:skip
+id = "plan-fidelity-007-extract-shared-types-to-module"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+Move the `@table type User { ... }` and `@table type Todo { ... }` declarations \
+out of `src/main.vox` into a new file `src/types.vox`. Add `import "./types.vox"` \
+at the top of `src/main.vox` so the types remain in scope. \
+`vox check --strict` must pass after the refactor with no new errors.
+"""
+preconditions = """
+`src/main.vox` currently defines both `@table type User { username: str, email: str }` \
+and `@table type Todo { user_id: int, title: str, done: bool, created_at: str }` \
+inline. `src/types.vox` does not yet exist. `vox check --strict` passes at HEAD.
+"""
+
+[plan_expected_shape]
+min_steps = 4
+max_steps = 7
+must_include_tasks = ["create-types-file", "move-type-declarations", "add-import", "verify-compile"]
+must_include_decorator_calls = ["@table"]
+
+[success_criteria]
+command = "vox check --strict"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/types.vox", regex = "@table" },
+  { path = "src/types.vox", regex = "type User" },
+  { path = "src/types.vox", regex = "type Todo" },
+  { path = "src/main.vox", regex = "import \"\\./" },
+]

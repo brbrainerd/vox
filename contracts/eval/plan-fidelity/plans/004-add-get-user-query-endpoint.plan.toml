@@ -1,0 +1,35 @@
+# vox:skip
+id = "plan-fidelity-004-add-get-user-query-endpoint"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+Add a query endpoint `get_user(id: int) to Result[User]` to `src/users.vox`. \
+It must be decorated with `@query` and `@auth(scheme: bearer)`. \
+If `id <= 0` return `Error("invalid id")`; otherwise return `Ok(db.User.get(id))`. \
+Create `tests/users_test.vox` (if it does not already exist) and add \
+`@test fn test_get_user_invalid_id` that calls `get_user(0)` and asserts an \
+`Error` is returned. Run `vox check --strict && vox test --filter=test_get_user_invalid_id`.
+"""
+preconditions = """
+`src/users.vox` defines `@table type User { username: str, email: str }` and compiles clean. \
+No `get_user` function exists yet. `tests/` directory may or may not exist. \
+`vox check --strict` passes at HEAD.
+"""
+
+[plan_expected_shape]
+min_steps = 4
+max_steps = 8
+must_include_tasks = ["add-endpoint", "add-auth-decorator", "add-test", "verify-compile"]
+must_include_decorator_calls = ["@query", "@auth", "@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_get_user_invalid_id"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/users.vox", regex = "@query" },
+  { path = "src/users.vox", regex = "@auth\\(scheme: bearer\\)" },
+  { path = "src/users.vox", regex = "fn get_user" },
+  { path = "tests/users_test.vox", regex = "test_get_user_invalid_id" },
+]
