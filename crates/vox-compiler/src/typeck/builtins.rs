@@ -87,7 +87,7 @@ impl BuiltinTypes {
             Binding {
                 ty: Ty::Fn(
                     vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
@@ -101,7 +101,7 @@ impl BuiltinTypes {
                 ty: Ty::Fn(
                     vec![Ty::Str],
                     // Error returns Result[T]
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
@@ -128,10 +128,26 @@ impl BuiltinTypes {
                 is_deprecated: false,
             },
         );
+        // Unit — the sole inhabitant of the unit type. Used in `return Unit`,
+        // `Ok(Unit)`, and `Result[Unit]` patterns to signal "no meaningful
+        // payload." Registered alongside `true`/`false` as a zero-argument
+        // constructor constant.
+        env.define(
+            "Unit".into(),
+            Binding {
+                ty: Ty::Unit,
+                mutable: false,
+                kind: BindingKind::Constructor,
+                is_deprecated: false,
+            },
+        );
 
         // ── Standard library functions ────────────────────────
 
         // print(value: str) → Unit
+        // NOTE: The call checker special-cases `print` to accept any single
+        // argument type, so `print(42)`, `print(true)`, etc. all type-check.
+        // The Str param here is a nominal fallback for signature display only.
         env.define(
             "print".into(),
             Binding {
@@ -147,6 +163,107 @@ impl BuiltinTypes {
             "assert".into(),
             Binding {
                 ty: Ty::Fn(vec![Ty::Bool], Box::new(Ty::Unit)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // panic(message: str) → Unit
+        // Terminates the current execution with an error message. Return type is
+        // Unit rather than Never so that callers in void-returning functions don't
+        // trigger return-type mismatches.
+        env.define(
+            "panic".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // chr(code: int) → str
+        // Returns the single-character string for a Unicode code point.
+        // Complement of s.ord().
+        env.define(
+            "chr".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int], Box::new(Ty::Str)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // abs(n: int) → int   (global convenience — also available as n.abs())
+        env.define(
+            "abs".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int], Box::new(Ty::Int)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // max(a: int, b: int) → int   (two-arg global)
+        env.define(
+            "max".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::Int)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // min(a: int, b: int) → int   (two-arg global)
+        env.define(
+            "min".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::Int)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // sorted(list: list[T]) → list[T]  (free-function form of list.sorted())
+        env.define(
+            "sorted".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                    Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+                ),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // sum(list: list[T]) → T  (free-function form of list.sum())
+        env.define(
+            "sum".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                    Box::new(Ty::GenericParam(0)),
+                ),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // has_capability(token: cap) → bool
+        // Runtime predicate that checks whether the supplied capability token is
+        // valid and has not been revoked. Used in the platform capability model.
+        env.define(
+            "has_capability".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Named("cap".into())], Box::new(Ty::Bool)),
                 mutable: false,
                 kind: BindingKind::Function,
                 is_deprecated: false,
@@ -553,6 +670,164 @@ impl BuiltinTypes {
                 Box::new(Ty::GenericParam(1)),
             ),
         );
+        // sorted() — returns a new sorted copy of the list.
+        list_methods.insert(
+            "sorted".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::GenericParam(0))))),
+        );
+        // reversed() — returns a new reversed copy of the list.
+        list_methods.insert(
+            "reversed".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::GenericParam(0))))),
+        );
+        // reverse() — in-place reverse, returns unit (mutation variant).
+        list_methods.insert("reverse".into(), Ty::Fn(vec![], Box::new(Ty::Unit)));
+        // sum() — sums numeric elements; registered as T→T for both int and float lists.
+        list_methods.insert(
+            "sum".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        // max() → Option[T] — largest element.
+        list_methods.insert(
+            "max".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // min() → Option[T] — smallest element.
+        list_methods.insert(
+            "min".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // flatten() → List[T] — flattens one level (list[list[T]] → list[T]).
+        list_methods.insert(
+            "flatten".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::GenericParam(0))))),
+        );
+        // first() → Option[T] and last() → Option[T] — safe head/tail.
+        list_methods.insert(
+            "first".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
+        );
+        list_methods.insert(
+            "last".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
+        );
+        // is_empty() → bool
+        list_methods.insert("is_empty".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        // pop() → Option[T] — removes and returns last element.
+        list_methods.insert(
+            "pop".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::GenericParam(0))))),
+        );
+        // index(val) / find_index(val) → int (-1 if absent)
+        list_methods.insert(
+            "index".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
+        );
+        list_methods.insert(
+            "find_index".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
+        );
+        // count(val) → int — occurrences of val
+        list_methods.insert(
+            "count".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
+        );
+        // extend(other) → List[T] — append all elements from other
+        list_methods.insert(
+            "extend".into(),
+            Ty::Fn(
+                vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // remove(val) → List[T] — new list with first occurrence of val removed
+        list_methods.insert(
+            "remove".into(),
+            Ty::Fn(
+                vec![Ty::GenericParam(0)],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // remove_at(i) → List[T] — new list without element at index i
+        list_methods.insert(
+            "remove_at".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // zip(other) → List[List[T]] — list of [a,b] pairs
+        list_methods.insert(
+            "zip".into(),
+            Ty::Fn(
+                vec![Ty::List(Box::new(Ty::GenericParam(0)))],
+                Box::new(Ty::List(Box::new(Ty::List(Box::new(Ty::GenericParam(0)))))),
+            ),
+        );
+        // enumerate() → List[List[T]] — [[0, a], [1, b], ...]
+        list_methods.insert(
+            "enumerate".into(),
+            Ty::Fn(
+                vec![],
+                Box::new(Ty::List(Box::new(Ty::List(Box::new(Ty::GenericParam(0)))))),
+            ),
+        );
+        // slice_list(start, end?) → List[T]
+        list_methods.insert(
+            "slice_list".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // sorted_by_key(fn) → List[T] — closure key sort
+        list_methods.insert(
+            "sorted_by_key".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::GenericParam(1)),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        list_methods.insert(
+            "sort_by_key".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0)],
+                    Box::new(Ty::GenericParam(1)),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        // sorted_by / sort_by — comparator closure
+        list_methods.insert(
+            "sorted_by".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0), Ty::GenericParam(0)],
+                    Box::new(Ty::Int),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        list_methods.insert(
+            "sort_by".into(),
+            Ty::Fn(
+                vec![Ty::Fn(
+                    vec![Ty::GenericParam(0), Ty::GenericParam(0)],
+                    Box::new(Ty::Int),
+                )],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
         methods.insert("List".into(), list_methods);
 
         // Fs module methods. Every entry mirrors a registered arm in
@@ -565,30 +840,30 @@ impl BuiltinTypes {
         for name in ["read", "read_file", "read_to_string"] {
             fs_methods.insert(
                 name.into(),
-                Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+                Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
             );
         }
         // `fs.write` / `fs.write_file` / `fs.write_to_file` are or-pattern aliases.
         for name in ["write", "write_file", "write_to_file"] {
             fs_methods.insert(
                 name.into(),
-                Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
+                Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
             );
         }
         // `fs.cwd` — current working directory.
         fs_methods.insert(
             "cwd".into(),
-            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
         // `fs.copy(src, dst)` — copy a file. Eval impl uses `std::fs::copy`.
         fs_methods.insert(
             "copy".into(),
-            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
         );
         // `fs.remove(path)` — remove a file. For directories use remove_dir_all.
         fs_methods.insert(
             "remove".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
         );
         // `fs.walk(dir)` / `fs.list_recursive(dir)` — recursive lister; eval
         // aliases both to a `**/*` glob expansion.
@@ -597,7 +872,7 @@ impl BuiltinTypes {
                 name.into(),
                 Ty::Fn(
                     vec![Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
+                    Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
                 ),
             );
         }
@@ -608,7 +883,7 @@ impl BuiltinTypes {
             "list_dir".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
             ),
         );
         fs_methods.insert(
@@ -619,23 +894,23 @@ impl BuiltinTypes {
                     ("name".into(), Ty::Str),
                     ("path".into(), Ty::Str),
                     ("is_dir".into(), Ty::Bool),
-                ])))), Box::new(Ty::Str))),
+                ])))))),
             ),
         );
         fs_methods.insert(
             "glob".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
             ),
         );
         fs_methods.insert(
             "mkdir".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
         );
         fs_methods.insert(
             "remove_dir_all".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
         );
         fs_methods.insert(
             "stat".into(),
@@ -645,7 +920,7 @@ impl BuiltinTypes {
                     ("is_dir".into(), Ty::Bool),
                     ("is_file".into(), Ty::Bool),
                     ("size".into(), Ty::Int),
-                ])), Box::new(Ty::Str))),
+                ])))),
             ),
         );
         methods.insert("FsModule".into(), fs_methods);
@@ -671,6 +946,14 @@ impl BuiltinTypes {
             "replace".into(),
             Ty::Fn(vec![Ty::Str, Ty::Str, Ty::Str], Box::new(Ty::Str)),
         );
+        // regex.find(haystack, pattern) → Option[str]  — first match substring.
+        regex_module_methods.insert(
+            "find".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::Str],
+                Box::new(Ty::Option(Box::new(Ty::Str))),
+            ),
+        );
         regex_module_methods.insert(
             "is_match".into(),
             Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool)),
@@ -687,7 +970,7 @@ impl BuiltinTypes {
         // Regex value type in interp yet; see audit doc §10 for rationale).
         regex_module_methods.insert(
             "compile".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
         methods.insert("RegexModule".into(), regex_module_methods);
 
@@ -711,7 +994,7 @@ impl BuiltinTypes {
             "parse".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
             ),
         );
         methods.insert("JsonModule".into(), json_methods);
@@ -809,7 +1092,7 @@ impl BuiltinTypes {
             "spawn_background".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Int))),
             ),
         );
         process_methods.insert(
@@ -825,7 +1108,7 @@ impl BuiltinTypes {
             "run_ex".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str)), Ty::Str],
-                Box::new(Ty::Result(Box::new(process_output.clone()), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(process_output.clone()))),
             ),
         );
         // `run_capture_lines` — stdout split on newlines.
@@ -833,13 +1116,13 @@ impl BuiltinTypes {
             "run_capture_lines".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
             ),
         );
         // `process.cwd` — same as `fs.cwd`, aliased under process namespace.
         process_methods.insert(
             "cwd".into(),
-            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
         // `process.which(cmd)` — locate binary on PATH; cross-platform.
         process_methods.insert(
@@ -850,14 +1133,14 @@ impl BuiltinTypes {
             "exec".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Unit))),
             ),
         );
         process_methods.insert(
             "register_exit_command".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Unit))),
             ),
         );
         process_methods.insert("exit".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)));
@@ -934,6 +1217,35 @@ impl BuiltinTypes {
             "index_of".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Int)))),
         );
+        // chars() — iterate over the string as a list of single-character strings.
+        // This is the primary Vox idiom for character-level string processing.
+        str_methods.insert(
+            "chars".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+        );
+        // ord() — Unicode code point of a single character (str).
+        str_methods.insert("ord".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        // bytes() — UTF-8 byte list.
+        str_methods.insert(
+            "bytes".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Int)))),
+        );
+        // to_int() → Option[int] — parse string as integer (None on failure).
+        str_methods.insert(
+            "to_int".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Int)))),
+        );
+        // to_float() → Option[float] — parse string as float (None on failure).
+        str_methods.insert(
+            "to_float".into(),
+            Ty::Fn(vec![], Box::new(Ty::Option(Box::new(Ty::Float)))),
+        );
+        // count(sub) → int — non-overlapping occurrences of substring
+        str_methods.insert("count".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Int)));
+        // is_alpha / is_digit / is_alnum / is_upper / is_lower
+        for name in ["is_alpha", "is_digit", "is_alnum", "is_upper", "is_lower"] {
+            str_methods.insert(name.into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        }
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods
@@ -942,28 +1254,28 @@ impl BuiltinTypes {
             "post".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
             ),
         );
         http_methods.insert(
             "get".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
             ),
         );
         http_methods.insert(
             "put".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
             ),
         );
         http_methods.insert(
             "delete".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
             ),
         );
         methods.insert("HTTPModule".into(), http_methods);
@@ -972,11 +1284,11 @@ impl BuiltinTypes {
         let mut speech_methods = std::collections::HashMap::new();
         speech_methods.insert(
             "transcribe".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
         speech_methods.insert(
             "transcribe_microphone".into(),
-            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
         methods.insert("SpeechModule".into(), speech_methods);
 
@@ -1167,14 +1479,14 @@ impl BuiltinTypes {
                     vec![Ty::GenericParam(0)],
                     Box::new(Ty::GenericParam(1)),
                 )],
-                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)))),
             ),
         );
         result_methods.insert(
             "map_err".into(),
             Ty::Fn(
                 vec![Ty::Fn(vec![Ty::Str], Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
             ),
         );
         result_methods.insert(
@@ -1182,9 +1494,9 @@ impl BuiltinTypes {
             Ty::Fn(
                 vec![Ty::Fn(
                     vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(1)))),
                 )],
-                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)))),
             ),
         );
         methods.insert("Result".into(), result_methods);
@@ -1231,7 +1543,7 @@ impl BuiltinTypes {
                     let item_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![item_ty],
-                        Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::Int))),
                     ))
                 }
                 "get" => {
@@ -1239,14 +1551,14 @@ impl BuiltinTypes {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))))),
                     ))
                 }
                 "delete" => {
                     // delete(id: int) -> Result[Unit]
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::Unit))),
                     ))
                 }
                 "query" => {
@@ -1254,22 +1566,22 @@ impl BuiltinTypes {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Str],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))))),
                     ))
                 }
                 "all" => {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))))),
                     ))
                 }
-                "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))))),
+                "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int))))),
                 "find" => {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))), Box::new(Ty::Str))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))))),
                     ))
                 }
                 _ => None,
@@ -1293,6 +1605,55 @@ impl BuiltinTypes {
             };
         }
 
+        // ── Map[K, V] methods ─────────────────────────────────────────────
+        // GenericParam(0) = K (key type), GenericParam(1) = V (value type).
+        // Bindings are resolved in the MethodCall arm of check_expr via the
+        // `Ty::Map(k, v) => vec![k, v]` branch.
+        if let Ty::Map(_, _) = obj_ty {
+            let k = Ty::GenericParam(0);
+            let v = Ty::GenericParam(1);
+            let map_ty = Ty::Map(Box::new(k.clone()), Box::new(v.clone()));
+            return match method {
+                "len" => Some(Ty::Fn(vec![], Box::new(Ty::Int))),
+                "is_empty" => Some(Ty::Fn(vec![], Box::new(Ty::Bool))),
+                "keys" => Some(Ty::Fn(
+                    vec![],
+                    Box::new(Ty::List(Box::new(k.clone()))),
+                )),
+                "values" => Some(Ty::Fn(
+                    vec![],
+                    Box::new(Ty::List(Box::new(v.clone()))),
+                )),
+                "items" | "entries" => Some(Ty::Fn(
+                    vec![],
+                    Box::new(Ty::List(Box::new(Ty::List(Box::new(k.clone()))))),
+                )),
+                "get" => Some(Ty::Fn(
+                    vec![k.clone()],
+                    Box::new(Ty::Option(Box::new(v.clone()))),
+                )),
+                "get_or" => Some(Ty::Fn(
+                    vec![k.clone(), v.clone()],
+                    Box::new(v.clone()),
+                )),
+                "contains_key" | "has_key" | "has" => {
+                    Some(Ty::Fn(vec![k.clone()], Box::new(Ty::Bool)))
+                }
+                "insert" | "set" => Some(Ty::Fn(
+                    vec![k.clone(), v.clone()],
+                    Box::new(map_ty.clone()),
+                )),
+                "remove" | "delete" => {
+                    Some(Ty::Fn(vec![k.clone()], Box::new(map_ty.clone())))
+                }
+                "update" => Some(Ty::Fn(
+                    vec![map_ty.clone()],
+                    Box::new(map_ty),
+                )),
+                _ => None,
+            };
+        }
+
         let type_key = match obj_ty {
             Ty::Named(n) => n.as_str(),
             Ty::List(_) => "List",
@@ -1300,7 +1661,7 @@ impl BuiltinTypes {
             Ty::Int => "Int",
             Ty::Float => "Float",
             Ty::Bool => "Bool",
-            Ty::Result(_, _) => "Result",
+            Ty::Result(_) => "Result",
             Ty::Option(_) => "Option",
             _ => return None,
         };

@@ -28,7 +28,6 @@
         "rust_imports",
         "functions",
         "types",
-        "routes",
         "endpoint_fns",
         "tables",
         "mcp_tools",

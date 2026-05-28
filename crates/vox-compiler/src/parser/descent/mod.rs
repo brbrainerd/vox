@@ -222,13 +222,13 @@ impl Parser {
             let is_decl_position = matches!(
                 self.peek(),
                 Token::Import
+                    | Token::Extern
+                    | Token::Fragment
                     | Token::AtComponent
                     | Token::Component
                     | Token::AtLoading
                     | Token::AtTest
-                    | Token::AtExample
                     | Token::AtV0
-                    | Token::AtEndpoint
                     | Token::AtQuery
                     | Token::AtMutation
                     | Token::AtServer
@@ -250,6 +250,35 @@ impl Parser {
                     | Token::AtTable
                     | Token::AtIndex
                     | Token::Async
+                    // Phase M (json-as-rfc-2026-05-24): `@json_as(...)` always precedes `type`.
+                    | Token::AtJsonAs
+                    // Function-level effect/purity/deprecation decorators that precede `fn`.
+                    | Token::AtRequire
+                    | Token::AtEnsure
+                    | Token::AtInvariant
+                    | Token::AtFuzz
+                    | Token::AtPure
+                    | Token::AtReactive
+                    | Token::AtRemote
+                    | Token::AtAi
+                    | Token::AtPrompt
+                    | Token::AtSubagent
+                    | Token::AtSearch
+                    | Token::AtHole
+                    | Token::AtInference
+                    | Token::AtTrainingStep
+                    | Token::AtDeprecated
+                    | Token::AtNative
+                    | Token::AtUses
+                    | Token::AtAuth
+                    | Token::AtCors
+                    | Token::AtRateLimit
+                    | Token::AtPii
+                    | Token::AtEmbed
+                    | Token::AtWebhook
+                    | Token::AtOfflineCapable
+                    | Token::AtCollaborative
+                    | Token::AtLayer
             ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
 
             let is_tombstoned = matches!(
@@ -397,8 +426,6 @@ impl Parser {
                 | Token::Workflow
                 | Token::Http
                 | Token::AtTest
-                | Token::AtExample
-                | Token::AtEndpoint
                 | Token::AtQuery
                 | Token::AtMutation
                 | Token::AtServer
@@ -471,8 +498,6 @@ impl Parser {
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
-            Token::AtExample => self.parse_example(),
-            Token::AtEndpoint => self.parse_endpoint(),
             Token::AtQuery => self.parse_query(),
             Token::AtMutation => self.parse_mutation(),
             Token::AtServer => self.parse_server_endpoint(),
@@ -691,6 +716,11 @@ impl Parser {
                 }
             }
             Token::AtTable => self.parse_table(),
+            // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)`
+            // immediately precedes a `type` definition. parse_json_as parses
+            // the decorator block, then delegates to parse_typedef and
+            // attaches the annotation to the produced TypeDefDecl.
+            Token::AtJsonAs => self.parse_json_as(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
                 self.errors.push(ParseError::classified(

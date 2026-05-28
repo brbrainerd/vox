@@ -217,15 +217,15 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "query" => (
             format!(
-                "@endpoint(kind: query)\nfn get_{noun}(id: int) to str {{\n    let result = db.{type_name}.find(id)\n    return result\n}}"
+                "@query\nfn get_{noun}(id: int) to str {{\n    let result = db.{type_name}.find(id)\n    return result\n}}"
             ),
-            format!("Write a Vox @endpoint(kind: query) to read from `{type_name}`"),
+            format!("Write a Vox @query fn to read from `{type_name}`"),
         ),
         "mutation" => (
             format!(
-                "@endpoint(kind: mutation)\nfn update_{noun}(id: int, value: str) to Unit {{\n    db.{type_name}.update(id, value)\n}}"
+                "@mutation\nfn update_{noun}(id: int, value: str) to Unit {{\n    db.{type_name}.update(id, value)\n}}"
             ),
-            format!("Write a Vox @endpoint(kind: mutation) to write to `{type_name}`"),
+            format!("Write a Vox @mutation fn to write to `{type_name}`"),
         ),
         "action" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
@@ -275,8 +275,8 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "server_fn" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
             (
-                format!("@endpoint(kind: server)\nfn {name}({params}) to {ret_type} {{\n{body}\n}}"),
-                format!("Write a Vox @endpoint(kind: server) function `{name}`"),
+                format!("@server\nfn {name}({params}) to {ret_type} {{\n{body}\n}}"),
+                format!("Write a Vox @server fn called `{name}`"),
             )
         }
         "const" => {

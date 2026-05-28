@@ -1,0 +1,15 @@
+// Fix: move the timestamp call into an activity, where non-determinism
+// is journaled and therefore safe for replay.
+activity get_timestamp() to Result[int] {
+    return Ok(std.time.now_ms())
+}
+
+activity store_entry(key: str, value: str) to Result[str] {
+    return Ok(key + "=" + value)
+}
+
+workflow log_with_timestamp(msg: str) to Result[str] {
+    let ts = get_timestamp()?
+    let key = "log:" + str(ts)
+    return store_entry(key, msg)
+}

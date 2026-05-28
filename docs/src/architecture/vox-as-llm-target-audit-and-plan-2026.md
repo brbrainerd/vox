@@ -77,15 +77,26 @@ This is not an aspiration list. Every row below names code or contracts on the v
 | **Golden snapshot tests for diagnostics** | [vox-compiler/tests/diagnostic_snapshots.rs](crates/vox-compiler/tests/diagnostic_snapshots.rs) — `insta::assert_json_snapshot!` per diagnostic class. |
 | **Doctest pipeline strict** | [vox-doc-pipeline/src/pipeline/doctest.rs:6](crates/vox-doc-pipeline/src/pipeline/doctest.rs:6)-66. Every ` ```vox ` block in docs goes through `vox_compiler::pipeline::check_file()` at line 50; LintError raised on any diagnostic. `// vox:skip` opt-out at line 32. |
 
-**Coverage assessment.** Diagnostic shape is LLM-ready. What's missing is the `--for-llm` JSON mode with minimal-repro (per Phase 2 plan, [vox-language-rules-phase2-lint-extension-2026.md](vox-language-rules-phase2-lint-extension-2026.md)) — the *single biggest delta* per its own spec.
+**Coverage assessment.** Diagnostic shape is LLM-ready. **2026-05-25 update (session-15 + session-16):**
+- `excerpt: Option<DiagnosticExcerpt>` — ±3 source lines around each diagnostic span, inline in the `--for-llm` JSON output (commit `fe2b05a051`). Closes the "LLM agent doesn't have the file open" gap.
+- `explain_url: Option<String>` — stable `https://vox-lang.org/diag/<id>` URL for diagnostics with `vox/<category>/<name>` codes (commit `bca186355c`). Closes the `explain_url` field from Task 5.
+- `lint_findings: Vec<LintFindingPayload>` (**session-16**) — TOESTUB/vox-code-audit lint findings surfaced in the `--for-llm` envelope under `#[cfg(feature = "stub-check")]`. Each finding carries `rule_id`, `severity`, `message`, `line`, `column`, `rationale`, `confidence`, `suggestion`, `alternatives`, `explain_url`, and `minimal_repro`. Integration via `ToestubEngine::check_source_file()` (single-file, no scan, no telemetry). 4 passing integration tests in `vox-cli/tests/check_for_llm_envelope.rs`.
+- `minimal_repro: Option<String>` (**session-16**) — per-finding minimal reproduction snippet from `DetectionRule::minimal_repro()` (new trait method, default `None`). Implemented on `auth_endpoint`, `llm_provider_call`, `retired_decorator`, `decorator_position`, `workflow_nondeterministic`, `env_secret_shape`, `retired_memory_api`. Built via `ToestubEngine::minimal_repro_table()` lookup; zero breaking changes to 51 existing detectors.
+
+**Phase 2 Task 5 is now complete.** All fields — `rationale`, `confidence`, `alternatives`, `explain_url`, and `minimal_repro` — are surfaced in the `--for-llm` envelope via the TOESTUB lint pipeline.
+
+**2026-05-25 session-17 additions:**
+- `minimal_repro` now implemented on 18 of 52 detectors (up from 7 at session-16 close). Added to: `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `no_test_for_pub_fn`, `id_at_boundary`, `anonymous_error`, `unwrap_call`, `crypto_ban`, `pure_fn_impure`, `stringly_typed_enum`.
+- `vox check --explain <id>` now shows the `minimal_repro` snippet in the terminal output (under an "Example:" heading).
+- `vox repair` now includes TOESTUB lint findings (with `suggestion` + `minimal_repro` snippets) in the LLM prompt under `#[cfg(feature = "stub-check")]`, making the 3-attempt repair loop aware of Vox policy violations that compile without error.
 
 ### §2.3 Self-repair surface
 
 | Feature | Evidence |
 |---|---|
-| **`vox repair` MVP** (3-attempt loop) | [vox-cli/src/commands/repair.rs](crates/vox-cli/src/commands/repair.rs). Loop: `vox check --format json` → parse `DiagnosticPayload` → LLM call (OpenRouter, temp 0.1, system prompt "expert Vox language repair agent") → extract code block → `fs::write()` → re-check. Max 3 attempts. |
+| **`vox repair` MVP** (3-attempt loop) | [vox-cli/src/commands/repair.rs](crates/vox-cli/src/commands/repair.rs). Loop: `vox check --format json` → parse `DiagnosticPayload` → LLM call (OpenRouter, temp 0.1, system prompt "expert Vox language repair agent") → extract code block → `fs::write()` → re-check. Max 3 attempts. **session-17:** loop now also feeds `LintFindingPayload` (with `minimal_repro` snippets) for policy violations when `stub-check` feature is on. |
 | **`vox stub-check`** | [vox-cli/src/commands/diagnostics/stub_check/](crates/vox-cli/src/commands/diagnostics/stub_check/) — catches `todo!()`, `unimplemented!()`, `panic!("not implemented")`, hollow returns, AI placeholder patterns. TOML suppressions supported. |
-| **47 vox-code-audit detectors** including LLM-specific: | `id_at_boundary`, `anonymous_error`, `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `pure_fn_impure`, `workflow_nondeterministic`, `unresolved_ast`, `unresolved_ref` — listed in [vox-code-audit/src/detectors/mod.rs](crates/vox-code-audit/src/detectors/mod.rs). |
+| **52 vox-code-audit detectors** including LLM-specific: | `id_at_boundary`, `anonymous_error`, `stub`, `hollow_fn`, `empty_body`, `ai_laziness`, `pure_fn_impure`, `workflow_nondeterministic`, `unresolved_ast`, `unresolved_ref` — listed in [vox-code-audit/src/detectors/mod.rs](crates/vox-code-audit/src/detectors/mod.rs). 18/52 now carry `minimal_repro` snippets. |
 | **Test-first enforcement** (pre-commit) | [`AGENTS.md` §Test-First Policy](AGENTS.md). `tdd-guard` lefthook hook rejects commits introducing `pub fn` without an adjacent `#[test]` or `@test`. Reason given: tests are MENS training reward signal (planned `r_test` = 30% of GRPO reward). |
 
 **Coverage assessment.** The closed-loop scaffold exists for **single files**. What's missing is project scope, a measurement methodology, and the back-edge from repair outcomes into the corpus aggregator.
@@ -99,9 +110,9 @@ This is not an aspiration list. Every row below names code or contracts on the v
 | **Plan mode** with iterative refinement | [vox-orchestrator-mcp/src/chat_tools/plan_loop.rs](crates/vox-orchestrator-mcp/src/chat_tools/plan_loop.rs) — rounds, loop_status, stop_reason; expansion-first refinement ("add work, do not paraphrase away detail"); task dependency validation. |
 | **Telemetry of agent activity** — rich | [vox-telemetry/src/types.rs](crates/vox-telemetry/src/types.rs) — `METRIC_TYPE_PLAN_MODE_DECISION` (D2), `METRIC_TYPE_MODEL_TIER_ROUTE` (D1), `METRIC_TYPE_SUBAGENT_DISPATCH` (D4), `METRIC_TYPE_CIRCUIT_BREAKER_TRIP` (D6, doom-loop), `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` (S1), `METRIC_TYPE_DRIFT_ALERT` (D10). |
 | **VoxScript-first glue** | [`AGENTS.md` §VoxScript-First Glue Code](AGENTS.md). All project automation as `.vox` files runnable via `vox run`; banned `.ps1`/`.sh`/`.py` glue. Single command shape; type-checked; observable via `vox.script.*`. |
-| **ACI v1 envelope** schema | [`contracts/aci/agent-computer-interface.v1.yaml`](contracts/aci/agent-computer-interface.v1.yaml) + JSON schema. Mutation classification (`read_only` / `local_mutation` / `external_side_effect` / `unknown`). Implementation at [vox-orchestrator-mcp/src/aci/envelope.rs](crates/vox-orchestrator-mcp/src/aci/envelope.rs). **Opt-in** — default `agentos_aci_envelope_enabled: false`. |
+| **ACI v1 envelope** schema | [`contracts/aci/agent-computer-interface.v1.yaml`](contracts/aci/agent-computer-interface.v1.yaml) + JSON schema. Mutation classification (`read_only` / `local_mutation` / `external_side_effect` / `unknown`). Implementation at [vox-orchestrator-mcp/src/aci/envelope.rs](crates/vox-orchestrator-mcp/src/aci/envelope.rs). **On by default since v0.6** — `agentos_aci_envelope_enabled: true` (CR-L5, 2026-05-25). |
 
-**Coverage assessment.** Discovery, MCP dispatch, planning, and telemetry are real. Two gaps stand out: ACI envelopes are **opt-in** rather than the default, and there is no end-to-end deploy-and-health flow exposed via CLI (see §3.4).
+**Coverage assessment.** Discovery, MCP dispatch, planning, telemetry, and ACI envelope (v0.6+) are real. One gap remains: there is no end-to-end deploy-and-health flow exposed via CLI (see §3.4 / CR-L7).
 
 ### §2.5 Concrete net achievements (the unsung list)
 
@@ -304,9 +315,14 @@ So an LLM reading `AGENTS.md` thinks `workflow` is fully supported, writes one, 
 
 ---
 
-### §3.7 🟠 Major — ACI envelope is opt-in
+### §3.7 ~~🟠 Major — ACI envelope is opt-in~~ ✅ RESOLVED in v0.6
 
-**Symptom.** Per [`agentos-ssot-2026.md`](agentos-ssot-2026.md), `OrchestratorConfig::agentos_aci_envelope_enabled` defaults to `false`. Mutation classification, guardrail kernel, and `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` are all live but dormant unless the agent's host opts in.
+> **2026-05-25 update:** CR-L5 landed in v0.6.0 (commit `5b8a932f65`).
+> `OrchestratorConfig::agentos_aci_envelope_enabled` now defaults to `true`.
+> `vox audit aci-default` CI gate passes and `feature-flags.v1.yaml` updated.
+> Remainder of this section preserved for historical context.
+
+**Symptom (v0.5 — resolved).** Per [`agentos-ssot-2026.md`](agentos-ssot-2026.md), `OrchestratorConfig::agentos_aci_envelope_enabled` defaulted to `false`. Mutation classification, guardrail kernel, and `METRIC_TYPE_AGENTOS_GUARDRAIL_DENY` were all live but dormant unless the agent's host opted in.
 
 **Why it matters for V4.** If a remote agent cannot reliably tell whether a tool call mutates the working tree, it cannot reason about safety. Opt-in defaults push that responsibility to humans configuring each IDE — the opposite of the orchestrator model.
 

@@ -1,0 +1,11 @@
+[problem]
+id = "084"
+title = "sum-odd"
+prompt = """
+Write a Vox function sum_odd(items: list[int]) to int that returns the sum of all odd numbers in the list.
+"""
+signature = "fn sum_odd(items: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

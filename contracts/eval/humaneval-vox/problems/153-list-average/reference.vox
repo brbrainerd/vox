@@ -1,0 +1,7 @@
+fn list_average(xs: list[int]) to float {
+    let mut total: int = 0
+    for x in xs {
+        total = total + x
+    }
+    return float(total) / float(xs.len())
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "078"
+title = "count-uppercase"
+prompt = """
+Write a Vox function count_uppercase(s: str) to int that returns the count of uppercase letters (A-Z) in the string.
+"""
+signature = "fn count_uppercase(s: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

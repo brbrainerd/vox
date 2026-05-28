@@ -1,0 +1,23 @@
+fn list_spread(xs: list[int]) to int {
+    if xs.is_empty() {
+        return 0
+    }
+    let mut lo: int = 0
+    let mut hi: int = 0
+    let mut first: bool = true
+    for x in xs {
+        if first {
+            lo = x
+            hi = x
+            first = false
+        } else {
+            if x < lo {
+                lo = x
+            }
+            if x > hi {
+                hi = x
+            }
+        }
+    }
+    return hi - lo
+}

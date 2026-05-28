@@ -15,7 +15,12 @@ expression: main_rs
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 1. Initialize the durable database.
-    let db = std::sync::Arc::new(::vox_db::VoxDb::connect(::vox_db::DbConfig::default()).await?);
+    //    Uses `DbConfig::resolve_canonical()` so the binary picks up
+    //    `VOX_DB_URL`/`VOX_DB_PATH` env vars (matches `emit_db_setup`).
+    let db = std::sync::Arc::new(::vox_db::VoxDb::connect(
+        ::vox_db::DbConfig::resolve_canonical()
+            .expect("vox durable boot: resolve VoxDb config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)"),
+    ).await?);
 
     // 2. Register the process-global HirModule for workflow body lookup.
     //    The HirModule is serialized to JSON at codegen time and embedded

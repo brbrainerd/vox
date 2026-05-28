@@ -1,0 +1,14 @@
+// Bug: repeat_greeting takes two arguments (name, times) but the call
+// site passes three — the extra str argument "loudly" is erroneous.
+fn repeat_greeting(name: str, times: int) to str {
+    let mut result: str = ""
+    for i in range(0, times) {
+        result = result + "Hello, " + name + "! "
+    }
+    return result
+}
+
+fn main() to str {
+    // BUG: repeat_greeting takes 2 args; 3 are given.
+    return repeat_greeting("Alice", 3, "loudly")
+}

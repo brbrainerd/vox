@@ -221,7 +221,7 @@ pub fn evaluate_gate(inputs: &GateInputs<'_>) -> GateOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::fingerprint::ModelFingerprint;
+    use super::super::fingerprint::ModelFingerprint;
 
     fn human(id: &str) -> ApproverRecord {
         ApproverRecord {

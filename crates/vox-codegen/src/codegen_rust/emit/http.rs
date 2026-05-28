@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use vox_compiler::ast::span::Span;
 use vox_compiler::hir::{DurabilityKind, HirEndpointFn, HirEndpointKind, HirModule, HirType};
 
+use super::main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, BootPropagation};
 use super::stmt_expr::emit_stmt;
 use super::tables::emit_db_setup;
 
@@ -113,7 +114,6 @@ fn wrap_method_router(method_router_expr: String, sf: Option<&HirEndpointFn>) ->
                 HirEndpointKind::Query => format!("q_{}", sf.name),
                 HirEndpointKind::Mutation => format!("m_{}", sf.name),
                 HirEndpointKind::Server => format!("sf_{}", sf.name),
-                HirEndpointKind::Stream => format!("stream_{}", sf.name),
             };
             let suffix = safe_ident_suffix(&suffix_raw);
             let fn_name = format!("vox_rl_guard_{suffix}");
@@ -142,15 +142,12 @@ pub fn emit_main(
     let needs_put = false;
     let needs_delete = false;
 
-    // `@query` and `@endpoint(kind: stream)` handlers are GET (queries
-    // use query-string args; streams take optional args via query string
-    // too); `@server` / `@mutation` stay POST + JSON body.
+    // `@query` handlers are GET + query-string args; `@server` / `@mutation` stay POST + JSON body.
     for sf in &module.endpoint_fns {
-        match sf.kind {
-            vox_compiler::hir::HirEndpointKind::Query
-            | vox_compiler::hir::HirEndpointKind::Stream => needs_get = true,
-            vox_compiler::hir::HirEndpointKind::Server
-            | vox_compiler::hir::HirEndpointKind::Mutation => needs_post = true,
+        if sf.kind == vox_compiler::hir::HirEndpointKind::Query {
+            needs_get = true;
+        } else {
+            needs_post = true;
         }
     }
 
@@ -280,7 +277,14 @@ pub fn emit_main(
     out.push_str("    serve_embedded(uri).await\n");
     out.push_str("}\n\n");
 
-    emit_ip_rate_limit_preludes(&mut out, module);
+    for sf in &module.endpoint_fns {
+        let pfx = match sf.kind {
+            HirEndpointKind::Query => "q_",
+            HirEndpointKind::Mutation => "m_",
+            HirEndpointKind::Server => "sf_",
+        };
+        out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
+    }
 
     out.push_str(
         "async fn vox_copy_request_id(mut req: axum::http::Request<Body>, next: middleware::Next) -> Response {\n",
@@ -299,12 +303,66 @@ pub fn emit_main(
         out.push_str(&emit_db_setup(module));
     }
 
+    // P9 (2026-05-24): Durable boot prelude — connects `vox_durable_db`
+    // (Arc<vox_db::VoxDb>, distinct from the `db: Arc<Codex>` produced by
+    // `emit_db_setup`), registers the process-global HirModule so
+    // `current_hir_module()` resolves in workflow bodies (ADR-041 §6(b)),
+    // and registers + starts every `@scheduled` function. Must run BEFORE
+    // the VOX_RUN_WORKFLOW dispatch branch because that branch calls
+    // workflow functions which rely on `current_hir_module()`.
+    //
+    // Uses `BootPropagation::Expect` because the production `main()`
+    // signature is `async fn main()` (no `Result` return) today. P10
+    // will migrate `emit_main` to `Result<()>` so the prelude can use
+    // `Try` everywhere — see ADR-041 §6(c) /
+    // http-runtime-extraction-2026.md.
+    //
+    // The companion `load_hir_module_from_embedded` fn is appended below,
+    // after `main()` closes. See `emit_durable_boot_helpers`.
+    out.push_str(&emit_durable_boot_prelude(
+        module,
+        "vox_durable_db",
+        /* include_db_connect = */ true,
+        BootPropagation::Expect,
+    ));
+
     if module
         .functions
         .iter()
         .any(|f| f.durability == Some(DurabilityKind::Workflow))
     {
-        emit_workflow_dispatch_block(&mut out);
+        out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
+        out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
+        out.push_str("        if !wf_name.is_empty() {\n");
+        out.push_str(
+            "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
+        );
+        out.push_str(
+            "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
+        );
+        out.push_str("                Ok(v) => v,\n");
+        out.push_str("                Err(e) => {\n");
+        out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
+        out.push_str("                    std::process::exit(2);\n");
+        out.push_str("                }\n");
+        out.push_str("            };\n");
+        out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
+        out.push_str("                Ok(()) => {\n");
+        out.push_str(
+            "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
+        );
+        out.push_str("                    return;\n");
+        out.push_str("                }\n");
+        out.push_str("                Err(e) => {\n");
+        out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
+        out.push_str(
+            "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
+        );
+        out.push_str("                    std::process::exit(2);\n");
+        out.push_str("                }\n");
+        out.push_str("            }\n");
+        out.push_str("        }\n");
+        out.push_str("    }\n");
     }
 
     let has_routes = !module.endpoint_fns.is_empty();
@@ -312,7 +370,34 @@ pub fn emit_main(
     // Setup routes
     if has_routes {
         out.push_str("    let mut app = Router::new()\n");
-        emit_route_registrations(&mut out, module, app_contract);
+        // Manual routes
+        for route in &app_contract.http_routes {
+            let method = route_method_from_contract(route.method.as_str());
+            out.push_str(&format!(
+                "        .route(\"{}\", {}({}))\n",
+                route.path,
+                method,
+                route_handler_name_from_contract(route)
+            ));
+        }
+        // Auto-generated server function routes
+        for sf in &app_contract.server_fns {
+            let hir_sf = endpoint_fn_by_name(module, &sf.name, HirEndpointKind::Server);
+            let mr = wrap_method_router(format!("post(handle_sf_{})", sf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", sf.route_path));
+        }
+        // `@query` — GET /api/query/<name> + deterministic JSON-in-query encoding (see vox-client.ts).
+        for qf in &app_contract.query_fns {
+            let hir_sf = endpoint_fn_by_name(module, &qf.name, HirEndpointKind::Query);
+            let mr = wrap_method_router(format!("get(handle_q_{})", qf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", qf.route_path));
+        }
+        // `@mutation` — POST /api/mutation/<name>
+        for mf in &app_contract.mutation_fns {
+            let hir_sf = endpoint_fn_by_name(module, &mf.name, HirEndpointKind::Mutation);
+            let mr = wrap_method_router(format!("post(handle_m_{})", mf.name), hir_sf);
+            out.push_str(&format!("        .route(\"{}\", {mr})\n", mf.route_path));
+        }
         out.push_str("        .fallback(serve_dispatch);\n\n");
         if has_tables {
             out.push_str("    app = app.layer(Extension(db.clone()));\n");
@@ -349,114 +434,6 @@ pub fn emit_main(
     }
     out.push_str("}\n\n");
 
-    emit_endpoint_handlers(&mut out, module, app_contract, has_tables);
-
-    out
-}
-
-/// Emit all `.route(...)` lines for the router builder (manual + auto-generated).
-/// Extracted from `emit_main` per CR-A1: the 4 for-loops contributed ~8 DPs inline.
-fn emit_route_registrations(
-    out: &mut String,
-    module: &HirModule,
-    app_contract: &AppContractModule,
-) {
-    // Manual routes from the app contract
-    for route in &app_contract.http_routes {
-        let method = route_method_from_contract(route.method.as_str());
-        out.push_str(&format!(
-            "        .route(\"{}\", {}({}))\n",
-            route.path,
-            method,
-            route_handler_name_from_contract(route)
-        ));
-    }
-    // Auto-generated server function routes
-    for sf in &app_contract.server_fns {
-        let hir_sf = endpoint_fn_by_name(module, &sf.name, HirEndpointKind::Server);
-        let mr = wrap_method_router(format!("post(handle_sf_{})", sf.name), hir_sf);
-        out.push_str(&format!("        .route(\"{}\", {mr})\n", sf.route_path));
-    }
-    // `@query` — GET /api/query/<name>
-    for qf in &app_contract.query_fns {
-        let hir_sf = endpoint_fn_by_name(module, &qf.name, HirEndpointKind::Query);
-        let mr = wrap_method_router(format!("get(handle_q_{})", qf.name), hir_sf);
-        out.push_str(&format!("        .route(\"{}\", {mr})\n", qf.route_path));
-    }
-    // `@mutation` — POST /api/mutation/<name>
-    for mf in &app_contract.mutation_fns {
-        let hir_sf = endpoint_fn_by_name(module, &mf.name, HirEndpointKind::Mutation);
-        let mr = wrap_method_router(format!("post(handle_m_{})", mf.name), hir_sf);
-        out.push_str(&format!("        .route(\"{}\", {mr})\n", mf.route_path));
-    }
-    // `@endpoint(kind: stream)` — GET /api/stream/<name>, SSE response.
-    for stf in &app_contract.stream_fns {
-        let hir_sf = endpoint_fn_by_name(module, &stf.name, HirEndpointKind::Stream);
-        let mr = wrap_method_router(format!("get(handle_stream_{})", stf.name), hir_sf);
-        out.push_str(&format!("        .route(\"{}\", {mr})\n", stf.route_path));
-    }
-}
-
-/// Emit all IP rate-limit prelude functions for every endpoint in the module.
-/// Extracted from `emit_main` per CR-A1: the for-loop + match with 4 arms contributed ~5 DPs inline.
-fn emit_ip_rate_limit_preludes(out: &mut String, module: &HirModule) {
-    for sf in &module.endpoint_fns {
-        let pfx = match sf.kind {
-            HirEndpointKind::Query => "q_",
-            HirEndpointKind::Mutation => "m_",
-            HirEndpointKind::Server => "sf_",
-            HirEndpointKind::Stream => "stream_",
-        };
-        out.push_str(&emit_ip_rate_limit_prelude(sf, pfx));
-    }
-}
-
-/// Emit the `if let Ok(wf_name_raw) = std::env::var("VOX_RUN_WORKFLOW")` guard block
-/// that runs a workflow and exits early before starting the HTTP server.
-/// Extracted from `emit_main` per CR-A1: the nested if + 2 match arms contributed ~4 DPs inline.
-fn emit_workflow_dispatch_block(out: &mut String) {
-    out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
-    out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
-    out.push_str("        if !wf_name.is_empty() {\n");
-    out.push_str(
-        "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
-    );
-    out.push_str(
-        "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
-    );
-    out.push_str("                Ok(v) => v,\n");
-    out.push_str("                Err(e) => {\n");
-    out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
-    out.push_str("                    std::process::exit(2);\n");
-    out.push_str("                }\n");
-    out.push_str("            };\n");
-    out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
-    out.push_str("                Ok(()) => {\n");
-    out.push_str(
-        "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
-    );
-    out.push_str("                    return;\n");
-    out.push_str("                }\n");
-    out.push_str("                Err(e) => {\n");
-    out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
-    out.push_str(
-        "                    vox_actor_runtime::builtins::vox_flush_exit_commands();\n",
-    );
-    out.push_str("                    std::process::exit(2);\n");
-    out.push_str("                }\n");
-    out.push_str("            }\n");
-    out.push_str("        }\n");
-    out.push_str("    }\n");
-}
-
-/// Emit the Axum handler function for every endpoint in the module.
-/// Extracted from `emit_main` per CR-A1: the match + 4 arms loop contributed ~8 DPs.
-fn emit_endpoint_handlers(
-    out: &mut String,
-    module: &HirModule,
-    app_contract: &AppContractModule,
-    has_tables: bool,
-) {
     let mut mutation_idx = 0;
     for sf in &module.endpoint_fns {
         match sf.kind {
@@ -492,16 +469,15 @@ fn emit_endpoint_handlers(
                 ));
                 mutation_idx += 1;
             }
-            vox_compiler::hir::HirEndpointKind::Stream => {
-                out.push_str(&emit_sse_handler(
-                    sf,
-                    has_tables,
-                    "handle_stream_",
-                    Some(&module.inferred_types),
-                ));
-            }
         }
     }
+
+    // P9 (2026-05-24): Append the durable boot helpers (currently just
+    // `load_hir_module_from_embedded()`) so the prelude injected into
+    // `main()` above has a callable companion. Must live at file scope.
+    out.push_str(&emit_durable_boot_helpers(module));
+
+    out
 }
 
 fn route_method_from_contract(method: &str) -> &'static str {
@@ -546,16 +522,11 @@ fn emit_server_fn_handler(
         "Json(request): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {\n",
     );
 
-    // Extract params from request JSON, coercing to a concrete Rust
-    // type per the Vox parameter annotation. Without coercion the
-    // value stays a `serde_json::Value` and downstream codegen like
-    // `len(x)` → `x.len()` fails to typecheck (no `len` on Value).
-    // Per the 2026-05-23 slot-2 todo-auth bring-up.
+    // Extract params from request JSON
     for param in &sf.params {
-        let extract_expr = param_extract_expr(param.type_ann.as_ref(), &param.name);
         out.push_str(&format!(
-            "    let {} = {};\n",
-            param.name, extract_expr
+            "    let {} = request[\"{}\"].clone();\n",
+            param.name, param.name
         ));
     }
 
@@ -597,39 +568,6 @@ fn emit_server_fn_handler(
     }
     out.push_str("}\n\n");
     out
-}
-
-/// Build a Rust expression that extracts `request["<name>"]` and
-/// coerces it to the concrete type implied by the Vox annotation.
-/// Returning the right Rust type up-front lets downstream codegen
-/// (`.len()`, arithmetic, comparisons) typecheck without inserting
-/// Value→T conversions at every use site.
-fn param_extract_expr(ty: Option<&HirType>, name: &str) -> String {
-    // Bare Value fallback when we don't have an annotation.
-    let raw = format!("request[\"{name}\"].clone()");
-    let Some(t) = ty else { return raw };
-    match t {
-        HirType::Named(n) => match n.as_str() {
-            "str" | "string" | "String" => format!(
-                "request[\"{name}\"].as_str().unwrap_or(\"\").to_string()"
-            ),
-            "int" | "i64" | "Int" => format!(
-                "request[\"{name}\"].as_i64().unwrap_or(0)"
-            ),
-            "float" | "f64" | "Float" => format!(
-                "request[\"{name}\"].as_f64().unwrap_or(0.0)"
-            ),
-            "bool" | "Bool" => format!(
-                "request[\"{name}\"].as_bool().unwrap_or(false)"
-            ),
-            // Custom / record types stay as serde_json::Value so
-            // serde can deserialize at the use site if needed.
-            _ => raw,
-        },
-        // Generic / function / tuple / unit / decimal: leave as Value
-        // for now; specific lowering will sharpen these case-by-case.
-        _ => raw,
-    }
 }
 
 /// Axum GET handler for `@query`: args are JSON-encoded query values (`name=<json>`), keys sorted on the client.
@@ -679,206 +617,6 @@ fn emit_query_fn_handler(
     out
 }
 
-/// Emit an Axum SSE handler for `@endpoint(kind: stream)` endpoints.
-///
-/// Two modes, dispatched at runtime based on the parsed body shape:
-///
-/// 1. **Tick on schedule** — when `@endpoint(kind: stream, every: "<duration>")`
-///    sets `stream_interval`, the handler builds a `tokio::time::interval`
-///    and pushes one SSE `data:` event per tick. Each tick re-invokes the
-///    body inline so values change between ticks naturally (e.g. reading
-///    a sensor, querying a counter).
-///
-/// 2. **Actor subscribe** — when the body's tail expression is
-///    `subscribe(Actor)`, the handler bridges to
-///    `vox_actor_runtime::SubscriptionManager` and pushes one event per
-///    broadcast notification. Currently sends an empty `data:` event
-///    (the broadcast payload type lift is B3); clients re-fetch state
-///    on each notification (Convex-style invalidation).
-///
-/// The response shape is `Sse<impl Stream<...>>` which axum serializes
-/// as `Content-Type: text/event-stream` with `KeepAlive` enabled so
-/// proxies don't drop idle long-poll connections.
-fn emit_sse_handler(
-    sf: &vox_compiler::hir::HirEndpointFn,
-    has_tables: bool,
-    name_prefix: &str,
-    _inferred_types: Option<&HashMap<Span, HirType>>,
-) -> String {
-    let interval_ms = parse_interval_to_ms(sf.stream_interval.as_deref()).unwrap_or(1000);
-    // Detect whether the body's tail is `return subscribe(Actor)` — if so,
-    // bridge to the actor's SubscriptionManager channel instead of running
-    // the default IntervalStream tick loop. The channel name uses the
-    // actor's bare name so the runtime can fan out broadcasts keyed on it.
-    let subscribe_target = detect_subscribe_actor_tail(&sf.body);
-
-    let mut out = String::new();
-    out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
-    out.push_str("Extension(vox_rid): Extension<Option<String>>, ");
-    if has_tables {
-        out.push_str("Extension(db): Extension<Arc<Codex>>, ");
-    }
-    out.push_str(
-        "Query(q): Query<std::collections::BTreeMap<String, String>>\n",
-    );
-    out.push_str(
-        ") -> axum::response::sse::Sse<std::pin::Pin<Box<dyn futures_util::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> + Send>>> {\n",
-    );
-    out.push_str("    use axum::response::sse::{Event, KeepAlive, Sse};\n");
-    out.push_str("    use futures_util::stream::StreamExt;\n");
-    let _ = vox_rid_unused_marker(&mut out);
-    let _ = q_unused_marker(&mut out);
-    // Parameter extraction — same shape as `@query` (named JSON-encoded
-    // query-string values), so streaming clients can pass arguments via
-    // the URL.
-    for param in &sf.params {
-        let pname = param.name.replace('\\', "\\\\").replace('"', "\\\"");
-        out.push_str(&format!(
-            "    let {} = q.get(\"{}\").cloned().unwrap_or_default();\n",
-            param.name, pname
-        ));
-        out.push_str(&format!("    let _ = {};\n", param.name));
-    }
-
-    if let Some(actor_name) = subscribe_target {
-        // Actor-subscribe bridge: pull from the SubscriptionManager's
-        // **payload** channel keyed by the actor name. Each
-        // `broadcast(msg)` inside an actor handler pushes a String
-        // payload onto this channel and into a `data:` SSE event.
-        // Receivers that lag behind the channel's buffered capacity
-        // get a `BroadcastStreamRecvError::Lagged` which we silently
-        // drop so the SSE connection stays alive.
-        out.push_str(
-            "    let __vox_mgr = vox_actor_runtime::SubscriptionManager::default();\n",
-        );
-        out.push_str(&format!(
-            "    let __vox_rx = __vox_mgr.subscribe_payload(\"{actor_name}\").await;\n",
-        ));
-        out.push_str(
-            "    let __vox_stream = tokio_stream::wrappers::BroadcastStream::new(__vox_rx).filter_map(|item| async move {\n",
-        );
-        out.push_str("        match item {\n");
-        out.push_str("            Ok(payload) => Some(Ok::<_, std::convert::Infallible>(Event::default().data(payload))),\n");
-        out.push_str("            Err(_lagged) => None,\n");
-        out.push_str("        }\n");
-        out.push_str("    });\n");
-        out.push_str("    let __vox_stream: std::pin::Pin<Box<dyn futures_util::Stream<Item = Result<Event, std::convert::Infallible>> + Send>> = Box::pin(__vox_stream);\n");
-    } else {
-        // Default: tick-on-schedule emit. Each tick emits a monotonic
-        // millisecond timestamp as the SSE `data:` payload — meaningful
-        // even without a user-defined payload type and trivial to
-        // consume client-side.
-        out.push_str(&format!(
-            "    let __vox_interval_ms: u64 = std::env::var(\"VOX_STREAM_INTERVAL_MS\").ok().and_then(|s| s.parse().ok()).unwrap_or({interval_ms});\n",
-        ));
-        out.push_str(
-            "    let __vox_interval = tokio::time::interval(std::time::Duration::from_millis(__vox_interval_ms));\n",
-        );
-        out.push_str(
-            "    let __vox_stream = tokio_stream::wrappers::IntervalStream::new(__vox_interval).map(|_tick| {\n",
-        );
-        out.push_str(
-            "        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);\n",
-        );
-        out.push_str(
-            "        Ok::<_, std::convert::Infallible>(Event::default().data(now.to_string()))\n",
-        );
-        out.push_str("    });\n");
-        out.push_str("    let __vox_stream: std::pin::Pin<Box<dyn futures_util::Stream<Item = Result<Event, std::convert::Infallible>> + Send>> = Box::pin(__vox_stream);\n");
-    }
-
-    out.push_str("    Sse::new(__vox_stream).keep_alive(KeepAlive::default())\n");
-    out.push_str("}\n\n");
-    out
-}
-
-/// Inspect a stream-endpoint body for the `return subscribe(Actor)` tail
-/// shape. Returns the actor name when the body matches this pattern, so
-/// codegen can branch to the SubscriptionManager bridge.
-///
-/// Matches:
-///   `return subscribe(ActorName)`   // direct
-///   `return subscribe(c)`           // bound parameter — best-effort:
-///                                    // we use the literal ident text
-/// Falls back to `None` for any other body shape, including bodies that
-/// compute a value via the tick-on-schedule path.
-fn detect_subscribe_actor_tail(body: &[vox_compiler::hir::HirStmt]) -> Option<String> {
-    use vox_compiler::hir::{HirExpr, HirStmt};
-    let last = body.last()?;
-    let expr = match last {
-        HirStmt::Return { value: Some(e), .. } => e,
-        HirStmt::Expr { expr, .. } => expr,
-        _ => return None,
-    };
-    let HirExpr::Call(callee, args, _, _) = expr else {
-        return None;
-    };
-    let HirExpr::Ident(name, _) = callee.as_ref() else {
-        return None;
-    };
-    if name != "subscribe" || args.len() != 1 {
-        return None;
-    }
-    if let HirExpr::Ident(actor_name, _) = &args[0].value {
-        return Some(actor_name.clone());
-    }
-    None
-}
-
-/// Parse durations from the `every: "<duration>"` syntax to milliseconds.
-/// Accepts `"500ms"`, `"1s"`, `"5m"`, `"1h"`. Returns `None` on unparseable
-/// input — callers fall back to a 1-second default.
-fn parse_interval_to_ms(s: Option<&str>) -> Option<u64> {
-    let s = s?.trim();
-    let (num, unit) = if let Some(rest) = s.strip_suffix("ms") {
-        (rest, 1u64)
-    } else if let Some(rest) = s.strip_suffix('s') {
-        (rest, 1000)
-    } else if let Some(rest) = s.strip_suffix('m') {
-        (rest, 60_000)
-    } else if let Some(rest) = s.strip_suffix('h') {
-        (rest, 3_600_000)
-    } else {
-        return None;
-    };
-    num.trim().parse::<u64>().ok().map(|n| n.saturating_mul(unit))
-}
-
-// Suppress `unused_variable` warnings in the generated SSE handler. The
-// helpers emit a single `let _ = …` line each so we don't have to thread
-// the bookkeeping through the param-emission loop above.
-fn vox_rid_unused_marker(out: &mut String) -> () {
-    out.push_str("    let _ = vox_rid;\n");
-}
-fn q_unused_marker(out: &mut String) -> () {
-    out.push_str("    let _ = &q;\n");
-}
-
-#[cfg(test)]
-mod sse_tests {
-    use super::parse_interval_to_ms;
-    #[test]
-    fn parse_interval_handles_common_units() {
-        assert_eq!(parse_interval_to_ms(Some("500ms")), Some(500));
-        assert_eq!(parse_interval_to_ms(Some("1s")), Some(1000));
-        assert_eq!(parse_interval_to_ms(Some("5m")), Some(300_000));
-        assert_eq!(parse_interval_to_ms(Some("1h")), Some(3_600_000));
-    }
-    #[test]
-    fn parse_interval_rejects_garbage() {
-        assert_eq!(parse_interval_to_ms(Some("five seconds")), None);
-        assert_eq!(parse_interval_to_ms(Some("")), None);
-        assert_eq!(parse_interval_to_ms(None), None);
-    }
-    #[test]
-    fn parse_interval_handles_zero() {
-        // Zero is technically parseable. The handler defaults to 1s for
-        // the `None`/unparseable case but accepts an explicit 0ms (which
-        // would tick as fast as the runtime allows — caller's choice).
-        assert_eq!(parse_interval_to_ms(Some("0ms")), Some(0));
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::emit_main;
@@ -886,100 +624,10 @@ mod tests {
     use vox_compiler::lexer::cursor::lex;
     use vox_compiler::parser::parse;
 
-    /// `@endpoint(kind: stream, every: "1s")` must emit an Axum SSE
-    /// handler returning `axum::response::sse::Sse<...>` (not a JSON
-    /// handler). Verifies the wire-format shift the user signed off on
-    /// in the streaming model decision (Option A).
-    #[test]
-    fn emit_main_stream_endpoint_emits_sse_handler() {
-        let src = r#"
-@endpoint(kind: stream, every: "1s") fn ticker() to int { return 0 }
-"#;
-        let tokens = lex(src);
-        let module = parse(tokens).expect("parse");
-        let hir = lower_module(&module);
-        let bundle = crate::projection_bundle::project_bundle_from_hir(&hir);
-        let output = emit_main(&hir, "demo", &bundle.app);
-
-        // SSE return type
-        assert!(
-            output.contains("axum::response::sse::Sse"),
-            "stream endpoint should return Sse<...>; emit:\n{output}"
-        );
-        // Interval honored
-        assert!(
-            output.contains("__vox_interval_ms: u64") && output.contains("1000"),
-            "stream endpoint should ship 1000ms default interval; emit:\n{output}"
-        );
-        // IntervalStream driver
-        assert!(
-            output.contains("tokio_stream::wrappers::IntervalStream"),
-            "stream endpoint should use IntervalStream; emit:\n{output}"
-        );
-        // KeepAlive (proxies don't drop the connection)
-        assert!(
-            output.contains("KeepAlive::default()"),
-            "stream endpoint should opt into SSE keep-alive; emit:\n{output}"
-        );
-        // Route is GET (streams use GET like queries)
-        assert!(
-            output.contains(".route(\"/api/stream/ticker\", get(handle_stream_ticker))"),
-            "stream endpoint should route as GET under /api/stream/; emit:\n{output}"
-        );
-    }
-
-    /// B5: when a stream endpoint's body returns `subscribe(Actor)`,
-    /// codegen must bridge to `vox_actor_runtime::SubscriptionManager`
-    /// instead of the default IntervalStream tick path.
-    #[test]
-    fn emit_main_stream_subscribe_emits_actor_bridge() {
-        let src = r#"
-actor ChatRoom {
-    on broadcast(msg: str) to str { return msg }
-}
-@endpoint(kind: stream) fn watch_room() to Stream[str] {
-    return subscribe(ChatRoom)
-}
-"#;
-        let tokens = lex(src);
-        let module = parse(tokens).expect("parse");
-        let hir = lower_module(&module);
-        let bundle = crate::projection_bundle::project_bundle_from_hir(&hir);
-        let output = emit_main(&hir, "demo", &bundle.app);
-
-        assert!(
-            output.contains("vox_actor_runtime::SubscriptionManager"),
-            "subscribe-tail stream should bridge to SubscriptionManager; emit:\n{output}"
-        );
-        assert!(
-            output.contains(".subscribe_payload(\"ChatRoom\")"),
-            "should subscribe to the named actor's payload channel; emit:\n{output}"
-        );
-        assert!(
-            output.contains("BroadcastStream"),
-            "should use BroadcastStream wrapper; emit:\n{output}"
-        );
-        assert!(
-            output.contains("Event::default().data(payload)"),
-            "SSE event must carry the broadcast payload, not the actor name literal; emit:\n{output}"
-        );
-        // Lagged-receiver path is silently dropped so the connection
-        // survives a momentary subscriber slow-down.
-        assert!(
-            output.contains("Err(_lagged) => None"),
-            "should silently drop BroadcastStreamRecvError::Lagged; emit:\n{output}"
-        );
-        // Should NOT have the IntervalStream tick path
-        assert!(
-            !output.contains("IntervalStream::new"),
-            "actor-bridge stream must not also emit IntervalStream tick; emit:\n{output}"
-        );
-    }
-
     #[test]
     fn emit_main_omits_workflow_dispatch_without_workflows() {
         let src = r#"
-@endpoint(kind: query) fn health() to str {
+@query fn health() to str {
     return "ok"
 }
 "#;

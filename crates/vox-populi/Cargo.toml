@@ -94,6 +94,7 @@ vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
 vox-identity = { workspace = true }
 vox-mesh-types = { workspace = true }
+vox-populi-types = { workspace = true }
 
 # TLS (optional, P0-T5)
 rustls = { workspace = true, optional = true }
@@ -165,7 +166,7 @@ data-encoding = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
-mockito = "1"
+wiremock = { workspace = true }
 
 [[test]]
 name = "http_control_plane"

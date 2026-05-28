@@ -1,0 +1,11 @@
+[problem]
+id = "157"
+title = "min_index"
+prompt = """
+Return the index of the minimum element in a list of ints. Return -1 if the list is empty. If there are multiple minimum elements, return the index of the first one.
+"""
+signature = "fn min_index(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

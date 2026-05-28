@@ -12,7 +12,7 @@
 
     "@tauri-apps/api": "^2.0.0",
 
-    "vox-tauri-sherpa-guest": "link:../../crates/vox-tauri-sherpa/guest-js",
+    "vox-tauri-stt-guest": "link:../../crates/vox-tauri-stt/guest-js",
 
     "react": "^19.0.0",
 

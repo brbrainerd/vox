@@ -68,6 +68,23 @@ impl DetectionRule for PureFnImpureDetector {
         Good:  @pure fn compute(x: Int) -> Int { x * 2 }"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — @pure fn contains an impure side-effect call\n\
+             @pure\n\
+             fn format_amount(amount: f64) -> str {\n\
+             \x20   log.info(\"formatting\")  // IMPURE: logging is a side effect\n\
+             \x20   \"$\" + amount.to_string()\n\
+             }\n\
+             \n\
+             // FIX — remove the side-effect call\n\
+             @pure\n\
+             fn format_amount(amount: f64) -> str {\n\
+             \x20   \"$\" + amount.to_string()\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

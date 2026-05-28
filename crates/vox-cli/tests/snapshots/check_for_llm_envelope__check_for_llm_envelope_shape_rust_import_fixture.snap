@@ -9,6 +9,14 @@ expression: v
       "ast_node_kind": null,
       "correction_hints": [],
       "error_code": "E0000",
+      "excerpt": {
+        "lines": [
+          1,
+          2,
+          3
+        ],
+        "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+      },
       "expected_type": null,
       "file_path": "tests/fixtures/golden_rust_import_lowering.vox",
       "found_type": null,
@@ -28,6 +36,14 @@ expression: v
       "ast_node_kind": null,
       "correction_hints": [],
       "error_code": "E0000",
+      "excerpt": {
+        "lines": [
+          1,
+          2,
+          3
+        ],
+        "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+      },
       "expected_type": null,
       "file_path": "tests/fixtures/golden_rust_import_lowering.vox",
       "found_type": null,
@@ -47,6 +63,14 @@ expression: v
       "ast_node_kind": null,
       "correction_hints": [],
       "error_code": "E0000",
+      "excerpt": {
+        "lines": [
+          1,
+          2,
+          3
+        ],
+        "text": "import rust:serde_json(version: \"1\") as sj_a\nimport rust:serde_json(version: \"2\") as sj_b\nfn main() {}"
+      },
       "expected_type": null,
       "file_path": "tests/fixtures/golden_rust_import_lowering.vox",
       "found_type": null,

@@ -1,0 +1,25 @@
+fn two_sum_exists(xs: list[int], target: int) to bool {
+    let n: int = xs.len()
+    let mut i: int = 0
+    while i < n {
+        let mut j: int = i + 1
+        while j < n {
+            match xs[i] {
+                Some(a) => {
+                    match xs[j] {
+                        Some(b) => {
+                            if a + b == target {
+                                return true
+                            }
+                        }
+                        None => {}
+                    }
+                }
+                None => {}
+            }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    return false
+}

@@ -5,6 +5,7 @@
 
 mod ids;
 mod messages;
+mod routing;
 mod switch;
 mod tasks;
 
@@ -17,8 +18,10 @@ pub use messages::{
     ThreadId, VcsContext,
 };
 pub use switch::{SwitchAccessMode, SwitchAction, SwitchActionType};
+pub use routing::RoutingProfile;
 pub use tasks::{
     AccessKind, AgentTask, Budget, CompletionAttestation, FileAffinity, MAX_A2A_BOUNCE,
     PopuliRemoteDelegate, TaskCategory, TaskDescriptor, TaskEnqueueHints, TaskPhase, TaskPriority,
     TaskStatus, TaskTurn,
 };
+pub use vox_orchestrator_types::PrioritySource;

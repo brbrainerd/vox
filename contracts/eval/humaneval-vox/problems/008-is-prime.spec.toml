@@ -1,0 +1,11 @@
+[problem]
+id = "008"
+title = "is_prime"
+prompt = """
+Return true if n is a prime number. Return false for n < 2.
+"""
+signature = "fn is_prime(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

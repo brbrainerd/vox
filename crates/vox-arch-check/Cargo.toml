@@ -13,13 +13,14 @@ chrono = { workspace = true }
 anyhow.workspace = true
 regex = { workspace = true }
 globset = { workspace = true }
+sha2 = { workspace = true }
 
 [[bin]]
 name = "vox-arch-check"
 path = "src/main.rs"
 
 [dev-dependencies]
-vox-compiler = { path = "../vox-compiler" }
+vox-rename-registry = { path = "../vox-rename-registry" }
 tempfile = { workspace = true }
 
 [build-dependencies]

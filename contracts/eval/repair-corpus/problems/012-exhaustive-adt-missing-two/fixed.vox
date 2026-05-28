@@ -1,0 +1,15 @@
+// Fix: add the Blocked and Done arms to make the match exhaustive.
+type TaskState =
+    | Pending
+    | Running
+    | Blocked(reason: str)
+    | Done(result: str)
+
+fn priority_label(state: TaskState) to str {
+    match state {
+        Pending => "low"
+        Running => "high"
+        Blocked(reason) => "blocked: " + reason
+        Done(result) => "done"
+    }
+}

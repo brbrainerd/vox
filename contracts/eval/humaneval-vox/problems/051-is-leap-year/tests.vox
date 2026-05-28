@@ -1,0 +1,24 @@
+fn is_leap_year(year: int) to bool {
+    if year % 400 == 0 {
+        return true
+    }
+    if year % 100 == 0 {
+        return false
+    }
+    if year % 4 == 0 {
+        return true
+    }
+    return false
+}
+
+fn main() to str {
+    assert(is_leap_year(2000) == true)
+    assert(is_leap_year(1900) == false)
+    assert(is_leap_year(2024) == true)
+    assert(is_leap_year(2023) == false)
+    assert(is_leap_year(400) == true)
+    assert(is_leap_year(100) == false)
+    assert(is_leap_year(4) == true)
+    assert(is_leap_year(1) == false)
+    return "ok"
+}

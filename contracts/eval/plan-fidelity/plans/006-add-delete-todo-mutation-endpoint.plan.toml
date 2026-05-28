@@ -1,0 +1,36 @@
+# vox:skip
+id = "plan-fidelity-006-add-delete-todo-mutation-endpoint"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+Add a mutation endpoint `delete_todo(id: int) to Result[str]` to `src/todos.vox`. \
+Decorate with `@mutation` and `@auth(scheme: bearer)`. \
+Return `Error("invalid id")` when `id <= 0`; otherwise call `db.Todo.delete(id)` \
+and return `Ok("todo.deleted")`. \
+Add `@test fn test_delete_todo_invalid_id` to `tests/todos_test.vox` asserting that \
+`delete_todo(0)` returns an `Error`. \
+Run `vox check --strict && vox test --filter=test_delete_todo_invalid_id`.
+"""
+preconditions = """
+`src/todos.vox` defines `@table type Todo { ... }` and at least `create_todo`. \
+`tests/todos_test.vox` exists. `vox check --strict` passes at HEAD. \
+No `delete_todo` function exists yet.
+"""
+
+[plan_expected_shape]
+min_steps = 3
+max_steps = 7
+must_include_tasks = ["add-endpoint", "add-auth-decorator", "add-test", "verify-compile"]
+must_include_decorator_calls = ["@mutation", "@auth", "@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_delete_todo_invalid_id"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/todos.vox", regex = "@mutation" },
+  { path = "src/todos.vox", regex = "@auth\\(scheme: bearer\\)" },
+  { path = "src/todos.vox", regex = "fn delete_todo" },
+  { path = "tests/todos_test.vox", regex = "test_delete_todo_invalid_id" },
+]

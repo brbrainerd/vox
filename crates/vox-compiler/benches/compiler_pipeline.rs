@@ -29,22 +29,22 @@ const CRUD_API: &str = r#"
     done: bool
 }
 
-@endpoint(kind: query)
+@query
 fn list_tasks() to list[Task] {
     ret db.Task.find_all()
 }
 
-@endpoint(kind: mutation)
+@mutation
 fn create_task(title: str) to Task {
     ret db.Task.insert({ title: title, done: false })
 }
 
-@endpoint(kind: mutation)
+@mutation
 fn complete_task(id: int) to Task {
     ret db.Task.update(id, { done: true })
 }
 
-@endpoint(kind: mutation)
+@mutation
 fn delete_task(id: int) to Unit {
     db.Task.delete(id)
 }

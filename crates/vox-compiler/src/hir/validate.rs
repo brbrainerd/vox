@@ -32,26 +32,21 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
             crate::hir::HirEndpointKind::Server => "server fn",
             crate::hir::HirEndpointKind::Query => "@query fn",
             crate::hir::HirEndpointKind::Mutation => "@mutation fn",
-            crate::hir::HirEndpointKind::Stream => "@endpoint(kind: stream) fn",
         };
         validate_name_and_params(&s.name, &s.params, s.span, label, &mut errors);
         if s.route_path.is_empty() {
             let (hint, kind_str) = match s.kind {
                 crate::hir::HirEndpointKind::Server => (
-                    "@endpoint(kind: server) must declare a route, e.g. @endpoint(kind: server) fn foo()",
-                    "server fn",
+                    "@server fn must declare a route, e.g. @server fn foo(\"/path\")",
+                    "@server fn",
                 ),
                 crate::hir::HirEndpointKind::Query => (
-                    "@endpoint(kind: query) must declare a route, e.g. @endpoint(kind: query) fn foo()",
+                    "@query fn must declare a route, e.g. @query fn foo(\"/path\")",
                     "@query fn",
                 ),
                 crate::hir::HirEndpointKind::Mutation => (
-                    "@endpoint(kind: mutation) must declare a route, e.g. @endpoint(kind: mutation) fn foo()",
+                    "@mutation fn must declare a route, e.g. @mutation fn foo(\"/path\")",
                     "@mutation fn",
-                ),
-                crate::hir::HirEndpointKind::Stream => (
-                    "@endpoint(kind: stream) must declare a route, e.g. @endpoint(kind: stream) fn foo()",
-                    "@endpoint(kind: stream) fn",
                 ),
             };
             errors.push(HirValidationError {

@@ -1,0 +1,11 @@
+fn sum_above_avg(xs: list[int]) to int {
+    if xs.len() == 0 { return 0 }
+    let avg: float = float(xs.sum()) / float(xs.len())
+    let mut total: int = 0
+    for x in xs {
+        if float(x) > avg {
+            total = total + x
+        }
+    }
+    return total
+}

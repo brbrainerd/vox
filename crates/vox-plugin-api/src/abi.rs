@@ -18,7 +18,6 @@ use crate::extensions::speech_to_text::SpeechToText_TO;
 use crate::extensions::tensor_backend::TensorBackend_TO;
 use crate::extensions::http_listener::HttpListener_TO;
 use crate::extensions::skill_runtime::SkillRuntime_TO;
-use crate::extensions::grammar_export::GrammarExport_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
     StableAbi, library::RootModule, package_version_strings, sabi_trait,
@@ -124,11 +123,6 @@ pub trait VoxPlugin: Send + Sync {
         ROption::RNone
     }
 
-    /// Optional accessor: if this plugin provides a GrammarExport implementation,
-    /// return Some(trait object). Default impl returns None.
-    fn as_grammar_export(&self) -> ROption<GrammarExport_TO<'static, RBox<()>>> {
-        ROption::RNone
-    }
 }
 
 pub type VoxPluginRef = VoxPlugin_TO<'static, RBox<()>>;

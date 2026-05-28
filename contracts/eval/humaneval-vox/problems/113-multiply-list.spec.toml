@@ -1,0 +1,11 @@
+[problem]
+id = "113"
+title = "multiply_list"
+prompt = """
+Given a list of ints and a scalar int k, return a new list with each element multiplied by k.
+"""
+signature = "fn multiply_list(xs: list[int], k: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

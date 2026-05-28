@@ -104,6 +104,20 @@ fn collect_text_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 }
 
 /// Run retirement audit from repository root.
+///
+/// Two checks:
+///
+/// 1. **Overdue deprecation markers** — scans all source files for
+///    `vox-deprecated-since = "X" retire-by = "Y"` annotations and fails if
+///    the `retire-by` version is ≤ the workspace version.
+///
+/// 2. **CR-L6 contract presence** — verifies that
+///    `contracts/retirement/retired-surfaces.v1.yaml` exists and is a
+///    non-empty YAML document.  The deep parity check (cross-referencing rule
+///    IDs against registered detectors) runs via
+///    `cargo test -p vox-code-audit -- retirement_parity` and is covered in CI
+///    through the workspace test suite.  This surface-level check catches the
+///    case where the contract file is accidentally deleted.
 pub fn run(repo_root: &Path) -> Result<()> {
     let workspace_ver = workspace_version(repo_root)?;
     let mut files = Vec::new();
@@ -149,6 +163,32 @@ pub fn run(repo_root: &Path) -> Result<()> {
             overdue.len()
         ));
     }
+
+    // CR-L6 contract presence check (P1.5).
+    let contract_path =
+        repo_root.join("contracts/retirement/retired-surfaces.v1.yaml");
+    if !contract_path.exists() {
+        return Err(anyhow!(
+            "retirement-audit: CR-L6 contract missing at contracts/retirement/retired-surfaces.v1.yaml — \
+             this file is required for retirement-guard parity (CR-L6). \
+             Create it or restore from git history."
+        ));
+    }
+    let contract_yaml = fs::read_to_string(&contract_path)
+        .context("read contracts/retirement/retired-surfaces.v1.yaml")?;
+    // Structural check: the file must contain at least one `- id:` entry.
+    let surface_count = contract_yaml.lines().filter(|l| l.trim_start().starts_with("- id:")).count();
+    if surface_count == 0 {
+        return Err(anyhow!(
+            "retirement-audit: contracts/retirement/retired-surfaces.v1.yaml contains \
+             no surface entries — the file may be empty or malformed."
+        ));
+    }
+    println!(
+        "retirement-audit: CR-L6 contract OK ({surface_count} surface(s) declared; \
+         deep parity verified by `cargo test -p vox-code-audit -- retirement_parity`)"
+    );
+
     Ok(())
 }
 

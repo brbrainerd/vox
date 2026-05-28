@@ -37,7 +37,7 @@ Vox includes a minimal, highly optimized standard library focused exclusively on
 > under `--mode interp` work; under `--mode script` they need
 > actor-runtime impls (tracked in audit §13 Phase H):
 >
-> - `fs.cwd()`, `fs.remove(path)`, `fs.walk(dir)` / `fs.list_recursive`
+> - `fs.cwd()`, `fs.remove(path)`, `fs.walk(dir)`
 > - `path.extension/parent/file_name/stem/is_absolute`
 > - `process.cwd()`, `process.which(cmd)`
 > - `regex.replace/is_match/captures` (the namespace form; the `Regex`
@@ -88,7 +88,7 @@ File system operations interact securely via WASI/os permission mappings. Error 
 | `fn list_dir(path: str) to Result[list[str]]` | Returns a list of filenames in the directory. |
 | `fn list_dir_detailed(path: str) to Result[list[Record]]` | Like `list_dir` but each row carries `name`, `path`, `is_dir`. |
 | `fn glob(pattern: str) to Result[list[str]]` | Returns a list of paths matching the glob pattern. |
-| `fn walk(dir: str) to Result[list[str]]` | Recursive lister; equivalent to `glob(dir + "/**/*")`. Alias: `list_recursive`. |
+| `fn walk(dir: str) to Result[list[str]]` | Recursive lister; equivalent to `glob(dir + "/**/*")`. |
 | `fn copy(src: str, dst: str) to Result[Unit]` | Copies a file from source to destination. |
 | `fn remove(path: str) to Result[Unit]` | Removes the file at the given path. |
 | `fn mkdir(path: str) to Result[Unit]` | Creates a directory (parents created as needed). |

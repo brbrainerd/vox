@@ -29,7 +29,7 @@ audit found that 4 scripts under `examples/aspirational/intra-project-imports/`
 (formerly `scripts/mens-corpus/`) want to import helpers:
 
 ```vox
-// vox:skip
+// vox:skip — illustrative; the imported helpers don't exist as files.
 // scripts/mens-corpus/harvest.vox (today)
 // — has to re-inline walk_docs/walk_sources/jsonl_writer logic
 
@@ -68,7 +68,6 @@ local-import  := STRING_LIT ("as" IDENT)?
 Examples:
 
 ```vox
-// vox:skip
 import "./helpers/walk_docs.vox"               // flat — exports merge into current scope
 import "./helpers/walk_sources.vox" as ws      // namespaced — call as `ws.walk_sources(...)`
 import "../shared/util.vox"                    // relative path traversal allowed
@@ -81,7 +80,6 @@ Only `pub fn`, `pub type`, `pub @table` etc. become visible to importers;
 bare `fn`/`type` stay private to the file.
 
 ```vox
-// vox:skip
 // helpers/walk_docs.vox
 pub fn walk_docs(root: str) to list[str] {
     return collect_md(root)  // calls private helper
@@ -126,7 +124,7 @@ the importer must use `as` to disambiguate.
 With `as alias`, exported names live under `alias.name`:
 
 ```vox
-// vox:skip
+// vox:skip — illustrative; the imported helper doesn't exist as a file.
 import "./helpers/walk_docs.vox" as docs
 
 fn main() {

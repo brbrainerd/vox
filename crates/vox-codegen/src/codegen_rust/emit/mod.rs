@@ -71,7 +71,7 @@ fn emit_generated_extra_deps(module: &HirModule) -> String {
 
 pub use client::{emit_api_client, emit_mcp_server};
 pub use http::emit_main;
-pub use main_boot::emit_main_boot;
+pub use main_boot::{emit_durable_boot_helpers, emit_durable_boot_prelude, emit_main_boot};
 pub use stmt_expr::{emit_expr, emit_main_stmt};
 pub use tables::{
     emit_index_ddl, emit_table_ddl, emit_table_struct, validate_db_projection_suffixes_unique,
@@ -274,7 +274,7 @@ fn emit_tauri_build_rs() -> String {
     r#"fn main() {
     tauri_build::try_build(
         tauri_build::Attributes::new().plugin(
-            "vox-sherpa",
+            "vox-stt",
             tauri_build::InlinedPlugin::new()
                 .commands(&["transcribe"])
                 .default_permission(tauri_build::DefaultPermissionRule::AllowAllCommands),
@@ -346,7 +346,7 @@ use {}::*;
 
     out.push_str("fn main() {\n");
     out.push_str("    tauri::Builder::default()\n");
-    out.push_str("        .plugin(vox_tauri_sherpa::plugin::init())\n");
+    out.push_str("        .plugin(vox_tauri_stt::plugin::init())\n");
 
     if !command_names.is_empty() {
         out.push_str(&format!(
@@ -379,7 +379,7 @@ fn emit_tauri_default_capability_json() -> String {
   "identifier": "default",
   "description": "Default permissions for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "vox-sherpa:default"]
+  "permissions": ["core:default", "vox-stt:default"]
 }
 "#
     .to_string()
@@ -443,7 +443,12 @@ vox-db = {{ path = "../../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
 vox-oratio = {{ path = "../../../crates/vox-oratio" }}
-vox-tauri-sherpa = {{ path = "../../../crates/vox-tauri-sherpa", features = ["tauri-plugin"] }}
+vox-tauri-stt = {{ path = "../../../crates/vox-tauri-stt", features = ["tauri-plugin"] }}
+# P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
+# (Tauri main.rs does not yet emit the prelude; deps added for symmetry +
+# so future Tauri-side durable wiring is unblocked.)
+vox-compiler = {{ path = "../../../crates/vox-compiler" }}
+vox-workflow-runtime = {{ path = "../../../crates/vox-workflow-runtime", default-features = false }}
 {fixture_deps}{rust_import_deps}
 
 [dev-dependencies]
@@ -548,6 +553,11 @@ vox-db = {{ path = "../../crates/vox-db" }}
 vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
 vox-orchestrator = {{ path = "../../crates/vox-orchestrator" }}
 vox-oratio = {{ path = "../../crates/vox-oratio" }}
+# P9 (2026-05-24): durable boot prelude in main.rs references both — see
+# crates/vox-codegen/src/codegen_rust/emit/main_boot.rs (HirModule embed
+# + scheduled runner + set_current_hir_module).
+vox-compiler = {{ path = "../../crates/vox-compiler" }}
+vox-workflow-runtime = {{ path = "../../crates/vox-workflow-runtime", default-features = false }}
 {fixture_deps}{rust_import_deps}{mcp_bin}"#,
         features_section = features_section,
         fixture_deps = fixture_deps,

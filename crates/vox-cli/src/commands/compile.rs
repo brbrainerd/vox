@@ -388,7 +388,7 @@ mod tests {
         std::fs::write(
             &file,
             r#"
-@endpoint(kind: query) fn ping() uses net to int { return 1 }
+@query fn ping() uses net to int { return 1 }
 "#,
         )
         .unwrap();

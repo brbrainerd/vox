@@ -1,0 +1,15 @@
+id = "010"
+title = "Non-exhaustive match on bool: missing false arm"
+description = """
+describe_flag matches on a bool value but only provides a `true` arm.
+Vox enforces exhaustive matches on bool: both `true` and `false` must
+be covered. The fix is to add a `false => "feature is off"` arm.
+"""
+bug_class = "exhaustiveness"
+difficulty = "easy"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["E0301"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

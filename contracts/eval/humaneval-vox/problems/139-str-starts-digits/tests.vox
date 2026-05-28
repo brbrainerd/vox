@@ -1,0 +1,28 @@
+fn str_starts_digits(s: str) to bool {
+    if s.len() == 0 {
+        return false
+    }
+    let chars: list[str] = s.chars()
+    let mut first: str = ""
+    let mut found: bool = false
+    for c in chars {
+        if not found {
+            first = c
+            found = true
+        }
+    }
+    let code: int = first.ord()
+    return code >= 48 and code <= 57
+}
+
+fn main() to str {
+    assert(str_starts_digits("123abc") == true)
+    assert(str_starts_digits("abc123") == false)
+    assert(str_starts_digits("") == false)
+    assert(str_starts_digits("0") == true)
+    assert(str_starts_digits("9hello") == true)
+    assert(str_starts_digits("hello") == false)
+    assert(str_starts_digits(" 1") == false)
+    assert(str_starts_digits("5") == true)
+    return "ok"
+}

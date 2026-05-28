@@ -17,9 +17,9 @@ pub mod bare_metal;
 pub mod deploy_target;
 pub mod generate;
 
-// Re-export the runtime trait from vox-container so deploy_target.rs compiles
-// against the same trait object type used by detect_runtime().
-pub use vox_container::{BuildOpts, ContainerRuntime};
+// Re-export pure types from vox-container-types (L0) — no runtime backends needed here.
+// deploy_target.rs uses BuildOpts/ContainerRuntime as data / trait-object types only.
+pub use vox_container_types::{BuildOpts, ContainerRuntime};
 
 pub use bare_metal::generate_systemd_unit;
 pub use deploy_target::{

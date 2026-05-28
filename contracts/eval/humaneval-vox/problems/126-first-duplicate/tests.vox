@@ -1,0 +1,20 @@
+fn first_duplicate(xs: list[int]) to int {
+    let mut seen: list[int] = []
+    for x in xs {
+        if seen.contains(x) {
+            return x
+        }
+        seen.push(x)
+    }
+    return -1
+}
+
+fn main() to str {
+    assert(first_duplicate([1, 2, 3, 2, 1]) == 2)
+    assert(first_duplicate([1, 2, 3]) == -1)
+    assert(first_duplicate([5, 5]) == 5)
+    assert(first_duplicate([]) == -1)
+    assert(first_duplicate([3, 1, 2, 1, 3]) == 1)
+    assert(first_duplicate([7, 8, 9, 8]) == 8)
+    return "ok"
+}

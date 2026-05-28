@@ -43,7 +43,7 @@ pub enum CiCmd {
     /// Documentation SSOT guard (required pages, doc-inventory schema, orphan inventory crate list).
     #[command(name = "check-docs-ssot")]
     CheckDocsSsot,
-    /// Enforces that no new crates are added outside of the 10 Frozen Core crates in `crates/_frozen.md`.
+    /// No-op since `crates/_frozen.md` was superseded by `layers.toml` and `contracts/db/data-storage-policy.v1.yaml`. Kept for backwards-compatibility.
     #[command(name = "check-frozen")]
     CheckFrozen,
     /// Codex / Arca SSOT file and OpenAPI substring guard.
@@ -118,7 +118,8 @@ pub enum CiCmd {
     /// **scoped** doc lint + doctest on changed `docs/src/**/*.md` (excludes `archive/`),
     /// and workspace drift-check — tuned for responsive `git push`.
     /// Use **`--complete`** for the historical full static gate (whole-tree docs, clippy,
-    /// doc-inventory, scoped TOESTUB). **`--full`** adds workspace nextest (CI profile).
+    /// doc-inventory, scoped TOESTUB). **`--full`** adds workspace nextest (CI profile,
+    /// slow `#[ignore]` tests excluded by default; add **`--include-slow`** to run them).
     #[command(name = "pre-push")]
     PrePush {
         /// Legacy alias for the default **fast** profile (same as omitting `--complete`/`--full`).
@@ -128,7 +129,9 @@ pub enum CiCmd {
         /// scoped TOESTUB (same shape as the pre-2026-05-11 default pre-push, without nextest).
         #[arg(long, conflicts_with = "quick")]
         complete: bool,
-        /// Implies **`--complete`** and appends **`cargo nextest run --workspace --profile ci --no-fail-fast`**.
+        /// Implies **`--complete`** and appends **`cargo nextest run --workspace --profile ci --no-fail-fast`**
+        /// (slow `#[ignore]` tests excluded; add `--include-slow` to include them).
+        /// Add `--with-coverage` for llvm-cov; add `--since <ref>` to run only impacted crates.
         #[arg(long, conflicts_with = "quick")]
         full: bool,
         /// Print commands without executing.
@@ -142,6 +145,28 @@ pub enum CiCmd {
         /// Write JSON timing report (`contracts/reports/pre-push-report.v1.schema.json`).
         #[arg(long, value_name = "PATH")]
         report_json: Option<PathBuf>,
+        /// Also run the slow `#[ignore]` test partition (arch-check smoke, scientia timeout,
+        /// codegen bundle check). Only meaningful with `--full`. Adds ~3–5 min.
+        #[arg(long)]
+        include_slow: bool,
+        /// Run nextest under `cargo llvm-cov nextest` and emit a coverage report under
+        /// `target/llvm-cov/`. Only valid with `--full`; errors if used without it.
+        /// Adds ~60s overhead vs. plain nextest. Requires `cargo-llvm-cov` on PATH.
+        #[arg(long)]
+        with_coverage: bool,
+        /// Run nextest only for the packages affected by changes since `<REF>` (plus their
+        /// transitive reverse-deps). Falls back to `--workspace` if more than
+        /// `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20) packages are impacted.
+        /// Only meaningful with `--full`. Typical wall-clock for a 1–3 crate edit: 3–20s.
+        #[arg(long, value_name = "REF")]
+        since: Option<String>,
+        /// Compare total elapsed time against the tier budgets in
+        /// `contracts/budgets/test-tier-budgets.v1.yaml` after a successful run.
+        /// Warns to stderr when elapsed > `warn_ms`; fails when elapsed > `fail_ms`.
+        /// No-op if the budgets file is absent (safe on first clone).
+        /// Skipped in `--dry-run` mode (no elapsed times to compare).
+        #[arg(long)]
+        enforce_budgets: bool,
     },
     /// Heuristics for Cargo cache fragmentation and expensive local verification habits (AI / inner-loop).
     #[command(name = "dev-loop-audit")]
@@ -754,6 +779,9 @@ pub enum CiCmd {
     /// Enforce no-tauri-in-core architectural boundary.
     #[command(name = "no-tauri-in-core")]
     NoTauriInCore,
+    /// Guard that no non-plugin crate takes a compile-time dep on a cdylib plugin (D-2).
+    #[command(name = "no-plugin-cdylib-as-compile-dep")]
+    NoPluginCdylibAsCompileDep,
     /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
     #[command(name = "plugin-abi-parity")]
     PluginAbiParity,

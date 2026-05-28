@@ -1,0 +1,11 @@
+[problem]
+id = "045"
+title = "caesar_shift"
+prompt = """
+Apply a Caesar cipher shift of k positions to the string. Uppercase and lowercase letters are shifted within their own range. Non-letter characters are left unchanged. k may be any integer (negative = left shift).
+"""
+signature = "fn caesar_shift(s: str, k: int) to str"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

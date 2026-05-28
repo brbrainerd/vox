@@ -1,0 +1,23 @@
+fn max_gap(xs: list[int]) to int {
+    if xs.len() < 2 { return 0 }
+    let mut best: int = 0
+    let mut i: int = 1
+    while i < xs.len() {
+        match xs[i] {
+            Some(b) => {
+                match xs[i - 1] {
+                    Some(a) => {
+                        let gap: int = b - a
+                        if gap > best {
+                            best = gap
+                        }
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return best
+}

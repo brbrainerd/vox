@@ -1,0 +1,17 @@
+fn is_pangram(s: str) to bool {
+    let lower: str = s.to_lower()
+    let letters: list[str] = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
+    let mut i: int = 0
+    while i < letters.len() {
+        match letters[i] {
+            Some(ch) => {
+                if not lower.contains(ch) {
+                    return false
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return true
+}

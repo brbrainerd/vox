@@ -14,7 +14,7 @@ export function Item() {
   const [bannerError, setBannerError] = React.useState<string | null>(null);
   function validate(): Record<string, string> {
     const e: Record<string, string> = {};
-    if (name === undefined || name === null || name === "") e.name = "name is required";
+    if (name === undefined || name === null || name === "") e.name = "Item name is required";
     return e;
   }
   const onSubmit = async (ev: React.FormEvent) => {
@@ -36,7 +36,7 @@ export function Item() {
     <form onSubmit={onSubmit} className="vox-form">
       {bannerError && <div role="alert" className="vox-form-error-banner">{bannerError}</div>}
       <label className="vox-form-field">
-        <span>name *</span>
+        <span>Item name *</span>
         <input type="text" value={name ?? ""} onChange={e => set_name(e.target.value)} aria-invalid={!!errors.name} aria-describedby="name-error" />
         {errors.name && <span id="name-error" role="alert" className="vox-form-error">{errors.name}</span>}
       </label>

@@ -22,7 +22,6 @@
 //!   per-subcommand `gate` / `corpus` / `block_ga` / `cost_metered` fields.
 
 pub mod aggregator;
-pub mod panel;
 pub mod recorder;
 pub mod report;
 pub mod subcommands;
@@ -112,60 +111,6 @@ impl CrlGate {
     }
 }
 
-/// Evidence-preservation guard for corpus-only / inventory-mode gate
-/// branches: if a recent canonical artifact (within the last 7 days)
-/// already carries a real LLM-panel measurement (non-empty
-/// `results.per_llm`), return it so the runner can echo it back rather
-/// than overwriting it with a poorer-quality inventory result.
-///
-/// Used by gates that have both a corpus-inventory branch (no LLM,
-/// always runs) and an opt-in panel branch (`--llm-panel`). Without
-/// this, `vox audit --gate all` would clobber a fresh panel artifact
-/// every time the umbrella re-ran an unrelated inventory check — even
-/// on the following day when there is no same-day file yet.
-///
-/// Looks back up to `MAX_LOOKBACK_DAYS` (7) days, most-recent-first,
-/// and returns the first file that (a) exists and (b) has a non-empty
-/// `results.per_llm`. A 7-day window is deliberately shorter than the
-/// corpus-feedback gate's 90-day window: LLM-panel measurements are
-/// more sensitive to corpus drift, so we re-measure at least weekly.
-///
-/// Returns `None` when:
-///   - No file within the lookback window exists.
-///   - No such file is a valid `AuditReport`.
-///   - All found files have empty `per_llm` (inventory-mode artifacts).
-pub fn same_day_canonical_with_panel(
-    workspace_root: &std::path::Path,
-    gate_thing_name: &str,
-) -> Option<crate::report::AuditReport> {
-    const MAX_LOOKBACK_DAYS: i64 = 7;
-    let reports_dir = workspace_root
-        .join("contracts")
-        .join("reports")
-        .join(gate_thing_name);
-    let now = chrono::Utc::now();
-    for days_ago in 0..=MAX_LOOKBACK_DAYS {
-        let date = (now - chrono::Duration::days(days_ago))
-            .format("%Y-%m-%d")
-            .to_string();
-        let path = reports_dir.join(format!("{date}.json"));
-        if !path.exists() {
-            continue;
-        }
-        let Ok(body) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        let Ok(report) = serde_json::from_str::<crate::report::AuditReport>(&body) else {
-            continue;
-        };
-        if report.results.per_llm.is_empty() {
-            continue;
-        }
-        return Some(report);
-    }
-    None
-}
-
 /// Workspace-root locator: walks up from `CARGO_MANIFEST_DIR` looking for the
 /// top-level Cargo.toml that contains `[workspace]`. Used by subcommands to
 /// resolve contract paths.
@@ -253,28 +198,15 @@ pub trait Subcommand: Send + Sync {
 /// §subcommands. Tooling gates appear after the CR-L block.
 pub fn registry() -> Vec<Box<dyn Subcommand>> {
     vec![
-        // CR-L0: real SpecToAppRunner replaced its stub 2026-05-18 (P1.3).
-        Box::new(subcommands::spec_to_app::SpecToAppRunner),
-        // CR-L1: real HumanEvalRunner replaced HumanEvalStub 2026-05-17
-        // (corpus-validity layer is real; LLM-panel layer is explicit opt-in
-        // returning InvalidInput until the panel client lands).
-        Box::new(subcommands::humaneval::HumanEvalRunner),
-        // CR-L2: real MensOnDistributionRunner replaced its stub
-        // 2026-05-18 (P1.4).
-        Box::new(subcommands::mens_on_distribution::MensOnDistributionRunner),
-        // CR-L3: real RepairCorpusRunner replaced RepairCorpusStub
-        // 2026-05-18 (P1.1 of the v1.0 completion plan).
-        Box::new(subcommands::repair_corpus::RepairCorpusRunner),
-        // CR-L4: real PlanFidelityRunner replaced its stub
-        // 2026-05-18 (P1.2).
-        Box::new(subcommands::plan_fidelity::PlanFidelityRunner),
+        Box::new(subcommands::stubs::SpecToAppStub),
+        // P2.3: CR-L1 stub replaced by real vox-check-based impl.
+        Box::new(subcommands::humaneval::HumanEvalSubcommand),
+        Box::new(subcommands::stubs::MensOnDistributionStub),
+        Box::new(subcommands::stubs::RepairCorpusStub),
+        Box::new(subcommands::stubs::PlanFidelityStub),
         Box::new(subcommands::aci_default::AciDefaultSubcommand),
         Box::new(subcommands::retirement::RetirementSubcommand),
-        // CR-L7: real DeployRunner replaced DeployStub 2026-05-17 (Task O).
-        // The doctor leg runs against status:real Marquee fixtures today;
-        // the vox new + vox deploy legs front-stack onto this runner when
-        // they ship.
-        Box::new(subcommands::deploy::DeployRunner),
+        Box::new(subcommands::stubs::DeployStub),
         // P2.2: CR-L8 stub replaced by real aggregator-backed impl.
         Box::new(subcommands::corpus_feedback::CorpusFeedbackSubcommand),
         // Non-CR-L tooling gate (does not block GA).
@@ -336,11 +268,7 @@ pub fn run_all(args: &CommonArgs) -> Vec<RunOutcome> {
 /// `contracts/ci/vox-audit-contract.v1.yaml` §telemetry, every `vox audit
 /// <thing>` run must produce an event carrying `corpus_hash`, `outcome`,
 /// `duration_seconds`, etc. Council ratified 2026-05-15 (A11).
-fn emit_audit_run_event(
-    outcome: &RunOutcome,
-    started: std::time::Instant,
-    umbrella_run: bool,
-) {
+fn emit_audit_run_event(outcome: &RunOutcome, started: std::time::Instant, umbrella_run: bool) {
     use vox_telemetry::{AuditRunEvent, TelemetryEvent, record_event};
 
     let outcome_label = match outcome.exit_code {
@@ -375,98 +303,11 @@ fn emit_audit_run_event(
             .iter()
             .filter_map(|r| r.unreachable_count)
             .sum::<u32>(),
-        panel_version: outcome
-            .report
-            .llm_panel
-            .first()
-            .map(|m| m.version.clone()),
+        panel_version: outcome.report.llm_panel.first().map(|m| m.version.clone()),
         umbrella_run,
         repository_id: None, // populated when CommonArgs threads a repo id (A2-style follow-on)
     });
     record_event!(&event);
-}
-
-/// Return references to outcomes whose gate has `block_ga == true` and whose
-/// report's `threshold.met` is `false` or `incomplete` is true.
-///
-/// Used by `vox audit --gate all --strict-block-ga` to gate v1.0 release
-/// claims. The plan at `docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md`
-/// §10 (Acceptance) requires this to return an empty slice before any
-/// "v1.0 ready" claim can be made.
-pub fn strict_block_ga_violations(outcomes: &[RunOutcome]) -> Vec<&RunOutcome> {
-    outcomes
-        .iter()
-        .filter(|o| {
-            let Some(gate) = gate_from_name(&o.report.thing) else {
-                return false;
-            };
-            if !gate.block_ga() {
-                return false;
-            }
-            // Block-GA gate must report met=true AND incomplete=false.
-            let met = o.report.threshold.as_ref().map(|t| t.met).unwrap_or(false);
-            !met || o.report.incomplete
-        })
-        .collect()
-}
-
-/// Write the aggregate snapshot of a `run_all` invocation to disk.
-///
-/// Produces two files under `workspace/contracts/reports/`:
-///   - `audit-all/<UTC-date>.json` — preserves the umbrella convention
-///     called out in `contracts/ci/vox-audit-contract.v1.yaml`.
-///   - `_snapshot/<UTC-date>.json` — the canonical entry point that the
-///     evidence-ledger lint reads to verify scorecard claims (per the
-///     honest-completion plan §1.1).
-///
-/// The on-disk shape carries: gate-name → report, the aggregate exit
-/// code, and a `block_ga_violations` array of gate-names that prevent
-/// v1.0 GA.
-pub fn write_aggregate_snapshot(
-    outcomes: &[RunOutcome],
-    workspace_root: &std::path::Path,
-) -> Result<std::path::PathBuf, String> {
-    use serde_json::json;
-    let now = chrono::Utc::now();
-    let date = now.format("%Y-%m-%d").to_string();
-    let measured_at = now.to_rfc3339();
-
-    let block_ga_violations: Vec<String> = strict_block_ga_violations(outcomes)
-        .iter()
-        .map(|o| o.report.thing.clone())
-        .collect();
-    let aggregate_exit = aggregate_exit_code(outcomes).as_i32();
-
-    let gates_json: serde_json::Value = outcomes
-        .iter()
-        .map(|o| (o.report.thing.clone(), serde_json::to_value(&o.report).unwrap_or(serde_json::Value::Null)))
-        .collect::<serde_json::Map<_, _>>()
-        .into();
-
-    let snapshot = json!({
-        "schema_version": 1,
-        "measured_at": measured_at,
-        "aggregate_exit_code": aggregate_exit,
-        "block_ga_violations": block_ga_violations,
-        "gates": gates_json,
-    });
-    let body = serde_json::to_string_pretty(&snapshot)
-        .map_err(|e| format!("serialize snapshot: {e}"))?;
-
-    let snapshot_dir = workspace_root.join("contracts").join("reports").join("_snapshot");
-    let audit_all_dir = workspace_root.join("contracts").join("reports").join("audit-all");
-    std::fs::create_dir_all(&snapshot_dir)
-        .map_err(|e| format!("create _snapshot dir: {e}"))?;
-    std::fs::create_dir_all(&audit_all_dir)
-        .map_err(|e| format!("create audit-all dir: {e}"))?;
-
-    let snapshot_path = snapshot_dir.join(format!("{date}.json"));
-    let audit_all_path = audit_all_dir.join(format!("{date}.json"));
-    std::fs::write(&snapshot_path, &body)
-        .map_err(|e| format!("write {}: {e}", snapshot_path.display()))?;
-    std::fs::write(&audit_all_path, &body)
-        .map_err(|e| format!("write {}: {e}", audit_all_path.display()))?;
-    Ok(snapshot_path)
 }
 
 /// Aggregate-exit-code per contract §umbrella.
@@ -533,11 +374,7 @@ mod tests {
     fn thing_names_are_unique() {
         let names: Vec<&'static str> = CrlGate::all().map(|g| g.thing_name()).collect();
         let unique: std::collections::HashSet<&&'static str> = names.iter().collect();
-        assert_eq!(
-            names.len(),
-            unique.len(),
-            "thing_name collision: {names:?}"
-        );
+        assert_eq!(names.len(), unique.len(), "thing_name collision: {names:?}");
     }
 
     #[test]
@@ -630,82 +467,14 @@ mod tests {
     #[test]
     fn workspace_root_contains_marker_files() {
         let root = workspace_root();
-        assert!(root.join("Cargo.toml").exists(), "Cargo.toml at workspace root");
+        assert!(
+            root.join("Cargo.toml").exists(),
+            "Cargo.toml at workspace root"
+        );
         assert!(
             root.join("AGENTS.md").exists(),
             "AGENTS.md at workspace root"
         );
-    }
-
-    /// `strict_block_ga_violations` returns the block-GA gates whose
-    /// threshold is unmet OR whose report is `incomplete`. Non-block-GA
-    /// gates are never flagged even if their threshold isn't met.
-    #[test]
-    fn strict_block_ga_violations_flags_only_block_ga_failures() {
-        use report::{ExitCode, Results, Threshold};
-
-        // Build a report for a given gate name with a given met/incomplete pair.
-        let mk_outcome = |thing: &str, met: bool, incomplete: bool| {
-            let mut report = AuditReport::complete(
-                thing,
-                "blake3:test",
-                1,
-                Results { overall_pass_rate: if met { 1.0 } else { 0.0 }, ..Results::default() },
-            );
-            report.threshold = Some(Threshold { target: 0.8, met });
-            report.incomplete = incomplete;
-            RunOutcome { report, exit_code: ExitCode::Ok }
-        };
-
-        // CR-L5 (block-GA) failing met → flagged.
-        let l5_fail = mk_outcome("aci-default", false, false);
-        // CR-L1 (NOT block-GA) failing met → NOT flagged.
-        let l1_fail = mk_outcome("humaneval", false, false);
-        // CR-L8 (block-GA) incomplete → flagged even if threshold absent.
-        let l8_incomplete = mk_outcome("corpus-feedback", true, true);
-        // CR-L6 (block-GA) met → NOT flagged.
-        let l6_ok = mk_outcome("retirement", true, false);
-        // Unknown gate name → silently dropped (no panic).
-        let unknown = mk_outcome("not-a-gate", false, false);
-
-        let outcomes = vec![l5_fail, l1_fail, l8_incomplete, l6_ok, unknown];
-        let violations: Vec<&str> = strict_block_ga_violations(&outcomes)
-            .iter()
-            .map(|o| o.report.thing.as_str())
-            .collect();
-        assert_eq!(violations, vec!["aci-default", "corpus-feedback"]);
-    }
-
-    /// `write_aggregate_snapshot` produces both `_snapshot/<UTC>.json` and
-    /// `audit-all/<UTC>.json` and the snapshot JSON carries the keys the
-    /// evidence-ledger lint depends on.
-    #[test]
-    fn write_aggregate_snapshot_produces_both_files() {
-        use report::{ExitCode, Results, Threshold};
-
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let mut r = AuditReport::complete(
-            "retirement",
-            "blake3:zzz",
-            16,
-            Results { overall_pass_rate: 1.0, ..Results::default() },
-        );
-        r.threshold = Some(Threshold { target: 1.0, met: true });
-        let outcomes = vec![RunOutcome { report: r, exit_code: ExitCode::Ok }];
-        let snapshot_path = write_aggregate_snapshot(&outcomes, tmp.path())
-            .expect("snapshot write");
-        assert!(snapshot_path.exists(), "snapshot file missing");
-
-        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-        let audit_all_path = tmp.path().join("contracts").join("reports").join("audit-all").join(format!("{date}.json"));
-        assert!(audit_all_path.exists(), "audit-all file missing");
-
-        let body = std::fs::read_to_string(&snapshot_path).expect("read snapshot");
-        let v: serde_json::Value = serde_json::from_str(&body).expect("parse json");
-        assert_eq!(v["schema_version"], 1);
-        assert!(v["measured_at"].is_string());
-        assert!(v["gates"]["retirement"].is_object());
-        assert_eq!(v["block_ga_violations"].as_array().map(|a| a.len()), Some(0));
     }
 
     #[test]
@@ -728,7 +497,10 @@ mod tests {
             ExitCode::InfrastructureError
         );
         assert_eq!(
-            aggregate_exit_code(&[mk(ExitCode::InfrastructureError), mk(ExitCode::InvalidInput)]),
+            aggregate_exit_code(&[
+                mk(ExitCode::InfrastructureError),
+                mk(ExitCode::InvalidInput)
+            ]),
             ExitCode::InvalidInput
         );
         assert_eq!(aggregate_exit_code(&[]), ExitCode::Ok);

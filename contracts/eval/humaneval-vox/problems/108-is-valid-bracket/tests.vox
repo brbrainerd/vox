@@ -1,0 +1,28 @@
+fn is_valid_bracket(s: str) to bool {
+    let mut depth: int = 0
+    let chars: list[str] = s.chars()
+    for c in chars {
+        if c == "(" {
+            depth = depth + 1
+        } else {
+            if c == ")" {
+                depth = depth - 1
+                if depth < 0 {
+                    return false
+                }
+            }
+        }
+    }
+    return depth == 0
+}
+
+fn main() to str {
+    assert(is_valid_bracket("()") == true)
+    assert(is_valid_bracket("(())") == true)
+    assert(is_valid_bracket("(()())") == true)
+    assert(is_valid_bracket(")(") == false)
+    assert(is_valid_bracket("(()") == false)
+    assert(is_valid_bracket("") == true)
+    assert(is_valid_bracket("((()))") == true)
+    return "ok"
+}

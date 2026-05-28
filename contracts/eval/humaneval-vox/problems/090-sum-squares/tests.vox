@@ -1,0 +1,24 @@
+fn sum_squares(items: list[int]) to int {
+    let mut total: int = 0
+    let mut i: int = 0
+    while i < items.len() {
+        match items[i] {
+            Some(v) => {
+                total = total + v * v
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return total
+}
+
+fn main() to str {
+    assert(sum_squares([1, 2, 3]) == 14)
+    assert(sum_squares([]) == 0)
+    assert(sum_squares([4]) == 16)
+    assert(sum_squares([1, 2, 3, 4, 5]) == 55)
+    assert(sum_squares([3, 3]) == 18)
+    assert(sum_squares([0, 1]) == 1)
+    return "ok"
+}

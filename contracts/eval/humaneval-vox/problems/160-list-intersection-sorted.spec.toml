@@ -1,0 +1,11 @@
+[problem]
+id = "160"
+title = "list_intersection_sorted"
+prompt = """
+Given two sorted lists of ints, return their intersection as a sorted list with no duplicate values. Only include values that appear in both lists.
+"""
+signature = "fn list_intersection_sorted(a: list[int], b: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["lists", "sorting"]

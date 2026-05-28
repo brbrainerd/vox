@@ -1,0 +1,10 @@
+fn count_words_long(s: str, k: int) to int {
+    let words: list[str] = s.split(" ")
+    let mut count: int = 0
+    for word in words {
+        if word.len() > k {
+            count = count + 1
+        }
+    }
+    return count
+}

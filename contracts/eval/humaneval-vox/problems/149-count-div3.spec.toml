@@ -1,0 +1,11 @@
+[problem]
+id = "149"
+title = "count_div3"
+prompt = """
+Given a list of ints, return the count of elements that are divisible by 3.
+"""
+signature = "fn count_div3(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

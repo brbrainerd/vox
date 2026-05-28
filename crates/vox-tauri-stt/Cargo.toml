@@ -1,0 +1,30 @@
+[package]
+name = "vox-tauri-stt"
+version = "0.5.0"
+edition = "2024"
+license = "Apache-2.0"
+authors = ["Bert Brainerd"]
+repository = "https://github.com/vox-foundation/vox.git"
+rust-version = "1.92"
+description = "Speech-to-text bridge types + guest JS + Android/iOS sources for Tauri 2 apps (register the plugin in your app's src-tauri)."
+publish = false
+
+[lib]
+name = "vox_tauri_stt"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Tauri 2 plugin (`init`) + `transcribe` command — enable from generated `src-tauri`.
+tauri-plugin = ["dep:tauri"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { workspace = true, optional = true }
+
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+all = "warn"

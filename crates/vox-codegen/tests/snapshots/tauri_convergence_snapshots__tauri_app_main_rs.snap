@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/tauri_convergence_snapshots.rs
+assertion_line: 14
 expression: main
 ---
 // vox-generated rust_app_shell=TauriApp
@@ -11,7 +12,7 @@ use pkg::*;
 
 fn main() {
     tauri::Builder::default()
-        .plugin(vox_tauri_sherpa::plugin::init())
+        .plugin(vox_tauri_stt::plugin::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

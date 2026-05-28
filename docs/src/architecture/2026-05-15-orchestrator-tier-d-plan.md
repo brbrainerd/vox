@@ -1,40 +1,44 @@
 ---
 title: "Tier D — Orchestrator core-extraction plan (2026-05-15)"
-description: "Assessment and implementation plan for extracting vox-orchestrator-core from vox-orchestrator. Post-Tier-A/B/C: 65,560 LoC with 7% headroom. Vertical-slice (agentos/) is 358 LoC and not viable. C5 (orchestrator/ subdir) is the correct wedge but requires co-moving the Orchestrator struct."
+description: "Assessment and implementation plan for extracting vox-orchestrator-core from vox-orchestrator. Post-A-12 (2026-05-24): 60,681 LoC with 13% headroom. dei_shim/ extracted to vox-dei-shim. C5 (orchestrator/ subdir) is the correct next wedge but Rule 13 has not fired."
 category: "Architecture SSOTs"
 status: "current"
-last_updated: "2026-05-15"
+last_updated: "2026-05-24"
 training_eligible: false
 ---
 
-# Tier D — Orchestrator core-extraction plan (2026-05-15)
+# Tier D — Orchestrator core-extraction plan (2026-05-15, updated 2026-05-24)
 
 **Companion to:** [`crate-structure-audit-2026-05-15.md`](crate-structure-audit-2026-05-15.md) §4.4  
 **Prereq:** Tiers A + B + C landed (all on 2026-05-15). `vox-arch-check` reports clean.
 
+> **2026-05-24 update (A-12 complete):** `dei_shim/` (5,016 LoC) was extracted to the new
+> `vox-dei-shim` crate as planned in §4. `vox-orchestrator` is now at **60,681 LoC** — 13%
+> headroom. Rule 13 (`>15% LoC growth since v0.5.0 tag`) has **not fired**. C5 remains deferred.
+
 ## TL;DR
 
-- `vox-orchestrator` is at **65,560 LoC** vs `max_loc = 70_000` — **7% headroom** (~4,440 LoC).
+- `vox-orchestrator` is at **60,681 LoC** vs `max_loc = 70_000` — **13.3% headroom** (~9,319 LoC). *(was 65,560 / 7% before A-12)*
 - The audit's "vertical-slice" path (`agentos/` → `vox-orchestrator-policy`) is a dead end: `agentos/` contains only **358 LoC** across 8 stubs.
 - The correct wedge is **C5 from the 2026-05-08 followup design**: extract `src/orchestrator/` (12.8K LoC) into a new `vox-orchestrator-core` crate. This is the densest subdir and the primary source of the +13K LoC regrowth.
 - C5 requires co-moving the `Orchestrator` struct (Rust coherence: `impl` blocks for a type must live in the defining crate). The minimum co-move set is ~8 sibling modules; total displacement is ~20–25K LoC.
-- Estimated post-split sizes: `vox-orchestrator-core` ~35K LoC, `vox-orchestrator` ~32K LoC.
-- **Do not start this work until `vox-orchestrator` Rule 13 fires (>15% LoC growth since last release tag).** Until then, `dei_shim/` is a lower-risk intermediate extraction (§4).
+- Estimated post-split sizes: `vox-orchestrator-core` ~35K LoC, `vox-orchestrator` ~27K LoC.
+- **Do not start C5 until `vox-orchestrator` Rule 13 fires (>15% LoC growth since last release tag).** The §4 interim (`dei_shim/` extraction) has landed; runway is now 13.3%.
 
 ---
 
 ## 1. Current state
 
 ```
-vox-orchestrator  65,560 LoC  (budget: 70,000 — 7% headroom)
+vox-orchestrator  60,681 LoC  (budget: 70,000 — 13.3% headroom)   ← updated 2026-05-24 post A-12
 ```
 
-Subdir breakdown (descending):
+Subdir breakdown (descending), original 2026-05-15 baseline:
 
 | Dir | LoC | Notes |
 |---|---:|---|
 | `orchestrator/` | 12,825 | Task dispatch + Orchestrator inherent impls |
-| `dei_shim/` | 5,005 | Research pipeline shim |
+| `dei_shim/` | ~~5,005~~ → **0** | **Extracted to `vox-dei-shim` (A-12, 2026-05-24)** |
 | `models/` | 3,448 | Model registry + selection |
 | `a2a/` | 3,167 | A2A remote-worker protocol |
 | `planning/` | 2,870 | Plan adequacy / continuation |
@@ -126,21 +130,21 @@ Not all of these need to co-move — some can be extracted as `vox-orchestrator-
 | `vox-orchestrator-core` | ~35,000 | suggest `max_loc = 40_000` |
 | `vox-orchestrator` | ~32,000 | suggest `max_loc = 35_000` (down from 70K) |
 
-The split roughly halves both crates and leaves `vox-orchestrator` holding: `orch_daemon/`, `dei_shim/`, `a2a/`, `runtime.rs`, `preregistration/`, `session/`, `hopper/`, `routing/`, `legacy/`, and the integration glue.
+The split roughly halves both crates and leaves `vox-orchestrator` holding: `orch_daemon/`, `a2a/`, `runtime.rs`, `preregistration/`, `session/`, `hopper/`, `routing/`, `legacy/`, and the integration glue. (Note: `dei_shim/` was removed by A-12 on 2026-05-24 — see §4.)
 
 ---
 
-## 4. Interim option: `dei_shim/` extraction
+## 4. Interim option: `dei_shim/` extraction — **COMPLETE (A-12, 2026-05-24)**
 
-If C5 is too large to scope right now, `dei_shim/` (5,005 LoC) is a viable intermediate:
+> **Outcome:** This interim shipped as audit task A-12 on 2026-05-24, before Rule 13 fired. `dei_shim/` was extracted to a new `vox-dei-shim` crate (L3, 5,016 LoC). `vox-orchestrator` went from 65,560 → 60,681 LoC (13.3% headroom vs 7%). Consumers (`vox-cli`, `vox-orchestrator-mcp`) updated to import from `vox_dei_shim::` directly. See [`crate-audit-and-plan-2026.md`](./crate-audit-and-plan-2026.md) §7 session 9 for details.
+
+Historical justification (kept for context):
 
 - It is the research pipeline shim (`vox dei`, MENS pipeline dispatch, `pipeline.rs` at 930 LoC).
-- Its main consumer is `orch_daemon/dei_dispatch.rs` (323 LoC).
-- Probable dep set: `vox-orchestrator` types, `vox-db`, `vox-ml-cli`, `vox-compiler`.
-- If it can accept `Orchestrator` via a thin trait (5–10 methods: task_submit, attention_report, etc.), it becomes extractable without moving the struct.
-- Estimated gain: −5K LoC from `vox-orchestrator`, buying ~3 more months of headroom at the observed growth rate.
-
-**Recommended:** do `dei_shim/` extraction **only if** Rule 13 fires before C5 is staffed, as a holding action.
+- Its main consumer is `orch_daemon/dei_dispatch.rs` (323 LoC) — *actual* external consumers turned out to be only `vox-cli`, `vox-orchestrator-mcp`, and tests; no orchestrator code outside `dei_shim/` called into it.
+- Dep set turned out to be: `vox-orchestrator` (for `models`/`mode`/`config`/`types` re-exports), `vox-orchestrator-types`, `vox-actor-runtime`, `vox-secrets`, `vox-db`, `vox-research-events`, `vox-search`.
+- Extraction did **not** require a thin trait facade — the wedge-crate pattern (`vox-dei-shim → vox-orchestrator`) worked because nothing inside `vox-orchestrator` calls back into the shim.
+- Actual gain: −4,879 LoC from `vox-orchestrator`. Extended C5 runway from 7% to 13.3% headroom.
 
 ---
 

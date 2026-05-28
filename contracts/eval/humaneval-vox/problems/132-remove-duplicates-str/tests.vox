@@ -1,0 +1,24 @@
+fn remove_duplicates_str(s: str) to str {
+    let chars: list[str] = s.chars()
+    let mut seen: list[str] = []
+    let mut result: list[str] = []
+    for c in chars {
+        if not seen.contains(c) {
+            seen.push(c)
+            result.push(c)
+        }
+    }
+    return result.join("")
+}
+
+fn main() to str {
+    assert(remove_duplicates_str("aabbcc") == "abc")
+    assert(remove_duplicates_str("hello") == "helo")
+    assert(remove_duplicates_str("abcabc") == "abc")
+    assert(remove_duplicates_str("") == "")
+    assert(remove_duplicates_str("a") == "a")
+    assert(remove_duplicates_str("aaa") == "a")
+    assert(remove_duplicates_str("abba") == "ab")
+    assert(remove_duplicates_str("abcdef") == "abcdef")
+    return "ok"
+}

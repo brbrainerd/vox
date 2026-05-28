@@ -23,8 +23,33 @@ pub struct PluginHeader {
     pub license: Option<String>,
     #[serde(default)]
     pub homepage: Option<String>,
+    /// Lifecycle status: alpha → beta → stable → deprecated.
+    #[serde(default)]
+    pub status: Option<PluginStatus>,
+    /// Broad category for marketplace browsing (e.g. "ml-backend", "hardware", "mesh").
+    #[serde(default)]
+    pub category: Option<String>,
+    /// Free-form tags for search/filtering.
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Extension-point IDs this plugin satisfies (mirrors catalog `extension-points`).
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+    /// ID of the plugin this supersedes (enables graceful migration paths).
+    #[serde(default)]
+    pub replaces: Option<String>,
     pub host: HostRequirement,
     pub payload: PluginPayload,
+}
+
+/// Lifecycle stage of a plugin.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PluginStatus {
+    Alpha,
+    Beta,
+    Stable,
+    Deprecated,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -31,7 +31,8 @@ pub(super) fn default_false() -> bool {
     false
 }
 pub(super) fn default_cost_preference() -> CostPreference {
-    CostPreference::Performance
+    // Free-by-default: economy is the baseline; callers must opt-in to Performance explicitly.
+    CostPreference::Economy
 }
 pub(super) fn default_lookback_ticks() -> usize {
     5

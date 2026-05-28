@@ -1,0 +1,9 @@
+fn sum_even_squares(n: int) to int {
+    let mut total: int = 0
+    let mut i: int = 2
+    while i <= n {
+        total = total + i * i
+        i = i + 2
+    }
+    return total
+}

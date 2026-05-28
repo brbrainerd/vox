@@ -1,0 +1,11 @@
+[problem]
+id = "049"
+title = "merge_sorted"
+prompt = """
+Given two lists of integers already sorted in non-decreasing order, return a merged list also in non-decreasing order.
+"""
+signature = "fn merge_sorted(xs: list[int], ys: list[int]) to list[int]"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

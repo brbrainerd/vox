@@ -158,24 +158,141 @@ pub fn call_builtin_method(
                     Some(VoxValue::Option(None))
                 }
             }
-            "first" => Some(v.first().cloned().unwrap_or(VoxValue::Null)),
-            "last" => Some(v.last().cloned().unwrap_or(VoxValue::Null)),
+            "first" => Some(VoxValue::Option(v.first().cloned().map(Box::new))),
+            "last" => Some(VoxValue::Option(v.last().cloned().map(Box::new))),
             "contains" => {
                 let target = args.into_iter().next().unwrap_or(VoxValue::Null);
                 Some(VoxValue::Bool(v.contains(&target)))
+            }
+            // index(val) → int: first index of val, or -1 if absent.
+            "index" | "find_index" => {
+                let target = args.into_iter().next().unwrap_or(VoxValue::Null);
+                let idx = v.iter().position(|x| x == &target).map(|i| i as i64).unwrap_or(-1);
+                Some(VoxValue::Int(idx))
+            }
+            // count(val) → int: number of occurrences.
+            "count" => {
+                let target = args.into_iter().next().unwrap_or(VoxValue::Null);
+                let n = v.iter().filter(|x| *x == &target).count() as i64;
+                Some(VoxValue::Int(n))
+            }
+            // extend(other) → List[T]: append all elements of other.
+            "extend" => {
+                let mut owned = v.clone();
+                if let Some(VoxValue::List(other)) = args.into_iter().next() {
+                    owned.extend(other);
+                }
+                Some(VoxValue::List(owned))
+            }
+            // remove(val) → List[T]: new list with first occurrence of val removed.
+            "remove" => {
+                let target = args.into_iter().next().unwrap_or(VoxValue::Null);
+                let mut owned = v.clone();
+                if let Some(pos) = owned.iter().position(|x| x == &target) {
+                    owned.remove(pos);
+                }
+                Some(VoxValue::List(owned))
+            }
+            // remove_at(i) → List[T]: new list without element at index i.
+            "remove_at" => {
+                let mut owned = v.clone();
+                if let Some(VoxValue::Int(i)) = args.into_iter().next() {
+                    if i >= 0 && (i as usize) < owned.len() {
+                        owned.remove(i as usize);
+                    }
+                }
+                Some(VoxValue::List(owned))
+            }
+            // zip(other) → List[List[T]]: pairs of [a, b] elements.
+            "zip" => {
+                let other = match args.into_iter().next() {
+                    Some(VoxValue::List(o)) => o,
+                    _ => return Some(VoxValue::List(Vec::new())),
+                };
+                let pairs: Vec<VoxValue> = v.iter().cloned().zip(other).map(|(a, b)| {
+                    VoxValue::List(vec![a, b])
+                }).collect();
+                Some(VoxValue::List(pairs))
+            }
+            // enumerate() → List[List[T]]: [[0, a], [1, b], ...].
+            "enumerate" => {
+                let pairs: Vec<VoxValue> = v.iter().cloned().enumerate().map(|(i, x)| {
+                    VoxValue::List(vec![VoxValue::Int(i as i64), x])
+                }).collect();
+                Some(VoxValue::List(pairs))
+            }
+            // slice(start, end?) → List[T]: sub-list from start to end (exclusive).
+            "slice_list" => {
+                let mut it = args.into_iter();
+                let start = match it.next() {
+                    Some(VoxValue::Int(i)) => i.max(0) as usize,
+                    _ => 0,
+                };
+                let end = match it.next() {
+                    Some(VoxValue::Int(i)) => i.min(v.len() as i64) as usize,
+                    _ => v.len(),
+                };
+                let slice = v.get(start..end.min(v.len())).unwrap_or(&[]).to_vec();
+                Some(VoxValue::List(slice))
             }
             "join" => {
                 let sep = match args.into_iter().next() {
                     Some(VoxValue::Str(s)) => s,
                     _ => String::new(),
                 };
-                let strings: Vec<String> = v.iter().map(|x| format!("{x:?}")).collect();
+                let strings: Vec<String> = v.iter().map(|x| vox_value_display(x)).collect();
                 Some(VoxValue::Str(strings.join(&sep)))
             }
             "reverse" => {
                 let mut owned = v.clone();
                 owned.reverse();
                 Some(VoxValue::List(owned))
+            }
+            "reversed" => {
+                let mut owned = v.clone();
+                owned.reverse();
+                Some(VoxValue::List(owned))
+            }
+            "sorted" => {
+                let mut owned = v.clone();
+                owned.sort_by(|a, b| vox_value_cmp(a, b));
+                Some(VoxValue::List(owned))
+            }
+            "sum" => {
+                let mut int_sum: i64 = 0;
+                let mut float_sum: f64 = 0.0;
+                let mut is_float = false;
+                for item in v.iter() {
+                    match item {
+                        VoxValue::Int(n) => { int_sum += n; float_sum += *n as f64; }
+                        VoxValue::Float(f) => { is_float = true; float_sum += f; }
+                        _ => {}
+                    }
+                }
+                if is_float {
+                    Some(VoxValue::Float(float_sum))
+                } else {
+                    Some(VoxValue::Int(int_sum))
+                }
+            }
+            "max" if args.is_empty() => {
+                let result = v.iter().max_by(|a, b| vox_value_cmp(a, b)).cloned();
+                Some(VoxValue::Option(result.map(Box::new)))
+            }
+            "min" if args.is_empty() => {
+                let result = v.iter().min_by(|a, b| vox_value_cmp(a, b)).cloned();
+                Some(VoxValue::Option(result.map(Box::new)))
+            }
+            "flatten" => {
+                let mut flat = Vec::new();
+                for item in v.iter() {
+                    if let VoxValue::List(inner) = item {
+                        flat.extend(inner.iter().cloned());
+                    } else {
+                        flat.push(item.clone());
+                    }
+                }
+                Some(VoxValue::List(flat))
             }
             // Json-shaped arrays (`std.json.parse`, `std.csv.parse`, …) use these names in typecheck + native `VoxJson`.
             // Strict-Option API per json-ergonomics-rfc-2026-05-23.
@@ -294,6 +411,44 @@ pub fn call_builtin_method(
                 Some(VoxValue::Str(s.repeat(n)))
             }
             "chars_count" => Some(VoxValue::Int(s.chars().count() as i64)),
+            // count(sub) → int: number of non-overlapping occurrences.
+            "count" => {
+                let sub = match args.into_iter().next() {
+                    Some(VoxValue::Str(p)) => p,
+                    _ => return Some(VoxValue::Int(0)),
+                };
+                if sub.is_empty() {
+                    // Python semantics: "" matches between every char + at ends
+                    return Some(VoxValue::Int(s.chars().count() as i64 + 1));
+                }
+                let mut count = 0i64;
+                let mut start = 0;
+                while let Some(pos) = s[start..].find(&*sub) {
+                    count += 1;
+                    start += pos + sub.len();
+                }
+                Some(VoxValue::Int(count))
+            }
+            // is_alpha() — all chars are alphabetic
+            "is_alpha" => Some(VoxValue::Bool(!s.is_empty() && s.chars().all(|c| c.is_alphabetic()))),
+            // is_digit() — all chars are ASCII digits
+            "is_digit" => Some(VoxValue::Bool(!s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))),
+            // is_alnum() — all chars are alphanumeric
+            "is_alnum" => Some(VoxValue::Bool(!s.is_empty() && s.chars().all(|c| c.is_alphanumeric()))),
+            // is_upper() — all cased chars are uppercase
+            "is_upper" => Some(VoxValue::Bool(!s.is_empty() && s.chars().any(|c| c.is_alphabetic()) && s.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()))),
+            // is_lower() — all cased chars are lowercase
+            "is_lower" => Some(VoxValue::Bool(!s.is_empty() && s.chars().any(|c| c.is_alphabetic()) && s.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()))),
+            "ord" => {
+                // Return the Unicode code point of the first character.
+                Some(VoxValue::Int(
+                    s.chars().next().map(|c| c as i64).unwrap_or(0),
+                ))
+            }
+            "chars" => {
+                let list: Vec<VoxValue> = s.chars().map(|c| VoxValue::Str(c.to_string())).collect();
+                Some(VoxValue::List(list))
+            }
             "to_str" | "to_string" => Some(VoxValue::Str(s.clone())),
             "slice" => {
                 let mut it = args.into_iter();
@@ -336,6 +491,18 @@ pub fn call_builtin_method(
                     None => Some(VoxValue::Option(None)),
                 }
             }
+            "to_int" => Some(VoxValue::Option(
+                s.trim()
+                    .parse::<i64>()
+                    .ok()
+                    .map(|n| Box::new(VoxValue::Int(n))),
+            )),
+            "to_float" => Some(VoxValue::Option(
+                s.trim()
+                    .parse::<f64>()
+                    .ok()
+                    .map(|f| Box::new(VoxValue::Float(f))),
+            )),
             _ => None,
         },
 
@@ -429,24 +596,24 @@ pub fn call_builtin_method(
             "ok" => Some(VoxValue::Option(
                 res.as_ref().ok().map(|v| Box::new((**v).clone())),
             )),
-            // `err()` — returns Some(err_value) for Err, None for Ok. The Err
-            // side is a full VoxValue (two-param Result with Err: Box<VoxValue>),
-            // so the Option carries the actual error variant unchanged.
+            // `err()` — returns Some(err_msg) for Err, None for Ok.
             "err" => Some(VoxValue::Option(
-                res.as_ref().err().map(|e| (*e).clone()),
+                res.as_ref()
+                    .err()
+                    .map(|e| Box::new(VoxValue::Str(e.clone()))),
             )),
-            // `unwrap()` panics on Err with the Err value. The _Panic
+            // `unwrap()` panics on Err with the Err message. The _Panic
             // sentinel is caught upstream and converted to an EvalError.
             "unwrap" => Some(match res.as_ref() {
                 Ok(v) => (**v).clone(),
                 Err(e) => VoxValue::_Panic(format!(
-                    "called `Result.unwrap()` on an Err value: {e:?}"
+                    "called `Result.unwrap()` on an Err value: {e}"
                 )),
             }),
             // `unwrap_err()` panics on Ok — the inverse of unwrap. Prior
             // impl returned empty Str on Ok, masking the misuse silently.
             "unwrap_err" => Some(match res.as_ref() {
-                Err(e) => (**e).clone(),
+                Err(e) => VoxValue::Str(e.clone()),
                 Ok(_) => VoxValue::_Panic(
                     "called `Result.unwrap_err()` on an Ok value".to_string(),
                 ),
@@ -474,7 +641,7 @@ pub fn call_builtin_method(
                         Some(VoxValue::Str(s)) => s,
                         _ => "expected Ok, found Err".to_string(),
                     };
-                    VoxValue::_Panic(format!("Result.expect: {ctx} ({e:?})"))
+                    VoxValue::_Panic(format!("Result.expect: {ctx} ({e})"))
                 }
             }),
             _ => None,
@@ -493,23 +660,116 @@ pub fn call_builtin_method(
                     }
                 });
 
-            if ns.is_none() && method == "get" {
-                let key = match args.into_iter().next() {
-                    Some(VoxValue::Str(s)) => s,
-                    _ => return Some(VoxValue::Option(None)),
-                };
-                // Record/Object.get returns Option[T] — matches the typecheck
-                // signature so corpus scripts that call `.unwrap()` on the
-                // result type-check AND run consistently. Prior to 2026-05-23
-                // this returned the bare value (or Null on miss), which
-                // typecheck-eval'd inconsistently.
-                return Some(
-                    fields
-                        .iter()
-                        .find(|(k, _)| k == &key)
-                        .map(|(_, v)| VoxValue::Option(Some(Box::new(v.clone()))))
-                        .unwrap_or(VoxValue::Option(None)),
-                );
+            if ns.is_none() {
+                match method {
+                    // ── dict / map methods ─────────────────────────────────
+                    "get" | "get_or" => {
+                        let mut it = args.into_iter();
+                        let key = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Option(None)),
+                        };
+                        let found = fields.iter().find(|(k, _)| k == &key).map(|(_, v)| v.clone());
+                        if method == "get" {
+                            // Returns Option[T]
+                            return Some(VoxValue::Option(found.map(Box::new)));
+                        } else {
+                            // get_or(key, default) → T
+                            let default = it.next().unwrap_or(VoxValue::Null);
+                            return Some(found.unwrap_or(default));
+                        }
+                    }
+                    "contains_key" | "has_key" | "has" => {
+                        let key = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Bool(false)),
+                        };
+                        return Some(VoxValue::Bool(fields.iter().any(|(k, _)| k == &key)));
+                    }
+                    "len" => {
+                        return Some(VoxValue::Int(
+                            fields.iter().filter(|(k, _)| k != "__namespace__").count() as i64,
+                        ));
+                    }
+                    "is_empty" => {
+                        return Some(VoxValue::Bool(
+                            fields.iter().all(|(k, _)| k == "__namespace__"),
+                        ));
+                    }
+                    "keys" => {
+                        let keys: Vec<VoxValue> = fields
+                            .iter()
+                            .filter(|(k, _)| k != "__namespace__")
+                            .map(|(k, _)| VoxValue::Str(k.clone()))
+                            .collect();
+                        return Some(VoxValue::List(keys));
+                    }
+                    "values" => {
+                        let vals: Vec<VoxValue> = fields
+                            .iter()
+                            .filter(|(k, _)| k != "__namespace__")
+                            .map(|(_, v)| v.clone())
+                            .collect();
+                        return Some(VoxValue::List(vals));
+                    }
+                    "items" | "entries" => {
+                        // Returns list of [key, value] 2-element lists (tuples
+                        // would be ideal but list is simpler to destructure
+                        // in for-loops with the current interpreter).
+                        let items: Vec<VoxValue> = fields
+                            .iter()
+                            .filter(|(k, _)| k != "__namespace__")
+                            .map(|(k, v)| {
+                                VoxValue::List(vec![VoxValue::Str(k.clone()), v.clone()])
+                            })
+                            .collect();
+                        return Some(VoxValue::List(items));
+                    }
+                    "insert" | "set" => {
+                        // Returns new Object with key set (for statement-level
+                        // auto-reassignment to work, the caller's variable is
+                        // updated by the same kind-match heuristic used for List).
+                        let mut it = args.into_iter();
+                        let key = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                        };
+                        let val = it.next().unwrap_or(VoxValue::Null);
+                        let mut owned = fields.to_vec();
+                        if let Some(entry) = owned.iter_mut().find(|(k, _)| k == &key) {
+                            entry.1 = val;
+                        } else {
+                            owned.push((key, val));
+                        }
+                        return Some(VoxValue::Object(owned));
+                    }
+                    "remove" | "delete" => {
+                        let key = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                        };
+                        let owned: Vec<_> =
+                            fields.iter().filter(|(k, _)| k != &key).cloned().collect();
+                        return Some(VoxValue::Object(owned));
+                    }
+                    "update" => {
+                        // Merge another Object (right wins on duplicate keys).
+                        let other = match args.into_iter().next() {
+                            Some(VoxValue::Object(o)) => o,
+                            _ => return Some(VoxValue::Object(fields.to_vec())),
+                        };
+                        let mut owned = fields.to_vec();
+                        for (k, v) in other {
+                            if let Some(entry) = owned.iter_mut().find(|(ek, _)| ek == &k) {
+                                entry.1 = v;
+                            } else {
+                                owned.push((k, v));
+                            }
+                        }
+                        return Some(VoxValue::Object(owned));
+                    }
+                    _ => {}
+                }
             }
 
             if let Some(ns_str) = ns
@@ -540,7 +800,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::read_to_string(path) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -557,7 +817,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::write(path, content) {
                             Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -570,7 +830,7 @@ pub fn call_builtin_method(
                             Ok(p) => Ok(Box::new(VoxValue::Str(
                                 p.to_string_lossy().to_string(),
                             ))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -588,7 +848,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::copy(&src, &dst) {
                             Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -601,7 +861,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::remove_file(&path) {
                             Ok(_) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -629,7 +889,7 @@ pub fn call_builtin_method(
                                 }
                                 Some(VoxValue::Result(Ok(Box::new(VoxValue::List(entries)))))
                             }
-                            Err(e) => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(e.to_string()))))),
+                            Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
                         }
                     }
                     "exists" => {
@@ -660,7 +920,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::remove_dir_all(&path) {
                             Ok(()) => Ok(Box::new(VoxValue::Null)),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -676,9 +936,7 @@ pub fn call_builtin_method(
                                 .collect();
                             Ok(Box::new(VoxValue::List(list)))
                         } else {
-                            Err(Box::new(VoxValue::Str(
-                                "failed to list directory".to_string(),
-                            )))
+                            Err("failed to list directory".to_string())
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -702,7 +960,7 @@ pub fn call_builtin_method(
                                     .collect();
                                 Ok(Box::new(VoxValue::List(list)))
                             }
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -729,7 +987,7 @@ pub fn call_builtin_method(
                                     .collect();
                                 Ok(Box::new(VoxValue::List(list)))
                             }
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -748,7 +1006,7 @@ pub fn call_builtin_method(
                                 ("is_file".into(), VoxValue::Bool(r.is_file)),
                                 ("is_symlink".into(), VoxValue::Bool(r.is_symlink)),
                             ]))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -759,7 +1017,7 @@ pub fn call_builtin_method(
                         };
                         let res = match std::fs::create_dir_all(&path) {
                             Ok(()) => Ok(Box::new(VoxValue::Bool(true))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -1007,7 +1265,7 @@ pub fn call_builtin_method(
                                     VoxValue::Int(out.status.code().unwrap_or(0) as i64),
                                 ),
                             ]))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -1034,10 +1292,10 @@ pub fn call_builtin_method(
                         let handle = match tokio::runtime::Handle::try_current() {
                             Ok(h) => h,
                             Err(_) => {
-                                return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
+                                return Some(VoxValue::Result(Err(
                                     "spawn_background must be run within a Tokio runtime"
                                         .to_string(),
-                                )))));
+                                )));
                             }
                         };
 
@@ -1052,7 +1310,7 @@ pub fn call_builtin_method(
                                 });
                                 Some(VoxValue::Result(Ok(Box::new(VoxValue::Int(id as i64)))))
                             }
-                            Err(e) => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(e.to_string()))))),
+                            Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
                         }
                     }
                     "exec" => {
@@ -1079,7 +1337,7 @@ pub fn call_builtin_method(
                         {
                             use std::os::unix::process::CommandExt;
                             let err = std::process::Command::new(cmd_name).args(cmd_args).exec();
-                            Some(VoxValue::Result(Err(Box::new(VoxValue::Str(err.to_string())))))
+                            Some(VoxValue::Result(Err(err.to_string())))
                         }
                         #[cfg(not(unix))]
                         {
@@ -1088,7 +1346,7 @@ pub fn call_builtin_method(
                                     vox_flush_exit_commands();
                                     std::process::exit(st.code().unwrap_or(1))
                                 }
-                                Err(e) => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(e.to_string()))))),
+                                Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
                             }
                         }
                     }
@@ -1148,7 +1406,7 @@ pub fn call_builtin_method(
                         let res = interp_process_run_capture_json(&cmd_name, &cmd_args);
                         Some(VoxValue::Result(match res {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     "run_capture_lines" => {
@@ -1175,7 +1433,7 @@ pub fn call_builtin_method(
                             Ok(lines) => Ok(Box::new(VoxValue::List(
                                 lines.into_iter().map(VoxValue::Str).collect(),
                             ))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     // `process.cwd` — same op as `fs.cwd`, aliased here for the
@@ -1186,7 +1444,7 @@ pub fn call_builtin_method(
                             Ok(p) => Ok(Box::new(VoxValue::Str(
                                 p.to_string_lossy().to_string(),
                             ))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e.to_string()))),
+                            Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
                     }
@@ -1230,7 +1488,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_csv_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     "parse_records" => {
@@ -1240,7 +1498,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_csv_parse_records(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     "render" => {
@@ -1251,14 +1509,14 @@ pub fn call_builtin_method(
                         let rows = match voxvalue_as_table_str(&rows_v) {
                             Some(r) => r,
                             None => {
-                                return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
-                                    "csv.render: expected list[list[str]]".to_string(),
-                                )))));
+                                return Some(VoxValue::Result(Err(
+                                    "csv.render: expected list[list[str]]".into(),
+                                )));
                             }
                         };
                         Some(VoxValue::Result(match interp_csv_render(&rows) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     _ => None,
@@ -1271,7 +1529,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_toml_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     "render" => {
@@ -1282,7 +1540,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(v);
                         Some(VoxValue::Result(match interp_toml_render(&j) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     _ => None,
@@ -1295,7 +1553,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_yaml_parse(&s) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     "render" => {
@@ -1306,7 +1564,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(v);
                         Some(VoxValue::Result(match interp_yaml_render(&j) {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     _ => None,
@@ -1319,7 +1577,7 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(match interp_io_open(&path) {
                             Ok(v) => Ok(Box::new(json_to_vox(v))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     "save" => {
@@ -1335,7 +1593,7 @@ pub fn call_builtin_method(
                         let j = vox_to_json(val);
                         Some(VoxValue::Result(match interp_io_save(&path, &j) {
                             Ok(()) => Ok(Box::new(VoxValue::Null)),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     _ => None,
@@ -1347,15 +1605,15 @@ pub fn call_builtin_method(
                         // and then use the chainable typed accessors on Ok.
                         let s = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
-                                "json.parse: expected string argument".to_string(),
-                            ))))),
+                            _ => return Some(VoxValue::Result(Err(
+                                "json.parse: expected string argument".into(),
+                            ))),
                         };
                         match serde_json::from_str::<serde_json::Value>(&s) {
                             Ok(v) => Some(VoxValue::Result(Ok(Box::new(json_to_vox(v))))),
-                            Err(e) => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(format!(
+                            Err(e) => Some(VoxValue::Result(Err(format!(
                                 "json.parse: {e}"
-                            )))))),
+                            )))),
                         }
                     }
                     "render" | "stringify" | "encode" => {
@@ -1367,7 +1625,7 @@ pub fn call_builtin_method(
                         let res = serde_json::to_string(&j).map_err(|e| e.to_string());
                         Some(VoxValue::Result(match res {
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
-                            Err(e) => Err(Box::new(VoxValue::Str(e))),
+                            Err(e) => Err(e),
                         }))
                     }
                     _ => None,
@@ -1401,6 +1659,23 @@ pub fn call_builtin_method(
                                     re.replace_all(&haystack, replacement.as_str()).to_string(),
                                 )),
                                 Err(_) => Some(VoxValue::Str(haystack)),
+                            }
+                        }
+                        "find" => {
+                            // regex.find(haystack, pattern) → Option[str]
+                            let haystack = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Option(None)),
+                            };
+                            let pattern = match it.next() {
+                                Some(VoxValue::Str(s)) => s,
+                                _ => return Some(VoxValue::Option(None)),
+                            };
+                            match regex::Regex::new(&pattern) {
+                                Ok(re) => Some(VoxValue::Option(
+                                    re.find(&haystack).map(|m| Box::new(VoxValue::Str(m.as_str().to_string()))),
+                                )),
+                                Err(_) => Some(VoxValue::Option(None)),
                             }
                         }
                         "is_match" => {
@@ -1462,16 +1737,16 @@ pub fn call_builtin_method(
                             let pattern = match it.next() {
                                 Some(VoxValue::Str(s)) => s,
                                 _ => {
-                                    return Some(VoxValue::Result(Err(Box::new(VoxValue::Str(
+                                    return Some(VoxValue::Result(Err(
                                         "regex.compile expected a string pattern".to_string(),
-                                    )))))
+                                    )))
                                 }
                             };
                             match regex::Regex::new(&pattern) {
                                 Ok(_) => Some(VoxValue::Result(Ok(Box::new(VoxValue::Str(
                                     pattern,
                                 ))))),
-                                Err(e) => Some(VoxValue::Result(Err(Box::new(VoxValue::Str(e.to_string()))))),
+                                Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
                             }
                         }
                         _ => None,
@@ -1731,6 +2006,86 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
             };
             Some(VoxValue::Str(t.to_string()))
         }
+        "abs" => match args.into_iter().next()? {
+            VoxValue::Int(n) => Some(VoxValue::Int(n.abs())),
+            VoxValue::Float(f) => Some(VoxValue::Float(f.abs())),
+            _ => None,
+        },
+        "max" => {
+            let mut it = args.into_iter();
+            match (it.next(), it.next()) {
+                // max(a, b) — two-argument form
+                (Some(VoxValue::Int(a)), Some(VoxValue::Int(b))) => {
+                    Some(VoxValue::Int(a.max(b)))
+                }
+                (Some(VoxValue::Float(a)), Some(VoxValue::Float(b))) => {
+                    Some(VoxValue::Float(a.max(b)))
+                }
+                // max(list) — single list argument
+                (Some(VoxValue::List(items)), None) => {
+                    items.into_iter().max_by(|a, b| vox_value_cmp(a, b))
+                }
+                _ => None,
+            }
+        }
+        "min" => {
+            let mut it = args.into_iter();
+            match (it.next(), it.next()) {
+                // min(a, b) — two-argument form
+                (Some(VoxValue::Int(a)), Some(VoxValue::Int(b))) => {
+                    Some(VoxValue::Int(a.min(b)))
+                }
+                (Some(VoxValue::Float(a)), Some(VoxValue::Float(b))) => {
+                    Some(VoxValue::Float(a.min(b)))
+                }
+                // min(list) — single list argument
+                (Some(VoxValue::List(items)), None) => {
+                    items.into_iter().min_by(|a, b| vox_value_cmp(a, b))
+                }
+                _ => None,
+            }
+        }
+        // sorted(list) → List[T] — ascending sort (free-function form)
+        "sorted" => {
+            let v = args.into_iter().next()?;
+            if let VoxValue::List(mut items) = v {
+                items.sort_by(|a, b| vox_value_cmp(a, b));
+                Some(VoxValue::List(items))
+            } else {
+                None
+            }
+        }
+        // sum(list) → int | float — sum of numeric list (free-function form)
+        "sum" => {
+            let v = args.into_iter().next()?;
+            if let VoxValue::List(items) = v {
+                let mut int_sum: i64 = 0;
+                let mut float_sum: f64 = 0.0;
+                let mut is_float = false;
+                for item in &items {
+                    match item {
+                        VoxValue::Int(n) => { int_sum += n; float_sum += *n as f64; }
+                        VoxValue::Float(f) => { is_float = true; float_sum += f; }
+                        _ => {}
+                    }
+                }
+                if is_float {
+                    Some(VoxValue::Float(float_sum))
+                } else {
+                    Some(VoxValue::Int(int_sum))
+                }
+            } else {
+                None
+            }
+        }
+        // chr(code: int) → str  — complement of s.ord()
+        "chr" => match args.into_iter().next()? {
+            VoxValue::Int(n) => {
+                let ch = char::from_u32(n as u32).unwrap_or(char::REPLACEMENT_CHARACTER);
+                Some(VoxValue::Str(ch.to_string()))
+            }
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -1756,6 +2111,19 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
         VoxValue::_Break => "_Break",
         VoxValue::_Continue => "_Continue",
         VoxValue::_Panic(_) => "_Panic",
+    }
+}
+
+/// Total ordering for comparable VoxValues. Used by `sorted()`, list
+/// `max()`, and list `min()`. Mixed types compare as equal to avoid panics.
+pub(super) fn vox_value_cmp(a: &VoxValue, b: &VoxValue) -> std::cmp::Ordering {
+    match (a, b) {
+        (VoxValue::Int(x), VoxValue::Int(y)) => x.cmp(y),
+        (VoxValue::Float(x), VoxValue::Float(y)) => {
+            x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
+        }
+        (VoxValue::Str(x), VoxValue::Str(y)) => x.cmp(y),
+        _ => std::cmp::Ordering::Equal,
     }
 }
 

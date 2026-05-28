@@ -1,0 +1,14 @@
+[package]
+name = "vox-plugin-test-harness"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared test utilities for Vox plugin authors: manifest fixture builders and temp plugin directory helpers."
+
+[dependencies]
+vox-plugin-types = { workspace = true }
+tempfile         = { workspace = true }
+toml             = { workspace = true }
+
+[lints]
+workspace = true

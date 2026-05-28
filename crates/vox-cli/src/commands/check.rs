@@ -26,7 +26,7 @@ use crate::cli_args::CheckArgs;
 fn is_script_like(source: &str) -> bool {
     // Conservative: if it looks like an app surface (has decorators that
     // belong in module-position only), don't treat as script.
-    let app_markers = ["@page", "@endpoint", "@component", "@table", "@workflow"];
+    let app_markers = ["@page", "@query", "@mutation", "@server", "@component", "@table", "@workflow"];
     !app_markers.iter().any(|m| source.contains(m))
 }
 
@@ -57,6 +57,12 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
             .get("warning_count")
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
+        if args.strict && warning_count > 0 {
+            anyhow::bail!(
+                "Check failed (--for-llm --strict): {warning_count} warning-level diagnostic(s) \
+                 (warnings are errors in strict mode)"
+            );
+        }
         println!("Check passed (--for-llm) with {warning_count} warning(s)");
         return Ok(());
     }
@@ -74,6 +80,13 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
 
     if result.has_errors() {
         anyhow::bail!("Check failed with {error_count} error(s) and {warning_count} warning(s)");
+    }
+
+    if args.strict && result.has_warnings() {
+        anyhow::bail!(
+            "Check failed (--strict): {warning_count} warning(s) treated as error(s) \
+             (use without --strict to allow warnings)"
+        );
     }
 
     if args.emit_ir {

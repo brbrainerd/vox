@@ -1,0 +1,46 @@
+# vox:skip
+id = "plan-fidelity-013-migrate-workflow-purity-violations"
+training_eligible = true
+wave = 3                                  # cross-cutting: workflow purity / effect rows
+
+[input]
+goal = """
+The project has three files — `src/jobs.vox`, `src/events.vox`, and `src/audit.vox` — \
+each containing a `workflow` function that calls `std.time.now_ms()` directly in its \
+body. This violates the workflow determinism rule: non-deterministic builtins must be \
+called inside an `activity`, not directly inside `workflow`. \
+For each file: \
+(1) extract the `std.time.now_ms()` call into a new `activity get_timestamp() to Result[int]`; \
+(2) replace the direct call in the workflow body with `get_timestamp()?`; \
+(3) keep any other workflow logic unchanged. \
+Run `vox check --strict` to confirm all three files pass with no purity diagnostics.
+"""
+preconditions = """
+`src/jobs.vox`, `src/events.vox`, and `src/audit.vox` each contain exactly one \
+`workflow` function that calls `std.time.now_ms()` in its body. \
+`vox check --strict` currently fails with `lint.workflow.non_deterministic` in all \
+three files. No `get_timestamp` activity exists in any of these files yet.
+"""
+
+[plan_expected_shape]
+min_steps = 6
+max_steps = 12
+must_include_tasks = [
+  "fix-jobs-workflow",
+  "fix-events-workflow",
+  "fix-audit-workflow",
+  "verify-compile",
+]
+must_include_decorator_calls = []
+
+[success_criteria]
+command = "vox check --strict"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/jobs.vox",   regex = "^activity get_timestamp" },
+  { path = "src/events.vox", regex = "^activity get_timestamp" },
+  { path = "src/audit.vox",  regex = "^activity get_timestamp" },
+  { path = "src/jobs.vox",   regex = "get_timestamp\\(\\)\\?" },
+  { path = "src/events.vox", regex = "get_timestamp\\(\\)\\?" },
+  { path = "src/audit.vox",  regex = "get_timestamp\\(\\)\\?" },
+]

@@ -1,0 +1,10 @@
+fn first_duplicate(xs: list[int]) to int {
+    let mut seen: list[int] = []
+    for x in xs {
+        if seen.contains(x) {
+            return x
+        }
+        seen.push(x)
+    }
+    return -1
+}

@@ -1,0 +1,10 @@
+fn gcd(a: int, b: int) to int {
+    let mut x = a
+    let mut y = b
+    while y != 0 {
+        let temp = y
+        y = x % y
+        x = temp
+    }
+    return x
+}

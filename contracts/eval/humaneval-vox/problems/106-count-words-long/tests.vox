@@ -1,0 +1,20 @@
+fn count_words_long(s: str, k: int) to int {
+    let words: list[str] = s.split(" ")
+    let mut count: int = 0
+    for word in words {
+        if word.len() > k {
+            count = count + 1
+        }
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_words_long("the quick brown fox", 3) == 2)
+    assert(count_words_long("hello world", 4) == 2)
+    assert(count_words_long("hi", 5) == 0)
+    assert(count_words_long("elephant rhinoceros cat", 5) == 2)
+    assert(count_words_long("", 3) == 0)
+    assert(count_words_long("one two three four five", 3) == 3)
+    return "ok"
+}

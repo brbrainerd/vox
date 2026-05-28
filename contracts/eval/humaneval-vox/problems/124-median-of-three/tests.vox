@@ -1,0 +1,18 @@
+fn median_of_three(a: int, b: int, c: int) to int {
+    let xs: list[int] = [a, b, c]
+    let sorted: list[int] = xs.sorted()
+    match sorted[1] {
+        Some(v) => { return v }
+        None => { return a }
+    }
+}
+
+fn main() to str {
+    assert(median_of_three(1, 2, 3) == 2)
+    assert(median_of_three(3, 1, 2) == 2)
+    assert(median_of_three(5, 5, 5) == 5)
+    assert(median_of_three(10, 3, 7) == 7)
+    assert(median_of_three(-1, 0, 1) == 0)
+    assert(median_of_three(100, 50, 75) == 75)
+    return "ok"
+}

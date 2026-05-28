@@ -1,0 +1,11 @@
+[problem]
+id = "137"
+title = "alternating_case"
+prompt = """
+Convert a string to alternating upper/lower case, starting with upper case for the first letter. Non-letter characters keep their position but do not count toward the alternation index. Example: "hello" -> "HeLlO".
+"""
+signature = "fn alternating_case(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "iteration"]

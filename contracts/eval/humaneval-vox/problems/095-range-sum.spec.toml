@@ -1,0 +1,11 @@
+[problem]
+id = "095"
+title = "range-sum"
+prompt = """
+Write a Vox function range_sum(a: int, b: int) to int that returns the sum of all integers from a to b inclusive.
+"""
+signature = "fn range_sum(a: int, b: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math"]

@@ -1,0 +1,18 @@
+fn alternating_sum(xs: list[int]) to int {
+    let mut result: int = 0
+    let mut i: int = 0
+    while i < xs.len() {
+        match xs[i] {
+            Some(v) => {
+                if i % 2 == 0 {
+                    result = result + v
+                } else {
+                    result = result - v
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}

@@ -94,7 +94,9 @@ impl TelemetryRecorder for JsonlFileRecorder {
         // failures should be observable via the freshness check on the
         // resulting report artifact.
         let Ok(_guard) = self.lock.lock() else { return };
-        let Some(parent) = self.path.parent() else { return };
+        let Some(parent) = self.path.parent() else {
+            return;
+        };
         if let Err(_e) = std::fs::create_dir_all(parent) {
             return;
         }
@@ -243,7 +245,11 @@ mod tests {
         .expect("write");
         r.record(&finding("R2"));
         let loaded = load_events_from_jsonl(&path).expect("load");
-        assert_eq!(loaded.len(), 2, "two valid events recovered, garbage skipped");
+        assert_eq!(
+            loaded.len(),
+            2,
+            "two valid events recovered, garbage skipped"
+        );
     }
 
     #[test]

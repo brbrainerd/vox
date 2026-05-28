@@ -79,18 +79,20 @@ vox-mesh-types         = { layer = 0 }
 workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
 vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable — must not be folded into vox-foundation
+vox-rename-registry       = { layer = 0, staleness_exempt = true }   # rename-registry + primitive-tag lookup; zero workspace deps
+vox-shell-stdlib-types    = { layer = 0, staleness_exempt = true }   # VoxFileRecord + std.fs types; shared between compiler interp path and actor-runtime codegen path
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }
 vox-hf-layout         = { layer = 1, max_loc = 6_000 }               # HF config.json layout (MENS / Candle plugins)
 vox-crypto            = { layer = 1 }
-vox-secrets           = { layer = 1, max_dependents = 25 }
+vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumers (all call resolve_secret); budget = current + 1. A-9 split (vox-secrets-types) deferred: all consumers use resolution fns, so split would not reduce this fan-in.
 
 vox-jsonschema-util   = { layer = 1 }
-vox-foundation        = { layer = 1, staleness_exempt = true }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
+vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
 
 vox-identity          = { layer = 1 }
-vox-http-client  = { layer = 1, staleness_exempt = true }
+vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 20 }
 vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
 vox-openai       = { layer = 1, staleness_exempt = true }
 
@@ -103,8 +105,9 @@ vox-research-events    = { layer = 1 }                            # SCIENTIA typ
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
-vox-config              = { layer = 2 }
+vox-config              = { layer = 2, max_dependents = 20 }
 vox-repository          = { layer = 2 }
+vox-populi-types        = { layer = 2, max_loc = 1_000 }  # ADR-042: NodeRecord + PopuliRegistryFile (pure-data, no async)
 vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2 }
 
@@ -125,27 +128,28 @@ vox-corpus              = { layer = 3, max_loc = 15_000 }
 vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 45_000 }
 vox-codegen         = { layer = 3, max_loc = 25_000 }
 vox-tauri-codegen       = { layer = 3, max_loc = 6_000 }
-vox-tauri-sherpa        = { layer = 3, kind = "plugin" }
+vox-tauri-stt           = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
 
 
 vox-scientia-jsonschema-codegen = { layer = 3, kind = "binary" }               # offline SCIENTIA JSON Schema → Rust (typify)
 vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
 vox-publisher           = { layer = 3, max_loc = 22_000 }  # raised from 20_000 (was at 19,951 / 20,000 headroom)
 vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 70_000 }
+vox-dei-shim            = { layer = 3, max_loc = 8_000, staleness_exempt = true }  # A-12 wedge: DEI research + model-selection extracted from vox-orchestrator
 vox-orchestrator-test-helpers = { layer = 3, kind = "test-only", max_dependents = 25, staleness_exempt = true }
 vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
 vox-populi              = { layer = 3, max_loc = 20_000 }
 vox-oratio              = { layer = 3 }
 vox-wasm-engine         = { layer = 3 }
+vox-container-types     = { layer = 0 }              # pure types: ContainerRuntime trait, BuildOpts/RunOpts, RuntimePreference, exec_grammar (D-9-rescope step 1)
 vox-container           = { layer = 3 }
 vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
-vox-distributed-training = { layer = 3 }     # promoted from [planned] 2026-05-23 — crate now on disk
-vox-inference           = { layer = 3 }      # promoted from [planned] 2026-05-23 — crate now on disk
-vox-mesh         = { layer = 3, kind = "plugin", staleness_exempt = true }
-vox-webhook             = { layer = 3 }
+vox-distributed-training = { layer = 3, orphan_exempt = true }     # WIP/Mn-T1; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
+vox-inference           = { layer = 3, orphan_exempt = true }      # WIP/Mn-T2; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
+vox-mesh-policy  = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
 vox-code-audit          = { layer = 3, max_loc = 25_000 }
 vox-drift-check              = { layer = 3, kind = "binary", max_loc = 8_000 }
 vox-wire-format-validator    = { layer = 3, kind = "binary", max_loc = 4_000 }
@@ -160,6 +164,7 @@ vox-search              = { layer = 3 }
 
 
 vox-test-harness        = { layer = 3 }
+vox-plugin-test-harness = { layer = 3, kind = "test-only" }  # manifest fixture builders + PluginDir for plugin authors
 vox-doc-pipeline        = { layer = 3 }
 vox-deploy-codegen      = { layer = 3 }
 vox-package             = { layer = 3 }
@@ -175,21 +180,18 @@ vox-plugin-catalog      = { layer = 3 }
 # exempt from this file. They are validated separately.
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
 vox-plugin-cloud             = { layer = 4, kind = "plugin" }
-vox-plugin-grammar-export    = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin" }
 vox-plugin-mens-candle-metal = { layer = 4, kind = "plugin" }
 vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
 vox-plugin-oratio            = { layer = 4, kind = "plugin" }
-vox-plugin-oratio-mic        = { layer = 4, kind = "plugin" }
 vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
 vox-plugin-publication       = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-container = { layer = 4, kind = "plugin" }
 vox-plugin-runtime-wasm      = { layer = 4, kind = "plugin" }
-vox-plugin-script-execution  = { layer = 4, kind = "plugin" }
 vox-plugin-webhook           = { layer = 4, kind = "plugin" }
 
 # ── L5 — surfaces ─────────────────────────────────────────────────────────────
-vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000 }
+vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000, max_workspace_deps = 60 }
 vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
@@ -205,11 +207,6 @@ voxup                 = { layer = 5, kind = "binary" }
 from   = "vox-cli"
 to     = "vox-orchestrator"
 reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See build-time-log.md Phase 7 audit."
-
-[[known_inversions]]
-from   = "vox-arch-check"
-to     = "vox-compiler"
-reason = "dev-dependency only (rename-registry integration test added in feat(arch-check) VUV-9 task 8). The tool binary does not ship vox-compiler at runtime; remove once the test can be refactored to not need the full compiler crate."
 
 [[known_inversions]]
 from   = "vox-ml-cli"
@@ -361,12 +358,11 @@ vox-release-artifacts    = { plan = "docs/src/architecture/crate-structure-audit
 vox-assets               = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
 vox-exec-grammar         = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
 vox-http-envelope        = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
-vox-openai-sse           = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
-vox-openai-wire          = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 1 }
+# vox-openai-sse, vox-openai-wire — retired 2026-05-23; vox-openai already contains both (sse.rs + chat_completion.rs)
 vox-share                = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
-vox-mesh-policy          = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 1 }
+# vox-mesh-policy — promoted to [crates] 2026-05-24; renamed from vox-mesh
 # vox-distributed-training, vox-inference — promoted to [crates] (now on disk)
 vox-cli-ci               = { plan = "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", layer = 3 }
 vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }

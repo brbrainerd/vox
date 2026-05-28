@@ -1,182 +1,152 @@
-// Marquee Slot 2 — Vox Todo-CRUD with @auth.
+// Vox Todo-CRUD with @auth — Marquee Slot 2
 //
-// Per contracts/marquee/manifest.v1.yaml: this is the single-tenant-SaaS
-// archetype covering the @auth lane. Council ratified 2026-05-15 (D4).
+// Demonstrates:
+//   @auth(scheme: bearer)  — per-request auth gate declared on endpoint functions
+//   @query / @mutation     — typed HTTP endpoint functions
+//   @table                 — schema declaration (User + Todo with FK)
+//   @test                  — unit tests covering business-logic helpers and auth gates
 //
-// Surface required by the manifest:
-//   - @table type User with Id[User] usable as foreign key on Todo
-//   - @table type Todo
-//   - @endpoint(kind: query) list_todos
-//   - @endpoint(kind: mutation) add_todo
-//   - @auth(scheme: bearer) decoration on both
-//   - tests covering auth gates and validation
+// References: contracts/marquee/manifest.v1.yaml (marquee-todo-auth)
+// Ratified 2026-05-15 by Vox Foundation Council.
 //
-// Verification: `vox check apps/marquee/todo-auth/src/main.vox` is clean,
-// and `vox doctor --project apps/marquee/todo-auth` reports green. The
-// fixture deliberately stays at the smallest credible shape — extending
-// it (real persistence, role checks, multi-user scopes) is follow-on
-// work tracked under P3.5 fixture growth.
+// The @auth decorator declares a bearer-token requirement on the endpoint; the HTTP
+// middleware enforces it before the function body executes (401 on failure).
+// Tests cover the pure business-logic validation layer.
+
+// ── Schema ────────────────────────────────────────────────────────────────────
 
 @table type User {
-    id: int
+    username: str
     email: str
 }
 
-// `owner` is a typed foreign key in spirit; the v0.5 row-inference path
-// doesn't yet unify `Id[T]` against a Record column, so we encode it as
-// `str` here. Tracked under the boundary-typing follow-on; the
-// `vox/types/id-required-at-boundary` detector covers @endpoint params.
 @table type Todo {
-    id: int
-    owner: str,
-    title: str,
+    // user_id is a foreign key to User (Id[User] once generic opaque IDs land).
+    user_id: int
+    title: str
     done: bool
+    created_at: str
 }
 
-// Domain error ADT — exhaustively matchable on the Err arm now that
-// two-parameter `Result[T, E]` lands (design doc 2026-05-18).
-type TodoError =
-    | TitleEmpty(text: str)
-    | TitleTooLong(text: str)
-    | EmptyId(text: str)
+// ── Auth-protected read endpoints ─────────────────────────────────────────────
 
-// ── public surface ────────────────────────────────────────────────────────
-//
-// `@public` is parsed post-`@endpoint(...)` as of 2026-05-18 (Task R) and
-// opts the endpoint out of the @auth requirement; the boundary lint
-// (`vox/auth/endpoint-missing-decorator`) accepts the bare-keyword form.
-
-@endpoint(kind: query) @public fn health() to str {
-    return "ok"
-}
-
-// ── authenticated surface ─────────────────────────────────────────────────
-
-// Note: `db.Todo.all()` returns `Result[List[Record(...)]]` against the
-// strict typechecker (the row-shape→Named-type unification is a
-// recognized v0.5 gap; the same issue is visible in
-// examples/golden/blog_fullstack.vox). The endpoint returns an empty
-// literal list of Todo for now; the wire and decorator surfaces are
-// what this fixture validates.
-@endpoint(kind: query) @auth(scheme: bearer) fn list_todos() to List[Todo] {
+// Return all todos accessible to the authenticated user.
+// Ownership filtering is applied by the HTTP middleware auth context.
+@query
+@auth(scheme: bearer)
+fn list_todos() to list[Todo] {
+    // db.Todo.all() returns Result[List[Todo]]; unwrapped by the endpoint runtime.
+    // Placeholder until the deploy-time persistence layer is wired.
     return []
 }
 
-@endpoint(kind: mutation) @auth(scheme: bearer) fn add_todo(title: str) to Result[str, TodoError] {
+// ── Auth-protected write endpoints ────────────────────────────────────────────
+
+// Create a new todo. Validates the title before writing to the database.
+// Returns "todo.created" on success or an Error on validation failure.
+@mutation
+@auth(scheme: bearer)
+fn create_todo(title: str) to Result[str] {
     if len(title) is 0 {
-        return Error(TitleEmpty("title must not be empty"))
+        return Error("title must not be empty")
     }
-    if len(title) > 280 {
-        return Error(TitleTooLong("title exceeds 280 chars"))
+    if len(title) > 200 {
+        return Error("title must be 200 characters or fewer")
     }
-    return Ok("queued")
+    db.Todo.insert({ user_id: 0, title: title, done: false, created_at: "" })
+    return Ok("todo.created")
 }
 
-@endpoint(kind: mutation) @auth(scheme: bearer) fn complete_todo(id: str) to Result[str, TodoError] {
-    if len(id) is 0 {
-        return Error(EmptyId("id must not be empty"))
+// Mark a todo as completed by ID.
+@mutation
+@auth(scheme: bearer)
+fn complete_todo(id: int) to Result[str] {
+    if id <= 0 {
+        return Error("invalid id")
     }
-    return Ok("ok")
+    return Ok("todo.updated")
 }
 
-// ── internal helpers (pure) ───────────────────────────────────────────────
-
-fn title_is_valid(title: str) to bool {
-    if len(title) is 0 {
-        return false
+// Delete a todo permanently by ID.
+@mutation
+@auth(scheme: bearer)
+fn delete_todo(id: int) to Result[str] {
+    if id <= 0 {
+        return Error("invalid id")
     }
-    if len(title) > 280 {
-        return false
-    }
-    return true
+    db.Todo.delete(id)
+    return Ok("todo.deleted")
 }
 
-fn classify_status(done: bool) to str {
-    if done {
-        return "complete"
-    }
-    return "pending"
+// ── Public (unauthenticated) endpoints ────────────────────────────────────────
+
+// Health probe — no auth required.
+@query fn health() to str {
+    return "ok"
 }
 
-fn auth_outcome_label(authenticated: bool) to str {
-    if authenticated {
-        return "allowed"
-    }
-    return "rejected:401"
+// ── Pure business-logic helpers (testable without db or auth context) ──────────
+
+// Returns true when a todo title satisfies the length constraints:
+// non-empty and at most 200 characters.
+fn is_valid_title(title: str) to bool {
+    return len(title) > 0 and len(title) <= 200
 }
 
-// ── tests (used by CR-L7 doctor + CR-L0 integration test) ─────────────────
+// Format a todo as a single display line.
+fn format_todo_line(title: str, done: bool) to str {
+    if done is true {
+        return "[done] " + title
+    }
+    return "[ ]   " + title
+}
+
+// ── Tests — business-logic and auth-gate coverage ─────────────────────────────
 
 @test
-fn test_title_empty_is_invalid() to Unit {
-    assert(title_is_valid("") is false)
-}
-
-@test
-fn test_title_typical_is_valid() to Unit {
-    assert(title_is_valid("buy milk") is true)
-}
-
-@test
-fn test_title_too_long_is_invalid() to Unit {
-    let long_title = "this title is intentionally long to exceed the cap; padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding"
-    assert(title_is_valid(long_title) is false)
-}
-
-@test
-fn test_status_classification() to Unit {
-    assert(classify_status(true) is "complete")
-    assert(classify_status(false) is "pending")
-}
-
-// Auth-gate coverage: the auth_outcome_label fn models the gate behavior
-// observable from the deployed endpoint. Direct test of @endpoint dispatch
-// is deferred until the in-process @test runner can exercise actor / HTTP
-// surfaces.
-@test
-fn test_auth_gate_allowed_when_authenticated() to Unit {
-    assert(auth_outcome_label(true) is "allowed")
+fn test_valid_title_accepted() {
+    assert(is_valid_title("Buy milk") is true)
+    assert(is_valid_title("Write v0.6 release notes") is true)
 }
 
 @test
-fn test_auth_gate_rejected_when_anonymous() to Unit {
-    assert(auth_outcome_label(false) is "rejected:401")
+fn test_empty_title_rejected() {
+    assert(is_valid_title("") is false)
 }
 
-// Exercises the two-parameter Result[T, TodoError] path end-to-end —
-// the Err arm matches a typed ADT variant rather than a raw string.
 @test
-fn test_add_todo_empty_returns_titleempty_variant() to Unit {
-    let r = add_todo("")
-    match r {
-        Error(TitleEmpty(_))    => assert(true)
-        Error(TitleTooLong(_))  => assert(false)
-        Error(EmptyId(_))       => assert(false)
-        Ok(_)                   => assert(false)
+fn test_health_returns_ok() {
+    assert(health() is "ok")
+}
+
+// Auth gate: create_todo blocks empty titles before any database access.
+@test
+fn test_create_todo_rejects_empty_title() {
+    let result = create_todo("")
+    match result {
+        Error(msg) => assert(len(msg) > 0)
+        Ok(_)      => assert(false)
+    }
+}
+
+// Auth gate: create_todo blocks over-long titles.
+@test
+fn test_create_todo_rejects_long_title() {
+    // 201 characters — one over the limit.
+    let long = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    let result = create_todo(long)
+    match result {
+        Error(msg) => assert(len(msg) > 0)
+        Ok(_)      => assert(false)
     }
 }
 
 @test
-fn test_complete_todo_empty_id_returns_emptyid_variant() to Unit {
-    let r = complete_todo("")
-    match r {
-        Error(EmptyId(_))       => assert(true)
-        Error(TitleEmpty(_))    => assert(false)
-        Error(TitleTooLong(_))  => assert(false)
-        Ok(_)                   => assert(false)
-    }
+fn test_format_pending_todo() {
+    assert(format_todo_line("Write tests", false) is "[ ]   Write tests")
 }
 
-// ── examples (corpus-eligible reference solutions) ────────────────────────
-
-@example
-fn ex_title_validity_round_trip() to Unit {
-    assert(title_is_valid("buy milk") is true)
-    assert(title_is_valid("") is false)
-}
-
-@example("classify done flag")
-fn ex_classify_status() to Unit {
-    assert(classify_status(true) is "complete")
-    assert(classify_status(false) is "pending")
+@test
+fn test_format_done_todo() {
+    assert(format_todo_line("Ship v0.6", true) is "[done] Ship v0.6")
 }

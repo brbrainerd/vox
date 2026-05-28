@@ -1,0 +1,24 @@
+fn remove_consecutive_dups(s: str) to str {
+    let chars: list[str] = s.chars()
+    let mut result: list[str] = []
+    let mut last: str = ""
+    for c in chars {
+        if c != last {
+            result.push(c)
+            last = c
+        }
+    }
+    return result.join("")
+}
+
+fn main() to str {
+    assert(remove_consecutive_dups("aabbcc") == "abc")
+    assert(remove_consecutive_dups("abba") == "aba")
+    assert(remove_consecutive_dups("aaa") == "a")
+    assert(remove_consecutive_dups("abc") == "abc")
+    assert(remove_consecutive_dups("") == "")
+    assert(remove_consecutive_dups("a") == "a")
+    assert(remove_consecutive_dups("aabbbbcc") == "abc")
+    assert(remove_consecutive_dups("aabc") == "abc")
+    return "ok"
+}

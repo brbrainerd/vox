@@ -1,0 +1,39 @@
+fn gcd(a: int, b: int) to int {
+    let mut x: int = a
+    let mut y: int = b
+    while y != 0 {
+        let t: int = y
+        y = x % y
+        x = t
+    }
+    return x
+}
+
+fn lcm(a: int, b: int) to int {
+    return (a / gcd(a, b)) * b
+}
+
+fn lcm_list(xs: list[int]) to int {
+    let mut result: int = 1
+    let mut first: bool = true
+    for v in xs {
+        if first {
+            result = v
+            first = false
+        } else {
+            result = lcm(result, v)
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(lcm_list([4, 6]) == 12)
+    assert(lcm_list([3, 4, 5]) == 60)
+    assert(lcm_list([5]) == 5)
+    assert(lcm_list([2, 3, 4]) == 12)
+    assert(lcm_list([1, 2, 3]) == 6)
+    assert(lcm_list([6, 10, 15]) == 30)
+    assert(lcm_list([7, 7]) == 7)
+    return "ok"
+}

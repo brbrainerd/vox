@@ -68,6 +68,20 @@ impl DetectionRule for WorkflowNondeterministicDetector {
         Good:               pass `now` as an input parameter, or read from workflow context."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — time.now() inside a @workflow body\n\
+             @workflow fn process_order(id: str) {\n\
+             \x20   let started_at = time.now()  // non-deterministic!\n\
+             }\n\
+             \n\
+             // FIX — pass timestamp as input parameter\n\
+             @workflow fn process_order(id: str, started_at: str) {\n\
+             \x20   // use started_at from caller\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

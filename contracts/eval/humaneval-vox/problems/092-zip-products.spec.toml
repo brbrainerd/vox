@@ -1,0 +1,11 @@
+[problem]
+id = "092"
+title = "zip-products"
+prompt = """
+Write a Vox function zip_products(a: list[int], b: list[int]) to list[int] that returns a new list where each element is the product of the corresponding elements from a and b. Both lists have equal length.
+"""
+signature = "fn zip_products(a: list[int], b: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

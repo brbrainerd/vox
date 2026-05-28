@@ -4,10 +4,10 @@ bin = []
 name = "marquee-chat"
 version = "0.1.0"
 kind = "application"
-description = "Marquee Slot 3 — realtime chat actor (CR-P1 / CR-L0 / CR-L7 fixture)"
+description = "Vox Marquee Slot 3 — Realtime chat with actor primitives and @server streaming"
 license = "Apache-2.0"
 authors = []
-keywords = ["marquee", "chat", "actor", "realtime"]
+keywords = ["marquee", "chat", "actor", "realtime", "streaming"]
 targets = []
 
 [dependencies]
@@ -17,3 +17,14 @@ targets = []
 [features]
 
 [skills]
+
+[deploy]
+# Target: OCI container pushed to GitHub Container Registry.
+# Auth: GITHUB_TOKEN (Clavis ForgeToken).
+# Registry login: docker login ghcr.io -u <username> -p $GITHUB_TOKEN
+target = "container"
+runtime = "auto"
+
+[deploy.container]
+registry = "ghcr.io/owner"
+dockerfile = "Dockerfile"

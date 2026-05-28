@@ -6,26 +6,28 @@ schema_version: 1
 # References:
 #   - docs/src/architecture/v1-release-criteria.md [CR-L3]
 #   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.3, §3
+#
+# Landed: 2026-05-27 (minimum-viable: 15 fixtures, 3 per class)
 
 corpus:
   id: repair-corpus
   schema_version: 1
-  status: target-met                        # 50 fixtures landed 2026-05-23 (honest plan §4.2)
+  status: minimum-viable             # stub | minimum-viable | complete
   bar:
     project_scope_target: 0.70
     single_file_aim: 0.90
     sub_bar_block_project_scope: 0.50
   count_target: 50
-  count_current: 50
-  corpus_hash: "blake3:populated-by-RepairCorpusRunner-at-run-time"
+  count_current: 15
+  corpus_hash: "blake3:0000000000000000000000000000000000000000000000000000000000000000"
 
 # Target distribution: 10 fixtures per bug class.
 bug_class_distribution:
-  type-error: 10
-  effect-violation: 10
-  logic: 10
-  exhaustiveness: 10
-  api-misuse: 10
+  type-error: 10       # current: 3
+  effect-violation: 10 # current: 3
+  logic: 10            # current: 3
+  exhaustiveness: 10   # current: 3
+  api-misuse: 10       # current: 3
 
 # Difficulty distribution within each class.
 difficulty_distribution:
@@ -33,8 +35,258 @@ difficulty_distribution:
   medium: 0.50                            # 5 of 10 per class
   hard: 0.20                              # 2 of 10 per class
 
-# Fixtures (empty stub).
-fixtures: []
+# ── Training eligibility policy ──────────────────────────────────────────────
+#
+# Each fixture has three eligibility flags (set in the fixture's meta.toml):
+#
+#   mens_training_eligible  — always false for this corpus.
+#                             buggy.vox contains intentional mistakes and must
+#                             never appear as a positive MENS training example.
+#
+#   fixed_training_eligible — true when fixed.vox is high-quality enough to
+#                             serve as a standalone positive training example
+#                             for the general MENS pipeline.
+#
+#   repair_pair_eligible    — true when the (buggy.vox, fixed.vox) pair is
+#                             suitable for supervised repair fine-tuning.
+#                             This is a DIFFERENT pipeline from MENS general
+#                             training; it trains the model to transform broken
+#                             code into correct code.
+#
+# Summary: never feed buggy.vox alone into MENS. The pair is valuable for
+# repair-model fine-tuning; fixed.vox can be reused in the general corpus.
+
+# Fixtures (15 minimum-viable: 3 per class).
+fixtures:
+  # ── type-error (3) ──────────────────────────────────────────────────────────
+  - id: "001"
+    slug: "001-type-return-mismatch"
+    title: "Return type mismatch: annotated int but returns str"
+    bug_class: type-error
+    difficulty: easy
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/001-type-return-mismatch/buggy.vox"
+      fixed: "problems/001-type-return-mismatch/fixed.vox"
+      meta:  "problems/001-type-return-mismatch/meta.toml"
+
+  - id: "002"
+    slug: "002-type-arg-type-mismatch"
+    title: "Argument type mismatch: str passed where int expected"
+    bug_class: type-error
+    difficulty: easy
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/002-type-arg-type-mismatch/buggy.vox"
+      fixed: "problems/002-type-arg-type-mismatch/fixed.vox"
+      meta:  "problems/002-type-arg-type-mismatch/meta.toml"
+
+  - id: "003"
+    slug: "003-type-arg-count-mismatch"
+    title: "Argument count mismatch: clamp called with 4 args, takes 3"
+    bug_class: type-error
+    difficulty: medium
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/003-type-arg-count-mismatch/buggy.vox"
+      fixed: "problems/003-type-arg-count-mismatch/fixed.vox"
+      meta:  "problems/003-type-arg-count-mismatch/meta.toml"
+
+  # ── effect-violation (3) ────────────────────────────────────────────────────
+  - id: "004"
+    slug: "004-effect-pure-http-call"
+    title: "@pure fn calls std.http.get_text (Net effect)"
+    bug_class: effect-violation
+    difficulty: easy
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/004-effect-pure-http-call/buggy.vox"
+      fixed: "problems/004-effect-pure-http-call/fixed.vox"
+      meta:  "problems/004-effect-pure-http-call/meta.toml"
+
+  - id: "005"
+    slug: "005-effect-workflow-nondeterministic"
+    title: "Workflow calls std.time.now_ms() — non-deterministic builtin"
+    bug_class: effect-violation
+    difficulty: medium
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/005-effect-workflow-nondeterministic/buggy.vox"
+      fixed: "problems/005-effect-workflow-nondeterministic/fixed.vox"
+      meta:  "problems/005-effect-workflow-nondeterministic/meta.toml"
+
+  - id: "006"
+    slug: "006-effect-net-undeclared"
+    title: "Net effect used but @uses(net) not declared"
+    bug_class: effect-violation
+    difficulty: hard
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/006-effect-net-undeclared/buggy.vox"
+      fixed: "problems/006-effect-net-undeclared/fixed.vox"
+      meta:  "problems/006-effect-net-undeclared/meta.toml"
+
+  # ── logic (3) ───────────────────────────────────────────────────────────────
+  - id: "007"
+    slug: "007-logic-fizzbuzz-off-by-one"
+    title: "FizzBuzz: range starts at 0 instead of 1"
+    bug_class: logic
+    difficulty: easy
+    scope: single-file
+    detection_mode: runtime
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/007-logic-fizzbuzz-off-by-one/buggy.vox"
+      fixed: "problems/007-logic-fizzbuzz-off-by-one/fixed.vox"
+      meta:  "problems/007-logic-fizzbuzz-off-by-one/meta.toml"
+
+  - id: "008"
+    slug: "008-logic-grade-threshold"
+    title: "Letter grade: strict > instead of >= at all thresholds"
+    bug_class: logic
+    difficulty: medium
+    scope: single-file
+    detection_mode: runtime
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/008-logic-grade-threshold/buggy.vox"
+      fixed: "problems/008-logic-grade-threshold/fixed.vox"
+      meta:  "problems/008-logic-grade-threshold/meta.toml"
+
+  - id: "009"
+    slug: "009-logic-max-operator"
+    title: "find_max: uses < instead of > — returns minimum instead of maximum"
+    bug_class: logic
+    difficulty: hard
+    scope: single-file
+    detection_mode: runtime
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/009-logic-max-operator/buggy.vox"
+      fixed: "problems/009-logic-max-operator/fixed.vox"
+      meta:  "problems/009-logic-max-operator/meta.toml"
+
+  # ── exhaustiveness (3) ──────────────────────────────────────────────────────
+  - id: "010"
+    slug: "010-exhaustive-bool-match"
+    title: "Non-exhaustive match on bool: missing false arm"
+    bug_class: exhaustiveness
+    difficulty: easy
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/010-exhaustive-bool-match/buggy.vox"
+      fixed: "problems/010-exhaustive-bool-match/fixed.vox"
+      meta:  "problems/010-exhaustive-bool-match/meta.toml"
+
+  - id: "011"
+    slug: "011-exhaustive-adt-missing-arm"
+    title: "Non-exhaustive match on NetworkState: Connected variant missing"
+    bug_class: exhaustiveness
+    difficulty: medium
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/011-exhaustive-adt-missing-arm/buggy.vox"
+      fixed: "problems/011-exhaustive-adt-missing-arm/fixed.vox"
+      meta:  "problems/011-exhaustive-adt-missing-arm/meta.toml"
+
+  - id: "012"
+    slug: "012-exhaustive-adt-missing-two"
+    title: "Non-exhaustive match on TaskState: Blocked and Done missing"
+    bug_class: exhaustiveness
+    difficulty: hard
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/012-exhaustive-adt-missing-two/buggy.vox"
+      fixed: "problems/012-exhaustive-adt-missing-two/fixed.vox"
+      meta:  "problems/012-exhaustive-adt-missing-two/meta.toml"
+
+  # ── api-misuse (3) ──────────────────────────────────────────────────────────
+  - id: "013"
+    slug: "013-api-arg-count-too-few"
+    title: "API misuse: divide called with 1 arg, requires 2"
+    bug_class: api-misuse
+    difficulty: easy
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/013-api-arg-count-too-few/buggy.vox"
+      fixed: "problems/013-api-arg-count-too-few/fixed.vox"
+      meta:  "problems/013-api-arg-count-too-few/meta.toml"
+
+  - id: "014"
+    slug: "014-api-arg-count-too-many"
+    title: "API misuse: repeat_greeting called with 3 args, takes 2"
+    bug_class: api-misuse
+    difficulty: medium
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/014-api-arg-count-too-many/buggy.vox"
+      fixed: "problems/014-api-arg-count-too-many/fixed.vox"
+      meta:  "problems/014-api-arg-count-too-many/meta.toml"
+
+  - id: "015"
+    slug: "015-api-wrong-effect-declared"
+    title: "Wrong effect declared: @uses(fs) instead of @uses(net)"
+    bug_class: api-misuse
+    difficulty: hard
+    scope: single-file
+    detection_mode: static
+    mens_training_eligible: false
+    fixed_training_eligible: true
+    repair_pair_eligible: true
+    files:
+      buggy: "problems/015-api-wrong-effect-declared/buggy.vox"
+      fixed: "problems/015-api-wrong-effect-declared/fixed.vox"
+      meta:  "problems/015-api-wrong-effect-declared/meta.toml"
 
 # CI policy.
 ci:
@@ -61,3 +313,13 @@ council_ratification_log:
     rationale: >
       Subordinate to CR-L0's $5/spec ceiling; a single CR-L0 spec may invoke
       project-scope repair once or twice during its outer agent loop.
+  - id: repair-corpus-training-eligibility
+    decision: >
+      buggy.vox files are never MENS-training-eligible. fixed.vox files are
+      eligible as standalone positive examples. (buggy, fixed) pairs are
+      eligible for repair fine-tuning only (separate pipeline from MENS general).
+    ratified_at: "2026-05-27"
+    rationale: >
+      Training on buggy code as a positive example would degrade model quality.
+      The repair pair is a supervised (input→output) signal, not a standalone
+      positive example.

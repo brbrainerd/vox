@@ -43,6 +43,20 @@ impl DetectionRule for DeprecatedUsageDetector {
         Severity::Warning
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION 1 — @deprecated annotation left in shipped code\n\
+             @deprecated\n\
+             fn old_payment_flow(amount: f64) { ... }\n\
+             \n\
+             // VIOLATION 2 — raw JSX attributes leak into Vox source\n\
+             <div className=\"card\" onClick={handler}>\n\
+             \n\
+             // FIX 2 — use Vox-native attribute syntax\n\
+             <div class=\"card\" on:click={handler}>",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[Language::Vox]
     }

@@ -44,58 +44,57 @@ impl<'a> Checker<'a> {
         let l = self.uf.resolve(&l);
         let r = self.uf.resolve(&r);
         match op {
-            HirBinOp::Add => self.check_add_op(&l, &r, span),
-            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
-                check_arithmetic_op(&l, &r)
+            HirBinOp::Add => {
+                if l == Ty::Str || r == Ty::Str {
+                    Ty::Str
+                } else if l == Ty::Int && r == Ty::Int {
+                    Ty::Int
+                } else if l == Ty::Decimal && r == Ty::Decimal {
+                    Ty::Decimal
+                } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
+                    Ty::Float
+                } else {
+                    self.diags.push(Diagnostic::error(
+                        format!("Invalid operands for +: {l:?} and {r:?}"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }
             }
-            HirBinOp::Lt
-            | HirBinOp::Gt
-            | HirBinOp::Lte
-            | HirBinOp::Gte
-            | HirBinOp::Is
-            | HirBinOp::Isnt => Ty::Bool,
+            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
+                if l == Ty::Int && r == Ty::Int {
+                    Ty::Int
+                } else if l == Ty::Decimal && r == Ty::Decimal {
+                    Ty::Decimal
+                } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
+                    Ty::Float
+                } else {
+                    Ty::Error
+                }
+            }
+            HirBinOp::Lt | HirBinOp::Gt | HirBinOp::Lte | HirBinOp::Gte => Ty::Bool,
+            HirBinOp::Is | HirBinOp::Isnt => Ty::Bool,
             HirBinOp::And | HirBinOp::Or => {
                 let _ = self.uf.unify(&l, &Ty::Bool);
                 let _ = self.uf.unify(&r, &Ty::Bool);
                 Ty::Bool
             }
-            HirBinOp::Pipe => self.check_pipe_op(l, r),
+            HirBinOp::Pipe => match r {
+                Ty::Fn(params, ret) => {
+                    let instantiated = self.uf.instantiate(&Ty::Fn(params, ret));
+                    if let Ty::Fn(p, rt) = instantiated {
+                        if !p.is_empty() {
+                            let _ = self.uf.unify(&l, &p[0]);
+                        }
+                        rt.as_ref().clone()
+                    } else {
+                        Ty::Error
+                    }
+                }
+                _ => l,
+            },
         }
-    }
-
-    /// Type-check the `+` operator. Distinguishes string concat, int
-    /// arithmetic, decimal arithmetic, and float-promoted arithmetic.
-    /// Emits a diagnostic on incompatible operands.
-    fn check_add_op(&mut self, l: &Ty, r: &Ty, span: Span) -> Ty {
-        if *l == Ty::Str || *r == Ty::Str {
-            return Ty::Str;
-        }
-        if let Some(t) = numeric_promote(l, r) {
-            return t;
-        }
-        self.diags.push(Diagnostic::error(
-            format!("Invalid operands for +: {l:?} and {r:?}"),
-            span,
-            self.source,
-        ));
-        Ty::Error
-    }
-
-    /// Type-check the pipe (`|>`) operator. The right operand must be a
-    /// function; the left is unified with its first parameter; the
-    /// function's return type is the pipe's result.
-    fn check_pipe_op(&mut self, l: Ty, r: Ty) -> Ty {
-        let Ty::Fn(params, ret) = r else {
-            return l;
-        };
-        let instantiated = self.uf.instantiate(&Ty::Fn(params, ret));
-        let Ty::Fn(p, rt) = instantiated else {
-            return Ty::Error;
-        };
-        if !p.is_empty() {
-            let _ = self.uf.unify(&l, &p[0]);
-        }
-        rt.as_ref().clone()
     }
 
     /// Validate `with { ... }` option bags (workflow / activity calls).
@@ -151,11 +150,19 @@ impl<'a> Checker<'a> {
 
     pub(super) fn check_arguments(&mut self, expected: &[Ty], actual: &[HirArg], span: Span) {
         if expected.len() != actual.len() {
-            self.diags.push(Diagnostic::error(
-                crate::typeck::diagnostics::msg_arg_count_mismatch(expected.len(), actual.len()),
-                span,
-                self.source,
-            ));
+            self.diags.push(
+                Diagnostic::error(
+                    crate::typeck::diagnostics::msg_arg_count_mismatch(
+                        expected.len(),
+                        actual.len(),
+                    ),
+                    span,
+                    self.source,
+                )
+                .with_code(
+                    crate::typeck::diagnostics::codes::TYPES_ARG_COUNT_MISMATCH,
+                ),
+            );
             for arg in actual {
                 let _ = self.check_expr(&arg.value, None);
             }
@@ -174,7 +181,9 @@ impl<'a> Checker<'a> {
                     context: Some(Diagnostic::capture_context(self.source, arg_span)),
                     suggestions: vec![],
                     category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
-                    code: Some("typecheck.arg_mismatch".into()),
+                    code: Some(
+                        crate::typeck::diagnostics::codes::TYPES_ARG_TYPE_MISMATCH.into(),
+                    ),
                     fixes: vec![],
                     line_col: None,
                     missing_cases: vec![],
@@ -218,81 +227,39 @@ impl<'a> Checker<'a> {
             }
             HirPattern::Wildcard(_) => {}
             HirPattern::Literal(_, _) => {}
-            HirPattern::Constructor(name, fields, span) => {
-                self.bind_constructor_pattern(name, fields, *span, &ty, mutable);
-            }
-        }
-    }
-
-    /// Type-bind a `Constructor` pattern against its subject type.
-    ///
-    /// CR-A1: the inline nested `match &ty { … }` block contributed ~10
-    /// decision points to `bind_pattern`; extracting it here drops
-    /// `bind_pattern` to ~7 CC.
-    fn bind_constructor_pattern(
-        &mut self,
-        name: &str,
-        fields: &[HirPattern],
-        span: crate::ast::span::Span,
-        ty: &Ty,
-        mutable: bool,
-    ) {
-        match ty {
-            Ty::Option(inner) if name == "Some" && fields.len() == 1 => {
-                self.bind_pattern(&fields[0], inner.as_ref(), mutable);
-            }
-            Ty::Result(ok_ty, _) if name == "Ok" && fields.len() == 1 => {
-                self.bind_pattern(&fields[0], ok_ty.as_ref(), mutable);
-            }
-            Ty::Result(_, err_ty)
-                if (name == "Error" || name == "Err") && fields.len() == 1 =>
-            {
-                self.bind_pattern(&fields[0], err_ty.as_ref(), mutable);
-            }
-            Ty::Option(_) if name == "None" && fields.is_empty() => {}
-            _ => {
-                let expected_adt_name = match ty {
-                    Ty::Named(n) => Some(n.as_str()),
-                    _ => None,
-                };
-                if let Some(field_defs) = self.env.lookup_adt_variant(name, expected_adt_name) {
-                    for (i, p) in fields.iter().enumerate() {
-                        let ft = field_defs
-                            .get(i)
-                            .map(|(_, t)| t.clone())
-                            .unwrap_or(Ty::Error);
-                        self.bind_pattern(p, &ft, mutable);
-                    }
-                } else {
-                    self.diags.push(Diagnostic::error(
-                        format!("Unknown constructor or pattern mismatch: {name} on {ty:?}"),
-                        span,
-                        self.source,
-                    ));
+            HirPattern::Constructor(name, fields, span) => match &ty {
+                Ty::Option(inner) if name == "Some" && fields.len() == 1 => {
+                    self.bind_pattern(&fields[0], inner.as_ref(), mutable);
                 }
-            }
+                Ty::Result(inner) if name == "Ok" && fields.len() == 1 => {
+                    self.bind_pattern(&fields[0], inner.as_ref(), mutable);
+                }
+                Ty::Result(_) if (name == "Error" || name == "Err") && fields.len() == 1 => {
+                    self.bind_pattern(&fields[0], &Ty::Str, mutable);
+                }
+                Ty::Option(_) if name == "None" && fields.is_empty() => {}
+                _ => {
+                    let expected_adt_name = match &ty {
+                        Ty::Named(n) => Some(n.as_str()),
+                        _ => None,
+                    };
+                    if let Some(field_defs) = self.env.lookup_adt_variant(name, expected_adt_name) {
+                        for (i, p) in fields.iter().enumerate() {
+                            let ft = field_defs
+                                .get(i)
+                                .map(|(_, t)| t.clone())
+                                .unwrap_or(Ty::Error);
+                            self.bind_pattern(p, &ft, mutable);
+                        }
+                    } else {
+                        self.diags.push(Diagnostic::error(
+                            format!("Unknown constructor or pattern mismatch: {name} on {ty:?}"),
+                            *span,
+                            self.source,
+                        ));
+                    }
+                }
+            },
         }
     }
-}
-
-/// Promote two numeric operands to a result type: same-typed Int/Decimal
-/// stay; Int+Float or Float+Float widen to Float. Returns None on
-/// incompatible operands.
-fn numeric_promote(l: &Ty, r: &Ty) -> Option<Ty> {
-    if *l == Ty::Int && *r == Ty::Int {
-        return Some(Ty::Int);
-    }
-    if *l == Ty::Decimal && *r == Ty::Decimal {
-        return Some(Ty::Decimal);
-    }
-    if (*l == Ty::Float || *l == Ty::Int) && (*r == Ty::Float || *r == Ty::Int) {
-        return Some(Ty::Float);
-    }
-    None
-}
-
-/// Type-check the `Sub`/`Mul`/`Div`/`Mod` operators. Same numeric
-/// promotion rule as `+` minus the string-concat fallback.
-fn check_arithmetic_op(l: &Ty, r: &Ty) -> Ty {
-    numeric_promote(l, r).unwrap_or(Ty::Error)
 }

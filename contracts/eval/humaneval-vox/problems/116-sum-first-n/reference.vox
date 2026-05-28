@@ -1,0 +1,12 @@
+fn sum_first_n(xs: list[int], n: int) to int {
+    let mut total: int = 0
+    let mut i: int = 0
+    while i < n and i < xs.len() {
+        match xs[i] {
+            Some(v) => { total = total + v }
+            None => {}
+        }
+        i = i + 1
+    }
+    return total
+}

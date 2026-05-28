@@ -1,0 +1,17 @@
+fn str_palindrome_ignore_case(s: str) to bool {
+    let lower: str = s.to_lower()
+    let chars: list[str] = lower.chars()
+    let rev: list[str] = chars.reversed()
+    return chars.join("") == rev.join("")
+}
+
+fn main() to str {
+    assert(str_palindrome_ignore_case("racecar") == true)
+    assert(str_palindrome_ignore_case("Racecar") == true)
+    assert(str_palindrome_ignore_case("RaceCar") == true)
+    assert(str_palindrome_ignore_case("hello") == false)
+    assert(str_palindrome_ignore_case("") == true)
+    assert(str_palindrome_ignore_case("A") == true)
+    assert(str_palindrome_ignore_case("AbBa") == true)
+    return "ok"
+}

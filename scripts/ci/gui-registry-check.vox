@@ -8,7 +8,12 @@ fn main() {
         std.process.exit(1);
     }
 
-    let ts_content = std.fs.read_to_string(ts_file);
+    let ts_content_res = std.fs.read_to_string(ts_file)
+    if ts_content_res.is_err() {
+        log.error("Could not read " + ts_file)
+        std.process.exit(1)
+    }
+    let ts_content = ts_content_res.unwrap()
 
     // Ensure the interface defines all required SSoT fields
     let required_fields = [

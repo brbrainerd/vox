@@ -1,0 +1,11 @@
+[problem]
+id = "034"
+title = "list_to_str"
+prompt = """
+Join a list of strings with a given separator into a single string.
+"""
+signature = "fn list_to_str(words: list[str], sep: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

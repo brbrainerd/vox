@@ -216,24 +216,6 @@ pub struct TestDecl {
     pub func: FnDecl,
 }
 
-/// Example declaration (`@example`).
-///
-/// Shape mirrors [`TestDecl`] — the body is typically a small fn that uses
-/// `assert(...)` to demonstrate correct behavior. The semantic delta is
-/// *intent*: examples are corpus-eligible reference solutions for tooling
-/// (HumanEval-Vox mining, doctest pipeline) to harvest. They are NOT run
-/// by the regression test runner by default.
-///
-/// Lowered into [`crate::hir::nodes::decl::HirModule::examples`] (a Vec
-/// distinct from `tests`), preserving the discoverable separation.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ExampleDecl {
-    /// Optional human-readable label, e.g. `@example("greet a user")`.
-    pub label: String,
-    /// The underlying function implementing the example.
-    pub func: FnDecl,
-}
-
 /// Property-based test declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ForallDecl {
@@ -250,12 +232,6 @@ pub enum EndpointKind {
     Query,
     Mutation,
     Server,
-    /// `@endpoint(kind: stream)` — streaming response endpoint, typically
-    /// fronting an actor / websocket source. Lands the surface used by
-    /// marquee-chat; semantic codegen (SSE / websocket emit) is a
-    /// follow-on. Recorded so the lint surface and the boundary checks
-    /// can opt in.
-    Stream,
 }
 
 /// Unified endpoint declaration (wraps a function with @endpoint semantics).
@@ -263,13 +239,6 @@ pub enum EndpointKind {
 pub struct EndpointDecl {
     pub kind: EndpointKind,
     pub func: FnDecl,
-    /// Optional tick interval for `kind: stream` endpoints —
-    /// `every: "<duration>"` argument (e.g. `"1s"`, `"500ms"`). When set,
-    /// the SSE handler invokes the body on this cadence and pushes each
-    /// result as a `data:` event. Only honored when `kind` is `Stream`;
-    /// the parser rejects `every:` on other kinds (E040-class check).
-    #[serde(default)]
-    pub stream_interval: Option<String>,
 }
 
 /// Skill declaration: a modular AI capability.

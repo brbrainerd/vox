@@ -57,6 +57,12 @@ pub struct ModelCapabilities {
     pub supports_audio_input: bool,
     #[serde(default)]
     pub supports_audio_output: bool,
+    /// Whether the model accepts file attachments (PDFs, documents, etc.) as input.
+    #[serde(default)]
+    pub supports_file_input: bool,
+    /// Whether the model can consume and produce JSON-Lines streams.
+    #[serde(default)]
+    pub supports_jsonl: bool,
     pub max_context: u64,
     pub tier: ModelTier,
     /// Provider-reported RPM limit (e.g. from OpenRouter `per_request_limits`).
@@ -180,6 +186,30 @@ pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
 }
 
 impl ModelSpec {
+    /// Whether the model supports native web-search grounding.
+    ///
+    /// This is a convenience forwarder to [`ModelCapabilities::supports_web_search`] so callers
+    /// can query the capability directly on the spec without drilling into `.capabilities`.
+    #[must_use]
+    #[inline]
+    pub fn supports_web_search(&self) -> bool {
+        self.capabilities.supports_web_search
+    }
+
+    /// Whether the model accepts file attachments as context.
+    #[must_use]
+    #[inline]
+    pub fn supports_file_input(&self) -> bool {
+        self.capabilities.supports_file_input
+    }
+
+    /// Whether the model supports JSON-Lines streaming output.
+    #[must_use]
+    #[inline]
+    pub fn supports_jsonl(&self) -> bool {
+        self.capabilities.supports_jsonl
+    }
+
     /// Keys for daily quota rows in `provider_usage` (aligned with `usage` module limits; OpenRouter `:free` aggregate, Ollama `*`).
     #[must_use]
     pub fn llm_usage_key(&self) -> LlmUsageKey {

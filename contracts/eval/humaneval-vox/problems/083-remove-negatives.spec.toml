@@ -1,0 +1,11 @@
+[problem]
+id = "083"
+title = "remove-negatives"
+prompt = """
+Write a Vox function remove_negatives(items: list[int]) to list[int] that returns a new list with all negative numbers removed.
+"""
+signature = "fn remove_negatives(items: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

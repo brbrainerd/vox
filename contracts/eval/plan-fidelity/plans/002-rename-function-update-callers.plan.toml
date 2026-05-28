@@ -1,0 +1,30 @@
+# vox:skip
+id = "plan-fidelity-002-rename-function-update-callers"
+training_eligible = true
+wave = 1                                  # single-file, no cross-cutting
+
+[input]
+goal = """
+In `src/greet.vox`, rename the function `format_greeting` to `format_user_greeting`. \
+Update every call site of `format_greeting` within the same file so the project \
+continues to compile. Run `vox check --strict` to confirm.
+"""
+preconditions = """
+`src/greet.vox` defines `fn format_greeting(name: str) to str` and calls it in \
+at least two places within the same file. `vox check --strict` passes at HEAD. \
+No other file in the project references `format_greeting`.
+"""
+
+[plan_expected_shape]
+min_steps = 2
+max_steps = 5
+must_include_tasks = ["rename-function", "update-callers", "verify-compile"]
+must_include_decorator_calls = []
+
+[success_criteria]
+command = "vox check --strict"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/greet.vox", regex = "fn format_user_greeting" },
+  { path = "src/greet.vox", regex = "format_user_greeting\\(" },
+]

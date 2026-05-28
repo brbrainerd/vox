@@ -212,3 +212,125 @@ fn cycle_a_imports_b_imports_a_resolves_without_infinite_loop() {
     .unwrap();
     run_file(&dir.path().join("a.vox")).expect("a↔b cycle should resolve cleanly");
 }
+
+// ── Pipeline-level inline-import pass (added 2026-05-24) ──────────────
+//
+// `inline_imported_decls` in `crates/vox-compiler/src/pipeline.rs` is the
+// codegen-side mirror of `Interpreter::resolve_local_file_import` and
+// `typeck::resolve_imported_pubs_into_env`. It runs at pipeline time
+// (between HIR lowering and typecheck) and inlines `pub fn` bodies from
+// imported `.vox` files directly into the importing file's HIR — so
+// `--mode script` Rust codegen sees one merged module with no runtime
+// resolver needed.
+//
+// The tests below exercise that pass directly via
+// `run_frontend_str_with_options` so a regression on the inline pass
+// can't slip past `cargo test` even when no corpus script uses imports.
+
+use vox_compiler::pipeline::{run_frontend_str_with_options, PipelineOptions};
+
+#[test]
+fn pipeline_inlines_imported_pub_fn_bodies() {
+    let dir = TempDir::new().unwrap();
+    fs::create_dir(dir.path().join("helpers")).unwrap();
+    fs::write(
+        dir.path().join("helpers/greet.vox"),
+        "pub fn shout(msg: str) to str { return msg + \"!\" }\n\
+         fn hidden() to str { return \"hidden\" }\n",
+    )
+    .unwrap();
+    let main = dir.path().join("main.vox");
+    let source = "import \"./helpers/greet.vox\"\n\
+                  fn main() { print(shout(\"hi\")) }\n";
+    fs::write(&main, source).unwrap();
+
+    let options = PipelineOptions {
+        script_mode: true,
+        ..PipelineOptions::default()
+    };
+    let result = run_frontend_str_with_options(source, &main.to_string_lossy(), &options)
+        .expect("frontend pipeline ran");
+
+    // The importer defines `main`; the pipeline inlined `shout` (pub) from
+    // the helper file. Non-pub `hidden` must NOT appear in the merged HIR
+    // — that's the strict-privacy invariant from RFC §3.
+    let names: Vec<&str> = result.hir.functions.iter().map(|f| f.name.as_str()).collect();
+    assert!(names.contains(&"main"), "expected main in merged HIR; got: {names:?}");
+    assert!(names.contains(&"shout"), "expected pub fn shout to be inlined; got: {names:?}");
+    assert!(
+        !names.contains(&"hidden"),
+        "non-pub fn hidden must NOT be inlined; privacy leaked: {names:?}",
+    );
+    // No typecheck errors either — the inlined pub fn typeck cleanly.
+    let errors: Vec<&str> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == TypeckSeverity::Error)
+        .map(|d| d.message.as_str())
+        .collect();
+    assert!(errors.is_empty(), "expected clean typecheck; got errors: {errors:?}");
+}
+
+#[test]
+fn pipeline_inline_cycle_safe() {
+    // a.vox imports b.vox imports a.vox. The pipeline inlines both pubs
+    // without infinite-recursing; each file is loaded at most once.
+    let dir = TempDir::new().unwrap();
+    fs::write(
+        dir.path().join("a.vox"),
+        "import \"./b.vox\"\n\
+         pub fn from_a() to str { return \"A\" }\n\
+         fn main() { print(from_b()) }\n",
+    )
+    .unwrap();
+    fs::write(
+        dir.path().join("b.vox"),
+        "import \"./a.vox\"\n\
+         pub fn from_b() to str { return \"B-\" + from_a() }\n",
+    )
+    .unwrap();
+    let a_path = dir.path().join("a.vox");
+    let source = fs::read_to_string(&a_path).unwrap();
+    let options = PipelineOptions {
+        script_mode: true,
+        ..PipelineOptions::default()
+    };
+    let result = run_frontend_str_with_options(&source, &a_path.to_string_lossy(), &options)
+        .expect("frontend pipeline ran");
+
+    let names: Vec<&str> = result.hir.functions.iter().map(|f| f.name.as_str()).collect();
+    assert!(names.contains(&"main"));
+    assert!(names.contains(&"from_a"));
+    assert!(names.contains(&"from_b"), "from_b inlined transitively via a→b cycle");
+}
+
+#[test]
+fn pipeline_alias_form_prefixes_inlined_names() {
+    // Alias form (`import "./foo.vox" as g`) inlines pubs under `<alias>__`
+    // prefix so the eval-side namespace dispatch (`g.fn`) and codegen
+    // namespace lookup both resolve consistently.
+    let dir = TempDir::new().unwrap();
+    fs::create_dir(dir.path().join("helpers")).unwrap();
+    fs::write(
+        dir.path().join("helpers/util.vox"),
+        "pub fn ping() to str { return \"pong\" }\n",
+    )
+    .unwrap();
+    let main = dir.path().join("main.vox");
+    let source = "import \"./helpers/util.vox\" as g\n\
+                  fn main() { print(g.ping()) }\n";
+    fs::write(&main, source).unwrap();
+    let options = PipelineOptions {
+        script_mode: true,
+        ..PipelineOptions::default()
+    };
+    let result = run_frontend_str_with_options(source, &main.to_string_lossy(), &options)
+        .expect("frontend pipeline ran");
+
+    let names: Vec<&str> = result.hir.functions.iter().map(|f| f.name.as_str()).collect();
+    assert!(names.contains(&"main"));
+    assert!(
+        names.contains(&"g__ping"),
+        "alias-form import should inline as <alias>__<fn>; got: {names:?}",
+    );
+}

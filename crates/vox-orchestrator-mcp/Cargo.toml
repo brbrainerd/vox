@@ -22,6 +22,7 @@ oratio-rerank = ["dep:vox-oratio"]
 
 [dependencies]
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
+vox-dei-shim = { workspace = true }
 
 # MCP-stack deps (always compiled when this crate is in the build)
 axum = { workspace = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
@@ -84,12 +85,12 @@ chrono = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 regex = { workspace = true }
 glob.workspace = true
-ignore = "0.4.25"
+ignore = { workspace = true }
 walkdir.workspace = true
 sha2 = { workspace = true }
 sha3 = { workspace = true }
 hex = { workspace = true }
-hmac = "0.12.1"
+hmac = { workspace = true }
 blake3.workspace = true
 base64.workspace = true
 rand.workspace = true
@@ -99,7 +100,7 @@ tempfile.workspace = true
 xxhash-rust = { workspace = true }
 tiktoken-rs = { workspace = true }
 dirs = { workspace = true }
-crossbeam-queue = "0.3.12"
+crossbeam-queue = { workspace = true }
 globset = { workspace = true }
 workspace-hack = { workspace = true }
 

@@ -1,0 +1,11 @@
+[problem]
+id = "146"
+title = "lcm_list"
+prompt = """
+Compute the LCM (least common multiple) of all elements in a non-empty list of positive ints using iterative LCM via GCD.
+"""
+signature = "fn lcm_list(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["lists", "math"]

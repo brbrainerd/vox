@@ -1,0 +1,11 @@
+[problem]
+id = "110"
+title = "remove_spaces"
+prompt = """
+Remove all space characters from a string and return the result.
+"""
+signature = "fn remove_spaces(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

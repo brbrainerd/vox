@@ -193,7 +193,7 @@ fn escape(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::page::*;
+    use super::super::page::*;
 
     fn sample_page() -> FindingPage {
         FindingPage {

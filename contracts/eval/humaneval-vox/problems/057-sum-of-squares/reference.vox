@@ -1,0 +1,9 @@
+fn sum_of_squares(n: int) to int {
+    let mut total: int = 0
+    let mut i: int = 1
+    while i <= n {
+        total = total + i * i
+        i = i + 1
+    }
+    return total
+}

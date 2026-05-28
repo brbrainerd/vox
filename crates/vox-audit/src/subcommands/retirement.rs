@@ -36,9 +36,8 @@ impl Subcommand for RetirementSubcommand {
         if args.dry_run {
             return match std::fs::read_to_string(&contract_path)
                 .map_err(|e| e.to_string())
-                .and_then(|yaml| {
-                    retirement_parity::check_parity(&yaml).map_err(|e| e.to_string())
-                }) {
+                .and_then(|yaml| retirement_parity::check_parity(&yaml).map_err(|e| e.to_string()))
+            {
                 Ok(_) => RunOutcome {
                     report: AuditReport::complete(
                         gate_thing_name(),
@@ -155,10 +154,7 @@ mod tests {
             "contract has at least the 5 detector-enforced rows"
         );
         assert!(
-            outcome
-                .report
-                .corpus_hash
-                .starts_with("blake3:"),
+            outcome.report.corpus_hash.starts_with("blake3:"),
             "corpus_hash should be a content hash, got {}",
             outcome.report.corpus_hash
         );

@@ -1,0 +1,33 @@
+fn caesar_shift(s: str, k: int) to str {
+    let lowers: list[str] = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z"]
+    let uppers: list[str] = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]
+    let mut result: str = ""
+    for c in s.chars() {
+        if lowers.contains(c) {
+            let idx: int = ((c.ord() - 97 + k) % 26 + 26) % 26
+            match lowers[idx] {
+                Some(nc) => { result = result + nc }
+                None => {}
+            }
+        } else {
+            if uppers.contains(c) {
+                let idx: int = ((c.ord() - 65 + k) % 26 + 26) % 26
+                match uppers[idx] {
+                    Some(nc) => { result = result + nc }
+                    None => {}
+                }
+            } else {
+                result = result + c
+            }
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(caesar_shift("abc", 3) == "def")
+    assert(caesar_shift("xyz", 3) == "abc")
+    assert(caesar_shift("", 5) == "")
+    assert(caesar_shift("Hello!", 0) == "Hello!")
+    return "ok"
+}

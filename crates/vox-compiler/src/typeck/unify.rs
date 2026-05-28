@@ -56,10 +56,7 @@ impl InferenceContext {
             }
             Ty::List(inner) => Ty::List(Box::new(self.resolve(inner))),
             Ty::Option(inner) => Ty::Option(Box::new(self.resolve(inner))),
-            Ty::Result(ok, err) => Ty::Result(
-                Box::new(self.resolve(ok)),
-                Box::new(self.resolve(err)),
-            ),
+            Ty::Result(inner) => Ty::Result(Box::new(self.resolve(inner))),
             Ty::Stream(inner) => Ty::Stream(Box::new(self.resolve(inner))),
             Ty::Map(k, v) => Ty::Map(Box::new(self.resolve(k)), Box::new(self.resolve(v))),
             Ty::Set(inner) => Ty::Set(Box::new(self.resolve(inner))),
@@ -114,10 +111,7 @@ impl InferenceContext {
             Ty::GenericParam(id) => map.entry(id).or_insert_with(|| self.fresh_var()).clone(),
             Ty::List(inner) => Ty::List(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Option(inner) => Ty::Option(Box::new(self.instantiate_inner(*inner, map))),
-            Ty::Result(ok, err) => Ty::Result(
-                Box::new(self.instantiate_inner(*ok, map)),
-                Box::new(self.instantiate_inner(*err, map)),
-            ),
+            Ty::Result(inner) => Ty::Result(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Stream(inner) => Ty::Stream(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Set(inner) => Ty::Set(Box::new(self.instantiate_inner(*inner, map))),
             Ty::Map(k, v) => Ty::Map(
@@ -167,8 +161,8 @@ impl InferenceContext {
             Ty::List(inner)
             | Ty::Set(inner)
             | Ty::Stream(inner)
-            | Ty::Option(inner) => self.occurs(id, &inner),
-            Ty::Result(ok, err) => self.occurs(id, &ok) || self.occurs(id, &err),
+            | Ty::Option(inner)
+            | Ty::Result(inner) => self.occurs(id, &inner),
             Ty::Map(k, v) => self.occurs(id, &k) || self.occurs(id, &v),
             Ty::Tuple(elems) => elems.iter().any(|e| self.occurs(id, e)),
             Ty::Fn(params, ret) => {
@@ -233,10 +227,7 @@ impl InferenceContext {
             }
             (Ty::List(a_inner), Ty::List(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Option(a_inner), Ty::Option(b_inner)) => self.unify(a_inner, b_inner),
-            (Ty::Result(a_ok, a_err), Ty::Result(b_ok, b_err)) => {
-                self.unify(a_ok, b_ok)?;
-                self.unify(a_err, b_err)
-            }
+            (Ty::Result(a_inner), Ty::Result(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Stream(a_inner), Ty::Stream(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Set(a_inner), Ty::Set(b_inner)) => self.unify(a_inner, b_inner),
             (Ty::Map(ak, av), Ty::Map(bk, bv)) => {
@@ -269,34 +260,31 @@ impl InferenceContext {
                 Ok(())
             }
             (Ty::Record(a_fields), Ty::Record(b_fields)) => {
-                // Permissive structural rule: every shared field name must
-                // unify, but EITHER side is allowed to carry extra fields
-                // the other doesn't have, so long as one side is a subset
-                // of the other. Powers the partial-record-as-arg ergonomic
-                // (e.g. `db.UserProfile.filter({ name: n })` against the
-                // full column shape). Strict subset-mismatch (each side has
-                // fields the other doesn't) is still rejected — that's a
-                // genuine type conflict, not a partial match.
-                let a_names: std::collections::HashSet<&String> =
-                    a_fields.iter().map(|(n, _)| n).collect();
-                let b_names: std::collections::HashSet<&String> =
-                    b_fields.iter().map(|(n, _)| n).collect();
-                let a_extra: Vec<&String> = a_names.difference(&b_names).copied().collect();
-                let b_extra: Vec<&String> = b_names.difference(&a_names).copied().collect();
-                if !a_extra.is_empty() && !b_extra.is_empty() {
-                    return Err(format!(
-                        "Record field-set mismatch: left-only fields {:?}, right-only fields {:?}",
-                        a_extra, b_extra
-                    ));
-                }
-                // Unify every shared field's type.
                 for (name, a_ty) in a_fields {
                     if let Some((_, b_ty)) = b_fields.iter().find(|(n, _)| n == name) {
                         self.unify(a_ty, b_ty)?;
+                    } else {
+                        return Err(format!("Expected field '{name}' missing from record"));
                     }
                 }
                 Ok(())
             }
+            // A record literal `{a: v, ...}` used where a `Map[str, V]` is expected:
+            // unify the key type with `Str` (field names are always strings) and each
+            // field value with the map's value type.  This is the standard record-as-map
+            // coercion; field names become the runtime keys.
+            (Ty::Record(fields), Ty::Map(k, v)) | (Ty::Map(k, v), Ty::Record(fields)) => {
+                self.unify(k.as_ref(), &Ty::Str)?;
+                for (_, field_ty) in fields {
+                    self.unify(field_ty, v.as_ref())?;
+                }
+                Ok(())
+            }
+            // `char` in Vox is a single-character string.  The lexer produces
+            // `Ty::Str` for both `"x"` and `'x'` (single-quoted), so allowing
+            // Str ↔ Char unification is the right semantic: a char annotation
+            // accepts any single-char string literal.
+            (Ty::Str, Ty::Char) | (Ty::Char, Ty::Str) => Ok(()),
             (Ty::Error, Ty::Error) => Ok(()),
             (Ty::Never, _) | (_, Ty::Never) => Ok(()),
             (Ty::Error, other) | (other, Ty::Error) => Err(format!(
@@ -310,12 +298,6 @@ impl InferenceContext {
                 crate::typeck::ty::ty_display(other)
             )),
             (Ty::Named(a), Ty::Named(b)) if a == b => Ok(()),
-            // Named(X) and Table(X, _) refer to the same @table type — the
-            // type-alias added in register_table makes annotations like
-            // `fn f(row: X)` resolve to Table, while db.X.all() returns
-            // rows typed as Named(X) per the row-type fix in 9685d8316.
-            // Treat them as identical so consumers compose cleanly.
-            (Ty::Named(a), Ty::Table(b, _)) | (Ty::Table(b, _), Ty::Named(a)) if a == b => Ok(()),
             (Ty::ActorRef(a), Ty::ActorRef(b)) if a == b => Ok(()),
             (Ty::Table(an, af), Ty::Table(bn, bf)) if an == bn => {
                 if af.len() != bf.len() {

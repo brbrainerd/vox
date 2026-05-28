@@ -1,0 +1,7 @@
+fn sum_list_float(xs: list[float]) to float {
+    let mut total: float = 0.0
+    for x in xs {
+        total = total + x
+    }
+    return total
+}

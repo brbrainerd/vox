@@ -23,3 +23,10 @@ crates/vox-codegen/src/codegen_rust/
 # a renamed/refactored copy). Transitional until plugin-host transport is
 # unified.
 crates/vox-plugin-populi-mesh/src/transport/store/
+
+# vox-gui memory command reads records via turso for the shell/REPL memory surface.
+# Transitional: move to vox-db ops layer once gui commands are refactored.
+crates/vox-gui/src/commands/
+# vox-scientia bench_history producer reads raw benchmark data via turso.
+# Transitional: move to typed ops in vox-db when ops_scientia.rs is added.
+crates/vox-scientia/src/producers/

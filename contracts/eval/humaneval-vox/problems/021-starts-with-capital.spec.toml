@@ -1,0 +1,11 @@
+[problem]
+id = "021"
+title = "starts_with_capital"
+prompt = """
+Return true if the string starts with an uppercase ASCII letter (A-Z). Return false for empty strings.
+"""
+signature = "fn starts_with_capital(s: str) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

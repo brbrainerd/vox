@@ -1,0 +1,37 @@
+fn hamming_distance(a: str, b: str) to int {
+    let ca: list[str] = a.chars()
+    let cb: list[str] = b.chars()
+    let mut count: int = 0
+    let mut i: int = 0
+    while i < ca.len() {
+        let mut va: str = ""
+        let mut vb: str = ""
+        match ca[i] {
+            Some(c) => {
+                va = c
+            }
+            None => {}
+        }
+        match cb[i] {
+            Some(c) => {
+                vb = c
+            }
+            None => {}
+        }
+        if va != vb {
+            count = count + 1
+        }
+        i = i + 1
+    }
+    return count
+}
+
+fn main() to str {
+    assert(hamming_distance("karolin", "kathrin") == 3)
+    assert(hamming_distance("abc", "abc") == 0)
+    assert(hamming_distance("abc", "xyz") == 3)
+    assert(hamming_distance("", "") == 0)
+    assert(hamming_distance("1011101", "1001001") == 2)
+    assert(hamming_distance("AAAA", "ABBA") == 2)
+    return "ok"
+}

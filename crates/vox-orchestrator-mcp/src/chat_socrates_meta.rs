@@ -21,6 +21,7 @@ use crate::server_state::ServerState;
 pub(crate) struct LlmSurfaceTelemetry {
     pub session_id: String,
     pub user_id: Option<String>,
+    #[allow(dead_code)]
     pub tenant_id: Option<String>,
     pub prompt: String,
     pub response: String,

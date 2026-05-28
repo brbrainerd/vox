@@ -1,0 +1,16 @@
+id = "011"
+title = "Non-exhaustive match on NetworkState: Connected variant missing"
+description = """
+NetworkState has three variants (Disconnected, Connecting, Connected).
+The match in status_label covers only two of them; Connected is absent.
+Vox requires exhaustive ADT matches. The fix is to add a
+`Connected(address, port) => ...` arm.
+"""
+bug_class = "exhaustiveness"
+difficulty = "medium"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["E0301"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

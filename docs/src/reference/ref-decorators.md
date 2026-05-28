@@ -3,7 +3,7 @@ title: "Reference: Decorator Registry"
 description: "All available decorators and their technical effects."
 category: "Language Reference"
 status: "current"
-last_updated: "2026-04-06"
+last_updated: "2026-05-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -14,42 +14,47 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 
 ## Backend & Logic
 
-### `@endpoint(kind: ...)`
-- **Goal**: Declares a backend API endpoint with explicit semantics.
-- **Effect**: Generates a Rust Axum handler and a TypeScript client. The `kind` parameter controls execution semantics.
-- **Kinds**:
-  - `kind: server` — general-purpose server function. Generates an Axum handler and a typed TS client.
-  - `kind: query` — read-only operation. Optimized for concurrent reads; cannot perform mutations.
-  - `kind: mutation` — write operation. Wraps execution in a database transaction.
+### `@server` / `@query` / `@mutation`
+
+Bare-form endpoint decorators introduced in Phase B (audit doc §11.2, 2026-05-23) and made canonical in v0.6.0. All three produce the same `Decl::Endpoint` AST node; they differ in execution semantics:
+
+- **`@server`** — general-purpose server function. Generates an Axum handler and a typed TS client.
+- **`@query`** — read-only operation. Optimized for concurrent reads; cannot perform mutations.
+- **`@mutation`** — write operation. Wraps execution in a database transaction.
+
+- **Effect**: Generates a Rust Axum handler and a TypeScript client.
 - **Usage**:
 ```vox
-@endpoint(kind: server)
+@server
 fn greet(name: str) to str {
     return name
 }
 
-@endpoint(kind: query)
+@query
 fn ping() to str {
     return "ok"
 }
 
-@endpoint(kind: mutation)
+@mutation
 fn reset() to bool {
     return true
 }
 ```
 
-#### Replaced: `@server` (retired)
+#### Retired: `@endpoint(kind: ...)` (v0.6.0)
 
-`@server` is no longer recognized by the compiler. Use `@endpoint(kind: server)` instead.
+The `@endpoint(kind: server|query|mutation)` form was retired in v0.6.0 per
+[`vox-stdlib-gap-audit-2026-05-23.md` §Phase H step 18](../architecture/vox-stdlib-gap-audit-2026-05-23.md). The lexer no longer recognizes `@endpoint`; the parser reports it as an unknown token at the top level. The `retired/decorator-usage` lint surfaces a friendlier `Severity::Error` finding with a `@server` / `@query` / `@mutation` migration suggestion before the parser sees it.
 
-#### Replaced: `@query` (retired)
+Migration is mechanical:
 
-`@query` is no longer recognized by the compiler. Use `@endpoint(kind: query)` instead.
+| Retired (≤ v0.5)               | Canonical (v0.6+) |
+|--------------------------------|-------------------|
+| `@endpoint(kind: server)`      | `@server`         |
+| `@endpoint(kind: query)`       | `@query`          |
+| `@endpoint(kind: mutation)`    | `@mutation`       |
 
-#### Replaced: `@mutation` (retired)
-
-`@mutation` is no longer recognized by the compiler. Use `@endpoint(kind: mutation)` instead.
+See also: [migration guide 0.5 → 0.6](./migration-0.5-to-0.6.md).
 
 ### `@scheduled`
 > [!NOTE]

@@ -70,6 +70,21 @@ impl DetectionRule for LongRangeCouplingDetector {
         or passing the value as a parameter to reduce the scope."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — connection_string declared on line 1, used 90 lines later\n\
+             let connection_string = build_db_url(&config);  // declared here\n\
+             // ... 90 lines of unrelated logic ...\n\
+             let conn = Database::connect(&connection_string);  // used 90 lines later!\n\
+             \n\
+             // FIX — narrow the scope or extract a helper function\n\
+             fn open_database(config: &Config) -> Result<Database, Error> {\n\
+             \x20   let connection_string = build_db_url(config);  // declared close to use\n\
+             \x20   Database::connect(&connection_string)\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

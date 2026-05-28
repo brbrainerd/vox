@@ -145,6 +145,13 @@ pub async fn handle_tool_call(
         ctx
     };
 
+    // Phase D: anchor wall-clock start time for this task in the aggregator.
+    // record_task_started is idempotent (no-op if already set), so calling it on
+    // every tool dispatch safely records the first-call instant without overwriting.
+    if let Some(task_id) = trace_ctx.task_id {
+        vox_telemetry::record_task_started(task_id);
+    }
+
     let db_opt = state.db.as_ref().map(|db| (**db).clone());
     let te = vox_db::TimedExecution::new(
         format!("mcp:{}", name_canonical),

@@ -1,0 +1,7 @@
+// Bug: function annotated `to int` but all branches return str literals.
+fn status_code(success: bool) to int {
+    if success {
+        return "ok"     // BUG: str literal, not int
+    }
+    return "fail"       // BUG: str literal, not int
+}

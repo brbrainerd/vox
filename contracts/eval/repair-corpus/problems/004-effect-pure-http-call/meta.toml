@@ -1,0 +1,16 @@
+id = "004"
+title = "@pure fn calls std.http.get_text (Net effect)"
+description = """
+fetch_price is annotated @pure, which means it must be free of all
+observable side-effects. However, it calls std.http.get_text, which
+performs a network request (Net effect). The fix is to replace @pure
+with @uses(net) so the effect is declared correctly.
+"""
+bug_class = "effect-violation"
+difficulty = "easy"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/effect/pure-violation"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

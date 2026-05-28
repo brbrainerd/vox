@@ -36,6 +36,12 @@ vox-secrets = { workspace = true }
 vox-oratio = { workspace = true }
 
 
+# Windows UAC installer-detection elevates any .exe whose name contains "install".
+# Rename the test binary so it doesn't trigger that heuristic.
+[[test]]
+name = "skill_deploy_test"
+path = "tests/skill_install_test.rs"
+
 [lints]
 workspace = true
 

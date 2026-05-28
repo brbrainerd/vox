@@ -1,0 +1,11 @@
+[problem]
+id = "028"
+title = "abs_val"
+prompt = """
+Return the absolute value of an integer.
+"""
+signature = "fn abs_val(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

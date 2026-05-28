@@ -1,0 +1,17 @@
+fn remove_at_index(xs: list[int], i: int) to list[int] {
+    if i < 0 or i >= xs.len() {
+        return xs
+    }
+    let mut result: list[int] = []
+    let mut j: int = 0
+    while j < xs.len() {
+        if j != i {
+            match xs[j] {
+                Some(v) => { result.push(v) }
+                None => {}
+            }
+        }
+        j = j + 1
+    }
+    return result
+}

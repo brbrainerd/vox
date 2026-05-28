@@ -276,7 +276,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7eb93bbb63b9c227414f6eb3a0adfddca591a8ce1e9b60661bb08969b87e340b"
 dependencies = [
- "object 0.37.3",
+ "object",
 ]
 
 [[package]]
@@ -523,28 +523,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
-name = "aws-lc-rs"
-version = "1.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ec6fb3fe69024a75fa7e1bfb48aa6cf59706a101658ea01bfd33b2b248a038f"
-dependencies = [
- "aws-lc-sys",
- "zeroize",
-]
-
-[[package]]
-name = "aws-lc-sys"
-version = "0.40.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f50037ee5e1e41e7b8f9d161680a725bd1626cb6f8c7e901f91f942850852fe7"
-dependencies = [
- "cc",
- "cmake",
- "dunce",
- "fs_extra",
-]
-
-[[package]]
 name = "axum"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -644,7 +622,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "miniz_oxide",
- "object 0.37.3",
+ "object",
  "rustc-demangle",
  "windows-link 0.2.1",
 ]
@@ -1695,15 +1673,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmake"
-version = "0.1.58"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "cobs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1717,15 +1686,6 @@ name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
-
-[[package]]
-name = "colored"
-version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
-dependencies = [
- "windows-sys 0.61.2",
-]
 
 [[package]]
 name = "combine"
@@ -1982,7 +1942,7 @@ dependencies = [
  "core-foundation-sys",
  "coreaudio-rs",
  "dasp_sample",
- "jni 0.21.1",
+ "jni",
  "js-sys",
  "libc",
  "mach2",
@@ -2046,17 +2006,7 @@ version = "0.129.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebca2ea7c62c56feb88a5b23ec380460fe6d7c18134520f6ddf4bfa35cbea68"
 dependencies = [
- "cranelift-entity 0.129.2",
-]
-
-[[package]]
-name = "cranelift-bforest"
-version = "0.131.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb59c81ace12ee7c33074db7903d4d75d1f40b28cd3e8e6f491de57b29129eb9"
-dependencies = [
- "cranelift-entity 0.131.1",
- "wasmtime-internal-core 44.0.1",
+ "cranelift-entity",
 ]
 
 [[package]]
@@ -2067,18 +2017,7 @@ checksum = "fe11f154b62d7421d909503a746e89995393b1b71926e6f12b08a2076396d7fb"
 dependencies = [
  "serde",
  "serde_derive",
- "wasmtime-internal-core 42.0.2",
-]
-
-[[package]]
-name = "cranelift-bitset"
-version = "0.131.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f25c06993a681be9cf3140798a3d4ac5bec955e7444416a2fdc87fda8567285d"
-dependencies = [
- "serde",
- "serde_derive",
- "wasmtime-internal-core 44.0.1",
+ "wasmtime-internal-core",
 ]
 
 [[package]]
@@ -2089,24 +2028,24 @@ checksum = "1f2d0da3d51979dc0183fac3076a535477eab794716b063143ecb16632408664"
 dependencies = [
  "bumpalo",
  "cranelift-assembler-x64",
- "cranelift-bforest 0.129.2",
- "cranelift-bitset 0.129.2",
+ "cranelift-bforest",
+ "cranelift-bitset",
  "cranelift-codegen-meta",
  "cranelift-codegen-shared",
  "cranelift-control",
- "cranelift-entity 0.129.2",
+ "cranelift-entity",
  "cranelift-isle",
  "gimli 0.33.0",
  "hashbrown 0.15.5",
  "libm",
  "log",
- "pulley-interpreter 42.0.2",
+ "pulley-interpreter",
  "regalloc2",
  "rustc-hash 2.1.2",
  "serde",
  "smallvec",
  "target-lexicon 0.13.5",
- "wasmtime-internal-core 42.0.2",
+ "wasmtime-internal-core",
 ]
 
 [[package]]
@@ -2119,7 +2058,7 @@ dependencies = [
  "cranelift-codegen-shared",
  "cranelift-srcgen",
  "heck 0.5.0",
- "pulley-interpreter 42.0.2",
+ "pulley-interpreter",
 ]
 
 [[package]]
@@ -2143,22 +2082,10 @@ version = "0.129.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e0ab4e0eff1045ff2f5ddd8195bf3c97d7b5ef9b780cb044e0cce76e4d352057"
 dependencies = [
- "cranelift-bitset 0.129.2",
+ "cranelift-bitset",
  "serde",
  "serde_derive",
- "wasmtime-internal-core 42.0.2",
-]
-
-[[package]]
-name = "cranelift-entity"
-version = "0.131.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e62ef34c6e720f347a79ece043e8584e242d168911da640bac654a33a6aaaf5"
-dependencies = [
- "cranelift-bitset 0.131.1",
- "serde",
- "serde_derive",
- "wasmtime-internal-core 44.0.1",
+ "wasmtime-internal-core",
 ]
 
 [[package]]
@@ -2860,15 +2787,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "directories"
-version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a49173b84e034382284f27f1af4dcbbd231ffa358c0fe316541a7337f376a35"
-dependencies = [
- "dirs-sys 0.4.1",
-]
-
-[[package]]
 name = "directories-next"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2884,19 +2802,7 @@ version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
 dependencies = [
- "dirs-sys 0.5.0",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
-dependencies = [
- "libc",
- "option-ext",
- "redox_users 0.4.6",
- "windows-sys 0.48.0",
+ "dirs-sys",
 ]
 
 [[package]]
@@ -3606,12 +3512,6 @@ dependencies = [
  "rustix 0.38.44",
  "windows-sys 0.52.0",
 ]
-
-[[package]]
-name = "fs_extra"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
 name = "fsevent-sys"
@@ -5243,9 +5143,6 @@ name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
-dependencies = [
- "foldhash 0.2.0",
-]
 
 [[package]]
 name = "headers"
@@ -5432,12 +5329,6 @@ dependencies = [
  "http-body",
  "pin-project-lite",
 ]
-
-[[package]]
-name = "http-range-header"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9171a2ea8a68358193d15dd5d70c1c10a2afc3e7e4c5bc92bc9f025cebd7359c"
 
 [[package]]
 name = "httparse"
@@ -6130,36 +6021,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "jni"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5efd9a482cf3a427f00d6b35f14332adc7902ce91efb778580e180ff90fa3498"
-dependencies = [
- "cfg-if",
- "combine",
- "jni-macros",
- "jni-sys 0.4.1",
- "log",
- "simd_cesu8",
- "thiserror 2.0.18",
- "walkdir",
- "windows-link 0.2.1",
-]
-
-[[package]]
-name = "jni-macros"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a00109accc170f0bdb141fed3e393c565b6f5e072365c3bd58f5b062591560a3"
-dependencies = [
- "proc-macro2",
- "quote",
- "rustc_version",
- "simd_cesu8",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "jni-sys"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6600,12 +6461,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lz4_flex"
-version = "0.11.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "373f5eceeeab7925e0c1098212f2fbc4d416adec9d35051a6ab251e824c1854a"
-
-[[package]]
 name = "lzma-rs"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6889,34 +6744,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "50b7e5b27aa02a74bac8c3f23f448f8d87ff11f92d3aac1a6ed369ee08cc56c1"
 dependencies = [
  "libc",
- "log",
  "wasi",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "mockito"
-version = "1.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90820618712cab19cfc46b274c6c22546a82affcb3c3bdf0f29e3db8e1bb92c0"
-dependencies = [
- "assert-json-diff",
- "bytes",
- "colored",
- "futures-core",
- "http",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-util",
- "log",
- "pin-project-lite",
- "rand 0.9.4",
- "regex",
- "serde_json",
- "serde_urlencoded",
- "similar",
- "tokio",
 ]
 
 [[package]]
@@ -7591,24 +7420,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "object"
-version = "0.39.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e5a6c098c7a3b6547378093f5cc30bc54fd361ce711e05293a5cc589562739b"
-dependencies = [
- "crc32fast",
- "hashbrown 0.17.1",
- "indexmap 2.14.0",
- "memchr",
-]
-
-[[package]]
 name = "oboe"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8b61bebd49e5d43f5f8cc7ee2891c16e0f41ec7954d36bcb6c14c5e0de867fb"
 dependencies = [
- "jni 0.21.1",
+ "jni",
  "ndk 0.8.0",
  "ndk-context",
  "num-derive",
@@ -8412,16 +8229,12 @@ version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b45fcc2344c680f5025fe57779faef368840d0bd1f42f216291f0dc4ace4744"
 dependencies = [
- "bit-set 0.8.0",
- "bit-vec 0.8.0",
  "bitflags 2.11.1",
  "num-traits",
  "rand 0.9.4",
  "rand_chacha 0.9.0",
  "rand_xorshift",
  "regex-syntax",
- "rusty-fork",
- "tempfile",
  "unarray",
 ]
 
@@ -8541,22 +8354,10 @@ version = "42.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e59a11b64c166a6e1e990303f46a255a52fb4e84d175dbd5e5ca0428e8c02ce"
 dependencies = [
- "cranelift-bitset 0.129.2",
+ "cranelift-bitset",
  "log",
- "pulley-macros 42.0.2",
- "wasmtime-internal-core 42.0.2",
-]
-
-[[package]]
-name = "pulley-interpreter"
-version = "44.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9326e3a0093d170582cf64ed9e4cf253b8aac155ec4a294ff62330450bbf094"
-dependencies = [
- "cranelift-bitset 0.131.1",
- "log",
- "pulley-macros 44.0.1",
- "wasmtime-internal-core 44.0.1",
+ "pulley-macros",
+ "wasmtime-internal-core",
 ]
 
 [[package]]
@@ -8564,17 +8365,6 @@ name = "pulley-macros"
 version = "42.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "823a9d8da391be21a5f4d5e11c39d15f45b011076c6825fc2323f7e4753f09ce"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
-name = "pulley-macros"
-version = "44.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00c6433917e3789605b1f4cd2a589f637ff17212344e7fa5ba99544625ba52c7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8650,12 +8440,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "quick-error"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
-
-[[package]]
 name = "quick-xml"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8719,7 +8503,6 @@ version = "0.11.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "434b42fec591c96ef50e21e886936e66d3cc3f737104fdb9b737c40ffb94c098"
 dependencies = [
- "aws-lc-rs",
  "bytes",
  "getrandom 0.3.4",
  "lru-slab",
@@ -9157,32 +8940,21 @@ checksum = "62e0021ea2c22aed41653bc7e1419abb2c97e038ff2c33d0e1309e49a97deec0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
- "futures-channel",
  "futures-core",
  "futures-util",
- "h2",
  "http",
  "http-body",
  "http-body-util",
  "hyper",
- "hyper-rustls",
- "hyper-tls",
  "hyper-util",
  "js-sys",
  "log",
- "native-tls",
  "percent-encoding",
  "pin-project-lite",
- "quinn",
- "rustls",
- "rustls-pki-types",
- "rustls-platform-verifier",
  "serde",
  "serde_json",
  "sync_wrapper",
  "tokio",
- "tokio-native-tls",
- "tokio-rustls",
  "tokio-util",
  "tower",
  "tower-http",
@@ -9470,7 +9242,6 @@ version = "0.23.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef86cd5876211988985292b91c96a8f2d298df24e75989a43a3c73f2d4d8168b"
 dependencies = [
- "aws-lc-rs",
  "log",
  "once_cell",
  "ring",
@@ -9478,18 +9249,6 @@ dependencies = [
  "rustls-webpki",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "rustls-native-certs"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "612460d5f7bea540c490b2b6395d8e34a953e52b491accd6c86c8164c5932a63"
-dependencies = [
- "openssl-probe",
- "rustls-pki-types",
- "schannel",
- "security-framework",
 ]
 
 [[package]]
@@ -9512,39 +9271,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustls-platform-verifier"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26d1e2536ce4f35f4846aa13bff16bd0ff40157cdb14cc056c7b14ba41233ba0"
-dependencies = [
- "core-foundation 0.10.1",
- "core-foundation-sys",
- "jni 0.22.4",
- "log",
- "once_cell",
- "rustls",
- "rustls-native-certs",
- "rustls-platform-verifier-android",
- "rustls-webpki",
- "security-framework",
- "security-framework-sys",
- "webpki-root-certs",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "rustls-platform-verifier-android"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
-
-[[package]]
 name = "rustls-webpki"
 version = "0.103.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
 dependencies = [
- "aws-lc-rs",
  "ring",
  "rustls-pki-types",
  "untrusted",
@@ -9555,18 +9286,6 @@ name = "rustversion"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
-
-[[package]]
-name = "rusty-fork"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc6bf79ff24e648f6da1f8d1f011e9cac26491b619e6b9280f2b47f1774e6ee2"
-dependencies = [
- "fnv",
- "quick-error",
- "tempfile",
- "wait-timeout",
-]
 
 [[package]]
 name = "ryu"
@@ -10267,16 +9986,6 @@ name = "simd-adler32"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "703d5c7ef118737c72f1af64ad2f6f8c5e1921f818cdcb97b8fe6fc69bf66214"
-
-[[package]]
-name = "simd_cesu8"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94f90157bb87cddf702797c5dadfa0be7d266cdf49e22da2fcaa32eff75b2c33"
-dependencies = [
- "rustc_version",
- "simdutf8",
-]
 
 [[package]]
 name = "simdutf8"
@@ -11047,7 +10756,6 @@ dependencies = [
  "levenshtein_automata",
  "log",
  "lru 0.12.5",
- "lz4_flex",
  "measure_time",
  "memmap2",
  "num_cpus",
@@ -11183,7 +10891,7 @@ dependencies = [
  "gdkwayland-sys",
  "gdkx11-sys",
  "gtk",
- "jni 0.21.1",
+ "jni",
  "libc",
  "log",
  "ndk 0.9.0",
@@ -11262,7 +10970,7 @@ dependencies = [
  "gtk",
  "heck 0.5.0",
  "http",
- "jni 0.21.1",
+ "jni",
  "libc",
  "log",
  "mime",
@@ -11405,7 +11113,7 @@ dependencies = [
  "dpi",
  "gtk",
  "http",
- "jni 0.21.1",
+ "jni",
  "objc2",
  "objc2-ui-kit",
  "objc2-web-kit",
@@ -11428,7 +11136,7 @@ checksum = "a3989df2ae1c476404fe0a2e8ffc4cfbde97e51efd613c2bb5355fbc9ab52cf0"
 dependencies = [
  "gtk",
  "http",
- "jni 0.21.1",
+ "jni",
  "log",
  "objc2",
  "objc2-app-kit",
@@ -11815,12 +11523,8 @@ checksum = "8f72a05e828585856dacd553fba484c242c46e391fb0e58917c942ee9202915c"
 dependencies = [
  "futures-util",
  "log",
- "rustls",
- "rustls-pki-types",
  "tokio",
- "tokio-rustls",
  "tungstenite 0.29.0",
- "webpki-roots 0.26.11",
 ]
 
 [[package]]
@@ -12003,11 +11707,6 @@ dependencies = [
  "http",
  "http-body",
  "http-body-util",
- "http-range-header",
- "httpdate",
- "mime",
- "mime_guess",
- "percent-encoding",
  "pin-project-lite",
  "tokio",
  "tokio-util",
@@ -12282,8 +11981,6 @@ dependencies = [
  "httparse",
  "log",
  "rand 0.9.4",
- "rustls",
- "rustls-pki-types",
  "sha1",
  "thiserror 2.0.18",
 ]
@@ -12954,7 +12651,7 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "vox-actor-runtime"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -12986,6 +12683,7 @@ dependencies = [
  "vox-orchestrator-types",
  "vox-plugin-host",
  "vox-secrets",
+ "vox-shell-stdlib-types",
  "vox-skills",
  "vox-telemetry",
  "which 8.0.2",
@@ -12995,7 +12693,7 @@ dependencies = [
 
 [[package]]
 name = "vox-arch-check"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "cargo_metadata 0.18.1",
@@ -13004,15 +12702,16 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "toml 0.8.23",
  "vox-build-meta",
- "vox-compiler",
+ "vox-rename-registry",
 ]
 
 [[package]]
 name = "vox-audit"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -13041,7 +12740,7 @@ dependencies = [
 
 [[package]]
 name = "vox-bounded-fs"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "tempfile",
@@ -13052,11 +12751,11 @@ dependencies = [
 
 [[package]]
 name = "vox-build-meta"
-version = "0.5.0"
+version = "0.6.0"
 
 [[package]]
 name = "vox-capability-registry"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -13067,7 +12766,7 @@ dependencies = [
 
 [[package]]
 name = "vox-cli"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -13076,6 +12775,7 @@ dependencies = [
  "axum-extra",
  "base64 0.22.1",
  "blake3",
+ "cargo_metadata 0.18.1",
  "chrono",
  "clap",
  "clap_complete",
@@ -13086,7 +12786,6 @@ dependencies = [
  "form_urlencoded",
  "futures",
  "glob",
- "governor",
  "hex",
  "hyper-util",
  "insta",
@@ -13135,6 +12834,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-dei-shim",
  "vox-deploy-codegen",
  "vox-doc-inventory",
  "vox-doc-pipeline",
@@ -13185,7 +12885,7 @@ dependencies = [
 
 [[package]]
 name = "vox-cli-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -13209,7 +12909,7 @@ dependencies = [
 
 [[package]]
 name = "vox-code-audit"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -13244,7 +12944,7 @@ dependencies = [
 
 [[package]]
 name = "vox-codegen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bzip2 0.6.1",
@@ -13273,7 +12973,7 @@ dependencies = [
 
 [[package]]
 name = "vox-compiler"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bzip2 0.6.1",
@@ -13296,6 +12996,7 @@ dependencies = [
  "serde_yaml",
  "serial_test",
  "sha3",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.23",
@@ -13309,6 +13010,7 @@ dependencies = [
  "vox-jsonschema-util",
  "vox-repository",
  "vox-secrets",
+ "vox-shell-stdlib-types",
  "vox-test-harness",
  "which 7.0.3",
  "workspace-hack",
@@ -13317,7 +13019,7 @@ dependencies = [
 
 [[package]]
 name = "vox-config"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -13331,7 +13033,7 @@ dependencies = [
 
 [[package]]
 name = "vox-constrained-gen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -13344,19 +13046,30 @@ dependencies = [
 
 [[package]]
 name = "vox-container"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tracing",
+ "vox-container-types",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-container-types"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "thiserror 1.0.69",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vox-corpus"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -13381,7 +13094,7 @@ dependencies = [
 
 [[package]]
 name = "vox-crypto"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "aead",
  "blake3",
@@ -13397,7 +13110,7 @@ dependencies = [
 
 [[package]]
 name = "vox-db"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "bincode",
@@ -13431,7 +13144,7 @@ dependencies = [
 
 [[package]]
 name = "vox-db-types"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "serde",
@@ -13439,21 +13152,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-dei-shim"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "vox-actor-runtime",
+ "vox-config",
+ "vox-db",
+ "vox-orchestrator",
+ "vox-orchestrator-types",
+ "vox-research-events",
+ "vox-search",
+ "vox-secrets",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-deploy-codegen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tracing",
- "vox-container",
+ "vox-container-types",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vox-distributed-training"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -13474,7 +13209,7 @@ dependencies = [
 
 [[package]]
 name = "vox-doc-inventory"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -13489,7 +13224,7 @@ dependencies = [
 
 [[package]]
 name = "vox-doc-pipeline"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -13501,7 +13236,7 @@ dependencies = [
 
 [[package]]
 name = "vox-drift-check"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -13532,7 +13267,7 @@ dependencies = [
 
 [[package]]
 name = "vox-eval"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "log",
  "regex",
@@ -13545,7 +13280,7 @@ dependencies = [
 
 [[package]]
 name = "vox-forge"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -13561,7 +13296,7 @@ dependencies = [
 
 [[package]]
 name = "vox-foundation"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -13572,7 +13307,7 @@ dependencies = [
 
 [[package]]
 name = "vox-gamify"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -13604,7 +13339,7 @@ dependencies = [
 
 [[package]]
 name = "vox-git"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "gix",
@@ -13621,7 +13356,7 @@ dependencies = [
 
 [[package]]
 name = "vox-grammar-export"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "semver",
@@ -13633,7 +13368,7 @@ dependencies = [
 
 [[package]]
 name = "vox-gui"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "rmp-serde",
  "serde",
@@ -13656,7 +13391,7 @@ dependencies = [
 
 [[package]]
 name = "vox-hf-layout"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -13667,7 +13402,7 @@ dependencies = [
 
 [[package]]
 name = "vox-http-client"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "http",
@@ -13682,7 +13417,7 @@ dependencies = [
 
 [[package]]
 name = "vox-identity"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -13698,7 +13433,7 @@ dependencies = [
 
 [[package]]
 name = "vox-inference"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -13715,7 +13450,7 @@ dependencies = [
 
 [[package]]
 name = "vox-integration-tests"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "deadpool",
  "insta",
@@ -13752,7 +13487,7 @@ dependencies = [
 
 [[package]]
 name = "vox-jsonschema-util"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "jsonschema",
@@ -13766,7 +13501,7 @@ dependencies = [
 
 [[package]]
 name = "vox-lsp"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "insta",
@@ -13786,7 +13521,7 @@ dependencies = [
 
 [[package]]
 name = "vox-mcp-registry"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -13794,8 +13529,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-mesh"
-version = "0.5.0"
+name = "vox-mesh-policy"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -13803,13 +13538,12 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "vox-compiler",
  "vox-mesh-types",
 ]
 
 [[package]]
 name = "vox-mesh-types"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.22.1",
  "blake3",
@@ -13822,7 +13556,7 @@ dependencies = [
 
 [[package]]
 name = "vox-ml-cli"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -13876,7 +13610,7 @@ dependencies = [
 
 [[package]]
 name = "vox-openai"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bytes",
  "serde",
@@ -13914,7 +13648,7 @@ dependencies = [
 
 [[package]]
 name = "vox-oratio"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -13946,7 +13680,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -13962,7 +13696,6 @@ dependencies = [
  "getrandom 0.2.17",
  "glob",
  "globset",
- "governor",
  "hex",
  "hmac",
  "ignore",
@@ -14024,7 +13757,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator-d"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -14044,7 +13777,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator-mcp"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -14095,6 +13828,7 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-dei-shim",
  "vox-foundation",
  "vox-gamify",
  "vox-grammar-export",
@@ -14127,7 +13861,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator-queue"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "blake3",
@@ -14149,7 +13883,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator-test-helpers"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -14160,7 +13894,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator-types"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -14170,7 +13904,7 @@ dependencies = [
 
 [[package]]
 name = "vox-package"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bincode",
  "data-encoding",
@@ -14193,7 +13927,7 @@ dependencies = [
 
 [[package]]
 name = "vox-package-types"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "semver",
  "serde",
@@ -14205,7 +13939,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-api"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "serde",
@@ -14218,7 +13952,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-browser"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "chromiumoxide",
@@ -14236,7 +13970,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-catalog"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "thiserror 1.0.69",
@@ -14253,22 +13987,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-plugin-grammar-export"
-version = "0.1.0"
-dependencies = [
- "abi_stable",
- "anyhow",
- "serde",
- "serde_json",
- "tracing",
- "vox-grammar-export",
- "vox-plugin-api",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-plugin-host"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "async-trait",
@@ -14356,7 +14076,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-nvml-probe"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "nvml-wrapper",
@@ -14395,14 +14115,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-plugin-oratio-mic"
-version = "0.1.0"
-dependencies = [
- "abi_stable",
- "vox-plugin-api",
-]
-
-[[package]]
 name = "vox-plugin-populi-mesh"
 version = "0.1.0"
 dependencies = [
@@ -14431,6 +14143,7 @@ dependencies = [
  "vox-db",
  "vox-foundation",
  "vox-http-client",
+ "vox-identity",
  "vox-mesh-types",
  "vox-plugin-api",
  "vox-populi",
@@ -14441,7 +14154,7 @@ dependencies = [
 
 [[package]]
 name = "vox-plugin-publication"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "abi_stable",
  "anyhow",
@@ -14467,6 +14180,7 @@ dependencies = [
  "serde_json",
  "tracing",
  "vox-container",
+ "vox-container-types",
  "vox-plugin-api",
  "vox-skill-runtime",
  "workspace-hack",
@@ -14490,16 +14204,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-plugin-script-execution"
-version = "0.1.0"
+name = "vox-plugin-test-harness"
+version = "0.6.0"
 dependencies = [
- "abi_stable",
- "vox-plugin-api",
+ "tempfile",
+ "toml 0.8.23",
+ "vox-plugin-types",
 ]
 
 [[package]]
 name = "vox-plugin-types"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "serde",
@@ -14513,16 +14228,24 @@ dependencies = [
  "abi_stable",
  "anyhow",
  "async-trait",
+ "axum",
+ "data-encoding",
+ "ed25519-dalek",
+ "reqwest 0.12.28",
+ "serde",
  "serde_json",
+ "sha2",
+ "sha3",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "vox-http-client",
  "vox-plugin-api",
- "vox-webhook",
 ]
 
 [[package]]
 name = "vox-populi"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14542,7 +14265,6 @@ dependencies = [
  "hf-hub",
  "jsonschema",
  "jsonwebtoken",
- "mockito",
  "openapiv3",
  "owo-colors",
  "qlora-rs",
@@ -14586,16 +14308,30 @@ dependencies = [
  "vox-orchestrator-queue",
  "vox-package",
  "vox-plugin-host",
+ "vox-populi-types",
  "vox-publisher",
  "vox-repository",
  "vox-secrets",
  "vox-tensor",
+ "wiremock",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-populi-types"
+version = "0.6.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "vox-mesh-types",
+ "vox-repository",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vox-project-scaffold"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -14607,7 +14343,7 @@ dependencies = [
 
 [[package]]
 name = "vox-publisher"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14648,8 +14384,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-rename-registry"
+version = "0.6.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "vox-repository"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "blake3",
  "glob",
@@ -14669,7 +14414,7 @@ dependencies = [
 
 [[package]]
 name = "vox-research-events"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "chrono",
  "regress",
@@ -14680,7 +14425,7 @@ dependencies = [
 
 [[package]]
 name = "vox-rule-pack"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "regex",
@@ -14694,7 +14439,7 @@ dependencies = [
 
 [[package]]
 name = "vox-scaling-policy"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -14705,7 +14450,7 @@ dependencies = [
 
 [[package]]
 name = "vox-scientia"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -14725,6 +14470,7 @@ dependencies = [
  "sha2",
  "sha3",
  "tar",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
@@ -14741,7 +14487,7 @@ dependencies = [
 
 [[package]]
 name = "vox-scientia-jsonschema-codegen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "prettyplease",
@@ -14755,7 +14501,7 @@ dependencies = [
 
 [[package]]
 name = "vox-search"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -14785,7 +14531,7 @@ dependencies = [
 
 [[package]]
 name = "vox-secrets"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "aes-gcm",
  "aho-corasick",
@@ -14806,8 +14552,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-shell-stdlib-types"
+version = "0.6.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "vox-skill-runtime"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -14818,7 +14571,7 @@ dependencies = [
 
 [[package]]
 name = "vox-skills"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "reqwest 0.12.28",
@@ -14841,7 +14594,7 @@ dependencies = [
 
 [[package]]
 name = "vox-tauri-codegen"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -14852,7 +14605,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-tauri-sherpa"
+name = "vox-tauri-stt"
 version = "0.5.0"
 dependencies = [
  "serde",
@@ -14862,7 +14615,7 @@ dependencies = [
 
 [[package]]
 name = "vox-telemetry"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -14876,20 +14629,19 @@ dependencies = [
 
 [[package]]
 name = "vox-tensor"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
  "serde_json",
  "tempfile",
  "vox-actor-runtime",
- "vox-compiler",
  "workspace-hack",
 ]
 
 [[package]]
 name = "vox-test-harness"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -14904,7 +14656,7 @@ dependencies = [
 
 [[package]]
 name = "vox-wasm-engine"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -14917,29 +14669,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-webhook"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "data-encoding",
- "ed25519-dalek",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "sha2",
- "sha3",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "vox-http-client",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-wire-format-validator"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -14947,7 +14678,7 @@ dependencies = [
 
 [[package]]
 name = "vox-workflow-runtime"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -14967,11 +14698,10 @@ dependencies = [
 
 [[package]]
 name = "voxup"
-version = "0.1.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
- "directories",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
@@ -14980,6 +14710,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -15005,15 +14736,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fb067e4cbd1ff067d1df46c9194b5de0e98efd2810bbc95c5d5e5f25a3231150"
 dependencies = [
  "cc",
- "libc",
-]
-
-[[package]]
-name = "wait-timeout"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
-dependencies = [
  "libc",
 ]
 
@@ -15149,16 +14871,6 @@ dependencies = [
 
 [[package]]
 name = "wasm-encoder"
-version = "0.246.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61fb705ce81adde29d2a8e99d87995e39a6e927358c91398f374474746070ef7"
-dependencies = [
- "leb128fmt",
- "wasmparser 0.246.2",
-]
-
-[[package]]
-name = "wasm-encoder"
 version = "0.248.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac92cf547bc18d27ecc521015c08c353b4f18b84ab388bb6d1b6b682c620d9b6"
@@ -15235,19 +14947,6 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.246.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71cde4757396defafd25417cfb36aa3161027d06d865b0c24baaae229aac005d"
-dependencies = [
- "bitflags 2.11.1",
- "hashbrown 0.16.1",
- "indexmap 2.14.0",
- "semver",
- "serde",
-]
-
-[[package]]
-name = "wasmparser"
 version = "0.248.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa4439c5eee9df71ee0c6efb37f63b1fcb1fec38f85f5142c54e7ed05d33091a"
@@ -15266,17 +14965,6 @@ dependencies = [
  "anyhow",
  "termcolor",
  "wasmparser 0.244.0",
-]
-
-[[package]]
-name = "wasmprinter"
-version = "0.246.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e41f7493ba994b8a779430a4c25ff550fd5a40d291693af43a6ef48688f00e3"
-dependencies = [
- "anyhow",
- "termcolor",
- "wasmparser 0.246.2",
 ]
 
 [[package]]
@@ -15300,10 +14988,10 @@ dependencies = [
  "log",
  "mach2",
  "memfd",
- "object 0.37.3",
+ "object",
  "once_cell",
  "postcard",
- "pulley-interpreter 42.0.2",
+ "pulley-interpreter",
  "rayon",
  "rustix 1.1.4",
  "semver",
@@ -15316,11 +15004,11 @@ dependencies = [
  "wasm-compose",
  "wasm-encoder 0.244.0",
  "wasmparser 0.244.0",
- "wasmtime-environ 42.0.2",
+ "wasmtime-environ",
  "wasmtime-internal-cache",
  "wasmtime-internal-component-macro",
- "wasmtime-internal-component-util 42.0.2",
- "wasmtime-internal-core 42.0.2",
+ "wasmtime-internal-component-util",
+ "wasmtime-internal-core",
  "wasmtime-internal-cranelift",
  "wasmtime-internal-fiber",
  "wasmtime-internal-jit-debug",
@@ -15340,13 +15028,13 @@ checksum = "90d3611be7991cba09f14dbb99fe7a0fbaca9eb995ab5c548456eeda44afe20e"
 dependencies = [
  "anyhow",
  "cpp_demangle",
- "cranelift-bitset 0.129.2",
- "cranelift-entity 0.129.2",
+ "cranelift-bitset",
+ "cranelift-entity",
  "gimli 0.33.0",
  "hashbrown 0.15.5",
  "indexmap 2.14.0",
  "log",
- "object 0.37.3",
+ "object",
  "postcard",
  "rustc-demangle",
  "semver",
@@ -15356,40 +15044,9 @@ dependencies = [
  "target-lexicon 0.13.5",
  "wasm-encoder 0.244.0",
  "wasmparser 0.244.0",
- "wasmprinter 0.244.0",
- "wasmtime-internal-component-util 42.0.2",
- "wasmtime-internal-core 42.0.2",
-]
-
-[[package]]
-name = "wasmtime-environ"
-version = "44.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e15aa0d1545e48d9b25ca604e9e27b4cd6d5886d30ac5787b57b3a2daf85b57"
-dependencies = [
- "anyhow",
- "cpp_demangle",
- "cranelift-bforest 0.131.1",
- "cranelift-bitset 0.131.1",
- "cranelift-entity 0.131.1",
- "gimli 0.33.0",
- "hashbrown 0.16.1",
- "indexmap 2.14.0",
- "log",
- "object 0.39.1",
- "postcard",
- "rustc-demangle",
- "semver",
- "serde",
- "serde_derive",
- "sha2",
- "smallvec",
- "target-lexicon 0.13.5",
- "wasm-encoder 0.246.2",
- "wasmparser 0.246.2",
- "wasmprinter 0.246.2",
- "wasmtime-internal-component-util 44.0.1",
- "wasmtime-internal-core 44.0.1",
+ "wasmprinter",
+ "wasmtime-internal-component-util",
+ "wasmtime-internal-core",
 ]
 
 [[package]]
@@ -15407,7 +15064,7 @@ dependencies = [
  "serde_derive",
  "sha2",
  "toml 0.9.12+spec-1.1.0",
- "wasmtime-environ 42.0.2",
+ "wasmtime-environ",
  "windows-sys 0.61.2",
  "zstd",
 ]
@@ -15422,7 +15079,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
- "wasmtime-internal-component-util 42.0.2",
+ "wasmtime-internal-component-util",
  "wasmtime-internal-wit-bindgen",
  "wit-parser",
 ]
@@ -15432,12 +15089,6 @@ name = "wasmtime-internal-component-util"
 version = "42.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61571112f9cbf9798e48f3bd6ba5161588a08b99158585153784e3f46f955053"
-
-[[package]]
-name = "wasmtime-internal-component-util"
-version = "44.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49df3d3b4fa2119c6fd161e475b4e21aaefb51d082353b922b433bea37facc65"
 
 [[package]]
 name = "wasmtime-internal-core"
@@ -15450,18 +15101,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasmtime-internal-core"
-version = "44.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f2c7fa6523647262bfb4095dbdf4087accefe525813e783f81a0c682f418ce4"
-dependencies = [
- "anyhow",
- "hashbrown 0.16.1",
- "libm",
- "serde",
-]
-
-[[package]]
 name = "wasmtime-internal-cranelift"
 version = "42.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15470,20 +15109,20 @@ dependencies = [
  "cfg-if",
  "cranelift-codegen",
  "cranelift-control",
- "cranelift-entity 0.129.2",
+ "cranelift-entity",
  "cranelift-frontend",
  "cranelift-native",
  "gimli 0.33.0",
  "itertools 0.14.0",
  "log",
- "object 0.37.3",
- "pulley-interpreter 42.0.2",
+ "object",
+ "pulley-interpreter",
  "smallvec",
  "target-lexicon 0.13.5",
  "thiserror 2.0.18",
  "wasmparser 0.244.0",
- "wasmtime-environ 42.0.2",
- "wasmtime-internal-core 42.0.2",
+ "wasmtime-environ",
+ "wasmtime-internal-core",
  "wasmtime-internal-unwinder",
  "wasmtime-internal-versioned-export-macros",
 ]
@@ -15498,7 +15137,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "rustix 1.1.4",
- "wasmtime-environ 42.0.2",
+ "wasmtime-environ",
  "wasmtime-internal-versioned-export-macros",
  "windows-sys 0.61.2",
 ]
@@ -15510,7 +15149,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b875a7727c043a308c81f2de5ce7260b7513cb5baaa2af32937646b8c9019a3f"
 dependencies = [
  "cc",
- "object 0.37.3",
+ "object",
  "rustix 1.1.4",
  "wasmtime-internal-versioned-export-macros",
 ]
@@ -15523,7 +15162,7 @@ checksum = "f52c0779e711777b915d017b3f54049e658057a77df99e0e7958406b3c5d7d07"
 dependencies = [
  "cfg-if",
  "libc",
- "wasmtime-internal-core 42.0.2",
+ "wasmtime-internal-core",
  "windows-sys 0.61.2",
 ]
 
@@ -15536,8 +15175,8 @@ dependencies = [
  "cfg-if",
  "cranelift-codegen",
  "log",
- "object 0.37.3",
- "wasmtime-environ 42.0.2",
+ "object",
+ "wasmtime-environ",
 ]
 
 [[package]]
@@ -15560,10 +15199,10 @@ dependencies = [
  "cranelift-codegen",
  "gimli 0.33.0",
  "log",
- "object 0.37.3",
+ "object",
  "target-lexicon 0.13.5",
  "wasmparser 0.244.0",
- "wasmtime-environ 42.0.2",
+ "wasmtime-environ",
  "wasmtime-internal-cranelift",
  "winch-codegen",
 ]
@@ -15837,7 +15476,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "wasmtime",
- "wasmtime-environ 42.0.2",
+ "wasmtime-environ",
  "wiggle-macro",
 ]
 
@@ -15851,7 +15490,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
- "wasmtime-environ 42.0.2",
+ "wasmtime-environ",
  "witx",
 ]
 
@@ -15922,8 +15561,8 @@ dependencies = [
  "target-lexicon 0.13.5",
  "thiserror 2.0.18",
  "wasmparser 0.244.0",
- "wasmtime-environ 42.0.2",
- "wasmtime-internal-core 42.0.2",
+ "wasmtime-environ",
+ "wasmtime-internal-core",
  "wasmtime-internal-cranelift",
 ]
 
@@ -16690,19 +16329,18 @@ dependencies = [
 
 [[package]]
 name = "workspace-hack"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "ahash 0.8.12",
  "aho-corasick",
- "anyhow",
  "arrayvec",
  "axum",
  "axum-core",
  "bincode",
  "bit-set 0.8.0",
- "bit-vec 0.8.0",
  "bitflags 2.11.1",
  "blake2",
+ "block2",
  "borrow-or-share",
  "bstr",
  "bumpalo",
@@ -16712,8 +16350,9 @@ dependencies = [
  "chrono",
  "clap",
  "clap_builder",
+ "console 0.15.11",
  "console 0.16.3",
- "constant_time_eq 0.4.2",
+ "core-foundation-sys",
  "core_extensions",
  "crc32fast",
  "crossbeam-epoch",
@@ -16721,32 +16360,43 @@ dependencies = [
  "crypto-common",
  "ctrlc",
  "data-encoding",
+ "deadpool",
+ "deadpool-runtime",
  "deranged",
  "digest",
  "ed25519-dalek",
  "either",
  "errno",
+ "fastrand",
  "flate2",
  "fnv",
+ "foldhash 0.2.0",
  "form_urlencoded",
  "futures",
  "futures-channel",
  "futures-core",
+ "futures-executor",
+ "futures-io",
  "futures-sink",
  "futures-task",
  "futures-util",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
- "getrandom 0.4.2",
  "gimli 0.33.0",
+ "gix",
+ "gix-features",
+ "gix-pack",
+ "gix-packetline",
+ "gix-protocol",
+ "gix-revision",
+ "gix-transport",
  "half",
  "hashbrown 0.14.5",
  "hashbrown 0.15.5",
  "hashbrown 0.16.1",
- "hashbrown 0.17.1",
+ "hmac",
  "hyper",
  "hyper-rustls",
- "hyper-tls",
  "hyper-util",
  "iana-time-zone",
  "idna",
@@ -16760,51 +16410,49 @@ dependencies = [
  "linux-raw-sys 0.4.15",
  "lock_api",
  "log",
+ "maybe-async",
  "memchr",
  "memmap2",
  "miette",
  "mime_guess",
  "miniz_oxide",
- "mio 1.2.0",
- "native-tls",
  "nom",
  "num-bigint",
  "num-complex",
  "num-integer",
  "num-traits",
- "object 0.37.3",
- "object 0.39.1",
+ "objc2",
+ "objc2-core-foundation",
+ "objc2-foundation",
+ "object",
  "once_cell",
  "parking_lot 0.12.5",
  "percent-encoding",
  "phf_shared 0.10.0",
  "phf_shared 0.11.3",
+ "phf_shared 0.13.1",
  "portable-atomic",
  "postcard",
- "ppv-lite86",
  "proc-macro2",
- "proptest",
- "pulley-interpreter 44.0.1",
+ "pulley-interpreter",
  "quote",
  "rand 0.8.6",
- "rand 0.9.4",
  "rand_chacha 0.3.1",
- "rand_chacha 0.9.0",
  "rand_core 0.6.4",
  "regex",
  "regex-automata",
  "regex-syntax",
  "reqwest 0.12.28",
- "reqwest 0.13.3",
  "ring",
- "rustc-demangle",
  "rustix 0.38.44",
  "rustix 1.1.4",
  "rustls",
  "rustls-webpki",
+ "schemars 0.8.22",
  "schemars 1.2.1",
  "semver",
  "serde",
+ "serde_bytes",
  "serde_core",
  "serde_json",
  "sha2",
@@ -16814,31 +16462,38 @@ dependencies = [
  "smallvec",
  "stable_deref_trait",
  "subtle",
+ "syn 1.0.109",
  "syn 2.0.117",
+ "tauri-build",
+ "tauri-utils",
  "thiserror 2.0.18",
  "time",
+ "time-macros",
  "tokio",
  "tokio-rustls",
  "tokio-stream",
- "tokio-tungstenite 0.29.0",
  "tokio-util",
+ "toml 0.8.23",
  "toml_edit 0.22.27",
  "tower",
  "tower-http",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
- "typenum",
  "ureq 2.12.1",
  "url",
  "uuid",
- "wasm-encoder 0.246.2",
- "wasmtime-environ 44.0.1",
- "wasmtime-internal-core 44.0.1",
+ "wasm-encoder 0.244.0",
+ "wasmtime-environ",
+ "wasmtime-internal-core",
  "winapi",
+ "windows 0.61.3",
+ "windows-core 0.61.2",
  "windows-core 0.62.2",
+ "windows-sys 0.48.0",
  "windows-sys 0.52.0",
  "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
  "windows-sys 0.61.2",
  "winnow 0.7.15",
  "yoke 0.8.2",
@@ -16886,7 +16541,7 @@ dependencies = [
  "gtk",
  "http",
  "javascriptcore-rs",
- "jni 0.21.1",
+ "jni",
  "libc",
  "ndk 0.9.0",
  "objc2",

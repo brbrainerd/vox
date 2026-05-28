@@ -50,7 +50,7 @@ pub fn atlas_gate_applies_to(class: FindingClass) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::defaults::builtin_class_defaults;
+    use super::super::defaults::builtin_class_defaults;
 
     #[test]
     fn algorithmic_improvement_routes_to_swe_venues() {
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn unknown_class_in_user_yaml_falls_back_to_defaults() {
         // Empty defaults map — every lookup returns the safe fallback.
-        let empty = super::defaults::ClassDefaults {
+        let empty = super::super::defaults::ClassDefaults {
             by_class: Default::default(),
         };
         assert_eq!(

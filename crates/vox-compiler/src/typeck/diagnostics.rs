@@ -112,6 +112,56 @@ pub struct MinimalRepro {
     pub local_span: SpanPayload,
 }
 
+/// Source-code excerpt attached to a diagnostic for LLM consumers.
+///
+/// Included in `VoxCompilerDiagnosticPayload` when source text is available.
+/// Solves the "LLM agent doesn't have the file open" problem:
+/// the excerpt delivers the surrounding code lines inline so the agent
+/// can propose a fix without fetching the file again.
+///
+/// Per the `vox check --for-llm` spec in
+/// [`vox-language-rules-phase2-lint-extension-2026.md`](../../../../docs/src/architecture/vox-language-rules-phase2-lint-extension-2026.md)
+/// Task 5.
+///
+/// Note: this is a richer "lines + text" view, complementary to the
+/// `MinimalRepro` struct above which captures a compact LLM-repair slice.
+/// Both are emitted on diagnostic payloads; consumers pick which best
+/// fits their workflow.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DiagnosticExcerpt {
+    /// 1-based line numbers included in `text` (one entry per line).
+    pub lines: Vec<usize>,
+    /// Source lines joined with `'\n'`. No trailing newline.
+    pub text: String,
+}
+
+impl DiagnosticExcerpt {
+    /// Extract ±`context` lines around `[start_line, end_line]` (1-based) from `source`.
+    ///
+    /// Returns `None` if `source` is empty or `start_line == 0`.
+    #[must_use]
+    pub fn from_source(
+        source: &str,
+        start_line: usize,
+        end_line: usize,
+        context: usize,
+    ) -> Option<Self> {
+        let all_lines: Vec<&str> = source.lines().collect();
+        let total = all_lines.len();
+        if total == 0 || start_line == 0 {
+            return None;
+        }
+        let from = start_line.saturating_sub(context).max(1);
+        let to = (end_line + context).min(total);
+        let line_numbers: Vec<usize> = (from..=to).collect();
+        let text = all_lines[(from - 1)..to].join("\n");
+        Some(Self {
+            lines: line_numbers,
+            text,
+        })
+    }
+}
+
 /// Structured diagnostic payload for machine consumers (LLM healing loops).
 ///
 /// Research proves that exact, localized, structured errors are the single
@@ -135,6 +185,20 @@ pub struct VoxCompilerDiagnosticPayload {
     /// Forward-compat: omitted on serialize when `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub minimal_repro: Option<MinimalRepro>,
+    /// Source-code excerpt around the diagnostic span. Present when
+    /// `from_diagnostic` is called with non-empty `source`; absent otherwise
+    /// (e.g. in deserialized payloads from older tool versions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub excerpt: Option<DiagnosticExcerpt>,
+    /// Stable URL for the human/LLM-readable explanation page for this diagnostic.
+    ///
+    /// Only present when `error_code` follows the `vox/<category>/<name>` scheme.
+    /// Legacy numeric codes (`E0001`, `W092`, etc.) do not have docs pages yet
+    /// and are omitted rather than pointing at a 404.
+    ///
+    /// Part of the Phase 2 `vox check --for-llm` contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub explain_url: Option<String>,
 }
 
 impl VoxCompilerDiagnosticPayload {
@@ -176,12 +240,31 @@ impl VoxCompilerDiagnosticPayload {
             }
         };
 
+        // Compute the span payload first so we can extract line numbers for
+        // the excerpt without re-traversing the source.
+        let span_payload = compute(diag.span);
+        let excerpt = DiagnosticExcerpt::from_source(
+            source,
+            span_payload.start_line,
+            span_payload.end_line,
+            3, // ±3 lines context — matches the Phase 2 --for-llm spec
+        );
+
+        let error_code = diag.code.clone().unwrap_or_else(|| "E0000".to_string());
+        // Derive the explain URL only for stable `vox/<category>/<name>` codes.
+        // Legacy numeric codes (E0001, W092, …) don't have docs pages yet.
+        let explain_url = if error_code.starts_with("vox/") {
+            Some(format!("https://vox-lang.org/diag/{error_code}"))
+        } else {
+            None
+        };
+
         Self {
-            error_code: diag.code.clone().unwrap_or_else(|| "E0000".to_string()),
+            error_code,
             severity: diag.severity,
             message: diag.message.clone(),
             file_path: file_path.to_string(),
-            span: compute(diag.span),
+            span: span_payload,
             ast_node_kind: diag.ast_node_kind.clone(),
             missing_cases: diag.missing_cases.clone(),
             expected_type: diag.expected_type.clone(),
@@ -198,6 +281,8 @@ impl VoxCompilerDiagnosticPayload {
                 .collect(),
             related_spans: vec![],
             minimal_repro: compute_minimal_repro(diag.span, source),
+            excerpt,
+            explain_url,
         }
     }
 }
@@ -455,6 +540,17 @@ impl Diagnostic {
         self.suggestions.push(hint.into());
         self
     }
+
+    /// Attach a stable diagnostic code (e.g. `"vox/types/type-mismatch"`).
+    ///
+    /// Prefer constants from [`codes`] over bare string literals so the
+    /// compiler catches typos and `ALL_COMPILER_DIAGNOSTIC_CODES` stays in sync.
+    #[must_use]
+    pub fn with_code(mut self, code: impl Into<String>) -> Self {
+        self.code = Some(code.into());
+        self
+    }
+
     /// Build a simple error diagnostic (no type diff).
     #[must_use]
     pub fn error(message: String, span: Span, source: &str) -> Self {
@@ -589,6 +685,23 @@ impl Diagnostic {
 /// Use these instead of raw string literals so that IDs are greppable,
 /// typo-proof, and covered by the namespace guard test.
 pub mod codes {
+    // ── Core type-checking errors (most common LLM-target hits) ──────────────
+    /// Type mismatch in `let`, `return`, `state`, `derived`, or assignment.
+    pub const TYPES_TYPE_MISMATCH: &str = "vox/types/type-mismatch";
+    /// Undefined variable referenced in expression position.
+    pub const TYPES_UNDEFINED_VARIABLE: &str = "vox/types/undefined-variable";
+    /// Wrong number of arguments at a call site.
+    pub const TYPES_ARG_COUNT_MISMATCH: &str = "vox/types/arg-count-mismatch";
+    /// Argument type does not match the callee's declared parameter type.
+    pub const TYPES_ARG_TYPE_MISMATCH: &str = "vox/types/arg-type-mismatch";
+    /// Field access on a type that does not have that field.
+    pub const TYPES_FIELD_NOT_FOUND: &str = "vox/types/field-not-found";
+    /// Method call on a type that does not have that method.
+    pub const TYPES_METHOD_NOT_FOUND: &str = "vox/types/method-not-found";
+    /// Type of an expression could not be fully resolved (unresolved type variable).
+    pub const TYPES_UNRESOLVED_TYPE: &str = "vox/types/unresolved-type";
+
+    // ── Existing codes ────────────────────────────────────────────────────────
     pub const TYPES_DURABLE_PROMISE_ARITY: &str = "vox/types/durable-promise-arity";
     pub const TYPES_FUTURE_DEPRECATED: &str = "vox/types/future-deprecated";
     pub const TYPES_PROMISE_DEPRECATED: &str = "vox/types/promise-deprecated";
@@ -607,6 +720,15 @@ pub mod codes {
 
     /// All Phase-1 codes registered for stability, used by the namespace guard test.
     pub const ALL_PHASE_1: &[&str] = &[
+        // Core type errors (v0.6, LLM-target CR-L criteria)
+        TYPES_TYPE_MISMATCH,
+        TYPES_UNDEFINED_VARIABLE,
+        TYPES_ARG_COUNT_MISMATCH,
+        TYPES_ARG_TYPE_MISMATCH,
+        TYPES_FIELD_NOT_FOUND,
+        TYPES_METHOD_NOT_FOUND,
+        TYPES_UNRESOLVED_TYPE,
+        // Existing Phase-1 codes
         TYPES_DURABLE_PROMISE_ARITY,
         TYPES_FUTURE_DEPRECATED,
         TYPES_PROMISE_DEPRECATED,
@@ -625,6 +747,14 @@ pub mod codes {
     /// When adding a new stable diagnostic code in `vox-compiler`, append it here and run
     /// `cargo test -p vox-code-audit no_audit_rule_collides_with_compiler_diagnostic_code`.
     pub const ALL_COMPILER_DIAGNOSTIC_CODES: &[&str] = &[
+        // Core type errors (v0.6, LLM-target CR-L criteria)
+        TYPES_TYPE_MISMATCH,
+        TYPES_UNDEFINED_VARIABLE,
+        TYPES_ARG_COUNT_MISMATCH,
+        TYPES_ARG_TYPE_MISMATCH,
+        TYPES_FIELD_NOT_FOUND,
+        TYPES_METHOD_NOT_FOUND,
+        TYPES_UNRESOLVED_TYPE,
         TYPES_DURABLE_PROMISE_ARITY,
         TYPES_FUTURE_DEPRECATED,
         TYPES_PROMISE_DEPRECATED,
@@ -666,9 +796,9 @@ pub mod codes {
         "lint.form.unknown_endpoint",
         "lint.form.field_unmatched",
         "lint.form.field_type_mismatch",
-        // Typecheck namespace
+        // Typecheck namespace (legacy codes — superseded by vox/types/* in v0.6)
         "typecheck.deprecated_ident",
-        "typecheck.arg_mismatch",
+        "typecheck.arg_mismatch", // superseded by TYPES_ARG_COUNT_MISMATCH + TYPES_ARG_TYPE_MISMATCH
         // vox/* semantic checks
         "vox/auth/capability-leak",
         "vox/effect/pure-violation",
@@ -721,5 +851,214 @@ pub mod codes {
                 );
             }
         }
+    }
+}
+
+// ── DiagnosticExcerpt unit tests ──────────────────────────────────────────────
+
+#[cfg(test)]
+mod excerpt_tests {
+    use super::DiagnosticExcerpt;
+
+    fn source_10() -> String {
+        (1..=10).map(|n| format!("line{n}")).collect::<Vec<_>>().join("\n")
+    }
+
+    #[test]
+    fn excerpt_middle_of_file_with_full_context() {
+        let src = source_10();
+        let ex = DiagnosticExcerpt::from_source(&src, 5, 5, 3).unwrap();
+        // Expected: lines 2..=8 (5-3=2 .. 5+3=8)
+        assert_eq!(ex.lines, (2..=8).collect::<Vec<_>>());
+        assert!(ex.text.contains("line2"));
+        assert!(ex.text.contains("line8"));
+    }
+
+    #[test]
+    fn excerpt_clips_to_start_of_file() {
+        let src = source_10();
+        // start_line=1, context=3 → from=max(1-3,1)=1
+        let ex = DiagnosticExcerpt::from_source(&src, 1, 1, 3).unwrap();
+        assert_eq!(ex.lines[0], 1);
+        assert!(ex.text.starts_with("line1"));
+    }
+
+    #[test]
+    fn excerpt_clips_to_end_of_file() {
+        let src = source_10();
+        // start_line=10, end_line=10, context=3 → to=min(13,10)=10
+        let ex = DiagnosticExcerpt::from_source(&src, 10, 10, 3).unwrap();
+        assert_eq!(*ex.lines.last().unwrap(), 10);
+        assert!(ex.text.contains("line10"));
+    }
+
+    #[test]
+    fn excerpt_multi_line_span() {
+        let src = source_10();
+        // Span covers lines 3-5, context ±1 → from=2, to=6
+        let ex = DiagnosticExcerpt::from_source(&src, 3, 5, 1).unwrap();
+        assert_eq!(ex.lines, vec![2, 3, 4, 5, 6]);
+        assert!(ex.text.contains("line3"));
+        assert!(ex.text.contains("line5"));
+    }
+
+    #[test]
+    fn excerpt_empty_source_returns_none() {
+        assert!(DiagnosticExcerpt::from_source("", 1, 1, 3).is_none());
+    }
+
+    #[test]
+    fn excerpt_zero_start_line_returns_none() {
+        // start_line=0 means line info was not computed (e.g. span at byte 0
+        // in a file that doesn't advance the counter).
+        assert!(DiagnosticExcerpt::from_source("line1\nline2", 0, 0, 3).is_none());
+    }
+
+    #[test]
+    fn excerpt_single_line_file() {
+        let src = "single line only";
+        let ex = DiagnosticExcerpt::from_source(src, 1, 1, 3).unwrap();
+        assert_eq!(ex.lines, vec![1]);
+        assert_eq!(ex.text, "single line only");
+    }
+
+    #[test]
+    fn excerpt_text_has_no_trailing_newline() {
+        let src = source_10();
+        let ex = DiagnosticExcerpt::from_source(&src, 5, 5, 1).unwrap();
+        assert!(!ex.text.ends_with('\n'));
+    }
+
+    #[test]
+    fn excerpt_line_count_matches_text_lines() {
+        let src = source_10();
+        let ex = DiagnosticExcerpt::from_source(&src, 4, 6, 2).unwrap();
+        let text_line_count = ex.text.lines().count();
+        assert_eq!(
+            ex.lines.len(),
+            text_line_count,
+            "lines vec length should match actual text line count"
+        );
+    }
+}
+
+// ── explain_url unit tests ────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod explain_url_tests {
+    use crate::ast::span::Span;
+    use super::{Diagnostic, DiagnosticCategory, VoxCompilerDiagnosticPayload};
+
+    fn make_diag(code: Option<&str>) -> Diagnostic {
+        Diagnostic {
+            severity: super::TypeckSeverity::Error,
+            message: "test".to_string(),
+            span: Span { start: 0, end: 0 },
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![],
+            category: DiagnosticCategory::Typecheck,
+            code: code.map(str::to_string),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        }
+    }
+
+    #[test]
+    fn vox_prefixed_code_produces_explain_url() {
+        let diag = make_diag(Some("vox/llm/direct-provider-call"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/llm/direct-provider-call")
+        );
+    }
+
+    #[test]
+    fn numeric_code_produces_no_explain_url() {
+        let diag = make_diag(Some("E0001"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert!(payload.explain_url.is_none(), "numeric codes have no docs URL");
+    }
+
+    #[test]
+    fn legacy_lint_code_produces_no_explain_url() {
+        let diag = make_diag(Some("lint.theme_contrast"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert!(payload.explain_url.is_none(), "lint. prefix has no docs URL");
+    }
+
+    #[test]
+    fn missing_code_defaults_to_no_explain_url() {
+        let diag = make_diag(None);
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(payload.error_code, "E0000");
+        assert!(payload.explain_url.is_none());
+    }
+
+    #[test]
+    fn explain_url_uses_vox_lang_org_domain() {
+        let diag = make_diag(Some("vox/effect/pure-violated"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "fn f() {}");
+        let url = payload.explain_url.expect("vox/ code should have explain_url");
+        assert!(url.starts_with("https://vox-lang.org/diag/vox/"), "URL: {url}");
+        assert!(url.ends_with("vox/effect/pure-violated"), "URL: {url}");
+    }
+
+    // ── vox/types/* codes (v0.6 LLM-target, commit 1dde2ea12b) ──────────────
+
+    #[test]
+    fn type_mismatch_code_produces_explain_url() {
+        let diag = make_diag(Some(super::codes::TYPES_TYPE_MISMATCH));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/type-mismatch")
+        );
+    }
+
+    #[test]
+    fn undefined_variable_code_produces_explain_url() {
+        let diag = make_diag(Some(super::codes::TYPES_UNDEFINED_VARIABLE));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/undefined-variable")
+        );
+    }
+
+    #[test]
+    fn method_not_found_code_produces_explain_url() {
+        let diag = make_diag(Some(super::codes::TYPES_METHOD_NOT_FOUND));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(&diag, "test.vox", "");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/method-not-found")
+        );
+    }
+
+    #[test]
+    fn with_code_builder_attaches_stable_code() {
+        use crate::ast::span::Span;
+        let diag = Diagnostic::error(
+            "Type mismatch in `let`: expected Int, found Str".into(),
+            Span { start: 0, end: 5 },
+            "let x: Int = \"hi\"",
+        )
+        .with_code(super::codes::TYPES_TYPE_MISMATCH);
+        assert_eq!(diag.code.as_deref(), Some("vox/types/type-mismatch"));
+        let payload = VoxCompilerDiagnosticPayload::from_diagnostic(
+            &diag,
+            "test.vox",
+            "let x: Int = \"hi\"",
+        );
+        assert_eq!(payload.error_code, "vox/types/type-mismatch");
+        assert_eq!(
+            payload.explain_url.as_deref(),
+            Some("https://vox-lang.org/diag/vox/types/type-mismatch")
+        );
     }
 }

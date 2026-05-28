@@ -53,7 +53,7 @@ training_eligible: true
 1. **Audit before claim:** Read emit paths and contracts in-tree; confirm with `cargo test` / `cargo run` on this branch before treating a task as done.
 2. **SSOT order:** Edit [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml) first, then run `vox ci operations-sync --write`, then commit derived registry YAMLs together.
 3. **Generated layout:** `target/generated/src-tauri/Cargo.toml` path dependencies use `../../../crates/...` (manifest lives three levels below repo root). Do not confuse with workspace `Cargo.toml` under `target/generated/` which may still use `../../crates/...`.
-4. **Sherpa split:** Codegen + [`vox-tauri-sherpa`](../../../crates/vox-tauri-sherpa/) own Rust registration, ACL, and TS invoke surface; Kotlin/Swift on-device backends are separate port tasks until wired into the `transcribe` command.
+4. **Sherpa split:** Codegen + [`vox-tauri-stt`](../../../crates/vox-tauri-stt/) own Rust registration, ACL, and TS invoke surface; Kotlin/Swift on-device backends are separate port tasks until wired into the `transcribe` command.
 5. **CI hygiene:** After contract or arch-check changes, run `cargo run -p vox-arch-check` and focused crate tests (`cargo test -p vox-codegen …`) before a full workspace test sweep.
 6. **Automation scripts:** Prefer real `process` / `fs` calls over stubs; gate destructive behavior with explicit env flags; keep paths repo-relative (no hardcoded home directories or stale machine-specific “facts” in output). Reference script: [`scripts/clean-build-artifacts.vox`](../../../scripts/clean-build-artifacts.vox) (CI: `cargo run -p vox-cli -- check scripts/clean-build-artifacts.vox`). Minimal language golden pointer: [`examples/golden/clean_build_stdlib_reference.vox`](../../../examples/golden/clean_build_stdlib_reference.vox).
 
@@ -286,7 +286,7 @@ cargo run -p vox-arch-check
 **Step-by-step work**:
 1. Append Capacitor package rows to the Retired Surfaces table.
 2. Append Axum-as-app and `rust-embed Assets` rows.
-3. Append `vox-sherpa-transcribe` to `vox-tauri-sherpa`.
+3. Append `vox-sherpa-transcribe` to `vox-tauri-stt`.
 4. Add a `Deprecation Annotations` subsection immediately after the retired table.
 5. Document the exact marker syntax and the rule that every vestigial call site must carry it.
 
@@ -833,18 +833,18 @@ For `RustAppShell::TauriApp`, [`vox-codegen`](../../../crates/vox-codegen/) emit
 
 | Artifact | Responsibility |
 |----------|------------------|
-| `src/main.rs` | Calls `.plugin(vox_tauri_sherpa::plugin::init())` on the Tauri builder. |
+| `src/main.rs` | Calls `.plugin(vox_tauri_stt::plugin::init())` on the Tauri builder. |
 | `build.rs` | Registers inlined plugin ACL for id `vox-sherpa` with command `transcribe` (`tauri_build::Attributes::plugin` / `InlinedPlugin`). |
 | `capabilities/default.json` | Grants `vox-sherpa:default` in addition to `core:default`. |
-| `Cargo.toml` | Depends on `vox-tauri-sherpa` with `features = ["tauri-plugin"]`; in-repo path deps use `../../../crates/...` so resolution reaches the workspace [`crates/`](../../../crates/) tree from `target/generated/src-tauri/`. |
+| `Cargo.toml` | Depends on `vox-tauri-stt` with `features = ["tauri-plugin"]`; in-repo path deps use `../../../crates/...` so resolution reaches the workspace [`crates/`](../../../crates/) tree from `target/generated/src-tauri/`. |
 
 **Verification after changing emit:** `cargo test -p vox-codegen tauri_` and `cargo test -p vox-codegen tauri_convergence_snapshots`.
 
-**Hand-maintained Tauri apps** (not produced by `vox compile`): follow [`crates/vox-tauri-sherpa/README.md`](../../../crates/vox-tauri-sherpa/README.md) for `plugin::init()`, `Cargo.toml`, and guest JS `invoke`. JNI/Swift work remains in TASK-4.2 / TASK-4.3 until the Rust `transcribe` command calls into those backends.
+**Hand-maintained Tauri apps** (not produced by `vox compile`): follow [`crates/vox-tauri-stt/README.md`](../../../crates/vox-tauri-stt/README.md) for `plugin::init()`, `Cargo.toml`, and guest JS `invoke`. JNI/Swift work remains in TASK-4.2 / TASK-4.3 until the Rust `transcribe` command calls into those backends.
 
 ---
 
-### TASK-4.1 — Create `vox-tauri-sherpa` crate and plugin scaffold
+### TASK-4.1 — Create `vox-tauri-stt` crate and plugin scaffold
 
 **Phase**: 4  
 **Estimated effort**: 2 days  
@@ -859,11 +859,11 @@ For `RustAppShell::TauriApp`, [`vox-codegen`](../../../crates/vox-codegen/) emit
 - `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/package.json:17-23`
 
 **Files to create**:
-- `crates/vox-tauri-sherpa/Cargo.toml`
-- `crates/vox-tauri-sherpa/src/lib.rs`
-- `crates/vox-tauri-sherpa/guest-js/index.ts`
-- `crates/vox-tauri-sherpa/android/`
-- `crates/vox-tauri-sherpa/ios/`
+- `crates/vox-tauri-stt/Cargo.toml`
+- `crates/vox-tauri-stt/src/lib.rs`
+- `crates/vox-tauri-stt/guest-js/index.ts`
+- `crates/vox-tauri-stt/android/`
+- `crates/vox-tauri-stt/ios/`
 
 **Files to modify**:
 - `Cargo.toml`
@@ -878,8 +878,8 @@ For `RustAppShell::TauriApp`, [`vox-codegen`](../../../crates/vox-codegen/) emit
 **Verification commands**:
 
 ```bash
-cargo check -p vox-tauri-sherpa
-rg "vox-tauri-sherpa" Cargo.toml docs/src/architecture/where-things-live.md
+cargo check -p vox-tauri-stt
+rg "vox-tauri-stt" Cargo.toml docs/src/architecture/where-things-live.md
 ```
 
 **Acceptance criteria**:
@@ -906,8 +906,8 @@ rg "vox-tauri-sherpa" Cargo.toml docs/src/architecture/where-things-live.md
 - `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/android/src/main/AndroidManifest.xml`
 
 **Files to modify**:
-- `crates/vox-tauri-sherpa/android/`
-- `crates/vox-tauri-sherpa/src/lib.rs`
+- `crates/vox-tauri-stt/android/`
+- `crates/vox-tauri-stt/src/lib.rs`
 
 **Step-by-step work**:
 1. Move ASR pipeline logic into the Tauri Android plugin entrypoint.
@@ -918,8 +918,8 @@ rg "vox-tauri-sherpa" Cargo.toml docs/src/architecture/where-things-live.md
 **Verification commands**:
 
 ```bash
-cargo check -p vox-tauri-sherpa
-rg "CapacitorPlugin|PluginCall|@Capacitor" crates/vox-tauri-sherpa/android || true
+cargo check -p vox-tauri-stt
+rg "CapacitorPlugin|PluginCall|@Capacitor" crates/vox-tauri-stt/android || true
 ```
 
 **Acceptance criteria**:
@@ -946,7 +946,7 @@ rg "CapacitorPlugin|PluginCall|@Capacitor" crates/vox-tauri-sherpa/android || tr
 - `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/ios/AppleSpeechBackend.swift`
 
 **Files to modify**:
-- `crates/vox-tauri-sherpa/ios/`
+- `crates/vox-tauri-stt/ios/`
 
 **Step-by-step work**:
 1. Move Swift logic into the Tauri iOS plugin scaffold.
@@ -957,8 +957,8 @@ rg "CapacitorPlugin|PluginCall|@Capacitor" crates/vox-tauri-sherpa/android || tr
 **Verification commands**:
 
 ```bash
-rg "CAPPlugin|CAPBridgedPlugin|Capacitor" crates/vox-tauri-sherpa/ios || true
-cargo check -p vox-tauri-sherpa
+rg "CAPPlugin|CAPBridgedPlugin|Capacitor" crates/vox-tauri-stt/ios || true
+cargo check -p vox-tauri-stt
 ```
 
 **Acceptance criteria**:
@@ -982,8 +982,8 @@ cargo check -p vox-tauri-sherpa
 - `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/src/index.ts:1`
 
 **Files to modify**:
-- `crates/vox-tauri-sherpa/guest-js/index.ts`
-- `crates/vox-tauri-sherpa/package.json` if the plugin needs a JS package.
+- `crates/vox-tauri-stt/guest-js/index.ts`
+- `crates/vox-tauri-stt/package.json` if the plugin needs a JS package.
 
 **Step-by-step work**:
 1. Export `transcribe(input): Promise<TranscribeResult>`.
@@ -994,8 +994,8 @@ cargo check -p vox-tauri-sherpa
 **Verification commands**:
 
 ```bash
-pnpm --dir crates/vox-tauri-sherpa test
-rg "@capacitor/core|registerPlugin" crates/vox-tauri-sherpa
+pnpm --dir crates/vox-tauri-stt test
+rg "@capacitor/core|registerPlugin" crates/vox-tauri-stt
 ```
 
 **Acceptance criteria**:
@@ -1021,7 +1021,7 @@ rg "@capacitor/core|registerPlugin" crates/vox-tauri-sherpa
 - `apps/vox-mental-tracker/plugins/vox-sherpa-transcribe/README.md`
 
 **Files to create/modify**:
-- A focused test under `crates/vox-tauri-sherpa/tests/`
+- A focused test under `crates/vox-tauri-stt/tests/`
 - Any necessary test fixture manifest entry.
 
 **Step-by-step work**:
@@ -1033,7 +1033,7 @@ rg "@capacitor/core|registerPlugin" crates/vox-tauri-sherpa
 **Verification commands**:
 
 ```bash
-cargo test -p vox-tauri-sherpa sherpa_differential -- --nocapture
+cargo test -p vox-tauri-stt sherpa_differential -- --nocapture
 ```
 
 **Acceptance criteria**:
@@ -1219,7 +1219,7 @@ rg "npx cap|cap sync" apps/vox-mental-tracker/scripts/build.vox
 
 ```bash
 test ! -d apps/vox-mental-tracker/plugins/vox-sherpa-transcribe
-rg "vox-sherpa-transcribe" apps/vox-mental-tracker crates/vox-tauri-sherpa docs/src/architecture/tauri-convergence-migration-plan-2026.md
+rg "vox-sherpa-transcribe" apps/vox-mental-tracker crates/vox-tauri-stt docs/src/architecture/tauri-convergence-migration-plan-2026.md
 ```
 
 **Acceptance criteria**:
@@ -1598,7 +1598,7 @@ vox doc-pipeline --mode linkcheck docs/src/architecture/tauri-audit-2026.md
 
 **Phase**: 8  
 **Estimated effort**: 1 hour  
-**Preconditions**: A release has shipped with `vox-tauri-sherpa`.  
+**Preconditions**: A release has shipped with `vox-tauri-stt`.  
 **Blocks**: TASK-8.2.
 
 **Why**: Archive is a temporary tombstone, not a second source of truth.
@@ -1791,7 +1791,7 @@ Current known migration surfaces:
 | `npx cap sync` | `cargo tauri android build` or `cargo tauri ios build` |
 | Generated app `axum::serve` | Generated app `tauri::Builder::default().run(...)` |
 | Generated app `rust-embed Assets` | Tauri `dist/` bundling |
-| `vox-sherpa-transcribe` app plugin | `crates/vox-tauri-sherpa` |
+| `vox-sherpa-transcribe` app plugin | `crates/vox-tauri-stt` |
 
 ---
 

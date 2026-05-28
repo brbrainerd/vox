@@ -363,6 +363,21 @@ impl DetectionRule for HollowFnDetector {
     fn languages(&self) -> &[Language] {
         &[Language::Rust, Language::TypeScript]
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — hollow function: compiles but does nothing\n\
+             fn process_payment(amount: f64, user_id: UserId) -> Result<PaymentResult> {\n\
+             \x20   Ok(PaymentResult::default())  // structural skeleton only\n\
+             }\n\
+             \n\
+             // FIX — real implementation\n\
+             fn process_payment(amount: f64, user_id: UserId) -> Result<PaymentResult> {\n\
+             \x20   let account = accounts.get(user_id)?;\n\
+             \x20   account.charge(amount).map(PaymentResult::Success)\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

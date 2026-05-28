@@ -1,0 +1,37 @@
+fn min_index(xs: list[int]) to int {
+    let n: int = xs.len()
+    if n == 0 {
+        return -1
+    }
+    let mut best_idx: int = 0
+    let mut best_val: int = 0
+    match xs[0] {
+        Some(v) => { best_val = v }
+        None => { return -1 }
+    }
+    let mut i: int = 1
+    while i < n {
+        match xs[i] {
+            Some(v) => {
+                if v < best_val {
+                    best_val = v
+                    best_idx = i
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return best_idx
+}
+
+fn main() to str {
+    assert(min_index([3, 1, 2]) == 1)
+    assert(min_index([1, 2, 3]) == 0)
+    assert(min_index([3, 2, 1]) == 2)
+    assert(min_index([]) == -1)
+    assert(min_index([5]) == 0)
+    assert(min_index([1, 1, 1]) == 0)
+    assert(min_index([10, 3, 7, 3]) == 1)
+    return "ok"
+}

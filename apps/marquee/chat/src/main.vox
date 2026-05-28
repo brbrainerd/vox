@@ -1,147 +1,155 @@
-// Marquee Slot 3 — Vox Chat with actor primitives.
+// Vox Chat — Marquee Slot 3
 //
-// Per contracts/marquee/manifest.v1.yaml: this is the realtime archetype.
-// Council ratified 2026-05-15 (D5). Demonstrates the `actor` keyword and
-// the message-passing session-state lane that future "agent + agent"
-// workflows depend on.
+// Demonstrates:
+//   actor declaration    — chat room as a stateful actor with join/leave/message handlers
+//   @server endpoint     — streaming / server-sent-event lane (HTTP gateway upgrades to WS)
+//   @table               — message persistence
+//   @auth(scheme: bearer)— per-request auth gate on write and streaming endpoints
+//   @test                — unit tests covering validation helpers and write-path error gates
 //
-// Surface required by the manifest:
-//   - actor declaration
-//   - @endpoint(kind: stream) — surface present via send_message endpoint
-//   - websocket emit               — semantic intent encoded by the actor
-//   - presence state              — tracked by ChatRoom's join/leave handlers
+// References: contracts/marquee/manifest.v1.yaml (marquee-chat)
+// Ratified 2026-05-15 by Vox Foundation Council.
+//
+// Presence state (who is in a room) lives inside the actor runtime — join/leave
+// handlers return formatted status lines; the deploy-time transport layer
+// broadcasts them to all connected clients.  @server stream_room signals the
+// HTTP gateway to hold the connection open and emit Message records as SSE
+// (server-sent events) / WebSocket frames.
 
+// ── Schema ────────────────────────────────────────────────────────────────────
+
+@table type User {
+    username: str
+    session_token: str
+}
+
+@table type Message {
+    room_id: str
+    sender: str
+    body: str
+    sent_at: str
+}
+
+// ── Chat room actor ───────────────────────────────────────────────────────────
+
+// ChatRoom handles per-room message delivery.  The actor runtime maintains
+// presence state; each handler returns a formatted event line the transport
+// layer fans out to subscribers.
 actor ChatRoom {
     on join(user: str) to str {
         return "joined:" + user
     }
-
     on leave(user: str) to str {
         return "left:" + user
     }
-
-    on send_msg(user: str, text: str) to str {
-        return "msg:" + user + ":" + text
+    on message(user: str, body: str) to str {
+        return user + ": " + body
     }
 }
 
-// ── companion endpoints (front the actor over HTTP) ───────────────────────
+// ── @server streaming endpoint ────────────────────────────────────────────────
 
-@endpoint(kind: query) @auth(scheme: bearer) fn list_presence() to List[str] {
+// Subscribe to live messages from a chat room.
+// The @server decorator signals the HTTP gateway to hold this connection open
+// and deliver new Message records as server-sent events (SSE) or WebSocket
+// frames — the transport choice is made by the deploy adapter.
+// Authentication is enforced by the bearer-token middleware before the
+// connection is upgraded.
+@server
+@auth(scheme: bearer)
+fn stream_room(room_id: str) to list[str] {
+    // Placeholder: the deploy-time streaming layer replaces this body with
+    // live fan-out from the ChatRoom actor mailbox.  The list[str] return
+    // type carries the initial backfill; the stream continuation is driven
+    // by actor.message events.
     return []
 }
 
-@endpoint(kind: stream) @auth(scheme: bearer) fn watch_room() to str {
-    return "tick"
-}
+// ── Auth-protected write endpoints ────────────────────────────────────────────
 
-@endpoint(kind: mutation) @auth(scheme: bearer) fn send_message(text: str) to Result[str] {
-    if len(text) is 0 {
-        return Error("message must not be empty")
+// Post a new message to a room. Validates the body then persists it.
+@mutation
+@auth(scheme: bearer)
+fn post_message(room_id: str, sender: str, body: str) to Result[str] {
+    if len(body) is 0 {
+        return Error("body must not be empty")
     }
-    if len(text) > 4096 {
-        return Error("message too long")
+    if len(body) > 1000 {
+        return Error("body must be 1000 characters or fewer")
     }
-    return Ok("queued")
+    db.Message.insert({ room_id: room_id, sender: sender, body: body, sent_at: "" })
+    return Ok("message.sent")
 }
 
-// ── internal helpers (pure) ───────────────────────────────────────────────
+// ── Auth-protected read endpoints ─────────────────────────────────────────────
 
-fn message_is_valid(text: str) to bool {
-    if len(text) is 0 {
-        return false
-    }
-    if len(text) > 4096 {
-        return false
-    }
-    return true
+// List the most-recent messages in a room (paginated by the HTTP layer).
+@query
+@auth(scheme: bearer)
+fn list_messages(room_id: str) to list[Message] {
+    return []
 }
 
-fn presence_label(joined: bool) to str {
-    if joined is true {
-        return "online"
-    }
-    return "offline"
+// ── Public (unauthenticated) endpoints ────────────────────────────────────────
+
+// Health probe — no auth required.
+@query fn health() to str {
+    return "ok"
 }
 
-fn render_join_ack(user: str) to str {
-    return "joined:" + user
+// ── Pure business-logic helpers ───────────────────────────────────────────────
+
+// Returns true when a chat body satisfies the length constraints:
+// non-empty and at most 1000 characters.
+fn is_valid_body(body: str) to bool {
+    return len(body) > 0 and len(body) <= 1000
 }
 
-fn render_leave_ack(user: str) to str {
-    return "left:" + user
+// Format a sender + body pair into a display line.
+fn format_message(sender: str, body: str) to str {
+    return sender + ": " + body
 }
 
-fn render_send_ack(user: str, text: str) to str {
-    return "msg:" + user + ":" + text
-}
-
-// ── tests ─────────────────────────────────────────────────────────────────
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 @test
-fn test_message_empty_is_invalid() to Unit {
-    assert(message_is_valid("") is false)
-}
-
-@test
-fn test_message_typical_is_valid() to Unit {
-    assert(message_is_valid("hello world") is true)
+fn test_health_returns_ok() {
+    assert(health() is "ok")
 }
 
 @test
-fn test_presence_online() to Unit {
-    assert(presence_label(true) is "online")
+fn test_valid_body_accepted() {
+    assert(is_valid_body("Hello, world!") is true)
+    assert(is_valid_body("x") is true)
 }
 
 @test
-fn test_presence_offline() to Unit {
-    assert(presence_label(false) is "offline")
+fn test_empty_body_rejected() {
+    assert(is_valid_body("") is false)
 }
 
 @test
-fn test_join_ack_format() to Unit {
-    assert(render_join_ack("ada") is "joined:ada")
+fn test_format_message() {
+    assert(format_message("alice", "hello") is "alice: hello")
 }
 
 @test
-fn test_leave_ack_format() to Unit {
-    assert(render_leave_ack("ada") is "left:ada")
-}
-
-@test
-fn test_send_ack_format() to Unit {
-    assert(render_send_ack("ada", "hi") is "msg:ada:hi")
-}
-
-@test
-fn test_send_message_rejects_empty() to Unit {
-    let r = send_message("")
-    match r {
-        Error(_) => assert(true)
-        Ok(_) => assert(false)
+fn test_post_message_rejects_empty_body() {
+    let result = post_message("room1", "alice", "")
+    match result {
+        Error(msg) => assert(len(msg) > 0)
+        Ok(_)      => assert(false)
     }
 }
 
+// Write-path gate: over-long body is rejected before any database access.
 @test
-fn test_send_message_accepts_typical() to Unit {
-    let r = send_message("hello")
-    match r {
-        Ok(s) => assert(s is "queued")
-        Error(_) => assert(false)
+fn test_post_message_rejects_long_body() {
+    // 1001 characters — one over the limit.
+    let long = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    let result = post_message("room1", "alice", long)
+    match result {
+        Error(msg) => assert(len(msg) > 0)
+        Ok(_)      => assert(false)
     }
-}
-
-// ── examples (corpus-eligible reference solutions) ────────────────────────
-
-@example
-fn ex_message_validity_round_trip() to Unit {
-    assert(message_is_valid("hi") is true)
-    assert(message_is_valid("") is false)
-}
-
-@example("ack formatting")
-fn ex_ack_round_trip() to Unit {
-    assert(render_join_ack("ada") is "joined:ada")
-    assert(render_leave_ack("ada") is "left:ada")
-    assert(render_send_ack("ada", "hi") is "msg:ada:hi")
 }

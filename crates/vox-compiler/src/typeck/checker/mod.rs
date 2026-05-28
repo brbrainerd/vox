@@ -369,14 +369,19 @@ impl<'a> Checker<'a> {
                         let is_any = matches!(&resolved_decl, Ty::Named(n) if n == "any");
                         if !is_any {
                             if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
-                                self.diags.push(Diagnostic::error(
-                                    format!(
-                                        "Type mismatch in `state {}` initializer: {msg}",
-                                        s.name
+                                self.diags.push(
+                                    Diagnostic::error(
+                                        format!(
+                                            "Type mismatch in `state {}` initializer: {msg}",
+                                            s.name
+                                        ),
+                                        s.span,
+                                        self.source,
+                                    )
+                                    .with_code(
+                                        crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
                                     ),
-                                    s.span,
-                                    self.source,
-                                ));
+                                );
                             }
                         }
                     }
@@ -386,11 +391,19 @@ impl<'a> Checker<'a> {
                     let expr_ty = self.check_expr(&d.expr, None);
                     if let Some((_, decl_ty)) = derived_vars.get(derived_idx) {
                         if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
-                            self.diags.push(Diagnostic::error(
-                                format!("Type mismatch in `derived {}` expression: {msg}", d.name),
-                                d.span,
-                                self.source,
-                            ));
+                            self.diags.push(
+                                Diagnostic::error(
+                                    format!(
+                                        "Type mismatch in `derived {}` expression: {msg}",
+                                        d.name
+                                    ),
+                                    d.span,
+                                    self.source,
+                                )
+                                .with_code(
+                                    crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
+                                ),
+                            );
                         }
                     }
                     derived_idx += 1;
@@ -575,11 +588,16 @@ impl<'a> Checker<'a> {
                 let target_ty = if let Some(ann) = type_ann {
                     let ann_ty = resolve_hir_type(ann, self.env);
                     if let Err(msg) = self.uf.unify(&val_ty, &ann_ty) {
-                        self.diags.push(Diagnostic::error(
-                            format!("Type mismatch in `let`: {msg}"),
-                            hir_expr_span(value),
-                            self.source,
-                        ));
+                        self.diags.push(
+                            Diagnostic::error(
+                                format!("Type mismatch in `let`: {msg}"),
+                                hir_expr_span(value),
+                                self.source,
+                            )
+                            .with_code(
+                                crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
+                            ),
+                        );
                     }
                     ann_ty
                 } else {
@@ -616,11 +634,16 @@ impl<'a> Checker<'a> {
                     .map_or(Ty::Unit, |v| self.check_expr(v, expected_ret.as_ref()));
                 if let Some(expected) = self.env.current_return_type() {
                     if let Err(msg) = self.uf.unify(&val_ty, expected) {
-                        self.diags.push(Diagnostic::error(
-                            format!("Return type mismatch: {msg}"),
-                            *span,
-                            self.source,
-                        ));
+                        self.diags.push(
+                            Diagnostic::error(
+                                format!("Return type mismatch: {msg}"),
+                                *span,
+                                self.source,
+                            )
+                            .with_code(
+                                crate::typeck::diagnostics::codes::TYPES_TYPE_MISMATCH,
+                            ),
+                        );
                     }
                 }
                 Ty::Never
@@ -680,22 +703,32 @@ impl<'a> Checker<'a> {
                                     let _ = self.uf.unify(&result, f_ty);
                                     progress = true;
                                 } else {
-                                    self.diags.push(Diagnostic::error(
-                                        format!("Field '{field}' not found on {obj_ty:?}"),
-                                        span,
-                                        self.source,
-                                    ));
+                                    self.diags.push(
+                                        Diagnostic::error(
+                                            format!("Field '{field}' not found on {obj_ty:?}"),
+                                            span,
+                                            self.source,
+                                        )
+                                        .with_code(
+                                            crate::typeck::diagnostics::codes::TYPES_FIELD_NOT_FOUND,
+                                        ),
+                                    );
                                 }
                             }
                             Ty::Error | Ty::Never => {
                                 progress = true;
                             } // suppress cascades
                             other => {
-                                self.diags.push(Diagnostic::error(
-                                    format!("Cannot access field '{field}' on {other:?}"),
-                                    span,
-                                    self.source,
-                                ));
+                                self.diags.push(
+                                    Diagnostic::error(
+                                        format!("Cannot access field '{field}' on {other:?}"),
+                                        span,
+                                        self.source,
+                                    )
+                                    .with_code(
+                                        crate::typeck::diagnostics::codes::TYPES_FIELD_NOT_FOUND,
+                                    ),
+                                );
                             }
                         }
                     }
@@ -737,15 +770,20 @@ impl<'a> Checker<'a> {
                                     // TypeVar IDs to script authors. See
                                     // closures-rfc-2026-05-23.md §11 Q4.
                                     let pretty = pretty_print_unresolved_type(other);
-                                    self.diags.push(Diagnostic::error(
-                                        format!(
-                                            "Method `{method}` not found on {pretty}.\n\
-                                             If `{pretty}` looks unexpected, the receiver may need an \
-                                             explicit type annotation upstream."
+                                    self.diags.push(
+                                        Diagnostic::error(
+                                            format!(
+                                                "Method `{method}` not found on {pretty}.\n\
+                                                 If `{pretty}` looks unexpected, the receiver may need an \
+                                                 explicit type annotation upstream."
+                                            ),
+                                            span,
+                                            self.source,
+                                        )
+                                        .with_code(
+                                            crate::typeck::diagnostics::codes::TYPES_METHOD_NOT_FOUND,
                                         ),
-                                        span,
-                                        self.source,
-                                    ));
+                                    );
                                 }
                             }
                         }
@@ -756,7 +794,7 @@ impl<'a> Checker<'a> {
         }
 
         for constraint in queue {
-            let (span, msg) = match &constraint {
+            let (span, msg, code) = match &constraint {
                 crate::typeck::unify::PendingConstraint::HasField { span, target, field, .. } => {
                     let target_str = pretty_print_unresolved_type(target);
                     (*span, format!(
@@ -764,7 +802,7 @@ impl<'a> Checker<'a> {
                          Inferred so far: {target_str}.\n\
                          Add an explicit type annotation to the variable that produced this value \
                          (e.g. `let x: <Type> = ...`)."
-                    ))
+                    ), crate::typeck::diagnostics::codes::TYPES_UNRESOLVED_TYPE)
                 }
                 crate::typeck::unify::PendingConstraint::HasMethod { span, target, method, .. } => {
                     // Per closures-rfc-2026-05-23.md §11 Q4: when a method call
@@ -791,10 +829,12 @@ impl<'a> Checker<'a> {
                         "Cannot infer the type of this value to call `.{method}()`.\n\
                          Inferred so far: {target_str}.\n\
                          {suggestion}"
-                    ))
+                    ), crate::typeck::diagnostics::codes::TYPES_UNRESOLVED_TYPE)
                 }
             };
-            self.diags.push(Diagnostic::error(msg, span, self.source));
+            self.diags.push(
+                Diagnostic::error(msg, span, self.source).with_code(code),
+            );
         }
     }
 }
@@ -817,11 +857,7 @@ pub(crate) fn pretty_print_unresolved_type(ty: &Ty) -> String {
         Ty::Never => "Never".to_string(),
         Ty::List(inner) => format!("List[{}]", pretty_print_unresolved_type(inner)),
         Ty::Option(inner) => format!("Option[{}]", pretty_print_unresolved_type(inner)),
-        Ty::Result(inner, err) => format!(
-            "Result[{}, {}]",
-            pretty_print_unresolved_type(inner),
-            pretty_print_unresolved_type(err)
-        ),
+        Ty::Result(inner) => format!("Result[{}]", pretty_print_unresolved_type(inner)),
         Ty::Fn(_, _) => "fn(...)".to_string(),
         _ => format!("{ty:?}"),
     }

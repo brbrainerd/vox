@@ -1,0 +1,39 @@
+# vox:skip
+id = "plan-fidelity-011-add-post-body-validation-helper"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+In `src/posts.vox`, add a pure helper `fn is_valid_post_body(body: str) to bool` \
+that returns `true` when `len(body) > 0 and len(body) <= 2000`, `false` otherwise. \
+Update the existing `create_post(title: str, body: str) to Result[str]` to call \
+`is_valid_post_body(body)` and return `Error("invalid body")` when it returns `false`. \
+Add to `tests/posts_test.vox`: \
+`@test fn test_valid_post_body_accepted` (asserts a 10-char body passes) and \
+`@test fn test_empty_post_body_rejected` (asserts empty body fails). \
+Run `vox check --strict && vox test --filter=test_valid_post_body`.
+"""
+preconditions = """
+`src/posts.vox` defines `@table type Post { ... }` and \
+`@mutation @auth(scheme: bearer) fn create_post(title: str, body: str) to Result[str]` \
+with no body validation. `tests/posts_test.vox` exists. \
+`vox check --strict` passes at HEAD. No `is_valid_post_body` exists yet.
+"""
+
+[plan_expected_shape]
+min_steps = 4
+max_steps = 8
+must_include_tasks = ["add-helper-fn", "update-endpoint-guard", "add-tests", "verify-compile"]
+must_include_decorator_calls = ["@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_valid_post_body"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/posts.vox", regex = "fn is_valid_post_body" },
+  { path = "src/posts.vox", regex = "2000" },
+  { path = "src/posts.vox", regex = "is_valid_post_body" },
+  { path = "tests/posts_test.vox", regex = "test_valid_post_body_accepted" },
+  { path = "tests/posts_test.vox", regex = "test_empty_post_body_rejected" },
+]

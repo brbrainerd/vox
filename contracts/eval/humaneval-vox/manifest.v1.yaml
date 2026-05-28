@@ -7,33 +7,1503 @@ schema_version: 1
 #   - docs/src/architecture/v1-release-criteria.md [CR-L1]
 #   - docs/src/architecture/v1-llm-target-implementation-plan-2026.md §1.4 P3.1, §3
 #
-# Status as of 2026-05-15: EMPTY STUB. Fixtures land during P3.1
-# (corpus engineering, target close 2026-09).
+# Landed: 2026-05-26 (minimum-viable: 50 problems, 10 held-out)
+# Expanded: 2026-05-26 (75 problems, 20 held-out)
+# Expanded: 2026-05-27 (100 problems, 25 held-out)
+# Expanded: 2026-05-27 (164 problems, 44 held-out) — corpus complete
 
 corpus:
   id: humaneval-vox
   schema_version: 1
-  status: seed                            # seed | stub | minimum-viable | complete
+  status: complete                           # stub | minimum-viable | complete
   bar:
-    target: 0.80                          # >= 80% pass rate (median of panel) — LLM-panel measurement
-    sub_bar_block_demote: 0.60            # < 60% -> demote CR-L1 to v1.1
-    corpus_validity_target: 1.00          # corpus-validity layer must be 100% (any compile failure is a corpus bug)
-  count_target: 164                       # anchored to HumanEval-Python
-  held_out_target: 30                     # 30 of 164 must be training_eligible:false
-  count_current: 164                      # 2026-05-19: HumanEval-Python anchor reached. 134 hand-authored fixtures (031-164) added this session on top of the 30 seed. Surface coverage: int/bool/str primitives, Option/Result construction + match, list literals + len, conditional bands, Cartesian quadrants, Gregorian leap-year, BMI/tax/grade brackets.
-  held_out_current: 10                    # all 10 examples-golden-lift fixtures are training_eligible:false
-  corpus_hash: "blake3:feaf32ed39b465f134bc1e4af700374361091fa6190d940ad4ed34efbbc59d2a"
+    target: 0.80                            # >= 80% pass rate (median of panel)
+    sub_bar_block_demote: 0.60              # < 60% -> demote CR-L1 to v1.1
+  count_target: 164                         # anchored to HumanEval-Python
+  held_out_target: 30                       # 30 of 164 must be training_eligible:false
+  count_current: 164
+  held_out_current: 44
+  corpus_hash: "sha256:8a2f155a4010a0112a5dab8ab6ebc1a577d3349dd56201f4495a25ff74fdb54e"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
-# Fixtures are discovered on disk under `problems/<NNN-name>/` directories,
-# each containing `spec.toml` + `reference.vox` + `tests.vox`. The runner at
-# `crates/vox-audit/src/subcommands/humaneval.rs` walks this directory and
-# computes corpus_hash from the sorted content of those files. Listing
-# fixtures here would duplicate the on-disk source of truth.
-fixtures_layout:
-  problems_dir: "problems/"
-  fixture_files: ["spec.toml", "reference.vox", "tests.vox"]
-  hash_input: "sorted (id, reference_source, tests_source) tuples joined by newlines"
+# Fixtures (164 problems: 120 training-eligible, 44 held-out).
+fixtures:
+  - id: "001"
+    slug: "001-fizzbuzz"
+    title: "fizzbuzz"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/001-fizzbuzz.spec.toml"
+      reference: "problems/001-fizzbuzz/reference.vox"
+      tests: "problems/001-fizzbuzz/tests.vox"
+  - id: "002"
+    slug: "002-factorial"
+    title: "factorial"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/002-factorial.spec.toml"
+      reference: "problems/002-factorial/reference.vox"
+      tests: "problems/002-factorial/tests.vox"
+  - id: "003"
+    slug: "003-fibonacci"
+    title: "fibonacci"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/003-fibonacci.spec.toml"
+      reference: "problems/003-fibonacci/reference.vox"
+      tests: "problems/003-fibonacci/tests.vox"
+  - id: "004"
+    slug: "004-is-palindrome"
+    title: "is_palindrome"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/004-is-palindrome.spec.toml"
+      reference: "problems/004-is-palindrome/reference.vox"
+      tests: "problems/004-is-palindrome/tests.vox"
+  - id: "005"
+    slug: "005-count-vowels"
+    title: "count_vowels"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/005-count-vowels.spec.toml"
+      reference: "problems/005-count-vowels/reference.vox"
+      tests: "problems/005-count-vowels/tests.vox"
+  - id: "006"
+    slug: "006-reverse-string"
+    title: "reverse_string"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/006-reverse-string.spec.toml"
+      reference: "problems/006-reverse-string/reference.vox"
+      tests: "problems/006-reverse-string/tests.vox"
+  - id: "007"
+    slug: "007-sum-digits"
+    title: "sum_digits"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/007-sum-digits.spec.toml"
+      reference: "problems/007-sum-digits/reference.vox"
+      tests: "problems/007-sum-digits/tests.vox"
+  - id: "008"
+    slug: "008-is-prime"
+    title: "is_prime"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/008-is-prime.spec.toml"
+      reference: "problems/008-is-prime/reference.vox"
+      tests: "problems/008-is-prime/tests.vox"
+  - id: "009"
+    slug: "009-gcd"
+    title: "gcd"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/009-gcd.spec.toml"
+      reference: "problems/009-gcd/reference.vox"
+      tests: "problems/009-gcd/tests.vox"
+  - id: "010"
+    slug: "010-celsius-to-fahrenheit"
+    title: "celsius_to_fahrenheit"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/010-celsius-to-fahrenheit.spec.toml"
+      reference: "problems/010-celsius-to-fahrenheit/reference.vox"
+      tests: "problems/010-celsius-to-fahrenheit/tests.vox"
+  - id: "011"
+    slug: "011-word-count"
+    title: "word_count"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/011-word-count.spec.toml"
+      reference: "problems/011-word-count/reference.vox"
+      tests: "problems/011-word-count/tests.vox"
+  - id: "012"
+    slug: "012-max-of-list"
+    title: "max_of_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/012-max-of-list.spec.toml"
+      reference: "problems/012-max-of-list/reference.vox"
+      tests: "problems/012-max-of-list/tests.vox"
+  - id: "013"
+    slug: "013-sum-list"
+    title: "sum_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/013-sum-list.spec.toml"
+      reference: "problems/013-sum-list/reference.vox"
+      tests: "problems/013-sum-list/tests.vox"
+  - id: "014"
+    slug: "014-remove-duplicates"
+    title: "remove_duplicates"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/014-remove-duplicates.spec.toml"
+      reference: "problems/014-remove-duplicates/reference.vox"
+      tests: "problems/014-remove-duplicates/tests.vox"
+  - id: "015"
+    slug: "015-count-occurrences"
+    title: "count_occurrences"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/015-count-occurrences.spec.toml"
+      reference: "problems/015-count-occurrences/reference.vox"
+      tests: "problems/015-count-occurrences/tests.vox"
+  - id: "016"
+    slug: "016-running-total"
+    title: "running_total"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/016-running-total.spec.toml"
+      reference: "problems/016-running-total/reference.vox"
+      tests: "problems/016-running-total/tests.vox"
+  - id: "017"
+    slug: "017-is-sorted"
+    title: "is_sorted"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/017-is-sorted.spec.toml"
+      reference: "problems/017-is-sorted/reference.vox"
+      tests: "problems/017-is-sorted/tests.vox"
+  - id: "018"
+    slug: "018-rotate-left"
+    title: "rotate_left"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/018-rotate-left.spec.toml"
+      reference: "problems/018-rotate-left/reference.vox"
+      tests: "problems/018-rotate-left/tests.vox"
+  - id: "019"
+    slug: "019-alternating-sum"
+    title: "alternating_sum"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/019-alternating-sum.spec.toml"
+      reference: "problems/019-alternating-sum/reference.vox"
+      tests: "problems/019-alternating-sum/tests.vox"
+  - id: "020"
+    slug: "020-flatten-one-level"
+    title: "flatten_one_level"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/020-flatten-one-level.spec.toml"
+      reference: "problems/020-flatten-one-level/reference.vox"
+      tests: "problems/020-flatten-one-level/tests.vox"
+  - id: "021"
+    slug: "021-starts-with-capital"
+    title: "starts_with_capital"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/021-starts-with-capital.spec.toml"
+      reference: "problems/021-starts-with-capital/reference.vox"
+      tests: "problems/021-starts-with-capital/tests.vox"
+  - id: "022"
+    slug: "022-repeat-str"
+    title: "repeat_str"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/022-repeat-str.spec.toml"
+      reference: "problems/022-repeat-str/reference.vox"
+      tests: "problems/022-repeat-str/tests.vox"
+  - id: "023"
+    slug: "023-longest-word"
+    title: "longest_word"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/023-longest-word.spec.toml"
+      reference: "problems/023-longest-word/reference.vox"
+      tests: "problems/023-longest-word/tests.vox"
+  - id: "024"
+    slug: "024-is-balanced-parens"
+    title: "is_balanced_parens"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/024-is-balanced-parens.spec.toml"
+      reference: "problems/024-is-balanced-parens/reference.vox"
+      tests: "problems/024-is-balanced-parens/tests.vox"
+  - id: "025"
+    slug: "025-min-of-list"
+    title: "min_of_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/025-min-of-list.spec.toml"
+      reference: "problems/025-min-of-list/reference.vox"
+      tests: "problems/025-min-of-list/tests.vox"
+  - id: "026"
+    slug: "026-average"
+    title: "average"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/026-average.spec.toml"
+      reference: "problems/026-average/reference.vox"
+      tests: "problems/026-average/tests.vox"
+  - id: "027"
+    slug: "027-clamp"
+    title: "clamp"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/027-clamp.spec.toml"
+      reference: "problems/027-clamp/reference.vox"
+      tests: "problems/027-clamp/tests.vox"
+  - id: "028"
+    slug: "028-abs-val"
+    title: "abs_val"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/028-abs-val.spec.toml"
+      reference: "problems/028-abs-val/reference.vox"
+      tests: "problems/028-abs-val/tests.vox"
+  - id: "029"
+    slug: "029-lcm"
+    title: "lcm"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/029-lcm.spec.toml"
+      reference: "problems/029-lcm/reference.vox"
+      tests: "problems/029-lcm/tests.vox"
+  - id: "030"
+    slug: "030-power"
+    title: "power"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/030-power.spec.toml"
+      reference: "problems/030-power/reference.vox"
+      tests: "problems/030-power/tests.vox"
+  - id: "031"
+    slug: "031-count-chars"
+    title: "count_chars"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/031-count-chars.spec.toml"
+      reference: "problems/031-count-chars/reference.vox"
+      tests: "problems/031-count-chars/tests.vox"
+  - id: "032"
+    slug: "032-is-even"
+    title: "is_even"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/032-is-even.spec.toml"
+      reference: "problems/032-is-even/reference.vox"
+      tests: "problems/032-is-even/tests.vox"
+  - id: "033"
+    slug: "033-filter-evens"
+    title: "filter_evens"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/033-filter-evens.spec.toml"
+      reference: "problems/033-filter-evens/reference.vox"
+      tests: "problems/033-filter-evens/tests.vox"
+  - id: "034"
+    slug: "034-list-to-str"
+    title: "list_to_str"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/034-list-to-str.spec.toml"
+      reference: "problems/034-list-to-str/reference.vox"
+      tests: "problems/034-list-to-str/tests.vox"
+  - id: "035"
+    slug: "035-str-length"
+    title: "str_length"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/035-str-length.spec.toml"
+      reference: "problems/035-str-length/reference.vox"
+      tests: "problems/035-str-length/tests.vox"
+  - id: "036"
+    slug: "036-double-list"
+    title: "double_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/036-double-list.spec.toml"
+      reference: "problems/036-double-list/reference.vox"
+      tests: "problems/036-double-list/tests.vox"
+  - id: "037"
+    slug: "037-nth-element"
+    title: "nth_element"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/037-nth-element.spec.toml"
+      reference: "problems/037-nth-element/reference.vox"
+      tests: "problems/037-nth-element/tests.vox"
+  - id: "038"
+    slug: "038-product-list"
+    title: "product_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/038-product-list.spec.toml"
+      reference: "problems/038-product-list/reference.vox"
+      tests: "problems/038-product-list/tests.vox"
+  - id: "039"
+    slug: "039-zip-sums"
+    title: "zip_sums"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/039-zip-sums.spec.toml"
+      reference: "problems/039-zip-sums/reference.vox"
+      tests: "problems/039-zip-sums/tests.vox"
+  - id: "040"
+    slug: "040-count-negatives"
+    title: "count_negatives"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/040-count-negatives.spec.toml"
+      reference: "problems/040-count-negatives/reference.vox"
+      tests: "problems/040-count-negatives/tests.vox"
+  - id: "041"
+    slug: "041-nth-prime"
+    title: "nth_prime"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/041-nth-prime.spec.toml"
+      reference: "problems/041-nth-prime/reference.vox"
+      tests: "problems/041-nth-prime/tests.vox"
+  - id: "042"
+    slug: "042-reverse-list"
+    title: "reverse_list"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/042-reverse-list.spec.toml"
+      reference: "problems/042-reverse-list/reference.vox"
+      tests: "problems/042-reverse-list/tests.vox"
+  - id: "043"
+    slug: "043-triangle-valid"
+    title: "triangle_valid"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/043-triangle-valid.spec.toml"
+      reference: "problems/043-triangle-valid/reference.vox"
+      tests: "problems/043-triangle-valid/tests.vox"
+  - id: "044"
+    slug: "044-digital-root"
+    title: "digital_root"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/044-digital-root.spec.toml"
+      reference: "problems/044-digital-root/reference.vox"
+      tests: "problems/044-digital-root/tests.vox"
+  - id: "045"
+    slug: "045-caesar-shift"
+    title: "caesar_shift"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/045-caesar-shift.spec.toml"
+      reference: "problems/045-caesar-shift/reference.vox"
+      tests: "problems/045-caesar-shift/tests.vox"
+  - id: "046"
+    slug: "046-count-primes-up-to"
+    title: "count_primes_up_to"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/046-count-primes-up-to.spec.toml"
+      reference: "problems/046-count-primes-up-to/reference.vox"
+      tests: "problems/046-count-primes-up-to/tests.vox"
+  - id: "047"
+    slug: "047-partition-by-sign"
+    title: "partition_by_sign"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/047-partition-by-sign.spec.toml"
+      reference: "problems/047-partition-by-sign/reference.vox"
+      tests: "problems/047-partition-by-sign/tests.vox"
+  - id: "048"
+    slug: "048-collatz-length"
+    title: "collatz_length"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/048-collatz-length.spec.toml"
+      reference: "problems/048-collatz-length/reference.vox"
+      tests: "problems/048-collatz-length/tests.vox"
+  - id: "049"
+    slug: "049-merge-sorted"
+    title: "merge_sorted"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/049-merge-sorted.spec.toml"
+      reference: "problems/049-merge-sorted/reference.vox"
+      tests: "problems/049-merge-sorted/tests.vox"
+  - id: "050"
+    slug: "050-selection-sort"
+    title: "selection_sort"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/050-selection-sort.spec.toml"
+      reference: "problems/050-selection-sort/reference.vox"
+      tests: "problems/050-selection-sort/tests.vox"
+  - id: "051"
+    slug: "051-is-leap-year"
+    title: "is_leap_year"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/051-is-leap-year.spec.toml"
+      reference: "problems/051-is-leap-year/reference.vox"
+      tests: "problems/051-is-leap-year/tests.vox"
+  - id: "052"
+    slug: "052-title-case"
+    title: "title_case"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/052-title-case.spec.toml"
+      reference: "problems/052-title-case/reference.vox"
+      tests: "problems/052-title-case/tests.vox"
+  - id: "053"
+    slug: "053-is-anagram"
+    title: "is_anagram"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/053-is-anagram.spec.toml"
+      reference: "problems/053-is-anagram/reference.vox"
+      tests: "problems/053-is-anagram/tests.vox"
+  - id: "054"
+    slug: "054-str-is-numeric"
+    title: "str_is_numeric"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/054-str-is-numeric.spec.toml"
+      reference: "problems/054-str-is-numeric/reference.vox"
+      tests: "problems/054-str-is-numeric/tests.vox"
+  - id: "055"
+    slug: "055-remove-vowels"
+    title: "remove_vowels"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/055-remove-vowels.spec.toml"
+      reference: "problems/055-remove-vowels/reference.vox"
+      tests: "problems/055-remove-vowels/tests.vox"
+  - id: "056"
+    slug: "056-count-words"
+    title: "count_words"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/056-count-words.spec.toml"
+      reference: "problems/056-count-words/reference.vox"
+      tests: "problems/056-count-words/tests.vox"
+  - id: "057"
+    slug: "057-sum-of-squares"
+    title: "sum_of_squares"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/057-sum-of-squares.spec.toml"
+      reference: "problems/057-sum-of-squares/reference.vox"
+      tests: "problems/057-sum-of-squares/tests.vox"
+  - id: "058"
+    slug: "058-is-armstrong"
+    title: "is_armstrong"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/058-is-armstrong.spec.toml"
+      reference: "problems/058-is-armstrong/reference.vox"
+      tests: "problems/058-is-armstrong/tests.vox"
+  - id: "059"
+    slug: "059-count-divisors"
+    title: "count_divisors"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/059-count-divisors.spec.toml"
+      reference: "problems/059-count-divisors/reference.vox"
+      tests: "problems/059-count-divisors/tests.vox"
+  - id: "060"
+    slug: "060-int-to-binary"
+    title: "int_to_binary"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/060-int-to-binary.spec.toml"
+      reference: "problems/060-int-to-binary/reference.vox"
+      tests: "problems/060-int-to-binary/tests.vox"
+  - id: "061"
+    slug: "061-binary-to-int"
+    title: "binary_to_int"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/061-binary-to-int.spec.toml"
+      reference: "problems/061-binary-to-int/reference.vox"
+      tests: "problems/061-binary-to-int/tests.vox"
+  - id: "062"
+    slug: "062-is-power-of-two"
+    title: "is_power_of_two"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/062-is-power-of-two.spec.toml"
+      reference: "problems/062-is-power-of-two/reference.vox"
+      tests: "problems/062-is-power-of-two/tests.vox"
+  - id: "063"
+    slug: "063-unique-elements"
+    title: "unique_elements"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/063-unique-elements.spec.toml"
+      reference: "problems/063-unique-elements/reference.vox"
+      tests: "problems/063-unique-elements/tests.vox"
+  - id: "064"
+    slug: "064-list-intersection"
+    title: "list_intersection"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/064-list-intersection.spec.toml"
+      reference: "problems/064-list-intersection/reference.vox"
+      tests: "problems/064-list-intersection/tests.vox"
+  - id: "065"
+    slug: "065-rotate-right"
+    title: "rotate_right"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/065-rotate-right.spec.toml"
+      reference: "problems/065-rotate-right/reference.vox"
+      tests: "problems/065-rotate-right/tests.vox"
+  - id: "066"
+    slug: "066-max-subarray-sum"
+    title: "max_subarray_sum"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/066-max-subarray-sum.spec.toml"
+      reference: "problems/066-max-subarray-sum/reference.vox"
+      tests: "problems/066-max-subarray-sum/tests.vox"
+  - id: "067"
+    slug: "067-bubble-sort"
+    title: "bubble_sort"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/067-bubble-sort.spec.toml"
+      reference: "problems/067-bubble-sort/reference.vox"
+      tests: "problems/067-bubble-sort/tests.vox"
+  - id: "068"
+    slug: "068-insertion-sort"
+    title: "insertion_sort"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/068-insertion-sort.spec.toml"
+      reference: "problems/068-insertion-sort/reference.vox"
+      tests: "problems/068-insertion-sort/tests.vox"
+  - id: "069"
+    slug: "069-binary-search"
+    title: "binary_search"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/069-binary-search.spec.toml"
+      reference: "problems/069-binary-search/reference.vox"
+      tests: "problems/069-binary-search/tests.vox"
+  - id: "070"
+    slug: "070-count-set-bits"
+    title: "count_set_bits"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/070-count-set-bits.spec.toml"
+      reference: "problems/070-count-set-bits/reference.vox"
+      tests: "problems/070-count-set-bits/tests.vox"
+  - id: "071"
+    slug: "071-is-perfect"
+    title: "is_perfect"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/071-is-perfect.spec.toml"
+      reference: "problems/071-is-perfect/reference.vox"
+      tests: "problems/071-is-perfect/tests.vox"
+  - id: "072"
+    slug: "072-triangular-number"
+    title: "triangular_number"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/072-triangular-number.spec.toml"
+      reference: "problems/072-triangular-number/reference.vox"
+      tests: "problems/072-triangular-number/tests.vox"
+  - id: "073"
+    slug: "073-two-sum-exists"
+    title: "two_sum_exists"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/073-two-sum-exists.spec.toml"
+      reference: "problems/073-two-sum-exists/reference.vox"
+      tests: "problems/073-two-sum-exists/tests.vox"
+  - id: "074"
+    slug: "074-chunk-list"
+    title: "chunk_list"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/074-chunk-list.spec.toml"
+      reference: "problems/074-chunk-list/reference.vox"
+      tests: "problems/074-chunk-list/tests.vox"
+  - id: "075"
+    slug: "075-sum-even-squares"
+    title: "sum_even_squares"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/075-sum-even-squares.spec.toml"
+      reference: "problems/075-sum-even-squares/reference.vox"
+      tests: "problems/075-sum-even-squares/tests.vox"
+  - id: "076"
+    slug: "076-is-palindrome-int"
+    title: "is_palindrome_int"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/076-is-palindrome-int.spec.toml"
+      reference: "problems/076-is-palindrome-int/reference.vox"
+      tests: "problems/076-is-palindrome-int/tests.vox"
+  - id: "077"
+    slug: "077-sum-of-digits"
+    title: "sum_of_digits"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/077-sum-of-digits.spec.toml"
+      reference: "problems/077-sum-of-digits/reference.vox"
+      tests: "problems/077-sum-of-digits/tests.vox"
+  - id: "078"
+    slug: "078-count-uppercase"
+    title: "count_uppercase"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/078-count-uppercase.spec.toml"
+      reference: "problems/078-count-uppercase/reference.vox"
+      tests: "problems/078-count-uppercase/tests.vox"
+  - id: "079"
+    slug: "079-count-lowercase"
+    title: "count_lowercase"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/079-count-lowercase.spec.toml"
+      reference: "problems/079-count-lowercase/reference.vox"
+      tests: "problems/079-count-lowercase/tests.vox"
+  - id: "080"
+    slug: "080-capitalize-first"
+    title: "capitalize_first"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/080-capitalize-first.spec.toml"
+      reference: "problems/080-capitalize-first/reference.vox"
+      tests: "problems/080-capitalize-first/tests.vox"
+  - id: "081"
+    slug: "081-repeat-list"
+    title: "repeat_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/081-repeat-list.spec.toml"
+      reference: "problems/081-repeat-list/reference.vox"
+      tests: "problems/081-repeat-list/tests.vox"
+  - id: "082"
+    slug: "082-list-min-max"
+    title: "list_min_max"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/082-list-min-max.spec.toml"
+      reference: "problems/082-list-min-max/reference.vox"
+      tests: "problems/082-list-min-max/tests.vox"
+  - id: "083"
+    slug: "083-remove-negatives"
+    title: "remove_negatives"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/083-remove-negatives.spec.toml"
+      reference: "problems/083-remove-negatives/reference.vox"
+      tests: "problems/083-remove-negatives/tests.vox"
+  - id: "084"
+    slug: "084-sum-odd"
+    title: "sum_odd"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/084-sum-odd.spec.toml"
+      reference: "problems/084-sum-odd/reference.vox"
+      tests: "problems/084-sum-odd/tests.vox"
+  - id: "085"
+    slug: "085-count-even"
+    title: "count_even"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/085-count-even.spec.toml"
+      reference: "problems/085-count-even/reference.vox"
+      tests: "problems/085-count-even/tests.vox"
+  - id: "086"
+    slug: "086-is-square"
+    title: "is_square"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/086-is-square.spec.toml"
+      reference: "problems/086-is-square/reference.vox"
+      tests: "problems/086-is-square/tests.vox"
+  - id: "087"
+    slug: "087-int-reverse"
+    title: "int_reverse"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/087-int-reverse.spec.toml"
+      reference: "problems/087-int-reverse/reference.vox"
+      tests: "problems/087-int-reverse/tests.vox"
+  - id: "088"
+    slug: "088-str-frequency"
+    title: "char_frequency"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/088-str-frequency.spec.toml"
+      reference: "problems/088-str-frequency/reference.vox"
+      tests: "problems/088-str-frequency/tests.vox"
+  - id: "089"
+    slug: "089-flatten-nested"
+    title: "flatten_nested"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/089-flatten-nested.spec.toml"
+      reference: "problems/089-flatten-nested/reference.vox"
+      tests: "problems/089-flatten-nested/tests.vox"
+  - id: "090"
+    slug: "090-sum-squares"
+    title: "sum_squares"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/090-sum-squares.spec.toml"
+      reference: "problems/090-sum-squares/reference.vox"
+      tests: "problems/090-sum-squares/tests.vox"
+  - id: "091"
+    slug: "091-is-sorted-desc"
+    title: "is_sorted_desc"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/091-is-sorted-desc.spec.toml"
+      reference: "problems/091-is-sorted-desc/reference.vox"
+      tests: "problems/091-is-sorted-desc/tests.vox"
+  - id: "092"
+    slug: "092-zip-products"
+    title: "zip_products"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/092-zip-products.spec.toml"
+      reference: "problems/092-zip-products/reference.vox"
+      tests: "problems/092-zip-products/tests.vox"
+  - id: "093"
+    slug: "093-last-n"
+    title: "last_n"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/093-last-n.spec.toml"
+      reference: "problems/093-last-n/reference.vox"
+      tests: "problems/093-last-n/tests.vox"
+  - id: "094"
+    slug: "094-first-n"
+    title: "first_n"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/094-first-n.spec.toml"
+      reference: "problems/094-first-n/reference.vox"
+      tests: "problems/094-first-n/tests.vox"
+  - id: "095"
+    slug: "095-range-sum"
+    title: "range_sum"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/095-range-sum.spec.toml"
+      reference: "problems/095-range-sum/reference.vox"
+      tests: "problems/095-range-sum/tests.vox"
+  - id: "096"
+    slug: "096-reverse-words"
+    title: "reverse_words"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/096-reverse-words.spec.toml"
+      reference: "problems/096-reverse-words/reference.vox"
+      tests: "problems/096-reverse-words/tests.vox"
+  - id: "097"
+    slug: "097-digit-product"
+    title: "digit_product"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/097-digit-product.spec.toml"
+      reference: "problems/097-digit-product/reference.vox"
+      tests: "problems/097-digit-product/tests.vox"
+  - id: "098"
+    slug: "098-is-power-of-n"
+    title: "is_power_of_n"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/098-is-power-of-n.spec.toml"
+      reference: "problems/098-is-power-of-n/reference.vox"
+      tests: "problems/098-is-power-of-n/tests.vox"
+  - id: "099"
+    slug: "099-hamming-distance"
+    title: "hamming_distance"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/099-hamming-distance.spec.toml"
+      reference: "problems/099-hamming-distance/reference.vox"
+      tests: "problems/099-hamming-distance/tests.vox"
+  - id: "100"
+    slug: "100-pangram-check"
+    title: "is_pangram"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/100-pangram-check.spec.toml"
+      reference: "problems/100-pangram-check/reference.vox"
+      tests: "problems/100-pangram-check/tests.vox"
+  - id: "101"
+    slug: "101-is-abundant"
+    title: "is_abundant"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/101-is-abundant.spec.toml"
+      reference: "problems/101-is-abundant/reference.vox"
+      tests: "problems/101-is-abundant/tests.vox"
+  - id: "102"
+    slug: "102-common-elements"
+    title: "common_elements"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/102-common-elements.spec.toml"
+      reference: "problems/102-common-elements/reference.vox"
+      tests: "problems/102-common-elements/tests.vox"
+  - id: "103"
+    slug: "103-remove-at-index"
+    title: "remove_at_index"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/103-remove-at-index.spec.toml"
+      reference: "problems/103-remove-at-index/reference.vox"
+      tests: "problems/103-remove-at-index/tests.vox"
+  - id: "104"
+    slug: "104-insert-at-index"
+    title: "insert_at_index"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/104-insert-at-index.spec.toml"
+      reference: "problems/104-insert-at-index/reference.vox"
+      tests: "problems/104-insert-at-index/tests.vox"
+  - id: "105"
+    slug: "105-str-repeat"
+    title: "str_repeat"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/105-str-repeat.spec.toml"
+      reference: "problems/105-str-repeat/reference.vox"
+      tests: "problems/105-str-repeat/tests.vox"
+  - id: "106"
+    slug: "106-count-words-long"
+    title: "count_words_long"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/106-count-words-long.spec.toml"
+      reference: "problems/106-count-words-long/reference.vox"
+      tests: "problems/106-count-words-long/tests.vox"
+  - id: "107"
+    slug: "107-nth-fibonacci"
+    title: "nth_fibonacci"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/107-nth-fibonacci.spec.toml"
+      reference: "problems/107-nth-fibonacci/reference.vox"
+      tests: "problems/107-nth-fibonacci/tests.vox"
+  - id: "108"
+    slug: "108-is-valid-bracket"
+    title: "is_valid_bracket"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/108-is-valid-bracket.spec.toml"
+      reference: "problems/108-is-valid-bracket/reference.vox"
+      tests: "problems/108-is-valid-bracket/tests.vox"
+  - id: "109"
+    slug: "109-max-gap"
+    title: "max_gap"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/109-max-gap.spec.toml"
+      reference: "problems/109-max-gap/reference.vox"
+      tests: "problems/109-max-gap/tests.vox"
+  - id: "110"
+    slug: "110-remove-spaces"
+    title: "remove_spaces"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/110-remove-spaces.spec.toml"
+      reference: "problems/110-remove-spaces/reference.vox"
+      tests: "problems/110-remove-spaces/tests.vox"
+  - id: "111"
+    slug: "111-capitalize-words"
+    title: "capitalize_words"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/111-capitalize-words.spec.toml"
+      reference: "problems/111-capitalize-words/reference.vox"
+      tests: "problems/111-capitalize-words/tests.vox"
+  - id: "112"
+    slug: "112-divisors-of"
+    title: "divisors_of"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/112-divisors-of.spec.toml"
+      reference: "problems/112-divisors-of/reference.vox"
+      tests: "problems/112-divisors-of/tests.vox"
+  - id: "113"
+    slug: "113-multiply-list"
+    title: "multiply_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/113-multiply-list.spec.toml"
+      reference: "problems/113-multiply-list/reference.vox"
+      tests: "problems/113-multiply-list/tests.vox"
+  - id: "114"
+    slug: "114-is-substring"
+    title: "is_substring"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/114-is-substring.spec.toml"
+      reference: "problems/114-is-substring/reference.vox"
+      tests: "problems/114-is-substring/tests.vox"
+  - id: "115"
+    slug: "115-str-to-list"
+    title: "str_to_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/115-str-to-list.spec.toml"
+      reference: "problems/115-str-to-list/reference.vox"
+      tests: "problems/115-str-to-list/tests.vox"
+  - id: "116"
+    slug: "116-sum-first-n"
+    title: "sum_first_n"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/116-sum-first-n.spec.toml"
+      reference: "problems/116-sum-first-n/reference.vox"
+      tests: "problems/116-sum-first-n/tests.vox"
+  - id: "117"
+    slug: "117-reverse-str-words"
+    title: "reverse_str_words"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/117-reverse-str-words.spec.toml"
+      reference: "problems/117-reverse-str-words/reference.vox"
+      tests: "problems/117-reverse-str-words/tests.vox"
+  - id: "118"
+    slug: "118-all-positive"
+    title: "all_positive"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/118-all-positive.spec.toml"
+      reference: "problems/118-all-positive/reference.vox"
+      tests: "problems/118-all-positive/tests.vox"
+  - id: "119"
+    slug: "119-any-negative"
+    title: "any_negative"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/119-any-negative.spec.toml"
+      reference: "problems/119-any-negative/reference.vox"
+      tests: "problems/119-any-negative/tests.vox"
+  - id: "120"
+    slug: "120-str-palindrome-ignore-case"
+    title: "str_palindrome_ignore_case"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/120-str-palindrome-ignore-case.spec.toml"
+      reference: "problems/120-str-palindrome-ignore-case/reference.vox"
+      tests: "problems/120-str-palindrome-ignore-case/tests.vox"
+  - id: "121"
+    slug: "121-second-largest"
+    title: "second_largest"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/121-second-largest.spec.toml"
+      reference: "problems/121-second-largest/reference.vox"
+      tests: "problems/121-second-largest/tests.vox"
+  - id: "122"
+    slug: "122-list-difference"
+    title: "list_difference"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/122-list-difference.spec.toml"
+      reference: "problems/122-list-difference/reference.vox"
+      tests: "problems/122-list-difference/tests.vox"
+  - id: "123"
+    slug: "123-is-monotone"
+    title: "is_monotone"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/123-is-monotone.spec.toml"
+      reference: "problems/123-is-monotone/reference.vox"
+      tests: "problems/123-is-monotone/tests.vox"
+  - id: "124"
+    slug: "124-median-of-three"
+    title: "median_of_three"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/124-median-of-three.spec.toml"
+      reference: "problems/124-median-of-three/reference.vox"
+      tests: "problems/124-median-of-three/tests.vox"
+  - id: "125"
+    slug: "125-sum-above-avg"
+    title: "sum_above_avg"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/125-sum-above-avg.spec.toml"
+      reference: "problems/125-sum-above-avg/reference.vox"
+      tests: "problems/125-sum-above-avg/tests.vox"
+  - id: "126"
+    slug: "126-first-duplicate"
+    title: "first_duplicate"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/126-first-duplicate.spec.toml"
+      reference: "problems/126-first-duplicate/reference.vox"
+      tests: "problems/126-first-duplicate/tests.vox"
+  - id: "127"
+    slug: "127-count-digits"
+    title: "count_digits"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/127-count-digits.spec.toml"
+      reference: "problems/127-count-digits/reference.vox"
+      tests: "problems/127-count-digits/tests.vox"
+  - id: "128"
+    slug: "128-caesar-decode"
+    title: "caesar_decode"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/128-caesar-decode.spec.toml"
+      reference: "problems/128-caesar-decode/reference.vox"
+      tests: "problems/128-caesar-decode/tests.vox"
+  - id: "129"
+    slug: "129-square-list"
+    title: "square_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/129-square-list.spec.toml"
+      reference: "problems/129-square-list/reference.vox"
+      tests: "problems/129-square-list/tests.vox"
+  - id: "130"
+    slug: "130-product-of-odds"
+    title: "product_of_odds"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/130-product-of-odds.spec.toml"
+      reference: "problems/130-product-of-odds/reference.vox"
+      tests: "problems/130-product-of-odds/tests.vox"
+  - id: "131"
+    slug: "131-count-consonants"
+    title: "count_consonants"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/131-count-consonants.spec.toml"
+      reference: "problems/131-count-consonants/reference.vox"
+      tests: "problems/131-count-consonants/tests.vox"
+  - id: "132"
+    slug: "132-remove-duplicates-str"
+    title: "remove_duplicates_str"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/132-remove-duplicates-str.spec.toml"
+      reference: "problems/132-remove-duplicates-str/reference.vox"
+      tests: "problems/132-remove-duplicates-str/tests.vox"
+  - id: "133"
+    slug: "133-most-frequent"
+    title: "most_frequent"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/133-most-frequent.spec.toml"
+      reference: "problems/133-most-frequent/reference.vox"
+      tests: "problems/133-most-frequent/tests.vox"
+  - id: "134"
+    slug: "134-flatten-ints"
+    title: "flatten_ints"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/134-flatten-ints.spec.toml"
+      reference: "problems/134-flatten-ints/reference.vox"
+      tests: "problems/134-flatten-ints/tests.vox"
+  - id: "135"
+    slug: "135-list-spread"
+    title: "list_spread"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/135-list-spread.spec.toml"
+      reference: "problems/135-list-spread/reference.vox"
+      tests: "problems/135-list-spread/tests.vox"
+  - id: "136"
+    slug: "136-count-distinct"
+    title: "count_distinct"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/136-count-distinct.spec.toml"
+      reference: "problems/136-count-distinct/reference.vox"
+      tests: "problems/136-count-distinct/tests.vox"
+  - id: "137"
+    slug: "137-alternating-case"
+    title: "alternating_case"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/137-alternating-case.spec.toml"
+      reference: "problems/137-alternating-case/reference.vox"
+      tests: "problems/137-alternating-case/tests.vox"
+  - id: "138"
+    slug: "138-remove-consecutive-dups"
+    title: "remove_consecutive_dups"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/138-remove-consecutive-dups.spec.toml"
+      reference: "problems/138-remove-consecutive-dups/reference.vox"
+      tests: "problems/138-remove-consecutive-dups/tests.vox"
+  - id: "139"
+    slug: "139-str-starts-digits"
+    title: "str_starts_digits"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/139-str-starts-digits.spec.toml"
+      reference: "problems/139-str-starts-digits/reference.vox"
+      tests: "problems/139-str-starts-digits/tests.vox"
+  - id: "140"
+    slug: "140-list-rotate-left"
+    title: "list_rotate_left"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/140-list-rotate-left.spec.toml"
+      reference: "problems/140-list-rotate-left/reference.vox"
+      tests: "problems/140-list-rotate-left/tests.vox"
+  - id: "141"
+    slug: "141-nth-triangular"
+    title: "nth_triangular"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/141-nth-triangular.spec.toml"
+      reference: "problems/141-nth-triangular/reference.vox"
+      tests: "problems/141-nth-triangular/tests.vox"
+  - id: "142"
+    slug: "142-is-prime-string"
+    title: "is_prime_string"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/142-is-prime-string.spec.toml"
+      reference: "problems/142-is-prime-string/reference.vox"
+      tests: "problems/142-is-prime-string/tests.vox"
+  - id: "143"
+    slug: "143-sum-list-float"
+    title: "sum_list_float"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/143-sum-list-float.spec.toml"
+      reference: "problems/143-sum-list-float/reference.vox"
+      tests: "problems/143-sum-list-float/tests.vox"
+  - id: "144"
+    slug: "144-product-list"
+    title: "product_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/144-product-list.spec.toml"
+      reference: "problems/144-product-list/reference.vox"
+      tests: "problems/144-product-list/tests.vox"
+  - id: "145"
+    slug: "145-gcd-list"
+    title: "gcd_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/145-gcd-list.spec.toml"
+      reference: "problems/145-gcd-list/reference.vox"
+      tests: "problems/145-gcd-list/tests.vox"
+  - id: "146"
+    slug: "146-lcm-list"
+    title: "lcm_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/146-lcm-list.spec.toml"
+      reference: "problems/146-lcm-list/reference.vox"
+      tests: "problems/146-lcm-list/tests.vox"
+  - id: "147"
+    slug: "147-fibonacci-list"
+    title: "fibonacci_list"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/147-fibonacci-list.spec.toml"
+      reference: "problems/147-fibonacci-list/reference.vox"
+      tests: "problems/147-fibonacci-list/tests.vox"
+  - id: "148"
+    slug: "148-is-sorted-unique"
+    title: "is_sorted_unique"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/148-is-sorted-unique.spec.toml"
+      reference: "problems/148-is-sorted-unique/reference.vox"
+      tests: "problems/148-is-sorted-unique/tests.vox"
+  - id: "149"
+    slug: "149-count-div3"
+    title: "count_div3"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/149-count-div3.spec.toml"
+      reference: "problems/149-count-div3/reference.vox"
+      tests: "problems/149-count-div3/tests.vox"
+  - id: "150"
+    slug: "150-insert-sorted"
+    title: "insert_sorted"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/150-insert-sorted.spec.toml"
+      reference: "problems/150-insert-sorted/reference.vox"
+      tests: "problems/150-insert-sorted/tests.vox"
+  - id: "151"
+    slug: "151-int-to-digits"
+    title: "int_to_digits"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/151-int-to-digits.spec.toml"
+      reference: "problems/151-int-to-digits/reference.vox"
+      tests: "problems/151-int-to-digits/tests.vox"
+  - id: "152"
+    slug: "152-digits-to-int"
+    title: "digits_to_int"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/152-digits-to-int.spec.toml"
+      reference: "problems/152-digits-to-int/reference.vox"
+      tests: "problems/152-digits-to-int/tests.vox"
+  - id: "153"
+    slug: "153-list-average"
+    title: "list_average"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/153-list-average.spec.toml"
+      reference: "problems/153-list-average/reference.vox"
+      tests: "problems/153-list-average/tests.vox"
+  - id: "154"
+    slug: "154-remove-last"
+    title: "remove_last"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/154-remove-last.spec.toml"
+      reference: "problems/154-remove-last/reference.vox"
+      tests: "problems/154-remove-last/tests.vox"
+  - id: "155"
+    slug: "155-str-count-words-unique"
+    title: "str_count_words_unique"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/155-str-count-words-unique.spec.toml"
+      reference: "problems/155-str-count-words-unique/reference.vox"
+      tests: "problems/155-str-count-words-unique/tests.vox"
+  - id: "156"
+    slug: "156-power-sum"
+    title: "power_sum"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/156-power-sum.spec.toml"
+      reference: "problems/156-power-sum/reference.vox"
+      tests: "problems/156-power-sum/tests.vox"
+  - id: "157"
+    slug: "157-min-index"
+    title: "min_index"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/157-min-index.spec.toml"
+      reference: "problems/157-min-index/reference.vox"
+      tests: "problems/157-min-index/tests.vox"
+  - id: "158"
+    slug: "158-max-index"
+    title: "max_index"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/158-max-index.spec.toml"
+      reference: "problems/158-max-index/reference.vox"
+      tests: "problems/158-max-index/tests.vox"
+  - id: "159"
+    slug: "159-ends-with-digit"
+    title: "ends_with_digit"
+    training_eligible: true
+    provenance: "original"
+    files:
+      spec: "problems/159-ends-with-digit.spec.toml"
+      reference: "problems/159-ends-with-digit/reference.vox"
+      tests: "problems/159-ends-with-digit/tests.vox"
+  - id: "160"
+    slug: "160-list-intersection-sorted"
+    title: "list_intersection_sorted"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/160-list-intersection-sorted.spec.toml"
+      reference: "problems/160-list-intersection-sorted/reference.vox"
+      tests: "problems/160-list-intersection-sorted/tests.vox"
+  - id: "161"
+    slug: "161-to-hex"
+    title: "to_hex"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/161-to-hex.spec.toml"
+      reference: "problems/161-to-hex/reference.vox"
+      tests: "problems/161-to-hex/tests.vox"
+  - id: "162"
+    slug: "162-from-hex"
+    title: "from_hex"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/162-from-hex.spec.toml"
+      reference: "problems/162-from-hex/reference.vox"
+      tests: "problems/162-from-hex/tests.vox"
+  - id: "163"
+    slug: "163-str-compress"
+    title: "str_compress"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/163-str-compress.spec.toml"
+      reference: "problems/163-str-compress/reference.vox"
+      tests: "problems/163-str-compress/tests.vox"
+  - id: "164"
+    slug: "164-str-decompress"
+    title: "str_decompress"
+    training_eligible: false
+    provenance: "original"
+    files:
+      spec: "problems/164-str-decompress.spec.toml"
+      reference: "problems/164-str-decompress/reference.vox"
+      tests: "problems/164-str-decompress/tests.vox"
 
 # Provenance taxonomy enforced when fixtures land.
 provenance_kinds:
@@ -43,18 +1513,18 @@ provenance_kinds:
   - id: "hand-authored"
     training_eligible_default: true
     rationale: "Net-new problems authored 2026 specifically for the eval."
+  - id: "original"
+    training_eligible_default: true
+    rationale: "Net-new problems authored 2026 specifically for the eval."
   - id: "ast-mutation"
     training_eligible_default: true
     rationale: "Programmatic mutation of a held-out hand-authored problem."
 
 # CI policy.
 ci:
-  # The runner now ships real measurement (corpus-validity layer) even at
-  # `status: seed`. The earlier "stub returns exit 2" path was removed in
-  # 2026-05-17 per the no-stub policy. Status transitions:
-  #   seed (1-49)            → corpus-validity exit codes (Ok / InvalidInput)
-  #   minimum-viable (50-163) → adds bar comparison gating once LLM-panel client lands
-  #   complete (164)         → CR-L1 bar comparison authoritative
+  # While status: stub, `vox audit humaneval` returns exit 2 (infra-not-ready).
+  # Once corpus reaches minimum-viable (50 problems with 10 held-out),
+  # `vox audit humaneval` flips to exit 0/1 per bar comparison.
   minimum_viable:
     count: 50
     held_out_count: 10
@@ -63,24 +1533,6 @@ ci:
     seed: 42
     attempts_per_fixture: 5
     scoring: "median-of-panel"
-  corpus_validity_measurement:
-    # Layer that runs without --llm-panel; deterministic, no LLM cost.
-    # Each fixture passes iff both reference.vox and tests.vox produce zero
-    # error-severity diagnostics from vox_compiler::pipeline::check_file.
-    enabled: true
-    must_be_one: true                      # any failure -> ExitCode::InvalidInput
-  in_process_test_execution:
-    # Added 2026-05-17 (Task J). After compile-check, each fixture's @test
-    # blocks are executed in-process via vox_compiler::eval::Interpreter.
-    # AssertionFailed from any @test fails the fixture (the corpus encoded
-    # a wrong claim about the reference solution). Eval-engine errors
-    # (interpreter feature gaps — Option/Result pattern matching, etc.)
-    # leave the fixture passing on compile + surface in the report note
-    # so corpus authors can choose tests within the supported subset.
-    enabled: true
-    failure_makes_fixture_fail: true       # @test AssertionFailed = corpus bug
-    eval_error_makes_fixture_fail: false   # interp gap = advisory, not gating
-    interpreter_step_budget: 10000
 
 # Council ratification log (D10, D25 — 2026-05-15).
 council_ratification_log:
@@ -100,3 +1552,50 @@ council_ratification_log:
     rationale: >
       Prevents contamination-via-mutation-laundering: a model trained on
       problem X being quizzed on a slight variant of X is still a leak.
+  - id: humaneval-vox-minimum-viable-landed
+    decision: "50 problems (40 training, 10 held-out) landed 2026-05-26."
+    ratified_at: "2026-05-26"
+    rationale: >
+      Minimum-viable corpus enables CI gate to flip from exit 2 to 0/1.
+      Problems cover core Vox idioms: list/str manipulation, arithmetic,
+      algorithmic patterns (sort, merge, Collatz, Caesar cipher).
+  - id: humaneval-vox-complete-164-2026-05-27
+    decision: "164 problems (120 training, 44 held-out) — corpus complete 2026-05-27."
+    ratified_at: "2026-05-27"
+    rationale: >
+      Final two batches (101-130, 131-164) complete the HumanEval-Vox corpus to
+      match HumanEval-Python's 164-problem target. Covers: abundant numbers,
+      list set operations (intersection/difference/common-elements), string
+      manipulation (capitalize-words, alternating-case, remove-consecutive-dups,
+      run-length encoding/decoding), mathematical sequences (Fibonacci list, GCD/LCM
+      of list, triangular numbers), algorithmic patterns (insert-sorted, two-pointer
+      intersection), and data-structure conversions (int↔digits, to-hex, from-hex).
+      Bug fixed: chr() was missing from runtime (UndefinedVariable at eval time);
+      added to call_global_builtin and the Ident known-builtins list.
+      Corpus status promoted to complete. All 164 problems pass vox check + vox run.
+  - id: humaneval-vox-expansion-100-2026-05-27
+    decision: "100 problems (75 training, 25 held-out) landed 2026-05-27."
+    ratified_at: "2026-05-27"
+    rationale: >
+      Batch-3 expansion adds 25 problems (076-100) covering: palindrome integer,
+      digit sum via str conversion, uppercase/lowercase counting, capitalize-first,
+      repeat-list, list min-max, remove-negatives, sum-odd, count-even,
+      perfect-square check, digit-reverse, char-frequency, nested flatten,
+      sum-of-squares, descending sort check, zip-products, last-n/first-n slices,
+      range-sum, reverse-words, digit-product, power-of-n, Hamming distance,
+      pangram check.  All 100 pass vox check (typecheck) and vox run (runtime
+      assertions).  Bug fixed: list.join() was using debug format ({x:?}) for
+      elements; now uses vox_value_display.  Fix: print() now accepts any type
+      in typechecker (was str-only, breaking LLM-generated programs).
+  - id: humaneval-vox-expansion-75-2026-05-26
+    decision: "75 problems (55 training, 20 held-out) landed 2026-05-26."
+    ratified_at: "2026-05-26"
+    rationale: >
+      Batch-2 expansion adds 25 problems covering: leap-year, title-case,
+      anagram, numeric-string, char-level operations (ord/chars), binary
+      conversion, Armstrong numbers, unique/intersection/rotate, Kadane,
+      bubble/insertion sort, binary search, set-bit count, perfect numbers,
+      two-sum, chunk, sum-even-squares.  All 75 pass vox check (typecheck)
+      and vox run (runtime assertions).  Interpreter fixed: return-in-for-loop
+      now propagates correctly; list.push() as statement auto-reassigns
+      receiver; arr[i]=v index assignment implemented.

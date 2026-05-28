@@ -2,6 +2,26 @@ use super::value::VoxValue;
 use super::{EvalError, Interpreter};
 use crate::hir::nodes::{HirBinOp, HirExpr, HirUnOp};
 
+/// Normalize a bare constructor value into its canonical runtime form.
+///
+/// Zero-arg constructors (`None`) and the ADT constructor names (`Ok`, `Err`,
+/// `Some`) are stored in scope as `Constructor("None")` etc. because they
+/// can also appear as callables.  When used as a *value* (in `return None`,
+/// `let x = None`, `?` operator, etc.) we need the real runtime shape.
+///
+/// One-arg constructors (`Some`, `Ok`, `Err`) are NOT normalized here because
+/// they still need their inner value; only the zero-arg `None` case is safe
+/// to resolve.
+///
+/// Call sites: `HirStmt::Return`, `HirExpr::Try`, and any place where a bare
+/// Constructor would otherwise be passed downstream without being applied.
+pub(crate) fn normalize_constructor(val: VoxValue) -> VoxValue {
+    match val {
+        VoxValue::Constructor(ref n) if n == "None" => VoxValue::Option(None),
+        other => other,
+    }
+}
+
 pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, EvalError> {
     interp.track_step()?;
     match expr {
@@ -16,7 +36,8 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 Ok(val.clone())
             } else if matches!(
                 name.as_str(),
-                "print" | "range" | "str" | "int" | "float" | "len" | "assert"
+                "print" | "range" | "str" | "int" | "float" | "len" | "assert" | "chr"
+                | "abs" | "max" | "min" | "sorted" | "sum" | "bool" | "type_of"
             ) {
                 // Return a placeholder function for builtins
                 Ok(VoxValue::Fn {
@@ -24,17 +45,6 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     body: vec![], // Not used for builtins
                     env: interp.scope.clone(),
                 })
-            } else if name == "None" {
-                // Built-in Option::None — referenced as a bare ident, not called.
-                Ok(VoxValue::Option(None))
-            } else if name == "Unit" {
-                // Built-in unit value, used as the payload of Ok(Unit) / Result[Unit].
-                Ok(VoxValue::Null)
-            } else if matches!(name.as_str(), "Some" | "Ok" | "Err" | "Error") {
-                // Built-in Option/Result constructors. Returned as a Constructor
-                // value so the Call arm below can specialize them into typed
-                // Option/Result values.
-                Ok(VoxValue::Constructor(name.clone()))
             } else {
                 Err(EvalError::UndefinedVariable(name.clone()))
             }
@@ -45,6 +55,20 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 list.push(eval_expr(interp, e)?);
             }
             Ok(VoxValue::List(list))
+        }
+        HirExpr::TupleLit(elems, _) => {
+            let mut items = Vec::with_capacity(elems.len());
+            for e in elems {
+                items.push(eval_expr(interp, e)?);
+            }
+            Ok(VoxValue::Tuple(items))
+        }
+        // DecimalLit: fixed-point decimal literal — interp approximates as Float.
+        // Exact decimal arithmetic is a future enhancement; for now the corpus
+        // programs only use integer arithmetic or float literals.
+        HirExpr::DecimalLit(s, _) => {
+            let f: f64 = s.parse().unwrap_or(0.0);
+            Ok(VoxValue::Float(f))
         }
         HirExpr::ObjectLit(fields, _) => {
             let mut obj = Vec::new();
@@ -292,36 +316,30 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     interp.scope = old_scope;
                     Ok(val)
                 }
-                VoxValue::Constructor(name) => {
-                    // Specialize built-in Option / Result constructors so the
-                    // pattern-match path in stmt.rs (which already handles
-                    // VoxValue::Option / VoxValue::Result) sees them. Other
-                    // (user-declared) variants fall through to Tagged.
-                    match (name.as_str(), eval_args.len()) {
-                        ("Some", 1) => {
-                            let v = eval_args.into_iter().next().unwrap();
-                            Ok(VoxValue::Option(Some(Box::new(v))))
-                        }
-                        ("None", 0) => Ok(VoxValue::Option(None)),
-                        ("Ok", 1) => {
-                            let v = eval_args.into_iter().next().unwrap();
-                            Ok(VoxValue::Result(Ok(Box::new(v))))
-                        }
-                        ("Err", 1) | ("Error", 1) => {
-                            // Two-param Result lands the payload as a full
-                            // VoxValue. ADT-shaped errors (e.g. the
-                            // `Error(TitleEmpty(msg))` patterns from the
-                            // marquee fixtures) round-trip through pattern
-                            // match with the variant tag preserved.
-                            let v = eval_args.into_iter().next().unwrap();
-                            Ok(VoxValue::Result(Err(Box::new(v))))
-                        }
-                        _ => Ok(VoxValue::Tagged {
-                            name,
-                            fields: eval_args,
-                        }),
+                VoxValue::Constructor(name) => match name.as_str() {
+                    // Built-in Option/Result constructors lower directly to
+                    // VoxValue::Option / ::Result so downstream method dispatch
+                    // (`.is_ok()`, `.unwrap()`, `.is_none()`) and pattern
+                    // matching on Result/Option both work.
+                    "Some" if eval_args.len() == 1 => {
+                        Ok(VoxValue::Option(Some(Box::new(eval_args.into_iter().next().unwrap()))))
                     }
-                }
+                    "None" if eval_args.is_empty() => Ok(VoxValue::Option(None)),
+                    "Ok" if eval_args.len() == 1 => {
+                        Ok(VoxValue::Result(Ok(Box::new(eval_args.into_iter().next().unwrap()))))
+                    }
+                    "Err" | "Error" if eval_args.len() == 1 => {
+                        let msg = match eval_args.into_iter().next().unwrap() {
+                            VoxValue::Str(s) => s,
+                            other => format!("{other:?}"),
+                        };
+                        Ok(VoxValue::Result(Err(msg)))
+                    }
+                    _ => Ok(VoxValue::Tagged {
+                        name,
+                        fields: eval_args,
+                    }),
+                },
                 _ => Err(EvalError::TypeError {
                     expected: "function",
                     found: "other".into(),
@@ -442,7 +460,18 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     if let Some(idx_name) = index {
                         interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
                     }
-                    results.push(eval_expr(interp, body)?);
+                    let val = eval_expr(interp, body)?;
+                    match val {
+                        // Propagate early-exit signals out of the for loop.
+                        VoxValue::_Return(_) | VoxValue::_Break | VoxValue::_Panic(_) => {
+                            interp.scope.pop_frame();
+                            return Ok(val);
+                        }
+                        VoxValue::_Continue => {
+                            // skip pushing this iteration's result, continue loop
+                        }
+                        other => results.push(other),
+                    }
                 }
                 interp.scope.pop_frame();
                 Ok(VoxValue::List(results))
@@ -499,7 +528,46 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                             .map(|c| Box::new(VoxValue::Str(c.to_string()))),
                     ))
                 }
+                // dict / Object subscript: dict["key"] → Option[V]
+                (VoxValue::Object(fields), VoxValue::Str(key)) => Ok(VoxValue::Option(
+                    fields
+                        .into_iter()
+                        .find(|(k, _)| k == &key)
+                        .map(|(_, v)| Box::new(v)),
+                )),
                 _ => Ok(VoxValue::Option(None)),
+            }
+        }
+        // `?` / try operator — propagate early-return on Err/None, unwrap on Ok/Some.
+        //
+        // On `Result(Ok(v))` or `Option(Some(v))`: evaluate to `v` (the unwrapped inner).
+        // On `Result(Err(e))`: signal early return by producing `_Return(Result(Err(e)))`.
+        // On `Option(None)`:   signal early return by producing `_Return(Option(None))`.
+        //
+        // The `_Return` sentinel is caught at every function-call boundary (in both
+        // the function-call handler above and the closures runner below), so the
+        // enclosing function's return value becomes the Err/None that was propagated.
+        //
+        // Callers that assign the result of `eval_expr` to a variable (e.g.
+        // `HirStmt::Let`) must check for `_Return` before destructuring the value;
+        // see `eval/stmt.rs`.
+        HirExpr::Try(hir_try) => {
+            let raw = eval_expr(interp, &hir_try.target)?;
+            // Normalize zero-arg constructors: `return None` produces
+            // `Constructor("None")`; normalize to `Option(None)` before matching.
+            let val = normalize_constructor(raw);
+            match val {
+                VoxValue::Result(Ok(v)) => Ok(*v),
+                VoxValue::Result(Err(e)) => {
+                    Ok(VoxValue::_Return(Box::new(VoxValue::Result(Err(e)))))
+                }
+                VoxValue::Option(Some(v)) => Ok(*v),
+                VoxValue::Option(None) => {
+                    Ok(VoxValue::_Return(Box::new(VoxValue::Option(None))))
+                }
+                // Non-Result/Option: pass through unchanged (shouldn't happen in
+                // well-typed programs; typechecker rejects the expression first).
+                other => Ok(other),
             }
         }
         _ => Ok(VoxValue::Null),
@@ -601,6 +669,48 @@ fn apply_closure_method(
             }
             Ok(Some(VoxValue::Null))
         }
+        // sorted_by_key(fn) / sort_by_key(fn) — sort using a key function.
+        (VoxValue::List(items), "sorted_by_key" | "sort_by_key") => {
+            let mut owned: Vec<VoxValue> = items.clone();
+            // Compute keys eagerly to avoid repeated closure calls during sort.
+            let mut keyed: Vec<(VoxValue, VoxValue)> = owned
+                .iter()
+                .cloned()
+                .map(|item| {
+                    let key = apply_closure(interp, &closure, vec![item.clone()])?;
+                    Ok((key, item))
+                })
+                .collect::<Result<Vec<_>, EvalError>>()?;
+            keyed.sort_by(|(ka, _), (kb, _)| super::builtins::vox_value_cmp(ka, kb));
+            owned = keyed.into_iter().map(|(_, v)| v).collect();
+            Ok(Some(VoxValue::List(owned)))
+        }
+        // sorted_by(fn) / sort_by(fn) — sort using a comparator fn(a, b) -> int.
+        (VoxValue::List(items), "sorted_by" | "sort_by") => {
+            let pairs: Vec<(usize, &VoxValue)> = items.iter().enumerate().collect();
+            // Collect comparator results into a matrix for stable sort.
+            let mut owned = items.clone();
+            // Use insertion sort so we can call the async-free closure.
+            for i in 1..owned.len() {
+                let mut j = i;
+                while j > 0 {
+                    let cmp = apply_closure(
+                        interp,
+                        &closure,
+                        vec![owned[j - 1].clone(), owned[j].clone()],
+                    )?;
+                    let is_gt = matches!(cmp, VoxValue::Int(n) if n > 0);
+                    if is_gt {
+                        owned.swap(j - 1, j);
+                        j -= 1;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            let _ = pairs; // suppress unused warning
+            Ok(Some(VoxValue::List(owned)))
+        }
         (VoxValue::List(items), "any") => {
             for item in items.iter().cloned() {
                 let r = apply_closure(interp, &closure, vec![item])?;
@@ -668,15 +778,19 @@ fn apply_closure_method(
         (VoxValue::Result(res), "map_err") => match res.as_ref() {
             Ok(v) => Ok(Some(VoxValue::Result(Ok(v.clone())))),
             Err(e) => {
-                // Two-param Result: Err side is Box<VoxValue>. Pass the
-                // unwrapped VoxValue to the closure; whatever VoxValue it
-                // returns becomes the new error value.
                 let mapped = apply_closure(
                     interp,
                     &closure,
-                    vec![(**e).clone()],
+                    vec![VoxValue::Str(e.clone())],
                 )?;
-                Ok(Some(VoxValue::Result(Err(Box::new(mapped)))))
+                if let VoxValue::Str(new_msg) = mapped {
+                    Ok(Some(VoxValue::Result(Err(new_msg))))
+                } else {
+                    Err(EvalError::TypeError {
+                        expected: "str",
+                        found: super::builtins::vox_value_type_name(&mapped).into(),
+                    })
+                }
             }
         },
         (VoxValue::Result(res), "and_then") => match res.as_ref() {

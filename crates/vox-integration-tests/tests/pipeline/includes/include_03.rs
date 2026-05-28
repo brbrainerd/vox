@@ -107,15 +107,15 @@ routes {
     "/about" to About
 }
 
-@endpoint(kind: query) fn api_todos() to str {
+@query fn api_todos() to str {
     return "[]"
 }
 
-@endpoint(kind: mutation) fn create_todo() to str {
+@mutation fn create_todo() to str {
     return "created"
 }
 
-@endpoint(kind: server) fn get_stats() to int {
+@server fn get_stats() to int {
     return 42
 }
 "#;
@@ -169,7 +169,7 @@ fn pipeline_multi_route_rust_codegen() {
     insta::assert_snapshot!("multi_route_rust_main_rs_emit", main_rs);
 }
 
-/// `@endpoint(kind: query)` plus Path C components → Web IR summary (OP-0181).
+/// `@query` plus Path C components → Web IR summary (OP-0181).
 #[test]
 fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
     use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;

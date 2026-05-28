@@ -1,0 +1,11 @@
+[problem]
+id = "163"
+title = "str_compress"
+prompt = """
+Run-length encode a string: replace each run of consecutive identical characters with the character followed by its count. For example, "aaabbc" -> "a3b2c1". An empty string returns "".
+"""
+signature = "fn str_compress(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["strings", "encoding"]

@@ -111,23 +111,6 @@ pub struct AuditArgs {
     /// Only meaningful with `--gate`.
     #[arg(long)]
     pub no_canonical_report: bool,
-
-    /// Path to the LLM panel YAML (defaults to
-    /// `contracts/eval/llm-panel.v1.yaml` if the gate supports panel mode).
-    /// Only meaningful with `--gate`. When set, the chosen gate enters
-    /// panel mode — wiring the OpenRouter client through a hard budget
-    /// cap (see `VOX_AUDIT_BUDGET_USD`; default $20).
-    #[arg(long, value_name = "YAML")]
-    pub llm_panel: Option<PathBuf>,
-
-    /// Fail with exit code 3 if *any* block-GA gate's threshold isn't met
-    /// or its report is `incomplete`. Only meaningful with `--gate all`.
-    ///
-    /// This is the canonical v1.0-GA acceptance switch per the honest
-    /// completion plan §10 — no "v1.0 ready" claim is permitted until
-    /// this flag exits 0.
-    #[arg(long)]
-    pub strict_block_ga: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -287,45 +270,6 @@ fn run_cr_l_gate(gate_name: &str, args: &AuditArgs) -> Result<()> {
         let outcomes = vox_audit::run_all(&common);
         for outcome in &outcomes {
             render_outcome(&outcome.report, &common.format)?;
-            maybe_write_canonical_per_gate(&outcome.report, args.no_canonical_report);
-        }
-        // Write the canonical snapshot unless suppressed. The snapshot
-        // path is the entry point for evidence-ledger lint + CI gate.
-        if !args.no_canonical_report {
-            let workspace = vox_audit::workspace_root();
-            match vox_audit::write_aggregate_snapshot(&outcomes, &workspace) {
-                Ok(path) => eprintln!("snapshot written: {}", path.display()),
-                Err(e) => eprintln!("warning: snapshot write failed: {e}"),
-            }
-        }
-        // `--strict-block-ga` overrides the per-gate worst-case aggregation
-        // with a tighter rule: every block-GA gate must report met=true AND
-        // incomplete=false. This is the v1.0-GA gate.
-        if args.strict_block_ga {
-            let violations = vox_audit::strict_block_ga_violations(&outcomes);
-            if !violations.is_empty() {
-                eprintln!("strict-block-ga: {} block-GA gate(s) not met:", violations.len());
-                for v in &violations {
-                    let met = v
-                        .report
-                        .threshold
-                        .as_ref()
-                        .map(|t| t.met.to_string())
-                        .unwrap_or_else(|| "n/a".to_string());
-                    eprintln!(
-                        "  - {}: met={} incomplete={} (target={})",
-                        v.report.thing,
-                        met,
-                        v.report.incomplete,
-                        v.report
-                            .threshold
-                            .as_ref()
-                            .map(|t| format!("{:.2}", t.target))
-                            .unwrap_or_else(|| "—".to_string())
-                    );
-                }
-                std::process::exit(3);
-            }
         }
         let exit_code = vox_audit::aggregate_exit_code(&outcomes);
         std::process::exit(exit_code.as_i32());
@@ -338,7 +282,6 @@ fn run_cr_l_gate(gate_name: &str, args: &AuditArgs) -> Result<()> {
     };
     let outcome = vox_audit::run_gate(gate, &common);
     render_outcome(&outcome.report, &common.format)?;
-    maybe_write_canonical_per_gate(&outcome.report, args.no_canonical_report);
     std::process::exit(outcome.exit_code.as_i32());
 }
 
@@ -353,26 +296,6 @@ fn render_outcome(
     Ok(())
 }
 
-/// Write per-gate canonical report (e.g. `contracts/reports/humaneval/<UTC>.json`).
-/// Symmetric to the umbrella snapshot path: every gate run leaves evidence
-/// on disk unless the caller explicitly suppresses it with
-/// `--no-canonical-report`.
-fn maybe_write_canonical_per_gate(
-    report: &vox_audit::report::AuditReport,
-    no_canonical: bool,
-) {
-    if no_canonical {
-        return;
-    }
-    let path = report.canonical_report_path();
-    if let Err(err) = report.write_json_atomic(&path) {
-        eprintln!(
-            "vox-audit: failed to write canonical report to {}: {err}",
-            path.display()
-        );
-    }
-}
-
 fn build_common_args(args: &AuditArgs) -> Result<vox_audit::CommonArgs> {
     let format = vox_audit::report::ReportFormat::parse(&args.format)
         .map_err(|msg| anyhow::anyhow!(msg))?;
@@ -381,7 +304,7 @@ fn build_common_args(args: &AuditArgs) -> Result<vox_audit::CommonArgs> {
         baseline: None,
         threshold: args.threshold,
         corpus: args.corpus.clone(),
-        llm_panel: args.llm_panel.clone(),
+        llm_panel: None,
         dry_run: args.dry_run,
         write_canonical_report: !args.no_canonical_report,
     })

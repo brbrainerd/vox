@@ -1,0 +1,27 @@
+fn alternating_sum(xs: list[int]) to int {
+    let mut result: int = 0
+    let mut i: int = 0
+    while i < xs.len() {
+        match xs[i] {
+            Some(v) => {
+                if i % 2 == 0 {
+                    result = result + v
+                } else {
+                    result = result - v
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(alternating_sum([1, 2, 3, 4]) == -2)
+    assert(alternating_sum([]) == 0)
+    assert(alternating_sum([5]) == 5)
+    assert(alternating_sum([1, 1, 1, 1]) == 0)
+    assert(alternating_sum([10, 3, 7]) == 14)
+    return "ok"
+}

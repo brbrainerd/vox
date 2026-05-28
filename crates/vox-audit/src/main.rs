@@ -10,8 +10,9 @@ use std::process::ExitCode as ProcessExitCode;
 
 use clap::{Parser, Subcommand as ClapSubcommand};
 use vox_audit::{
-    CommonArgs, CrlGate, aggregate_exit_code, gate_from_name, registry, run_all, run_gate,
+    CommonArgs, CrlGate, aggregate_exit_code, gate_from_name, registry,
     report::{ExitCode, ReportFormat},
+    run_all, run_gate,
 };
 
 /// Cargo-friendly CLI: `cargo run -p vox-audit -- <subcommand> [flags]`.

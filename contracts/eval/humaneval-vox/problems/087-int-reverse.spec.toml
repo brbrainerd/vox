@@ -1,0 +1,11 @@
+[problem]
+id = "087"
+title = "int-reverse"
+prompt = """
+Write a Vox function int_reverse(n: int) to int that reverses the digits of an integer. Negative numbers stay negative (e.g., -123 -> -321). Zero stays zero.
+"""
+signature = "fn int_reverse(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "math"]

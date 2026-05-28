@@ -39,6 +39,11 @@ struct DiagnosticPayload {
     span: SpanPayload,
     correction_hints: Vec<String>,
     suggested_fixes: Vec<SuggestedFix>,
+    /// Stable docs URL (present for `vox/<category>/<name>` codes).
+    /// Included in the repair prompt so the LLM can reference the rule's
+    /// canonical explanation without fetching the source file.
+    #[serde(default)]
+    explain_url: Option<String>,
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -290,17 +295,53 @@ pub async fn run(args: RepairArgs) -> Result<()> {
                 "- [{}] Line {}: {}\n",
                 d.error_code, d.span.start_line, d.message
             ));
+            if let Some(ref url) = d.explain_url {
+                error_summary.push_str(&format!("  Docs: {url}\n"));
+            }
             for hint in &d.correction_hints {
-                error_summary.push_str(&format!("  Hint: {}\n", hint));
+                error_summary.push_str(&format!("  Hint: {hint}\n"));
+            }
+        }
+
+        // Enrich the LLM prompt with TOESTUB lint findings when the
+        // `stub-check` feature is compiled in. The lint findings carry
+        // `suggestion`, `rationale`, and `minimal_repro` — richer context
+        // than compiler errors alone, especially for Vox policy violations
+        // (missing @auth, retired APIs, workflow non-determinism, etc.).
+        // We call `format_check_for_llm_json` in-process (no subprocess
+        // overhead) and parse the envelope loosely so no additional struct
+        // imports are needed in this file.
+        #[cfg(feature = "stub-check")]
+        {
+            let llm_json = crate::pipeline::format_check_for_llm_json(&source_code, file_path);
+            if let Ok(envelope) = serde_json::from_str::<serde_json::Value>(&llm_json) {
+                if let Some(findings) = envelope.get("lint_findings").and_then(|f| f.as_array()) {
+                    if !findings.is_empty() {
+                        error_summary.push_str("\nLINT WARNINGS (Vox policy violations that must also be fixed):\n");
+                        for f in findings {
+                            let rule = f.get("rule_id").and_then(|r| r.as_str()).unwrap_or("?");
+                            let line = f.get("line").and_then(|l| l.as_u64()).unwrap_or(0);
+                            let msg = f.get("message").and_then(|m| m.as_str()).unwrap_or("");
+                            error_summary.push_str(&format!("- [{rule}] Line {line}: {msg}\n"));
+                            if let Some(suggestion) = f.get("suggestion").and_then(|s| s.as_str()) {
+                                error_summary.push_str(&format!("  Fix: {suggestion}\n"));
+                            }
+                            if let Some(repro) = f.get("minimal_repro").and_then(|r| r.as_str()) {
+                                error_summary.push_str(&format!("  Example:\n{repro}\n"));
+                            }
+                        }
+                    }
+                }
             }
         }
 
         let system_prompt = "You are an expert Vox language repair agent.
-Your goal is to fix compiler errors in the provided Vox source code.
-You will be given the original source code and a list of structured compiler diagnostics.
-Return ONLY the full corrected source code inside a single markdown code block.
-Do not provide explanations or chat.
-Focus on correctness and adhering to Vox language standards (Wave 1: non-null by default, colon blocks).";
+Your goal is to fix compiler errors and policy violations in the provided Vox source code.
+You will be given the original source code and a list of structured compiler diagnostics
+and lint warnings. Return ONLY the full corrected source code inside a single markdown
+code block. Do not provide explanations or chat.
+Focus on correctness and adhering to Vox language standards (Wave 1: non-null by default,
+colon blocks, @auth on all non-public endpoints).";
 
         // The source-code block is the bulkiest, most-repeated content across the
         // 3-attempt loop — cache_control on it cuts cached input cost to $0.30/MTok
@@ -312,7 +353,7 @@ Focus on correctness and adhering to Vox language standards (Wave 1: non-null by
             source_code
         );
         let error_block = format!(
-            "COMPILER ERRORS:\n{error_summary}\n\nPlease fix these errors and return the full corrected file."
+            "ERRORS AND WARNINGS:\n{error_summary}\n\nPlease fix all of these and return the full corrected file."
         );
 
         // 4. Build the request body. Use structured content arrays for Anthropic

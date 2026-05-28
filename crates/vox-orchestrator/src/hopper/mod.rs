@@ -26,3 +26,4 @@ pub use store::{HopperError, HopperIntake, InMemoryHopper};
 pub use types::{
     HopperItemId, IntakeItem, IntakeSource, ItemState, PriorityHint, PriorityOverrideRecord,
 };
+pub use crate::types::PrioritySource;

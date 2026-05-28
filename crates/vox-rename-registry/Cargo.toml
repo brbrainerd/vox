@@ -1,0 +1,14 @@
+[package]
+name = "vox-rename-registry"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Vox public-identifier rename registry and primitive-tag lookup (L0). Extracted from vox-compiler so tooling can use it without pulling in the full compiler."
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[lints]
+workspace = true

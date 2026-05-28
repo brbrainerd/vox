@@ -1,0 +1,37 @@
+# vox:skip
+id = "plan-fidelity-005-add-update-todo-mutation-endpoint"
+training_eligible = true
+wave = 2                                  # multi-file, decorator coverage
+
+[input]
+goal = """
+Add a mutation endpoint `update_todo(id: int, title: str) to Result[str]` to \
+`src/todos.vox`. It must be decorated with `@mutation` and `@auth(scheme: bearer)`. \
+Return `Error("invalid id")` when `id <= 0`, `Error("title must not be empty")` \
+when `len(title) is 0`, and `Ok("todo.updated")` on success. \
+Add `@test fn test_update_todo_invalid_id` and \
+`@test fn test_update_todo_empty_title` to `tests/todos_test.vox`. \
+Run `vox check --strict && vox test --filter=test_update_todo`.
+"""
+preconditions = """
+`src/todos.vox` defines `@table type Todo { ... }` and `fn create_todo`. \
+`tests/todos_test.vox` exists with at least one passing test. \
+`vox check --strict` passes at HEAD. No `update_todo` function exists yet.
+"""
+
+[plan_expected_shape]
+min_steps = 4
+max_steps = 8
+must_include_tasks = ["add-endpoint", "add-auth-decorator", "add-tests", "verify-compile"]
+must_include_decorator_calls = ["@mutation", "@auth", "@test"]
+
+[success_criteria]
+command = "vox check --strict && vox test --filter=test_update_todo"
+expected_exit = 0
+file_must_contain = [
+  { path = "src/todos.vox", regex = "@mutation" },
+  { path = "src/todos.vox", regex = "@auth\\(scheme: bearer\\)" },
+  { path = "src/todos.vox", regex = "fn update_todo" },
+  { path = "tests/todos_test.vox", regex = "test_update_todo_invalid_id" },
+  { path = "tests/todos_test.vox", regex = "test_update_todo_empty_title" },
+]

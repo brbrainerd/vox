@@ -68,6 +68,20 @@ impl DetectionRule for DecoratorPositionDetector {
         Good: actor MyActor { ... }"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — bare keyword where @ decorator is required\n\
+             durable fn process_order(id: str) {\n\
+             \x20   // ...\n\
+             }\n\
+             \n\
+             // FIX — prefix with @\n\
+             @durable fn process_order(id: str) {\n\
+             \x20   // ...\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

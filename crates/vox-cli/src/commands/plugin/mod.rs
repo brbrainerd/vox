@@ -6,6 +6,7 @@ pub mod install;
 pub mod list;
 pub mod publish;
 pub mod remove;
+pub mod scaffold;
 
 use clap::Subcommand;
 use std::path::PathBuf;
@@ -41,6 +42,17 @@ pub enum PluginCmd {
     },
     /// Check installed plugins for ABI version drift and missing native libs.
     Doctor,
+    /// Scaffold a new plugin directory with Plugin.toml and starter files.
+    Scaffold {
+        /// Plugin id, e.g. `my-plugin` (directory will be `vox-plugin-my-plugin`).
+        id: String,
+        /// Payload kind for the scaffold.
+        #[arg(long, value_enum, default_value = "code")]
+        kind: scaffold::ScaffoldKind,
+        /// Output directory (defaults to current directory).
+        #[arg(long, value_name = "DIR", default_value = ".")]
+        dir: std::path::PathBuf,
+    },
     /// Publish an installed skill plugin to an OpenClaw-compatible gateway.
     Publish {
         /// Plugin id to publish, e.g. `my-skill`.
@@ -63,6 +75,7 @@ pub async fn run(cmd: PluginCmd) -> anyhow::Result<()> {
         }
         PluginCmd::Remove { id } => remove::run(&id),
         PluginCmd::Doctor => doctor::run(),
+        PluginCmd::Scaffold { id, kind, dir } => scaffold::run(&id, kind, &dir),
         PluginCmd::Publish {
             id,
             gateway,

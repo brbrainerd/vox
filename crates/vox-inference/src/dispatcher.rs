@@ -48,11 +48,11 @@ impl InferenceDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::stubs::CandleCpuStub;
+    use crate::backends::CandleCpuBackend;
 
     #[tokio::test]
     async fn auto_dispatch_hits_cpu_stub() {
-        let d = InferenceDispatcher::new(vec![Arc::new(CandleCpuStub)]);
+        let d = InferenceDispatcher::new(vec![Arc::new(CandleCpuBackend)]);
         let mut bundle = ModelBundle {
             weights_hash: [1u8; 64],
             weights_merkle_leaves: None,

@@ -1,0 +1,14 @@
+fn alternating_case(s: str) to str {
+    let chars: list[str] = s.chars()
+    let mut result: list[str] = []
+    let mut i: int = 0
+    for c in chars {
+        if i % 2 == 0 {
+            result.push(c.to_upper())
+        } else {
+            result.push(c.to_lower())
+        }
+        i = i + 1
+    }
+    return result.join("")
+}

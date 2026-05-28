@@ -1,0 +1,12 @@
+fn int_to_digits(n: int) to list[int] {
+    let s: str = str(n)
+    let chars: list[str] = s.chars()
+    let mut result: list[int] = []
+    for c in chars {
+        match c.to_int() {
+            Some(d) => { result.push(d) }
+            None => {}
+        }
+    }
+    return result
+}

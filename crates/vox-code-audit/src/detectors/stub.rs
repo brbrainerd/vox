@@ -358,6 +358,20 @@ impl DetectionRule for StubDetector {
             Language::GDScript,
         ]
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — unimplemented stub left in shipped code\n\
+             fn calculate_discount(price: f64) -> f64 {\n\
+             \x20   todo!()\n\
+             }\n\
+             \n\
+             // FIX — real implementation or scope down to what compiles\n\
+             fn calculate_discount(price: f64) -> f64 {\n\
+             \x20   price * 0.10\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

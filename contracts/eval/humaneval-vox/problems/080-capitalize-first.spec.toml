@@ -1,0 +1,11 @@
+[problem]
+id = "080"
+title = "capitalize-first"
+prompt = """
+Write a Vox function capitalize_first(s: str) to str that capitalizes only the first letter of the string, leaving the rest unchanged. Empty string returns empty string.
+"""
+signature = "fn capitalize_first(s: str) to str"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

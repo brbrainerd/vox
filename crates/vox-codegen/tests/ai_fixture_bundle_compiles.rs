@@ -25,7 +25,11 @@ impl Drop for CleanupScratch {
     }
 }
 
+/// Slow: generates a Rust crate bundle from a Vox AI fixture and runs `cargo check`
+/// against it in a scratch directory (~25s). Excluded from default local
+/// `vox ci pre-push --full`; use `--include-slow` or rely on CI.
 #[test]
+#[ignore = "slow; runs nested cargo check (~25s); owner: codegen sunset: never; use --include-slow or CI"]
 fn generated_ai_fixture_bundle_passes_cargo_check() {
     let src = r#"
         @ai(model = "openrouter/auto")

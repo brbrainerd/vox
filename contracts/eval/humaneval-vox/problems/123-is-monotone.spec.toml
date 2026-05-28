@@ -1,0 +1,11 @@
+[problem]
+id = "123"
+title = "is_monotone"
+prompt = """
+Check if a list of ints is monotone: either non-decreasing (each element <= the next) OR non-increasing (each element >= the next). A list of 0 or 1 elements is always monotone.
+"""
+signature = "fn is_monotone(xs: list[int]) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "predicates"]

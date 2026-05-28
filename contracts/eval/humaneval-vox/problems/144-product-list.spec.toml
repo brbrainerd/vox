@@ -1,0 +1,11 @@
+[problem]
+id = "144"
+title = "product_list"
+prompt = """
+Return the product of all elements in a list of ints. Return 1 for an empty list (empty product).
+"""
+signature = "fn product_list(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math"]

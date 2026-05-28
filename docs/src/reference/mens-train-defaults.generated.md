@@ -2,6 +2,8 @@
 title: "Mens train defaults (generated)"
 description: "Auto-generated defaults snapshot for vox mens train from Rust constants and canonical command defaults."
 category: "Language Reference"
+status: current
+last_updated: "2026-05-27"
 ---
 
 <!--

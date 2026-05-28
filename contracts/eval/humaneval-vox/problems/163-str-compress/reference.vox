@@ -1,0 +1,29 @@
+fn str_compress(s: str) to str {
+    if s.len() == 0 {
+        return ""
+    }
+    let chars: list[str] = s.chars()
+    let mut result: list[str] = []
+    let mut current: str = ""
+    let mut count: int = 0
+    let mut first: bool = true
+    for c in chars {
+        if first {
+            current = c
+            count = 1
+            first = false
+        } else {
+            if c == current {
+                count = count + 1
+            } else {
+                result.push(current)
+                result.push(str(count))
+                current = c
+                count = 1
+            }
+        }
+    }
+    result.push(current)
+    result.push(str(count))
+    return result.join("")
+}

@@ -1,6 +1,6 @@
 [package]
 name = "vox-orchestrator"
-description = "Slim coordinator for the multi-agent file-affinity router; queue/lock/oplog live in vox-orchestrator-queue, MCP tools in vox-orchestrator-mcp."
+description = "Multi-agent file-affinity task router. Queue/lock/oplog in vox-orchestrator-queue; MCP protocol tools in vox-orchestrator-mcp."
 version.workspace = true
 edition.workspace = true
 
@@ -23,10 +23,10 @@ news-publish = [
 ]
 # JSON Schema generation for repository types (consumed by vox-orchestrator-mcp).
 json-schema = ["vox-repository/json-schema"]
-runtime = ["vox-actor-runtime", "vox-populi/mens"]
-toestub-gate = ["vox-code-audit", "vox-lsp"]
-# Reserved for future LSP-only toggles (tower-lsp-server is always linked for shared types).
-lsp = []
+runtime = ["vox-actor-runtime", "vox-populi/mens", "lsp"]
+toestub-gate = ["vox-code-audit", "vox-lsp", "lsp"]
+# LSP diagnostic integration (tower-lsp-server types). Enabled transitively by toestub-gate and runtime.
+lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]
 # Enable jj-lib as VCS backend. Pure Rust, no C. Pin to exact version for stability.
 # All jj-lib calls are confined to src/jj_backend.rs — swap here if APIs break.
@@ -51,7 +51,7 @@ futures-util = { workspace = true }
 sysinfo = { workspace = true, optional = true }
 sha3 = { workspace = true }
 xxhash-rust = { workspace = true }
-hmac = "0.12.1"
+hmac = { workspace = true }
 sha2 = { workspace = true }
 tiktoken-rs = { workspace = true }
 hex = { workspace = true }
@@ -63,7 +63,7 @@ vox-foundation.workspace = true
 vox-actor-runtime = { workspace = true, optional = true }
 vox-code-audit = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
-tower-lsp-server = { workspace = true }
+tower-lsp-server = { workspace = true, optional = true }
 vox-db.workspace = true
 vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape", "tavily"] }
 vox-orchestrator-types.workspace = true
@@ -76,7 +76,6 @@ async-trait = { workspace = true }
 anyhow.workspace = true
 serde_yaml.workspace = true
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
-governor = { workspace = true }
 regex = { workspace = true }
 vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
@@ -97,14 +96,13 @@ vox-research-events.workspace = true
 vox-telemetry.workspace = true
 vox-mesh-types.workspace = true
 blake3.workspace = true
-crossbeam-queue = "0.3.12"
+crossbeam-queue = { workspace = true }
 workspace-hack = { workspace = true }
 axum = { workspace = true, features = ["tokio", "http1", "json"] }
 glob.workspace = true
-ignore = "0.4.25"
+ignore = { workspace = true }
 rand_distr = { workspace = true }
 async-stream.workspace = true
-tempfile.workspace = true
 
 # Daemon binary moved to crates/vox-orchestrator-d/ in 2026-05-08 reorg Phase 4.
 

@@ -1,0 +1,11 @@
+[problem]
+id = "033"
+title = "filter_evens"
+prompt = """
+Return a new list containing only the even integers from the input list, in their original order.
+"""
+signature = "fn filter_evens(xs: list[int]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

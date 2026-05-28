@@ -1,0 +1,9 @@
+fn count_occurrences(xs: list[int], target: int) to int {
+    let mut count: int = 0
+    for x in xs {
+        if x == target {
+            count = count + 1
+        }
+    }
+    return count
+}

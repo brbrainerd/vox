@@ -431,6 +431,22 @@ impl DetectionRule for UnresolvedRefDetector {
     fn severity(&self) -> Severity {
         Severity::Info
     }
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — calling a function that is never defined or imported\n\
+             fn process(data: Vec<u8>) -> Result<Output, Error> {\n\
+             \x20   let parsed = parse_frame(data)?;  // parse_frame not defined here!\n\
+             \x20   Ok(transform(parsed))\n\
+             }\n\
+             \n\
+             // FIX — define the function or add the import\n\
+             use crate::codec::parse_frame;  // bring it into scope\n\
+             fn process(data: Vec<u8>) -> Result<Output, Error> {\n\
+             \x20   let parsed = parse_frame(data)?;\n\
+             \x20   Ok(transform(parsed))\n\
+             }",
+        )
+    }
     fn languages(&self) -> &[Language] {
         &[Language::Rust]
     }

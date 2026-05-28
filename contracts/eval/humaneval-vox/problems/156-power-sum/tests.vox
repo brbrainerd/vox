@@ -1,0 +1,28 @@
+fn int_pow(base: int, exp: int) to int {
+    let mut result: int = 1
+    let mut i: int = 0
+    while i < exp {
+        result = result * base
+        i = i + 1
+    }
+    return result
+}
+
+fn power_sum(xs: list[int], k: int) to int {
+    let mut total: int = 0
+    for x in xs {
+        total = total + int_pow(x, k)
+    }
+    return total
+}
+
+fn main() to str {
+    assert(power_sum([1, 2, 3], 2) == 14)
+    assert(power_sum([1, 2, 3], 0) == 3)
+    assert(power_sum([1, 2, 3], 1) == 6)
+    assert(power_sum([], 3) == 0)
+    assert(power_sum([2, 3], 3) == 35)
+    assert(power_sum([4], 2) == 16)
+    assert(power_sum([1, 1, 1, 1], 5) == 4)
+    return "ok"
+}

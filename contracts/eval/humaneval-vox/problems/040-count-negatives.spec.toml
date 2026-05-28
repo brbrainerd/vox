@@ -1,0 +1,11 @@
+[problem]
+id = "040"
+title = "count_negatives"
+prompt = """
+Return the count of negative integers in the list.
+"""
+signature = "fn count_negatives(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

@@ -1,0 +1,21 @@
+fn list_intersection(a: list[int], b: list[int]) to list[int] {
+    let mut seen: list[int] = []
+    let mut result: list[int] = []
+    for x in a {
+        if b.contains(x) and not seen.contains(x) {
+            result.push(x)
+            seen.push(x)
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(list_intersection([1, 2, 3], [2, 3, 4]) == [2, 3])
+    assert(list_intersection([1, 2, 3], [4, 5, 6]) == [])
+    assert(list_intersection([], [1, 2]) == [])
+    assert(list_intersection([1, 2], []) == [])
+    assert(list_intersection([1, 1, 2, 2], [1, 2, 3]) == [1, 2])
+    assert(list_intersection([5, 3, 1], [1, 3, 5]) == [5, 3, 1])
+    return "ok"
+}

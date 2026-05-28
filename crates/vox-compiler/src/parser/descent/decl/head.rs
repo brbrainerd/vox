@@ -3,7 +3,7 @@
 use super::super::Parser;
 use crate::ast::decl::{
     AstColorToken, AstFontToken, AstScalarToken, BackButtonDecl, Decl, DeepLinkDecl, EffectDecl,
-    EndpointDecl, EndpointKind, ExampleDecl, FieldConstraint, FnDecl, ForallDecl, FormDecl, FormField,
+    EndpointDecl, EndpointKind, FieldConstraint, FnDecl, ForallDecl, FormDecl, FormField,
     ImportDecl, ImportPath, ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl,
     OnCleanupDecl, OnMountDecl, PostCondition, PushDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, TestDecl, TokensDecl,
@@ -890,24 +890,6 @@ impl Parser {
         Ok(Decl::Test(TestDecl { label, func: f }))
     }
 
-    /// `@example` mirrors `@test`'s surface — optional `(label)` then a
-    /// regular `fn` body. Lowers into a distinct HIR vector so tooling
-    /// can enumerate corpus-eligible examples without scanning the test set.
-    pub(crate) fn parse_example(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat @example
-        let mut label = String::new();
-        if self.eat(&Token::LParen) {
-            if let Token::StringLit(s) = self.peek().clone() {
-                self.advance();
-                label = s;
-            }
-            let _ = self.eat(&Token::RParen);
-        }
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Example(ExampleDecl { label, func: f }))
-    }
-
     pub(crate) fn parse_forall(&mut self) -> Result<Decl, ()> {
         self.advance(); // eat @forall
         let mut label = String::new();
@@ -982,7 +964,6 @@ impl Parser {
         Ok(Decl::Endpoint(EndpointDecl {
             kind: EndpointKind::Query,
             func: f,
-            stream_interval: None,
         }))
     }
 
@@ -994,7 +975,6 @@ impl Parser {
         Ok(Decl::Endpoint(EndpointDecl {
             kind: EndpointKind::Mutation,
             func: f,
-            stream_interval: None,
         }))
     }
 
@@ -1006,112 +986,17 @@ impl Parser {
         Ok(Decl::Endpoint(EndpointDecl {
             kind: EndpointKind::Server,
             func: f,
-            stream_interval: None,
         }))
     }
 
-    pub(crate) fn parse_endpoint(&mut self) -> Result<Decl, ()> {
-        self.advance(); // eat @endpoint
-        self.expect(&Token::LParen)?;
-        let mut kind = None;
-        let mut interval: Option<String> = None;
-        // Parse arguments — `kind: <id>` and the optional
-        // `every: "<duration>"` argument. They may appear in either
-        // order, comma-separated.
-        loop {
-            if matches!(self.peek(), Token::RParen) {
-                break;
-            }
-            if let Token::Ident(arg) = self.peek().clone() {
-                match arg.as_str() {
-                    "kind" => {
-                        self.advance();
-                        self.expect(&Token::Colon)?;
-                        if let Token::Ident(v) = self.peek().clone() {
-                            match v.as_str() {
-                                "query" => kind = Some(EndpointKind::Query),
-                                "mutation" => kind = Some(EndpointKind::Mutation),
-                                "server" => kind = Some(EndpointKind::Server),
-                                "stream" => kind = Some(EndpointKind::Stream),
-                                _ => {
-                                    self.errors.push(ParseError::classified(
-                                        self.span(),
-                                        "Unknown endpoint kind. Expected query, mutation, server, or stream.",
-                                        vec!["query".into(), "mutation".into(), "server".into(), "stream".into()],
-                                        Some(v),
-                                        ParseErrorClass::Declaration,
-                                    ));
-                                    return Err(());
-                                }
-                            }
-                            self.advance();
-                        }
-                    }
-                    "every" => {
-                        self.advance();
-                        self.expect(&Token::Colon)?;
-                        // Accepts a string literal like "1s", "500ms", "5m".
-                        if let Token::StringLit(s) = self.peek().clone() {
-                            interval = Some(s);
-                            self.advance();
-                        } else {
-                            self.errors.push(ParseError::classified(
-                                self.span(),
-                                "Expected duration string literal after `every:`, e.g. `every: \"1s\"`.",
-                                vec!["\"1s\"".into(), "\"500ms\"".into()],
-                                Some(self.peek().to_string()),
-                                ParseErrorClass::Declaration,
-                            ));
-                            return Err(());
-                        }
-                    }
-                    _ => {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            format!("Unknown @endpoint argument `{arg}`. Expected `kind:` or `every:`."),
-                            vec!["kind: server".into(), "every: \"1s\"".into()],
-                            Some(arg),
-                            ParseErrorClass::Declaration,
-                        ));
-                        return Err(());
-                    }
-                }
-            }
-            if matches!(self.peek(), Token::Comma) {
-                self.advance();
-                continue;
-            }
-            break;
-        }
-        self.expect(&Token::RParen)?;
-        if kind.is_none() {
-            self.errors.push(ParseError::classified(
-                self.span(),
-                "Expected `kind: query | mutation | server | stream` inside `@endpoint(...)`.",
-                vec!["kind: query".into()],
-                Some(self.peek().to_string()),
-                ParseErrorClass::Declaration,
-            ));
-            return Err(());
-        }
-        if interval.is_some() && !matches!(kind, Some(EndpointKind::Stream)) {
-            self.errors.push(ParseError::classified(
-                self.span(),
-                "`every:` is only valid on `@endpoint(kind: stream)` — it sets the tick interval for SSE-style streaming.",
-                vec!["kind: stream".into()],
-                None,
-                ParseErrorClass::Declaration,
-            ));
-            return Err(());
-        }
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Endpoint(EndpointDecl {
-            kind: kind.unwrap(),
-            func: f,
-            stream_interval: interval,
-        }))
-    }
+    // `parse_endpoint` (the `@endpoint(kind: …)` decorator parser) was retired
+    // in v0.6.0 per `vox-stdlib-gap-audit-2026-05-23.md §Phase H step 18`.
+    // The canonical bare-form decorators `@query` / `@mutation` / `@server`
+    // — parsed by `parse_query`, `parse_mutation`, `parse_server_endpoint`
+    // above — produce the same `EndpointDecl` AST node.  Any remaining
+    // `@endpoint` text in user source fails to lex; the
+    // `retired/decorator-usage` lint surfaces a friendly migration
+    // suggestion before that point.
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
         let start = self.span();
@@ -2035,15 +1920,6 @@ impl Parser {
                     }
                 }
                 Token::AtAuth | Token::AtOfflineCapable | Token::AtCollaborative => {
-                    self.advance();
-                    if self.eat(&Token::LParen) {
-                        self.skip_paren_args_inner();
-                    }
-                }
-                Token::AtPublic => {
-                    // Bare marker — opts the @endpoint out of @auth coverage.
-                    // No paren args today (Phase-3 surface; semantic policy
-                    // enforcement remains the boundary lint's job).
                     self.advance();
                     if self.eat(&Token::LParen) {
                         self.skip_paren_args_inner();

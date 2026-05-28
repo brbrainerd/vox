@@ -568,7 +568,7 @@ fn lower_styles_from_classic_components(
 fn lower_endpoint_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     for sf in &hir.endpoint_fns {
         match sf.kind {
-            HirEndpointKind::Server | HirEndpointKind::Query | HirEndpointKind::Stream => {
+            HirEndpointKind::Server | HirEndpointKind::Query => {
                 m.route_nodes
                     .push(RouteNode::ServerFnContract(ServerFnContract {
                         name: sf.name.clone(),
@@ -576,16 +576,10 @@ fn lower_endpoint_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut 
                         signature: fn_signature_for_contract(sf),
                         span: None,
                     }));
-                match sf.kind {
-                    HirEndpointKind::Server => summary.server_fn_contracts += 1,
-                    HirEndpointKind::Query => summary.query_fn_contracts += 1,
-                    // Streams surface as server-fn contracts in the WebIR
-                    // for client-stub purposes — the TS client treats them
-                    // like a server fn that returns a stream; the actual
-                    // wire shape (SSE event-stream) is concerns of the
-                    // SSE handler emitted in codegen_rust.
-                    HirEndpointKind::Stream => summary.server_fn_contracts += 1,
-                    _ => unreachable!(),
+                if sf.kind == HirEndpointKind::Server {
+                    summary.server_fn_contracts += 1;
+                } else {
+                    summary.query_fn_contracts += 1;
                 }
             }
             HirEndpointKind::Mutation => {

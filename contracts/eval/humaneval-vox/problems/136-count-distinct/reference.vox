@@ -1,0 +1,9 @@
+fn count_distinct(xs: list[int]) to int {
+    let mut seen: list[int] = []
+    for x in xs {
+        if not seen.contains(x) {
+            seen.push(x)
+        }
+    }
+    return seen.len()
+}

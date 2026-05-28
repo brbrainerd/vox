@@ -16,7 +16,7 @@ fn emit(src: &str) -> String {
 #[test]
 fn push_decl_emits_push_notifications_listener() {
     let src = r#"
-@endpoint(kind: mutation) fn store_token(token: str) to str { return token }
+@mutation fn store_token(token: str) to str { return token }
 @push {
     on_register: store_token
 }

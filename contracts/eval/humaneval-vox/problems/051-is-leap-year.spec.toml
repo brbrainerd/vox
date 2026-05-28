@@ -1,0 +1,13 @@
+[problem]
+id = "051"
+title = "is_leap_year"
+prompt = """
+Return true if the given year is a leap year, false otherwise.
+A year is a leap year if it is divisible by 4, except for century years (divisible by 100),
+which must be divisible by 400 to be a leap year.
+"""
+signature = "fn is_leap_year(year: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

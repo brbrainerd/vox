@@ -1,0 +1,13 @@
+fn is_square(n: int) to bool {
+    if n < 0 {
+        return false
+    }
+    let mut i: int = 0
+    while i * i <= n {
+        if i * i == n {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}

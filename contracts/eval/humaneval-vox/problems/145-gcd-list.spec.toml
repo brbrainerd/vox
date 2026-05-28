@@ -1,0 +1,11 @@
+[problem]
+id = "145"
+title = "gcd_list"
+prompt = """
+Compute the GCD (greatest common divisor) of all elements in a non-empty list of positive ints using an iterative approach.
+"""
+signature = "fn gcd_list(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["lists", "math"]

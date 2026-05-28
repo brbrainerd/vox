@@ -11,6 +11,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+vox-container-types = { workspace = true }
 
 anyhow.workspace = true
 thiserror.workspace = true

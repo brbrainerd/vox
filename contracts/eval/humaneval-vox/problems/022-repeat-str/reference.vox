@@ -1,0 +1,7 @@
+fn repeat_str(s: str, n: int) to str {
+    let mut result: str = ""
+    for _ in range(0, n) {
+        result = result + s
+    }
+    return result
+}

@@ -1,0 +1,8 @@
+fn any_negative(xs: list[int]) to bool {
+    for x in xs {
+        if x < 0 {
+            return true
+        }
+    }
+    return false
+}

@@ -1,0 +1,11 @@
+[problem]
+id = "088"
+title = "str-frequency"
+prompt = """
+Write a Vox function char_frequency(s: str, ch: str) to int that counts how many times the character ch appears in string s. Uses chars() iteration.
+"""
+signature = "fn char_frequency(s: str, ch: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings"]

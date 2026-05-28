@@ -99,6 +99,36 @@ fn regex_namespace_methods_dispatch() {
     assert_eq!(res, VoxValue::Bool(true));
 }
 
+/// `regex.find` — returns Option[str] with first match, or None on no match.
+/// Added 2026-05-27 (CR-L fix: "find" was missing from RegexModule methods map
+/// in typeck/builtins.rs; it was only in builtin_registry.rs for the std.regex path).
+#[test]
+fn regex_find_dispatch() {
+    let source = r#"
+    fn main() to bool {
+        let hit = regex.find("hello 42 world", "[0-9]+")
+        let miss = regex.find("no digits here", "[0-9]+")
+        return hit.is_some() and miss.is_none()
+    }
+    "#;
+    let res = run_probe(source).expect("should evaluate cleanly");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
+/// `regex.captures` — returns Option[list[str]] with all capture groups (incl. full match).
+#[test]
+fn regex_captures_dispatch() {
+    let source = r#"
+    fn main() to bool {
+        let caps = regex.captures("2026-05-27", r"(\d{4})-(\d{2})-(\d{2})")
+        let miss = regex.captures("not a date", r"(\d{4})-(\d{2})-(\d{2})")
+        return caps.is_some() and miss.is_none()
+    }
+    "#;
+    let res = run_probe(source).expect("should evaluate cleanly");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
 /// `fs.cwd` / `fs.exists` — both should dispatch.
 #[test]
 fn fs_cwd_and_exists_dispatch() {
@@ -412,6 +442,90 @@ fn int_div_by_zero_produces_clean_error() {
         err.contains("division by zero"),
         "error must name div-by-zero; got: {err}"
     );
+}
+
+// ── `?` operator (try / error-propagation) ──────────────────────────────────
+
+/// `?` on `Result` — unwraps `Ok` inline, or early-returns with the `Err`.
+/// Landed 2026-05-27: `HirExpr::Try` eval arm was missing; the
+/// `_ => VoxValue::Null` catch-all silently returned Null instead of
+/// propagating the error. Now properly implemented.
+#[test]
+fn try_operator_on_result_propagates_err_and_unwraps_ok() {
+    // Helper that returns `Ok("success")` on truthy input, `Err("fail")` otherwise.
+    let source = r#"
+    fn maybe_ok(flag: bool) to Result[str] {
+        if flag { return Ok("success") }
+        return Err("fail")
+    }
+    fn main() to bool {
+        // ? on Ok: unwraps to the inner string.
+        let val = maybe_ok(true)?
+        let ok_case = val == "success"
+        return ok_case
+    }
+    "#;
+    let res = run_probe(source).expect("? on Ok should evaluate cleanly");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
+/// `?` on `Result(Err)` early-returns the enclosing function with Err.
+#[test]
+fn try_operator_on_err_causes_early_return() {
+    let source = r#"
+    fn failing() to Result[str] {
+        return Err("oops")
+    }
+    fn caller() to Result[str] {
+        let _ = failing()?
+        return Ok("unreachable")
+    }
+    fn main() to bool {
+        let r = caller()
+        return r.is_err()
+    }
+    "#;
+    let res = run_probe(source).expect("? on Err should propagate to caller");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
+/// `?` on `Option(None)` early-returns the enclosing function with None.
+#[test]
+fn try_operator_on_none_causes_early_return() {
+    let source = r#"
+    fn returns_none() to Option[str] {
+        return None
+    }
+    fn caller() to Option[str] {
+        let _ = returns_none()?
+        return Some("unreachable")
+    }
+    fn main() to bool {
+        let r = caller()
+        return r.is_none()
+    }
+    "#;
+    let res = run_probe(source).expect("? on None should propagate to caller");
+    assert_eq!(res, VoxValue::Bool(true));
+}
+
+// ── Tuple literals ───────────────────────────────────────────────────────────
+
+/// Tuple literal `(a, b, c)` must parse, lower, and evaluate to `VoxValue::Tuple`.
+/// Added 2026-05-27: `HirExpr::TupleLit` was hitting the `_ => VoxValue::Null`
+/// catch-all in the evaluator.
+#[test]
+fn tuple_literal_evaluates_to_vox_tuple() {
+    let source = r#"
+    fn main() to int {
+        let t = (1, 2, 3)
+        match t {
+            (a, b, c) => return a + b + c
+        }
+    }
+    "#;
+    let res = run_probe(source).expect("tuple eval should succeed");
+    assert_eq!(res, VoxValue::Int(6));
 }
 
 /// Negation must use `not`, not `!`. Lock the phonetic-only choice

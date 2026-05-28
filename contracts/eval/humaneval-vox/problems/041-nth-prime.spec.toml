@@ -1,0 +1,11 @@
+[problem]
+id = "041"
+title = "nth_prime"
+prompt = """
+Return the nth prime number (1-indexed). nth_prime(1) = 2, nth_prime(2) = 3, nth_prime(3) = 5.
+"""
+signature = "fn nth_prime(n: int) to int"
+training_eligible = false
+provenance = "original"
+difficulty = "medium"
+tags = []

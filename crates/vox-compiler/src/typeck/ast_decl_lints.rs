@@ -102,23 +102,9 @@ fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
                 "Option" => Ty::Option(Box::new(
                     inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
                 )),
-                "Result" => {
-                    // Source-level `Result[T]` defaults E to Ty::Str;
-                    // `Result[T, E]` honors the explicit second arg.
-                    let mut it = inner_args.into_iter();
-                    let ok = it.next().unwrap_or(Ty::TypeVar(0));
-                    let err = it.next().unwrap_or(Ty::Str);
-                    Ty::Result(Box::new(ok), Box::new(err))
-                }
-                // `Id[T]` is a surrogate-int newtype in v0.5 — the @table
-                // primary key column lowers to a 64-bit row id. Typecheck
-                // erases to Ty::Int so `db.X.insert(...)?` (returning Int)
-                // unifies with user code annotated `to Result[Id[X]]`.
-                // The boundary-typing detector
-                // (vox/types/id-required-at-boundary in vox-code-audit)
-                // still enforces typed-ID usage at @endpoint parameter
-                // positions where the visual distinction matters.
-                "Id" => Ty::Int,
+                "Result" => Ty::Result(Box::new(
+                    inner_args.into_iter().next().unwrap_or(Ty::TypeVar(0)),
+                )),
                 _ => Ty::Named(name.clone()),
             }
         }
@@ -147,23 +133,15 @@ fn register_table(env: &mut TypeEnv, t: &TableDecl) {
         .map(|f| (f.name.clone(), resolve_type(&f.type_ann, env)))
         .collect();
 
-    let table_ty = Ty::Table(t.name.clone(), field_types);
-
     env.define(
         t.name.clone(),
         Binding {
-            ty: table_ty.clone(),
+            ty: Ty::Table(t.name.clone(), field_types),
             mutable: false,
             kind: BindingKind::Table,
             is_deprecated: t.is_deprecated,
         },
     );
-
-    // Register the table name as a TYPE alias too, so source-level
-    // annotations like `fn f(row: UserProfile)` resolve to Ty::Table
-    // (carrying field shapes) rather than to bare Ty::Named. Closes the
-    // v0.5 "Cannot access field 'x' on Named(...)" class of errors.
-    env.define_type(t.name.clone(), table_ty);
 }
 
 fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<Diagnostic>) {
@@ -260,7 +238,6 @@ fn visit_fn_decl_in_decl(decl: &Decl, visit: &mut impl FnMut(&FnDecl)) {
         Decl::Function(f) => visit(f),
         Decl::McpTool(m) => visit(&m.func),
         Decl::Test(t) => visit(&t.func),
-        Decl::Example(e) => visit(&e.func),
         Decl::Forall(f) => visit(&f.func),
         Decl::Endpoint(e) => visit(&e.func),
         Decl::Skill(s) => visit(&s.func),

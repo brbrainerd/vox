@@ -1,4 +1,4 @@
-//! Framework-agnostic typed `fetch` client for `@endpoint(kind: query|mutation|server)`.
+//! Framework-agnostic typed `fetch` client for `@query` / `@mutation` / `@server` endpoints.
 //!
 //! **HTTP SSOT (Rust + TS):** generated Axum wiring uses **`GET`** for `@query` (deterministic
 //! JSON-in-query encoding: sorted keys, each value is `JSON.stringify` + `encodeURIComponent`) and

@@ -16,7 +16,7 @@ fn emit(src: &str) -> String {
 #[test]
 fn back_button_decl_emits_tauri_listen() {
     let src = r#"
-@endpoint(kind: query) fn handle_back() to bool { return true }
+@query fn handle_back() to bool { return true }
 @back_button {
     on_press: handle_back
 }
@@ -33,8 +33,8 @@ fn back_button_decl_emits_tauri_listen() {
 #[test]
 fn back_button_with_fallback_emits_fallback_call() {
     let src = r#"
-@endpoint(kind: query) fn handle_back() to bool { return false }
-@endpoint(kind: mutation) fn navigate_home() to str { return "/" }
+@query fn handle_back() to bool { return false }
+@mutation fn navigate_home() to str { return "/" }
 @back_button {
     on_press: handle_back
     fallback: navigate_home

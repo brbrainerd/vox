@@ -136,6 +136,28 @@ pub const WORKFLOW_NON_DETERMINISTIC_BUILTIN: &str = "vox/workflow/non-determini
 pub const EFFECT_PURE_VIOLATED: &str = "vox/effect/pure-violated";
 
 // ---------------------------------------------------------------------------
+// Core type errors — emitted by vox-compiler typeck (v0.6 LLM-target)
+// ---------------------------------------------------------------------------
+// These constants mirror `vox_compiler::typeck::diagnostics::codes::TYPES_*`
+// so that `--explain` and `--list-diagnostics` can surface them.
+// String values MUST stay in sync with the compiler crate.
+
+/// Type mismatch in `let`, `return`, `state`, `derived`, or assignment.
+pub const TYPES_TYPE_MISMATCH: &str = "vox/types/type-mismatch";
+/// Undefined variable referenced in expression position.
+pub const TYPES_UNDEFINED_VARIABLE: &str = "vox/types/undefined-variable";
+/// Wrong number of arguments at a call site.
+pub const TYPES_ARG_COUNT_MISMATCH: &str = "vox/types/arg-count-mismatch";
+/// Argument type does not match the callee's declared parameter type.
+pub const TYPES_ARG_TYPE_MISMATCH: &str = "vox/types/arg-type-mismatch";
+/// Field access on a type that does not have that field.
+pub const TYPES_FIELD_NOT_FOUND: &str = "vox/types/field-not-found";
+/// Method call on a type that does not have that method.
+pub const TYPES_METHOD_NOT_FOUND: &str = "vox/types/method-not-found";
+/// Type of an expression could not be fully resolved (unresolved type variable).
+pub const TYPES_UNRESOLVED_TYPE: &str = "vox/types/unresolved-type";
+
+// ---------------------------------------------------------------------------
 // Type rules (Phase 3)
 // ---------------------------------------------------------------------------
 
@@ -183,6 +205,11 @@ pub const RETIRED_MEMORY_API: &str = "vox/retired/memory-api";
 /// Source file imports a retired `@capacitor/*` package or runs `npx cap sync`.
 /// Covers the `capacitor-imports` and `cap-sync-cli` rows. Phase 1.4 detector.
 pub const RETIRED_CAPACITOR: &str = "vox/retired/capacitor";
+
+/// A Vox file contains a circular `import` dependency (self-import or multi-file cycle).
+/// Phase J.19 / CR-L gate.  Multi-file cycles are detected by
+/// `detectors::import_cycles::detect_import_cycles_in_batch`.
+pub const IMPORT_CYCLE: &str = "vox/import/cycle";
 
 // ---------------------------------------------------------------------------
 // Codegen (Phase 1)
@@ -243,6 +270,14 @@ pub const ALL_PHASE2_IDS: &[&str] = &[
 
 /// All known diagnostic IDs across all phases.
 pub const ALL_KNOWN_IDS: &[&str] = &[
+    // Core type errors (v0.6)
+    TYPES_TYPE_MISMATCH,
+    TYPES_UNDEFINED_VARIABLE,
+    TYPES_ARG_COUNT_MISMATCH,
+    TYPES_ARG_TYPE_MISMATCH,
+    TYPES_FIELD_NOT_FOUND,
+    TYPES_METHOD_NOT_FOUND,
+    TYPES_UNRESOLVED_TYPE,
     LLM_DIRECT_PROVIDER_CALL,
     SECRET_ENV_GET_SHAPE,
     CRYPTO_BANNED_CRATE_IMPORT,
@@ -290,6 +325,7 @@ pub const ALL_KNOWN_IDS: &[&str] = &[
     RETIRED_ENV_VAR,
     RETIRED_MEMORY_API,
     RETIRED_CAPACITOR,
+    IMPORT_CYCLE,
 ];
 
 /// Find the explain URL for a given diagnostic ID.

@@ -271,10 +271,10 @@ component Home() {
 routes {
     "/" to Home
 }
-@endpoint(kind: server) fn api_x() to int {
+@server fn api_x() to int {
     return 1
 }
-@endpoint(kind: query) fn q_list() to int { return 0 }
+@query fn q_list() to int { return 0 }
 "#;
     let module = parse(lex(source)).expect("parse");
     let hir = lower_module(&module);
@@ -612,13 +612,13 @@ style {
 #[ignore = "owner: platform-ci — sunset: 2026-08-01 — web_ir_lower_emit baseline; burndown incrementally"]
 fn web_ir_lowering_summary_counts_http_and_rpc() {
     let src = r#"
-@endpoint(kind: server) fn api_ping() to int { return 1 }
+@server fn api_ping() to int { return 1 }
 
-@endpoint(kind: server) fn do_work() to int { return 0 }
+@server fn do_work() to int { return 0 }
 
-@endpoint(kind: query) fn read_q() to int { return 0 }
+@query fn read_q() to int { return 0 }
 
-@endpoint(kind: mutation) fn write_m(x: int) to int { return x }
+@mutation fn write_m(x: int) to int { return x }
 "#;
     let module = parse(lex(src)).expect("parse rpc fixture");
     let hir = lower_module(&module);

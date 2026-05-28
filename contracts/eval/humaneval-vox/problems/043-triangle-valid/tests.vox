@@ -1,0 +1,11 @@
+fn triangle_valid(a: int, b: int, c: int) to bool {
+    return a + b > c and b + c > a and a + c > b
+}
+
+fn main() to str {
+    assert(triangle_valid(3, 4, 5) == true)
+    assert(triangle_valid(1, 1, 3) == false)
+    assert(triangle_valid(5, 5, 5) == true)
+    assert(triangle_valid(1, 2, 3) == false)
+    return "ok"
+}

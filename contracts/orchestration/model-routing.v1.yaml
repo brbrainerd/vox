@@ -29,6 +29,8 @@ fallback_graph:
 tiers:
   - Unknown
   - Local
+  - Free      # zero-cost API models (e.g. OpenRouter :free variants); rate-limited, variable quality
+  - Fast      # speed-optimised, lower-cost than Pro (Haiku/Flash class)
   - Light
   - Pro
   - Elite

@@ -1,0 +1,11 @@
+[problem]
+id = "136"
+title = "count_distinct"
+prompt = """
+Count the number of distinct (unique) values in a list of ints.
+"""
+signature = "fn count_distinct(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "counting"]

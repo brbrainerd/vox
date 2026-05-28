@@ -4,10 +4,10 @@ bin = []
 name = "marquee-todo-auth"
 version = "0.1.0"
 kind = "application"
-description = "Marquee Slot 2 — per-user todo list with bearer-token auth (CR-P1 / CR-L0 / CR-L7 fixture)"
+description = "Vox Marquee Slot 2 — Todo-CRUD with @auth(scheme: bearer)"
 license = "Apache-2.0"
 authors = []
-keywords = ["marquee", "todo", "auth", "single-tenant-saas"]
+keywords = ["marquee", "auth", "crud", "todo"]
 targets = []
 
 [dependencies]
@@ -17,3 +17,14 @@ targets = []
 [features]
 
 [skills]
+
+[deploy]
+# Target: OCI container pushed to GitHub Container Registry.
+# Auth: GITHUB_TOKEN (Clavis ForgeToken).
+# Registry login: docker login ghcr.io -u <username> -p $GITHUB_TOKEN
+target = "container"
+runtime = "auto"
+
+[deploy.container]
+registry = "ghcr.io/owner"
+dockerfile = "Dockerfile"

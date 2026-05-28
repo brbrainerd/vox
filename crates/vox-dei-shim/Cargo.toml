@@ -1,0 +1,37 @@
+[package]
+name = "vox-dei-shim"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+description = "DEI research pipeline and model-selection sub-systems (extracted from vox-orchestrator as an A-12 wedge crate)."
+
+[features]
+## Enable live LLM inference calls (disabled in test/stub builds).
+runtime = []
+## Enable Populi news-publish routing in the mesh subscriber.
+news-publish = []
+
+[dependencies]
+vox-orchestrator = { workspace = true }
+vox-orchestrator-types = { workspace = true }
+vox-actor-runtime = { workspace = true }
+vox-secrets = { workspace = true }
+vox-config = { workspace = true }
+vox-db = { workspace = true }
+vox-research-events = { workspace = true }
+vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape", "tavily"] }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+jsonschema = { workspace = true, default-features = false }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true

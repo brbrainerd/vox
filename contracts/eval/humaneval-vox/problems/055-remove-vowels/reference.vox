@@ -1,0 +1,11 @@
+fn remove_vowels(s: str) to str {
+    let vowels: list[str] = ["a", "e", "i", "o", "u", "A", "E", "I", "O", "U"]
+    let mut result: str = ""
+    let chars: list[str] = s.chars()
+    for c in chars {
+        if not vowels.contains(c) {
+            result = result + c
+        }
+    }
+    return result
+}

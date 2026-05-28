@@ -1,0 +1,17 @@
+fn square_list(xs: list[int]) to list[int] {
+    let mut result: list[int] = []
+    for x in xs {
+        result.push(x * x)
+    }
+    return result
+}
+
+fn main() to str {
+    assert(square_list([1, 2, 3]) == [1, 4, 9])
+    assert(square_list([0, 5, 10]) == [0, 25, 100])
+    assert(square_list([-3, -2, -1]) == [9, 4, 1])
+    assert(square_list([]) == [])
+    assert(square_list([7]) == [49])
+    assert(square_list([1, -1, 2, -2]) == [1, 1, 4, 4])
+    return "ok"
+}

@@ -16,12 +16,7 @@ pub enum VoxValue {
         env: crate::eval::env::Scope,
     },
     Option(core::option::Option<Box<VoxValue>>),
-    /// Two-parameter Result carrier. Err side stores a full VoxValue so
-    /// ADT-shaped errors (e.g. `Error(TitleEmpty("..."))`) round-trip
-    /// through pattern matching with the variant tag preserved. Before
-    /// 2026-05-18 the Err side was `String`, which forced every
-    /// `Result[T, E]` to collapse to `Result[T, str]` at runtime.
-    Result(core::result::Result<Box<VoxValue>, Box<VoxValue>>),
+    Result(core::result::Result<Box<VoxValue>, String>),
     /// An ADT variant constructor callable (not yet applied). Created by `run_module`.
     Constructor(String),
     /// An applied ADT variant value, e.g. `Applied(10, 0)`.

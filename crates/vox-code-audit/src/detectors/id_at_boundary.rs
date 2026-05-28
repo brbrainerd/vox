@@ -4,11 +4,11 @@ use regex::Regex;
 
 /// Detects bare `str`-typed ID parameters at API boundaries in Vox files.
 ///
-/// Functions decorated with `@endpoint` or `@activity`, or message handlers inside
-/// `actor {}` blocks, should use typed ID wrappers like `Id[User]` instead of `str`
-/// for parameters whose names end with `_id`.
+/// Functions decorated with `@query`, `@mutation`, `@server`, or `@activity`, or
+/// message handlers inside `actor {}` blocks, should use typed ID wrappers like
+/// `Id[User]` instead of `str` for parameters whose names end with `_id`.
 pub struct IdAtBoundaryDetector {
-    /// Matches `@endpoint` or `@activity` decorators
+    /// Matches `@query`, `@mutation`, `@server`, or `@activity` decorators
     boundary_decorator: Regex,
     /// Matches `actor { ... }` block open
     actor_block: Regex,
@@ -28,7 +28,7 @@ impl Default for IdAtBoundaryDetector {
 impl IdAtBoundaryDetector {
     pub fn new() -> Self {
         Self {
-            boundary_decorator: Regex::new(r"^\s*@(?:endpoint|activity)\b").expect("valid regex"),
+            boundary_decorator: Regex::new(r"^\s*@(?:query|mutation|server|activity)\b").expect("valid regex"),
             actor_block: Regex::new(r"\bactor\s+\w+\s*\{").expect("valid regex"),
             fn_line: Regex::new(r"^\s*fn\s+\w+\s*\(").expect("valid regex"),
             bare_id_param: Regex::new(r"\b(\w+_id)\s*:\s*str\b").expect("valid regex"),
@@ -48,7 +48,7 @@ impl DetectionRule for IdAtBoundaryDetector {
 
     fn description(&self) -> &'static str {
         "Detects bare `str` parameters with `_id` suffix names at API boundaries \
-        (@endpoint, @activity, actor message handlers) where typed ID wrappers should be used."
+        (@query, @mutation, @server, @activity, actor message handlers) where typed ID wrappers should be used."
     }
 
     fn severity(&self) -> Severity {
@@ -65,6 +65,22 @@ impl DetectionRule for IdAtBoundaryDetector {
 
     fn explain(&self) -> &'static str {
         "ID parameters at API boundaries must use typed wrappers (e.g. `Id[User]`) instead of bare `str` to prevent accidental ID confusion across entity types."
+    }
+
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — bare str with _id suffix at an @query boundary\n\
+             @query\n\
+             fn get_order(order_id: str) -> Order {\n\
+             \x20   db.orders.get(order_id)\n\
+             }\n\
+             \n\
+             // FIX — use a typed ID wrapper\n\
+             @query\n\
+             fn get_order(order_id: Id[Order]) -> Order {\n\
+             \x20   db.orders.get(order_id)\n\
+             }",
+        )
     }
 
     fn detect(
@@ -100,7 +116,7 @@ impl DetectionRule for IdAtBoundaryDetector {
             }
 
             // Determine if this is a boundary line:
-            // Either the line itself (or the previous line) is @endpoint/@activity,
+            // Either the line itself (or the previous line) is @query/@mutation/@server/@activity,
             // OR we are inside an actor block and this line starts a fn
             let is_decorated_boundary = self.boundary_decorator.is_match(line)
                 || (i > 0 && self.boundary_decorator.is_match(&lines[i - 1]));
@@ -170,22 +186,22 @@ mod tests {
     }
 
     #[test]
-    fn flags_bare_str_id_under_endpoint() {
+    fn flags_bare_str_id_under_query() {
         let d = IdAtBoundaryDetector::new();
-        let code = "@endpoint\nfn get_user(user_id: str) -> User {}";
+        let code = "@query\nfn get_user(user_id: str) -> User {}";
         let f = source(code);
         let findings = d.detect(&f, None);
         assert!(
             !findings.is_empty(),
-            "should flag user_id: str under @endpoint"
+            "should flag user_id: str under @query"
         );
         assert!(findings[0].message.contains("user_id"));
     }
 
     #[test]
-    fn ignores_typed_id_under_endpoint() {
+    fn ignores_typed_id_under_query() {
         let d = IdAtBoundaryDetector::new();
-        let code = "@endpoint\nfn get_user(user_id: Id[User]) -> User {}";
+        let code = "@query\nfn get_user(user_id: Id[User]) -> User {}";
         let f = source(code);
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "Id[User] typed param should not fire");
@@ -194,7 +210,7 @@ mod tests {
     #[test]
     fn ignores_non_id_str_param() {
         let d = IdAtBoundaryDetector::new();
-        let code = "@endpoint\nfn compute(value: str) -> str {}";
+        let code = "@query\nfn compute(value: str) -> str {}";
         let f = source(code);
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "non-_id str param should not fire");
@@ -217,7 +233,7 @@ mod tests {
         let d = IdAtBoundaryDetector::new();
         let f = SourceFile::new(
             PathBuf::from("test.rs"),
-            "@endpoint\nfn get_user(user_id: str) {}".to_string(),
+            "@query\nfn get_user(user_id: str) {}".to_string(),
         );
         let findings = d.detect(&f, None);
         assert!(findings.is_empty(), "rust files should be ignored");

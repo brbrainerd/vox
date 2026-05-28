@@ -1,0 +1,24 @@
+fn gcd(a: int, b: int) to int {
+    let mut x: int = a
+    let mut y: int = b
+    while y != 0 {
+        let t: int = y
+        y = x % y
+        x = t
+    }
+    return x
+}
+
+fn gcd_list(xs: list[int]) to int {
+    let mut result: int = 0
+    let mut first: bool = true
+    for v in xs {
+        if first {
+            result = v
+            first = false
+        } else {
+            result = gcd(result, v)
+        }
+    }
+    return result
+}

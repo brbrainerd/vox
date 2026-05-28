@@ -74,10 +74,7 @@ impl Subcommand for AciDefaultSubcommand {
                 return RunOutcome {
                     report: AuditReport::infra_error(
                         gate_thing_name(),
-                        format!(
-                            "failed to read {}: {err}",
-                            impl_path.display()
-                        ),
+                        format!("failed to read {}: {err}", impl_path.display()),
                     ),
                     exit_code: ExitCode::InfrastructureError,
                 };
@@ -187,9 +184,7 @@ fn parse_workspace_version(cargo_toml: &str) -> Option<String> {
         if trimmed.starts_with('[') && in_workspace_package {
             break;
         }
-        if in_workspace_package
-            && let Some(rest) = trimmed.strip_prefix("version")
-        {
+        if in_workspace_package && let Some(rest) = trimmed.strip_prefix("version") {
             let rest = rest.trim_start().trim_start_matches('=').trim();
             return Some(rest.trim_matches('"').to_string());
         }
@@ -255,13 +250,13 @@ edition = "2024"
             ..CommonArgs::default()
         };
         let outcome = AciDefaultSubcommand.run(&args);
-        // On v0.5.x we expect `false`, which is the current state, so bar met.
-        // The workspace version pin is `0.5.0` per Cargo.toml; this test will
-        // need to flip when v0.6 lands (P1.1) AND the default flip lands.
+        // Workspace is v0.6.0; CR-L5 (D20) requires `default_true()`.
+        // impl_default.rs already has `agentos_aci_envelope_enabled: default_true()`,
+        // so the audit should report bar met.
         assert_eq!(
             outcome.exit_code,
             ExitCode::Ok,
-            "v0.5.x baseline expects default=false; report note: {:?}",
+            "v0.6+ requires default=true; report note: {:?}",
             outcome.report.note
         );
         assert!(!outcome.report.incomplete);

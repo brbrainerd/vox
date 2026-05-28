@@ -328,17 +328,7 @@ pub fn vox_list_dir(path: &str) -> Result<Vec<String>, String> {
     Ok(out)
 }
 
-/// One directory entry with structured metadata (`std.fs.list_dir_detailed` / `std.fs.stat`).
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct VoxFileRecord {
-    pub name: String,
-    pub path: String,
-    pub size: i64,
-    pub modified_ms: i64,
-    pub is_dir: bool,
-    pub is_file: bool,
-    pub is_symlink: bool,
-}
+pub use vox_shell_stdlib_types::fs_types::VoxFileRecord;
 
 fn vox_file_record_from_meta(
     full_path: &str,
@@ -1491,23 +1481,48 @@ pub fn vox_env_set(key: &str, value: &str) {
 
 /// `std.regex.replace(pattern, haystack, replacement) -> Result[str]` —
 /// replace all matches of `pattern` in `haystack` with `replacement`.
+/// `std.regex.replace(haystack, pattern, replacement) -> Result[str]`
+/// Replace all non-overlapping matches of `pattern` in `haystack` with `replacement`.
+/// `$0`/`$1`/… expansion works as in the `regex` crate.
 pub fn vox_regex_replace(
-    pattern: &str,
     haystack: &str,
+    pattern: &str,
     replacement: &str,
 ) -> Result<String, String> {
     let re = regex::Regex::new(pattern).map_err(|e| e.to_string())?;
     Ok(re.replace_all(haystack, replacement).to_string())
 }
 
-/// `std.regex.find(pattern, haystack) -> Result[Option[str]]` — first match
+/// `std.regex.find(haystack, pattern) -> Result[Option[str]]` — first match
 /// substring; `Ok(None)` when no match, `Err(msg)` only on bad pattern.
 pub fn vox_regex_find(
-    pattern: &str,
     haystack: &str,
+    pattern: &str,
 ) -> Result<Option<String>, String> {
     let re = regex::Regex::new(pattern).map_err(|e| e.to_string())?;
     Ok(re.find(haystack).map(|m| m.as_str().to_string()))
+}
+
+/// `std.regex.is_match(haystack, pattern) -> bool`
+/// Returns `true` if `pattern` matches anywhere in `haystack`.
+/// Returns `false` on bad pattern (silent fail, consistent with eval-tier).
+pub fn vox_regex_is_match(haystack: &str, pattern: &str) -> bool {
+    regex::Regex::new(pattern)
+        .map(|re| re.is_match(haystack))
+        .unwrap_or(false)
+}
+
+/// `std.regex.captures(haystack, pattern) -> Option[list[str]]`
+/// Returns all capture groups (including group 0 = whole match) if the pattern
+/// matches, `None` if it doesn't or the pattern is invalid.
+pub fn vox_regex_captures(haystack: &str, pattern: &str) -> Option<Vec<String>> {
+    let re = regex::Regex::new(pattern).ok()?;
+    let caps = re.captures(haystack)?;
+    Some(
+        caps.iter()
+            .map(|m| m.map(|x| x.as_str().to_string()).unwrap_or_default())
+            .collect(),
+    )
 }
 
 /// Convert a `dec` value to a string (`std.dec.to_string`).

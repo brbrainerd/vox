@@ -31,10 +31,10 @@ routes {
     "/" to Home_render
 }
 
-@endpoint(kind: query) fn ping() to int { return 1 }
-@endpoint(kind: server) fn sf_ping() to int { return 1 }
-@endpoint(kind: query) fn list_tasks() to int { return 0 }
-@endpoint(kind: mutation) fn save_task(title: str) to int {
+@query fn ping() to int { return 1 }
+@server fn sf_ping() to int { return 1 }
+@query fn list_tasks() to int { return 0 }
+@mutation fn save_task(title: str) to int {
     db.Task.insert({ title: title, done: false })
     return 1
 }
@@ -83,7 +83,7 @@ routes {
 #[test]
 fn projection_triplet_with_back_button_is_deterministic() {
     let src = r#"
-@endpoint(kind: query) fn on_back() to bool { return true }
+@query fn on_back() to bool { return true }
 @back_button {
     on_press: on_back
 }
@@ -110,10 +110,10 @@ fn projection_triplet_with_back_button_is_deterministic() {
 #[test]
 fn projection_bundle_fixture_is_deterministic_and_distinct() {
     let src = r#"
-@endpoint(kind: query) @uses(net) fn api_ping() to int { return 1 }
+@query @uses(net) fn api_ping() to int { return 1 }
 
-@endpoint(kind: query) fn handle_link(url: str) to str { return "/" }
-@endpoint(kind: mutation) fn store_token(token: str) to str { return token }
+@query fn handle_link(url: str) to str { return "/" }
+@mutation fn store_token(token: str) to str { return token }
 
 @deep_link { scheme: "vox" on_link: handle_link }
 @push { on_register: store_token }

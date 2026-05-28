@@ -1,0 +1,12 @@
+fn partition_by_sign(xs: list[int]) to list[list[int]] {
+    let mut nonneg: list[int] = []
+    let mut neg: list[int] = []
+    for x in xs {
+        if x >= 0 {
+            nonneg.push(x)
+        } else {
+            neg.push(x)
+        }
+    }
+    return [nonneg, neg]
+}

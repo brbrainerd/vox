@@ -1,0 +1,32 @@
+fn capitalize_first(s: str) to str {
+    if s.len() == 0 {
+        return ""
+    }
+    let chars: list[str] = s.chars()
+    let mut result: str = ""
+    let mut i: int = 0
+    while i < chars.len() {
+        match chars[i] {
+            Some(c) => {
+                if i == 0 {
+                    result = result + c.to_upper()
+                } else {
+                    result = result + c
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(capitalize_first("hello") == "Hello")
+    assert(capitalize_first("world") == "World")
+    assert(capitalize_first("") == "")
+    assert(capitalize_first("already") == "Already")
+    assert(capitalize_first("hELLO") == "HELLO")
+    assert(capitalize_first("a") == "A")
+    return "ok"
+}

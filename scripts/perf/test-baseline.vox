@@ -1,0 +1,127 @@
+// vox:caps fs process env
+// scripts/perf/test-baseline.vox — measures wall-clock for every CI gate tier.
+//
+// Usage:
+//   vox run scripts/perf/test-baseline.vox
+//
+// Output:
+//   contracts/reports/test-baseline-<YYYY-MM-DD>.json
+import fs;
+import process;
+import json;
+
+fn measure_ms(cmd: str, args: list[str]) to int {
+    let inner = cmd + " " + args.join(" ")
+    let ps_cmd = "(Measure-Command { " + inner + " 2>&1 | Out-Null }).TotalMilliseconds"
+    let res = process.run("powershell", ["-NoProfile", "-Command", ps_cmd])
+    if res is null { return -1 }
+    let r = res.unwrap()
+    if r.code != 0 { return -1 }
+    let ms_str = r.stdout.trim()
+    let dot_pos = ms_str.find(".")
+    if dot_pos >= 0 { return int(ms_str.slice(0, dot_pos)) }
+    return int(ms_str)
+}
+
+fn run_and_record(label: str, cmd: str, args: list[str]) to Json {
+    print("  timing: " + label + " ...")
+    let ms = measure_ms(cmd, args)
+    let ok = ms >= 0
+    print("    -> " + str(ms) + "ms ok=" + str(ok))
+    let obj_str = "{\"label\":\"" + label + "\",\"wall_ms\":" + str(ms) + ",\"ok\":" + str(ok) + "}"
+    return json.parse(obj_str).unwrap()
+}
+
+fn env_str(cmd: str, args: list[str]) to str {
+    let res = process.run(cmd, args)
+    if res is null { return "unknown" }
+    let r = res.unwrap()
+    if r.code != 0 { return "unknown" }
+    return r.stdout.trim()
+}
+
+fn target_dir_gb() to float {
+    let ps = "$s=(Get-ChildItem target -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; [math]::Round($s/1GB,2)"
+    let res = process.run("powershell", ["-NoProfile", "-Command", ps])
+    if res is null { return 0.0 }
+    let r = res.unwrap()
+    if r.code != 0 { return 0.0 }
+    let s = r.stdout.trim()
+    if s == "" { return 0.0 }
+    return float(s)
+}
+
+fn sum_steps(steps: list[Json]) to int {
+    let mut total = 0
+    for s in steps {
+        let ms = s.get("wall_ms").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(0)
+        if ms > 0 { total = total + ms }
+    }
+    return total
+}
+
+fn main() {
+    print("=== test-baseline.vox ===")
+
+    // ── env snapshot ──────────────────────────────────────────────────────
+    print("Collecting environment...")
+    let cpu_threads = env_str("powershell", ["-NoProfile", "-Command", "(Get-CimInstance Win32_Processor).NumberOfLogicalProcessors"])
+    let ram_gb = env_str("powershell", ["-NoProfile", "-Command", "[math]::Round((Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize/1MB,2)"])
+    let target_gb = str(target_dir_gb())
+    let cargo_ver = env_str("cargo", ["--version"])
+    let nextest_ver = env_str("cargo", ["nextest", "--version"])
+    let llvmcov_ver = env_str("cargo", ["llvm-cov", "--version"])
+
+    // ── per-gate measurements (serial to avoid target/ lock contention) ───
+
+    // fast tier steps
+    print("\n[fast tier]")
+    let s_fmt = run_and_record("cargo fmt --check", "cargo", ["fmt", "--all", "--", "--check"])
+    let s_ssot = run_and_record("vox-cli ci ssot-drift", "cargo", ["run", "-p", "vox-cli", "--quiet", "--", "ci", "ssot-drift"])
+    let s_toestub = run_and_record("vox-cli ci toestub-scoped", "cargo", ["run", "-p", "vox-cli", "--quiet", "--", "ci", "toestub-scoped", "--mode", "enforce-warn"])
+    let s_arch = run_and_record("scripts/arch-check.vox", "cargo", ["run", "-p", "vox-cli", "--quiet", "--", "run", "scripts/arch-check.vox"])
+    let fast_ms = sum_steps([s_fmt, s_ssot, s_toestub, s_arch])
+
+    // complete tier adds clippy
+    print("\n[complete tier (adds clippy)]")
+    let s_clippy = run_and_record("cargo clippy --workspace --all-targets", "cargo", ["clippy", "--workspace", "--all-targets", "--quiet"])
+    let complete_ms = sum_steps([s_fmt, s_ssot, s_toestub, s_arch, s_clippy])
+
+    // full tier adds nextest (no cov, slow excluded)
+    print("\n[full tier (adds nextest, slow excluded)]")
+    let s_nextest = run_and_record("nextest --workspace --run-ignored never", "cargo", ["nextest", "run", "--workspace", "--no-fail-fast", "--retries", "0", "--run-ignored", "never"])
+    let full_ms = sum_steps([s_fmt, s_ssot, s_toestub, s_arch, s_clippy, s_nextest])
+
+    // full+cov tier replaces nextest with llvm-cov nextest
+    print("\n[full+cov tier (llvm-cov, slow excluded)]")
+    let s_cov = run_and_record("llvm-cov nextest --workspace --run-ignored never", "cargo", ["llvm-cov", "nextest", "--workspace", "--no-fail-fast", "--retries", "0", "--run-ignored", "never", "--no-report"])
+    let full_cov_ms = sum_steps([s_fmt, s_ssot, s_toestub, s_arch, s_clippy, s_cov])
+
+    // doctests
+    print("\n[doctests]")
+    let s_doctests = run_and_record("cargo test --workspace --doc", "cargo", ["test", "--workspace", "--doc", "--quiet"])
+    let doc_ms = s_doctests.get("wall_ms").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(0)
+
+    // ── get today's date ──────────────────────────────────────────────────
+    let date_res = process.run("powershell", ["-NoProfile", "-Command", "Get-Date -Format 'yyyy-MM-dd'"])
+    let today = if date_res is null { "unknown" } else { date_res.unwrap().stdout.trim() }
+
+    // ── assemble and write JSON output ────────────────────────────────────
+    let out_path = "contracts/reports/test-baseline-" + today + ".json"
+    let tiers_str = "{\"fast\":" + str(fast_ms) + ",\"complete\":" + str(complete_ms) + ",\"full\":" + str(full_ms) + ",\"full_cov\":" + str(full_cov_ms) + ",\"doctests\":" + str(doc_ms) + "}"
+    let env_str_val = "{\"cpu_logical_threads\":" + cpu_threads + ",\"ram_gb\":" + ram_gb + ",\"target_dir_gb\":" + target_gb + ",\"cargo_version\":\"" + cargo_ver + "\",\"nextest_version\":\"" + nextest_ver + "\",\"llvm_cov_version\":\"" + llvmcov_ver + "\"}"
+    let report_str = "{\"schema_version\":1,\"generated_at\":\"" + today + "\",\"env\":" + env_str_val + ",\"tiers\":" + tiers_str + "}"
+
+    fs.write(out_path, report_str)
+    print("\nReport written to: " + out_path)
+
+    // ── Markdown summary ─────────────────────────────────────────────────
+    print("\n=== Summary ===")
+    print("Tier          | Wall-clock")
+    print("------------- | ----------")
+    print("fast          | " + str(fast_ms) + "ms")
+    print("complete      | " + str(complete_ms) + "ms")
+    print("full          | " + str(full_ms) + "ms")
+    print("full+cov      | " + str(full_cov_ms) + "ms")
+    print("doctests      | " + str(doc_ms) + "ms")
+}

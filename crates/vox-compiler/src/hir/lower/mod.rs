@@ -19,15 +19,14 @@
 use crate::ast::decl::*;
 use crate::hir::def_map::DefMap;
 use crate::hir::*;
-use crate::web_prefixes::{
-    MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX, STREAM_FN_API_PREFIX,
-};
+use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 
 mod async_flags;
 mod contracts;
 mod db_select_normalize;
 mod decl;
 mod expr_db;
+mod json_as;
 #[path = "expr.rs"]
 mod lowering_expr;
 #[path = "stmt.rs"]
@@ -172,6 +171,12 @@ impl LowerCtx {
                 }
                 Decl::TypeDef(t) => {
                     hir.types.push(self.lower_typedef(t));
+                    // RFC json-as-rfc-2026-05-24 §6: synthesise from_json / to_json for
+                    // `@json_as`-annotated types. The synthesised HirFns are collected here
+                    // and drained into hir.functions (below) so typeck / eval / codegen see
+                    // them as ordinary top-level functions — no special-casing needed.
+                    hir.functions
+                        .extend(json_as::synthesise_json_as_fns(self, t));
                 }
 
                 Decl::McpTool(m) => {
@@ -194,11 +199,6 @@ impl LowerCtx {
                         hir.tests.push(self.lower_fn(&t.func));
                     }
                 }
-                Decl::Example(e) => {
-                    // Examples are kept regardless of strip_tests: they are
-                    // corpus-eligible authored solutions, not regression tests.
-                    hir.examples.push(self.lower_fn(&e.func));
-                }
                 Decl::Forall(f) => {
                     let func = self.lower_fn(&f.func);
                     hir.foralls.push(HirForall {
@@ -209,7 +209,106 @@ impl LowerCtx {
                 }
                 // `route_path` is the stable HTTP contract surface for WebIR `RouteNode` / client stubs.
                 Decl::Endpoint(e) => {
-                    hir.endpoint_fns.push(self.lower_endpoint_decl(e));
+                    let lowered = self.lower_fn(&e.func);
+                    let (kind, prefix) = match e.kind {
+                        crate::ast::decl::EndpointKind::Query => {
+                            (crate::hir::HirEndpointKind::Query, QUERY_FN_API_PREFIX)
+                        }
+                        crate::ast::decl::EndpointKind::Mutation => (
+                            crate::hir::HirEndpointKind::Mutation,
+                            MUTATION_FN_API_PREFIX,
+                        ),
+                        crate::ast::decl::EndpointKind::Server => {
+                            (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
+                        }
+                    };
+                    let route_path = format!("{prefix}{}", lowered.name);
+                    let webhook = e.func.webhook.as_ref().map(|w| {
+                        use crate::ast::decl::webhook::AstWebhookProvider as A;
+                        use crate::hir::nodes::boilerplate_grafts::{
+                            HirWebhookDecl, WebhookProvider as H,
+                        };
+                        let provider = match &w.provider {
+                            A::Stripe => H::Stripe,
+                            A::Github => H::Github,
+                            A::Slack => H::Slack,
+                            A::Custom { secret_var } => H::Custom {
+                                secret_var: secret_var.clone(),
+                            },
+                        };
+                        HirWebhookDecl {
+                            provider,
+                            idempotent: w.idempotent,
+                            replay_window_secs: w.replay_window_secs,
+                            span: w.span,
+                        }
+                    });
+                    let cors = e.func.cors_spec.as_ref().map(|c| {
+                        crate::hir::nodes::http_ergonomics::HirCorsPolicy {
+                            origins: c.origins.clone(),
+                            allow_credentials: c.allow_credentials,
+                            span: c.span,
+                        }
+                    });
+                    let rate_limit = e.func.rate_limit.as_ref().map(|r| {
+                        use crate::ast::decl::http_decorators::AstRateLimitBy as A;
+                        use crate::hir::nodes::http_ergonomics::{
+                            HirRateLimitPolicy, RateLimitBy as H,
+                        };
+                        HirRateLimitPolicy {
+                            by: match r.by {
+                                A::Ip => H::Ip,
+                                A::UserId => H::UserId,
+                                A::ApiKey => H::ApiKey,
+                            },
+                            window_secs: r.window_secs,
+                            max_requests: r.max_requests,
+                            span: r.span,
+                        }
+                    });
+                    let pii = e.func.pii.as_ref().map(|p| {
+                        use crate::ast::decl::http_decorators::AstPiiClass as A;
+                        use crate::hir::nodes::boilerplate_grafts::{HirPiiMarker, PiiClass as H};
+                        let class = match &p.class {
+                            A::Name => H::Name,
+                            A::Email => H::Email,
+                            A::Phone => H::Phone,
+                            A::Ip => H::Ip,
+                            A::FinancialData => H::FinancialData,
+                            A::BiometricData => H::BiometricData,
+                            A::Other(_) => H::Email, // best-effort fallback
+                        };
+                        HirPiiMarker {
+                            class,
+                            span: p.span,
+                        }
+                    });
+                    let layer = e.func.layer.as_ref().and_then(|l| {
+                        crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {
+                            crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
+                        })
+                    });
+                    hir.endpoint_fns.push(crate::hir::HirEndpointFn {
+                        kind,
+                        id: lowered.id,
+                        name: lowered.name.clone(),
+                        params: lowered.params.clone(),
+                        return_type: lowered.return_type.clone(),
+                        body: lowered.body.clone(),
+                        route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered
+                            .capabilities
+                            .iter()
+                            .filter_map(cap_to_effect_kind)
+                            .collect(),
+                        webhook,
+                        cors,
+                        rate_limit,
+                        pii,
+                        layer,
+                        span: lowered.span,
+                    });
                 }
                 Decl::Table(t) => {
                     hir.tables.push(self.lower_table(t));
@@ -474,116 +573,9 @@ impl LowerCtx {
         // Drain synthesised side_effect activities (P1-T7) into the function list.
         hir.functions.append(&mut self.synthesised_fns);
 
-
         hir
     }
-
-    /// Lower a single `@endpoint` declaration to an `HirEndpointFn`.
-    ///
-    /// CR-A1: the 4-arm `match e.kind` + the webhook/CORS/rate-limit/PII/layer
-    /// conversion closures contributed ~12 decision points inline in `lower()`;
-    /// moving them here drops `lower` to ~7 CC.
-    fn lower_endpoint_decl(&mut self, e: &EndpointDecl) -> crate::hir::HirEndpointFn {
-        let lowered = self.lower_fn(&e.func);
-        let (kind, prefix) = match e.kind {
-            crate::ast::decl::EndpointKind::Query => {
-                (crate::hir::HirEndpointKind::Query, QUERY_FN_API_PREFIX)
-            }
-            crate::ast::decl::EndpointKind::Mutation => (
-                crate::hir::HirEndpointKind::Mutation,
-                MUTATION_FN_API_PREFIX,
-            ),
-            crate::ast::decl::EndpointKind::Server => {
-                (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
-            }
-            crate::ast::decl::EndpointKind::Stream => {
-                (crate::hir::HirEndpointKind::Stream, STREAM_FN_API_PREFIX)
-            }
-        };
-        let route_path = format!("{prefix}{}", lowered.name);
-        let webhook = e.func.webhook.as_ref().map(|w| {
-            use crate::ast::decl::webhook::AstWebhookProvider as A;
-            use crate::hir::nodes::boilerplate_grafts::{HirWebhookDecl, WebhookProvider as H};
-            let provider = match &w.provider {
-                A::Stripe => H::Stripe,
-                A::Github => H::Github,
-                A::Slack => H::Slack,
-                A::Custom { secret_var } => H::Custom {
-                    secret_var: secret_var.clone(),
-                },
-            };
-            HirWebhookDecl {
-                provider,
-                idempotent: w.idempotent,
-                replay_window_secs: w.replay_window_secs,
-                span: w.span,
-            }
-        });
-        let cors = e.func.cors_spec.as_ref().map(|c| {
-            crate::hir::nodes::http_ergonomics::HirCorsPolicy {
-                origins: c.origins.clone(),
-                allow_credentials: c.allow_credentials,
-                span: c.span,
-            }
-        });
-        let rate_limit = e.func.rate_limit.as_ref().map(|r| {
-            use crate::ast::decl::http_decorators::AstRateLimitBy as A;
-            use crate::hir::nodes::http_ergonomics::{HirRateLimitPolicy, RateLimitBy as H};
-            HirRateLimitPolicy {
-                by: match r.by {
-                    A::Ip => H::Ip,
-                    A::UserId => H::UserId,
-                    A::ApiKey => H::ApiKey,
-                },
-                window_secs: r.window_secs,
-                max_requests: r.max_requests,
-                span: r.span,
-            }
-        });
-        let pii = e.func.pii.as_ref().map(|p| {
-            use crate::ast::decl::http_decorators::AstPiiClass as A;
-            use crate::hir::nodes::boilerplate_grafts::{HirPiiMarker, PiiClass as H};
-            let class = match &p.class {
-                A::Name => H::Name,
-                A::Email => H::Email,
-                A::Phone => H::Phone,
-                A::Ip => H::Ip,
-                A::FinancialData => H::FinancialData,
-                A::BiometricData => H::BiometricData,
-                A::Other(_) => H::Email, // best-effort fallback
-            };
-            HirPiiMarker { class, span: p.span }
-        });
-        let layer = e.func.layer.as_ref().and_then(|l| {
-            crate::hir::nodes::layer::LayerTier::from_str(&l.tier).map(|tier| {
-                crate::hir::nodes::layer::HirLayerDecl { tier, span: l.span }
-            })
-        });
-        crate::hir::HirEndpointFn {
-            kind,
-            id: lowered.id,
-            name: lowered.name.clone(),
-            params: lowered.params.clone(),
-            return_type: lowered.return_type.clone(),
-            body: lowered.body.clone(),
-            route_path,
-            is_pure: lowered.is_pure,
-            effects: lowered
-                .capabilities
-                .iter()
-                .filter_map(cap_to_effect_kind)
-                .collect(),
-            webhook,
-            cors,
-            rate_limit,
-            pii,
-            layer,
-            stream_interval: e.stream_interval.clone(),
-            span: lowered.span,
-        }
-    }
 }
-
 
 /// GA-09a: Derive a typed `HirRouteId` from a single `RouteEntry`.
 ///
@@ -669,9 +661,7 @@ mod tests {
     use super::*;
     use crate::lexer::cursor::lex;
     use crate::parser::parse;
-    use crate::web_prefixes::{
-    MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX, STREAM_FN_API_PREFIX,
-};
+    use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 
     fn lower_str(source: &str) -> HirModule {
         let tokens = lex(source);
@@ -910,12 +900,16 @@ fn f() to Unit {
         );
     }
 
+    /// `@query` and `@mutation` are the canonical replacements for the
+    /// v0.5-era `@endpoint(kind: query)` / `@endpoint(kind: mutation)`
+    /// forms (retired in v0.6.0 per Phase H step 18).  Both produce
+    /// `HirEndpointFn` entries with the same `route_path` prefix.
     #[test]
     fn hir_lowering_maps_endpoint_query_and_mutation_decls() {
         let src = r#"
 @table type User { name: str active: bool }
-@endpoint(kind: query) fn q1() to int { return 0 }
-@endpoint(kind: mutation) fn m1() to Unit {
+@query fn q1() to int { return 0 }
+@mutation fn m1() to Unit {
     db.User.insert({ name: "a", active: true })
 }
 "#;
@@ -944,26 +938,15 @@ fn f() to Unit {
         let sp = Span::new(0, 0);
         let table = TableDecl {
             name: "Doc".into(),
-            fields: vec![
-                TableField {
-                    name: "id".into(),
-                    type_ann: TypeExpr::Named {
-                        name: "int".into(),
-                        span: sp,
-                    },
-                    description: None,
+            fields: vec![TableField {
+                name: "title".into(),
+                type_ann: TypeExpr::Named {
+                    name: "str".into(),
                     span: sp,
                 },
-                TableField {
-                    name: "title".into(),
-                    type_ann: TypeExpr::Named {
-                        name: "str".into(),
-                        span: sp,
-                    },
-                    description: None,
-                    span: sp,
-                },
-            ],
+                description: None,
+                span: sp,
+            }],
             description: None,
             json_layout: None,
             auth_provider: None,
@@ -971,7 +954,6 @@ fn f() to Unit {
             cors: None,
             is_pub: true,
             is_deprecated: false,
-            primary_key: None,
             span: sp,
         };
         let col = CollectionDecl {

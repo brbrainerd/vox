@@ -28,7 +28,10 @@ path = "src/bin/vox-compilerd.rs"
 
 
 [features]
-default = []
+default = ["keyring-store"]
+# OS credential store for `vox login` / `vox auth connect` vault persistence.
+# Disable on headless CI builds where no keyring daemon is available.
+keyring-store = ["dep:keyring"]
 ai-fixtures-v1 = []
 # Fast fuzzy ranking for command catalog, MCP tool picker, dashboard palette.
 # Uses nucleo-matcher (same scorer as Helix/Zed). Adds ~300KB to binary.
@@ -116,6 +119,7 @@ clap = { workspace = true }
 clap_complete = { workspace = true }
 miette = { workspace = true }
 anyhow = { workspace = true }
+cargo_metadata = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 reqwest = { workspace = true, features = ["multipart"] }
@@ -160,6 +164,7 @@ vox-drift-check = { workspace = true }
 
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
+vox-dei-shim = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-orchestrator-mcp = { workspace = true, optional = true }
 vox-plugin-catalog = { workspace = true }
@@ -196,7 +201,6 @@ vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
 rmcp = { workspace = true, optional = true, features = ["server", "client", "transport-io"] }
 axum = { workspace = true, features = ["http1", "json", "tokio", "ws"] }
-governor = { workspace = true }
 vox-grammar-export = { workspace = true }
 axum-extra = { workspace = true, features = ["typed-header"] }
 notify = { workspace = true }
@@ -224,7 +228,7 @@ self_update = { workspace = true, features = [
     "compression-zip-deflate",
 ] }
 semver = { workspace = true }
-keyring.workspace = true
+keyring = { workspace = true, optional = true }
 workspace-hack = { workspace = true }
 vox-rule-pack = { workspace = true }
 vox-telemetry = { workspace = true }

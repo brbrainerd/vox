@@ -1,0 +1,11 @@
+[problem]
+id = "093"
+title = "last-n"
+prompt = """
+Write a Vox function last_n(items: list[int], n: int) to list[int] that returns the last n elements of the list. If n >= len(items), returns the whole list.
+"""
+signature = "fn last_n(items: list[int], n: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists"]

@@ -1,0 +1,39 @@
+fn list_min_max(items: list[int]) to list[int] {
+    let mut lo: int = 0
+    let mut hi: int = 0
+    match items[0] {
+        Some(v) => {
+            lo = v
+            hi = v
+        }
+        None => {}
+    }
+    let mut i: int = 1
+    while i < items.len() {
+        match items[i] {
+            Some(v) => {
+                if v < lo {
+                    lo = v
+                }
+                if v > hi {
+                    hi = v
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    let mut result: list[int] = []
+    result.push(lo)
+    result.push(hi)
+    return result
+}
+
+fn main() to str {
+    assert(list_min_max([3, 1, 4, 1, 5, 9]) == [1, 9])
+    assert(list_min_max([7]) == [7, 7])
+    assert(list_min_max([10, 2, 8]) == [2, 10])
+    assert(list_min_max([-5, 0, 5]) == [-5, 5])
+    assert(list_min_max([1, 1, 1]) == [1, 1])
+    return "ok"
+}

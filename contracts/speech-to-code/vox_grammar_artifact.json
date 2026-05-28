@@ -41,10 +41,13 @@
     "@component",
     "@mcp.tool",
     "@test",
-    "@endpoint",
     "@table",
     "@index",
-    "@v0"
+    "@v0",
+    "@server",
+    "@query",
+    "@mutation",
+    "@form"
   ],
   "punctuators": [
     "(",

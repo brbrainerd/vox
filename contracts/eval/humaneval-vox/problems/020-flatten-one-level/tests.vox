@@ -1,0 +1,17 @@
+fn flatten_one_level(xss: list[list[int]]) to list[int] {
+    let mut result: list[int] = []
+    for xs in xss {
+        for x in xs {
+            result.push(x)
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(flatten_one_level([[1, 2], [3, 4]]) == [1, 2, 3, 4])
+    assert(flatten_one_level([]) == [])
+    assert(flatten_one_level([[], [1]]) == [1])
+    assert(flatten_one_level([[5, 6, 7]]) == [5, 6, 7])
+    return "ok"
+}

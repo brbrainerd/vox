@@ -28,7 +28,7 @@ regex = { workspace = true }
 walkdir = { workspace = true }
 tracing = { workspace = true }
 blake3 = { workspace = true }
-tantivy = { workspace = true, optional = true, default-features = true }
+tantivy = { workspace = true, optional = true, features = ["mmap"] }
 reqwest = { workspace = true }
 scraper = { workspace = true, optional = true }
 html2text = { workspace = true, optional = true }

@@ -1,0 +1,21 @@
+fn unique_elements(xs: list[int]) to list[int] {
+    let mut seen: list[int] = []
+    let mut result: list[int] = []
+    for x in xs {
+        if not seen.contains(x) {
+            seen.push(x)
+            result.push(x)
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(unique_elements([1, 2, 3]) == [1, 2, 3])
+    assert(unique_elements([1, 2, 2, 3]) == [1, 2, 3])
+    assert(unique_elements([1, 1, 1]) == [1])
+    assert(unique_elements([]) == [])
+    assert(unique_elements([3, 1, 4, 1, 5, 9, 2, 6, 5]) == [3, 1, 4, 5, 9, 2, 6])
+    assert(unique_elements([5, 4, 3, 2, 1]) == [5, 4, 3, 2, 1])
+    return "ok"
+}

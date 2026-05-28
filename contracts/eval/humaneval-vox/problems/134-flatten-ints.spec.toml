@@ -1,0 +1,11 @@
+[problem]
+id = "134"
+title = "flatten_ints"
+prompt = """
+Given a list of lists of ints, return a single flat list containing all elements in order.
+"""
+signature = "fn flatten_ints(xss: list[list[int]]) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "iteration"]

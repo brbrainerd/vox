@@ -1,0 +1,15 @@
+id = "003"
+title = "Argument count mismatch: clamp called with 4 args, takes 3"
+description = """
+clamp(value, lo, hi) is a three-parameter function. The call in main
+passes four arguments: clamp(5, 0, 10, 100). The extra 100 is erroneous.
+The fix is to drop the fourth argument.
+"""
+bug_class = "type-error"
+difficulty = "medium"
+scope = "single-file"
+detection_mode = "static"
+expected_diagnostics = ["vox/types/arg-count-mismatch"]
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

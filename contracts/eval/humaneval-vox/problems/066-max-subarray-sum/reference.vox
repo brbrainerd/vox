@@ -1,0 +1,25 @@
+fn max_subarray_sum(xs: list[int]) to int {
+    if xs.len() == 0 {
+        return 0
+    }
+    let mut max_sum: int = 0
+    let mut current_sum: int = 0
+    let mut first: bool = true
+    for x in xs {
+        if first {
+            max_sum = x
+            current_sum = x
+            first = false
+        } else {
+            if current_sum + x > x {
+                current_sum = current_sum + x
+            } else {
+                current_sum = x
+            }
+            if current_sum > max_sum {
+                max_sum = current_sum
+            }
+        }
+    }
+    return max_sum
+}

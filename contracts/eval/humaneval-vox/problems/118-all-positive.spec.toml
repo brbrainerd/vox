@@ -1,0 +1,11 @@
+[problem]
+id = "118"
+title = "all_positive"
+prompt = """
+Check if all elements in a list of ints are strictly positive (> 0). Return true if the list is empty.
+"""
+signature = "fn all_positive(xs: list[int]) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "predicates"]

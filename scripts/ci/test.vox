@@ -1,8 +1,10 @@
+// ci/test.vox — smoke test of list.contains semantics. `print` expects str,
+// so each bool result is converted via `str()` for display.
 fn main() {
-    let arr = ["foo", "bar"];
-    print(arr.contains("foo"));
-    print(arr.contains("baz"));
-    
-    let a = "foo";
-    print(arr.contains(a));
+    let arr = ["foo", "bar"]
+    print(str(arr.contains("foo")))
+    print(str(arr.contains("baz")))
+
+    let a = "foo"
+    print(str(arr.contains(a)))
 }

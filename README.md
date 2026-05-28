@@ -5,7 +5,7 @@
 
   <p><strong>One <code>.vox</code> file compiles to a database schema, a typed server, a browser app, and the artifacts to deploy them.</strong> Initiated by Bertrand Reyna-Brainerd.</p>
 
-  <p><a href="https://voxlang.org"><strong>voxlang.org</strong></a></p>
+  <p><a href="https://vox-lang.org"><strong>vox-lang.org</strong></a></p>
 </div>
 
 <p align="center">
@@ -77,6 +77,8 @@ vox init my-app
 cd my-app
 vox run src/main.vox
 ```
+
+## The CLI
 
 The full CLI surface, including every `vox ci`, `vox populi`, and `vox mens` subcommand, lives at [`docs/src/reference/cli.md`](docs/src/reference/cli.md). Run `vox commands --recommended` for first-time discovery.
 

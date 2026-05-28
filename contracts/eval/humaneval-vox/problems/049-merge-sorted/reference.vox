@@ -1,0 +1,44 @@
+fn merge_sorted(xs: list[int], ys: list[int]) to list[int] {
+    let mut result: list[int] = []
+    let mut i: int = 0
+    let mut j: int = 0
+    while i < xs.len() and j < ys.len() {
+        match xs[i] {
+            Some(x) => {
+                match ys[j] {
+                    Some(y) => {
+                        if x <= y {
+                            result.push(x)
+                            i = i + 1
+                        } else {
+                            result.push(y)
+                            j = j + 1
+                        }
+                    }
+                    None => {
+                        result.push(x)
+                        i = i + 1
+                    }
+                }
+            }
+            None => {
+                j = j + 1
+            }
+        }
+    }
+    while i < xs.len() {
+        match xs[i] {
+            Some(v) => { result.push(v) }
+            None => {}
+        }
+        i = i + 1
+    }
+    while j < ys.len() {
+        match ys[j] {
+            Some(v) => { result.push(v) }
+            None => {}
+        }
+        j = j + 1
+    }
+    return result
+}

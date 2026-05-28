@@ -1,0 +1,15 @@
+fn word_count(s: str) to int {
+    let mut count: int = 0
+    let mut in_word: bool = false
+    for ch in s.chars() {
+        if ch == " " {
+            in_word = false
+        } else {
+            if not in_word {
+                count = count + 1
+                in_word = true
+            }
+        }
+    }
+    return count
+}

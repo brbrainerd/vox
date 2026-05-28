@@ -139,7 +139,7 @@ pub struct OrchestratorConfig {
     /// Whether dynamic scaling is enabled (default: false).
     #[serde(default = "default_false")]
     pub scaling_enabled: bool,
-    /// Preference for cost vs performance (default: Performance).
+    /// Preference for cost vs performance (default: Economy — free-by-default product directive).
     #[serde(default = "default_cost_preference")]
     pub cost_preference: CostPreference,
     /// Number of ticks to look back for predictive scaling (default: 5).
@@ -439,8 +439,9 @@ pub struct OrchestratorConfig {
     pub exec_time_history_window_days: u32,
 
     // ── AgentOS (ACI envelopes + guardrails) ─────────────────────────────────
-    /// When true, MCP tool JSON responses include a validated sibling `aci` block. Default: false.
-    #[serde(default = "default_false")]
+    /// When true, MCP tool JSON responses include a validated sibling `aci` block.
+    /// Default: `true` since v0.6 (CR-L5; council D20, 2026-05-15).
+    #[serde(default = "default_true")]
     pub agentos_aci_envelope_enabled: bool,
     /// When true, [`crate::agentos::guardrail_kernel`] runs before mutating / dangerous tools.
     #[serde(default = "default_false")]

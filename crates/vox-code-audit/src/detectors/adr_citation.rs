@@ -71,6 +71,23 @@ impl DetectionRule for AdrCitationDetector {
         Good: /// ADR-042: Processes a workflow step per the orchestration spec.\n      pub fn process_step(...) {}"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — pub fn in critical crate with no ADR/TASK citation\n\
+             /// Executes a workflow activity step.\n\
+             pub fn execute_step(ctx: &Context, step: Step) -> Result<Output, Error> {\n\
+             \x20   // ...\n\
+             }\n\
+             \n\
+             // FIX — cite the ADR that governs this function's interface\n\
+             /// ADR-042: Executes a workflow activity step per the orchestration spec.\n\
+             /// See also: TASK-3.2 (activity execution contract).\n\
+             pub fn execute_step(ctx: &Context, step: Step) -> Result<Output, Error> {\n\
+             \x20   // ...\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

@@ -172,7 +172,7 @@ fn layer_fn() to int { return 3 }
 fn webhook_custom_without_secret_emits_diagnostic() {
     // @webhook(provider: custom) on an endpoint must declare a secret env-var.
     let src = r#"
-@endpoint(kind: server)
+@server
 @webhook(provider: custom)
 fn custom_hook() to int { return 1 }
 "#;
@@ -191,7 +191,7 @@ fn custom_hook() to int { return 1 }
 #[test]
 fn webhook_custom_with_secret_is_clean() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @webhook(provider: custom, secret: "WEBHOOK_SECRET")
 fn custom_hook() to int { return 1 }
 "#;
@@ -213,7 +213,7 @@ fn custom_hook() to int { return 1 }
 fn webhook_replay_window_out_of_range_warns() {
     // 4 seconds is below the recommended 5..=3600 range.
     let src = r#"
-@endpoint(kind: server)
+@server
 @webhook(provider: stripe, replay_window_secs: 4)
 fn tight_hook() to int { return 1 }
 "#;
@@ -232,7 +232,7 @@ fn tight_hook() to int { return 1 }
 #[test]
 fn webhook_stripe_default_window_is_clean() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @webhook(provider: stripe)
 fn stripe_hook() to int { return 1 }
 "#;
@@ -255,7 +255,7 @@ fn stripe_hook() to int { return 1 }
 #[test]
 fn cors_credentials_with_wildcard_warns() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @cors(origins: ["*"], allow_credentials: true)
 fn my_api() to int { return 1 }
 "#;
@@ -274,7 +274,7 @@ fn my_api() to int { return 1 }
 #[test]
 fn cors_specific_origin_with_credentials_is_clean() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @cors(origins: ["https://app.example.com"], allow_credentials: true)
 fn my_api() to int { return 1 }
 "#;
@@ -292,7 +292,7 @@ fn my_api() to int { return 1 }
 #[test]
 fn pii_without_uses_net_warns_unannotated() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @pii(class: email)
 fn send_email_fn() to int { return 1 }
 "#;
@@ -311,7 +311,7 @@ fn send_email_fn() to int { return 1 }
 #[test]
 fn pii_with_uses_net_is_clean() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @pii(class: email)
 @uses(net)
 fn send_email_fn() to int { return 1 }
@@ -331,7 +331,7 @@ fn send_email_fn() to int { return 1 }
 #[test]
 fn layer_system_overlay_is_reserved() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @layer(tier: system_overlay)
 fn debug_fn() to int { return 1 }
 "#;
@@ -350,7 +350,7 @@ fn debug_fn() to int { return 1 }
 #[test]
 fn layer_modal_tier_is_allowed() {
     let src = r#"
-@endpoint(kind: server)
+@server
 @layer(tier: modal)
 fn confirm_fn() to int { return 1 }
 "#;

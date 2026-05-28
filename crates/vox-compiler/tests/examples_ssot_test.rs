@@ -12,6 +12,10 @@ struct ExamplesSsot {
     sandbox_roots: Vec<String>,
     negative_roots: Vec<String>,
     doc_roots: Vec<String>,
+    /// In-progress / planned-feature examples; parse-tested but not golden.
+    /// Added 2026-05-25 for `examples/aspirational/**`.
+    #[serde(default)]
+    aspirational_roots: Vec<String>,
 }
 
 fn repo_root() -> PathBuf {
@@ -88,6 +92,9 @@ fn examples_tree_has_no_orphan_vox_files() {
             continue;
         }
         if is_under_any(&rel, &ssot.sandbox_roots) {
+            continue;
+        }
+        if is_under_any(&rel, &ssot.aspirational_roots) {
             continue;
         }
         panic!(

@@ -1,0 +1,11 @@
+[problem]
+id = "147"
+title = "fibonacci_list"
+prompt = """
+Return the first n Fibonacci numbers as a list, where fib(0)=0, fib(1)=1, fib(2)=1, etc. Return an empty list for n=0.
+"""
+signature = "fn fibonacci_list(n: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "math", "sequences"]

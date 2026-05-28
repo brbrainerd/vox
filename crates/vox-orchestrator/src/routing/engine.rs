@@ -99,9 +99,14 @@ impl ModelSelectionEngine {
                 base += 0.02;
             }
             let (s, f) = arm_stats.get(&m.id).copied().unwrap_or((0, 0));
+            // Free-by-default: Free and Fast tiers participate equally in the
+            // novelty exploration bonus so new free models get a fair trial.
             if self.policy.routing_objective.kind == "quality_first"
                 && s + f == 0
-                && matches!(m.capabilities.tier, ModelTier::Pro)
+                && matches!(
+                    m.capabilities.tier,
+                    ModelTier::Pro | ModelTier::Fast | ModelTier::Free
+                )
             {
                 base += 0.06;
             }

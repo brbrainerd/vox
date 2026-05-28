@@ -2,7 +2,7 @@
 name = "vox-mesh-types"
 version.workspace = true
 edition.workspace = true
-description = "Core types for the Vox Federated GPU Mesh"
+description = "Shared types for the Vox federated GPU mesh: worker registration, dispatch, and capability negotiation."
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }

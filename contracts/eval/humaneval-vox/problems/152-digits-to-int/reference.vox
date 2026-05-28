@@ -1,0 +1,7 @@
+fn digits_to_int(ds: list[int]) to int {
+    let mut result: int = 0
+    for d in ds {
+        result = result * 10 + d
+    }
+    return result
+}

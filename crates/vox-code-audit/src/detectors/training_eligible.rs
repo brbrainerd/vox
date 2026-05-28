@@ -68,6 +68,20 @@ impl DetectionRule for TrainingEligibleDetector {
         "A file marked `training_eligible: true` imports from a path that appears to be archived, deprecated, or legacy, which is likely ineligible for corpus inclusion."
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — file is training_eligible but imports from a deprecated path\n\
+             // training_eligible: true\n\
+             use crate::legacy::payment_processor::LegacyProcessor;  // bad: legacy import\n\
+             use crate::deprecated::auth::OldAuthHandler;            // bad: deprecated import\n\
+             \n\
+             // FIX — either update imports to current paths or mark file ineligible\n\
+             // training_eligible: true\n\
+             use crate::payments::processor::Processor;  // current path\n\
+             use crate::auth::handler::AuthHandler;      // current path",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

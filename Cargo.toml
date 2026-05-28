@@ -5,7 +5,7 @@ exclude = [
     "crates/vox-arch-check/tests/fixtures/missing-desc",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
-    "crates/vox-plugin-noop-skill",
+    "crates/vox-plugin-host/tests/fixtures/noop-skill",
     "crates/vox-plugin-skill-compiler",
     "crates/vox-plugin-skill-git",
     "crates/vox-plugin-skill-memory",
@@ -18,7 +18,7 @@ exclude = [
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
@@ -67,6 +67,7 @@ vox-compiler              = { path = "crates/vox-compiler" }
 vox-codegen         = { path = "crates/vox-codegen" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
+vox-container-types       = { path = "crates/vox-container-types" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
 vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
 
@@ -88,7 +89,7 @@ vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
 
 vox-test-harness          = { path = "crates/vox-test-harness" }
-vox-webhook               = { path = "crates/vox-webhook" }
+vox-plugin-test-harness   = { path = "crates/vox-plugin-test-harness" }
 vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
@@ -97,13 +98,17 @@ vox-lsp                   = { path = "crates/vox-lsp" }
 vox-gamify                 = { path = "crates/vox-gamify" }
 vox-hf-layout              = { path = "crates/vox-hf-layout" }
 vox-populi                = { path = "crates/vox-populi" }
+vox-populi-types          = { path = "crates/vox-populi-types" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }
+vox-distributed-training  = { path = "crates/vox-distributed-training" }
+vox-inference             = { path = "crates/vox-inference" }
 
-vox-mesh               = { path = "crates/vox-mesh" }
+vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
+vox-dei-shim              = { path = "crates/vox-dei-shim" }
 
 vox-orchestrator-test-helpers = { path = "crates/vox-orchestrator-test-helpers" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
@@ -138,7 +143,9 @@ vox-research-events       = { path = "crates/vox-research-events" }
 
 
 
+vox-rename-registry       = { path = "crates/vox-rename-registry" }
 vox-repository            = { path = "crates/vox-repository" }
+vox-shell-stdlib-types    = { path = "crates/vox-shell-stdlib-types" }
 vox-rule-pack             = { path = "crates/vox-rule-pack" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
@@ -152,7 +159,7 @@ vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
-vox-tauri-sherpa          = { path = "crates/vox-tauri-sherpa" }
+vox-tauri-stt             = { path = "crates/vox-tauri-stt" }
 
 
 
@@ -238,7 +245,7 @@ governor           = "0.10"
 strum              = { version = "0.26", features = ["derive"] }
 serial_test        = "3"
 wiremock           = "0.6"
-tantivy            = "0.22"
+tantivy            = { version = "0.22", default-features = false }
 scraper            = "0.20"
 html2text          = "0.12"
 # Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).
@@ -264,7 +271,7 @@ gix                = { version = "0.70", default-features = false }
 jj-lib             = { version = "=0.27.0", default-features = false }
 wasmtime           = "42.0.1"
 wasmtime-wasi      = "42.0.1"
-zip                = "8.4.0"
+
 self_update        = "0.43.1"
 landlock           = "0.4.4"
 win32job           = "2"
@@ -272,6 +279,12 @@ windows-sys        = "0.59"
 tavily             = "2.1.0"
 quick-xml          = "0.31"
 flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
+bzip2              = "0.6.1"
+zstd               = "0.13.3"
+hmac               = "0.12.1"
+crossbeam-queue    = "0.3.12"
+ignore             = "0.4.25"
+tauri              = { version = "2", features = [] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = { version = "0.5.4", default-features = false }
@@ -318,6 +331,7 @@ libc               = "0.2"
 # CLI UI
 dialoguer          = "0.11"
 pulldown-cmark     = "0.13"
+url                = "2"
 urlencoding        = "2"
 # Language model / tokenization
 tiktoken-rs        = { version = "0.5", default-features = false }

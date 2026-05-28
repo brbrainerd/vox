@@ -113,6 +113,22 @@ impl DetectionRule for AiLazinessDetector {
         LANGS
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — AI laziness pattern: placeholder return or 'implement later' comment\n\
+             fn calculate_tax(amount: f64, region: &str) -> f64 {\n\
+             \x20   // TODO: implement tax calculation\n\
+             \x20   0.0  // placeholder\n\
+             }\n\
+             \n\
+             // FIX — real implementation; scope down if full implementation is out of scope\n\
+             fn calculate_tax(amount: f64, region: &str) -> f64 {\n\
+             \x20   let rate = TAX_RATES.get(region).copied().unwrap_or(0.0);\n\
+             \x20   (amount * rate * 100.0).round() / 100.0\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

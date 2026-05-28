@@ -1,0 +1,12 @@
+fn remove_consecutive_dups(s: str) to str {
+    let chars: list[str] = s.chars()
+    let mut result: list[str] = []
+    let mut last: str = ""
+    for c in chars {
+        if c != last {
+            result.push(c)
+            last = c
+        }
+    }
+    return result.join("")
+}

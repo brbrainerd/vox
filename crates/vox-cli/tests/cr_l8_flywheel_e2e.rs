@@ -50,8 +50,13 @@ async fn production_sinks_persist_engine_emissions_to_jsonl_readable_by_aggregat
     let tmp = tempfile::tempdir().expect("tempdir");
     let events_dir = tmp.path().to_path_buf();
 
-    // SAFETY: integration test binary; env-var mutation is single-threaded.
-    unsafe { std::env::set_var(EVENTS_DIR_ENV, &events_dir) };
+    // SAFETY: integration test binary; single test function in this binary, so
+    // env-var mutation is effectively single-threaded. tokio::test uses a
+    // current_thread scheduler for the same reason.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::set_var(EVENTS_DIR_ENV, &events_dir);
+    }
 
     // 2. Register the full production sink stack. DB=None so the
     //    ResearchMetricsSink doesn't run; SpoolSink + CorpusFeedbackJsonlSink
@@ -61,13 +66,19 @@ async fn production_sinks_persist_engine_emissions_to_jsonl_readable_by_aggregat
     // 3. Drive ToestubEngine on a fixture with three retired patterns. P2.1b's
     //    `emit_lint_finding_telemetry` will fire one `TelemetryEvent::LintFinding`
     //    per emitted finding.
+    //
+    // Use the RETIRED forms (not the canonical ones):
+    //   @component fn  →  retired (use bare `component` keyword instead)
+    //   @endpoint(kind: server)   →  retired (use `@server` instead)
+    //   @endpoint(kind: mutation) →  retired (use `@mutation` instead)
+    // The bare `@server` / `@mutation` forms ARE the canonical post-2026-05-24 surface.
     let fixtures_root = tempfile::tempdir().expect("tempdir");
     write_fixture(
         &fixtures_root,
         "flywheel.vox",
         "@component fn Dashboard() {}\n\
-         @server fn list_items() {}\n\
-         @mutation fn add_item() {}\n",
+         @endpoint(kind: server) fn list_items() {}\n\
+         @endpoint(kind: mutation) fn add_item() {}\n",
     );
     let cfg = ToestubConfig {
         roots: vec![fixtures_root.path().to_path_buf()],
@@ -134,6 +145,9 @@ async fn production_sinks_persist_engine_emissions_to_jsonl_readable_by_aggregat
     }
 
     // Cleanup env var.
-    // SAFETY: see top of test.
-    unsafe { std::env::remove_var(EVENTS_DIR_ENV) };
+    // SAFETY: see set_var comment above.
+    #[allow(unsafe_code)]
+    unsafe {
+        std::env::remove_var(EVENTS_DIR_ENV);
+    }
 }

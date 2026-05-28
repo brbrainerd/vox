@@ -1,0 +1,20 @@
+fn flatten_ints(xss: list[list[int]]) to list[int] {
+    let mut result: list[int] = []
+    for xs in xss {
+        for x in xs {
+            result.push(x)
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(flatten_ints([[1, 2], [3, 4]]) == [1, 2, 3, 4])
+    assert(flatten_ints([[1], [2], [3]]) == [1, 2, 3])
+    assert(flatten_ints([[]]) == [])
+    assert(flatten_ints([]) == [])
+    assert(flatten_ints([[1, 2, 3]]) == [1, 2, 3])
+    assert(flatten_ints([[5, 6], [], [7]]) == [5, 6, 7])
+    assert(flatten_ints([[0], [1, 2], [3, 4, 5]]) == [0, 1, 2, 3, 4, 5])
+    return "ok"
+}

@@ -185,6 +185,24 @@ jobs:
       - name: Vox script check (clean-build-artifacts reference automation)
         run: cargo run -p vox-cli --quiet -- check scripts/clean-build-artifacts.vox
 
+      - name: Vox script corpus check (all scripts/**/*.vox pass vox check)
+        shell: bash
+        run: |
+          set -euo pipefail
+          VOX_BIN="./target/debug/vox"
+          failed=0
+          while IFS= read -r f; do
+            if ! "$VOX_BIN" check "$f" 2>&1; then
+              echo "FAIL: $f"
+              failed=$((failed + 1))
+            fi
+          done < <(find scripts -name "*.vox" | sort)
+          if [ "$failed" -gt 0 ]; then
+            echo "ERROR: $failed script(s) failed vox check. All scripts/**/*.vox must pass."
+            exit 1
+          fi
+          echo "OK: all scripts/**/*.vox pass vox check."
+
       - name: Workflow scripts allowlist
         run: cargo run -p vox-cli --quiet -- ci workflow-scripts
 
@@ -450,7 +468,7 @@ jobs:
 
       - name: Mesh transport + workflow-runtime + CLI feature matrix slice
         run: |
-          cargo nextest run -p vox-populi --features transport
+          cargo nextest run -p vox-populi --features transport,mens
           cargo nextest run -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 
@@ -491,6 +509,19 @@ jobs:
           junit_cfg="${RUNNER_TEMP}/vox-nextest-junit.toml"
           printf '%s\n' '[profile.ci.junit]' 'path = "junit.xml"' >"${junit_cfg}"
           cargo nextest run --workspace --profile ci --tool-config-file "vox-ci:${junit_cfg}"
+
+      # Slow test partition — runs the four #[ignore = "slow; …"] tests explicitly.
+      # These are excluded from the workspace nextest step above to keep CI wall-clock
+      # under 30 min.  Uses an exact filter so none of the other 250+ intentionally-
+      # ignored tests are swept in.  max-threads=1 is enforced by [test-groups.slow] in
+      # .config/nextest.toml; the CI profile slow-timeout terminates after 3×180s.
+      - name: Run slow test partition (arch-check, scientia timeout, codegen bundle)
+        if: needs.setup.outputs.rust_changed == 'true'
+        run: |
+          cargo nextest run \
+            -E 'test(arch_check_smoke_test) or test(description_rule_produces_output_on_clean_workspace) or test(timeout_kills_long_running_child) or test(generated_ai_fixture_bundle_passes_cargo_check)' \
+            --run-ignored ignored-only \
+            --profile ci
 
       - name: Runtime governance report + warn-only checks (non-blocking)
         if: always()

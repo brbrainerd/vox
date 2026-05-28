@@ -139,26 +139,39 @@ pub enum Token {
     /// authored solutions, not as regression tests.
     #[token("@example")]
     AtExample,
-    #[token("@endpoint")]
-    AtEndpoint,
-    /// `@query` — first-class GET-style endpoint, replacing
-    /// `@endpoint(kind: query)`. Lower K-complexity (~65 % per call site)
-    /// and matches the conceptual hierarchy (the verb is the head, not the
-    /// modifier). Added 2026-05-23 per
+    // `@endpoint(kind: …)` was the original endpoint decorator form; the
+    // bare-form `@query` / `@mutation` / `@server` decorators superseded it
+    // in Phase B (audit doc §11.2, 2026-05-23) and the lexer token was
+    // retired in v0.6.0 (Phase H step 18).  Any remaining `@endpoint` text
+    // in user source now fails to lex; the `retired/decorator-usage` lint
+    // surfaces a friendly suggestion before the parser reports the failure.
+    /// `@query` — first-class GET-style endpoint, canonical form.
+    /// Lower K-complexity (~65 % per call site vs the retired
+    /// `@endpoint(kind: query)`) and matches the conceptual hierarchy
+    /// (the verb is the head, not the modifier).  Added 2026-05-23 per
     /// `docs/src/architecture/vox-stdlib-gap-audit-2026-05-23.md` §11.2.
-    /// `@endpoint(kind: query)` remains accepted during the deprecation
-    /// window; corpus migration via `vox fmt` lands in a separate pass.
     #[token("@query")]
     AtQuery,
-    /// `@mutation` — first-class POST/PUT/DELETE-style endpoint, replacing
-    /// `@endpoint(kind: mutation)`. See `@query` above.
+    /// `@mutation` — first-class POST/PUT/DELETE-style endpoint, canonical form.
+    /// See `@query` above.
     #[token("@mutation")]
     AtMutation,
     /// `@server` — first-class server-only endpoint (no client emit),
-    /// replacing `@endpoint(kind: server)`. Same K-complexity argument as
-    /// `@query`/`@mutation`.
+    /// canonical form.  Same K-complexity argument as `@query`/`@mutation`.
     #[token("@server")]
     AtServer,
+    // Phase M (json-as-rfc-2026-05-24): `@json_as(MyType, ...)` decorator on
+    // type definitions. Lowering synthesizes `T::from_json` / `T::to_json`
+    // functions per the RFC §6 plan.
+    #[token("@json_as")]
+    AtJsonAs,
+    // Per-field attributes inside `@json_as`-annotated types (RFC §4.3).
+    #[token("@field_name")]
+    AtFieldName,
+    #[token("@default")]
+    AtDefault,
+    #[token("@skip_if_none")]
+    AtSkipIfNone,
     #[token("@table")]
     AtTable,
     #[token("@index")]
@@ -378,7 +391,31 @@ pub enum Token {
     // bucket: extract_table_names.vox, migrate-arrows.vox) that were
     // running their `(...)` capture groups into Vox's `{...}` template
     // regex friction.
-    #[regex(r#"r"[^"]*""#, priority = 6, allow_greedy = true, callback = |lex| {
+    // Hash-padded raw strings — Rust-style `r#"..."#`, `r##"..."##`,
+    // `r###"..."###`. Higher priority than the bare `r"..."` so the
+    // explicit-delimiter forms are tried first. Bodies can embed `"` as
+    // long as it isn't followed by the matching `#`-count. Three levels
+    // cover every realistic use (regex with quotes, SQL with quotes, etc.);
+    // Rust technically allows arbitrary `#` depth but practical code never
+    // exceeds three. Added 2026-05-24 to support patterns like
+    // `r#"\)\s*->\s*([A-Z][a-zA-Z0-9_\[\]]*)"#` that the bare form can't
+    // express. See audit doc §Phase L.4.
+    // For N=3: body allows `"` followed by 0–2 `#`s then non-`#`-non-`"`.
+    #[regex(r#####"r###"(?:[^"]|"+([^#"]|#[^#"]|##[^#"]))*"+###"#####, priority = 8, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[5..s.len()-4].to_string())
+    })]
+    // For N=2: body allows `"` followed by 0–1 `#` then non-`#`-non-`"`.
+    #[regex(r#####"r##"(?:[^"]|"+([^#"]|#[^#"]))*"+##"#####, priority = 7, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[4..s.len()-3].to_string())
+    })]
+    // For N=1: body allows `"` followed by non-`#`-non-`"`.
+    #[regex(r####"r#"(?:[^"]|"+[^#"])*"+#"####, priority = 6, allow_greedy = true, callback = |lex| {
+        let s = lex.slice();
+        Some(s[3..s.len()-2].to_string())
+    })]
+    #[regex(r#"r"[^"]*""#, priority = 5, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
         // Drop leading `r"` and trailing `"`.
         Some(s[2..s.len()-1].to_string())
@@ -543,7 +580,10 @@ impl std::fmt::Display for Token {
             Token::AtTest => write!(f, "@test"),
             Token::AtExample => write!(f, "@example"),
             Token::AtPublic => write!(f, "@public"),
-            Token::AtEndpoint => write!(f, "@endpoint"),
+            Token::AtJsonAs => write!(f, "@json_as"),
+            Token::AtFieldName => write!(f, "@field_name"),
+            Token::AtDefault => write!(f, "@default"),
+            Token::AtSkipIfNone => write!(f, "@skip_if_none"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtNative => write!(f, "@native"),

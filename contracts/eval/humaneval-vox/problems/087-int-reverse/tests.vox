@@ -1,0 +1,36 @@
+fn int_reverse(n: int) to int {
+    let negative: bool = n < 0
+    let s: str = str(abs(n))
+    let chars: list[str] = s.chars()
+    let mut reversed: str = ""
+    let mut i: int = chars.len() - 1
+    while i >= 0 {
+        match chars[i] {
+            Some(c) => {
+                reversed = reversed + c
+            }
+            None => {}
+        }
+        i = i - 1
+    }
+    let mut result: int = 0
+    match reversed.to_int() {
+        Some(v) => {
+            result = v
+        }
+        None => {}
+    }
+    if negative {
+        return 0 - result
+    }
+    return result
+}
+
+fn main() to str {
+    assert(int_reverse(123) == 321)
+    assert(int_reverse(100) == 1)
+    assert(int_reverse(0) == 0)
+    assert(int_reverse(5) == 5)
+    assert(int_reverse(1234) == 4321)
+    return "ok"
+}

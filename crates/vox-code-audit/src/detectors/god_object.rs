@@ -38,6 +38,21 @@ impl DetectionRule for GodObjectDetector {
         Severity::Error
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — single struct with 600+ lines and 15+ methods (God Object)\n\
+             pub struct AppManager {\n\
+             \x20   // auth, payments, notifications, reporting, users, config ... all here\n\
+             }\n\
+             // (600 lines of mixed responsibilities)\n\
+             \n\
+             // FIX — split by responsibility into focused structs\n\
+             pub struct AuthManager { ... }      // only auth\n\
+             pub struct PaymentProcessor { ... } // only payments\n\
+             pub struct NotificationService { ... } // only notifications",
+        )
+    }
+
     fn languages(&self) -> &[Language] {
         &[
             Language::Rust,

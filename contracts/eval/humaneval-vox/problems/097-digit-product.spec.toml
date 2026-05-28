@@ -1,0 +1,11 @@
+[problem]
+id = "097"
+title = "digit-product"
+prompt = """
+Write a Vox function digit_product(n: int) to int that returns the product of all digits of a positive integer. For example, 234 -> 2*3*4 = 24.
+"""
+signature = "fn digit_product(n: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["strings", "math"]

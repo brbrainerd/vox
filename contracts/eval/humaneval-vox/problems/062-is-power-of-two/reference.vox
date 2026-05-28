@@ -1,0 +1,13 @@
+fn is_power_of_two(n: int) to bool {
+    if n <= 0 {
+        return false
+    }
+    let mut x: int = n
+    while x > 1 {
+        if x % 2 != 0 {
+            return false
+        }
+        x = x / 2
+    }
+    return true
+}

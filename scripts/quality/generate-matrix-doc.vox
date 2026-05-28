@@ -2,6 +2,22 @@
 // the JSON SSOT. Migrated to the strict-Option Json API
 // (json-ergonomics-rfc-2026-05-23): every navigation hop returns Option,
 // leaf coercion via `.as_str()` / `.as_int()`, deep paths via `.pointer()`.
+//
+// @json_as types (json-as-rfc-2026-05-24): schema-document the two flat record
+// shapes in the JSON SSOT so `from_json` validates required fields at the
+// call site, replacing per-field Option ladders with a single err-check.
+
+@json_as(MatrixProduct)
+type MatrixProduct {
+    id: str,
+    name: str,
+}
+
+@json_as(MatrixFeature)
+type MatrixFeature {
+    name: str,
+    importance_1_to_5: int,
+}
 
 fn pid_at(product_order: Json, idx: int) to str {
     return product_order.at(idx).and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
@@ -10,9 +26,11 @@ fn pid_at(product_order: Json, idx: int) to str {
 fn find_product_name(products: Json, id: str) to str {
     let arr = products.as_array().unwrap_or([])
     for p in arr {
-        let pid = p.get("id").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("")
-        if pid == id {
-            return p.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
+        let prod_res = MatrixProduct_from_json(p)
+        if prod_res.is_err() { continue }
+        let prod = prod_res.unwrap()
+        if prod.id == id {
+            return prod.name
         }
     }
     return ""
@@ -74,10 +92,13 @@ fn main() {
     }
     md = md + ":---:|\n"
 
-    // Feature rows
+    // Feature rows — validate each feature record via @json_as; skip malformed entries.
     for f in features {
-        let fname = f.get("name").and_then(fn(j: Json) to Option[str] { j.as_str() }).unwrap_or("?")
-        let importance = f.get("importance_1_to_5").and_then(fn(j: Json) to Option[int] { j.as_int() }).unwrap_or(0)
+        let feat_res = MatrixFeature_from_json(f)
+        if feat_res.is_err() { continue }
+        let feat = feat_res.unwrap()
+        let fname = feat.name
+        let importance = feat.importance_1_to_5
         md = md + "| **" + fname + "** | " + str(importance) + "/5 |"
 
         let support = f.get("product_support").unwrap_or(f)

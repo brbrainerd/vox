@@ -9,9 +9,9 @@ use vox_compiler::shell_projection::project_shell_from_hir;
 #[test]
 fn shell_projection_round_trip_emits_mobile_ts_snapshot() {
     let src = r#"
-@endpoint(kind: query) fn handle_back() to bool { return true }
-@endpoint(kind: query) fn handle_link(url: str) to str { return "/" }
-@endpoint(kind: mutation) fn store_token(token: str) to str { return token }
+@query fn handle_back() to bool { return true }
+@query fn handle_link(url: str) to str { return "/" }
+@mutation fn store_token(token: str) to str { return token }
 @back_button { on_press: handle_back }
 @deep_link { scheme: "vox" on_link: handle_link }
 @push { on_register: store_token }

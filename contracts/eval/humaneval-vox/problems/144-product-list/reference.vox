@@ -1,0 +1,7 @@
+fn product_list(xs: list[int]) to int {
+    let mut product: int = 1
+    for x in xs {
+        product = product * x
+    }
+    return product
+}

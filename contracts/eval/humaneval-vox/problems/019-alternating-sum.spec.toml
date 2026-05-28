@@ -1,0 +1,11 @@
+[problem]
+id = "019"
+title = "alternating_sum"
+prompt = """
+Compute the alternating sum of a list: xs[0] - xs[1] + xs[2] - xs[3] + ... Return 0 for empty.
+"""
+signature = "fn alternating_sum(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

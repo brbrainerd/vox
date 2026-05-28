@@ -8,7 +8,7 @@ use regex::Regex;
 /// Covers two retirement rows from
 /// [`contracts/retirement/retired-surfaces.v1.yaml`](../../../../../contracts/retirement/retired-surfaces.v1.yaml):
 /// `vox-ludus-crate` (→ `vox-gamify`) and `vox-sherpa-transcribe-plugin`
-/// (→ `vox-tauri-sherpa`). Other crate retirements (vox-dei, vox-ars,
+/// (→ `vox-tauri-stt`). Other crate retirements (vox-dei, vox-ars,
 /// merged-compiler-crates) remain guarded by
 /// `contracts/documentation/retired-symbols.v1.yaml` and the
 /// `vox ci no-dei-import` CLI check; this detector complements those at the
@@ -57,7 +57,7 @@ impl RetiredCrateImportDetector {
         let normalized = crate_match.replace('_', "-");
         match normalized.as_str() {
             "ludus" => "vox-gamify",
-            "sherpa-transcribe" => "vox-tauri-sherpa",
+            "sherpa-transcribe" => "vox-tauri-stt",
             _ => "(see AGENTS.md §Retired Surfaces)",
         }
     }
@@ -73,7 +73,7 @@ impl DetectionRule for RetiredCrateImportDetector {
     }
 
     fn description(&self) -> &'static str {
-        "Detects references to retired Vox crate names (vox-ludus, vox-sherpa-transcribe)."
+        "Detects references to retired Vox crate names (vox-ludus, vox-sherpa-transcribe → vox-tauri-stt)."
     }
 
     fn severity(&self) -> Severity {
@@ -97,8 +97,20 @@ this detector catches them at the code-call-site level (complementing the markdo
 guard in contracts/documentation/retired-symbols.v1.yaml).\n\n\
 Retired → Canonical:\n\
   vox-ludus               →  vox-gamify\n\
-  vox-sherpa-transcribe   →  vox-tauri-sherpa\n\n\
+  vox-sherpa-transcribe   →  vox-tauri-stt\n\n\
 For `vox-dei`, `vox-ars`, and the merged-compiler crates, see the markdown text guard."
+    }
+
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VIOLATION — importing a retired Vox crate\n\
+             use vox_ludus::achievement::Achievement;   // retired: vox-ludus\n\
+             use vox_sherpa_transcribe::Transcriber;    // retired: vox-sherpa-transcribe\n\
+             \n\
+             // FIX — use the canonical replacements\n\
+             use vox_gamify::achievement::Achievement;  // current: vox-gamify\n\
+             use vox_tauri_stt::Transcriber;            // current: vox-tauri-stt",
+        )
     }
 
     fn detect(
@@ -236,7 +248,7 @@ mod tests {
         let f = rust_source("let _ = vox_sherpa_transcribe::start();");
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].message.contains("vox-tauri-sherpa"));
+        assert!(findings[0].message.contains("vox-tauri-stt"));
     }
 
     #[test]
@@ -254,7 +266,7 @@ mod tests {
         let f = cargo_toml("\"vox-sherpa-transcribe\" = { workspace = true }");
         let findings = d.detect(&f, None);
         assert_eq!(findings.len(), 1);
-        assert!(findings[0].message.contains("vox-tauri-sherpa"));
+        assert!(findings[0].message.contains("vox-tauri-stt"));
     }
 
     #[test]

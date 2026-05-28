@@ -1,0 +1,11 @@
+[problem]
+id = "026"
+title = "average"
+prompt = """
+Return the average of a list of integers as a float. The list is guaranteed to be non-empty.
+"""
+signature = "fn average(xs: list[int]) to float"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

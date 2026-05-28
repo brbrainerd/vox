@@ -84,6 +84,13 @@ pub struct CheckArgs {
     /// Implies machine-readable output on stdout; does not change rustc-style stderr for parse failures.
     #[arg(long)]
     pub for_llm: bool,
+
+    /// Treat **warnings** as errors — exit non-zero if any warning-severity diagnostic is produced.
+    ///
+    /// Required by CR-L2: `vox check --strict` is the gate used by `vox audit mens-on-distribution`
+    /// to measure on-distribution quality of MENS-emitted programs.
+    #[arg(long)]
+    pub strict: bool,
 }
 
 /// `vox test` / `vox fabrica test`
@@ -167,6 +174,23 @@ pub struct DevArgs {
     pub port: Option<u16>,
     #[arg(long, default_value = "false")]
     pub open: bool,
+}
+
+/// `vox emit openapi` — standalone OpenAPI 3.1 JSON from a Vox source file.
+#[derive(Args, Clone, Debug)]
+pub struct EmitOpenapiArgs {
+    /// Vox source file to compile.
+    #[arg(required = true)]
+    pub file: PathBuf,
+    /// Write OpenAPI JSON to this file (default: `openapi.json`).
+    #[arg(short, long, default_value = "openapi.json")]
+    pub out: PathBuf,
+    /// Package name for the `info.title` field.
+    #[arg(long, default_value = "vox-api")]
+    pub package_name: String,
+    /// Package version for the `info.version` field.
+    #[arg(long, default_value = "0.1.0")]
+    pub package_version: String,
 }
 
 /// `vox emit client` — Library-shaped TypeScript SDK only.

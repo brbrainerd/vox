@@ -134,8 +134,6 @@ pub enum ContractEndpointKind {
     Query,
     Mutation,
     Server,
-    /// SSE / streaming endpoint (text/event-stream).
-    Stream,
 }
 
 /// HTTP method bound to an endpoint.
@@ -183,7 +181,6 @@ impl From<HirEndpointKind> for ContractEndpointKind {
             HirEndpointKind::Query => ContractEndpointKind::Query,
             HirEndpointKind::Mutation => ContractEndpointKind::Mutation,
             HirEndpointKind::Server => ContractEndpointKind::Server,
-            HirEndpointKind::Stream => ContractEndpointKind::Stream,
         }
     }
 }
@@ -196,7 +193,7 @@ impl ContractEndpointKind {
     /// override this.
     pub fn default_method(self) -> HttpMethod {
         match self {
-            ContractEndpointKind::Query | ContractEndpointKind::Stream => HttpMethod::Get,
+            ContractEndpointKind::Query => HttpMethod::Get,
             ContractEndpointKind::Mutation | ContractEndpointKind::Server => HttpMethod::Post,
         }
     }

@@ -9,15 +9,18 @@
 pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
 mod build_lock;
-pub mod build_service;
+pub use vox_cli_core::build_service;
 pub mod cli_actions;
 pub mod cli_args;
+/// Re-exported from `vox-codegen` for callers that drive the build pipeline
+/// without taking a direct `vox-codegen` dependency.
+pub use vox_codegen::codegen_rust::RustAppShell;
 mod cli_dispatch;
 mod codex_cmd;
 mod command_contract;
 pub mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
-pub mod artifact_policy;
+pub use vox_cli_core::artifact_policy;
 pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
@@ -622,6 +625,19 @@ pub enum Cli {
     },
 }
 
+/// A sink that emits each event as a compact JSON line to stderr.
+/// Activated when `VOX_TELEMETRY=debug`. Useful for local development and
+/// diagnosing telemetry plumbing without reading the database.
+struct StderrDebugSink;
+
+impl vox_telemetry::TelemetryRecorder for StderrDebugSink {
+    fn record(&self, event: &vox_telemetry::TelemetryEvent) {
+        if let Ok(line) = serde_json::to_string(event) {
+            eprintln!("[vox-telemetry:debug] {line}");
+        }
+    }
+}
+
 /// Register the process-wide telemetry sinks.
 ///
 /// `db` is `Some` when the workspace journey DB opened successfully at startup.
@@ -652,6 +668,12 @@ pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
         sinks.push(Arc::new(
             crate::telemetry_corpus_feedback_sink::CorpusFeedbackJsonlSink::new(root),
         ));
+    }
+
+    // Phase D: if VOX_TELEMETRY=debug, also emit every event as JSON to stderr.
+    let cfg = vox_telemetry::TelemetryConfig::from_env();
+    if cfg.debug_to_stderr {
+        sinks.push(Arc::new(StderrDebugSink));
     }
 
     vox_telemetry::set_global_recorder(Arc::new(CompositeRecorder::new(sinks)));

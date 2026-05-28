@@ -1,0 +1,9 @@
+fn flatten_one_level(xss: list[list[int]]) to list[int] {
+    let mut result: list[int] = []
+    for xs in xss {
+        for x in xs {
+            result.push(x)
+        }
+    }
+    return result
+}

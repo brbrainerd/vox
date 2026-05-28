@@ -62,27 +62,33 @@ fn manifest_expired_is_rejected() {
 #[tokio::test]
 async fn device_flow_round_trip_with_mock() {
     use vox_populi::pairing::device_flow::{DeviceFlow, DeviceFlowConfig};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    let mut mock = mockito::Server::new_async().await;
-    let _device_code = mock
-        .mock("POST", "/login/device/code")
-        .with_status(200)
-        .with_header("content-type", "application/json")
-        .with_body(
-            r#"{"device_code":"DC","user_code":"UC","verification_uri":"https://x","expires_in":900,"interval":1}"#,
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/login/device/code"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .append_header("content-type", "application/json")
+                .set_body_string(
+                    r#"{"device_code":"DC","user_code":"UC","verification_uri":"https://x","expires_in":900,"interval":1}"#,
+                ),
         )
-        .create_async()
+        .mount(&server)
         .await;
-    let _token = mock
-        .mock("POST", "/login/oauth/access_token")
-        .with_status(200)
-        .with_body(r#"{"access_token":"AT","token_type":"bearer","scope":"gist"}"#)
-        .create_async()
+    Mock::given(method("POST"))
+        .and(path("/login/oauth/access_token"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(r#"{"access_token":"AT","token_type":"bearer","scope":"gist"}"#),
+        )
+        .mount(&server)
         .await;
 
     let cfg = DeviceFlowConfig {
         client_id: "test-client".into(),
-        github_login_base: mock.url(),
+        github_login_base: server.uri(),
         github_api_base: "https://api.github.com".into(),
         scope: "gist".into(),
         poll_interval_ms: 10,
@@ -99,20 +105,24 @@ async fn device_flow_round_trip_with_mock() {
 #[tokio::test]
 async fn counterparty_fetches_and_verifies_manifest() {
     use vox_populi::pairing::github_attestation::fetch_and_verify;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     let (sk, vk) = generate_signing_keypair();
     let pubkey_hex = hex::encode(verifying_key_to_bytes(&vk));
     let manifest =
         AttestationManifest::new_signed(&pubkey_hex, "12345", "alice", 1_900_000_000_000, &sk, &vk);
-    let mut mock = mockito::Server::new_async().await;
-    let _gist = mock
-        .mock("GET", "/raw/manifest.json")
-        .with_status(200)
-        .with_header("content-type", "application/json")
-        .with_body(serde_json::to_string(&manifest).unwrap())
-        .create_async()
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/raw/manifest.json"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .append_header("content-type", "application/json")
+                .set_body_string(serde_json::to_string(&manifest).unwrap()),
+        )
+        .mount(&server)
         .await;
-    let url = format!("{}/raw/manifest.json", mock.url());
+    let url = format!("{}/raw/manifest.json", server.uri());
     let admitted = fetch_and_verify(&url).await.expect("admit");
     assert_eq!(admitted.github_login, "alice");
 }

@@ -1,0 +1,17 @@
+fn nth_element(xs: list[int], n: int) to int {
+    if n < 0 {
+        return 0
+    }
+    match xs[n] {
+        Some(v) => v
+        None => 0
+    }
+}
+
+fn main() to str {
+    assert(nth_element([10, 20, 30], 0) == 10)
+    assert(nth_element([10, 20, 30], 2) == 30)
+    assert(nth_element([10, 20, 30], 5) == 0)
+    assert(nth_element([], 0) == 0)
+    return "ok"
+}

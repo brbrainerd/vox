@@ -114,14 +114,6 @@ impl Decl {
                     t.func.is_traced = true;
                 }
             }
-            Decl::Example(e) => {
-                if is_deprecated {
-                    e.func.is_deprecated = true;
-                }
-                if is_traced {
-                    e.func.is_traced = true;
-                }
-            }
             Decl::Endpoint(e) => {
                 if is_deprecated {
                     e.func.is_deprecated = true;

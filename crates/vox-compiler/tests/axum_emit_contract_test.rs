@@ -40,7 +40,7 @@ http get "/api/ping" to int {
 #[test]
 fn emit_main_registers_query_get_before_fallback() {
     let src = r#"
-@endpoint(kind: query) fn q_ping() to int { return 1 }
+@query fn q_ping() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
@@ -70,7 +70,7 @@ fn emit_main_mutation_with_schema_wraps_transaction_and_emits_json_error_envelop
     let src = r#"
 @table type T { a: str }
 
-@endpoint(kind: mutation) fn m_save() to int {
+@mutation fn m_save() to int {
     return 1
 }
 "#;
@@ -83,7 +83,7 @@ fn emit_main_mutation_with_schema_wraps_transaction_and_emits_json_error_envelop
 #[test]
 fn emit_main_query_handler_does_not_emit_transaction_error_envelope() {
     let src = r#"
-@endpoint(kind: query) fn q_only() to int { return 1 }
+@query fn q_only() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
@@ -101,7 +101,7 @@ fn emit_main_query_handler_does_not_emit_transaction_error_envelope() {
 #[test]
 fn emit_main_server_fn_without_schema_has_no_transaction_error_envelope() {
     let src = r#"
-@endpoint(kind: server) fn sf_ping() to int { return 1 }
+@server fn sf_ping() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);

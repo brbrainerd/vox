@@ -1,0 +1,11 @@
+[problem]
+id = "103"
+title = "remove_at_index"
+prompt = """
+Given a list of ints and an index i, return a new list with the element at index i removed. If i is out of bounds, return the original list unchanged.
+"""
+signature = "fn remove_at_index(xs: list[int], i: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["lists", "indexing"]

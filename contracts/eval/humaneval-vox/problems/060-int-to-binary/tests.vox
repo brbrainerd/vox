@@ -1,0 +1,32 @@
+fn int_to_binary(n: int) to str {
+    if n == 0 {
+        return "0"
+    }
+    let mut bits: list[str] = []
+    let mut x: int = n
+    while x > 0 {
+        if x % 2 == 0 {
+            bits.push("0")
+        } else {
+            bits.push("1")
+        }
+        x = x / 2
+    }
+    let reversed: list[str] = bits.reversed()
+    let mut result: str = ""
+    for b in reversed {
+        result = result + b
+    }
+    return result
+}
+
+fn main() to str {
+    assert(int_to_binary(0) == "0")
+    assert(int_to_binary(1) == "1")
+    assert(int_to_binary(2) == "10")
+    assert(int_to_binary(5) == "101")
+    assert(int_to_binary(8) == "1000")
+    assert(int_to_binary(10) == "1010")
+    assert(int_to_binary(255) == "11111111")
+    return "ok"
+}

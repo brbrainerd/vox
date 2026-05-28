@@ -459,8 +459,8 @@ mod tests {
             .expect("src-tauri main.rs");
         assert!(main.contains("rust_app_shell=TauriApp"), "{main}");
         assert!(
-            main.contains("vox_tauri_sherpa::plugin::init()"),
-            "expected Sherpa plugin registration: {main}"
+            main.contains("vox_tauri_stt::plugin::init()"),
+            "expected STT plugin registration: {main}"
         );
     }
 
@@ -474,16 +474,16 @@ mod tests {
             "expected tauri-build inlined plugin ACL: {build_rs}"
         );
         assert!(
-            build_rs.contains("\"vox-sherpa\""),
-            "expected plugin id vox-sherpa in build.rs: {build_rs}"
+            build_rs.contains("\"vox-stt\""),
+            "expected plugin id vox-stt in build.rs: {build_rs}"
         );
         let cargo = out
             .files
             .get("src-tauri/Cargo.toml")
             .expect("src-tauri/Cargo.toml");
         assert!(
-            cargo.contains("vox-tauri-sherpa") && cargo.contains("tauri-plugin"),
-            "expected vox-tauri-sherpa path dep with feature: {cargo}"
+            cargo.contains("vox-tauri-stt") && cargo.contains("tauri-plugin"),
+            "expected vox-tauri-stt path dep with feature: {cargo}"
         );
         assert!(
             cargo.contains("path = \"../../../crates/vox-actor-runtime\""),
@@ -498,8 +498,8 @@ mod tests {
             .get("src-tauri/capabilities/default.json")
             .expect("default capability");
         assert!(
-            cap.contains("vox-sherpa:default"),
-            "expected Sherpa default permission in capability: {cap}"
+            cap.contains("vox-stt:default"),
+            "expected vox-stt default permission in capability: {cap}"
         );
     }
 

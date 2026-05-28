@@ -1,0 +1,24 @@
+fn ends_with_digit(s: str) to bool {
+    if s.len() == 0 {
+        return false
+    }
+    let chars: list[str] = s.chars()
+    let mut last: str = ""
+    for c in chars {
+        last = c
+    }
+    let code: int = last.ord()
+    return code >= 48 and code <= 57
+}
+
+fn main() to str {
+    assert(ends_with_digit("abc3") == true)
+    assert(ends_with_digit("abc") == false)
+    assert(ends_with_digit("") == false)
+    assert(ends_with_digit("0") == true)
+    assert(ends_with_digit("9") == true)
+    assert(ends_with_digit("hello9") == true)
+    assert(ends_with_digit("3abc") == false)
+    assert(ends_with_digit("x1y2") == true)
+    return "ok"
+}

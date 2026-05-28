@@ -1,0 +1,10 @@
+fn str_length(s: str) to int {
+    return s.len()
+}
+
+fn main() to str {
+    assert(str_length("") == 0)
+    assert(str_length("hello") == 5)
+    assert(str_length("ab") == 2)
+    return "ok"
+}

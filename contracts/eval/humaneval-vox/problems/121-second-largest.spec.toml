@@ -1,0 +1,11 @@
+[problem]
+id = "121"
+title = "second_largest"
+prompt = """
+Find the second largest distinct value in a list of ints. Return -1 if there are fewer than 2 distinct values.
+"""
+signature = "fn second_largest(xs: list[int]) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = ["lists", "math"]

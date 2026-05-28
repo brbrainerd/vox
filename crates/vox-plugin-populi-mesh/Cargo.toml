@@ -24,6 +24,7 @@ hex = { workspace = true }
 vox-populi = { workspace = true }
 vox-secrets = { workspace = true }
 vox-crypto = { workspace = true }
+vox-identity = { workspace = true }  # D-7-rescope: needed by auth_ed25519 (TrustedNodeRegistry)
 vox-mesh-types = { workspace = true }
 vox-db = { workspace = true }
 vox-bounded-fs = { workspace = true }

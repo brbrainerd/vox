@@ -1,0 +1,14 @@
+fn sum_squares(items: list[int]) to int {
+    let mut total: int = 0
+    let mut i: int = 0
+    while i < items.len() {
+        match items[i] {
+            Some(v) => {
+                total = total + v * v
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return total
+}

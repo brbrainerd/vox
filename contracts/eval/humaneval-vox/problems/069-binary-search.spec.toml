@@ -1,0 +1,12 @@
+[problem]
+id = "069"
+title = "binary_search"
+prompt = """
+Search for target in a sorted list xs using binary search.
+Return the index of target if found, or -1 if not found.
+"""
+signature = "fn binary_search(xs: list[int], target: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

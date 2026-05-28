@@ -1,0 +1,11 @@
+[problem]
+id = "112"
+title = "divisors_of"
+prompt = """
+Return a list of all divisors of a positive integer n in ascending order, including 1 and n itself.
+"""
+signature = "fn divisors_of(n: int) to list[int]"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math", "divisors"]

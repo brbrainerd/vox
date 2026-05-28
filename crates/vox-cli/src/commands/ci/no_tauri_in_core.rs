@@ -8,7 +8,7 @@ pub fn check(repo_root: &Path) -> Result<()> {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name == "vox-gui" || name == "vox-tauri-codegen" || name == "vox-tauri-sherpa" {
+            if name == "vox-gui" || name == "vox-tauri-codegen" || name == "vox-tauri-stt" {
                 continue;
             }
             let toml_path = entry.path().join("Cargo.toml");

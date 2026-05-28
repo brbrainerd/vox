@@ -11,7 +11,6 @@ related:
   - contracts/db/baseline-version-policy.yaml
   - contracts/db/retention-policy.yaml
   - contracts/db/data-storage-policy.v1.yaml
-  - crates/_frozen.md
   - AGENTS.md
 ---
 
@@ -45,7 +44,7 @@ These were resolved in the audit clarifying pass. They are not up for debate in 
 2. **libSQL/Turso stays** as the Tier A engine. No sled/heed/redb/rocksdb.
 3. **VoxScript-first for migration glue** per `AGENTS.md §VoxScript-First Glue Code`. No `.sh`, no `.ps1`, no `.py` helpers.
 4. **Secret plane is `vox-secrets`** per `AGENTS.md §Secret Management (Required, SSOT)`. No direct `env::var("TURSO_*")` outside the vox-secrets allowlist.
-5. **Frozen Core crates** (per `crates/_frozen.md`) keep their public surface stable. Tier A DDL changes in frozen crates need governance sign-off.
+5. **Frozen Core crates** (per `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates` — canonical list since `crates/_frozen.md` was retired 2026-05-24) keep their public surface stable. Tier A DDL changes in frozen crates need governance sign-off.
 6. **Archive Protocol**: `archive/` and `docs/src/archive/` are frozen inputs. Auditors and agents must not regenerate against them.
 
 ## 4. Target state: four-tier data model
@@ -247,7 +246,7 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F63**. `vox-observability` was a phantom crate in prior drafts — does not exist and does not need to. See §5.3.
 - **F64**. `vox-schema` was a phantom crate in prior drafts. Codegen is a module tree inside `vox-jsonschema-util`. See §5.1. Note: pre-scaffolded `crates/vox-schema/` and `crates/vox-spool/` directories from the prior draft were deleted because `[workspace.members] = ["crates/*", ...]` was auto-including non-compiling scaffolds.
 - **F65**. `vox-spool` is not pre-created; it lands only when M-03 executes. See §5.2.
-- **F66**. `crates/_frozen.md` Frozen Core Ledger exists and needs cross-linking from this SSOT so that Tier A DDL changes in frozen crates require governance sign-off. M-68.
+- **F66**. ~~`crates/_frozen.md` Frozen Core Ledger~~ Resolved 2026-05-24: file retired; canonical list is `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates`. M-68 closed.
 - **F67**. `dist/schemas.ts` provenance is unknown. M-31 spikes: is it source or build output?
 - **F68**. `.jj/` is Jujutsu VCS state; coexists with `.git/`; never touched by Vox crates. Document and allowlist in the guard. M-71.
 - **F69**. `tree-sitter-vox/GRAMMAR_SSOT.md` exists and is a grammar SSOT. Link it from Related Documents; wire a parity check. M-72.
@@ -319,7 +318,7 @@ This work is considered "done" when all of:
 - [`contracts/db/baseline-version-policy.yaml`](../../../contracts/db/baseline-version-policy.yaml) — today's partial contract-side SSoT for baseline version + digest.
 - [`contracts/db/retention-policy.yaml`](../../../contracts/db/retention-policy.yaml) — retention vocabulary; extended in M-30.
 - [`contracts/db/data-storage-policy.v1.yaml`](../../../contracts/db/data-storage-policy.v1.yaml) — machine-checked policy; consumed by the guard.
-- [`crates/_frozen.md`](../../../crates/_frozen.md) — Frozen Core Ledger.
+- `contracts/db/data-storage-policy.v1.yaml#frozen_core_crates` — Frozen Core list (canonical since `crates/_frozen.md` was retired 2026-05-24).
 - [`AGENTS.md`](../../../AGENTS.md) — cross-tool policy surface; see `#voxscript-first-glue-code-required`, `#telemetry-trust-ssot`, `#secret-management-required-ssot`, `#archival-protocol-llm-guard`.
 - [`tree-sitter-vox/GRAMMAR_SSOT.md`](../../../tree-sitter-vox/GRAMMAR_SSOT.md) — grammar SSoT.
 - ADR [023-optional-telemetry-remote-upload.md](../adr/023-optional-telemetry-remote-upload.md) — remote telemetry upload.

@@ -55,12 +55,17 @@ fn cr_l8_full_loop_emit_capture_aggregate_report() {
 
     // 2. Fixture with three retired patterns → expect 3 findings, 3 events.
     let tmp = tempfile::tempdir().expect("tempdir");
+    // Use the RETIRED forms (not the canonical ones):
+    //   @component fn  →  retired (use bare `component` keyword instead)
+    //   @endpoint(kind: server)   →  retired (use `@server` instead)
+    //   @endpoint(kind: mutation) →  retired (use `@mutation` instead)
+    // The bare `@server` / `@mutation` forms ARE the canonical post-2026-05-24 surface.
     write_fixture(
         &tmp,
         "loop_e2e.vox",
         "@component fn Dashboard() {}\n\
-         @server fn list_items() {}\n\
-         @mutation fn add_item() {}\n",
+         @endpoint(kind: server) fn list_items() {}\n\
+         @endpoint(kind: mutation) fn add_item() {}\n",
     );
 
     // 3. Run the engine. P2.1b's `emit_lint_finding_telemetry` emits one

@@ -1,18 +1,12 @@
 //! Plain-Rust types for the skill side of plugin loading.
 //! Skill payloads do not cross a dylib boundary, so no abi_stable here.
+//!
+//! `SkillManifest` is the canonical unified type from `vox-plugin-types`.
+//! It supersedes the former slim 5-field struct that lived here; construction
+//! sites that only need the core fields can use `..Default::default()` for the rest.
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct SkillManifest {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    pub description: String,
-    #[serde(default)]
-    pub tools: Vec<String>,
-}
+// Re-export the canonical unified type (D-17: one SkillManifest shape).
+pub use vox_plugin_types::skill_manifest::{SkillCategory, SkillManifest, SkillPermission};
 
 #[derive(Debug, Clone)]
 pub struct LoadedSkill {

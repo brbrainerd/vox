@@ -1,0 +1,20 @@
+fn remove_spaces(s: str) to str {
+    let mut result: str = ""
+    let chars: list[str] = s.chars()
+    for c in chars {
+        if c != " " {
+            result = result + c
+        }
+    }
+    return result
+}
+
+fn main() to str {
+    assert(remove_spaces("hello world") == "helloworld")
+    assert(remove_spaces("  hi  ") == "hi")
+    assert(remove_spaces("no spaces") == "nospaces")
+    assert(remove_spaces("") == "")
+    assert(remove_spaces("   ") == "")
+    assert(remove_spaces("a b c") == "abc")
+    return "ok"
+}

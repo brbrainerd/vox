@@ -1,0 +1,11 @@
+[problem]
+id = "031"
+title = "count_chars"
+prompt = """
+Count how many times a single character (given as a one-character string) appears in s.
+"""
+signature = "fn count_chars(s: str, ch: str) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

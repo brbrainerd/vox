@@ -67,6 +67,25 @@ impl DetectionRule for QuestionMarkDetector {
         Good:\n  expr?"
     }
 
+    fn minimal_repro(&self) -> Option<&'static str> {
+        Some(
+            "// VERBOSE — manual match on Result for error propagation\n\
+             fn load_config(path: &str) -> Result<Config, Error> {\n\
+             \x20   let content = match std::fs::read_to_string(path) {\n\
+             \x20       Ok(s) => s,\n\
+             \x20       Err(e) => return Err(e.into()),\n\
+             \x20   };\n\
+             \x20   // ...\n\
+             }\n\
+             \n\
+             // IDIOMATIC — use the ? operator\n\
+             fn load_config(path: &str) -> Result<Config, Error> {\n\
+             \x20   let content = std::fs::read_to_string(path)?;\n\
+             \x20   // ...\n\
+             }",
+        )
+    }
+
     fn detect(
         &self,
         file: &SourceFile,

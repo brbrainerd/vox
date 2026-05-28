@@ -30,7 +30,7 @@ fn extract_codegen_activity_names(lib_src: &str) -> Vec<String> {
 }
 
 #[test]
-#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead — owner: integration-tests sunset: 2026-12-31"]
+#[ignore = "@server bare shorthand is not in the parser; use @server fn instead — owner: integration-tests sunset: 2026-12-31"]
 fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
     let src = r#"
 @server fn chat(prompt: str) to str {
@@ -45,7 +45,7 @@ fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
 }
 
 #[test]
-#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead — owner: integration-tests sunset: 2026-12-31"]
+#[ignore = "@server bare shorthand is not in the parser; use @server fn instead — owner: integration-tests sunset: 2026-12-31"]
 fn parity_contract_api_client_supports_secure_headers_and_streaming() {
     let src = r#"
 @server fn summarize(input: str) to str {
@@ -110,7 +110,7 @@ fn parity_contract_retry_policy_defaults_are_production_like() {
 }
 
 #[test]
-#[ignore = "activity/workflow constructs tombstoned; orchestration uses @endpoint(kind: mutation) fn"]
+#[ignore = "activity/workflow constructs tombstoned; orchestration uses @mutation fn"]
 fn parity_contract_generated_linear_activity_identity_matches_interpreted_plan() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
@@ -165,7 +165,7 @@ workflow main_flow() to Result[str] {
 }
 
 #[test]
-#[ignore = "activity/workflow constructs tombstoned; orchestration uses @endpoint(kind: mutation) fn"]
+#[ignore = "activity/workflow constructs tombstoned; orchestration uses @mutation fn"]
 fn parity_contract_generated_with_id_alias_matches_interpreted_activity_id() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error

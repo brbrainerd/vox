@@ -15,7 +15,10 @@ fn workspace_root() -> PathBuf {
 fn end_to_end_load_noop_skill() {
     let src = workspace_root()
         .join("crates")
-        .join("vox-plugin-noop-skill");
+        .join("vox-plugin-host")
+        .join("tests")
+        .join("fixtures")
+        .join("noop-skill");
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let plugin_dir = tmp.path().join("noop-skill").join("0.1.0");

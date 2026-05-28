@@ -1,0 +1,9 @@
+fn nth_element(xs: list[int], n: int) to int {
+    if n < 0 {
+        return 0
+    }
+    match xs[n] {
+        Some(v) => v
+        None => 0
+    }
+}

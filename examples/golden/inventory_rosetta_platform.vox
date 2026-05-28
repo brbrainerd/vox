@@ -74,7 +74,7 @@ fn InventoryView() to str {
 // Import requires a named platform capability, not just ambient OS access.
 // See docs/src/architecture/capability-grants-ssot.md for the runtime model.
 fn import_loot_csv(import_cap: cap, path: str) to Result[str] {
-    if !has_capability(import_cap) {
+    if not has_capability(import_cap) {
         return Error("missing capability token")
     }
     return Ok("imported:" + path)

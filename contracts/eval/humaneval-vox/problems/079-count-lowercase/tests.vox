@@ -1,0 +1,28 @@
+fn count_lowercase(s: str) to int {
+    let chars: list[str] = s.chars()
+    let mut count: int = 0
+    let mut i: int = 0
+    while i < chars.len() {
+        match chars[i] {
+            Some(c) => {
+                let code: int = c.ord()
+                if code >= 97 and code <= 122 {
+                    count = count + 1
+                }
+            }
+            None => {}
+        }
+        i = i + 1
+    }
+    return count
+}
+
+fn main() to str {
+    assert(count_lowercase("Hello World") == 8)
+    assert(count_lowercase("abc") == 3)
+    assert(count_lowercase("ABC") == 0)
+    assert(count_lowercase("") == 0)
+    assert(count_lowercase("HeLLo") == 2)
+    assert(count_lowercase("123abc!") == 3)
+    return "ok"
+}

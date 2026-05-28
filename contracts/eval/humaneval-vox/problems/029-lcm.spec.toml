@@ -1,0 +1,11 @@
+[problem]
+id = "029"
+title = "lcm"
+prompt = """
+Return the least common multiple of two positive integers.
+"""
+signature = "fn lcm(a: int, b: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

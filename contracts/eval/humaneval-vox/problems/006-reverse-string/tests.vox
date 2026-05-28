@@ -1,0 +1,24 @@
+fn reverse_string(s: str) to str {
+    let chars: list[str] = s.chars()
+    let n: int = chars.len()
+    let mut result: str = ""
+    let mut i: int = n - 1
+    while i >= 0 {
+        match chars[i] {
+            Some(c) => {
+                result = result + c
+            }
+            None => {}
+        }
+        i = i - 1
+    }
+    return result
+}
+
+fn main() to str {
+    assert(reverse_string("hello") == "olleh")
+    assert(reverse_string("") == "")
+    assert(reverse_string("a") == "a")
+    assert(reverse_string("abcd") == "dcba")
+    return "ok"
+}

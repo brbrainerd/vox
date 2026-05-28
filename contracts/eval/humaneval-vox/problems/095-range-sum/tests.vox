@@ -1,0 +1,19 @@
+fn range_sum(a: int, b: int) to int {
+    let mut total: int = 0
+    let mut i: int = a
+    while i <= b {
+        total = total + i
+        i = i + 1
+    }
+    return total
+}
+
+fn main() to str {
+    assert(range_sum(1, 5) == 15)
+    assert(range_sum(1, 10) == 55)
+    assert(range_sum(5, 5) == 5)
+    assert(range_sum(0, 0) == 0)
+    assert(range_sum(3, 7) == 25)
+    assert(range_sum(1, 100) == 5050)
+    return "ok"
+}

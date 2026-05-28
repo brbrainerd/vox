@@ -16,7 +16,7 @@ fn emit(src: &str) -> String {
 #[test]
 fn deep_link_emits_tauri_listen() {
     let src = r#"
-@endpoint(kind: query) fn handle_link(url: str) to str { return "/" }
+@query fn handle_link(url: str) to str { return "/" }
 @deep_link {
     scheme: "voxmental"
     on_link: handle_link
@@ -42,8 +42,8 @@ fn deep_link_emits_tauri_listen() {
 #[test]
 fn back_button_and_deep_link_deduplicates_event_import() {
     let src = r#"
-@endpoint(kind: query) fn handle_back() to bool { return true }
-@endpoint(kind: query) fn handle_link(url: str) to str { return "/" }
+@query fn handle_back() to bool { return true }
+@query fn handle_link(url: str) to str { return "/" }
 @back_button { on_press: handle_back }
 @deep_link { scheme: "vox" on_link: handle_link }
 "#;

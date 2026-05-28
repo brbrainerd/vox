@@ -85,11 +85,11 @@ fn load_query_all_allowlist(root: &Path) -> Result<Vec<String>> {
                 continue;
             }
             let norm = line.replace('\\', "/");
-            let norm = if norm.ends_with('/') {
-                norm
-            } else {
-                format!("{norm}/")
-            };
+            // Entries ending with '/' are directory prefixes — all .rs files anywhere
+            // under that directory tree are allowed.  Entries without a trailing '/'
+            // are treated as exact file-path allowances (e.g. a single test file that
+            // embeds a query_all() fixture string).  We do NOT auto-append '/' so
+            // callers can distinguish the two modes; see query_all_path_allowed.
             out.push(norm);
         }
     }
@@ -99,7 +99,15 @@ fn load_query_all_allowlist(root: &Path) -> Result<Vec<String>> {
 }
 
 fn query_all_path_allowed(rel: &str, allow: &[String]) -> bool {
-    allow.iter().any(|prefix| rel.starts_with(prefix.as_str()))
+    allow.iter().any(|entry| {
+        if entry.ends_with('/') {
+            // Directory prefix: allow any file inside this subtree.
+            rel.starts_with(entry.as_str())
+        } else {
+            // Exact file path: allow only this specific file.
+            rel == entry.as_str()
+        }
+    })
 }
 
 /// Fail when Rust sources outside `vox-db` (and the transitional allowlist) call
@@ -1048,6 +1056,50 @@ mod sql_surface_tests {
             "y_all(\n        &self,\n        sql: &str,\n    )"
         );
         assert!(!super::source_contains_query_all_call_site(src));
+    }
+
+    #[test]
+    fn query_all_allowlist_exact_file_path() {
+        // An exact-file entry (no trailing '/') allows only that specific file.
+        let allow = vec![
+            "crates/vox-db/".to_string(),
+            "crates/vox-cli/tests/check_for_llm_envelope.rs".to_string(),
+        ];
+
+        // The exact file is allowed.
+        assert!(
+            super::query_all_path_allowed("crates/vox-cli/tests/check_for_llm_envelope.rs", &allow),
+            "exact file should be allowed"
+        );
+        // A sibling file under the same directory is NOT allowed.
+        assert!(
+            !super::query_all_path_allowed("crates/vox-cli/tests/other_test.rs", &allow),
+            "sibling file should not match an exact-file entry"
+        );
+        // A directory-prefix entry still works normally.
+        assert!(
+            super::query_all_path_allowed("crates/vox-db/src/store/ops_query.rs", &allow),
+            "directory prefix entry should still allow files inside it"
+        );
+    }
+
+    #[test]
+    fn query_all_allowlist_directory_prefix_requires_trailing_slash() {
+        // Without trailing slash an entry is an exact-file allowance, so
+        // a directory match must fail (prevents the pre-T-FIN-2 accidental
+        // broad-grant bug from being re-introduced silently).
+        let allow = vec!["crates/vox-cli/tests".to_string()]; // no trailing /
+
+        // The literal string matches itself...
+        assert!(
+            super::query_all_path_allowed("crates/vox-cli/tests", &allow),
+            "an exact entry matches itself"
+        );
+        // ...but does NOT act as a prefix for files inside that directory.
+        assert!(
+            !super::query_all_path_allowed("crates/vox-cli/tests/some_file.rs", &allow),
+            "without trailing / the entry should NOT prefix-match files inside the directory"
+        );
     }
 
     #[test]

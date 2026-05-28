@@ -136,24 +136,21 @@ Vox source follows one rule for top-level declarations:
 > **Bare-keyword blocks declare scope. Decorators modify declarations.**
 
 **Bare-keyword blocks** (each opens a scope with its own rules):
-`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`,
-`workflow`, `activity`.
-*(`workflow` and `activity` became public in the ADR-028 revision 2026-05-19;
-backed by `vox-workflow-runtime`'s journal-replay engine.)*
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`.
+**Reserved (ADR-028, not yet implemented):** `workflow`, `activity`.
 
 **Decorators** (modifiers composed on top of a declaration):
-`@table`, `@endpoint`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
+`@table`, `@query`, `@mutation`, `@server`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
 `@v0`, `@test`.
-**Reserved (ADR-028):** `@durable`, `@scheduled` — surface targeting a
-"decorator-on-plain-fn" model the runtime doesn't yet provide. Use a
-`workflow` declaration until they land.
+**Reserved (ADR-028, not yet implemented):** `@durable`, `@scheduled`.
+**Removed in v0.6.0:** `@endpoint` (see §Retired Surfaces).
 
 Decorators compose with bare-keyword blocks:
 
 ```vox
 // vox:skip
 @table type Task { … }                        // decorator on a type declaration
-@endpoint(kind: query) fn list_tasks() { … }  // decorator on a function
+@query fn list_tasks() { … }  // decorator on a function
 @pure fn checksum(payload: bytes) { … }       // purity declared via decorator
 ```
 
@@ -241,13 +238,13 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
-| `@server fn`, `@query fn`, `@mutation fn` | `@endpoint(kind: server\|query\|mutation) fn` |
+| `@endpoint(kind: server\|query\|mutation) fn` (removed v0.6.0) | `@server fn` / `@query fn` / `@mutation fn` |
 | `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
 | `recall()` / `recall_async()` (deprecated memory reads) | `MemoryManager::lookup_fact_by_key` (async) or RAG / retrieval bundle — see `crates/vox-orchestrator/src/memory/manager.rs` |
 | `@capacitor/*`, `npx cap sync` | `@tauri-apps/plugin-*`, `cargo tauri build` |
 | `axum::serve`, `rust-embed` (for generated desktop/mobile apps) | Tauri 2 runtime (Axum is retained for native-binary/server targets only) |
-| `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-sherpa` (native Tauri plugin) |
+| `vox-sherpa-transcribe` (Capacitor plugin) | `vox-tauri-stt` (native Tauri STT plugin) |
 
 ### Deprecation Annotations
 
@@ -263,7 +260,7 @@ The workspace uses a **single source of truth** for all crate versions:
 
 ```toml
 # Cargo.toml [workspace.package]
-version = "0.5.0"
+version = "0.6.0"
 ```
 
 All first-party crates inherit this via `version.workspace = true`. Plugin crates (`vox-plugin-*`) maintain independent versions on their own release cadence.
@@ -296,20 +293,20 @@ Agents and contributors must strictly adhere to architectural invariants. Ensure
 These rules apply to `.vox` source files and are enforced by `vox stub-check` (static) and the Vox runtime (dynamic). Agents writing Vox code MUST follow them.
 
 **Effect declarations (Phase 5):**
-- Any `pub fn` or `@endpoint fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
+- Any `pub fn`, `@query fn`, `@mutation fn`, or `@server fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
 - A `@pure fn` MUST NOT call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or any `async/await` — the compiler will reject it.
-- `workflow { }` and `activity { }` declarations are **public** as of ADR-028 revision 2026-05-19 — backed by `vox-workflow-runtime`'s journal-replay engine. Workflow bodies MUST NOT call non-deterministic builtins outside of an `activity` call: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()` — these break replay determinism and must be wrapped in an activity. `@durable` and `@scheduled` decorators remain **reserved per ADR-028** with error code `E028`; use a `workflow` declaration until they land.
+- Workflow bodies (`workflow { }`) MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`. Use `activity` functions for side-effectful work instead.
 
 **Type boundaries (Phase 3):**
-- ID parameters on `@endpoint`, actor-message, or `activity` functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
+- ID parameters on `@query`, `@mutation`, `@server`, `@activity`, or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
 - Error types on public boundaries MUST be named ADTs — `Result[T, str]` is flagged by `vox/types/anonymous-error-type`.
 
 **Decorator position (Phase 2):**
-- Use `@pure fn` — NOT `pure fn`. The bare-keyword position is reserved for `actor`, `fn`, `type`, `component`, `routes`, `module`, `state_machine`, `workflow`, `activity`. The `@durable` and `@scheduled` decorators remain reserved per ADR-028 and are rejected at parse time with `E028`; use a `workflow` declaration instead.
+- Use `@durable fn`, `@pure fn`, `@scheduled fn` — NOT `durable fn`, `pure fn`, `scheduled fn`. The bare-keyword position is reserved for `actor`, `workflow`, `activity`, `fn`, `type`, `component`, `routes`, `module`, `state_machine`.
 - See the Grammar Unification section above for the full keyword table.
 
 **Auth / access control:**
-- Every `@endpoint fn` MUST carry either `@auth(...)` or `@public`. An endpoint with neither is flagged `vox/auth/endpoint-missing-decorator`.
+- Every `@query fn`, `@mutation fn`, or `@server fn` should carry either `@auth(...)` for authenticated routes or an explicit open-access annotation. The legacy `vox/auth/endpoint-missing-decorator` lint targeted `@endpoint fn`, which was removed in v0.6.0; auth decoration enforcement for the bare-form decorators is tracked in Phase 6 of the language-rules plan.
 
 **State machines:**
 - Every state in a `state_machine { }` block must have at least one `->` outgoing transition, or be marked as a terminal state with a `// terminal` comment. Flagged by `vox/state-machine/unreachable-state`.

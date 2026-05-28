@@ -1,0 +1,16 @@
+id = "009"
+title = "find_max: uses < instead of > — returns minimum instead of maximum"
+description = """
+The comparison in find_max is inverted: `if nums[i] < best` updates
+best when the new element is SMALLER, so the function returns the
+minimum of the list. Changing < to > makes best track the largest
+element seen so far.
+"""
+bug_class = "logic"
+difficulty = "hard"
+scope = "single-file"
+detection_mode = "runtime"
+expected_diagnostics = []
+mens_training_eligible = false        # buggy.vox must never enter MENS training
+fixed_training_eligible = true        # fixed.vox is a positive example; eligible for general training
+repair_pair_eligible = true           # (buggy.vox, fixed.vox) pair eligible for repair fine-tuning only

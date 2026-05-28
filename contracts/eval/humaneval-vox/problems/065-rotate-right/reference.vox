@@ -1,0 +1,33 @@
+fn rotate_right(xs: list[int], k: int) to list[int] {
+    let n: int = xs.len()
+    if n == 0 {
+        return xs
+    }
+    let shift: int = k % n
+    if shift == 0 {
+        let mut result: list[int] = []
+        for x in xs {
+            result.push(x)
+        }
+        return result
+    }
+    let mut result: list[int] = []
+    let start: int = n - shift
+    let mut i: int = start
+    while i < n {
+        match xs[i] {
+            Some(v) => { result.push(v) }
+            None => {}
+        }
+        i = i + 1
+    }
+    let mut j: int = 0
+    while j < start {
+        match xs[j] {
+            Some(v) => { result.push(v) }
+            None => {}
+        }
+        j = j + 1
+    }
+    return result
+}

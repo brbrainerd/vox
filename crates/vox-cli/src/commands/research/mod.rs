@@ -16,7 +16,7 @@ pub enum ResearchCmd {
         /// Topic / question tokens (join with spaces).
         #[arg(trailing_var_arg = true, required = true)]
         query: Vec<String>,
-        /// Emit JSON [`vox_orchestrator::dei_shim::research::ResearchResult`] to stdout.
+        /// Emit JSON [`vox_dei_shim::research::ResearchResult`] to stdout.
         #[arg(long, default_value_t = false)]
         json: bool,
         /// Retrieval scope — `both` (default), `web`, or `local`.
@@ -274,7 +274,7 @@ pub async fn run_research_query(
 ) -> anyhow::Result<()> {
     use std::sync::Arc;
     use vox_db::{DbConfig, VoxDb};
-    use vox_orchestrator::dei_shim::research::{
+    use vox_dei_shim::research::{
         ResearchConfig, ResearchQuery, ResearchScope, run_research_with_context,
     };
     use vox_repository::discover_repository_or_fallback;

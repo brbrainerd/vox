@@ -1,0 +1,14 @@
+[problem]
+id = "058"
+title = "is_armstrong"
+prompt = """
+Return true if n is an Armstrong number (also called a narcissistic number).
+An Armstrong number equals the sum of each of its digits raised to the power
+of the number of digits. For example: 153 = 1^3 + 5^3 + 3^3 = 1 + 125 + 27 = 153.
+Only consider non-negative integers.
+"""
+signature = "fn is_armstrong(n: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

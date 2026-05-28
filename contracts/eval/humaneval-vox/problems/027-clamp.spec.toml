@@ -1,0 +1,11 @@
+[problem]
+id = "027"
+title = "clamp"
+prompt = """
+Clamp an integer x to the range [lo, hi]. Return lo if x < lo, hi if x > hi, otherwise x.
+"""
+signature = "fn clamp(x: int, lo: int, hi: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = []

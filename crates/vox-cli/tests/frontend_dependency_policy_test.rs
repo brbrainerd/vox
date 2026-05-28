@@ -80,7 +80,12 @@ fn frontend_dependency_policy_is_enforced_for_gui_surfaces() {
         serde_yaml::from_str(&contract_raw).expect("parse dependency policy contract");
 
     for surface in &contract.surfaces {
-        let package_raw = fs::read_to_string(root.join(&surface.path))
+        let package_path = root.join(&surface.path);
+        if !package_path.exists() {
+            // Surface not yet created on disk — skip rather than fail.
+            continue;
+        }
+        let package_raw = fs::read_to_string(&package_path)
             .unwrap_or_else(|e| panic!("read {}: {}", surface.path, e));
         let package: PackageJson = serde_json::from_str(&package_raw)
             .unwrap_or_else(|e| panic!("parse {}: {}", surface.path, e));

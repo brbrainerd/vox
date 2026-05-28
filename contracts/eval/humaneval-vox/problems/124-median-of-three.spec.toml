@@ -1,0 +1,11 @@
+[problem]
+id = "124"
+title = "median_of_three"
+prompt = """
+Given three ints a, b, c, return the median value (the middle value when sorted).
+"""
+signature = "fn median_of_three(a: int, b: int, c: int) to int"
+training_eligible = true
+provenance = "original"
+difficulty = "easy"
+tags = ["math"]

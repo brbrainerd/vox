@@ -1,0 +1,13 @@
+[problem]
+id = "073"
+title = "two_sum_exists"
+prompt = """
+Return true if any two distinct elements in xs sum to target.
+"Distinct" means different positions (the same value may be used if it appears at
+two different indices). Return false for a list with fewer than 2 elements.
+"""
+signature = "fn two_sum_exists(xs: list[int], target: int) to bool"
+training_eligible = true
+provenance = "original"
+difficulty = "medium"
+tags = []

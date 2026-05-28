@@ -112,7 +112,13 @@ impl Subcommand for CorpusFeedbackSubcommand {
         //    legacy AuditReport verdicts at the same path).
         let freshness = newest_report_freshness(&report_dir);
 
-        build_outcome(args, events.len(), fresh_report_path, freshness, &events_dir)
+        build_outcome(
+            args,
+            events.len(),
+            fresh_report_path,
+            freshness,
+            &events_dir,
+        )
     }
 }
 
@@ -342,9 +348,7 @@ fn write_substantive_report_atomic(
 mod tests {
     use super::*;
     use crate::recorder::JsonlFileRecorder;
-    use vox_telemetry::{
-        LintFindingEvent, RepairOutcomeEvent, TelemetryEvent, TelemetryRecorder,
-    };
+    use vox_telemetry::{LintFindingEvent, RepairOutcomeEvent, TelemetryEvent, TelemetryRecorder};
 
     fn args_in(workspace_override_corpus: &Path) -> CommonArgs {
         CommonArgs {
@@ -417,9 +421,12 @@ mod tests {
         // Diagnostic preconditions: prove the recorder did write the JSONL
         // and that load_events_from_dir can find it before running the
         // subcommand.
-        assert!(jsonl_path.exists(), "JSONL file should exist at {}", jsonl_path.display());
-        let direct_load = crate::recorder::load_events_from_dir(&events_dir)
-            .expect("load events");
+        assert!(
+            jsonl_path.exists(),
+            "JSONL file should exist at {}",
+            jsonl_path.display()
+        );
+        let direct_load = crate::recorder::load_events_from_dir(&events_dir).expect("load events");
         assert_eq!(
             direct_load.len(),
             6,
@@ -437,7 +444,12 @@ mod tests {
             outcome.report.corpus_size, outcome.report.note
         );
         assert!(
-            outcome.report.note.as_deref().unwrap_or("").contains("6 events"),
+            outcome
+                .report
+                .note
+                .as_deref()
+                .unwrap_or("")
+                .contains("6 events"),
             "note should mention event count; got {:?}",
             outcome.report.note
         );
