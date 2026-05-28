@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use tempfile::tempdir;
 use vox_orchestrator::{AffinityGroupRegistry, load_from_config};
+use vox_test_harness::synthetic_workspace::{MemberSpec, SyntheticWorkspaceBuilder};
 
 #[test]
 fn test_default_affinity_resolution() {
@@ -41,27 +42,18 @@ patterns = ["custom/**", "src/extra/*.rs"]
 
 #[test]
 fn test_detect_from_repository_layout_cargo() {
-    let dir = tempdir().unwrap();
-    let root = dir.path();
+    // Uses vox_test_harness::synthetic_workspace::SyntheticWorkspaceBuilder so
+    // we don't reinvent the temp-dir + crates/<name>/Cargo.toml scaffolding.
+    // The builder also writes a workspace root Cargo.toml + Cargo.lock, which
+    // is fine for detect_from_repository_layout (it only inspects crates/).
+    let ws = SyntheticWorkspaceBuilder::new()
+        .member(MemberSpec::library("alpha"))
+        .member(MemberSpec::library("beta"))
+        .build()
+        .expect("build synthetic workspace");
 
-    fs::create_dir_all(root.join("crates/alpha")).unwrap();
-    fs::write(
-        root.join("crates/alpha/Cargo.toml"),
-        "[package]\nname=\"alpha\"",
-    )
-    .unwrap();
+    let reg = AffinityGroupRegistry::detect_from_repository_layout(ws.root());
 
-    fs::create_dir_all(root.join("crates/beta")).unwrap();
-    fs::write(
-        root.join("crates/beta/Cargo.toml"),
-        "[package]\nname=\"beta\"",
-    )
-    .unwrap();
-
-    // We need to mock vox_repository behavior or hope it works on tempdir
-    let reg = AffinityGroupRegistry::detect_from_repository_layout(root);
-
-    // It should find alpha-group and beta-group
     assert!(reg.find_by_name("alpha-group").is_some());
     assert!(reg.find_by_name("beta-group").is_some());
 }

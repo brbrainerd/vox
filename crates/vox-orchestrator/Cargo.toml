@@ -116,6 +116,7 @@ serial_test = { workspace = true }
 tempfile = { workspace = true }
 tracing-test = { workspace = true }
 vox-actor-runtime = { workspace = true }
+vox-test-harness = { path = "../vox-test-harness" }
 axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
