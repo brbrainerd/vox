@@ -1,7 +1,7 @@
 ---
 title: "Vox GUI Capability Audit 2026"
 description: "Reality audit of the Vox GUI, CLI-driven discoverability, Tauri/mobile compatibility, and the path toward a maintainable code harness."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "current"
 last_updated: "2026-05-28"
 training_eligible: true
