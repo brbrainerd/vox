@@ -17,7 +17,7 @@ fn codegen_rust(src: &str) -> String {
 
 /// `activity` keyword is tombstoned (TASK-2.6); parsing source that uses it must fail.
 #[test]
-#[ignore = "activity keyword is now valid (un-tombstoned); test expected parse error but gets parse success"]
+#[ignore = "activity keyword is now valid (un-tombstoned); test expected parse error but gets parse success; owner: vox-compiler; sunset: 2026-12-31"]
 fn codegen_activity_emits_async_fn() {
     let src = r#"
 activity send_email(recipient: str, subject: str) to Result[str] {
@@ -32,7 +32,7 @@ activity send_email(recipient: str, subject: str) to Result[str] {
 
 /// `activity` + `workflow` keywords are both tombstoned (TASK-2.6).
 #[test]
-#[ignore = "activity/workflow keywords are now valid (un-tombstoned); update assertions"]
+#[ignore = "activity/workflow keywords are now valid (un-tombstoned); update assertions; owner: vox-compiler; sunset: 2026-12-31"]
 fn codegen_with_expression_emits_execute_activity() {
     let activity_src = r#"activity fetch_data() to Result[str] { return Ok("data") }"#;
     let workflow_src = r#"workflow main_flow() to Result[str] { return Ok("done") }"#;
@@ -48,7 +48,7 @@ fn codegen_with_expression_emits_execute_activity() {
 
 /// `activity` keyword is tombstoned (TASK-2.6); plain `fn` is the canonical form.
 #[test]
-#[ignore = "activity keyword is now valid (un-tombstoned); first assert expects error but gets Ok"]
+#[ignore = "activity keyword is now valid (un-tombstoned); first assert expects error but gets Ok; owner: vox-compiler; sunset: 2026-12-31"]
 fn codegen_activity_without_with_is_plain_call() {
     let tombstoned_src = r#"activity do_work(input: str) to Result[str] { return Ok(input) }"#;
     assert!(

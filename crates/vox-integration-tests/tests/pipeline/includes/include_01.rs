@@ -124,7 +124,7 @@ fn codegen_jsx_text_content_not_interpolated() {
 // --- TS codegen for activities (tombstoned: activity construct removed) ---
 
 #[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn"]
+#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
 fn codegen_ts_activity_produces_activities_file() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
@@ -147,7 +147,7 @@ activity send_email(recipient: str, subject: str) to Result[str] {
 }
 
 #[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn"]
+#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
 fn codegen_ts_activity_has_async_function() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
@@ -170,7 +170,7 @@ activity fetch_data(url: str) to Result[str] {
 }
 
 #[test]
-#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn"]
+#[ignore = "activity construct tombstoned; server-side logic uses @mutation fn; owner: vox-compiler; sunset: 2026-12-31"]
 fn codegen_ts_activity_has_runtime_helper() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error

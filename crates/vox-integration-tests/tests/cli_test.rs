@@ -81,7 +81,7 @@ fn b091_vox_build_invalid_file_produces_error() {
 
 /// Chatbot template source parses without errors.
 #[test]
-#[ignore = "template uses retired JSX angle-bracket syntax; migrate to VUV function-call style"]
+#[ignore = "template uses retired JSX angle-bracket syntax; migrate to VUV function-call style; owner: vox-compiler; sunset: 2026-12-31"]
 fn e5_chatbot_template_parses_cleanly() {
     let chatbot_src = r#"import react.use_state
 import react.use_effect
@@ -110,7 +110,7 @@ routes {
 
 /// Dashboard template source parses without errors.
 #[test]
-#[ignore = "template uses retired JSX angle-bracket syntax; migrate to VUV function-call style"]
+#[ignore = "template uses retired JSX angle-bracket syntax; migrate to VUV function-call style; owner: vox-compiler; sunset: 2026-12-31"]
 fn e5_dashboard_template_parses_cleanly() {
     let dashboard_src = r#"import react.use_state
 import react.use_effect

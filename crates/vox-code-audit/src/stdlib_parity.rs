@@ -632,7 +632,7 @@ mod tests {
     /// migrate the corpus. Run with:
     /// `cargo test -p vox-code-audit dump_corpus_uses_unregistered -- --nocapture --ignored`
     #[test]
-    #[ignore]
+    #[ignore = "diagnostic dump; run on demand with --ignored; owner: vox-code-audit; sunset: 2027-05-27"]
     fn dump_corpus_uses_unregistered() {
         let root = workspace_root();
         let binary = root.join("crates/vox-compiler/src/eval/builtins.rs");
