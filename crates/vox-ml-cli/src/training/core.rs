@@ -77,6 +77,7 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::DeepLink(_) => "deep_link",
             Decl::Push(_) => "push",
             Decl::Tokens(_) => "tokens",
+            Decl::Example(_) => "example",
         };
         constructs.push(tag.to_string());
     }

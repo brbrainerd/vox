@@ -9,6 +9,7 @@ description = "ML training backend plugin: Candle + CUDA. Implements MlBackend."
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+vox-config = { workspace = true }
 vox-plugin-api = { workspace = true }
 vox-hf-layout = { workspace = true }
 vox-tensor = { workspace = true }
