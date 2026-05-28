@@ -1,0 +1,156 @@
+// vox:caps fs process env
+// scripts/perf/coverage-report.vox — emit llvm-cov JSON summary that fits within
+// Windows CreateProcess argument-length limits.
+//
+// Background: cargo-llvm-cov passes every test binary as a `-object` flag to
+// llvm-cov.exe. With ~500 binaries on this workspace, the combined command line
+// exceeds Windows' 32 KB CreateProcess limit and the report command fails before
+// llvm-cov runs. The fix: drive llvm-cov.exe directly via its standard `@file`
+// response-file mechanism, which puts all the -object paths into a file and
+// hands llvm-cov a single tiny command line.
+//
+// Prerequisite: run the instrumented tests first to produce profraw + profdata:
+//
+//   cargo llvm-cov nextest --workspace --no-fail-fast --no-report
+//
+// Then run this script to emit the JSON consumed by `vox ci coverage-gates`:
+//
+//   vox run scripts/perf/coverage-report.vox
+//
+// Output: target/coverage-summary.json
+import fs;
+import process;
+
+fn rustc_sysroot_and_host() to list[str] {
+    let res = process.run("rustc", ["--print", "sysroot"])
+    if res is null { return [] }
+    let r = res.unwrap()
+    if r.code != 0 { return [] }
+    let sysroot = r.stdout.trim()
+    let host_res = process.run("rustc", ["-vV"])
+    if host_res is null { return [] }
+    let host_r = host_res.unwrap()
+    let mut host = ""
+    let parts = host_r.stdout.split("\n")
+    for line in parts {
+        if line.starts_with("host:") {
+            host = line.slice(5, line.len()).trim()
+        }
+    }
+    if host == "" { return [] }
+    return [sysroot, host]
+}
+
+fn llvm_tool_path(sysroot: str, host: str, name: str) to str {
+    // Try `name.exe` first (Windows); if not present, fall back to `name`.
+    // Avoids needing string-method calls on the host triple, which the current
+    // Vox interpreter chokes on for some str bindings.
+    let with_exe = sysroot + "/lib/rustlib/" + host + "/bin/" + name + ".exe"
+    if fs.exists(with_exe) { return with_exe }
+    return sysroot + "/lib/rustlib/" + host + "/bin/" + name
+}
+
+fn list_files_with_suffix(dir: str, suffix: str) to list[str] {
+    // Vox's fs module lacks read_dir; delegate to cmd.exe `dir /b` which gives
+    // a plain newline-separated list of names. cmd's `dir` parses `/` in paths
+    // as flag separators, so convert forward slashes to backslashes first.
+    let dir_win = dir.replace("/", "\\")
+    let res = process.run("cmd", ["/c", "dir", "/b", dir_win])
+    if res is null { return [] }
+    let r = res.unwrap()
+    if r.code != 0 { return [] }
+    let mut paths = []
+    let lines = r.stdout.split("\n")
+    for line in lines {
+        let t = line.trim()
+        if t != "" {
+            if t.ends_with(suffix) {
+                paths.push(dir + "/" + t)
+            }
+        }
+    }
+    return paths
+}
+
+fn collect_object_paths(deps_dir: str) to list[str] {
+    return list_files_with_suffix(deps_dir, ".exe")
+}
+
+fn write_response_file(path: str, profdata: str, objects: list[str], summary_only: bool) {
+    let mut lines = []
+    if summary_only { lines.push("-summary-only") }
+    lines.push("-instr-profile=" + profdata)
+    for obj in objects {
+        lines.push("-object")
+        lines.push(obj)
+    }
+    fs.write(path, lines.join("\n"))
+}
+
+fn main() {
+    print("=== coverage-report.vox ===")
+    let workspace_root = "."
+    let target_dir = workspace_root + "/target/llvm-cov-target"
+    let profdata = target_dir + "/vox.profdata"
+    let deps_dir = target_dir + "/debug/deps"
+
+    let sh = rustc_sysroot_and_host()
+    if sh.len() != 2 {
+        print("ERROR: could not resolve rustc sysroot/host")
+        process.exit(2)
+    }
+    let sysroot = sh[0].unwrap()
+    let host = sh[1].unwrap()
+    let llvm_cov = llvm_tool_path(sysroot, host, "llvm-cov")
+    let llvm_profdata = llvm_tool_path(sysroot, host, "llvm-profdata")
+    if not fs.exists(llvm_cov) {
+        print("ERROR: llvm-cov not found at " + llvm_cov)
+        process.exit(2)
+    }
+    print("llvm-cov: " + llvm_cov)
+
+    // Profdata must already be merged. If absent, point the user at the merge
+    // recipe — done as a separate manual step because Vox's interpreter
+    // currently has rough edges around iterating a large list of Option-wrapped
+    // strings into a process.run args array.
+    if not fs.exists(profdata) {
+        print("ERROR: " + profdata + " not found")
+        print("Run these in order:")
+        print("  1. cargo llvm-cov nextest --workspace --no-fail-fast --no-report --retries 0 --run-ignored default")
+        print("  2. (if step 1 failed any tests) " + llvm_profdata + " merge -sparse " + target_dir + "\\*.profraw -o " + profdata)
+        process.exit(1)
+    }
+
+    let objects = collect_object_paths(deps_dir)
+    if objects.len() == 0 {
+        print("ERROR: no test binaries in " + deps_dir)
+        process.exit(3)
+    }
+    print("test binaries: " + str(objects.len()))
+
+    // Write response file. llvm-cov accepts `@file` (LLVM convention) where
+    // `file` contains one argument per line.
+    let response_path = workspace_root + "/target/llvm-cov-args.txt"
+    write_response_file(response_path, profdata, objects, true)
+    print("response file: " + response_path)
+
+    // Invoke llvm-cov export — JSON to stdout, captured to summary file.
+    let out_path = workspace_root + "/target/coverage-summary.json"
+    print("running: llvm-cov export @" + response_path + " > " + out_path)
+    let res = process.run(llvm_cov, ["export", "@" + response_path])
+    if res is null {
+        print("ERROR: failed to spawn llvm-cov")
+        process.exit(4)
+    }
+    let r = res.unwrap()
+    if r.code != 0 {
+        print("ERROR: llvm-cov exit=" + str(r.code))
+        print(r.stderr)
+        process.exit(r.code)
+    }
+
+    fs.write(out_path, r.stdout)
+    print("OK — wrote " + out_path + " (" + str(r.stdout.len()) + " bytes)")
+    print("")
+    print("Next: cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json=" + out_path)
+}
