@@ -1,6 +1,7 @@
 ---
 title: "ADR-NNN: Scope Tauri to desktop only; pick React Native + Expo + uniffi for mobile"
-status: proposed
+status: experimental
+category: "Architecture SSOTs"
 date: 2026-05-28
 supersedes: adr-037
 related:
