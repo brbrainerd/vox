@@ -122,6 +122,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 enforce_budgets,
             },
         ),
+        CiCmd::TierBudgetCheck { junit, profile } => {
+            super::tier_budget_check::run(&root, &junit, &profile)
+        }
         CiCmd::DevLoopAudit { json } => super::dev_loop_audit::run(&root, json),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),

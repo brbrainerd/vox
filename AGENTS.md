@@ -220,6 +220,28 @@ In Vox, tests are not just regression catchers — they are training data for th
 
 **Fix companion:** [`docs/src/contributors/toestub-contributor-guide.md`](docs/src/contributors/toestub-contributor-guide.md) has rule-by-rule fix patterns.
 
+## Local CI Gate Tiers (SSOT)
+
+> **Canonical budgets:** `contracts/budgets/test-tier-budgets.v1.yaml`
+> **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
+> **Per-flag details:** `docs/src/contributors/local-ci-pre-push.md`
+
+Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`.
+
+| Tier | Command | What runs | Target wall-clock |
+|---|---|---|---:|
+| **fast** (default / hook) | `vox ci pre-push` | fmt, line-endings, ssot-drift, scoped doc lint + doctest, drift-check | ≤60s |
+| **complete** | `vox ci pre-push --complete` | fast + full doc lint, doc-inventory, clippy, scoped TOESTUB | ≤180s |
+| **full** | `vox ci pre-push --full` | complete + nextest workspace (slow excluded) | ≤120s |
+| **full+cov** | `vox ci pre-push --full --with-coverage` | full but llvm-cov nextest; emits lcov + HTML | ≤260s |
+| **full+since** | `vox ci pre-push --full --since <ref>` | full, nextest for impacted crates only | ≤20s (1–3 crate edit) |
+| **full+cov+since** | `vox ci pre-push --full --with-coverage --since <ref>` | combination of full+cov + since | ≤30s typical |
+| **ci-equivalent** | `vox ci pre-push --full --with-coverage --include-slow` | full+cov + slow `#[ignore]` partition | ≤480s |
+
+**Slow-test partition** (`--include-slow`): runs four `#[ignore = "slow; ..."]` tests that are excluded by default. CI always sets this flag. The 4 tests are: `arch_check_smoke_test`, `description_rule_produces_output_on_clean_workspace`, `timeout_kills_long_running_child`, `generated_ai_fixture_bundle_passes_cargo_check`.
+
+**Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
+
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 
 - All ````vox``` blocks in documentation must compile cleanly via `vox-doc-pipeline`'s dynamic doctest runner.

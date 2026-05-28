@@ -65,6 +65,7 @@ pub(crate) mod sync_ignore_files;
 mod test_governance;
 pub mod test_inventory;
 pub mod test_runtime_report;
+mod tier_budget_check;
 mod toestub_budget;
 pub mod watch_run;
 pub mod workspace_artifacts;

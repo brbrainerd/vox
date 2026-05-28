@@ -523,6 +523,23 @@ jobs:
             --run-ignored ignored-only \
             --profile ci
 
+      # Phase 5 — Test-tier budget check (warn-only until budgets file is updated post Phase 2+3).
+      # Reads the nextest JUnit elapsed time and compares against contracts/budgets/test-tier-budgets.v1.yaml.
+      # Does NOT re-run tests; no-op if budgets file is absent.
+      # continue-on-error: true until tightened budgets land (Phase 5 follow-up).
+      - name: Test-tier timing budget check (nextest full tier)
+        if: always() && needs.setup.outputs.rust_changed == 'true'
+        continue-on-error: true
+        run: |
+          junit="target/nextest/ci/junit.xml"
+          if [ -f "${junit}" ]; then
+            cargo run -p vox-cli -- ci tier-budget-check \
+              --junit "${junit}" \
+              --profile full
+          else
+            echo "::notice title=Tier budget check skipped::JUnit artifact not found at ${junit}"
+          fi
+
       - name: Runtime governance report + warn-only checks (non-blocking)
         if: always()
         shell: bash

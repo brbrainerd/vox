@@ -168,6 +168,25 @@ pub enum CiCmd {
         #[arg(long)]
         enforce_budgets: bool,
     },
+    /// Compare elapsed time from a nextest JUnit artifact against the tier budgets in
+    /// `contracts/budgets/test-tier-budgets.v1.yaml`.  Reads `<testsuites time="...">` from
+    /// the JUnit XML and maps it to the supplied profile's `warn_ms` / `fail_ms` thresholds.
+    ///
+    /// Typical CI use (runs after the existing nextest step without re-running tests):
+    /// ```
+    /// cargo run -p vox-cli -- ci tier-budget-check \
+    ///   --junit target/nextest/ci/junit.xml --profile full
+    /// ```
+    #[command(name = "tier-budget-check")]
+    TierBudgetCheck {
+        /// Path to the nextest JUnit XML artifact.
+        #[arg(long, value_name = "PATH")]
+        junit: PathBuf,
+        /// Profile name used to look up the budget entry.
+        /// Valid values: `fast`, `complete`, `full`, `full+cov`, `full+since`, `full+cov+since`.
+        #[arg(long, value_name = "PROFILE")]
+        profile: String,
+    },
     /// Heuristics for Cargo cache fragmentation and expensive local verification habits (AI / inner-loop).
     #[command(name = "dev-loop-audit")]
     DevLoopAudit {
