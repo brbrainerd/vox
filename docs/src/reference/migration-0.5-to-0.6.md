@@ -93,7 +93,7 @@ Additional field-level attributes for use inside the annotated type:
 - `@default(value)` — default if the field is missing
 - `@skip_if_none` — omit the field from serialization when `None`
 
-See [RFC `json-as-rfc-2026-05-24`](../architecture/rfc-json-as-2026-05-24.md) for the design rationale.
+See `docs/src/architecture/rfc-json-as-2026-05-24.md` (planned) for the design rationale.
 
 ### Raw strings `r"…"` and hash-padded `r#"…"#`
 

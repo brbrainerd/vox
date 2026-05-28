@@ -88,14 +88,14 @@ Picking RN+Expo therefore means **building a new emit lowering target in `crates
 - First `cargo tauri android dev` cold compile time: _TBD_
 - Subsequent rebuild time: _TBD_
 - HMR working: _TBD_
-- Screenshot: ![Tauri-mobile rendering of the snapshot Counter](_screenshots/mobile-bakeoff-2026/path-a-tauri.png)
+- Screenshot: (screenshot not yet captured — bake-off pending)
 - Notes: _TBD_
 
 **Path B — RN+Expo via Expo Go (same AVD):**
 
 - `npx expo start --android` time to first render: _TBD_
 - HMR working: _TBD_
-- Screenshot: ![RN+Expo rendering of the hand-ported Counter](_screenshots/mobile-bakeoff-2026/path-b-expo.png)
+- Screenshot: (screenshot not yet captured — bake-off pending)
 - Notes: _TBD_
 
 ### 5. Research summary (full sources in appendix)
@@ -164,4 +164,4 @@ This is independent of the mobile decision but blocks anyone from building a rea
 
 ## Appendix: research sources
 
-See [research-2026-05-27.md](_screenshots/mobile-bakeoff-2026/research-sources.md) for the full link list (preserved separately to keep this doc focused on the decision).
+See [research-sources.md](_screenshots/research-sources.md) for the full link list (preserved separately to keep this doc focused on the decision).

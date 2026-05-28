@@ -131,7 +131,7 @@ The remaining work decomposes into seven independent tracks. Each track has its 
 - Leave runtime fns (`populi_env`, `node_record_for_current_process`, `local_registry_path`) in `vox-populi` — they need `vox-secrets` and FS access
 - Both `vox-populi` and `vox-plugin-populi-mesh` consume from `vox-populi-types`
 
-**ADR template:** [docs/src/architecture/_template-adr.md](./_template-adr.md) if it exists; otherwise mimic format of [`mesh-and-language-distribution-ssot-2026.md`](./mesh-and-language-distribution-ssot-2026.md) section headers.
+**ADR template:** `docs/src/architecture/_template-adr.md` (no template file exists yet); mimic format of [`mesh-and-language-distribution-ssot-2026.md`](./mesh-and-language-distribution-ssot-2026.md) section headers.
 
 **Acceptance:** ADR merged; `layers.toml` has a `[planned]` entry for `vox-populi-types`; no code changes yet.
 

@@ -373,10 +373,7 @@ mod tests {
     #[test]
     fn explain_url_format() {
         let url = explain_url(LLM_DIRECT_PROVIDER_CALL);
-        assert_eq!(
-            url,
-            "https://voxlang.org/diag/vox/llm/direct-provider-call"
-        );
+        assert_eq!(url, "https://voxlang.org/diag/vox/llm/direct-provider-call");
     }
 
     #[test]

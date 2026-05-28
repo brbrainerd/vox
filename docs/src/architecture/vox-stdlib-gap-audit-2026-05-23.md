@@ -322,7 +322,7 @@ CHECK-FAIL and runtime-error cases slip through CI.
 | Lexer token table (MISSING `Token::Bang`)              | [`crates/vox-compiler/src/lexer/token.rs:100–115, 258–261`](../../../crates/vox-compiler/src/lexer/token.rs) |
 | Parser unary handler                                    | [`crates/vox-compiler/src/parser/descent/expr/pratt_match.rs:67–84`](../../../crates/vox-compiler/src/parser/descent/expr/pratt_match.rs) |
 | HIR lowering for unary                                  | [`crates/vox-compiler/src/hir/lower/expr.rs:59–64`](../../../crates/vox-compiler/src/hir/lower/expr.rs) |
-| Script-execution feature plugin (the gate behind `vox run`) | [`crates/vox-plugin-script-execution/src/executor.rs`](../../../crates/vox-plugin-script-execution/src/executor.rs) |
+| Script-execution feature plugin (the gate behind `vox run`) | `crates/vox-plugin-script-execution/src/executor.rs` (crate does not exist; script execution handled via interp path in `vox-compiler`) |
 | Run-mode dispatch (`--mode interp` vs default)          | [`crates/vox-cli/src/commands/runtime/run/`](../../../crates/vox-cli/src/commands/runtime/run/) |
 
 There is **no `regex` runtime registration** anywhere in
@@ -651,7 +651,7 @@ conversation context. Numbering matches §6.
 > - `regex.captures(haystack: str, pattern: str) -> Option[List[str]]`
 > - `regex.compile(pattern: str) -> Result[CompiledRegex]` (keep API surface
 >   even if we only thinly wrap — needed for the 1 call site in
->   [`scripts/extract_table_names.vox`](../../../scripts/extract_table_names.vox))
+>   `scripts/extract_table_names.vox`)
 >
 > Use the `regex` Rust crate (already a workspace dep — check
 > [`Cargo.toml`](../../../Cargo.toml) workspace dependencies).
@@ -1352,9 +1352,7 @@ parsing, both touch the corpus.
 `@training_step`, `@v0`, `@webhook`.
 
 That's **26 dead-weight decorators** (vs 24 actively used) — a >50 % rot
-rate in the decorator surface. Per the user's
-[`feedback_verify_audit_retirement_claims.md`](../../../.claude/projects/C--Users-Owner-vox/memory/feedback_verify_audit_retirement_claims.md)
-policy, retirements must be verified against tests/ workflows/ contracts/
+rate in the decorator surface. Per the user's `feedback_verify_audit_retirement_claims.md` policy (in project memory), retirements must be verified against tests/ workflows/ contracts/
 ADRs/ examples/ before deletion — not just LoC + corpus grep. The list
 above is the *candidate* set; the retirement task in §13.1 must verify
 each.
