@@ -2,6 +2,39 @@ use std::future::Future;
 use std::time::Duration;
 use tokio::time;
 use tracing;
+use vox_telemetry::{
+    METRIC_TYPE_SANDBOX_TIMEOUT_KILL, ResearchMetricEvent, TelemetryEvent, record_event,
+};
+
+/// Emit one `sandbox.timeout_kill` telemetry event.
+///
+/// Fires on every timeout-induced termination (both retried and terminal). The
+/// `terminal` flag in `metadata_json` lets consumers distinguish whether this
+/// kill ended the activity or was followed by a retry.
+fn emit_sandbox_timeout_kill(
+    activity_name: &str,
+    activity_id: &str,
+    attempt: u32,
+    max_attempts: u32,
+    timeout: Duration,
+    terminal: bool,
+) {
+    let metadata_json = serde_json::json!({
+        "activity_name": activity_name,
+        "activity_id": activity_id,
+        "attempt": attempt,
+        "max_attempts": max_attempts,
+        "timeout_ms": timeout.as_millis() as u64,
+        "terminal": terminal,
+    })
+    .to_string();
+    record_event!(&TelemetryEvent::ResearchMetric(ResearchMetricEvent {
+        session_id: format!("sandbox:{activity_id}"),
+        metric_type: METRIC_TYPE_SANDBOX_TIMEOUT_KILL.into(),
+        metric_value: Some(timeout.as_millis() as f64),
+        metadata_json: Some(metadata_json),
+    }));
+}
 
 /// Options that control activity execution behavior.
 /// These map directly to the `with { ... }` syntax in Vox source.
@@ -210,7 +243,16 @@ where
                             "Activity '{}' timed out",
                             name
                         );
-                        if attempt < max_attempts {
+                        let terminal = attempt >= max_attempts;
+                        emit_sandbox_timeout_kill(
+                            name,
+                            &activity_id,
+                            attempt,
+                            max_attempts,
+                            timeout,
+                            terminal,
+                        );
+                        if !terminal {
                             // Retry on timeout
                             current_backoff =
                                 vox_foundation::primitives::backoff::next_exponential_backoff_duration(

@@ -343,6 +343,18 @@ metric_types:
       `vox_plugin_host::telemetry::{load_failed, abi_mismatch}`; metadata_json
       carries `plugin_id`, `error_kind`, and optional ABI version pair.
 
+  - id: sandbox.timeout_kill
+    constant: METRIC_TYPE_SANDBOX_TIMEOUT_KILL
+    owner_crate: vox-actor-runtime
+    sensitivity: S1
+    description: >-
+      `vox-actor-runtime` activity / sandbox terminated a run after exceeding
+      its configured timeout. Distinct from `agent_exec_time` (which only
+      tracks successful-or-failed durations). Emitted via `ResearchMetric`
+      envelope from `vox_actor_runtime::activity::execute_activity`; payload
+      includes `activity_name`, `activity_id`, `attempt`, `max_attempts`,
+      `timeout_ms`, and a `terminal` flag distinguishing retry vs final kill.
+
 # ─────────────────────────────────────────────────────────────────────────────
 # blind_spots — failure modes the workspace cares about that emit NO event
 # today. Each entry is a tracked gap. When a metric_type is added to address
@@ -350,12 +362,6 @@ metric_types:
 # list.
 # ─────────────────────────────────────────────────────────────────────────────
 blind_spots:
-  - failure_mode: sandbox_timeout
-    description: "vox-scientia / actor-runtime sandbox terminated a child process after timeout."
-    owner_crate: vox-actor-runtime
-    proposed_metric_type: sandbox.timeout_kill
-    notes: "agent_exec_time tracks durations but not timeout-terminated runs."
-
   - failure_mode: cache_miss
     description: "LLM-provider response cache lookup missed (currently only hits are tracked via cache_read_input_tokens)."
     owner_crate: vox-orchestrator-mcp
