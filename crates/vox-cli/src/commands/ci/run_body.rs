@@ -103,6 +103,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             dry_run,
             act,
             report_json,
+            include_slow,
+            with_coverage,
+            since,
+            enforce_budgets,
         } => super::pre_push::run(
             &root,
             super::pre_push::PrePushOpts {
@@ -112,6 +116,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 dry_run,
                 act,
                 report_json,
+                include_slow,
+                with_coverage,
+                since,
+                enforce_budgets,
             },
         ),
         CiCmd::DevLoopAudit { json } => super::dev_loop_audit::run(&root, json),

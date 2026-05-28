@@ -8,3 +8,21 @@ fail-fast = false
 retries = 1
 # llvm-cov / self-hosted runners: full `generate()` on large fixtures can exceed 240s wall time.
 slow-timeout = { period = "180s", terminate-after = 3 }
+
+# ── Slow-test partition ──────────────────────────────────────────────────────
+#
+# Tests annotated `#[ignore = "slow; ..."]` are excluded from default
+# `cargo nextest run` (and `vox ci pre-push --full`).
+# Run them explicitly with:
+#   - locally:  vox ci pre-push --full --include-slow
+#   - CI:       separate "slow tests" step (see .github/workflows/ci.yml)
+#   - one-off:  cargo nextest run --run-ignored ignored-only
+#
+# Tests in this partition (as of 2026-05-27):
+#   arch_check_smoke_test                          (~125s, vox-arch-check)
+#   description_rule_produces_output_on_clean_workspace (~125s, vox-arch-check)
+#   timeout_kills_long_running_child               (~29s,  vox-scientia)
+#   generated_ai_fixture_bundle_passes_cargo_check (~25s,  vox-codegen)
+#
+[test-groups.slow]
+max-threads = 1

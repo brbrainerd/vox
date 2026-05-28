@@ -50,48 +50,89 @@ pub fn scan(
     rule: &ForbiddenPatternRule,
     prune_dir_names: &HashSet<String>,
 ) -> Result<Vec<ForbiddenPatternHit>> {
-    let regex = Regex::new(&rule.pattern).context("compile forbidden_pattern regex")?;
-    let glob = Glob::new(&rule.file_glob)?.compile_matcher();
-    let mut hits = Vec::new();
+    // Defer to the batched implementation — single rule is just N=1.
+    scan_all(repo_root, std::slice::from_ref(rule), prune_dir_names)
+}
 
+/// Batched scan: walk `repo_root` ONCE, read each candidate file ONCE, and
+/// match every rule's regex against the loaded text. With N rules and F files
+/// matching at least one rule's glob, this is O(walk + F·N) instead of the
+/// O(N·(walk + F)) the per-rule `scan()` does. On the live workspace
+/// (~3K .rs files, 9 patterns) the saving is on the order of minutes.
+pub fn scan_all(
+    repo_root: &Path,
+    rules: &[ForbiddenPatternRule],
+    prune_dir_names: &HashSet<String>,
+) -> Result<Vec<ForbiddenPatternHit>> {
+    if rules.is_empty() {
+        return Ok(Vec::new());
+    }
+    // Pre-compile regex + glob for each rule once.
+    struct Compiled<'a> {
+        rule: &'a ForbiddenPatternRule,
+        regex: Regex,
+        glob: globset::GlobMatcher,
+    }
+    let mut compiled: Vec<Compiled> = Vec::with_capacity(rules.len());
+    for rule in rules {
+        let regex = Regex::new(&rule.pattern)
+            .with_context(|| format!("compile forbidden_pattern regex for '{}'", rule.name))?;
+        let glob = Glob::new(&rule.file_glob)?.compile_matcher();
+        compiled.push(Compiled { rule, regex, glob });
+    }
+
+    let mut hits = Vec::new();
     for path in super::walk_repo_files(repo_root, prune_dir_names) {
-        if !path.is_file() {
-            continue;
-        }
+        // walk_repo_files already filters out directories, so this is the file path.
         let rel = path.strip_prefix(repo_root).unwrap_or(&path);
-        if !glob.is_match(rel) {
-            continue;
-        }
         let rel_unix = rel.to_string_lossy().replace('\\', "/");
-        if rule.exempt_files.contains(&rel_unix) {
+
+        // First, determine which rules apply to this file (by glob and exempt set).
+        // If none match, we skip the read entirely.
+        let mut applicable: Vec<&Compiled> = Vec::new();
+        for c in &compiled {
+            if !c.glob.is_match(rel) {
+                continue;
+            }
+            if c.rule.exempt_files.iter().any(|e| e == &rel_unix) {
+                continue;
+            }
+            applicable.push(c);
+        }
+        if applicable.is_empty() {
             continue;
         }
+
         let body = match std::fs::read_to_string(&path) {
             Ok(b) => b,
             Err(_) => continue, // skip binary / unreadable files
         };
         let lines: Vec<&str> = body.lines().collect();
-        for (i, line) in lines.iter().enumerate() {
-            if !regex.is_match(line) {
-                continue;
-            }
-            if let Some(ann) = rule.allow_annotation.as_deref() {
-                let lo = i.saturating_sub(2);
-                let hi = (i + 1).min(lines.len().saturating_sub(1));
-                if (lo..=hi).any(|j| lines[j].contains(ann)) {
+
+        for c in applicable {
+            for (i, line) in lines.iter().enumerate() {
+                if !c.regex.is_match(line) {
                     continue;
                 }
+                if let Some(ann) = c.rule.allow_annotation.as_deref() {
+                    let lo = i.saturating_sub(2);
+                    let hi = (i + 1).min(lines.len().saturating_sub(1));
+                    if (lo..=hi).any(|j| lines[j].contains(ann)) {
+                        continue;
+                    }
+                }
+                hits.push(ForbiddenPatternHit {
+                    rule: c.rule.name.clone(),
+                    file: rel.to_path_buf(),
+                    line: i + 1,
+                    matched: c
+                        .regex
+                        .find(line)
+                        .map(|m| m.as_str().to_string())
+                        .unwrap_or_default(),
+                    reason: c.rule.reason.clone(),
+                });
             }
-            hits.push(ForbiddenPatternHit {
-                rule: rule.name.clone(),
-                file: rel.to_path_buf(),
-                line: i + 1,
-                matched: regex
-                    .find(line)
-                    .map(|m| m.as_str().to_string())
-                    .unwrap_or_default(),
-                reason: rule.reason.clone(),
-            });
         }
     }
     Ok(hits)

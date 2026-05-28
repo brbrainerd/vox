@@ -72,7 +72,7 @@ use serde::Deserialize;
 
 mod cache;
 mod forbidden_patterns;
-use forbidden_patterns::{ForbiddenPatternRule, scan as scan_forbidden_pattern};
+use forbidden_patterns::{ForbiddenPatternRule, scan_all as scan_forbidden_patterns_all};
 
 #[derive(Debug, Deserialize)]
 struct LayersConfig {
@@ -650,7 +650,11 @@ fn git_paths_touched_since(repo: &Path, release_date: &str) -> Option<HashSet<St
 }
 
 fn run(warn_only_flag: bool) -> Result<Report> {
+    // `--no-deps` skips transitive dependency resolution. arch-check never reads
+    // `metadata.resolve`; each package's declared `dependencies` is still
+    // populated so Rules 10/11/14/15 work unchanged.
     let metadata_full = MetadataCommand::new()
+        .no_deps()
         .exec()
         .context("cargo metadata failed")?;
 
@@ -699,6 +703,22 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         strict_workspace_deps: parse_strictness(layers.guards.workspace_deps.as_ref(), false),
         ..Report::default()
     };
+
+    let profile_on = std::env::var("VOX_ARCH_CHECK_PROFILE").is_ok();
+    let profile_start = std::time::Instant::now();
+    let mut prof_last = profile_start;
+    let prof = |label: &str, prev: &mut std::time::Instant| {
+        if profile_on {
+            let now = std::time::Instant::now();
+            eprintln!(
+                "[profile] {}: {}ms",
+                label,
+                now.duration_since(*prev).as_millis()
+            );
+            *prev = now;
+        }
+    };
+    prof("setup (metadata+layers+cache)", &mut prof_last);
 
     // ── Rule 1: Layer ordering + Rule 2: Fan-in + Rule 15: Workspace-dep budget (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
@@ -765,6 +785,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         }
     }
 
+    prof("rules 1+2+15 (layer/fan-in/wsdep)", &mut prof_last);
     // ── Rule 3: LoC budget ──
     for pkg in metadata_full.workspace_packages() {
         let name = pkg.name.as_str();
@@ -786,6 +807,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         }
     }
 
+    prof("rule 3 (LoC budget)", &mut prof_last);
     // ── Rule 4: Orphan detector ──
     for (name, entry) in &layers.crates {
         if entry.kind != "library" || entry.orphan_exempt {
@@ -798,6 +820,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     }
     report.orphan_warns.sort();
 
+    prof("rule 4 (orphan)", &mut prof_last);
     // ── Rule 5: Docstring lint (strict for L0-L2, warn for L3+) ──
     for pkg in metadata_full.workspace_packages() {
         let name = pkg.name.as_str();
@@ -825,9 +848,11 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     }
     report.docstring_warns.sort_by(|a, b| a.0.cmp(&b.0));
 
+    prof("rule 5 (docstring lint)", &mut prof_last);
     // ── Rule 6: Description present ──
     report.description_warns = check_description_present(&metadata_full, &layers);
 
+    prof("rule 6 (description)", &mut prof_last);
     // ── Rule 7: Where-things-live coverage ──
     report.where_things_live_warns =
         check_where_things_live_coverage(&metadata_full, &layers, &workspace_root).unwrap_or_else(
@@ -837,6 +862,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             },
         );
 
+    prof("rule 7 (WTL coverage)", &mut prof_last);
     // ── Rule 8: Staleness ──
     // Flags crates with no commits since the last release date in CHANGELOG.md.
     // Plugins (independent versioning) and staleness_exempt crates are skipped.
@@ -912,6 +938,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         let _ = cache::store(&workspace_root, &data);
     }
 
+    prof("rule 8 (staleness/git, with cache)", &mut prof_last);
     // ── Rule 9: Generated-file drift ──
     report.generated_file_drift_warns =
         check_generated_file_drift(&workspace_root, &prune_dirs).unwrap_or_else(|e| {
@@ -919,6 +946,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             Vec::new()
         });
 
+    prof("rule 9 (generated-file drift)", &mut prof_last);
     // ── Rule 10: Forbidden direct dependencies ──
     if !layers.forbidden_deps.is_empty() {
         let forbidden_set: Vec<(&str, Vec<&str>)> = layers
@@ -956,27 +984,24 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         report.forbidden_dep_violations.dedup();
     }
 
+    prof("rule 10 (forbidden deps)", &mut prof_last);
     // ── Rule 11: Forbidden code patterns (P3-T7) ──
+    // Single batched walk of the workspace; all 9 patterns evaluated per file.
     if !layers.forbidden_pattern.is_empty() {
-        for rule in &layers.forbidden_pattern {
-            match scan_forbidden_pattern(&workspace_root, rule, &prune_dirs) {
-                Ok(hits) => {
-                    for hit in hits {
-                        report.forbidden_pattern_hits.push((
-                            hit.rule,
-                            hit.file,
-                            hit.line,
-                            hit.matched,
-                            hit.reason,
-                        ));
-                    }
+        match scan_forbidden_patterns_all(&workspace_root, &layers.forbidden_pattern, &prune_dirs) {
+            Ok(hits) => {
+                for hit in hits {
+                    report.forbidden_pattern_hits.push((
+                        hit.rule,
+                        hit.file,
+                        hit.line,
+                        hit.matched,
+                        hit.reason,
+                    ));
                 }
-                Err(e) => {
-                    eprintln!(
-                        "warn: forbidden_pattern rule '{}' skipped: {e:#}",
-                        rule.name
-                    );
-                }
+            }
+            Err(e) => {
+                eprintln!("warn: forbidden_pattern scan skipped: {e:#}");
             }
         }
         report
@@ -984,14 +1009,19 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             .sort_by(|a, b| a.1.cmp(&b.1).then(a.2.cmp(&b.2)));
     }
 
+    prof("rule 11 (forbidden patterns, batched)", &mut prof_last);
     // ── Rule 12: WTL / layers.toml / disk three-way parity ──
     report.wtl_parity_warns = check_wtl_parity(&layers, &workspace_root);
 
+    prof("rule 12 (WTL parity)", &mut prof_last);
     // ── Rule 13: LoC delta regression ──
     // Warn if any budgeted crate has grown >15% vs. the last tagged release.
     // Only fires for crates >2000 LoC to avoid noise from tiny utilities.
     if let Some((release_version, _)) = parse_release_date(&workspace_root.join("CHANGELOG.md")) {
         let tag = format!("v{release_version}");
+        // First pass: collect (name, manifest_dir, current_loc) for budgeted crates
+        // whose current LoC is above the 2000-line floor.
+        let mut candidates: Vec<(String, PathBuf, usize)> = Vec::new();
         for pkg in metadata_full.workspace_packages() {
             let name = pkg.name.as_str();
             let entry = match layers.crates.get(name) {
@@ -1003,29 +1033,44 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             }
             let manifest_dir = Path::new(pkg.manifest_path.as_str())
                 .parent()
-                .unwrap_or(Path::new("."));
+                .unwrap_or(Path::new("."))
+                .to_path_buf();
             let src_dir = manifest_dir.join("src");
             let current_loc = count_loc(&src_dir, &prune_dirs).unwrap_or(0);
             if current_loc < 2000 {
                 continue;
             }
-            if let Some(baseline) = git_loc_at_tag(&tag, &workspace_root, manifest_dir) {
-                if baseline > 0 {
-                    let growth = (current_loc as f64 - baseline as f64) / baseline as f64 * 100.0;
-                    if growth > 15.0 {
-                        report.loc_delta_warns.push((
-                            name.to_string(),
-                            current_loc,
-                            baseline,
-                            growth,
-                        ));
-                    }
+            candidates.push((name.to_string(), manifest_dir, current_loc));
+        }
+        // Second pass: fetch baseline LoC for ALL candidates in a single
+        // `git cat-file --batch` invocation, then compute deltas.
+        let manifest_dirs: Vec<PathBuf> = candidates.iter().map(|(_, m, _)| m.clone()).collect();
+        if let Some(baselines) = git_loc_at_tag_batch(&tag, &workspace_root, &manifest_dirs) {
+            for (name, manifest_dir, current_loc) in &candidates {
+                let Some(&baseline) = baselines.get(manifest_dir) else {
+                    continue;
+                };
+                if baseline == 0 {
+                    continue;
+                }
+                let growth =
+                    (*current_loc as f64 - baseline as f64) / baseline as f64 * 100.0;
+                if growth > 15.0 {
+                    report.loc_delta_warns.push((
+                        name.clone(),
+                        *current_loc,
+                        baseline,
+                        growth,
+                    ));
                 }
             }
         }
-        report.loc_delta_warns.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
+        report
+            .loc_delta_warns
+            .sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
     }
 
+    prof("rule 13 (LoC delta, per-crate git show)", &mut prof_last);
     // ── Rule 14: No cdylib-as-normal-dep ──
     // Plugin cdylibs are loaded dynamically at runtime via vox-plugin-host.
     // Linking them statically as a normal compile-time dep breaks the plugin
@@ -1060,6 +1105,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         }
     }
 
+    prof("rule 14 (cdylib dep)", &mut prof_last);
     // ── Rule 15: Workspace-dep budget ──
     for (name, entry) in &layers.crates {
         if let Some(budget) = entry.max_workspace_deps {
@@ -1070,26 +1116,54 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         }
     }
     report.workspace_dep_warns.sort_by(|a, b| b.1.cmp(&a.1));
+    prof("rule 15 (workspace-dep budget)", &mut prof_last);
+    if profile_on {
+        eprintln!(
+            "[profile] TOTAL: {}ms",
+            profile_start.elapsed().as_millis()
+        );
+    }
 
     Ok(report)
 }
 
-/// Rule 13 helper — count LoC in a crate's `src/` tree at the given git tag.
+/// Rule 13 helper — count LoC in every budgeted crate's `src/` tree at the given
+/// git tag, using a single `git cat-file --batch` invocation.
 ///
-/// Uses `git ls-tree -r --name-only <tag> <rel-src-path>` to enumerate `.rs`
-/// files at the tag, then `git show <tag>:<file>` to count lines in each.
-/// Returns `None` when git is unavailable or the tag doesn't exist yet.
-fn git_loc_at_tag(tag: &str, workspace_root: &Path, manifest_dir: &Path) -> Option<usize> {
-    // vox-arch-check: allow git-exec
-    let rel_src = manifest_dir.join("src");
-    let rel_src_str = rel_src
-        .strip_prefix(workspace_root)
-        .ok()?
-        .to_str()?
-        .replace('\\', "/");
+/// Previously this was one `git show` *per file* per crate (potentially 900+
+/// process spawns on this workspace). The batched approach uses two git
+/// invocations total: one `git ls-tree -r` to enumerate paths at the tag, and
+/// one `git cat-file --batch` fed all blob refs on stdin.
+///
+/// Returns `None` if git is unavailable or the tag doesn't exist; otherwise a
+/// map from `manifest_dir` (the crate's directory) to its LoC at `tag`.
+/// Crates whose `src/` had no `.rs` files at `tag` are absent from the map.
+fn git_loc_at_tag_batch(
+    tag: &str,
+    workspace_root: &Path,
+    manifest_dirs: &[PathBuf],
+) -> Option<HashMap<PathBuf, usize>> {
+    if manifest_dirs.is_empty() {
+        return Some(HashMap::new());
+    }
+    // Build a {src_rel_path → manifest_dir} index so we can attribute lines.
+    let mut src_to_manifest: HashMap<String, PathBuf> = HashMap::new();
+    for md in manifest_dirs {
+        let rel_src = md.join("src");
+        if let Ok(stripped) = rel_src.strip_prefix(workspace_root) {
+            if let Some(s) = stripped.to_str() {
+                src_to_manifest.insert(s.replace('\\', "/"), md.clone());
+            }
+        }
+    }
+    if src_to_manifest.is_empty() {
+        return None;
+    }
 
+    // 1) Single `git ls-tree -r --name-only <tag>` over the whole tree.
+    // vox-arch-check: allow git-exec
     let ls = Command::new("git")
-        .args(["ls-tree", "-r", "--name-only", tag, &rel_src_str])
+        .args(["ls-tree", "-r", "--name-only", tag])
         .current_dir(workspace_root)
         .output()
         .ok()?;
@@ -1097,29 +1171,95 @@ fn git_loc_at_tag(tag: &str, workspace_root: &Path, manifest_dir: &Path) -> Opti
         return None;
     }
 
-    let files: Vec<String> = String::from_utf8_lossy(&ls.stdout)
-        .lines()
-        .filter(|l| l.ends_with(".rs"))
-        .map(|l| l.to_string())
-        .collect();
-
-    if files.is_empty() {
-        return None;
-    }
-
-    let mut total = 0usize;
-    for file in &files {
-        let blob_ref = format!("{tag}:{file}");
-        let show = Command::new("git")
-            .args(["show", &blob_ref])
-            .current_dir(workspace_root)
-            .output()
-            .ok()?;
-        if show.status.success() {
-            total += String::from_utf8_lossy(&show.stdout).lines().count();
+    // 2) Collect `.rs` paths whose prefix matches a budgeted src dir.
+    let mut blob_refs: Vec<String> = Vec::new();
+    let mut blob_to_manifest: Vec<PathBuf> = Vec::new();
+    for line in String::from_utf8_lossy(&ls.stdout).lines() {
+        if !line.ends_with(".rs") {
+            continue;
+        }
+        // Find longest matching src dir prefix.
+        let mut owner: Option<&PathBuf> = None;
+        for (src_rel, md) in &src_to_manifest {
+            let prefix = format!("{src_rel}/");
+            if line.starts_with(&prefix) {
+                owner = Some(md);
+                break;
+            }
+        }
+        if let Some(md) = owner {
+            blob_refs.push(format!("{tag}:{line}"));
+            blob_to_manifest.push(md.clone());
         }
     }
-    Some(total)
+    if blob_refs.is_empty() {
+        return Some(HashMap::new());
+    }
+
+    // 3) One `git cat-file --batch`, feed all refs on stdin.
+    // Drain stdout in a separate thread to avoid a deadlock when git's stdout
+    // pipe buffer fills up faster than we can drain it (Windows pipes are ~4KB).
+    // vox-arch-check: allow git-exec
+    use std::io::{Read, Write};
+    let mut child = Command::new("git")
+        .args(["cat-file", "--batch"])
+        .current_dir(workspace_root)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+
+    let mut stdin = child.stdin.take()?;
+    let mut stdout = child.stdout.take()?;
+    let blob_refs_for_thread = blob_refs.clone();
+    let writer = std::thread::spawn(move || -> std::io::Result<()> {
+        for r in &blob_refs_for_thread {
+            stdin.write_all(r.as_bytes())?;
+            stdin.write_all(b"\n")?;
+        }
+        // Drop closes stdin → signals EOF to git
+        Ok(())
+    });
+
+    let mut buf = Vec::new();
+    stdout.read_to_end(&mut buf).ok()?;
+    writer.join().ok()?.ok()?;
+    let _ = child.wait();
+
+    // 4) Parse output: each blob is `<sha> blob <size>\n<size bytes>\n`.
+    // Count newlines within each blob's body and attribute to its manifest_dir.
+    let mut result: HashMap<PathBuf, usize> = HashMap::new();
+    let mut idx = 0usize;
+    let mut blob_i = 0usize;
+    while idx < buf.len() && blob_i < blob_to_manifest.len() {
+        // Read header line up to '\n'
+        let nl = match buf[idx..].iter().position(|&b| b == b'\n') {
+            Some(p) => idx + p,
+            None => break,
+        };
+        let header = match std::str::from_utf8(&buf[idx..nl]) {
+            Ok(s) => s,
+            Err(_) => break,
+        };
+        idx = nl + 1;
+        // Header is like "<sha> blob <size>" or "<ref> missing"
+        let parts: Vec<&str> = header.split_whitespace().collect();
+        if parts.len() == 3 && parts[1] == "blob" {
+            let size: usize = parts[2].parse().ok()?;
+            // Count newlines in body
+            let body_end = (idx + size).min(buf.len());
+            let lines = buf[idx..body_end].iter().filter(|&&b| b == b'\n').count();
+            // git omits a trailing newline if the file doesn't end with one;
+            // approximate by counting newlines (matches the prior implementation
+            // which used `lines().count()` — close enough for a regression check).
+            let md = &blob_to_manifest[blob_i];
+            *result.entry(md.clone()).or_insert(0) += lines;
+            idx = body_end + 1; // skip trailing '\n' after blob body
+        }
+        blob_i += 1;
+    }
+    Some(result)
 }
 
 /// Rule 12 — three-way parity between `[crates]` in layers.toml, the

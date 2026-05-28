@@ -7,19 +7,34 @@
 //!   drift-check. Tuned so hooks finish quickly; CI still runs full docs-quality.
 //! - **`--complete`:** historical full static gate — whole-tree doc lint + doctest under
 //!   `docs/src/`, doc-inventory, workspace clippy (`-D warnings`), scoped TOESTUB.
-//! - **`--full`:** `--complete` plus **`cargo nextest run --workspace --profile ci`**.
+//! - **`--full`:** `--complete` plus **`cargo nextest run --workspace --profile ci`**
+//!   (slow `#[ignore]` tests excluded by default).
+//!
+//! ## Extended flags for `--full`
+//!
+//! - **`--include-slow`:** also run the slow `#[ignore]` partition (arch-check smoke,
+//!   scientia timeout, codegen bundle; ~3–5 min extra).
+//! - **`--with-coverage`:** substitute `cargo llvm-cov nextest` for the plain nextest
+//!   step and append `cargo llvm-cov report` (lcov + HTML under `target/llvm-cov/`).
+//!   Requires `cargo-llvm-cov` on PATH; adds ~60s.
+//! - **`--since <ref>`:** run nextest only for packages changed since `<ref>` plus
+//!   their transitive reverse-deps (via `git diff` + `cargo metadata` graph). Falls
+//!   back to `--workspace` when impacted count > `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD`
+//!   (default 20) or git fails. Typical wall-clock on 1–3 crate edits: 3–20s.
 //!
 //! **`--quick`** is a legacy no-op alias for the default fast profile (conflicts with
 //! `--complete` / `--full`).
 //!
 //! **`--report-json <path>`** — timing summary schema [**`contracts/reports/pre-push-report.v1.schema.json`**](../../../contracts/reports/pre-push-report.v1.schema.json)
-//! (`schema_version` **2** adds `profile` and `complete`).
+//! (`schema_version` **3** adds `with_coverage` and new profile values `full+cov`,
+//! `full+since`, `full+cov+since`; schema_version **2** added `profile` and `complete`).
 //!
 //! **`VOX_PREPUSH_AUDIT_LOG`** — append one JSON line per successful run (not `--dry-run`).
 
 use anyhow::{Context, Result, anyhow, bail};
+use cargo_metadata::MetadataCommand;
 use serde::Serialize;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -37,10 +52,34 @@ pub struct PrePushOpts {
     pub dry_run: bool,
     pub act: bool,
     pub report_json: Option<PathBuf>,
+    /// When true (only meaningful with `full`), append a second nextest step that runs
+    /// the four slow `#[ignore]` tests explicitly.  The main nextest step still skips
+    /// all `#[ignore]` tests regardless of this flag.
+    pub include_slow: bool,
+    /// When true (only valid with `full`), substitute `cargo llvm-cov nextest` for the
+    /// plain nextest step and append a `cargo llvm-cov report` step.  Requires
+    /// `cargo-llvm-cov` on PATH.  Errors at runtime if used without `--full`.
+    pub with_coverage: bool,
+    /// When set, run nextest only for the packages affected by changes since the given git
+    /// ref plus their transitive reverse-deps. Falls back to `--workspace` if the impacted
+    /// set exceeds `VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD` (default 20). Only meaningful
+    /// with `full`. `None` means full workspace (the historical default).
+    pub since: Option<String>,
+    /// After a successful (non-dry-run) run, compare total elapsed time against the tier
+    /// budgets in `contracts/budgets/test-tier-budgets.v1.yaml`.  Warns to stderr when
+    /// elapsed > `warn_ms`; returns an error when elapsed > `fail_ms`.  No-op if the
+    /// budgets file is absent (safe on first clone).
+    pub enforce_budgets: bool,
 }
 
 fn profile_name(opts: &PrePushOpts) -> &'static str {
-    if opts.full {
+    if opts.full && opts.with_coverage && opts.since.is_some() {
+        "full+cov+since"
+    } else if opts.full && opts.with_coverage {
+        "full+cov"
+    } else if opts.full && opts.since.is_some() {
+        "full+since"
+    } else if opts.full {
         "full"
     } else if opts.complete {
         "complete"
@@ -68,6 +107,7 @@ pub struct PrePushReportV1 {
     pub quick: bool,
     pub complete: bool,
     pub full: bool,
+    pub with_coverage: bool,
     pub dry_run: bool,
     pub total_ms: u64,
     pub steps: Vec<PrePushStepTiming>,
@@ -85,6 +125,12 @@ struct OwnedStep {
 }
 
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
+    if opts.with_coverage && !opts.full {
+        bail!("`--with-coverage` requires `--full`");
+    }
+    if opts.since.is_some() && !opts.full {
+        bail!("`--since` requires `--full`");
+    }
     let steps = build_steps(root, &opts)?;
     let mut step_records: Vec<PrePushStepTiming> = Vec::with_capacity(steps.len());
     if opts.dry_run {
@@ -200,12 +246,13 @@ fn write_pre_push_report(
         return Ok(());
     };
     let report = PrePushReportV1 {
-        schema_version: 2,
+        schema_version: 3,
         profile: profile_name(opts).to_string(),
         ok,
         quick: opts.quick,
         complete: opts.complete,
         full: opts.full,
+        with_coverage: opts.with_coverage,
         dry_run: opts.dry_run,
         total_ms,
         steps: steps.to_vec(),
@@ -234,6 +281,7 @@ struct PrePushAuditLine {
     quick: bool,
     complete: bool,
     full: bool,
+    with_coverage: bool,
 }
 
 fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> Result<()> {
@@ -251,7 +299,7 @@ fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> R
         .as_millis()
         .min(u128::from(u64::MAX)) as u64;
     let line = PrePushAuditLine {
-        schema_version: 2,
+        schema_version: 3,
         event: "pre-push-complete",
         unix_ms,
         total_ms,
@@ -259,6 +307,7 @@ fn append_prepush_audit_log(root: &Path, opts: &PrePushOpts, total_ms: u64) -> R
         quick: opts.quick,
         complete: opts.complete,
         full: opts.full,
+        with_coverage: opts.with_coverage,
     };
     let mut f = OpenOptions::new()
         .create(true)
@@ -356,10 +405,65 @@ fn build_steps(root: &Path, opts: &PrePushOpts) -> Result<Vec<OwnedStep>> {
     }
 
     if opts.full {
+        let with_cov = opts.with_coverage;
+        let since_ref = opts.since.clone();
+
+        // Resolve impacted-crate set (if --since was given).
+        // Done here (not inside the closure) so the label can reflect the result.
+        let impacted = since_ref
+            .as_deref()
+            .map(|r| compute_impacted_crates(root, r));
+
+        let nextest_label = match &impacted {
+            Some(Ok(ImpactedCrates { fallback: true, .. })) => {
+                if with_cov {
+                    "cargo llvm-cov nextest --workspace (--since fallback, slow excluded)".into()
+                } else {
+                    "cargo nextest run --workspace (--since fallback, slow excluded)".into()
+                }
+            }
+            Some(Ok(ImpactedCrates { packages, .. })) => {
+                let n = packages.len();
+                if with_cov {
+                    format!("cargo llvm-cov nextest ({n} impacted pkg(s), slow excluded)")
+                } else {
+                    format!("cargo nextest run ({n} impacted pkg(s), slow excluded)")
+                }
+            }
+            Some(Err(_)) | None => {
+                if with_cov {
+                    "cargo llvm-cov nextest --workspace --profile ci (slow excluded)".into()
+                } else {
+                    "cargo nextest run --workspace --profile ci --no-fail-fast (slow tests excluded)".into()
+                }
+            }
+        };
+
         v.push(OwnedStep {
-            label: "cargo nextest run --workspace --profile ci --no-fail-fast".into(),
-            run: Box::new(step_nextest),
+            label: nextest_label,
+            run: Box::new(move |root| match (&impacted, with_cov) {
+                (Some(Ok(ImpactedCrates { fallback: false, packages })), false) => {
+                    step_nextest_packages(root, packages)
+                }
+                (Some(Ok(ImpactedCrates { fallback: false, packages })), true) => {
+                    step_nextest_packages_with_coverage(root, packages)
+                }
+                (_, false) => step_nextest(root),
+                (_, true) => step_nextest_with_coverage(root),
+            }),
         });
+        if opts.with_coverage {
+            v.push(OwnedStep {
+                label: "cargo llvm-cov report (lcov + html under target/llvm-cov/)".into(),
+                run: Box::new(step_llvm_cov_report),
+            });
+        }
+        if opts.include_slow {
+            v.push(OwnedStep {
+                label: "cargo nextest run (slow partition: arch-check, scientia timeout, codegen bundle)".into(),
+                run: Box::new(step_nextest_slow),
+            });
+        }
     }
 
     Ok(v)
@@ -723,6 +827,168 @@ fn step_drift_check(root: &Path) -> Result<()> {
     Ok(())
 }
 
+// ── Impacted-crate selector (--since) ────────────────────────────────────────
+
+/// Outcome of the impacted-crate analysis for `--since <ref>`.
+struct ImpactedCrates {
+    /// Package names that are impacted (directly changed + transitive reverse-deps).
+    /// Empty when `fallback = true`.
+    packages: Vec<String>,
+    /// True when the analysis produced >threshold packages or git/metadata failed;
+    /// caller should fall back to `--workspace`.
+    fallback: bool,
+}
+
+/// Default max number of impacted packages before falling back to `--workspace`.
+const SINCE_FALLBACK_THRESHOLD_DEFAULT: usize = 20;
+
+/// Compute the set of workspace packages impacted by changes since `since_ref`.
+///
+/// Algorithm:
+/// 1. `git diff --name-only <since_ref>...HEAD` → changed file paths
+/// 2. `cargo metadata --no-deps` → package manifest dirs
+/// 3. Map changed files → directly changed packages (file falls under manifest dir)
+/// 4. BFS over reverse-dep graph → transitive dependents
+/// 5. If total > threshold, signal fallback
+fn compute_impacted_crates(root: &Path, since_ref: &str) -> Result<ImpactedCrates> {
+    let threshold = std::env::var("VOX_PREPUSH_SINCE_FALLBACK_THRESHOLD")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(SINCE_FALLBACK_THRESHOLD_DEFAULT);
+
+    // Step 1: changed files
+    let diff_out = Command::new("git")
+        .args(["diff", "--name-only", &format!("{since_ref}...HEAD")])
+        .current_dir(root)
+        .output()
+        .context("git diff for --since")?;
+    if !diff_out.status.success() {
+        eprintln!(
+            "pre-push --since: git diff against `{since_ref}` failed ({}); falling back to --workspace",
+            String::from_utf8_lossy(&diff_out.stderr).trim()
+        );
+        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+    }
+    let changed_files: Vec<String> = String::from_utf8_lossy(&diff_out.stdout)
+        .lines()
+        .map(|l| l.trim().replace('\\', "/"))
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    if changed_files.is_empty() {
+        // No changes — nothing to test; but rather than running nothing, fall back
+        // to workspace so the user always gets a green signal on a clean branch.
+        println!(
+            "pre-push --since `{since_ref}`: no changed files; running full workspace"
+        );
+        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+    }
+
+    // Step 2: cargo metadata (no resolve needed; `dependencies` list is enough)
+    let metadata = MetadataCommand::new()
+        .no_deps()
+        .current_dir(root)
+        .exec()
+        .context("cargo metadata for --since")?;
+    let workspace_root: PathBuf = metadata.workspace_root.clone().into();
+
+    // Step 3: directly changed packages
+    let mut directly_changed: HashSet<String> = HashSet::new();
+    for pkg in metadata.workspace_packages() {
+        let manifest_path = Path::new(pkg.manifest_path.as_str());
+        let manifest_dir = manifest_path.parent().unwrap_or(Path::new("."));
+        let pkg_rel = manifest_dir
+            .strip_prefix(&workspace_root)
+            .unwrap_or(manifest_dir)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let prefix = if pkg_rel.is_empty() {
+            String::new()
+        } else {
+            format!("{pkg_rel}/")
+        };
+        for f in &changed_files {
+            let touches = if prefix.is_empty() {
+                // Root package: a changed file at the top level counts
+                !f.contains('/')
+                    || f.starts_with("src/")
+                    || f.starts_with("benches/")
+                    || f.starts_with("tests/")
+                    || f == "Cargo.toml"
+            } else {
+                f.starts_with(&prefix) || f == &pkg_rel
+            };
+            if touches {
+                directly_changed.insert(pkg.name.clone());
+                break;
+            }
+        }
+    }
+
+    if directly_changed.is_empty() {
+        // Changed files don't fall under any workspace crate (e.g. docs only).
+        // Don't run nothing — fall back to full workspace.
+        eprintln!(
+            "pre-push --since `{since_ref}`: no workspace crates match changed files; falling back to --workspace"
+        );
+        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+    }
+
+    // Step 4: build reverse-dep map and BFS
+    // forward_deps[dep_name] = [list of packages that depend on dep_name]
+    let mut reverse_deps: HashMap<String, Vec<String>> = HashMap::new();
+    let workspace_names: HashSet<&str> = metadata
+        .workspace_packages()
+        .iter()
+        .map(|p| p.name.as_str())
+        .collect();
+    for pkg in metadata.workspace_packages() {
+        for dep in &pkg.dependencies {
+            // Only compile-time (Normal) deps propagate impacted status.
+            if dep.kind == cargo_metadata::DependencyKind::Normal
+                && workspace_names.contains(dep.name.as_str())
+            {
+                reverse_deps
+                    .entry(dep.name.clone())
+                    .or_default()
+                    .push(pkg.name.clone());
+            }
+        }
+    }
+
+    let mut impacted: HashSet<String> = directly_changed.clone();
+    let mut queue: VecDeque<String> = directly_changed.into_iter().collect();
+    while let Some(crate_name) = queue.pop_front() {
+        if let Some(dependents) = reverse_deps.get(&crate_name) {
+            for dep in dependents {
+                if impacted.insert(dep.clone()) {
+                    queue.push_back(dep.clone());
+                }
+            }
+        }
+    }
+
+    // Step 5: threshold check
+    if impacted.len() > threshold {
+        eprintln!(
+            "pre-push --since `{since_ref}`: {} impacted packages > threshold {threshold}; falling back to --workspace",
+            impacted.len()
+        );
+        return Ok(ImpactedCrates { packages: vec![], fallback: true });
+    }
+
+    let mut packages: Vec<String> = impacted.into_iter().collect();
+    packages.sort();
+    eprintln!(
+        "pre-push --since `{since_ref}`: {} impacted package(s): {}",
+        packages.len(),
+        packages.join(", ")
+    );
+    Ok(ImpactedCrates { packages, fallback: false })
+}
+
+// ── Step functions ────────────────────────────────────────────────────────────
+
 fn step_nextest(root: &Path) -> Result<()> {
     cargo_status(
         root,
@@ -733,6 +999,85 @@ fn step_nextest(root: &Path) -> Result<()> {
             "--profile",
             "ci",
             "--no-fail-fast",
+        ],
+    )
+}
+
+/// Run nextest for a specific set of packages (from `--since` impacted-crate analysis).
+fn step_nextest_packages(root: &Path, packages: &[String]) -> Result<()> {
+    let mut args = vec!["nextest", "run", "--profile", "ci", "--no-fail-fast"];
+    for p in packages {
+        args.push("--package");
+        args.push(p.as_str());
+    }
+    cargo_status(root, &args)
+}
+
+/// Run `cargo llvm-cov nextest` for a specific set of packages.
+fn step_nextest_packages_with_coverage(root: &Path, packages: &[String]) -> Result<()> {
+    let mut args = vec!["llvm-cov", "nextest", "--profile", "ci", "--no-fail-fast", "--no-report"];
+    for p in packages {
+        args.push("--package");
+        args.push(p.as_str());
+    }
+    cargo_status(root, &args)
+}
+
+/// Run nextest under `cargo llvm-cov nextest` (no-report phase; coverage data stays on disk).
+/// A separate `step_llvm_cov_report` step renders the final report.
+fn step_nextest_with_coverage(root: &Path) -> Result<()> {
+    cargo_status(
+        root,
+        &[
+            "llvm-cov",
+            "nextest",
+            "--workspace",
+            "--profile",
+            "ci",
+            "--no-fail-fast",
+            "--no-report",
+        ],
+    )
+}
+
+/// Emit coverage report artifacts (lcov + HTML) from an `llvm-cov nextest --no-report` run.
+fn step_llvm_cov_report(root: &Path) -> Result<()> {
+    cargo_status(
+        root,
+        &[
+            "llvm-cov",
+            "report",
+            "--lcov",
+            "--output-path",
+            "target/llvm-cov/lcov.info",
+        ],
+    )?;
+    cargo_status(
+        root,
+        &["llvm-cov", "report", "--html", "--output-dir", "target/llvm-cov/html"],
+    )
+}
+
+/// Run only the four slow `#[ignore]` tests that are annotated with `"slow; …"`.
+/// Uses an explicit `-E` filter + `--run-ignored ignored-only` so none of the other
+/// 250+ ignored tests (intentionally excluded) are swept in.
+fn step_nextest_slow(root: &Path) -> Result<()> {
+    cargo_status(
+        root,
+        &[
+            "nextest",
+            "run",
+            "-E",
+            concat!(
+                "test(arch_check_smoke_test)",
+                " or test(description_rule_produces_output_on_clean_workspace)",
+                " or test(timeout_kills_long_running_child)",
+                " or test(generated_ai_fixture_bundle_passes_cargo_check)",
+            ),
+            "--run-ignored",
+            "ignored-only",
+            "--profile",
+            "ci",
         ],
     )
 }

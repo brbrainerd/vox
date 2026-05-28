@@ -100,7 +100,10 @@ mod tests {
         assert_eq!(out.exit_code, Some(7));
     }
 
+    /// Slow: waits ~30s for a long-running child process to be killed by the sandbox timeout.
+    /// Excluded from default local `vox ci pre-push --full`; use `--include-slow` or CI.
     #[tokio::test]
+    #[ignore = "slow; waits ~30s for process timeout (~29s elapsed); owner: scientia sunset: never; use --include-slow or CI"]
     async fn timeout_kills_long_running_child() {
         let dir = tempfile::tempdir().unwrap();
         // Sleep a long time on POSIX; ping on Windows is the portable analog.
