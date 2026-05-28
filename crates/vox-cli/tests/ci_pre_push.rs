@@ -229,6 +229,20 @@ fn pre_push_dry_run_full_since_flag_accepted() {
 }
 
 #[test]
+fn pre_push_enforce_budgets_flag_accepted_in_dry_run() {
+    // --enforce-budgets is skipped in --dry-run (no elapsed times); flag must parse cleanly.
+    let out = Command::new(env!("CARGO_BIN_EXE_vox"))
+        .args(["ci", "pre-push", "--dry-run", "--enforce-budgets"])
+        .output()
+        .expect("spawn vox");
+    assert!(
+        out.status.success(),
+        "--enforce-budgets with --dry-run must succeed;\nstderr: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
+#[test]
 fn pre_push_dry_run_act_lists_workflows() {
     let out = Command::new(env!("CARGO_BIN_EXE_vox"))
         .args(["ci", "pre-push", "--dry-run", "--quick", "--act"])
