@@ -47,6 +47,7 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::McpTool(m) => ("mcp_tool".into(), m.func.name.clone()),
         Decl::McpResource(m) => ("mcp_resource".into(), m.func.name.clone()),
         Decl::Test(t) => ("test".into(), t.func.name.clone()),
+        Decl::Example(e) => ("example".into(), e.func.name.clone()),
         Decl::Forall(f) => ("forall".into(), f.func.name.clone()),
         Decl::Table(t) => ("table".into(), t.name.clone()),
         Decl::Collection(c) => ("collection".into(), c.name.clone()),
