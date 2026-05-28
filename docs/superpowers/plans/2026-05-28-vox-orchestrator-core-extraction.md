@@ -10,7 +10,7 @@
 
 **Spec:** [`docs/superpowers/specs/2026-05-28-vox-orchestrator-core-extraction-design.md`](../specs/2026-05-28-vox-orchestrator-core-extraction-design.md)
 
-**Posture:** Trigger-gated. **Today the plan exits at D0** because `vox-orchestrator` is at 56,200 LoC (19.7% headroom, gate not firing). D1 is safe to pre-execute as preparation work because it's read-only measurement. D2–D7 must wait for the gate to trip.
+**Posture:** Trigger-gated. **Today the plan exits at D0** — verified 2026-05-28: `vox-orchestrator` at 61,061 LoC, 12.8% headroom, Rule 13 not firing (D0 recorded in commit `82b909af8a`). D1 has been pre-executed as preparation work (read-only measurement, 31 Move / 17 Trait-inject / 49 Stay across 97 candidates; manifest committed `85899c0237`). D2–D7 must wait for the gate to trip.
 
 ---
 

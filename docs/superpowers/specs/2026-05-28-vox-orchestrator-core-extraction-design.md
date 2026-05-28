@@ -1,6 +1,6 @@
 ---
 title: "vox-orchestrator-core extraction design (2026-05-28)"
-description: "Trigger-gated design for splitting vox-orchestrator into a `-core` crate. Supersedes the 2026-05-15 tier-d plan with verified-against-current-code numbers (56,200 LoC / 19.7% headroom, gate not firing)."
+description: "Trigger-gated design for splitting vox-orchestrator into a `-core` crate. Supersedes the 2026-05-15 tier-d plan. Verified D0 measurement (2026-05-28): 61,061 LoC, 12.8% headroom, Rule 13 not firing. D1 manifest committed: 31 Move / 17 Trait-inject / 49 Stay across 97 sibling modules."
 last_updated: "2026-05-28"
 category: "Architecture SSOTs"
 status: "current"
@@ -17,7 +17,7 @@ status: "current"
 | Signal | Threshold | Current | Status |
 |---|---|---:|---|
 | Rule 13 finding for `vox-orchestrator` | absent | absent | ✅ Not tripped |
-| `max_loc` headroom | <5% of `max_loc = 70,000` (<3,500 LoC remaining) | 19.7% (13,800 LoC) | ✅ Not tripped |
+| `max_loc` headroom | <5% of `max_loc = 70,000` (<3,500 LoC remaining) | 12.8% (~8,940 LoC) at 61,061 LoC (D0 canonical, 2026-05-28) | ✅ Not tripped |
 | `vox-arch-check` clean on `main` | clean | clean | ✅ |
 | Active MENS / mesh sprint touching `vox-orchestrator/src/` | none | unknown — query before D2 | ⚠️ |
 
@@ -72,10 +72,13 @@ Verified inputs from this session (so D1 doesn't have to re-discover):
 - Sibling modules currently imported by `src/orchestrator/`: `affinity`, `attention`, `budget`, `bulletin`, `catalog`, `config`, `context`, `groups`, `locks`, `models`, `oplog`, `planning`, `queue`, `scope`, `services`, `snapshot`, `socrates`, `topology`, `types` (19 modules; all still imported as of 2026-05-28)
 - External crates that import `Orchestrator` directly: `vox-orchestrator-mcp/src/llm_bridge/model_route_policy/resolve.rs:4` and `tests.rs:2` (only)
 
-D1 expected outcome (estimated, to be confirmed by audit):
-- ~10 move (types, config, budget, locks, bulletin, scope, groups, affinity, context, plus planning/services/catalog/models if they hold impl blocks)
-- ~3–4 trait-inject (attention, snapshot, oplog, socrates as candidates)
-- ~3–4 stay (a2a, preregistration, session, hopper, routing — modules used only outside `src/orchestrator/`)
+D1 expected outcome (pre-audit estimate; **superseded by the manifest in §D1 manifest below**):
+- ~10 move, ~3–4 trait-inject, ~3–4 stay
+
+**Actual D1 outcome (audited 2026-05-28, committed `85899c0237`):**
+- **31 Move / 17 Trait-inject / 49 Stay** across 97 candidates
+- The pre-audit estimate enumerated only 23 directory modules; the audit added 74 single-`.rs`-file modules at the top level of `src/` (see expansion note in the manifest)
+- Module count is ~3× the estimate; LoC volume (Move sum = 18,741) still falls within the spec §2 post-split projection of ~30–35K for `vox-orchestrator-core` (Move + `src/orchestrator/` = 18,741 + 12,933 = 31,674)
 
 ## D1 manifest (audited 2026-05-28)
 
