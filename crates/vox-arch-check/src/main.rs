@@ -70,6 +70,7 @@ use anyhow::{Context, Result, anyhow};
 use cargo_metadata::MetadataCommand;
 use serde::Deserialize;
 
+mod cache;
 mod forbidden_patterns;
 use forbidden_patterns::{ForbiddenPatternRule, scan as scan_forbidden_pattern};
 
@@ -654,6 +655,13 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         .context("cargo metadata failed")?;
 
     let workspace_root: PathBuf = metadata_full.workspace_root.clone().into();
+
+    // Load or prime the git-paths cache. Non-fatal: a miss just means we run git normally.
+    let cache_key = cache::compute_key(&workspace_root).ok();
+    let cached = cache_key
+        .as_deref()
+        .and_then(|k| cache::load(&workspace_root, k));
+
     let layers_path = workspace_root.join("docs/src/architecture/layers.toml");
 
     let layers_text = std::fs::read_to_string(&layers_path)
@@ -833,9 +841,20 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     // Flags crates with no commits since the last release date in CHANGELOG.md.
     // Plugins (independent versioning) and staleness_exempt crates are skipped.
     let changelog_path = workspace_root.join("CHANGELOG.md");
+    // Cache-aware: use cached git paths on hit; run git and cache the result on miss.
+    let mut touched_paths_for_cache: Option<Vec<String>> = None;
     if let Some((release_version, release_date)) = parse_release_date(&changelog_path) {
         report.staleness_since = format!("v{release_version} ({release_date})");
-        if let Some(ref touched) = git_paths_touched_since(&workspace_root, &release_date) {
+        let touched_from_cache = cached
+            .as_ref()
+            .and_then(|c| c.git_touched_paths.as_ref())
+            .map(|paths| paths.iter().cloned().collect::<HashSet<String>>());
+        let touched_result = touched_from_cache
+            .or_else(|| git_paths_touched_since(&workspace_root, &release_date));
+        if let Some(ref touched_paths) = touched_result {
+            touched_paths_for_cache = Some(touched_paths.iter().cloned().collect());
+        }
+        if let Some(ref touched) = touched_result {
             for pkg in metadata_full.workspace_packages() {
                 let name = pkg.name.as_str();
                 let entry = match layers.crates.get(name) {
@@ -882,6 +901,15 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             }
         }
         report.staleness_warns.sort();
+    }
+
+    // Persist cache on miss so next run is faster (non-fatal on failure).
+    if let (Some(key), None) = (&cache_key, &cached) {
+        let data = cache::CachedData {
+            key: key.clone(),
+            git_touched_paths: touched_paths_for_cache,
+        };
+        let _ = cache::store(&workspace_root, &data);
     }
 
     // ── Rule 9: Generated-file drift ──

@@ -11,6 +11,8 @@ serde = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
 regex = { workspace = true }
 globset = { workspace = true }
+sha2 = { workspace = true }
+serde_json = { workspace = true }
 
 [[bin]]
 name = "vox-arch-check"
