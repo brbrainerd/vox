@@ -813,6 +813,11 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                     .or_insert(0) += 1;
             }
 
+            // Layer-inversion check only applies to normal (production) deps.
+            // Dev-deps and build-deps don't affect the runtime binary's layer purity.
+            if dep.kind != cargo_metadata::DependencyKind::Normal {
+                continue;
+            }
             let to_layer = match layers.crates.get(to_name) {
                 Some(e) => e.layer,
                 None => continue,
