@@ -263,7 +263,10 @@ mod tests {
         // vox-deprecated-since lines are vestigial-during-migration and should
         // not be re-flagged (AGENTS.md §Deprecation Annotations).
         let f = rust(
-            r#"// vox-deprecated-since="0.5.0" retire-by="0.6.0" reason="turso-rename"
+            // Use a far-future retire-by so this test fixture never trips the
+            // retirement-audit scanner (which flags annotations whose retire-by
+            // version has been reached).
+            r#"// vox-deprecated-since="0.5.0" retire-by="99.0.0" reason="turso-rename"
 let v = env::var("TURSO_URL")?;"#,
         );
         let findings = d.detect(&f, None);

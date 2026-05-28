@@ -70,7 +70,7 @@ fn workspace_version(repo_root: &Path) -> Result<SemverTriple> {
 fn should_skip_dir(name: &str) -> bool {
     matches!(
         name,
-        ".git" | "target" | "node_modules" | "dist" | "web-dist" | ".venv"
+        ".git" | "target" | "node_modules" | "dist" | "web-dist" | ".venv" | ".claude"
     )
 }
 
