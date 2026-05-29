@@ -98,6 +98,21 @@ API key lifecycle checklist:
 All cryptographic logic MUST use the `vox-crypto` crate. We explicitly ban AEGIS, `ring`, `zig`-chains, and any wrapper dragging in `cmake` or `nasm` for C-assembly optimization on Windows. Pure-Rust `chacha20poly1305` is standard for AEAD. See:
 - Policy: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/cryptography-ssot-2026.md)
 
+## Model-Agnostic LLM Boundary (Required, SSOT)
+
+All LLM calls in this workspace MUST go through the model-agnostic facade at `vox_actor_runtime::llm` (`infer_with_retry`, `llm_chat`, `llm_stream`, `llm_embed`). Do NOT hardcode a vendor hostname (`api.anthropic.com`, `api.openai.com`, `generativelanguage.googleapis.com`, etc.) and do NOT instantiate a vendor SDK directly in workspace code.
+
+Model selection lives in `vox-orchestrator::models::{registry, select, autonomic}` and is driven by config + policy. A new model — Claude, MENS revision, OpenAI, Mistral, Cohere, or anything future — slots in by registering a `ModelRegistryEntry` with a per-task-class score, NOT by editing call sites. **MENS revisions are first-class candidates** evaluated on the same scoring axes (latency, cost-per-token, quality-score, locality) as any external model.
+
+**Why this is a normative cross-tool rule.** As frontier models ship (now monthly across providers), this boundary turns "adopt the better model" into a one-line config change instead of a workspace-wide sweep. Token-waste audits like `vox audit effort` (planned per [`docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`](docs/superpowers/specs/2026-05-28-effort-audit-core-design.md)) self-improve when registry selection picks up a better-scoring judge — but only if every call site stays on the facade.
+
+**Enforcement.**
+- `vox-code-audit` detector `llm_provider_call` (at [`crates/vox-code-audit/src/detectors/llm_provider_call.rs`](crates/vox-code-audit/src/detectors/llm_provider_call.rs)) flags violations as `Error`. Hostnames already covered: Anthropic, OpenAI, Cohere, Mistral, Together, Replicate, HuggingFace, Fireworks, Perplexity, Google (generativelanguage + aiplatform), OpenRouter. Add new provider hostnames to that detector when they're integrated.
+- Languages covered: Vox, Rust, TypeScript.
+
+**Override (rare).** Only via a documented inline deprecation marker during a tracked migration:
+`// vox-deprecated-since="X.Y.Z" retire-by="X.Y.Z" reason="..." canonical="vox_actor_runtime::llm"`. No silent exceptions.
+
 ## VoxScript-First Glue Code (Required)
 
 All project automation — CI prep, corpus transforms, training pipelines, install helpers, data migrations — MUST be written as `.vox` files and executed via `vox run`. Do **not** introduce new `.ps1`, `.sh`, or `.py` glue scripts.
