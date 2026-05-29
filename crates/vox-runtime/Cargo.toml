@@ -1,0 +1,22 @@
+[package]
+name = "vox-runtime"
+version = "0.6.0"
+edition = "2024"
+description = "Umbrella runtime crate for Vox — declares the RuntimeProfile (Desktop vs Mobile) + lifecycle traits + VoxConfig that downstream runtime crates (vox-workflow-runtime, vox-actor-runtime, vox-inference) and the uniffi-bindgen-react-native bridge consume. Foundation for `@vox/runtime-rn` on device."
+license = "Apache-2.0"
+publish = false
+
+[lib]
+# cdylib + staticlib so this crate is linkable as a native library from
+# Android / iOS via uniffi-bindgen-react-native; rlib so workspace crates
+# can depend on it the normal way. See docs/src/architecture/mobile-rn-expo-implementation-spec-2026.md §10.4.
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { path = "../workspace-hack" }
+
+[dev-dependencies]
+serde_json = { workspace = true }
