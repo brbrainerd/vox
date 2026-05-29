@@ -59,6 +59,15 @@ enum RnNode {
         key_ts: Option<String>,
         body: Vec<RnNode>,
     },
+    /// `<UserComponent attr1={expr1} attr2={expr2}>...</UserComponent>` — a call
+    /// to a user-declared `component` inside a view. The tag is PascalCase
+    /// per React convention; attributes pass through as JSX `{...}` blocks
+    /// (no style remapping — user components manage their own props).
+    CustomComponent {
+        tag_name: String,
+        attributes: Vec<(String, String)>,
+        children: Vec<RnNode>,
+    },
     /// A plain JS-style string literal inside a `<Text>` — gets quoted/escaped.
     StringLit(String),
     /// A raw TypeScript expression to interpolate — emitted inside `{...}` braces.
@@ -147,47 +156,61 @@ fn emit_hir_expr_inline(expr: &HirExpr) -> String {
     emit_hir_expr_inline_with_state(expr, &empty_states)
 }
 
-/// Emit an event handler — wraps the lowered body in an arrow function so the
-/// JSX `onPress={...}` attribute receives a callable, not an immediate
-/// invocation. State assignments (`n = n + 1`) inside the body are rewritten
-/// to setter calls (`set_n(n + 1)`) by the shared HIR emit when the variable
-/// appears in `state_names`.
+/// Emit an event handler — produces a clean arrow lambda for the JSX
+/// `onPress={...}` attribute. State assignments (`n = n + 1`) inside the
+/// body are rewritten to setter calls (`set_n(n + 1)`) by the shared HIR
+/// emit when the variable appears in `state_names`.
 fn emit_event_handler_with_state(expr: &HirExpr, state_names: &HashSet<String>) -> String {
     let body = emit_hir_expr_inline_with_state(expr, state_names);
-    // The shared HIR → TS emit wraps block expressions in an IIFE because they
-    // appear in expression position elsewhere (where a value is expected).
-    // For an event handler we want the lambda itself, not the invocation —
-    // strip the outer `(...)()` if present.
-    let arrow_body = strip_iife_wrapper(&body);
-    let trimmed = arrow_body.trim_start();
-    if trimmed.starts_with("() =>") || trimmed.starts_with("async () =>") {
-        // Already a clean arrow function.
-        arrow_body.to_string()
-    } else if trimmed.starts_with("{") {
-        format!("() => {arrow_body}")
-    } else {
-        format!("() => ({arrow_body})")
-    }
+    extract_or_wrap_arrow(&body).into_owned()
 }
 
-/// Detect and unwrap `(EXPR)()` where `EXPR` is an arrow lambda. Returns the inner
-/// arrow expression so callers can use it as an event handler. Leaves any other
-/// shape untouched.
-fn strip_iife_wrapper(body: &str) -> &str {
+/// Normalize a JS expression string into a callable arrow lambda suitable for an
+/// event handler. Handles four input shapes:
+///
+///   1. `(() => EXPR)()` / `(() => { ... })()` — IIFE invocation. Strip the
+///      outer `(...)()` to recover the inner arrow lambda directly.
+///   2. `(() => EXPR)` / `(() => { ... })` — parenthesized arrow lambda.
+///      Strip the outer parens; the inner arrow is the handler.
+///   3. `() => EXPR` / `async () => EXPR` — already clean. Use unchanged.
+///   4. Anything else — wrap as `() => (BODY)` (for an expression) or
+///      `() => BODY` (for a `{ ... }` block).
+fn extract_or_wrap_arrow(body: &str) -> std::borrow::Cow<'_, str> {
     let trimmed = body.trim();
-    if !trimmed.ends_with(")()") {
-        return body;
+
+    // Shape 1: `(() => ...)()` — IIFE.
+    if trimmed.ends_with(")()") && trimmed.starts_with('(') {
+        let inner = &trimmed[1..trimmed.len() - 3];
+        let inner_trim = inner.trim_start();
+        if inner_trim.starts_with("() =>") || inner_trim.starts_with("async () =>") {
+            return std::borrow::Cow::Owned(inner.to_string());
+        }
     }
-    // Confirm the leading `(` matches the second-to-last `)` (i.e. balanced).
-    if !trimmed.starts_with('(') {
-        return body;
+
+    // Shape 2: `(() => ...)` — parenthesized arrow. Verify the leading `(` and
+    // a balancing trailing `)` actually pair (no `()()` chain hiding inside).
+    if trimmed.starts_with('(')
+        && trimmed.ends_with(')')
+        && {
+            let inner = &trimmed[1..trimmed.len() - 1];
+            let inner_trim = inner.trim_start();
+            inner_trim.starts_with("() =>") || inner_trim.starts_with("async () =>")
+        }
+    {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        return std::borrow::Cow::Owned(inner.to_string());
     }
-    let inner = &trimmed[1..trimmed.len() - 3]; // strip leading `(` and trailing `)()`
-    let inner_trim = inner.trim_start();
-    if inner_trim.starts_with("() =>") || inner_trim.starts_with("async () =>") {
-        inner
+
+    // Shape 3: already a clean arrow lambda.
+    if trimmed.starts_with("() =>") || trimmed.starts_with("async () =>") {
+        return std::borrow::Cow::Borrowed(body);
+    }
+
+    // Shape 4: bare expression or block — wrap.
+    if trimmed.starts_with('{') {
+        std::borrow::Cow::Owned(format!("() => {body}"))
     } else {
-        body
+        std::borrow::Cow::Owned(format!("() => ({body})"))
     }
 }
 
@@ -315,6 +338,27 @@ fn jsx_to_rn(
         },
 
         other => {
+            // PascalCase tag → user-declared `component Name(...) { view: ... }` call.
+            // React's JSX convention is that any tag starting with an uppercase
+            // letter is a component reference, not a built-in element. Pass
+            // through every attribute as a JSX `{<expr>}` block so callers like
+            // `EntryCard(label=item)` lower to `<EntryCard label={item}/>`.
+            if other.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+                let attrs: Vec<(String, String)> = el
+                    .attributes
+                    .iter()
+                    .filter(|a| a.name != "className") // className handled via style_key on built-ins; not for custom
+                    .map(|a| (a.name.clone(), emit_hir_expr_inline_with_state(&a.value, state_names)))
+                    .collect();
+                return RnNode::CustomComponent {
+                    tag_name: other.to_string(),
+                    attributes: attrs,
+                    children,
+                };
+            }
+            // Lowercase unknown tag → genuinely unsupported. Surface the diagnostic
+            // (not a silent stub) and fall back to a bare `<View>` so the build
+            // still produces something inspectable.
             diagnostics.push(WebIrDiagnostic {
                 code: "vox/codegen/rn-unsupported-tag".to_string(),
                 message: format!(
@@ -423,6 +467,11 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
         }
         RnNode::Loop { body, .. } => {
             for c in body {
+                collect_used_styles(c, out);
+            }
+        }
+        RnNode::CustomComponent { children, .. } => {
+            for c in children {
                 collect_used_styles(c, out);
             }
         }
@@ -569,6 +618,34 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
                 "{pad}{{{iterator_ts}.map({params} => (\n{inner_with_key}{pad}  ))}}\n"
             )
         }
+        RnNode::CustomComponent {
+            tag_name,
+            attributes,
+            children,
+        } => {
+            let attr_str = if attributes.is_empty() {
+                String::new()
+            } else {
+                let mut s = String::new();
+                for (name, expr) in attributes {
+                    s.push(' ');
+                    s.push_str(name);
+                    s.push('=');
+                    s.push('{');
+                    s.push_str(expr);
+                    s.push('}');
+                }
+                s
+            };
+            if children.is_empty() {
+                return format!("{pad}<{tag_name}{attr_str} />\n");
+            }
+            let mut inner = String::new();
+            for c in children {
+                inner.push_str(&emit_rn_node(c, indent + 1));
+            }
+            format!("{pad}<{tag_name}{attr_str}>\n{inner}{pad}</{tag_name}>\n")
+        }
         RnNode::StringLit(s) => {
             // String at View context — wrap defensively (RN forbids bare strings outside <Text>).
             let lit = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
@@ -644,6 +721,15 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
             index_name: index_name.clone(),
             key_ts: key_ts.clone(),
             body: body.iter().map(clone_rn_node).collect(),
+        },
+        RnNode::CustomComponent {
+            tag_name,
+            attributes,
+            children,
+        } => RnNode::CustomComponent {
+            tag_name: tag_name.clone(),
+            attributes: attributes.clone(),
+            children: children.iter().map(clone_rn_node).collect(),
         },
         RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
         RnNode::Expr(e) => RnNode::Expr(e.clone()),
@@ -788,6 +874,12 @@ pub fn emit_rn_component(
         ));
     }
     out.push_str("import { View, Text, Pressable, Image, TextInput, StyleSheet } from \"react-native\";\n");
+    // `mobile` namespace import — only when this component's view or members
+    // reference the `mobile` identifier. Mirrors the web target's auto-import
+    // in `crates/vox-codegen/src/codegen_ts/component.rs`.
+    if super::mobile_utils::component_uses_mobile(rc) {
+        out.push_str("import { mobile } from \"./mobile-utils\";\n");
+    }
     out.push('\n');
 
     // Props interface

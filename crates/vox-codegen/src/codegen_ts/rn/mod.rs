@@ -35,6 +35,7 @@
 
 pub mod component;
 pub mod form;
+pub mod mobile_utils;
 pub mod routes;
 pub mod scaffold;
 
@@ -94,6 +95,20 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
         files.push((
             "forms.tsx".into(),
             format!("{header}{forms_body}\n{}", form::RN_FORM_STYLESHEET),
+        ));
+    }
+
+    // `std.mobile` namespace — when source `import std.mobile`s OR any
+    // component / handler body references the `mobile` identifier, emit
+    // `mobile-utils.ts` so callers' `mobile.notify(...)` etc. resolve to a
+    // real binding that routes through `@vox/runtime-rn::voxRuntime`.
+    let uses_mobile_namespace = hir.imports.iter().any(|imp| {
+        imp.item == "mobile" && (imp.module_path.is_empty() || imp.module_path == vec!["std"])
+    }) || mobile_utils::any_component_uses_mobile(hir);
+    if uses_mobile_namespace {
+        files.push((
+            "mobile-utils.ts".to_string(),
+            mobile_utils::emit_mobile_utils_rn(),
         ));
     }
 

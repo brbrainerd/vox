@@ -305,6 +305,81 @@ fn build_mobile_routes_emits_expo_router_file_tree() {
     );
 }
 
+/// Mental-tracker-shape proving ground: a single Vox source exercising the
+/// full union of RN-supported VUV vocabulary. Asserts the build produces
+/// every expected file and that the critical RN-specific behaviors
+/// (custom-component refs, mobile-utils auto-emit + auto-import, arrow
+/// handlers without IIFE) all work end-to-end.
+#[test]
+fn build_mobile_app_complete_exercises_full_rn_vocabulary() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_app_complete");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+
+    let home = std::fs::read_to_string(run.out_dir.path().join("Home.tsx"))
+        .expect("Home.tsx");
+    // Custom-component invocation inside a for-loop body must render as a
+    // JSX tag with the original PascalCase name and a `{...}` attr per arg,
+    // NOT fall through to an empty `<View>`.
+    assert!(
+        home.contains("<EntryCard label={item}"),
+        "for-loop body must render `<EntryCard label={{item}}/>`; got:\n{home}"
+    );
+    // mobile-utils import must be auto-added when the component body
+    // references the `mobile` identifier.
+    assert!(
+        home.contains("import { mobile } from \"./mobile-utils\""),
+        "component using `mobile` must auto-import from `./mobile-utils`; got:\n{home}"
+    );
+    // Arrow handler must NOT be triple-wrapped IIFE; the strip+wrap logic
+    // produces a single clean `() => (mobile.notify(...))`.
+    assert!(
+        !home.contains("(() => ("),
+        "arrow handler must not be IIFE-wrapped (split-brain regression):\n{home}"
+    );
+    assert!(
+        home.contains("onPress={() => (mobile.notify("),
+        "mobile.notify handler must lower to a clean arrow:\n{home}"
+    );
+
+    // mobile-utils.ts must route through voxRuntime, not Tauri directly.
+    let utils = std::fs::read_to_string(run.out_dir.path().join("mobile-utils.ts"))
+        .expect("mobile-utils.ts");
+    assert!(
+        utils.contains("from \"@vox/runtime-rn\""),
+        "mobile-utils.ts must import from `@vox/runtime-rn`; got:\n{utils}"
+    );
+    assert!(
+        !utils.contains("@tauri-apps/api"),
+        "mobile-utils.ts must NOT import Tauri APIs directly:\n{utils}"
+    );
+    // Snake_case Vox method names must remain present (the bridge handles
+    // case translation to camelCase voxRuntime methods).
+    assert!(
+        utils.contains("transcribe_microphone")
+            && utils.contains("voxRuntime.transcribeMicrophone"),
+        "mobile-utils.ts must bridge snake_case `transcribe_microphone` to camelCase `voxRuntime.transcribeMicrophone`; got:\n{utils}"
+    );
+
+    // The Entry component (uses transcribe_microphone) must also auto-import.
+    let entry = std::fs::read_to_string(run.out_dir.path().join("Entry.tsx"))
+        .expect("Entry.tsx");
+    assert!(
+        entry.contains("import { mobile } from \"./mobile-utils\""),
+        "Entry.tsx must auto-import mobile (uses transcribe_microphone):\n{entry}"
+    );
+
+    // The Detail component (no mobile use, no state) must NOT auto-import mobile.
+    let detail = std::fs::read_to_string(run.out_dir.path().join("Detail.tsx"))
+        .expect("Detail.tsx");
+    assert!(
+        !detail.contains("from \"./mobile-utils\""),
+        "Detail.tsx (no mobile use) must NOT import mobile-utils:\n{detail}"
+    );
+}
+
 // NOTE: no `assert_tsc_compiles` for mobile_routes. The expo-router peer-dep
 // chain requires a specific Expo SDK-tier version pin (RN, react-native-screens,
 // expo-linking, expo-constants, @types/react all together) that conflicts
