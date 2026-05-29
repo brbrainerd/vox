@@ -94,6 +94,59 @@ fn build_mobile_counter_emits_valid_react_native_typescript() {
     run.assert_tsc_compiles();
 }
 
+/// `for item, i in items key=item { panel() { text() { item } } }` must lower
+/// to `{items.map((item, i) => (<View key={item}><Text>{item}</Text></View>))}`
+/// — pure RN, no DOM tags. Regression gate for the original split-brain bug
+/// where loop bodies fell through to React-DOM emit inside an RN component.
+#[test]
+fn build_mobile_list_renders_pure_rn_inside_for_loop() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_list");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+    let todo_tsx = std::fs::read_to_string(run.out_dir.path().join("TodoList.tsx"))
+        .expect("TodoList.tsx");
+    // The loop must use `.map((item, i: number) => ...)` over the iterator.
+    assert!(
+        todo_tsx.contains("items.map("),
+        "for-loop must lower to `.map(...)`; got:\n{todo_tsx}"
+    );
+    // The body must use RN tags. No React DOM leakage allowed.
+    assert!(
+        !todo_tsx.contains("<div"),
+        "loop body must NOT contain `<div>` (split-brain regression):\n{todo_tsx}"
+    );
+    assert!(
+        !todo_tsx.contains("<p>") && !todo_tsx.contains("<p "),
+        "loop body must NOT contain `<p>` (split-brain regression):\n{todo_tsx}"
+    );
+    assert!(
+        !todo_tsx.contains("className"),
+        "loop body must NOT contain `className` (RN ignores it):\n{todo_tsx}"
+    );
+    // The body MUST use RN primitives.
+    assert!(
+        todo_tsx.contains("<View") && todo_tsx.contains("<Text"),
+        "loop body must use `<View>` and `<Text>`; got:\n{todo_tsx}"
+    );
+    // Key injection must produce `key={item}` on the first body element.
+    assert!(
+        todo_tsx.contains("key={item}"),
+        "loop must inject `key={{item}}` on first body element; got:\n{todo_tsx}"
+    );
+}
+
+/// Heavy gate for the list fixture: tsc must accept the loop output.
+#[test]
+fn build_mobile_list_emits_valid_react_native_typescript() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_list");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_tsc_compiles();
+}
+
 /// Regression gate: the same Vox source produces RN-shaped output for the mobile target
 /// (View / Text / Pressable / StyleSheet) and DOM-shaped output for the default web
 /// target — both from one HIR. Asserts the leaf shapes differ in the right places.

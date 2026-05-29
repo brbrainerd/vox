@@ -49,6 +49,16 @@ enum RnNode {
         on_change_ts: Option<String>,
         placeholder_ts: Option<String>,
     },
+    /// `{<iter>.map((<item>, <index>) => <body>)}` — VUV `for x in xs key=x.id { ... }`.
+    /// The body is RECURSIVELY translated to RN nodes so loops never emit DOM tags
+    /// like `<div>` / `<p>` inside an RN tree.
+    Loop {
+        iterator_ts: String,
+        item_name: String,
+        index_name: Option<String>,
+        key_ts: Option<String>,
+        body: Vec<RnNode>,
+    },
     /// A plain JS-style string literal inside a `<Text>` — gets quoted/escaped.
     StringLit(String),
     /// A raw TypeScript expression to interpolate — emitted inside `{...}` braces.
@@ -343,6 +353,37 @@ fn hir_view_child_to_rn(
                 .map(|c| hir_view_child_to_rn(c, state_names, diagnostics))
                 .collect(),
         },
+        // VUV `for item, i in items key=item.id { <body> }` — recurse so the body
+        // gets RN-translated, never falls through to the shared React-DOM emit.
+        // Without this, the shared emit would produce `<div>` / `<p>` inside an
+        // RN tree (split-brain bug).
+        HirExpr::For(item, index, iter, body, key, _) => {
+            let iterator_ts = emit_hir_expr_inline_with_state(iter, state_names);
+            let key_ts = key
+                .as_ref()
+                .map(|k| emit_hir_expr_inline_with_state(k, state_names));
+            // The body is either a single JSX element or a Block of statements.
+            // Both are recursively walked so every child renders in RN form.
+            let body_nodes = match body.as_ref() {
+                HirExpr::Block(stmts, _) => stmts
+                    .iter()
+                    .filter_map(|s| match s {
+                        HirStmt::Expr { expr, .. } => {
+                            Some(hir_view_child_to_rn(expr, state_names, diagnostics))
+                        }
+                        _ => None,
+                    })
+                    .collect(),
+                other => vec![hir_view_child_to_rn(other, state_names, diagnostics)],
+            };
+            RnNode::Loop {
+                iterator_ts,
+                item_name: item.clone(),
+                index_name: index.clone(),
+                key_ts,
+                body: body_nodes,
+            }
+        }
         HirExpr::StringLit(s, _) => RnNode::StringLit(s.clone()),
         other => RnNode::Expr(emit_hir_expr_inline_with_state(other, state_names)),
     }
@@ -378,6 +419,11 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
         RnNode::Image { style_key, .. } | RnNode::TextInput { style_key, .. } => {
             if let Some(k) = style_key {
                 out.insert(k.clone());
+            }
+        }
+        RnNode::Loop { body, .. } => {
+            for c in body {
+                collect_used_styles(c, out);
             }
         }
         RnNode::StringLit(_) | RnNode::Expr(_) => {}
@@ -496,6 +542,33 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
                 .unwrap_or_default();
             format!("{pad}<TextInput{style_attr}{value_attr}{onc_attr}{ph_attr} />\n")
         }
+        RnNode::Loop {
+            iterator_ts,
+            item_name,
+            index_name,
+            key_ts,
+            body,
+        } => {
+            // RN renders a JSX-expression loop as `{iter.map((item, i) => (<body/>))}`.
+            // The first body node must carry a `key={...}` attribute or React warns;
+            // we inject it onto the first element in the rendered body.
+            let params = match index_name {
+                Some(idx) => format!("({item_name}: any, {idx}: number)"),
+                None => format!("({item_name}: any)"),
+            };
+            let mut inner = String::new();
+            for c in body {
+                inner.push_str(&emit_rn_node(c, indent + 2));
+            }
+            let inner_with_key = if let Some(k) = key_ts {
+                inject_key_into_first_element(inner, k)
+            } else {
+                inner
+            };
+            format!(
+                "{pad}{{{iterator_ts}.map({params} => (\n{inner_with_key}{pad}  ))}}\n"
+            )
+        }
         RnNode::StringLit(s) => {
             // String at View context — wrap defensively (RN forbids bare strings outside <Text>).
             let lit = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
@@ -559,9 +632,54 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
             on_change_ts: on_change_ts.clone(),
             placeholder_ts: placeholder_ts.clone(),
         },
+        RnNode::Loop {
+            iterator_ts,
+            item_name,
+            index_name,
+            key_ts,
+            body,
+        } => RnNode::Loop {
+            iterator_ts: iterator_ts.clone(),
+            item_name: item_name.clone(),
+            index_name: index_name.clone(),
+            key_ts: key_ts.clone(),
+            body: body.iter().map(clone_rn_node).collect(),
+        },
         RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
         RnNode::Expr(e) => RnNode::Expr(e.clone()),
     }
+}
+
+/// Insert `key={<expr>}` into the opening tag of the first JSX element in `inner`.
+/// Used to satisfy React's `key` requirement on `.map(...)` children — without this
+/// users get the noisy "Each child in a list should have a unique key" warning
+/// at runtime even though their Vox source declared `key=...`.
+fn inject_key_into_first_element(inner: String, key_ts: &str) -> String {
+    let bytes = inner.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'<' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_alphabetic() {
+            break;
+        }
+        i += 1;
+    }
+    if i >= bytes.len() {
+        return inner;
+    }
+    let mut j = i + 1;
+    while j < bytes.len() && bytes[j] != b'>' {
+        j += 1;
+    }
+    if j >= bytes.len() {
+        return inner;
+    }
+    let insert_at = if j > 0 && bytes[j - 1] == b'/' { j - 1 } else { j };
+    let key_attr = format!(" key={{{key_ts}}}");
+    let mut out = String::with_capacity(inner.len() + key_attr.len());
+    out.push_str(&inner[..insert_at]);
+    out.push_str(&key_attr);
+    out.push_str(&inner[insert_at..]);
+    out
 }
 
 /// StyleSheet entries indexed by the keys [`class_string_to_style_key`] returns.
