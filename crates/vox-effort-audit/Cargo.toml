@@ -1,0 +1,28 @@
+[package]
+name        = "vox-effort-audit"
+version.workspace     = true
+edition.workspace     = true
+license.workspace     = true
+description = "AI-judged audit of git commit history, ranking commits by estimated agent token spend"
+
+[dependencies]
+vox-actor-runtime = { path = "../vox-actor-runtime" }
+vox-secrets       = { path = "../vox-secrets" }
+vox-telemetry     = { path = "../vox-telemetry" }
+vox-config        = { path = "../vox-config" }
+gix               = { workspace = true }
+serde             = { workspace = true, features = ["derive"] }
+serde_json        = { workspace = true }
+chrono            = { workspace = true }
+uuid              = { workspace = true, features = ["v4"] }
+tracing           = { workspace = true }
+tokio             = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
+futures           = { workspace = true }
+thiserror         = { workspace = true }
+sha2              = { workspace = true }
+regex             = { workspace = true }
+
+[dev-dependencies]
+insta             = { workspace = true, features = ["json", "yaml"] }
+tempfile          = { workspace = true }
+tokio             = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
