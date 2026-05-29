@@ -115,6 +115,7 @@ vox-project-scaffold    = { layer = 2 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
+vox-effort-audit        = { layer = 2, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
 
 
