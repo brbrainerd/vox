@@ -35,6 +35,7 @@
 
 pub mod component;
 pub mod form;
+pub mod routes;
 pub mod scaffold;
 
 use crate::codegen_ts::emitter::CodegenOptions;
@@ -144,10 +145,19 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
         files.push(("openapi.json".to_string(), openapi));
     }
 
+    // @routes — emit Expo Router file-system route tree. When routes are
+    // declared, expo-router (not App.tsx) is the app entry; the scaffold
+    // adjusts its `main` field accordingly.
+    let route_files = routes::emit_expo_router_files(&hir.client_routes);
+    let has_routes = !route_files.is_empty();
+    for (filename, content) in route_files {
+        files.push((filename, content));
+    }
+
     // Expo project scaffolding — emitted only when components exist (no point in
     // an Expo app shell otherwise) and not overwritten on subsequent builds.
     if !hir.components.is_empty() {
-        for (filename, content) in scaffold::emit_expo_scaffold(hir) {
+        for (filename, content) in scaffold::emit_expo_scaffold(hir, has_routes) {
             files.push((filename, content));
         }
     }

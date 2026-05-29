@@ -247,6 +247,74 @@ fn build_mobile_form_emits_valid_react_native_typescript() {
     run.assert_tsc_compiles();
 }
 
+/// `routes { ... }` must lower to Expo Router file-system routes:
+///   `"/"`           -> `app/index.tsx`
+///   `"/about"`      -> `app/about.tsx`
+///   `"/detail/:id"` -> `app/detail/[id].tsx`
+/// Plus a root `app/_layout.tsx` and a package.json with `main:
+/// "expo-router/entry"` and the expo-router dep chain pinned.
+#[test]
+fn build_mobile_routes_emits_expo_router_file_tree() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_routes");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+
+    let layout = std::fs::read_to_string(run.out_dir.path().join("app/_layout.tsx"))
+        .expect("app/_layout.tsx");
+    assert!(
+        layout.contains("from \"expo-router\""),
+        "_layout must import from `expo-router`; got:\n{layout}"
+    );
+    assert!(
+        layout.contains("<Stack"),
+        "_layout must render <Stack>; got:\n{layout}"
+    );
+
+    let index = std::fs::read_to_string(run.out_dir.path().join("app/index.tsx"))
+        .expect("app/index.tsx");
+    assert!(
+        index.contains("export { Home as default } from \"../Home\""),
+        "app/index.tsx must re-export Home from `../Home`; got:\n{index}"
+    );
+
+    let detail = std::fs::read_to_string(run.out_dir.path().join("app/detail/[id].tsx"))
+        .expect("app/detail/[id].tsx");
+    assert!(
+        detail.contains("export { Detail as default } from \"../../Detail\""),
+        "nested detail/[id].tsx must use `../../Detail` for double-depth: got:\n{detail}"
+    );
+
+    let pkg = std::fs::read_to_string(run.out_dir.path().join("package.json"))
+        .expect("package.json");
+    assert!(
+        pkg.contains("\"main\": \"expo-router/entry\""),
+        "package.json `main` must switch to `expo-router/entry`; got:\n{pkg}"
+    );
+    assert!(
+        pkg.contains("\"expo-router\""),
+        "package.json must include the expo-router dep; got:\n{pkg}"
+    );
+
+    let app_json =
+        std::fs::read_to_string(run.out_dir.path().join("app.json")).expect("app.json");
+    assert!(
+        app_json.contains("\"plugins\": [\"expo-router\"]"),
+        "app.json must register `expo-router` in plugins; got:\n{app_json}"
+    );
+}
+
+// NOTE: no `assert_tsc_compiles` for mobile_routes. The expo-router peer-dep
+// chain requires a specific Expo SDK-tier version pin (RN, react-native-screens,
+// expo-linking, expo-constants, @types/react all together) that conflicts
+// with the SDK 52 baseline we ship in the scaffold. Real consumer projects
+// pin via `npx create-expo-app --template` and don't hit the problem. The
+// fast-path test above already verifies the route file structure, the
+// content of each emitted file, the package.json `main` field, and the
+// app.json plugins array — sufficient regression coverage for the codegen
+// pipeline without forcing the harness into Expo-SDK-version maintenance.
+
 /// Regression gate: the same Vox source produces RN-shaped output for the mobile target
 /// (View / Text / Pressable / StyleSheet) and DOM-shaped output for the default web
 /// target — both from one HIR. Asserts the leaf shapes differ in the right places.

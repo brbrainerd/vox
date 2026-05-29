@@ -1,0 +1,18 @@
+extra_args = ["--target", "mobile"]
+emits_rust_backend = false
+required = [
+  "Home.tsx",
+  "About.tsx",
+  "Detail.tsx",
+  "app/_layout.tsx",
+  "app/index.tsx",
+  "app/about.tsx",
+  "app/detail/[id].tsx",
+  "app.json",
+  "package.json",
+]
+forbidden = [
+  # When routes are declared, expo-router owns the boot path so the legacy
+  # flat App.tsx must NOT be emitted (it would shadow expo-router/entry).
+  "App.tsx",
+]
