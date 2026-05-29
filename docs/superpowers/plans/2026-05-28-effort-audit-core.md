@@ -55,7 +55,7 @@ gix               = { workspace = true }
 serde             = { workspace = true, features = ["derive"] }
 serde_json        = { workspace = true }
 chrono            = { workspace = true }
-uuid              = { workspace = true, features = ["v7"] }
+uuid              = { workspace = true, features = ["v4", "serde"] }
 tracing           = { workspace = true }
 tokio             = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
 futures           = { workspace = true }
@@ -87,14 +87,15 @@ pub mod hybrid;
 pub mod output;
 pub mod pipeline;
 
-pub use pipeline::run;
+// `pub use pipeline::run;` is added in Task E2 once `pipeline::run` is defined.
+// Adding it here while `pipeline.rs` is still a stub causes E0432.
 ```
 
 (Each `mod` line forward-declares a module that subsequent tasks create. Compilation will fail until the modules exist — that is intentional and resolved in A4–F18.)
 
-- [ ] **Step 4: Add to workspace members**
+- [ ] **Step 4: Verify workspace `members` covers the new crate**
 
-Edit root `Cargo.toml`, locate `[workspace] members = [...]`, insert `"crates/vox-effort-audit",` in alphabetical position.
+The workspace `Cargo.toml` uses a glob: `members = ["crates/*","crates/workspace-hack"]`. This already includes `crates/vox-effort-audit/` automatically — no edit needed. Confirm by running `cargo metadata --format-version 1 | grep vox-effort-audit` and seeing the crate listed. (This applies to all future crate-scaffold tasks in this repo.)
 
 - [ ] **Step 5: Re-run the check**
 
@@ -2047,7 +2048,10 @@ pub async fn run(
     judge: Box<dyn Judge>,
     transcript_dir_override: Option<PathBuf>,
 ) -> anyhow::Result<RunSummary> {
-    let run_id = uuid::Uuid::now_v7().to_string();
+    // Workspace `uuid` is pinned to features ["v4", "serde"] — no v7. v4 is
+    // sufficient for a per-run identifier (time-ordering not required since
+    // run_started timestamp is in the manifest).
+    let run_id = uuid::Uuid::new_v4().to_string();
     let started = chrono::Utc::now();
 
     // 1. range → walk
