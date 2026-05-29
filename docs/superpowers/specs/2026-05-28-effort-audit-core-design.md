@@ -358,7 +358,7 @@ Markdown report uses `insta` snapshots (already in workspace). The fixture run i
 
 ### 9.5 Coverage floor
 
-Crate floor: 70% line coverage. Set in `crates/vox-effort-audit/Cargo.toml` `[package.metadata.vox-coverage]` per the existing `vox ci pre-push --with-coverage` infra.
+Crate floor: 70% line coverage. Set in `.config/coverage-gates.toml` under `[crates]` as `vox-effort-audit = 70.0`. This is the workspace-wide mechanism enforced by `vox ci coverage-gates` against the merged `cargo llvm-cov --workspace --json` export. 70% is plausible for a new crate with `MockJudge` covering the LLM-call code paths; if it proves unrealistic at first measurement, lower per the existing convention (cf. `vox-cli` lowered 40 → 26 on 2026-05-28) rather than gaming the threshold.
 
 ## 10. AGENTS.md additions
 
