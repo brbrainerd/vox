@@ -106,7 +106,6 @@ mod tests {
             rate_limit: None,
             pii: None,
             layer: None,
-            stream_interval: None,
             span,
         });
 
