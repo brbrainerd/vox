@@ -147,6 +147,106 @@ fn build_mobile_list_emits_valid_react_native_typescript() {
     run.assert_tsc_compiles();
 }
 
+/// `@form` must produce a pure RN form on `--target=mobile`:
+/// View / Text / TextInput / Pressable (NOT `<form>` / `<input>` / `<button>`).
+/// Same validation logic shape as the web emit — proven by asserting the same
+/// pattern in both outputs in `mobile_and_web_form_share_validation_logic`.
+#[test]
+fn build_mobile_form_produces_pure_rn_form() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_form");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+    let forms_tsx = std::fs::read_to_string(run.out_dir.path().join("forms.tsx"))
+        .expect("forms.tsx");
+    // Must use RN primitives.
+    assert!(
+        forms_tsx.contains("from \"react-native\""),
+        "mobile forms.tsx must import from `react-native`; got:\n{forms_tsx}"
+    );
+    assert!(
+        forms_tsx.contains("<TextInput") && forms_tsx.contains("<Pressable"),
+        "mobile forms.tsx must use `<TextInput>` and `<Pressable>`; got:\n{forms_tsx}"
+    );
+    assert!(
+        forms_tsx.contains("onChangeText="),
+        "mobile forms.tsx must use `onChangeText`, not `onChange`; got:\n{forms_tsx}"
+    );
+    // Must NOT use DOM tags.
+    assert!(
+        !forms_tsx.contains("<form ") && !forms_tsx.contains("<form>"),
+        "mobile forms.tsx must NOT use `<form>`; got:\n{forms_tsx}"
+    );
+    assert!(
+        !forms_tsx.contains("<input "),
+        "mobile forms.tsx must NOT use `<input>`; got:\n{forms_tsx}"
+    );
+    assert!(
+        !forms_tsx.contains("className="),
+        "mobile forms.tsx must NOT use `className` (RN ignores it); got:\n{forms_tsx}"
+    );
+    assert!(
+        !forms_tsx.contains("ev.preventDefault"),
+        "mobile forms.tsx must NOT call `preventDefault` (no synthetic events on RN); got:\n{forms_tsx}"
+    );
+    // Validation logic must use the same error-key shape as the web emit.
+    assert!(
+        forms_tsx.contains("e.name = \"Item name is required\""),
+        "validation must produce the same error key as the web emit; got:\n{forms_tsx}"
+    );
+}
+
+/// Cross-target parity: the validation function in the RN form output uses
+/// the SAME error keys + message text + shape as the web form output. Drift
+/// here would mean a Vox source produces subtly different validation across
+/// targets — exactly the split-brain bug the single-HIR design exists to prevent.
+#[test]
+fn mobile_and_web_form_share_validation_logic() {
+    init_vox_binary_once();
+    let mobile = BuildRun::run("mobile_form");
+    mobile.assert_success();
+    let web = BuildRun::run("form_basic");
+    web.assert_success();
+
+    let mobile_tsx =
+        std::fs::read_to_string(mobile.out_dir.path().join("forms.tsx")).expect("mobile forms.tsx");
+    let web_tsx =
+        std::fs::read_to_string(web.out_dir.path().join("forms.tsx")).expect("web forms.tsx");
+
+    // The required-field validation message must be identical character-for-character.
+    let validation_line = "if (name === undefined || name === null || name === \"\") e.name = \"Item name is required\"";
+    assert!(
+        mobile_tsx.contains(validation_line),
+        "mobile validation must contain `{validation_line}`; got:\n{mobile_tsx}"
+    );
+    assert!(
+        web_tsx.contains(validation_line),
+        "web validation must contain `{validation_line}`; got:\n{web_tsx}"
+    );
+
+    // The submit call shape must be identical (single-arg object with field names).
+    let submit_call = "await submit_item({ name })";
+    assert!(
+        mobile_tsx.contains(submit_call),
+        "mobile submit must call `{submit_call}`; got:\n{mobile_tsx}"
+    );
+    assert!(
+        web_tsx.contains(submit_call),
+        "web submit must call `{submit_call}`; got:\n{web_tsx}"
+    );
+}
+
+/// Heavy gate for the form fixture.
+#[test]
+fn build_mobile_form_emits_valid_react_native_typescript() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_form");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_tsc_compiles();
+}
+
 /// Regression gate: the same Vox source produces RN-shaped output for the mobile target
 /// (View / Text / Pressable / StyleSheet) and DOM-shaped output for the default web
 /// target — both from one HIR. Asserts the leaf shapes differ in the right places.
