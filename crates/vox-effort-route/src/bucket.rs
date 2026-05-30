@@ -18,15 +18,30 @@ pub struct Bucket {
 
 /// Derive the owning crate from a finding's evidence pointers (preferred) or
 /// shape histogram (fallback). Returns "<workspace-root>" when no crate path found.
+///
+/// Per spec §3 step 2, this is the crate owning the **plurality** of the
+/// finding's touched paths (evidence pointers), not merely the first one. Ties
+/// break deterministically by lexicographically-smallest crate name so the
+/// bucket key is stable across runs.
 pub fn primary_crate(f: &LoadedFinding) -> String {
-    let finding = f.row.finding.as_ref();
-    if let Some(finding) = finding {
-        for ptr in &finding.evidence_pointers {
-            if let Some(c) = crate_from_path(ptr) { return c; }
+    let Some(finding) = f.row.finding.as_ref() else {
+        return "<workspace-root>".to_string();
+    };
+    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+    for ptr in &finding.evidence_pointers {
+        if let Some(c) = crate_from_path(ptr) {
+            *counts.entry(c).or_insert(0) += 1;
         }
     }
-    // Fallback: nothing usable.
-    "<workspace-root>".to_string()
+    // Plurality; deterministic tie-break by smallest name (BTreeMap iterates
+    // keys in sorted order, so the first max-count entry is the smallest name).
+    counts
+        .into_iter()
+        .max_by(|(a_name, a_n), (b_name, b_n)| {
+            a_n.cmp(b_n).then_with(|| b_name.cmp(a_name)) // higher count wins; on tie, smaller name wins
+        })
+        .map(|(name, _)| name)
+        .unwrap_or_else(|| "<workspace-root>".to_string())
 }
 
 fn crate_from_path(path: &str) -> Option<String> {
@@ -149,5 +164,51 @@ mod tests {
             .expect("ScriptAutomation bucket present");
         assert_eq!(merged.members.len(), 2);
         assert_eq!(merged.key.primary_crate, "vox-config");
+    }
+
+    /// Build a LoadedFinding with multiple evidence pointers.
+    fn loaded_multi(sha: &str, evidence: &[&str]) -> LoadedFinding {
+        let mut f = loaded(
+            sha,
+            WasteCategory::MechanicalSweep,
+            RemediationKind::ScriptAutomation,
+            evidence.first().copied().unwrap_or(""),
+        );
+        f.row.finding.as_mut().unwrap().evidence_pointers =
+            evidence.iter().map(|e| (*e).to_string()).collect();
+        f
+    }
+
+    #[test]
+    fn primary_crate_picks_plurality_not_first() {
+        // First pointer is vox-config, but vox-actor-runtime owns the plurality (2 of 3).
+        let f = loaded_multi(
+            "abc",
+            &[
+                "crates/vox-config/src/timeouts.rs:8",
+                "crates/vox-actor-runtime/src/llm.rs:3",
+                "crates/vox-actor-runtime/src/embed.rs:9",
+            ],
+        );
+        assert_eq!(primary_crate(&f), "vox-actor-runtime");
+    }
+
+    #[test]
+    fn primary_crate_tie_breaks_by_smallest_name() {
+        // One pointer each → tie; lexicographically smallest crate name wins.
+        let f = loaded_multi(
+            "abc",
+            &[
+                "crates/vox-zzz/src/a.rs:1",
+                "crates/vox-aaa/src/b.rs:1",
+            ],
+        );
+        assert_eq!(primary_crate(&f), "vox-aaa");
+    }
+
+    #[test]
+    fn primary_crate_workspace_root_when_no_crate_path() {
+        let f = loaded_multi("abc", &["README.md", "docs/x.md"]);
+        assert_eq!(primary_crate(&f), "<workspace-root>");
     }
 }
