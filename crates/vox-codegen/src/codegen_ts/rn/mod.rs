@@ -63,11 +63,16 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
     // fns it actually uses (same sets the web reactive emit derives).
     let known_components: std::collections::HashSet<String> =
         hir.components.iter().map(|c| c.name.clone()).collect();
-    let endpoint_names: std::collections::HashSet<String> =
-        hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
+    // name → ordered param names; keys are the endpoint-import set, values drive
+    // the positional→named-object endpoint-call rewrite (see EmitCtx).
+    let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
+        .endpoint_fns
+        .iter()
+        .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+        .collect();
     for rc in &hir.components {
         let (filename, content) =
-            component::emit_rn_component(rc, &known_components, &endpoint_names, &mut diagnostics);
+            component::emit_rn_component(rc, &known_components, &endpoint_params, &mut diagnostics);
         files.push((filename, content));
     }
 

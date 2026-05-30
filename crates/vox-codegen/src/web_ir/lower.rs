@@ -92,6 +92,10 @@ fn reactive_component_name_set_for_web_ir(
 struct DomArena {
     nodes: Vec<DomNode>,
     expr_fallback_count: usize,
+    /// name → ordered param names for `@query`/`@mutation`/`@server` fns.
+    /// Drives the positional→named-object rewrite of endpoint calls in handler
+    /// attributes (parity with the RN emit); see `EmitCtx::endpoint_params`.
+    endpoint_params: std::collections::HashMap<String, Vec<String>>,
 }
 
 impl DomArena {
@@ -99,6 +103,7 @@ impl DomArena {
         Self {
             nodes: Vec::new(),
             expr_fallback_count: 0,
+            endpoint_params: std::collections::HashMap::new(),
         }
     }
 
@@ -164,7 +169,7 @@ impl DomArena {
     ) -> DomNodeId {
         // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list (parity with hir_emit).
         let (tag, attrs) =
-            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
+            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names, &self.endpoint_params);
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
@@ -186,7 +191,7 @@ impl DomArena {
         async_fn_names: &HashSet<String>,
     ) -> DomNodeId {
         let (tag, attrs) =
-            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
+            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names, &self.endpoint_params);
         self.push(DomNode::Element {
             id: DomNodeId(0),
             tag,
@@ -204,6 +209,7 @@ fn fold_primitive_web_ir_element(
     hir_attrs: &[HirJsxAttr],
     state_names: &HashSet<String>,
     async_fn_names: &HashSet<String>,
+    endpoint_params: &std::collections::HashMap<String, Vec<String>>,
 ) -> (String, Vec<(String, String)>) {
     let view = transform_hir_view_kwargs(tag, hir_attrs, &EmitCtx::new(state_names));
     let mut attrs: Vec<(String, String)> = Vec::new();
@@ -215,7 +221,12 @@ fn fold_primitive_web_ir_element(
         attrs.push(("style".to_string(), format!("{{ {style_props} }}")));
     }
     for attr in &view.passthrough {
-        attrs.extend(lower_jsx_attr_pair(attr, state_names, async_fn_names));
+        attrs.extend(lower_jsx_attr_pair(
+            attr,
+            state_names,
+            async_fn_names,
+            endpoint_params,
+        ));
     }
     let attrs = inject_primitive_dom_markers(tag, hir_attrs, attrs);
     (view.html_tag, attrs)
@@ -323,9 +334,11 @@ fn lower_jsx_attr_pair(
     attr: &HirJsxAttr,
     state_names: &HashSet<String>,
     async_fn_names: &HashSet<String>,
+    endpoint_params: &std::collections::HashMap<String, Vec<String>>,
 ) -> Vec<(String, String)> {
     if attr.name == "bind" {
-        let ctx = EmitCtx::with_async(state_names, async_fn_names);
+        let ctx =
+            EmitCtx::with_async_and_endpoints(state_names, async_fn_names, endpoint_params);
         let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, &ctx);
         return vec![
             ("value".to_string(), value_str),
@@ -335,7 +348,9 @@ fn lower_jsx_attr_pair(
     let name = map_jsx_attr_name(&attr.name).to_string();
     // Thread async_fn_names so event-handler attributes (onClick, onChange, …) correctly
     // emit `await` for calls to @endpoint functions, preventing TS2345 (Promise<T> vs T).
-    let ctx = EmitCtx::with_async(state_names, async_fn_names);
+    // `endpoint_params` additionally rewrites positional endpoint calls to the
+    // named-object form `vox-client` expects (parity with the RN emit).
+    let ctx = EmitCtx::with_async_and_endpoints(state_names, async_fn_names, endpoint_params);
     let val = emit_hir_expr_attr_value(&attr.value, &ctx, &name);
     vec![(name, val)]
 }
@@ -642,6 +657,11 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     lower_styles_from_classic_components(hir, &mut m, &mut summary);
 
     let mut arena = DomArena::new();
+    arena.endpoint_params = hir
+        .endpoint_fns
+        .iter()
+        .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+        .collect();
 
     // Stage B + D — Path C reactive components
     summary.components = hir.components.len();

@@ -16,7 +16,7 @@ pub mod compat;
 mod state_deps;
 
 use async_walker::stmt_has_async_call;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use vox_compiler::hir::*;
 
@@ -25,6 +25,7 @@ pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_l
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
 
 static EMPTY_ASYNC_FNS: OnceLock<HashSet<String>> = OnceLock::new();
+static EMPTY_ENDPOINT_PARAMS: OnceLock<HashMap<String, Vec<String>>> = OnceLock::new();
 static BUILTIN_REGISTRY: OnceLock<BuiltinRegistry> = OnceLock::new();
 
 fn registry() -> &'static BuiltinRegistry {
@@ -36,10 +37,18 @@ fn registry() -> &'static BuiltinRegistry {
 /// `state_names` drives `set_x()` rewriting for reactive state. `async_fn_names` holds the names
 /// of `@endpoint` functions whose call sites should receive `await` (only meaningful in event-
 /// handler bodies where the handler arrow will be emitted as `async`).
+///
+/// `endpoint_params` maps each `@query`/`@mutation`/`@server` fn name to its ordered parameter
+/// names. The generated `vox-client.ts` exposes these fns as taking a single named-args object
+/// (`record_event({ event_kind, payload_json, ... })`); when this map is populated, a positional
+/// call to such a fn (`record_event("mood", ...)`) is rewritten to that object form so the call
+/// site matches the client signature. Empty in non-handler/non-component contexts, where bare
+/// positional emit is retained.
 #[derive(Clone)]
 pub struct EmitCtx<'a> {
     pub state_names: &'a HashSet<String>,
     pub async_fn_names: &'a HashSet<String>,
+    pub endpoint_params: &'a HashMap<String, Vec<String>>,
 }
 
 impl<'a> EmitCtx<'a> {
@@ -48,6 +57,7 @@ impl<'a> EmitCtx<'a> {
         Self {
             state_names,
             async_fn_names: EMPTY_ASYNC_FNS.get_or_init(HashSet::new),
+            endpoint_params: EMPTY_ENDPOINT_PARAMS.get_or_init(HashMap::new),
         }
     }
 
@@ -59,6 +69,36 @@ impl<'a> EmitCtx<'a> {
         Self {
             state_names,
             async_fn_names,
+            endpoint_params: EMPTY_ENDPOINT_PARAMS.get_or_init(HashMap::new),
+        }
+    }
+
+    /// Non-handler context (state inits, effects, on-mount) that still knows
+    /// endpoint parameter names, so a multi-arg endpoint call outside a handler
+    /// is rewritten to the named-object form. No `await` is added (that's the
+    /// handler context's job).
+    pub fn with_endpoints(
+        state_names: &'a HashSet<String>,
+        endpoint_params: &'a HashMap<String, Vec<String>>,
+    ) -> Self {
+        Self {
+            state_names,
+            async_fn_names: EMPTY_ASYNC_FNS.get_or_init(HashSet::new),
+            endpoint_params,
+        }
+    }
+
+    /// Handler context that also knows endpoint parameter names, enabling the
+    /// positional→named-object rewrite for `vox-client` endpoint calls.
+    pub fn with_async_and_endpoints(
+        state_names: &'a HashSet<String>,
+        async_fn_names: &'a HashSet<String>,
+        endpoint_params: &'a HashMap<String, Vec<String>>,
+    ) -> Self {
+        Self {
+            state_names,
+            async_fn_names,
+            endpoint_params,
         }
     }
 }
@@ -230,7 +270,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 return inline;
             }
             // Non-handler blocks: use a plain ctx (no async promotion for IIFEs).
-            let plain_ctx = EmitCtx::new(ctx.state_names);
+            let plain_ctx = EmitCtx::with_endpoints(ctx.state_names, ctx.endpoint_params);
             let mut out = String::new();
             out.push_str("(() => {\n");
             for stmt in stmts {
@@ -336,6 +376,27 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                         return format!("await {call_expr}");
                     }
                     return call_expr;
+                }
+                // Endpoint fns are exposed by `vox-client.ts` as taking a single
+                // named-args object. Rewrite a positional call to that object
+                // form so the call site matches the generated client signature.
+                // Only when the fn has ≥1 param (zero-arg endpoints stay bare)
+                // and the args aren't already a single object literal.
+                if let Some(params) = ctx.endpoint_params.get(name) {
+                    let already_object = args.len() == 1
+                        && matches!(args[0].value, HirExpr::ObjectLit(_, _));
+                    if !params.is_empty() && !already_object {
+                        let fields: Vec<String> = params
+                            .iter()
+                            .zip(args_str.iter())
+                            .map(|(p, a)| format!("{p}: {a}"))
+                            .collect();
+                        let call_expr = format!("{name}({{ {} }})", fields.join(", "));
+                        if ctx.async_fn_names.contains(name.as_str()) {
+                            return format!("await {call_expr}");
+                        }
+                        return call_expr;
+                    }
                 }
                 let callee_str = map_vox_react_hook_callee(name).to_string();
                 let call_expr = format!("{callee_str}({})", args_str.join(", "));
@@ -487,7 +548,11 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
         }
         HirExpr::Lambda(params, _, body, _, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            let lambda_ctx = EmitCtx::new(ctx.state_names); // strip async context — lambda has its own scope
+            // Strip async context — the lambda has its own scope — but keep
+            // `endpoint_params` so endpoint calls inside an event-handler lambda
+            // (the common case: `onPress={() => { record_event(...) }}`) are
+            // still rewritten to the named-object form `vox-client` expects.
+            let lambda_ctx = EmitCtx::with_endpoints(ctx.state_names, ctx.endpoint_params);
             let b = emit_hir_expr(body, &lambda_ctx);
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
@@ -641,7 +706,7 @@ pub(crate) fn emit_hir_expr_attr_value(
             let handler_ctx = if needs_async {
                 ctx.clone()
             } else {
-                EmitCtx::new(ctx.state_names)
+                EmitCtx::with_endpoints(ctx.state_names, ctx.endpoint_params)
             };
             let stmts_str = stmts
                 .iter()

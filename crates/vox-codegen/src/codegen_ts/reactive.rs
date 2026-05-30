@@ -1011,8 +1011,17 @@ pub fn generate_reactive_component(
 
     // §1.A.2: build an emit context that threads endpoint (async) fn names into handler emission,
     // so calls to @endpoint fns inside onClick/onChange etc. receive `await`.
-    let plain_ctx = EmitCtx::new(&state_names);
-    let view_ctx = EmitCtx::with_async(&state_names, &endpoint_names);
+    // `endpoint_params` additionally drives the positional→named-object call
+    // rewrite (vox-client endpoint fns take a single args object); shared with
+    // the RN emit via `EmitCtx`.
+    let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
+        .endpoint_fns
+        .iter()
+        .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+        .collect();
+    let plain_ctx = EmitCtx::with_endpoints(&state_names, &endpoint_params);
+    let view_ctx =
+        EmitCtx::with_async_and_endpoints(&state_names, &endpoint_names, &endpoint_params);
 
     for member in &rc.members {
         match member {

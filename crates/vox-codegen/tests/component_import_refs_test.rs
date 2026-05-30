@@ -67,6 +67,59 @@ component Page() {
 }
 
 #[test]
+fn multi_arg_endpoint_call_is_rewritten_to_named_object() {
+    // `vox-client.ts` exposes endpoint fns as taking a single named-args object.
+    // A positional call in a handler must be rewritten to that object form so
+    // the call site matches the client signature (otherwise `args.field` is
+    // undefined at runtime).
+    let src = r#"
+@mutation fn record_event(kind: str, payload: str) to Result[str] { return Ok("x") }
+
+component Logger() {
+    view: column {
+        button(on_click={fn() {
+            let _ = record_event("mood", "{}")
+        }}) {
+            "Log"
+        }
+    }
+}
+"#;
+    let ts = emit(src);
+    assert!(
+        ts.contains("record_event({ kind: \"mood\", payload: \"{}\" })"),
+        "positional endpoint call must become a named-args object; got:\n{ts}"
+    );
+    assert!(
+        !ts.contains("record_event(\"mood\", \"{}\")"),
+        "positional form must NOT survive; got:\n{ts}"
+    );
+}
+
+#[test]
+fn zero_arg_endpoint_call_stays_bare() {
+    // Zero-param endpoint fns take no args object — a bare call is correct and
+    // must not be wrapped into `f({})`.
+    let src = r#"
+@query fn refresh() to int { return 0 }
+
+component Panel() {
+    state n: int = 0
+    on mount: {
+        n = refresh()
+    }
+    view: column { text { "n" } }
+}
+"#;
+    let ts = emit(src);
+    assert!(ts.contains("refresh()"), "zero-arg call must stay bare; got:\n{ts}");
+    assert!(
+        !ts.contains("refresh({"),
+        "zero-arg endpoint must not gain an args object; got:\n{ts}"
+    );
+}
+
+#[test]
 fn no_spurious_self_import() {
     // A component that references only itself-shaped tags must not import itself.
     let src = r#"

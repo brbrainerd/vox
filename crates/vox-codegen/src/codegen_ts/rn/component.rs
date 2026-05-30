@@ -11,7 +11,7 @@
 //! This module reverses that, mapping back to platform-native equivalents.
 //! The single source of truth — the HIR — never changes between targets.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use vox_compiler::hir::{HirExpr, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember, HirStmt};
 
 use crate::web_ir::WebIrDiagnostic;
@@ -146,22 +146,35 @@ fn extract_class_tokens(attr_value: &HirExpr) -> Vec<String> {
 /// `{...}` braces in JSX. Reuses the shared HIR → TS expression lowering so the
 /// two emit targets cannot diverge on expression-level syntax (split-brain
 /// protection: both targets call the SAME `emit_hir_expr`).
-fn emit_hir_expr_inline_with_state(expr: &HirExpr, state_names: &HashSet<String>) -> String {
-    let ctx = crate::codegen_ts::hir_emit::EmitCtx::new(state_names);
+fn emit_hir_expr_inline_with_state(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
+) -> String {
+    // `with_endpoints` (not `new`) so positional endpoint calls
+    // (`record_event("mood", ...)`) are rewritten to the named-object form
+    // (`record_event({ event_kind: "mood", ... })`) that `vox-client.ts`
+    // expects — same rewrite the web reactive emit performs.
+    let ctx = crate::codegen_ts::hir_emit::EmitCtx::with_endpoints(state_names, endpoint_params);
     crate::codegen_ts::hir_emit::emit_hir_expr(expr, &ctx)
 }
 
 fn emit_hir_expr_inline(expr: &HirExpr) -> String {
     let empty_states: HashSet<String> = HashSet::new();
-    emit_hir_expr_inline_with_state(expr, &empty_states)
+    let empty_endpoints: HashMap<String, Vec<String>> = HashMap::new();
+    emit_hir_expr_inline_with_state(expr, &empty_states, &empty_endpoints)
 }
 
 /// Emit an event handler — produces a clean arrow lambda for the JSX
 /// `onPress={...}` attribute. State assignments (`n = n + 1`) inside the
 /// body are rewritten to setter calls (`set_n(n + 1)`) by the shared HIR
 /// emit when the variable appears in `state_names`.
-fn emit_event_handler_with_state(expr: &HirExpr, state_names: &HashSet<String>) -> String {
-    let body = emit_hir_expr_inline_with_state(expr, state_names);
+fn emit_event_handler_with_state(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
+) -> String {
+    let body = emit_hir_expr_inline_with_state(expr, state_names, endpoint_params);
     extract_or_wrap_arrow(&body).into_owned()
 }
 
@@ -238,6 +251,7 @@ fn extract_int_literal(expr: &HirExpr) -> Option<i64> {
 fn jsx_to_rn(
     el: &HirJsxElement,
     state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> RnNode {
     let class_tokens_owned = attr_value(&el.attributes, "className")
@@ -250,12 +264,12 @@ fn jsx_to_rn(
     // depending on which lowering produced the HIR, either may appear.
     let handler_attr = attr_value(&el.attributes, "on_click")
         .or_else(|| attr_value(&el.attributes, "onClick"));
-    let on_press = handler_attr.map(|h| emit_event_handler_with_state(h, state_names));
+    let on_press = handler_attr.map(|h| emit_event_handler_with_state(h, state_names, endpoint_params));
 
     let children: Vec<RnNode> = el
         .children
         .iter()
-        .map(|c| hir_view_child_to_rn(c, state_names, diagnostics))
+        .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics))
         .collect();
 
     match el.tag.as_str() {
@@ -333,7 +347,7 @@ fn jsx_to_rn(
             value_ts: attr_value(&el.attributes, "value").map(emit_hir_expr_inline),
             on_change_ts: attr_value(&el.attributes, "on_change")
                 .or_else(|| attr_value(&el.attributes, "onChange"))
-                .map(|h| emit_event_handler_with_state(h, state_names)),
+                .map(|h| emit_event_handler_with_state(h, state_names, endpoint_params)),
             placeholder_ts: attr_value(&el.attributes, "placeholder").map(emit_hir_expr_inline),
         },
 
@@ -348,7 +362,12 @@ fn jsx_to_rn(
                     .attributes
                     .iter()
                     .filter(|a| a.name != "className") // className handled via style_key on built-ins; not for custom
-                    .map(|a| (a.name.clone(), emit_hir_expr_inline_with_state(&a.value, state_names)))
+                    .map(|a| {
+                        (
+                            a.name.clone(),
+                            emit_hir_expr_inline_with_state(&a.value, state_names, endpoint_params),
+                        )
+                    })
                     .collect();
                 return RnNode::CustomComponent {
                     tag_name: other.to_string(),
@@ -376,10 +395,11 @@ fn jsx_to_rn(
 fn hir_view_child_to_rn(
     child: &HirExpr,
     state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> RnNode {
     match child {
-        HirExpr::Jsx(el) => jsx_to_rn(el, state_names, diagnostics),
+        HirExpr::Jsx(el) => jsx_to_rn(el, state_names, endpoint_params, diagnostics),
         HirExpr::JsxSelfClosing(sc) => jsx_to_rn(
             &HirJsxElement {
                 tag: sc.tag.clone(),
@@ -388,13 +408,14 @@ fn hir_view_child_to_rn(
                 span: sc.span,
             },
             state_names,
+            endpoint_params,
             diagnostics,
         ),
         HirExpr::JsxFragment(children, _) => RnNode::View {
             style_key: None,
             children: children
                 .iter()
-                .map(|c| hir_view_child_to_rn(c, state_names, diagnostics))
+                .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics))
                 .collect(),
         },
         // VUV `for item, i in items key=item.id { <body> }` — recurse so the body
@@ -402,23 +423,31 @@ fn hir_view_child_to_rn(
         // Without this, the shared emit would produce `<div>` / `<p>` inside an
         // RN tree (split-brain bug).
         HirExpr::For(item, index, iter, body, key, _) => {
-            let iterator_ts = emit_hir_expr_inline_with_state(iter, state_names);
+            let iterator_ts = emit_hir_expr_inline_with_state(iter, state_names, endpoint_params);
             let key_ts = key
                 .as_ref()
-                .map(|k| emit_hir_expr_inline_with_state(k, state_names));
+                .map(|k| emit_hir_expr_inline_with_state(k, state_names, endpoint_params));
             // The body is either a single JSX element or a Block of statements.
             // Both are recursively walked so every child renders in RN form.
             let body_nodes = match body.as_ref() {
                 HirExpr::Block(stmts, _) => stmts
                     .iter()
                     .filter_map(|s| match s {
-                        HirStmt::Expr { expr, .. } => {
-                            Some(hir_view_child_to_rn(expr, state_names, diagnostics))
-                        }
+                        HirStmt::Expr { expr, .. } => Some(hir_view_child_to_rn(
+                            expr,
+                            state_names,
+                            endpoint_params,
+                            diagnostics,
+                        )),
                         _ => None,
                     })
                     .collect(),
-                other => vec![hir_view_child_to_rn(other, state_names, diagnostics)],
+                other => vec![hir_view_child_to_rn(
+                    other,
+                    state_names,
+                    endpoint_params,
+                    diagnostics,
+                )],
             };
             RnNode::Loop {
                 iterator_ts,
@@ -429,7 +458,11 @@ fn hir_view_child_to_rn(
             }
         }
         HirExpr::StringLit(s, _) => RnNode::StringLit(s.clone()),
-        other => RnNode::Expr(emit_hir_expr_inline_with_state(other, state_names)),
+        other => RnNode::Expr(emit_hir_expr_inline_with_state(
+            other,
+            state_names,
+            endpoint_params,
+        )),
     }
 }
 
@@ -859,19 +892,21 @@ fn emit_prelude(members: &[HirReactiveMember]) -> String {
 /// Emit a single component file.
 ///
 /// `known_components` is the set of all `component` names in the module and
-/// `endpoint_names` the set of all `@query`/`@mutation`/`@server` fn names —
-/// both used to emit cross-file `import` statements for the symbols this
-/// component references (sibling components from `./Name`, endpoint fns from
-/// `./vox-client`). These mirror the web reactive emit exactly, so the two
-/// targets stay in lockstep on what a component pulls in.
+/// `endpoint_params` maps each `@query`/`@mutation`/`@server` fn name to its
+/// ordered parameter names. The keys drive cross-file `import` statements
+/// (sibling components from `./Name`, endpoint fns from `./vox-client`); the
+/// values drive the positional→named-object rewrite for endpoint calls inside
+/// handlers. Both mirror the web reactive emit exactly, so the two targets
+/// stay in lockstep on what a component pulls in and how it calls endpoints.
 pub fn emit_rn_component(
     rc: &HirReactiveComponent,
     known_components: &HashSet<String>,
-    endpoint_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> (String, String) {
     use crate::codegen_ts::reactive::collect_component_import_refs;
 
+    let endpoint_names: HashSet<String> = endpoint_params.keys().cloned().collect();
     let mut out = String::new();
     let hooks = detect_react_hooks(&rc.members, rc.view.as_ref());
 
@@ -898,7 +933,7 @@ pub fn emit_rn_component(
     // collected anywhere in the view or member bodies. Shared with the web
     // reactive emit via `collect_component_import_refs` so both targets agree.
     let (comp_refs, endpoint_refs) =
-        collect_component_import_refs(rc, known_components, endpoint_names);
+        collect_component_import_refs(rc, known_components, &endpoint_names);
     for comp in &comp_refs {
         out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
     }
@@ -978,7 +1013,7 @@ pub fn emit_rn_component(
         })
         .collect();
 
-    let rn_root = hir_view_child_to_rn(view_root, &state_names, diagnostics);
+    let rn_root = hir_view_child_to_rn(view_root, &state_names, endpoint_params, diagnostics);
     let mut used_styles = std::collections::BTreeSet::new();
     collect_used_styles(&rn_root, &mut used_styles);
 
