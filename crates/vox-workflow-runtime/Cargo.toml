@@ -25,6 +25,7 @@ vox-compiler = { workspace = true }
 vox-db = { workspace = true }
 vox-populi = { workspace = true, optional = true }
 vox-runtime = { path = "../vox-runtime" }
+vox-journal = { path = "../vox-journal" }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]

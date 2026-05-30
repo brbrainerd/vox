@@ -67,10 +67,17 @@ interface NativeModuleInterface {
     ubrn_ffi_vox_runtime_rn_rust_future_cancel_void(handle: bigint): void;
     ubrn_ffi_vox_runtime_rn_rust_future_complete_void(handle: bigint, uniffi_out_err: UniffiRustCallStatus): void;
     ubrn_ffi_vox_runtime_rn_rust_future_free_void(handle: bigint): void;
+    ubrn_uniffi_vox_runtime_rn_fn_clone_filejournalhandle(ptr: bigint, uniffi_out_err: UniffiRustCallStatus): bigint;
+    ubrn_uniffi_vox_runtime_rn_fn_free_filejournalhandle(ptr: bigint, uniffi_out_err: UniffiRustCallStatus): void;
     ubrn_uniffi_vox_runtime_rn_fn_clone_voxruntimehandle(ptr: bigint, uniffi_out_err: UniffiRustCallStatus): bigint;
     ubrn_uniffi_vox_runtime_rn_fn_free_voxruntimehandle(ptr: bigint, uniffi_out_err: UniffiRustCallStatus): void;
     ubrn_uniffi_vox_runtime_rn_fn_func_default_desktop_config(uniffi_out_err: UniffiRustCallStatus): Uint8Array;
     ubrn_uniffi_vox_runtime_rn_fn_func_default_mobile_config(dataDir: Uint8Array, uniffi_out_err: UniffiRustCallStatus): Uint8Array;
+    ubrn_uniffi_vox_runtime_rn_fn_func_open_file_journal(path: Uint8Array, uniffi_out_err: UniffiRustCallStatus): bigint;
+    ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_append(uniffiSelf: bigint, line: Uint8Array, uniffi_out_err: UniffiRustCallStatus): void;
+    ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_flush(uniffiSelf: bigint, uniffi_out_err: UniffiRustCallStatus): void;
+    ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_path(uniffiSelf: bigint, uniffi_out_err: UniffiRustCallStatus): Uint8Array;
+    ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_replay_all(uniffiSelf: bigint, uniffi_out_err: UniffiRustCallStatus): Uint8Array;
     ubrn_uniffi_vox_runtime_rn_fn_constructor_voxruntimehandle_new(config: Uint8Array, uniffi_out_err: UniffiRustCallStatus): bigint;
     ubrn_uniffi_vox_runtime_rn_fn_method_voxruntimehandle_data_dir(uniffiSelf: bigint, uniffi_out_err: UniffiRustCallStatus): Uint8Array;
     ubrn_uniffi_vox_runtime_rn_fn_method_voxruntimehandle_log(uniffiSelf: bigint, level: Uint8Array, message: Uint8Array, uniffi_out_err: UniffiRustCallStatus): void;
@@ -80,12 +87,18 @@ interface NativeModuleInterface {
     ubrn_ffi_vox_runtime_rn_uniffi_contract_version(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_func_default_desktop_config(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_func_default_mobile_config(): number;
+    ubrn_uniffi_vox_runtime_rn_checksum_func_open_file_journal(): number;
+    ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_append(): number;
+    ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_flush(): number;
+    ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_path(): number;
+    ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_replay_all(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_constructor_voxruntimehandle_new(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_method_voxruntimehandle_data_dir(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_method_voxruntimehandle_log(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_method_voxruntimehandle_model_dir(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_method_voxruntimehandle_profile(): number;
     ubrn_uniffi_vox_runtime_rn_checksum_method_voxruntimehandle_requires_suspend_hooks(): number;
+    ubrn_uniffi_internal_fn_method_filejournalhandle_ffi__bless_pointer(pointer: bigint, uniffi_out_err: UniffiRustCallStatus): UniffiGcObject;
     ubrn_uniffi_internal_fn_method_voxruntimehandle_ffi__bless_pointer(pointer: bigint, uniffi_out_err: UniffiRustCallStatus): UniffiGcObject;
     // Codegen call sites use these via `nativeModule().rustbuffer_alloc(...)`
     // and `nativeModule().rustbuffer_free(...)`. The JSI host object exposes

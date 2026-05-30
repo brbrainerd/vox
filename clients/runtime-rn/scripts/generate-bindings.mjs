@@ -56,21 +56,26 @@ const cppDir = join(WORKSPACE_ROOT, "target", "uniffi-bindgen-cpp-tmp");
 mkdirSync(tsDir, { recursive: true });
 mkdirSync(cppDir, { recursive: true });
 
-// 4. Run uniffi-bindgen-react-native.
-run("npx", [
-  "-y",
-  "uniffi-bindgen-react-native@latest",
-  "generate",
-  "jsi",
-  "bindings",
-  "--library",
-  "--no-format",
-  "--ts-dir",
-  tsDir,
-  "--cpp-dir",
-  cppDir,
-  libPath,
-]);
+// 4. Run uniffi-bindgen-react-native. Must run from the workspace root so
+//    its internal `cargo metadata` call finds the workspace Cargo.toml.
+run(
+  "npx",
+  [
+    "-y",
+    "uniffi-bindgen-react-native@latest",
+    "generate",
+    "jsi",
+    "bindings",
+    "--library",
+    "--no-format",
+    "--ts-dir",
+    tsDir,
+    "--cpp-dir",
+    cppDir,
+    libPath,
+  ],
+  { cwd: WORKSPACE_ROOT },
+);
 
 console.log(`\nBindings written to ${tsDir}`);
 console.log(`C++ TurboModule glue written to ${cppDir}`);

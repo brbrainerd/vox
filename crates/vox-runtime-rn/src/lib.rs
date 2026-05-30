@@ -33,6 +33,7 @@
 
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use vox_runtime::{RuntimeProfile as InnerProfile, VoxConfig as InnerConfig};
 
@@ -206,6 +207,111 @@ pub fn default_mobile_config(data_dir: String) -> VoxConfig {
     InnerConfig::mobile(std::path::PathBuf::from(data_dir)).into()
 }
 
+// ── File journal (vox-journal-backed, mobile-portable) ──────────────────
+
+/// A single JSON-encoded line carried by the file journal.
+///
+/// The payload is opaque to the runtime — uniffi-exposed callers (JS side)
+/// pass arbitrary JSON strings; vox-journal handles append + replay + fsync.
+/// Letting the payload be a string instead of an opaque `serde_json::Value`
+/// is intentional: uniffi can't transit `Value` directly across the FFI
+/// boundary, and the JS side already speaks JSON natively.
+#[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]
+pub struct JournalLine {
+    /// The JSON-encoded payload. Must parse as valid JSON; the journal
+    /// preserves the bytes verbatim across append/replay.
+    pub json: String,
+}
+
+/// File journal errors raised across the uniffi boundary.
+#[derive(Debug, Error, uniffi::Error)]
+#[uniffi(flat_error)]
+pub enum FileJournalError {
+    /// Underlying I/O failed.
+    #[error("file journal I/O error: {0}")]
+    Io(String),
+    /// The payload was not valid JSON.
+    #[error("file journal payload not valid JSON: {0}")]
+    InvalidJson(String),
+    /// Generic / wrap-around error context.
+    #[error("{0}")]
+    Other(String),
+}
+
+impl From<vox_journal::JournalError> for FileJournalError {
+    fn from(e: vox_journal::JournalError) -> Self {
+        match e {
+            vox_journal::JournalError::Io(io) => Self::Io(io.to_string()),
+            vox_journal::JournalError::Serde(s) => Self::InvalidJson(s.to_string()),
+            vox_journal::JournalError::Poisoned => {
+                Self::Other("journal writer mutex poisoned".to_string())
+            }
+        }
+    }
+}
+
+/// Live file-journal handle exposed to JS.
+///
+/// Construct via [`open_file_journal`]. Every successful `append` call
+/// fsyncs to disk before returning. `replay_all` returns every recorded
+/// line (in append order) as a list of `JournalLine`s.
+#[derive(Debug, uniffi::Object)]
+pub struct FileJournalHandle {
+    inner: vox_journal::FileJournal<serde_json::Value>,
+}
+
+#[uniffi::export]
+impl FileJournalHandle {
+    /// Append a JSON line. Returns an error if the line is not valid JSON
+    /// or if the underlying I/O fails.
+    pub fn append(&self, line: JournalLine) -> Result<(), FileJournalError> {
+        let value: serde_json::Value = serde_json::from_str(&line.json)
+            .map_err(|e| FileJournalError::InvalidJson(e.to_string()))?;
+        self.inner.append(&value).map_err(Into::into)
+    }
+
+    /// Read every recorded line back into JS, in append order.
+    pub fn replay_all(&self) -> Result<Vec<JournalLine>, FileJournalError> {
+        let entries = self.inner.replay_all().map_err(FileJournalError::from)?;
+        Ok(entries
+            .into_iter()
+            .map(|v| JournalLine {
+                json: v.to_string(),
+            })
+            .collect())
+    }
+
+    /// The on-disk path being written. Useful for `tracing` log lines on
+    /// the JS side.
+    pub fn path(&self) -> String {
+        self.inner.path().to_string_lossy().into_owned()
+    }
+
+    /// Flush + fsync any in-flight bytes. Safe to call from the OS suspend
+    /// hook; today every record-call already fsyncs so this is a defensive
+    /// no-op success.
+    pub fn flush(&self) -> Result<(), FileJournalError> {
+        use vox_runtime::{SuspendDeadline, Suspendable};
+        self.inner
+            .suspend(SuspendDeadline::mobile_default())
+            .map_err(|e| FileJournalError::Other(e.to_string()))
+    }
+}
+
+/// Open (or create) a file journal at `path`. Returns a [`FileJournalHandle`]
+/// that the JS side can keep alive for the duration of the workflow.
+///
+/// Replays any existing entries silently — the JS side calls
+/// [`FileJournalHandle::replay_all`] explicitly when it wants them.
+#[uniffi::export]
+pub fn open_file_journal(path: String) -> Result<std::sync::Arc<FileJournalHandle>, FileJournalError> {
+    let opened = vox_journal::FileJournal::<serde_json::Value>::open(path)
+        .map_err(FileJournalError::from)?;
+    Ok(std::sync::Arc::new(FileJournalHandle {
+        inner: opened.journal,
+    }))
+}
+
 uniffi::setup_scaffolding!();
 
 #[cfg(test)]
@@ -297,5 +403,72 @@ mod tests {
         assert!(format!("{e}").contains("not initialized"));
         let e = VoxRnError::Internal("oops".to_string());
         assert!(format!("{e}").contains("oops"));
+    }
+
+    fn temp_journal_path() -> String {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let pid = std::process::id();
+        std::env::temp_dir()
+            .join(format!("vox_rn_journal_test_{pid}_{n}.jsonl"))
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    #[test]
+    fn open_file_journal_round_trips_lines() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+
+        let h = open_file_journal(path.clone()).expect("open");
+        h.append(JournalLine {
+            json: "{\"entry\":1}".into(),
+        })
+        .expect("append 1");
+        h.append(JournalLine {
+            json: "{\"entry\":2}".into(),
+        })
+        .expect("append 2");
+        assert_eq!(h.path(), path);
+
+        let replayed = h.replay_all().expect("replay");
+        assert_eq!(replayed.len(), 2);
+        assert!(replayed[0].json.contains("\"entry\":1"));
+        assert!(replayed[1].json.contains("\"entry\":2"));
+
+        // Drop the handle and re-open — entries survive.
+        drop(h);
+        let h2 = open_file_journal(path.clone()).expect("re-open");
+        let replayed2 = h2.replay_all().expect("re-replay");
+        assert_eq!(replayed2.len(), 2);
+
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn open_file_journal_rejects_invalid_json_payload() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+        let h = open_file_journal(path.clone()).expect("open");
+        let err = h
+            .append(JournalLine {
+                json: "not json at all".into(),
+            })
+            .expect_err("invalid JSON must fail");
+        assert!(
+            matches!(err, FileJournalError::InvalidJson(_)),
+            "expected InvalidJson, got {err:?}"
+        );
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn flush_succeeds_on_an_open_journal_handle() {
+        let path = temp_journal_path();
+        let _ = std::fs::remove_file(&path);
+        let h = open_file_journal(path.clone()).expect("open");
+        h.flush().expect("flush");
+        std::fs::remove_file(&path).ok();
     }
 }

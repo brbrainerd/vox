@@ -14,7 +14,9 @@ name = "vox_runtime_rn"
 
 [dependencies]
 vox-runtime = { path = "../vox-runtime" }
+vox-journal = { path = "../vox-journal" }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uniffi = { version = "0.28", features = ["build", "tokio"] }

@@ -6,7 +6,7 @@
 import nativeModule from "./vox_runtime_rn-ffi";
 import { type UniffiRustFutureContinuationCallback, type UniffiForeignFutureDroppedCallback, type UniffiForeignFutureDroppedCallbackStruct,
 } from "./vox_runtime_rn-ffi";
-import { type FfiConverter, type UniffiByteArray, type UniffiGcObject, type UniffiHandle, type UniffiObjectFactory, AbstractFfiConverterByteArray, FfiConverterBool, FfiConverterInt32, FfiConverterObject, FfiConverterUInt8, RustBuffer, UniffiAbstractObject, UniffiEnum, UniffiError, UniffiInternalError, UniffiRustCaller, destructorGuardSymbol, pointerLiteralSymbol, uniffiCreateFfiConverterString, uniffiCreateRecord, uniffiTypeNameSymbol, variantOrdinalSymbol,
+import { type FfiConverter, type UniffiByteArray, type UniffiGcObject, type UniffiHandle, type UniffiObjectFactory, AbstractFfiConverterByteArray, FfiConverterArray, FfiConverterBool, FfiConverterInt32, FfiConverterObject, FfiConverterUInt8, RustBuffer, UniffiAbstractObject, UniffiEnum, UniffiError, UniffiInternalError, UniffiRustCaller, destructorGuardSymbol, pointerLiteralSymbol, uniffiCreateFfiConverterString, uniffiCreateRecord, uniffiTypeNameSymbol, variantOrdinalSymbol,
 } from "@ubjs/core";
 const uniffiCaller = new UniffiRustCaller(() => ({ code: 0 }));
 
@@ -56,6 +56,25 @@ export function defaultMobileConfig(dataDir: string): VoxConfig {
             /*caller:*/ (callStatus) => {
                 return nativeModule().ubrn_uniffi_vox_runtime_rn_fn_func_default_mobile_config(
         FfiConverterString.lower(dataDir, nativeModule().rustbuffer_alloc),
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    ));
+    }
+
+/**
+ * Open (or create) a file journal at `path`. Returns a [`FileJournalHandle`]
+ * that the JS side can keep alive for the duration of the workflow.
+ *
+ * Replays any existing entries silently — the JS side calls
+ * [`FileJournalHandle::replay_all`] explicitly when it wants them.
+ */
+export function openFileJournal(path: string): FileJournalHandleLike /*throws*/ {
+    return FfiConverterTypeFileJournalHandle.lift(uniffiCaller.rustCallWithError(
+            /*liftError:*/ FfiConverterTypeFileJournalError.lift.bind(FfiConverterTypeFileJournalError),
+            /*caller:*/ (callStatus) => {
+                return nativeModule().ubrn_uniffi_vox_runtime_rn_fn_func_open_file_journal(
+        FfiConverterString.lower(path, nativeModule().rustbuffer_alloc),
                 callStatus);
             },
             /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
@@ -113,6 +132,58 @@ const stringConverter = (() => {
     };
 })();
 const FfiConverterString = uniffiCreateFfiConverterString(stringConverter);
+
+/**
+ * A single JSON-encoded line carried by the file journal.
+ *
+ * The payload is opaque to the runtime — uniffi-exposed callers (JS side)
+ * pass arbitrary JSON strings; vox-journal handles append + replay + fsync.
+ * Letting the payload be a string instead of an opaque `serde_json::Value`
+ * is intentional: uniffi can't transit `Value` directly across the FFI
+ * boundary, and the JS side already speaks JSON natively.
+ */
+export type JournalLine = {
+    /**
+     * The JSON-encoded payload. Must parse as valid JSON; the journal
+     * preserves the bytes verbatim across append/replay.
+     */
+    json: string
+}
+
+/**
+ * Generated factory for {@link JournalLine} record objects.
+ */
+export const JournalLine = (() => {
+    const defaults = () => ({
+    });
+    const create = (() => {
+        return uniffiCreateRecord<JournalLine, ReturnType<typeof defaults>>(defaults);
+    })();
+    return Object.freeze({
+        create,
+        new: create,
+        defaults: () => Object.freeze(defaults()) as Partial<JournalLine>,
+    });
+})();
+
+const FfiConverterTypeJournalLine = (() => {
+    type TypeName = JournalLine;
+    class FFIConverter extends AbstractFfiConverterByteArray<TypeName> {
+        read(from: RustBuffer): TypeName {
+            return {
+                json: FfiConverterString.read(from)
+            };
+        }
+        write(value: TypeName, into: RustBuffer): void {
+            FfiConverterString.write(value.json, into);
+        }
+        allocationSize(value: TypeName): number {
+            return FfiConverterString.allocationSize(value.json);
+            
+        }
+    };
+    return new FFIConverter();
+})();
 
 /**
  * Runtime execution profile (uniffi-exposed mirror of
@@ -227,6 +298,152 @@ const FfiConverterTypeVoxConfig = (() => {
 })();
 
 
+// Flat error type: FileJournalError
+export enum FileJournalError_Tags {
+    Io = "Io",
+    InvalidJson = "InvalidJson",
+    Other = "Other"
+}
+/**
+ * File journal errors raised across the uniffi boundary.
+ */
+export const FileJournalError = (() => {
+    /**
+     * Underlying I/O failed.
+     */
+    class Io extends UniffiError {
+        /**
+         * @private
+         * This field is private and should not be used.
+         */
+        readonly [uniffiTypeNameSymbol]: string = "FileJournalError";
+        /**
+         * @private
+         * This field is private and should not be used.
+         */
+        readonly [variantOrdinalSymbol] = 1;
+
+        readonly tag = FileJournalError_Tags.Io;
+
+        constructor(message: string) {
+            super("FileJournalError", "Io", message);
+        }
+
+        static instanceOf(e: any): e is Io {
+            return (
+                instanceOf(e) && (e as any)[variantOrdinalSymbol] === 1
+            );
+        }
+    }
+    /**
+     * The payload was not valid JSON.
+     */
+    class InvalidJson extends UniffiError {
+        /**
+         * @private
+         * This field is private and should not be used.
+         */
+        readonly [uniffiTypeNameSymbol]: string = "FileJournalError";
+        /**
+         * @private
+         * This field is private and should not be used.
+         */
+        readonly [variantOrdinalSymbol] = 2;
+
+        readonly tag = FileJournalError_Tags.InvalidJson;
+
+        constructor(message: string) {
+            super("FileJournalError", "InvalidJson", message);
+        }
+
+        static instanceOf(e: any): e is InvalidJson {
+            return (
+                instanceOf(e) && (e as any)[variantOrdinalSymbol] === 2
+            );
+        }
+    }
+    /**
+     * Generic / wrap-around error context.
+     */
+    class Other extends UniffiError {
+        /**
+         * @private
+         * This field is private and should not be used.
+         */
+        readonly [uniffiTypeNameSymbol]: string = "FileJournalError";
+        /**
+         * @private
+         * This field is private and should not be used.
+         */
+        readonly [variantOrdinalSymbol] = 3;
+
+        readonly tag = FileJournalError_Tags.Other;
+
+        constructor(message: string) {
+            super("FileJournalError", "Other", message);
+        }
+
+        static instanceOf(e: any): e is Other {
+            return (
+                instanceOf(e) && (e as any)[variantOrdinalSymbol] === 3
+            );
+        }
+    }
+
+    // Utility function which does not rely on instanceof.
+    function instanceOf(e: any): e is FileJournalError {
+        return (e as any)[uniffiTypeNameSymbol] === "FileJournalError";
+    }
+    return {
+        Io,
+        InvalidJson,
+        Other,
+        instanceOf,
+    };
+})();
+
+// Union type for FileJournalError error type.
+/**
+ * File journal errors raised across the uniffi boundary.
+ */
+export type FileJournalError = InstanceType<
+    typeof FileJournalError['Io' | 'InvalidJson' | 'Other']
+>;
+
+const FfiConverterTypeFileJournalError = (() => {
+    const intConverter = FfiConverterInt32;
+    type TypeName = FileJournalError;
+    class FfiConverter extends AbstractFfiConverterByteArray<TypeName> {
+        read(from: RustBuffer): TypeName {
+            switch (intConverter.read(from)) {
+                case 1: return new FileJournalError.Io(
+                    FfiConverterString.read(from)
+                );
+            
+                case 2: return new FileJournalError.InvalidJson(
+                    FfiConverterString.read(from)
+                );
+            
+                case 3: return new FileJournalError.Other(
+                    FfiConverterString.read(from)
+                );
+            
+                default: throw new UniffiInternalError.UnexpectedEnumCase();
+            }
+        }
+        write(value: TypeName, into: RustBuffer): void {
+            const obj = value as any;
+            const index = obj[variantOrdinalSymbol] as number;
+            intConverter.write(index, into);
+        }
+        allocationSize(value: TypeName): number {
+            return intConverter.allocationSize(0);
+        }
+    }
+    return new FfiConverter();
+})();
+
+
 // Flat error type: VoxRnError
 export enum VoxRnError_Tags {
     NotInitialized = "NotInitialized",
@@ -338,6 +555,206 @@ const FfiConverterTypeVoxRnError = (() => {
     }
     return new FfiConverter();
 })();
+
+/**
+ * Live file-journal handle exposed to JS.
+ *
+ * Construct via [`open_file_journal`]. Every successful `append` call
+ * fsyncs to disk before returning. `replay_all` returns every recorded
+ * line (in append order) as a list of `JournalLine`s.
+ */
+export interface FileJournalHandleLike {
+    
+/**
+ * Append a JSON line. Returns an error if the line is not valid JSON
+ * or if the underlying I/O fails.
+ */
+    append(line: JournalLine) /*throws*/: void;
+/**
+ * Flush + fsync any in-flight bytes. Safe to call from the OS suspend
+ * hook; today every record-call already fsyncs so this is a defensive
+ * no-op success.
+ */
+    flush() /*throws*/: void;
+/**
+ * The on-disk path being written. Useful for `tracing` log lines on
+ * the JS side.
+ */
+    path(): string;
+/**
+ * Read every recorded line back into JS, in append order.
+ */
+    replayAll() /*throws*/: Array<JournalLine>;
+}
+/**
+ * @deprecated Use `FileJournalHandleLike` instead.
+ */
+export type FileJournalHandleInterface = FileJournalHandleLike;
+
+
+/**
+ * Live file-journal handle exposed to JS.
+ *
+ * Construct via [`open_file_journal`]. Every successful `append` call
+ * fsyncs to disk before returning. `replay_all` returns every recorded
+ * line (in append order) as a list of `JournalLine`s.
+ */
+export class FileJournalHandle extends UniffiAbstractObject implements FileJournalHandleLike {
+
+    readonly [uniffiTypeNameSymbol] = "FileJournalHandle";
+    readonly [destructorGuardSymbol]: UniffiGcObject;
+    readonly [pointerLiteralSymbol]: UniffiHandle;
+    // No primary constructor declared for this class.
+private constructor(pointer: UniffiHandle) {
+    super();
+    this[pointerLiteralSymbol] = pointer;
+    this[destructorGuardSymbol] = uniffiTypeFileJournalHandleObjectFactory.bless(pointer);
+}
+
+    
+
+    
+/**
+ * Append a JSON line. Returns an error if the line is not valid JSON
+ * or if the underlying I/O fails.
+ */
+    append(line: JournalLine): void /*throws*/ {uniffiCaller.rustCallWithError(
+            /*liftError:*/ FfiConverterTypeFileJournalError.lift.bind(FfiConverterTypeFileJournalError),
+            /*caller:*/ (callStatus) => { nativeModule().ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_append(
+                uniffiTypeFileJournalHandleObjectFactory.clonePointer(this),
+        FfiConverterTypeJournalLine.lower(line, nativeModule().rustbuffer_alloc),
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    }
+    
+/**
+ * Flush + fsync any in-flight bytes. Safe to call from the OS suspend
+ * hook; today every record-call already fsyncs so this is a defensive
+ * no-op success.
+ */
+    flush(): void /*throws*/ {uniffiCaller.rustCallWithError(
+            /*liftError:*/ FfiConverterTypeFileJournalError.lift.bind(FfiConverterTypeFileJournalError),
+            /*caller:*/ (callStatus) => { nativeModule().ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_flush(
+                uniffiTypeFileJournalHandleObjectFactory.clonePointer(this),
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    );
+    }
+    
+/**
+ * The on-disk path being written. Useful for `tracing` log lines on
+ * the JS side.
+ */
+    path(): string {
+    return ((__rb: Uint8Array) => {
+        try {
+            return FfiConverterString.lift(__rb);
+        } finally {
+            nativeModule().rustbuffer_free(__rb);
+        }
+    })(uniffiCaller.rustCall(
+            /*caller:*/ (callStatus) => {
+                return nativeModule().ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_path(
+                uniffiTypeFileJournalHandleObjectFactory.clonePointer(this),
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    ));
+    }
+    
+/**
+ * Read every recorded line back into JS, in append order.
+ */
+    replayAll(): Array<JournalLine> /*throws*/ {
+    return ((__rb: Uint8Array) => {
+        try {
+            return FfiConverterSequenceTypeJournalLine.lift(__rb);
+        } finally {
+            nativeModule().rustbuffer_free(__rb);
+        }
+    })(uniffiCaller.rustCallWithError(
+            /*liftError:*/ FfiConverterTypeFileJournalError.lift.bind(FfiConverterTypeFileJournalError),
+            /*caller:*/ (callStatus) => {
+                return nativeModule().ubrn_uniffi_vox_runtime_rn_fn_method_filejournalhandle_replay_all(
+                uniffiTypeFileJournalHandleObjectFactory.clonePointer(this),
+                callStatus);
+            },
+            /*liftString:*/ FfiConverterString.lift.bind(FfiConverterString),
+    ));
+    }
+    
+
+    uniffiDestroy(): void {
+        const ptr = (this as any)[destructorGuardSymbol];
+        if (ptr !== undefined) {
+            const pointer = uniffiTypeFileJournalHandleObjectFactory.pointer(this);
+            uniffiTypeFileJournalHandleObjectFactory.freePointer(pointer);
+            uniffiTypeFileJournalHandleObjectFactory.unbless(ptr);
+            delete (this as any)[destructorGuardSymbol];
+        }
+    }
+
+    static instanceOf(obj_: any): obj_ is FileJournalHandle {
+        return uniffiTypeFileJournalHandleObjectFactory.isConcreteType(obj_);
+    }
+
+    
+}
+
+const uniffiTypeFileJournalHandleObjectFactory: UniffiObjectFactory<FileJournalHandleLike> = (() => {
+    
+    return {
+    create(pointer: UniffiHandle): FileJournalHandleLike {
+        const instance = Object.create(FileJournalHandle.prototype);
+        instance[pointerLiteralSymbol] = pointer;
+        instance[destructorGuardSymbol] = this.bless(pointer);
+        instance[uniffiTypeNameSymbol] = "FileJournalHandle";
+        return instance;
+    },
+
+    
+    bless(p: UniffiHandle): UniffiGcObject {
+        return uniffiCaller.rustCall(
+            /*caller:*/ (status) =>
+                nativeModule().ubrn_uniffi_internal_fn_method_filejournalhandle_ffi__bless_pointer(p, status),
+            /*liftString:*/ FfiConverterString.lift
+        );
+    },
+
+    unbless(ptr_: UniffiGcObject) {
+        ptr_.markDestroyed();
+    },
+
+    pointer(obj_: FileJournalHandleLike): UniffiHandle {
+        if ((obj_ as any)[destructorGuardSymbol] === undefined) {
+            throw new UniffiInternalError.UnexpectedNullPointer();
+        }
+        return (obj_ as any)[pointerLiteralSymbol];
+    },
+
+    clonePointer(obj_: FileJournalHandleLike): UniffiHandle {
+        const pointer = this.pointer(obj_);
+        return uniffiCaller.rustCall(
+            /*caller:*/ (callStatus) => nativeModule().ubrn_uniffi_vox_runtime_rn_fn_clone_filejournalhandle(pointer, callStatus),
+            /*liftString:*/ FfiConverterString.lift
+        );
+    },
+
+    freePointer(pointer: UniffiHandle): void {
+        uniffiCaller.rustCall(
+            /*caller:*/ (callStatus) => nativeModule().ubrn_uniffi_vox_runtime_rn_fn_free_filejournalhandle(pointer, callStatus),
+            /*liftString:*/ FfiConverterString.lift
+        );
+    },
+
+    isConcreteType(obj_: any): obj_ is FileJournalHandleLike {
+        return obj_[destructorGuardSymbol] && obj_[uniffiTypeNameSymbol] === "FileJournalHandle";
+    },
+}})();
+const FfiConverterTypeFileJournalHandle = new FfiConverterObject(uniffiTypeFileJournalHandleObjectFactory);
 
 /**
  * Live runtime instance, returned by [`VoxRuntimeHandle::new`].
@@ -578,6 +995,9 @@ const uniffiTypeVoxRuntimeHandleObjectFactory: UniffiObjectFactory<VoxRuntimeHan
 }})();
 const FfiConverterTypeVoxRuntimeHandle = new FfiConverterObject(uniffiTypeVoxRuntimeHandleObjectFactory);
 
+// FfiConverter for Array<JournalLine>
+const FfiConverterSequenceTypeJournalLine = new FfiConverterArray(FfiConverterTypeJournalLine);
+
 
 /**
  * This should be called before anything else.
@@ -603,6 +1023,21 @@ function uniffiEnsureInitialized() {
     if (nativeModule().ubrn_uniffi_vox_runtime_rn_checksum_func_default_mobile_config() !== 34032) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_vox_runtime_rn_checksum_func_default_mobile_config");
     }
+    if (nativeModule().ubrn_uniffi_vox_runtime_rn_checksum_func_open_file_journal() !== 33729) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_vox_runtime_rn_checksum_func_open_file_journal");
+    }
+    if (nativeModule().ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_append() !== 83) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_vox_runtime_rn_checksum_method_filejournalhandle_append");
+    }
+    if (nativeModule().ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_flush() !== 30081) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_vox_runtime_rn_checksum_method_filejournalhandle_flush");
+    }
+    if (nativeModule().ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_path() !== 16703) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_vox_runtime_rn_checksum_method_filejournalhandle_path");
+    }
+    if (nativeModule().ubrn_uniffi_vox_runtime_rn_checksum_method_filejournalhandle_replay_all() !== 64762) {
+        throw new UniffiInternalError.ApiChecksumMismatch("uniffi_vox_runtime_rn_checksum_method_filejournalhandle_replay_all");
+    }
     if (nativeModule().ubrn_uniffi_vox_runtime_rn_checksum_constructor_voxruntimehandle_new() !== 48480) {
         throw new UniffiInternalError.ApiChecksumMismatch("uniffi_vox_runtime_rn_checksum_constructor_voxruntimehandle_new");
     }
@@ -627,6 +1062,9 @@ function uniffiEnsureInitialized() {
 export default Object.freeze({
   initialize: uniffiEnsureInitialized,
   converters: {
+    FfiConverterTypeFileJournalError,
+    FfiConverterTypeFileJournalHandle,
+    FfiConverterTypeJournalLine,
     FfiConverterTypeRuntimeProfile,
     FfiConverterTypeVoxConfig,
     FfiConverterTypeVoxRnError,
