@@ -20,6 +20,7 @@ pub struct Cluster {
 pub async fn maybe_split(
     buckets: Vec<Bucket>,
     max_bucket_size: usize,
+    cluster_distance_threshold: f64,
     embedder: &dyn Embedder,
 ) -> Vec<Cluster> {
     let mut out = Vec::new();
@@ -57,7 +58,7 @@ pub async fn maybe_split(
             });
             continue;
         }
-        let labels = agglomerative_cosine(&vectors, 0.30); // distance threshold
+        let labels = agglomerative_cosine(&vectors, cluster_distance_threshold as f32);
         out.extend(split_by_labels(b, &labels));
     }
     out
@@ -222,7 +223,7 @@ mod tests {
         let mock = CountingMock {
             calls: AtomicUsize::new(0),
         };
-        let out = maybe_split(vec![bucket(3)], 20, &mock).await;
+        let out = maybe_split(vec![bucket(3)], 20, 0.30, &mock).await;
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].key_suffix, "");
         assert_eq!(out[0].bucket.members.len(), 3);
@@ -243,7 +244,7 @@ mod tests {
             ],
             next: AtomicUsize::new(0),
         };
-        let out = maybe_split(vec![b], 3, &scripted).await;
+        let out = maybe_split(vec![b], 3, 0.30, &scripted).await;
         assert_eq!(
             out.len(),
             2,

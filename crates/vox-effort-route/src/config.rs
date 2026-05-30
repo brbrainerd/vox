@@ -11,6 +11,10 @@ pub struct EffortRouteConfig {
     pub max_bucket_size: usize,
     #[serde(default = "default_max_context_commits")]
     pub max_context_commits: usize,
+    /// Single-linkage cosine distance threshold for sub-clustering oversized
+    /// buckets (members within this distance merge into one sub-cluster).
+    #[serde(default = "default_cluster_distance_threshold")]
+    pub cluster_distance_threshold: f64,
     #[serde(default = "default_staging_dir")]
     pub staging_dir: PathBuf,
     #[serde(default)]
@@ -24,6 +28,9 @@ pub struct RouteJudgeConfig {
     pub max_total_tokens: u64,
     #[serde(default = "default_max_dollar_cost")]
     pub max_dollar_cost: f64,
+    /// Upper bound on output tokens requested per judge LLM call.
+    #[serde(default = "default_judge_max_output_tokens")]
+    pub judge_max_output_tokens: u64,
     #[serde(default = "default_verify")]
     pub verify: bool,
 }
@@ -36,6 +43,12 @@ fn default_max_bucket_size() -> usize {
 }
 fn default_max_context_commits() -> usize {
     6
+}
+fn default_cluster_distance_threshold() -> f64 {
+    0.30
+}
+fn default_judge_max_output_tokens() -> u64 {
+    2048
 }
 fn default_staging_dir() -> PathBuf {
     PathBuf::from("target/audit/effort-route")
@@ -56,6 +69,7 @@ impl Default for RouteJudgeConfig {
             model_preference: None,
             max_total_tokens: default_max_total_tokens(),
             max_dollar_cost: default_max_dollar_cost(),
+            judge_max_output_tokens: default_judge_max_output_tokens(),
             verify: default_verify(),
         }
     }
@@ -67,6 +81,7 @@ impl Default for EffortRouteConfig {
             min_waste_score: default_min_waste_score(),
             max_bucket_size: default_max_bucket_size(),
             max_context_commits: default_max_context_commits(),
+            cluster_distance_threshold: default_cluster_distance_threshold(),
             staging_dir: default_staging_dir(),
             judge: RouteJudgeConfig::default(),
         }
@@ -83,8 +98,10 @@ mod tests {
         assert_eq!(c.min_waste_score, 4);
         assert_eq!(c.max_bucket_size, 20);
         assert_eq!(c.max_context_commits, 6);
+        assert_eq!(c.cluster_distance_threshold, 0.30);
         assert!(c.judge.verify);
         assert_eq!(c.judge.max_total_tokens, 5_000_000);
+        assert_eq!(c.judge.judge_max_output_tokens, 2048);
     }
 
     #[test]
