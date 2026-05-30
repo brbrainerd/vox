@@ -17,7 +17,11 @@ pub struct Manifest {
     pub judge_model_id_resolved: String,
     pub judge_total_input_tokens: u64,
     pub judge_total_output_tokens: u64,
-    pub judge_total_estimated_usd: f64,
+    /// Real USD cost = judge token totals × the resolved model's registry
+    /// pricing. `None` (serialized as JSON `null`) when the model's price is
+    /// unknown — an honest "unknown", never a fabricated $0.00. A *known* rate
+    /// applied to zero tokens is `Some(0.0)`, which is a real (not fake) zero.
+    pub judge_total_cost_usd: Option<f64>,
     pub hybrid_coverage_percent: f64,
 }
 
@@ -65,7 +69,7 @@ mod tests {
             judge_model_id_resolved: "mock".into(),
             judge_total_input_tokens: 100,
             judge_total_output_tokens: 50,
-            judge_total_estimated_usd: 0.05,
+            judge_total_cost_usd: Some(0.05),
             hybrid_coverage_percent: 30.0,
         };
         let tmp = tempfile::NamedTempFile::new().unwrap();

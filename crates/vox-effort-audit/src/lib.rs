@@ -7,6 +7,7 @@ pub mod hybrid;
 pub mod judge;
 pub mod output;
 pub mod pipeline;
+pub mod pricing;
 pub mod range;
 pub mod shape;
 pub mod walk;

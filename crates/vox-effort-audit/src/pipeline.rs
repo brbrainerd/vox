@@ -6,12 +6,15 @@
 //! order (whichever judge completes first); the markdown report re-sorts by
 //! `waste_score` internally, so stream order does not affect ranking.
 //!
-//! Budget strategy (token cap): we check `tokens_spent` at *task launch*
-//! time, before pushing the judge future. Once the cap is hit we mark all
-//! remaining commits Skipped(BudgetExhausted) without dispatching them.
-//! This is pessimistic — in-flight tasks may overshoot the cap by up to
-//! `max_concurrent` calls' worth of tokens — which matches the spec's
-//! "best-effort" budget tolerance for S1.
+//! Budget strategy (token cap + dollar cap): we check `tokens_spent` and the
+//! real accumulated USD `cost_spent` at *task launch* time, before pushing the
+//! judge future. Once either cap is hit we mark all remaining commits Skipped
+//! without dispatching them. This is pessimistic — in-flight tasks may overshoot
+//! a cap by up to `max_concurrent` calls' worth — which matches the spec's
+//! "best-effort" budget tolerance for S1. The dollar cap (`max_dollar_cost`) is
+//! enforced only when the resolved model's pricing is known; for unknown-price
+//! models we fall back to the token budget alone rather than skip everything
+//! against a fabricated $0.00.
 //!
 //! Telemetry emission (`audit.effort.*` events from `vox-telemetry`) is
 //! intentionally deferred — the event types exist (E1) but wiring them here
@@ -68,6 +71,7 @@ pub async fn run(
     cfg: EffortAuditConfig,
     judge: Box<dyn Judge>,
     transcript_dir_override: Option<PathBuf>,
+    rates: crate::pricing::ModelRates,
 ) -> anyhow::Result<RunSummary> {
     run_with_overrides(
         repo_path,
@@ -77,6 +81,7 @@ pub async fn run(
         transcript_dir_override,
         None,
         None,
+        rates,
     )
     .await
 }
@@ -92,6 +97,7 @@ pub async fn run_with_overrides(
     transcript_dir_override: Option<PathBuf>,
     since_override: Option<String>,
     until_override: Option<String>,
+    rates: crate::pricing::ModelRates,
 ) -> anyhow::Result<RunSummary> {
     // Workspace `uuid` is pinned to features ["v4", "serde"] — no v7. v4 is
     // sufficient for a per-run identifier; time-ordering isn't required since
@@ -123,6 +129,11 @@ pub async fn run_with_overrides(
     let mut total_out = 0u64;
     let mut measured_count = 0u64;
     let mut tokens_spent = 0u64;
+    // Real accumulated USD cost, tracked only when the resolved model's price
+    // is known. Stays `None` for unknown-price models so we never enforce a
+    // dollar budget against a fabricated $0.00 (that would skip everything).
+    let mut cost_spent: Option<f64> = if rates.known { Some(0.0) } else { None };
+    let max_dollar_cost = cfg.judge.max_dollar_cost;
 
     let mut rows_for_report: Vec<FindingRow> = Vec::with_capacity(commits.len());
 
@@ -213,6 +224,27 @@ pub async fn run_with_overrides(
             skipped += 1;
             continue;
         }
+        // Real dollar-budget check at dispatch time, mirroring the token cap.
+        // Only enforced when pricing is known (`cost_spent` is `Some`); for
+        // unknown-price models we fall back to the token budget alone rather
+        // than skip everything against a fake $0.00. Same in-flight overshoot
+        // tolerance as the token cap applies.
+        if let Some(spent) = cost_spent
+            && spent >= max_dollar_cost
+        {
+            let meta = JudgeMeta {
+                model_id: judge_model_id.clone(),
+                latency_ms: 0,
+                judge_input_tokens: 0,
+                judge_output_tokens: 0,
+                outcome: "Skipped".into(),
+            };
+            let row = build_row(&rec_arc, &shape, &cost, &meta, None);
+            writer.append(&row)?;
+            rows_for_report.push(row);
+            skipped += 1;
+            continue;
+        }
 
         let judge = Arc::clone(&judge);
         let semaphore = Arc::clone(&semaphore);
@@ -242,6 +274,8 @@ pub async fn run_with_overrides(
                 &mut total_in,
                 &mut total_out,
                 &mut tokens_spent,
+                &mut cost_spent,
+                &rates,
                 &mut judged,
                 &mut skipped,
             )?;
@@ -260,6 +294,8 @@ pub async fn run_with_overrides(
             &mut total_in,
             &mut total_out,
             &mut tokens_spent,
+            &mut cost_spent,
+            &rates,
             &mut judged,
             &mut skipped,
         )?;
@@ -290,8 +326,10 @@ pub async fn run_with_overrides(
         judge_model_id_resolved: judge_model_id,
         judge_total_input_tokens: total_in,
         judge_total_output_tokens: total_out,
-        // S1 leaves USD as 0.0 — cost computation lands with S3 pricing tables.
-        judge_total_estimated_usd: 0.0,
+        // Real cost = accumulated judge tokens × the resolved model's registry
+        // pricing (passed in by the CLI). `None` when the model's price is
+        // unknown — an honest "unknown", never a fabricated $0.00.
+        judge_total_cost_usd: rates.cost_usd(total_in, total_out),
         hybrid_coverage_percent: if total > 0 {
             (measured_count as f64 / total as f64) * 100.0
         } else {
@@ -321,12 +359,23 @@ fn consume_outcome(
     total_in: &mut u64,
     total_out: &mut u64,
     tokens_spent: &mut u64,
+    cost_spent: &mut Option<f64>,
+    rates: &crate::pricing::ModelRates,
     judged: &mut u64,
     skipped: &mut u64,
 ) -> anyhow::Result<()> {
     *total_in += outcome.input_tokens;
     *total_out += outcome.output_tokens;
     *tokens_spent += outcome.input_tokens + outcome.output_tokens;
+    // Accumulate real per-call cost when pricing is known. `cost_spent` stays
+    // `None` for unknown-price models (the dollar budget is then unenforced and
+    // the manifest reports `null` cost rather than a fabricated $0.00).
+    if let (Some(spent), Some(call_cost)) = (
+        cost_spent.as_mut(),
+        rates.cost_usd(outcome.input_tokens, outcome.output_tokens),
+    ) {
+        *spent += call_cost;
+    }
 
     let meta = JudgeMeta {
         model_id: outcome.model_id.clone(),

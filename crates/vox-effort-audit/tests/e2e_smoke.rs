@@ -5,6 +5,7 @@ mod support;
 
 use vox_effort_audit::config::EffortAuditConfig;
 use vox_effort_audit::judge::MockJudge;
+use vox_effort_audit::pricing::ModelRates;
 
 #[tokio::test]
 async fn smoke_run_produces_outputs() {
@@ -15,6 +16,14 @@ async fn smoke_run_produces_outputs() {
         fixed_score: 5,
         model: "mock".into(),
     });
+    // Synthetic-but-real rates: $3/1k in, $15/1k out. MockJudge reports 0
+    // tokens, so the cost is `Some(0.0)` — a HONEST zero (real tokens × real
+    // rate), distinct from the unknown-price `None` asserted below.
+    let rates = ModelRates {
+        input_per_1k_usd: 3.0,
+        output_per_1k_usd: 15.0,
+        known: true,
+    };
 
     let summary = vox_effort_audit::run(
         &repo_path,
@@ -22,6 +31,7 @@ async fn smoke_run_produces_outputs() {
         cfg,
         judge,
         None, // no transcript dir override
+        rates,
     )
     .await
     .unwrap();
@@ -32,6 +42,43 @@ async fn smoke_run_produces_outputs() {
     assert_eq!(summary.commits_judged, 5);
     assert_eq!(summary.commits_in_range, 5);
     assert_eq!(summary.commits_skipped, 0);
+
+    // Cost is REAL: MockJudge spends 0 tokens, known rate → Some(0.0).
+    let manifest: vox_effort_audit::output::manifest::Manifest = serde_json::from_str(
+        &std::fs::read_to_string(out_dir.path().join("manifest.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(manifest.judge_total_cost_usd, Some(0.0));
+}
+
+#[tokio::test]
+async fn unknown_pricing_yields_null_cost_not_fake_zero() {
+    let (_g, repo_path) = support::make_smoke_repo();
+    let out_dir = tempfile::tempdir().unwrap();
+    let cfg = EffortAuditConfig::default();
+    let judge = Box::new(MockJudge {
+        fixed_score: 5,
+        model: "mock".into(),
+    });
+
+    // Default rates have `known = false` → cost must be `None`, never $0.00.
+    let summary = vox_effort_audit::run(
+        &repo_path,
+        out_dir.path(),
+        cfg,
+        judge,
+        None,
+        ModelRates::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(summary.commits_judged, 5);
+
+    let manifest: vox_effort_audit::output::manifest::Manifest = serde_json::from_str(
+        &std::fs::read_to_string(out_dir.path().join("manifest.json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(manifest.judge_total_cost_usd, None);
 }
 
 /// E3 regression: with `max_concurrent=4` and a judge that sleeps 200ms/call,
@@ -46,9 +93,11 @@ async fn smoke_run_produces_outputs() {
 async fn concurrent_judge_completes_under_budget() {
     let (_g, repo_path) = support::make_smoke_repo();
     let out_dir = tempfile::tempdir().unwrap();
-    let mut cfg = EffortAuditConfig::default();
-    cfg.max_concurrent = 4;
-    cfg.with_transcripts = false;
+    let cfg = EffortAuditConfig {
+        max_concurrent: 4,
+        with_transcripts: false,
+        ..EffortAuditConfig::default()
+    };
 
     struct SlowMock;
     #[async_trait::async_trait]
@@ -72,9 +121,16 @@ async fn concurrent_judge_completes_under_budget() {
     }
 
     let started = std::time::Instant::now();
-    let _ = vox_effort_audit::run(&repo_path, out_dir.path(), cfg, Box::new(SlowMock), None)
-        .await
-        .unwrap();
+    let _ = vox_effort_audit::run(
+        &repo_path,
+        out_dir.path(),
+        cfg,
+        Box::new(SlowMock),
+        None,
+        ModelRates::default(),
+    )
+    .await
+    .unwrap();
     let elapsed = started.elapsed();
     assert!(
         elapsed < std::time::Duration::from_millis(700),
