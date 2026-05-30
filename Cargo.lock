@@ -13364,6 +13364,7 @@ dependencies = [
 name = "vox-effort-route"
 version = "0.6.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "chrono",
  "futures",

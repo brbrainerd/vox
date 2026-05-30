@@ -10,5 +10,4 @@ pub mod route;
 pub mod emit;
 pub mod pipeline;
 
-// `pub use pipeline::run;` is added in the pipeline task (E-phase) once
-// `pipeline::run` exists; adding it against a stub causes E0432.
+pub use pipeline::run;
