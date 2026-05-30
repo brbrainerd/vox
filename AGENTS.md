@@ -98,6 +98,17 @@ API key lifecycle checklist:
 All cryptographic logic MUST use the `vox-crypto` crate. We explicitly ban AEGIS, `ring`, `zig`-chains, and any wrapper dragging in `cmake` or `nasm` for C-assembly optimization on Windows. Pure-Rust `chacha20poly1305` is standard for AEAD. See:
 - Policy: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/cryptography-ssot-2026.md)
 
+## `vox audit` Umbrella (SSOT)
+
+The unified `vox audit` umbrella hosts:
+
+- `vox audit code` — `vox-code-audit` source-policy detectors
+- `vox audit arch` — `vox-arch-check`
+- `vox audit retirement` — `vox ci retirement-audit` (planned per CR-L6)
+- `vox audit effort` — AI-judged commit history audit (vox-effort-audit)
+
+New audit subcommands MUST emit findings JSONL with `schema_version` and a per-finding discriminator so downstream tooling can multiplex.
+
 ## Model-Agnostic LLM Boundary (Required, SSOT)
 
 All LLM calls in this workspace MUST go through the model-agnostic facade at `vox_actor_runtime::llm` (`infer_with_retry`, `llm_chat`, `llm_stream`, `llm_embed`). Do NOT hardcode a vendor hostname (`api.anthropic.com`, `api.openai.com`, `generativelanguage.googleapis.com`, etc.) and do NOT instantiate a vendor SDK directly in workspace code.
