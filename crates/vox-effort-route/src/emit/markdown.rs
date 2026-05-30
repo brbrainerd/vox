@@ -30,7 +30,20 @@ pub fn render(rows: &[RecommendationRow]) -> String {
         "- Verified: {verified} / {total} (unverified: {})\n",
         total - verified
     ));
-    s.push_str(&format!("- Draft artifacts staged: {drafted}\n\n"));
+    s.push_str(&format!("- Draft artifacts staged: {drafted}\n"));
+
+    // Real judge cost: sum the known per-cluster costs. `None` everywhere (no
+    // model was priced) is reported honestly rather than as a fabricated $0.00.
+    let mut total_cost: Option<f64> = None;
+    for r in rows {
+        if let Some(c) = r.decision.judge_cost_usd {
+            total_cost = Some(total_cost.unwrap_or(0.0) + c);
+        }
+    }
+    match total_cost {
+        Some(c) => s.push_str(&format!("- Judge cost: ${c:.2}\n\n")),
+        None => s.push_str("- Judge cost: unknown (model not in pricing catalog)\n\n"),
+    }
 
     // 2. Top-N table. Verified first, then tokens desc, then confidence desc.
     s.push_str("## Top clusters by reclaimable tokens\n\n");
@@ -130,7 +143,9 @@ mod tests {
             drafted_artifact: drafted,
             verified,
             refutation_note: "note".into(),
-            judge_tokens_used: 0,
+            judge_prompt_tokens: 0,
+            judge_completion_tokens: 0,
+            judge_cost_usd: None,
         })
     }
 
@@ -185,5 +200,24 @@ mod tests {
     #[test]
     fn report_snapshot() {
         insta::assert_snapshot!(render(&fixture_rows()));
+    }
+
+    #[test]
+    fn judge_cost_unknown_when_no_model_priced() {
+        // All fixture rows carry None cost → the summary reports it honestly
+        // rather than fabricating $0.00.
+        let out = render(&fixture_rows());
+        assert!(out.contains("- Judge cost: unknown (model not in pricing catalog)"));
+        assert!(!out.contains("$0.00"));
+    }
+
+    #[test]
+    fn judge_cost_sums_known_costs() {
+        // Two priced clusters → the report shows the real summed dollar cost.
+        let mut rows = fixture_rows();
+        rows[0].decision.judge_cost_usd = Some(0.12);
+        rows[1].decision.judge_cost_usd = Some(0.03);
+        let out = render(&rows);
+        assert!(out.contains("- Judge cost: $0.15"), "got: {out}");
     }
 }

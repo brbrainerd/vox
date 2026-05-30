@@ -1,6 +1,6 @@
 ---
 source: crates/vox-effort-route/src/emit/markdown.rs
-assertion_line: 185
+assertion_line: 202
 expression: render(&fixture_rows())
 ---
 # Effort Route Recommendations
@@ -8,6 +8,7 @@ expression: render(&fixture_rows())
 - Clusters routed: 4
 - Verified: 2 / 4 (unverified: 2)
 - Draft artifacts staged: 3
+- Judge cost: unknown (model not in pricing catalog)
 
 ## Top clusters by reclaimable tokens
 

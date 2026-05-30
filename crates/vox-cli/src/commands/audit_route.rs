@@ -66,16 +66,16 @@ struct VoxTomlAudit {
 }
 
 /// `[audit.route]` table: the `EffortRouteConfig` plus a `vox_capable_models`
-/// allowlist used to resolve the judge model's Vox-authoring capability (see
-/// `resolve_vox_capability`; spec Q3 fallback — the orchestrator's
-/// `ModelCapabilities` has no `writes_vox` field yet).
+/// allowlist that is the sole source of truth for a judge model's Vox-authoring
+/// capability (see `resolve_vox_capability`).
 #[derive(Debug, Default, Deserialize)]
 struct RouteToml {
     #[serde(flatten, default)]
     config: Option<EffortRouteConfig>,
-    /// Model ids known to be able to author Vox source. Any resolved judge
-    /// model not in this list (and not `mens`-prefixed) is treated as
-    /// non-Vox-capable, gating `VoxScript` artifact forms.
+    /// Model ids operators have explicitly opted in as able to author Vox
+    /// source. This allowlist is the ONLY source of truth: a resolved judge
+    /// model absent from it is treated as non-Vox-capable (safe default),
+    /// gating `VoxScript` artifact forms. No model-name heuristics are applied.
     #[serde(default)]
     vox_capable_models: Vec<String>,
 }
@@ -146,17 +146,35 @@ fn resolve_judge_model(args: &EffortRouteArgs, cfg: &EffortRouteConfig) -> Optio
 
 /// Resolve whether the judge model may author Vox source.
 ///
-/// DEVIATION (spec Q3 fallback): the orchestrator's `ModelCapabilities` has no
-/// `writes_vox` field yet, so we cannot read capability off the registry entry.
-/// Instead we use a two-part allowlist:
-///   1. an explicit `[audit.route] vox_capable_models` list in `vox.toml`, OR
-///   2. a `mens`-prefix heuristic (MENS models are the first-class Vox authors).
+/// The sole source of truth is the explicit `[audit.route] vox_capable_models`
+/// allowlist in `vox.toml`: a model is Vox-capable iff an operator listed it
+/// there. There is NO model-name heuristic — name-guessing a capability is the
+/// exact kind of magic value this command must avoid. A model absent from the
+/// allowlist is treated as non-Vox-capable (safe default), which gates
+/// `VoxScript` artifact forms.
 ///
 /// Adding a real `writes_vox` capability field to the orchestrator registry is
-/// tracked as a follow-up; it is out of scope for S2.
+/// tracked as a follow-up; until then the allowlist is authoritative.
 fn resolve_vox_capability(model_id: &str, allowlist: &[String]) -> ModelVoxCapability {
-    let capable = allowlist.iter().any(|m| m == model_id) || model_id.starts_with("mens");
-    ModelVoxCapability(capable)
+    ModelVoxCapability(allowlist.iter().any(|m| m == model_id))
+}
+
+/// Look up the judge model's real per-direction token pricing from the
+/// orchestrator's model registry (offline cache). Unknown / unpriced models
+/// yield `ModelRates::default()` (`known: false`), which downstream surfaces as
+/// a `None` cost — never a fabricated $0.00. This is the only place the registry
+/// is read; the `vox-effort-route` library stays free of a vox-orchestrator dep.
+fn rates_for(model_id: &str) -> vox_effort_route::pricing::ModelRates {
+    use vox_effort_route::pricing::ModelRates;
+    let reg = vox_orchestrator::models::ModelRegistry::from_cache();
+    match reg.get(model_id) {
+        Some(spec) if spec.cost_per_1k_input > 0.0 || spec.cost_per_1k_output > 0.0 => ModelRates {
+            input_per_1k_usd: spec.cost_per_1k_input,
+            output_per_1k_usd: spec.cost_per_1k_output,
+            known: true,
+        },
+        _ => ModelRates::default(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -199,12 +217,15 @@ pub async fn run(args: EffortRouteArgs) -> Result<()> {
             vox_capable = vox_capable.0,
             "resolved judge model vox-authoring capability (spec Q3 allowlist fallback)"
         );
+        let rates = rates_for(&model);
         let router = LlmRouter {
             resolved_model: model,
             timeout: vox_config::timeouts::EFFORT_AUDIT_JUDGE_TIMEOUT,
             repo_root: repo_root.clone(),
             max_context_commits: cfg.max_context_commits,
             verify: cfg.judge.verify,
+            rates,
+            max_output_tokens: cfg.judge.judge_max_output_tokens,
         };
         (Box::new(router), vox_capable)
     };
@@ -324,13 +345,15 @@ verify = false
     }
 
     #[test]
-    fn vox_capability_uses_allowlist_then_mens_heuristic() {
-        let allow = vec!["custom/vox-writer".to_string()];
-        // Explicit allowlist entry → capable.
+    fn vox_capability_is_allowlist_only_no_heuristic() {
+        let allow = vec!["custom/vox-writer".to_string(), "mens/code-1".to_string()];
+        // Explicit allowlist entries → capable.
         assert!(resolve_vox_capability("custom/vox-writer", &allow).0);
-        // mens-prefix heuristic → capable even when not listed.
         assert!(resolve_vox_capability("mens/code-1", &allow).0);
-        // Neither → not capable (VoxScript forms get gated out).
+        // A mens-prefixed model NOT on the allowlist is NOT capable: there is no
+        // name heuristic, only the explicit opt-in list.
+        assert!(!resolve_vox_capability("mens/unlisted", &allow).0);
+        // Anything else absent from the list → not capable (safe default).
         assert!(!resolve_vox_capability("anthropic/claude-haiku-4.6", &allow).0);
         assert!(!resolve_vox_capability("openai/gpt", &[]).0);
     }
