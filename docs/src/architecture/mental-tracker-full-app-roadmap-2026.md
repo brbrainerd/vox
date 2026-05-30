@@ -62,7 +62,6 @@ nightmare, emotional-regulation, self-perception/shame (CPTSD), relationship/tru
 **B. Add a static `CategoryDef` registry** (data-driven Home grid + last-value defaulting):
 
 ```vox
-// vox:skip
 @table type CategoryDef {
     category_id: str        // stable kind key, e.g. "mood", "sleep", "intrusion"
     display_label: str      // non-diagnostic, plain-language
@@ -81,7 +80,9 @@ nightmare, emotional-regulation, self-perception/shame (CPTSD), relationship/tru
 `_is_superseded_in`:
 
 ```vox
-// vox:skip
+// vox:skip — excerpt; calls the existing `record_health_event` in main.vox.
+// Not standalone by design: inlining that dependency here would duplicate the
+// real mutation (split-brain) — so this block documents the addition in place.
 @mutation fn record_deletion(of_event_id: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
     // sentinel kind; correction_of → target; never itself superseded → row hidden
     return record_health_event("_deleted", "{}", "", "app", "", of_event_id, tz_iana, tz_offset_minutes)
