@@ -6,6 +6,7 @@ pub mod config;
 pub mod load;
 pub mod bucket;
 pub mod cluster;
+pub mod embed;
 pub mod route;
 pub mod emit;
 pub mod pipeline;
