@@ -44,10 +44,13 @@ pub struct PlannedActivity {
     pub dedup_window_ms: Option<u64>,
 }
 
-/// P2-T5: derive a hex SHA3-512 hash of the canonicalized argument list.
+/// P2-T5: derive a hex hash of the canonicalized argument list, used to key
+/// the dedup cache. Implementation detail: blake3 because it's already a
+/// workspace dep and gives the same hex-string shape `vox-db::hash`
+/// produced before this crate became feature-gated for mobile.
 pub fn compute_structural_arg_hash(args: &[serde_json::Value]) -> String {
     let canonical = serde_json::Value::Array(args.to_vec()).to_string();
-    vox_db::hash::content_hash(canonical.as_bytes())
+    blake3::hash(canonical.as_bytes()).to_hex().to_string()
 }
 
 /// Replay-oriented node for interpreted durable workflow execution.

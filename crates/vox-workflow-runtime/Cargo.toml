@@ -6,7 +6,14 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["mens"]
+# Default features mirror the host-build profile: SQL-backed tracker, the
+# DB-backed scheduled-runner, and mens. Mobile cross-compile uses
+# `--no-default-features` (optionally re-adding `mens` if the device wants
+# to participate in a mesh; today mobile doesn't).
+default = ["mens", "sql"]
+# `sql` enables the VoxDbTracker + scheduled-runner modules that depend on
+# vox-db (which pulls in SQLite and therefore can't cross-compile to mobile).
+sql = ["dep:vox-db"]
 mens = ["dep:vox-populi", "vox-populi/transport"]
 test-support = []
 
@@ -22,7 +29,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 vox-compiler = { workspace = true }
-vox-db = { workspace = true }
+vox-db = { workspace = true, optional = true }
 vox-populi = { workspace = true, optional = true }
 vox-runtime = { path = "../vox-runtime" }
 vox-journal = { path = "../vox-journal" }

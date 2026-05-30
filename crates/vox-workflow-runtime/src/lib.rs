@@ -21,6 +21,8 @@
 
 #![deny(missing_docs)]
 
+/// SQL-backed [`workflow::WorkflowTracker`] (requires the `sql` cargo feature).
+#[cfg(feature = "sql")]
 pub mod db_tracker;
 /// `DurablePromise<T>` — the single awaitable primitive for distributed durable work (P1-T1).
 pub mod durable_promise;
@@ -30,10 +32,12 @@ pub mod duration_literal;
 pub mod file_journal;
 /// Activity-body journal wrapper used by codegen-emitted code (Task 1.3).
 pub mod journal;
-/// Persistent `@scheduled` runner (Phase 4.2) — DB-backed timer loop.
+/// Persistent `@scheduled` runner (Phase 4.2; requires the `sql` cargo feature).
+#[cfg(feature = "sql")]
 pub mod scheduled;
 pub mod workflow;
 
+#[cfg(feature = "sql")]
 pub use db_tracker::VoxDbTracker;
 pub use durable_promise::{DurablePromise, JournalError};
 pub use duration_literal::{DurationParseError, parse_duration_str};
