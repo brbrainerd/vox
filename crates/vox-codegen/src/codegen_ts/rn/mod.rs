@@ -138,11 +138,15 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
         files.push(("vox-app-contract.json".to_string(), contract_json));
     }
 
-    // Typed fetch client — unchanged (HTTP layer is portable).
+    // Typed fetch client — same HTTP layer, but the RN flavor resolves the API
+    // base via `process.env.EXPO_PUBLIC_*` (Hermes can't parse `import.meta`).
     if !hir.endpoint_fns.is_empty() {
         files.push((
             crate::codegen_ts::vox_client::VOX_CLIENT_FILENAME.to_string(),
-            crate::codegen_ts::vox_client::emit_vox_client(hir),
+            crate::codegen_ts::vox_client::emit_vox_client_for_target(
+                hir,
+                crate::codegen_ts::vox_client::VoxClientTarget::ReactNative,
+            ),
         ));
     }
 

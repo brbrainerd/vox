@@ -182,10 +182,12 @@ fn emit_package_json(name: &str, has_routes: bool) -> String {
   }},
   "dependencies": {{
     "expo": "^52.0.0",
-    "expo-status-bar": "^2.0.0",
+    "expo-asset": "~11.0.5",
+    "expo-status-bar": "~2.0.1",
     "react": "18.3.1",
-    "react-native": "0.76.0",
+    "react-native": "0.76.9",
     "react-native-safe-area-context": "4.12.0",
+    "zod": "^3.23.8",
     "@vox/runtime-types": "0.6.0",
     "@vox/runtime-rn": "0.6.0"{router_dep}
   }},
