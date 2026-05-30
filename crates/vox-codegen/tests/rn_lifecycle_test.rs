@@ -61,6 +61,38 @@ fn rn_on_mount_awaits_async_endpoint_in_iife() {
     );
 }
 
+const FIRE_FORGET_SRC: &str = r#"
+@mutation fn record_event(kind: str) to Result[str] { return Ok("x") }
+
+component Logger() {
+    state n: int = 0
+    view: column(raw_class="root") {
+        button(on_click={fn() {
+            let _ = record_event("mood")
+            n = n + 1
+        }}) {
+            "Log"
+        }
+    }
+}
+"#;
+
+#[test]
+fn rn_fire_and_forget_endpoint_call_is_catch_guarded() {
+    // A discarded, un-awaited endpoint call in an RN handler must not become an
+    // unhandled promise rejection (the live "tap → white screen / log error"
+    // bug). It is wrapped in `.catch(...)`.
+    let tsx = rn_component(FIRE_FORGET_SRC, "Logger");
+    assert!(
+        tsx.contains(".catch("),
+        "fire-and-forget endpoint call must be catch-guarded; got:\n{tsx}"
+    );
+    assert!(
+        !tsx.contains("const _ = record_event"),
+        "discarded endpoint call must not emit a dead `const _ =` promise; got:\n{tsx}"
+    );
+}
+
 const NAV_SRC: &str = r#"
 component Menu() {
     view: row(raw_class="nav") {

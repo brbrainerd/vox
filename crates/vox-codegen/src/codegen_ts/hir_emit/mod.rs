@@ -753,6 +753,34 @@ pub(crate) fn emit_block_stmts(expr: &HirExpr, ctx: &EmitCtx<'_>, indent: usize)
     }
 }
 
+/// When this context will emit `expr` as a call to a `vox-client` endpoint fn
+/// WITHOUT `await` (a fire-and-forget Promise), return the fn name. Such a
+/// promise left bare as a statement becomes an *unhandled rejection* if the
+/// call fails — e.g. an RN button handler whose `record_event(...)` POSTs to a
+/// server that isn't on the device. We wrap those in `.catch(...)` so a failed
+/// background call logs instead of crashing the app / spamming the dev log.
+fn floating_endpoint_call_name<'a>(expr: &'a HirExpr, ctx: &EmitCtx<'_>) -> Option<&'a str> {
+    if let HirExpr::Call(callee, _, _, _) = expr {
+        if let HirExpr::Ident(name, _) = callee.as_ref() {
+            if ctx.endpoint_params.contains_key(name)
+                && !ctx.async_fn_names.contains(name.as_str())
+            {
+                return Some(name.as_str());
+            }
+        }
+    }
+    None
+}
+
+/// Render a fire-and-forget endpoint call with an attached `.catch` so it can
+/// never surface as an unhandled promise rejection.
+fn emit_floating_endpoint_call(expr: &HirExpr, ctx: &EmitCtx<'_>, name: &str, pad: &str) -> String {
+    let call = emit_hir_expr(expr, ctx);
+    format!(
+        "{pad}void Promise.resolve({call}).catch((__e) => {{ console.error(\"[vox] endpoint '{name}' failed (fire-and-forget):\", __e); }});\n"
+    )
+}
+
 /// **Phase:** compat-legacy (OP-0138).
 #[must_use]
 pub(crate) fn emit_hir_stmt(stmt: &HirStmt, ctx: &EmitCtx<'_>, indent: usize) -> String {
@@ -764,6 +792,17 @@ pub(crate) fn emit_hir_stmt(stmt: &HirStmt, ctx: &EmitCtx<'_>, indent: usize) ->
             mutable,
             ..
         } => {
+            // `let _ = record_event(...)` is the idiomatic "fire and forget a
+            // mutation" form. When the value is an un-awaited endpoint call and
+            // the binding is discarded, emit the catch-guarded form instead of a
+            // dead `const _ = <promise>`.
+            let is_discard = matches!(pattern, HirPattern::Wildcard(_))
+                || matches!(pattern, HirPattern::Ident(n, _) if n == "_");
+            if is_discard {
+                if let Some(name) = floating_endpoint_call_name(value, ctx) {
+                    return emit_floating_endpoint_call(value, ctx, name, &pad);
+                }
+            }
             let keyword = if *mutable { "let" } else { "const" };
             let pat = emit_hir_pattern(pattern);
             let val = emit_hir_expr(value, ctx);
@@ -783,6 +822,12 @@ pub(crate) fn emit_hir_stmt(stmt: &HirStmt, ctx: &EmitCtx<'_>, indent: usize) ->
             )
         }
         HirStmt::Expr { expr, .. } => {
+            // A bare `record_event(...)` statement is a fire-and-forget call;
+            // guard it so a failed background request can't become an unhandled
+            // rejection.
+            if let Some(name) = floating_endpoint_call_name(expr, ctx) {
+                return emit_floating_endpoint_call(expr, ctx, name, &pad);
+            }
             format!("{pad}{};\n", emit_hir_expr(expr, ctx))
         }
         HirStmt::Return { value, .. } => {
