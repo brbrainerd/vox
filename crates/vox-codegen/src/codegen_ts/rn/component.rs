@@ -12,7 +12,9 @@
 //! The single source of truth — the HIR — never changes between targets.
 
 use std::collections::{BTreeMap, HashSet};
-use vox_compiler::hir::{HirExpr, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember, HirStmt};
+use vox_compiler::hir::{
+    HirExpr, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember, HirStmt,
+};
 
 use crate::web_ir::WebIrDiagnostic;
 
@@ -83,7 +85,10 @@ fn class_string_to_style_key(class_tokens: &[&str]) -> Option<&'static str> {
         } else {
             Some("btn_primary")
         }
-    } else if joined.contains(&"rounded-lg") && joined.contains(&"border") && joined.contains(&"p-4") {
+    } else if joined.contains(&"rounded-lg")
+        && joined.contains(&"border")
+        && joined.contains(&"p-4")
+    {
         Some("panel")
     } else {
         None
@@ -215,8 +220,8 @@ fn jsx_to_rn(
 
     // Recognize both snake_case (`on_click`) and camelCase (`onClick`) attribute names —
     // depending on which lowering produced the HIR, either may appear.
-    let handler_attr = attr_value(&el.attributes, "on_click")
-        .or_else(|| attr_value(&el.attributes, "onClick"));
+    let handler_attr =
+        attr_value(&el.attributes, "on_click").or_else(|| attr_value(&el.attributes, "onClick"));
     let on_press = handler_attr.map(|h| emit_event_handler_with_state(h, state_names));
 
     let children: Vec<RnNode> = el
@@ -314,7 +319,10 @@ fn jsx_to_rn(
                 span: None,
                 category: Some("codegen".to_string()),
             });
-            RnNode::View { style_key, children }
+            RnNode::View {
+                style_key,
+                children,
+            }
         }
     }
 }
@@ -351,7 +359,10 @@ fn hir_view_child_to_rn(
 /// Walk RN tree to gather every distinct style key that needs a StyleSheet entry.
 fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<String>) {
     match node {
-        RnNode::View { style_key, children } => {
+        RnNode::View {
+            style_key,
+            children,
+        } => {
             if let Some(k) = style_key {
                 out.insert(k.clone());
             }
@@ -359,7 +370,10 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
                 collect_used_styles(c, out);
             }
         }
-        RnNode::Text { style_key, children } => {
+        RnNode::Text {
+            style_key,
+            children,
+        } => {
             if let Some(k) = style_key {
                 out.insert(k.clone());
             }
@@ -367,7 +381,11 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
                 collect_used_styles(c, out);
             }
         }
-        RnNode::Pressable { style_key, children, .. } => {
+        RnNode::Pressable {
+            style_key,
+            children,
+            ..
+        } => {
             if let Some(k) = style_key {
                 out.insert(k.clone());
             }
@@ -407,7 +425,10 @@ fn wrap_pressable_text_children(children: Vec<RnNode>) -> Vec<RnNode> {
 fn emit_rn_node(node: &RnNode, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     match node {
-        RnNode::View { style_key, children } => {
+        RnNode::View {
+            style_key,
+            children,
+        } => {
             let style_attr = style_key
                 .as_ref()
                 .map(|k| format!(" style={{styles.{k}}}"))
@@ -421,7 +442,10 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
             }
             format!("{pad}<View{style_attr}>\n{inner}{pad}</View>\n")
         }
-        RnNode::Text { style_key, children } => {
+        RnNode::Text {
+            style_key,
+            children,
+        } => {
             let style_attr = style_key
                 .as_ref()
                 .map(|k| format!(" style={{styles.{k}}}"))
@@ -446,11 +470,16 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
                 .as_ref()
                 .map(|h| format!(" onPress={{{h}}}"))
                 .unwrap_or_default();
-            let wrapped = wrap_pressable_text_children(children.iter().map(|c| match c {
-                RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
-                RnNode::Expr(e) => RnNode::Expr(e.clone()),
-                other => clone_rn_node(other),
-            }).collect());
+            let wrapped = wrap_pressable_text_children(
+                children
+                    .iter()
+                    .map(|c| match c {
+                        RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
+                        RnNode::Expr(e) => RnNode::Expr(e.clone()),
+                        other => clone_rn_node(other),
+                    })
+                    .collect(),
+            );
             let mut inner = String::new();
             for c in &wrapped {
                 inner.push_str(&emit_rn_node(c, indent + 1));
@@ -522,11 +551,17 @@ fn emit_text_child_inline(child: &RnNode) -> String {
 
 fn clone_rn_node(n: &RnNode) -> RnNode {
     match n {
-        RnNode::View { style_key, children } => RnNode::View {
+        RnNode::View {
+            style_key,
+            children,
+        } => RnNode::View {
             style_key: style_key.clone(),
             children: children.iter().map(clone_rn_node).collect(),
         },
-        RnNode::Text { style_key, children } => RnNode::Text {
+        RnNode::Text {
+            style_key,
+            children,
+        } => RnNode::Text {
             style_key: style_key.clone(),
             children: children.iter().map(clone_rn_node).collect(),
         },
@@ -568,15 +603,27 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
 fn emit_styles_block(used: &std::collections::BTreeSet<String>) -> String {
     let table: BTreeMap<&str, &str> = BTreeMap::from([
         ("col", "{ flexDirection: \"column\", gap: 12 }"),
-        ("row", "{ flexDirection: \"row\", gap: 12, alignItems: \"center\" }"),
+        (
+            "row",
+            "{ flexDirection: \"row\", gap: 12, alignItems: \"center\" }",
+        ),
         ("h1", "{ fontSize: 30, fontWeight: \"600\" }"),
         ("h2", "{ fontSize: 24, fontWeight: \"600\" }"),
         ("h3", "{ fontSize: 20, fontWeight: \"600\" }"),
         ("body", "{ fontSize: 14 }"),
-        ("btn_primary", "{ backgroundColor: \"#0a7ea4\", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6, alignItems: \"center\" }"),
-        ("btn_secondary", "{ backgroundColor: \"#e5e7eb\", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6, alignItems: \"center\" }"),
+        (
+            "btn_primary",
+            "{ backgroundColor: \"#0a7ea4\", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6, alignItems: \"center\" }",
+        ),
+        (
+            "btn_secondary",
+            "{ backgroundColor: \"#e5e7eb\", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6, alignItems: \"center\" }",
+        ),
         ("btn_text", "{ color: \"white\", fontWeight: \"500\" }"),
-        ("panel", "{ padding: 16, backgroundColor: \"#f5f5f5\", borderRadius: 8, borderWidth: 1, borderColor: \"#e5e7eb\" }"),
+        (
+            "panel",
+            "{ padding: 16, backgroundColor: \"#f5f5f5\", borderRadius: 8, borderWidth: 1, borderColor: \"#e5e7eb\" }",
+        ),
     ]);
     let mut entries: Vec<String> = Vec::new();
     // Always include `btn_text` if any Pressable was emitted (used by wrap_pressable_text_children).
@@ -619,15 +666,25 @@ fn emit_state_declarations(members: &[HirReactiveMember]) -> String {
 /// Detect which React hooks the component body references so we can build the import line.
 fn detect_react_hooks(members: &[HirReactiveMember], view: Option<&HirExpr>) -> Vec<&'static str> {
     let mut hooks = std::collections::BTreeSet::new();
-    if members.iter().any(|m| matches!(m, HirReactiveMember::State(_))) {
+    if members
+        .iter()
+        .any(|m| matches!(m, HirReactiveMember::State(_)))
+    {
         hooks.insert("useState");
     }
-    if members.iter().any(|m| matches!(m, HirReactiveMember::Effect(_)))
-        || members.iter().any(|m| matches!(m, HirReactiveMember::OnMount(_)))
+    if members
+        .iter()
+        .any(|m| matches!(m, HirReactiveMember::Effect(_)))
+        || members
+            .iter()
+            .any(|m| matches!(m, HirReactiveMember::OnMount(_)))
     {
         hooks.insert("useEffect");
     }
-    if members.iter().any(|m| matches!(m, HirReactiveMember::Derived(_))) {
+    if members
+        .iter()
+        .any(|m| matches!(m, HirReactiveMember::Derived(_)))
+    {
         hooks.insert("useMemo");
     }
     let _ = view; // currently no view-driven hooks
@@ -669,7 +726,9 @@ pub fn emit_rn_component(
             hooks.join(", ")
         ));
     }
-    out.push_str("import { View, Text, Pressable, Image, TextInput, StyleSheet } from \"react-native\";\n");
+    out.push_str(
+        "import { View, Text, Pressable, Image, TextInput, StyleSheet } from \"react-native\";\n",
+    );
     out.push('\n');
 
     // Props interface

@@ -29,10 +29,8 @@ impl SweepRule for NumericDedupRule {
         // Track allow-lines too so a `// drift-allow(duplicate-numeric-literal)`
         // marker can blank an individual occurrence (e.g. a foundation test where
         // the SSOT crate is structurally unreachable).
-        let mut index: HashMap<
-            (u64, u8),
-            Vec<(std::path::PathBuf, usize, /*allowed:*/ bool)>,
-        > = HashMap::new();
+        let mut index: HashMap<(u64, u8), Vec<(std::path::PathBuf, usize, /*allowed:*/ bool)>> =
+            HashMap::new();
         for f in files {
             for n in &f.numeric_literals {
                 // ConstDecl literals are the named constants the rule wants people
@@ -159,10 +157,8 @@ mod tests {
     fn per_line_allow_suppresses_an_occurrence() {
         // 3 occurrences total, but 1 is allow-marked → 2 left, below threshold.
         let make = |line: usize, allowed: bool| {
-            let mut f = ExtractedFeatures::new(
-                PathBuf::from(format!("{}.rs", line)),
-                Language::Rust,
-            );
+            let mut f =
+                ExtractedFeatures::new(PathBuf::from(format!("{}.rs", line)), Language::Rust);
             f.numeric_literals.push(NumericLoc {
                 value: 30.0,
                 unit: Some(UnitHint::Seconds),

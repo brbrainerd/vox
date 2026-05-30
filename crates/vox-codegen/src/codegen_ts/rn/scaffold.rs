@@ -32,10 +32,7 @@ pub fn emit_expo_scaffold(hir: &HirModule) -> Vec<(String, String)> {
     out.push(("package.json".to_string(), emit_package_json(app_name)));
 
     if let Some(first) = hir.components.first() {
-        out.push((
-            "App.tsx".to_string(),
-            emit_app_tsx(&first.name),
-        ));
+        out.push(("App.tsx".to_string(), emit_app_tsx(&first.name)));
     }
 
     out

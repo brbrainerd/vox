@@ -68,7 +68,10 @@ impl BuildRun {
                 }
             }
             if !current.pop() {
-                panic!("workspace root not found from {}", env!("CARGO_MANIFEST_DIR"));
+                panic!(
+                    "workspace root not found from {}",
+                    env!("CARGO_MANIFEST_DIR")
+                );
             }
         }
     }
@@ -140,10 +143,7 @@ impl BuildRun {
 
         let bin = Self::vox_binary_path();
         let mut cmd = Command::new(bin);
-        cmd.arg("build")
-            .arg(&source)
-            .arg("-o")
-            .arg(out_dir.path());
+        cmd.arg("build").arg(&source).arg("-o").arg(out_dir.path());
         for a in &expected.extra_args {
             cmd.arg(a);
         }
@@ -409,11 +409,7 @@ fn ensure_node_modules_installed(tests_dir: &Path) {
         }
         let node_modules = tests_dir.join("node_modules");
         // Cheap heuristic: if `react/package.json` exists in node_modules, assume install is done.
-        if node_modules
-            .join("react")
-            .join("package.json")
-            .is_file()
-        {
+        if node_modules.join("react").join("package.json").is_file() {
             return;
         }
         let npm = which_executable("npm").unwrap_or_else(|| {

@@ -249,7 +249,7 @@ fn build_every_fixture_passes_fast_path() {
     let mut failures: Vec<String> = Vec::new();
     for name in &names {
         init_vox_binary_once();
-    let run = BuildRun::run(name);
+        let run = BuildRun::run(name);
         if !run.success {
             failures.push(format!(
                 "{name}: non-zero exit\nstdout:\n{}\nstderr:\n{}",

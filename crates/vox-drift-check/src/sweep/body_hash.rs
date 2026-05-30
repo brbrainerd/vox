@@ -210,16 +210,8 @@ sibling_of = ["vox-plugin-mens-candle-metal"]
         };
 
         let files = vec![
-            make_fn(
-                "crates/vox-plugin-mens-candle-cuda/src/x.rs",
-                "shared",
-                42,
-            ),
-            make_fn(
-                "crates/vox-plugin-mens-candle-metal/src/x.rs",
-                "shared",
-                42,
-            ),
+            make_fn("crates/vox-plugin-mens-candle-cuda/src/x.rs", "shared", 42),
+            make_fn("crates/vox-plugin-mens-candle-metal/src/x.rs", "shared", 42),
         ];
         let rule = BodyHashRule::default();
         assert!(rule.sweep(&files, &ctx).is_empty());

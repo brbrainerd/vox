@@ -29,7 +29,9 @@ async fn call_orchestrator_daemon(
 }
 
 #[tauri::command]
-pub async fn submit_orchestrator_task(input: SubmitTaskInput) -> Result<ControlPlaneResult, String> {
+pub async fn submit_orchestrator_task(
+    input: SubmitTaskInput,
+) -> Result<ControlPlaneResult, String> {
     let file_manifest: Vec<FileAffinity> = input.files.iter().map(FileAffinity::write).collect();
     let priority = match input.priority.as_deref() {
         Some("urgent") => Some(TaskPriority::Urgent),
@@ -47,7 +49,10 @@ pub async fn submit_orchestrator_task(input: SubmitTaskInput) -> Result<ControlP
         }),
     )
     .await?;
-    let task_id = response.get("task_id").and_then(|v| v.as_u64()).map(|v| v.to_string());
+    let task_id = response
+        .get("task_id")
+        .and_then(|v| v.as_u64())
+        .map(|v| v.to_string());
     Ok(ControlPlaneResult {
         ok: true,
         message: "task submitted".to_string(),

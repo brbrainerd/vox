@@ -2,7 +2,10 @@
 
 use vox_actor_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
 use vox_orchestrator::Orchestrator;
-use vox_orchestrator::models::{CandidateScope, ModelSelectionRequest, ModelSpec, ProviderType, SelectionAxes, SelectionIntent, decide};
+use vox_orchestrator::models::{
+    CandidateScope, ModelSelectionRequest, ModelSpec, ProviderType, SelectionAxes, SelectionIntent,
+    decide,
+};
 use vox_orchestrator::route_policy::route_policy_allows_model;
 use vox_orchestrator::types::TaskCategory;
 use vox_orchestrator::usage::{RemainingBudget, UsageTracker};
@@ -11,7 +14,6 @@ use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed};
 use super::types::McpChatModelResolution;
 use crate::server_state::ServerState;
-
 
 fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
     route_policy_allows_model(model)

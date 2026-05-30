@@ -438,8 +438,8 @@ fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
 
 #[test]
 fn mcp_request_to_canonical_decision_to_route_output_parity() {
-    use vox_actor_runtime::model_resolution::backend_telemetry_labels;
     use vox_actor_runtime::model_resolution::ChatRouteBackend;
+    use vox_actor_runtime::model_resolution::backend_telemetry_labels;
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
     // SAFETY: env mutations are serialized by `INFERENCE_PROFILE_TEST_LOCK`.
     unsafe {
@@ -449,7 +449,8 @@ fn mcp_request_to_canonical_decision_to_route_output_parity() {
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
-    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) = tiny_registry_with_free_and_paid();
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        tiny_registry_with_free_and_paid();
 
     let request = McpChatModelResolution {
         complexity: 5,
@@ -458,14 +459,9 @@ fn mcp_request_to_canonical_decision_to_route_output_parity() {
         ..Default::default()
     };
 
-    let (resolved_model, _) = resolve_mcp_chat_model_sync(
-        &orch,
-        "generate a parser",
-        None,
-        request.clone(),
-        None,
-    )
-    .expect("canonical decision");
+    let (resolved_model, _) =
+        resolve_mcp_chat_model_sync(&orch, "generate a parser", None, request.clone(), None)
+            .expect("canonical decision");
     let canonical_decision_model_id = resolved_model.id.clone();
 
     let (sticky_reroute_model, _) = resolve_mcp_chat_model_sync(
