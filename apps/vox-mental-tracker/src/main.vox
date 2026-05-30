@@ -340,7 +340,7 @@ fn test_csv_quote_inner_quotes() to Unit {
 }
 
 component NavBar() {
-    view: row(raw_class="mh-nav", scroll="horizontal") {
+    view: row(raw_class="mh-nav") {
         link(href="/") { "Home" }
         text(raw_class="mh-nav-dot") { " · " }
         link(href="/timeline") { "Timeline" }
