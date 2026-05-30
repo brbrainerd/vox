@@ -150,6 +150,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Crate | One-line scope |
 |---|---|
 | [`vox-cli`](../../../crates/vox-cli/) | Vox command-line interface: compile, run, bundle, and workspace diagnostics. |
+| [`vox-cli-tests`](../../../crates/vox-cli-tests/) | End-to-end `vox build`/`vox new` CLI integration harness (test-only L5; assert_cmd subprocess + tsc/cargo check). |
 | [`vox-integration-tests`](../../../crates/vox-integration-tests/) | Cross-crate integration test harness (test-only L5). |
 | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) | Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4. |
 | [`vox-gui`](../../../crates/vox-gui/) | Tauri desktop shell; depends on vox-cli / vox-orchestrator. |
