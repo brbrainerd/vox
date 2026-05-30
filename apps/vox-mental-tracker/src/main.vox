@@ -130,12 +130,12 @@ fn test_is_backdated_over_threshold() to Unit {
 
 @test
 fn test_is_backdated_under_threshold() to Unit {
-    assert(!_is_backdated("1000000", "1299999"))
+    assert(not _is_backdated("1000000", "1299999"))
 }
 
 @test
 fn test_is_backdated_zero_event_at() to Unit {
-    assert(!_is_backdated("0", "999999"))
+    assert(not _is_backdated("0", "999999"))
 }
 
 @test
@@ -232,7 +232,7 @@ fn test_csv_quote_inner_quotes() to Unit {
             let mut exercises = 0
             let mut notes = 0
             for r in rows {
-                if !_is_superseded_in(r.event_id, rows) {
+                if not _is_superseded_in(r.event_id, rows) {
                     total = total + 1
                     if r.event_kind == "mood_recorded" { moods = moods + 1 }
                     if r.event_kind == "meal_recorded" { meals = meals + 1 }
@@ -242,7 +242,8 @@ fn test_csv_quote_inner_quotes() to Unit {
                     if r.event_kind == "note_recorded" { notes = notes + 1 }
                 }
             }
-            "{\"window_days\":7,\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
+            let result = "{\"window_days\":7,\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
+            result
         }
         Error(_) => "{\"error\":\"db\"}"
     }
@@ -256,14 +257,16 @@ fn test_csv_quote_inner_quotes() to Unit {
             let mut out = "["
             let mut first = true
             for r in rows {
-                if !_is_superseded_in(r.event_id, rows) {
+                if not _is_superseded_in(r.event_id, rows) {
                     if first { first = false } else { out = out + "," }
                     let backdated = _is_backdated(r.event_at, r.recorded_at)
                     let pj = r.payload_json.replace("\\", "\\\\").replace("\"", "\\\"")
-                    out = out + "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\",\"is_backdated\":" + str(backdated) + "}"
+                    let chunk = "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\",\"is_backdated\":" + str(backdated) + "}"
+                    out = out + chunk
                 }
             }
-            out + "]"
+            let result = out + "]"
+            result
         }
         Error(_) => "[]"
     }
@@ -277,7 +280,7 @@ fn test_csv_quote_inner_quotes() to Unit {
         Ok(rows) => {
             let mut out = header
             for r in rows {
-                if !_is_superseded_in(r.event_id, rows) {
+                if not _is_superseded_in(r.event_id, rows) {
                     let backdated = _is_backdated(r.event_at, r.recorded_at)
                     let mut row = _csv_quote(r.event_id) + "," + _csv_quote(r.event_kind) + "," + str(r.schema_version)
                     row = row + "," + _csv_quote(r.payload_json) + "," + _csv_quote(r.event_at) + "," + _csv_quote(r.recorded_at)
@@ -308,7 +311,10 @@ fn test_csv_quote_inner_quotes() to Unit {
     let summary = weekly_summary_json()
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
-    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>body{font-family:system-ui;margin:24px;}pre{white-space:pre-wrap;overflow-x:auto;font-size:12px;}</style></head><body>"
+    let lbrace = "{"
+    let rbrace = "}"
+    let css = "body" + lbrace + "font-family:system-ui;margin:24px;" + rbrace + "pre" + lbrace + "white-space:pre-wrap;overflow-x:auto;font-size:12px;" + rbrace
+    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>" + css + "</style></head><body>"
     body = body + "<h1>Clinical export</h1><p>Generated (UTC ms): " + str(std.time.now_ms()) + "</p><p>Content SHA-256: <code>" + hash + "</code></p>"
     body = body + "<h2>Weekly summary</h2><pre>" + summary + "</pre>"
     body = body + "<h2>Methodology</h2><p>Append-only event log. Rows whose <code>correction_of</code> references a prior row supersede that row. <code>is_backdated</code> is set when <code>recorded_at − event_at &gt; 5 min</code>.</p>"
