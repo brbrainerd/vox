@@ -21,8 +21,10 @@ futures           = { workspace = true }
 thiserror         = { workspace = true }
 sha2              = { workspace = true }
 regex             = { workspace = true }
+dirs              = { workspace = true }
 
 [dev-dependencies]
 insta             = { workspace = true, features = ["json", "yaml"] }
 tempfile          = { workspace = true }
 tokio             = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+toml              = { workspace = true }
