@@ -44,11 +44,21 @@ fn registry() -> &'static BuiltinRegistry {
 /// call to such a fn (`record_event("mood", ...)`) is rewritten to that object form so the call
 /// site matches the client signature. Empty in non-handler/non-component contexts, where bare
 /// positional emit is retained.
+///
+/// `local_exec_db` is set ONLY when emitting a `@mutation`/`@query` body that
+/// runs on-device (the RN local-execution path). It gates the rewrite of `db`
+/// operations to `voxRuntime.recordMutation`/`replayTable` and the real `?`
+/// (Try) propagation. It is `false` for every web/component context, so those
+/// emit paths are byte-identical.
 #[derive(Clone)]
 pub struct EmitCtx<'a> {
     pub state_names: &'a HashSet<String>,
     pub async_fn_names: &'a HashSet<String>,
     pub endpoint_params: &'a HashMap<String, Vec<String>>,
+    pub local_exec_db: bool,
+    /// Name of the endpoint fn whose body is currently being emitted (the
+    /// tracing label passed to `recordMutation`); empty outside local-exec.
+    pub current_fn: &'a str,
 }
 
 impl<'a> EmitCtx<'a> {
@@ -58,6 +68,8 @@ impl<'a> EmitCtx<'a> {
             state_names,
             async_fn_names: EMPTY_ASYNC_FNS.get_or_init(HashSet::new),
             endpoint_params: EMPTY_ENDPOINT_PARAMS.get_or_init(HashMap::new),
+            local_exec_db: false,
+            current_fn: "",
         }
     }
 
@@ -67,9 +79,8 @@ impl<'a> EmitCtx<'a> {
         async_fn_names: &'a HashSet<String>,
     ) -> Self {
         Self {
-            state_names,
             async_fn_names,
-            endpoint_params: EMPTY_ENDPOINT_PARAMS.get_or_init(HashMap::new),
+            ..Self::new(state_names)
         }
     }
 
@@ -82,9 +93,8 @@ impl<'a> EmitCtx<'a> {
         endpoint_params: &'a HashMap<String, Vec<String>>,
     ) -> Self {
         Self {
-            state_names,
-            async_fn_names: EMPTY_ASYNC_FNS.get_or_init(HashSet::new),
             endpoint_params,
+            ..Self::new(state_names)
         }
     }
 
@@ -96,9 +106,40 @@ impl<'a> EmitCtx<'a> {
         endpoint_params: &'a HashMap<String, Vec<String>>,
     ) -> Self {
         Self {
-            state_names,
             async_fn_names,
             endpoint_params,
+            ..Self::new(state_names)
+        }
+    }
+
+    /// On-device local-execution context for a `@mutation`/`@query` body: db ops
+    /// lower to `voxRuntime` journal calls and `?` propagates Result errors.
+    pub fn local_exec(
+        state_names: &'a HashSet<String>,
+        async_fn_names: &'a HashSet<String>,
+        endpoint_params: &'a HashMap<String, Vec<String>>,
+        current_fn: &'a str,
+    ) -> Self {
+        Self {
+            async_fn_names,
+            endpoint_params,
+            local_exec_db: true,
+            current_fn,
+            ..Self::new(state_names)
+        }
+    }
+
+    /// Clone this context but force a plain (non-async) variant, preserving the
+    /// `local_exec_db` flag, endpoint params, and current fn. Used by
+    /// inner-scope rebuilds (blocks, lambdas) so the local-execution lowering
+    /// survives nesting.
+    pub fn to_plain(&self) -> Self {
+        EmitCtx {
+            state_names: self.state_names,
+            async_fn_names: EMPTY_ASYNC_FNS.get_or_init(HashSet::new),
+            endpoint_params: self.endpoint_params,
+            local_exec_db: self.local_exec_db,
+            current_fn: self.current_fn,
         }
     }
 }
@@ -213,6 +254,10 @@ fn lower_std_namespace_call(
         ("time", "now_iso") => Some("new Date().toISOString()".to_string()),
         ("json", "stringify") => Some(format!("JSON.stringify({})", args_str.join(", "))),
         ("json", "parse") => Some(format!("JSON.parse({})", args_str.join(", "))),
+        // `std.crypto.uuid()` mints record ids inside on-device mutation bodies
+        // → the runtime's `uuid()`. Only reachable in local-exec contexts (no
+        // component handler calls std.crypto), so it never affects web output.
+        ("crypto", "uuid") => Some("voxRuntime.uuid()".to_string()),
         _ => None,
     }
 }
@@ -269,8 +314,26 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             if let Some(inline) = extract_single_jsx_expr(stmts, ctx) {
                 return inline;
             }
-            // Non-handler blocks: use a plain ctx (no async promotion for IIFEs).
-            let plain_ctx = EmitCtx::with_endpoints(ctx.state_names, ctx.endpoint_params);
+            let plain_ctx = ctx.to_plain();
+            if ctx.local_exec_db {
+                // On-device block-as-value: an `async` IIFE so arm/db awaits are
+                // legal, and the trailing expression is `return`ed so the block
+                // produces its value (e.g. a match-arm body `{ let x = …; <expr> }`).
+                let mut out = String::from("(await (async () => {\n");
+                let n = stmts.len();
+                for (i, stmt) in stmts.iter().enumerate() {
+                    if i + 1 == n {
+                        if let HirStmt::Expr { expr, .. } = stmt {
+                            out.push_str(&format!("    return {};\n", emit_hir_expr(expr, &plain_ctx)));
+                            continue;
+                        }
+                    }
+                    out.push_str(&emit_hir_stmt(stmt, &plain_ctx, 2));
+                }
+                out.push_str("  })())");
+                return out;
+            }
+            // Non-handler blocks: a plain void IIFE (no async promotion).
             let mut out = String::new();
             out.push_str("(() => {\n");
             for stmt in stmts {
@@ -410,6 +473,15 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             }
         }
         HirExpr::MethodCall(obj, method, args, plan, _) => {
+            // On-device local execution: a `db.<Table>.<op>(...)` call (carries a
+            // db query plan) lowers to a `voxRuntime` journal call instead of the
+            // host SQL plan. Gated on `local_exec_db` so web/component emit is
+            // untouched.
+            if ctx.local_exec_db {
+                if let Some(p) = plan {
+                    return emit_local_db_op(p, args, ctx);
+                }
+            }
             // Bug D: inline-replace `std.<ns>.<method>(...)` calls with their JS equivalents
             // so emitted component files don't reference an unresolved `std` global.
             if let Some(replacement) = lower_std_namespace_call(obj, method, args, ctx) {
@@ -552,7 +624,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             // `endpoint_params` so endpoint calls inside an event-handler lambda
             // (the common case: `onPress={() => { record_event(...) }}`) are
             // still rewritten to the named-object form `vox-client` expects.
-            let lambda_ctx = EmitCtx::with_endpoints(ctx.state_names, ctx.endpoint_params);
+            let lambda_ctx = ctx.to_plain();
             let b = emit_hir_expr(body, &lambda_ctx);
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
@@ -561,6 +633,14 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             // (see crates/vox-compiler/src/codegen_ts/adt.rs). Dispatch on `_val._tag` and
             // bind constructor fields by destructuring; fall back to wildcard / literal /
             // ident-bind cases for non-ADT subjects.
+            // In on-device (local-exec) bodies a match arm can contain `await`
+            // (a nested db op), so the dispatch arrow must be `async` and its
+            // result awaited; otherwise the plain sync IIFE is emitted.
+            let (match_afn, match_aw) = if ctx.local_exec_db {
+                ("async ", "await ")
+            } else {
+                ("", "")
+            };
             let s = emit_hir_expr(subject, ctx);
             let all_constructor_or_wild = arms.iter().all(|a| {
                 matches!(
@@ -620,7 +700,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                     arms_out.push("default: return undefined;".to_string());
                 }
                 format!(
-                    "((_val) => {{ switch((_val as any)._tag) {{ {} }} }})({s})",
+                    "({match_aw}({match_afn}(_val) => {{ switch((_val as any)._tag) {{ {} }} }})({s}))",
                     arms_out.join(" ")
                 )
             } else {
@@ -647,15 +727,25 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                     }
                 }
                 format!(
-                    "((_val) => {{ switch(_val) {{ {} }} }})({s})",
+                    "({match_aw}({match_afn}(_val) => {{ switch(_val) {{ {} }} }})({s}))",
                     arms_out.join(" ")
                 )
             }
         }
         HirExpr::Try(h) => {
-            // No direct equivalent of `?` in TS unless it's a specific pattern, but we'll try to emulate or just emit `await`/direct expression for now since it's just TS generation.
-            // A common TS code pattern is to just emit the target since actual error bubbling requires explicit branching. For basic TS compat we'll emit the unwrapped expression.
-            emit_hir_expr(h.target.as_ref(), ctx)
+            let target = emit_hir_expr(h.target.as_ref(), ctx);
+            if ctx.local_exec_db {
+                // Real `?` propagation for on-device endpoint bodies: `__voxTry`
+                // returns the Ok payload, or throws a sentinel (caught at the fn
+                // top) that early-returns the Error variant. The target is a
+                // Result value (db ops emit `Ok(await …)`); `await` settles any
+                // inner promise before unwrapping.
+                format!("__voxTry(await {target})")
+            } else {
+                // Web/component path: no Result runtime; emit the unwrapped target
+                // (unchanged legacy behavior).
+                target
+            }
         }
         HirExpr::DecimalLit(v, _) => compat::ts_string_literal(v),
 
@@ -706,7 +796,7 @@ pub(crate) fn emit_hir_expr_attr_value(
             let handler_ctx = if needs_async {
                 ctx.clone()
             } else {
-                EmitCtx::with_endpoints(ctx.state_names, ctx.endpoint_params)
+                ctx.to_plain()
             };
             let stmts_str = stmts
                 .iter()
@@ -779,6 +869,36 @@ fn emit_floating_endpoint_call(expr: &HirExpr, ctx: &EmitCtx<'_>, name: &str, pa
     format!(
         "{pad}void Promise.resolve({call}).catch((__e) => {{ console.error(\"[vox] endpoint '{name}' failed (fire-and-forget):\", __e); }});\n"
     )
+}
+
+/// Lower a `db.<Table>.<op>(...)` call to a `voxRuntime` journal call for the
+/// on-device local-execution path. Insert/All/Count are wired to the append-only
+/// seam; richer ops (Get/Filter/Delete/raw) are deferred — endpoints that use
+/// them are classified non-local-executable (see `is_endpoint_locally_executable`)
+/// and never reach this with those ops, but we emit an explicit throw as a
+/// belt-and-suspenders so output is never silently wrong.
+fn emit_local_db_op(plan: &HirDbQueryPlan, args: &[HirArg], ctx: &EmitCtx<'_>) -> String {
+    let table = &plan.table;
+    let fname = ctx.current_fn;
+    match plan.op {
+        HirDbTableOp::Insert => {
+            let row = args
+                .first()
+                .map(|a| emit_hir_expr(&a.value, ctx))
+                .unwrap_or_else(|| "{}".to_string());
+            format!("Ok(await voxRuntime.recordMutation(\"{fname}\", \"{table}\", {row}))")
+        }
+        HirDbTableOp::All => format!("Ok(await voxRuntime.replayTable(\"{table}\"))"),
+        HirDbTableOp::Count => {
+            format!("Ok(__vox_len(await voxRuntime.replayTable(\"{table}\")))")
+        }
+        HirDbTableOp::Get
+        | HirDbTableOp::Delete
+        | HirDbTableOp::FilterRecord
+        | HirDbTableOp::UnsafeQueryRawClause => format!(
+            "(() => {{ throw new VoxRuntimeError(\"UnsupportedOnPlatform\", \"on-device db op not yet supported for table '{table}'\"); }})()"
+        ),
+    }
 }
 
 /// **Phase:** compat-legacy (OP-0138).

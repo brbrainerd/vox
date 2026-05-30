@@ -67,4 +67,16 @@ export const voxRuntime = {
   },
 };
 
-export default { voxRuntime };
+// The generated on-device vox-client imports these too.
+export class VoxRuntimeError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.name = "VoxRuntimeError";
+  }
+}
+export function createVoxRuntime() {
+  return voxRuntime;
+}
+
+export default { voxRuntime, createVoxRuntime, VoxRuntimeError };

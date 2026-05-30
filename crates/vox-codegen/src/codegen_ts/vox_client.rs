@@ -9,10 +9,16 @@
 //! so type mappings (Decimal → string, BigInt → string, Option → optional param) are
 //! enforced by the same projection that drives Zod and OpenAPI emit.
 
+use std::collections::HashSet;
+
 use vox_compiler::contract_ir::{
     self, ContractEndpointKind, WireType, wire_type_to_ts, wire_type_to_zod,
 };
-use vox_compiler::hir::HirModule;
+use vox_compiler::hir::{
+    HirArg, HirDbTableOp, HirEndpointFn, HirEndpointKind, HirExpr, HirModule, HirStmt,
+};
+
+use crate::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr, emit_hir_stmt};
 
 /// Stable output filename for the generated client.
 pub const VOX_CLIENT_FILENAME: &str = "vox-client.ts";
@@ -199,6 +205,38 @@ async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { 
 "#,
     );
 
+    // RN target: endpoints whose bodies are locally executable run ON-DEVICE
+    // (no server), routing db ops to the durable journal via `voxRuntime`.
+    // Web/desktop keep the HTTP client unchanged.
+    if target == VoxClientTarget::ReactNative {
+        let local_names = compute_local_exec_names(hir);
+        if !local_names.is_empty() {
+            out.push_str(&local_exec_preamble());
+        }
+        // name → ordered param names, for the positional→named-object rewrite of
+        // endpoint→endpoint calls inside local bodies.
+        let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
+            .endpoint_fns
+            .iter()
+            .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+            .collect();
+        for (i, ep) in ir.endpoints.iter().enumerate() {
+            let hir_fn = &hir.endpoint_fns[i]; // contract_ir projects endpoint_fns 1:1, in order
+            let is_query = ep.kind == ContractEndpointKind::Query;
+            if local_names.contains(&hir_fn.name) {
+                out.push_str(&emit_local_endpoint(hir_fn, ep, &local_names, &endpoint_params));
+            } else if hir_fn.kind == HirEndpointKind::Server {
+                // Genuine server semantics — keep the HTTP call.
+                out.push_str(&emit_one_endpoint(ep, is_query));
+            } else {
+                // A @query/@mutation that can't run on-device and has no server
+                // on the phone: throw rather than POST into the void.
+                out.push_str(&emit_unsupported_endpoint(ep));
+            }
+        }
+        return out;
+    }
+
     for ep in &ir.endpoints {
         let is_query = ep.kind == ContractEndpointKind::Query;
         out.push_str(&emit_one_endpoint(ep, is_query));
@@ -263,4 +301,294 @@ fn emit_one_endpoint(ep: &contract_ir::ContractEndpoint, is_query: bool) -> Stri
             "/** Server fn `{name}` → `{path}` (POST) */\nexport async function {name}(args: {{ {arg_type} }}, init?: RequestInit): Promise<{return_ts}> {{\n  if (isTauri()) return $tauri<{return_ts}>(\"{name}\", {{ {body_obj} }}, {return_schema});\n  return $post<{return_ts}>(\"{path}\", {return_schema}, {{ {body_obj} }}, init);\n}}\n\n"
         )
     }
+}
+
+// ── On-device local execution (RN target) ──────────────────────────────────
+
+/// Runtime helpers prepended to the RN `vox-client.ts` so emitted local-exec
+/// bodies resolve: the `voxRuntime` instance, the `Ok`/`Error_` Result
+/// constructors, `__vox_len`, and the `?`-propagation + Result-unwrap helpers.
+fn local_exec_preamble() -> String {
+    r#"// On-device execution: @query/@mutation bodies run locally and persist via voxRuntime.
+import { createVoxRuntime, VoxRuntimeError } from "@vox/runtime-rn";
+const voxRuntime = createVoxRuntime();
+const Ok = <T,>(v: T) => ({ _tag: "Ok" as const, _p0: v });
+const Error_ = <E,>(e: E) => ({ _tag: "Error" as const, _p0: e });
+void Error_;
+function __vox_len(x: unknown): number {
+  return Array.isArray(x) || typeof x === "string"
+    ? (x as { length: number }).length
+    : Object.keys(x as object).length;
+}
+const __VOX_TRY = Symbol("voxTry");
+function __voxTry<T>(r: { _tag: string; _p0: T }): T {
+  if (r && r._tag === "Error") throw { [__VOX_TRY]: true, value: r };
+  return r._p0;
+}
+function __isVoxTrySentinel(e: unknown): e is { value: unknown } {
+  return typeof e === "object" && e !== null && __VOX_TRY in (e as object);
+}
+function __voxUnwrap(v: unknown): unknown {
+  if (v && typeof v === "object" && "_tag" in v) {
+    const t = (v as { _tag: string })._tag;
+    if (t === "Ok") return (v as { _p0: unknown })._p0;
+    if (t === "Error") throw new VoxRuntimeError("Internal", "on-device mutation returned Error");
+  }
+  return v;
+}
+
+"#
+    .to_string()
+}
+
+/// Mappable `std.<ns>.<method>` surface for on-device bodies (mirrors
+/// `lower_std_namespace_call`). Anything outside this set makes an endpoint
+/// non-locally-executable.
+fn std_call_is_mappable(ns: &str, method: &str) -> bool {
+    matches!(
+        (ns, method),
+        ("time", "now_ms")
+            | ("time", "now_iso")
+            | ("json", "stringify")
+            | ("json", "parse")
+            | ("crypto", "uuid")
+    )
+}
+
+/// True if `expr` contains no construct that blocks on-device execution.
+fn expr_local_safe(expr: &HirExpr, all_endpoints: &HashSet<String>, ok: &HashSet<String>) -> bool {
+    match expr {
+        HirExpr::MethodCall(obj, method, args, plan, _) => {
+            if let Some(p) = plan {
+                // Phase 1 supports Insert/All/Count; other db ops are deferred.
+                if !matches!(
+                    p.op,
+                    HirDbTableOp::Insert | HirDbTableOp::All | HirDbTableOp::Count
+                ) {
+                    return false;
+                }
+            }
+            if let HirExpr::FieldAccess(root, ns, _) = obj.as_ref() {
+                if matches!(root.as_ref(), HirExpr::Ident(r, _) if r == "std")
+                    && !std_call_is_mappable(ns, method)
+                {
+                    return false; // un-mappable std call (e.g. std.regex.*, std.crypto.hash_secure)
+                }
+            }
+            if matches!(obj.as_ref(), HirExpr::Ident(n, _) if n == "Speech" || n == "mobile") {
+                return false;
+            }
+            expr_local_safe(obj, all_endpoints, ok)
+                && args.iter().all(|a| expr_local_safe(&a.value, all_endpoints, ok))
+        }
+        HirExpr::Call(callee, args, _, _) => {
+            if let HirExpr::Ident(name, _) = callee.as_ref() {
+                // A call to another endpoint is only safe if that endpoint is
+                // itself locally executable (transitive).
+                if all_endpoints.contains(name) && !ok.contains(name) {
+                    return false;
+                }
+            }
+            expr_local_safe(callee, all_endpoints, ok)
+                && args.iter().all(|a| expr_local_safe(&a.value, all_endpoints, ok))
+        }
+        HirExpr::Binary(_, l, r, _) => {
+            expr_local_safe(l, all_endpoints, ok) && expr_local_safe(r, all_endpoints, ok)
+        }
+        HirExpr::Unary(_, e, _) => expr_local_safe(e, all_endpoints, ok),
+        HirExpr::FieldAccess(o, _, _) => expr_local_safe(o, all_endpoints, ok),
+        HirExpr::Index(o, i, _) => {
+            expr_local_safe(o, all_endpoints, ok) && expr_local_safe(i, all_endpoints, ok)
+        }
+        HirExpr::Try(t) => expr_local_safe(t.target.as_ref(), all_endpoints, ok),
+        HirExpr::ObjectLit(fields, _) => {
+            fields.iter().all(|(_, v)| expr_local_safe(v, all_endpoints, ok))
+        }
+        HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
+            items.iter().all(|e| expr_local_safe(e, all_endpoints, ok))
+        }
+        HirExpr::Block(stmts, _) => stmts.iter().all(|s| stmt_local_safe(s, all_endpoints, ok)),
+        HirExpr::If(c, t, e, _) => {
+            expr_local_safe(c, all_endpoints, ok)
+                && t.iter().all(|s| stmt_local_safe(s, all_endpoints, ok))
+                && e.as_ref()
+                    .is_none_or(|b| b.iter().all(|s| stmt_local_safe(s, all_endpoints, ok)))
+        }
+        HirExpr::Match(subj, arms, _) => {
+            expr_local_safe(subj, all_endpoints, ok)
+                && arms.iter().all(|a| expr_local_safe(&a.body, all_endpoints, ok))
+        }
+        HirExpr::For(_, _, iter, body, _, _) => {
+            expr_local_safe(iter, all_endpoints, ok) && expr_local_safe(body, all_endpoints, ok)
+        }
+        HirExpr::Lambda(_, _, body, _, _) => expr_local_safe(body, all_endpoints, ok),
+        // Leaf / value nodes are always safe.
+        _ => true,
+    }
+}
+
+fn stmt_local_safe(stmt: &HirStmt, all_endpoints: &HashSet<String>, ok: &HashSet<String>) -> bool {
+    match stmt {
+        HirStmt::Let { value, .. } | HirStmt::Expr { expr: value, .. } => {
+            expr_local_safe(value, all_endpoints, ok)
+        }
+        HirStmt::Assign { target, value, .. } => {
+            expr_local_safe(target, all_endpoints, ok) && expr_local_safe(value, all_endpoints, ok)
+        }
+        HirStmt::Return { value, .. } => {
+            value.as_ref().is_none_or(|v| expr_local_safe(v, all_endpoints, ok))
+        }
+        HirStmt::While { condition, body, .. } => {
+            expr_local_safe(condition, all_endpoints, ok)
+                && body.iter().all(|s| stmt_local_safe(s, all_endpoints, ok))
+        }
+        HirStmt::Loop { body, .. } => body.iter().all(|s| stmt_local_safe(s, all_endpoints, ok)),
+        _ => true,
+    }
+}
+
+/// Compute the fixpoint set of endpoint fns whose bodies can run on-device:
+/// start with every non-`@server` endpoint, then drop any whose body hits an
+/// un-mappable surface or calls a dropped endpoint, until the set is stable.
+fn compute_local_exec_names(hir: &HirModule) -> HashSet<String> {
+    // The walker disqualifies a call to any USER fn (endpoint or module helper)
+    // that isn't itself locally emitted. Module helper fns (`fn _foo`) are never
+    // emitted into vox-client.ts, so an endpoint that calls one can't run
+    // on-device — it falls back to the explicit `UnsupportedOnPlatform` throw
+    // rather than a runtime ReferenceError. Builtins (`str`, `len`) aren't user
+    // fns, so they're never disqualified.
+    let all_endpoints: HashSet<String> = hir
+        .endpoint_fns
+        .iter()
+        .map(|e| e.name.clone())
+        .chain(hir.functions.iter().map(|f| f.name.clone()))
+        .collect();
+    let mut ok: HashSet<String> = hir
+        .endpoint_fns
+        .iter()
+        .filter(|e| e.kind != HirEndpointKind::Server)
+        .map(|e| e.name.clone())
+        .collect();
+    loop {
+        let mut changed = false;
+        let snapshot = ok.clone();
+        for e in &hir.endpoint_fns {
+            if !snapshot.contains(&e.name) {
+                continue;
+            }
+            let safe = e
+                .body
+                .iter()
+                .all(|s| stmt_local_safe(s, &all_endpoints, &snapshot));
+            if !safe {
+                ok.remove(&e.name);
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    ok
+}
+
+/// Emit an endpoint as a local async function that runs its body on-device.
+fn emit_local_endpoint(
+    hir_fn: &HirEndpointFn,
+    ep: &contract_ir::ContractEndpoint,
+    local_names: &HashSet<String>,
+    endpoint_params: &std::collections::HashMap<String, Vec<String>>,
+) -> String {
+    let name = &ep.name;
+    let return_ts = match &ep.response {
+        WireType::Unit => "void".to_string(),
+        wt => wire_type_to_ts(wt),
+    };
+
+    let (sig_args, destructure) = if ep.params.is_empty() {
+        (String::new(), String::new())
+    } else {
+        let fields = ep
+            .params
+            .iter()
+            .map(|f| {
+                let t = wire_type_to_ts(&f.ty);
+                if f.optional {
+                    format!("{}?: {}", f.name, t)
+                } else {
+                    format!("{}: {}", f.name, t)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let names = ep
+            .params
+            .iter()
+            .map(|f| f.name.clone())
+            .collect::<Vec<_>>()
+            .join(", ");
+        (
+            format!("args: {{ {fields} }}"),
+            format!("  const {{ {names} }} = args;\n"),
+        )
+    };
+
+    // Local-exec ctx: async_fn_names = local endpoints so endpoint->endpoint
+    // calls get `await`; endpoint_params drives the positional->named rewrite.
+    let empty_state: HashSet<String> = HashSet::new();
+    let ctx = EmitCtx::local_exec(&empty_state, local_names, endpoint_params, name);
+
+    let mut body = String::new();
+    let n = hir_fn.body.len();
+    for (i, stmt) in hir_fn.body.iter().enumerate() {
+        // Trailing bare expression = implicit return.
+        if i + 1 == n {
+            if let HirStmt::Expr { expr, .. } = stmt {
+                body.push_str(&format!("    return {};\n", emit_hir_expr(expr, &ctx)));
+                continue;
+            }
+        }
+        body.push_str(&emit_hir_stmt(stmt, &ctx, 2));
+    }
+
+    let kind_doc = match hir_fn.kind {
+        HirEndpointKind::Query => "@query",
+        HirEndpointKind::Mutation => "@mutation",
+        HirEndpointKind::Server => "@server",
+    };
+
+    format!(
+        "/** {kind_doc} `{name}` - runs on-device (no server); db ops persist via voxRuntime. */\n\
+         export async function {name}({sig_args}): Promise<{return_ts}> {{\n\
+         {destructure}  \
+         const __r: unknown = await (async (): Promise<unknown> => {{\n\
+         {body}  }})().catch((__e: unknown) => {{ if (__isVoxTrySentinel(__e)) return (__e as {{ value: unknown }}).value; throw __e; }});\n  \
+         return __voxUnwrap(__r) as {return_ts};\n}}\n\n"
+    )
+}
+
+/// A `@query`/`@mutation` that can't run on-device and has no server on the
+/// phone: throw rather than POST into the void.
+fn emit_unsupported_endpoint(ep: &contract_ir::ContractEndpoint) -> String {
+    let name = &ep.name;
+    let return_ts = match &ep.response {
+        WireType::Unit => "void".to_string(),
+        wt => wire_type_to_ts(wt),
+    };
+    let sig_args = if ep.params.is_empty() {
+        String::new()
+    } else {
+        let fields = ep
+            .params
+            .iter()
+            .map(|f| format!("{}: {}", f.name, wire_type_to_ts(&f.ty)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("_args: {{ {fields} }}")
+    };
+    format!(
+        "/** `{name}` is not available on-device (no local execution path). */\n\
+         export async function {name}({sig_args}): Promise<{return_ts}> {{\n  \
+         throw new VoxRuntimeError(\"UnsupportedOnPlatform\", \"{name}: no on-device execution path; needs a server or a mappable body\");\n}}\n\n"
+    )
 }
