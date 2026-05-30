@@ -40,6 +40,10 @@ pub struct RouteSummary {
     pub clusters_skipped_over_budget: usize,
     /// Total judge tokens spent across all routed clusters.
     pub judge_tokens_spent: u64,
+    /// Total real USD judge cost across all clusters whose model was priced.
+    /// `None` when no routed cluster had a known cost (e.g. mock router or a
+    /// model absent from the pricing catalog) — never a fabricated $0.00.
+    pub total_judge_cost_usd: Option<f64>,
 }
 
 /// Run the full effort-route pipeline against an S1 `findings.jsonl`.
@@ -61,8 +65,13 @@ pub async fn run(
     let findings_loaded = loaded.len();
     let buckets = crate::bucket::group(loaded);
     let bucket_count = buckets.len();
-    let clusters =
-        crate::cluster::maybe_split(buckets, cfg.max_bucket_size, embedder.as_ref()).await;
+    let clusters = crate::cluster::maybe_split(
+        buckets,
+        cfg.max_bucket_size,
+        cfg.cluster_distance_threshold,
+        embedder.as_ref(),
+    )
+    .await;
 
     std::fs::create_dir_all(out_dir)?;
     let mut writer =
@@ -71,19 +80,30 @@ pub async fn run(
     let mut verified = 0usize;
     let mut skipped_over_budget = 0usize;
     let mut judge_tokens_spent = 0u64;
-    let budget = cfg.judge.max_total_tokens;
+    // Real dollar spend, summed only over clusters whose model was priced.
+    // `None` until the first known cost lands so an all-unpriced run stays None.
+    let mut cost_spent: Option<f64> = None;
+    let token_budget = cfg.judge.max_total_tokens;
+    let dollar_budget = cfg.judge.max_dollar_cost;
 
     for (i, cluster) in clusters.iter().enumerate() {
         let cluster_id = format!("{run_id}-{i}");
-        // Budget gate: once judge spend reaches the ceiling, the remaining
-        // clusters are emitted as honest budget-skipped rows rather than
-        // silently truncated. A budget of 0 disables routing entirely.
-        let decision = if judge_tokens_spent >= budget {
+        // Budget gate: once judge spend reaches either the token ceiling or the
+        // real dollar ceiling, the remaining clusters are emitted as honest
+        // budget-skipped rows rather than silently truncated. A token budget of
+        // 0 disables routing entirely. The dollar gate only fires once a real
+        // cost is known (an unpriced model can never trip it).
+        let over_tokens = judge_tokens_spent >= token_budget;
+        let over_dollars = cost_spent.is_some_and(|c| c >= dollar_budget);
+        let decision = if over_tokens || over_dollars {
             skipped_over_budget += 1;
             crate::route::RemediationDecision::budget_skipped(cluster, &cluster_id)
         } else {
             let d = router.route(cluster, &cluster_id, vox_capable).await;
-            judge_tokens_spent += d.judge_tokens_used;
+            judge_tokens_spent += d.judge_tokens_used();
+            if let Some(c) = d.judge_cost_usd {
+                cost_spent = Some(cost_spent.unwrap_or(0.0) + c);
+            }
             d
         };
         if decision.verified {
@@ -108,16 +128,43 @@ pub async fn run(
         verified,
         clusters_skipped_over_budget: skipped_over_budget,
         judge_tokens_spent,
+        total_judge_cost_usd: cost_spent,
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::route::MockRouter;
+    use crate::cluster::Cluster;
+    use crate::route::{MockRouter, RemediationDecision, Router};
     use async_trait::async_trait;
 
     struct ZeroEmbedder;
+
+    /// Router that reports a fixed real dollar cost per cluster so the dollar
+    /// budget gate can be exercised deterministically (no LLM, no registry).
+    struct FixedCostRouter {
+        cost_per_cluster: f64,
+    }
+
+    #[async_trait]
+    impl Router for FixedCostRouter {
+        async fn route(
+            &self,
+            cluster: &Cluster,
+            cluster_id: &str,
+            vox_capable: crate::route::ModelVoxCapability,
+        ) -> RemediationDecision {
+            // Reuse the mock's decision shape, then stamp a known cost on it.
+            let mut d = MockRouter { confidence: 0.9 }
+                .route(cluster, cluster_id, vox_capable)
+                .await;
+            d.judge_prompt_tokens = 1000;
+            d.judge_completion_tokens = 500;
+            d.judge_cost_usd = Some(self.cost_per_cluster);
+            d
+        }
+    }
 
     #[async_trait]
     impl Embedder for ZeroEmbedder {
@@ -200,5 +247,61 @@ mod tests {
             .map(|d| d.count())
             .unwrap_or(0);
         assert_eq!(artifact_count, 0);
+    }
+
+    #[tokio::test]
+    async fn dollar_budget_skips_remaining_clusters() {
+        // A tiny dollar budget with a router that reports a real known cost:
+        // the first cluster routes and spends $1.00, which already meets the
+        // $0.50 ceiling, so every subsequent cluster is budget-skipped. The
+        // token budget is left wide so only the dollar gate can fire.
+        let out = tempfile::tempdir().unwrap();
+        let mut cfg = EffortRouteConfig {
+            staging_dir: out.path().to_path_buf(),
+            ..Default::default()
+        };
+        cfg.judge.max_dollar_cost = 0.50;
+
+        let summary = run(
+            &fixture(),
+            out.path(),
+            cfg,
+            Box::new(FixedCostRouter {
+                cost_per_cluster: 1.0,
+            }),
+            Box::new(ZeroEmbedder),
+            ModelVoxCapability(false),
+        )
+        .await
+        .unwrap();
+
+        assert!(summary.clusters_routed >= 1);
+        // First cluster routes (spending $1.00); the rest are dollar-skipped.
+        assert!(summary.clusters_skipped_over_budget >= 1);
+        assert_eq!(summary.total_judge_cost_usd, Some(1.0));
+        // Real cost was tracked, not a fabricated zero.
+        assert!(summary.total_judge_cost_usd.unwrap() > 0.0);
+    }
+
+    #[tokio::test]
+    async fn mock_router_reports_no_cost() {
+        // The mock performs no real LLM I/O, so the run's real cost is honestly
+        // None (never a fabricated $0.00).
+        let out = tempfile::tempdir().unwrap();
+        let cfg = EffortRouteConfig {
+            staging_dir: out.path().to_path_buf(),
+            ..Default::default()
+        };
+        let summary = run(
+            &fixture(),
+            out.path(),
+            cfg,
+            Box::new(MockRouter { confidence: 0.9 }),
+            Box::new(ZeroEmbedder),
+            ModelVoxCapability(false),
+        )
+        .await
+        .unwrap();
+        assert_eq!(summary.total_judge_cost_usd, None);
     }
 }
