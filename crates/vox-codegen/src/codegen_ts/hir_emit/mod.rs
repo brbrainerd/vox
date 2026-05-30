@@ -721,6 +721,24 @@ pub(crate) fn emit_hir_expr_attr_value(
 
 /// **Phase:** compat-legacy (OP-0138).
 #[must_use]
+/// React `useEffect` / cleanup callbacks must return `undefined | (() => void)`,
+/// never a `Promise`. When an effect / `on mount:` body awaits an async endpoint
+/// call, the emitted statements contain `await`, which is only legal inside an
+/// `async` function. Wrap such a body in a fire-and-forget
+/// `void (async () => { ... })()` so the awaits are legal while the surrounding
+/// callback stays synchronous. Bodies with no `await` are returned unchanged.
+///
+/// Shared by the web (reactive) and RN component emitters so both wrap async
+/// lifecycle bodies identically.
+pub(crate) fn wrap_effect_body_if_async(stmts_str: &str, indent: usize) -> std::borrow::Cow<'_, str> {
+    if stmts_str.contains("await ") {
+        let pad = "  ".repeat(indent);
+        std::borrow::Cow::Owned(format!("{pad}void (async () => {{\n{stmts_str}{pad}}})();\n"))
+    } else {
+        std::borrow::Cow::Borrowed(stmts_str)
+    }
+}
+
 pub(crate) fn emit_block_stmts(expr: &HirExpr, ctx: &EmitCtx<'_>, indent: usize) -> String {
     match expr {
         HirExpr::Block(stmts, _) => stmts

@@ -859,14 +859,18 @@ fn detect_react_hooks(members: &[HirReactiveMember], view: Option<&HirExpr>) -> 
     if members.iter().any(|m| matches!(m, HirReactiveMember::State(_))) {
         hooks.insert("useState");
     }
-    if members.iter().any(|m| matches!(m, HirReactiveMember::Effect(_)))
-        || members.iter().any(|m| matches!(m, HirReactiveMember::OnMount(_)))
-    {
+    if members.iter().any(|m| {
+        matches!(
+            m,
+            HirReactiveMember::Effect(_)
+                | HirReactiveMember::OnMount(_)
+                | HirReactiveMember::OnCleanup(_)
+        )
+    }) {
         hooks.insert("useEffect");
     }
-    if members.iter().any(|m| matches!(m, HirReactiveMember::Derived(_))) {
-        hooks.insert("useMemo");
-    }
+    // `Derived` members emit a plain `const x = expr` (recomputed each render,
+    // see `emit_lifecycle_hooks`), so no `useMemo` import is needed.
     let _ = view; // currently no view-driven hooks
     hooks.into_iter().collect()
 }
@@ -884,6 +888,59 @@ fn emit_prelude(members: &[HirReactiveMember]) -> String {
                 let val = emit_hir_expr_inline(value);
                 out.push_str(&format!("  const {pat} = {val};\n"));
             }
+        }
+    }
+    out
+}
+
+/// Emit lifecycle hooks — `effect`, `on mount`, `on cleanup`, and `derived`
+/// members — as React hooks, mirroring the web reactive emit so both targets
+/// load data the same way. Endpoint calls inside these bodies are awaited
+/// (the ctx is async-aware) and wrapped in a fire-and-forget async IIFE when
+/// needed, since a `useEffect` callback must stay synchronous.
+///
+/// Without this, the RN target dropped lifecycle members entirely — a component
+/// whose `on mount:` loads data would render its initial state forever.
+fn emit_lifecycle_hooks(
+    members: &[HirReactiveMember],
+    state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
+) -> String {
+    use crate::codegen_ts::hir_emit::{
+        EmitCtx, emit_block_stmts, emit_hir_expr, wrap_effect_body_if_async,
+    };
+
+    // All `@endpoint` fns are async; their names drive `await` insertion.
+    let endpoint_names: HashSet<String> = endpoint_params.keys().cloned().collect();
+    let async_ctx =
+        EmitCtx::with_async_and_endpoints(state_names, &endpoint_names, endpoint_params);
+    let plain_ctx = EmitCtx::with_endpoints(state_names, endpoint_params);
+
+    let mut out = String::new();
+    for m in members {
+        match m {
+            HirReactiveMember::Effect(e) => {
+                let stmts = emit_block_stmts(&e.body, &async_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts, 2);
+                out.push_str(&format!("  useEffect(() => {{\n{body}  }}, []);\n"));
+            }
+            HirReactiveMember::OnMount(o) => {
+                let stmts = emit_block_stmts(&o.body, &async_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts, 2);
+                out.push_str(&format!("  useEffect(() => {{\n{body}  }}, []);\n"));
+            }
+            HirReactiveMember::OnCleanup(c) => {
+                let stmts = emit_block_stmts(&c.body, &async_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts, 2);
+                out.push_str(&format!("  useEffect(() => () => {{\n{body}  }}, []);\n"));
+            }
+            HirReactiveMember::Derived(d) => {
+                // Recompute each render — correct without dep tracking (the web
+                // target memoizes; RN keeps it simple and always-fresh).
+                let expr = emit_hir_expr(&d.expr, &plain_ctx);
+                out.push_str(&format!("  const {} = {};\n", d.name, expr));
+            }
+            _ => {}
         }
     }
     out
@@ -978,8 +1035,25 @@ pub fn emit_rn_component(
         ));
     }
 
-    // Body: state + prelude
+    // Collect state names so the shared HIR → TS lowering rewrites `n = expr`
+    // (mutation) to `set_n(expr)` (React setter) inside handler and lifecycle
+    // bodies. Without this the emitted code would mutate the variable directly,
+    // which RN ignores between renders.
+    let state_names: HashSet<String> = rc
+        .members
+        .iter()
+        .filter_map(|m| match m {
+            HirReactiveMember::State(s) => Some(s.name.clone()),
+            _ => None,
+        })
+        .collect();
+
+    // Body: state declarations, then lifecycle hooks (effects / on-mount /
+    // on-cleanup / derived), then prelude. Lifecycle hooks are what load data
+    // — e.g. `on mount: { total = health_event_count() }` becomes a
+    // `useEffect` that awaits the async endpoint and calls `set_total`.
     out.push_str(&emit_state_declarations(&rc.members));
+    out.push_str(&emit_lifecycle_hooks(&rc.members, &state_names, endpoint_params));
     out.push_str(&emit_prelude(&rc.members));
 
     // View
@@ -999,19 +1073,6 @@ pub fn emit_rn_component(
             return (format!("{}.tsx", rc.name), out);
         }
     };
-
-    // Collect state names so the shared HIR → TS lowering rewrites `n = expr`
-    // (mutation) to `set_n(expr)` (React setter) inside handler bodies. Without
-    // this the emitted handler would mutate the variable directly, which RN
-    // ignores between renders.
-    let state_names: HashSet<String> = rc
-        .members
-        .iter()
-        .filter_map(|m| match m {
-            HirReactiveMember::State(s) => Some(s.name.clone()),
-            _ => None,
-        })
-        .collect();
 
     let rn_root = hir_view_child_to_rn(view_root, &state_names, endpoint_params, diagnostics);
     let mut used_styles = std::collections::BTreeSet::new();

@@ -24,7 +24,7 @@
 
 use crate::codegen_ts::hir_emit::{
     EmitCtx, emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
-    map_hir_type_to_ts,
+    map_hir_type_to_ts, wrap_effect_body_if_async,
 };
 use crate::web_ir::{WebIrDiagnostic, WebIrModule};
 use std::collections::HashSet;
@@ -1048,7 +1048,11 @@ pub fn generate_reactive_component(
                 ));
             }
             HirReactiveMember::Effect(e) => {
-                let stmts_str = emit_block_stmts(&e.body, &plain_ctx, 2);
+                // Async-aware ctx (`view_ctx`) so calls to async @endpoint fns
+                // get `await`; the body is then wrapped in a fire-and-forget
+                // async IIFE since the useEffect callback must stay sync.
+                let stmts_str = emit_block_stmts(&e.body, &view_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts_str, 2);
                 let analysis = extract_state_deps_with_diagnostics(
                     &e.body,
                     &state_names,
@@ -1059,18 +1063,20 @@ pub fn generate_reactive_component(
                 let dep_str = analysis.deps.join(", ");
                 out.push_str(&format!(
                     "  useEffect(() => {{\n{}  }}, [{}]);\n",
-                    stmts_str, dep_str
+                    body, dep_str
                 ));
             }
             HirReactiveMember::OnMount(m) => {
-                let stmts_str = emit_block_stmts(&m.body, &plain_ctx, 2);
-                out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", stmts_str));
+                let stmts_str = emit_block_stmts(&m.body, &view_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts_str, 2);
+                out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", body));
             }
             HirReactiveMember::OnCleanup(c) => {
-                let stmts_str = emit_block_stmts(&c.body, &plain_ctx, 2);
+                let stmts_str = emit_block_stmts(&c.body, &view_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts_str, 2);
                 out.push_str(&format!(
                     "  useEffect(() => () => {{\n{}  }}, []);\n",
-                    stmts_str
+                    body
                 ));
             }
             HirReactiveMember::Stmt(s) => {
