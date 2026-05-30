@@ -1,0 +1,7 @@
+{
+  "name": "@vox/runtime-rn",
+  "version": "0.6.0-cishim",
+  "description": "JS-only stand-in for the uniffi-backed @vox/runtime-rn native module. Lets CI (and a local Expo Go run) bundle the generated app WITHOUT a native build. Methods log + return benign defaults. The real native module ships via EAS Build / a dev client.",
+  "main": "index.js",
+  "private": true
+}

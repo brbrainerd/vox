@@ -1,0 +1,108 @@
+name: Mobile EAS Build (RN/Expo)
+
+# Builds the React-Native/Expo mobile target end to end:
+#   1. `bundle` job (ALWAYS runs, no account needed) — generates the Expo app
+#      with `vox build --target=mobile`, installs deps, and runs `expo export`
+#      to prove the generated app bundles. This is the real CI gate.
+#   2. `eas-build` job (runs ONLY when the `EXPO_TOKEN` secret is configured) —
+#      submits a cloud build on EAS to produce an installable APK.
+#
+# Setup for the optional EAS job is documented in
+# docs/src/architecture/mobile-eas-ci-setup-2026.md.
+
+on:
+  push:
+    paths:
+      - 'apps/vox-mental-tracker/**'
+      - 'crates/vox-codegen/**'
+      - 'crates/vox-runtime-rn/**'
+      - 'clients/runtime-rn/**'
+      - '.github/workflows/mobile-eas-build.yml'
+  pull_request:
+    paths:
+      - 'apps/vox-mental-tracker/**'
+      - 'crates/vox-codegen/**'
+      - 'crates/vox-runtime-rn/**'
+      - 'clients/runtime-rn/**'
+      - '.github/workflows/mobile-eas-build.yml'
+  workflow_dispatch:
+
+jobs:
+  # ── Gate that needs no Expo account: prove the generated app bundles. ──────
+  bundle:
+    name: Generate + export Expo bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Build vox CLI
+        run: cargo build -p vox-cli
+
+      - name: Generate Expo app (vox build --target=mobile)
+        run: |
+          ./target/debug/vox build apps/vox-mental-tracker/src/main.vox \
+            --target=mobile -o "$RUNNER_TEMP/voxapp"
+
+      - name: Swap @vox/runtime-rn for the CI JS shim
+        # The real runtime is a native uniffi module; the JS shim lets the bundle
+        # resolve without a native build. The shim lives in the repo so CI and
+        # local runs share it. See docs/src/architecture/mobile-eas-ci-setup-2026.md.
+        run: |
+          cp -r ci/expo-bundle-shim/vox-runtime-rn "$RUNNER_TEMP/voxapp/shims-vox-runtime-rn"
+          node -e '
+            const fs = require("fs");
+            const p = require("path").join(process.env.RUNNER_TEMP, "voxapp", "package.json");
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.dependencies["@vox/runtime-rn"] = "file:./shims-vox-runtime-rn";
+            delete j.dependencies["@vox/runtime-types"];
+            fs.writeFileSync(p, JSON.stringify(j, null, 2));
+          '
+
+      - name: Install JS deps
+        working-directory: ${{ runner.temp }}/voxapp
+        run: |
+          npm install --no-audit --no-fund
+          npx expo install expo-asset expo-status-bar react-native --fix || true
+
+      - name: Export bundle (proves the app compiles + bundles)
+        working-directory: ${{ runner.temp }}/voxapp
+        run: npx expo export --platform android --output-dir dist
+
+      - name: Assert bundle artifact exists
+        working-directory: ${{ runner.temp }}/voxapp
+        run: test -d dist && test -n "$(ls -A dist)"
+
+  # ── Cloud APK build: only when an Expo account token is wired up. ─────────
+  eas-build:
+    name: EAS cloud build (Android APK)
+    runs-on: ubuntu-latest
+    needs: bundle
+    # Skips cleanly until the maintainer adds the EXPO_TOKEN secret.
+    if: ${{ github.event_name == 'workflow_dispatch' && secrets.EXPO_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Build vox CLI + generate Expo app
+        run: |
+          cargo build -p vox-cli
+          ./target/debug/vox build apps/vox-mental-tracker/src/main.vox \
+            --target=mobile -o "$RUNNER_TEMP/voxapp"
+
+      - name: Install eas-cli
+        run: npm install -g eas-cli
+
+      - name: EAS build (preview / Android APK)
+        working-directory: ${{ runner.temp }}/voxapp
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile preview --non-interactive --no-wait
