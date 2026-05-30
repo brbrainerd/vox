@@ -1,4 +1,19 @@
 //! Cluster re-judge and adversarial verification.
+//!
+//! # Deferred follow-ups
+//!
+//! These are intentional S2 scope boundaries, not bugs — recorded here so they
+//! are discoverable rather than silent:
+//!
+//! - **`git show` subprocess has no timeout.** Re-reading member diffs shells out
+//!   to `git show <sha>` with no wall-clock bound. This is the same known-minor
+//!   carried over from S1's `walk.rs`; acceptable until a runaway repo surfaces it.
+//! - **The embedder reuses the chat model id rather than a dedicated embed model.**
+//!   Fine for current usage; it only matters when a bucket exceeds
+//!   `max_bucket_size` while the resolved model is chat-only (no embedding head).
+//! - **Telemetry events are defined but not yet wired into the pipeline.** The
+//!   `audit.route.*` event types exist (parity with S1) but the pipeline does not
+//!   emit them yet; wiring is deferred to a later slice.
 
 pub mod decide;
 pub mod verify;
@@ -42,6 +57,18 @@ impl ArtifactForm {
     pub fn vox_required(self) -> bool {
         matches!(self, ArtifactForm::VoxScript)
     }
+}
+
+/// Strip an optional ` ```json `/` ``` ` markdown code-fence wrapper from an LLM
+/// response so the inner JSON can be parsed. Returns a trimmed slice; a no-op for
+/// already-bare JSON. Shared by the decide and verify parse fns.
+pub(crate) fn strip_json_fence(s: &str) -> &str {
+    let trimmed = s.trim();
+    let inner = trimmed
+        .strip_prefix("```json")
+        .or_else(|| trimmed.strip_prefix("```"))
+        .unwrap_or(trimmed);
+    inner.strip_suffix("```").unwrap_or(inner).trim()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

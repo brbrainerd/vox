@@ -21,12 +21,7 @@ pub fn refute_json_schema() -> serde_json::Value {
 }
 
 pub fn parse(raw: &str) -> Result<RefuteResponse, String> {
-    let cleaned = raw
-        .trim()
-        .strip_prefix("```json")
-        .or_else(|| raw.trim().strip_prefix("```"))
-        .unwrap_or(raw.trim());
-    let cleaned = cleaned.strip_suffix("```").unwrap_or(cleaned).trim();
+    let cleaned = crate::route::strip_json_fence(raw);
     serde_json::from_str(cleaned).map_err(|e| e.to_string())
 }
 
