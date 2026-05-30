@@ -253,6 +253,27 @@ In Vox, tests are not just regression catchers — they are training data for th
 > **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
 > **Per-flag details:** `docs/src/contributors/local-ci-pre-push.md`
 
+**Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
+GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
+minutes on iteration noise. Before every push, reproduce the relevant gates locally
+and only push once they are green. We have Docker available, so the full GitHub
+workflow suite can be run locally with `act`:
+
+- **Reproduce the actual GitHub jobs in Docker:** `vox ci pre-push --act` runs the
+  workflow jobs via [nektos/act](https://github.com/nektos/act) in containers that
+  mirror the CI runner image (secrets come from the git-ignored `.secrets` file).
+  Use this to catch container/runner-only failures (e.g. `lychee` check-links,
+  arch-check evidence-ledger) before they ever reach GitHub.
+- **Faster inner loop (no Docker):** `vox ci pre-push --full` for the native gate
+  tiers below; scope to changed crates with `--since <ref>`.
+- **Per-job spot-checks:** run the exact command a failing job runs (e.g.
+  `cargo run -q -p vox-arch-check`, `cargo run -q -p vox-cli -- ci check-links`)
+  rather than re-pushing to see if it passes.
+
+Push only after the local equivalent of the gates you expect to run is green. Treat
+a red GitHub check whose local equivalent passes as a runner/environment difference
+to reproduce locally (via `--act`), not as something to fix by repeated pushes.
+
 Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`.
 
 | Tier | Command | What runs | Target wall-clock |
