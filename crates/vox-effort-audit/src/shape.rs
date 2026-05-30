@@ -80,10 +80,7 @@ pub fn features(rec: &CommitRecord) -> ShapeFeatures {
 
 fn parse_commit_kind(msg: &str) -> CommitKind {
     let first = msg.split('\n').next().unwrap_or("");
-    let prefix = first
-        .split(|c: char| c == ':' || c == '(' || c == '!')
-        .next()
-        .unwrap_or("");
+    let prefix = first.split([':', '(', '!']).next().unwrap_or("");
     match prefix.trim().to_lowercase().as_str() {
         "feat" => CommitKind::Feat,
         "fix" => CommitKind::Fix,

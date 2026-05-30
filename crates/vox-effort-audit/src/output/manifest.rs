@@ -34,10 +34,10 @@ pub struct RangeManifest {
 }
 
 pub fn write(path: &std::path::Path, m: &Manifest) -> std::io::Result<()> {
-    if let Some(p) = path.parent() {
-        if !p.as_os_str().is_empty() {
-            std::fs::create_dir_all(p)?;
-        }
+    if let Some(p) = path.parent()
+        && !p.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(p)?;
     }
     let j = serde_json::to_string_pretty(m)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
