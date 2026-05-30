@@ -24,10 +24,13 @@
 pub mod bridge;
 /// Git object id / OID helpers.
 pub mod object;
+/// Audited read-only raw-`git` invocations (unified diffs / numstat).
+pub mod read_cmd;
 /// Reference (branch/tag) utilities.
 pub mod refs;
 /// Fetch/push and remote sync orchestration.
 pub mod sync;
 
 pub use bridge::GitBridge;
+pub use read_cmd::{GitReadError, read_only};
 pub use sync::{FetchResult, PushResult, SyncDirection};
