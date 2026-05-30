@@ -535,8 +535,6 @@ component VoicePage() {
     }
 }
 
-@mutation fn record_crash_report(json: str) to int { return 0 }
-
 @table type CrashReport {
     id: int
     error: str
@@ -545,8 +543,48 @@ component VoicePage() {
     route: str
 }
 
+/// Parse a flat `{"error":..,"stack":..,"route":..}` crash payload and persist
+/// it. Returns 1 on a durable write, 0 if the payload was unparseable or the
+/// insert failed — callers treat any non-positive result as "not recorded".
+@mutation fn record_crash_report(json: str) to int {
+    match std.json.parse(json) {
+        Ok(j) => {
+            let err = j.get("error").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            let stack = j.get("stack").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            let route = j.get("route").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            match db.CrashReport.insert({
+                id: 0,
+                error: err,
+                stack: stack,
+                ts: str(std.time.now_ms()),
+                route: route,
+            }) {
+                Ok(_) => 1
+                Error(_) => 0
+            }
+        }
+        Error(_) => 0
+    }
+}
+
+@table type PushToken {
+    id: int
+    token: str
+    registered_at: str
+}
+
+/// Persist a device push-registration token. Returns 1 on a durable write,
+/// 0 if the insert failed. This is the on-device record of "this install can
+/// receive notifications"; the export/clinical surfaces don't touch it.
 @mutation fn store_push_token(token: str) to int {
-    return record_push_token_internal(token)
+    match db.PushToken.insert({
+        id: 0,
+        token: token,
+        registered_at: str(std.time.now_ms()),
+    }) {
+        Ok(_) => 1
+        Error(_) => 0
+    }
 }
 
 @mutation fn handle_push_payload(json: str) to int { return 0 }
@@ -570,7 +608,6 @@ component SettingsPage() {
 
 routes {
     "/" to Home
-    "/mood" to Mood
     "/timeline" to TimelinePage
     "/weekly" to WeeklyPage
     "/export" to ExportPage
