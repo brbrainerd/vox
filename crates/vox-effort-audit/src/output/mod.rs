@@ -1,6 +1,7 @@
 //! Output writers: JSONL, markdown, manifest.
 
 pub mod jsonl;
+pub mod manifest;
 
 use serde::{Deserialize, Serialize};
 
