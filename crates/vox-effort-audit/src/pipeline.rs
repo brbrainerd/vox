@@ -51,12 +51,38 @@ pub struct RunSummary {
 ///
 /// `transcript_dir_override` lets tests point at a fixture transcript tree;
 /// `None` means use `cfg.transcript_dir`.
+///
+/// CLI bookend overrides (F1):
+/// - `since_override`: when `Some`, overrides `cfg.default_since` (the `--since`
+///   flag). Accepts the same forms as the TOML key (`"30 days ago"`, `"7d"`,
+///   git refs, dates).
+/// - `until_override`: when `Some`, overrides the default `HEAD` upper bound
+///   (the `--until` flag). Same form rules as `since_override`.
+///
+/// `cfg.limit`, when set, caps the number of *judged* commits — commits past
+/// the cap are emitted with `JudgeStatus::Skipped(LimitReached)` so the
+/// `manifest.json` `commits_in_range` count still reflects the full walk.
 pub async fn run(
     repo_path: &Path,
     out_dir: &Path,
     cfg: EffortAuditConfig,
     judge: Box<dyn Judge>,
     transcript_dir_override: Option<PathBuf>,
+) -> anyhow::Result<RunSummary> {
+    run_with_overrides(repo_path, out_dir, cfg, judge, transcript_dir_override, None, None).await
+}
+
+/// Same as [`run`] but accepts explicit `--since` / `--until` overrides from
+/// the CLI. Internal entry-point — keeps the public [`run`] signature stable
+/// for callers that don't need to wire bookend overrides (tests, library use).
+pub async fn run_with_overrides(
+    repo_path: &Path,
+    out_dir: &Path,
+    cfg: EffortAuditConfig,
+    judge: Box<dyn Judge>,
+    transcript_dir_override: Option<PathBuf>,
+    since_override: Option<String>,
+    until_override: Option<String>,
 ) -> anyhow::Result<RunSummary> {
     // Workspace `uuid` is pinned to features ["v4", "serde"] — no v7. v4 is
     // sufficient for a per-run identifier; time-ordering isn't required since
@@ -65,7 +91,11 @@ pub async fn run(
     let started = chrono::Utc::now();
 
     // 1. range → walk
-    let range = crate::range::resolve(None, None, &cfg.default_since)?;
+    let range = crate::range::resolve(
+        since_override.as_deref(),
+        until_override.as_deref(),
+        &cfg.default_since,
+    )?;
     let commits = crate::walk::iter_commits(repo_path, &range, cfg.max_diff_bytes)?;
     let total = commits.len() as u64;
     // Walker yields newest-first: capture the bookend SHAs before we consume
@@ -124,8 +154,33 @@ pub async fn run(
         .collect();
 
     let mut in_flight = FuturesUnordered::new();
+    // F1: count of commits we've actually pushed at the judge (so `--limit N`
+    // caps real LLM spend, not just the JSONL row count — Skipped rows are
+    // free).
+    let mut dispatched: u64 = 0;
+    let limit_cap: Option<u64> = cfg.limit.map(|n| n as u64);
 
     for (rec_arc, shape, cost) in prepared.into_iter() {
+        // F1: --limit cap. Once we've dispatched N judges, every remaining
+        // commit becomes Skipped without firing the judge. Mirrors the
+        // budget-exhausted branch below but with a distinct outcome tag so
+        // the manifest / report can distinguish the two paths.
+        if let Some(cap) = limit_cap
+            && dispatched >= cap
+        {
+            let meta = JudgeMeta {
+                model_id: judge_model_id.clone(),
+                latency_ms: 0,
+                judge_input_tokens: 0,
+                judge_output_tokens: 0,
+                outcome: "Skipped".into(),
+            };
+            let row = build_row(&rec_arc, &shape, &cost, &meta, None);
+            writer.append(&row)?;
+            rows_for_report.push(row);
+            skipped += 1;
+            continue;
+        }
         // Budget check at dispatch time: once we've burned the configured
         // cap, every remaining commit is marked Skipped(BudgetExhausted)
         // without firing the judge. In-flight tasks may still complete and
@@ -148,6 +203,7 @@ pub async fn run(
 
         let judge = Arc::clone(&judge);
         let semaphore = Arc::clone(&semaphore);
+        dispatched += 1;
         in_flight.push(async move {
             // Acquire a permit; held until the future drops. `semaphore` is
             // never closed, so this `expect` is unreachable in practice.

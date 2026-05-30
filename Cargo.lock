@@ -12894,6 +12894,7 @@ dependencies = [
  "vox-doc-inventory",
  "vox-doc-pipeline",
  "vox-drift-check",
+ "vox-effort-audit",
  "vox-eval",
  "vox-forge",
  "vox-foundation",

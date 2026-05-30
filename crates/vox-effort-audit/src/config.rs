@@ -19,6 +19,15 @@ pub struct EffortAuditConfig {
     pub report_top_n: usize,
     #[serde(default)]
     pub judge: JudgeConfig,
+    /// Optional hard cap on the number of commits judged. `None` = no cap.
+    ///
+    /// Threaded from `vox audit effort --limit N` (F1) so CI smoke runs and
+    /// dry-runs can bound LLM spend without changing `default_since`. The
+    /// limiter is enforced inside the pipeline's dispatch loop *after* the
+    /// walker yields its full set, so range-based statistics (e.g.
+    /// `commits_in_range` in the manifest) still reflect the true window.
+    #[serde(default)]
+    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -81,6 +90,7 @@ impl Default for EffortAuditConfig {
             transcript_dir: default_transcript_dir(),
             report_top_n: default_report_top_n(),
             judge: JudgeConfig::default(),
+            limit: None,
         }
     }
 }
@@ -99,6 +109,19 @@ mod tests {
         assert_eq!(c.report_top_n, 20);
         assert_eq!(c.judge.max_total_tokens, 5_000_000);
         assert!((c.judge.max_dollar_cost - 5.00).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn defaults_have_no_limit() {
+        // `limit` defaults to None so the CLI `--limit` flag is purely
+        // additive — no behavior change for callers who don't supply it.
+        assert!(EffortAuditConfig::default().limit.is_none());
+    }
+
+    #[test]
+    fn limit_round_trips_through_toml() {
+        let t: EffortAuditConfig = toml::from_str("limit = 5\n").unwrap();
+        assert_eq!(t.limit, Some(5));
     }
 
     #[test]

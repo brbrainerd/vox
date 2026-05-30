@@ -177,6 +177,9 @@ vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 
 vox-repository = { workspace = true }
+# F1: `vox audit effort` subcommand handler composes the effort-audit pipeline
+# (range → walk → judge → emit) + orchestrator model selection.
+vox-effort-audit = { workspace = true }
 vox-project-scaffold = { workspace = true }
 vox-tauri-codegen = { workspace = true }
 turso = { workspace = true }
