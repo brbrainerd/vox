@@ -11,5 +11,4 @@ pub mod hybrid;
 pub mod output;
 pub mod pipeline;
 
-// `pub use pipeline::run;` lands in Task E2 when `pipeline::run` is defined.
-// Kept out of A1 to avoid a stub `pub fn` (per `feedback_no_stubs.md`).
+pub use pipeline::run;
