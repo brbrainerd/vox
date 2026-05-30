@@ -83,10 +83,7 @@ type ParsedVoice {
 /// returns the supplied default on any parse failure.
 fn _parse_int_default(s: str, default_value: int) to int {
     return match std.json.parse("{\"v\":" + s + "}") {
-        Ok(j) => match j.get_int("v") {
-            Ok(n) => n
-            Error(_) => default_value
-        }
+        Ok(j) => j.get("v").and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(default_value)
         Error(_) => default_value
     }
 }
