@@ -15,6 +15,28 @@ TurboModule. This doc records the toolchain setup, the per-target build
 commands, the workspace-hack opt-out that makes cross-compile possible, and
 the gate in `crates/vox-cli-tests` that catches regressions.
 
+## Platform status (2026-05-30)
+
+| Target | Status | Verified |
+|---|---|---|
+| **Android** (aarch64 / armv7 / x86_64 / i686) | ✅ Cross-compiles; gated in CI | Yes — `crates/vox-cli-tests/tests/mobile_cross_compile.rs` |
+| **iOS** (aarch64-apple-ios + sim) | ⏳ **PENDING — needs a macOS host** | **No — not yet run** |
+
+> **TODO(ios-cross-compile): iOS cross-compile is unverified.** Apple's
+> toolchain only runs on macOS, and this project currently has **no macOS host**.
+> The build commands below (§iOS) are written but have never been executed here.
+>
+> A `#[ignore]`d gate — `vox_runtime_rn_cross_compiles_to_aarch64_ios` in
+> `crates/vox-cli-tests/tests/mobile_cross_compile.rs` — surfaces this in every
+> `cargo test` run as an *ignored* test with the reason.
+>
+> **When a macOS host or macOS CI runner becomes available:**
+> 1. `rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios`
+> 2. Run the §iOS build + `lipo` steps below and confirm the universal `.a`.
+> 3. Remove the `#[ignore]` from that test and wire it into the EAS Build CI
+>    matrix (see `docs/src/architecture/mobile-e2e-testing-strategy-2026.md`).
+> 4. Update this table's iOS row to ✅ and delete this TODO box.
+
 ## Toolchain prerequisites
 
 | Host | Need |
