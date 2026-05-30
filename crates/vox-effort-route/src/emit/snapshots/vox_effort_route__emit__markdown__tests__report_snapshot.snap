@@ -1,0 +1,32 @@
+---
+source: crates/vox-effort-route/src/emit/markdown.rs
+assertion_line: 185
+expression: render(&fixture_rows())
+---
+# Effort Route Recommendations
+
+- Clusters routed: 4
+- Verified: 2 / 4 (unverified: 2)
+- Draft artifacts staged: 3
+
+## Top clusters by reclaimable tokens
+
+| Cluster | Form | Commits | Tokens | Confidence | Verified |
+|---|---|---:|---:|---:|:---:|
+| `cluster-0001` | CiGate | 5 | 9000 | 0.91 | yes |
+| `cluster-0002` | CodeAuditDetector | 3 | 4200 | 0.77 | yes |
+| `cluster-0003` | AgentsMdRule | 2 | 1500 | 0.55 | no |
+| `cluster-0004` | None | 1 | 300 | 0.20 | no |
+
+## Artifact forms
+
+| Form | Count |
+|---|---:|
+| AgentsMdRule | 1 |
+| CiGate | 1 |
+| CodeAuditDetector | 1 |
+| None | 1 |
+
+## Methodology
+
+Clusters of related waste findings are re-judged by the routing model into a single enforcement artifact, then adversarially verified (a refutation pass that asks whether the artifact would actually have prevented every member commit). Only verified decisions stage a `.proposed` draft under the staging dir; nothing is written into the build tree. Token totals are the summed measured/estimated cost of the cluster's member commits (see S1 `findings.jsonl`). Author identity is never carried into routing and never appears in this report.
