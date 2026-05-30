@@ -60,6 +60,7 @@ mod tests {
             },
             verified,
             refutation_note: "n".into(),
+            judge_tokens_used: 0,
         }
     }
 

@@ -130,6 +130,7 @@ mod tests {
             drafted_artifact: drafted,
             verified,
             refutation_note: "note".into(),
+            judge_tokens_used: 0,
         })
     }
 

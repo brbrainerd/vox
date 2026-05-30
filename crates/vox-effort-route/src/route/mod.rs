@@ -65,6 +65,38 @@ pub struct RemediationDecision {
     pub drafted_artifact: Option<DraftedArtifact>,
     pub verified: bool,
     pub refutation_note: String,
+    /// Judge tokens (decide + verify prompt+completion) this cluster cost.
+    /// 0 for the mock router and for budget-skipped clusters.
+    #[serde(default)]
+    pub judge_tokens_used: u64,
+}
+
+impl RemediationDecision {
+    /// A cluster that was not routed because the judge token budget was already
+    /// exhausted. Emitted as a `None`-form, unverified row so the run is honest
+    /// about what it skipped rather than silently truncating.
+    pub fn budget_skipped(cluster: &Cluster, cluster_id: &str) -> RemediationDecision {
+        let shas: Vec<String> = cluster
+            .bucket
+            .members
+            .iter()
+            .map(|m| m.row.commit_sha.clone())
+            .collect();
+        let total_member_tokens = cluster.bucket.members.iter().map(|m| token_sum(&m.row.cost)).sum();
+        RemediationDecision {
+            cluster_id: cluster_id.to_string(),
+            member_count: shas.len(),
+            member_commit_shas: shas,
+            total_member_tokens,
+            artifact_form: ArtifactForm::None,
+            confidence: 0.0,
+            synthesized_fix_summary: String::new(),
+            drafted_artifact: None,
+            verified: false,
+            refutation_note: "[budget] skipped: judge token budget exhausted".into(),
+            judge_tokens_used: 0,
+        }
+    }
 }
 
 /// Whether the selected judge model can author Vox source. Passed in by the CLI
@@ -142,6 +174,7 @@ impl Router for MockRouter {
             drafted_artifact: artifact,
             verified: self.confidence >= 0.5,
             refutation_note: "mock".into(),
+            judge_tokens_used: 0,
         }
     }
 }
@@ -230,19 +263,23 @@ impl LlmRouter {
             .collect()
     }
 
-    /// Single facade call returning the response text, or an error string.
+    /// Single facade call returning `(response_text, judge_tokens_used)`, or an
+    /// error string. `judge_tokens_used` is `prompt_tokens + completion_tokens`.
     async fn infer(
         &self,
         messages: Vec<vox_actor_runtime::llm::LlmChatMessage>,
         response_format: serde_json::Value,
-    ) -> Result<String, String> {
+    ) -> Result<(String, u64), String> {
         let activity_options =
             vox_actor_runtime::ActivityOptions::default().with_timeout(self.timeout);
         let config = self.llm_config(response_format);
         let infer_result =
             vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![config]).await;
         match infer_result {
-            vox_actor_runtime::ActivityResult::Ok(Ok((resp, _cfg))) => Ok(resp.content),
+            vox_actor_runtime::ActivityResult::Ok(Ok((resp, _cfg))) => {
+                let tokens = u64::from(resp.prompt_tokens) + u64::from(resp.completion_tokens);
+                Ok((resp.content, tokens))
+            }
             vox_actor_runtime::ActivityResult::Ok(Err(api_err)) => Err(format!("llm error: {api_err}")),
             vox_actor_runtime::ActivityResult::Failed(activity_err) => {
                 Err(format!("activity error: {activity_err:?}"))
@@ -260,18 +297,24 @@ impl Router for LlmRouter {
         cluster_id: &str,
         vox_capable: ModelVoxCapability,
     ) -> RemediationDecision {
+        let mut judge_tokens = 0u64;
         let diffs = self.read_diffs(cluster);
         let decide_messages = prompt::build_decide_messages(cluster, &diffs, vox_capable.0);
         let decide_raw = match self
             .infer(decide_messages, decide::decide_json_schema(vox_capable.0))
             .await
         {
-            Ok(raw) => raw,
-            Err(e) => return failed_decision(cluster, cluster_id, &e),
+            Ok((raw, toks)) => {
+                judge_tokens += toks;
+                raw
+            }
+            Err(e) => return failed_decision(cluster, cluster_id, &e, judge_tokens),
         };
         let decide = match decide::parse(&decide_raw) {
             Ok(d) => d,
-            Err(e) => return failed_decision(cluster, cluster_id, &format!("decide parse: {e}")),
+            Err(e) => {
+                return failed_decision(cluster, cluster_id, &format!("decide parse: {e}"), judge_tokens)
+            }
         };
 
         // Verify pass (adversarial refutation).
@@ -282,19 +325,30 @@ impl Router for LlmRouter {
                 .infer(refute_messages, verify::refute_json_schema())
                 .await
             {
-                Ok(raw) => verify::parse(&raw).ok(),
+                Ok((raw, toks)) => {
+                    judge_tokens += toks;
+                    verify::parse(&raw).ok()
+                }
                 Err(_) => None,
             }
         } else {
             None
         };
 
-        assemble_decision(decide, refute, cluster, cluster_id, vox_capable.0)
+        let mut decision = assemble_decision(decide, refute, cluster, cluster_id, vox_capable.0);
+        decision.judge_tokens_used = judge_tokens;
+        decision
     }
 }
 
 /// Build a failed/no-fix decision when the decide pass cannot complete.
-fn failed_decision(cluster: &Cluster, cluster_id: &str, note: &str) -> RemediationDecision {
+/// `judge_tokens` is whatever was already spent before the failure.
+fn failed_decision(
+    cluster: &Cluster,
+    cluster_id: &str,
+    note: &str,
+    judge_tokens: u64,
+) -> RemediationDecision {
     let shas: Vec<String> = cluster
         .bucket
         .members
@@ -318,6 +372,7 @@ fn failed_decision(cluster: &Cluster, cluster_id: &str, note: &str) -> Remediati
         drafted_artifact: None,
         verified: false,
         refutation_note: note.to_string(),
+        judge_tokens_used: judge_tokens,
     }
 }
 
@@ -395,6 +450,8 @@ pub(crate) fn assemble_decision(
         drafted_artifact,
         verified,
         refutation_note,
+        // Set by the LlmRouter after assembly; assemble itself is token-agnostic.
+        judge_tokens_used: 0,
     }
 }
 
@@ -632,11 +689,12 @@ mod tests {
     #[test]
     fn failed_decision_is_none_unverified() {
         let cluster = cluster_with_kind("ScriptAutomation");
-        let d = failed_decision(&cluster, "cX", "boom");
+        let d = failed_decision(&cluster, "cX", "boom", 1234);
         assert_eq!(d.artifact_form, ArtifactForm::None);
         assert!(!d.verified);
         assert_eq!(d.confidence, 0.0);
         assert_eq!(d.refutation_note, "boom");
+        assert_eq!(d.judge_tokens_used, 1234); // tokens spent before the failure are reported
         assert_eq!(d.member_count, 1);
     }
 }

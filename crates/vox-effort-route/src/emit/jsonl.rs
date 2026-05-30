@@ -52,6 +52,7 @@ mod tests {
             drafted_artifact: None,
             verified: true,
             refutation_note: "note".into(),
+            judge_tokens_used: 0,
         })
     }
 

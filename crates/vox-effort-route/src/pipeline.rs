@@ -32,10 +32,14 @@ pub struct RouteSummary {
     pub findings_loaded: usize,
     /// Deterministic buckets formed before sub-clustering.
     pub buckets: usize,
-    /// Clusters routed (decide + verify).
+    /// Clusters that produced a recommendation row (routed + budget-skipped).
     pub clusters_routed: usize,
     /// Clusters whose decision survived adversarial verification.
     pub verified: usize,
+    /// Clusters skipped because the judge token budget was exhausted before them.
+    pub clusters_skipped_over_budget: usize,
+    /// Total judge tokens spent across all routed clusters.
+    pub judge_tokens_spent: u64,
 }
 
 /// Run the full effort-route pipeline against an S1 `findings.jsonl`.
@@ -64,10 +68,23 @@ pub async fn run(
     let mut writer = crate::emit::jsonl::JsonlWriter::create(&out_dir.join("recommendations.jsonl"))?;
     let mut rows: Vec<RecommendationRow> = Vec::new();
     let mut verified = 0usize;
+    let mut skipped_over_budget = 0usize;
+    let mut judge_tokens_spent = 0u64;
+    let budget = cfg.judge.max_total_tokens;
 
     for (i, cluster) in clusters.iter().enumerate() {
         let cluster_id = format!("{run_id}-{i}");
-        let decision = router.route(cluster, &cluster_id, vox_capable).await;
+        // Budget gate: once judge spend reaches the ceiling, the remaining
+        // clusters are emitted as honest budget-skipped rows rather than
+        // silently truncated. A budget of 0 disables routing entirely.
+        let decision = if judge_tokens_spent >= budget {
+            skipped_over_budget += 1;
+            crate::route::RemediationDecision::budget_skipped(cluster, &cluster_id)
+        } else {
+            let d = router.route(cluster, &cluster_id, vox_capable).await;
+            judge_tokens_spent += d.judge_tokens_used;
+            d
+        };
         if decision.verified {
             verified += 1;
         }
@@ -88,6 +105,8 @@ pub async fn run(
         buckets: bucket_count,
         clusters_routed: clusters.len(),
         verified,
+        clusters_skipped_over_budget: skipped_over_budget,
+        judge_tokens_spent,
     })
 }
 
@@ -136,5 +155,40 @@ mod tests {
 
         let lines = std::fs::read_to_string(out.path().join("recommendations.jsonl")).unwrap();
         assert_eq!(lines.lines().count(), summary.clusters_routed);
+        assert_eq!(summary.clusters_skipped_over_budget, 0);
+    }
+
+    #[tokio::test]
+    async fn budget_exhaustion_skips_remaining_clusters() {
+        // A zero token budget means the very first cluster is already at the
+        // ceiling, so every cluster is emitted as a budget-skipped row: no
+        // verifications, no drafted artifacts, but a complete, honest jsonl.
+        let out = tempfile::tempdir().unwrap();
+        let mut cfg = EffortRouteConfig::default();
+        cfg.staging_dir = out.path().to_path_buf();
+        cfg.judge.max_total_tokens = 0;
+
+        let summary = run(
+            &fixture(),
+            out.path(),
+            cfg,
+            Box::new(MockRouter { confidence: 0.9 }),
+            Box::new(ZeroEmbedder),
+            ModelVoxCapability(false),
+        )
+        .await
+        .unwrap();
+
+        assert!(summary.clusters_routed >= 1);
+        assert_eq!(summary.clusters_skipped_over_budget, summary.clusters_routed);
+        assert_eq!(summary.verified, 0);
+        assert_eq!(summary.judge_tokens_spent, 0);
+        // Every emitted row is still present (honest, not truncated).
+        let lines = std::fs::read_to_string(out.path().join("recommendations.jsonl")).unwrap();
+        assert_eq!(lines.lines().count(), summary.clusters_routed);
+        // No artifacts drafted for budget-skipped (None-form, unverified) clusters.
+        let artifacts_dir = out.path().join("artifacts");
+        let artifact_count = std::fs::read_dir(&artifacts_dir).map(|d| d.count()).unwrap_or(0);
+        assert_eq!(artifact_count, 0);
     }
 }
