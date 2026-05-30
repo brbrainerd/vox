@@ -61,7 +61,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
     let complexity = match category {
         TaskCategory::Parsing | TaskCategory::TypeChecking => 3,
         TaskCategory::Testing | TaskCategory::Debugging => 5,
-        TaskCategory::CodeGen | TaskCategory::Review => 6,
+        TaskCategory::CodeGen | TaskCategory::Review | TaskCategory::CodeEffortJudge => 6,
         TaskCategory::Research => 8,
         TaskCategory::General => 5,
         TaskCategory::Planning => 8,

@@ -1,0 +1,36 @@
+---
+source: crates/vox-effort-audit/src/output/markdown.rs
+assertion_line: 146
+expression: "render(&rows, 20)"
+---
+# Effort Audit Report
+
+- Commits judged: 3 / 3
+
+## Top commits by waste_score
+
+- **[9]** `aaaaaaaa` - refactor: mass sweep (ScriptAutomation)
+  - rationale for aaaaaaaa
+- **[3]** `bbbbbbbb` - fix: real bug (NoneNeeded)
+  - rationale for bbbbbbbb
+- **[1]** `cccccccc` - docs: typo (NoneNeeded)
+  - rationale for cccccccc
+
+## Waste categories
+
+| Category | Count |
+|---|---:|
+| LegitBugfix | 1 |
+| LegitDocs | 1 |
+| MechanicalSweep | 1 |
+
+## Remediation kinds (preview for S2)
+
+| Kind | Count |
+|---|---:|
+| NoneNeeded | 2 |
+| ScriptAutomation | 1 |
+
+## Methodology
+
+Judge model resolved via vox-orchestrator::models registry for the CodeEffortJudge task class. Hybrid signal: measured tokens from Claude Code transcripts when correlatable; LLM estimate otherwise.

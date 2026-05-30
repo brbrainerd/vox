@@ -17,6 +17,7 @@ workspace_min_lines_percent = 50.0
 vox-compiler      = 48.0  # Lexer+parser+HIR+typeck+codegen — most tested core crate
 vox-cli           = 26.0  # CLI command surface; large untested clusters in diagnostics/doctor, db/local, db/publication, codex, ci/watch_run, extras/{share,snippet}. Floor lowered from 40 -> 26 on 2026-05-28 to match measured reality (40 was aspirational, never met). Re-raise as those clusters get integration coverage.
 vox-db            = 35.0  # SQLite/Turso; some paths require live DB creds
+vox-effort-audit  = 70.0   # New crate; MockJudge-only test coverage. LlmJudge::judge_one body is uncovered (live-network tests gated behind `--features live-judge -- --ignored`). Verify and lower (round down to nearest 5) if first measurement is < 70. Raise after live-judge integration suite lands.
 vox-secrets        = 35.0  # Secret resolution; env-gated paths reduce coverage
 vox-actor-runtime       = 38.0  # OOPAV execution engine; many async/actor paths
 vox-orchestrator  = 40.0  # A2A/agent routing; well-tested orchestrator layer

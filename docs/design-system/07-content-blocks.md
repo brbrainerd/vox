@@ -211,7 +211,7 @@ workflow checkout(amount: int) to Result[str] {
 - `match` arms use `=>` (fat arrow). The thin arrow `->` is **not** Vox syntax for match arms.
 - `workflow` and `activity` are real keywords. The runtime journals every `activity` result; a crash mid-run resumes with completed activities replayed (ADR-019).
 - Supported subset: linear activity execution + deterministic `if` + `workflow_wait` timer replay (ADR-021). Unrestricted control-flow replay is explicit non-goal.
-- Completion ADR: [ADR-041](../../../docs/src/adr/041-durable-functions-completion-2026.md).
+- Completion ADR: [ADR-041](../../docs/src/adr/041-durable-functions-completion-2026.md).
 
 ### Snippet E — MCP tool
 

@@ -12894,6 +12894,7 @@ dependencies = [
  "vox-doc-inventory",
  "vox-doc-pipeline",
  "vox-drift-check",
+ "vox-effort-audit",
  "vox-eval",
  "vox-forge",
  "vox-foundation",
@@ -13330,6 +13331,33 @@ dependencies = [
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-effort-audit"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dirs",
+ "futures",
+ "gix",
+ "insta",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "toml 0.8.23",
+ "tracing",
+ "uuid",
+ "vox-actor-runtime",
+ "vox-config",
+ "vox-secrets",
+ "vox-telemetry",
 ]
 
 [[package]]

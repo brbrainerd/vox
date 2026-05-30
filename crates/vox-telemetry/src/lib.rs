@@ -37,6 +37,11 @@ pub use span::{TRACE_CTX, TraceContext, current_trace_ctx};
 pub use types::{
     // event types
     AiFixtureEvent,
+    // vox audit effort (S1) — `audit.effort.*` events
+    AuditEffortCommitJudgedEvent,
+    AuditEffortRunCompletedEvent,
+    AuditEffortRunFailedEvent,
+    AuditEffortRunStartedEvent,
     // vox audit run telemetry (A11)
     AuditRunEvent,
     BuildSummaryEvent,
@@ -53,6 +58,11 @@ pub use types::{
     METRIC_TYPE_AGENT_EXEC_TIME,
     // existing metric types
     METRIC_TYPE_AGENTOS_GUARDRAIL_DENY,
+    // vox audit effort (S1) — `audit.effort.*` metric_type constants
+    METRIC_TYPE_AUDIT_EFFORT_COMMIT_JUDGED,
+    METRIC_TYPE_AUDIT_EFFORT_RUN_COMPLETED,
+    METRIC_TYPE_AUDIT_EFFORT_RUN_FAILED,
+    METRIC_TYPE_AUDIT_EFFORT_RUN_STARTED,
     METRIC_TYPE_AUDIT_RUN,
     METRIC_TYPE_BANDIT_UPDATE,
     METRIC_TYPE_BENCHMARK_EVENT,

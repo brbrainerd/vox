@@ -11,6 +11,9 @@ pub mod add;
 /// Quality-gate umbrella command (`vox audit`); reads `contracts/ci/check-targets.v1.yaml`.
 pub mod audit;
 
+/// `vox audit effort` — AI-judged audit of recent commits (F1).
+pub mod audit_effort;
+
 #[cfg(feature = "dei")]
 pub mod attention;
 /// Identity and master key integration (`vox auth`).
