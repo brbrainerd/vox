@@ -194,6 +194,7 @@ vox-plugin-webhook           = { layer = 4, kind = "plugin" }
 # ── L5 — surfaces ─────────────────────────────────────────────────────────────
 vox-cli               = { layer = 5, kind = "binary", max_loc = 90_000, max_workspace_deps = 60 }
 vox-gui               = { layer = 5, kind = "binary", max_loc = 25_000 } # Tauri desktop shell; depends on vox-cli / vox-orchestrator
+vox-cli-tests         = { layer = 5, kind = "test-only" }
 vox-integration-tests = { layer = 5, kind = "test-only" }
 vox-orchestrator-d    = { layer = 5, kind = "binary" }
 vox-audit             = { layer = 5, kind = "binary" }                   # umbrella CR-L gate runner; contracts/ci/vox-audit-contract.v1.yaml
