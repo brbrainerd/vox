@@ -2,6 +2,7 @@
 
 pub mod jsonl;
 pub mod manifest;
+pub mod markdown;
 
 use serde::{Deserialize, Serialize};
 
