@@ -1452,7 +1452,7 @@ EOF
 **Type consistency:** `RemediationDecision`/`ArtifactForm`/`DraftedArtifact` defined in B1, used unchanged in B3/C1/D2. `Embedder` trait in A6 used in D2/D3. `Router` in B1 used in D2/D3. `RecommendationRow` in C1 used in D2. `token_sum` in B1 matches the real `MeasuredCost` variants (no `estimated_usd`). `LoadedFinding` in A4 used in A5/A6.
 
 **Caveats for the executor:**
-- B3's `LlmRouter` must copy the exact `infer_with_retry` + usage-field call shape from S1's `LlmJudge` (`crates/vox-effort-audit/src/judge/mod.rs`). Verify field names before writing; do not bypass the facade.
+- B3's `LlmRouter` must copy the exact `infer_with_retry` call shape from S1's `LlmJudge` (`crates/vox-effort-audit/src/judge/mod.rs`). **VERIFIED real surface (not what an earlier draft of this caveat assumed):** `infer_with_retry(&ActivityOptions, messages, vec![llm_config])` returns `ActivityResult::Ok(Ok((resp, _cfg)))` (plus `Ok(Err(api_err))`, `Failed`, `Cancelled`); `LlmResponse { content: String, prompt_tokens: u32, completion_tokens: u32 }` — there is NO `usage` struct and NO `input_tokens`/`output_tokens` fields. Read `resp.content`. The routing layer derives `total_member_tokens` from each member's existing `MeasuredCost` (not from the LLM response), so the response token fields are not needed in S2 at all. Do not bypass the facade.
 - D3's model-capability resolution depends on whether `ModelCapabilities.writes_vox` exists. If absent, use the config-allowlist fallback (spec Q3) and note it in the commit.
 - The fixture `findings.jsonl` (A4) must match S1's real `FindingRow` serialization exactly — serialize a default to confirm field names before authoring the fixture.
 
