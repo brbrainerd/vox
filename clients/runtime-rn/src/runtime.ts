@@ -48,27 +48,19 @@ function uniffiNotWired(method: string): never {
   );
 }
 
-// ── On-device journal backend (tsc-decoupled) ──────────────────────────────
+// ── On-device durable journal backend (tsc-decoupled) ──────────────────────
 //
-// The real durable store is the uniffi-bridged `vox-journal` FileJournal, whose
-// generated bindings live under `src/__generated__/` and depend on the native
-// module + expo-file-system. Those are EXCLUDED from the package's tsc gate. To
-// keep `runtime.ts` type-checkable WITHOUT pulling the excluded generated code
-// into the program, we (a) declare a thin local interface here and (b) load the
-// real implementation through a STRING-VARIABLE dynamic import whose specifier
-// tsc cannot statically resolve (a literal import would re-introduce the
-// excluded file; a static import fails outright). The impl is
-// `src/__generated__/journal-backend.ts`.
-interface JournalLineLike {
-  json: string;
-}
-interface FileJournalHandleLike {
-  append(line: JournalLineLike): void;
-  replayAll(): JournalLineLike[];
-}
+// Cross-relaunch persistence backed by expo-file-system (one append-only NDJSON
+// file per table). The implementation lives in `src/__generated__/journal-
+// backend.ts`, which the package's tsconfig EXCLUDES from the tsc gate. To keep
+// `runtime.ts` type-checkable WITHOUT pulling that file (or its expo-file-system
+// dependency) into the program, we (a) declare a thin local interface here and
+// (b) load the impl through a STRING-VARIABLE dynamic import whose specifier
+// tsc cannot statically resolve (a literal import re-introduces the excluded
+// file; a static import fails outright).
 interface JournalBackend {
-  openFileJournal(path: string): FileJournalHandleLike;
-  documentDirectory(): string;
+  record(table: string, row: unknown): Promise<void>;
+  replay(table: string): Promise<unknown[]>;
 }
 
 let cachedJournalBackend: JournalBackend | undefined;
@@ -79,11 +71,6 @@ async function journalBackend(): Promise<JournalBackend> {
   const mod = (await import(/* @vite-ignore */ spec)) as { default: JournalBackend };
   cachedJournalBackend = mod.default;
   return cachedJournalBackend;
-}
-
-const __voxJournalHandles = new Map<string, FileJournalHandleLike>();
-function sanitizeTableName(table: string): string {
-  return table.replace(/[^A-Za-z0-9_-]/g, "_");
 }
 
 class ExpoVoxRuntime implements VoxRuntime {
@@ -284,22 +271,12 @@ class ExpoVoxRuntime implements VoxRuntime {
 
   // ── On-device durable persistence ─────────────────────────────────────────
 
-  private async handleFor(table: string): Promise<FileJournalHandleLike> {
-    const key = sanitizeTableName(table);
-    const cached = __voxJournalHandles.get(key);
-    if (cached) return cached;
-    const be = await journalBackend();
-    const handle = be.openFileJournal(`${be.documentDirectory()}vox-journal/${key}.ndjson`);
-    __voxJournalHandles.set(key, handle);
-    return handle;
-  }
-
-  async recordMutation(name: string, table: string, row: unknown): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async recordMutation(_name: string, table: string, row: unknown): Promise<void> {
     try {
-      const handle = await this.handleFor(table);
-      // FileJournal fsyncs each append (vox-journal/src/file.rs), so the row is
-      // durable and survives a relaunch once this resolves.
-      handle.append({ json: JSON.stringify({ name, row }) });
+      const be = await journalBackend();
+      // Durable append; survives a full app kill + relaunch.
+      await be.record(table, row);
     } catch (e) {
       throw asRuntimeError(e);
     }
@@ -307,10 +284,8 @@ class ExpoVoxRuntime implements VoxRuntime {
 
   async replayTable(table: string): Promise<unknown[]> {
     try {
-      const handle = await this.handleFor(table);
-      return handle
-        .replayAll()
-        .map((line) => (JSON.parse(line.json) as { row: unknown }).row);
+      const be = await journalBackend();
+      return await be.replay(table);
     } catch (e) {
       throw asRuntimeError(e);
     }

@@ -6,24 +6,48 @@
 // codegen output is a runnable app on a real emulator. Every method logs and
 // returns a benign default — no native code, no real device effects.
 
+import * as FileSystem from "expo-file-system";
+
 const log = (name, ...args) =>
   console.log(`[vox-runtime-rn shim] ${name}`, ...args);
 
-// In-memory per-table store. Real durability needs the native journal; in
-// Expo Go this persists for the session, enough to demo the data flow.
-const _tables = new Map();
+// CROSS-RELAUNCH DURABLE persistence via expo-file-system (works in Expo Go —
+// no native module needed). One append-only NDJSON file per table under the
+// app's document directory; data survives a full app kill + relaunch.
+const _DIR = (FileSystem.documentDirectory || "") + "vox-journal/";
+const _safe = (t) => String(t).replace(/[^A-Za-z0-9_-]/g, "_");
+const _file = (t) => _DIR + _safe(t) + ".ndjson";
+async function _ensureDir() {
+  try {
+    const info = await FileSystem.getInfoAsync(_DIR);
+    if (!info.exists) await FileSystem.makeDirectoryAsync(_DIR, { intermediates: true });
+  } catch (e) {
+    log("ensureDir failed", e);
+  }
+}
+async function _readText(path) {
+  try {
+    return await FileSystem.readAsStringAsync(path);
+  } catch {
+    return "";
+  }
+}
 
 export const voxRuntime = {
-  recordMutation(name, table, row) {
+  async recordMutation(name, table, row) {
     log("recordMutation", name, table);
-    const rows = _tables.get(table) || [];
-    rows.push(row);
-    _tables.set(table, rows);
-    return Promise.resolve();
+    await _ensureDir();
+    const path = _file(table);
+    const existing = await _readText(path);
+    await FileSystem.writeAsStringAsync(path, existing + JSON.stringify(row) + "\n");
   },
-  replayTable(table) {
+  async replayTable(table) {
     log("replayTable", table);
-    return Promise.resolve([...(_tables.get(table) || [])]);
+    const txt = await _readText(_file(table));
+    return txt
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
   },
   uuid() {
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
