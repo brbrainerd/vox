@@ -1,0 +1,25 @@
+[package]
+name = "vox-runtime-rn"
+version = "0.6.0"
+edition = "2024"
+description = "uniffi-bridged Rust runtime for Vox mobile targets (React Native + Expo). Cross-compiles to aarch64-apple-ios / aarch64-linux-android / etc.; uniffi-bindgen-react-native generates the TypeScript TurboModule bindings that clients/runtime-rn/ consumes. Bridges the typed vox-runtime foundation types to JS."
+license = "Apache-2.0"
+publish = false
+
+[lib]
+# cdylib + staticlib for cross-compile to Android / iOS as a native library.
+# rlib so workspace tests and downstream crates can depend on it directly.
+crate-type = ["rlib", "cdylib", "staticlib"]
+name = "vox_runtime_rn"
+
+[dependencies]
+vox-runtime = { path = "../vox-runtime" }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uniffi = { version = "0.28", features = ["build", "tokio"] }
+workspace-hack = { path = "../workspace-hack" }
+
+
+[dev-dependencies]
+serde_json = { workspace = true }
