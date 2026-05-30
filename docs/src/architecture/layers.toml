@@ -234,6 +234,10 @@ exempt_files     = [
     "crates/vox-repository/src/repo_catalog/query.rs",
     "crates/vox-search/src/memory_hybrid.rs",
     "crates/vox-git/src/bridge.rs",
+    # Sanctioned read-only raw-git helper (unified diffs / numstat gix cannot print).
+    "crates/vox-git/src/read_cmd.rs",
+    # Isolated per-test tempdir fixtures; no shared-repo concurrency risk.
+    "crates/vox-effort-audit/tests/support/mod.rs",
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",

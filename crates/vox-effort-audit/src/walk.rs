@@ -13,7 +13,6 @@ use chrono::{DateTime, TimeZone, Utc};
 use sha2::{Digest, Sha256};
 use std::collections::{HashSet, VecDeque};
 use std::path::Path;
-use std::process::Command;
 use thiserror::Error;
 
 #[derive(Debug, Clone)]
@@ -197,35 +196,21 @@ fn numstat(repo_path: &Path, sha: &str, parent_sha: Option<&str>) -> (Vec<FileCh
             sha.into(),
         ],
     };
-    let out = match Command::new("git")
-        .current_dir(repo_path)
-        .args(&args)
-        .output()
-    {
-        Ok(o) => o,
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    // Per-file stats are best-effort: a binary-only commit or a transient git
+    // failure should not abort the whole walk. Surface the SHA + cause in the
+    // log so a downstream caller can correlate suspicious empties.
+    let stdout = match vox_git::read_only(repo_path, &arg_refs) {
+        Ok(s) => s,
         Err(e) => {
             tracing::warn!(
                 sha = %sha,
                 error = %e,
-                "git numstat spawn failed; treating commit as empty"
+                "git numstat failed; treating commit as empty"
             );
             return (Vec::new(), 0, 0);
         }
     };
-    if !out.status.success() {
-        // Per-file stats are best-effort: a binary-only commit or a transient
-        // git failure should not abort the whole walk. Surface the SHA + stderr
-        // in the log so a downstream caller can correlate suspicious empties.
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        tracing::warn!(
-            sha = %sha,
-            code = out.status.code().unwrap_or(-1),
-            stderr = %stderr.trim(),
-            "git numstat exited non-zero; treating commit as empty"
-        );
-        return (Vec::new(), 0, 0);
-    }
-    let stdout = String::from_utf8_lossy(&out.stdout);
     let mut files = Vec::new();
     let mut total_add = 0u64;
     let mut total_del = 0u64;
@@ -273,26 +258,12 @@ fn unified_diff(
             sha.into(),
         ],
     };
-    let out = Command::new("git")
-        .current_dir(repo_path)
-        .args(&args)
-        .output()
-        .map_err(|e| WalkError::Walk(format!("git diff spawn failed for {sha}: {e}")))?;
+    let arg_refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let text = vox_git::read_only(repo_path, &arg_refs)
+        .map_err(|e| WalkError::Walk(format!("git diff failed for {sha}: {e}")))?;
 
-    if !out.status.success() {
-        let stderr = String::from_utf8_lossy(&out.stderr);
-        return Err(WalkError::Walk(format!(
-            "git diff exited {} for {sha}: {}",
-            out.status.code().unwrap_or(-1),
-            stderr.trim(),
-        )));
-    }
-
-    // Size check on the captured stdout vs the configured budget. We avoid
-    // re-allocating into a `String` when the diff will be discarded.
-    let bytes = &out.stdout;
-    if bytes.len() <= max_diff_bytes {
-        let text = String::from_utf8_lossy(bytes).into_owned();
+    // Size check on the captured stdout vs the configured budget.
+    if text.len() <= max_diff_bytes {
         Ok((text, false))
     } else {
         let summary = files

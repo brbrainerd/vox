@@ -10,6 +10,7 @@ vox-actor-runtime = { path = "../vox-actor-runtime" }
 vox-secrets       = { path = "../vox-secrets" }
 vox-telemetry     = { path = "../vox-telemetry" }
 vox-config        = { path = "../vox-config" }
+vox-git           = { path = "../vox-git" }
 gix               = { workspace = true }
 serde             = { workspace = true, features = ["derive"] }
 serde_json        = { workspace = true }

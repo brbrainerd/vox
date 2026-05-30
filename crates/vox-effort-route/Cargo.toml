@@ -10,6 +10,7 @@ vox-effort-audit  = { path = "../vox-effort-audit" }
 vox-actor-runtime = { path = "../vox-actor-runtime" }
 vox-config        = { path = "../vox-config" }
 vox-telemetry     = { path = "../vox-telemetry" }
+vox-git           = { path = "../vox-git" }
 anyhow            = { workspace = true }
 gix               = { workspace = true }
 serde             = { workspace = true, features = ["derive"] }

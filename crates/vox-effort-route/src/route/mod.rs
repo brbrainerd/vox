@@ -308,15 +308,9 @@ impl LlmRouter {
             .take(self.max_context_commits)
             .map(|m| {
                 let sha = m.row.commit_sha.clone();
-                let diff = std::process::Command::new("git")
-                    .arg("-C")
-                    .arg(&self.repo_root)
-                    .args(["show", "--no-color", "--format=", &sha])
-                    .output()
-                    .ok()
-                    .filter(|o| o.status.success())
-                    .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-                    .unwrap_or_default();
+                let diff =
+                    vox_git::read_only(&self.repo_root, &["show", "--no-color", "--format=", &sha])
+                        .unwrap_or_default();
                 (sha, diff)
             })
             .collect()
