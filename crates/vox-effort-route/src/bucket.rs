@@ -49,10 +49,10 @@ fn crate_from_path(path: &str) -> Option<String> {
     let path = path.split(':').next().unwrap_or(path); // strip ":line"
     let mut parts = path.split('/');
     while let Some(p) = parts.next() {
-        if p == "crates" {
-            if let Some(name) = parts.next() {
-                return Some(name.to_string());
-            }
+        if p == "crates"
+            && let Some(name) = parts.next()
+        {
+            return Some(name.to_string());
         }
     }
     None

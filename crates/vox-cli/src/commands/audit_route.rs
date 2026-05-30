@@ -151,6 +151,7 @@ fn resolve_judge_model(args: &EffortRouteArgs, cfg: &EffortRouteConfig) -> Optio
 /// Instead we use a two-part allowlist:
 ///   1. an explicit `[audit.route] vox_capable_models` list in `vox.toml`, OR
 ///   2. a `mens`-prefix heuristic (MENS models are the first-class Vox authors).
+///
 /// Adding a real `writes_vox` capability field to the orchestrator registry is
 /// tracked as a follow-up; it is out of scope for S2.
 fn resolve_vox_capability(model_id: &str, allowlist: &[String]) -> ModelVoxCapability {

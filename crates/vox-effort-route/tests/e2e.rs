@@ -23,8 +23,10 @@ impl Embedder for ZeroEmbedder {
 async fn smoke_run_produces_outputs() {
     let findings = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/findings.jsonl");
     let out = tempfile::tempdir().unwrap();
-    let mut cfg = EffortRouteConfig::default();
-    cfg.staging_dir = out.path().to_path_buf();
+    let cfg = EffortRouteConfig {
+        staging_dir: out.path().to_path_buf(),
+        ..Default::default()
+    };
 
     let summary = vox_effort_route::run(
         &findings,

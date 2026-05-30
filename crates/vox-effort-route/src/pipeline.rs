@@ -133,8 +133,10 @@ mod tests {
     #[tokio::test]
     async fn run_loads_filters_and_emits() {
         let out = tempfile::tempdir().unwrap();
-        let mut cfg = EffortRouteConfig::default();
-        cfg.staging_dir = out.path().to_path_buf();
+        let cfg = EffortRouteConfig {
+            staging_dir: out.path().to_path_buf(),
+            ..Default::default()
+        };
 
         let summary = run(
             &fixture(),
@@ -165,8 +167,10 @@ mod tests {
         // ceiling, so every cluster is emitted as a budget-skipped row: no
         // verifications, no drafted artifacts, but a complete, honest jsonl.
         let out = tempfile::tempdir().unwrap();
-        let mut cfg = EffortRouteConfig::default();
-        cfg.staging_dir = out.path().to_path_buf();
+        let mut cfg = EffortRouteConfig {
+            staging_dir: out.path().to_path_buf(),
+            ..Default::default()
+        };
         cfg.judge.max_total_tokens = 0;
 
         let summary = run(
