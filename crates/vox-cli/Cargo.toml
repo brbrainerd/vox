@@ -180,6 +180,9 @@ vox-repository = { workspace = true }
 # F1: `vox audit effort` subcommand handler composes the effort-audit pipeline
 # (range → walk → judge → emit) + orchestrator model selection.
 vox-effort-audit = { workspace = true }
+# D3: `vox audit effort-route` subcommand handler composes the effort-route
+# pipeline (load → bucket → cluster → route → emit) + orchestrator model selection.
+vox-effort-route = { workspace = true }
 vox-project-scaffold = { workspace = true }
 vox-tauri-codegen = { workspace = true }
 turso = { workspace = true }

@@ -84,7 +84,6 @@ pub fn scoreboard_feedback_boost(
         * 0.15
 }
 
-
 /// Returns `true` when DeepSeek's off-peak pricing discount is active.
 ///
 /// Window: **UTC 16:30–00:30** (59_400 s → 86_400 s, then 0 s → 1_800 s).

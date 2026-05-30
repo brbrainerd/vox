@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::commands::audit_effort::EffortArgs;
+use crate::commands::audit_route::EffortRouteArgs;
 
 /// Nested subcommands under `vox audit <thing>`.
 ///
@@ -33,6 +34,12 @@ pub enum AuditSubcommand {
     /// remediation suggestions). See
     /// `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`.
     Effort(EffortArgs),
+    /// Route effort-audit findings to verified, drafted enforcement-artifact
+    /// proposals (AGENTS.md rule / lint detector / arch rule / CI gate / corpus
+    /// example / Vox script). See
+    /// `docs/superpowers/specs/2026-05-30-effort-route-design.md`.
+    #[command(name = "effort-route")]
+    EffortRoute(EffortRouteArgs),
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,8 @@ ars/snippet/export
 ars/snippet/save
 ars/snippet/search
 audit
+audit/effort
+audit/effort-route
 auth
 auth/connect
 auth/init
@@ -93,6 +95,8 @@ ci/grammar-ssot-parity
 ci/grpo-reward-baseline
 ci/gui-catalog-parity
 ci/gui-smoke
+ci/gui-surface-coverage
+ci/gui-version-sync
 ci/ignored-test-age
 ci/install-hooks
 ci/json-parse-check
@@ -326,6 +330,7 @@ model/pricing/rollup
 model/pricing/show
 model/rollup
 model/scoreboard
+model/shadow
 model/show
 new
 new/fn

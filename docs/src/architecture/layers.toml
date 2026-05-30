@@ -115,9 +115,11 @@ vox-project-scaffold    = { layer = 2 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
-# L3: consumes the vox-actor-runtime (L3) LLM facade — every actor-runtime
-# consumer (vox-search, vox-tensor, vox-dei-shim) is L3, so this is too.
+# L3: both consume the vox-actor-runtime (L3) LLM facade — every actor-runtime
+# consumer (vox-search, vox-tensor, vox-dei-shim, vox-orchestrator) is L3, so
+# these are too (a heavy-runtime consumer is L3, not an L2 pure-data library).
 vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
+vox-effort-route        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
 
 
@@ -232,6 +234,10 @@ exempt_files     = [
     "crates/vox-repository/src/repo_catalog/query.rs",
     "crates/vox-search/src/memory_hybrid.rs",
     "crates/vox-git/src/bridge.rs",
+    # Sanctioned read-only raw-git helper (unified diffs / numstat gix cannot print).
+    "crates/vox-git/src/read_cmd.rs",
+    # Isolated per-test tempdir fixtures; no shared-repo concurrency risk.
+    "crates/vox-effort-audit/tests/support/mod.rs",
     "crates/vox-orchestrator-mcp/src/git_exec.rs",
     "crates/vox-build-meta/src/lib.rs",
     "crates/vox-cli/src/commands/ci/data_storage_guard.rs",

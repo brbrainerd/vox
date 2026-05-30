@@ -1,0 +1,30 @@
+[package]
+name        = "vox-effort-route"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Routes effort-audit findings to verified, drafted enforcement artifacts"
+
+[dependencies]
+vox-effort-audit  = { path = "../vox-effort-audit" }
+vox-actor-runtime = { path = "../vox-actor-runtime" }
+vox-config        = { path = "../vox-config" }
+vox-telemetry     = { path = "../vox-telemetry" }
+vox-git           = { path = "../vox-git" }
+anyhow            = { workspace = true }
+gix               = { workspace = true }
+serde             = { workspace = true, features = ["derive"] }
+serde_json        = { workspace = true }
+chrono            = { workspace = true }
+uuid              = { workspace = true, features = ["v4"] }
+tracing           = { workspace = true }
+tokio             = { workspace = true, features = ["macros", "rt-multi-thread", "sync"] }
+futures           = { workspace = true }
+thiserror         = { workspace = true }
+async-trait       = { workspace = true }
+
+[dev-dependencies]
+insta             = { workspace = true, features = ["json"] }
+tempfile          = { workspace = true }
+toml              = { workspace = true }
+tokio             = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

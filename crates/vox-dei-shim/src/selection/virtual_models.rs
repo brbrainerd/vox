@@ -48,6 +48,7 @@ pub fn virtual_models() -> Vec<ModelSpec> {
                 supports_audio_output: false,
                 supports_file_input: false,
                 supports_jsonl: false,
+                writes_vox: false,
                 max_context: 1_000_000,
                 tier: ModelTier::Pro,
                 rate_limit_rpm: None,
@@ -91,6 +92,7 @@ pub fn virtual_models() -> Vec<ModelSpec> {
                 supports_audio_output: false,
                 supports_file_input: false,
                 supports_jsonl: false,
+                writes_vox: false,
                 max_context: 1_000_000,
                 tier: ModelTier::Free,
                 // OpenRouter aggregates free-tier limits; treat as conservative placeholders.

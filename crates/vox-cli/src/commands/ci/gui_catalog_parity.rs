@@ -66,7 +66,10 @@ fn read_operation_catalog(repo_root: &PathBuf) -> Result<Vec<OperationMeta>> {
             .map(ToString::to_string);
         out.push(OperationMeta {
             id,
-            title: op.get("title").and_then(Value::as_str).map(ToString::to_string),
+            title: op
+                .get("title")
+                .and_then(Value::as_str)
+                .map(ToString::to_string),
             description: op
                 .get("description")
                 .and_then(Value::as_str)
@@ -252,15 +255,16 @@ pub fn run(repo_root: &PathBuf) -> Result<()> {
             action_manifest_path
         );
     }
-    let action_manifest =
-        fs::read_to_string(&action_manifest_path).context("Failed to read action-manifest.v1.yaml")?;
+    let action_manifest = fs::read_to_string(&action_manifest_path)
+        .context("Failed to read action-manifest.v1.yaml")?;
     if !action_manifest.contains("handler_kind") {
         anyhow::bail!("action-manifest.v1.yaml must define handler_kind");
     }
     if !action_manifest.contains("schema_version: 1") {
         anyhow::bail!("action-manifest.v1.yaml must declare schema_version: 1");
     }
-    let action_manifest_schema_path = repo_root.join("contracts/gui/action-manifest.v1.schema.json");
+    let action_manifest_schema_path =
+        repo_root.join("contracts/gui/action-manifest.v1.schema.json");
     if !action_manifest_schema_path.exists() {
         anyhow::bail!(
             "GUI action manifest JSON schema missing at: {:?}",
@@ -269,19 +273,23 @@ pub fn run(repo_root: &PathBuf) -> Result<()> {
     }
     let schema_raw = fs::read_to_string(&action_manifest_schema_path)
         .context("Failed to read action-manifest.v1.schema.json")?;
-    let schema_val: serde_json::Value =
-        serde_json::from_str(&schema_raw).context("Failed to parse action-manifest.v1.schema.json")?;
+    let schema_val: serde_json::Value = serde_json::from_str(&schema_raw)
+        .context("Failed to parse action-manifest.v1.schema.json")?;
     let validator =
         vox_jsonschema_util::compile_validator(&schema_val, action_manifest_schema_path.display())
             .context("compile action-manifest schema")?;
     let generated_manifest = generated_manifest_payload(repo_root)?;
-    vox_jsonschema_util::validate(&generated_manifest, &validator, "gui action manifest schema")
-        .context("validate generated action-manifest against schema")?;
+    vox_jsonschema_util::validate(
+        &generated_manifest,
+        &validator,
+        "gui action manifest schema",
+    )
+    .context("validate generated action-manifest against schema")?;
 
     let runtime_types_path = repo_root.join("clients/runtime-types/src/index.ts");
     if runtime_types_path.exists() {
-        let runtime_types =
-            fs::read_to_string(&runtime_types_path).context("Failed to read runtime-types index.ts")?;
+        let runtime_types = fs::read_to_string(&runtime_types_path)
+            .context("Failed to read runtime-types index.ts")?;
         if runtime_types.contains("@tauri-apps/api") {
             anyhow::bail!(
                 "runtime boundary guard failed: clients/runtime-types must not import @tauri-apps/api"

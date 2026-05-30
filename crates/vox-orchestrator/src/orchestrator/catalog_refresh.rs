@@ -246,7 +246,11 @@ async fn persist_catalog_refresh_timestamp() {
             .map(|d| d.as_secs())
             .unwrap_or(0);
         let _ = db
-            .set_user_preference("global", MODEL_CATALOG_LAST_REFRESH_KEY, &now_secs.to_string())
+            .set_user_preference(
+                "global",
+                MODEL_CATALOG_LAST_REFRESH_KEY,
+                &now_secs.to_string(),
+            )
             .await;
     }
 }
@@ -284,10 +288,9 @@ async fn register_supplemental_catalogs(
     }
 
     let mut mens_count = 0usize;
-    let repo_root = vox_repository::find_project_manifest_root(
-        &std::env::current_dir().unwrap_or_default(),
-    )
-    .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+    let repo_root =
+        vox_repository::find_project_manifest_root(&std::env::current_dir().unwrap_or_default())
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     if let Ok(models) = MensCatalog::new(&repo_root).refresh().await {
         mens_count = models.len();
         for m in models {
@@ -465,4 +468,3 @@ fn jitter_secs(max_secs: u64) -> u64 {
         .subsec_nanos() as u64;
     nanos % (max_secs + 1)
 }
-

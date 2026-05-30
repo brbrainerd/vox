@@ -910,6 +910,85 @@ pub struct AuditEffortRunFailedEvent {
     pub message: String,
 }
 
+// --- audit.route.* events (vox audit effort-route, S2) -----------------------
+// Lifecycle mirrors audit.effort.*: one `RunStarted` per invocation, one
+// `ClusterDecided` per routed cluster, one `RunCompleted` on success, or one
+// `RunFailed` on terminal failure.
+// SSOT: `docs/superpowers/specs/2026-05-30-effort-route-design.md`.
+
+/// One emit per `vox audit effort-route` invocation, before any clusters route.
+pub const METRIC_TYPE_AUDIT_ROUTE_RUN_STARTED: &str = "audit.route.run.started";
+/// One emit per routed cluster (decide + verify outcome).
+pub const METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED: &str = "audit.route.cluster.decided";
+/// One emit on successful run completion.
+pub const METRIC_TYPE_AUDIT_ROUTE_RUN_COMPLETED: &str = "audit.route.run.completed";
+/// One emit on terminal failure (load, schema mismatch, output write, etc.).
+pub const METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED: &str = "audit.route.run.failed";
+
+/// `RunStarted` — emitted once at the top of every `vox audit effort-route`
+/// run, before any clusters are routed.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct AuditRouteRunStartedEvent {
+    /// Stable id assigned to this run (used to correlate the other three
+    /// event kinds back to this start). Opaque to consumers.
+    pub run_id: String,
+    /// Path to the S1 `findings.jsonl` this run consumed.
+    pub findings_path: String,
+    /// Model id selected to re-judge clusters in this run (or `"mock"`).
+    pub judge_model_id: String,
+    /// Whether the selected judge model is permitted to author Vox source.
+    pub judge_model_vox_capable: bool,
+}
+
+/// `ClusterDecided` — one emit per routed cluster. Carries the decided form
+/// and the verify outcome so the dashboard can track refutation rates.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct AuditRouteClusterDecidedEvent {
+    /// Correlates back to [`AuditRouteRunStartedEvent::run_id`].
+    pub run_id: String,
+    /// Stable id of the cluster that was routed.
+    pub cluster_id: String,
+    /// Number of member findings in the cluster.
+    pub member_count: u64,
+    /// Decided artifact form tag (e.g. `"CiGate"`, `"AgentsMdRule"`, `"None"`).
+    pub artifact_form: String,
+    /// Decide-pass confidence (0.0–1.0).
+    pub confidence: f64,
+    /// Whether the adversarial verify pass left the decision standing.
+    pub verified: bool,
+}
+
+/// `RunCompleted` — emitted once on successful run completion. Carries
+/// roll-up counters for the manifest + dashboard.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct AuditRouteRunCompletedEvent {
+    /// Correlates back to [`AuditRouteRunStartedEvent::run_id`].
+    pub run_id: String,
+    /// Findings that survived load + filter.
+    pub findings_loaded: u64,
+    /// Deterministic buckets formed before sub-clustering.
+    pub buckets: u64,
+    /// Clusters routed (decide + verify).
+    pub clusters_routed: u64,
+    /// Clusters whose decision survived adversarial verification.
+    pub verified: u64,
+}
+
+/// `RunFailed` — emitted once on terminal failure (i.e. the run did not
+/// produce recommendations). Per-cluster decide/verify failures do NOT emit
+/// this — they appear as a `ClusterDecided` event with `verified = false`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct AuditRouteRunFailedEvent {
+    /// Correlates back to [`AuditRouteRunStartedEvent::run_id`].
+    pub run_id: String,
+    /// Discriminator tag for the failure class (e.g. `"LoadFailed"`,
+    /// `"SchemaMismatch"`, `"OutputWriteFailed"`).
+    pub error_kind: String,
+    /// Short human-readable message (no PII; no raw repo paths beyond the
+    /// repo root marker).
+    pub message: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1171,6 +1250,67 @@ mod tests {
         let j = serde_json::to_string(&failed).expect("serialize");
         let back: AuditEffortRunFailedEvent = serde_json::from_str(&j).expect("deserialize");
         assert_eq!(back, failed);
+    }
+
+    #[test]
+    fn audit_route_event_round_trips() {
+        let started = AuditRouteRunStartedEvent {
+            run_id: "01HW7".into(),
+            findings_path: "target/audit/effort/01HW7/findings.jsonl".into(),
+            judge_model_id: "mock".into(),
+            judge_model_vox_capable: false,
+        };
+        let j = serde_json::to_string(&started).expect("serialize");
+        let back: AuditRouteRunStartedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert!(j.contains("01HW7"));
+        assert_eq!(back, started);
+
+        let decided = AuditRouteClusterDecidedEvent {
+            run_id: "01HW7".into(),
+            cluster_id: "01HW7-0".into(),
+            member_count: 3,
+            artifact_form: "CiGate".into(),
+            confidence: 0.82,
+            verified: true,
+        };
+        let j = serde_json::to_string(&decided).expect("serialize");
+        let back: AuditRouteClusterDecidedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert_eq!(back, decided);
+
+        let completed = AuditRouteRunCompletedEvent {
+            run_id: "01HW7".into(),
+            findings_loaded: 12,
+            buckets: 5,
+            clusters_routed: 6,
+            verified: 4,
+        };
+        let j = serde_json::to_string(&completed).expect("serialize");
+        let back: AuditRouteRunCompletedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert_eq!(back, completed);
+
+        let failed = AuditRouteRunFailedEvent {
+            run_id: "01HW7".into(),
+            error_kind: "SchemaMismatch".into(),
+            message: "findings.jsonl schema_version 9.9 != 1.0".into(),
+        };
+        let j = serde_json::to_string(&failed).expect("serialize");
+        let back: AuditRouteRunFailedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert_eq!(back, failed);
+    }
+
+    #[test]
+    fn audit_route_metric_types_pass_validation() {
+        for mt in [
+            METRIC_TYPE_AUDIT_ROUTE_RUN_STARTED,
+            METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED,
+            METRIC_TYPE_AUDIT_ROUTE_RUN_COMPLETED,
+            METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED,
+        ] {
+            assert!(
+                validate_research_metric_row("audit:vox", mt, None).is_ok(),
+                "metric_type {mt} failed validation"
+            );
+        }
     }
 
     #[test]
