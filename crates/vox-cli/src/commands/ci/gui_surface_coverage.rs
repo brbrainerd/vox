@@ -94,9 +94,7 @@ fn capability_status(report: &SurfaceCoverageReport) -> Vec<CapabilityStatus> {
         CapabilityStatus {
             capability: "orchestrator_control_plane",
             status: mk_status(
-                has_route("dashboard")
-                    && has_ipc("orchestrator")
-                    && has_op_exact("submit.task"),
+                has_route("dashboard") && has_ipc("orchestrator") && has_op_exact("submit.task"),
                 has_route("dashboard") || has_ipc("orchestrator"),
             ),
             evidence: vec![
@@ -108,7 +106,10 @@ fn capability_status(report: &SurfaceCoverageReport) -> Vec<CapabilityStatus> {
         },
         CapabilityStatus {
             capability: "repository_harness_actions",
-            status: mk_status(has_route("catalog") && has_op("workspace"), has_route("catalog")),
+            status: mk_status(
+                has_route("catalog") && has_op("workspace"),
+                has_route("catalog"),
+            ),
             evidence: vec![
                 format!("route:catalog={}", has_route("catalog")),
                 format!("op:*workspace*={}", has_op("workspace")),
@@ -117,9 +118,15 @@ fn capability_status(report: &SurfaceCoverageReport) -> Vec<CapabilityStatus> {
         },
         CapabilityStatus {
             capability: "vox_compile_check_run_loop",
-            status: mk_status(has_op("vox_check") || has_op("compile"), has_route("catalog")),
+            status: mk_status(
+                has_op("vox_check") || has_op("compile"),
+                has_route("catalog"),
+            ),
             evidence: vec![
-                format!("op:*vox_check|compile*={}", has_op("vox_check") || has_op("compile")),
+                format!(
+                    "op:*vox_check|compile*={}",
+                    has_op("vox_check") || has_op("compile")
+                ),
                 format!("route:catalog={}", has_route("catalog")),
             ],
             priority: "p0",
@@ -135,7 +142,10 @@ fn capability_status(report: &SurfaceCoverageReport) -> Vec<CapabilityStatus> {
         },
         CapabilityStatus {
             capability: "memory_provenance",
-            status: mk_status(has_route("memory") && has_ipc("memory"), has_route("memory")),
+            status: mk_status(
+                has_route("memory") && has_ipc("memory"),
+                has_route("memory"),
+            ),
             evidence: vec![
                 format!("route:memory={}", has_route("memory")),
                 format!("ipc:*memory*={}", has_ipc("memory")),
@@ -153,7 +163,10 @@ fn capability_status(report: &SurfaceCoverageReport) -> Vec<CapabilityStatus> {
         },
         CapabilityStatus {
             capability: "mesh_compute_surface",
-            status: mk_status(has_route("mesh"), has_route("dashboard") || has_route("matrix")),
+            status: mk_status(
+                has_route("mesh"),
+                has_route("dashboard") || has_route("matrix"),
+            ),
             evidence: vec![
                 format!("route:mesh={}", has_route("mesh")),
                 format!(

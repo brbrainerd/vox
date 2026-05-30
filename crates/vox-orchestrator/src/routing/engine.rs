@@ -7,8 +7,8 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::config::CostPreference;
-use crate::models::ModelSpec;
 use crate::models::ModelScore;
+use crate::models::ModelSpec;
 use crate::models::ModelTier;
 use crate::models::scoring::auto_score_model;
 use crate::types::TaskCategory;

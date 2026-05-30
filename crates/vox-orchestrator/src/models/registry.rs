@@ -370,6 +370,7 @@ impl ModelRegistry {
                                         ],
                                         capabilities: crate::models::spec::ModelCapabilities {
                                             tier: crate::models::ModelTier::Local,
+                                            writes_vox: true,
                                             ..Default::default()
                                         },
                                         supported_parameters: vec![],

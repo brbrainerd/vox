@@ -3,10 +3,8 @@
 //! All research stages flow through [`vox_orchestrator::models::select_with_default_registry`]
 //! so routing honors premium aliases, scoreboard feedback, and user axes.
 
-use vox_orchestrator::models::{
-    SelectionIntent, select_with_default_registry,
-};
 use vox_orchestrator::models::ModelRegistry;
+use vox_orchestrator::models::{SelectionIntent, select_with_default_registry};
 
 /// Sentinel NLI model id used before registry resolution; see [`verifier_config_for_research_run`].
 pub const FALLBACK_NLI_MODEL_ID: &str = vox_config::NLI_FALLBACK;
@@ -39,11 +37,7 @@ pub struct ResolvedResearchModels {
     pub judge_model: String,
 }
 
-fn resolve_stage(
-    registry: &ModelRegistry,
-    intent: SelectionIntent,
-    fallback: &str,
-) -> String {
+fn resolve_stage(registry: &ModelRegistry, intent: SelectionIntent, fallback: &str) -> String {
     if let Some(outcome) = select_with_default_registry(&intent) {
         return outcome.model_id;
     }

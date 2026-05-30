@@ -25,7 +25,6 @@ use crate::models::{ModelRegistry, ModelSpec, ProviderType, TaskCategory};
 use vox_config::AutoRoutingPriority;
 use vox_telemetry::{SelectionDecisionEvent, TelemetryEvent};
 
-
 // ─── Canonical request/response (SSOT API) ─────────────────────────────────
 
 /// Rich model-selection request consumed by the canonical selector.
@@ -84,7 +83,10 @@ impl ModelSelectionRequest {
 
 /// Canonical selector entry point with structured decision envelope.
 #[must_use]
-pub fn decide(request: &ModelSelectionRequest, registry: &ModelRegistry) -> Option<ModelSelectionDecision> {
+pub fn decide(
+    request: &ModelSelectionRequest,
+    registry: &ModelRegistry,
+) -> Option<ModelSelectionDecision> {
     use std::collections::HashSet;
 
     let all = registry.list_models();
@@ -110,7 +112,11 @@ pub fn decide(request: &ModelSelectionRequest, registry: &ModelRegistry) -> Opti
         }
         let conf = confidence_state_for_model(&m);
         if !is_routing_eligible(conf) {
-            rejection_reasons.push(format!("{} gated: confidence_state={}", m.id, conf.as_str()));
+            rejection_reasons.push(format!(
+                "{} gated: confidence_state={}",
+                m.id,
+                conf.as_str()
+            ));
             continue;
         }
         candidates.push(m);
@@ -154,28 +160,30 @@ pub fn decide(request: &ModelSelectionRequest, registry: &ModelRegistry) -> Opti
     let candidate_ids: HashSet<String> = candidates.iter().map(|m| m.id.clone()).collect();
     let intent = &request.intent;
 
-    let selected = select(intent, registry).and_then(|o| {
-        if candidate_ids.contains(&o.model_id) {
-            Some(o)
-        } else {
-            None
-        }
-    }).or_else(|| {
-        // Scoped fallback through registry scorer constrained to candidate set.
-        let model = registry.best_for_with_filter(
-            intent.task,
-            intent.complexity,
-            intent.axes.to_cost_preference(),
-            |m| candidate_ids.contains(&m.id),
-            None,
-        )?;
-        Some(SelectionOutcome {
-            model_id: model.id.clone(),
-            model_spec: model,
-            reason: SelectionReason::Scored,
-            effective_axes: intent.axes.to_routing_priority(intent.prefer_local),
+    let selected = select(intent, registry)
+        .and_then(|o| {
+            if candidate_ids.contains(&o.model_id) {
+                Some(o)
+            } else {
+                None
+            }
         })
-    })?;
+        .or_else(|| {
+            // Scoped fallback through registry scorer constrained to candidate set.
+            let model = registry.best_for_with_filter(
+                intent.task,
+                intent.complexity,
+                intent.axes.to_cost_preference(),
+                |m| candidate_ids.contains(&m.id),
+                None,
+            )?;
+            Some(SelectionOutcome {
+                model_id: model.id.clone(),
+                model_spec: model,
+                reason: SelectionReason::Scored,
+                effective_axes: intent.axes.to_routing_priority(intent.prefer_local),
+            })
+        })?;
 
     let alternatives: Vec<String> = candidates
         .iter()
@@ -881,7 +889,6 @@ mod tests {
         assert_eq!(i.axes, SelectionAxes::FAST);
     }
 
-
     #[test]
     fn decide_respects_candidate_scope_cloud_only() {
         let registry = ModelRegistry::new();
@@ -901,7 +908,8 @@ mod tests {
     #[test]
     fn decide_populates_non_placeholder_fields() {
         let registry = ModelRegistry::new();
-        let req = ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        let req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
         if let Some(decision) = decide(&req, &registry) {
             assert!(decision.score_breakdown.candidate_count > 0);
             assert!(!decision.selected_model.is_empty());
@@ -945,8 +953,8 @@ mod tests {
             .next()
             .expect("at least one model");
         m.pricing_source = super::super::spec::PricingSource::Unknown;
-        let blocked =
-            exploration_budget_exhausted() && m.pricing_source == super::super::spec::PricingSource::Unknown;
+        let blocked = exploration_budget_exhausted()
+            && m.pricing_source == super::super::spec::PricingSource::Unknown;
         assert!(blocked);
         unsafe {
             match prior_enable {

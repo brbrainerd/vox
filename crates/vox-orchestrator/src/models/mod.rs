@@ -16,8 +16,8 @@ pub use generated::{
 };
 pub use registry::{ModelRegistry, ModelScore};
 pub use select::{
-    CandidateScope, ModelSelectionDecision, ModelSelectionRequest, ScoreBreakdown,
-    SelectionAxes, SelectionIntent, SelectionOutcome, SelectionReason, decide, select,
+    CandidateScope, ModelSelectionDecision, ModelSelectionRequest, ScoreBreakdown, SelectionAxes,
+    SelectionIntent, SelectionOutcome, SelectionReason, decide, select,
     select_with_default_registry,
 };
 pub use spec::{

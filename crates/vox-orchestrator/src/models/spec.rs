@@ -59,6 +59,14 @@ pub struct ModelCapabilities {
     /// Whether the model can consume and produce JSON-Lines streams.
     #[serde(default)]
     pub supports_jsonl: bool,
+    /// Whether this model is trusted to author Vox language source
+    /// (`VoxScript` artifact forms). Registry-authoring flag, NOT an
+    /// OpenRouter-advertised routing capability — seeded `true` only for
+    /// MENS models, defaults `false` for everything else. Operators can
+    /// additionally opt models in via the `[audit.route] vox_capable_models`
+    /// allowlist override (see `vox-cli` `audit_route::resolve_vox_capability`).
+    #[serde(default)]
+    pub writes_vox: bool,
     pub max_context: u64,
     pub tier: ModelTier,
     /// Provider-reported RPM limit (e.g. from OpenRouter `per_request_limits`).
@@ -329,4 +337,53 @@ pub fn task_category_premium_key(task_type: TaskCategory) -> &'static str {
 
 pub fn task_category_strength(task_type: TaskCategory) -> StrengthTag {
     route_for_category(task_type).strength_tag
+}
+
+#[cfg(test)]
+mod writes_vox_tests {
+    use super::ModelCapabilities;
+
+    #[test]
+    fn default_writes_vox_is_false() {
+        assert!(!ModelCapabilities::default().writes_vox);
+    }
+
+    #[test]
+    fn missing_key_deserializes_to_false() {
+        // A catalog/bootstrap JSON that omits `writes_vox` must remain
+        // back-compat: the bare `#[serde(default)]` yields bool's Default (false).
+        let json = r#"{
+            "supports_json": true,
+            "supports_vision": false,
+            "max_context": 8192,
+            "tier": "local"
+        }"#;
+        let caps: ModelCapabilities = serde_json::from_str(json).expect("deserialize");
+        assert!(!caps.writes_vox);
+    }
+
+    #[test]
+    fn explicit_true_deserializes_to_true() {
+        let json = r#"{
+            "supports_json": true,
+            "supports_vision": false,
+            "writes_vox": true,
+            "max_context": 8192,
+            "tier": "local"
+        }"#;
+        let caps: ModelCapabilities = serde_json::from_str(json).expect("deserialize");
+        assert!(caps.writes_vox);
+    }
+
+    #[test]
+    fn mens_style_seed_reports_writes_vox_true() {
+        // Mirrors the MENS seed sites (catalog.rs / registry.rs): a `Local`-tier
+        // capability with `writes_vox: true` plus `..Default::default()`.
+        let caps = ModelCapabilities {
+            tier: super::ModelTier::Local,
+            writes_vox: true,
+            ..Default::default()
+        };
+        assert!(caps.writes_vox);
+    }
 }
