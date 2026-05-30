@@ -57,6 +57,27 @@ Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
 - Individual ADR / architecture / how-to / tutorial / reference markdown files — these are the **sources** the generators read from.
 
+## Authored Markdown Frontmatter (Required)
+
+Every Markdown file you **create or substantially author** under `docs/src/` (excluding the auto-generated files above and `docs/src/archive/`) MUST begin with a YAML frontmatter block. This is not optional: the `vox-doc-pipeline` lint runs in the pre-push hook and on CI, and a missing or malformed block blocks the merge.
+
+Minimum required keys (full template and the canonical `category` / `status` vocabularies live in the SSOT: [`docs/src/contributors/documentation-governance.md` §Frontmatter](docs/src/contributors/documentation-governance.md)):
+
+```md
+---
+title: "Page title"
+description: "One specific sentence about what this page covers."
+category: "architecture"   # one of the canonical category values in the governance doc
+---
+```
+
+Rules for any agent writing docs:
+- **Write the frontmatter as part of creating the file** — never author the body first and leave the block to a later pass. A new `.md` without frontmatter is an incomplete file.
+- Do **not** hand-add `last_updated` — the pipeline derives it from Git history.
+- Pick the `category` from the governance vocabulary; add `status` when the shipped-vs-aspirational distinction matters to readers.
+- Verify before pushing with the scoped lint: `cargo run -p vox-doc-pipeline -- --lint-only --paths <your-file>.md` (or just let the fast pre-push hook's scoped doc-lint catch it).
+- Fenced `vox` code blocks in docs are compiled as doctests. Make them compile, or — only when the snippet is a genuine excerpt that depends on out-of-file symbols (inlining them would create a stub or a split-brain copy) — mark the block with a leading `// vox:skip` and a one-line reason.
+
 ## AI Context Exclusion (SSOT)
 
 `.voxignore` is the **single source of truth** for what files and directories should be excluded from AI context.
