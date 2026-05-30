@@ -1,1 +1,3 @@
-//! Stub; see plan.
+//! Per-commit judge stack.
+
+pub mod schema;
