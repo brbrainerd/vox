@@ -8,5 +8,6 @@
     "outDir": null,
     "rootDir": null
   },
-  "include": ["src/**/*", "tests/**/*"]
+  "include": ["src/**/*", "tests/**/*"],
+  "exclude": ["src/__generated__/**"]
 }

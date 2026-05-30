@@ -12,6 +12,10 @@
     }
   },
   "files": ["dist"],
+  "scripts": {
+    "generate-bindings": "node scripts/generate-bindings.mjs",
+    "tsc": "tsc -p tsconfig.test.json"
+  },
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-native": ">=0.74.0",
