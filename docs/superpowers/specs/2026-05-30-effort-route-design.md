@@ -61,7 +61,8 @@ The novel contribution (per the May 2026 prior-art scan in S1 §13): no existing
 | Layer | L2 |
 | `max_loc` | 4,000 |
 | Fan-in | `vox-cli` (subcommand), `vox-audit` (umbrella, future) |
-| Deps | `vox-effort-audit` (read-only: shared schema types), `vox-actor-runtime` (LLM + embed facade), `vox-search` (embeddings), `vox-config`, `vox-telemetry`, `gix` (re-read diffs for cluster context), `serde`, `serde_json`, `chrono`, `uuid` (v4), `tracing`, `tokio`, `futures`, `thiserror` |
+| Deps | `vox-effort-audit` (read-only: shared schema types), `vox-actor-runtime` (LLM **and** embedding facade — `llm_embed`), `vox-config`, `vox-telemetry`, `gix` (re-read diffs for cluster context), `serde`, `serde_json`, `chrono`, `uuid` (v4), `tracing`, `tokio`, `futures`, `thiserror` |
+| **Not** a dep | `vox-search` — its `EmbeddingService` is `VoxDb`-coupled (persists vectors to a DB). S2 clusters in-memory and does not persist, so it calls `vox_actor_runtime::llm::llm_embed` directly (the same primitive `EmbeddingService` wraps). Dropping `vox-search` keeps the dep graph minimal. |
 | Forbidden deps | `vox-orchestrator` (model selection reached via the same facade S1 uses, not a direct dep), UI crates |
 | `staleness_exempt` | `false` |
 
@@ -134,7 +135,7 @@ digraph effort_route {
    - Findings with identical keys join the same bucket. This is pure, testable, free.
 
 3. **Sub-cluster** (`cluster::maybe_split`). Only buckets with `member_count > cfg.max_bucket_size` (default 20) are split:
-   - Embed each member's `finding.rationale_one_line` (+ optionally its `message_first_line`) via `vox_search` embeddings; fall back to `vox_actor_runtime::llm::llm_embed` if the search path is unavailable.
+   - Embed each member's `finding.rationale_one_line` (+ optionally its `message_first_line`) via `vox_actor_runtime::llm::llm_embed` (direct facade call; no DB).
    - Density-cluster the embeddings (simple agglomerative or DBSCAN-style; no heavy dep — a small in-crate implementation over cosine distance is sufficient for ≤ a few hundred vectors). Produce sub-buckets.
    - Buckets at or below the threshold pass through untouched. **No embedding cost for the common case.**
 
@@ -158,7 +159,7 @@ The whole-cluster re-judge returns this (validated via structured output, same p
   },
   "member_commit_shas": ["a63d0c…", "…"],
   "member_count": 14,
-  "total_estimated_cost_usd": 12.40,             // sum of member cost.estimated_usd (or 0 if all Unavailable)
+  "total_member_tokens": 225600,                 // sum of member cost input+output tokens (Measured or Estimated); 0 for Unavailable/Ambiguous. USD computation deferred to S3, mirroring S1 leaving judge_total_estimated_usd=0.0.
   "artifact_form": "CiGate",                     // S2's finer-grained decision (§5)
   "confidence": 0.82,                            // 0..1 from the decide call
   "synthesized_fix_summary": "Add a CI gate asserting no inline timeout literals; 14 commits were manual sweeps onto vox_config::timeouts.",
