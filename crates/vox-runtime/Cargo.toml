@@ -16,7 +16,13 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-workspace-hack = { path = "../workspace-hack" }
+
+# NOTE: workspace-hack is deliberately NOT a dep of this crate.
+# It transitively pulls in `gix` -> `reqwest` -> `native-tls` -> `openssl-sys`,
+# which can't cross-compile to mobile (`aarch64-linux-android`,
+# `aarch64-apple-ios`) without vendoring OpenSSL source. The workspace-hack
+# unification is a host-build performance optimization; mobile targets opt
+# out so they can ship.
 
 [dev-dependencies]
 serde_json = { workspace = true }
