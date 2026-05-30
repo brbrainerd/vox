@@ -95,3 +95,13 @@ fn merge_outcome_lock_wait_json_roundtrip_preserves_fields() {
         other => panic!("expected LockWait, got {other:?}"),
     }
 }
+
+#[test]
+fn code_effort_judge_category_present() {
+    use std::str::FromStr;
+    use vox_orchestrator_types::TaskCategory;
+    assert!(matches!(
+        TaskCategory::from_str("CodeEffortJudge").unwrap(),
+        TaskCategory::CodeEffortJudge
+    ));
+}
