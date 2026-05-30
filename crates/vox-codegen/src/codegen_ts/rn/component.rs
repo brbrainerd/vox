@@ -68,6 +68,14 @@ enum RnNode {
         attributes: Vec<(String, String)>,
         children: Vec<RnNode>,
     },
+    /// `<Link href={<href>} style={styles.<key>}>...</Link>` — expo-router
+    /// navigation. VUV `link(href="/x") { "label" }`. String children are
+    /// auto-wrapped in `<Text>` (same as Pressable) so the label is tappable.
+    Link {
+        href_ts: String,
+        style_key: Option<String>,
+        children: Vec<RnNode>,
+    },
     /// A plain JS-style string literal inside a `<Text>` — gets quoted/escaped.
     StringLit(String),
     /// A raw TypeScript expression to interpolate — emitted inside `{...}` braces.
@@ -231,6 +239,35 @@ fn attr_value<'a>(attrs: &'a [HirJsxAttr], name: &str) -> Option<&'a HirExpr> {
     attrs.iter().find(|a| a.name == name).map(|a| &a.value)
 }
 
+/// True if the component's view contains a `link(...)` / `<a>` element, so the
+/// emitter knows to `import { Link } from "expo-router"`.
+fn component_uses_link(rc: &HirReactiveComponent) -> bool {
+    fn expr_has_link(e: &HirExpr) -> bool {
+        match e {
+            HirExpr::Jsx(el) => {
+                el.tag == "link" || el.tag == "a" || el.children.iter().any(expr_has_link)
+            }
+            HirExpr::JsxSelfClosing(sc) => sc.tag == "link" || sc.tag == "a",
+            HirExpr::JsxFragment(children, _) => children.iter().any(expr_has_link),
+            HirExpr::For(_, _, iter, body, _, _) => expr_has_link(iter) || expr_has_link(body),
+            HirExpr::Block(stmts, _) => stmts.iter().any(stmt_has_link),
+            HirExpr::If(c, t, e2, _) => {
+                expr_has_link(c)
+                    || t.iter().any(stmt_has_link)
+                    || e2.as_ref().is_some_and(|s| s.iter().any(stmt_has_link))
+            }
+            _ => false,
+        }
+    }
+    fn stmt_has_link(s: &HirStmt) -> bool {
+        match s {
+            HirStmt::Expr { expr, .. } | HirStmt::Let { value: expr, .. } => expr_has_link(expr),
+            _ => false,
+        }
+    }
+    rc.view.as_ref().is_some_and(expr_has_link)
+}
+
 /// Pull a literal integer out of a HirExpr (used for `heading(level=1)`).
 fn extract_int_literal(expr: &HirExpr) -> Option<i64> {
     if let HirExpr::IntLit(n, _) = expr {
@@ -350,6 +387,20 @@ fn jsx_to_rn(
                 .map(|h| emit_event_handler_with_state(h, state_names, endpoint_params)),
             placeholder_ts: attr_value(&el.attributes, "placeholder").map(emit_hir_expr_inline),
         },
+
+        // VUV `link(href="/x") { "label" }` → expo-router `<Link>`. Without this
+        // every navigation link rendered as an inert `<View>` and the app could
+        // not move between routes.
+        "link" | "a" => {
+            let href_ts = attr_value(&el.attributes, "href")
+                .map(emit_hir_expr_inline)
+                .unwrap_or_else(|| "\"/\"".to_string());
+            RnNode::Link {
+                href_ts,
+                style_key,
+                children,
+            }
+        }
 
         other => {
             // PascalCase tag → user-declared `component Name(...) { view: ... }` call.
@@ -504,6 +555,14 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
             }
         }
         RnNode::CustomComponent { children, .. } => {
+            for c in children {
+                collect_used_styles(c, out);
+            }
+        }
+        RnNode::Link { style_key, children, .. } => {
+            if let Some(k) = style_key {
+                out.insert(k.clone());
+            }
             for c in children {
                 collect_used_styles(c, out);
             }
@@ -679,6 +738,33 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
             }
             format!("{pad}<{tag_name}{attr_str}>\n{inner}{pad}</{tag_name}>\n")
         }
+        RnNode::Link {
+            href_ts,
+            style_key,
+            children,
+        } => {
+            let style_attr = style_key
+                .as_ref()
+                .map(|k| format!(" style={{styles.{k}}}"))
+                .unwrap_or_default();
+            // Bare string/expr children must be wrapped in <Text> (same rule as
+            // Pressable) so they render and are tappable inside the Link.
+            let wrapped = wrap_pressable_text_children(
+                children
+                    .iter()
+                    .map(|c| match c {
+                        RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
+                        RnNode::Expr(e) => RnNode::Expr(e.clone()),
+                        other => clone_rn_node(other),
+                    })
+                    .collect(),
+            );
+            let mut inner = String::new();
+            for c in &wrapped {
+                inner.push_str(&emit_rn_node(c, indent + 1));
+            }
+            format!("{pad}<Link href={{{href_ts}}}{style_attr}>\n{inner}{pad}</Link>\n")
+        }
         RnNode::StringLit(s) => {
             // String at View context — wrap defensively (RN forbids bare strings outside <Text>).
             let lit = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
@@ -762,6 +848,15 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
         } => RnNode::CustomComponent {
             tag_name: tag_name.clone(),
             attributes: attributes.clone(),
+            children: children.iter().map(clone_rn_node).collect(),
+        },
+        RnNode::Link {
+            href_ts,
+            style_key,
+            children,
+        } => RnNode::Link {
+            href_ts: href_ts.clone(),
+            style_key: style_key.clone(),
             children: children.iter().map(clone_rn_node).collect(),
         },
         RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
@@ -983,6 +1078,10 @@ pub fn emit_rn_component(
     // `crates/vox-codegen/src/codegen_ts/component.rs`.
     if super::mobile_utils::component_uses_mobile(rc) {
         out.push_str("import { mobile } from \"./mobile-utils\";\n");
+    }
+    // expo-router `<Link>` for `link(href=...)` navigation.
+    if component_uses_link(rc) {
+        out.push_str("import { Link } from \"expo-router\";\n");
     }
 
     // Cross-file imports: sibling components (`<NavBar />` → `./NavBar`) and

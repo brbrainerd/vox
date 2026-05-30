@@ -60,3 +60,29 @@ fn rn_on_mount_awaits_async_endpoint_in_iife() {
         "awaited body must run in an async IIFE; got:\n{tsx}"
     );
 }
+
+const NAV_SRC: &str = r#"
+component Menu() {
+    view: row(raw_class="nav") {
+        link(href="/timeline") { "Timeline" }
+    }
+}
+"#;
+
+#[test]
+fn rn_link_emits_expo_router_link() {
+    let tsx = rn_component(NAV_SRC, "Menu");
+    assert!(
+        tsx.contains("import { Link } from \"expo-router\""),
+        "link element must import expo-router Link; got:\n{tsx}"
+    );
+    assert!(
+        tsx.contains("<Link href={\"/timeline\"}>"),
+        "link(href=...) must become <Link href={{...}}>; got:\n{tsx}"
+    );
+    // The label must be wrapped in <Text> (RN forbids bare strings in elements).
+    assert!(
+        tsx.contains("<Text") && tsx.contains("Timeline"),
+        "link label must render inside <Text>; got:\n{tsx}"
+    );
+}
