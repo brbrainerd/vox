@@ -157,9 +157,10 @@ fn build_record(
     // Per-file additions/deletions from `git diff --numstat`.
     let (files, additions, deletions) = numstat(repo_path, &sha, parent_sha.as_deref());
 
-    // Unified diff body, possibly truncated.
+    // Unified diff body, possibly truncated. Failure here is fatal — a missing
+    // diff body would silently degrade the LLM judge's input, so we surface it.
     let (unified_diff_text, diff_truncated) =
-        unified_diff(repo_path, &sha, parent_sha.as_deref(), max_diff_bytes, &files);
+        unified_diff(repo_path, &sha, parent_sha.as_deref(), max_diff_bytes, &files)?;
 
     Ok(Some(CommitRecord {
         sha,
@@ -197,8 +198,28 @@ fn numstat(repo_path: &Path, sha: &str, parent_sha: Option<&str>) -> (Vec<FileCh
         .output()
     {
         Ok(o) => o,
-        Err(_) => return (Vec::new(), 0, 0),
+        Err(e) => {
+            tracing::warn!(
+                sha = %sha,
+                error = %e,
+                "git numstat spawn failed; treating commit as empty"
+            );
+            return (Vec::new(), 0, 0);
+        }
     };
+    if !out.status.success() {
+        // Per-file stats are best-effort: a binary-only commit or a transient
+        // git failure should not abort the whole walk. Surface the SHA + stderr
+        // in the log so a downstream caller can correlate suspicious empties.
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        tracing::warn!(
+            sha = %sha,
+            code = out.status.code().unwrap_or(-1),
+            stderr = %stderr.trim(),
+            "git numstat exited non-zero; treating commit as empty"
+        );
+        return (Vec::new(), 0, 0);
+    }
     let stdout = String::from_utf8_lossy(&out.stdout);
     let mut files = Vec::new();
     let mut total_add = 0u64;
@@ -231,7 +252,7 @@ fn unified_diff(
     parent_sha: Option<&str>,
     max_diff_bytes: usize,
     files: &[FileChange],
-) -> (String, bool) {
+) -> Result<(String, bool), WalkError> {
     let args: Vec<String> = match parent_sha {
         Some(p) => vec![
             "diff".into(),
@@ -247,28 +268,34 @@ fn unified_diff(
             sha.into(),
         ],
     };
-    let out = match Command::new("git")
+    let out = Command::new("git")
         .current_dir(repo_path)
         .args(&args)
         .output()
-    {
-        Ok(o) => o,
-        Err(_) => return (String::new(), false),
-    };
+        .map_err(|e| WalkError::Walk(format!("git diff spawn failed for {sha}: {e}")))?;
+
+    if !out.status.success() {
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        return Err(WalkError::Walk(format!(
+            "git diff exited {} for {sha}: {}",
+            out.status.code().unwrap_or(-1),
+            stderr.trim(),
+        )));
+    }
 
     // Size check on the captured stdout vs the configured budget. We avoid
     // re-allocating into a `String` when the diff will be discarded.
     let bytes = &out.stdout;
     if bytes.len() <= max_diff_bytes {
         let text = String::from_utf8_lossy(bytes).into_owned();
-        (text, false)
+        Ok((text, false))
     } else {
         let summary = files
             .iter()
             .map(|f| format!("- {} (+{}/-{})", f.path, f.additions, f.deletions))
             .collect::<Vec<_>>()
             .join("\n");
-        (summary, true)
+        Ok((summary, true))
     }
 }
 
@@ -289,6 +316,29 @@ mod tests {
         assert!(v.iter().all(|c| !c.author_email_sha256.is_empty()));
         // Newest-first
         assert!(v[0].commit_ts >= v[4].commit_ts);
+    }
+
+    #[test]
+    fn unified_diff_surfaces_subprocess_failure() {
+        // A real git repo, but ask `git diff` for a bogus SHA pair. `git` will
+        // exit non-zero; we expect `WalkError::Walk` rather than a silent empty.
+        let (_g, path) = tests_support::make_smoke_repo();
+        let result = unified_diff(
+            &path,
+            "0000000000000000000000000000000000000000",
+            Some("1111111111111111111111111111111111111111"),
+            64 * 1024,
+            &[],
+        );
+        match result {
+            Err(WalkError::Walk(msg)) => {
+                assert!(
+                    msg.contains("git diff"),
+                    "expected error to mention git diff, got: {msg}"
+                );
+            }
+            other => panic!("expected WalkError::Walk, got {other:?}"),
+        }
     }
 
     #[test]
