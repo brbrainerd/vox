@@ -58,9 +58,16 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
     let mut files: Vec<(String, String)> = Vec::new();
     let mut diagnostics: Vec<crate::web_ir::WebIrDiagnostic> = Vec::new();
 
-    // Components — one file each.
+    // Components — one file each. Precompute the reference universes once so
+    // each component can emit imports for the sibling components and endpoint
+    // fns it actually uses (same sets the web reactive emit derives).
+    let known_components: std::collections::HashSet<String> =
+        hir.components.iter().map(|c| c.name.clone()).collect();
+    let endpoint_names: std::collections::HashSet<String> =
+        hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
     for rc in &hir.components {
-        let (filename, content) = component::emit_rn_component(rc, &mut diagnostics);
+        let (filename, content) =
+            component::emit_rn_component(rc, &known_components, &endpoint_names, &mut diagnostics);
         files.push((filename, content));
     }
 

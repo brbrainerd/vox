@@ -857,10 +857,21 @@ fn emit_prelude(members: &[HirReactiveMember]) -> String {
 }
 
 /// Emit a single component file.
+///
+/// `known_components` is the set of all `component` names in the module and
+/// `endpoint_names` the set of all `@query`/`@mutation`/`@server` fn names —
+/// both used to emit cross-file `import` statements for the symbols this
+/// component references (sibling components from `./Name`, endpoint fns from
+/// `./vox-client`). These mirror the web reactive emit exactly, so the two
+/// targets stay in lockstep on what a component pulls in.
 pub fn emit_rn_component(
     rc: &HirReactiveComponent,
+    known_components: &HashSet<String>,
+    endpoint_names: &HashSet<String>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> (String, String) {
+    use crate::codegen_ts::reactive::collect_component_import_refs;
+
     let mut out = String::new();
     let hooks = detect_react_hooks(&rc.members, rc.view.as_ref());
 
@@ -875,10 +886,27 @@ pub fn emit_rn_component(
     }
     out.push_str("import { View, Text, Pressable, Image, TextInput, StyleSheet } from \"react-native\";\n");
     // `mobile` namespace import — only when this component's view or members
-    // reference the `mobile` identifier. Mirrors the web target's auto-import
-    // in `crates/vox-codegen/src/codegen_ts/component.rs`.
+    // reference the `mobile` identifier (or `Speech.transcribe_microphone`,
+    // which lowers to it). Mirrors the web target's auto-import in
+    // `crates/vox-codegen/src/codegen_ts/component.rs`.
     if super::mobile_utils::component_uses_mobile(rc) {
         out.push_str("import { mobile } from \"./mobile-utils\";\n");
+    }
+
+    // Cross-file imports: sibling components (`<NavBar />` → `./NavBar`) and
+    // endpoint fns this component calls (`record_event(...)` → `./vox-client`),
+    // collected anywhere in the view or member bodies. Shared with the web
+    // reactive emit via `collect_component_import_refs` so both targets agree.
+    let (comp_refs, endpoint_refs) =
+        collect_component_import_refs(rc, known_components, endpoint_names);
+    for comp in &comp_refs {
+        out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+    }
+    if !endpoint_refs.is_empty() {
+        out.push_str(&format!(
+            "import {{ {} }} from \"./vox-client\";\n",
+            endpoint_refs.join(", ")
+        ));
     }
     out.push('\n');
 

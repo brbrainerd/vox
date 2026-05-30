@@ -354,6 +354,26 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             if let Some(replacement) = lower_std_namespace_call(obj, method, args, ctx) {
                 return replacement;
             }
+            // `Speech.<method>` STT namespace. Mirrors the AST/web emit in
+            // `codegen_ts/component.rs`: on-device microphone transcription
+            // routes through the `mobile` binding (which the RN target imports
+            // from `./mobile-utils`, web from Tauri); file-path transcription
+            // is backend-only. Keeps a single source of truth for what `Speech`
+            // means across both emit stacks.
+            if let HirExpr::Ident(ns, _) = obj.as_ref() {
+                if ns == "Speech" && method == "transcribe_microphone" && args.is_empty() {
+                    return "mobile.transcribe_microphone()".to_string();
+                }
+                if ns == "Speech" && method == "transcribe" {
+                    let path_js = args
+                        .first()
+                        .map(|a| emit_hir_expr(&a.value, ctx))
+                        .unwrap_or_else(|| "\"\"".to_string());
+                    return format!(
+                        "((path: string) => {{ throw new Error(\"Speech.transcribe is backend-only (Vox Oratio / Candle Whisper). Use a @server fn or POST /api/audio/transcribe; see examples/oratio/codexAudioTranscribe.ts.\"); }})({path_js} as string)"
+                    );
+                }
+            }
             // §1.A.4: if the direct receiver is an async call (`fetch_user().trim()`),
             // emit_hir_expr will produce `await fetch_user()`. Wrap in parens so the chain
             // resolves the settled value: `(await fetch_user()).trim()`.

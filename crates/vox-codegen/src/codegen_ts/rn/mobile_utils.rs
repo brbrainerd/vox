@@ -91,8 +91,15 @@ fn expr_uses_mobile(expr: &HirExpr) -> bool {
         HirExpr::Call(callee, args, _, _) => {
             expr_uses_mobile(callee) || args.iter().any(|a| expr_uses_mobile(&a.value))
         }
-        HirExpr::MethodCall(receiver, _, args, _, _) => {
-            expr_uses_mobile(receiver) || args.iter().any(|a| expr_uses_mobile(&a.value))
+        HirExpr::MethodCall(receiver, method, args, _, _) => {
+            // `Speech.transcribe_microphone()` lowers to `mobile.transcribe_microphone()`
+            // (see codegen_ts/hir_emit), so a component using it needs the
+            // `mobile` import even though it never names `mobile` directly.
+            let speech_to_mobile = matches!(receiver.as_ref(), HirExpr::Ident(n, _) if n == "Speech")
+                && method == "transcribe_microphone";
+            speech_to_mobile
+                || expr_uses_mobile(receiver)
+                || args.iter().any(|a| expr_uses_mobile(&a.value))
         }
         HirExpr::FieldAccess(object, _, _) => expr_uses_mobile(object),
         HirExpr::Binary(_, l, r, _) => expr_uses_mobile(l) || expr_uses_mobile(r),

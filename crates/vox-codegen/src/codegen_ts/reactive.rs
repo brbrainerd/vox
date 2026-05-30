@@ -687,7 +687,7 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
 
 /// Walk an HIR expression tree and collect names of free-fn calls that match a known
 /// set of identifiers (used for @endpoint imports — see [`generate_reactive_component`]).
-fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
+pub(crate) fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
     match expr {
         HirExpr::Call(callee, args, _, _) => {
             if let HirExpr::Ident(name, _) = callee.as_ref() {
@@ -765,7 +765,11 @@ fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSe
     }
 }
 
-fn collect_callee_refs_stmt(stmt: &HirStmt, known: &HashSet<String>, out: &mut HashSet<String>) {
+pub(crate) fn collect_callee_refs_stmt(
+    stmt: &HirStmt,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
     match stmt {
         HirStmt::Expr { expr, .. }
         | HirStmt::Let { value: expr, .. }
@@ -790,7 +794,11 @@ fn collect_callee_refs_stmt(stmt: &HirStmt, known: &HashSet<String>, out: &mut H
 
 /// Walk an HIR expression tree and collect uppercase JSX tag names that correspond
 /// to known Vox components. Used to emit cross-component import statements.
-fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
+pub(crate) fn collect_jsx_component_refs(
+    expr: &HirExpr,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
     match expr {
         HirExpr::Jsx(el) => {
             if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
@@ -834,7 +842,7 @@ fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut
     }
 }
 
-fn collect_jsx_component_refs_stmt(
+pub(crate) fn collect_jsx_component_refs_stmt(
     stmt: &HirStmt,
     known: &HashSet<String>,
     out: &mut HashSet<String>,
@@ -846,6 +854,57 @@ fn collect_jsx_component_refs_stmt(
         HirStmt::Return { value: Some(v), .. } => collect_jsx_component_refs(v, known, out),
         _ => {}
     }
+}
+
+/// Single source of truth for a component's cross-file import sets, shared by
+/// the web (reactive) and React-Native component emitters so they never drift.
+///
+/// Walks the `view:` expression AND every member body — state initialisers,
+/// derived expressions, effects, `on mount` / `on cleanup`, and prelude
+/// statements — collecting:
+/// - sibling component refs (PascalCase JSX tags in `known_components`), and
+/// - endpoint-fn refs (free-fn calls in `endpoint_names`).
+///
+/// Self-references are removed. Both vectors are returned sorted for stable,
+/// deterministic emit. Walking member bodies (not just the view + prelude)
+/// matters because the common case — loading data in `on mount:` via a
+/// `@query` fn — would otherwise emit a call with no matching import.
+pub(crate) fn collect_component_import_refs(
+    rc: &HirReactiveComponent,
+    known_components: &HashSet<String>,
+    endpoint_names: &HashSet<String>,
+) -> (Vec<String>, Vec<String>) {
+    let mut comps: HashSet<String> = HashSet::new();
+    let mut endpoints: HashSet<String> = HashSet::new();
+
+    let mut visit = |e: &HirExpr, comps: &mut HashSet<String>, endpoints: &mut HashSet<String>| {
+        collect_jsx_component_refs(e, known_components, comps);
+        collect_callee_refs(e, endpoint_names, endpoints);
+    };
+
+    if let Some(view) = &rc.view {
+        visit(view, &mut comps, &mut endpoints);
+    }
+    for m in &rc.members {
+        match m {
+            HirReactiveMember::State(s) => visit(&s.init, &mut comps, &mut endpoints),
+            HirReactiveMember::Derived(d) => visit(&d.expr, &mut comps, &mut endpoints),
+            HirReactiveMember::Effect(e) => visit(&e.body, &mut comps, &mut endpoints),
+            HirReactiveMember::OnMount(o) => visit(&o.body, &mut comps, &mut endpoints),
+            HirReactiveMember::OnCleanup(o) => visit(&o.body, &mut comps, &mut endpoints),
+            HirReactiveMember::Stmt(s) => {
+                collect_jsx_component_refs_stmt(s, known_components, &mut comps);
+                collect_callee_refs_stmt(s, endpoint_names, &mut endpoints);
+            }
+        }
+    }
+
+    comps.remove(&rc.name);
+    let mut comps_v: Vec<String> = comps.into_iter().collect();
+    comps_v.sort();
+    let mut endpoints_v: Vec<String> = endpoints.into_iter().collect();
+    endpoints_v.sort();
+    (comps_v, endpoints_v)
 }
 
 /// `hir` must be the full module (imports, endpoints, `@reactive` callees, etc.).
@@ -900,45 +959,25 @@ pub fn generate_reactive_component(
         out.push('\n');
     }
 
-    // Emit import statements for other Vox components referenced in the view.
+    // Cross-file imports — sibling components and endpoint fns this component
+    // references, anywhere in its view or member bodies. Shared with the RN
+    // emit via `collect_component_import_refs` so both targets agree.
     let known_components: HashSet<String> = hir.components.iter().map(|c| c.name.clone()).collect();
-    let mut comp_refs: HashSet<String> = HashSet::new();
-    if let Some(view_expr) = &rc.view {
-        collect_jsx_component_refs(view_expr, &known_components, &mut comp_refs);
-    }
-    // Also walk the view inside members (e.g. inline JSX in state initialisers).
-    for m in &rc.members {
-        if let HirReactiveMember::Stmt(s) = m {
-            collect_jsx_component_refs_stmt(s, &known_components, &mut comp_refs);
-        }
-    }
-    let mut sorted_refs: Vec<String> = comp_refs.into_iter().collect();
-    sorted_refs.sort();
+    let endpoint_names: HashSet<String> = hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
+    let (sorted_refs, endpoint_refs) =
+        collect_component_import_refs(rc, &known_components, &endpoint_names);
     for comp in &sorted_refs {
         out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
     }
     if !sorted_refs.is_empty() {
         out.push('\n');
     }
-
-    // Bug D: emit import for every @endpoint fn referenced from this component.
-    // Endpoint fns are exported from `vox-client.ts` (see [`crate::codegen_ts::vox_client`]).
-    let endpoint_names: HashSet<String> = hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
-    let mut endpoint_refs: HashSet<String> = HashSet::new();
-    if let Some(view_expr) = &rc.view {
-        collect_callee_refs(view_expr, &endpoint_names, &mut endpoint_refs);
-    }
-    for m in &rc.members {
-        if let HirReactiveMember::Stmt(s) = m {
-            collect_callee_refs_stmt(s, &endpoint_names, &mut endpoint_refs);
-        }
-    }
+    // Bug D: endpoint fns are exported from `vox-client.ts`
+    // (see [`crate::codegen_ts::vox_client`]).
     if !endpoint_refs.is_empty() {
-        let mut sorted: Vec<String> = endpoint_refs.into_iter().collect();
-        sorted.sort();
         out.push_str(&format!(
             "import {{ {} }} from \"./vox-client\";\n\n",
-            sorted.join(", ")
+            endpoint_refs.join(", ")
         ));
     }
 
