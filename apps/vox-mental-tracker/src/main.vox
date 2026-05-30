@@ -587,9 +587,64 @@ component VoicePage() {
     }
 }
 
-@mutation fn handle_push_payload(json: str) to int { return 0 }
+/// Engagement/adherence log for push interactions. Kept deliberately separate
+/// from HealthEventLog so it never leaks into the clinical CSV/HTML export
+/// (§3.B/§3.C), while still being durable on-device data — "did the reminder
+/// land, and did the user act on it" is meaningful for a mental-health tool.
+@table type NotificationLog {
+    id: int
+    kind: str
+    title: str
+    body: str
+    action_id: str
+    payload_json: str
+    occurred_at: str
+}
 
-@mutation fn handle_push_tap(json: str) to int { return 0 }
+/// `on_notification` — a push was delivered to the device. Records a
+/// "received" engagement row from the `{title, body}` payload. Returns 1 on a
+/// durable write, 0 on parse/insert failure.
+@mutation fn handle_push_payload(json: str) to int {
+    return _record_notification("received", json, "")
+}
+
+/// `on_action` — the user tapped a notification (action). Records a "tapped"
+/// row, preserving which action button fired via `action_id`. Returns 1 on a
+/// durable write, 0 on parse/insert failure.
+@mutation fn handle_push_tap(json: str) to int {
+    match std.json.parse(json) {
+        Ok(j) => {
+            let action_id = j.get("action_id").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            return _record_notification("tapped", json, action_id)
+        }
+        Error(_) => return 0
+    }
+}
+
+/// Shared insert path for both push handlers. Parses `{title, body}` out of the
+/// raw payload (retained verbatim in `payload_json` for forensics) and writes
+/// one NotificationLog row.
+fn _record_notification(kind: str, json: str, action_id: str) to int {
+    match std.json.parse(json) {
+        Ok(j) => {
+            let title = j.get("title").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            let body = j.get("body").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            match db.NotificationLog.insert({
+                id: 0,
+                kind: kind,
+                title: title,
+                body: body,
+                action_id: action_id,
+                payload_json: json,
+                occurred_at: str(std.time.now_ms()),
+            }) {
+                Ok(_) => 1
+                Error(_) => 0
+            }
+        }
+        Error(_) => 0
+    }
+}
 
 @push {
     on_register: store_push_token
