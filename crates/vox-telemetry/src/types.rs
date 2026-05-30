@@ -812,6 +812,104 @@ pub struct ConfidencePromotionEvent {
     pub evidence: String,
 }
 
+// ─── Effort audit events (S1 — `vox audit effort`) ────────────────────────
+//
+// One run of `vox audit effort` walks a commit range, asks a judge model to
+// score each commit's likely agent-token spend, and emits four kinds of
+// telemetry: one `RunStarted`, one `CommitJudged` per commit observation,
+// one `RunCompleted` on success, or one `RunFailed` on terminal failure.
+// SSOT: `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md` §3.
+
+/// One emit per `vox audit effort` invocation, before any commits are walked.
+pub const METRIC_TYPE_AUDIT_EFFORT_RUN_STARTED: &str = "audit.effort.run.started";
+/// One emit per judged commit (success, skip, or per-commit judge failure).
+pub const METRIC_TYPE_AUDIT_EFFORT_COMMIT_JUDGED: &str = "audit.effort.commit.judged";
+/// One emit on successful run completion.
+pub const METRIC_TYPE_AUDIT_EFFORT_RUN_COMPLETED: &str = "audit.effort.run.completed";
+/// One emit on terminal failure (git walk, output write, etc.).
+pub const METRIC_TYPE_AUDIT_EFFORT_RUN_FAILED: &str = "audit.effort.run.failed";
+
+/// `RunStarted` — emitted once at the top of every `vox audit effort` run,
+/// before any commits are walked.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct AuditEffortRunStartedEvent {
+    /// Stable id assigned to this run (used to correlate the other three
+    /// event kinds back to this start). ULID-ish; opaque to consumers.
+    pub run_id: String,
+    /// Human-readable commit range that was requested
+    /// (e.g. `"30 days ago..HEAD"`, `"HEAD~50..HEAD"`).
+    pub range: String,
+    /// Model id selected to judge commits in this run (or `"mock"` for the
+    /// deterministic mock judge used in tests).
+    pub judge_model_id: String,
+}
+
+/// `CommitJudged` — one emit per commit observation. Finding fields are
+/// `Option` so a per-commit judge failure or shape-based skip still produces
+/// an event without inventing fake scores.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct AuditEffortCommitJudgedEvent {
+    /// Correlates back to [`AuditEffortRunStartedEvent::run_id`].
+    pub run_id: String,
+    /// Full commit SHA (hex).
+    pub commit_sha: String,
+    /// Model id that produced the finding (or `"mock"`).
+    pub judge_model_id: String,
+    /// Wall-clock latency of the judge call for this commit.
+    pub latency_ms: u64,
+    /// Total tokens (input + output) consumed by the judge for this commit.
+    pub tokens_consumed_by_judge: u64,
+    /// 0–100 waste score; `None` when the commit was skipped or the judge
+    /// failed for this commit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waste_score: Option<u8>,
+    /// Free-form category tag (e.g. `"flailing"`, `"over_engineered"`,
+    /// `"good_signal"`). `None` when no finding was produced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub waste_category: Option<String>,
+    /// Suggested remediation kind tag (e.g. `"split_commit"`,
+    /// `"add_test_first"`). `None` when no finding was produced.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggested_remediation_kind: Option<String>,
+}
+
+/// `RunCompleted` — emitted once on successful run completion. Carries
+/// roll-up counters for the manifest + dashboard. `PartialEq` only because
+/// `hybrid_coverage_percent: f64` does not implement `Eq`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct AuditEffortRunCompletedEvent {
+    /// Correlates back to [`AuditEffortRunStartedEvent::run_id`].
+    pub run_id: String,
+    /// Total commits the walker observed in the requested range.
+    pub commits_in_range: u64,
+    /// Commits the judge actually scored (a finding was produced).
+    pub commits_judged: u64,
+    /// Commits skipped (shape filter, per-commit judge failure, etc.).
+    pub commits_skipped: u64,
+    /// Cumulative input tokens spent by the judge across the run.
+    pub judge_total_input_tokens: u64,
+    /// Cumulative output tokens spent by the judge across the run.
+    pub judge_total_output_tokens: u64,
+    /// Percent of judged commits that the hybrid transcript correlator
+    /// could associate with real agent token spend (0.0–100.0).
+    pub hybrid_coverage_percent: f64,
+}
+
+/// `RunFailed` — emitted once on terminal failure (i.e. the run did not
+/// produce a manifest). Per-commit judge failures do NOT emit this — they
+/// appear as a `CommitJudged` event with `waste_score = None`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct AuditEffortRunFailedEvent {
+    /// Correlates back to [`AuditEffortRunStartedEvent::run_id`].
+    pub run_id: String,
+    /// Discriminator tag for the failure class (e.g. `"GitWalkFailed"`,
+    /// `"OutputWriteFailed"`, `"RangeResolutionFailed"`).
+    pub error_kind: String,
+    /// Short human-readable message (no PII; no raw repo paths beyond the
+    /// repo root marker).
+    pub message: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1000,6 +1098,96 @@ mod tests {
             panic!("AuditRun variant lost");
         };
         assert_eq!(back, e);
+    }
+
+    #[test]
+    fn audit_effort_event_round_trips() {
+        // RunStarted — minimal shape, asserts the field referenced by the
+        // plan's exemplar serializes literally.
+        let started = AuditEffortRunStartedEvent {
+            run_id: "01HW7".into(),
+            range: "30 days ago..HEAD".into(),
+            judge_model_id: "mock".into(),
+        };
+        let j = serde_json::to_string(&started).expect("serialize");
+        let back: AuditEffortRunStartedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert!(j.contains("01HW7"));
+        assert_eq!(back, started);
+
+        // CommitJudged — both the finding-present and finding-absent shapes,
+        // since the Optional fields are the load-bearing design choice.
+        let judged_full = AuditEffortCommitJudgedEvent {
+            run_id: "01HW7".into(),
+            commit_sha: "abcdef0123".into(),
+            judge_model_id: "mock".into(),
+            latency_ms: 142,
+            tokens_consumed_by_judge: 1200,
+            waste_score: Some(73),
+            waste_category: Some("flailing".into()),
+            suggested_remediation_kind: Some("split_commit".into()),
+        };
+        let j = serde_json::to_string(&judged_full).expect("serialize");
+        let back: AuditEffortCommitJudgedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert_eq!(back, judged_full);
+
+        let judged_skipped = AuditEffortCommitJudgedEvent {
+            run_id: "01HW7".into(),
+            commit_sha: "abcdef0123".into(),
+            judge_model_id: "mock".into(),
+            latency_ms: 0,
+            tokens_consumed_by_judge: 0,
+            waste_score: None,
+            waste_category: None,
+            suggested_remediation_kind: None,
+        };
+        let j = serde_json::to_string(&judged_skipped).expect("serialize");
+        // Skip-serializing Option::None means these keys must not appear.
+        assert!(!j.contains("waste_score"));
+        assert!(!j.contains("waste_category"));
+        assert!(!j.contains("suggested_remediation_kind"));
+        let back: AuditEffortCommitJudgedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert_eq!(back, judged_skipped);
+
+        // RunCompleted — carries the f64 hybrid_coverage_percent.
+        let completed = AuditEffortRunCompletedEvent {
+            run_id: "01HW7".into(),
+            commits_in_range: 50,
+            commits_judged: 48,
+            commits_skipped: 2,
+            judge_total_input_tokens: 12_000,
+            judge_total_output_tokens: 4_500,
+            hybrid_coverage_percent: 62.5,
+        };
+        let j = serde_json::to_string(&completed).expect("serialize");
+        let back: AuditEffortRunCompletedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert_eq!(back, completed);
+
+        // RunFailed.
+        let failed = AuditEffortRunFailedEvent {
+            run_id: "01HW7".into(),
+            error_kind: "GitWalkFailed".into(),
+            message: "unable to resolve HEAD".into(),
+        };
+        let j = serde_json::to_string(&failed).expect("serialize");
+        let back: AuditEffortRunFailedEvent = serde_json::from_str(&j).expect("deserialize");
+        assert_eq!(back, failed);
+    }
+
+    #[test]
+    fn audit_effort_metric_types_pass_validation() {
+        // All four metric_type constants must pass the session/metric-type
+        // char + length validation that gate every research_metrics row.
+        for mt in [
+            METRIC_TYPE_AUDIT_EFFORT_RUN_STARTED,
+            METRIC_TYPE_AUDIT_EFFORT_COMMIT_JUDGED,
+            METRIC_TYPE_AUDIT_EFFORT_RUN_COMPLETED,
+            METRIC_TYPE_AUDIT_EFFORT_RUN_FAILED,
+        ] {
+            assert!(
+                validate_research_metric_row("audit:vox", mt, None).is_ok(),
+                "metric_type {mt} failed validation"
+            );
+        }
     }
 
     #[test]
