@@ -70,9 +70,15 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
         .iter()
         .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
         .collect();
+    let screen_root_names = crate::codegen_ts::screen_root_component_names(hir);
     for rc in &hir.components {
-        let (filename, content) =
-            component::emit_rn_component(rc, &known_components, &endpoint_params, &mut diagnostics);
+        let (filename, content) = component::emit_rn_component(
+            rc,
+            &known_components,
+            &endpoint_params,
+            &screen_root_names,
+            &mut diagnostics,
+        );
         files.push((filename, content));
     }
 

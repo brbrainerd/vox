@@ -135,6 +135,63 @@ fn rn_row_wraps_by_default_and_scroll_opts_into_scrollview() {
     );
 }
 
+const SCREEN_SRC: &str = r#"
+component NavBar() {
+    view: row(raw_class="nav") { text { "nav" } }
+}
+
+component Home() {
+    view: column(raw_class="root") {
+        NavBar()
+        text { "hi" }
+    }
+}
+
+component Bleeder() {
+    view: column(bleed=true) {
+        text { "edge to edge" }
+    }
+}
+
+routes {
+    "/" to Home
+    "/b" to Bleeder
+}
+"#;
+
+#[test]
+fn rn_screen_root_gets_default_edge_padding() {
+    let tsx = rn_component(SCREEN_SRC, "Home");
+    assert!(
+        tsx.contains("<View style={styles.screen}>"),
+        "screen-root component must wrap its view in the padded screen container; got:\n{tsx}"
+    );
+    assert!(
+        tsx.contains("screen: { flex: 1, paddingHorizontal: 16 }"),
+        "screen style must define horizontal padding; got:\n{tsx}"
+    );
+}
+
+#[test]
+fn rn_nested_component_is_not_screen_padded() {
+    // NavBar is rendered inside Home but is not itself a route → no screen pad
+    // (prevents double-padding).
+    let tsx = rn_component(SCREEN_SRC, "NavBar");
+    assert!(
+        !tsx.contains("styles.screen"),
+        "non-route component must NOT get screen padding; got:\n{tsx}"
+    );
+}
+
+#[test]
+fn rn_bleed_opts_out_of_screen_padding() {
+    let tsx = rn_component(SCREEN_SRC, "Bleeder");
+    assert!(
+        !tsx.contains("styles.screen"),
+        "a screen root with `bleed` must opt out of default padding; got:\n{tsx}"
+    );
+}
+
 #[test]
 fn rn_link_emits_expo_router_link() {
     let tsx = rn_component(NAV_SRC, "Menu");

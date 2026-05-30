@@ -1085,9 +1085,21 @@ pub fn generate_reactive_component(
         }
     }
 
-    if rc.view.is_some() {
+    if let Some(view_expr) = &rc.view {
         let view_js = emit_reactive_view_body(name, rc, &view_ctx, web_projection, stats);
-        out.push_str(&format!("  return (\n{}\n  );\n", view_js));
+        // Screen-root components get default horizontal edge padding (`px-4` =
+        // 16px, matching the RN target's paddingHorizontal:16) unless the root
+        // view opts out with `bleed`. Same screen-root set + opt-out rule as RN.
+        let pad_screen = crate::codegen_ts::screen_root_component_names(hir).contains(name)
+            && !crate::codegen_ts::rn::component::root_view_bleeds(view_expr);
+        if pad_screen {
+            out.push_str(&format!(
+                "  return (\n    <div className=\"px-4\">\n{}\n    </div>\n  );\n",
+                view_js
+            ));
+        } else {
+            out.push_str(&format!("  return (\n{}\n  );\n", view_js));
+        }
     }
 
     out.push_str("}\n");

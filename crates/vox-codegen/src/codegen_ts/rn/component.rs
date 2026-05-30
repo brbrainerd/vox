@@ -242,6 +242,23 @@ fn attr_value<'a>(attrs: &'a [HirJsxAttr], name: &str) -> Option<&'a HirExpr> {
     attrs.iter().find(|a| a.name == name).map(|a| &a.value)
 }
 
+/// True when a screen-root view opts OUT of default edge padding via `bleed`
+/// (present, and not literally `false`). Shared with the web reactive emit so
+/// both targets honor the same opt-out.
+pub(crate) fn root_view_bleeds(view_root: &HirExpr) -> bool {
+    let attrs: &[HirJsxAttr] = match view_root {
+        HirExpr::Jsx(el) => &el.attributes,
+        HirExpr::JsxSelfClosing(sc) => &sc.attributes,
+        _ => return false,
+    };
+    match attr_value(attrs, "bleed") {
+        Some(HirExpr::BoolLit(false, _)) => false,
+        Some(HirExpr::StringLit(s, _)) if s == "false" => false,
+        Some(_) => true,
+        None => false,
+    }
+}
+
 /// True if the component's view contains a `link(...)` / `<a>` element, so the
 /// emitter knows to `import { Link } from "expo-router"`.
 fn component_uses_link(rc: &HirReactiveComponent) -> bool {
@@ -949,6 +966,8 @@ fn inject_key_into_first_element(inner: String, key_ts: &str) -> String {
 fn emit_styles_block(used: &std::collections::BTreeSet<String>) -> String {
     let table: BTreeMap<&str, &str> = BTreeMap::from([
         ("col", "{ flexDirection: \"column\", gap: 12 }"),
+        // Screen-root wrapper: default horizontal edge padding (opt out with `bleed`).
+        ("screen", "{ flex: 1, paddingHorizontal: 16 }"),
         // `row` wraps by default so children can never run off the right edge
         // (RN children default to flexShrink:0). `columnGap`/`rowGap` keep
         // spacing correct once wrapped. A `row(scroll: "horizontal")` opts into
@@ -1108,6 +1127,7 @@ pub fn emit_rn_component(
     rc: &HirReactiveComponent,
     known_components: &HashSet<String>,
     endpoint_params: &HashMap<String, Vec<String>>,
+    screen_root_names: &HashSet<String>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> (String, String) {
     use crate::codegen_ts::reactive::collect_component_import_refs;
@@ -1231,9 +1251,20 @@ pub fn emit_rn_component(
     let mut used_styles = std::collections::BTreeSet::new();
     collect_used_styles(&rn_root, &mut used_styles);
 
+    // Screen-root components get default horizontal edge padding so content
+    // doesn't kiss the device edges. Applied as an outer wrapper View on the
+    // screen root only (never on nested components like NavBar), and skipped
+    // when the root view opts out with `bleed`.
+    let pad_screen = screen_root_names.contains(&rc.name) && !root_view_bleeds(view_root);
     out.push_str("  return (\n");
-    let rendered = emit_rn_node(&rn_root, 2);
-    out.push_str(&rendered);
+    if pad_screen {
+        used_styles.insert("screen".to_string());
+        out.push_str("    <View style={styles.screen}>\n");
+        out.push_str(&emit_rn_node(&rn_root, 3));
+        out.push_str("    </View>\n");
+    } else {
+        out.push_str(&emit_rn_node(&rn_root, 2));
+    }
     out.push_str("  );\n}\n\n");
 
     // StyleSheet block
