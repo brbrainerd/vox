@@ -24,6 +24,7 @@ uuid = { workspace = true, features = ["v4"] }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
 vox-populi = { workspace = true, optional = true }
+vox-runtime = { path = "../vox-runtime" }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]
