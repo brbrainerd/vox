@@ -4,7 +4,7 @@
 
 **Goal:** Ship a new `vox-effort-route` crate plus `vox audit effort-route` CLI subcommand that reads S1's `findings.jsonl`, groups findings (deterministic enum-bucket + conditional embedding sub-cluster), re-judges each cluster with adversarial verification through the model-agnostic facade, and emits ranked `recommendations.jsonl` + `recommendations.md` + staging-dir `.proposed` draft enforcement artifacts.
 
-**Architecture:** New L2 crate consuming S1's versioned file contract (`schema_version="1.0"`). Drafted fixes take whatever enforcement form the repo uses (`ArtifactForm` enum), with Vox gated behind model capability passed in by the CLI. All LLM/embedding I/O goes through `vox_actor_runtime::llm` (`infer_with_retry`, `llm_embed`); MENS first-class. Output JSONL `schema_version="1.0"` is the contract S4 consumes.
+**Architecture:** New L3 crate (heavy-runtime consumer of `vox-actor-runtime`) consuming S1's versioned file contract (`schema_version="1.0"`). Drafted fixes take whatever enforcement form the repo uses (`ArtifactForm` enum), with Vox gated behind model capability passed in by the CLI. All LLM/embedding I/O goes through `vox_actor_runtime::llm` (`infer_with_retry`, `llm_embed`); MENS first-class. Output JSONL `schema_version="1.0"` is the contract S4 consumes.
 
 **Tech Stack:** Rust 2024, `serde`/`serde_json`, `tokio`, `futures` (`FuturesUnordered` + `Semaphore`), `gix 0.70` (re-read diffs), `insta` (snapshots), `tempfile` (fixtures), `vox-effort-audit` (shared types), `vox-actor-runtime` (LLM + embed), `vox-config`, `vox-telemetry`. **No `vox-search` dep** (uses `llm_embed` directly).
 
@@ -125,7 +125,7 @@ git commit -m "feat(vox-effort-route): scaffold L2 crate (A1)"
 In the `[crates]` section, L2 group, alphabetical position (note: this repo uses inline-row style, NOT `[crates.<name>]` table headers — match the existing rows):
 
 ```toml
-vox-effort-route = { layer = 2, kind = "library", max_loc = 4_000 }
+vox-effort-route = { layer = 3, kind = "library", max_loc = 4_000 }  # L3: consumes the vox-actor-runtime L3 LLM facade
 ```
 
 - [ ] **Step 2: Add where-things-live row**
@@ -1421,7 +1421,7 @@ git commit -m "docs(vox-effort-route): umbrella + coverage floor + README (E1)"
 git push -u origin spec/effort-route
 gh pr create --title "feat(vox-effort-route): route audit findings to verified enforcement artifacts (S2)" --body "$(cat <<'EOF'
 ## Summary
-- New L2 crate vox-effort-route + `vox audit effort-route` CLI
+- New L3 crate vox-effort-route + `vox audit effort-route` CLI
 - Consumes S1's findings.jsonl; deterministic bucket + conditional embedding sub-cluster; re-judge + adversarial verify; emits recommendations.jsonl/md + staging-dir .proposed artifacts
 - Drafted fixes take whatever enforcement form the repo uses; Vox gated behind model capability
 - S2 of 4; S3 (billing cost) + S4 (auto-emit) deferred

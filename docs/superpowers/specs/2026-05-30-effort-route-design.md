@@ -54,11 +54,11 @@ The novel contribution (per the May 2026 prior-art scan in S1 §13): no existing
 
 ### 2.1 New crate
 
-`crates/vox-effort-route/` — new L2 crate.
+`crates/vox-effort-route/` — new L3 crate (it drives the `vox-actor-runtime` L3 LLM runtime, so it is a heavy-runtime consumer like `vox-search`/`vox-tensor`, not an L2 pure-data library).
 
 | Property | Value |
 |---|---|
-| Layer | L2 |
+| Layer | L3 (heavy-runtime consumer; depends on `vox-actor-runtime` L3) |
 | `max_loc` | 4,000 |
 | Fan-in | `vox-cli` (subcommand), `vox-audit` (umbrella, future) |
 | Deps | `vox-effort-audit` (read-only: shared schema types), `vox-actor-runtime` (LLM **and** embedding facade — `llm_embed`), `vox-config`, `vox-telemetry`, `gix` (re-read diffs for cluster context), `serde`, `serde_json`, `chrono`, `uuid` (v4), `tracing`, `tokio`, `futures`, `thiserror` |
@@ -92,7 +92,7 @@ crates/vox-effort-route/
 `vox-cli` gains one file: `crates/vox-cli/src/commands/audit_route.rs` (~150 LoC), wired under the existing `audit` subcommand alongside `effort`.
 
 ### 2.2 Layer placement
-L2. Depends on L1/L2 facades (`vox-actor-runtime`, `vox-search`, `vox-config`, `vox-telemetry`) and on `vox-effort-audit` (sibling L2, read-only type reuse). Consumed only by L5 surfaces. `layers.toml` row + `where-things-live.md` row land in the same PR (§10).
+L3. Depends on the `vox-actor-runtime` L3 LLM facade plus L1 utilities (`vox-config`, `vox-telemetry`) and on `vox-effort-audit` (sibling L3, read-only type reuse). Because it consumes a heavy L3 runtime it is itself L3 — matching every other actor-runtime consumer (`vox-search`, `vox-tensor`, `vox-dei-shim`); an L2 classification would be a layer inversion. Consumed only by L5 surfaces. `layers.toml` row + `where-things-live.md` row land in the same PR (§10). (Note: `vox-search` is **not** a dependency — see §2.1.)
 
 ### 2.3 Shared types
 
