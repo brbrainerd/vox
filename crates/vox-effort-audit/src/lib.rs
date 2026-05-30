@@ -3,12 +3,12 @@
 //! See `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`.
 
 pub mod config;
-pub mod range;
-pub mod walk;
-pub mod shape;
-pub mod judge;
 pub mod hybrid;
+pub mod judge;
 pub mod output;
 pub mod pipeline;
+pub mod range;
+pub mod shape;
+pub mod walk;
 
 pub use pipeline::run;

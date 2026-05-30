@@ -65,7 +65,9 @@ fn default_true() -> bool {
     true
 }
 fn default_transcript_dir() -> PathBuf {
-    dirs::home_dir().unwrap_or_default().join(".claude/projects")
+    dirs::home_dir()
+        .unwrap_or_default()
+        .join(".claude/projects")
 }
 fn default_report_top_n() -> usize {
     20

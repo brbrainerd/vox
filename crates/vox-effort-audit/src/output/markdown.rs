@@ -16,9 +16,8 @@ pub fn render(rows: &[FindingRow], top_n: usize) -> String {
     // 2. Top-N
     s.push_str("## Top commits by waste_score\n\n");
     let mut ranked: Vec<&FindingRow> = rows.iter().filter(|r| r.finding.is_some()).collect();
-    ranked.sort_by_key(|r| {
-        std::cmp::Reverse(r.finding.as_ref().map(|f| f.waste_score).unwrap_or(0))
-    });
+    ranked
+        .sort_by_key(|r| std::cmp::Reverse(r.finding.as_ref().map(|f| f.waste_score).unwrap_or(0)));
     for r in ranked.iter().take(top_n) {
         let f = r.finding.as_ref().unwrap();
         s.push_str(&format!(
@@ -33,8 +32,7 @@ pub fn render(rows: &[FindingRow], top_n: usize) -> String {
 
     // 3. Waste-category breakdown
     s.push_str("\n## Waste categories\n\n| Category | Count |\n|---|---:|\n");
-    let mut cat_counts: std::collections::BTreeMap<String, u32> =
-        std::collections::BTreeMap::new();
+    let mut cat_counts: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
     for r in rows.iter().filter_map(|r| r.finding.as_ref()) {
         *cat_counts
             .entry(format!("{:?}", r.waste_category))
@@ -46,8 +44,7 @@ pub fn render(rows: &[FindingRow], top_n: usize) -> String {
 
     // 4. Remediation kinds
     s.push_str("\n## Remediation kinds (preview for S2)\n\n| Kind | Count |\n|---|---:|\n");
-    let mut rem_counts: std::collections::BTreeMap<String, u32> =
-        std::collections::BTreeMap::new();
+    let mut rem_counts: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
     for r in rows.iter().filter_map(|r| r.finding.as_ref()) {
         *rem_counts
             .entry(format!("{:?}", r.suggested_remediation_kind))

@@ -45,8 +45,14 @@ Return a single JSON object matching the schema. Be concise.",
         },
     );
     vec![
-        LlmChatMessage { role: "system".into(), content: system.into() },
-        LlmChatMessage { role: "user".into(), content: user },
+        LlmChatMessage {
+            role: "system".into(),
+            content: system.into(),
+        },
+        LlmChatMessage {
+            role: "user".into(),
+            content: user,
+        },
     ]
 }
 
@@ -58,18 +64,28 @@ mod tests {
 
     fn fake_rec() -> CommitRecord {
         crate::walk::CommitRecord {
-            sha: "abc123".into(), parent_sha: None,
-            commit_ts: chrono::Utc::now(), message: "refactor: foo".into(),
-            author_email_sha256: "z".into(), files: vec![], additions: 10, deletions: 5,
-            unified_diff_text: "diff body".into(), diff_truncated: false,
+            sha: "abc123".into(),
+            parent_sha: None,
+            commit_ts: chrono::Utc::now(),
+            message: "refactor: foo".into(),
+            author_email_sha256: "z".into(),
+            files: vec![],
+            additions: 10,
+            deletions: 5,
+            unified_diff_text: "diff body".into(),
+            diff_truncated: false,
         }
     }
     fn fake_shape() -> ShapeFeatures {
         ShapeFeatures {
-            additions: 10, deletions: 5, files_changed: 2,
+            additions: 10,
+            deletions: 5,
+            files_changed: 2,
             file_extension_histogram: HashMap::new(),
-            mechanical_sweep_score: 0.85, is_lockfile_only: false,
-            is_generated_only: false, is_doc_only: false,
+            mechanical_sweep_score: 0.85,
+            is_lockfile_only: false,
+            is_generated_only: false,
+            is_doc_only: false,
             commit_kind_from_message: CommitKind::Refactor,
         }
     }

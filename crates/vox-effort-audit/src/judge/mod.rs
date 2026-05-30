@@ -125,8 +125,8 @@ impl Judge for LlmJudge {
             telemetry_skip_interaction: false,
         };
 
-        let activity_options = vox_actor_runtime::ActivityOptions::default()
-            .with_timeout(self.timeout);
+        let activity_options =
+            vox_actor_runtime::ActivityOptions::default().with_timeout(self.timeout);
 
         let mut attempts: u32 = 0;
         loop {
@@ -157,9 +157,7 @@ impl Judge for LlmJudge {
                         latency_ms: started.elapsed().as_millis() as u64,
                         input_tokens: 0,
                         output_tokens: 0,
-                        status: JudgeStatus::Failed(format!(
-                            "activity error: {activity_err:?}"
-                        )),
+                        status: JudgeStatus::Failed(format!("activity error: {activity_err:?}")),
                     };
                 }
                 vox_actor_runtime::ActivityResult::Cancelled => {

@@ -162,7 +162,9 @@ mod tests {
 
     #[test]
     fn measured_when_single_session_matches() {
-        let ts = chrono::Utc.with_ymd_and_hms(2026, 5, 28, 14, 0, 15).unwrap();
+        let ts = chrono::Utc
+            .with_ymd_and_hms(2026, 5, 28, 14, 0, 15)
+            .unwrap();
         let m = resolve_for_commit(
             &fixture_dir(),
             std::path::Path::new("/c/Users/Owner/vox"),
@@ -170,7 +172,12 @@ mod tests {
             Duration::minutes(2),
         );
         match m {
-            MeasuredCost::Measured { input_tokens, output_tokens, session_id, .. } => {
+            MeasuredCost::Measured {
+                input_tokens,
+                output_tokens,
+                session_id,
+                ..
+            } => {
                 assert_eq!(input_tokens, 100);
                 assert_eq!(output_tokens, 400);
                 assert_eq!(session_id, "S1");
@@ -220,7 +227,9 @@ mod tests {
     #[test]
     fn windows_native_repo_root_matches_unix_style_cwd() {
         // Caller passes Windows-style path; fixture has Git-Bash-style cwd.
-        let ts = chrono::Utc.with_ymd_and_hms(2026, 5, 28, 14, 0, 15).unwrap();
+        let ts = chrono::Utc
+            .with_ymd_and_hms(2026, 5, 28, 14, 0, 15)
+            .unwrap();
         let m = resolve_for_commit(
             &fixture_dir(),
             std::path::Path::new(r"C:\Users\Owner\vox"),

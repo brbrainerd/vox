@@ -31,14 +31,19 @@ pub fn retry_message(err: &ParseError) -> String {
 
 fn strip_fence(s: &str) -> &str {
     let s = s.trim();
-    let s = s.strip_prefix("```json").or_else(|| s.strip_prefix("```")).unwrap_or(s);
+    let s = s
+        .strip_prefix("```json")
+        .or_else(|| s.strip_prefix("```"))
+        .unwrap_or(s);
     s.strip_suffix("```").unwrap_or(s).trim()
 }
 
 fn validate_against_schema(v: &serde_json::Value) -> Result<(), ParseError> {
     // Cheap structural check (we trust serde_json::from_value below for full enum check).
     // Only enforce the constraints serde would not catch.
-    let score = v.get("waste_score").and_then(|s| s.as_u64())
+    let score = v
+        .get("waste_score")
+        .and_then(|s| s.as_u64())
         .ok_or_else(|| ParseError::Schema("missing waste_score".into()))?;
     if score > 10 {
         return Err(ParseError::Schema(format!("waste_score {score} > 10")));

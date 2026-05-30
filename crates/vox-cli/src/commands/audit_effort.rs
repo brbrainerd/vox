@@ -82,8 +82,7 @@ fn load_config(repo_root: &std::path::Path) -> Result<EffortAuditConfig> {
     if !path.exists() {
         return Ok(EffortAuditConfig::default());
     }
-    let raw = std::fs::read_to_string(&path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let raw = std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
     let root: VoxTomlRoot = toml::from_str(&raw)
         .with_context(|| format!("parse [audit.effort] table from {}", path.display()))?;
     Ok(root.audit.effort.unwrap_or_default())
@@ -121,9 +120,8 @@ fn resolve_judge_model(args: &EffortArgs, cfg: &EffortAuditConfig) -> Option<Str
     }
     use vox_orchestrator::models::TaskCategory;
     use vox_orchestrator::models::select::{SelectionIntent, select_with_default_registry};
-    let outcome = select_with_default_registry(&SelectionIntent::for_task(
-        TaskCategory::CodeEffortJudge,
-    ))?;
+    let outcome =
+        select_with_default_registry(&SelectionIntent::for_task(TaskCategory::CodeEffortJudge))?;
     tracing::debug!(
         target: "vox_audit_effort",
         model = outcome.model_id,
@@ -200,10 +198,7 @@ pub async fn run(args: EffortArgs) -> Result<()> {
 
     println!(
         "vox audit effort: run {} — judged {}/{} commits ({} skipped)",
-        summary.run_id,
-        summary.commits_judged,
-        summary.commits_in_range,
-        summary.commits_skipped,
+        summary.run_id, summary.commits_judged, summary.commits_in_range, summary.commits_skipped,
     );
     println!("  report:   {}", out_dir.join("report.md").display());
     println!("  findings: {}", out_dir.join("findings.jsonl").display());

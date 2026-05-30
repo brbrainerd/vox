@@ -69,7 +69,16 @@ pub async fn run(
     judge: Box<dyn Judge>,
     transcript_dir_override: Option<PathBuf>,
 ) -> anyhow::Result<RunSummary> {
-    run_with_overrides(repo_path, out_dir, cfg, judge, transcript_dir_override, None, None).await
+    run_with_overrides(
+        repo_path,
+        out_dir,
+        cfg,
+        judge,
+        transcript_dir_override,
+        None,
+        None,
+    )
+    .await
 }
 
 /// Same as [`run`] but accepts explicit `--since` / `--until` overrides from
@@ -132,7 +141,11 @@ pub async fn run_with_overrides(
     // work and they read filesystem state (transcripts) that we don't want to
     // race. Pair each with an arc-ed CommitRecord so the async tasks can move
     // them without lifetime gymnastics.
-    let prepared: Vec<(Arc<crate::walk::CommitRecord>, crate::shape::ShapeFeatures, crate::hybrid::MeasuredCost)> = commits
+    let prepared: Vec<(
+        Arc<crate::walk::CommitRecord>,
+        crate::shape::ShapeFeatures,
+        crate::hybrid::MeasuredCost,
+    )> = commits
         .into_iter()
         .map(|rec| {
             let shape = crate::shape::features(&rec);

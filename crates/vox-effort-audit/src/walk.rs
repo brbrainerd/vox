@@ -159,8 +159,13 @@ fn build_record(
 
     // Unified diff body, possibly truncated. Failure here is fatal — a missing
     // diff body would silently degrade the LLM judge's input, so we surface it.
-    let (unified_diff_text, diff_truncated) =
-        unified_diff(repo_path, &sha, parent_sha.as_deref(), max_diff_bytes, &files)?;
+    let (unified_diff_text, diff_truncated) = unified_diff(
+        repo_path,
+        &sha,
+        parent_sha.as_deref(),
+        max_diff_bytes,
+        &files,
+    )?;
 
     Ok(Some(CommitRecord {
         sha,

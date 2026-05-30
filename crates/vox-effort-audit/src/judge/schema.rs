@@ -32,7 +32,7 @@ pub enum RemediationKind {
 /// What the judge actually outputs (the inner `finding` object on JSONL rows).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct JudgeFinding {
-    pub waste_score: u8,                          // 0..=10 inclusive
+    pub waste_score: u8, // 0..=10 inclusive
     pub waste_category: WasteCategory,
     pub suggested_remediation_kind: RemediationKind,
     pub rationale_one_line: String,
@@ -68,7 +68,8 @@ mod tests {
     #[test]
     fn round_trips_judge_finding() {
         let f = JudgeFinding {
-            waste_score: 8, waste_category: WasteCategory::MechanicalSweep,
+            waste_score: 8,
+            waste_category: WasteCategory::MechanicalSweep,
             suggested_remediation_kind: RemediationKind::ScriptAutomation,
             rationale_one_line: "same edit x50".into(),
             evidence_pointers: vec!["crates/x:42".into()],
@@ -82,9 +83,13 @@ mod tests {
     #[test]
     fn schema_lists_all_enum_variants() {
         let s = judge_finding_json_schema();
-        let cats = s["properties"]["waste_category"]["enum"].as_array().unwrap();
+        let cats = s["properties"]["waste_category"]["enum"]
+            .as_array()
+            .unwrap();
         assert_eq!(cats.len(), 9);
-        let rems = s["properties"]["suggested_remediation_kind"]["enum"].as_array().unwrap();
+        let rems = s["properties"]["suggested_remediation_kind"]["enum"]
+            .as_array()
+            .unwrap();
         assert_eq!(rems.len(), 6);
     }
 

@@ -44,7 +44,12 @@ pub fn features(rec: &CommitRecord) -> ShapeFeatures {
         }
     }
 
-    let lockfiles = ["Cargo.lock", "pnpm-lock.yaml", "package-lock.json", "uv.lock"];
+    let lockfiles = [
+        "Cargo.lock",
+        "pnpm-lock.yaml",
+        "package-lock.json",
+        "uv.lock",
+    ];
     let is_lockfile_only = !rec.files.is_empty()
         && rec
             .files
@@ -55,8 +60,8 @@ pub fn features(rec: &CommitRecord) -> ShapeFeatures {
             .files
             .iter()
             .all(|f| f.path.starts_with("docs/") || f.path.ends_with(".md"));
-    let is_generated_only = !rec.files.is_empty()
-        && rec.files.iter().all(|f| f.path.contains(".generated."));
+    let is_generated_only =
+        !rec.files.is_empty() && rec.files.iter().all(|f| f.path.contains(".generated."));
 
     let mechanical_sweep_score = compute_repetition(&rec.unified_diff_text);
 
@@ -178,7 +183,8 @@ mod tests {
 
     #[test]
     fn mechanical_sweep_score_high_on_repetition() {
-        let big = "-    pub const T: u64 = 30;\n+    pub const T: u64 = vox_config::T;\n".repeat(50);
+        let big =
+            "-    pub const T: u64 = 30;\n+    pub const T: u64 = vox_config::T;\n".repeat(50);
         let r = rec("refactor: sweep", vec![], &big);
         let s = features(&r).mechanical_sweep_score;
         assert!(s > 0.7, "score was {s}, expected > 0.7");
