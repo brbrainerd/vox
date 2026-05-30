@@ -13337,6 +13337,7 @@ name = "vox-effort-audit"
 version = "0.6.0"
 dependencies = [
  "chrono",
+ "dirs",
  "futures",
  "gix",
  "insta",
@@ -13347,6 +13348,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "toml 0.8.23",
  "tracing",
  "uuid",
  "vox-actor-runtime",

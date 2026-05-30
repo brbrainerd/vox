@@ -633,9 +633,14 @@ mod tests_support;
 Run: `cargo test -p vox-effort-audit walk::tests`
 Expected: FAIL with `todo!`.
 
-- [ ] **Step 3: Implement `iter_commits` against gix**
+- [ ] **Step 3: Implement `iter_commits` — gix for graph, `git` shell-out for diff**
 
-Replace the `todo!()` with a real implementation. Key gix calls (validate against `gix 0.70` docs as you write):
+`gix 0.70` has no stable cross-platform unified-diff pretty printer (`gix-diff` is byte/hunk-level). The workspace pattern in `crates/vox-git/src/bridge.rs` is gix-for-graph + `git` shell-out for ops that lack stable gix equivalents — adopt the same split here.
+
+Use **gix** for: opening the repo, resolving refs, walking commit graph newest-first, reading commit metadata (sha, parents, author email, message, commit_ts).
+Use **`git diff --numstat -z`** + **`git diff --unified=3`** child-process invocations for: per-file additions/deletions and the unified diff body. Compare `bytes.len() <= max_diff_bytes` *before* allocating to `String` so truncation is incremental, not retroactive.
+
+Key gix calls (validate against `gix 0.70` docs as you write):
 
 ```rust
 let repo = gix::open(repo_path).map_err(|e| WalkError::Open(e.to_string()))?;
@@ -828,22 +833,22 @@ fn parse_commit_kind(msg: &str) -> CommitKind {
 }
 
 fn compute_repetition(diff: &str) -> f32 {
-    // Cheap proxy: count duplicate lines (excluding "+++"/"---" headers) /
-    // total non-header lines. Robust enough for "same edit 50 times".
-    let mut counts: std::collections::HashMap<&str, u32> = std::collections::HashMap::new();
+    // Score = 1 - (unique_lines / total_lines) over non-header +/- lines.
+    // High when few distinct lines repeat (mass mechanical sweep), low when
+    // every line is distinct.
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
     let mut total = 0u32;
     for line in diff.lines() {
         if line.starts_with("+++") || line.starts_with("---") || line.starts_with("@@") {
             continue;
         }
         if line.starts_with('+') || line.starts_with('-') {
-            *counts.entry(line).or_insert(0) += 1;
+            seen.insert(line);
             total += 1;
         }
     }
     if total == 0 { return 0.0; }
-    let max_dup = counts.values().copied().max().unwrap_or(1);
-    (max_dup as f32 - 1.0) / total as f32 * (counts.len() as f32 / total.max(1) as f32).recip().min(2.0)
+    1.0 - (seen.len() as f32 / total as f32)
 }
 ```
 
