@@ -1,0 +1,5 @@
+{"ts":"2026-05-28T14:00:00Z","cwd":"/c/Users/Owner/vox","session_id":"S1","role":"user","usage":{"input_tokens":100,"output_tokens":0}}
+{"ts":"2026-05-28T14:00:30Z","cwd":"/c/Users/Owner/vox","session_id":"S1","role":"assistant","usage":{"input_tokens":0,"output_tokens":400}}
+{"ts":"2026-05-28T14:05:00Z","cwd":"/c/Users/Owner/other","session_id":"S2","role":"user","usage":{"input_tokens":50,"output_tokens":0}}
+{"ts":"2026-05-28T14:30:00Z","cwd":"/c/Users/Owner/vox","session_id":"S3","role":"user","usage":{"input_tokens":1000,"output_tokens":0}}
+{"ts":"2026-05-28T14:30:30Z","cwd":"/c/Users/Owner/vox","session_id":"S3","role":"assistant","usage":{"input_tokens":0,"output_tokens":2000}}
