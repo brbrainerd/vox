@@ -13361,6 +13361,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-effort-route"
+version = "0.6.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures",
+ "gix",
+ "insta",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "toml 0.8.23",
+ "tracing",
+ "uuid",
+ "vox-actor-runtime",
+ "vox-config",
+ "vox-effort-audit",
+ "vox-telemetry",
+]
+
+[[package]]
 name = "vox-eval"
 version = "0.6.0"
 dependencies = [
