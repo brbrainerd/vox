@@ -509,20 +509,22 @@ pub async fn maybe_split(
             continue;
         }
         // Embed each member's rationale; agglomerative cosine cluster.
+        // NB: use an `embed_failed` flag, NOT an early `out.push(... b)` inside
+        // the loop — moving `b` there makes `split_by_labels(b, ...)` below a
+        // use-after-move (E0382). Push the unsplit bucket after the loop instead.
         let mut vectors = Vec::with_capacity(b.members.len());
+        let mut embed_failed = false;
         for m in &b.members {
             let text = m.row.finding.as_ref().map(|f| f.rationale_one_line.clone()).unwrap_or_default();
             match embedder.embed(&text).await {
                 Ok(v) => vectors.push(v),
-                Err(_) => {
-                    // Embedding failure → do not split this bucket.
-                    out.push(Cluster { key_suffix: String::new(), bucket: b });
-                    vectors.clear();
-                    break;
-                }
+                Err(_) => { embed_failed = true; break; } // embedding failure → don't split
             }
         }
-        if vectors.is_empty() { continue; }
+        if embed_failed {
+            out.push(Cluster { key_suffix: String::new(), bucket: b });
+            continue;
+        }
         let labels = agglomerative_cosine(&vectors, 0.30); // distance threshold
         out.extend(split_by_labels(b, &labels));
     }
