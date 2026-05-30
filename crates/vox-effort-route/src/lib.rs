@@ -9,6 +9,7 @@ pub mod embed;
 pub mod emit;
 pub mod load;
 pub mod pipeline;
+pub mod pricing;
 pub mod route;
 
 pub use pipeline::run;

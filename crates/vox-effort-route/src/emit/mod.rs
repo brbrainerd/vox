@@ -42,7 +42,9 @@ mod tests {
             drafted_artifact: None,
             verified: true,
             refutation_note: "note".into(),
-            judge_tokens_used: 0,
+            judge_prompt_tokens: 0,
+            judge_completion_tokens: 0,
+            judge_cost_usd: None,
         }
     }
 

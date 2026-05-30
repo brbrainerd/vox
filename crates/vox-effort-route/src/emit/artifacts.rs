@@ -58,7 +58,9 @@ mod tests {
             },
             verified,
             refutation_note: "n".into(),
-            judge_tokens_used: 0,
+            judge_prompt_tokens: 0,
+            judge_completion_tokens: 0,
+            judge_cost_usd: None,
         }
     }
 

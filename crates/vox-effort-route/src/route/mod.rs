@@ -92,13 +92,28 @@ pub struct RemediationDecision {
     pub drafted_artifact: Option<DraftedArtifact>,
     pub verified: bool,
     pub refutation_note: String,
-    /// Judge tokens (decide + verify prompt+completion) this cluster cost.
+    /// Judge prompt (input) tokens (decide + verify) this cluster cost.
     /// 0 for the mock router and for budget-skipped clusters.
     #[serde(default)]
-    pub judge_tokens_used: u64,
+    pub judge_prompt_tokens: u64,
+    /// Judge completion (output) tokens (decide + verify) this cluster cost.
+    /// 0 for the mock router and for budget-skipped clusters.
+    #[serde(default)]
+    pub judge_completion_tokens: u64,
+    /// Real USD cost of the judge calls, computed from the model registry's
+    /// per-direction rates. `None` when the model is not in the pricing catalog
+    /// (never a fabricated $0.00) or for the mock router / budget-skipped rows.
+    #[serde(default)]
+    pub judge_cost_usd: Option<f64>,
 }
 
 impl RemediationDecision {
+    /// Total judge tokens (prompt + completion). Kept as a helper so budget
+    /// accounting and reporting that key on a single token count still work.
+    pub fn judge_tokens_used(&self) -> u64 {
+        self.judge_prompt_tokens + self.judge_completion_tokens
+    }
+
     /// A cluster that was not routed because the judge token budget was already
     /// exhausted. Emitted as a `None`-form, unverified row so the run is honest
     /// about what it skipped rather than silently truncating.
@@ -126,7 +141,9 @@ impl RemediationDecision {
             drafted_artifact: None,
             verified: false,
             refutation_note: "[budget] skipped: judge token budget exhausted".into(),
-            judge_tokens_used: 0,
+            judge_prompt_tokens: 0,
+            judge_completion_tokens: 0,
+            judge_cost_usd: None,
         }
     }
 }
@@ -206,7 +223,11 @@ impl Router for MockRouter {
             drafted_artifact: artifact,
             verified: self.confidence >= 0.5,
             refutation_note: "mock".into(),
-            judge_tokens_used: 0,
+            // A mock performs no real LLM I/O: no tokens, and cost is genuinely
+            // unknown (None) rather than a fabricated $0.00.
+            judge_prompt_tokens: 0,
+            judge_completion_tokens: 0,
+            judge_cost_usd: None,
         }
     }
 }
@@ -243,6 +264,12 @@ pub struct LlmRouter {
     pub max_context_commits: usize,
     /// When false, the refute pass is skipped and decisions are unverified.
     pub verify: bool,
+    /// Real per-direction token pricing for `resolved_model`, looked up from the
+    /// model registry by the CLI and passed in (the library never reads the
+    /// registry). `ModelRates::default()` (unknown) yields a `None` cost.
+    pub rates: crate::pricing::ModelRates,
+    /// Upper bound on output tokens requested per judge call (config-driven).
+    pub max_output_tokens: u64,
 }
 
 impl LlmRouter {
@@ -257,7 +284,7 @@ impl LlmRouter {
             api_key: None,
             temperature: Some(0.0),
             top_p: None,
-            max_tokens: Some(2048),
+            max_tokens: Some(self.max_output_tokens),
             response_format: Some(response_format),
             timeout_ms: Some(self.timeout.as_millis() as u64),
             telemetry_session_id: None,
@@ -295,13 +322,14 @@ impl LlmRouter {
             .collect()
     }
 
-    /// Single facade call returning `(response_text, judge_tokens_used)`, or an
-    /// error string. `judge_tokens_used` is `prompt_tokens + completion_tokens`.
+    /// Single facade call returning `(response_text, prompt_tokens,
+    /// completion_tokens)`, or an error string. Prompt and completion tokens are
+    /// kept separate so real per-direction cost can be computed downstream.
     async fn infer(
         &self,
         messages: Vec<vox_actor_runtime::llm::LlmChatMessage>,
         response_format: serde_json::Value,
-    ) -> Result<(String, u64), String> {
+    ) -> Result<(String, u64, u64), String> {
         let activity_options =
             vox_actor_runtime::ActivityOptions::default().with_timeout(self.timeout);
         let config = self.llm_config(response_format);
@@ -309,10 +337,11 @@ impl LlmRouter {
             vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![config])
                 .await;
         match infer_result {
-            vox_actor_runtime::ActivityResult::Ok(Ok((resp, _cfg))) => {
-                let tokens = u64::from(resp.prompt_tokens) + u64::from(resp.completion_tokens);
-                Ok((resp.content, tokens))
-            }
+            vox_actor_runtime::ActivityResult::Ok(Ok((resp, _cfg))) => Ok((
+                resp.content,
+                u64::from(resp.prompt_tokens),
+                u64::from(resp.completion_tokens),
+            )),
             vox_actor_runtime::ActivityResult::Ok(Err(api_err)) => {
                 Err(format!("llm error: {api_err}"))
             }
@@ -332,18 +361,29 @@ impl Router for LlmRouter {
         cluster_id: &str,
         vox_capable: ModelVoxCapability,
     ) -> RemediationDecision {
-        let mut judge_tokens = 0u64;
+        let mut prompt_tokens = 0u64;
+        let mut completion_tokens = 0u64;
         let diffs = self.read_diffs(cluster);
         let decide_messages = prompt::build_decide_messages(cluster, &diffs, vox_capable.0);
         let decide_raw = match self
             .infer(decide_messages, decide::decide_json_schema(vox_capable.0))
             .await
         {
-            Ok((raw, toks)) => {
-                judge_tokens += toks;
+            Ok((raw, p, c)) => {
+                prompt_tokens += p;
+                completion_tokens += c;
                 raw
             }
-            Err(e) => return failed_decision(cluster, cluster_id, &e, judge_tokens),
+            Err(e) => {
+                return failed_decision(
+                    cluster,
+                    cluster_id,
+                    &e,
+                    prompt_tokens,
+                    completion_tokens,
+                    self.rates,
+                );
+            }
         };
         let decide = match decide::parse(&decide_raw) {
             Ok(d) => d,
@@ -352,7 +392,9 @@ impl Router for LlmRouter {
                     cluster,
                     cluster_id,
                     &format!("decide parse: {e}"),
-                    judge_tokens,
+                    prompt_tokens,
+                    completion_tokens,
+                    self.rates,
                 );
             }
         };
@@ -365,8 +407,9 @@ impl Router for LlmRouter {
                 .infer(refute_messages, verify::refute_json_schema())
                 .await
             {
-                Ok((raw, toks)) => {
-                    judge_tokens += toks;
+                Ok((raw, p, c)) => {
+                    prompt_tokens += p;
+                    completion_tokens += c;
                     verify::parse(&raw).ok()
                 }
                 Err(_) => None,
@@ -376,18 +419,23 @@ impl Router for LlmRouter {
         };
 
         let mut decision = assemble_decision(decide, refute, cluster, cluster_id, vox_capable.0);
-        decision.judge_tokens_used = judge_tokens;
+        decision.judge_prompt_tokens = prompt_tokens;
+        decision.judge_completion_tokens = completion_tokens;
+        decision.judge_cost_usd = self.rates.cost_usd(prompt_tokens, completion_tokens);
         decision
     }
 }
 
 /// Build a failed/no-fix decision when the decide pass cannot complete.
-/// `judge_tokens` is whatever was already spent before the failure.
+/// The prompt/completion tokens are whatever was already spent before the
+/// failure; the real cost is computed from those at the model's rates.
 fn failed_decision(
     cluster: &Cluster,
     cluster_id: &str,
     note: &str,
-    judge_tokens: u64,
+    judge_prompt_tokens: u64,
+    judge_completion_tokens: u64,
+    rates: crate::pricing::ModelRates,
 ) -> RemediationDecision {
     let shas: Vec<String> = cluster
         .bucket
@@ -412,7 +460,9 @@ fn failed_decision(
         drafted_artifact: None,
         verified: false,
         refutation_note: note.to_string(),
-        judge_tokens_used: judge_tokens,
+        judge_prompt_tokens,
+        judge_completion_tokens,
+        judge_cost_usd: rates.cost_usd(judge_prompt_tokens, judge_completion_tokens),
     }
 }
 
@@ -490,8 +540,10 @@ pub(crate) fn assemble_decision(
         drafted_artifact,
         verified,
         refutation_note,
-        // Set by the LlmRouter after assembly; assemble itself is token-agnostic.
-        judge_tokens_used: 0,
+        // Set by the LlmRouter after assembly; assemble itself is cost-agnostic.
+        judge_prompt_tokens: 0,
+        judge_completion_tokens: 0,
+        judge_cost_usd: None,
     }
 }
 
@@ -737,12 +789,38 @@ mod tests {
     #[test]
     fn failed_decision_is_none_unverified() {
         let cluster = cluster_with_kind("ScriptAutomation");
-        let d = failed_decision(&cluster, "cX", "boom", 1234);
+        let rates = crate::pricing::ModelRates {
+            input_per_1k_usd: 1.0,
+            output_per_1k_usd: 2.0,
+            known: true,
+        };
+        let d = failed_decision(&cluster, "cX", "boom", 1000, 234, rates);
         assert_eq!(d.artifact_form, ArtifactForm::None);
         assert!(!d.verified);
         assert_eq!(d.confidence, 0.0);
         assert_eq!(d.refutation_note, "boom");
-        assert_eq!(d.judge_tokens_used, 1234); // tokens spent before the failure are reported
+        // Tokens spent before the failure are reported, split by direction.
+        assert_eq!(d.judge_prompt_tokens, 1000);
+        assert_eq!(d.judge_completion_tokens, 234);
+        assert_eq!(d.judge_tokens_used(), 1234);
+        // Real cost is computed from the rates: 1000/1000*1.0 + 234/1000*2.0.
+        assert_eq!(d.judge_cost_usd, Some(1.0 + 0.468));
         assert_eq!(d.member_count, 1);
+    }
+
+    #[test]
+    fn failed_decision_unknown_rates_yield_none_cost() {
+        let cluster = cluster_with_kind("ScriptAutomation");
+        let d = failed_decision(
+            &cluster,
+            "cX",
+            "boom",
+            1000,
+            200,
+            crate::pricing::ModelRates::default(),
+        );
+        // Unpriced model → honest None, never a fabricated $0.00.
+        assert_eq!(d.judge_cost_usd, None);
+        assert_eq!(d.judge_tokens_used(), 1200);
     }
 }
