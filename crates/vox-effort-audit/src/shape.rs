@@ -185,6 +185,20 @@ mod tests {
     }
 
     #[test]
+    fn mechanical_sweep_score_mid_range_on_half_identical() {
+        // 10 identical "+const T..." lines + 10 distinct "+ let vN = foo();" lines.
+        // Unique = 1 (repeated) + 10 (distinct) = 11; total = 20; score = 1 - 11/20 = 0.45.
+        let identical = "+const T: u64 = 60;\n".repeat(10);
+        let varied: String = (0..10).map(|i| format!("+ let v{i} = foo();\n")).collect();
+        let diff = format!("{identical}{varied}");
+        let s = features(&rec("refactor: half-and-half", vec![], &diff)).mechanical_sweep_score;
+        assert!(
+            s > 0.40 && s < 0.50,
+            "expected ~0.45 (11 unique / 20 total), got {s}"
+        );
+    }
+
+    #[test]
     fn mechanical_sweep_score_low_on_varied() {
         let varied = "+ fn alpha() {}\n+ fn beta(x: i32) {}\n+ struct Gamma;\n+ impl Gamma { fn delta(&self) {} }\n";
         let s = features(&rec("feat: misc", vec![], varied)).mechanical_sweep_score;
