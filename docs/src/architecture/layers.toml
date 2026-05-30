@@ -115,7 +115,9 @@ vox-project-scaffold    = { layer = 2 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
-vox-effort-audit        = { layer = 2, kind = "library", max_loc = 4_000 }
+# L3: consumes the vox-actor-runtime (L3) LLM facade — every actor-runtime
+# consumer (vox-search, vox-tensor, vox-dei-shim) is L3, so this is too.
+vox-effort-audit        = { layer = 3, kind = "library", max_loc = 4_000 }
 vox-eval                = { layer = 2 }
 
 
