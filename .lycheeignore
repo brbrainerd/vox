@@ -47,9 +47,11 @@ https://voxlang.org/
 https://github.com/vox-foundation/vox/discussions
 # Live Astro site runtime routes used as prompt copy in docs/design-system/.
 # Served at runtime by the Astro site; no committed .md file exists, so lychee
-# --root-dir . flags them as missing local files. They are valid routes.
-^/showcase/$
-^/concepts/$
+# --root-dir . resolves them to file:// URIs under the repo root and flags them
+# as missing. Match the RESOLVED file:// form — anchored `^/showcase/$` does not
+# match what lychee actually checks. They are valid runtime routes.
+file://.*/showcase/?$
+file://.*/concepts/?$
 file://.*docs/AGENTS\.md
 file://.*docs/src/architecture/.*
 file://.*vox-vscode/.*
