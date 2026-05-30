@@ -1379,6 +1379,15 @@ Expected: PASS (the MockJudge test). LlmJudge has `todo!()` but is not exercised
 
 - [ ] **Step 2: Implement `LlmJudge::judge_one` against the facade**
 
+**Facade reality (verified during B4 execution):** The plan's original assumptions were wrong. Use these actual field names and signatures:
+
+- `LlmResponse.content: String` (NOT `.text`)
+- `LlmResponse.prompt_tokens: u32`, `LlmResponse.completion_tokens: u32` (NOT a nested `usage` struct; cast `as u64` for `JudgeOutcome`)
+- `infer_with_retry(opts: &ActivityOptions, messages: Vec<ChatMessage>, candidates: Vec<LlmConfig>) -> ActivityResult<Result<(LlmResponse, LlmConfig), String>>` — takes a `Vec<LlmConfig>` of candidates, not a single config; returns a nested Result inside `ActivityResult`
+- Retry pattern: when re-prompting on schema failure, append BOTH the assistant's bad output AND the corrective user message (conventional retry-with-correction; otherwise the model sees `user, user` and rejects)
+
+The sketch below uses the plan's original (wrong) field names — see commit `de351837a7` for the canonical real implementation.
+
 Replace the `todo!()` body:
 
 ```rust
