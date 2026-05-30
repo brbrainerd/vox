@@ -1,18 +1,33 @@
 //! Top-level `run` entry point: composes range → walk → shape → hybrid → judge → emit.
 //!
-//! Sequential per-commit pipeline for S1. Bounded concurrency lands in Task E3.
+//! Bounded-concurrency per-commit pipeline (E3): judges fan out through a
+//! `FuturesUnordered` gated by a `tokio::sync::Semaphore` sized to
+//! `cfg.max_concurrent`. Findings stream into `findings.jsonl` in arrival
+//! order (whichever judge completes first); the markdown report re-sorts by
+//! `waste_score` internally, so stream order does not affect ranking.
+//!
+//! Budget strategy (token cap): we check `tokens_spent` at *task launch*
+//! time, before pushing the judge future. Once the cap is hit we mark all
+//! remaining commits Skipped(BudgetExhausted) without dispatching them.
+//! This is pessimistic — in-flight tasks may overshoot the cap by up to
+//! `max_concurrent` calls' worth of tokens — which matches the spec's
+//! "best-effort" budget tolerance for S1.
 //!
 //! Telemetry emission (`audit.effort.*` events from `vox-telemetry`) is
 //! intentionally deferred — the event types exist (E1) but wiring them here
 //! would add a side-effect channel that complicates the deterministic smoke
 //! test. Follow-up: thread `vox_telemetry::emit_event` calls at run.started /
-//! commit.judged / run.completed once E3 settles the concurrency story.
+//! commit.judged / run.completed once concurrency settles.
 
 use crate::config::EffortAuditConfig;
 use crate::judge::{Judge, JudgeStatus};
 use crate::output::manifest::{Manifest, RangeManifest};
 use crate::output::{FindingRow, JudgeMeta};
+use futures::future::FutureExt;
+use futures::stream::{FuturesUnordered, StreamExt};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 /// Summary returned to the caller after `run` finishes.
 ///
@@ -53,6 +68,10 @@ pub async fn run(
     let range = crate::range::resolve(None, None, &cfg.default_since)?;
     let commits = crate::walk::iter_commits(repo_path, &range, cfg.max_diff_bytes)?;
     let total = commits.len() as u64;
+    // Walker yields newest-first: capture the bookend SHAs before we consume
+    // `commits` into the per-task `prepared` Vec below.
+    let resolved_until_sha = commits.first().map(|c| c.sha.clone());
+    let resolved_since_sha = commits.last().map(|c| c.sha.clone());
 
     // 2. emit setup
     std::fs::create_dir_all(out_dir)?;
@@ -68,63 +87,113 @@ pub async fn run(
 
     let mut rows_for_report: Vec<FindingRow> = Vec::with_capacity(commits.len());
 
-    // 3. per-commit pipeline (sequential; concurrency arrives in E3)
-    for rec in &commits {
-        let shape = crate::shape::features(rec);
-        let cost = if cfg.with_transcripts {
-            crate::hybrid::transcripts::resolve_for_commit(
-                &transcript_dir,
-                repo_path,
-                rec.commit_ts,
-                chrono::Duration::minutes(10),
-            )
-        } else {
-            crate::hybrid::MeasuredCost::Unavailable
-        };
-        if matches!(cost, crate::hybrid::MeasuredCost::Measured { .. }) {
-            measured_count += 1;
-        }
+    // 3. per-commit pipeline: bounded concurrency.
+    //
+    // Wrap the judge in an `Arc` so each spawned task can hold a shared
+    // reference without taking ownership. The public API still takes
+    // `Box<dyn Judge>` to avoid forcing callers to construct an `Arc`.
+    let judge: Arc<dyn Judge> = Arc::from(judge);
+    let judge_model_id = judge.model_id().to_string();
+    let max_concurrent = cfg.max_concurrent.max(1);
+    let semaphore = Arc::new(Semaphore::new(max_concurrent));
+    let max_total_tokens = cfg.judge.max_total_tokens;
 
-        // Budget check: once we've burned the configured total, mark every
-        // remaining commit as Skipped(BudgetExhausted) without calling the judge.
-        if tokens_spent >= cfg.judge.max_total_tokens {
+    // Precompute (shape, cost) synchronously per commit — these are cheap CPU
+    // work and they read filesystem state (transcripts) that we don't want to
+    // race. Pair each with an arc-ed CommitRecord so the async tasks can move
+    // them without lifetime gymnastics.
+    let prepared: Vec<(Arc<crate::walk::CommitRecord>, crate::shape::ShapeFeatures, crate::hybrid::MeasuredCost)> = commits
+        .into_iter()
+        .map(|rec| {
+            let shape = crate::shape::features(&rec);
+            let cost = if cfg.with_transcripts {
+                crate::hybrid::transcripts::resolve_for_commit(
+                    &transcript_dir,
+                    repo_path,
+                    rec.commit_ts,
+                    chrono::Duration::minutes(10),
+                )
+            } else {
+                crate::hybrid::MeasuredCost::Unavailable
+            };
+            if matches!(cost, crate::hybrid::MeasuredCost::Measured { .. }) {
+                measured_count += 1;
+            }
+            (Arc::new(rec), shape, cost)
+        })
+        .collect();
+
+    let mut in_flight = FuturesUnordered::new();
+
+    for (rec_arc, shape, cost) in prepared.into_iter() {
+        // Budget check at dispatch time: once we've burned the configured
+        // cap, every remaining commit is marked Skipped(BudgetExhausted)
+        // without firing the judge. In-flight tasks may still complete and
+        // push `tokens_spent` past the cap by up to `max_concurrent` calls
+        // worth — acceptable slop for S1.
+        if tokens_spent >= max_total_tokens {
             let meta = JudgeMeta {
-                model_id: judge.model_id().to_string(),
+                model_id: judge_model_id.clone(),
                 latency_ms: 0,
                 judge_input_tokens: 0,
                 judge_output_tokens: 0,
                 outcome: "Skipped".into(),
             };
-            let row = build_row(rec, &shape, &cost, &meta, None);
+            let row = build_row(&rec_arc, &shape, &cost, &meta, None);
             writer.append(&row)?;
             rows_for_report.push(row);
             skipped += 1;
             continue;
         }
 
-        let outcome = judge.judge_one(rec, &shape).await;
-        total_in += outcome.input_tokens;
-        total_out += outcome.output_tokens;
-        tokens_spent += outcome.input_tokens + outcome.output_tokens;
+        let judge = Arc::clone(&judge);
+        let semaphore = Arc::clone(&semaphore);
+        in_flight.push(async move {
+            // Acquire a permit; held until the future drops. `semaphore` is
+            // never closed, so this `expect` is unreachable in practice.
+            let _permit = semaphore
+                .acquire_owned()
+                .await
+                .expect("effort-audit semaphore closed unexpectedly");
+            let outcome = judge.judge_one(&rec_arc, &shape).await;
+            (rec_arc, shape, cost, outcome)
+        });
 
-        let meta = JudgeMeta {
-            model_id: outcome.model_id.clone(),
-            latency_ms: outcome.latency_ms,
-            judge_input_tokens: outcome.input_tokens,
-            judge_output_tokens: outcome.output_tokens,
-            outcome: match &outcome.status {
-                JudgeStatus::Judged => "Judged".into(),
-                JudgeStatus::Failed(_) => "Failed".into(),
-                JudgeStatus::Skipped(_) => "Skipped".into(),
-            },
-        };
-        let row = build_row(rec, &shape, &cost, &meta, outcome.finding);
-        writer.append(&row)?;
-        rows_for_report.push(row);
-        match outcome.status {
-            JudgeStatus::Judged => judged += 1,
-            _ => skipped += 1,
+        // Drain any tasks that already finished so `findings.jsonl` reflects
+        // partial progress (and so we keep `tokens_spent` fresh for the next
+        // dispatch decision).
+        while let Some(Some((rec_arc, shape, cost, outcome))) = in_flight.next().now_or_never() {
+            consume_outcome(
+                &rec_arc,
+                &shape,
+                &cost,
+                outcome,
+                &mut writer,
+                &mut rows_for_report,
+                &mut total_in,
+                &mut total_out,
+                &mut tokens_spent,
+                &mut judged,
+                &mut skipped,
+            )?;
         }
+    }
+
+    // Drain remaining in-flight judges.
+    while let Some((rec_arc, shape, cost, outcome)) = in_flight.next().await {
+        consume_outcome(
+            &rec_arc,
+            &shape,
+            &cost,
+            outcome,
+            &mut writer,
+            &mut rows_for_report,
+            &mut total_in,
+            &mut total_out,
+            &mut tokens_spent,
+            &mut judged,
+            &mut skipped,
+        )?;
     }
 
     // 4. report + manifest
@@ -143,16 +212,13 @@ pub async fn run(
         range: RangeManifest {
             since: cfg.default_since.clone(),
             until: "HEAD".into(),
-            // Walker yields newest-first: index 0 is the newest commit (resolved
-            // `until`), the last entry is the oldest in-range commit (resolved
-            // `since`).
-            resolved_since_sha: commits.last().map(|c| c.sha.clone()),
-            resolved_until_sha: commits.first().map(|c| c.sha.clone()),
+            resolved_since_sha,
+            resolved_until_sha,
         },
         commits_in_range: total,
         commits_judged: judged,
         commits_skipped: skipped,
-        judge_model_id_resolved: judge.model_id().to_string(),
+        judge_model_id_resolved: judge_model_id,
         judge_total_input_tokens: total_in,
         judge_total_output_tokens: total_out,
         // S1 leaves USD as 0.0 — cost computation lands with S3 pricing tables.
@@ -171,6 +237,47 @@ pub async fn run(
         commits_judged: judged,
         commits_skipped: skipped,
     })
+}
+
+/// Apply one completed judge outcome to the streaming writer, the in-memory
+/// rows-for-report buffer, and the running tallies.
+#[allow(clippy::too_many_arguments)]
+fn consume_outcome(
+    rec: &crate::walk::CommitRecord,
+    shape: &crate::shape::ShapeFeatures,
+    cost: &crate::hybrid::MeasuredCost,
+    outcome: crate::judge::JudgeOutcome,
+    writer: &mut crate::output::jsonl::JsonlWriter,
+    rows_for_report: &mut Vec<FindingRow>,
+    total_in: &mut u64,
+    total_out: &mut u64,
+    tokens_spent: &mut u64,
+    judged: &mut u64,
+    skipped: &mut u64,
+) -> anyhow::Result<()> {
+    *total_in += outcome.input_tokens;
+    *total_out += outcome.output_tokens;
+    *tokens_spent += outcome.input_tokens + outcome.output_tokens;
+
+    let meta = JudgeMeta {
+        model_id: outcome.model_id.clone(),
+        latency_ms: outcome.latency_ms,
+        judge_input_tokens: outcome.input_tokens,
+        judge_output_tokens: outcome.output_tokens,
+        outcome: match &outcome.status {
+            JudgeStatus::Judged => "Judged".into(),
+            JudgeStatus::Failed(_) => "Failed".into(),
+            JudgeStatus::Skipped(_) => "Skipped".into(),
+        },
+    };
+    let row = build_row(rec, shape, cost, &meta, outcome.finding);
+    writer.append(&row)?;
+    rows_for_report.push(row);
+    match outcome.status {
+        JudgeStatus::Judged => *judged += 1,
+        _ => *skipped += 1,
+    }
+    Ok(())
 }
 
 fn build_row(
