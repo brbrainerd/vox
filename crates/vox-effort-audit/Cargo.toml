@@ -22,6 +22,7 @@ thiserror         = { workspace = true }
 sha2              = { workspace = true }
 regex             = { workspace = true }
 dirs              = { workspace = true }
+async-trait       = { workspace = true }
 
 [dev-dependencies]
 insta             = { workspace = true, features = ["json", "yaml"] }
