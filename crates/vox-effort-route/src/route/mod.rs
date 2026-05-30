@@ -37,7 +37,8 @@ impl ArtifactForm {
             ArtifactForm::None => "",
         }
     }
-    /// Forms allowed when the authoring model is not Vox-capable.
+    /// Whether this form requires the authoring model to be Vox-capable
+    /// (true only for `VoxScript`). Such forms are gated out on non-Vox-capable runs.
     pub fn vox_required(self) -> bool {
         matches!(self, ArtifactForm::VoxScript)
     }
@@ -347,12 +348,30 @@ pub(crate) fn assemble_decision(
         .map(|m| token_sum(&m.row.cost))
         .sum();
 
-    let (verified, refutation_note) = match &refute {
+    let (verified, mut refutation_note) = match &refute {
         Some(r) => (!r.refuted, r.refutation_note.clone()),
         None => (false, String::new()),
     };
 
-    let form = decide.artifact_form;
+    // DEFENSIVE Vox-capability gate (spec §5). The decide JSON schema already
+    // excludes VoxScript from the enum when !vox_capable, but a non-compliant
+    // model (or a provider that doesn't enforce response_format) could still
+    // return "VoxScript". We MUST NOT let a Vox artifact escape a non-Vox-capable
+    // run — that is the exact inverse of "fixes must not be forced into Vox".
+    // Coerce to CiGate (matching MockRouter's fallback) and record the override.
+    let mut form = decide.artifact_form;
+    let mut form_rationale = decide.form_rationale;
+    if form.vox_required() && !vox_capable {
+        form = ArtifactForm::CiGate;
+        let note = "[gate] model returned VoxScript on a non-Vox-capable run; coerced to CiGate.";
+        form_rationale = format!("{note} (original rationale: {form_rationale})");
+        refutation_note = if refutation_note.is_empty() {
+            note.to_string()
+        } else {
+            format!("{refutation_note} {note}")
+        };
+    }
+
     let drafted_artifact = if matches!(form, ArtifactForm::None) {
         None
     } else {
@@ -360,7 +379,7 @@ pub(crate) fn assemble_decision(
             form,
             staging_path: format!("{cluster_id}.{}", form.staging_extension()),
             body: decide.drafted_body,
-            form_rationale: decide.form_rationale,
+            form_rationale,
             authoring_model_vox_capable: vox_capable,
         })
     };
@@ -371,7 +390,7 @@ pub(crate) fn assemble_decision(
         member_commit_shas: shas,
         total_member_tokens: tokens,
         artifact_form: form,
-        confidence: decide.confidence,
+        confidence: decide.confidence.clamp(0.0, 1.0),
         synthesized_fix_summary: decide.synthesized_fix_summary,
         drafted_artifact,
         verified,
@@ -570,6 +589,44 @@ mod tests {
         assert!(!d.verified);
         assert!(d.drafted_artifact.is_none());
         assert_eq!(d.artifact_form, ArtifactForm::None);
+    }
+
+    #[test]
+    fn vox_artifact_cannot_escape_non_vox_capable_run() {
+        // A non-compliant model returns VoxScript despite the schema excluding it.
+        // assemble_decision MUST coerce it away on a non-Vox-capable run so no
+        // .vox artifact is ever drafted. (Spec §5; the inverse of the user's
+        // "don't force fixes into Vox" correction is just as wrong.)
+        let cluster = cluster_with_kind("ScriptAutomation");
+        let refute = RefuteResponse { refuted: false, refutation_note: "ok".into() };
+        let d = assemble_decision(
+            decide_resp(ArtifactForm::VoxScript),
+            Some(refute),
+            &cluster,
+            "cV",
+            false, // NOT vox-capable
+        );
+        assert_ne!(d.artifact_form, ArtifactForm::VoxScript);
+        assert_eq!(d.artifact_form, ArtifactForm::CiGate);
+        let art = d.drafted_artifact.expect("non-None form drafts an artifact");
+        assert!(!art.staging_path.ends_with("vox.proposed"), "no .vox artifact may escape");
+        assert!(art.staging_path.ends_with("ci.yaml.proposed"));
+        assert!(art.form_rationale.contains("[gate]"));
+    }
+
+    #[test]
+    fn vox_artifact_allowed_when_vox_capable() {
+        let cluster = cluster_with_kind("ScriptAutomation");
+        let refute = RefuteResponse { refuted: false, refutation_note: "ok".into() };
+        let d = assemble_decision(
+            decide_resp(ArtifactForm::VoxScript),
+            Some(refute),
+            &cluster,
+            "cV2",
+            true, // vox-capable
+        );
+        assert_eq!(d.artifact_form, ArtifactForm::VoxScript);
+        assert!(d.drafted_artifact.unwrap().staging_path.ends_with("vox.proposed"));
     }
 
     #[test]
