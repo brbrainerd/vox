@@ -101,6 +101,40 @@ component Menu() {
 }
 "#;
 
+const ROW_SRC: &str = r#"
+component Bar() {
+    view: column(raw_class="root") {
+        row(raw_class="actions") {
+            button(on_click={fn() {}}) { "A" }
+            button(on_click={fn() {}}) { "B" }
+        }
+        row(raw_class="nav", scroll="horizontal") {
+            link(href="/a") { "A" }
+            link(href="/b") { "B" }
+        }
+    }
+}
+"#;
+
+#[test]
+fn rn_row_wraps_by_default_and_scroll_opts_into_scrollview() {
+    let tsx = rn_component(ROW_SRC, "Bar");
+    // Bare `row` cannot overflow: its style wraps.
+    assert!(
+        tsx.contains("flexWrap: \"wrap\""),
+        "default row must wrap; got:\n{tsx}"
+    );
+    // `row(scroll="horizontal")` becomes a horizontal ScrollView.
+    assert!(
+        tsx.contains("<ScrollView horizontal"),
+        "scroll=horizontal row must emit a horizontal ScrollView; got:\n{tsx}"
+    );
+    assert!(
+        tsx.contains("import { View, Text, Pressable, Image, TextInput, ScrollView, StyleSheet }"),
+        "ScrollView must be imported; got:\n{tsx}"
+    );
+}
+
 #[test]
 fn rn_link_emits_expo_router_link() {
     let tsx = rn_component(NAV_SRC, "Menu");

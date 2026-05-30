@@ -149,8 +149,23 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             let mut classes = vec!["flex".to_string(), "flex-row".to_string()];
 
             apply_align(get_attr("align"), &mut classes, true);
-            if get_attr("wrap") == Some("true") {
-                classes.push("flex-wrap".to_string());
+            // Language-level overflow containment: a `row` wraps by DEFAULT so
+            // fixed-width children can never run off the edge. `scroll=horizontal`
+            // opts into a single non-wrapping scrollable line (nav bars);
+            // `wrap=false` opts into a single non-wrapping line (no scroll).
+            // Mirrors the RN target exactly. See `gap-2` for child spacing.
+            match get_attr("scroll") {
+                Some("horizontal") | Some("x") => {
+                    classes.push("flex-nowrap".to_string());
+                    classes.push("overflow-x-auto".to_string());
+                }
+                _ => {
+                    if get_attr("wrap") == Some("false") {
+                        classes.push("flex-nowrap".to_string());
+                    } else {
+                        classes.push("flex-wrap".to_string());
+                    }
+                }
             }
             Some(PrimitiveEmission {
                 html_tag: "div",
@@ -868,17 +883,28 @@ mod tests {
     }
 
     #[test]
-    fn row_emits_flex_row() {
+    fn row_wraps_by_default() {
+        // Language-level overflow containment: a bare `row` wraps so fixed-width
+        // children can never overflow the line.
         let e = resolve("row", &[]).unwrap();
         assert_eq!(e.html_tag, "div");
         assert!(e.base_classes.contains(&"flex-row".to_string()));
+        assert!(e.base_classes.contains(&"flex-wrap".to_string()));
+    }
+
+    #[test]
+    fn row_with_wrap_false_is_nowrap() {
+        let e = resolve("row", &attrs(&[("wrap", "false")])).unwrap();
+        assert!(e.base_classes.contains(&"flex-nowrap".to_string()));
         assert!(!e.base_classes.contains(&"flex-wrap".to_string()));
     }
 
     #[test]
-    fn row_with_wrap_adds_flex_wrap() {
-        let e = resolve("row", &attrs(&[("wrap", "true")])).unwrap();
-        assert!(e.base_classes.contains(&"flex-wrap".to_string()));
+    fn row_with_horizontal_scroll() {
+        let e = resolve("row", &attrs(&[("scroll", "horizontal")])).unwrap();
+        assert!(e.base_classes.contains(&"flex-nowrap".to_string()));
+        assert!(e.base_classes.contains(&"overflow-x-auto".to_string()));
+        assert!(!e.base_classes.contains(&"flex-wrap".to_string()));
     }
 
     #[test]

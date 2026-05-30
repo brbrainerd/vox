@@ -1461,7 +1461,7 @@ pub(crate) struct ViewCallHir {
 }
 
 const HIR_PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
-    "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
+    "size", "weight", "align", "wrap", "scroll", "variant", "level", "surface", "z",
 ];
 
 pub(crate) fn transform_hir_view_kwargs(

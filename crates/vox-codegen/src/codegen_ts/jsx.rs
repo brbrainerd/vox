@@ -71,7 +71,7 @@ struct ViewCallEmission {
 }
 
 const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
-    "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
+    "size", "weight", "align", "wrap", "scroll", "variant", "level", "surface", "z",
 ];
 
 /// Walk a JSX-shaped attribute list and split it into:

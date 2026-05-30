@@ -120,7 +120,10 @@ export class VoxApiError extends Error {
         ),
         VoxClientTarget::ReactNative => (
             "`process.env.EXPO_PUBLIC_VOX_API_URL`",
-            "(process.env.EXPO_PUBLIC_VOX_API_URL ?? \"\")",
+            // Read via a `globalThis` cast (not a bare `process`) so this
+            // type-checks WITHOUT @types/node, while still reading the runtime
+            // `process.env` object Expo populates with `EXPO_PUBLIC_*` vars.
+            "((globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.EXPO_PUBLIC_VOX_API_URL ?? \"\")",
         ),
     };
     out.push_str(&format!(

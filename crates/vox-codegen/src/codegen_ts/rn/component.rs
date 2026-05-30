@@ -68,6 +68,9 @@ enum RnNode {
         attributes: Vec<(String, String)>,
         children: Vec<RnNode>,
     },
+    /// `<ScrollView horizontal>...</ScrollView>` — `row(scroll: "horizontal")`.
+    /// A single non-wrapping line that scrolls instead of overflowing.
+    ScrollRow { children: Vec<RnNode> },
     /// `<Link href={<href>} style={styles.<key>}>...</Link>` — expo-router
     /// navigation. VUV `link(href="/x") { "label" }`. String children are
     /// auto-wrapped in `<Text>` (same as Pressable) so the label is tappable.
@@ -277,6 +280,22 @@ fn extract_int_literal(expr: &HirExpr) -> Option<i64> {
     }
 }
 
+/// Pull a literal string value out of a HirExpr, unwrapping a single-expr block
+/// (used for `row(scroll: "horizontal")`).
+fn literal_string_value(expr: &HirExpr) -> Option<String> {
+    match expr {
+        HirExpr::StringLit(s, _) => Some(s.clone()),
+        HirExpr::Block(stmts, _) if stmts.len() == 1 => {
+            if let HirStmt::Expr { expr, .. } = &stmts[0] {
+                literal_string_value(expr)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 /// Translate an `HirJsxElement` (raw VUV names OR React-DOM-flavored — both shapes are
 /// accepted so this path works whether the HIR view came from the reactive component
 /// declaration directly or post-WebIR-lowering) to an `RnNode`.
@@ -315,10 +334,22 @@ fn jsx_to_rn(
             style_key: style_key.or(Some("col".to_string())),
             children,
         },
-        "row" => RnNode::View {
-            style_key: style_key.or(Some("row".to_string())),
-            children,
-        },
+        "row" => {
+            // `row(scroll: "horizontal")` (or "x") → a single non-wrapping line
+            // in a horizontal ScrollView (the right UX for nav bars). A bare
+            // `row` uses the wrap-by-default `row` style and can never overflow.
+            let scroll = attr_value(&el.attributes, "scroll")
+                .and_then(literal_string_value)
+                .unwrap_or_default();
+            if scroll == "horizontal" || scroll == "x" {
+                RnNode::ScrollRow { children }
+            } else {
+                RnNode::View {
+                    style_key: style_key.or(Some("row".to_string())),
+                    children,
+                }
+            }
+        }
         "panel" => RnNode::View {
             style_key: style_key.or(Some("panel".to_string())),
             children,
@@ -567,6 +598,12 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
                 collect_used_styles(c, out);
             }
         }
+        RnNode::ScrollRow { children } => {
+            out.insert("row_scroll_content".to_string());
+            for c in children {
+                collect_used_styles(c, out);
+            }
+        }
         RnNode::StringLit(_) | RnNode::Expr(_) => {}
     }
 }
@@ -765,6 +802,15 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
             }
             format!("{pad}<Link href={{{href_ts}}}{style_attr}>\n{inner}{pad}</Link>\n")
         }
+        RnNode::ScrollRow { children } => {
+            let mut inner = String::new();
+            for c in children {
+                inner.push_str(&emit_rn_node(c, indent + 1));
+            }
+            format!(
+                "{pad}<ScrollView horizontal showsHorizontalScrollIndicator={{false}} contentContainerStyle={{styles.row_scroll_content}}>\n{inner}{pad}</ScrollView>\n"
+            )
+        }
         RnNode::StringLit(s) => {
             // String at View context — wrap defensively (RN forbids bare strings outside <Text>).
             let lit = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
@@ -859,6 +905,9 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
             style_key: style_key.clone(),
             children: children.iter().map(clone_rn_node).collect(),
         },
+        RnNode::ScrollRow { children } => RnNode::ScrollRow {
+            children: children.iter().map(clone_rn_node).collect(),
+        },
         RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
         RnNode::Expr(e) => RnNode::Expr(e.clone()),
     }
@@ -900,7 +949,12 @@ fn inject_key_into_first_element(inner: String, key_ts: &str) -> String {
 fn emit_styles_block(used: &std::collections::BTreeSet<String>) -> String {
     let table: BTreeMap<&str, &str> = BTreeMap::from([
         ("col", "{ flexDirection: \"column\", gap: 12 }"),
-        ("row", "{ flexDirection: \"row\", gap: 12, alignItems: \"center\" }"),
+        // `row` wraps by default so children can never run off the right edge
+        // (RN children default to flexShrink:0). `columnGap`/`rowGap` keep
+        // spacing correct once wrapped. A `row(scroll: "horizontal")` opts into
+        // a single non-wrapping scrollable line instead (see `row_scroll_content`).
+        ("row", "{ flexDirection: \"row\", flexWrap: \"wrap\", columnGap: 12, rowGap: 12, alignItems: \"center\" }"),
+        ("row_scroll_content", "{ flexDirection: \"row\", columnGap: 12, alignItems: \"center\" }"),
         ("h1", "{ fontSize: 30, fontWeight: \"600\" }"),
         ("h2", "{ fontSize: 24, fontWeight: \"600\" }"),
         ("h3", "{ fontSize: 20, fontWeight: \"600\" }"),
@@ -1071,7 +1125,7 @@ pub fn emit_rn_component(
             hooks.join(", ")
         ));
     }
-    out.push_str("import { View, Text, Pressable, Image, TextInput, StyleSheet } from \"react-native\";\n");
+    out.push_str("import { View, Text, Pressable, Image, TextInput, ScrollView, StyleSheet } from \"react-native\";\n");
     // `mobile` namespace import — only when this component's view or members
     // reference the `mobile` identifier (or `Speech.transcribe_microphone`,
     // which lowers to it). Mirrors the web target's auto-import in
