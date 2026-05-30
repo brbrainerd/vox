@@ -35,7 +35,10 @@ pub fn build_decide_messages(
         .iter()
         .map(|m| {
             let f = m.row.finding.as_ref().unwrap();
-            format!("- {} [{}] {}", m.row.commit_sha, f.waste_score, f.rationale_one_line)
+            format!(
+                "- {} [{}] {}",
+                m.row.commit_sha, f.waste_score, f.rationale_one_line
+            )
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -71,7 +74,11 @@ Decide one remediation and draft its artifact. Return the JSON object.",
     ]
 }
 
-pub fn build_refute_messages(cluster: &Cluster, form: ArtifactForm, body: &str) -> Vec<LlmChatMessage> {
+pub fn build_refute_messages(
+    cluster: &Cluster,
+    form: ArtifactForm,
+    body: &str,
+) -> Vec<LlmChatMessage> {
     let system = include_str!("refute_system.md");
     let user = format!(
         "CLUSTER: {cat} / {kind} / {crate_} ({n} commits)

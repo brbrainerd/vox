@@ -21,8 +21,7 @@ impl Embedder for ZeroEmbedder {
 
 #[tokio::test]
 async fn smoke_run_produces_outputs() {
-    let findings =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/findings.jsonl");
+    let findings = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/findings.jsonl");
     let out = tempfile::tempdir().unwrap();
     let mut cfg = EffortRouteConfig::default();
     cfg.staging_dir = out.path().to_path_buf();

@@ -64,9 +64,10 @@ mod tests {
         w.append(&row("c2")).unwrap();
         let body = std::fs::read_to_string(tmp.path()).unwrap();
         assert_eq!(body.lines().count(), 2);
-        assert!(body
-            .lines()
-            .all(|l| l.contains("\"schema_version\":\"1.0\"")));
+        assert!(
+            body.lines()
+                .all(|l| l.contains("\"schema_version\":\"1.0\""))
+        );
     }
 
     #[test]

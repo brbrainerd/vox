@@ -16,8 +16,8 @@
 //!   emit them yet; wiring is deferred to a later slice.
 
 pub mod decide;
-pub mod verify;
 pub mod prompt;
+pub mod verify;
 
 use crate::cluster::Cluster;
 use async_trait::async_trait;
@@ -109,7 +109,12 @@ impl RemediationDecision {
             .iter()
             .map(|m| m.row.commit_sha.clone())
             .collect();
-        let total_member_tokens = cluster.bucket.members.iter().map(|m| token_sum(&m.row.cost)).sum();
+        let total_member_tokens = cluster
+            .bucket
+            .members
+            .iter()
+            .map(|m| token_sum(&m.row.cost))
+            .sum();
         RemediationDecision {
             cluster_id: cluster_id.to_string(),
             member_count: shas.len(),
@@ -301,13 +306,16 @@ impl LlmRouter {
             vox_actor_runtime::ActivityOptions::default().with_timeout(self.timeout);
         let config = self.llm_config(response_format);
         let infer_result =
-            vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![config]).await;
+            vox_actor_runtime::llm::infer_with_retry(&activity_options, messages, vec![config])
+                .await;
         match infer_result {
             vox_actor_runtime::ActivityResult::Ok(Ok((resp, _cfg))) => {
                 let tokens = u64::from(resp.prompt_tokens) + u64::from(resp.completion_tokens);
                 Ok((resp.content, tokens))
             }
-            vox_actor_runtime::ActivityResult::Ok(Err(api_err)) => Err(format!("llm error: {api_err}")),
+            vox_actor_runtime::ActivityResult::Ok(Err(api_err)) => {
+                Err(format!("llm error: {api_err}"))
+            }
             vox_actor_runtime::ActivityResult::Failed(activity_err) => {
                 Err(format!("activity error: {activity_err:?}"))
             }
@@ -340,7 +348,12 @@ impl Router for LlmRouter {
         let decide = match decide::parse(&decide_raw) {
             Ok(d) => d,
             Err(e) => {
-                return failed_decision(cluster, cluster_id, &format!("decide parse: {e}"), judge_tokens)
+                return failed_decision(
+                    cluster,
+                    cluster_id,
+                    &format!("decide parse: {e}"),
+                    judge_tokens,
+                );
             }
         };
 
@@ -593,9 +606,7 @@ mod tests {
         assert_eq!(incapable.total_member_tokens, 150);
         assert!(incapable.verified);
 
-        let capable = router
-            .route(&cluster, "c1", ModelVoxCapability(true))
-            .await;
+        let capable = router.route(&cluster, "c1", ModelVoxCapability(true)).await;
         assert_eq!(capable.artifact_form, ArtifactForm::VoxScript);
         assert!(
             capable
@@ -662,13 +673,7 @@ mod tests {
     #[test]
     fn assemble_no_artifact_for_none_form() {
         let cluster = cluster_with_kind("Unknown");
-        let d = assemble_decision(
-            decide_resp(ArtifactForm::None),
-            None,
-            &cluster,
-            "c9",
-            true,
-        );
+        let d = assemble_decision(decide_resp(ArtifactForm::None), None, &cluster, "c9", true);
         // No refute pass → conservatively unverified, no drafted artifact.
         assert!(!d.verified);
         assert!(d.drafted_artifact.is_none());
@@ -682,7 +687,10 @@ mod tests {
         // .vox artifact is ever drafted. (Spec §5; the inverse of the user's
         // "don't force fixes into Vox" correction is just as wrong.)
         let cluster = cluster_with_kind("ScriptAutomation");
-        let refute = RefuteResponse { refuted: false, refutation_note: "ok".into() };
+        let refute = RefuteResponse {
+            refuted: false,
+            refutation_note: "ok".into(),
+        };
         let d = assemble_decision(
             decide_resp(ArtifactForm::VoxScript),
             Some(refute),
@@ -692,8 +700,13 @@ mod tests {
         );
         assert_ne!(d.artifact_form, ArtifactForm::VoxScript);
         assert_eq!(d.artifact_form, ArtifactForm::CiGate);
-        let art = d.drafted_artifact.expect("non-None form drafts an artifact");
-        assert!(!art.staging_path.ends_with("vox.proposed"), "no .vox artifact may escape");
+        let art = d
+            .drafted_artifact
+            .expect("non-None form drafts an artifact");
+        assert!(
+            !art.staging_path.ends_with("vox.proposed"),
+            "no .vox artifact may escape"
+        );
         assert!(art.staging_path.ends_with("ci.yaml.proposed"));
         assert!(art.form_rationale.contains("[gate]"));
     }
@@ -701,7 +714,10 @@ mod tests {
     #[test]
     fn vox_artifact_allowed_when_vox_capable() {
         let cluster = cluster_with_kind("ScriptAutomation");
-        let refute = RefuteResponse { refuted: false, refutation_note: "ok".into() };
+        let refute = RefuteResponse {
+            refuted: false,
+            refutation_note: "ok".into(),
+        };
         let d = assemble_decision(
             decide_resp(ArtifactForm::VoxScript),
             Some(refute),
@@ -710,7 +726,12 @@ mod tests {
             true, // vox-capable
         );
         assert_eq!(d.artifact_form, ArtifactForm::VoxScript);
-        assert!(d.drafted_artifact.unwrap().staging_path.ends_with("vox.proposed"));
+        assert!(
+            d.drafted_artifact
+                .unwrap()
+                .staging_path
+                .ends_with("vox.proposed")
+        );
     }
 
     #[test]

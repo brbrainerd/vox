@@ -18,9 +18,7 @@ pub fn write_artifact(
     // Filename only from staging_path; force it under staging_root; force .proposed.
     let filename = Path::new(&artifact.staging_path)
         .file_name()
-        .ok_or_else(|| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, "bad staging_path")
-        })?;
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "bad staging_path"))?;
     let dest = staging_root.join("artifacts").join(filename);
     assert!(
         dest.to_string_lossy().ends_with(".proposed"),

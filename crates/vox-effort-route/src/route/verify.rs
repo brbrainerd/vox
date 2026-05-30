@@ -35,7 +35,8 @@ mod tests {
     }
     #[test]
     fn parses_refute_with_fence() {
-        let r = parse("```\n{\"refuted\":true,\"refutation_note\":\"slips through\"}\n```").unwrap();
+        let r =
+            parse("```\n{\"refuted\":true,\"refutation_note\":\"slips through\"}\n```").unwrap();
         assert!(r.refuted);
         assert_eq!(r.refutation_note, "slips through");
     }

@@ -162,10 +162,11 @@ mod tests {
         let rows = fixture_rows();
         let out = render(&rows);
         assert!(!out.contains('@'));
-        assert!(!out
-            .as_bytes()
-            .windows(64)
-            .any(|w| w.iter().all(|b| b.is_ascii_hexdigit())));
+        assert!(
+            !out.as_bytes()
+                .windows(64)
+                .any(|w| w.iter().all(|b| b.is_ascii_hexdigit()))
+        );
     }
 
     #[test]

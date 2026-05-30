@@ -28,13 +28,27 @@ pub struct RouteJudgeConfig {
     pub verify: bool,
 }
 
-fn default_min_waste_score() -> u8 { 4 }
-fn default_max_bucket_size() -> usize { 20 }
-fn default_max_context_commits() -> usize { 6 }
-fn default_staging_dir() -> PathBuf { PathBuf::from("target/audit/effort-route") }
-fn default_max_total_tokens() -> u64 { 5_000_000 }
-fn default_max_dollar_cost() -> f64 { 5.00 }
-fn default_verify() -> bool { true }
+fn default_min_waste_score() -> u8 {
+    4
+}
+fn default_max_bucket_size() -> usize {
+    20
+}
+fn default_max_context_commits() -> usize {
+    6
+}
+fn default_staging_dir() -> PathBuf {
+    PathBuf::from("target/audit/effort-route")
+}
+fn default_max_total_tokens() -> u64 {
+    5_000_000
+}
+fn default_max_dollar_cost() -> f64 {
+    5.00
+}
+fn default_verify() -> bool {
+    true
+}
 
 impl Default for RouteJudgeConfig {
     fn default() -> Self {
@@ -75,11 +89,14 @@ mod tests {
 
     #[test]
     fn partial_toml_inherits_defaults() {
-        let c: EffortRouteConfig = toml::from_str(r#"
+        let c: EffortRouteConfig = toml::from_str(
+            r#"
             min_waste_score = 6
             [judge]
             verify = false
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         assert_eq!(c.min_waste_score, 6);
         assert!(!c.judge.verify);
         assert_eq!(c.max_bucket_size, 20);

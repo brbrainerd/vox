@@ -20,7 +20,7 @@ use std::path::PathBuf;
 
 use vox_effort_route::config::EffortRouteConfig;
 use vox_effort_route::embed::LlmEmbedder;
-use vox_effort_route::route::{LlmRouter, ModelVoxCapability, MockRouter, Router};
+use vox_effort_route::route::{LlmRouter, MockRouter, ModelVoxCapability, Router};
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -316,7 +316,10 @@ verify = false
         let args = args_default();
         let mut cfg = EffortRouteConfig::default();
         cfg.judge.model_preference = Some("toml-model".into());
-        assert_eq!(resolve_judge_model(&args, &cfg).as_deref(), Some("toml-model"));
+        assert_eq!(
+            resolve_judge_model(&args, &cfg).as_deref(),
+            Some("toml-model")
+        );
     }
 
     #[test]

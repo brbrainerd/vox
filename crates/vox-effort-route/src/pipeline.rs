@@ -65,7 +65,8 @@ pub async fn run(
         crate::cluster::maybe_split(buckets, cfg.max_bucket_size, embedder.as_ref()).await;
 
     std::fs::create_dir_all(out_dir)?;
-    let mut writer = crate::emit::jsonl::JsonlWriter::create(&out_dir.join("recommendations.jsonl"))?;
+    let mut writer =
+        crate::emit::jsonl::JsonlWriter::create(&out_dir.join("recommendations.jsonl"))?;
     let mut rows: Vec<RecommendationRow> = Vec::new();
     let mut verified = 0usize;
     let mut skipped_over_budget = 0usize;
@@ -180,7 +181,10 @@ mod tests {
         .unwrap();
 
         assert!(summary.clusters_routed >= 1);
-        assert_eq!(summary.clusters_skipped_over_budget, summary.clusters_routed);
+        assert_eq!(
+            summary.clusters_skipped_over_budget,
+            summary.clusters_routed
+        );
         assert_eq!(summary.verified, 0);
         assert_eq!(summary.judge_tokens_spent, 0);
         // Every emitted row is still present (honest, not truncated).
@@ -188,7 +192,9 @@ mod tests {
         assert_eq!(lines.lines().count(), summary.clusters_routed);
         // No artifacts drafted for budget-skipped (None-form, unverified) clusters.
         let artifacts_dir = out.path().join("artifacts");
-        let artifact_count = std::fs::read_dir(&artifacts_dir).map(|d| d.count()).unwrap_or(0);
+        let artifact_count = std::fs::read_dir(&artifacts_dir)
+            .map(|d| d.count())
+            .unwrap_or(0);
         assert_eq!(artifact_count, 0);
     }
 }

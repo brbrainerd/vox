@@ -1,8 +1,8 @@
 //! Output writers: recommendations.jsonl, recommendations.md, staging artifacts.
 
+pub mod artifacts;
 pub mod jsonl;
 pub mod markdown;
-pub mod artifacts;
 
 use crate::route::RemediationDecision;
 use serde::{Deserialize, Serialize};

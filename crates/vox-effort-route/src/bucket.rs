@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BucketKey {
-    pub waste_category: String,   // Debug-formatted enum (stable, sortable)
+    pub waste_category: String, // Debug-formatted enum (stable, sortable)
     pub remediation_kind: String,
     pub primary_crate: String,
 }
@@ -69,7 +69,9 @@ pub fn group(findings: Vec<LoadedFinding>) -> Vec<Bucket> {
         };
         map.entry(key).or_default().push(f);
     }
-    map.into_iter().map(|(key, members)| Bucket { key, members }).collect()
+    map.into_iter()
+        .map(|(key, members)| Bucket { key, members })
+        .collect()
 }
 
 #[cfg(test)]
@@ -129,7 +131,10 @@ mod tests {
 
     #[test]
     fn crate_from_evidence_pointer() {
-        assert_eq!(crate_from_path("crates/vox-config/src/timeouts.rs:8"), Some("vox-config".into()));
+        assert_eq!(
+            crate_from_path("crates/vox-config/src/timeouts.rs:8"),
+            Some("vox-config".into())
+        );
         assert_eq!(crate_from_path("README.md"), None);
     }
 
@@ -198,10 +203,7 @@ mod tests {
         // One pointer each → tie; lexicographically smallest crate name wins.
         let f = loaded_multi(
             "abc",
-            &[
-                "crates/vox-zzz/src/a.rs:1",
-                "crates/vox-aaa/src/b.rs:1",
-            ],
+            &["crates/vox-zzz/src/a.rs:1", "crates/vox-aaa/src/b.rs:1"],
         );
         assert_eq!(primary_crate(&f), "vox-aaa");
     }

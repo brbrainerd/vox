@@ -12,7 +12,7 @@ pub trait Embedder: Send + Sync {
 /// A sub-cluster of a bucket (or the whole bucket when not split).
 #[derive(Debug, Clone)]
 pub struct Cluster {
-    pub key_suffix: String,        // "" for unsplit, "-0"/"-1"/... for split
+    pub key_suffix: String, // "" for unsplit, "-0"/"-1"/... for split
     pub bucket: Bucket,
 }
 
@@ -25,14 +25,22 @@ pub async fn maybe_split(
     let mut out = Vec::new();
     for b in buckets {
         if b.members.len() <= max_bucket_size {
-            out.push(Cluster { key_suffix: String::new(), bucket: b });
+            out.push(Cluster {
+                key_suffix: String::new(),
+                bucket: b,
+            });
             continue;
         }
         // Embed each member's rationale; agglomerative cosine cluster.
         let mut vectors = Vec::with_capacity(b.members.len());
         let mut embed_failed = false;
         for m in &b.members {
-            let text = m.row.finding.as_ref().map(|f| f.rationale_one_line.clone()).unwrap_or_default();
+            let text = m
+                .row
+                .finding
+                .as_ref()
+                .map(|f| f.rationale_one_line.clone())
+                .unwrap_or_default();
             match embedder.embed(&text).await {
                 Ok(v) => vectors.push(v),
                 Err(_) => {
@@ -43,7 +51,10 @@ pub async fn maybe_split(
             }
         }
         if embed_failed {
-            out.push(Cluster { key_suffix: String::new(), bucket: b });
+            out.push(Cluster {
+                key_suffix: String::new(),
+                bucket: b,
+            });
             continue;
         }
         let labels = agglomerative_cosine(&vectors, 0.30); // distance threshold
@@ -56,7 +67,9 @@ fn cosine_distance(a: &[f32], b: &[f32]) -> f32 {
     let dot: f32 = a.iter().zip(b).map(|(x, y)| x * y).sum();
     let na: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let nb: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if na == 0.0 || nb == 0.0 { return 1.0; }
+    if na == 0.0 || nb == 0.0 {
+        return 1.0;
+    }
     1.0 - (dot / (na * nb))
 }
 
@@ -66,24 +79,35 @@ fn agglomerative_cosine(vectors: &[Vec<f32>], threshold: f32) -> Vec<usize> {
     let n = vectors.len();
     let mut parent: Vec<usize> = (0..n).collect();
     fn find(p: &mut Vec<usize>, x: usize) -> usize {
-        if p[x] != x { let r = find(p, p[x]); p[x] = r; }
+        if p[x] != x {
+            let r = find(p, p[x]);
+            p[x] = r;
+        }
         p[x]
     }
     for i in 0..n {
         for j in (i + 1)..n {
             if cosine_distance(&vectors[i], &vectors[j]) <= threshold {
                 let (ri, rj) = (find(&mut parent, i), find(&mut parent, j));
-                if ri != rj { parent[ri] = rj; }
+                if ri != rj {
+                    parent[ri] = rj;
+                }
             }
         }
     }
     // Normalize roots to dense 0..k labels.
     let mut label_of = std::collections::HashMap::new();
     let mut next = 0usize;
-    (0..n).map(|i| {
-        let r = find(&mut parent, i);
-        *label_of.entry(r).or_insert_with(|| { let l = next; next += 1; l })
-    }).collect()
+    (0..n)
+        .map(|i| {
+            let r = find(&mut parent, i);
+            *label_of.entry(r).or_insert_with(|| {
+                let l = next;
+                next += 1;
+                l
+            })
+        })
+        .collect()
 }
 
 fn split_by_labels(b: Bucket, labels: &[usize]) -> Vec<Cluster> {
@@ -91,10 +115,16 @@ fn split_by_labels(b: Bucket, labels: &[usize]) -> Vec<Cluster> {
     for (m, &l) in b.members.iter().zip(labels) {
         groups.entry(l).or_default().push(m.clone());
     }
-    groups.into_iter().map(|(l, members)| Cluster {
-        key_suffix: format!("-{l}"),
-        bucket: Bucket { key: b.key.clone(), members },
-    }).collect()
+    groups
+        .into_iter()
+        .map(|(l, members)| Cluster {
+            key_suffix: format!("-{l}"),
+            bucket: Bucket {
+                key: b.key.clone(),
+                members,
+            },
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -109,7 +139,9 @@ mod tests {
     use vox_effort_audit::output::{FindingRow, JudgeMeta};
     use vox_effort_audit::shape::{CommitKind, ShapeFeatures};
 
-    struct CountingMock { calls: AtomicUsize }
+    struct CountingMock {
+        calls: AtomicUsize,
+    }
     #[async_trait]
     impl Embedder for CountingMock {
         async fn embed(&self, _text: &str) -> Result<Vec<f32>, String> {
@@ -120,7 +152,10 @@ mod tests {
 
     /// Embedder that returns a caller-supplied vector per sequential call so
     /// tests can force distinct sub-clusters.
-    struct ScriptedEmbedder { vectors: Vec<Vec<f32>>, next: AtomicUsize }
+    struct ScriptedEmbedder {
+        vectors: Vec<Vec<f32>>,
+        next: AtomicUsize,
+    }
     #[async_trait]
     impl Embedder for ScriptedEmbedder {
         async fn embed(&self, _text: &str) -> Result<Vec<f32>, String> {
@@ -175,14 +210,18 @@ mod tests {
                 remediation_kind: "ScriptAutomation".into(),
                 primary_crate: "vox-config".into(),
             },
-            members: (0..n).map(|i| member(&format!("sha{i}"), "same rationale")).collect(),
+            members: (0..n)
+                .map(|i| member(&format!("sha{i}"), "same rationale"))
+                .collect(),
         }
     }
 
     #[tokio::test]
     async fn small_bucket_does_not_embed() {
         // A bucket of 3 members (<= 20) must pass through untouched, 0 embed calls.
-        let mock = CountingMock { calls: AtomicUsize::new(0) };
+        let mock = CountingMock {
+            calls: AtomicUsize::new(0),
+        };
         let out = maybe_split(vec![bucket(3)], 20, &mock).await;
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].key_suffix, "");
@@ -205,14 +244,18 @@ mod tests {
             next: AtomicUsize::new(0),
         };
         let out = maybe_split(vec![b], 3, &scripted).await;
-        assert_eq!(out.len(), 2, "two distinct embedding axes → two sub-clusters");
+        assert_eq!(
+            out.len(),
+            2,
+            "two distinct embedding axes → two sub-clusters"
+        );
         assert!(out.iter().all(|c| c.bucket.members.len() == 2));
         assert!(out.iter().all(|c| c.key_suffix.starts_with('-')));
     }
 
     #[tokio::test]
     async fn cosine_distance_basics() {
-        assert!(cosine_distance(&[1.0,0.0], &[1.0,0.0]) < 1e-6);
-        assert!((cosine_distance(&[1.0,0.0], &[0.0,1.0]) - 1.0).abs() < 1e-6);
+        assert!(cosine_distance(&[1.0, 0.0], &[1.0, 0.0]) < 1e-6);
+        assert!((cosine_distance(&[1.0, 0.0], &[0.0, 1.0]) - 1.0).abs() < 1e-6);
     }
 }
