@@ -106,6 +106,7 @@ The unified `vox audit` umbrella hosts:
 - `vox audit arch` — `vox-arch-check`
 - `vox audit retirement` — `vox ci retirement-audit` (planned per CR-L6)
 - `vox audit effort` — AI-judged commit history audit (vox-effort-audit)
+- `vox audit effort-route` — routes audit findings to verified enforcement-artifact proposals (vox-effort-route)
 
 New audit subcommands MUST emit findings JSONL with `schema_version` and a per-finding discriminator so downstream tooling can multiplex.
 
