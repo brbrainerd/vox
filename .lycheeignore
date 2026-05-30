@@ -5,6 +5,16 @@
 .*opencollective\.com/.*
 # Ink & Switch newsletter returns intermittent 500s; link is valid
 .*inkandswitch\.com/.*
+# claude.ai returns 403 to CI bots; link is valid for humans
+https://claude\.ai/?.*
+# toolsinfo.com returns intermittent 503 to CI bots; citation remains valid
+.*toolsinfo\.com/.*
+# coolify.io API-reference path 404s (upstream restructured their docs); the
+# deploy-contract reference is illustrative, not load-bearing
+https://coolify\.io/docs/.*
+# vox-foundation/vox-funding-plan is a planned/private repo (404 to CI); the
+# scripts/show README references it aspirationally
+https://github\.com/vox-foundation/vox-funding-plan
 .*opentelemetry\.io.*
 .*linkedin\.com.*
 .*cursor\.com/.*
