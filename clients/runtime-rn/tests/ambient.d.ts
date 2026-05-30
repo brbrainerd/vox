@@ -50,3 +50,7 @@ declare module "expo-image-picker" {
     quality: number;
   }): Promise<{ canceled: boolean; assets: { uri: string }[] }>;
 }
+
+declare module "expo-file-system" {
+  export const documentDirectory: string | null;
+}

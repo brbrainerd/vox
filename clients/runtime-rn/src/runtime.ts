@@ -48,6 +48,44 @@ function uniffiNotWired(method: string): never {
   );
 }
 
+// ── On-device journal backend (tsc-decoupled) ──────────────────────────────
+//
+// The real durable store is the uniffi-bridged `vox-journal` FileJournal, whose
+// generated bindings live under `src/__generated__/` and depend on the native
+// module + expo-file-system. Those are EXCLUDED from the package's tsc gate. To
+// keep `runtime.ts` type-checkable WITHOUT pulling the excluded generated code
+// into the program, we (a) declare a thin local interface here and (b) load the
+// real implementation through a STRING-VARIABLE dynamic import whose specifier
+// tsc cannot statically resolve (a literal import would re-introduce the
+// excluded file; a static import fails outright). The impl is
+// `src/__generated__/journal-backend.ts`.
+interface JournalLineLike {
+  json: string;
+}
+interface FileJournalHandleLike {
+  append(line: JournalLineLike): void;
+  replayAll(): JournalLineLike[];
+}
+interface JournalBackend {
+  openFileJournal(path: string): FileJournalHandleLike;
+  documentDirectory(): string;
+}
+
+let cachedJournalBackend: JournalBackend | undefined;
+async function journalBackend(): Promise<JournalBackend> {
+  if (cachedJournalBackend) return cachedJournalBackend;
+  // Non-literal specifier on purpose — keeps the excluded backend opaque to tsc.
+  const spec = "./__generated__/journal-backend.js";
+  const mod = (await import(/* @vite-ignore */ spec)) as { default: JournalBackend };
+  cachedJournalBackend = mod.default;
+  return cachedJournalBackend;
+}
+
+const __voxJournalHandles = new Map<string, FileJournalHandleLike>();
+function sanitizeTableName(table: string): string {
+  return table.replace(/[^A-Za-z0-9_-]/g, "_");
+}
+
 class ExpoVoxRuntime implements VoxRuntime {
   // ── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -242,6 +280,50 @@ class ExpoVoxRuntime implements VoxRuntime {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async infer(_modelId: string, _input: Uint8Array): Promise<Uint8Array> {
     uniffiNotWired("infer");
+  }
+
+  // ── On-device durable persistence ─────────────────────────────────────────
+
+  private async handleFor(table: string): Promise<FileJournalHandleLike> {
+    const key = sanitizeTableName(table);
+    const cached = __voxJournalHandles.get(key);
+    if (cached) return cached;
+    const be = await journalBackend();
+    const handle = be.openFileJournal(`${be.documentDirectory()}vox-journal/${key}.ndjson`);
+    __voxJournalHandles.set(key, handle);
+    return handle;
+  }
+
+  async recordMutation(name: string, table: string, row: unknown): Promise<void> {
+    try {
+      const handle = await this.handleFor(table);
+      // FileJournal fsyncs each append (vox-journal/src/file.rs), so the row is
+      // durable and survives a relaunch once this resolves.
+      handle.append({ json: JSON.stringify({ name, row }) });
+    } catch (e) {
+      throw asRuntimeError(e);
+    }
+  }
+
+  async replayTable(table: string): Promise<unknown[]> {
+    try {
+      const handle = await this.handleFor(table);
+      return handle
+        .replayAll()
+        .map((line) => (JSON.parse(line.json) as { row: unknown }).row);
+    } catch (e) {
+      throw asRuntimeError(e);
+    }
+  }
+
+  uuid(): string {
+    // RFC-4122 v4. Hermes lacks a reliable global crypto.randomUUID, so build
+    // one from Math.random — record ids don't need cryptographic strength.
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
   }
 }
 

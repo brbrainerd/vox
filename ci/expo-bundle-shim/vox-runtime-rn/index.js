@@ -9,7 +9,28 @@
 const log = (name, ...args) =>
   console.log(`[vox-runtime-rn shim] ${name}`, ...args);
 
+// In-memory per-table store. Real durability needs the native journal; in
+// Expo Go this persists for the session, enough to demo the data flow.
+const _tables = new Map();
+
 export const voxRuntime = {
+  recordMutation(name, table, row) {
+    log("recordMutation", name, table);
+    const rows = _tables.get(table) || [];
+    rows.push(row);
+    _tables.set(table, rows);
+    return Promise.resolve();
+  },
+  replayTable(table) {
+    log("replayTable", table);
+    return Promise.resolve([...(_tables.get(table) || [])]);
+  },
+  uuid() {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+    });
+  },
   notify(title, body) {
     log("notify", title, body);
     return Promise.resolve();

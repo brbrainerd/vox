@@ -55,4 +55,12 @@ function _check_error_type(): VoxRuntimeError {
 }
 void _check_error_type;
 
+// 7. On-device persistence seam return types.
+const _recResult: Promise<void> = voxRuntime.recordMutation("m", "T", {});
+void _recResult;
+const _replayResult: Promise<unknown[]> = voxRuntime.replayTable("T");
+void _replayResult;
+const _uuidResult: string = voxRuntime.uuid();
+void _uuidResult;
+
 export const _CONTRACT_OK: true = true;

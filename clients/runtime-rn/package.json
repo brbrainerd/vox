@@ -11,7 +11,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "generate-bindings": "node scripts/generate-bindings.mjs",
     "tsc": "tsc -p tsconfig.test.json"
@@ -22,7 +24,8 @@
     "expo-haptics": ">=14.0.0",
     "expo-image-picker": ">=16.0.0",
     "expo-linking": ">=7.0.0",
-    "expo-notifications": ">=0.29.0"
+    "expo-notifications": ">=0.29.0",
+    "expo-file-system": ">=18.0.0"
   },
   "dependencies": {
     "@vox/runtime-types": "0.6.0"
