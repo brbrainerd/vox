@@ -17,39 +17,55 @@ pub enum RangeError {
     InvalidDuration(String),
 }
 
-/// Parses a duration string of the form `<n>{d|h|w}` or "<n> days ago" / "<n> hours ago".
+/// Parses a duration string of the form `<digits>{d|h|w}` or "<digits> days ago"
+/// / "<digits> hours ago" / "<digits> weeks ago".
+///
+/// The compact `<digits><suffix>` form requires the prefix to be ALL ASCII
+/// digits — refs like `feature-2d` or `abc123d` MUST NOT parse as durations.
 pub fn parse_duration(s: &str) -> Result<Duration, RangeError> {
     let s = s.trim();
-    if let Some(rest) = s
-        .strip_suffix(" days ago")
-        .or_else(|| s.strip_suffix('d'))
-    {
+
+    // "<n> days|hours|weeks ago" form — `parse::<i64>` enforces the digit
+    // requirement on `rest`, but we still reject silently surprising shapes.
+    if let Some(rest) = s.strip_suffix(" days ago") {
         return rest
             .trim()
             .parse::<i64>()
             .map(Duration::days)
             .map_err(|_| RangeError::InvalidDuration(s.into()));
     }
-    if let Some(rest) = s
-        .strip_suffix(" hours ago")
-        .or_else(|| s.strip_suffix('h'))
-    {
+    if let Some(rest) = s.strip_suffix(" hours ago") {
         return rest
             .trim()
             .parse::<i64>()
             .map(Duration::hours)
             .map_err(|_| RangeError::InvalidDuration(s.into()));
     }
-    if let Some(rest) = s
-        .strip_suffix(" weeks ago")
-        .or_else(|| s.strip_suffix('w'))
-    {
+    if let Some(rest) = s.strip_suffix(" weeks ago") {
         return rest
             .trim()
             .parse::<i64>()
             .map(Duration::weeks)
             .map_err(|_| RangeError::InvalidDuration(s.into()));
     }
+
+    // Compact `<digits><d|h|w>` form: the prefix MUST be all ASCII digits so
+    // that refs like `feature-2d` or short SHAs ending in d/h/w are rejected.
+    if s.len() >= 2 {
+        let (num, suffix) = s.split_at(s.len() - 1);
+        if !num.is_empty() && num.chars().all(|c| c.is_ascii_digit()) {
+            let n: i64 = num
+                .parse()
+                .map_err(|_| RangeError::InvalidDuration(s.into()))?;
+            return match suffix {
+                "d" => Ok(Duration::days(n)),
+                "h" => Ok(Duration::hours(n)),
+                "w" => Ok(Duration::weeks(n)),
+                _ => Err(RangeError::InvalidDuration(s.into())),
+            };
+        }
+    }
+
     Err(RangeError::InvalidDuration(s.into()))
 }
 
@@ -106,6 +122,17 @@ mod tests {
         // HEAD~30 is git-native "30 commits back", not a duration. Must be treated as ref.
         let r = resolve(Some("HEAD~30"), None, "30 days ago").unwrap();
         assert!(matches!(r, CommitRange::Refs { .. }));
+    }
+
+    #[test]
+    fn rejects_ref_with_trailing_duration_letter() {
+        // `feature-2d` looks like it ends in a duration suffix but must NOT
+        // parse as one — it's a branch name.
+        assert!(parse_duration("feature-2d").is_err());
+        // Short SHA-like refs ending in d/h/w must also be rejected.
+        assert!(parse_duration("abc123d").is_err());
+        assert!(parse_duration("abc123h").is_err());
+        assert!(parse_duration("abc123w").is_err());
     }
 
     #[test]
