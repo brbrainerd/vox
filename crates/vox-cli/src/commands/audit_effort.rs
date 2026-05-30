@@ -131,6 +131,28 @@ fn resolve_judge_model(args: &EffortArgs, cfg: &EffortAuditConfig) -> Option<Str
     Some(outcome.model_id)
 }
 
+/// Look up the resolved judge model's REAL per-1k-token pricing from the local
+/// model registry cache. The registry lives in `vox-orchestrator`, which this
+/// CLI already depends on; the `vox-effort-audit` library stays free of that
+/// dependency (model-agnostic boundary) and only does arithmetic on the rates
+/// we hand it.
+///
+/// When the registry has no price for the model, returns `ModelRates::default()`
+/// (`known = false`) so the pipeline reports an honest `null` cost downstream —
+/// never a fabricated $0.00.
+fn rates_for(model_id: &str) -> vox_effort_audit::pricing::ModelRates {
+    use vox_effort_audit::pricing::ModelRates;
+    let reg = vox_orchestrator::models::ModelRegistry::from_cache();
+    match reg.get(model_id) {
+        Some(spec) if spec.cost_per_1k_input > 0.0 || spec.cost_per_1k_output > 0.0 => ModelRates {
+            input_per_1k_usd: spec.cost_per_1k_input,
+            output_per_1k_usd: spec.cost_per_1k_output,
+            known: true,
+        },
+        _ => ModelRates::default(), // unknown price → honest None downstream
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -163,12 +185,16 @@ pub async fn run(args: EffortArgs) -> Result<()> {
     };
     println!("vox audit effort: writing to {}", out_dir.display());
 
-    // Build judge.
-    let judge: Box<dyn Judge> = if args.mock_judge {
-        Box::new(MockJudge {
-            fixed_score: 50,
-            model: "mock-judge".into(),
-        })
+    // Build judge. Capture the resolved model id so we can look up its REAL
+    // pricing from the registry and pass it into the pipeline.
+    let (judge, resolved_model_id): (Box<dyn Judge>, String) = if args.mock_judge {
+        (
+            Box::new(MockJudge {
+                fixed_score: 50,
+                model: "mock-judge".into(),
+            }),
+            "mock-judge".to_string(),
+        )
     } else {
         let model = resolve_judge_model(&args, &cfg).ok_or_else(|| {
             anyhow::anyhow!(
@@ -178,12 +204,16 @@ pub async fn run(args: EffortArgs) -> Result<()> {
                  `--mock-judge` for a deterministic offline run."
             )
         })?;
-        Box::new(LlmJudge {
+        let judge = Box::new(LlmJudge {
             config: cfg.judge.clone(),
-            resolved_model: model,
+            resolved_model: model.clone(),
             timeout: vox_config::timeouts::EFFORT_AUDIT_JUDGE_TIMEOUT,
-        })
+        });
+        (judge, model)
     };
+
+    // Real pricing for the resolved model (or honest "unknown" → None cost).
+    let rates = rates_for(&resolved_model_id);
 
     let summary = pipeline::run_with_overrides(
         &repo_root,
@@ -193,6 +223,7 @@ pub async fn run(args: EffortArgs) -> Result<()> {
         None,
         args.since.clone(),
         args.until.clone(),
+        rates,
     )
     .await?;
 
