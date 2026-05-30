@@ -97,3 +97,12 @@ fn run_package_contract(package_dir: &str, tsconfig: &str) {
 fn runtime_rn_satisfies_vox_runtime_contract() {
     run_package_contract("clients/runtime-rn", "tsconfig.test.json");
 }
+
+/// `@vox/runtime` (Tauri impl) must satisfy `VoxRuntime`. Same regime as the
+/// RN contract test — proves the desktop adapter and the mobile adapter
+/// implement the SAME contract, so a Vox source that compiles for one
+/// target will compile for the other.
+#[test]
+fn runtime_web_satisfies_vox_runtime_contract() {
+    run_package_contract("clients/runtime-web", "tsconfig.test.json");
+}
