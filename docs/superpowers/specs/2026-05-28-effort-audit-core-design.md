@@ -53,11 +53,11 @@ The unique angle (per the May 2026 prior-art scan in §13): no existing tool tie
 
 ### 2.1 New crate
 
-`crates/vox-effort-audit/` — new L2 crate.
+`crates/vox-effort-audit/` — new L3 crate (it drives the `vox-actor-runtime` L3 LLM runtime, so it is a heavy-runtime consumer like `vox-search`/`vox-tensor`, not an L2 pure-data library).
 
 | Property | Value |
 |---|---|
-| Layer | L2 |
+| Layer | L3 (heavy-runtime consumer; depends on `vox-actor-runtime` L3) |
 | `max_loc` budget | 4,000 (initial; conservative; revisit at first release) |
 | Fan-in (allowed callers) | `vox-cli` (subcommand wiring), `vox-audit` (unified umbrella in S2+) |
 | Dependencies | `vox-actor-runtime` (LLM facade), `vox-secrets` (API key resolution), `vox-telemetry` (event emission), `vox-config` (timeouts, paths), `gix` (git plumbing — already in workspace), `serde`, `serde_json`, `chrono`, `uuid`, `tracing` |
@@ -95,7 +95,7 @@ crates/vox-effort-audit/
 
 ### 2.2 Layer placement
 
-L2. Justification: it depends on L1 (`vox-actor-runtime`, `vox-secrets`, `vox-telemetry`, `vox-config`) and on the workspace's L1 `gix` re-export, and is consumed only by L3 surfaces (`vox-cli`, eventually `vox-audit` umbrella). It does not depend on the orchestrator. Adding it to `docs/src/architecture/layers.toml` is required in the same PR as the crate; row drafted in §10.
+L3. Justification: it depends on `vox-actor-runtime` (L3, the LLM facade) plus L1 utilities (`vox-secrets`, `vox-telemetry`, `vox-config`) and the workspace `gix` re-export, and is consumed only by L5 surfaces (`vox-cli`, eventually the `vox-audit` umbrella). Because it consumes a heavy L3 runtime it is itself L3 — matching every other actor-runtime consumer (`vox-search`, `vox-tensor`, `vox-dei-shim`); an L2 classification would be a layer inversion (the earlier draft of this spec mislabeled `vox-actor-runtime` as L1, which is what made L2 look valid). It does not depend on the orchestrator. Adding it to `docs/src/architecture/layers.toml` is required in the same PR as the crate; row drafted in §10.
 
 ### 2.3 Where this code goes
 
@@ -387,7 +387,7 @@ Drafts below; final wording reviewed at PR time.
 
 ```toml
 [crates.vox-effort-audit]
-layer = "L2"
+layer = "L3"
 max_loc = 4000
 fan_in = ["vox-cli", "vox-audit"]
 staleness_exempt = false

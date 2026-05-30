@@ -4,7 +4,7 @@
 
 **Goal:** Ship a new `vox-effort-audit` crate plus `vox audit effort` CLI subcommand that walks git history, calls a model-agnostic LLM judge per commit, optionally substitutes measured token cost from Claude Code transcripts, and emits a ranked `findings.jsonl` + `report.md` + `manifest.json`.
 
-**Architecture:** New L2 crate (`crates/vox-effort-audit/`, `max_loc = 4000`) with a thin CLI shim in `vox-cli`. All LLM I/O goes through `vox_actor_runtime::llm`; model selection adds a new `CodeEffortJudge` task category to `contracts/orchestration/model-routing.v1.yaml`. Hybrid cost signal is partial in S1 (Claude Code transcripts only); billing exports and broader telemetry are S3. Output JSONL `schema_version = "1.0"` is the stable contract S2–S4 consume.
+**Architecture:** New L3 crate (`crates/vox-effort-audit/`, `max_loc = 4000`; L3 because it consumes the `vox-actor-runtime` L3 LLM facade) with a thin CLI shim in `vox-cli`. All LLM I/O goes through `vox_actor_runtime::llm`; model selection adds a new `CodeEffortJudge` task category to `contracts/orchestration/model-routing.v1.yaml`. Hybrid cost signal is partial in S1 (Claude Code transcripts only); billing exports and broader telemetry are S3. Output JSONL `schema_version = "1.0"` is the stable contract S2–S4 consume.
 
 **Tech Stack:** Rust 2024, `gix 0.70` (workspace-pinned), `serde`/`serde_json`, `tokio`, `futures` (`FuturesUnordered`), `insta` for snapshot tests, `tempfile` for fixture repos, `vox-actor-runtime` for LLM, `vox-secrets` for keys, `vox-telemetry` for events, `vox-config` for timeouts.
 
@@ -1379,6 +1379,15 @@ Expected: PASS (the MockJudge test). LlmJudge has `todo!()` but is not exercised
 
 - [ ] **Step 2: Implement `LlmJudge::judge_one` against the facade**
 
+**Facade reality (verified during B4 execution):** The plan's original assumptions were wrong. Use these actual field names and signatures:
+
+- `LlmResponse.content: String` (NOT `.text`)
+- `LlmResponse.prompt_tokens: u32`, `LlmResponse.completion_tokens: u32` (NOT a nested `usage` struct; cast `as u64` for `JudgeOutcome`)
+- `infer_with_retry(opts: &ActivityOptions, messages: Vec<ChatMessage>, candidates: Vec<LlmConfig>) -> ActivityResult<Result<(LlmResponse, LlmConfig), String>>` — takes a `Vec<LlmConfig>` of candidates, not a single config; returns a nested Result inside `ActivityResult`
+- Retry pattern: when re-prompting on schema failure, append BOTH the assistant's bad output AND the corrective user message (conventional retry-with-correction; otherwise the model sees `user, user` and rejects)
+
+The sketch below uses the plan's original (wrong) field names — see commit `de351837a7` for the canonical real implementation.
+
 Replace the `todo!()` body:
 
 ```rust
@@ -2525,7 +2534,7 @@ git push -u origin spec/effort-audit-core
 gh pr create --title "feat(vox-effort-audit): AI-judged commit-history audit (S1)" --body "$(cat <<'EOF'
 ## Summary
 
-- Ships `vox-effort-audit` (new L2 crate) + `vox audit effort` CLI subcommand
+- Ships `vox-effort-audit` (new L3 crate) + `vox audit effort` CLI subcommand
 - Walks git history, calls a model-agnostic LLM judge per commit, emits JSONL + markdown report + manifest
 - Hybrid cost signal: measured tokens from Claude Code transcripts when correlatable; LLM estimate otherwise
 - Adds `CodeEffortJudge` task category and `Model-Agnostic LLM Boundary` AGENTS.md SSOT
