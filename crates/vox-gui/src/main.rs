@@ -76,6 +76,7 @@ async fn main() {
             commands::runs::start_gui_run,
             commands::runs::finish_gui_run,
             commands::runs::list_gui_runs,
+            commands::runs::get_gui_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

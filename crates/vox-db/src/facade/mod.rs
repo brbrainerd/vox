@@ -1,5 +1,6 @@
 //! [`crate::VoxDb`] inherent methods (split from `lib.rs`).
 
+pub mod agent_runs;
 pub mod connect;
 pub mod memory;
 pub mod migrations;

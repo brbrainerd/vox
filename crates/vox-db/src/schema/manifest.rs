@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 67; // +1 for scheduled_runs table (Phase 4.1: @scheduled durable persistence)
+pub const BASELINE_VERSION: i64 = 68; // +1 for agent_runs table (B2: canonical GUI agent/CLI run ledger)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

@@ -250,4 +250,33 @@ CREATE TABLE IF NOT EXISTS scheduled_runs (
     last_completed_at_ms INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_scheduled_runs_next_due ON scheduled_runs(next_due_at_ms);
+
+-- Canonical agent/CLI run ledger for the desktop GUI harness (B2). One row per
+-- invocation: command/repo/worktree/model, cost+tokens, lifecycle status,
+-- artifacts, and an optional approval_ref (wired by HITL/B3). Distinct from the
+-- workflow runtime's workflow_run_log; queryable by run_id (replay) and as a
+-- recent list. All timestamps are unix-ms per this domain's convention.
+CREATE TABLE IF NOT EXISTS agent_runs (
+    run_id          TEXT NOT NULL PRIMARY KEY,
+    workflow_name   TEXT NOT NULL DEFAULT '',
+    command         TEXT,
+    repo            TEXT,
+    worktree        TEXT,
+    model           TEXT,
+    status          TEXT NOT NULL DEFAULT 'running',
+    planned_steps   INTEGER NOT NULL DEFAULT 0,
+    completed_steps INTEGER NOT NULL DEFAULT 0,
+    cost_usd        REAL NOT NULL DEFAULT 0.0,
+    tokens_in       INTEGER NOT NULL DEFAULT 0,
+    tokens_out      INTEGER NOT NULL DEFAULT 0,
+    logs_ref        TEXT,
+    artifacts_json  TEXT NOT NULL DEFAULT '[]',
+    approval_ref    TEXT,
+    started_at_ms   INTEGER NOT NULL,
+    updated_at_ms   INTEGER NOT NULL,
+    completed_at_ms INTEGER,
+    last_error      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_status ON agent_runs(status);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_updated ON agent_runs(updated_at_ms);
 ";

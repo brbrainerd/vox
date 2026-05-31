@@ -159,6 +159,7 @@ pub mod plugin_state_backend;
 pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
+pub use facade::agent_runs::AgentRunRow;
 pub use codex_chat::WorkspaceTranscriptTurnRow;
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,

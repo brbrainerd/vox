@@ -203,6 +203,38 @@ for TCP-mode/tests.
   backend daemon tests green. **Remaining verification:** a live Tauri launch to confirm
   the UI renders from the stream end-to-end (no automated harness for the Tauri runtime).
 
+## B2 implementation log (2026-05-31)
+
+**Reframe (verified):** GUI runs already persisted — but onto the *shared*
+`workflow_run_log` table (the workflow-runtime ledger). B2 gave the GUI a
+purpose-built store, not "add persistence."
+
+**Landed + verified (TDD):**
+- `crates/vox-db/src/schema/domains/execution.rs` — `agent_runs` table (run_id,
+  workflow_name, command, repo, worktree, model, status, planned/completed_steps,
+  cost_usd, tokens_in/out, logs_ref, artifacts_json, `approval_ref` (nullable; wired
+  by B3), started/updated/completed_at_ms, last_error) + status/updated indexes.
+- `crates/vox-db/src/schema/manifest.rs` — `BASELINE_VERSION` 67 → 68 (additive
+  table; baseline re-runs idempotently via `CREATE TABLE IF NOT EXISTS`).
+- `contracts/db/baseline-version-policy.yaml` — `repository_baseline_integer` 68 +
+  refreshed Keccak-256 digest (`vox ci check-codex-ssot` parity).
+- `crates/vox-db/src/facade/agent_runs.rs` — `AgentRunRow` + `agent_runs_upsert` /
+  `agent_runs_get` / `agent_runs_recent` (mirrors `facade/scheduled.rs`; row stays in
+  the facade, so `row-serde-lint` does not apply; `db-schema-coverage` is satisfied
+  because vox-db owns the table).
+- Test: `agent_runs_persist_query_and_survive_restart` (RED→GREEN) — upsert, query
+  by id, recent list, and **survives a file reopen** (the restart-durability bar).
+- GUI repoint: `crates/vox-gui/src/commands/runs.rs` now uses the facade for
+  start/finish/list (richer `StartGuiRunInput`/`GuiRunRecord`) + a new `get_gui_run`
+  replay-by-id command (registered in `main.rs`); `RunsView.tsx` fetches the selected
+  run by id (so restart-then-open works) and shows command/model/cost.
+- Verified: `cargo check -p vox-gui` clean; `vite build` passes; backend test green.
+  (Pre-existing: vox-db *lib unit* tests don't compile — `missing field primary_key`
+  in `ddl/diff.rs` + `schema_digest/helpers.rs`, unrelated to B2; integration tests
+  unaffected.)
+
+**Deferred to B3:** `approval_ref` is a real nullable column but unwired until HITL.
+
 ## Sequencing and dependencies
 
 ```text
