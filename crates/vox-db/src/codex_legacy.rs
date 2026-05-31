@@ -173,6 +173,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "gamify_profiles",
     "gamify_quests",
     "grpo_training_run",
+    "hitl_approvals",
     "knowledge_edges",
     "knowledge_nodes",
     "learned_patterns",

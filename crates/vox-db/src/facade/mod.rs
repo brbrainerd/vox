@@ -2,6 +2,7 @@
 
 pub mod agent_runs;
 pub mod connect;
+pub mod hitl_approvals;
 pub mod memory;
 pub mod migrations;
 pub mod scheduled;

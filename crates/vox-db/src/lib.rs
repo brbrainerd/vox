@@ -160,6 +160,7 @@ pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
 pub use facade::agent_runs::AgentRunRow;
+pub use facade::hitl_approvals::HitlApprovalRow;
 pub use codex_chat::WorkspaceTranscriptTurnRow;
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,

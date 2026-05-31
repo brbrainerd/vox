@@ -135,7 +135,13 @@ pub async fn handle_tool_call(
             let (approval_id, rx) =
                 state
                     .pending_approvals
-                    .register(name_canonical.to_string(), summary, now_ms);
+                    .register(name_canonical.to_string(), summary.clone(), now_ms);
+            // Durable audit trail (best-effort): record the request, then its outcome.
+            if let Some(db) = state.db.as_ref() {
+                let _ = db
+                    .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
+                    .await;
+            }
             const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
             let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
                 Ok(Ok(o)) => o,
@@ -145,6 +151,16 @@ pub async fn handle_tool_call(
                     vox_orchestrator::ApprovalOutcome::TimedOut
                 }
             };
+            if let Some(db) = state.db.as_ref() {
+                let resolved_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64;
+                let status = format!("{outcome:?}").to_lowercase();
+                let _ = db
+                    .hitl_approval_resolve(&approval_id, &status, resolved_ms)
+                    .await;
+            }
             if !matches!(
                 outcome,
                 vox_orchestrator::ApprovalOutcome::Approved

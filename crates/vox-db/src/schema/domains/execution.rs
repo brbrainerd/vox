@@ -279,4 +279,19 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_runs_status ON agent_runs(status);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_updated ON agent_runs(updated_at_ms);
+
+-- HITL approval audit log (B3): one row per dangerous-tool approval request and
+-- its outcome. The live await is in-memory (PendingApprovals); this is the
+-- durable audit trail written by the gate. status: pending -> approved/rejected/
+-- modified/timed_out. All timestamps unix-ms.
+CREATE TABLE IF NOT EXISTS hitl_approvals (
+    approval_id     TEXT NOT NULL PRIMARY KEY,
+    tool            TEXT NOT NULL,
+    summary         TEXT NOT NULL DEFAULT '',
+    status          TEXT NOT NULL DEFAULT 'pending',
+    requested_at_ms INTEGER NOT NULL,
+    resolved_at_ms  INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_hitl_approvals_status ON hitl_approvals(status);
+CREATE INDEX IF NOT EXISTS idx_hitl_approvals_requested ON hitl_approvals(requested_at_ms);
 ";
