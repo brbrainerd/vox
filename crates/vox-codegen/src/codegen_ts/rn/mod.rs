@@ -138,9 +138,16 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
     // Mobile primitives — reuse the existing emit, but with target="rn" so it
     // imports from `@vox/runtime-rn` instead of `@vox/runtime`.
     let bundle = crate::projection_bundle::project_bundle_from_hir(hir);
-    if let Some(mobile_content) =
-        crate::codegen_ts::mobile_emit::emit_mobile_setup_for_target(&bundle.shell, Some("rn"))
-    {
+    let endpoint_param0: std::collections::HashMap<String, String> = hir
+        .endpoint_fns
+        .iter()
+        .filter_map(|e| e.params.first().map(|p| (e.name.clone(), p.name.clone())))
+        .collect();
+    if let Some(mobile_content) = crate::codegen_ts::mobile_emit::emit_mobile_setup_for_target(
+        &bundle.shell,
+        Some("rn"),
+        &endpoint_param0,
+    ) {
         files.push(("mobile.ts".into(), mobile_content));
     }
 

@@ -35,15 +35,23 @@ fn runtime_package_for_target(target: Option<&str>) -> &'static str {
 /// primitives declared in the module. Returns `None` when no mobile
 /// primitives are present so the caller can skip creating the file.
 pub fn emit_mobile_setup(shell: &ShellProjectionModule) -> Option<String> {
-    emit_mobile_setup_for_target(shell, None)
+    let empty: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    emit_mobile_setup_for_target(shell, None, &empty)
 }
 
 /// Target-aware variant of [`emit_mobile_setup`]. The `target` string drives only the
 /// `import { voxRuntime } from "<package>"` line — every emitted method call is
 /// shaped against the [`@vox/runtime-types::VoxRuntime`] contract.
+///
+/// `endpoint_param0` maps an endpoint fn name → its single parameter name, so a
+/// push callback arg (`token` / `payload`) is wrapped into the named-object form
+/// the vox-client endpoint expects (`store_push_token({ token })`), coercing
+/// non-string args to JSON for `str`-typed params (`handle_push_payload({ json:
+/// JSON.stringify(payload) })`).
 pub fn emit_mobile_setup_for_target(
     shell: &ShellProjectionModule,
     target: Option<&str>,
+    endpoint_param0: &std::collections::HashMap<String, String>,
 ) -> Option<String> {
     let has_back = shell.back_button.is_some();
     let has_deep = shell.deep_link.is_some();
@@ -129,21 +137,32 @@ export function useDeepLinkRouting(navigate: (opts: {{ to: string }}) => void) {
         // Build the handlers object literal, including only the fields the source
         // declared. An undeclared callback is simply omitted; the adapter's
         // `installPushNotifications` accepts a partial `PushHandlers`.
+        // Wrap a callback arg into the endpoint's named-object param shape. For a
+        // `str`-typed param the object value coerces non-strings to JSON, so an
+        // Expo notification `payload` object lands as the `{ json }` the endpoint
+        // wants while a `token` string passes through unchanged.
+        let call = |fn_name: &str, arg: &str| -> String {
+            match endpoint_param0.get(fn_name) {
+                Some(p) => format!(
+                    "endpoints.{fn_name}({{ {p}: typeof {arg} === \"string\" ? {arg} : JSON.stringify({arg}) }})"
+                ),
+                None => format!("endpoints.{fn_name}({arg})"),
+            }
+        };
         let mut handler_entries: Vec<String> = Vec::new();
         if !on_reg.is_empty() {
-            handler_entries.push(format!(
-                "    onRegister: async (token) => {{ await endpoints.{on_reg}(token); }}"
-            ));
+            let c = call(on_reg, "token");
+            handler_entries.push(format!("    onRegister: async (token) => {{ await {c}; }}"));
         }
         if !on_notif.is_empty() {
+            let c = call(on_notif, "payload");
             handler_entries.push(format!(
-                "    onNotification: async (payload) => {{ await endpoints.{on_notif}(payload); }}"
+                "    onNotification: async (payload) => {{ await {c}; }}"
             ));
         }
         if !on_action.is_empty() {
-            handler_entries.push(format!(
-                "    onAction: async (payload) => {{ await endpoints.{on_action}(payload); }}"
-            ));
+            let c = call(on_action, "payload");
+            handler_entries.push(format!("    onAction: async (payload) => {{ await {c}; }}"));
         }
         let handlers_obj = if handler_entries.is_empty() {
             "  {}".to_string()

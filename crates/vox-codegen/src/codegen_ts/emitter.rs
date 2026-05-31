@@ -292,9 +292,16 @@ pub fn generate_with_options(
     // go through the `@vox/runtime` adapter contract so the same emitted source runs
     // on desktop (Tauri) and mobile (RN + Expo). The `target` string selects which
     // npm package the runtime is imported from (`@vox/runtime` vs `@vox/runtime-rn`).
-    if let Some(mobile_content) =
-        super::mobile_emit::emit_mobile_setup_for_target(&bundle.shell, options.target.as_deref())
-    {
+    let endpoint_param0: std::collections::HashMap<String, String> = hir
+        .endpoint_fns
+        .iter()
+        .filter_map(|e| e.params.first().map(|p| (e.name.clone(), p.name.clone())))
+        .collect();
+    if let Some(mobile_content) = super::mobile_emit::emit_mobile_setup_for_target(
+        &bundle.shell,
+        options.target.as_deref(),
+        &endpoint_param0,
+    ) {
         files.push(("mobile.ts".into(), mobile_content));
     }
 
