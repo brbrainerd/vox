@@ -273,6 +273,39 @@ lowest-risk initial integration.
   `handle_tool_call` returns an RBAC_VIOLATION envelope — the GUI must set this when wiring a
   destructive action's form.
 
+## B4 implementation log (2026-05-31) — core (event stream); chat-transcript deferred
+
+**Scope decision.** B4's full intent (streaming chat attached to runs, with `run_id`
+correlation threaded through `submit_orchestrator_task → runtime`) has an invasive,
+risky correlation step. Landed the **safe, high-value core** instead: bridge the
+orchestrator's *existing* event bus (which already emits `TokenStreamed` + task/agent
+lifecycle on a `tokio::broadcast`, `runtime.rs:148`) to the GUI as a live activity
+stream. Run-correlation + a Loquela chat transcript are deferred (see below).
+
+**Landed + verified (TDD):**
+- `vox-foundation` — `orch_daemon_method::SUBSCRIBE_EVENTS = "orch.subscribe_events"`.
+- `vox-orchestrator/src/orch_daemon/mod.rs` — `stream_agent_events`: subscribes to
+  `orch.event_bus().subscribe()` and pushes one `DispatchPayload::Event` frame per
+  `AgentEvent` (fully push-driven, no polling); handles broadcast `Lagged` (skip) and
+  `Closed` (end); special-cased in both the TCP and stdio loops like `SUBSCRIBE`.
+- `vox-orchestrator/src/orch_daemon/client.rs` — `subscribe_events(tx)` (shares a
+  method-parameterized `subscribe_with_method` with `subscribe`).
+- **No cli-core change** — `subscribe_daemon` is method-agnostic (forwards `Event`
+  frames regardless of method).
+- `vox-gui` — `spawn_agent_event_stream` (subscribe_daemon `SUBSCRIBE_EVENTS` →
+  `AppHandle::emit("vox://agent-events")`), started from `main.rs .setup()`;
+  `transport.ts::listenAgentEvents` + `App.tsx` maps each `AgentEvent` into the
+  Dashboard stream (capped at 100), giving the GUI **live token/lifecycle visibility**
+  (previously only status snapshots).
+- Test: `orchestrator_daemon_subscribe_events_streams_agent_events` (RED→GREEN) — emits
+  a `TokenStreamed` on the bus and asserts the subscriber receives a `token_streamed`
+  frame; all 4 daemon TCP tests pass. `cargo check -p vox-gui` clean; `vite build` passes.
+
+**Deferred (follow-up B4-chat):** threading the GUI `run_id` through
+`submit_orchestrator_task → runtime` so tokens are tagged per submission, a Loquela
+chat transcript rendering streamed tokens, and finalizing the run from the stream's
+terminal event. The event-stream spine this needs is now in place.
+
 ## Sequencing and dependencies
 
 ```text

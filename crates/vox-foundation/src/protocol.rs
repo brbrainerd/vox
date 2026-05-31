@@ -55,6 +55,13 @@ pub mod orch_daemon_method {
     /// single terminal `Result`; the connection stays open and frames are emitted
     /// whenever the status changes.
     pub const SUBSCRIBE: &str = "orch.subscribe";
+    /// Params: `{}` → a long-lived push stream of [`super::DispatchPayload::Event`]
+    /// frames, one per `AgentEvent` emitted on the orchestrator's event bus
+    /// (token streaming, task lifecycle, agent lifecycle, …). Like
+    /// [`SUBSCRIBE`] the connection stays open until the client disconnects, but
+    /// frames are pushed by the broadcast bus (no polling) and carry the
+    /// serialized `AgentEvent` (`{ id, timestamp_ms, kind: { type, … } }`).
+    pub const SUBSCRIBE_EVENTS: &str = "orch.subscribe_events";
 }
 
 pub mod dei_method {

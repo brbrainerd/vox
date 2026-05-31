@@ -17,6 +17,32 @@ export function listenOrchStatus(
   return listen<any>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
 }
 
+/** Tauri event name carrying a single live AgentEvent (see B4 daemon stream). */
+export const AGENT_EVENTS_EVENT = 'vox://agent-events';
+
+/**
+ * A serialized `AgentEvent` value as pushed by the daemon's
+ * `orch.subscribe_events` stream. The `kind.type` discriminator is a snake_case
+ * variant name (e.g. "token_streamed", "task_started"); the remaining `kind`
+ * fields vary per variant.
+ */
+export interface AgentEventFrame {
+  id: number;
+  timestamp_ms: number;
+  kind: { type: string; [k: string]: any };
+}
+
+/**
+ * Subscribe to the pushed live agent-event stream (B4). Each emission carries
+ * one `AgentEventFrame`. Returns the `UnlistenFn` to call on cleanup. Rejects if
+ * not running inside Tauri (caller should degrade gracefully).
+ */
+export function listenAgentEvents(
+  onEvent: (e: AgentEventFrame) => void,
+): Promise<UnlistenFn> {
+  return listen<AgentEventFrame>(AGENT_EVENTS_EVENT, (event) => onEvent(event.payload));
+}
+
 export interface ExecuteOutput {
   exit_code: number;
   stdout: string;

@@ -98,6 +98,37 @@ async fn stream_status_events<W: AsyncWriteExt + Unpin>(
     }
 }
 
+/// Push every `AgentEvent` from the orchestrator's broadcast event bus as a
+/// [`DispatchPayload::Event`] frame until the peer disconnects (a write error
+/// ends the stream). Fully push-driven — no polling. The bus has no replay, so
+/// only events emitted after this subscription are delivered; broadcast lag
+/// (slow consumer past the channel capacity) is skipped rather than fatal.
+async fn stream_agent_events<W: AsyncWriteExt + Unpin>(
+    id: &str,
+    orch: &Arc<Orchestrator>,
+    out: &mut W,
+) -> anyhow::Result<()> {
+    let mut rx = orch.event_bus().subscribe();
+    loop {
+        match rx.recv().await {
+            Ok(event) => {
+                let value = serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
+                let frame = DispatchResponse {
+                    id: id.to_string(),
+                    payload: DispatchPayload::Event { value },
+                };
+                // Errors once the peer closes the connection, ending the stream.
+                write_frame(out, &frame).await?;
+            }
+            // Slow consumer fell behind the broadcast capacity — skip the gap
+            // and keep streaming rather than dropping the subscriber.
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            // Sender (orchestrator) dropped — nothing more will arrive.
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => return Ok(()),
+        }
+    }
+}
+
 /// Dispatch one parsed request against the live orchestrator.
 pub async fn dispatch_request(
     repository_id: &str,
@@ -480,6 +511,10 @@ async fn handle_connection(
             stream_status_events(&req.id, &orch, &mut write_half).await?;
             break;
         }
+        if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
+            stream_agent_events(&req.id, &orch, &mut write_half).await?;
+            break;
+        }
         let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
         write_frame(&mut write_half, &resp).await?;
     }
@@ -547,6 +582,10 @@ pub async fn run_stdio_server(
         };
         if req.method == orch_daemon_method::SUBSCRIBE {
             stream_status_events(&req.id, &orch, &mut stdout).await?;
+            break;
+        }
+        if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
+            stream_agent_events(&req.id, &orch, &mut stdout).await?;
             break;
         }
         let resp = dispatch_request(&repository_id, orch.clone(), &req).await;

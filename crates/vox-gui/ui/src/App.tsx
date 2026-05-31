@@ -19,7 +19,7 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
-import { voxTransport, listenOrchStatus } from './transport';
+import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
@@ -63,6 +63,66 @@ function mapStream(e: any): StreamItem {
     title: e.title ?? 'Event',
     body: e.body ?? '',
     ts: e.timestamp ?? 'now',
+  };
+}
+
+// ─── Live AgentEvent (B4 "vox://agent-events") → dashboard StreamItem ─────────
+const AGENT_EVENT_LABELS: Record<string, string> = {
+  token_streamed: 'TOKEN',
+  task_started: 'TASK',
+  task_phase_changed: 'PHASE',
+  task_completed: 'DONE',
+  task_failed: 'FAILED',
+  agent_spawned: 'SPAWN',
+  agent_retired: 'RETIRE',
+  cost_incurred: 'COST',
+};
+
+function mapAgentEvent(e: AgentEventFrame): StreamItem {
+  const kind = e.kind ?? ({ type: 'unknown' } as AgentEventFrame['kind']);
+  const type = kind.type ?? 'unknown';
+  const tag = AGENT_EVENT_LABELS[type] ?? type.replace(/_/g, ' ').toUpperCase();
+
+  // Build a human-readable title/body per variant.
+  let title = type.replace(/_/g, ' ');
+  let body = '';
+  switch (type) {
+    case 'token_streamed':
+      title = `Token · ${kind.agent_id ?? '?'}`;
+      body = String(kind.text ?? '');
+      break;
+    case 'task_started':
+    case 'task_phase_changed':
+    case 'task_completed':
+    case 'task_failed':
+      title = `${tag} · task ${kind.task_id ?? '?'}`;
+      body = kind.phase
+        ? `phase: ${kind.phase}`
+        : kind.error
+          ? `error: ${kind.error}`
+          : kind.agent_id
+            ? `agent ${kind.agent_id}`
+            : '';
+      break;
+    case 'agent_spawned':
+    case 'agent_retired':
+      title = `${tag} · agent ${kind.agent_id ?? '?'}`;
+      break;
+    default:
+      body = '';
+  }
+
+  const isFailed = type === 'task_failed';
+  return {
+    // Numeric event id correlates with orchestrator doubt/overrule task ids.
+    id: String(e.id),
+    kind: isFailed ? 'doubted' : 'agent',
+    tag,
+    title,
+    body,
+    ts: e.timestamp_ms
+      ? new Date(e.timestamp_ms).toLocaleTimeString()
+      : 'now',
   };
 }
 
@@ -208,6 +268,39 @@ export default function App() {
       if (fallbackInterval !== undefined) clearInterval(fallbackInterval);
     };
   }, [applyStatus]);
+
+  // ── Pushed live agent-event stream (B4: "vox://agent-events" Tauri event) ──
+  // Each AgentEvent is prepended to the dashboard activity feed as a StreamItem.
+  // We keep this independent from the status subscription above; the list is
+  // capped so it does not grow unbounded.
+  useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
+    let cancelled = false;
+
+    listenAgentEvents((frame) => {
+      const item = mapAgentEvent(frame);
+      setData(prev => ({
+        ...prev,
+        stream: [item, ...prev.stream].slice(0, 100),
+      }));
+    })
+      .then((fn) => {
+        if (cancelled) {
+          // Effect already cleaned up before subscription resolved.
+          fn();
+          return;
+        }
+        unlisten = fn;
+      })
+      .catch(() => {
+        // listen() unavailable (e.g. plain browser dev) — no live feed.
+      });
+
+    return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const executeWithRun = useCallback(async (operationName: string, payload: any, workflowName: string) => {
     const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

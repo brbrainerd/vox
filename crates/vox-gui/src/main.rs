@@ -42,6 +42,9 @@ async fn main() {
             // B1: start the live orchestrator status stream, re-emitting each
             // snapshot as the "vox://orch-status" Tauri event.
             commands::orchestrator::spawn_orchestrator_status_stream(app.handle().clone());
+            // B4: start the live agent-event stream, re-emitting each AgentEvent
+            // as the "vox://agent-events" Tauri event.
+            commands::orchestrator::spawn_agent_event_stream(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

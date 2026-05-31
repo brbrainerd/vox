@@ -39,6 +39,43 @@ pub fn spawn_orchestrator_status_stream(app_handle: tauri::AppHandle) {
     });
 }
 
+/// Tauri event channel carrying live agent events from the orchestrator daemon
+/// to the UI. Payload is a serialized `AgentEvent` value
+/// (`{ id, timestamp_ms, kind: { type, ..fields } }`).
+pub const AGENT_EVENTS_EVENT: &str = "vox://agent-events";
+
+/// Spawn a background task that subscribes to the orchestrator daemon's
+/// agent-event stream and re-emits each event as the [`AGENT_EVENTS_EVENT`]
+/// Tauri event.
+///
+/// Mirrors [`spawn_orchestrator_status_stream`] (the B1 pattern). Resilient by
+/// design: if the daemon is unavailable or the stream ends, the task simply
+/// exits without crashing the app. Each emitted payload is the raw serialized
+/// `AgentEvent` forwarded verbatim from the daemon.
+pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle) {
+    tokio::spawn(async move {
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
+
+        // Drive the subscription in its own task so we can drain `rx` concurrently.
+        let producer = tokio::spawn(async move {
+            let _ = subscribe_daemon(
+                "vox-orchestrator-d",
+                orch_daemon_method::SUBSCRIBE_EVENTS,
+                serde_json::json!({}),
+                tx,
+            )
+            .await;
+        });
+
+        while let Some(value) = rx.recv().await {
+            let _ = app_handle.emit(AGENT_EVENTS_EVENT, value);
+        }
+
+        // Stream ended (daemon stopped or errored); let the producer wind down.
+        let _ = producer.await;
+    });
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct GuiAgentSummary {
     pub id: u64,
