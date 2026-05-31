@@ -41,8 +41,15 @@ pub fn emit_form(form: &HirForm) -> String {
     for f in &visible {
         if f.required {
             let label = f.label.as_deref().unwrap_or(&f.name);
+            // Numeric fields hold a `number` (`NaN` when empty); string fields use
+            // the `=== ""` empty check.
+            let empty_check = if hir_type_to_input_type(&f.ty) == "number" {
+                format!("Number.isNaN({n})", n = f.name)
+            } else {
+                format!("{n} === \"\"", n = f.name)
+            };
             out.push_str(&format!(
-                "    if ({n} === undefined || {n} === null || {n} === \"\") e.{n} = \"{label} is required\";\n",
+                "    if ({n} === undefined || {n} === null || {empty_check}) e.{n} = \"{label} is required\";\n",
                 n = f.name
             ));
         }
@@ -140,6 +147,13 @@ pub fn emit_form(form: &HirForm) -> String {
 
         let bind_attr = if input_type == "checkbox" {
             format!("checked={{{fname}}}", fname = f.name)
+        } else if input_type == "number" {
+            // Numeric fields hold a `number` that is `NaN` when empty/unfilled —
+            // show a blank input then (a `value` of NaN would render "NaN").
+            format!(
+                "value={{Number.isNaN({fname}) ? \"\" : {fname}}}",
+                fname = f.name
+            )
         } else {
             format!("value={{{fname} ?? \"\"}}", fname = f.name)
         };
@@ -169,7 +183,9 @@ fn hir_type_to_input_type(ty: &HirType) -> &'static str {
 
 fn field_initial_value(f: &HirFormField) -> &'static str {
     match &f.ty {
-        HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "0",
+        // Numeric fields start empty (NaN) so a required field isn't pre-satisfied
+        // by a `0` default; the input renders blank (see the `value` binding).
+        HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "NaN",
         HirType::Named(t) if t == "bool" => "false",
         _ => "\"\"",
     }
