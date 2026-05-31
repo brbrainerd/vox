@@ -6,6 +6,7 @@
 mod ids;
 mod messages;
 mod routing;
+mod routing_profile;
 mod switch;
 mod tasks;
 
@@ -18,6 +19,7 @@ pub use messages::{
     ThreadId, VcsContext,
 };
 pub use routing::RoutingProfile;
+pub use routing_profile::{RoutingProfile as FreeRoutingProfile, config_to_routing_profile};
 pub use switch::{SwitchAccessMode, SwitchAction, SwitchActionType};
 pub use tasks::{
     AccessKind, AgentTask, Budget, CompletionAttestation, FileAffinity, MAX_A2A_BOUNCE,

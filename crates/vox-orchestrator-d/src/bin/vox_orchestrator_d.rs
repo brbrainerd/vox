@@ -103,6 +103,29 @@ async fn main() -> anyhow::Result<()> {
                 tracing::info!(priority = %csv, "applied persisted routing-priority emphasis");
             }
         }
+
+        // Apply any persisted ordered selection-policy chain. Installed as a
+        // process global the selection resolver reads; empty / absent leaves the
+        // pre-existing selection cascade unchanged.
+        if let Ok(Some(json)) = db
+            .get_user_preference("local_user", "selection_policy")
+            .await
+        {
+            let json = json.trim();
+            if !json.is_empty() {
+                match vox_orchestrator::models::SelectionPolicy::from_json(json) {
+                    Ok(policy) => {
+                        let n = policy.steps.len();
+                        vox_orchestrator::models::install_active_policy(Some(policy));
+                        tracing::info!(steps = n, "applied persisted selection-policy chain");
+                    }
+                    Err(e) => tracing::warn!(
+                        error = %e,
+                        "selection_policy preference is not valid JSON; ignoring"
+                    ),
+                }
+            }
+        }
     }
 
     runtime::spawn_agent_fleet_if_enabled(orch.clone());

@@ -572,11 +572,42 @@ pub enum SelectionReason {
 /// the caller-specific weights. The mutation is restored on return.
 #[allow(unsafe_code)]
 pub fn select(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<SelectionOutcome> {
+    // 0. Ordered selection-policy chain (process-global, set by the daemon from
+    //    the persisted `selection_policy` user preference). When no policy is
+    //    installed, or the policy is empty, or the policy yields nothing, this
+    //    falls through to the pre-existing cascade in `select_inner` — so
+    //    default behavior is unchanged.
+    if let Some(policy) = super::policy::active_policy() {
+        let ctx = super::policy::PolicyContext::from_env();
+        if let Some(o) = super::policy::resolve_policy(&policy, intent, registry, &ctx) {
+            emit_decision_event(intent, &o);
+            return Some(o);
+        }
+    }
+
     let outcome = select_inner(intent, registry);
     if let Some(ref o) = outcome {
         emit_decision_event(intent, o);
     }
     outcome
+}
+
+/// Select honoring an explicitly-supplied [`super::policy::SelectionPolicy`]
+/// and [`super::policy::PolicyContext`] (used by callers that thread a policy
+/// directly rather than via the process global — and by tests). Falls through
+/// to the pre-existing cascade when the policy yields nothing.
+#[must_use]
+pub fn select_with_policy(
+    intent: &SelectionIntent,
+    registry: &ModelRegistry,
+    policy: &super::policy::SelectionPolicy,
+    ctx: &super::policy::PolicyContext,
+) -> Option<SelectionOutcome> {
+    if let Some(o) = super::policy::resolve_policy(policy, intent, registry, ctx) {
+        emit_decision_event(intent, &o);
+        return Some(o);
+    }
+    select(intent, registry)
 }
 
 fn select_inner(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<SelectionOutcome> {
@@ -718,6 +749,21 @@ fn select_via_scorer(
         reason: SelectionReason::Scored,
         effective_axes,
     })
+}
+
+/// Crate-internal accessor for the policy resolver: run the scorer path with
+/// the (possibly axis-shaped) intent.
+pub(crate) fn select_via_scorer_public(
+    intent: &SelectionIntent,
+    registry: &ModelRegistry,
+) -> Option<SelectionOutcome> {
+    select_via_scorer(intent, registry)
+}
+
+/// Crate-internal accessor for the policy resolver: check intent hard filters.
+#[must_use]
+pub(crate) fn supports_intent_constraints_public(m: &ModelSpec, intent: &SelectionIntent) -> bool {
+    supports_intent_constraints(m, intent)
 }
 
 /// True iff `m` satisfies the intent's hard filters
