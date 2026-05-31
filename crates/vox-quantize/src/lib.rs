@@ -11,7 +11,7 @@ pub mod verify;
 pub mod write;
 
 // TODO(SP-1 Task 2+): re-export public API once each module defines its items.
-// pub use device::DevicePref;
+pub use device::DevicePref;
 // pub use engine::{quantize, QuantizeRequest};
 pub use error::QuantizeError;
 // pub use policy::{QuantMixture, TensorRole};
