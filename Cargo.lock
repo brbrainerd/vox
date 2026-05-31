@@ -13882,6 +13882,7 @@ dependencies = [
  "vox-telemetry",
  "vox-test-harness",
  "walkdir",
+ "wat",
  "workspace-hack",
  "xxhash-rust",
 ]
