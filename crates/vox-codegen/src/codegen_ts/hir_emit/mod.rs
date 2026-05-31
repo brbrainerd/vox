@@ -56,6 +56,15 @@ pub struct EmitCtx<'a> {
     pub async_fn_names: &'a HashSet<String>,
     pub endpoint_params: &'a HashMap<String, Vec<String>>,
     pub local_exec_db: bool,
+    /// Set when emitting a component event-handler body (an `on_click`/`on_press`
+    /// lambda) that calls an async client fn (`@query`/`@mutation`) or an async
+    /// mobile call (`Speech.transcribe_microphone()`). Promotes the handler arrow
+    /// to `async`, blocks to awaited async IIFEs, and `match` dispatch arrows to
+    /// `async` — the same async machinery `local_exec_db` uses — WITHOUT the
+    /// db-op / `?`-propagation lowering. Lets handler bodies legally `await` so a
+    /// `match record_event(...) { Ok(..) => .. }` discriminates on the resolved
+    /// value, not the pending Promise.
+    pub handler_await: bool,
     /// Name of the endpoint fn whose body is currently being emitted (the
     /// tracing label passed to `recordMutation`); empty outside local-exec.
     pub current_fn: &'a str,
@@ -69,6 +78,7 @@ impl<'a> EmitCtx<'a> {
             async_fn_names: EMPTY_ASYNC_FNS.get_or_init(HashSet::new),
             endpoint_params: EMPTY_ENDPOINT_PARAMS.get_or_init(HashMap::new),
             local_exec_db: false,
+            handler_await: false,
             current_fn: "",
         }
     }
@@ -139,7 +149,21 @@ impl<'a> EmitCtx<'a> {
             async_fn_names: EMPTY_ASYNC_FNS.get_or_init(HashSet::new),
             endpoint_params: self.endpoint_params,
             local_exec_db: self.local_exec_db,
+            handler_await: self.handler_await,
             current_fn: self.current_fn,
+        }
+    }
+
+    /// Clone this context as an async event-handler body context: preserves
+    /// `async_fn_names` + `endpoint_params` (so calls still `await` and rewrite to
+    /// the named-args form) and sets `handler_await`, WITHOUT the `local_exec_db`
+    /// db/`?` lowering. Used when an `on_click`/`on_press` lambda body calls an
+    /// async client fn — the arrow is emitted `async` so those awaits are legal.
+    pub fn to_handler(&self) -> Self {
+        EmitCtx {
+            handler_await: true,
+            local_exec_db: false,
+            ..self.clone()
         }
     }
 }
@@ -314,8 +338,15 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             if let Some(inline) = extract_single_jsx_expr(stmts, ctx) {
                 return inline;
             }
-            let plain_ctx = ctx.to_plain();
-            if ctx.local_exec_db {
+            // Handler bodies preserve `async_fn_names` (so nested calls keep their
+            // `await`); local-exec inner scope uses `to_plain` (db ops lower via
+            // the `local_exec_db` flag, which `to_plain` retains).
+            let plain_ctx = if ctx.handler_await {
+                ctx.clone()
+            } else {
+                ctx.to_plain()
+            };
+            if ctx.local_exec_db || ctx.handler_await {
                 // On-device block-as-value: an `async` IIFE so arm/db awaits are
                 // legal, and the trailing expression is `return`ed so the block
                 // produces its value (e.g. a match-arm body `{ let x = …; <expr> }`).
@@ -498,6 +529,12 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             // means across both emit stacks.
             if let HirExpr::Ident(ns, _) = obj.as_ref() {
                 if ns == "Speech" && method == "transcribe_microphone" && args.is_empty() {
+                    // `mobile.transcribe_microphone(): Promise<string>` — await it in
+                    // an async handler so a `match Speech.transcribe_microphone() {…}`
+                    // discriminates on the resolved string, not the pending Promise.
+                    if ctx.handler_await {
+                        return "await mobile.transcribe_microphone()".to_string();
+                    }
                     return "mobile.transcribe_microphone()".to_string();
                 }
                 if ns == "Speech" && method == "transcribe" {
@@ -601,7 +638,23 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                     else_out.push_str(&emit_hir_stmt(s, ctx, 0));
                 }
             }
-            format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
+            // An `if` used as a value emits each branch as an IIFE. When a branch
+            // body contains `await` (a nested `@query`/`@mutation` in an async
+            // handler, or an on-device db op under `local_exec_db`), that IIFE must
+            // be `async` and awaited — otherwise `await` sits in a sync function.
+            // Branches with no `await` stay byte-identical to the sync form.
+            let arm_iife = |body: &str| {
+                if body.contains("await ") {
+                    format!("await (async () => {{ {body} }})()")
+                } else {
+                    format!("(() => {{ {body} }})()")
+                }
+            };
+            format!(
+                "(({c}) ? {} : {})",
+                arm_iife(&then_out),
+                arm_iife(&else_out)
+            )
         }
         HirExpr::For(name, index, iterable, body, key_expr, _) => {
             let iter = emit_hir_expr(iterable, ctx);
@@ -623,10 +676,31 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
         }
         HirExpr::Lambda(params, _, body, _, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            // Strip async context — the lambda has its own scope — but keep
-            // `endpoint_params` so endpoint calls inside an event-handler lambda
-            // (the common case: `onPress={() => { record_event(...) }}`) are
-            // still rewritten to the named-object form `vox-client` expects.
+            // An event-handler lambda whose body calls an async client fn
+            // (`@query`/`@mutation`) or an async mobile call must be emitted as an
+            // `async` arrow so those calls can `await` — otherwise a
+            // `match record_event(...) { Ok(..) => .. }` discriminates on the
+            // pending Promise (hits `default`) and `let p = parse_voice(...); p.kind`
+            // reads a field off a Promise. See `EmitCtx::handler_await`.
+            if !ctx.handler_await && async_walker::expr_has_async_call(body, ctx.async_fn_names) {
+                let hctx = ctx.to_handler();
+                if let HirExpr::Block(stmts, _) = body.as_ref() {
+                    // Emit the block's statements directly into the async arrow so
+                    // top-level awaits are legal (no wrapping void IIFE).
+                    let mut out = format!("(async ({}) => {{\n", param_names.join(", "));
+                    for stmt in stmts {
+                        out.push_str(&emit_hir_stmt(stmt, &hctx, 2));
+                    }
+                    out.push_str("  })");
+                    return out;
+                }
+                let b = emit_hir_expr(body, &hctx);
+                return format!("(async ({}) => ({}))", param_names.join(", "), b);
+            }
+            // Sync lambda: strip async context — the lambda has its own scope — but
+            // keep `endpoint_params` so endpoint calls inside an event-handler
+            // lambda are still rewritten to the named-object form `vox-client`
+            // expects.
             let lambda_ctx = ctx.to_plain();
             let b = emit_hir_expr(body, &lambda_ctx);
             format!("(({}) => ({}))", param_names.join(", "), b)
@@ -639,7 +713,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             // In on-device (local-exec) bodies a match arm can contain `await`
             // (a nested db op), so the dispatch arrow must be `async` and its
             // result awaited; otherwise the plain sync IIFE is emitted.
-            let (match_afn, match_aw) = if ctx.local_exec_db {
+            let (match_afn, match_aw) = if ctx.local_exec_db || ctx.handler_await {
                 ("async ", "await ")
             } else {
                 ("", "")
@@ -789,15 +863,26 @@ pub(crate) fn emit_hir_expr_attr_value(
             .map(|c| c.is_uppercase())
             .unwrap_or(false);
     if is_event_handler {
+        // A handler written as a lambda — `on_click={fn() {…}}` lowers to a Block
+        // wrapping a single Lambda statement (or, rarely, a bare Lambda). Emit that
+        // lambda AS the handler: the shared Lambda lowering makes it `async () =>`
+        // when its body awaits an `@query`/`@mutation`. Without this it would be
+        // emitted as an expression statement inside an extra `() => { … }` wrapper
+        // — defined but never invoked, so the handler silently did nothing.
+        if let Some(lambda) = single_lambda_handler(expr) {
+            return emit_hir_expr(lambda, ctx);
+        }
         if let HirExpr::Block(stmts, _) = expr {
-            // §1.A.2: detect if any top-level stmt calls an @endpoint fn; if so, emit
-            // `async () => {` and add `await` to those calls via the handler ctx.
+            // A handler written as a bare statement block — `on_click={ stmt; stmt }`.
+            // Detect if any stmt (transitively, not across lambdas) calls an async
+            // client fn; if so emit `async () => {` with the handler-await context so
+            // those calls `await` and nested `match`/blocks dispatch async.
             let needs_async = !ctx.async_fn_names.is_empty()
                 && stmts
                     .iter()
                     .any(|s| stmt_has_async_call(s, ctx.async_fn_names));
             let handler_ctx = if needs_async {
-                ctx.clone()
+                ctx.to_handler()
             } else {
                 ctx.to_plain()
             };
@@ -810,6 +895,22 @@ pub(crate) fn emit_hir_expr_attr_value(
         }
     }
     emit_hir_expr(expr, ctx)
+}
+
+/// If `expr` is a handler written as a lambda — either a bare `HirExpr::Lambda`
+/// or a single-statement `Block` wrapping one (`on_click={fn() {…}}`) — return a
+/// reference to that lambda so it can be emitted directly as the event handler.
+fn single_lambda_handler(expr: &HirExpr) -> Option<&HirExpr> {
+    match expr {
+        HirExpr::Lambda(..) => Some(expr),
+        HirExpr::Block(stmts, _) if stmts.len() == 1 => match &stmts[0] {
+            HirStmt::Expr { expr: inner, .. } if matches!(inner, HirExpr::Lambda(..)) => {
+                Some(inner)
+            }
+            _ => None,
+        },
+        _ => None,
+    }
 }
 
 /// **Phase:** compat-legacy (OP-0138).
@@ -1413,7 +1514,7 @@ mod hir_emit_if_tests {
 mod async_emit_tests {
     use super::*;
     use vox_compiler::ast::span::Span;
-    use vox_compiler::hir::{HirArg, HirExpr, HirPattern, HirStmt};
+    use vox_compiler::hir::{HirArg, HirExpr, HirMatchArm, HirPattern, HirStmt};
 
     fn span() -> Span {
         Span { start: 0, end: 0 }
@@ -1572,6 +1673,79 @@ mod async_emit_tests {
         assert!(
             !out.contains("await "),
             "no await in sync handler, got: {out}"
+        );
+    }
+
+    fn lambda(body_stmts: Vec<HirStmt>) -> HirExpr {
+        HirExpr::Lambda(
+            vec![],
+            None,
+            Box::new(handler_block(body_stmts)),
+            false,
+            span(),
+        )
+    }
+
+    // Test 5: a handler written as a lambda — `on_click={fn() { … }}` lowers to a
+    // Block wrapping the Lambda. It must be emitted AS the handler (a single async
+    // arrow that awaits), NOT as a discarded expression statement inside an extra
+    // sync `() => {}` wrapper (the old bug that left voice handlers inert).
+    #[test]
+    fn lambda_wrapped_handler_emits_single_async_arrow() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["parse_voice"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `{ fn() { let p = parse_voice("hi") } }`
+        let inner = lambda(vec![let_stmt(
+            "p",
+            call("parse_voice", vec![string_lit("hi")]),
+        )]);
+        let block = handler_block(vec![expr_stmt(inner)]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.starts_with("(async ()"),
+            "lambda handler must emit a single async arrow, got: {out}"
+        );
+        assert!(
+            out.contains("await parse_voice"),
+            "awaited call expected, got: {out}"
+        );
+        // No sync outer wrapper that would discard the lambda unexecuted.
+        assert!(
+            !out.trim_start().starts_with("() => {"),
+            "lambda must not be double-wrapped + discarded, got: {out}"
+        );
+    }
+
+    // Test 6: a `match` whose scrutinee is an async call, inside a lambda handler,
+    // awaits the scrutinee — so it discriminates on the resolved value, not the
+    // pending Promise (the chained-Save data-loss bug).
+    #[test]
+    fn match_scrutinee_async_call_in_lambda_handler_is_awaited() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["save_event"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `{ fn() { match save_event() { _ => {} } } }`
+        let arm = HirMatchArm {
+            pattern: HirPattern::Wildcard(span()),
+            guard: None,
+            body: Box::new(handler_block(vec![])),
+            span: span(),
+        };
+        let m = HirExpr::Match(Box::new(call("save_event", vec![])), vec![arm], span());
+        let block = handler_block(vec![expr_stmt(lambda(vec![expr_stmt(m)]))]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.contains("await save_event"),
+            "match scrutinee must be awaited, got: {out}"
+        );
+        assert!(
+            out.starts_with("(async ()"),
+            "handler must be async, got: {out}"
         );
     }
 }

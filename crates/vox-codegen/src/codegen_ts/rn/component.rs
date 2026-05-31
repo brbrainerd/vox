@@ -190,13 +190,20 @@ fn emit_event_handler_with_state(
     state_names: &HashSet<String>,
     endpoint_params: &HashMap<String, Vec<String>>,
 ) -> String {
-    // NOTE: handler bodies that call async endpoints (`@query`/`@mutation`) are
-    // not yet `await`ed — the body emits nested SYNC IIFEs (match dispatch,
-    // closures) that cannot host `await`. Making handlers async needs the same
-    // async-IIFE treatment the `local_exec_db` match path uses, threaded through
-    // match/block/closure emission and regression-tested on web + mobile.
-    // Tracked as a follow-up.
-    let body = emit_hir_expr_inline_with_state(expr, state_names, endpoint_params);
+    // Thread the async client-fn names (every `@query`/`@mutation` endpoint) so a
+    // handler body that calls one is emitted as an `async () => { … await … }`
+    // arrow by the shared lambda lowering (`EmitCtx::handler_await`). Without this
+    // the body would emit sync nested IIFEs and a `match record_event(...) {…}`
+    // would discriminate on the pending Promise — never running the Ok/Error arm
+    // (and, for a chained Save, never firing the inner mutation). Same async
+    // machinery the web reactive emit uses via `view_ctx`.
+    let async_fn_names: HashSet<String> = endpoint_params.keys().cloned().collect();
+    let ctx = crate::codegen_ts::hir_emit::EmitCtx::with_async_and_endpoints(
+        state_names,
+        &async_fn_names,
+        endpoint_params,
+    );
+    let body = crate::codegen_ts::hir_emit::emit_hir_expr(expr, &ctx);
     extract_or_wrap_arrow(&body).into_owned()
 }
 
