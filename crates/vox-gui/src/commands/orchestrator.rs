@@ -1,6 +1,43 @@
-use vox_cli_core::daemon_ipc::dispatch::call_daemon;
+use tauri::Emitter;
+use vox_cli_core::daemon_ipc::dispatch::{call_daemon, subscribe_daemon};
 use vox_foundation::protocol::orch_daemon_method;
 use vox_package_types::manifest::VoxManifest;
+
+/// Tauri event channel carrying live orchestrator status snapshots to the UI.
+pub const ORCH_STATUS_EVENT: &str = "vox://orch-status";
+
+/// Spawn a background task that subscribes to the orchestrator daemon's status
+/// stream and re-emits each snapshot as the [`ORCH_STATUS_EVENT`] Tauri event.
+///
+/// Resilient by design: if the daemon is unavailable or the stream ends, the task
+/// simply exits without crashing the app. The emitted payload has the same shape
+/// as [`get_orchestrator_status`] (the GUI-mapped status object with `agent_count`).
+pub fn spawn_orchestrator_status_stream(app_handle: tauri::AppHandle) {
+    tokio::spawn(async move {
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
+
+        // Drive the subscription in its own task so we can drain `rx` concurrently.
+        let producer = tokio::spawn(async move {
+            let _ = subscribe_daemon(
+                "vox-orchestrator-d",
+                orch_daemon_method::SUBSCRIBE,
+                serde_json::json!({}),
+                tx,
+            )
+            .await;
+        });
+
+        while let Some(raw) = rx.recv().await {
+            let gui_status = to_gui_status(raw);
+            if let Ok(value) = serde_json::to_value(&gui_status) {
+                let _ = app_handle.emit(ORCH_STATUS_EVENT, value);
+            }
+        }
+
+        // Stream ended (daemon stopped or errored); let the producer wind down.
+        let _ = producer.await;
+    });
+}
 
 #[derive(Debug, serde::Serialize)]
 pub struct GuiAgentSummary {

@@ -1,5 +1,21 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ActionManifest } from './types/actionManifest';
+
+/** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
+export const ORCH_STATUS_EVENT = 'vox://orch-status';
+
+/**
+ * Subscribe to the pushed orchestrator-status event stream. The payload is the
+ * same status object shape returned by `get_orchestrator_status` / daemon
+ * `orch.status()` (fields like `agent_count`). Returns the `UnlistenFn` to call
+ * on cleanup. Rejects if not running inside Tauri (caller should fall back to polling).
+ */
+export function listenOrchStatus(
+  onStatus: (status: any) => void,
+): Promise<UnlistenFn> {
+  return listen<any>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
+}
 
 export interface ExecuteOutput {
   exit_code: number;

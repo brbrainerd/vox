@@ -182,14 +182,26 @@ the existing newline-delimited frame format by:
   `crates/vox-orchestrator/tests/orchestrator_daemon_tcp.rs` (RED→GREEN); all 3
   daemon TCP tests pass; consumer crates compile clean.
 
-**Remaining for B1 (frontend flip — needs a Tauri build to verify end-to-end):**
-- `crates/vox-gui/src/commands/orchestrator.rs` + `main.rs` — a Tauri command that
-  spawns `OrchDaemonClient::subscribe`, drains the mpsc channel, and re-emits each
-  value via `AppHandle::emit` under a `"vox://orch-status"` event.
-- `crates/vox-gui/ui/src/App.tsx` — replace `setInterval(poll, 2000)` (line ~177)
-  with the already-stubbed `EventBus` listener path via `@tauri-apps/api/event`
-  `listen()`, feeding the same `mapStream`/KPI-update logic the polling fallback
-  uses today.
+**Frontend flip — landed (2026-05-30):** The GUI reaches the daemon by *spawning* it
+over stdio (`call_daemon`), not a persistent TCP connection — so the GUI consumes the
+stream via a spawn-based helper, while the TCP `OrchDaemonClient::subscribe` remains
+for TCP-mode/tests.
+- `crates/vox-cli-core/src/daemon_ipc/dispatch.rs` — `subscribe_daemon(daemon, method,
+  params, tx)`: spawns the daemon over stdio (mirrors `call_daemon_streaming`),
+  forwards each `Event { value }` into an mpsc `Sender`, terminates the child on
+  `Done`/receiver-drop/EOF.
+- `crates/vox-gui/src/commands/orchestrator.rs` — `spawn_orchestrator_status_stream`
+  drains the channel, maps each raw `orch.status()` snapshot through the existing
+  `to_gui_status`, and re-emits it as the `"vox://orch-status"` Tauri event (const
+  `ORCH_STATUS_EVENT`).
+- `crates/vox-gui/src/main.rs` — `.setup()` hook starts the subscription for the app
+  lifetime.
+- `crates/vox-gui/ui/src/{transport.ts,App.tsx}` — `listenOrchStatus` helper; `App.tsx`
+  now subscribes to the pushed stream (initial snapshot on mount, then `listen()`),
+  with 2 s polling retained **only** as a fallback when `listen()` rejects (browser/dev).
+- Verified: `cargo check -p vox-gui` + `-p vox-cli-core` clean; `vite build` passes;
+  backend daemon tests green. **Remaining verification:** a live Tauri launch to confirm
+  the UI renders from the stream end-to-end (no automated harness for the Tauri runtime).
 
 ## Sequencing and dependencies
 

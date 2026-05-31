@@ -37,6 +37,12 @@ async fn main() {
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
+        .setup(|app| {
+            // B1: start the live orchestrator status stream, re-emitting each
+            // snapshot as the "vox://orch-status" Tauri event.
+            commands::orchestrator::spawn_orchestrator_status_stream(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::catalog::get_command_catalog,
             commands::action_manifest::get_action_manifest,

@@ -19,7 +19,8 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
-import { voxTransport } from './transport';
+import { voxTransport, listenOrchStatus } from './transport';
+import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
 import { DashboardData, Agent, StreamItem, LudusAlert } from './types/dashboard';
@@ -157,26 +158,53 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Polling status refresh (event stream integration pending) ─────────────
-  // We use `get_orchestrator_status_bin` to fetch raw MessagePack payloads,
-  // bypassing Tauri's default JSON string-escaping overhead for large states.
+  // ── Pushed status stream (B1: "vox://orch-status" Tauri event) ─────────────
+  // Primary path is the daemon-pushed event stream. We keep one initial snapshot
+  // fetch on mount, and fall back to polling ONLY if the listener can't be set
+  // up (e.g. running outside Tauri in a plain browser dev session).
   useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
     let fallbackInterval: ReturnType<typeof setInterval> | undefined;
+    let cancelled = false;
 
-    const poll = async () => {
+    // One-shot initial snapshot via the existing binary status command.
+    // We use `get_orchestrator_status_bin` to fetch raw MessagePack payloads,
+    // bypassing Tauri's default JSON string-escaping overhead for large states.
+    const fetchSnapshot = async () => {
       try {
         const rawBytes = await invoke<Uint8Array>('get_orchestrator_status_bin');
-        const status = decode(rawBytes);
-        applyStatus(status);
+        applyStatus(decode(rawBytes));
       } catch (err) {
-        // Silently ignore if backend is down or not ready
+        // Silently ignore if backend is down or not ready.
       }
     };
 
-    poll();
-    fallbackInterval = setInterval(poll, 2000);
+    const startFallbackPolling = () => {
+      if (fallbackInterval !== undefined) return;
+      fallbackInterval = setInterval(fetchSnapshot, 2000);
+    };
+
+    // Initial snapshot for first paint.
+    fetchSnapshot();
+
+    // Subscribe to the pushed event stream; fall back to polling on failure.
+    listenOrchStatus((status) => applyStatus(status))
+      .then((fn) => {
+        if (cancelled) {
+          // Effect already cleaned up before subscription resolved.
+          fn();
+          return;
+        }
+        unlisten = fn;
+      })
+      .catch(() => {
+        // listen() unavailable (e.g. plain browser) — degrade to polling.
+        if (!cancelled) startFallbackPolling();
+      });
 
     return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
       if (fallbackInterval !== undefined) clearInterval(fallbackInterval);
     };
   }, [applyStatus]);
