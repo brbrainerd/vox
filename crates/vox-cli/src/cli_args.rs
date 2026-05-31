@@ -166,6 +166,28 @@ pub struct ScriptArgs {
     pub args: Vec<String>,
 }
 
+/// `vox wasm run` — execute a raw precompiled WASI module via the in-process
+/// wasmtime SSOT (vox-wasm-engine). NOT feature-gated: raw-`.wasm` execution must
+/// always be available (the mesh worker + control plane shell out to it).
+#[derive(Args, Clone, Debug)]
+pub struct WasmRunArgs {
+    /// Path to a precompiled `.wasm` (WASI preview1) module.
+    #[arg(required = true)]
+    pub file: std::path::PathBuf,
+    /// Fuel limit (wasmtime instructions). Omitted / 0 = unlimited.
+    #[arg(long)]
+    pub fuel: Option<u64>,
+    /// Read-only preopen, repeatable: HOST[:GUEST] (guest defaults to host).
+    #[arg(long = "preopen-ro", value_name = "HOST[:GUEST]")]
+    pub preopen_ro: Vec<String>,
+    /// Read-write preopen, repeatable: HOST[:GUEST].
+    #[arg(long = "preopen-rw", value_name = "HOST[:GUEST]")]
+    pub preopen_rw: Vec<String>,
+    /// Guest argv (argv[0] is synthesized from the module stem).
+    #[arg(trailing_var_arg = true)]
+    pub args: Vec<String>,
+}
+
 /// `vox dev` / `vox fabrica dev`
 #[derive(Args, Clone, Debug)]
 pub struct DevArgs {

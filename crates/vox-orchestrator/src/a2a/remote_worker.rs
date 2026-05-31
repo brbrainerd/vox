@@ -231,19 +231,10 @@ fn parts_from_output(output: std::io::Result<std::process::Output>) -> Dispatche
 /// echoes). Otherwise returns the real outcome — including refusals (invalid
 /// base64, missing/mismatched BLAKE3 integrity, `source-only` policy, or a native
 /// binary under a non-`permissive` policy) as `success: false` **without
-/// spawning**. WASM modules are dispatched via `vox run --mode script
-/// --isolation wasm`; native binaries execute directly and are therefore gated to
-/// `permissive` only. Mirrors the control-plane executor in `vox-populi`
-/// `transport::handlers::dispatch`.
-///
-/// KNOWN GAP (fails safe): `--isolation` is currently a flag on `vox script`, not
-/// `vox run`, and no CLI runs a *raw precompiled* `.wasm` bundle yet — so the WASM
-/// spawn here returns `success: false` (the launcher rejects `--isolation`) rather
-/// than executing, until a raw-`.wasm` runner exists. This is shared with the
-/// control-plane handler. The dispatch *infrastructure* (decode, BLAKE3 integrity,
-/// WASM/native classification, policy gating, no-spawn refusals) is real and
-/// tested; `wasm_bundle_executes_under_isolation_when_supported` is a real-WASI-
-/// module probe that skips until a working invocation is available.
+/// spawning**. WASM modules run under the wasmtime/WASI sandbox via `vox wasm run`
+/// (the raw-`.wasm` runner, always available — not feature-gated); native binaries
+/// execute directly and are therefore gated to `permissive` only. Mirrors the
+/// control-plane executor in `vox-populi` `transport::handlers::dispatch`.
 ///
 /// SECURITY: precompiled-code execution. WASM is sandboxed by wasmtime/WASI;
 /// native execution is the most dangerous lane and is allowed only under an
@@ -312,13 +303,11 @@ fn run_dispatched_bundle(
     }
 
     let output = match kind {
-        // WASM runs under the existing wasmtime/WASI isolation tier.
+        // WASM runs under the wasmtime/WASI sandbox via the raw-.wasm runner
+        // (`vox wasm run`), which is always available (not feature-gated).
         BundleKind::Wasm => std::process::Command::new("vox")
-            .arg("run")
-            .arg("--mode")
-            .arg("script")
-            .arg("--isolation")
             .arg("wasm")
+            .arg("run")
             .arg(&tmp_file)
             .output(),
         // Native binary — permissive-only, executed directly.
@@ -1092,11 +1081,10 @@ mod tests {
 
     #[test]
     #[serial(vox_spawn)]
-    fn wasm_bundle_executes_under_isolation_when_supported() {
-        // Genuinely exercises the WASM lane: a real WASI module run via
-        // `vox run --mode script --isolation wasm`. Skips cleanly when `vox` is
-        // absent or was not built with the `script-execution` feature (the default
-        // build), so it never passes vacuously.
+    fn wasm_bundle_executes_via_wasm_run_to_clean_exit() {
+        // Genuinely exercises the WASM lane end-to-end: a real WASI module run via
+        // `vox wasm run` (the always-available raw-.wasm runner — NOT feature-gated).
+        // Skips only when `vox` is absent from PATH; never passes vacuously.
         if !vox_on_path() {
             eprintln!("skipping: `vox` not on PATH");
             return;
@@ -1111,23 +1099,9 @@ mod tests {
         )
         .expect("a decision is returned (integrity + classification passed)");
 
-        let combined = format!(
-            "{} {}",
-            parts.result.as_deref().unwrap_or(""),
-            parts.error.as_deref().unwrap_or("")
-        );
-        // The default `vox` build lacks the wasm isolation backend: `--mode script`
-        // errors ("requires ... script-execution") and `--isolation` is not even a
-        // recognized flag ("unexpected argument '--isolation'"). Skip rather than
-        // assert a vacuous pass; build `vox` with --features script-execution (on
-        // PATH) to run this for real.
-        if combined.contains("script-execution") || combined.contains("unexpected argument") {
-            eprintln!("skipping: `vox` lacks the `script-execution` feature / --isolation flag");
-            return;
-        }
         assert!(
             parts.success,
-            "a valid WASI module must run to a clean exit under --isolation wasm; error={:?}",
+            "a valid WASI module must run to a clean exit via `vox wasm run`; error={:?}",
             parts.error
         );
     }

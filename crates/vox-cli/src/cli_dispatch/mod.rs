@@ -268,6 +268,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Model { cmd } => {
             crate::commands::model::run(cmd).await?;
         }
+        Cli::Wasm { cmd } => {
+            crate::commands::wasm::run(cmd)?;
+        }
         #[cfg(feature = "dei")]
         Cli::Dei { cmd } => {
             crate::commands::dei::run(cmd).await?;

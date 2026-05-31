@@ -97,6 +97,8 @@ pub mod mcp_server;
 pub mod migrate;
 pub mod model;
 pub mod new;
+/// Raw precompiled WASI module execution (`vox wasm run`) via vox-wasm-engine.
+pub mod wasm;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;
