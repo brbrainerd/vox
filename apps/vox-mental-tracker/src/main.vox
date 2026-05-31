@@ -413,6 +413,16 @@ fn test_csv_quote_inner_quotes() to Unit {
     error_message: "Couldn't save mood. Try again."
 }
 
+/// Routable page wrapping the `Mood` @form (forms can't be route targets
+/// directly — a route needs a component with a view root).
+component MoodPage() {
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Log your mood" }
+        Mood()
+    }
+}
+
 component NavBar() {
     view: row(raw_class="mh-nav") {
         link(href="/") { "Home" }
@@ -737,6 +747,7 @@ component SettingsPage() {
 
 routes {
     "/" to Home
+    "/mood" to MoodPage
     "/timeline" to TimelinePage
     "/weekly" to WeeklyPage
     "/export" to ExportPage

@@ -61,8 +61,17 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
     // Components — one file each. Precompute the reference universes once so
     // each component can emit imports for the sibling components and endpoint
     // fns it actually uses (same sets the web reactive emit derives).
-    let known_components: std::collections::HashSet<String> =
-        hir.components.iter().map(|c| c.name.clone()).collect();
+    // `@form` components (emitted into forms.tsx) are referenceable in views too
+    // (e.g. a routable page wrapping a form). Include them so the ref resolves;
+    // their import path is `./forms` (handled in emit_rn_component).
+    let form_names: std::collections::HashSet<String> =
+        hir.forms.iter().map(|f| f.name.clone()).collect();
+    let known_components: std::collections::HashSet<String> = hir
+        .components
+        .iter()
+        .map(|c| c.name.clone())
+        .chain(form_names.iter().cloned())
+        .collect();
     // name → ordered param names; keys are the endpoint-import set, values drive
     // the positional→named-object endpoint-call rewrite (see EmitCtx).
     let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
@@ -80,6 +89,7 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
         let (filename, content) = component::emit_rn_component(
             rc,
             &known_components,
+            &form_names,
             &endpoint_params,
             &screen_root_names,
             &mut diagnostics,

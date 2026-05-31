@@ -1204,6 +1204,7 @@ fn emit_lifecycle_hooks(
 pub fn emit_rn_component(
     rc: &HirReactiveComponent,
     known_components: &HashSet<String>,
+    form_names: &HashSet<String>,
     endpoint_params: &HashMap<String, Vec<String>>,
     screen_root_names: &HashSet<String>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
@@ -1243,7 +1244,12 @@ pub fn emit_rn_component(
     let (comp_refs, endpoint_refs) =
         collect_component_import_refs(rc, known_components, &endpoint_names);
     for comp in &comp_refs {
-        out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+        // `@form` components live in `forms.tsx`; sibling components in `./Name`.
+        if form_names.contains(comp) {
+            out.push_str(&format!("import {{ {comp} }} from \"./forms\";\n"));
+        } else {
+            out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+        }
     }
     if !endpoint_refs.is_empty() {
         out.push_str(&format!(

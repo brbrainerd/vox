@@ -966,12 +966,26 @@ pub fn generate_reactive_component(
     // Cross-file imports — sibling components and endpoint fns this component
     // references, anywhere in its view or member bodies. Shared with the RN
     // emit via `collect_component_import_refs` so both targets agree.
-    let known_components: HashSet<String> = hir.components.iter().map(|c| c.name.clone()).collect();
+    // `@form` components (emitted into `forms.tsx`) are referenceable in a view
+    // too — e.g. a routable page wrapping a form: `component MoodPage { view: …
+    // Mood() }`. Include their names so the ref is recognized, and import them
+    // from `./forms` (not the per-component `./Name` convention).
+    let form_names: HashSet<String> = hir.forms.iter().map(|f| f.name.clone()).collect();
+    let known_components: HashSet<String> = hir
+        .components
+        .iter()
+        .map(|c| c.name.clone())
+        .chain(form_names.iter().cloned())
+        .collect();
     let endpoint_names: HashSet<String> = hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
     let (sorted_refs, endpoint_refs) =
         collect_component_import_refs(rc, &known_components, &endpoint_names);
     for comp in &sorted_refs {
-        out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+        if form_names.contains(comp) {
+            out.push_str(&format!("import {{ {comp} }} from \"./forms\";\n"));
+        } else {
+            out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+        }
     }
     if !sorted_refs.is_empty() {
         out.push('\n');
