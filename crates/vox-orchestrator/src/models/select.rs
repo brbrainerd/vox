@@ -700,6 +700,10 @@ fn select_via_scorer(
     let effective_axes = intent.axes.to_routing_priority(intent.prefer_local);
     let cost_pref = intent.axes.to_cost_preference();
     let intent_clone = intent.clone();
+    // Install this request's axes as the scorer's base weights for the duration
+    // of the pass, so per-task SelectionAxes actually drive the choice (not just
+    // the global VOX_AUTO_ROUTING_PRIORITY env). Restored on drop.
+    let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes.clone());
     let model = registry.best_for_with_filter(
         intent.task,
         intent.complexity,
@@ -707,6 +711,7 @@ fn select_via_scorer(
         |m| supports_intent_constraints(m, &intent_clone),
         None,
     )?;
+    drop(_axes_guard);
     Some(SelectionOutcome {
         model_id: model.id.clone(),
         model_spec: model,
