@@ -42,6 +42,7 @@ pub fn run_merge_qlora(
     adapter: PathBuf,
     meta: PathBuf,
     output: PathBuf,
+    quantize: Option<String>,
 ) -> anyhow::Result<()> {
     if base_shards.is_empty() {
         anyhow::bail!("pass at least one `--base-shard` safetensors path");
@@ -136,5 +137,37 @@ pub fn run_merge_qlora(
                 .display()
         );
     }
+
+    // Optional: recombine the merged subset over the full base weights and
+    // quantize the result. `output` is the merged-subset FILE; `base_dir` is the
+    // directory holding the base model (config.json + shards), derived above as
+    // the parent of the first `--base-shard`.
+    if let Some(mixture_str) = quantize.as_deref() {
+        let mixture = crate::commands::quantize::parse_mixture(mixture_str)?;
+        let out_parent = output
+            .parent()
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or_else(|| std::path::PathBuf::from("."));
+        // recombine writes <recombined>/model.safetensors + copies base config.json
+        let recombined = out_parent.join("recombined_full");
+        vox_quantize::recombine::recombine(&base_dir, &output, &recombined)
+            .with_context(|| format!("recombine over base {}", base_dir.display()))?;
+        let q_out = out_parent.join("quantized");
+        let report = vox_quantize::quantize(&vox_quantize::QuantizeRequest {
+            input_dir: recombined.clone(),
+            output_dir: q_out.clone(),
+            mixture,
+            verify: true,
+            device: vox_quantize::DevicePref::Auto, // GPU when available
+        })
+        .with_context(|| "quantize recombined model")?;
+        println!(
+            "Quantized merged model -> {} ({:.2}x)",
+            q_out.display(),
+            report.compression_ratio
+        );
+        let _ = std::fs::remove_dir_all(&recombined);
+    }
+
     Ok(())
 }

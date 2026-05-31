@@ -405,6 +405,10 @@ pub enum PopuliAction {
         /// Output safetensors path (subset of merged keys).
         #[arg(long, required = true)]
         output: PathBuf,
+        /// After merging, recombine over base and quantize to this mixture
+        /// (q4_k_m|q5_k_m|q6_k|q8_0). Writes a quantized artifact next to --output.
+        #[arg(long)]
+        quantize: Option<String>,
     },
 
     /// AI-powered code generation from a natural language prompt
