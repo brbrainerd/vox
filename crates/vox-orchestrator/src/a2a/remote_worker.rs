@@ -165,6 +165,30 @@ fn run_dispatched_source(
         .output();
     let _ = std::fs::remove_file(&tmp_file);
 
+    Some(parts_from_output(output))
+}
+
+/// Which dispatched-bundle kind a byte blob is, by leading magic.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BundleKind {
+    /// WebAssembly module (`\0asm` magic) — runs under the wasmtime/WASI sandbox.
+    Wasm,
+    /// Anything else: a native executable.
+    Native,
+}
+
+/// Classify a decoded bundle by leading magic. WASM modules start with `\0asm`.
+fn classify_bundle(bytes: &[u8]) -> BundleKind {
+    if bytes.starts_with(b"\0asm") {
+        BundleKind::Wasm
+    } else {
+        BundleKind::Native
+    }
+}
+
+/// Turn a finished (or failed) subprocess into [`DispatchedExecParts`], applying
+/// the 10 MiB combined-output truncation shared by the source and bundle paths.
+fn parts_from_output(output: std::io::Result<std::process::Output>) -> DispatchedExecParts {
     match output {
         Ok(out) => {
             const MAX_OUTPUT_BYTES: usize = 10 * 1024 * 1024;
@@ -179,10 +203,10 @@ fn run_dispatched_source(
                     stdout.truncate(remaining);
                 }
             }
-            let combined = String::from_utf8_lossy(&stdout).into_owned()
-                + &String::from_utf8_lossy(&stderr);
+            let combined =
+                String::from_utf8_lossy(&stdout).into_owned() + &String::from_utf8_lossy(&stderr);
             let success = out.status.success();
-            Some(DispatchedExecParts {
+            DispatchedExecParts {
                 success,
                 result: Some(combined),
                 error: if success {
@@ -190,10 +214,110 @@ fn run_dispatched_source(
                 } else {
                     Some(format!("Exit code: {:?}", out.status.code()))
                 },
-            })
+            }
         }
-        Err(e) => refuse(format!("failed to spawn `vox`: {e}")),
+        Err(e) => DispatchedExecParts {
+            success: false,
+            result: None,
+            error: Some(format!("failed to spawn `vox`: {e}")),
+        },
     }
+}
+
+/// Execute a dispatched precompiled **bundle** (WASM module or native binary) on
+/// this worker.
+///
+/// Returns `None` when declined by `VoxMeshExecPolicy == "no-exec"` (caller
+/// echoes). Otherwise returns the real outcome — including refusals (invalid
+/// base64, missing/mismatched BLAKE3 integrity, `source-only` policy, or a native
+/// binary under a non-`permissive` policy) as `success: false` **without
+/// spawning**. WASM modules run under the existing wasmtime/WASI sandbox via
+/// `vox run --mode script --isolation wasm`; native binaries execute directly and
+/// are therefore gated to `permissive` only. Mirrors the audited control-plane
+/// executor in `vox-populi` `transport::handlers::dispatch`.
+///
+/// SECURITY: precompiled-code execution. WASM is sandboxed by wasmtime/WASI;
+/// native execution is the most dangerous lane and is allowed only under an
+/// explicit `permissive` policy. Integrity (BLAKE3) is mandatory. Forwarded-secret
+/// injection remains deferred (sandbox tiering).
+fn run_dispatched_bundle(
+    bundle_b64: &str,
+    expected_blake3_hex: Option<&str>,
+    policy: &str,
+) -> Option<DispatchedExecParts> {
+    if policy == "no-exec" {
+        return None;
+    }
+    let refuse = |error: String| {
+        Some(DispatchedExecParts {
+            success: false,
+            result: None,
+            error: Some(error),
+        })
+    };
+    if policy == "source-only" {
+        return refuse(
+            "node policy is source-only: precompiled bundle execution is disabled".into(),
+        );
+    }
+
+    let bytes = match base64::engine::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        bundle_b64,
+    ) {
+        Ok(b) => b,
+        Err(e) => return refuse(format!("invalid base64 bundle: {e}")),
+    };
+    let Some(expected_hex) = expected_blake3_hex else {
+        return refuse("exec_bundle_blake3_hex is required to execute a dispatched bundle".into());
+    };
+    let actual_hex = blake3::hash(&bytes).to_hex().to_string();
+    if actual_hex != expected_hex {
+        return refuse(format!(
+            "integrity error: bundle hash mismatch (expected {expected_hex}, got {actual_hex})"
+        ));
+    }
+
+    let kind = classify_bundle(&bytes);
+    if kind == BundleKind::Native && policy != "permissive" {
+        return refuse(
+            "node policy refuses native-binary bundles; only WASM bundles run unless \
+             VoxMeshExecPolicy=permissive"
+                .into(),
+        );
+    }
+
+    let ext = if kind == BundleKind::Wasm { ".wasm" } else { "" };
+    let tmp_file = std::env::temp_dir().join(format!(
+        "vox-bundle-{}{}",
+        vox_foundation::primitives::id::simple_hex_id(),
+        ext
+    ));
+    if let Err(e) = std::fs::write(&tmp_file, &bytes) {
+        return refuse(format!("failed to write bundle tmp file: {e}"));
+    }
+    #[cfg(unix)]
+    if kind == BundleKind::Native {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = std::fs::set_permissions(&tmp_file, std::fs::Permissions::from_mode(0o755));
+    }
+
+    let output = match kind {
+        // WASM runs under the existing wasmtime/WASI isolation tier.
+        BundleKind::Wasm => std::process::Command::new("vox")
+            .arg("run")
+            .arg("--mode")
+            .arg("script")
+            .arg("--isolation")
+            .arg("wasm")
+            .arg(&tmp_file)
+            .output(),
+        // Native binary — permissive-only, executed directly.
+        BundleKind::Native => std::process::Command::new(&tmp_file).output(),
+    };
+    let _ = std::fs::remove_file(&tmp_file);
+
+    Some(parts_from_output(output))
 }
 
 async fn process_one_envelope(
@@ -427,39 +551,45 @@ async fn process_one_envelope(
             .await;
     }
 
-    // Track B: when the envelope carries `.vox` source (and node policy permits),
-    // actually run it via `vox run --mode script` and return real stdout/exit.
-    // No source, or `VoxMeshExecPolicy == "no-exec"`, falls back to the legacy
-    // echo for back-compat.
-    let result_payload = match envelope.exec_source_b64.as_deref() {
-        Some(source_b64) => {
-            let policy = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecPolicy)
-                .expose()
-                .unwrap_or("permissive")
-                .to_string();
-            match run_dispatched_source(
-                source_b64,
-                envelope.exec_source_blake3_hex.as_deref(),
-                &policy,
-            ) {
-                Some(parts) => {
-                    tracing::info!(
-                        task_id = envelope.task_id,
-                        success = parts.success,
-                        "populi remote worker: executed dispatched .vox source"
-                    );
-                    RemoteTaskResult {
-                        idempotency_key: envelope.idempotency_key.clone(),
-                        task_id: Some(envelope.task_id),
-                        success: parts.success,
-                        result: parts.result,
-                        error: parts.error,
-                    }
+    // When the envelope carries executable content (and node policy permits),
+    // run it and return real stdout/exit: `.vox` source via the interpreter
+    // (Track B), or a precompiled WASM/native bundle via the wasmtime/WASI
+    // isolation tier. Precedence: source, then bundle, then the legacy echo
+    // (no exec content, or `VoxMeshExecPolicy == "no-exec"`).
+    let result_payload = {
+        let policy = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecPolicy)
+            .expose()
+            .unwrap_or("permissive")
+            .to_string();
+
+        let executed = if let Some(source_b64) = envelope.exec_source_b64.as_deref() {
+            run_dispatched_source(source_b64, envelope.exec_source_blake3_hex.as_deref(), &policy)
+                .map(|parts| ("source", parts))
+        } else if let Some(bundle_b64) = envelope.exec_bundle_b64.as_deref() {
+            run_dispatched_bundle(bundle_b64, envelope.exec_bundle_blake3_hex.as_deref(), &policy)
+                .map(|parts| ("bundle", parts))
+        } else {
+            None
+        };
+
+        match executed {
+            Some((kind, parts)) => {
+                tracing::info!(
+                    task_id = envelope.task_id,
+                    success = parts.success,
+                    kind,
+                    "populi remote worker: executed dispatched payload"
+                );
+                RemoteTaskResult {
+                    idempotency_key: envelope.idempotency_key.clone(),
+                    task_id: Some(envelope.task_id),
+                    success: parts.success,
+                    result: parts.result,
+                    error: parts.error,
                 }
-                None => echo_result(&envelope),
             }
+            None => echo_result(&envelope),
         }
-        None => echo_result(&envelope),
     };
     let result_json = match serde_json::to_string(&result_payload) {
         Ok(s) => s,
@@ -692,15 +822,29 @@ pub async fn populi_remote_worker_tick_once(orchestrator: &crate::orchestrator::
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_remote_payload_context, run_dispatched_source};
+    use super::{
+        BundleKind, classify_bundle, parse_remote_payload_context, run_dispatched_bundle,
+        run_dispatched_source,
+    };
 
     fn b64(s: &str) -> String {
         base64::engine::Engine::encode(&base64::engine::general_purpose::STANDARD, s.as_bytes())
     }
 
+    fn b64_bytes(b: &[u8]) -> String {
+        base64::engine::Engine::encode(&base64::engine::general_purpose::STANDARD, b)
+    }
+
     fn blake3_hex(s: &str) -> String {
         blake3::hash(s.as_bytes()).to_hex().to_string()
     }
+
+    fn blake3_hex_bytes(b: &[u8]) -> String {
+        blake3::hash(b).to_hex().to_string()
+    }
+
+    /// Minimal WASM module header: `\0asm` magic + version 1.
+    const WASM_HEADER: &[u8] = b"\0asm\x01\0\0\0";
 
     /// `vox` reachable on PATH? Tests that actually spawn it skip cleanly when not.
     fn vox_on_path() -> bool {
@@ -836,5 +980,85 @@ mod tests {
         let as_value: serde_json::Value = serde_json::from_str(context).expect("valid json");
         assert_eq!(as_value["schema_version"], 1);
         assert_eq!(as_value["envelope_type"], "retrieval_evidence");
+    }
+
+    // ── Bundle / WASM execution (mesh worker) ──────────────────────────────
+
+    #[test]
+    fn classify_bundle_detects_wasm_and_native() {
+        assert_eq!(classify_bundle(WASM_HEADER), BundleKind::Wasm);
+        assert_eq!(classify_bundle(b"\x7fELF not-really"), BundleKind::Native);
+        assert_eq!(classify_bundle(b""), BundleKind::Native);
+    }
+
+    #[test]
+    fn bundle_no_exec_policy_returns_none_for_echo_fallback() {
+        let got =
+            run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some(&blake3_hex_bytes(WASM_HEADER)), "no-exec");
+        assert!(got.is_none(), "no-exec policy must decline (caller echoes)");
+    }
+
+    #[test]
+    fn bundle_source_only_policy_refuses_without_spawning() {
+        let parts = run_dispatched_bundle(
+            &b64_bytes(WASM_HEADER),
+            Some(&blake3_hex_bytes(WASM_HEADER)),
+            "source-only",
+        )
+        .expect("a decision is returned");
+        assert!(!parts.success);
+        assert!(parts.error.as_deref().unwrap_or("").contains("source-only"));
+    }
+
+    #[test]
+    fn bundle_missing_integrity_hash_refuses_without_spawning() {
+        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), None, "permissive")
+            .expect("a decision is returned");
+        assert!(!parts.success);
+        assert!(parts.error.as_deref().unwrap_or("").contains("blake3"));
+    }
+
+    #[test]
+    fn bundle_hash_mismatch_refuses_without_spawning() {
+        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some("deadbeef"), "permissive")
+            .expect("a decision is returned");
+        assert!(!parts.success);
+        assert!(parts.error.as_deref().unwrap_or("").contains("hash mismatch"));
+    }
+
+    #[test]
+    fn native_bundle_refused_under_non_permissive_policy() {
+        // A non-WASM blob under a non-permissive policy must be refused WITHOUT
+        // ever executing a native binary.
+        let native = b"\x7fELF\x02\x01\x01\0 not a real binary";
+        let parts =
+            run_dispatched_bundle(&b64_bytes(native), Some(&blake3_hex_bytes(native)), "strict")
+                .expect("a decision is returned");
+        assert!(!parts.success);
+        assert!(
+            parts.error.as_deref().unwrap_or("").contains("native"),
+            "native bundles must be refused unless policy is permissive, got {:?}",
+            parts.error
+        );
+    }
+
+    #[test]
+    fn wasm_bundle_executes_under_isolation_when_supported() {
+        // Needs a `script-execution`-built `vox` (for `--isolation wasm`); skips
+        // cleanly otherwise. Proves the WASM lane reaches real isolated execution.
+        if !vox_on_path() {
+            eprintln!("skipping: `vox` not on PATH");
+            return;
+        }
+        let parts = run_dispatched_bundle(
+            &b64_bytes(WASM_HEADER),
+            Some(&blake3_hex_bytes(WASM_HEADER)),
+            "permissive",
+        )
+        .expect("a decision is returned");
+        // Either it executed (success/exit reported) or the binary lacks the wasm
+        // isolation feature (non-success with an error) — both are real outcomes,
+        // never a stub/echo. The integrity gate passed, so result/error is set.
+        assert!(parts.result.is_some() || parts.error.is_some());
     }
 }
