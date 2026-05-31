@@ -22,8 +22,13 @@
 //! (0.5–0.98) tunes the aggressiveness.
 
 /// Resident VRAM per billion parameters (GiB), covering base weights kept for the
-/// forward pass plus a share of embedding/LM-head tensors. Calibrated so 4B ≈ 13 GiB.
-const RESIDENT_GIB_PER_B_PARAMS: f64 = 3.25;
+/// forward pass plus a share of embedding/LM-head tensors.
+///
+/// Calibrated from hardware: a Qwen3.5-4B QLoRA run OOMed on a 16 GiB RTX 4080
+/// Super even at seq 128, so resident(4B) must exceed ~15.5 GiB. With the fixed
+/// overhead below, 3.5 GiB/B gives resident(4B) ≈ 15.6 GiB (rejected on 16 GiB,
+/// fits 24 GiB) and resident(2B) ≈ 8.6 GiB (comfortable on 16 GiB).
+const RESIDENT_GIB_PER_B_PARAMS: f64 = 3.5;
 
 /// Fixed VRAM overhead (GiB): CUDA context, cuBLAS workspaces, allocator slack,
 /// fragmentation headroom. Independent of model/sequence size.
@@ -38,7 +43,19 @@ const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 0.95;
 const DEFAULT_SAFETY: f64 = 0.88;
 
 /// Sequence-length search ladder (descending). The plan picks the largest that fits.
-const SEQ_LADDER: &[usize] = &[1024, 768, 512, 384, 320, 256, 192, 160, 128];
+/// Extends to 2048 so large-VRAM cards (A100/H100) get longer contexts, down to 128
+/// for the tightest configs.
+const SEQ_LADDER: &[usize] = &[2048, 1536, 1024, 768, 512, 384, 320, 256, 192, 160, 128];
+
+/// Qwen3.5 base-model ladder (largest → smallest): (parameter count in billions,
+/// Hugging Face repo id). Used to auto-retreat to the largest variant that fits the
+/// available VRAM. Mirrors the ids referenced across the codebase + `DEFAULT_MODEL_ID`.
+pub const QWEN35_LADDER: &[(f64, &str)] = &[
+    (9.0, "Qwen/Qwen3.5-9B"),
+    (4.0, "Qwen/Qwen3.5-4B"),
+    (2.0, "Qwen/Qwen3.5-2B"),
+    (0.8, "Qwen/Qwen3.5-0.8B"),
+];
 
 /// Result of a budgeting pass.
 #[derive(Debug, Clone, PartialEq)]
@@ -144,6 +161,91 @@ pub fn plan(vram_gib: f64, model_params_b: f64) -> BudgetPlan {
     }
 }
 
+/// A model + config plan: which Qwen3.5 variant to train and how to size it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ModelPlan {
+    /// Hugging Face repo id to train (may differ from the request if we retreated).
+    pub model_id: String,
+    pub params_b: f64,
+    pub seq_len: usize,
+    pub batch_size: usize,
+    pub grad_accum: usize,
+    /// `Some(requested_b)` when we retreated to a smaller model than requested.
+    pub retreated_from_b: Option<f64>,
+    /// True when even the smallest variant is over budget (very small card).
+    pub over_budget: bool,
+    pub rationale: String,
+}
+
+/// True when a model id belongs to the Qwen3.5 family this ladder manages.
+#[must_use]
+pub fn is_qwen35(model_id: &str) -> bool {
+    let l = model_id.to_ascii_lowercase();
+    l.contains("qwen3.5") || l.contains("qwen3-5") || l.contains("qwen35")
+}
+
+/// Pick the largest Qwen3.5 variant (no larger than `max_params_b`) that fits
+/// `vram_gib`, and size its config. Retreats down the ladder (4B → 2B → 0.8B) when
+/// the requested size does not fit, and scales the chosen model's sequence/batch up
+/// on roomier cards. If nothing fits, returns the smallest variant flagged
+/// `over_budget` so the caller can warn.
+///
+/// `max_params_b` caps the search at the requested size — we never auto-upgrade
+/// past what the operator asked for (the default request is 4B via `DEFAULT_MODEL_ID`).
+#[must_use]
+pub fn plan_qwen35(vram_gib: f64, max_params_b: f64) -> ModelPlan {
+    let mut smallest_tried: Option<ModelPlan> = None;
+
+    for &(params, id) in QWEN35_LADDER {
+        // Skip variants larger than the requested cap (no surprise upgrades).
+        if params > max_params_b + 1e-9 {
+            continue;
+        }
+        let p = plan(vram_gib, params);
+        let retreated = (params - max_params_b).abs() > 1e-9;
+        let retreated_from_b = retreated.then_some(max_params_b);
+        let rationale = if retreated {
+            format!(
+                "requested ≈{max_params_b:.1}B does not fit {vram_gib:.0} GiB; retreated to \
+                 {id} — {}",
+                p.rationale
+            )
+        } else {
+            format!("{id} — {}", p.rationale)
+        };
+        let mp = ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b,
+            over_budget: p.over_budget,
+            rationale,
+        };
+        if !p.over_budget {
+            return mp; // largest variant (descending walk) that fits
+        }
+        smallest_tried = Some(mp);
+    }
+
+    // Nothing fit — return the smallest variant we tried, flagged over budget.
+    smallest_tried.unwrap_or_else(|| {
+        let (params, id) = *QWEN35_LADDER.last().unwrap();
+        let p = plan(vram_gib, params);
+        ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b: Some(max_params_b),
+            over_budget: true,
+            rationale: format!("no Qwen3.5 variant fits {vram_gib:.0} GiB; {}", p.rationale),
+        }
+    })
+}
+
 /// Parse a model's parameter count (in billions) from a model id / hint.
 ///
 /// Recognizes patterns like `Qwen/Qwen3.5-4B`, `qwen2.5-0.8b`, `llama-9B`. Returns
@@ -220,6 +322,56 @@ mod tests {
     fn effective_batch_held_near_target() {
         let p = plan(80.0, 4.0);
         assert!(p.batch_size * p.grad_accum >= TARGET_EFFECTIVE_BATCH);
+    }
+
+    #[test]
+    fn ladder_retreats_4b_to_2b_on_16gb() {
+        // 16 GiB cannot fit 4B → retreat to the largest variant that fits (2B),
+        // which should get a comfortable (not floored) sequence length.
+        let p = plan_qwen35(16.0, 4.0);
+        assert_eq!(p.model_id, "Qwen/Qwen3.5-2B");
+        assert_eq!(p.retreated_from_b, Some(4.0));
+        assert!(!p.over_budget);
+        assert!(p.seq_len >= 512, "2B on 16 GiB should afford a long sequence");
+    }
+
+    #[test]
+    fn ladder_keeps_4b_on_24gb() {
+        let p = plan_qwen35(24.0, 4.0);
+        assert_eq!(p.model_id, "Qwen/Qwen3.5-4B");
+        assert_eq!(p.retreated_from_b, None);
+        assert!(!p.over_budget);
+    }
+
+    #[test]
+    fn ladder_scales_up_for_big_cards() {
+        // 80 GiB / 4B → keep 4B with a long sequence and real batch.
+        let p = plan_qwen35(80.0, 4.0);
+        assert_eq!(p.model_id, "Qwen/Qwen3.5-4B");
+        assert!(p.seq_len >= 1024);
+        assert!(p.batch_size >= 2);
+    }
+
+    #[test]
+    fn ladder_floors_to_smallest_on_tiny_card() {
+        // 4 GiB cannot fit any variant comfortably → smallest, flagged over budget.
+        let p = plan_qwen35(4.0, 4.0);
+        assert_eq!(p.model_id, "Qwen/Qwen3.5-0.8B");
+        assert!(p.over_budget);
+    }
+
+    #[test]
+    fn ladder_does_not_upgrade_past_request() {
+        // Requesting 2B on a huge card stays 2B (no surprise upgrade to 4B/9B).
+        let p = plan_qwen35(80.0, 2.0);
+        assert_eq!(p.model_id, "Qwen/Qwen3.5-2B");
+    }
+
+    #[test]
+    fn qwen35_family_detection() {
+        assert!(is_qwen35("Qwen/Qwen3.5-4B"));
+        assert!(is_qwen35("qwen3.5-2b"));
+        assert!(!is_qwen35("meta-llama/Llama-3-8B"));
     }
 
     #[test]

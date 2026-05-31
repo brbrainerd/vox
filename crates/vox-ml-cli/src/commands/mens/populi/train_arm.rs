@@ -186,6 +186,8 @@ pub async fn run_train(
     let mut effective_seq_len: Option<usize> = seq_len;
     let mut effective_batch_size: Option<usize> = batch_size;
     let mut effective_grad_accum: Option<usize> = grad_accum;
+    // May be retreated to a smaller Qwen3.5 variant by the VRAM budget below.
+    let mut effective_model = model;
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -261,33 +263,73 @@ pub async fn run_train(
             .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
             .unwrap_or(false);
         if device_is_cuda {
-            let model_hint = model
+            use vox_populi::mens::tensor::memory_budget;
+            let model_hint = effective_model
                 .as_deref()
                 .unwrap_or(vox_populi::mens::DEFAULT_MODEL_ID);
-            let params_b =
-                vox_populi::mens::tensor::memory_budget::params_b_from_model_hint(model_hint)
-                    .unwrap_or(4.0);
+            let requested_b =
+                memory_budget::params_b_from_model_hint(model_hint).unwrap_or(4.0);
             if let Some(vram_gb) = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb() {
-                let plan =
-                    vox_populi::mens::tensor::memory_budget::plan(vram_gb as f64, params_b);
-                eprintln!("  {} VRAM budget: {}", "⚙".cyan(), plan.rationale);
-                if plan.over_budget {
-                    eprintln!(
-                        "  {} {:.1}B params is tight for {:.0} GiB VRAM — using the smallest \
-                         safe config. If it still OOMs, train a smaller base model.",
-                        "⚠".yellow(),
-                        params_b,
-                        vram_gb
-                    );
-                }
-                if effective_seq_len.is_none() {
-                    effective_seq_len = Some(plan.seq_len);
-                }
-                if effective_batch_size.is_none() {
-                    effective_batch_size = Some(plan.batch_size);
-                }
-                if effective_grad_accum.is_none() {
-                    effective_grad_accum = Some(plan.grad_accum);
+                let vram = vram_gb as f64;
+                // For Qwen3.5 models (including the default), let the ladder pick the
+                // largest variant that fits this card — retreating 4B → 2B → 0.8B as
+                // needed, or scaling the sequence/batch up on roomier GPUs.
+                if memory_budget::is_qwen35(model_hint) {
+                    let mp = memory_budget::plan_qwen35(vram, requested_b);
+                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), mp.rationale);
+                    if let Some(from_b) = mp.retreated_from_b {
+                        // Only switch the model when the user did not explicitly pin one.
+                        if effective_model.is_none() {
+                            eprintln!(
+                                "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would OOM).",
+                                "↓".yellow(),
+                                mp.model_id,
+                                vram,
+                                from_b
+                            );
+                            effective_model = Some(mp.model_id.clone());
+                        } else {
+                            eprintln!(
+                                "  {} {} is pinned but does not fit {:.0} GiB — it may OOM. \
+                                 Omit --model to auto-retreat to {}.",
+                                "⚠".yellow(),
+                                model_hint,
+                                vram,
+                                mp.model_id
+                            );
+                        }
+                    }
+                    if effective_seq_len.is_none() {
+                        effective_seq_len = Some(mp.seq_len);
+                    }
+                    if effective_batch_size.is_none() {
+                        effective_batch_size = Some(mp.batch_size);
+                    }
+                    if effective_grad_accum.is_none() {
+                        effective_grad_accum = Some(mp.grad_accum);
+                    }
+                } else {
+                    // Non-Qwen3.5: size the given model in place (no model swap).
+                    let plan = memory_budget::plan(vram, requested_b);
+                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), plan.rationale);
+                    if plan.over_budget {
+                        eprintln!(
+                            "  {} {:.1}B params is tight for {:.0} GiB VRAM — using the smallest \
+                             safe config. If it still OOMs, train a smaller base model.",
+                            "⚠".yellow(),
+                            requested_b,
+                            vram
+                        );
+                    }
+                    if effective_seq_len.is_none() {
+                        effective_seq_len = Some(plan.seq_len);
+                    }
+                    if effective_batch_size.is_none() {
+                        effective_batch_size = Some(plan.batch_size);
+                    }
+                    if effective_grad_accum.is_none() {
+                        effective_grad_accum = Some(plan.grad_accum);
+                    }
                 }
             } else {
                 eprintln!(
@@ -332,7 +374,7 @@ pub async fn run_train(
     };
     let train_res = train::run_train(
         backend.into(),
-        model,
+        effective_model,
         device,
         data_dir,
         output_dir,
