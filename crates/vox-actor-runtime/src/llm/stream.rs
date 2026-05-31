@@ -10,7 +10,10 @@ use tokio_stream::Stream;
 use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 
 use super::types::{ChatMessage, LlmConfig};
-use super::wire::{OpenRouterRequest, chat_requires_nonempty_api_key, resolve_chat_api_key};
+use super::wire::{
+    OpenRouterRequest, chat_requires_nonempty_api_key, openrouter_extra_headers,
+    resolve_chat_api_key,
+};
 
 /// Token-by-token streaming implementation.
 pub async fn llm_stream(
@@ -60,6 +63,10 @@ pub async fn llm_stream(
         .body(body);
     if !api_key.is_empty() {
         req = req.bearer_auth(api_key);
+    }
+    // OpenRouter app attribution / route-hint headers (mirrors the orchestrator bridge).
+    for (name, value) in openrouter_extra_headers(&config.provider, &config.model) {
+        req = req.header(name, value);
     }
     let res = req
         .send()
