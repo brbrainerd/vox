@@ -138,7 +138,11 @@ fn registry_paid_plus_ollama_free() -> ModelRegistry {
 
 #[test]
 fn sticky_ollama_rejected_when_inference_profile_disallows() {
-    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    // Poison-tolerant: a panicking sibling test must not cascade PoisonError into
+    // every other test that serializes on this env lock (that was the flakiness).
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     // SAFETY: serialized with `INFERENCE_PROFILE_TEST_LOCK`; no concurrent env access in tests.
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "cloud_openai_compatible") };
     let mut config = OrchestratorConfig::for_testing();
@@ -363,7 +367,11 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
 
 #[test]
 fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
-    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    // Poison-tolerant: a panicking sibling test must not cascade PoisonError into
+    // every other test that serializes on this env lock (that was the flakiness).
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "cloud_openai_compatible") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
@@ -393,6 +401,20 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
     }
 }
 
+/// Capabilities broad enough to satisfy any capability requirement inferred from
+/// a normal prompt (so synthetic test models are not filtered by `caps_ok`).
+fn capable_caps() -> vox_orchestrator::models::ModelCapabilities {
+    vox_orchestrator::models::ModelCapabilities {
+        supports_json: true,
+        supports_vision: true,
+        supports_tool_use: true,
+        supports_reasoning: true,
+        supports_web_search: true,
+        max_context: 8192,
+        ..Default::default()
+    }
+}
+
 fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
     let mut r = ModelRegistry::default();
     r.register(ModelSpec {
@@ -407,7 +429,7 @@ fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
         is_free: true,
         observed_cost_per_1k: None,
         strengths: vec![vox_orchestrator::models::generated::StrengthTag::Codegen],
-        capabilities: Default::default(),
+        capabilities: capable_caps(),
         cache_creation_cost_per_1k: 0.0,
         cache_read_cost_per_1k: 0.0,
         supports_prompt_caching: false,
@@ -425,12 +447,21 @@ fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
         cost_per_1k_output: 0.001,
         is_free: false,
         observed_cost_per_1k: None,
-        strengths: vec![vox_orchestrator::models::generated::StrengthTag::Codegen],
-        capabilities: Default::default(),
+        // Research strength so the scorer prefers the cloud model over the
+        // code-focused VoxLocal model on non-code (Research) tasks.
+        strengths: vec![
+            vox_orchestrator::models::generated::StrengthTag::Codegen,
+            vox_orchestrator::models::generated::StrengthTag::Research,
+            vox_orchestrator::models::generated::StrengthTag::Generalist,
+        ],
+        capabilities: capable_caps(),
         cache_creation_cost_per_1k: 0.0,
         cache_read_cost_per_1k: 0.0,
         supports_prompt_caching: false,
-        pricing_source: vox_orchestrator::models::spec::PricingSource::Bootstrap,
+        // Telemetry ⇒ Confirmed ⇒ routing-eligible, so the general scorer can
+        // pick it for Research tasks. (VoxLocal stays Bootstrap/Shadowed and is
+        // reached only via the CodeGen fast-path — exactly the tested behavior.)
+        pricing_source: vox_orchestrator::models::spec::PricingSource::Telemetry,
         supported_parameters: vec![],
     });
     r
@@ -440,7 +471,11 @@ fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
 fn mcp_request_to_canonical_decision_to_route_output_parity() {
     use vox_actor_runtime::model_resolution::ChatRouteBackend;
     use vox_actor_runtime::model_resolution::backend_telemetry_labels;
-    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    // Poison-tolerant: a panicking sibling test must not cascade PoisonError into
+    // every other test that serializes on this env lock (that was the flakiness).
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     // SAFETY: env mutations are serialized by `INFERENCE_PROFILE_TEST_LOCK`.
     unsafe {
         std::env::set_var("OPENROUTER_API_KEY", "test-key");
@@ -499,7 +534,11 @@ fn mcp_request_to_canonical_decision_to_route_output_parity() {
 
 #[test]
 fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
-    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    // Poison-tolerant: a panicking sibling test must not cascade PoisonError into
+    // every other test that serializes on this env lock (that was the flakiness).
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
@@ -534,7 +573,11 @@ fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
 
 #[test]
 fn vox_local_not_preferred_for_non_code_tasks() {
-    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    // Poison-tolerant: a panicking sibling test must not cascade PoisonError into
+    // every other test that serializes on this env lock (that was the flakiness).
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
@@ -568,7 +611,11 @@ fn vox_local_not_preferred_for_non_code_tasks() {
 
 #[test]
 fn restricted_route_overrides_allow_cloud_not_local_http_until_local_enabled() {
-    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    // Poison-tolerant: a panicking sibling test must not cascade PoisonError into
+    // every other test that serializes on this env lock (that was the flakiness).
+    let _g = INFERENCE_PROFILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let cloud = ModelSpec {
         id: "or-route".into(),
         canonical_slug: "test/or-route".into(),
