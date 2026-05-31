@@ -66,6 +66,16 @@ type ParsedVoice {
     return record_health_event(event_kind, payload_json, event_at, source, "", of_event_id, tz_iana, tz_offset_minutes)
 }
 
+/// Append-only delete: tombstone the row `of_event_id` by recording a `_deleted`
+/// sentinel whose `correction_of` points at it. The materializer collapses the
+/// pair — the target is superseded and the tombstone is kind-hidden — so the
+/// event disappears from the timeline, weekly rollup, and clinical export
+/// without ever mutating or removing a physical row (db.Delete is unsupported
+/// on-device). Returns the tombstone's own event id.
+@mutation fn record_deletion(of_event_id: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    return record_health_event("_deleted", "{}", "", "app", "", of_event_id, tz_iana, tz_offset_minutes)
+}
+
 @mutation fn record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
     let tid = std.crypto.uuid()
     let ms = std.time.now_ms()
@@ -118,6 +128,62 @@ fn _is_superseded_in(check_id: str, rows: List[HealthEventLog]) to bool {
         if r.correction_of == check_id { found = true }
     }
     return found
+}
+
+/// Sentinel `event_kind` written by `record_deletion` to tombstone a prior row.
+/// A tombstone supersedes its target (its `correction_of` points at the target,
+/// so the target fails `_is_effective`) AND is itself hidden — nothing references
+/// the tombstone's own id, so without this kind-check it would leak into the
+/// timeline / rollup / export as a bare "_deleted" row.
+fn _is_effective(r: HealthEventLog, rows: List[HealthEventLog]) to bool {
+    return r.event_kind != "_deleted" and not _is_superseded_in(r.event_id, rows)
+}
+
+/// In-memory HealthEventLog value for unit tests (no db insert). Defaults the
+/// non-salient fields so each test only states the id / kind / correction_of
+/// that the assertion turns on.
+fn _mk_test_event(event_id: str, event_kind: str, correction_of: str) to HealthEventLog {
+    return {
+        event_id: event_id,
+        event_kind: event_kind,
+        schema_version: 1,
+        payload_json: "{}",
+        event_at: "0",
+        recorded_at: "0",
+        recorded_at_monotonic: 0,
+        tz_iana: "UTC",
+        tz_offset_minutes: 0,
+        source: "test",
+        raw_transcript_id: "",
+        correction_of: correction_of,
+    }
+}
+
+@test
+fn test_effective_plain_event_is_visible() to Unit {
+    let e = _mk_test_event("e1", "mood_recorded", "")
+    let rows = [e]
+    assert(_is_effective(e, rows))
+}
+
+@test
+fn test_effective_deletion_hides_target_and_tombstone() to Unit {
+    let target = _mk_test_event("e1", "mood_recorded", "")
+    let tomb = _mk_test_event("t1", "_deleted", "e1")
+    let rows = [target, tomb]
+    // Target is superseded by the tombstone → hidden.
+    assert(not _is_effective(target, rows))
+    // Tombstone itself is hidden by its sentinel kind → never leaks into views.
+    assert(not _is_effective(tomb, rows))
+}
+
+@test
+fn test_effective_correction_supersedes_original_but_stays_visible() to Unit {
+    let original = _mk_test_event("e1", "mood_recorded", "")
+    let correction = _mk_test_event("e2", "mood_recorded", "e1")
+    let rows = [original, correction]
+    assert(not _is_effective(original, rows))
+    assert(_is_effective(correction, rows))
 }
 
 @test
@@ -229,7 +295,7 @@ fn test_csv_quote_inner_quotes() to Unit {
             let mut exercises = 0
             let mut notes = 0
             for r in rows {
-                if not _is_superseded_in(r.event_id, rows) {
+                if _is_effective(r, rows) {
                     total = total + 1
                     if r.event_kind == "mood_recorded" { moods = moods + 1 }
                     if r.event_kind == "meal_recorded" { meals = meals + 1 }
@@ -254,7 +320,7 @@ fn test_csv_quote_inner_quotes() to Unit {
             let mut out = "["
             let mut first = true
             for r in rows {
-                if not _is_superseded_in(r.event_id, rows) {
+                if _is_effective(r, rows) {
                     if first { first = false } else { out = out + "," }
                     let backdated = _is_backdated(r.event_at, r.recorded_at)
                     let pj = r.payload_json.replace("\\", "\\\\").replace("\"", "\\\"")
@@ -277,7 +343,7 @@ fn test_csv_quote_inner_quotes() to Unit {
         Ok(rows) => {
             let mut out = header
             for r in rows {
-                if not _is_superseded_in(r.event_id, rows) {
+                if _is_effective(r, rows) {
                     let backdated = _is_backdated(r.event_at, r.recorded_at)
                     let mut row = _csv_quote(r.event_id) + "," + _csv_quote(r.event_kind) + "," + str(r.schema_version)
                     row = row + "," + _csv_quote(r.payload_json) + "," + _csv_quote(r.event_at) + "," + _csv_quote(r.recorded_at)
@@ -298,7 +364,15 @@ fn test_csv_quote_inner_quotes() to Unit {
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
     match db.HealthEventLog.all() {
-        Ok(rows) => "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256\":\"" + hash + "\",\"row_count\":" + str(len(rows)) + "}"
+        Ok(rows) => {
+            // row_count tracks the EFFECTIVE rows in the CSV the hash is taken
+            // over — exclude tombstones + superseded rows so metadata matches.
+            let mut eff = 0
+            for r in rows {
+                if _is_effective(r, rows) { eff = eff + 1 }
+            }
+            "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256\":\"" + hash + "\",\"row_count\":" + str(eff) + "}"
+        }
         Error(_) => "{\"error\":\"db\"}"
     }
 }
