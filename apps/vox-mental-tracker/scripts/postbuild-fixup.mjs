@@ -2,15 +2,28 @@
 /**
  * Post-vox-build codegen fixups.
  *
- * All codegen gaps previously patched here have landed in the compiler:
- * - §1.A.3 `.length()` → `.length`: fixed in vox-compiler (EmitCtx refactor, 2026-05-08).
- * - §1.A.1/§1.A.2 handler body invocation + async await: fixed in vox-compiler (2026-05-08).
+ * All prior codegen-gap patches have landed in the compiler (handler invocation,
+ * `.length()` → `.length`, async await, and the runtime globals now resolve via
+ * the Vox-emitted `dist/runtime-install.ts`).
  *
- * This script is now a no-op. It remains in place as a hook point for future
- * emergency patches; once we confirm the app is fully compiler-driven, it can
- * be removed alongside the `postbuild` npm script entry.
- *
- * Other globals (`Speech.transcribe_microphone`, `str(...)`, `std.time.now_ms()`, etc.)
- * resolve via globals installed in src/runtime.ts — tracked as §1.B.1.
+ * The one remaining job: inject this app's bootstrap glue. The Vox web emitter
+ * writes a DEFAULT no-op `dist/app-hooks.tsx` (so `entry.tsx`'s `./app-hooks`
+ * import resolves for any app). This app overrides it with a re-export of the
+ * app-owned `src/app-hooks.tsx` (React error boundary + service-worker
+ * registration), keeping that glue source-relative (its `./ErrorBoundary` /
+ * `./sync` imports resolve from `src/`).
  */
-console.log("postbuild-fixup: no patches needed (all gaps closed in compiler)");
+import { writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const distAppHooks = join(here, "..", "dist", "app-hooks.tsx");
+
+writeFileSync(
+  distAppHooks,
+  `// Overridden by postbuild-fixup.mjs — re-export the app-owned bootstrap glue.\n` +
+    `export { wrapApp, onBoot } from "../src/app-hooks";\n`,
+);
+
+console.log("postbuild-fixup: injected app-hooks override (dist/app-hooks.tsx -> ../src/app-hooks)");

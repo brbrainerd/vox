@@ -433,6 +433,18 @@ pub fn generate_with_options(
             crate::codegen_ts::web_entry::RUNTIME_INSTALL_FILENAME.to_string(),
             crate::codegen_ts::web_entry::emit_runtime_install(),
         ));
+        // Stage 3: emit the web entry point. Mounts <VoxApp/> to #root and
+        // delegates app glue to the app-owned src/app-hooks.ts.
+        files.push((
+            crate::codegen_ts::web_entry::ENTRY_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_web_entry(),
+        ));
+        // Default (no-op) app hooks so entry.tsx's `./app-hooks` import always
+        // resolves; apps override this file in a post-build step.
+        files.push((
+            crate::codegen_ts::web_entry::APP_HOOKS_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_app_hooks_default(),
+        ));
     }
 
     // GA-09a: typed RouteId module (routes.ts) — emitted whenever routes are declared.
