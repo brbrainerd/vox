@@ -1,7 +1,7 @@
 ---
 title: "Web Bootstrap Emission — Migration Plan (2026)"
 description: "Bring the Vox web target to RN parity by emitting the app entry, a generic router over routes.manifest, and the runtime-global install — retiring the hand-written web shell so the .vox is the single source of truth."
-category: "architecture"
+category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: false
 ---
