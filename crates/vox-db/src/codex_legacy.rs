@@ -111,6 +111,7 @@ pub const LEGACY_EXPORT_TABLES: &[&str] = &[
     "agent_metrics",
     "agent_oplog",
     "agent_reliability",
+    "agent_runs",
     "agent_session_events",
     "agent_sessions",
     "agent_telemetry_flat",
