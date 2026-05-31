@@ -36,8 +36,9 @@ const FIXED_OVERHEAD_GIB: f64 = 1.6;
 
 /// Activation VRAM (GiB) per 1k tokens per unit of (params^0.5), per micro-batch.
 /// Activation memory grows with sequence length and (sub-linearly) with model width.
-/// Calibrated conservatively from the 4B/seq-512 peak.
-const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 0.95;
+/// The candle graph runs activations in F32, so this is calibrated heavy (≈1.6) to
+/// leave real headroom and avoid the repeated OOMs seen on a near-full 16 GiB card.
+const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 1.6;
 
 /// Default fraction of total VRAM the plan is allowed to target.
 const DEFAULT_SAFETY: f64 = 0.88;
@@ -93,9 +94,13 @@ fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
     model_params_b * resident_per_b + FIXED_OVERHEAD_GIB
 }
 
-/// Resident footprint for plain dense Qwen2 / Qwen2.5-Coder: no MoE, no MTP, no
-/// vision tower, 151k vocab. Lighter per-param than Qwen3.5.
-const QWEN2_RESIDENT_GIB_PER_B: f64 = 2.6;
+/// Resident footprint for plain dense Qwen2 / Qwen2.5-Coder.
+///
+/// Calibrated to the candle plugin's reality: it dequantizes base weights to **F32**
+/// (4 bytes/param) and builds the whole training graph in F32, so a 3B model OOMed a
+/// 16 GiB card. ~4.3 GiB/B reflects F32 weights + embeddings + LoRA/optimizer state.
+/// (When the plugin's F32→BF16 mixed-precision work lands, drop this back toward 2.6.)
+const QWEN2_RESIDENT_GIB_PER_B: f64 = 4.3;
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget

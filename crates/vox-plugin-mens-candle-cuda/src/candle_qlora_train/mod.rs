@@ -100,6 +100,20 @@ pub(super) struct TrainingLoopStats {
 }
 
 /// Load LoRA adapter weights into a trainer's varmap (warm-start).
+/// Log a pipeline stage's wall-clock duration plus current GPU memory usage, so the
+/// otherwise-silent preflight/setup phases are observable (which stage is slow, and
+/// whether VRAM is filling). GPU figures come from `cuMemGetInfo` when CUDA is built.
+fn log_stage(stage: &str, t0: std::time::Instant) {
+    let secs = t0.elapsed().as_secs_f64();
+    #[cfg(feature = "cuda")]
+    let gpu = crate::device::mem_pool::device_mem_used_total_mb()
+        .map(|(u, t)| format!(", gpu {u}/{t} MiB"))
+        .unwrap_or_default();
+    #[cfg(not(feature = "cuda"))]
+    let gpu = String::new();
+    train_log::info(&format!("[stage] {stage}: {secs:.1}s{gpu}"));
+}
+
 fn load_adapter_into_trainer(trainer: &mut QLoraTrainer, path: &Path) -> Result<()> {
     if !path.exists() {
         anyhow::bail!("checkpoint adapter not found: {}", path.display());
@@ -212,6 +226,33 @@ pub fn run_candle_qlora_train(
         anyhow::anyhow!("Model preflight failed: {e}. Ensure you have run 'vox mens download --model <name>' and that tokenizer.json + safetensors are present.")
     })?;
 
+    // Architecture echo — surfaces the model's shape/family up front so an
+    // unexpected checkpoint (wrong arch, huge vocab) is obvious in second one
+    // rather than after a 10-minute silent load.
+    {
+        let mut lt_full = 0usize;
+        let mut lt_linear = 0usize;
+        let mut lt_other = 0usize;
+        for t in &bundle.layout.layer_types {
+            match t.as_str() {
+                "full_attention" => lt_full += 1,
+                "linear_attention" => lt_linear += 1,
+                _ => lt_other += 1,
+            }
+        }
+        train_log::info(&format!(
+            "[arch] {:?} model_type='{}' vocab={} d_model={} layers={} (full={lt_full} linear={lt_linear} other={lt_other}) heads={}/{}kv rope_theta={:?}",
+            bundle.layout.architecture,
+            bundle.layout.model_type,
+            bundle.vocab,
+            bundle.d_model,
+            bundle.layout.num_hidden_layers,
+            bundle.layout.num_attention_heads,
+            bundle.layout.num_key_value_heads,
+            bundle.layout.rope_theta,
+        ));
+    }
+
     let n_layer = bundle.layout.num_hidden_layers;
     if config.qlora_lm_head_only {
         anyhow::bail!(
@@ -255,10 +296,12 @@ pub fn run_candle_qlora_train(
         train_path.display(),
         config.min_rating
     ));
+    let t_dataload = std::time::Instant::now();
     let mut pairs =
         vox_tensor::data::load_all_with_policy(&train_path, config.min_rating, jsonl_policy)
             .with_context(|| format!("load training data from {}", train_path.display()))?;
     train_log::info(&format!("Loaded {} pairs.", pairs.len()));
+    log_stage("data_load", t_dataload);
     let mut computed_contamination = None;
     if let Some(filter) = config.context_filter.as_ref() {
         let before = pairs.len();
@@ -389,15 +432,20 @@ pub fn run_candle_qlora_train(
         "Mmapping base weights from {} files...",
         bundle.weight_paths.len()
     ));
+    let t_mmap = std::time::Instant::now();
     #[allow(unsafe_code)]
     let vb_mmap =
         unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
     train_log::info(&format!(
-        "Loading embeddings ('{}') to device...",
-        bundle.embed_key
+        "Loading embeddings ('{}', {}x{} = {:.2} GiB as f32) to device...",
+        bundle.embed_key,
+        bundle.vocab,
+        bundle.d_model,
+        (bundle.vocab as f64 * bundle.d_model as f64 * 4.0) / 1.073_741_824e9,
     ));
     let wte = vb_mmap.get((bundle.vocab, bundle.d_model), &bundle.embed_key)?;
     train_log::info("Embeddings loaded.");
+    log_stage("mmap+embedding", t_mmap);
 
     // ── qlora-rs config ───────────────────────────────────────────────────────
     let rank = config.rank.max(1);
@@ -437,6 +485,7 @@ pub fn run_candle_qlora_train(
         );
     }
 
+    let t_graph = std::time::Instant::now();
     let (final_norm, lm_head) = {
         let vb = trainer.var_builder();
         train_log::info(&format!(
@@ -817,6 +866,7 @@ pub fn run_candle_qlora_train(
 
         (final_norm, lm_head)
     };
+    log_stage("graph_build (NF4→F32 dequant of all layers)", t_graph);
 
     trainer
         .init_optimizer(&[])
