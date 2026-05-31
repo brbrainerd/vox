@@ -74,6 +74,128 @@ fn parse_remote_payload_context(payload: &str) -> RemotePayloadContext {
 /// The span records `vox.mesh.trace_id` from the W3C `traceparent` carried on
 /// the inbox message (S1 level: field attachment only; full context propagation
 /// is S2).
+/// Outcome of running a dispatched `.vox` source on the worker (Track B).
+struct DispatchedExecParts {
+    success: bool,
+    result: Option<String>,
+    error: Option<String>,
+}
+
+/// Build the legacy echo result (back-compat / `no-exec` policy): acknowledges
+/// the payload byte count without executing anything.
+fn echo_result(envelope: &RemoteTaskEnvelope) -> RemoteTaskResult {
+    RemoteTaskResult {
+        idempotency_key: envelope.idempotency_key.clone(),
+        task_id: Some(envelope.task_id),
+        success: true,
+        result: Some(format!(
+            "remote worker accepted payload ({} bytes)",
+            envelope.payload.len()
+        )),
+        error: None,
+    }
+}
+
+/// Execute a dispatched `.vox` source on this worker.
+///
+/// Returns `None` when execution is declined by node policy
+/// (`VoxMeshExecPolicy == "no-exec"`) so the caller falls back to [`echo_result`].
+/// Otherwise returns the real execution outcome — including refusals (invalid
+/// base64, or a missing/mismatched BLAKE3 integrity hash) as `success: false`
+/// **without spawning**. Source-only (`.vox` text); mirrors the audited executor
+/// in `vox-populi` `transport::handlers::dispatch` (10 MiB output truncation),
+/// run via the always-available `vox run --mode interp`. Reaching this path
+/// already implies the poller's
+/// `populi_remote_execute_experimental` gate is on.
+///
+/// SECURITY: this runs attacker-influenced code with the worker's privileges,
+/// behind the experimental gate, a non-`no-exec` policy, and mandatory integrity
+/// verification. It does NOT add sandboxing beyond what `vox run` provides, and
+/// does NOT inject forwarded secrets into the subprocess (deferred — sandbox
+/// tiering). Bundle/native execution stays out of this path.
+fn run_dispatched_source(
+    source_b64: &str,
+    expected_blake3_hex: Option<&str>,
+    policy: &str,
+) -> Option<DispatchedExecParts> {
+    if policy == "no-exec" {
+        return None;
+    }
+    let refuse = |error: String| {
+        Some(DispatchedExecParts {
+            success: false,
+            result: None,
+            error: Some(error),
+        })
+    };
+
+    let source_bytes = match base64::engine::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        source_b64,
+    ) {
+        Ok(b) => b,
+        Err(e) => return refuse(format!("invalid base64 source: {e}")),
+    };
+    // Integrity is mandatory for any source we are about to execute.
+    let Some(expected_hex) = expected_blake3_hex else {
+        return refuse("exec_source_blake3_hex is required to execute dispatched source".into());
+    };
+    let actual_hex = blake3::hash(&source_bytes).to_hex().to_string();
+    if actual_hex != expected_hex {
+        return refuse(format!(
+            "integrity error: source hash mismatch (expected {expected_hex}, got {actual_hex})"
+        ));
+    }
+
+    let tmp_file = std::env::temp_dir().join(format!(
+        "vox-dispatch-{}.vox",
+        vox_foundation::primitives::id::simple_hex_id()
+    ));
+    if let Err(e) = std::fs::write(&tmp_file, &source_bytes) {
+        return refuse(format!("failed to write dispatch tmp file: {e}"));
+    }
+    // Use the always-available interpreter (`--mode interp`) rather than
+    // `--mode script` (which requires a `script-execution` feature build), so a
+    // worker can run dispatched source without a specially-built `vox` binary.
+    let output = std::process::Command::new("vox")
+        .arg("run")
+        .arg("--mode")
+        .arg("interp")
+        .arg(&tmp_file)
+        .output();
+    let _ = std::fs::remove_file(&tmp_file);
+
+    match output {
+        Ok(out) => {
+            const MAX_OUTPUT_BYTES: usize = 10 * 1024 * 1024;
+            let mut stdout = out.stdout;
+            let mut stderr = out.stderr;
+            if stdout.len() + stderr.len() > MAX_OUTPUT_BYTES {
+                if stderr.len() > MAX_OUTPUT_BYTES / 2 {
+                    stderr.truncate(MAX_OUTPUT_BYTES / 2);
+                }
+                let remaining = MAX_OUTPUT_BYTES.saturating_sub(stderr.len());
+                if stdout.len() > remaining {
+                    stdout.truncate(remaining);
+                }
+            }
+            let combined = String::from_utf8_lossy(&stdout).into_owned()
+                + &String::from_utf8_lossy(&stderr);
+            let success = out.status.success();
+            Some(DispatchedExecParts {
+                success,
+                result: Some(combined),
+                error: if success {
+                    None
+                } else {
+                    Some(format!("Exit code: {:?}", out.status.code()))
+                },
+            })
+        }
+        Err(e) => refuse(format!("failed to spawn `vox`: {e}")),
+    }
+}
+
 async fn process_one_envelope(
     orchestrator: &crate::orchestrator::Orchestrator,
     client: &vox_populi::http_client::PopuliHttpClient,
@@ -305,15 +427,39 @@ async fn process_one_envelope(
             .await;
     }
 
-    let result_payload = RemoteTaskResult {
-        idempotency_key: envelope.idempotency_key.clone(),
-        task_id: Some(envelope.task_id),
-        success: true,
-        result: Some(format!(
-            "remote worker accepted payload ({} bytes)",
-            envelope.payload.len()
-        )),
-        error: None,
+    // Track B: when the envelope carries `.vox` source (and node policy permits),
+    // actually run it via `vox run --mode script` and return real stdout/exit.
+    // No source, or `VoxMeshExecPolicy == "no-exec"`, falls back to the legacy
+    // echo for back-compat.
+    let result_payload = match envelope.exec_source_b64.as_deref() {
+        Some(source_b64) => {
+            let policy = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecPolicy)
+                .expose()
+                .unwrap_or("permissive")
+                .to_string();
+            match run_dispatched_source(
+                source_b64,
+                envelope.exec_source_blake3_hex.as_deref(),
+                &policy,
+            ) {
+                Some(parts) => {
+                    tracing::info!(
+                        task_id = envelope.task_id,
+                        success = parts.success,
+                        "populi remote worker: executed dispatched .vox source"
+                    );
+                    RemoteTaskResult {
+                        idempotency_key: envelope.idempotency_key.clone(),
+                        task_id: Some(envelope.task_id),
+                        success: parts.success,
+                        result: parts.result,
+                        error: parts.error,
+                    }
+                }
+                None => echo_result(&envelope),
+            }
+        }
+        None => echo_result(&envelope),
     };
     let result_json = match serde_json::to_string(&result_payload) {
         Ok(s) => s,
@@ -546,7 +692,98 @@ pub async fn populi_remote_worker_tick_once(orchestrator: &crate::orchestrator::
 
 #[cfg(test)]
 mod tests {
-    use super::parse_remote_payload_context;
+    use super::{parse_remote_payload_context, run_dispatched_source};
+
+    fn b64(s: &str) -> String {
+        base64::engine::Engine::encode(&base64::engine::general_purpose::STANDARD, s.as_bytes())
+    }
+
+    fn blake3_hex(s: &str) -> String {
+        blake3::hash(s.as_bytes()).to_hex().to_string()
+    }
+
+    /// `vox` reachable on PATH? Tests that actually spawn it skip cleanly when not.
+    fn vox_on_path() -> bool {
+        std::process::Command::new("vox")
+            .arg("--version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
+    #[test]
+    fn no_exec_policy_returns_none_for_echo_fallback() {
+        let src = "pub fn main() { print(\"x\") }";
+        let got = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "no-exec");
+        assert!(got.is_none(), "no-exec policy must decline (caller echoes)");
+    }
+
+    #[test]
+    fn missing_integrity_hash_refuses_without_spawning() {
+        let src = "pub fn main() { print(\"x\") }";
+        let parts = run_dispatched_source(&b64(src), None, "permissive")
+            .expect("a decision is returned");
+        assert!(!parts.success);
+        assert!(parts.result.is_none());
+        assert!(
+            parts.error.as_deref().unwrap_or("").contains("blake3"),
+            "error should explain the missing integrity hash, got {:?}",
+            parts.error
+        );
+    }
+
+    #[test]
+    fn hash_mismatch_refuses_without_spawning() {
+        let src = "pub fn main() { print(\"x\") }";
+        let parts = run_dispatched_source(&b64(src), Some("deadbeef"), "permissive")
+            .expect("a decision is returned");
+        assert!(!parts.success);
+        assert!(parts.result.is_none());
+        assert!(
+            parts.error.as_deref().unwrap_or("").contains("hash mismatch"),
+            "error should report a hash mismatch, got {:?}",
+            parts.error
+        );
+    }
+
+    #[test]
+    fn invalid_base64_refuses_without_spawning() {
+        let parts = run_dispatched_source("!!!not base64!!!", Some("deadbeef"), "permissive")
+            .expect("a decision is returned");
+        assert!(!parts.success);
+        assert!(parts.error.as_deref().unwrap_or("").contains("base64"));
+    }
+
+    #[test]
+    fn executes_source_and_returns_real_stdout() {
+        if !vox_on_path() {
+            eprintln!("skipping: `vox` not on PATH");
+            return;
+        }
+        let src = "pub fn main() {\n    print(\"hello from \" + str(2 + 3))\n}\n";
+        let parts = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "permissive")
+            .expect("executed");
+        assert!(parts.success, "expected success, error={:?}", parts.error);
+        assert!(
+            parts.result.as_deref().unwrap_or("").contains("hello from 5"),
+            "expected real stdout, got {:?}",
+            parts.result
+        );
+    }
+
+    #[test]
+    fn nonzero_exit_sets_success_false() {
+        if !vox_on_path() {
+            eprintln!("skipping: `vox` not on PATH");
+            return;
+        }
+        // Not valid Vox — `vox run` exits non-zero.
+        let src = "this is not valid vox source @@@";
+        let parts = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "permissive")
+            .expect("executed");
+        assert!(!parts.success, "a failing script must report success=false");
+        assert!(parts.error.is_some());
+    }
 
     #[test]
     fn parse_remote_payload_context_extracts_session_and_context() {

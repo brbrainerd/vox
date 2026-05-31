@@ -78,6 +78,16 @@ pub struct RemoteTaskEnvelope {
     /// `bundle_request` round-trip and use these bytes directly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bundle_inline_b64: Option<String>,
+    /// Track B: base64-encoded `.vox` UTF-8 source for real remote execution.
+    /// When present (and `VoxMeshExecPolicy != "no-exec"`), the worker decodes,
+    /// BLAKE3-integrity-checks, and runs it via `vox run --mode interp`,
+    /// returning real stdout/exit. Absent ⇒ legacy echo (back-compat).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exec_source_b64: Option<String>,
+    /// Track B: BLAKE3 hex of the decoded `.vox` source. REQUIRED when
+    /// `exec_source_b64` is set; a missing or mismatched hash refuses execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exec_source_blake3_hex: Option<String>,
 }
 
 #[cfg(test)]
@@ -124,12 +134,35 @@ mod tests {
             span_depth: Some(2),
             bundle_ref: None,
             bundle_inline_b64: None,
+            exec_source_b64: None,
+            exec_source_blake3_hex: None,
         };
         let json = serde_json::to_string(&envelope).unwrap();
         let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();
         assert_eq!(back.parent_task_id, Some(5));
         assert_eq!(back.span_depth, Some(2));
         assert_eq!(back.trace_id.as_deref(), Some("trace-123"));
+    }
+
+    #[test]
+    fn envelope_with_exec_source_round_trips_and_legacy_omits_it() {
+        // Legacy envelope (no exec fields) → both default to None (back-compat).
+        let legacy: RemoteTaskEnvelope = serde_json::from_str(
+            r#"{"idempotency_key":"k","task_id":1,"repository_id":"r","capability_requirements_json":"{}","payload":"p"}"#,
+        )
+        .expect("legacy deserialize");
+        assert!(legacy.exec_source_b64.is_none());
+        assert!(legacy.exec_source_blake3_hex.is_none());
+
+        // With exec fields set, they round-trip and are emitted on the wire.
+        let mut env = legacy;
+        env.exec_source_b64 = Some("c291cmNl".into());
+        env.exec_source_blake3_hex = Some("deadbeef".into());
+        let json = serde_json::to_string(&env).unwrap();
+        assert!(json.contains("exec_source_b64"));
+        let back: RemoteTaskEnvelope = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.exec_source_b64.as_deref(), Some("c291cmNl"));
+        assert_eq!(back.exec_source_blake3_hex.as_deref(), Some("deadbeef"));
     }
 }
 

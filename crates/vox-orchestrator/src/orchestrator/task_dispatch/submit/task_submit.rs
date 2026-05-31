@@ -727,6 +727,11 @@ impl Orchestrator {
                         span_depth: None,
                         bundle_ref: None,
                         bundle_inline_b64: None,
+                        // Task-delegation envelopes carry a task payload, not raw
+                        // `.vox` source; the worker's real-execution path only fires
+                        // when a script-dispatch sender populates these.
+                        exec_source_b64: None,
+                        exec_source_blake3_hex: None,
                     };
                     let relay_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
                         &base,
@@ -970,6 +975,8 @@ impl Orchestrator {
                     span_depth: None,
                     bundle_ref: None,
                     bundle_inline_b64: None,
+                    exec_source_b64: None,
+                    exec_source_blake3_hex: None,
                 };
                 if let Err(err) = crate::a2a::relay_remote_task_envelope(
                     &client,
