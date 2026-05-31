@@ -29,12 +29,12 @@ pub mod mobile_emit;
 pub mod openapi_emit;
 /// Reactive components codegen (Path C).
 pub mod reactive;
-/// React Native + Expo lowering for `BuildTarget::Mobile`. Consumes the same `HirModule`
-/// as the web emit; produces RN-flavored TSX + Expo project scaffolding.
-pub mod rn;
 /// `.vox.ui` reactive module → React context + provider + hook (Phase D of the
 /// Svelte-mineable features plan; per ADR-032).
 pub mod reactive_module_emit;
+/// React Native + Expo lowering for `BuildTarget::Mobile`. Consumes the same `HirModule`
+/// as the web emit; produces RN-flavored TSX + Expo project scaffolding.
+pub mod rn;
 /// `routes.manifest.ts` (framework-agnostic `VoxRoute[]`).
 pub mod route_manifest;
 /// Segment-aware route-pattern parser and overlap detection (Phase C of the

@@ -159,8 +159,10 @@ mod tests {
 
     #[test]
     fn is_allowed_at_accepts_either_form() {
-        let mut f =
-            ExtractedFeatures::new(std::path::PathBuf::from("t.rs"), vox_code_audit::rules::Language::Rust);
+        let mut f = ExtractedFeatures::new(
+            std::path::PathBuf::from("t.rs"),
+            vox_code_audit::rules::Language::Rust,
+        );
         let mut set = HashSet::new();
         set.insert(42);
         f.allowed_lines.insert("timeout-literal".to_string(), set);

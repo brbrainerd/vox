@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 
 use vox_runtime_rn::{
-    default_desktop_config, default_mobile_config, RuntimeProfile, VoxConfig, VoxRuntimeHandle,
+    RuntimeProfile, VoxConfig, VoxRuntimeHandle, default_desktop_config, default_mobile_config,
 };
 
 #[test]

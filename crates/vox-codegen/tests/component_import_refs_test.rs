@@ -112,7 +112,10 @@ component Panel() {
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("refresh()"), "zero-arg call must stay bare; got:\n{ts}");
+    assert!(
+        ts.contains("refresh()"),
+        "zero-arg call must stay bare; got:\n{ts}"
+    );
     assert!(
         !ts.contains("refresh({"),
         "zero-arg endpoint must not gain an args object; got:\n{ts}"

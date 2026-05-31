@@ -9,22 +9,29 @@
 //! - **Routing viz:** read-only arm stats from the model registry when `VOX_DASHBOARD_ROUTING_VIZ=1`.
 
 use axum::Json;
+use axum::Router;
 use axum::extract::{ConnectInfo, Path, State};
 use axum::http::HeaderMap;
 use axum::routing::{get, post, put};
-use axum::Router;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use super::{AccessRole, GatewayState, enforce_auth, enforce_https_requirement, enforce_rate_limit, request_identity, resolve_access_role};
+use super::{
+    AccessRole, GatewayState, enforce_auth, enforce_https_requirement, enforce_rate_limit,
+    request_identity, resolve_access_role,
+};
 use crate::services::routes::{err, ok};
 use crate::sync_poison::poison_rw_read;
 
 type GuardResult = std::result::Result<(), Json<Value>>;
 
-fn enforce_dashboard_read(gs: &GatewayState, peer: &SocketAddr, headers: &HeaderMap) -> GuardResult {
+fn enforce_dashboard_read(
+    gs: &GatewayState,
+    peer: &SocketAddr,
+    headers: &HeaderMap,
+) -> GuardResult {
     if let Err(e) = enforce_auth(gs, headers, Some(peer)) {
         return Err(err("unauthorized", &e));
     }
@@ -38,7 +45,11 @@ fn enforce_dashboard_read(gs: &GatewayState, peer: &SocketAddr, headers: &Header
     Ok(())
 }
 
-fn enforce_dashboard_write(gs: &GatewayState, peer: &SocketAddr, headers: &HeaderMap) -> GuardResult {
+fn enforce_dashboard_write(
+    gs: &GatewayState,
+    peer: &SocketAddr,
+    headers: &HeaderMap,
+) -> GuardResult {
     enforce_dashboard_read(gs, peer, headers)?;
     match resolve_access_role(gs, headers, Some(peer)) {
         Ok(AccessRole::Write) => Ok(()),
@@ -276,10 +287,14 @@ pub async fn get_dashboard_layout(
     };
     if let Ok(bytes) = std::fs::read(&path) {
         if let Ok(layout) = serde_json::from_slice::<DashboardLayoutV1>(&bytes) {
-            return ok(json!({ "layout": layout, "persisted": true, "path": path.display().to_string() }));
+            return ok(
+                json!({ "layout": layout, "persisted": true, "path": path.display().to_string() }),
+            );
         }
     }
-    ok(json!({ "layout": default_classic_layout(), "persisted": false, "path": path.display().to_string() }))
+    ok(
+        json!({ "layout": default_classic_layout(), "persisted": false, "path": path.display().to_string() }),
+    )
 }
 
 #[derive(Debug, Deserialize)]
@@ -300,7 +315,10 @@ pub async fn put_dashboard_layout(
         return err("bad_version", "layout.version must be 1");
     }
     let Some(path) = layout_path(&gs) else {
-        return err("no_workspace", "workspace_root is not set; cannot persist layout");
+        return err(
+            "no_workspace",
+            "workspace_root is not set; cannot persist layout",
+        );
     };
     if let Some(parent) = path.parent() {
         if let Err(e) = std::fs::create_dir_all(parent) {
@@ -346,32 +364,34 @@ pub async fn get_routing_summary(
         Err(e) => return err("lock", &e.to_string()),
     };
     let arms_json: Value = serde_json::to_value(&arms).unwrap_or(json!({}));
-    let decision_json = decision.map(|d| {
-        json!({
-            "selected_model": d.selected_model,
-            "provider_route": format!("{:?}", d.provider_route),
-            "alternatives": d.alternatives,
-            "rejection_reasons": d.rejection_reasons,
-            "discovery_state": d.discovery_state.as_str(),
-            "score_breakdown": {
-                "reason": format!("{:?}", d.score_breakdown.reason),
-                "effective_axes": {
-                    "efficiency": d.score_breakdown.effective_axes.efficiency,
-                    "precision": d.score_breakdown.effective_axes.precision,
-                    "latency": d.score_breakdown.effective_axes.latency,
-                    "availability": d.score_breakdown.effective_axes.availability,
-                    "balance": d.score_breakdown.effective_axes.balance,
-                    "mobile": d.score_breakdown.effective_axes.mobile
-                },
-                "capability_match_count": d.score_breakdown.capability_match_count,
-                "candidate_count": d.score_breakdown.candidate_count,
-                "intelligence_score": d.score_breakdown.intelligence_score,
-                "efficiency_score": d.score_breakdown.efficiency_score,
-                "latency_score": d.score_breakdown.latency_score,
-                "telemetry_quality_score": d.score_breakdown.telemetry_quality_score
-            }
+    let decision_json = decision
+        .map(|d| {
+            json!({
+                "selected_model": d.selected_model,
+                "provider_route": format!("{:?}", d.provider_route),
+                "alternatives": d.alternatives,
+                "rejection_reasons": d.rejection_reasons,
+                "discovery_state": d.discovery_state.as_str(),
+                "score_breakdown": {
+                    "reason": format!("{:?}", d.score_breakdown.reason),
+                    "effective_axes": {
+                        "efficiency": d.score_breakdown.effective_axes.efficiency,
+                        "precision": d.score_breakdown.effective_axes.precision,
+                        "latency": d.score_breakdown.effective_axes.latency,
+                        "availability": d.score_breakdown.effective_axes.availability,
+                        "balance": d.score_breakdown.effective_axes.balance,
+                        "mobile": d.score_breakdown.effective_axes.mobile
+                    },
+                    "capability_match_count": d.score_breakdown.capability_match_count,
+                    "candidate_count": d.score_breakdown.candidate_count,
+                    "intelligence_score": d.score_breakdown.intelligence_score,
+                    "efficiency_score": d.score_breakdown.efficiency_score,
+                    "latency_score": d.score_breakdown.latency_score,
+                    "telemetry_quality_score": d.score_breakdown.telemetry_quality_score
+                }
+            })
         })
-    }).unwrap_or(json!(null));
+        .unwrap_or(json!(null));
     ok(json!({
         "source": "registry",
         "arm_stats": arms_json,

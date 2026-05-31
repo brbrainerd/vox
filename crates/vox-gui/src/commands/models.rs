@@ -121,11 +121,8 @@ pub async fn set_active_model(model_id: String) -> Result<(), String> {
     unsafe {
         std::env::set_var("VOX_MODEL", model_id.trim());
     }
-    if let Some(db) = vox_db::connect_workspace_journey_optional(
-        vox_db::DbConnectSurface::Runtime,
-        true,
-    )
-    .await
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
     {
         let _ = db
             .set_user_preference("local_user", "active_model", model_id.trim())
@@ -136,11 +133,8 @@ pub async fn set_active_model(model_id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn get_active_model() -> Result<Option<String>, String> {
-    if let Some(db) = vox_db::connect_workspace_journey_optional(
-        vox_db::DbConnectSurface::Runtime,
-        true,
-    )
-    .await
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
     {
         if let Ok(Some(v)) = db.get_user_preference("local_user", "active_model").await {
             if !v.trim().is_empty() {
@@ -161,7 +155,8 @@ pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
     let cfg = vox_config::load_model_routing_config();
     let active = get_active_model().await.ok().flatten();
     let decision_preview = {
-        let req = ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
+        let req =
+            ModelSelectionRequest::from_intent(SelectionIntent::for_task(TaskCategory::CodeGen));
         decide(&req, &reg).map(|d| DecisionPreviewDto {
             selected_model: d.selected_model,
             discovery_state: d.discovery_state.as_str().to_string(),
@@ -202,7 +197,9 @@ pub async fn set_routing_priority(
 }
 
 #[tauri::command]
-pub async fn get_model_scoreboard(window_days: Option<i64>) -> Result<Vec<ScoreboardRowDto>, String> {
+pub async fn get_model_scoreboard(
+    window_days: Option<i64>,
+) -> Result<Vec<ScoreboardRowDto>, String> {
     let window = window_days.unwrap_or(7);
     let db_config = vox_db::DbConfig::resolve_canonical().map_err(|e| e.to_string())?;
     let db = vox_db::VoxDb::connect(db_config)
@@ -228,7 +225,10 @@ pub async fn get_model_scoreboard(window_days: Option<i64>) -> Result<Vec<Scoreb
 }
 
 #[tauri::command]
-pub async fn explain_model_selection(task: String, complexity: Option<u8>) -> Result<serde_json::Value, String> {
+pub async fn explain_model_selection(
+    task: String,
+    complexity: Option<u8>,
+) -> Result<serde_json::Value, String> {
     let task_category = match task.to_ascii_lowercase().as_str() {
         "codegen" => TaskCategory::CodeGen,
         "research" => TaskCategory::Research,

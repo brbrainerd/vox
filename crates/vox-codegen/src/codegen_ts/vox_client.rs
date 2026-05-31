@@ -218,13 +218,23 @@ async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { 
         let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
             .endpoint_fns
             .iter()
-            .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+            .map(|e| {
+                (
+                    e.name.clone(),
+                    e.params.iter().map(|p| p.name.clone()).collect(),
+                )
+            })
             .collect();
         for (i, ep) in ir.endpoints.iter().enumerate() {
             let hir_fn = &hir.endpoint_fns[i]; // contract_ir projects endpoint_fns 1:1, in order
             let is_query = ep.kind == ContractEndpointKind::Query;
             if local_names.contains(&hir_fn.name) {
-                out.push_str(&emit_local_endpoint(hir_fn, ep, &local_names, &endpoint_params));
+                out.push_str(&emit_local_endpoint(
+                    hir_fn,
+                    ep,
+                    &local_names,
+                    &endpoint_params,
+                ));
             } else if hir_fn.kind == HirEndpointKind::Server {
                 // Genuine server semantics — keep the HTTP call.
                 out.push_str(&emit_one_endpoint(ep, is_query));
@@ -379,7 +389,9 @@ fn expr_local_safe(expr: &HirExpr, all_endpoints: &HashSet<String>, ok: &HashSet
                 return false;
             }
             expr_local_safe(obj, all_endpoints, ok)
-                && args.iter().all(|a| expr_local_safe(&a.value, all_endpoints, ok))
+                && args
+                    .iter()
+                    .all(|a| expr_local_safe(&a.value, all_endpoints, ok))
         }
         HirExpr::Call(callee, args, _, _) => {
             if let HirExpr::Ident(name, _) = callee.as_ref() {
@@ -390,7 +402,9 @@ fn expr_local_safe(expr: &HirExpr, all_endpoints: &HashSet<String>, ok: &HashSet
                 }
             }
             expr_local_safe(callee, all_endpoints, ok)
-                && args.iter().all(|a| expr_local_safe(&a.value, all_endpoints, ok))
+                && args
+                    .iter()
+                    .all(|a| expr_local_safe(&a.value, all_endpoints, ok))
         }
         HirExpr::Binary(_, l, r, _) => {
             expr_local_safe(l, all_endpoints, ok) && expr_local_safe(r, all_endpoints, ok)
@@ -401,9 +415,9 @@ fn expr_local_safe(expr: &HirExpr, all_endpoints: &HashSet<String>, ok: &HashSet
             expr_local_safe(o, all_endpoints, ok) && expr_local_safe(i, all_endpoints, ok)
         }
         HirExpr::Try(t) => expr_local_safe(t.target.as_ref(), all_endpoints, ok),
-        HirExpr::ObjectLit(fields, _) => {
-            fields.iter().all(|(_, v)| expr_local_safe(v, all_endpoints, ok))
-        }
+        HirExpr::ObjectLit(fields, _) => fields
+            .iter()
+            .all(|(_, v)| expr_local_safe(v, all_endpoints, ok)),
         HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
             items.iter().all(|e| expr_local_safe(e, all_endpoints, ok))
         }
@@ -416,7 +430,9 @@ fn expr_local_safe(expr: &HirExpr, all_endpoints: &HashSet<String>, ok: &HashSet
         }
         HirExpr::Match(subj, arms, _) => {
             expr_local_safe(subj, all_endpoints, ok)
-                && arms.iter().all(|a| expr_local_safe(&a.body, all_endpoints, ok))
+                && arms
+                    .iter()
+                    .all(|a| expr_local_safe(&a.body, all_endpoints, ok))
         }
         HirExpr::For(_, _, iter, body, _, _) => {
             expr_local_safe(iter, all_endpoints, ok) && expr_local_safe(body, all_endpoints, ok)
@@ -435,10 +451,12 @@ fn stmt_local_safe(stmt: &HirStmt, all_endpoints: &HashSet<String>, ok: &HashSet
         HirStmt::Assign { target, value, .. } => {
             expr_local_safe(target, all_endpoints, ok) && expr_local_safe(value, all_endpoints, ok)
         }
-        HirStmt::Return { value, .. } => {
-            value.as_ref().is_none_or(|v| expr_local_safe(v, all_endpoints, ok))
-        }
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::Return { value, .. } => value
+            .as_ref()
+            .is_none_or(|v| expr_local_safe(v, all_endpoints, ok)),
+        HirStmt::While {
+            condition, body, ..
+        } => {
             expr_local_safe(condition, all_endpoints, ok)
                 && body.iter().all(|s| stmt_local_safe(s, all_endpoints, ok))
         }

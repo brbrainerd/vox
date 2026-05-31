@@ -168,8 +168,13 @@ impl DomArena {
         async_fn_names: &HashSet<String>,
     ) -> DomNodeId {
         // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list (parity with hir_emit).
-        let (tag, attrs) =
-            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names, &self.endpoint_params);
+        let (tag, attrs) = fold_primitive_web_ir_element(
+            &el.tag,
+            &el.attributes,
+            state_names,
+            async_fn_names,
+            &self.endpoint_params,
+        );
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
@@ -190,8 +195,13 @@ impl DomArena {
         state_names: &HashSet<String>,
         async_fn_names: &HashSet<String>,
     ) -> DomNodeId {
-        let (tag, attrs) =
-            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names, &self.endpoint_params);
+        let (tag, attrs) = fold_primitive_web_ir_element(
+            &el.tag,
+            &el.attributes,
+            state_names,
+            async_fn_names,
+            &self.endpoint_params,
+        );
         self.push(DomNode::Element {
             id: DomNodeId(0),
             tag,
@@ -337,8 +347,7 @@ fn lower_jsx_attr_pair(
     endpoint_params: &std::collections::HashMap<String, Vec<String>>,
 ) -> Vec<(String, String)> {
     if attr.name == "bind" {
-        let ctx =
-            EmitCtx::with_async_and_endpoints(state_names, async_fn_names, endpoint_params);
+        let ctx = EmitCtx::with_async_and_endpoints(state_names, async_fn_names, endpoint_params);
         let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, &ctx);
         return vec![
             ("value".to_string(), value_str),
@@ -660,7 +669,12 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     arena.endpoint_params = hir
         .endpoint_fns
         .iter()
-        .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+        .map(|e| {
+            (
+                e.name.clone(),
+                e.params.iter().map(|p| p.name.clone()).collect(),
+            )
+        })
         .collect();
 
     // Stage B + D — Path C reactive components

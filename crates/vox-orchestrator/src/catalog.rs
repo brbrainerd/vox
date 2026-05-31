@@ -465,15 +465,15 @@ impl ModelCatalog for PopuliMeshCatalog {
 pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Error> {
     #[cfg(feature = "populi-transport")]
     {
-        let mut control_url_opt = vox_secrets::resolve_secret(
-            vox_secrets::SecretId::VoxOrchestratorMeshControlUrl,
-        )
-        .expose()
-        .map(|s| s.to_string());
-        if control_url_opt.is_none() {
-            control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr)
+        let mut control_url_opt =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl)
                 .expose()
                 .map(|s| s.to_string());
+        if control_url_opt.is_none() {
+            control_url_opt =
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr)
+                    .expose()
+                    .map(|s| s.to_string());
         }
         let Some(control_url) = control_url_opt else {
             return Ok(vec![]);

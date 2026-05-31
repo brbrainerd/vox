@@ -58,7 +58,8 @@ fn sync_json_version(path: &Path, expected: &str, write: bool) -> Result<()> {
     }
     let serialized = serde_json::to_string_pretty(&json)
         .with_context(|| format!("serialize {}", path.display()))?;
-    fs::write(path, format!("{serialized}\n")).with_context(|| format!("write {}", path.display()))?;
+    fs::write(path, format!("{serialized}\n"))
+        .with_context(|| format!("write {}", path.display()))?;
     Ok(())
 }
 
@@ -92,7 +93,8 @@ fn sync_runtime_web_dep(path: &Path, expected: &str, write: bool) -> Result<()> 
     );
     let serialized = serde_json::to_string_pretty(&json)
         .with_context(|| format!("serialize {}", path.display()))?;
-    fs::write(path, format!("{serialized}\n")).with_context(|| format!("write {}", path.display()))?;
+    fs::write(path, format!("{serialized}\n"))
+        .with_context(|| format!("write {}", path.display()))?;
     Ok(())
 }
 

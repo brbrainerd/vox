@@ -38,5 +38,5 @@ pub mod lifecycle;
 pub mod profile;
 
 pub use config::VoxConfig;
-pub use lifecycle::{Resumable, ResumeError, Suspendable, SuspendDeadline, SuspendError};
+pub use lifecycle::{Resumable, ResumeError, SuspendDeadline, SuspendError, Suspendable};
 pub use profile::{JournalFlushStrategy, ModelLoadingStrategy, RuntimeProfile};

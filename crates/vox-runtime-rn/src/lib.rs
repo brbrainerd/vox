@@ -304,7 +304,9 @@ impl FileJournalHandle {
 /// Replays any existing entries silently — the JS side calls
 /// [`FileJournalHandle::replay_all`] explicitly when it wants them.
 #[uniffi::export]
-pub fn open_file_journal(path: String) -> Result<std::sync::Arc<FileJournalHandle>, FileJournalError> {
+pub fn open_file_journal(
+    path: String,
+) -> Result<std::sync::Arc<FileJournalHandle>, FileJournalError> {
     let opened = vox_journal::FileJournal::<serde_json::Value>::open(path)
         .map_err(FileJournalError::from)?;
     Ok(std::sync::Arc::new(FileJournalHandle {
@@ -379,8 +381,14 @@ mod tests {
         // on both Windows and Unix.
         let data_back: std::path::PathBuf = cfg.data_dir.into();
         let model_back: std::path::PathBuf = cfg.model_dir.into();
-        assert_eq!(data_back, std::path::PathBuf::from("/var/mobile/Documents/data"));
-        assert_eq!(model_back, std::path::PathBuf::from("/var/mobile/Documents/models"));
+        assert_eq!(
+            data_back,
+            std::path::PathBuf::from("/var/mobile/Documents/data")
+        );
+        assert_eq!(
+            model_back,
+            std::path::PathBuf::from("/var/mobile/Documents/models")
+        );
     }
 
     #[test]

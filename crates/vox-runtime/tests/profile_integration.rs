@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use vox_runtime::{
     JournalFlushStrategy, ModelLoadingStrategy, Resumable, ResumeError, RuntimeProfile,
-    Suspendable, SuspendDeadline, SuspendError, VoxConfig,
+    SuspendDeadline, SuspendError, Suspendable, VoxConfig,
 };
 
 #[test]
@@ -112,5 +112,8 @@ fn suspend_error_includes_elapsed_duration() {
         elapsed: Duration::from_secs(7),
     };
     let msg = format!("{e}");
-    assert!(msg.contains("7"), "expected elapsed seconds in message, got: {msg}");
+    assert!(
+        msg.contains("7"),
+        "expected elapsed seconds in message, got: {msg}"
+    );
 }

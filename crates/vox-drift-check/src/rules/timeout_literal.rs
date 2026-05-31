@@ -106,10 +106,8 @@ mod tests {
 
     #[test]
     fn respects_per_line_drift_allow() {
-        let mut f = ExtractedFeatures::new(
-            PathBuf::from("crates/vox-foo/src/lib.rs"),
-            Language::Rust,
-        );
+        let mut f =
+            ExtractedFeatures::new(PathBuf::from("crates/vox-foo/src/lib.rs"), Language::Rust);
         f.crate_name = Some("vox-foo".into());
         f.numeric_literals.push(NumericLoc {
             value: 30.0,
@@ -119,7 +117,8 @@ mod tests {
         });
         let mut allowed = std::collections::HashSet::new();
         allowed.insert(42);
-        f.allowed_lines.insert("timeout-literal".to_string(), allowed);
+        f.allowed_lines
+            .insert("timeout-literal".to_string(), allowed);
         let rule = TimeoutLiteralRule;
         assert!(rule.check(&f, &ctx()).is_empty());
     }

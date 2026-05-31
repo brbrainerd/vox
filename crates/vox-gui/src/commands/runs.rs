@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use turso::params;
-use vox_db::{connect_workspace_journey_optional, DbConnectSurface};
+use vox_db::{DbConnectSurface, connect_workspace_journey_optional};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GuiRunRecord {

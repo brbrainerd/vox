@@ -9,7 +9,7 @@ use std::sync::Mutex;
 
 use serde::{Serialize, de::DeserializeOwned};
 use thiserror::Error;
-use vox_runtime::{Suspendable, SuspendDeadline, SuspendError};
+use vox_runtime::{SuspendDeadline, SuspendError, Suspendable};
 
 /// Errors raised by [`FileJournal`].
 #[derive(Debug, Error)]
@@ -74,17 +74,11 @@ where
             }
         }
         // Touch the file so the replay open works on first run.
-        let _touch = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
+        let _touch = OpenOptions::new().create(true).append(true).open(&path)?;
 
         let replayed = Self::replay(&path)?;
 
-        let writer = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
+        let writer = OpenOptions::new().create(true).append(true).open(&path)?;
 
         let journal = Self {
             path,
@@ -162,8 +156,9 @@ impl<E> Suspendable for FileJournal<E> {
             .writer
             .lock()
             .map_err(|e| SuspendError::Other(format!("journal writer poisoned: {e}")))?;
-        f.sync_data()
-            .map_err(|e| SuspendError::FlushFailed { message: e.to_string() })?;
+        f.sync_data().map_err(|e| SuspendError::FlushFailed {
+            message: e.to_string(),
+        })?;
         Ok(())
     }
 }
@@ -208,7 +203,10 @@ mod tests {
 
         // Drop the handle and re-open.
         drop(journal);
-        let Opened { journal: _, replayed } = FileJournal::<Entry>::open(&path).expect("re-open");
+        let Opened {
+            journal: _,
+            replayed,
+        } = FileJournal::<Entry>::open(&path).expect("re-open");
         assert_eq!(replayed.len(), 5);
         for (i, e) in replayed.iter().enumerate() {
             assert_eq!(e.id, format!("e{i}"));
@@ -232,7 +230,10 @@ mod tests {
         )
         .unwrap();
 
-        let Opened { journal: _, replayed } = FileJournal::<Entry>::open(&path).expect("open");
+        let Opened {
+            journal: _,
+            replayed,
+        } = FileJournal::<Entry>::open(&path).expect("open");
         assert_eq!(replayed.len(), 2);
         assert_eq!(replayed[0].id, "a");
         assert_eq!(replayed[1].id, "b");
@@ -245,13 +246,12 @@ mod tests {
         let path = temp_path();
         let _ = std::fs::remove_file(&path);
 
-        std::fs::write(
-            &path,
-            "\n{\"id\":\"x\",\"value\":99}\n\n\n",
-        )
-        .unwrap();
+        std::fs::write(&path, "\n{\"id\":\"x\",\"value\":99}\n\n\n").unwrap();
 
-        let Opened { journal: _, replayed } = FileJournal::<Entry>::open(&path).expect("open");
+        let Opened {
+            journal: _,
+            replayed,
+        } = FileJournal::<Entry>::open(&path).expect("open");
         assert_eq!(replayed.len(), 1);
         assert_eq!(replayed[0].id, "x");
         assert_eq!(replayed[0].value, 99);
@@ -263,7 +263,10 @@ mod tests {
     fn suspend_succeeds_on_an_open_journal() {
         let path = temp_path();
         let _ = std::fs::remove_file(&path);
-        let Opened { journal, replayed: _ } = FileJournal::<Entry>::open(&path).expect("open");
+        let Opened {
+            journal,
+            replayed: _,
+        } = FileJournal::<Entry>::open(&path).expect("open");
         journal
             .suspend(SuspendDeadline::mobile_default())
             .expect("suspend");
@@ -274,9 +277,22 @@ mod tests {
     fn replay_all_returns_current_disk_state() {
         let path = temp_path();
         let _ = std::fs::remove_file(&path);
-        let Opened { journal, replayed: _ } = FileJournal::<Entry>::open(&path).expect("open");
-        journal.append(&Entry { id: "a".into(), value: 1 }).unwrap();
-        journal.append(&Entry { id: "b".into(), value: 2 }).unwrap();
+        let Opened {
+            journal,
+            replayed: _,
+        } = FileJournal::<Entry>::open(&path).expect("open");
+        journal
+            .append(&Entry {
+                id: "a".into(),
+                value: 1,
+            })
+            .unwrap();
+        journal
+            .append(&Entry {
+                id: "b".into(),
+                value: 2,
+            })
+            .unwrap();
         let entries = journal.replay_all().expect("replay_all");
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].id, "a");

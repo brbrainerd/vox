@@ -75,8 +75,8 @@ fn read_operation_catalog() -> Result<Vec<OperationMeta>, String> {
     let catalog_path = repo_root.join("contracts/operations/catalog.v1.yaml");
     let raw = std::fs::read_to_string(&catalog_path)
         .map_err(|e| format!("Failed to read operations catalog: {e}"))?;
-    let parsed: Value =
-        serde_yaml::from_str(&raw).map_err(|e| format!("Failed to parse operations catalog: {e}"))?;
+    let parsed: Value = serde_yaml::from_str(&raw)
+        .map_err(|e| format!("Failed to parse operations catalog: {e}"))?;
     let mut out = Vec::new();
     let Some(ops) = parsed.get("operations").and_then(Value::as_sequence) else {
         return Ok(out);
@@ -117,7 +117,10 @@ fn read_operation_catalog() -> Result<Vec<OperationMeta>, String> {
             .map(ToString::to_string);
         out.push(OperationMeta {
             id,
-            title: op.get("title").and_then(Value::as_str).map(ToString::to_string),
+            title: op
+                .get("title")
+                .and_then(Value::as_str)
+                .map(ToString::to_string),
             description: op
                 .get("description")
                 .and_then(Value::as_str)
@@ -211,7 +214,9 @@ pub fn build_action_manifest() -> Result<GuiActionManifest, String> {
             .unwrap_or_else(|| "active".to_string());
         let safety_class = to_safety_class(op.and_then(|m| m.side_effect_class.as_deref()));
         actions.push(GuiActionEntry {
-            id: op.map(|m| m.id.clone()).unwrap_or_else(|| key.replace(' ', ".")),
+            id: op
+                .map(|m| m.id.clone())
+                .unwrap_or_else(|| key.replace(' ', ".")),
             title,
             description,
             handler_kind: ActionHandlerKind::Cli,
@@ -246,7 +251,9 @@ pub fn build_action_manifest() -> Result<GuiActionManifest, String> {
         actions.push(GuiActionEntry {
             id: op.id,
             title: op.title.unwrap_or_else(|| "MCP operation".to_string()),
-            description: op.description.unwrap_or_else(|| "MCP-backed operation".to_string()),
+            description: op
+                .description
+                .unwrap_or_else(|| "MCP-backed operation".to_string()),
             handler_kind: ActionHandlerKind::Mcp,
             cli_path: None,
             mcp_name: op.mcp_name,

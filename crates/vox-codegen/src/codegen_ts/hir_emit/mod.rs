@@ -324,7 +324,10 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 for (i, stmt) in stmts.iter().enumerate() {
                     if i + 1 == n {
                         if let HirStmt::Expr { expr, .. } = stmt {
-                            out.push_str(&format!("    return {};\n", emit_hir_expr(expr, &plain_ctx)));
+                            out.push_str(&format!(
+                                "    return {};\n",
+                                emit_hir_expr(expr, &plain_ctx)
+                            ));
                             continue;
                         }
                     }
@@ -446,8 +449,8 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 // Only when the fn has ≥1 param (zero-arg endpoints stay bare)
                 // and the args aren't already a single object literal.
                 if let Some(params) = ctx.endpoint_params.get(name) {
-                    let already_object = args.len() == 1
-                        && matches!(args[0].value, HirExpr::ObjectLit(_, _));
+                    let already_object =
+                        args.len() == 1 && matches!(args[0].value, HirExpr::ObjectLit(_, _));
                     if !params.is_empty() && !already_object {
                         let fields: Vec<String> = params
                             .iter()
@@ -820,10 +823,15 @@ pub(crate) fn emit_hir_expr_attr_value(
 ///
 /// Shared by the web (reactive) and RN component emitters so both wrap async
 /// lifecycle bodies identically.
-pub(crate) fn wrap_effect_body_if_async(stmts_str: &str, indent: usize) -> std::borrow::Cow<'_, str> {
+pub(crate) fn wrap_effect_body_if_async(
+    stmts_str: &str,
+    indent: usize,
+) -> std::borrow::Cow<'_, str> {
     if stmts_str.contains("await ") {
         let pad = "  ".repeat(indent);
-        std::borrow::Cow::Owned(format!("{pad}void (async () => {{\n{stmts_str}{pad}}})();\n"))
+        std::borrow::Cow::Owned(format!(
+            "{pad}void (async () => {{\n{stmts_str}{pad}}})();\n"
+        ))
     } else {
         std::borrow::Cow::Borrowed(stmts_str)
     }
@@ -852,8 +860,7 @@ pub(crate) fn emit_block_stmts(expr: &HirExpr, ctx: &EmitCtx<'_>, indent: usize)
 fn floating_endpoint_call_name<'a>(expr: &'a HirExpr, ctx: &EmitCtx<'_>) -> Option<&'a str> {
     if let HirExpr::Call(callee, _, _, _) = expr {
         if let HirExpr::Ident(name, _) = callee.as_ref() {
-            if ctx.endpoint_params.contains_key(name)
-                && !ctx.async_fn_names.contains(name.as_str())
+            if ctx.endpoint_params.contains_key(name) && !ctx.async_fn_names.contains(name.as_str())
             {
                 return Some(name.as_str());
             }

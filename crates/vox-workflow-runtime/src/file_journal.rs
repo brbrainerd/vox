@@ -23,7 +23,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vox_journal::FileJournal;
-use vox_runtime::{Suspendable, SuspendDeadline, SuspendError};
+use vox_runtime::{SuspendDeadline, SuspendError, Suspendable};
 
 use crate::WorkflowTracker;
 
@@ -201,10 +201,7 @@ impl WorkflowTracker for FileJournalTracker {
         let write = self.journal.append(&entry).map_err(anyhow::Error::from);
         if write.is_ok() {
             if let Ok(mut m) = self.patches.lock() {
-                m.insert(
-                    (workflow_name.to_string(), change_id.to_string()),
-                    version,
-                );
+                m.insert((workflow_name.to_string(), change_id.to_string()), version);
             }
         }
         async move { write }
@@ -268,14 +265,9 @@ mod tests {
 
         let mut t = FileJournalTracker::new(&path).expect("create");
         for i in 0..5 {
-            t.on_activity_completed(
-                "wf",
-                "act",
-                &format!("wf/act/{i}"),
-                &json!({"i": i}),
-            )
-            .await
-            .unwrap();
+            t.on_activity_completed("wf", "act", &format!("wf/act/{i}"), &json!({"i": i}))
+                .await
+                .unwrap();
         }
         t.record_workflow_patch("wf", "change-A", 3).await.unwrap();
         assert_eq!(t.recorded_count(), 5);

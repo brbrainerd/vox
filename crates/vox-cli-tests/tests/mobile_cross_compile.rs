@@ -104,25 +104,41 @@ fn assert_cross_compiles(package: &str, target_triple: &str, expected_lib: &str)
 /// once the host build cache is warm.
 #[test]
 fn vox_runtime_rn_cross_compiles_to_aarch64_android() {
-    assert_cross_compiles("vox-runtime-rn", "aarch64-linux-android", "libvox_runtime_rn.so");
+    assert_cross_compiles(
+        "vox-runtime-rn",
+        "aarch64-linux-android",
+        "libvox_runtime_rn.so",
+    );
 }
 
 /// 32-bit ARM (older devices + Wear OS).
 #[test]
 fn vox_runtime_rn_cross_compiles_to_armv7_android() {
-    assert_cross_compiles("vox-runtime-rn", "armv7-linux-androideabi", "libvox_runtime_rn.so");
+    assert_cross_compiles(
+        "vox-runtime-rn",
+        "armv7-linux-androideabi",
+        "libvox_runtime_rn.so",
+    );
 }
 
 /// Used by the x86_64 emulator (the one EAS Build CI runs).
 #[test]
 fn vox_runtime_rn_cross_compiles_to_x86_64_android() {
-    assert_cross_compiles("vox-runtime-rn", "x86_64-linux-android", "libvox_runtime_rn.so");
+    assert_cross_compiles(
+        "vox-runtime-rn",
+        "x86_64-linux-android",
+        "libvox_runtime_rn.so",
+    );
 }
 
 /// 32-bit x86 emulator (older Android Studio defaults).
 #[test]
 fn vox_runtime_rn_cross_compiles_to_i686_android() {
-    assert_cross_compiles("vox-runtime-rn", "i686-linux-android", "libvox_runtime_rn.so");
+    assert_cross_compiles(
+        "vox-runtime-rn",
+        "i686-linux-android",
+        "libvox_runtime_rn.so",
+    );
 }
 
 /// vox-journal must also cross-compile cleanly — proves the new mobile-friendly

@@ -63,9 +63,7 @@ fn run_package_contract(package_dir: &str, tsconfig: &str) {
         pkg_path.display()
     );
     let Some(npx) = find_npx() else {
-        eprintln!(
-            "warning: `npx` not on PATH; skipping {package_dir} contract gate"
-        );
+        eprintln!("warning: `npx` not on PATH; skipping {package_dir} contract gate");
         return;
     };
     let output = Command::new(&npx)

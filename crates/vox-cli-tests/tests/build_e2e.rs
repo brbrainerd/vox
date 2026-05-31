@@ -105,8 +105,8 @@ fn build_mobile_list_renders_pure_rn_inside_for_loop() {
     run.assert_success();
     run.assert_no_panic();
     run.assert_expected_files();
-    let todo_tsx = std::fs::read_to_string(run.out_dir.path().join("TodoList.tsx"))
-        .expect("TodoList.tsx");
+    let todo_tsx =
+        std::fs::read_to_string(run.out_dir.path().join("TodoList.tsx")).expect("TodoList.tsx");
     // The loop must use `.map((item, i: number) => ...)` over the iterator.
     assert!(
         todo_tsx.contains("items.map("),
@@ -158,8 +158,8 @@ fn build_mobile_form_produces_pure_rn_form() {
     run.assert_success();
     run.assert_no_panic();
     run.assert_expected_files();
-    let forms_tsx = std::fs::read_to_string(run.out_dir.path().join("forms.tsx"))
-        .expect("forms.tsx");
+    let forms_tsx =
+        std::fs::read_to_string(run.out_dir.path().join("forms.tsx")).expect("forms.tsx");
     // Must use RN primitives.
     assert!(
         forms_tsx.contains("from \"react-native\""),
@@ -272,8 +272,8 @@ fn build_mobile_routes_emits_expo_router_file_tree() {
         "_layout must render <Stack>; got:\n{layout}"
     );
 
-    let index = std::fs::read_to_string(run.out_dir.path().join("app/index.tsx"))
-        .expect("app/index.tsx");
+    let index =
+        std::fs::read_to_string(run.out_dir.path().join("app/index.tsx")).expect("app/index.tsx");
     assert!(
         index.contains("export { Home as default } from \"../Home\""),
         "app/index.tsx must re-export Home from `../Home`; got:\n{index}"
@@ -286,8 +286,8 @@ fn build_mobile_routes_emits_expo_router_file_tree() {
         "nested detail/[id].tsx must use `../../Detail` for double-depth: got:\n{detail}"
     );
 
-    let pkg = std::fs::read_to_string(run.out_dir.path().join("package.json"))
-        .expect("package.json");
+    let pkg =
+        std::fs::read_to_string(run.out_dir.path().join("package.json")).expect("package.json");
     assert!(
         pkg.contains("\"main\": \"expo-router/entry\""),
         "package.json `main` must switch to `expo-router/entry`; got:\n{pkg}"
@@ -297,8 +297,7 @@ fn build_mobile_routes_emits_expo_router_file_tree() {
         "package.json must include the expo-router dep; got:\n{pkg}"
     );
 
-    let app_json =
-        std::fs::read_to_string(run.out_dir.path().join("app.json")).expect("app.json");
+    let app_json = std::fs::read_to_string(run.out_dir.path().join("app.json")).expect("app.json");
     assert!(
         app_json.contains("\"plugins\": [\"expo-router\"]"),
         "app.json must register `expo-router` in plugins; got:\n{app_json}"
@@ -318,8 +317,7 @@ fn build_mobile_app_complete_exercises_full_rn_vocabulary() {
     run.assert_no_panic();
     run.assert_expected_files();
 
-    let home = std::fs::read_to_string(run.out_dir.path().join("Home.tsx"))
-        .expect("Home.tsx");
+    let home = std::fs::read_to_string(run.out_dir.path().join("Home.tsx")).expect("Home.tsx");
     // Custom-component invocation inside a for-loop body must render as a
     // JSX tag with the original PascalCase name and a `{...}` attr per arg,
     // NOT fall through to an empty `<View>`.
@@ -364,16 +362,15 @@ fn build_mobile_app_complete_exercises_full_rn_vocabulary() {
     );
 
     // The Entry component (uses transcribe_microphone) must also auto-import.
-    let entry = std::fs::read_to_string(run.out_dir.path().join("Entry.tsx"))
-        .expect("Entry.tsx");
+    let entry = std::fs::read_to_string(run.out_dir.path().join("Entry.tsx")).expect("Entry.tsx");
     assert!(
         entry.contains("import { mobile } from \"./mobile-utils\""),
         "Entry.tsx must auto-import mobile (uses transcribe_microphone):\n{entry}"
     );
 
     // The Detail component (no mobile use, no state) must NOT auto-import mobile.
-    let detail = std::fs::read_to_string(run.out_dir.path().join("Detail.tsx"))
-        .expect("Detail.tsx");
+    let detail =
+        std::fs::read_to_string(run.out_dir.path().join("Detail.tsx")).expect("Detail.tsx");
     assert!(
         !detail.contains("from \"./mobile-utils\""),
         "Detail.tsx (no mobile use) must NOT import mobile-utils:\n{detail}"
@@ -545,7 +542,7 @@ fn build_every_fixture_passes_fast_path() {
     let mut failures: Vec<String> = Vec::new();
     for name in &names {
         init_vox_binary_once();
-    let run = BuildRun::run(name);
+        let run = BuildRun::run(name);
         if !run.success {
             failures.push(format!(
                 "{name}: non-zero exit\nstdout:\n{}\nstderr:\n{}",

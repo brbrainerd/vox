@@ -68,7 +68,12 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
     let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
         .endpoint_fns
         .iter()
-        .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+        .map(|e| {
+            (
+                e.name.clone(),
+                e.params.iter().map(|p| p.name.clone()).collect(),
+            )
+        })
         .collect();
     let screen_root_names = crate::codegen_ts::screen_root_component_names(hir);
     for rc in &hir.components {

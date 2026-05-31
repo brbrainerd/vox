@@ -42,9 +42,7 @@ impl RuntimeProfile {
     /// How the workflow journal should flush to disk.
     pub fn journal_flush_strategy(self) -> JournalFlushStrategy {
         match self {
-            Self::Desktop => JournalFlushStrategy::Periodic {
-                interval_ms: 5_000,
-            },
+            Self::Desktop => JournalFlushStrategy::Periodic { interval_ms: 5_000 },
             // Mobile uses lifecycle-triggered flushes because the OS only
             // gives us ~30 seconds after backgrounding before potential kill.
             Self::Mobile => JournalFlushStrategy::OnLifecycle,
@@ -145,7 +143,10 @@ mod tests {
     #[test]
     fn desktop_journal_is_periodic() {
         let s = RuntimeProfile::Desktop.journal_flush_strategy();
-        assert!(matches!(s, JournalFlushStrategy::Periodic { interval_ms: 5_000 }));
+        assert!(matches!(
+            s,
+            JournalFlushStrategy::Periodic { interval_ms: 5_000 }
+        ));
     }
 
     #[test]

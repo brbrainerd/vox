@@ -23,7 +23,9 @@ pub fn emit_form(form: &HirForm) -> String {
     let name = &form.name;
     let visible: Vec<&HirFormField> = form.fields.iter().filter(|f| !f.hidden).collect();
 
-    out.push_str(&format!("export function {name}(): React.ReactElement {{\n"));
+    out.push_str(&format!(
+        "export function {name}(): React.ReactElement {{\n"
+    ));
 
     // State per visible field.
     for f in &visible {
@@ -34,9 +36,7 @@ pub fn emit_form(form: &HirForm) -> String {
             ts_ty = hir_type_to_ts(&f.ty)
         ));
     }
-    out.push_str(
-        "  const [errors, setErrors] = useState<Record<string, string>>({});\n",
-    );
+    out.push_str("  const [errors, setErrors] = useState<Record<string, string>>({});\n");
     out.push_str("  const [submitting, setSubmitting] = useState(false);\n");
     out.push_str("  const [bannerError, setBannerError] = useState<string | null>(null);\n");
 
@@ -198,8 +198,7 @@ fn field_initial_value(f: &HirFormField) -> &'static str {
 /// StyleSheet block appended to `forms.tsx` when any form is emitted. Stable
 /// shape keyed by the style names this module references (`form`, `field`,
 /// `label`, `input`, `field_error`, `banner_error`, `submit`, `submit_text`).
-pub const RN_FORM_STYLESHEET: &str =
-    "const styles = StyleSheet.create({\n\
+pub const RN_FORM_STYLESHEET: &str = "const styles = StyleSheet.create({\n\
      \x20 form: { gap: 12 },\n\
      \x20 field: { gap: 4 },\n\
      \x20 label: { fontSize: 14, fontWeight: \"500\" },\n\

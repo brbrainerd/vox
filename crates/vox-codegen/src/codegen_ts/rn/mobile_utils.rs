@@ -77,9 +77,9 @@ fn stmt_uses_mobile(stmt: &HirStmt) -> bool {
         }
         HirStmt::Return { value, .. } => value.as_ref().is_some_and(expr_uses_mobile),
         HirStmt::Expr { expr, .. } => expr_uses_mobile(expr),
-        HirStmt::While { condition, body, .. } => {
-            expr_uses_mobile(condition) || body.iter().any(stmt_uses_mobile)
-        }
+        HirStmt::While {
+            condition, body, ..
+        } => expr_uses_mobile(condition) || body.iter().any(stmt_uses_mobile),
         HirStmt::Loop { body, .. } => body.iter().any(stmt_uses_mobile),
         _ => false,
     }
@@ -119,9 +119,7 @@ fn expr_uses_mobile(expr: &HirExpr) -> bool {
         HirExpr::Match(subj, arms, _) => {
             expr_uses_mobile(subj) || arms.iter().any(|a| expr_uses_mobile(&a.body))
         }
-        HirExpr::For(_, _, iter, body, _, _) => {
-            expr_uses_mobile(iter) || expr_uses_mobile(body)
-        }
+        HirExpr::For(_, _, iter, body, _, _) => expr_uses_mobile(iter) || expr_uses_mobile(body),
         HirExpr::Lambda(_, _, body, _, _) => expr_uses_mobile(body),
         HirExpr::Jsx(el) => {
             el.attributes.iter().any(|a| expr_uses_mobile(&a.value))

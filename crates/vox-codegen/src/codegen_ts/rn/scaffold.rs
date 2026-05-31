@@ -46,10 +46,7 @@ pub fn emit_expo_scaffold(hir: &HirModule, has_routes: bool) -> Vec<(String, Str
     // owns the boot path otherwise via app/_layout.tsx + app/index.tsx.
     if !has_routes {
         if let Some(first) = hir.components.first() {
-            out.push((
-                "App.tsx".to_string(),
-                emit_app_tsx(&first.name),
-            ));
+            out.push(("App.tsx".to_string(), emit_app_tsx(&first.name)));
         }
     }
 

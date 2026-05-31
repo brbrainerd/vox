@@ -121,8 +121,14 @@ mod tests {
     fn mobile_uses_provided_data_root() {
         let cfg = VoxConfig::mobile(PathBuf::from("/var/mobile/app/Documents"));
         assert_eq!(cfg.profile, RuntimeProfile::Mobile);
-        assert_eq!(cfg.data_dir, PathBuf::from("/var/mobile/app/Documents/data"));
-        assert_eq!(cfg.model_dir, PathBuf::from("/var/mobile/app/Documents/models"));
+        assert_eq!(
+            cfg.data_dir,
+            PathBuf::from("/var/mobile/app/Documents/data")
+        );
+        assert_eq!(
+            cfg.model_dir,
+            PathBuf::from("/var/mobile/app/Documents/models")
+        );
     }
 
     #[test]

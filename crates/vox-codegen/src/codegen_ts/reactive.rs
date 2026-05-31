@@ -687,7 +687,11 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
 
 /// Walk an HIR expression tree and collect names of free-fn calls that match a known
 /// set of identifiers (used for @endpoint imports — see [`generate_reactive_component`]).
-pub(crate) fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
+pub(crate) fn collect_callee_refs(
+    expr: &HirExpr,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
     match expr {
         HirExpr::Call(callee, args, _, _) => {
             if let HirExpr::Ident(name, _) = callee.as_ref() {
@@ -1017,7 +1021,12 @@ pub fn generate_reactive_component(
     let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
         .endpoint_fns
         .iter()
-        .map(|e| (e.name.clone(), e.params.iter().map(|p| p.name.clone()).collect()))
+        .map(|e| {
+            (
+                e.name.clone(),
+                e.params.iter().map(|p| p.name.clone()).collect(),
+            )
+        })
         .collect();
     let plain_ctx = EmitCtx::with_endpoints(&state_names, &endpoint_params);
     let view_ctx =
@@ -1074,10 +1083,7 @@ pub fn generate_reactive_component(
             HirReactiveMember::OnCleanup(c) => {
                 let stmts_str = emit_block_stmts(&c.body, &view_ctx, 2);
                 let body = wrap_effect_body_if_async(&stmts_str, 2);
-                out.push_str(&format!(
-                    "  useEffect(() => () => {{\n{}  }}, []);\n",
-                    body
-                ));
+                out.push_str(&format!("  useEffect(() => () => {{\n{}  }}, []);\n", body));
             }
             HirReactiveMember::Stmt(s) => {
                 out.push_str(&emit_hir_stmt(s, &plain_ctx, 2));

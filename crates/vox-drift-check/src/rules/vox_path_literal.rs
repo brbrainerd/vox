@@ -127,7 +127,8 @@ mod tests {
         });
         let mut allowed = std::collections::HashSet::new();
         allowed.insert(42);
-        f.allowed_lines.insert("vox-path-literal".to_string(), allowed);
+        f.allowed_lines
+            .insert("vox-path-literal".to_string(), allowed);
         let rule = VoxPathLiteralRule;
         assert!(rule.check(&f, &ctx()).is_empty());
     }
