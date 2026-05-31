@@ -139,12 +139,49 @@ pub fn mcp_global_llm_session_spend_usd(orch: &Orchestrator) -> Option<f64> {
 }
 
 /// Resolve a concrete [`ModelSpec`] synchronously from sticky override + orchestrator registry.
+/// The model whose selection should be recorded, plus the human-readable
+/// rationale when one was produced (free-tier router). `rationale` is `None`
+/// for the ordinary scorer path.
+pub struct McpModelChoice {
+    pub model: ModelSpec,
+    pub is_free: bool,
+    pub rationale: Option<String>,
+}
+
+/// Public sync resolver (unchanged signature) — drops any rationale. Existing
+/// callers (`resolve_chat_llm_model` + its consumers) are untouched.
 pub fn resolve_mcp_chat_model_sync(
     orch: &Orchestrator,
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
     availability_hint: Option<&[RemainingBudget]>,
+) -> Result<(ModelSpec, bool), String> {
+    let mut _rationale = None;
+    resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, availability_hint, &mut _rationale)
+}
+
+/// Sync resolver that also surfaces the selection rationale (for telemetry).
+pub fn resolve_mcp_chat_model_sync_with_rationale(
+    orch: &Orchestrator,
+    user_prompt: &str,
+    pref: Option<&str>,
+    res: McpChatModelResolution,
+    availability_hint: Option<&[RemainingBudget]>,
+) -> Result<McpModelChoice, String> {
+    let mut rationale = None;
+    let (model, is_free) =
+        resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, availability_hint, &mut rationale)?;
+    Ok(McpModelChoice { model, is_free, rationale })
+}
+
+fn resolve_mcp_chat_model_sync_inner(
+    orch: &Orchestrator,
+    user_prompt: &str,
+    pref: Option<&str>,
+    res: McpChatModelResolution,
+    availability_hint: Option<&[RemainingBudget]>,
+    rationale_out: &mut Option<String>,
 ) -> Result<(ModelSpec, bool), String> {
     if crate::llm_bridge::infer_test_stub::infer_stub_env_active() {
         return Ok((
@@ -255,6 +292,7 @@ pub fn resolve_mcp_chat_model_sync(
                 route = "free-tier:latency-critical",
                 "MCP free-tier model selected via FreeTierRouter"
             );
+            *rationale_out = Some(rationale.to_string());
             let m = enforce_free_tier_if_needed(&registry, &res, m)?;
             return Ok((m.clone(), m.is_free));
         }
@@ -343,6 +381,33 @@ pub async fn resolve_mcp_chat_model(
         None
     };
     resolve_mcp_chat_model_sync(
+        &state.orchestrator,
+        user_prompt,
+        pref,
+        res,
+        availability.as_deref(),
+    )
+}
+
+/// Async resolver that also surfaces the selection rationale (for telemetry).
+pub async fn resolve_mcp_chat_model_with_rationale(
+    state: &ServerState,
+    user_prompt: &str,
+    pref: Option<&str>,
+    res: McpChatModelResolution,
+    user_id: Option<&str>,
+) -> Result<McpModelChoice, String> {
+    let availability = if let Some(db) = state.db.as_ref() {
+        let tracker = if let Some(uid) = user_id {
+            UsageTracker::with_user(db.as_ref(), uid)
+        } else {
+            UsageTracker::new_ref(db.as_ref())
+        };
+        tracker.remaining_all().await.ok()
+    } else {
+        None
+    };
+    resolve_mcp_chat_model_sync_with_rationale(
         &state.orchestrator,
         user_prompt,
         pref,

@@ -212,6 +212,7 @@ async fn maybe_llm_polish(
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        selection_rationale: None,
         user_id: Some(session.session_id.as_str()),
     };
 
