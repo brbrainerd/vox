@@ -7,6 +7,7 @@ pub mod classify;
 pub mod costs;
 pub mod council_report;
 pub mod discover;
+pub mod eval;
 pub mod explain;
 pub mod list;
 pub mod preferences;
@@ -44,6 +45,8 @@ pub enum ModelCmd {
     Preferences(preferences::PreferencesArgs),
     /// Explain model selection for a given task description.
     Explain(explain::ExplainArgs),
+    /// Run a small built-in benchmark to measure intelligence/tokens/latency and write back.
+    Eval(eval::EvalArgs),
     /// Show detailed cost reporting.
     Costs(costs::CostsArgs),
     /// Manage and view observed pricing SSOT.
@@ -66,6 +69,7 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Show(args) => show::run(args).await,
         ModelCmd::Preferences(args) => preferences::run(args).await,
         ModelCmd::Explain(args) => explain::run(args).await,
+        ModelCmd::Eval(args) => eval::run(args).await,
         ModelCmd::Costs(args) => costs::run(args).await,
         ModelCmd::Pricing(args) => pricing::run(args).await,
         ModelCmd::Classify(args) => classify::run(args).await,

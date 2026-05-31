@@ -529,7 +529,7 @@ pub enum Cli {
         cmd: commands::ci::CiCmd,
     },
     /// Manage models: discovery, scoreboard, and explainability (`vox model`).
-    #[command(name = "model")]
+    #[command(name = "model", visible_alias = "models")]
     Model {
         /// Subcommand.
         #[command(subcommand)]

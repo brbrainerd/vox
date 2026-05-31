@@ -125,6 +125,41 @@ impl ModelRegistry {
         }
     }
 
+    /// Inject observed p50 latency from the `model_scoreboard` into each matching
+    /// [`ModelSpec`]'s `capabilities.latency_p50_ms`, closing the gap where the scorer's
+    /// [`crate::models::scoring::latency_score`] read only the *static* catalog field and
+    /// never the measured telemetry p50.
+    ///
+    /// Mirrors [`Self::inject_pricing_catalog`]: only rows with a positive, present
+    /// `p50_latency_ms` overwrite the spec, and only for models already in the registry.
+    /// Returns the number of specs updated (useful for logging / tests).
+    pub fn inject_scoreboard_latency(
+        &mut self,
+        rows: &[vox_db::store::types::ModelScoreboardRow],
+    ) -> usize {
+        let mut updated = 0;
+        for row in rows {
+            let Some(p50) = row.p50_latency_ms else {
+                continue;
+            };
+            if p50 <= 0 {
+                continue;
+            }
+            if let Some(spec) = self.models.get_mut(&row.model_id) {
+                let clamped = p50.min(u32::MAX as i64) as u32;
+                tracing::debug!(
+                    model_id = %row.model_id,
+                    catalog_p50 = ?spec.capabilities.latency_p50_ms,
+                    observed_p50 = clamped,
+                    "Calibrating model latency p50 from scoreboard telemetry"
+                );
+                spec.capabilities.latency_p50_ms = Some(clamped);
+                updated += 1;
+            }
+        }
+        updated
+    }
+
     /// Apply supplementary pricing from the LiteLLM oracle.
     ///
     /// Fills fields that OpenRouter doesn't expose (cache-hit prices, Anthropic models, etc.).
