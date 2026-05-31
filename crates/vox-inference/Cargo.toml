@@ -9,6 +9,8 @@ license.workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 candle-core = { workspace = true }
+candle-nn = { workspace = true }
+vox-hf-layout = { workspace = true }
 vox-quantize = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 serde = { workspace = true, features = ["derive"] }
