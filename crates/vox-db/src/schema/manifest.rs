@@ -155,14 +155,31 @@ pub fn baseline_sql() -> &'static str {
 }
 
 #[cfg(test)]
-mod baseline_digest_manual {
-    use super::schema_baseline_digest_hex;
+mod baseline_digest_policy {
+    use super::{BASELINE_VERSION, schema_baseline_digest_hex};
 
-    /// Run: `cargo test -p vox-db baseline_digest_manual -- --ignored --nocapture`
-    /// then update `contracts/db/baseline-version-policy.yaml` when `SCHEMA_FRAGMENTS` change.
+    /// Guards that the recorded baseline policy stays in lockstep with the
+    /// compiled schema: the digest + integer in
+    /// `contracts/db/baseline-version-policy.yaml` must match
+    /// `schema_baseline_digest_hex()` / [`BASELINE_VERSION`]. When
+    /// `SCHEMA_FRAGMENTS` change, update that YAML — the expected digest is in
+    /// the assert message. (Mirrors the `vox ci check-codex-ssot` gate at
+    /// unit-test speed.)
     #[test]
-    #[ignore = "manual: prints Keccak256 baseline digest for policy YAML — owner: db sunset: 2026-12-31"]
-    fn print_digest_for_baseline_policy() {
-        eprintln!("{}", schema_baseline_digest_hex());
+    fn baseline_policy_matches_compiled_schema() {
+        let policy_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../contracts/db/baseline-version-policy.yaml");
+        let policy = std::fs::read_to_string(&policy_path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", policy_path.display()));
+
+        let digest = schema_baseline_digest_hex();
+        assert!(
+            policy.contains(&digest),
+            "baseline-version-policy.yaml digest is stale; set repository_baseline_digest_hex to {digest}"
+        );
+        assert!(
+            policy.contains(&format!("repository_baseline_integer: {BASELINE_VERSION}")),
+            "baseline-version-policy.yaml repository_baseline_integer must equal BASELINE_VERSION ({BASELINE_VERSION})"
+        );
     }
 }

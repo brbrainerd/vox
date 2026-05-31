@@ -261,10 +261,10 @@ lowest-risk initial integration.
 - Verified: `cargo check -p vox-gui` clean, `cargo run -p vox-arch-check` EXIT=0, `vite build` passes.
 
 **Caveats / follow-ups:**
-- The integration test (`crates/vox-gui/tests/mcp_bridge_tests.rs`, calls read-only `vox_git_status`)
-  is `#[ignore]`d: `ServerState::new_full` spawns background pollers and reads `Vox.toml` relative to
-  CWD, unreliable in a default `cargo test`. Run with `cargo test -p vox-gui -- --ignored` from a repo
-  root. The wiring is compile-verified; `handle_tool_call` itself is library-tested.
+- The integration test (`crates/vox-gui/tests/mcp_bridge_tests.rs`) builds a real `ServerState` and
+  dispatches read-only `vox_git_status`, asserting a non-error envelope — it runs in the default
+  `cargo test` (the orchestrator's background pollers are fire-and-forget; `vox_git_status` is
+  deterministic local git). End-to-end through `handle_tool_call`, not just type wiring.
 - **Two orchestrators**: this runs an in-process `ServerState` orchestrator alongside the GUI's
   per-call spawned `vox-orchestrator-d`. Acceptable for read-only tools; the coherent convergence is
   **path (c)** — add an `orch.tool_call` daemon method (needs the serve-API refactor) so the GUI
