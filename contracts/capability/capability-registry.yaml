@@ -6918,6 +6918,54 @@ curated:
   mcp_tool: vox_memory_store
   cli_path: null
   parameters: null
+- id: mcp.vox_mesh_dispatch
+  title: Mesh Dispatch
+  description_human: null
+  description_model: Dispatch a .vox script to the Vox Populi control plane for remote execution (requires configured control URL).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_mesh_dispatch
+  cli_path: null
+  parameters: null
+- id: mcp.vox_mesh_nodes
+  title: Mesh Nodes
+  description_human: null
+  description_model: List Vox Populi mesh nodes (control plane preferred, local-registry fallback) with status, GPU, trust tier, advertised models.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_mesh_nodes
+  cli_path: null
+  parameters: null
+- id: mcp.vox_mesh_queue_stats
+  title: Mesh Queue Stats
+  description_human: null
+  description_model: Vox Populi mesh pending-queue stats (control plane preferred, local queue_depth fallback).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_mesh_queue_stats
+  cli_path: null
+  parameters: null
 - id: mcp.vox_my_files
   title: My Files
   description_human: null
@@ -7327,6 +7375,22 @@ curated:
   mcp_tool: vox_pause_agent
   cli_path: null
   parameters: null
+- id: mcp.vox_pending_approvals
+  title: Pending Approvals
+  description_human: null
+  description_model: List human-in-the-loop tool-call approvals currently awaiting a decision.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_pending_approvals
+  cli_path: null
+  parameters: null
 - id: mcp.vox_pending_questions
   title: Pending Questions
   description_human: null
@@ -7421,6 +7485,86 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_plan_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plugin_catalog
+  title: Plugin Catalog
+  description_human: null
+  description_model: List plugins available in the Vox plugin catalog (marketplace index).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plugin_catalog
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plugin_info
+  title: Plugin Info
+  description_human: null
+  description_model: Show manifest details for one installed or catalog Vox plugin.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plugin_info
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plugin_install
+  title: Plugin Install
+  description_human: null
+  description_model: Install a Vox plugin by id from the catalog into the local plugins directory.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plugin_install
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plugin_list
+  title: Plugin List
+  description_human: null
+  description_model: List installed Vox plugins with id, version, and discovered skill count.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plugin_list
+  cli_path: null
+  parameters: null
+- id: mcp.vox_plugin_remove
+  title: Plugin Remove
+  description_human: null
+  description_model: Remove an installed Vox plugin from the local plugins directory.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_plugin_remove
   cli_path: null
   parameters: null
 - id: mcp.vox_poll_events
@@ -7878,6 +8022,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_research_status
+  cli_path: null
+  parameters: null
+- id: mcp.vox_resolve_approval
+  title: Resolve Approval
+  description_human: null
+  description_model: Resolve a pending human-in-the-loop approval (approve / modify / reject) by id.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_resolve_approval
   cli_path: null
   parameters: null
 - id: mcp.vox_resolve_conflict

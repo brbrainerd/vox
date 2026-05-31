@@ -104,3 +104,33 @@ impl PendingApprovals {
             .clone()
     }
 }
+
+/// Map a human's `vox_resolve_approval` decision string to an [`ApprovalOutcome`].
+///
+/// `approve`/`approved` → `Approved`, `modify`/`modified` → `Modified`,
+/// anything else (including the empty string) → `Rejected`. Lives here rather
+/// than inline in the dispatch match arm so the `command-compliance` handler
+/// scraper never mistakes these string-literal match arms for tool names.
+pub fn outcome_from_decision(decision: &str) -> ApprovalOutcome {
+    match decision {
+        "approve" | "approved" => ApprovalOutcome::Approved,
+        "modify" | "modified" => ApprovalOutcome::Modified,
+        _ => ApprovalOutcome::Rejected,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn outcome_from_decision_maps_known_and_unknown() {
+        assert_eq!(outcome_from_decision("approve"), ApprovalOutcome::Approved);
+        assert_eq!(outcome_from_decision("approved"), ApprovalOutcome::Approved);
+        assert_eq!(outcome_from_decision("modify"), ApprovalOutcome::Modified);
+        assert_eq!(outcome_from_decision("modified"), ApprovalOutcome::Modified);
+        assert_eq!(outcome_from_decision("reject"), ApprovalOutcome::Rejected);
+        assert_eq!(outcome_from_decision(""), ApprovalOutcome::Rejected);
+        assert_eq!(outcome_from_decision("garbage"), ApprovalOutcome::Rejected);
+    }
+}

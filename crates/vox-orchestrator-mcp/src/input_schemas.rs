@@ -532,6 +532,31 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"registry_path":{"type":"string","description":"Optional override for the mens registry JSON path"}},"additionalProperties":false}"#,
         ),
 
+        // ── Vox Populi mesh (control-plane preferred, local fallback) ───────
+        "vox_mesh_nodes" | "vox_mesh_queue_stats" => {
+            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
+        }
+        "vox_mesh_dispatch" => parse_obj(
+            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":".vox source to execute remotely"},"script":{"type":"string","minLength":1,"description":"Alias for `source`"},"node_id":{"type":"string","description":"Optional target node id"},"task_kind":{"type":"string"},"min_vram_mb":{"type":"integer","minimum":0}},"additionalProperties":false}"#,
+        ),
+
+        // ── Plugins (installed + catalog) ───────────────────────────────────
+        "vox_plugin_list" | "vox_plugin_catalog" => {
+            parse_obj(r#"{"type":"object","additionalProperties":false}"#)
+        }
+        "vox_plugin_info" | "vox_plugin_remove" => parse_obj(
+            r#"{"type":"object","properties":{"id":{"type":"string","minLength":1,"description":"Plugin id"}},"required":["id"],"additionalProperties":false}"#,
+        ),
+        "vox_plugin_install" => parse_obj(
+            r#"{"type":"object","properties":{"id":{"type":"string","minLength":1,"description":"Catalog plugin id to install"},"path":{"type":"string","minLength":1,"description":"Local plugin directory to install from (alternative to `id`)"}},"additionalProperties":false}"#,
+        ),
+
+        // ── HITL approvals ──────────────────────────────────────────────────
+        "vox_pending_approvals" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
+        "vox_resolve_approval" => parse_obj(
+            r#"{"type":"object","properties":{"approval_id":{"type":"string","minLength":1},"outcome":{"type":"string","enum":["approve","approved","modify","modified","reject","rejected"]},"decision":{"type":"string","description":"Alias for `outcome`"}},"required":["approval_id"],"additionalProperties":false}"#,
+        ),
+
         // ── Unified news (syndication safety + templates) ───────────────────
         "vox_news_test_syndicate" => parse_obj(
             r#"{"type":"object","properties":{"content":{"type":"string","minLength":1,"description":"Markdown with YAML frontmatter"}},"required":["content"],"additionalProperties":false}"#,

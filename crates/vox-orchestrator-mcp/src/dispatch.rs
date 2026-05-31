@@ -346,11 +346,7 @@ async fn handle_tool_call_inner(
                 .or_else(|| args.get("decision"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
-            let outcome = match decision {
-                "approve" | "approved" => vox_orchestrator::ApprovalOutcome::Approved,
-                "modify" | "modified" => vox_orchestrator::ApprovalOutcome::Modified,
-                _ => vox_orchestrator::ApprovalOutcome::Rejected,
-            };
+            let outcome = crate::pending_approvals::outcome_from_decision(decision);
             let resolved = state.pending_approvals.resolve(approval_id, outcome);
             Ok(crate::params::ToolResult::ok(serde_json::json!({
                 "resolved": resolved,
