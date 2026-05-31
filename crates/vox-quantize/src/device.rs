@@ -5,18 +5,13 @@ use candle_core::Device;
 
 /// User device preference. `Auto` picks the best available accelerator,
 /// falling back to CPU. Mirrors vox-plugin-mens-candle-cuda::device_select.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DevicePref {
+    #[default]
     Auto,
     Cuda(usize),
     Metal,
     Cpu,
-}
-
-impl Default for DevicePref {
-    fn default() -> Self {
-        DevicePref::Auto
-    }
 }
 
 pub fn select(pref: DevicePref) -> Result<Device, QuantizeError> {
