@@ -48,6 +48,18 @@ fn parse_preopens(
     Ok(out)
 }
 
+/// Parse repeatable `KEY=VALUE` env specs into `(key, value)` pairs exposed to
+/// the guest (WASI). Rejects empty keys and entries lacking `=`.
+fn parse_env(specs: &[String]) -> anyhow::Result<Vec<(String, String)>> {
+    specs
+        .iter()
+        .map(|s| match s.split_once('=') {
+            Some((k, v)) if !k.is_empty() => Ok((k.to_string(), v.to_string())),
+            _ => anyhow::bail!("invalid --env spec (expected KEY=VALUE): {s:?}"),
+        })
+        .collect()
+}
+
 /// Run a `vox wasm` subcommand. On success this **exits the process** with the
 /// module's exit code (so callers that shell out — the mesh worker — observe the
 /// real exit status); returns `Err` only when the module cannot be loaded/run.
@@ -63,7 +75,7 @@ pub fn run(cmd: WasmCmd) -> anyhow::Result<()> {
                 preopens: parse_preopens(&args.preopen_ro, &args.preopen_rw)?,
                 fuel_override: None,
                 stdin: None,
-                env: Vec::new(),
+                env: parse_env(&args.env)?,
             };
             let outcome = host.execute(&args.file, &opts)?;
             print!("{}", outcome.stdout_str());
@@ -86,5 +98,24 @@ mod tests {
     #[test]
     fn parse_preopens_rejects_empty_host() {
         assert!(parse_preopens(&[":guest".into()], &[]).is_err());
+    }
+
+    #[test]
+    fn parse_env_splits_key_value_and_allows_empty_value() {
+        let pairs = super::parse_env(&["A=1".into(), "B=".into(), "C=x=y".into()]).unwrap();
+        assert_eq!(
+            pairs,
+            vec![
+                ("A".to_string(), "1".to_string()),
+                ("B".to_string(), String::new()),
+                ("C".to_string(), "x=y".to_string()), // only the first '=' splits
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_env_rejects_missing_eq_or_empty_key() {
+        assert!(super::parse_env(&["NOEQ".into()]).is_err());
+        assert!(super::parse_env(&["=v".into()]).is_err());
     }
 }

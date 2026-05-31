@@ -303,7 +303,8 @@ fn run_dispatched_bundle(
     bundle_b64: &str,
     expected_blake3_hex: Option<&str>,
     policy: &str,
-    secret_env: &[(String, String)],
+    declared: &[String],
+    secret_bag: Option<&crate::a2a::secret_bag::SecretBag>,
 ) -> Option<DispatchedExecParts> {
     if policy == "no-exec" {
         return None;
@@ -363,18 +364,33 @@ fn run_dispatched_bundle(
     }
 
     let output = match kind {
-        // WASM runs under the wasmtime/WASI sandbox via the raw-.wasm runner
-        // (`vox wasm run`), which is always available (not feature-gated).
+        // WASM runs under the wasmtime/WASI sandbox via `vox wasm run`. This is a
+        // REAL isolation tier (ExecTier::Sandboxed), so tier-gated low-value
+        // secrets are forwarded — but ONLY as explicit `--env KEY=VALUE` args so
+        // they reach the guest's WasmExecOpts.env; the subprocess env stays
+        // hardened (no secrets there). Credentials are filtered by the gate.
         BundleKind::Wasm => {
+            let wasm_secrets = match secret_bag {
+                Some(bag) => crate::a2a::secret_gate::gate_secrets(
+                    crate::a2a::secret_gate::ExecTier::Sandboxed,
+                    declared,
+                    bag,
+                ),
+                None => Vec::new(),
+            };
             let mut cmd = std::process::Command::new("vox");
             cmd.arg("wasm").arg("run").arg(&tmp_file);
-            harden_dispatch_env(&mut cmd, secret_env);
+            for (k, v) in &wasm_secrets {
+                cmd.arg("--env").arg(format!("{k}={v}"));
+            }
+            harden_dispatch_env(&mut cmd, &[]);
             cmd.output()
         }
-        // Native binary — permissive-only, executed directly.
+        // Native binary — BareMetal (no isolation): execute directly, forward
+        // nothing (env hardened, no secrets).
         BundleKind::Native => {
             let mut cmd = std::process::Command::new(&tmp_file);
-            harden_dispatch_env(&mut cmd, secret_env);
+            harden_dispatch_env(&mut cmd, &[]);
             cmd.output()
         }
     };
@@ -649,11 +665,15 @@ async fn process_one_envelope(
             )
             .map(|parts| ("source", parts))
         } else if let Some(bundle_b64) = envelope.exec_bundle_b64.as_deref() {
+            // The bundle runner gates per-kind internally (WASM ⇒ Sandboxed
+            // forwarding, native ⇒ BareMetal/none), so it needs the declared list
+            // + the bag rather than a precomputed BareMetal env.
             run_dispatched_bundle(
                 bundle_b64,
                 envelope.exec_bundle_blake3_hex.as_deref(),
                 &policy,
-                &secret_env,
+                &declared,
+                secret_bag.as_ref(),
             )
             .map(|parts| ("bundle", parts))
         } else {
@@ -1106,7 +1126,7 @@ mod tests {
     #[test]
     fn bundle_no_exec_policy_returns_none_for_echo_fallback() {
         let got =
-            run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some(&blake3_hex_bytes(WASM_HEADER)), "no-exec", &[]);
+            run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some(&blake3_hex_bytes(WASM_HEADER)), "no-exec", &[], None);
         assert!(got.is_none(), "no-exec policy must decline (caller echoes)");
     }
 
@@ -1117,6 +1137,7 @@ mod tests {
             Some(&blake3_hex_bytes(WASM_HEADER)),
             "source-only",
             &[],
+            None,
         )
         .expect("a decision is returned");
         assert!(!parts.success);
@@ -1125,7 +1146,7 @@ mod tests {
 
     #[test]
     fn bundle_missing_integrity_hash_refuses_without_spawning() {
-        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), None, "permissive", &[])
+        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), None, "permissive", &[], None)
             .expect("a decision is returned");
         assert!(!parts.success);
         assert!(parts.error.as_deref().unwrap_or("").contains("blake3"));
@@ -1133,7 +1154,7 @@ mod tests {
 
     #[test]
     fn bundle_hash_mismatch_refuses_without_spawning() {
-        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some("deadbeef"), "permissive", &[])
+        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some("deadbeef"), "permissive", &[], None)
             .expect("a decision is returned");
         assert!(!parts.success);
         assert!(parts.error.as_deref().unwrap_or("").contains("hash mismatch"));
@@ -1145,7 +1166,7 @@ mod tests {
         // ever executing a native binary.
         let native = b"\x7fELF\x02\x01\x01\0 not a real binary";
         let parts =
-            run_dispatched_bundle(&b64_bytes(native), Some(&blake3_hex_bytes(native)), "strict", &[])
+            run_dispatched_bundle(&b64_bytes(native), Some(&blake3_hex_bytes(native)), "strict", &[], None)
                 .expect("a decision is returned");
         assert!(!parts.success);
         assert!(
@@ -1170,6 +1191,64 @@ mod tests {
         .expect("valid WAT")
     }
 
+    /// WASI module whose exit code == the number of env vars the guest sees
+    /// (`environ_sizes_get` → `proc_exit(count)`). Lets the worker test assert how
+    /// many secrets were forwarded into the sandbox.
+    fn env_count_wasm() -> Vec<u8> {
+        wat::parse_str(
+            r#"(module
+              (import "wasi_snapshot_preview1" "environ_sizes_get" (func $sz (param i32 i32) (result i32)))
+              (import "wasi_snapshot_preview1" "proc_exit" (func $exit (param i32)))
+              (memory (export "memory") 1)
+              (func (export "_start")
+                (drop (call $sz (i32.const 0) (i32.const 4)))
+                (call $exit (i32.load (i32.const 0)))))"#,
+        )
+        .expect("valid WAT")
+    }
+
+    #[test]
+    #[serial(vox_spawn)]
+    fn wasm_bundle_forwards_low_value_secret_but_not_credential() {
+        // End-to-end: a SecretBag with a low-value config (VoxOpenRouterChatModel)
+        // and a credential (OpenRouterApiKey); the WASM (Sandboxed) lane must
+        // forward ONLY the low-value one into the sandbox via `vox wasm run --env`.
+        // The env-count module's exit code == #env vars the guest sees, so:
+        //   both declared → guest sees 1 (credential filtered) → exit code 1.
+        if !vox_on_path() {
+            eprintln!("skipping: `vox` not on PATH");
+            return;
+        }
+        let wasm = env_count_wasm();
+        let bag = crate::a2a::secret_bag::SecretBag::from_decrypted(serde_json::json!({
+            "VoxOpenRouterChatModel": "some/model",
+            "OpenRouterApiKey": "sk-secret",
+        }))
+        .expect("bag");
+        let declared = vec![
+            "VoxOpenRouterChatModel".to_string(),
+            "OpenRouterApiKey".to_string(),
+        ];
+
+        let parts = run_dispatched_bundle(
+            &b64_bytes(&wasm),
+            Some(&blake3_hex_bytes(&wasm)),
+            "permissive",
+            &declared,
+            Some(&bag),
+        )
+        .expect("a decision is returned");
+
+        // Exactly one env var crossed into the sandbox (the credential was filtered),
+        // so the module exited with code 1.
+        assert!(
+            !parts.success && parts.error.as_deref().unwrap_or("").contains("Some(1)"),
+            "exactly the 1 low-value secret must be forwarded (credential filtered); got success={} error={:?}",
+            parts.success,
+            parts.error
+        );
+    }
+
     #[test]
     #[serial(vox_spawn)]
     fn wasm_bundle_executes_via_wasm_run_to_clean_exit() {
@@ -1188,6 +1267,7 @@ mod tests {
             Some(&blake3_hex_bytes(&wasm)),
             "permissive",
             &[],
+            None,
         )
         .expect("a decision is returned (integrity + classification passed)");
 
