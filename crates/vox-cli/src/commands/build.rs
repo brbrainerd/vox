@@ -244,6 +244,11 @@ pub async fn run(
             BuildMode::App => vox_codegen::codegen_ts::emitter::BuildMode::App,
             BuildMode::Library => vox_codegen::codegen_ts::emitter::BuildMode::Library,
         },
+        // Opt out of the emitted web bootstrap (entry/router/runtime-install)
+        // for external-React consumers that own their own root.
+        no_emit_entry: std::env::var("VOX_WEB_NO_EMIT_ENTRY")
+            .ok()
+            .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
         ..Default::default()
     };
     let ts_output = vox_codegen::codegen_ts::generate_with_options(&hir, ts_opts)

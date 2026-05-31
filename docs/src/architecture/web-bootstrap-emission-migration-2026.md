@@ -81,12 +81,14 @@ without a hand-written bootstrap.
 
 ## Staged build order (each its own PR; gates: `vox check`, web build, app e2e, arch-check)
 
-0. **Resolve the `str`-global unknown** — DONE (above): not load-bearing; `mobile`/`Speech`/`std` are.
-1. **Emit `vox-app.tsx` router only** — add `web_entry.rs`; delete nothing; verify it compiles vs `routes.manifest`.
-2. **Emit `runtime-install.ts`** — move `runtime.ts` content; repoint tests + `__VOX_TEST_TRANSCRIPT__`; keep `src/runtime.ts` on disk.
-3. **Emit `entry.tsx` + `app-hooks.ts` contract; repoint `index.html`** — wire ErrorBoundary/sync; full e2e green on emitted bootstrap.
-4. **Delete orphans** — `main.tsx`, `runtime.ts`, `pages/SettingsPage.tsx`; arch-check orphan clean.
-5. **Retire `scaffold.rs` bootstrap; add `--no-emit-entry`; document** — close the unspecced gap.
+0. ✅ **Resolve the `str`-global unknown** — not load-bearing; `mobile`/`Speech`/`std` are.
+1. ✅ **Emit `vox-app.tsx` router** — `web_entry.rs`; dependency-free history router; tsc-clean vs `routes.manifest`.
+2. ✅ **Emit `runtime-install.ts`** — generic browser shims + `__VOX_TEST_TRANSCRIPT__`.
+3. ✅ **Emit `entry.tsx` + default `app-hooks.tsx`; repoint `index.html`** — app glue via app-owned `src/app-hooks.tsx` (overrides the emitted default via `postbuild-fixup.mjs`).
+4. ✅ **Delete orphans** — `main.tsx`, `runtime.ts`, `pages/SettingsPage.tsx`; repoint `runtime_shim.test.ts`.
+5. **In progress** — `--no-emit-entry` opt-out (`VOX_WEB_NO_EMIT_ENTRY`) wired; retire `scaffold.rs` bootstrap + this doc. Also folding the remaining hand-written glue (`ErrorBoundary`/`sync`) into emitted defaults so a fresh Vox web app needs zero hand-written TS.
+
+**Verification:** `web_entry` unit tests + cli-tests fixtures (20/0) + the app's Vite bundle of the emitted bootstrap + Playwright e2e (`build:web` must out-run Playwright's 180s `webServer` timeout — pre-build the release `vox` binary so `build:vox` is fast).
 
 ## Risks
 

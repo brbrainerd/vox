@@ -53,6 +53,12 @@ pub struct CodegenOptions {
     pub mode: BuildMode,
     /// Fail TS codegen when AI fixtures are present but not lowered (`VOX_TS_STRICT_AI` when using [`Self::from_env`]).
     pub strict_ai: bool,
+    /// Skip emitting the web bootstrap (`entry.tsx` / `vox-app.tsx` /
+    /// `runtime-install.ts` / default `app-hooks.tsx`). For external-React
+    /// consumers (interop Phase 5) that own their own root and only want the
+    /// components + routes manifest + client. Default `false` (emit-by-default,
+    /// RN parity). `VOX_WEB_NO_EMIT_ENTRY=1` via [`Self::from_env`].
+    pub no_emit_entry: bool,
 }
 
 impl CodegenOptions {
@@ -69,6 +75,9 @@ impl CodegenOptions {
             target: None,
             mode: BuildMode::App,
             strict_ai: crate::web_migration_env::ts_strict_ai_gate_enabled(),
+            no_emit_entry: std::env::var("VOX_WEB_NO_EMIT_ENTRY")
+                .ok()
+                .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
         }
     }
 }
@@ -420,7 +429,7 @@ pub fn generate_with_options(
     // router over the emitted `routes.manifest`; otherwise it flat-mounts the
     // first component (RN-parity bootstrap). Skipped for Library mode (consumers
     // own their root) and when there are no components to mount.
-    if options.mode != BuildMode::Library && !hir.components.is_empty() {
+    if options.mode != BuildMode::Library && !options.no_emit_entry && !hir.components.is_empty() {
         let root_component = hir.components.first().map(|c| c.name.as_str());
         files.push((
             crate::codegen_ts::web_entry::VOX_APP_FILENAME.to_string(),
