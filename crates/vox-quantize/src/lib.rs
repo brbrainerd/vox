@@ -14,5 +14,5 @@ pub mod write;
 pub use device::DevicePref;
 // pub use engine::{quantize, QuantizeRequest};
 pub use error::QuantizeError;
-// pub use policy::{QuantMixture, TensorRole};
+pub use policy::{QuantMixture, TensorRole};
 // pub use verify::{QuantReport, TensorQuantStat};
