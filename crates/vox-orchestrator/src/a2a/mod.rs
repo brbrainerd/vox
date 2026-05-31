@@ -3,6 +3,7 @@
 mod bus;
 pub mod dispatch;
 mod envelope;
+pub mod exec_source;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]
@@ -21,6 +22,7 @@ pub mod traceparent;
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
 
 pub use bus::MessageBus;
+pub use exec_source::build_exec_source_fields;
 pub use dispatch::{
     acknowledge_db_message, poll_inbox_from_db, prune_old_a2a_messages, send_to_db,
     send_to_db_with_breaker,

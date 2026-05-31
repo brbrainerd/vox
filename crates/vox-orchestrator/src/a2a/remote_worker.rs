@@ -916,6 +916,26 @@ mod tests {
     }
 
     #[test]
+    fn built_exec_source_fields_round_trip_to_real_execution() {
+        // End-to-end: the sender helper builds (b64, hash); the worker re-verifies
+        // the hash and executes — proving the dispatch contract closes the loop.
+        if !vox_on_path() {
+            eprintln!("skipping: `vox` not on PATH");
+            return;
+        }
+        let src = "pub fn main() {\n    print(\"answer \" + str(6 * 7))\n}\n";
+        let (b64, hex) = crate::a2a::exec_source::build_exec_source_fields(src);
+        let parts =
+            run_dispatched_source(&b64, Some(&hex), "permissive").expect("executed");
+        assert!(parts.success, "expected success, error={:?}", parts.error);
+        assert!(
+            parts.result.as_deref().unwrap_or("").contains("answer 42"),
+            "expected real stdout from built source, got {:?}",
+            parts.result
+        );
+    }
+
+    #[test]
     fn nonzero_exit_sets_success_false() {
         if !vox_on_path() {
             eprintln!("skipping: `vox` not on PATH");
