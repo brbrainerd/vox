@@ -24,7 +24,17 @@ pub fn recombine(base_dir: &Path, merged_subset: &Path, out_dir: &Path) -> Resul
     let mut complete: HashMap<String, candle_core::Tensor> = HashMap::new();
     for name in base.tensor_names() {
         let t = match merged.get(name) {
-            Some(m) => m.to_dtype(candle_core::DType::F32)?,
+            Some(m) => {
+                let base_tensor = base.load_f32(name)?;
+                let merged_dims = m.dims().to_vec();
+                let base_dims = base_tensor.dims().to_vec();
+                if merged_dims != base_dims {
+                    return Err(QuantizeError::ReadModel(format!(
+                        "merged key `{name}` shape {merged_dims:?} does not match base shape {base_dims:?} — adapter/base mismatch"
+                    )));
+                }
+                m.to_dtype(candle_core::DType::F32)?
+            }
             None => base.load_f32(name)?,
         };
         complete.insert(name.clone(), t);
@@ -83,5 +93,21 @@ mod tests {
         m.insert("not_in_base".into(), Tensor::zeros((256, 256), candle_core::DType::F32, &dev).unwrap());
         candle_core::safetensors::save(&m, merged.path().join("merged.safetensors")).unwrap();
         assert!(recombine(base.path(), &merged.path().join("merged.safetensors"), out.path()).is_err());
+    }
+
+    #[test]
+    fn merged_key_shape_mismatch_errors() {
+        let dev = candle_core::Device::Cpu;
+        let base = tempfile::tempdir().unwrap();
+        let merged = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let mut b = std::collections::HashMap::new();
+        b.insert("w".to_string(), candle_core::Tensor::ones((256, 256), candle_core::DType::F32, &dev).unwrap());
+        candle_core::safetensors::save(&b, base.path().join("model.safetensors")).unwrap();
+        let mut m = std::collections::HashMap::new();
+        m.insert("w".to_string(), candle_core::Tensor::ones((128, 256), candle_core::DType::F32, &dev).unwrap());
+        candle_core::safetensors::save(&m, merged.path().join("merged.safetensors")).unwrap();
+        let err = recombine(base.path(), &merged.path().join("merged.safetensors"), out.path());
+        assert!(err.is_err(), "shape mismatch must error");
     }
 }

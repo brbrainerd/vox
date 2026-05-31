@@ -150,9 +150,14 @@ pub fn run_merge_qlora(
             .unwrap_or_else(|| std::path::PathBuf::from("."));
         // recombine writes <recombined>/model.safetensors + copies base config.json
         let recombined = out_parent.join("recombined_full");
+        // Clear any stale recombined dir so a prior sharded run's
+        // model.safetensors.index.json can't mislead the reader.
+        let _ = std::fs::remove_dir_all(&recombined);
         vox_quantize::recombine::recombine(&base_dir, &output, &recombined)
             .with_context(|| format!("recombine over base {}", base_dir.display()))?;
         let q_out = out_parent.join("quantized");
+        // Clear any stale quantized dir from a prior run before reuse.
+        let _ = std::fs::remove_dir_all(&q_out);
         let report = vox_quantize::quantize(&vox_quantize::QuantizeRequest {
             input_dir: recombined.clone(),
             output_dir: q_out.clone(),
