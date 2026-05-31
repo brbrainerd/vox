@@ -91,6 +91,7 @@ axum = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+candle-core = { workspace = true }
 
 [lints]
 workspace = true
