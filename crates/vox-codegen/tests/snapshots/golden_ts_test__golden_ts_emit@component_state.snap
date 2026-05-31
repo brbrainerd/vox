@@ -8,6 +8,7 @@ import React, { useState } from "react";
 export function Counter(): React.ReactElement {
   const [n, set_n] = useState(0);
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col"].filter(Boolean).join(" ")}>
       <h1 className={["text-3xl", "font-semibold"].filter(Boolean).join(" ")}>
         {"Count"}
@@ -22,6 +23,7 @@ export function Counter(): React.ReactElement {
     }}>
         {"Decrement"}
       </button>
+    </div>
     </div>
   );
 }

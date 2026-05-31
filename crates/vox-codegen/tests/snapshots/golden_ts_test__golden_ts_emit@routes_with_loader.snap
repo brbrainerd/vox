@@ -7,9 +7,11 @@ import React from "react";
 
 export function Home(): React.ReactElement {
   return (
+    <div className="px-4">
     <p className={"text-base"}>
       {"Home"}
     </p>
+    </div>
   );
 }
 
@@ -19,9 +21,11 @@ import React from "react";
 
 export function About(): React.ReactElement {
   return (
+    <div className="px-4">
     <p className={"text-base"}>
       {"About"}
     </p>
+    </div>
   );
 }
 

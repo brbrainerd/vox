@@ -10,6 +10,7 @@ import { get_count } from "./vox-client";
 export function Counter(): React.ReactElement {
   const [count, set_count] = useState(0);
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col"].filter(Boolean).join(" ")}>
       <p className={"text-base"}>
         {"Value: " + String(count)}
@@ -19,6 +20,7 @@ export function Counter(): React.ReactElement {
     }}>
         {"Fetch"}
       </button>
+    </div>
     </div>
   );
 }

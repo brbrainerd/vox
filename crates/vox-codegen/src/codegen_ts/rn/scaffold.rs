@@ -18,28 +18,53 @@
 
 use vox_compiler::hir::HirModule;
 
-pub fn emit_expo_scaffold(hir: &HirModule) -> Vec<(String, String)> {
+/// Emit the Expo project skeleton. When `has_routes` is true the package.json
+/// `main` field points at `expo-router/entry` and the flat App.tsx is omitted
+/// (Expo Router uses file-system routing under `app/`); when false the legacy
+/// `expo/AppEntry.js` boot path is used with a generated App.tsx that mounts
+/// the first declared VUV component.
+pub fn emit_expo_scaffold(hir: &HirModule, has_routes: bool) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
 
     let app_name = "vox-app";
     let bundle_id = "com.vox.app";
 
-    out.push(("app.json".to_string(), emit_app_json(app_name, bundle_id)));
+    out.push((
+        "app.json".to_string(),
+        emit_app_json(app_name, bundle_id, has_routes),
+    ));
     out.push(("babel.config.js".to_string(), BABEL_CONFIG.to_string()));
     out.push(("metro.config.js".to_string(), METRO_CONFIG.to_string()));
     out.push(("eas.json".to_string(), EAS_JSON.to_string()));
     out.push(("tsconfig.json".to_string(), TSCONFIG_JSON.to_string()));
-    out.push(("package.json".to_string(), emit_package_json(app_name)));
+    out.push((
+        "package.json".to_string(),
+        emit_package_json(app_name, has_routes),
+    ));
 
-    if let Some(first) = hir.components.first() {
-        out.push(("App.tsx".to_string(), emit_app_tsx(&first.name)));
+    // Only emit the flat App.tsx when there are no routes — Expo Router
+    // owns the boot path otherwise via app/_layout.tsx + app/index.tsx.
+    if !has_routes {
+        if let Some(first) = hir.components.first() {
+            out.push(("App.tsx".to_string(), emit_app_tsx(&first.name)));
+        }
     }
 
     out
 }
 
-fn emit_app_json(name: &str, bundle_id: &str) -> String {
+fn emit_app_json(name: &str, bundle_id: &str, has_routes: bool) -> String {
     // Use r## boundary so the embedded `#ffffff` color literal doesn't terminate the raw string.
+    let plugins = if has_routes {
+        "[\"expo-router\"]"
+    } else {
+        "[]"
+    };
+    let scheme_field = if has_routes {
+        format!(",\n    \"scheme\": \"{name}\"")
+    } else {
+        String::new()
+    };
     format!(
         r##"{{
   "expo": {{
@@ -60,7 +85,7 @@ fn emit_app_json(name: &str, bundle_id: &str) -> String {
     "android": {{
       "package": "{bundle_id}"
     }},
-    "plugins": []
+    "plugins": {plugins}{scheme_field}
   }}
 }}
 "##
@@ -126,13 +151,25 @@ const TSCONFIG_JSON: &str = r#"{
 }
 "#;
 
-fn emit_package_json(name: &str) -> String {
+fn emit_package_json(name: &str, has_routes: bool) -> String {
+    // Expo Router owns the boot path when routes are declared; otherwise the
+    // legacy AppEntry expects `App.tsx` at the project root.
+    let main_field = if has_routes {
+        "expo-router/entry"
+    } else {
+        "node_modules/expo/AppEntry.js"
+    };
+    let router_dep = if has_routes {
+        ",\n    \"expo-router\": \"~4.0.0\",\n    \"expo-linking\": \"~7.0.0\",\n    \"expo-constants\": \"~17.0.0\",\n    \"react-native-screens\": \"~4.4.0\""
+    } else {
+        ""
+    };
     format!(
         r#"{{
   "name": "{name}",
   "version": "0.1.0",
   "private": true,
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "{main_field}",
   "scripts": {{
     "start": "expo start",
     "android": "expo start --android",
@@ -142,12 +179,14 @@ fn emit_package_json(name: &str) -> String {
   }},
   "dependencies": {{
     "expo": "^52.0.0",
-    "expo-status-bar": "^2.0.0",
+    "expo-asset": "~11.0.5",
+    "expo-status-bar": "~2.0.1",
     "react": "18.3.1",
-    "react-native": "0.76.0",
+    "react-native": "0.76.9",
     "react-native-safe-area-context": "4.12.0",
+    "zod": "^3.23.8",
     "@vox/runtime-types": "0.6.0",
-    "@vox/runtime-rn": "0.6.0"
+    "@vox/runtime-rn": "0.6.0"{router_dep}
   }},
   "devDependencies": {{
     "@types/react": "~18.3.0",

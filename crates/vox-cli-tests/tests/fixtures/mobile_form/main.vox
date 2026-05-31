@@ -1,0 +1,7 @@
+// @form must produce a pure RN form (View / Text / TextInput / Pressable)
+// when --target=mobile. Same validation logic as web emit; only leaf JSX differs.
+@mutation fn submit_item(name: str) to int { return 0 }
+@form Item {
+    field name: str required label("Item name")
+    on_submit: submit_item
+}

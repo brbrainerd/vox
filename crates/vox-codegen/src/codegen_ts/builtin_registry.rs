@@ -72,12 +72,32 @@ impl BuiltinRegistry {
     }
 
     pub fn lookup_method(&self, ty: &str, method: &str, arity: usize) -> Option<BuiltinLowering> {
-        self.methods.get(&(ty, method, arity)).cloned().or_else(|| {
-            self.methods
+        if let Some(l) = self.methods.get(&(ty, method, arity)) {
+            return Some(l.clone());
+        }
+        if !ty.is_empty() {
+            return self
+                .methods
                 .iter()
                 .find(|((t, m, _), _)| *t == ty && *m == method)
-                .map(|(_, l)| l.clone())
-        })
+                .map(|(_, l)| l.clone());
+        }
+        // No type hint (the common `hir_emit` path, where the receiver's type
+        // isn't tracked). Resolve only an UNAMBIGUOUS `Property` lowering, e.g.
+        // `html.length()` → `html.length`. A property accessed as a call is
+        // always a bug, so applying it can never change correct code; method
+        // renames are left to emit literally to avoid altering call semantics.
+        let mut prop: Option<&BuiltinLowering> = None;
+        for ((_, m, a), l) in &self.methods {
+            if *m == method && *a == arity && matches!(l, BuiltinLowering::Property(_)) {
+                match prop {
+                    None => prop = Some(l),
+                    Some(p) if p == l => {}
+                    Some(_) => return None, // ambiguous across types — bail
+                }
+            }
+        }
+        prop.cloned()
     }
 
     pub fn lookup_function(&self, name: &str, arity: usize) -> Option<BuiltinLowering> {

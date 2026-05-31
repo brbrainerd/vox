@@ -13,8 +13,13 @@ fn emit(src: &str) -> String {
         .join("\n")
 }
 
+// The back-button handler is emitted through the `@vox/runtime` adapter
+// contract (commit f65fc27d5d), NOT direct Tauri `listen('vox-back-button')`.
+// The adapter wraps the platform listener (Tauri event API on desktop, RN
+// BackHandler on mobile) so a single source runs on both targets.
+
 #[test]
-fn back_button_decl_emits_tauri_listen() {
+fn back_button_decl_emits_runtime_adapter_hook() {
     let src = r#"
 @query fn handle_back() to bool { return true }
 @back_button {
@@ -22,11 +27,11 @@ fn back_button_decl_emits_tauri_listen() {
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("listen('vox-back-button'"), "got:\n{ts}");
+    assert!(ts.contains("voxRuntime.onBackButton("), "got:\n{ts}");
     assert!(ts.contains("handle_back("), "got:\n{ts}");
     assert!(
-        ts.contains("@tauri-apps/api/event"),
-        "expected Tauri event API, got:\n{ts}"
+        ts.contains("@vox/runtime"),
+        "expected @vox/runtime adapter import, got:\n{ts}"
     );
 }
 
@@ -41,6 +46,6 @@ fn back_button_with_fallback_emits_fallback_call() {
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("listen('vox-back-button'"), "got:\n{ts}");
+    assert!(ts.contains("voxRuntime.onBackButton("), "got:\n{ts}");
     assert!(ts.contains("navigate_home("), "got:\n{ts}");
 }

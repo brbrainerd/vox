@@ -1,0 +1,23 @@
+// routes { ... } must lower to Expo Router file-system routes:
+//   "/"            -> app/index.tsx
+//   "/about"       -> app/about.tsx
+//   "/detail/:id"  -> app/detail/[id].tsx
+// Plus app/_layout.tsx with Stack + SafeAreaProvider.
+// Package.json `main` must switch to `expo-router/entry`.
+component Home() {
+    view: column() { heading(level=1) { "Home" } }
+}
+
+component About() {
+    view: column() { heading(level=1) { "About" } }
+}
+
+component Detail() {
+    view: column() { heading(level=1) { "Detail" } }
+}
+
+routes {
+    "/" to Home
+    "/about" to About
+    "/detail/:id" to Detail
+}

@@ -11,7 +11,7 @@
 //! This module reverses that, mapping back to platform-native equivalents.
 //! The single source of truth — the HIR — never changes between targets.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use vox_compiler::hir::{
     HirExpr, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember, HirStmt,
 };
@@ -50,6 +50,36 @@ enum RnNode {
         value_ts: Option<String>,
         on_change_ts: Option<String>,
         placeholder_ts: Option<String>,
+    },
+    /// `{<iter>.map((<item>, <index>) => <body>)}` — VUV `for x in xs key=x.id { ... }`.
+    /// The body is RECURSIVELY translated to RN nodes so loops never emit DOM tags
+    /// like `<div>` / `<p>` inside an RN tree.
+    Loop {
+        iterator_ts: String,
+        item_name: String,
+        index_name: Option<String>,
+        key_ts: Option<String>,
+        body: Vec<RnNode>,
+    },
+    /// `<UserComponent attr1={expr1} attr2={expr2}>...</UserComponent>` — a call
+    /// to a user-declared `component` inside a view. The tag is PascalCase
+    /// per React convention; attributes pass through as JSX `{...}` blocks
+    /// (no style remapping — user components manage their own props).
+    CustomComponent {
+        tag_name: String,
+        attributes: Vec<(String, String)>,
+        children: Vec<RnNode>,
+    },
+    /// `<ScrollView horizontal>...</ScrollView>` — `row(scroll: "horizontal")`.
+    /// A single non-wrapping line that scrolls instead of overflowing.
+    ScrollRow { children: Vec<RnNode> },
+    /// `<Link href={<href>} style={styles.<key>}>...</Link>` — expo-router
+    /// navigation. VUV `link(href="/x") { "label" }`. String children are
+    /// auto-wrapped in `<Text>` (same as Pressable) so the label is tappable.
+    Link {
+        href_ts: String,
+        style_key: Option<String>,
+        children: Vec<RnNode>,
     },
     /// A plain JS-style string literal inside a `<Text>` — gets quoted/escaped.
     StringLit(String),
@@ -132,62 +162,145 @@ fn extract_class_tokens(attr_value: &HirExpr) -> Vec<String> {
 /// `{...}` braces in JSX. Reuses the shared HIR → TS expression lowering so the
 /// two emit targets cannot diverge on expression-level syntax (split-brain
 /// protection: both targets call the SAME `emit_hir_expr`).
-fn emit_hir_expr_inline_with_state(expr: &HirExpr, state_names: &HashSet<String>) -> String {
-    let ctx = crate::codegen_ts::hir_emit::EmitCtx::new(state_names);
+fn emit_hir_expr_inline_with_state(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
+) -> String {
+    // `with_endpoints` (not `new`) so positional endpoint calls
+    // (`record_event("mood", ...)`) are rewritten to the named-object form
+    // (`record_event({ event_kind: "mood", ... })`) that `vox-client.ts`
+    // expects — same rewrite the web reactive emit performs.
+    let ctx = crate::codegen_ts::hir_emit::EmitCtx::with_endpoints(state_names, endpoint_params);
     crate::codegen_ts::hir_emit::emit_hir_expr(expr, &ctx)
 }
 
 fn emit_hir_expr_inline(expr: &HirExpr) -> String {
     let empty_states: HashSet<String> = HashSet::new();
-    emit_hir_expr_inline_with_state(expr, &empty_states)
+    let empty_endpoints: HashMap<String, Vec<String>> = HashMap::new();
+    emit_hir_expr_inline_with_state(expr, &empty_states, &empty_endpoints)
 }
 
-/// Emit an event handler — wraps the lowered body in an arrow function so the
-/// JSX `onPress={...}` attribute receives a callable, not an immediate
-/// invocation. State assignments (`n = n + 1`) inside the body are rewritten
-/// to setter calls (`set_n(n + 1)`) by the shared HIR emit when the variable
-/// appears in `state_names`.
-fn emit_event_handler_with_state(expr: &HirExpr, state_names: &HashSet<String>) -> String {
-    let body = emit_hir_expr_inline_with_state(expr, state_names);
-    // The shared HIR → TS emit wraps block expressions in an IIFE because they
-    // appear in expression position elsewhere (where a value is expected).
-    // For an event handler we want the lambda itself, not the invocation —
-    // strip the outer `(...)()` if present.
-    let arrow_body = strip_iife_wrapper(&body);
-    let trimmed = arrow_body.trim_start();
-    if trimmed.starts_with("() =>") || trimmed.starts_with("async () =>") {
-        // Already a clean arrow function.
-        arrow_body.to_string()
-    } else if trimmed.starts_with("{") {
-        format!("() => {arrow_body}")
-    } else {
-        format!("() => ({arrow_body})")
-    }
+/// Emit an event handler — produces a clean arrow lambda for the JSX
+/// `onPress={...}` attribute. State assignments (`n = n + 1`) inside the
+/// body are rewritten to setter calls (`set_n(n + 1)`) by the shared HIR
+/// emit when the variable appears in `state_names`.
+fn emit_event_handler_with_state(
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
+) -> String {
+    // Thread the async client-fn names (every `@query`/`@mutation` endpoint) so a
+    // handler body that calls one is emitted as an `async () => { … await … }`
+    // arrow by the shared lambda lowering (`EmitCtx::handler_await`). Without this
+    // the body would emit sync nested IIFEs and a `match record_event(...) {…}`
+    // would discriminate on the pending Promise — never running the Ok/Error arm
+    // (and, for a chained Save, never firing the inner mutation). Same async
+    // machinery the web reactive emit uses via `view_ctx`.
+    let async_fn_names: HashSet<String> = endpoint_params.keys().cloned().collect();
+    let ctx = crate::codegen_ts::hir_emit::EmitCtx::with_async_and_endpoints(
+        state_names,
+        &async_fn_names,
+        endpoint_params,
+    );
+    let body = crate::codegen_ts::hir_emit::emit_hir_expr(expr, &ctx);
+    extract_or_wrap_arrow(&body).into_owned()
 }
 
-/// Detect and unwrap `(EXPR)()` where `EXPR` is an arrow lambda. Returns the inner
-/// arrow expression so callers can use it as an event handler. Leaves any other
-/// shape untouched.
-fn strip_iife_wrapper(body: &str) -> &str {
+/// Normalize a JS expression string into a callable arrow lambda suitable for an
+/// event handler. Handles four input shapes:
+///
+///   1. `(() => EXPR)()` / `(() => { ... })()` — IIFE invocation. Strip the
+///      outer `(...)()` to recover the inner arrow lambda directly.
+///   2. `(() => EXPR)` / `(() => { ... })` — parenthesized arrow lambda.
+///      Strip the outer parens; the inner arrow is the handler.
+///   3. `() => EXPR` / `async () => EXPR` — already clean. Use unchanged.
+///   4. Anything else — wrap as `() => (BODY)` (for an expression) or
+///      `() => BODY` (for a `{ ... }` block).
+fn extract_or_wrap_arrow(body: &str) -> std::borrow::Cow<'_, str> {
     let trimmed = body.trim();
-    if !trimmed.ends_with(")()") {
-        return body;
+
+    // Shape 1: `(() => ...)()` — IIFE.
+    if trimmed.ends_with(")()") && trimmed.starts_with('(') {
+        let inner = &trimmed[1..trimmed.len() - 3];
+        let inner_trim = inner.trim_start();
+        if inner_trim.starts_with("() =>") || inner_trim.starts_with("async () =>") {
+            return std::borrow::Cow::Owned(inner.to_string());
+        }
     }
-    // Confirm the leading `(` matches the second-to-last `)` (i.e. balanced).
-    if !trimmed.starts_with('(') {
-        return body;
+
+    // Shape 2: `(() => ...)` — parenthesized arrow. Verify the leading `(` and
+    // a balancing trailing `)` actually pair (no `()()` chain hiding inside).
+    if trimmed.starts_with('(') && trimmed.ends_with(')') && {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let inner_trim = inner.trim_start();
+        inner_trim.starts_with("() =>") || inner_trim.starts_with("async () =>")
+    } {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        return std::borrow::Cow::Owned(inner.to_string());
     }
-    let inner = &trimmed[1..trimmed.len() - 3]; // strip leading `(` and trailing `)()`
-    let inner_trim = inner.trim_start();
-    if inner_trim.starts_with("() =>") || inner_trim.starts_with("async () =>") {
-        inner
+
+    // Shape 3: already a clean arrow lambda.
+    if trimmed.starts_with("() =>") || trimmed.starts_with("async () =>") {
+        return std::borrow::Cow::Borrowed(body);
+    }
+
+    // Shape 4: bare expression or block — wrap.
+    if trimmed.starts_with('{') {
+        std::borrow::Cow::Owned(format!("() => {body}"))
     } else {
-        body
+        std::borrow::Cow::Owned(format!("() => ({body})"))
     }
 }
 
 fn attr_value<'a>(attrs: &'a [HirJsxAttr], name: &str) -> Option<&'a HirExpr> {
     attrs.iter().find(|a| a.name == name).map(|a| &a.value)
+}
+
+/// True when a screen-root view opts OUT of default edge padding via `bleed`
+/// (present, and not literally `false`). Shared with the web reactive emit so
+/// both targets honor the same opt-out.
+pub(crate) fn root_view_bleeds(view_root: &HirExpr) -> bool {
+    let attrs: &[HirJsxAttr] = match view_root {
+        HirExpr::Jsx(el) => &el.attributes,
+        HirExpr::JsxSelfClosing(sc) => &sc.attributes,
+        _ => return false,
+    };
+    match attr_value(attrs, "bleed") {
+        Some(HirExpr::BoolLit(false, _)) => false,
+        Some(HirExpr::StringLit(s, _)) if s == "false" => false,
+        Some(_) => true,
+        None => false,
+    }
+}
+
+/// True if the component's view contains a `link(...)` / `<a>` element, so the
+/// emitter knows to `import { Link } from "expo-router"`.
+fn component_uses_link(rc: &HirReactiveComponent) -> bool {
+    fn expr_has_link(e: &HirExpr) -> bool {
+        match e {
+            HirExpr::Jsx(el) => {
+                el.tag == "link" || el.tag == "a" || el.children.iter().any(expr_has_link)
+            }
+            HirExpr::JsxSelfClosing(sc) => sc.tag == "link" || sc.tag == "a",
+            HirExpr::JsxFragment(children, _) => children.iter().any(expr_has_link),
+            HirExpr::For(_, _, iter, body, _, _) => expr_has_link(iter) || expr_has_link(body),
+            HirExpr::Block(stmts, _) => stmts.iter().any(stmt_has_link),
+            HirExpr::If(c, t, e2, _) => {
+                expr_has_link(c)
+                    || t.iter().any(stmt_has_link)
+                    || e2.as_ref().is_some_and(|s| s.iter().any(stmt_has_link))
+            }
+            _ => false,
+        }
+    }
+    fn stmt_has_link(s: &HirStmt) -> bool {
+        match s {
+            HirStmt::Expr { expr, .. } | HirStmt::Let { value: expr, .. } => expr_has_link(expr),
+            _ => false,
+        }
+    }
+    rc.view.as_ref().is_some_and(expr_has_link)
 }
 
 /// Pull a literal integer out of a HirExpr (used for `heading(level=1)`).
@@ -196,6 +309,22 @@ fn extract_int_literal(expr: &HirExpr) -> Option<i64> {
         Some(*n)
     } else {
         None
+    }
+}
+
+/// Pull a literal string value out of a HirExpr, unwrapping a single-expr block
+/// (used for `row(scroll: "horizontal")`).
+fn literal_string_value(expr: &HirExpr) -> Option<String> {
+    match expr {
+        HirExpr::StringLit(s, _) => Some(s.clone()),
+        HirExpr::Block(stmts, _) if stmts.len() == 1 => {
+            if let HirStmt::Expr { expr, .. } = &stmts[0] {
+                literal_string_value(expr)
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
 
@@ -210,6 +339,7 @@ fn extract_int_literal(expr: &HirExpr) -> Option<i64> {
 fn jsx_to_rn(
     el: &HirJsxElement,
     state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> RnNode {
     let class_tokens_owned = attr_value(&el.attributes, "className")
@@ -222,12 +352,13 @@ fn jsx_to_rn(
     // depending on which lowering produced the HIR, either may appear.
     let handler_attr =
         attr_value(&el.attributes, "on_click").or_else(|| attr_value(&el.attributes, "onClick"));
-    let on_press = handler_attr.map(|h| emit_event_handler_with_state(h, state_names));
+    let on_press =
+        handler_attr.map(|h| emit_event_handler_with_state(h, state_names, endpoint_params));
 
     let children: Vec<RnNode> = el
         .children
         .iter()
-        .map(|c| hir_view_child_to_rn(c, state_names, diagnostics))
+        .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics))
         .collect();
 
     match el.tag.as_str() {
@@ -236,10 +367,22 @@ fn jsx_to_rn(
             style_key: style_key.or(Some("col".to_string())),
             children,
         },
-        "row" => RnNode::View {
-            style_key: style_key.or(Some("row".to_string())),
-            children,
-        },
+        "row" => {
+            // `row(scroll: "horizontal")` (or "x") → a single non-wrapping line
+            // in a horizontal ScrollView (the right UX for nav bars). A bare
+            // `row` uses the wrap-by-default `row` style and can never overflow.
+            let scroll = attr_value(&el.attributes, "scroll")
+                .and_then(literal_string_value)
+                .unwrap_or_default();
+            if scroll == "horizontal" || scroll == "x" {
+                RnNode::ScrollRow { children }
+            } else {
+                RnNode::View {
+                    style_key: style_key.or(Some("row".to_string())),
+                    children,
+                }
+            }
+        }
         "panel" => RnNode::View {
             style_key: style_key.or(Some("panel".to_string())),
             children,
@@ -305,11 +448,51 @@ fn jsx_to_rn(
             value_ts: attr_value(&el.attributes, "value").map(emit_hir_expr_inline),
             on_change_ts: attr_value(&el.attributes, "on_change")
                 .or_else(|| attr_value(&el.attributes, "onChange"))
-                .map(|h| emit_event_handler_with_state(h, state_names)),
+                .map(|h| emit_event_handler_with_state(h, state_names, endpoint_params)),
             placeholder_ts: attr_value(&el.attributes, "placeholder").map(emit_hir_expr_inline),
         },
 
+        // VUV `link(href="/x") { "label" }` → expo-router `<Link>`. Without this
+        // every navigation link rendered as an inert `<View>` and the app could
+        // not move between routes.
+        "link" | "a" => {
+            let href_ts = attr_value(&el.attributes, "href")
+                .map(emit_hir_expr_inline)
+                .unwrap_or_else(|| "\"/\"".to_string());
+            RnNode::Link {
+                href_ts,
+                style_key,
+                children,
+            }
+        }
+
         other => {
+            // PascalCase tag → user-declared `component Name(...) { view: ... }` call.
+            // React's JSX convention is that any tag starting with an uppercase
+            // letter is a component reference, not a built-in element. Pass
+            // through every attribute as a JSX `{<expr>}` block so callers like
+            // `EntryCard(label=item)` lower to `<EntryCard label={item}/>`.
+            if other.chars().next().is_some_and(|c| c.is_ascii_uppercase()) {
+                let attrs: Vec<(String, String)> = el
+                    .attributes
+                    .iter()
+                    .filter(|a| a.name != "className") // className handled via style_key on built-ins; not for custom
+                    .map(|a| {
+                        (
+                            a.name.clone(),
+                            emit_hir_expr_inline_with_state(&a.value, state_names, endpoint_params),
+                        )
+                    })
+                    .collect();
+                return RnNode::CustomComponent {
+                    tag_name: other.to_string(),
+                    attributes: attrs,
+                    children,
+                };
+            }
+            // Lowercase unknown tag → genuinely unsupported. Surface the diagnostic
+            // (not a silent stub) and fall back to a bare `<View>` so the build
+            // still produces something inspectable.
             diagnostics.push(WebIrDiagnostic {
                 code: "vox/codegen/rn-unsupported-tag".to_string(),
                 message: format!(
@@ -330,10 +513,11 @@ fn jsx_to_rn(
 fn hir_view_child_to_rn(
     child: &HirExpr,
     state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> RnNode {
     match child {
-        HirExpr::Jsx(el) => jsx_to_rn(el, state_names, diagnostics),
+        HirExpr::Jsx(el) => jsx_to_rn(el, state_names, endpoint_params, diagnostics),
         HirExpr::JsxSelfClosing(sc) => jsx_to_rn(
             &HirJsxElement {
                 tag: sc.tag.clone(),
@@ -342,17 +526,61 @@ fn hir_view_child_to_rn(
                 span: sc.span,
             },
             state_names,
+            endpoint_params,
             diagnostics,
         ),
         HirExpr::JsxFragment(children, _) => RnNode::View {
             style_key: None,
             children: children
                 .iter()
-                .map(|c| hir_view_child_to_rn(c, state_names, diagnostics))
+                .map(|c| hir_view_child_to_rn(c, state_names, endpoint_params, diagnostics))
                 .collect(),
         },
+        // VUV `for item, i in items key=item.id { <body> }` — recurse so the body
+        // gets RN-translated, never falls through to the shared React-DOM emit.
+        // Without this, the shared emit would produce `<div>` / `<p>` inside an
+        // RN tree (split-brain bug).
+        HirExpr::For(item, index, iter, body, key, _) => {
+            let iterator_ts = emit_hir_expr_inline_with_state(iter, state_names, endpoint_params);
+            let key_ts = key
+                .as_ref()
+                .map(|k| emit_hir_expr_inline_with_state(k, state_names, endpoint_params));
+            // The body is either a single JSX element or a Block of statements.
+            // Both are recursively walked so every child renders in RN form.
+            let body_nodes = match body.as_ref() {
+                HirExpr::Block(stmts, _) => stmts
+                    .iter()
+                    .filter_map(|s| match s {
+                        HirStmt::Expr { expr, .. } => Some(hir_view_child_to_rn(
+                            expr,
+                            state_names,
+                            endpoint_params,
+                            diagnostics,
+                        )),
+                        _ => None,
+                    })
+                    .collect(),
+                other => vec![hir_view_child_to_rn(
+                    other,
+                    state_names,
+                    endpoint_params,
+                    diagnostics,
+                )],
+            };
+            RnNode::Loop {
+                iterator_ts,
+                item_name: item.clone(),
+                index_name: index.clone(),
+                key_ts,
+                body: body_nodes,
+            }
+        }
         HirExpr::StringLit(s, _) => RnNode::StringLit(s.clone()),
-        other => RnNode::Expr(emit_hir_expr_inline_with_state(other, state_names)),
+        other => RnNode::Expr(emit_hir_expr_inline_with_state(
+            other,
+            state_names,
+            endpoint_params,
+        )),
     }
 }
 
@@ -389,6 +617,14 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
             if let Some(k) = style_key {
                 out.insert(k.clone());
             }
+            // Emission wraps any bare string/expr child in `<Text style={styles.btn_text}>`
+            // (see `wrap_pressable_text_children`), so the style is genuinely used.
+            if children
+                .iter()
+                .any(|c| matches!(c, RnNode::StringLit(_) | RnNode::Expr(_)))
+            {
+                out.insert("btn_text".to_string());
+            }
             for c in children {
                 collect_used_styles(c, out);
             }
@@ -396,6 +632,41 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
         RnNode::Image { style_key, .. } | RnNode::TextInput { style_key, .. } => {
             if let Some(k) = style_key {
                 out.insert(k.clone());
+            }
+        }
+        RnNode::Loop { body, .. } => {
+            for c in body {
+                collect_used_styles(c, out);
+            }
+        }
+        RnNode::CustomComponent { children, .. } => {
+            for c in children {
+                collect_used_styles(c, out);
+            }
+        }
+        RnNode::Link {
+            style_key,
+            children,
+            ..
+        } => {
+            if let Some(k) = style_key {
+                out.insert(k.clone());
+            }
+            // Link text children are wrapped in `<Text style={styles.btn_text}>` at emit.
+            if children
+                .iter()
+                .any(|c| matches!(c, RnNode::StringLit(_) | RnNode::Expr(_)))
+            {
+                out.insert("btn_text".to_string());
+            }
+            for c in children {
+                collect_used_styles(c, out);
+            }
+        }
+        RnNode::ScrollRow { children } => {
+            out.insert("row_scroll_content".to_string());
+            for c in children {
+                collect_used_styles(c, out);
             }
         }
         RnNode::StringLit(_) | RnNode::Expr(_) => {}
@@ -525,6 +796,105 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
                 .unwrap_or_default();
             format!("{pad}<TextInput{style_attr}{value_attr}{onc_attr}{ph_attr} />\n")
         }
+        RnNode::Loop {
+            iterator_ts,
+            item_name,
+            index_name,
+            key_ts,
+            body,
+        } => {
+            // RN renders a JSX-expression loop as `{iter.map((item, i) => (<body/>))}`.
+            // The first body node must carry a `key={...}` attribute or React warns;
+            // we inject it onto the first element in the rendered body.
+            let params = match index_name {
+                Some(idx) => format!("({item_name}: any, {idx}: number)"),
+                None => format!("({item_name}: any)"),
+            };
+            let mut inner = String::new();
+            for c in body {
+                inner.push_str(&emit_rn_node(c, indent + 2));
+            }
+            // A `.map(...)` arrow must return a single element. When the loop body
+            // lowers to multiple sibling nodes, wrap them in a keyed `<View>` (always
+            // imported, and unlike the `<>` shorthand it can carry the `key`). A
+            // single-node body injects `key` into that node directly.
+            let body_render = if body.len() > 1 {
+                let key_attr = key_ts
+                    .as_ref()
+                    .map(|k| format!(" key={{{k}}}"))
+                    .unwrap_or_default();
+                format!("{pad}  <View{key_attr}>\n{inner}{pad}  </View>\n")
+            } else if let Some(k) = key_ts {
+                inject_key_into_first_element(inner, k)
+            } else {
+                inner
+            };
+            format!("{pad}{{{iterator_ts}.map({params} => (\n{body_render}{pad}  ))}}\n")
+        }
+        RnNode::CustomComponent {
+            tag_name,
+            attributes,
+            children,
+        } => {
+            let attr_str = if attributes.is_empty() {
+                String::new()
+            } else {
+                let mut s = String::new();
+                for (name, expr) in attributes {
+                    s.push(' ');
+                    s.push_str(name);
+                    s.push('=');
+                    s.push('{');
+                    s.push_str(expr);
+                    s.push('}');
+                }
+                s
+            };
+            if children.is_empty() {
+                return format!("{pad}<{tag_name}{attr_str} />\n");
+            }
+            let mut inner = String::new();
+            for c in children {
+                inner.push_str(&emit_rn_node(c, indent + 1));
+            }
+            format!("{pad}<{tag_name}{attr_str}>\n{inner}{pad}</{tag_name}>\n")
+        }
+        RnNode::Link {
+            href_ts,
+            style_key,
+            children,
+        } => {
+            let style_attr = style_key
+                .as_ref()
+                .map(|k| format!(" style={{styles.{k}}}"))
+                .unwrap_or_default();
+            // Bare string/expr children must be wrapped in <Text> (same rule as
+            // Pressable) so they render and are tappable inside the Link.
+            let wrapped = wrap_pressable_text_children(
+                children
+                    .iter()
+                    .map(|c| match c {
+                        RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
+                        RnNode::Expr(e) => RnNode::Expr(e.clone()),
+                        other => clone_rn_node(other),
+                    })
+                    .collect(),
+            );
+            let mut inner = String::new();
+            for c in &wrapped {
+                inner.push_str(&emit_rn_node(c, indent + 1));
+            }
+            format!("{pad}<Link href={{{href_ts}}}{style_attr}>\n{inner}{pad}</Link>\n")
+        }
+        RnNode::ScrollRow { children } => {
+            let mut inner = String::new();
+            for c in children {
+                inner.push_str(&emit_rn_node(c, indent + 1));
+            }
+            format!(
+                "{pad}<ScrollView horizontal showsHorizontalScrollIndicator={{false}} contentContainerStyle={{styles.row_scroll_content}}>\n{inner}{pad}</ScrollView>\n"
+            )
+        }
         RnNode::StringLit(s) => {
             // String at View context — wrap defensively (RN forbids bare strings outside <Text>).
             let lit = serde_json::to_string(s).unwrap_or_else(|_| "\"\"".to_string());
@@ -594,18 +964,98 @@ fn clone_rn_node(n: &RnNode) -> RnNode {
             on_change_ts: on_change_ts.clone(),
             placeholder_ts: placeholder_ts.clone(),
         },
+        RnNode::Loop {
+            iterator_ts,
+            item_name,
+            index_name,
+            key_ts,
+            body,
+        } => RnNode::Loop {
+            iterator_ts: iterator_ts.clone(),
+            item_name: item_name.clone(),
+            index_name: index_name.clone(),
+            key_ts: key_ts.clone(),
+            body: body.iter().map(clone_rn_node).collect(),
+        },
+        RnNode::CustomComponent {
+            tag_name,
+            attributes,
+            children,
+        } => RnNode::CustomComponent {
+            tag_name: tag_name.clone(),
+            attributes: attributes.clone(),
+            children: children.iter().map(clone_rn_node).collect(),
+        },
+        RnNode::Link {
+            href_ts,
+            style_key,
+            children,
+        } => RnNode::Link {
+            href_ts: href_ts.clone(),
+            style_key: style_key.clone(),
+            children: children.iter().map(clone_rn_node).collect(),
+        },
+        RnNode::ScrollRow { children } => RnNode::ScrollRow {
+            children: children.iter().map(clone_rn_node).collect(),
+        },
         RnNode::StringLit(s) => RnNode::StringLit(s.clone()),
         RnNode::Expr(e) => RnNode::Expr(e.clone()),
     }
+}
+
+/// Insert `key={<expr>}` into the opening tag of the first JSX element in `inner`.
+/// Used to satisfy React's `key` requirement on `.map(...)` children — without this
+/// users get the noisy "Each child in a list should have a unique key" warning
+/// at runtime even though their Vox source declared `key=...`.
+fn inject_key_into_first_element(inner: String, key_ts: &str) -> String {
+    let bytes = inner.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'<' && i + 1 < bytes.len() && bytes[i + 1].is_ascii_alphabetic() {
+            break;
+        }
+        i += 1;
+    }
+    if i >= bytes.len() {
+        return inner;
+    }
+    let mut j = i + 1;
+    while j < bytes.len() && bytes[j] != b'>' {
+        j += 1;
+    }
+    if j >= bytes.len() {
+        return inner;
+    }
+    let insert_at = if j > 0 && bytes[j - 1] == b'/' {
+        j - 1
+    } else {
+        j
+    };
+    let key_attr = format!(" key={{{key_ts}}}");
+    let mut out = String::with_capacity(inner.len() + key_attr.len());
+    out.push_str(&inner[..insert_at]);
+    out.push_str(&key_attr);
+    out.push_str(&inner[insert_at..]);
+    out
 }
 
 /// StyleSheet entries indexed by the keys [`class_string_to_style_key`] returns.
 fn emit_styles_block(used: &std::collections::BTreeSet<String>) -> String {
     let table: BTreeMap<&str, &str> = BTreeMap::from([
         ("col", "{ flexDirection: \"column\", gap: 12 }"),
+        // Screen-root wrapper: default horizontal edge padding (opt out with `bleed`).
+        ("screen", "{ flex: 1, paddingHorizontal: 16 }"),
+        // `row` wraps by default so children can never run off the right edge
+        // (RN children default to flexShrink:0). `columnGap`/`rowGap` keep
+        // spacing correct once wrapped. A `row(scroll: "horizontal")` opts into
+        // a single non-wrapping scrollable line instead (see `row_scroll_content`).
         (
             "row",
-            "{ flexDirection: \"row\", gap: 12, alignItems: \"center\" }",
+            "{ flexDirection: \"row\", flexWrap: \"wrap\", columnGap: 12, rowGap: 12, alignItems: \"center\" }",
+        ),
+        (
+            "row_scroll_content",
+            "{ flexDirection: \"row\", columnGap: 12, alignItems: \"center\" }",
         ),
         ("h1", "{ fontSize: 30, fontWeight: \"600\" }"),
         ("h2", "{ fontSize: 24, fontWeight: \"600\" }"),
@@ -672,21 +1122,18 @@ fn detect_react_hooks(members: &[HirReactiveMember], view: Option<&HirExpr>) -> 
     {
         hooks.insert("useState");
     }
-    if members
-        .iter()
-        .any(|m| matches!(m, HirReactiveMember::Effect(_)))
-        || members
-            .iter()
-            .any(|m| matches!(m, HirReactiveMember::OnMount(_)))
-    {
+    if members.iter().any(|m| {
+        matches!(
+            m,
+            HirReactiveMember::Effect(_)
+                | HirReactiveMember::OnMount(_)
+                | HirReactiveMember::OnCleanup(_)
+        )
+    }) {
         hooks.insert("useEffect");
     }
-    if members
-        .iter()
-        .any(|m| matches!(m, HirReactiveMember::Derived(_)))
-    {
-        hooks.insert("useMemo");
-    }
+    // `Derived` members emit a plain `const x = expr` (recomputed each render,
+    // see `emit_lifecycle_hooks`), so no `useMemo` import is needed.
     let _ = view; // currently no view-driven hooks
     hooks.into_iter().collect()
 }
@@ -709,11 +1156,79 @@ fn emit_prelude(members: &[HirReactiveMember]) -> String {
     out
 }
 
+/// Emit lifecycle hooks — `effect`, `on mount`, `on cleanup`, and `derived`
+/// members — as React hooks, mirroring the web reactive emit so both targets
+/// load data the same way. Endpoint calls inside these bodies are awaited
+/// (the ctx is async-aware) and wrapped in a fire-and-forget async IIFE when
+/// needed, since a `useEffect` callback must stay synchronous.
+///
+/// Without this, the RN target dropped lifecycle members entirely — a component
+/// whose `on mount:` loads data would render its initial state forever.
+fn emit_lifecycle_hooks(
+    members: &[HirReactiveMember],
+    state_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
+) -> String {
+    use crate::codegen_ts::hir_emit::{
+        EmitCtx, emit_block_stmts, emit_hir_expr, wrap_effect_body_if_async,
+    };
+
+    // All `@endpoint` fns are async; their names drive `await` insertion.
+    let endpoint_names: HashSet<String> = endpoint_params.keys().cloned().collect();
+    let async_ctx =
+        EmitCtx::with_async_and_endpoints(state_names, &endpoint_names, endpoint_params);
+    let plain_ctx = EmitCtx::with_endpoints(state_names, endpoint_params);
+
+    let mut out = String::new();
+    for m in members {
+        match m {
+            HirReactiveMember::Effect(e) => {
+                let stmts = emit_block_stmts(&e.body, &async_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts, 2);
+                out.push_str(&format!("  useEffect(() => {{\n{body}  }}, []);\n"));
+            }
+            HirReactiveMember::OnMount(o) => {
+                let stmts = emit_block_stmts(&o.body, &async_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts, 2);
+                out.push_str(&format!("  useEffect(() => {{\n{body}  }}, []);\n"));
+            }
+            HirReactiveMember::OnCleanup(c) => {
+                let stmts = emit_block_stmts(&c.body, &async_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts, 2);
+                out.push_str(&format!("  useEffect(() => () => {{\n{body}  }}, []);\n"));
+            }
+            HirReactiveMember::Derived(d) => {
+                // Recompute each render — correct without dep tracking (the web
+                // target memoizes; RN keeps it simple and always-fresh).
+                let expr = emit_hir_expr(&d.expr, &plain_ctx);
+                out.push_str(&format!("  const {} = {};\n", d.name, expr));
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
 /// Emit a single component file.
+///
+/// `known_components` is the set of all `component` names in the module and
+/// `endpoint_params` maps each `@query`/`@mutation`/`@server` fn name to its
+/// ordered parameter names. The keys drive cross-file `import` statements
+/// (sibling components from `./Name`, endpoint fns from `./vox-client`); the
+/// values drive the positional→named-object rewrite for endpoint calls inside
+/// handlers. Both mirror the web reactive emit exactly, so the two targets
+/// stay in lockstep on what a component pulls in and how it calls endpoints.
 pub fn emit_rn_component(
     rc: &HirReactiveComponent,
+    known_components: &HashSet<String>,
+    form_names: &HashSet<String>,
+    endpoint_params: &HashMap<String, Vec<String>>,
+    screen_root_names: &HashSet<String>,
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> (String, String) {
+    use crate::codegen_ts::reactive::collect_component_import_refs;
+
+    let endpoint_names: HashSet<String> = endpoint_params.keys().cloned().collect();
     let mut out = String::new();
     let hooks = detect_react_hooks(&rc.members, rc.view.as_ref());
 
@@ -726,9 +1241,39 @@ pub fn emit_rn_component(
             hooks.join(", ")
         ));
     }
-    out.push_str(
-        "import { View, Text, Pressable, Image, TextInput, StyleSheet } from \"react-native\";\n",
-    );
+    out.push_str("import { View, Text, Pressable, Image, TextInput, ScrollView, StyleSheet } from \"react-native\";\n");
+    // `mobile` namespace import — only when this component's view or members
+    // reference the `mobile` identifier (or `Speech.transcribe_microphone`,
+    // which lowers to it). Mirrors the web target's auto-import in
+    // `crates/vox-codegen/src/codegen_ts/component.rs`.
+    if super::mobile_utils::component_uses_mobile(rc) {
+        out.push_str("import { mobile } from \"./mobile-utils\";\n");
+    }
+    // expo-router `<Link>` for `link(href=...)` navigation.
+    if component_uses_link(rc) {
+        out.push_str("import { Link } from \"expo-router\";\n");
+    }
+
+    // Cross-file imports: sibling components (`<NavBar />` → `./NavBar`) and
+    // endpoint fns this component calls (`record_event(...)` → `./vox-client`),
+    // collected anywhere in the view or member bodies. Shared with the web
+    // reactive emit via `collect_component_import_refs` so both targets agree.
+    let (comp_refs, endpoint_refs) =
+        collect_component_import_refs(rc, known_components, &endpoint_names);
+    for comp in &comp_refs {
+        // `@form` components live in `forms.tsx`; sibling components in `./Name`.
+        if form_names.contains(comp) {
+            out.push_str(&format!("import {{ {comp} }} from \"./forms\";\n"));
+        } else {
+            out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+        }
+    }
+    if !endpoint_refs.is_empty() {
+        out.push_str(&format!(
+            "import {{ {} }} from \"./vox-client\";\n",
+            endpoint_refs.join(", ")
+        ));
+    }
     out.push('\n');
 
     // Props interface
@@ -764,8 +1309,29 @@ pub fn emit_rn_component(
         ));
     }
 
-    // Body: state + prelude
+    // Collect state names so the shared HIR → TS lowering rewrites `n = expr`
+    // (mutation) to `set_n(expr)` (React setter) inside handler and lifecycle
+    // bodies. Without this the emitted code would mutate the variable directly,
+    // which RN ignores between renders.
+    let state_names: HashSet<String> = rc
+        .members
+        .iter()
+        .filter_map(|m| match m {
+            HirReactiveMember::State(s) => Some(s.name.clone()),
+            _ => None,
+        })
+        .collect();
+
+    // Body: state declarations, then lifecycle hooks (effects / on-mount /
+    // on-cleanup / derived), then prelude. Lifecycle hooks are what load data
+    // — e.g. `on mount: { total = health_event_count() }` becomes a
+    // `useEffect` that awaits the async endpoint and calls `set_total`.
     out.push_str(&emit_state_declarations(&rc.members));
+    out.push_str(&emit_lifecycle_hooks(
+        &rc.members,
+        &state_names,
+        endpoint_params,
+    ));
     out.push_str(&emit_prelude(&rc.members));
 
     // View
@@ -786,26 +1352,24 @@ pub fn emit_rn_component(
         }
     };
 
-    // Collect state names so the shared HIR → TS lowering rewrites `n = expr`
-    // (mutation) to `set_n(expr)` (React setter) inside handler bodies. Without
-    // this the emitted handler would mutate the variable directly, which RN
-    // ignores between renders.
-    let state_names: HashSet<String> = rc
-        .members
-        .iter()
-        .filter_map(|m| match m {
-            HirReactiveMember::State(s) => Some(s.name.clone()),
-            _ => None,
-        })
-        .collect();
-
-    let rn_root = hir_view_child_to_rn(view_root, &state_names, diagnostics);
+    let rn_root = hir_view_child_to_rn(view_root, &state_names, endpoint_params, diagnostics);
     let mut used_styles = std::collections::BTreeSet::new();
     collect_used_styles(&rn_root, &mut used_styles);
 
+    // Screen-root components get default horizontal edge padding so content
+    // doesn't kiss the device edges. Applied as an outer wrapper View on the
+    // screen root only (never on nested components like NavBar), and skipped
+    // when the root view opts out with `bleed`.
+    let pad_screen = screen_root_names.contains(&rc.name) && !root_view_bleeds(view_root);
     out.push_str("  return (\n");
-    let rendered = emit_rn_node(&rn_root, 2);
-    out.push_str(&rendered);
+    if pad_screen {
+        used_styles.insert("screen".to_string());
+        out.push_str("    <View style={styles.screen}>\n");
+        out.push_str(&emit_rn_node(&rn_root, 3));
+        out.push_str("    </View>\n");
+    } else {
+        out.push_str(&emit_rn_node(&rn_root, 2));
+    }
     out.push_str("  );\n}\n\n");
 
     // StyleSheet block

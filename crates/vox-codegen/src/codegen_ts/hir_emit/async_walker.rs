@@ -46,9 +46,12 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
                     .iter()
                     .any(|a| expr_has_async_call(&a.value, async_fn_names))
         }
-        // Method chain: `fetch_user().trim()` — walk receiver and args, but not across lambdas
-        HirExpr::MethodCall(obj, _, args, _, _) => {
-            expr_has_async_call(obj, async_fn_names)
+        // Method chain: `fetch_user().trim()` — walk receiver and args, but not across lambdas.
+        // `Speech.transcribe_microphone()` / `mobile.transcribe_microphone()` lower to an async
+        // `Promise<string>` call, so a handler that uses it must be `async` too.
+        HirExpr::MethodCall(obj, method, args, _, _) => {
+            method == "transcribe_microphone"
+                || expr_has_async_call(obj, async_fn_names)
                 || args
                     .iter()
                     .any(|a| expr_has_async_call(&a.value, async_fn_names))

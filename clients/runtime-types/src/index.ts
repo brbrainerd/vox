@@ -134,4 +134,22 @@ export interface VoxRuntime {
   /// Run on-device ML inference. `modelId` matches a declared Vox model resource;
   /// `input` is the model-specific encoded input. Resolves with raw output bytes.
   infer(modelId: string, input: Uint8Array): Promise<Uint8Array>;
+
+  // ── On-device durable persistence (@mutation / @query execution seam) ─────
+  //
+  // The codegen runs a @mutation/@query body locally on mobile (no server) and
+  // routes its `db` operations through these. They are the ONLY storage seam:
+  // richer reads (get/count/filter) fold over `replayTable` in the emitted body.
+
+  /// Durably append `row` to `table`'s append-only journal (one `db.<table>.insert`).
+  /// `name` is the mutation fn name (tracing). Survives app relaunch on mobile.
+  recordMutation(name: string, table: string, row: unknown): Promise<void>;
+
+  /// Replay every row appended for `table`, in insertion order. Backs
+  /// `db.<table>.all()`; the emitted body applies any further projection.
+  replayTable(table: string): Promise<unknown[]>;
+
+  /// Generate a RFC-4122 UUID string (backs `std.crypto.uuid()`), used by
+  /// mutations that mint ids before insert.
+  uuid(): string;
 }

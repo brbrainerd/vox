@@ -177,6 +177,19 @@ pub fn register_hir_module(
             ),
         );
     }
+    // Register tables BEFORE functions so a function signature that names a
+    // table as a (possibly nested) type — e.g. `fn f(rows: List[HealthEventLog])`
+    // — resolves the table name to its field-bearing `Ty::Table(...)` via the
+    // `env.define_type` alias rather than falling through to a bare
+    // `Ty::Named`. `db.Table.all()/get()/query()/find()` yield structural
+    // `Ty::Record`s of the same fields; the unifier (see `unify.rs`) treats a
+    // `Ty::Table`/`Ty::Collection` as structurally compatible with such a
+    // record, so the entity name is usable as the row type. Table registration
+    // depends only on imports (already registered above), so this reordering is
+    // side-effect-free.
+    for t in &module.tables {
+        register_hir_table(env, t);
+    }
     for f in &module.functions {
         register_hir_function(env, f, uf.as_deref_mut());
     }
@@ -197,9 +210,6 @@ pub fn register_hir_module(
     }
     for r in &module.mcp_resources {
         register_hir_function(env, &r.func, uf.as_deref_mut());
-    }
-    for t in &module.tables {
-        register_hir_table(env, t);
     }
     for a in &module.agents {
         register_hir_agent(env, a, uf.as_deref_mut());

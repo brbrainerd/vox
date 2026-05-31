@@ -55,8 +55,50 @@ pub mod tokens_emit;
 pub mod url_emit;
 /// `vox-client.ts` typed `fetch` SDK.
 pub mod vox_client;
+/// `vox-app.tsx` web app bootstrap (dependency-free router / flat mount).
+pub mod web_entry;
 /// Zod schema emission.
 pub mod zod_emit;
 
 pub use emitter::{CodegenOptions, generate, generate_with_options};
 pub use schema::{generate_voxdb_schema, generate_voxdb_schema_from_hir};
+
+/// The set of component names that are SCREEN ROOTS: the top-level view of any
+/// component referenced by a `routes { }` entry (recursively, including nested
+/// children and the not-found component). When a module declares no routes, the
+/// single flat-app component is the screen root.
+///
+/// Screen roots receive default horizontal edge padding (so content doesn't
+/// kiss the device edges) unless their root view opts out with `bleed`. Nested
+/// components (e.g. a `NavBar` rendered inside a screen) are NOT screen roots,
+/// so they never get — and never double-up — the screen inset. Both the web
+/// and RN emitters key off this same set so the guarantee is identical.
+pub(crate) fn screen_root_component_names(
+    hir: &vox_compiler::hir::HirModule,
+) -> std::collections::HashSet<String> {
+    use vox_compiler::ast::decl::ui::RouteEntry;
+    fn walk(entry: &RouteEntry, out: &mut std::collections::HashSet<String>) {
+        out.insert(entry.component_name.clone());
+        for child in &entry.children {
+            walk(child, out);
+        }
+    }
+    let mut names = std::collections::HashSet::new();
+    let mut had_route = false;
+    for decl in &hir.client_routes {
+        for entry in &decl.entries {
+            had_route = true;
+            walk(entry, &mut names);
+        }
+        if let Some(nf) = &decl.not_found_component {
+            names.insert(nf.clone());
+        }
+    }
+    // Flat (route-less) app: the first declared component is the screen.
+    if !had_route {
+        if let Some(first) = hir.components.first() {
+            names.insert(first.name.clone());
+        }
+    }
+    names
+}

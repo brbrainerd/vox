@@ -31,9 +31,9 @@ pub fn emit_form(form: &HirForm) -> String {
     out.push_str("  const [errors, setErrors] = React.useState<Record<string, string>>({});\n");
     out.push_str("  const [submitting, setSubmitting] = React.useState(false);\n");
     out.push_str("  const [bannerError, setBannerError] = React.useState<string | null>(null);\n");
-    if form.success_redirect.is_some() {
-        out.push_str("  const navigate = useNavigate();\n");
-    }
+    // Redirect (if any) uses the history API directly — see the submit handler.
+    // No router hook, so the form renders under any router (incl. the Vox-emitted
+    // dependency-free one) without a provider.
 
     // Validation function
     out.push_str("  function validate(): Record<string, string> {\n");
@@ -41,8 +41,15 @@ pub fn emit_form(form: &HirForm) -> String {
     for f in &visible {
         if f.required {
             let label = f.label.as_deref().unwrap_or(&f.name);
+            // Numeric fields hold a `number` (`NaN` when empty); string fields use
+            // the `=== ""` empty check.
+            let empty_check = if hir_type_to_input_type(&f.ty) == "number" {
+                format!("Number.isNaN({n})", n = f.name)
+            } else {
+                format!("{n} === \"\"", n = f.name)
+            };
             out.push_str(&format!(
-                "    if ({n} === undefined || {n} === null || {n} === \"\") e.{n} = \"{label} is required\";\n",
+                "    if ({n} === undefined || {n} === null || {empty_check}) e.{n} = \"{label} is required\";\n",
                 n = f.name
             ));
         }
@@ -72,15 +79,26 @@ pub fn emit_form(form: &HirForm) -> String {
     let submit_fn = form.on_submit.as_deref().unwrap_or("_noSubmit");
     // vox-client mutations accept a single `args` object with named fields matching the endpoint
     // params. Emit `{ field1, field2 }` shorthand so the call matches the generated client signature.
-    let args_obj = visible
+    // Numeric fields hold `NaN` while empty (see `field_initial_value`). A
+    // *required* empty numeric is caught by `validate()` before submit, but an
+    // *optional* one would otherwise forward `NaN` into the client call (it
+    // serializes to `null` and can break endpoint validation or persist a wrong
+    // value). Coerce empty numerics to `undefined` so they're omitted from the
+    // JSON body; non-numeric fields use object shorthand unchanged.
+    let fields: Vec<String> = visible
         .iter()
-        .map(|f| f.name.as_str())
-        .collect::<Vec<_>>()
-        .join(", ");
-    let submit_call_args = if args_obj.is_empty() {
+        .map(|f| {
+            if hir_type_to_input_type(&f.ty) == "number" {
+                format!("{n}: Number.isNaN({n}) ? undefined : {n}", n = f.name)
+            } else {
+                f.name.clone()
+            }
+        })
+        .collect();
+    let submit_call_args = if fields.is_empty() {
         "{}".to_string()
     } else {
-        format!("{{ {args_obj} }}")
+        format!("{{ {} }}", fields.join(", "))
     };
     let err_msg = form
         .error_message
@@ -100,7 +118,12 @@ pub fn emit_form(form: &HirForm) -> String {
          \x20     await {submit_fn}({submit_call_args});\n"
     ));
     if let Some(r) = &form.success_redirect {
-        out.push_str(&format!("      navigate({{ to: \"{r}\" }});\n"));
+        // Router-agnostic redirect: push history + dispatch popstate so the
+        // active router (Vox-emitted dependency-free, react-router, or @tanstack
+        // — all observe popstate) navigates to the success route.
+        out.push_str(&format!(
+            "      window.history.pushState(null, \"\", \"{r}\");\n      window.dispatchEvent(new PopStateEvent(\"popstate\"));\n"
+        ));
     }
     out.push_str(&format!(
         "    }} catch (err) {{\n\
@@ -135,6 +158,13 @@ pub fn emit_form(form: &HirForm) -> String {
 
         let bind_attr = if input_type == "checkbox" {
             format!("checked={{{fname}}}", fname = f.name)
+        } else if input_type == "number" {
+            // Numeric fields hold a `number` that is `NaN` when empty/unfilled —
+            // show a blank input then (a `value` of NaN would render "NaN").
+            format!(
+                "value={{Number.isNaN({fname}) ? \"\" : {fname}}}",
+                fname = f.name
+            )
         } else {
             format!("value={{{fname} ?? \"\"}}", fname = f.name)
         };
@@ -164,7 +194,9 @@ fn hir_type_to_input_type(ty: &HirType) -> &'static str {
 
 fn field_initial_value(f: &HirFormField) -> &'static str {
     match &f.ty {
-        HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "0",
+        // Numeric fields start empty (NaN) so a required field isn't pre-satisfied
+        // by a `0` default; the input renders blank (see the `value` binding).
+        HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "NaN",
         HirType::Named(t) if t == "bool" => "false",
         _ => "\"\"",
     }

@@ -323,6 +323,33 @@ impl InferenceContext {
                 }
                 Ok(())
             }
+            // A table/collection name used as a value type is structurally
+            // compatible with a record carrying the same fields. This is what
+            // lets `fn f(rows: List[HealthEventLog])` accept the result of
+            // `db.HealthEventLog.all()`, which the builtins type as
+            // `List[Record(fields)]` (see `typeck/builtins.rs`). The entity
+            // name IS the row type. Matching is by field name (order-
+            // independent) with an exact-count requirement so a record can't
+            // satisfy a table it only partially overlaps.
+            (Ty::Table(_, tf), Ty::Record(rf))
+            | (Ty::Record(rf), Ty::Table(_, tf))
+            | (Ty::Collection(_, tf), Ty::Record(rf))
+            | (Ty::Record(rf), Ty::Collection(_, tf)) => {
+                if tf.len() != rf.len() {
+                    return Err(format!(
+                        "record has {} field(s) but the entity type has {}",
+                        rf.len(),
+                        tf.len()
+                    ));
+                }
+                for (name, t_ty) in tf {
+                    match rf.iter().find(|(rn, _)| rn == name) {
+                        Some((_, r_ty)) => self.unify(t_ty, r_ty)?,
+                        None => return Err(format!("record is missing field '{name}'")),
+                    }
+                }
+                Ok(())
+            }
             _ => Err(format!("Cannot unify {:?} with {:?}", a, b)),
         }
     }
@@ -377,6 +404,85 @@ mod tests {
     fn test_unify_never_with_concrete_is_ok() {
         let mut ctx = InferenceContext::new();
         assert!(ctx.unify(&Ty::Never, &Ty::Int).is_ok());
+    }
+
+    /// A table type unifies with a record carrying the same fields (the row
+    /// shape produced by `db.Table.all()`), so the entity name is usable as
+    /// the row type — e.g. `fn f(rows: List[HealthEventLog])`.
+    #[test]
+    fn test_unify_table_with_matching_record_is_ok() {
+        let mut ctx = InferenceContext::new();
+        let fields = vec![("id".to_string(), Ty::Int), ("name".to_string(), Ty::Str)];
+        let table = Ty::Table("User".to_string(), fields.clone());
+        let record = Ty::Record(fields);
+        assert!(ctx.unify(&table, &record).is_ok());
+        assert!(ctx.unify(&record, &table).is_ok(), "symmetric");
+    }
+
+    /// Field-order independence: the record may list fields in any order.
+    #[test]
+    fn test_unify_table_with_reordered_record_is_ok() {
+        let mut ctx = InferenceContext::new();
+        let table = Ty::Table(
+            "User".to_string(),
+            vec![("id".to_string(), Ty::Int), ("name".to_string(), Ty::Str)],
+        );
+        let record = Ty::Record(vec![
+            ("name".to_string(), Ty::Str),
+            ("id".to_string(), Ty::Int),
+        ]);
+        assert!(ctx.unify(&table, &record).is_ok());
+    }
+
+    /// A record missing a field, carrying an extra field, or with a
+    /// conflicting field type must NOT unify — structural compatibility is
+    /// exact, not a subtype relation.
+    #[test]
+    fn test_unify_table_with_mismatched_record_is_error() {
+        let table = Ty::Table(
+            "User".to_string(),
+            vec![("id".to_string(), Ty::Int), ("name".to_string(), Ty::Str)],
+        );
+        // Missing 'name'.
+        let mut ctx = InferenceContext::new();
+        assert!(
+            ctx.unify(&table, &Ty::Record(vec![("id".to_string(), Ty::Int)]))
+                .is_err()
+        );
+        // Extra field.
+        let mut ctx = InferenceContext::new();
+        assert!(
+            ctx.unify(
+                &table,
+                &Ty::Record(vec![
+                    ("id".to_string(), Ty::Int),
+                    ("name".to_string(), Ty::Str),
+                    ("extra".to_string(), Ty::Bool),
+                ])
+            )
+            .is_err()
+        );
+        // Conflicting field type (id: Str vs Int).
+        let mut ctx = InferenceContext::new();
+        assert!(
+            ctx.unify(
+                &table,
+                &Ty::Record(vec![
+                    ("id".to_string(), Ty::Str),
+                    ("name".to_string(), Ty::Str),
+                ])
+            )
+            .is_err()
+        );
+    }
+
+    /// The same compatibility holds for `Ty::Collection` (live query views).
+    #[test]
+    fn test_unify_collection_with_matching_record_is_ok() {
+        let mut ctx = InferenceContext::new();
+        let fields = vec![("id".to_string(), Ty::Int)];
+        let coll = Ty::Collection("Users".to_string(), fields.clone());
+        assert!(ctx.unify(&coll, &Ty::Record(fields)).is_ok());
     }
 
     #[test]

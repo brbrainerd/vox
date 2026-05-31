@@ -11,6 +11,7 @@ export interface ItemListProps {
 
 export function ItemList({ items }: ItemListProps): React.ReactElement {
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col"].filter(Boolean).join(" ")}>
       {items.map((item: any, i: number) => (<div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")}
      key={item.id}>
@@ -19,6 +20,7 @@ export function ItemList({ items }: ItemListProps): React.ReactElement {
       {item.name}
     </p>
     </div>))}
+    </div>
     </div>
   );
 }

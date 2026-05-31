@@ -30,3 +30,19 @@ pub(crate) fn ts_strict_ai_gate_enabled() -> bool {
         Some("1") | Some("true") | Some("yes")
     )
 }
+
+/// When set (`1`/`true`), the web target skips emitting the bootstrap
+/// (`entry.tsx` / router / `runtime-install.ts`) for external-React consumers
+/// that own their own root. Centralized here (not read ad hoc in consumer code)
+/// alongside the other web-migration flags. Re-exported for the CLI via
+/// [`crate::codegen_ts::emitter::no_emit_entry_from_env`].
+#[must_use]
+pub(crate) fn no_emit_entry_gate_enabled() -> bool {
+    matches!(
+        std::env::var("VOX_WEB_NO_EMIT_ENTRY")
+            .ok()
+            .as_deref()
+            .map(str::trim),
+        Some("1") | Some("true") | Some("yes")
+    )
+}
