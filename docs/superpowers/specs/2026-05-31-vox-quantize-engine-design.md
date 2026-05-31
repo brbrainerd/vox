@@ -174,6 +174,15 @@ pub fn quantize(req: &QuantizeRequest) -> Result<QuantReport, QuantizeError>;
 
 This keeps GGUF off-disk while still producing portable, hash-addressable SafeTensors. **ADR-043** records this choice and its rationale (a new ADR file `adr-043-quantized-safetensors-ondisk-format.md`).
 
+**Confirmed candle accessors (Task 0 spike):**
+
+Verified against the actual candle-core 0.9.2 source in the cargo registry cache (`candle-core-0.9.2/src/quantized/`). All four guessed signatures were **correct** — no corrections needed.
+
+- **Quantized RAW block bytes (write side, Task 6):** `pub fn data(&self) -> Result<Cow<'_, [u8]>>` — `mod.rs:651` (delegates to `self.storage.data()`). This is exactly what candle's own GGUF writer uses: `let data = tensor.data()?; w.write_all(&data)?;` at `gguf_file.rs:532-534`. The returned `Cow<[u8]>` is the GGML block bytes, ready to drop into a 1-D `u8` SafeTensors tensor. (`use std::borrow::Cow` is imported at the top of `mod.rs`.)
+- **Byte accounting:** `pub fn storage_size_in_bytes(&self) -> usize` — `mod.rs:647` (delegates to `self.storage.size_in_bytes()`). Confirmed to exist.
+- **Quantize-onto (GPU path, Task 7):** `pub fn quantize_onto(src: &Tensor, dtype: GgmlDType, dev: &Device) -> Result<Self>` — `mod.rs:581`. Signature matches the guess exactly. It **requires `src` to be on the CPU** (bails otherwise: `mod.rs:582-587`), allocates quantized storage on `dev` via `dev.qzeros(...)`, then calls `storage.quantize_onto(&src.storage())`. On the CUDA backend (`cuda.rs:689-710`) the k-quant `from_float` kernel **runs host-side on the CPU** (`Device::Cpu.qzeros(...)` + `storage.from_float(...)`, `cuda.rs:692-695`), and the resulting bytes are then copied to the device with `memcpy_htod` (`cuda.rs:704-705`). So "onto `dev`" means "quantize on host, then place on `dev`", not a native device-side quant kernel.
+- **Read-side reconstruction (inverse of write, for SP-2):** candle's GGUF reader reconstructs a `QTensor` from raw bytes + dtype + shape via `pub fn qtensor_from_ggml(ggml_dtype: GgmlDType, raw_data: &[u8], dims: Vec<usize>, device: &Device) -> Result<QTensor>` — `ggml_file.rs:138`. The reader reads `size_in_bytes` raw bytes then calls it (`gguf_file.rs:71-80`). The lower-level constructor is `pub fn new<S: Into<Shape>>(storage: QStorage, shape: S) -> Result<Self>` — `mod.rs:476`. SP-2 should prefer `qtensor_from_ggml` (handles per-dtype `from_raw_data` dispatch) over hand-building a `QStorage`.
+
 ---
 
 ## 7. Error handling & quality gate
