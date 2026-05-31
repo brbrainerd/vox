@@ -31,9 +31,9 @@ pub fn emit_form(form: &HirForm) -> String {
     out.push_str("  const [errors, setErrors] = React.useState<Record<string, string>>({});\n");
     out.push_str("  const [submitting, setSubmitting] = React.useState(false);\n");
     out.push_str("  const [bannerError, setBannerError] = React.useState<string | null>(null);\n");
-    if form.success_redirect.is_some() {
-        out.push_str("  const navigate = useNavigate();\n");
-    }
+    // Redirect (if any) uses the history API directly — see the submit handler.
+    // No router hook, so the form renders under any router (incl. the Vox-emitted
+    // dependency-free one) without a provider.
 
     // Validation function
     out.push_str("  function validate(): Record<string, string> {\n");
@@ -100,7 +100,12 @@ pub fn emit_form(form: &HirForm) -> String {
          \x20     await {submit_fn}({submit_call_args});\n"
     ));
     if let Some(r) = &form.success_redirect {
-        out.push_str(&format!("      navigate({{ to: \"{r}\" }});\n"));
+        // Router-agnostic redirect: push history + dispatch popstate so the
+        // active router (Vox-emitted dependency-free, react-router, or @tanstack
+        // — all observe popstate) navigates to the success route.
+        out.push_str(&format!(
+            "      window.history.pushState(null, \"\", \"{r}\");\n      window.dispatchEvent(new PopStateEvent(\"popstate\"));\n"
+        ));
     }
     out.push_str(&format!(
         "    }} catch (err) {{\n\

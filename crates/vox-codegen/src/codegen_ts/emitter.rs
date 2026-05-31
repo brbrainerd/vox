@@ -266,12 +266,10 @@ pub fn generate_with_options(
     // Emit @form React components (Task C3).
     let forms_content: String = hir.forms.iter().map(super::form_emit::emit_form).collect();
     if !forms_content.is_empty() {
-        let needs_navigate = hir.forms.iter().any(|f| f.success_redirect.is_some());
-        let navigate_import = if needs_navigate {
-            "import { useNavigate } from '@tanstack/react-router';\n"
-        } else {
-            ""
-        };
+        // Forms redirect via the history API (router-agnostic), so no router
+        // library import is needed — works with the Vox-emitted dependency-free
+        // router and with react-router/@tanstack (both observe `popstate`).
+        let navigate_import = "";
         // Collect all `on_submit` endpoint references so they can be imported from vox-client.
         // Without this import, tsc reports "Cannot find name 'submit_item'" etc.
         let mut submit_imports: std::collections::BTreeSet<String> =
