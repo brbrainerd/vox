@@ -112,6 +112,7 @@ vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2 }
 
 vox-project-scaffold    = { layer = 2 }
+vox-quantize            = { layer = 2, max_loc = 4_000 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }

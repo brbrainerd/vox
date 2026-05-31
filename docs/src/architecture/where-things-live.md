@@ -114,6 +114,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-deploy-codegen`](../../../crates/vox-deploy-codegen/) | Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation. |
 | [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Docs lint + doctest helpers for `docs/src/`; Starlight sidebar and RSS are built at **docs-astro** publish time (see root `AGENTS.md`). |
 | [`vox-package`](../../../crates/vox-package/) | Vox package manager runtime: content-addressed artifact cache, registry HTTP client, workspace discovery. |
+| [`vox-quantize`](../../../crates/vox-quantize/) | Data-free k-quant PTQ engine (SafeTensors → Candle GGML quantized SafeTensors; GPU-first, CPU fallback). |
 | [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait, capability metadata, multi-backend dispatcher (stubs until CandleMetal/CUDA wiring). |
 | [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
