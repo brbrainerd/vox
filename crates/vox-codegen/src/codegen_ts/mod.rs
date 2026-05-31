@@ -55,6 +55,8 @@ pub mod tokens_emit;
 pub mod url_emit;
 /// `vox-client.ts` typed `fetch` SDK.
 pub mod vox_client;
+/// `vox-app.tsx` web app bootstrap (dependency-free router / flat mount).
+pub mod web_entry;
 /// Zod schema emission.
 pub mod zod_emit;
 

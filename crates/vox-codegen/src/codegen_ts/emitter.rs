@@ -410,8 +410,22 @@ pub fn generate_with_options(
             )?,
         )
     };
+    let has_route_manifest = route_manifest.is_some();
     if let Some(manifest) = route_manifest {
         files.push((manifest_filename.to_string(), manifest));
+    }
+
+    // Stage 1 (web-bootstrap migration): emit `vox-app.tsx` — the runnable web
+    // app root. When routes are declared it renders the dependency-free history
+    // router over the emitted `routes.manifest`; otherwise it flat-mounts the
+    // first component (RN-parity bootstrap). Skipped for Library mode (consumers
+    // own their root) and when there are no components to mount.
+    if options.mode != BuildMode::Library && !hir.components.is_empty() {
+        let root_component = hir.components.first().map(|c| c.name.as_str());
+        files.push((
+            crate::codegen_ts::web_entry::VOX_APP_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_web_app(has_route_manifest, root_component),
+        ));
     }
 
     // GA-09a: typed RouteId module (routes.ts) — emitted whenever routes are declared.
