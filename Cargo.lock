@@ -14814,6 +14814,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-quantize"
+version = "0.6.0"
+dependencies = [
+ "anyhow",
+ "candle-core",
+ "safetensors 0.7.0",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "vox-hf-layout",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-rename-registry"
 version = "0.6.0"
 dependencies = [

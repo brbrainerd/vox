@@ -1,0 +1,27 @@
+[package]
+name = "vox-quantize"
+description = "Data-free k-quant PTQ engine: SafeTensors -> Candle GGML quantized SafeTensors (GPU-first, CPU fallback)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+candle-core = { workspace = true }
+safetensors = { workspace = true }
+vox-hf-layout = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[features]
+default = []
+# GPU acceleration. CI builds without these (no GPU on runners); the engine
+# falls back to CPU. Mirrors vox-plugin-mens-candle-cuda's feature wiring.
+cuda = ["candle-core/cuda"]
+metal = ["candle-core/metal"]
