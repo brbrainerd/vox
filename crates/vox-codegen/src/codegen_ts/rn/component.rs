@@ -190,6 +190,12 @@ fn emit_event_handler_with_state(
     state_names: &HashSet<String>,
     endpoint_params: &HashMap<String, Vec<String>>,
 ) -> String {
+    // NOTE: handler bodies that call async endpoints (`@query`/`@mutation`) are
+    // not yet `await`ed — the body emits nested SYNC IIFEs (match dispatch,
+    // closures) that cannot host `await`. Making handlers async needs the same
+    // async-IIFE treatment the `local_exec_db` match path uses, threaded through
+    // match/block/closure emission and regression-tested on web + mobile.
+    // Tracked as a follow-up.
     let body = emit_hir_expr_inline_with_state(expr, state_names, endpoint_params);
     extract_or_wrap_arrow(&body).into_owned()
 }
@@ -604,6 +610,14 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
             if let Some(k) = style_key {
                 out.insert(k.clone());
             }
+            // Emission wraps any bare string/expr child in `<Text style={styles.btn_text}>`
+            // (see `wrap_pressable_text_children`), so the style is genuinely used.
+            if children
+                .iter()
+                .any(|c| matches!(c, RnNode::StringLit(_) | RnNode::Expr(_)))
+            {
+                out.insert("btn_text".to_string());
+            }
             for c in children {
                 collect_used_styles(c, out);
             }
@@ -630,6 +644,13 @@ fn collect_used_styles(node: &RnNode, out: &mut std::collections::BTreeSet<Strin
         } => {
             if let Some(k) = style_key {
                 out.insert(k.clone());
+            }
+            // Link text children are wrapped in `<Text style={styles.btn_text}>` at emit.
+            if children
+                .iter()
+                .any(|c| matches!(c, RnNode::StringLit(_) | RnNode::Expr(_)))
+            {
+                out.insert("btn_text".to_string());
             }
             for c in children {
                 collect_used_styles(c, out);

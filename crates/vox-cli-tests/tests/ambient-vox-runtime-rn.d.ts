@@ -11,18 +11,37 @@ declare module "@vox/runtime-rn" {
     readonly code: string;
   }
 
+  // Mirrors the VoxRuntime contract in clients/runtime-types/src/index.ts.
+  // Kept strongly typed (no index signature) so the tsc gate catches real
+  // misuse of the on-device runtime surface in emitted code.
   export interface VoxRuntime {
+    onAppStateChange(handler: (state: string) => void): () => void;
+    onBackButton(handler: () => boolean | Promise<boolean>): () => void;
+    onDeepLink(
+      handler: (
+        url: string,
+      ) => string | null | undefined | Promise<string | null | undefined>,
+    ): () => void;
+    installPushNotifications(handlers: {
+      onRegister?: (token: string) => void | Promise<void>;
+      onNotification?: (payload: unknown) => void | Promise<void>;
+      onAction?: (payload: unknown) => void | Promise<void>;
+    }): Promise<void>;
+    notify(title: string, body: string): Promise<void>;
+    takePhoto(): Promise<string>;
+    vibrate(): Promise<void>;
+    transcribe(audioBytes: Uint8Array, langHint?: string): Promise<string>;
+    transcribeMicrophone(): Promise<string>;
+    spawnActor(name: string, initState: Uint8Array): unknown;
+    startWorkflow(id: string, payload: Uint8Array): unknown;
+    infer(modelId: string, input: Uint8Array): Promise<Uint8Array>;
     recordMutation(name: string, table: string, row: unknown): Promise<void>;
     replayTable(table: string): Promise<unknown[]>;
     uuid(): string;
-    notify(title: string, body: string): Promise<void>;
-    vibrate(): Promise<void>;
-    takePhoto(): Promise<string>;
-    transcribe(audioBytes: Uint8Array, langHint?: string): Promise<string>;
-    transcribeMicrophone(): Promise<string>;
-    // Forward-compat: other VoxRuntime methods type-check without re-stubbing.
-    [method: string]: unknown;
   }
 
   export function createVoxRuntime(): VoxRuntime;
+  // Singleton instance the real package exports (clients/runtime-rn/index.ts);
+  // emitted mobile.ts / mobile-utils.ts import it directly.
+  export const voxRuntime: VoxRuntime;
 }
