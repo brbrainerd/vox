@@ -95,6 +95,8 @@ pub struct GuiAgentSummary {
     pub completed: usize,
     pub owned_files: usize,
     pub weighted_load: f64,
+    pub cost: Option<f64>,
+    pub budget: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -122,6 +124,12 @@ fn get_u64(v: &serde_json::Value, key: &str) -> u64 {
 
 fn get_f64(v: &serde_json::Value, key: &str) -> f64 {
     v.get(key).and_then(|x| x.as_f64()).unwrap_or(0.0)
+}
+
+/// Read a numeric field only if present, leaving `None` (unknown) otherwise.
+/// Never fabricates a value when the daemon did not report one.
+fn get_opt_f64(v: &serde_json::Value, key: &str) -> Option<f64> {
+    v.get(key).and_then(|x| x.as_f64())
 }
 
 async fn daemon_status() -> Result<serde_json::Value, String> {
@@ -195,13 +203,18 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
                     .get("weighted_load")
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0),
+                // Per-agent financial cost from the daemon (USD). Absent → unknown.
+                cost: get_opt_f64(&agent, "cost_usd"),
+                // No per-agent budget cap is reported today; leave unknown rather
+                // than fabricate. Follow-up: surface a per-agent cap if added.
+                budget: None,
             })
             .collect(),
         recent_events: Vec::new(),
         alerts: Vec::new(),
         peers: Vec::new(),
-        total_cost: 0.0,
-        budget_cap: 50.0,
+        total_cost: get_f64(&status, "total_cost_usd"),
+        budget_cap: get_f64(&status, "budget_cap_usd"),
         mesh_throughput: 0.0,
         total_vram_gb: 0.0,
     }
