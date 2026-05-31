@@ -21,6 +21,7 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
+import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
 import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -40,6 +41,7 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'approvals'
   | 'settings';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
@@ -216,7 +218,7 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'settings'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'approvals', 'settings'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
@@ -564,6 +566,8 @@ export default function App() {
         return <GamifyView pushToast={pushToast} />;
       case 'harness':
         return <HarnessView pushToast={pushToast} />;
+      case 'approvals':
+        return <ApprovalsView pushToast={pushToast} />;
       default:
         return null;
     }

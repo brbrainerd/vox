@@ -96,6 +96,7 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
           <NavItem collapsed={collapsed} active={view === "mesh"}      onClick={() => setView("mesh")}      icon={<Icon.cpu className="size-4"/>} label="Mesh" />
           <NavItem collapsed={collapsed} active={view === "gamify"}    onClick={() => setView("gamify")}    icon={<Icon.spark className="size-4"/>} label="Gamify" />
           <NavItem collapsed={collapsed} active={view === "runs"}      onClick={() => setView("runs")}      icon={<Icon.scale className="size-4"/>}      label="Runs" />
+          <NavItem collapsed={collapsed} active={view === "approvals"} onClick={() => setView("approvals")} icon={<Icon.shield className="size-4"/>} label="Approvals" />
           <NavItem collapsed={collapsed} active={view === "memory"}    onClick={() => setView("memory")}    icon={<Icon.memory className="size-4"/>}    label="Memory" />
         </nav>
 

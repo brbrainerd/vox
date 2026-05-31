@@ -73,6 +73,10 @@ pub struct ServerState {
         >,
     >,
     pub observer: Arc<Observer>,
+    /// B3 HITL: approvals awaiting a human decision (shared by the dangerous-tool
+    /// gate in `dispatch.rs` and the `vox_pending_approvals` / `vox_resolve_approval`
+    /// tools — all reach it via `&ServerState`).
+    pub pending_approvals: Arc<crate::pending_approvals::PendingApprovals>,
 }
 
 impl ServerState {
@@ -157,6 +161,7 @@ impl ServerState {
             http_client,
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
+            pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
         };
 
         // Spawn pollers
@@ -207,6 +212,7 @@ impl ServerState {
             http_client,
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
+            pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
         };
         state.spawn_scientia_research_mesh_background_jobs();
         state
@@ -477,6 +483,7 @@ impl ServerState {
             http_client: vox_http_client::client(),
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
+            pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
         }
     }
 

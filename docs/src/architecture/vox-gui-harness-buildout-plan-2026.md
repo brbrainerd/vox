@@ -321,6 +321,40 @@ client-side (agent_id is consistent and tasks run serially per agent).
 - Still deferred (minor): per-thread `session_id` grouping; multi-task-per-agent
   disambiguation (not possible today — serial per agent).
 
+## B3 implementation log (2026-05-31) — interactive HITL approvals (in-process)
+
+**Design decision.** Scouting found no existing await/wake mechanism (the clarification
+inbox + `question_*` tables are poll/gate-based; A2A `Question/Answer` is fire-and-forget).
+Two homes for a pending-approval registry: on `Orchestrator` (reachable from the daemon
+`dispatch_request` — needed for *autonomous daemon* agents, via new `orch.resolve_approval`
+RPCs) vs on `ServerState` (reachable from `handle_tool_call` — the GUI path). Since **B5
+already runs MCP tools in-process** (`McpToolHost`'s `ServerState`), the GUI both awaits and
+resolves in the same process — **no daemon RPC needed**. Chose the `ServerState` path.
+
+**Landed + verified (TDD):**
+- `vox-orchestrator-mcp/src/pending_approvals.rs` — `PendingApprovals` registry (in-memory:
+  `oneshot` map keyed by id + a pending-metadata list). `register → (id, Receiver)`,
+  `resolve(id, outcome)`, `cancel`, `list`. Reuses `vox_orchestrator::ApprovalOutcome`.
+- `ServerState` gains `Arc<PendingApprovals>` (init in all constructors) — shared by the gate
+  and the resolve/list tools.
+- **Gate** (`dispatch.rs`, the RBAC chokepoint): a dangerous tool (`vox_run_shell`/`vox_deploy`/
+  `vox_write_file`/…) *without* `user_approval:true` now **registers a pending approval and
+  `.await`s** (300 s timeout → `TimedOut`); `Approved`/`Modified` → execute, else error. The
+  `user_approval:true` fast path is unchanged (backwards-compatible).
+- **Tools** `vox_pending_approvals` (list) + `vox_resolve_approval{approval_id, outcome}` —
+  reach `ServerState.pending_approvals`.
+- **GUI** Approvals surface (`ApprovalsView.tsx` + sidebar + view branch) polls
+  `vox_pending_approvals` and Approve/Rejects via `vox_resolve_approval`, **reusing B5's
+  `invoke_mcp_tool`** (no new Tauri command / daemon method).
+- Tests: `pending_approvals_tests` — 3 registry unit tests + 1 **end-to-end gate** test
+  (`vox_run_shell` parks → resolve Rejected → error envelope). `cargo check -p vox-gui` clean,
+  `cargo run -p vox-arch-check` EXIT=0, `vite build` + `vitest` (5/5) pass.
+
+**Deferred (clear follow-ups, not stubs):** cross-process resolve for *autonomous daemon*
+agents (registry on `Orchestrator` + `orch.resolve_approval`/`orch.list_pending_approvals`
+RPCs + a daemon-backed Approvals path); DB persistence (`hitl_approvals` table) for
+crash-durability; wiring `agent_runs.approval_ref` (B2) to link an approval to its run.
+
 ## Sequencing and dependencies
 
 ```text

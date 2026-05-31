@@ -8,6 +8,7 @@ pub mod services;
 /// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
 pub mod chat_fallback_tools;
 pub mod params;
+pub mod pending_approvals;
 pub mod server_state;
 
 pub mod aci;
