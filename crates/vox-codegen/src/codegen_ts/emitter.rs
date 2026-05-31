@@ -426,6 +426,13 @@ pub fn generate_with_options(
             crate::codegen_ts::web_entry::VOX_APP_FILENAME.to_string(),
             crate::codegen_ts::web_entry::emit_web_app(has_route_manifest, root_component),
         ));
+        // Stage 2: emit the browser runtime-global install (Speech/std/mobile/
+        // str/len shims) so emitted bare references resolve. Side-effect module
+        // imported by entry.tsx (Stage 3).
+        files.push((
+            crate::codegen_ts::web_entry::RUNTIME_INSTALL_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_runtime_install(),
+        ));
     }
 
     // GA-09a: typed RouteId module (routes.ts) — emitted whenever routes are declared.
