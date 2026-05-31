@@ -301,10 +301,25 @@ stream. Run-correlation + a Loquela chat transcript are deferred (see below).
   a `TokenStreamed` on the bus and asserts the subscriber receives a `token_streamed`
   frame; all 4 daemon TCP tests pass. `cargo check -p vox-gui` clean; `vite build` passes.
 
-**Deferred (follow-up B4-chat):** threading the GUI `run_id` through
-`submit_orchestrator_task → runtime` so tokens are tagged per submission, a Loquela
-chat transcript rendering streamed tokens, and finalizing the run from the stream's
-terminal event. The event-stream spine this needs is now in place.
+**B4-chat — landed (2026-05-31), client-side, NO orchestrator change.** Scouting showed
+the invasive `run_id` threading is unnecessary: `submit_orchestrator_task` already returns
+a `task_id`, `task_started{task_id,agent_id}` seeds an `agent_id→task` map, `token_streamed`
+(agent_id only) routes through it, and `task_completed/failed{task_id}` finalize — all
+client-side (agent_id is consistent and tasks run serially per agent).
+- `crates/vox-gui/ui/src/lib/chatCorrelation.ts` — a **pure reducer** owning the transcript:
+  `submit` / `submitResolved` / `agentEvent` actions, `task_id` normalized to string. This is
+  the trickiest logic (token-before-submit race, type mismatch), so it's unit-tested.
+- **New frontend test capability**: added `vitest@^0.34` (vite-4 compatible) + `pnpm test`
+  + `vitest.config.ts` scoping to `src/` (Playwright `e2e/` stays under `test:e2e`).
+  `chatCorrelation.test.ts` — 5 tests, RED→GREEN.
+- `App.tsx` — `useReducer(chatReducer)`; `handleLoquelaSubmit` dispatches `submit` (mints
+  runId via an `executeIpcWithRun` `onRun` hook) then `submitResolved` with the returned
+  `task_id`; the existing `listenAgentEvents` listener now feeds the chat reducer too (one
+  listener, two consumers). `Transcript.tsx` renders the bubbles above the composer with
+  streaming/failed states.
+- Verified: `pnpm test` 5/5, `vite build` clean.
+- Still deferred (minor): per-thread `session_id` grouping; multi-task-per-agent
+  disambiguation (not possible today — serial per agent).
 
 ## Sequencing and dependencies
 

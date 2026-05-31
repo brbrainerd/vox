@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { decode } from '@msgpack/msgpack';
 import { Backdrop } from './components/ui/Backdrop';
@@ -8,6 +8,8 @@ import { CommandPalette } from './components/layout/CommandPalette';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { Dashboard } from './components/surfaces/Dashboard/Dashboard';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
+import { Transcript } from './components/surfaces/Loquela/Transcript';
+import { chatReducer, initialChatState } from './lib/chatCorrelation';
 import { Catalog } from './components/surfaces/Catalog/Catalog';
 import { Matrix } from './components/surfaces/Matrix/Matrix';
 import { AgentFlow } from './components/surfaces/Flow/AgentFlow';
@@ -144,6 +146,9 @@ export default function App() {
   const [selectedAgentId, setSelectedAgentId] = useState('ROOT');
   const [appVersion, setAppVersion] = useState<string>('loading…');
 
+  // ── B4-chat: pure-reducer transcript state for the Loquela composer ────────
+  const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
+
   // ── 5-minute rolling sparkline windows ──────────────────────────────────
   // Each hook persists its window to localStorage under a namespaced key.
   const agentCountWindow = usePersistedSparkWindow('kpi.agentCount', kpis.activeAgents.value);
@@ -278,11 +283,14 @@ export default function App() {
     let cancelled = false;
 
     listenAgentEvents((frame) => {
+      // One listener, two consumers: the dashboard activity feed and the
+      // B4-chat transcript reducer.
       const item = mapAgentEvent(frame);
       setData(prev => ({
         ...prev,
         stream: [item, ...prev.stream].slice(0, 100),
       }));
+      dispatchChat({ type: 'agentEvent', event: frame });
     })
       .then((fn) => {
         if (cancelled) {
@@ -335,8 +343,9 @@ export default function App() {
     }
   }, []);
 
-  const executeIpcWithRun = useCallback(async <T,>(command: string, payload: any, workflowName: string): Promise<T> => {
+  const executeIpcWithRun = useCallback(async <T,>(command: string, payload: any, workflowName: string, onRun?: (runId: string) => void): Promise<T> => {
     const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    onRun?.(runId);
     await invoke('start_gui_run', {
       input: {
         run_id: runId,
@@ -382,14 +391,30 @@ export default function App() {
   // ── Action handlers ───────────────────────────────────────────────────────
   const handleLoquelaSubmit = useCallback(async (payload: any) => {
     pushToast({ tone: 'info', title: 'Task Dispatched', body: payload.description, cmd: 'vox submit-task' });
-    await executeIpcWithRun('submit_orchestrator_task', {
-      input: {
-        description: payload.description,
-        files: payload.files ?? [],
-        priority: payload.priority ?? null,
-        session_id: payload.session_id ?? 'gui-loquela',
-      }
-    }, 'gui.loquela.submit')
+    let runId = '';
+    await executeIpcWithRun<{ ok: boolean; message: string; task_id: string | null }>(
+      'submit_orchestrator_task',
+      {
+        input: {
+          description: payload.description,
+          files: payload.files ?? [],
+          priority: payload.priority ?? null,
+          session_id: payload.session_id ?? 'gui-loquela',
+        }
+      },
+      'gui.loquela.submit',
+      // Mint the runId and create the user/assistant bubbles BEFORE the invoke
+      // resolves so streamed tokens correlate to a live transcript entry.
+      (id) => {
+        runId = id;
+        dispatchChat({ type: 'submit', runId: id, prompt: String(payload.description ?? '') });
+      },
+    )
+      .then((result) => {
+        if (runId && result?.task_id != null) {
+          dispatchChat({ type: 'submitResolved', runId, taskId: String(result.task_id) });
+        }
+      })
       .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
   }, [executeIpcWithRun, pushToast]);
 
@@ -570,6 +595,7 @@ export default function App() {
 
         {/* Loquela — fixed to the bottom of main, tracks sidebar width */}
         <div className="p-4 pt-0 mt-auto">
+          <Transcript messages={chat.messages} />
           <Loquela
             chips={chips}
             setChips={setChips}
