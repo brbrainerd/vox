@@ -76,6 +76,7 @@ pub async fn call(method: &str, params: Value, _auto_open: bool) -> anyhow::Resu
                 DispatchPayload::Result { value } => {
                     final_result = value;
                 }
+                DispatchPayload::Event { .. } => {}
                 DispatchPayload::Error { message, code } => {
                     had_error = Some(format!("Daemon error (code {}): {}", code, message));
                 }

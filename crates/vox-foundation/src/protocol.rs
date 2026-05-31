@@ -49,6 +49,12 @@ pub mod orch_daemon_method {
     pub const UNDO_OPERATION: &str = "orch.undo_operation";
     /// Params: `{"op_id": "uuid"}` → `{"ok": true}`
     pub const REDO_OPERATION: &str = "orch.redo_operation";
+    /// Params: `{}` → a long-lived stream of [`super::DispatchPayload::Event`] frames
+    /// (each carrying an orchestrator status snapshot), pushed by the daemon until
+    /// the client disconnects. Unlike every other method this does not return a
+    /// single terminal `Result`; the connection stays open and frames are emitted
+    /// whenever the status changes.
+    pub const SUBSCRIBE: &str = "orch.subscribe";
 }
 
 pub mod dei_method {
@@ -83,6 +89,12 @@ pub struct DispatchResponse {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum DispatchPayload {
     Result {
+        value: Value,
+    },
+    /// Non-terminal structured event frame: a JSON payload pushed mid-stream
+    /// (e.g. an orchestrator status snapshot from [`orch_daemon_method::SUBSCRIBE`]).
+    /// Distinct from `Chunk` (text-only) and `Result` (single terminal value).
+    Event {
         value: Value,
     },
     Error {

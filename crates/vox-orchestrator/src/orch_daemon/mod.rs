@@ -56,6 +56,48 @@ pub fn response_err(id: impl Into<String>, msg: impl Into<String>) -> DispatchRe
     }
 }
 
+/// How often [`stream_status_events`] re-samples orchestrator status while a
+/// subscriber is connected. Frames are only emitted when the snapshot changes.
+const SUBSCRIBE_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// Write one newline-delimited [`DispatchResponse`] frame and flush.
+async fn write_frame<W: AsyncWriteExt + Unpin>(
+    out: &mut W,
+    resp: &DispatchResponse,
+) -> anyhow::Result<()> {
+    let mut line = serde_json::to_string(resp)?;
+    line.push('\n');
+    out.write_all(line.as_bytes()).await?;
+    out.flush().await?;
+    Ok(())
+}
+
+/// Push orchestrator status snapshots as [`DispatchPayload::Event`] frames until
+/// the peer disconnects (a write error ends the stream). The daemon initiates
+/// every frame; the subscriber never polls. An initial snapshot is sent
+/// immediately, then a new frame is emitted on each change.
+async fn stream_status_events<W: AsyncWriteExt + Unpin>(
+    id: &str,
+    orch: &Arc<Orchestrator>,
+    out: &mut W,
+) -> anyhow::Result<()> {
+    let mut last = String::new();
+    loop {
+        let value = serde_json::to_value(orch.status()).unwrap_or(serde_json::Value::Null);
+        let serialized = value.to_string();
+        if serialized != last {
+            last = serialized;
+            let frame = DispatchResponse {
+                id: id.to_string(),
+                payload: DispatchPayload::Event { value },
+            };
+            // Propagates an error once the peer closes the connection, ending the stream.
+            write_frame(out, &frame).await?;
+        }
+        tokio::time::sleep(SUBSCRIBE_POLL_INTERVAL).await;
+    }
+}
+
 /// Dispatch one parsed request against the live orchestrator.
 pub async fn dispatch_request(
     repository_id: &str,
@@ -425,14 +467,21 @@ async fn handle_connection(
         if trimmed.is_empty() {
             continue;
         }
-        let resp = match serde_json::from_str::<DispatchRequest>(trimmed) {
-            Ok(req) => dispatch_request(&repository_id, orch.clone(), &req).await,
-            Err(e) => response_err("0", format!("invalid DispatchRequest JSON: {e}")),
+        let req = match serde_json::from_str::<DispatchRequest>(trimmed) {
+            Ok(req) => req,
+            Err(e) => {
+                let resp = response_err("0", format!("invalid DispatchRequest JSON: {e}"));
+                write_frame(&mut write_half, &resp).await?;
+                continue;
+            }
         };
-        let mut out = serde_json::to_string(&resp)?;
-        out.push('\n');
-        write_half.write_all(out.as_bytes()).await?;
-        write_half.flush().await?;
+        if req.method == orch_daemon_method::SUBSCRIBE {
+            // Long-lived push stream; returns when the peer disconnects.
+            stream_status_events(&req.id, &orch, &mut write_half).await?;
+            break;
+        }
+        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        write_frame(&mut write_half, &resp).await?;
     }
     Ok(())
 }
@@ -488,14 +537,20 @@ pub async fn run_stdio_server(
         if trimmed.is_empty() {
             continue;
         }
-        let resp = match serde_json::from_str::<DispatchRequest>(trimmed) {
-            Ok(req) => dispatch_request(&repository_id, orch.clone(), &req).await,
-            Err(e) => response_err("0", format!("invalid DispatchRequest JSON: {e}")),
+        let req = match serde_json::from_str::<DispatchRequest>(trimmed) {
+            Ok(req) => req,
+            Err(e) => {
+                let resp = response_err("0", format!("invalid DispatchRequest JSON: {e}"));
+                write_frame(&mut stdout, &resp).await?;
+                continue;
+            }
         };
-        let mut out = serde_json::to_string(&resp)?;
-        out.push('\n');
-        stdout.write_all(out.as_bytes()).await?;
-        stdout.flush().await?;
+        if req.method == orch_daemon_method::SUBSCRIBE {
+            stream_status_events(&req.id, &orch, &mut stdout).await?;
+            break;
+        }
+        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        write_frame(&mut stdout, &resp).await?;
     }
     Ok(())
 }

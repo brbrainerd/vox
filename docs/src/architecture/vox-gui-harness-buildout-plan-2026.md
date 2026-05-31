@@ -149,6 +149,48 @@ reality.
 token-mapped redesign + a11y findings + copy; a synthesis agent reconciles into a shared
 design-system doc under `docs/src/reference/`.
 
+## B1 implementation log (2026-05-30)
+
+**Design decision (transport).** The daemon (`vox-orchestrator-d`) is a persistent
+server holding `Arc<Orchestrator>`, but `dispatch_request` returns exactly one
+`DispatchResponse` and both connection loops (`handle_connection` TCP,
+`run_stdio_server` stdio) were strictly one-response-per-request. Streaming reuses
+the existing newline-delimited frame format by:
+
+1. Adding a non-terminal `DispatchPayload::Event { value: Value }` variant
+   (`vox-foundation::protocol`) — the existing streaming variants (`Chunk`,
+   `Progress`) are text-only; orchestrator deltas are structured JSON.
+2. Adding `orch_daemon_method::SUBSCRIBE = "orch.subscribe"`.
+3. Special-casing `SUBSCRIBE` in both connection loops: the daemon pushes an
+   initial `orch.status()` snapshot as an `Event` frame, then re-samples on a
+   500 ms interval and emits a new frame only when the snapshot changes, until the
+   peer disconnects (a write error ends the stream). This moves polling
+   server-side (one daemon loop) and gives clients a push stream — ADR-037
+   compliant (daemon-side stream, no webview `WebSocket`).
+4. `OrchDaemonClient::subscribe(tx: mpsc::Sender<Value>)` forwards each `Event`
+   value into a channel and returns on `Done` / receiver-drop / disconnect — the
+   shape the GUI will drain to re-emit Tauri events.
+
+**Landed + verified (TDD):**
+- `crates/vox-foundation/src/protocol.rs` — `SUBSCRIBE` const + `Event` variant.
+- `crates/vox-orchestrator/src/orch_daemon/mod.rs` — `stream_status_events` +
+  `write_frame` helpers; `SUBSCRIBE` branch in both loops.
+- `crates/vox-orchestrator/src/orch_daemon/client.rs` — `subscribe(tx)`.
+- Exhaustive-match `Event` arms in `vox-cli-core::daemon_ipc::dispatch` (both
+  fns) and `vox-ml-cli::dei_daemon`.
+- Test: `orchestrator_daemon_subscribe_streams_status_event` in
+  `crates/vox-orchestrator/tests/orchestrator_daemon_tcp.rs` (RED→GREEN); all 3
+  daemon TCP tests pass; consumer crates compile clean.
+
+**Remaining for B1 (frontend flip — needs a Tauri build to verify end-to-end):**
+- `crates/vox-gui/src/commands/orchestrator.rs` + `main.rs` — a Tauri command that
+  spawns `OrchDaemonClient::subscribe`, drains the mpsc channel, and re-emits each
+  value via `AppHandle::emit` under a `"vox://orch-status"` event.
+- `crates/vox-gui/ui/src/App.tsx` — replace `setInterval(poll, 2000)` (line ~177)
+  with the already-stubbed `EventBus` listener path via `@tauri-apps/api/event`
+  `listen()`, feeding the same `mapStream`/KPI-update logic the polling fallback
+  uses today.
+
 ## Sequencing and dependencies
 
 ```text

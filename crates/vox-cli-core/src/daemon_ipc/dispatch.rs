@@ -87,6 +87,9 @@ pub async fn call_daemon(
                 DispatchPayload::Result { value } => {
                     final_result = value;
                 }
+                // Structured stream frames (orch.subscribe) are consumed by the
+                // dedicated subscribe path; a one-shot call ignores them.
+                DispatchPayload::Event { .. } => {}
                 DispatchPayload::Error { message, code } => {
                     had_error = Some(format!("Daemon error (code {}): {}", code, message));
                 }
@@ -197,6 +200,7 @@ pub async fn call_daemon_streaming(
                     let _ = std::io::stdout().flush();
                 }
                 DispatchPayload::Result { .. } => {}
+                DispatchPayload::Event { .. } => {}
             },
             Err(_) => {
                 emit_unstructured_daemon_line(&line, auto_open, true).await;

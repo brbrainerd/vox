@@ -201,4 +201,53 @@ impl OrchDaemonClient {
         self.call(orch_daemon_method::WORKSPACE_JOURNEY, serde_json::json!({}))
             .await
     }
+
+    /// [`orch_daemon_method::SUBSCRIBE`] — open a long-lived stream and forward
+    /// each pushed [`DispatchPayload::Event`] value into `tx`. Returns when the
+    /// daemon closes the stream (`Done`) or the receiver is dropped. The GUI
+    /// drains `tx` and re-emits Tauri events, replacing status polling.
+    pub async fn subscribe(
+        &self,
+        tx: tokio::sync::mpsc::Sender<serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        let mut stream = TcpStream::connect(&self.addr).await?;
+        let (read_half, mut write_half) = stream.split();
+        let req = DispatchRequest {
+            id: uuid::Uuid::new_v4().to_string(),
+            method: orch_daemon_method::SUBSCRIBE.to_string(),
+            params: serde_json::json!({}),
+        };
+        let mut line = serde_json::to_string(&req)?;
+        line.push('\n');
+        write_half.write_all(line.as_bytes()).await?;
+        write_half.flush().await?;
+
+        let mut reader = BufReader::new(read_half);
+        let mut buf = String::new();
+        loop {
+            buf.clear();
+            let n = reader.read_line(&mut buf).await?;
+            if n == 0 {
+                break; // daemon closed the connection
+            }
+            let trimmed = buf.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let resp: DispatchResponse = serde_json::from_str(trimmed)?;
+            match resp.payload {
+                DispatchPayload::Event { value } => {
+                    if tx.send(value).await.is_err() {
+                        break; // receiver dropped — stop consuming
+                    }
+                }
+                DispatchPayload::Error { message, code } => {
+                    anyhow::bail!("orchestrator daemon subscribe error ({code}): {message}")
+                }
+                DispatchPayload::Done { .. } => break,
+                _ => {}
+            }
+        }
+        Ok(())
+    }
 }

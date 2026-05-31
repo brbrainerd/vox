@@ -107,6 +107,62 @@ async fn orchestrator_daemon_ping_and_task_status_inner() {
 }
 
 #[tokio::test]
+async fn orchestrator_daemon_subscribe_streams_status_event() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_subscribe_streams_status_event_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_subscribe_streams_status_event exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_subscribe_streams_status_event_inner() {
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+    orch.spawn_agent("sub1").expect("spawn");
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let server = tokio::spawn(orch_daemon::serve_listener(
+        listener,
+        addr.to_string(),
+        "ut-repo".to_string(),
+        orch.clone(),
+    ));
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+
+    // Subscribing must push at least one structured Event frame carrying an
+    // orchestrator status snapshot — the daemon initiates the push, the client
+    // does not poll.
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(8);
+    let sub = tokio::spawn(async move {
+        let _ = client.subscribe(tx).await;
+    });
+
+    let first = tokio::time::timeout(vox_config::timeouts::D_15S, rx.recv())
+        .await
+        .expect("first subscribe event within budget")
+        .expect("subscribe channel produced an event");
+    assert!(
+        first.get("agent_count").is_some(),
+        "first subscribe event must be a status snapshot, got: {first}"
+    );
+
+    drop(rx);
+    sub.abort();
+    server.abort();
+}
+
+#[tokio::test]
 async fn orchestrator_daemon_task_and_agent_write_methods() {
     tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
         orchestrator_daemon_task_and_agent_write_methods_inner().await;
