@@ -237,10 +237,18 @@ pub fn resolve_mcp_chat_model_sync(
     }
 
     if res.free_tier_latency_critical {
-        if let Some(m) = registry.best_free_for_with_filter(task, |m| {
-            caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m)
-        }) {
-            let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
+        // Route latency-critical free selection through the FreeTierRouter
+        // (ModelTier::Fast bonus + vision/JSON/FIM hard-constraints) instead of
+        // the registry's max_tokens sort. `accept` re-applies the local-Ollama /
+        // routing-profile gating the router does not know about.
+        let free = registry.free_models();
+        if let Some(m) = super::free_tier_adapter::route_free_tier_latency(
+            &free,
+            &res,
+            &required_capabilities,
+            |m| caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m),
+        ) {
+            let m = enforce_free_tier_if_needed(&registry, &res, m)?;
             return Ok((m.clone(), m.is_free));
         }
         if res.allow_cheapest_fallback {
