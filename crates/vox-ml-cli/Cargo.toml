@@ -54,6 +54,7 @@ vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"]
 vox-plugin-host = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-secrets = { workspace = true }
+vox-quantize = { workspace = true }
 
 clap = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
