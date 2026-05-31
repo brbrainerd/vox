@@ -3,6 +3,7 @@ import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import { PriorityChainEditor } from './PriorityChainEditor';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
@@ -448,6 +449,10 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               </Row>
             </div>
             )}
+
+            {/* Ordered priority chain — the additive, orderable form of emphasis.
+                An EmphasizeAxis step is the ordered version of the sliders above. */}
+            <PriorityChainEditor pushToast={pushToast} />
           </>
         )}
 

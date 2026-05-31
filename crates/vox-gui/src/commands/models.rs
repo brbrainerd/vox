@@ -325,6 +325,51 @@ pub async fn get_routing_summary_live() -> Result<RoutingSummaryDto, String> {
     get_routing_summary().await
 }
 
+/// Empty-policy JSON returned when no `selection_policy` preference is persisted.
+const EMPTY_SELECTION_POLICY: &str = "{\"steps\":[]}";
+
+/// Read the persisted `selection_policy` user-preference (JSON for a
+/// [`vox_orchestrator::models::SelectionPolicy`]). Mirrors
+/// [`effective_routing_priority`] / [`get_active_model`]: reads the
+/// `("local_user","selection_policy")` pref via `connect_workspace_journey_optional`.
+/// Returns the stored JSON, or the empty policy (`{"steps":[]}`) when absent.
+#[tauri::command]
+pub async fn get_selection_policy() -> String {
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        if let Ok(Some(json)) = db.get_user_preference("local_user", "selection_policy").await {
+            if !json.trim().is_empty() {
+                return json;
+            }
+        }
+    }
+    EMPTY_SELECTION_POLICY.to_string()
+}
+
+/// Persist a `selection_policy` user-preference. Validates that `json` parses as
+/// a [`vox_orchestrator::models::SelectionPolicy`] (rejecting invalid input)
+/// before writing the `("local_user","selection_policy")` pref. Mirrors
+/// [`set_routing_priority`].
+///
+/// NOTE: the daemon reads this preference and installs the active policy at
+/// startup (mirroring how `routing_priority` is applied), so a saved policy
+/// takes effect on the next orchestrator (re)start, not immediately.
+#[tauri::command]
+pub async fn set_selection_policy(json: String) -> Result<(), String> {
+    // Reject anything that isn't a well-formed SelectionPolicy.
+    vox_orchestrator::models::SelectionPolicy::from_json(&json)
+        .map_err(|e| format!("invalid selection policy JSON: {e}"))?;
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        db.set_user_preference("local_user", "selection_policy", &json)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     #[test]

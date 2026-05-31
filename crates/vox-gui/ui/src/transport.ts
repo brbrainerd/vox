@@ -186,6 +186,16 @@ class VoxTransport {
     return invoke('set_routing_priority', priority);
   }
 
+  /** Read the persisted selection-policy JSON (`{"steps":[...]}`). */
+  async getSelectionPolicy(): Promise<string> {
+    return invoke<string>('get_selection_policy');
+  }
+
+  /** Persist a selection-policy JSON; backend validates it parses as SelectionPolicy. */
+  async setSelectionPolicy(json: string): Promise<void> {
+    return invoke('set_selection_policy', { json });
+  }
+
   async getModelScoreboard(windowDays = 7) {
     return invoke('get_model_scoreboard', { windowDays });
   }
