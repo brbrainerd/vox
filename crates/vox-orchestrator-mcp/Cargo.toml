@@ -17,7 +17,7 @@ news-publish = [
 ]
 toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
-populi-transport = ["vox-orchestrator/populi-transport"]
+populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
 oratio-rerank = ["dep:vox-oratio"]
 
 [dependencies]

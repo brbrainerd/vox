@@ -1188,6 +1188,9 @@ async fn handle_tool_call_inner(
         "vox_oratio_status" => Ok(oratio_tools::status()),
 
         "vox_populi_local_status" => Ok(populi_tools::mesh_local_status(args)?),
+        "vox_mesh_nodes" => Ok(populi_tools::mesh_nodes(state, args).await?),
+        "vox_mesh_queue_stats" => Ok(populi_tools::mesh_queue_stats(state, args).await?),
+        "vox_mesh_dispatch" => Ok(populi_tools::mesh_dispatch(state, args).await?),
 
         "vox_browser_open" => {
             Ok(browser_tools::browser_open(state, serde_json::from_value(args)?).await)
