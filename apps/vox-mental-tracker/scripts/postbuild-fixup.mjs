@@ -2,28 +2,16 @@
 /**
  * Post-vox-build codegen fixups.
  *
- * All prior codegen-gap patches have landed in the compiler (handler invocation,
- * `.length()` → `.length`, async await, and the runtime globals now resolve via
- * the Vox-emitted `dist/runtime-install.ts`).
+ * Now a no-op. Every prior patch has landed in the Vox compiler:
+ * - handler invocation / async await / `.length()` → `.length`
+ * - runtime globals via the emitted `dist/runtime-install.ts`
+ * - the web bootstrap (entry.tsx / vox-app.tsx) is emitted
+ * - app glue (error boundary + service-worker registration) is emitted into the
+ *   default `dist/app-hooks.tsx` (wiring `dist/vox-error-boundary.tsx` +
+ *   `dist/vox-sw-register.ts`), so this app needs no hand-written TypeScript and
+ *   no app-hooks override.
  *
- * The one remaining job: inject this app's bootstrap glue. The Vox web emitter
- * writes a DEFAULT no-op `dist/app-hooks.tsx` (so `entry.tsx`'s `./app-hooks`
- * import resolves for any app). This app overrides it with a re-export of the
- * app-owned `src/app-hooks.tsx` (React error boundary + service-worker
- * registration), keeping that glue source-relative (its `./ErrorBoundary` /
- * `./sync` imports resolve from `src/`).
+ * Kept as a build hook point; remove alongside the `build:fixup` script once we
+ * confirm no future emergency patch is needed.
  */
-import { writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
-const here = dirname(fileURLToPath(import.meta.url));
-const distAppHooks = join(here, "..", "dist", "app-hooks.tsx");
-
-writeFileSync(
-  distAppHooks,
-  `// Overridden by postbuild-fixup.mjs — re-export the app-owned bootstrap glue.\n` +
-    `export { wrapApp, onBoot } from "../src/app-hooks";\n`,
-);
-
-console.log("postbuild-fixup: injected app-hooks override (dist/app-hooks.tsx -> ../src/app-hooks)");
+console.log("postbuild-fixup: no patches needed (app is fully Vox-generated)");

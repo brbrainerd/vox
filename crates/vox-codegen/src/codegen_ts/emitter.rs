@@ -446,11 +446,20 @@ pub fn generate_with_options(
             crate::codegen_ts::web_entry::ENTRY_FILENAME.to_string(),
             crate::codegen_ts::web_entry::emit_web_entry(),
         ));
-        // Default (no-op) app hooks so entry.tsx's `./app-hooks` import always
-        // resolves; apps override this file in a post-build step.
+        // Default app hooks (wires the generic error boundary + PWA SW register
+        // below) so entry.tsx's `./app-hooks` import always resolves and a fresh
+        // app needs no hand-written glue; apps may override it post-build.
         files.push((
             crate::codegen_ts::web_entry::APP_HOOKS_FILENAME.to_string(),
             crate::codegen_ts::web_entry::emit_app_hooks_default(),
+        ));
+        files.push((
+            crate::codegen_ts::web_entry::ERROR_BOUNDARY_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_error_boundary(),
+        ));
+        files.push((
+            crate::codegen_ts::web_entry::SW_REGISTER_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_sw_register(),
         ));
     }
 
