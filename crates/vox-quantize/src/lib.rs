@@ -6,6 +6,7 @@ pub mod error;
 pub mod device;
 pub mod policy;
 pub mod read;
+pub mod recombine;
 pub mod engine;
 pub mod verify;
 pub mod write;
