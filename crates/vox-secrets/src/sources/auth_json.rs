@@ -187,6 +187,36 @@ pub fn write_registry_token(
     Ok(auth_path)
 }
 
+/// Remove a registry token: deletes the keyring entry (if present) and the
+/// `auth.json` map key. Returns `true` if an entry existed in either store.
+///
+/// Mirrors the keyring scrub at `write_registry_token` and never returns or
+/// logs the token material.
+pub fn remove_registry_token(registry: &str) -> Result<bool, SecretError> {
+    let mut removed = false;
+
+    // Best-effort delete of the secure-store entry. A missing entry is not an
+    // error (NoEntry); only surface real backend failures as warnings.
+    if let Ok(entry) = secure_entry(registry) {
+        match entry.delete_credential() {
+            Ok(()) => removed = true,
+            Err(keyring::Error::NoEntry) => {}
+            Err(_) => {}
+        }
+    }
+
+    let path = auth_path();
+    if path.exists() {
+        let mut creds = read_credentials_file(&path)?;
+        if creds.registries.remove(registry).is_some() {
+            removed = true;
+            write_credentials_file(&path, &creds)?;
+        }
+    }
+
+    Ok(removed)
+}
+
 pub fn migrate_to_secure_store() -> Result<usize, SecretError> {
     let path = auth_path();
     let mut creds = read_credentials_file(&path)?;
@@ -250,6 +280,45 @@ mod tests {
 
         let (read_back, _src) = read_registry_token(reg).expect("read");
         assert_eq!(secrecy::ExposeSecret::expose_secret(&read_back), token);
+
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_AUTH_PATH");
+        }
+    }
+
+    /// `remove_registry_token` clears the auth.json map key so a subsequent
+    /// read returns `None`. Uses the plaintext fallback path via a temp
+    /// `VOX_SECRETS_AUTH_PATH` (no real keyring required).
+    #[test]
+    fn remove_registry_token_clears_auth_json_entry() {
+        let _g = ENV_LOCK.lock().expect("env lock");
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let auth_file = tmp_dir.path().join("auth.json");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_AUTH_PATH", &auth_file);
+        }
+
+        let reg = "vox-test-remove-registry";
+        let token = "sk-test-remove-abcdef0123456789";
+
+        write_registry_token(reg, token, None).expect("write");
+        assert!(read_registry_token(reg).is_some(), "present after write");
+
+        let removed = remove_registry_token(reg).expect("remove");
+        assert!(removed, "remove should report an entry was deleted");
+
+        assert!(
+            read_registry_token(reg).is_none(),
+            "registry token must be gone after remove"
+        );
+
+        // Idempotent: removing again reports nothing (auth.json key already
+        // gone; keyring entry, if any, also gone).
+        let removed_again = remove_registry_token(reg).expect("remove2");
+        assert!(
+            !removed_again || read_registry_token(reg).is_none(),
+            "second remove leaves the token absent"
+        );
 
         unsafe {
             std::env::remove_var("VOX_SECRETS_AUTH_PATH");

@@ -251,6 +251,65 @@ impl VoxCloudBackend {
                 .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))
         })
     }
+    /// Permanently remove a secret from the Clavis vault for the active
+    /// account. Deletes the canonical row, every historical version, and any
+    /// profile overrides, then records an audit-log entry. Returns `true` if a
+    /// canonical row was present (and therefore deleted), `false` otherwise.
+    ///
+    /// Security note: this never reads back or exposes the plaintext — it only
+    /// issues `DELETE` statements keyed by (account_id, secret_id).
+    pub fn delete_secret(&self, key: &str) -> Result<bool, SecretError> {
+        let account_id = self.account_id.clone();
+        let sec_id = key.to_string();
+        let now = now_ms();
+
+        let conn = self.conn.lock().expect("vox vault mutex");
+        run_secrets_future(async {
+            let tx = conn
+                .unchecked_transaction()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            let deleted = tx
+                .execute(
+                    "DELETE FROM clavis_account_secrets WHERE account_id = ?1 AND secret_id = ?2",
+                    params![account_id.clone(), sec_id.clone()],
+                )
+                .await
+                .map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            tx.execute(
+                "DELETE FROM clavis_secret_versions WHERE account_id = ?1 AND secret_id = ?2",
+                params![account_id.clone(), sec_id.clone()],
+            )
+            .await
+            .map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            tx.execute(
+                "DELETE FROM clavis_profile_overrides WHERE account_id = ?1 AND secret_id = ?2",
+                params![account_id.clone(), sec_id.clone()],
+            )
+            .await
+            .map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            tx.execute(
+                "INSERT INTO clavis_audit_log (
+                    account_id, secret_id, resolved_at_ms, resolution_status,
+                    resolution_source, resolve_profile, caller_context, detail
+                 ) VALUES (?1, ?2, ?3, 'deleted', NULL, 'default', 'cli', NULL)",
+                params![account_id.clone(), sec_id.clone(), now],
+            )
+            .await
+            .map_err(|e: turso::Error| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            tx.commit()
+                .await
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+
+            Ok(deleted > 0)
+        })
+    }
+
     pub fn rewrap_secret(
         &self,
         secret_id: &str,
@@ -1253,6 +1312,58 @@ mod path_url_tests {
             path_to_vault_file_url(r"C:\Users\Owner\.vox\clavis_vault.db"),
             "file:///C:/Users/Owner/.vox/clavis_vault.db"
         );
+    }
+
+    #[test]
+    #[allow(unsafe_code)]
+    fn write_present_then_delete_absent_round_trips() {
+        use std::sync::Mutex;
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _g = ENV_LOCK.lock().expect("env lock");
+
+        let tmp_dir = tempfile::tempdir().expect("tempdir");
+        let db_path = tmp_dir.path().join("delete_vault.db");
+        unsafe {
+            std::env::set_var("VOX_SECRETS_VAULT_PATH", &db_path);
+            std::env::set_var("VOX_ACCOUNT_ID", "delete-test-account");
+        }
+
+        // VoxCloudBackend uses a keyring-backed master key; if the keyring is
+        // unavailable in the sandbox the backend can't init — skip cleanly.
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .expect("tokio rt");
+        let outcome = rt.block_on(async {
+            tokio::task::spawn_blocking(|| {
+                let backend = match VoxCloudBackend::new() {
+                    Ok(b) => b,
+                    Err(_) => return None,
+                };
+                let key = "DELETE_TEST_SECRET";
+                backend.write_secret(key, "sk-delete-me-0123456789").expect("write");
+                let present = backend.get_row(&backend.account_id, key).expect("get").is_some();
+                let deleted = backend.delete_secret(key).expect("delete");
+                let absent = backend.get_row(&backend.account_id, key).expect("get2").is_none();
+                let deleted_again = backend.delete_secret(key).expect("delete2");
+                Some((present, deleted, absent, deleted_again))
+            })
+            .await
+            .expect("join")
+        });
+
+        unsafe {
+            std::env::remove_var("VOX_SECRETS_VAULT_PATH");
+            std::env::remove_var("VOX_ACCOUNT_ID");
+        }
+
+        if let Some((present, deleted, absent, deleted_again)) = outcome {
+            assert!(present, "secret should be present after write");
+            assert!(deleted, "delete should report a row was removed");
+            assert!(absent, "secret should be absent after delete");
+            assert!(!deleted_again, "second delete reports no row removed");
+        }
     }
 
     #[test]
