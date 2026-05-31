@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
  * Voice-flow E2E.
  *
  * Stubs Speech.transcribe_microphone via globalThis.__VOX_TEST_TRANSCRIPT__
- * (consumed by src/runtime.ts) so we exercise the parse → save loop with
+ * (consumed by the Vox-emitted dist/runtime-install.ts) so we exercise the parse → save loop with
  * a deterministic transcript and no microphone dependency. Native STT is
  * exercised by the Capacitor build pipeline, not here.
  *

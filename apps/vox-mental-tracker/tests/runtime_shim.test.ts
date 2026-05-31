@@ -6,7 +6,9 @@ describe("runtime shims (vox builtins on globalThis)", () => {
     delete (globalThis as unknown as { __TAURI__?: unknown }).__TAURI__;
     delete (globalThis as unknown as { window?: Window }).window;
     (globalThis as unknown as { window?: Window }).window = globalThis as unknown as Window;
-    await import("../src/runtime");
+    // The runtime-global shims are now Vox-emitted (was the hand-written
+    // src/runtime.ts). Requires `vox build` to have populated dist/ first.
+    await import("../dist/runtime-install");
   });
 
   it("installs Speech.transcribe_microphone", () => {
