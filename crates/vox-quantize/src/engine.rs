@@ -182,4 +182,27 @@ mod tests {
         assert!(outdir.path().join("quant-metadata.json").exists());
         assert!(outdir.path().join("config.json").exists());
     }
+
+    #[test]
+    fn quantizes_sharded_model() {
+        let indir = tempfile::tempdir().unwrap();
+        let outdir = tempfile::tempdir().unwrap();
+        let dev = candle_core::Device::Cpu;
+        let w = |r, c| candle_core::Tensor::randn(0f32, 1f32, (r, c), &dev).unwrap();
+        let mut s1 = std::collections::HashMap::new();
+        s1.insert("model.language_model.layers.0.mlp.gate_proj.weight".to_string(), w(256, 256));
+        let mut s2 = std::collections::HashMap::new();
+        s2.insert("model.language_model.layers.0.mlp.up_proj.weight".to_string(), w(256, 256));
+        candle_core::safetensors::save(&s1, indir.path().join("model-00001-of-00002.safetensors")).unwrap();
+        candle_core::safetensors::save(&s2, indir.path().join("model-00002-of-00002.safetensors")).unwrap();
+        std::fs::write(indir.path().join("model.safetensors.index.json"),
+            r#"{"weight_map":{"model.language_model.layers.0.mlp.gate_proj.weight":"model-00001-of-00002.safetensors","model.language_model.layers.0.mlp.up_proj.weight":"model-00002-of-00002.safetensors"}}"#).unwrap();
+        let req = QuantizeRequest {
+            input_dir: indir.path().to_path_buf(), output_dir: outdir.path().to_path_buf(),
+            mixture: QuantMixture::Q4KM, verify: true, device: DevicePref::Cpu,
+        };
+        let report = quantize(&req).unwrap();
+        assert_eq!(report.tensors.len(), 2);
+        assert!(report.tensors.iter().all(|s| s.target_dtype == "Q4K"));
+    }
 }
