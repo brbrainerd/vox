@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make `vox-inference` actually load an SP-1 quantized Qwen3.5 artifact and generate tokens, starting CPU-first, without violating the L3→L4 layering rule.
+**Goal:** Make `vox-inference` actually load an SP-1 quantized Qwen3.5 artifact and generate tokens — **CUDA-first** on the RTX 4080, with CPU as the CI/fallback path — without violating the L3→L4 layering rule.
 
 **Architecture:** Two slices. **SP-2a** extracts the Qwen3.5/2.5 forward pass out of the L4 plugin into a new L2 crate `vox-model-qwen` built on `QMatMul` (accepts quantized or f32 weights). **SP-2b** wires `vox-inference` backends to load SP-1 artifacts into `vox-model-qwen` and run a sampling loop.
 
@@ -113,9 +113,10 @@ mod tests {
         candle_core::safetensors::save(&m, indir.path().join("model.safetensors")).unwrap();
         std::fs::write(indir.path().join("config.json"),
             r#"{"model_type":"qwen3_5","architectures":["Qwen35ForCausalLM"],"hidden_size":256,"num_attention_heads":8,"num_hidden_layers":1,"vocab_size":512}"#).unwrap();
-        vox_quantize::quantize(&vox_quantize::engine::QuantizeRequest{
+        vox_quantize::quantize(&vox_quantize::QuantizeRequest{
             input_dir: indir.path().to_path_buf(), output_dir: outdir.path().to_path_buf(),
             mixture: vox_quantize::QuantMixture::Q4KM, verify: false,
+            device: vox_quantize::DevicePref::Cpu,
         }).unwrap();
 
         let weights = QuantizedWeights::load(outdir.path(), &dev).unwrap();

@@ -32,7 +32,7 @@ vox-quantize = { workspace = true }
 ```rust
 //! `vox quantize` — quantize a local SafeTensors model with vox-quantize.
 use std::path::PathBuf;
-use vox_quantize::{quantize, QuantMixture};
+use vox_quantize::{quantize, DevicePref, QuantMixture};
 
 #[derive(Debug, clap::Args)]
 pub struct QuantizeArgs {
@@ -48,6 +48,9 @@ pub struct QuantizeArgs {
     /// Skip the round-trip verification pass.
     #[arg(long, default_value_t = false)]
     pub no_verify: bool,
+    /// Device: auto | cuda | metal | cpu (default auto → GPU when available).
+    #[arg(long, default_value = "auto")]
+    pub device: String,
     /// Emit the full report as JSON instead of a table.
     #[arg(long, default_value_t = false)]
     pub json: bool,
@@ -60,6 +63,16 @@ pub fn parse_mixture(s: &str) -> anyhow::Result<QuantMixture> {
         "q6_k" => QuantMixture::Q6K,
         "q8_0" => QuantMixture::Q8_0,
         other => anyhow::bail!("unknown --to mixture `{other}` (expected q4_k_m|q5_k_m|q6_k|q8_0)"),
+    })
+}
+
+pub fn parse_device(s: &str) -> anyhow::Result<DevicePref> {
+    Ok(match s.to_ascii_lowercase().as_str() {
+        "auto" => DevicePref::Auto,
+        "cuda" | "cuda:0" => DevicePref::Cuda(0),
+        "metal" => DevicePref::Metal,
+        "cpu" => DevicePref::Cpu,
+        other => anyhow::bail!("unknown --device `{other}` (expected auto|cuda|metal|cpu)"),
     })
 }
 ```
@@ -100,6 +113,13 @@ mod tests {
         assert!(matches!(parse_mixture("Q8_0").unwrap(), QuantMixture::Q8_0));
         assert!(parse_mixture("bogus").is_err());
     }
+    #[test]
+    fn parse_device_maps_known_values() {
+        assert!(matches!(parse_device("auto").unwrap(), DevicePref::Auto));
+        assert!(matches!(parse_device("cuda").unwrap(), DevicePref::Cuda(0)));
+        assert!(matches!(parse_device("cpu").unwrap(), DevicePref::Cpu));
+        assert!(parse_device("gpu").is_err());
+    }
 }
 ```
 
@@ -116,11 +136,13 @@ pub fn run(args: QuantizeArgs) -> anyhow::Result<()> {
         anyhow::bail!("no config.json in {} — not a model directory", args.input.display());
     }
     let mixture = parse_mixture(&args.to)?;
-    let req = vox_quantize::engine::QuantizeRequest {
+    let device = parse_device(&args.device)?;
+    let req = vox_quantize::QuantizeRequest {
         input_dir: args.input.clone(),
         output_dir: args.output.clone(),
         mixture,
         verify: !args.no_verify,
+        device,
     };
     let report = quantize(&req)?;
 
@@ -143,7 +165,7 @@ pub fn run(args: QuantizeArgs) -> anyhow::Result<()> {
 }
 ```
 
-> Note: this uses `vox_quantize::engine::QuantizeRequest`. Ensure SP-1 re-exports `QuantizeRequest` from the crate root (`pub use engine::QuantizeRequest;`); if it does, simplify to `vox_quantize::QuantizeRequest`. Add that re-export to SP-1 `lib.rs` if missing.
+> Note: SP-1's `lib.rs` re-exports `QuantizeRequest` and `DevicePref` from the crate root, so `vox_quantize::QuantizeRequest` / `vox_quantize::DevicePref` resolve directly.
 
 - [ ] **Step 4: Run tests**
 
@@ -208,6 +230,7 @@ fn quantize_cli_produces_artifact() {
         output: outdir.path().to_path_buf(),
         to: "q4_k_m".into(),
         no_verify: false,
+        device: "cpu".into(), // deterministic in CI; "auto" in real use
         json: true,
     };
     vox_ml_cli::commands::quantize::run(args).unwrap();
@@ -230,6 +253,6 @@ git commit -m "feat(ml-cli): wire vox quantize into command dispatch + integrati
 
 ## Self-Review
 
-- **Spec coverage:** subcommand ✓ T1/T3; `--to` mixture mapping ✓ T1/T2; human + `--json` report ✓ T2; missing-config error ✓ T2; integration ✓ T3.
+- **Spec coverage:** subcommand ✓ T1/T3; `--to` mixture mapping ✓ T1/T2; `--device` (GPU-first) mapping ✓ T1/T2; human + `--json` report ✓ T2; missing-config error ✓ T2; integration ✓ T3.
 - **Placeholder scan:** none. Two conditional notes (crate-root re-export; lib-vs-bin shape) are explicit confirm-then-adjust instructions, not placeholders.
 - **Type consistency:** `QuantizeArgs`/`parse_mixture`/`run` consistent across tasks; `QuantizeRequest`/`QuantMixture`/`QuantReport` match SP-1.

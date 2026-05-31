@@ -25,6 +25,12 @@ The MENS plan and ADR 003 pin hard rules this design must respect:
 
 The in-charter answer is **native Rust quantization via Candle's `quantized` module**, using **data-free k-quants** (round-to-nearest into GGML block types). This was confirmed feasible against the actual code (see §9).
 
+### Device policy (GPU-first)
+
+The engine is **device-selectable**, defaulting to **GPU when available** (`auto` → CUDA/Metal, else CPU). Source tensors are loaded onto the selected device and quantized there via `QTensor::quantize_onto(src, dtype, dev)`; the serialized block bytes return to host for the SafeTensors artifact. GPU keeps large models off host RAM and is the path for the RTX 4080 dev box. CPU remains a first-class fallback (and the CI test path, since runners have no GPU). The `cuda`/`metal` Candle backends are optional crate features, mirroring `vox-plugin-mens-candle-cuda`'s `device_select.rs`.
+
+> Note: candle's k-quant `from_float` kernels run host-side; `quantize_onto` lands the result on the GPU. The dominant GPU win in this initiative is **SP-2 inference** (running the quantized forward on CUDA), not the one-time offline quantize. SP-1 exposes device selection so it is never CPU-locked.
+
 ---
 
 ## 2. Goals & non-goals
@@ -36,7 +42,7 @@ The in-charter answer is **native Rust quantization via Candle's `quantized` mod
    - Quantizes per-tensor into Candle GGML k-quant types (`Q4_K`, `Q5_K`, `Q6_K`, `Q8_0`) under a configurable **tensor-type policy**.
    - Emits a quantized artifact on disk as **SafeTensors-canonical** (quantized blocks stored as `u8` tensors + a metadata map; see §6).
    - Runs a **round-trip self-check** (quantize → dequantize → per-tensor error) as a built-in quality gate.
-   - Compiles and tests **CPU-only** — no `cuda`/`metal` feature required.
+   - Is **device-selectable** (`auto`/`cuda`/`metal`/`cpu`, default GPU-when-available); compiles & tests on CPU with no GPU feature, and accelerates on GPU when the `cuda`/`metal` feature is enabled.
 2. Named k-quant **mixtures** mirroring llama.cpp conventions: `Q4_K_M`, `Q5_K_M`, `Q6_K`, `Q8_0`, plus a manual per-tensor-type override.
 3. A clean public API for the three downstream surfaces (CLI, merge-quant, inference) to call.
 
@@ -54,7 +60,7 @@ The in-charter answer is **native Rust quantization via Candle's `quantized` mod
 
 ```
                  ┌────────────────────────────────────────────┐
-                 │  vox-quantize  (L2 library, CPU-only)        │
+                 │  vox-quantize  (L2 library, GPU-first/CPU)   │
                  │                                              │
   model dir ───► │  read::SafeTensorsSource  (single+sharded)   │
                  │        │ f32/f16/bf16 Tensor stream           │
@@ -135,7 +141,10 @@ pub struct QuantizeRequest {
     pub output_dir: PathBuf,
     pub mixture: QuantMixture,     // Q4KM | Q5KM | Q6K | Q8_0 | Manual(..)
     pub verify: bool,              // run round-trip self-check (default true)
+    pub device: DevicePref,        // Auto | Cuda(usize) | Metal | Cpu (default Auto)
 }
+
+pub enum DevicePref { Auto, Cuda(usize), Metal, Cpu }
 
 pub enum QuantMixture { Q4KM, Q5KM, Q6K, Q8_0, Manual(BTreeMap<TensorRole, GgmlDType>) }
 
@@ -177,7 +186,7 @@ This keeps GGUF off-disk while still producing portable, hash-addressable SafeTe
 
 ## 8. Testing strategy (TDD)
 
-CPU-only, no GPU, runs in CI:
+Tests pin `DevicePref::Cpu` for determinism and run in CI without a GPU; the GPU path (`Auto`/`Cuda`) is exercised manually on the RTX 4080:
 
 1. **Unit — policy:** mixture resolution per `TensorRole`; QK_K=256 fallback ladder (256-divisible → k-quant; 32-divisible → Q8_0; else F32).
 2. **Unit — round-trip:** quantize→dequantize a known tensor; assert MSE within the expected band for each GgmlDType (Q8_0 ≪ Q6_K < Q4_K).

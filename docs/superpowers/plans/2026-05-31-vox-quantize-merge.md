@@ -189,11 +189,12 @@ fn merge_then_quantize_produces_quantized_artifact() {
     // Act: drive the recombine+quantize helper directly (the CLI calls this).
     vox_quantize::recombine::recombine(
         base.path(), &merged_out.path().join("merged.safetensors"), q_out.path()).unwrap();
-    let report = vox_quantize::quantize(&vox_quantize::engine::QuantizeRequest {
+    let report = vox_quantize::quantize(&vox_quantize::QuantizeRequest {
         input_dir: q_out.path().to_path_buf(),
         output_dir: q_out.path().join("quantized"),
         mixture: vox_quantize::QuantMixture::Q4KM,
         verify: true,
+        device: vox_quantize::DevicePref::Cpu,
     }).unwrap();
 
     assert!(q_out.path().join("quantized/quant-metadata.json").exists());
@@ -214,11 +215,12 @@ After the existing merge writes the subset to `--output`, add:
             .ok_or_else(|| anyhow::anyhow!("need at least one --base-shard to recombine"))?;
         vox_quantize::recombine::recombine(base_dir, &args.output, &recombined)?;
         let q_out = args.output.with_extension("quantized");
-        let report = vox_quantize::quantize(&vox_quantize::engine::QuantizeRequest {
+        let report = vox_quantize::quantize(&vox_quantize::QuantizeRequest {
             input_dir: recombined.clone(),
             output_dir: q_out.clone(),
             mixture,
             verify: true,
+            device: vox_quantize::DevicePref::Auto, // GPU when available
         })?;
         println!("Quantized merged model -> {} ({:.2}x)", q_out.display(), report.compression_ratio);
         let _ = std::fs::remove_dir_all(&recombined);

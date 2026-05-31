@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `vox-quantize`, a CPU-only L2 crate that turns a full SafeTensors model (Qwen3.5/2.5) into a smaller quantized SafeTensors-canonical artifact using Candle's data-free k-quants.
+**Goal:** Build `vox-quantize`, a device-selectable (GPU-first, CPU fallback) L2 crate that turns a full SafeTensors model (Qwen3.5/2.5) into a smaller quantized SafeTensors-canonical artifact using Candle's data-free k-quants.
 
 **Architecture:** Read f32/f16 tensors (single + sharded SafeTensors) → resolve a per-tensor target `GgmlDType` via a mixture policy (with QK_K=256 alignment fallback) → `QTensor::quantize` → round-trip verify → write quantized `u8` block tensors + `quant-metadata.json` sidecar. No GPU feature required.
 
@@ -50,7 +50,7 @@ git commit -m "docs(quantize): confirm candle QTensor raw-bytes accessor for SP-
 name = "vox-quantize"
 version = "0.1.0"
 edition = "2021"
-description = "Data-free k-quant PTQ engine: SafeTensors -> Candle GGML quantized SafeTensors (CPU-only)."
+description = "Data-free k-quant PTQ engine: SafeTensors -> Candle GGML quantized SafeTensors (GPU-first, CPU fallback)."
 
 [dependencies]
 candle-core = { workspace = true }
@@ -64,6 +64,13 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+[features]
+default = []
+# GPU acceleration. CI builds without these (no GPU on runners); the engine
+# falls back to CPU. Mirrors vox-plugin-mens-candle-cuda's feature wiring.
+cuda = ["candle-core/cuda"]
+metal = ["candle-core/metal"]
 ```
 
 - [ ] **Step 2: Create `crates/vox-quantize/src/lib.rs` (skeleton)**
@@ -71,15 +78,18 @@ tempfile = { workspace = true }
 ```rust
 //! Data-free k-quant post-training quantization engine.
 //!
-//! SafeTensors model in -> quantized SafeTensors-canonical artifact out. CPU-only.
+//! SafeTensors model in -> quantized SafeTensors-canonical artifact out.
+//! Device-selectable: GPU when available (cuda/metal feature), CPU fallback.
 pub mod error;
+pub mod device;
 pub mod policy;
 pub mod read;
 pub mod engine;
 pub mod verify;
 pub mod write;
 
-pub use engine::quantize;
+pub use device::DevicePref;
+pub use engine::{quantize, QuantizeRequest};
 pub use error::QuantizeError;
 pub use policy::{QuantMixture, TensorRole};
 pub use verify::{QuantReport, TensorQuantStat};
@@ -97,7 +107,7 @@ vox-quantize            = { layer = 2, max_loc = 4_000 }
 ```
 In `docs/src/architecture/where-things-live.md`, add to the L2 section table:
 ```markdown
-| [`vox-quantize`](../../../crates/vox-quantize/) | Data-free k-quant PTQ engine (SafeTensors → Candle GGML quantized SafeTensors, CPU-only). |
+| [`vox-quantize`](../../../crates/vox-quantize/) | Data-free k-quant PTQ engine (SafeTensors → Candle GGML quantized SafeTensors; GPU-first, CPU fallback). |
 ```
 
 - [ ] **Step 4: Verify it compiles and arch-check passes**
@@ -175,6 +185,90 @@ Expected: PASS
 ```bash
 git add crates/vox-quantize/src/error.rs
 git commit -m "feat(quantize): typed QuantizeError"
+```
+
+---
+
+### Task 2b: Device selection (GPU-first with CPU fallback)
+
+**Files:**
+- Create: `crates/vox-quantize/src/device.rs`
+- Test: inline `#[cfg(test)]`
+
+- [ ] **Step 1: Write the failing test**
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn cpu_pref_always_resolves_to_cpu() {
+        let d = select(DevicePref::Cpu).unwrap();
+        assert!(d.is_cpu());
+    }
+    #[test]
+    fn auto_resolves_without_error() {
+        // On CI (no GPU feature) Auto must resolve to CPU, never error.
+        let d = select(DevicePref::Auto).unwrap();
+        let _ = d; // device-dependent; just assert no error
+    }
+}
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `cargo test -p vox-quantize device::`
+Expected: FAIL (compile error — `DevicePref`, `select` undefined).
+
+- [ ] **Step 3: Implement**
+
+```rust
+use crate::error::QuantizeError;
+use candle_core::Device;
+
+/// User device preference. `Auto` picks the best available accelerator,
+/// falling back to CPU. Mirrors vox-plugin-mens-candle-cuda::device_select.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DevicePref { Auto, Cuda(usize), Metal, Cpu }
+
+impl Default for DevicePref {
+    fn default() -> Self { DevicePref::Auto }
+}
+
+pub fn select(pref: DevicePref) -> Result<Device, QuantizeError> {
+    let to_err = |e: candle_core::Error| QuantizeError::Quantize(e);
+    match pref {
+        DevicePref::Cpu => Ok(Device::Cpu),
+        DevicePref::Cuda(i) => Device::new_cuda(i).map_err(to_err),
+        DevicePref::Metal => Device::new_metal(0).map_err(to_err),
+        DevicePref::Auto => {
+            // Try CUDA, then Metal, then CPU. new_cuda/new_metal return Err when
+            // the feature is disabled or no device is present.
+            if let Ok(d) = Device::new_cuda(0) {
+                tracing::info!("vox-quantize: using CUDA:0");
+                return Ok(d);
+            }
+            if let Ok(d) = Device::new_metal(0) {
+                tracing::info!("vox-quantize: using Metal");
+                return Ok(d);
+            }
+            tracing::info!("vox-quantize: no GPU available, using CPU");
+            Ok(Device::Cpu)
+        }
+    }
+}
+```
+
+- [ ] **Step 4: Run to verify it passes**
+
+Run: `cargo test -p vox-quantize device::`
+Expected: PASS (CI: both resolve to CPU)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add crates/vox-quantize/src/device.rs crates/vox-quantize/src/lib.rs
+git commit -m "feat(quantize): GPU-first device selection with CPU fallback"
 ```
 
 ---
@@ -736,6 +830,7 @@ git commit -m "feat(quantize): write quantized SafeTensors-canonical artifact + 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::device::DevicePref;
     use crate::policy::QuantMixture;
     use candle_core::{Device, DType, Tensor};
     use std::collections::HashMap;
@@ -769,6 +864,7 @@ mod tests {
             output_dir: outdir.path().to_path_buf(),
             mixture: QuantMixture::Q4KM,
             verify: true,
+            device: DevicePref::Cpu, // deterministic in CI; Auto in real use
         };
         let report = quantize(&req).unwrap();
         // norms / A_log kept F32, matrices quantized
@@ -797,6 +893,7 @@ Expected: FAIL (compile error — `QuantizeRequest`, `quantize` undefined).
 - [ ] **Step 3: Implement**
 
 ```rust
+use crate::device::{select, DevicePref};
 use crate::error::QuantizeError;
 use crate::policy::{resolve_dtype, QuantMixture, TensorRole};
 use crate::read::SafeTensorsSource;
@@ -811,9 +908,11 @@ pub struct QuantizeRequest {
     pub output_dir: PathBuf,
     pub mixture: QuantMixture,
     pub verify: bool,
+    pub device: DevicePref,
 }
 
 pub fn quantize(req: &QuantizeRequest) -> Result<QuantReport, QuantizeError> {
+    let dev = select(req.device)?;
     let src = SafeTensorsSource::open(&req.input_dir)?;
     let mut writer = ArtifactWriter::new();
     let mut stats = Vec::new();
@@ -852,7 +951,9 @@ pub fn quantize(req: &QuantizeRequest) -> Result<QuantReport, QuantizeError> {
                         params, mse: 0.0, max_abs: 0.0, fallback,
                     });
                 } else {
-                    let q = QTensor::quantize(&t, resolved)?;
+                    // quantize_onto runs the k-quant kernel and lands the result on the
+                    // selected device (GPU when available); CPU when dev is CPU.
+                    let q = QTensor::quantize_onto(&t, resolved, &dev)?;
                     let (mse, max_abs) = if req.verify {
                         let mse = round_trip_mse(&t, &q)?;
                         if !mse.is_finite() {
@@ -942,7 +1043,7 @@ git commit -m "feat(quantize): end-to-end quantize pipeline + QuantReport"
             r#"{"weight_map":{"model.language_model.layers.0.mlp.gate_proj.weight":"model-00001-of-00002.safetensors","model.language_model.layers.0.mlp.up_proj.weight":"model-00002-of-00002.safetensors"}}"#).unwrap();
         let req = QuantizeRequest {
             input_dir: indir.path().to_path_buf(), output_dir: outdir.path().to_path_buf(),
-            mixture: QuantMixture::Q4KM, verify: true,
+            mixture: QuantMixture::Q4KM, verify: true, device: DevicePref::Cpu,
         };
         let report = quantize(&req).unwrap();
         assert_eq!(report.tensors.len(), 2);
@@ -998,7 +1099,7 @@ git commit -m "feat(quantize): sharded e2e test + ADR-043 on-disk format"
 
 ## Self-Review
 
-- **Spec coverage:** read (single+sharded) ✓ Task 4; policy + mixtures + alignment ✓ Task 3; engine ✓ Task 7; verify ✓ Task 5; write + on-disk format ✓ Task 6 + ADR Task 8; CPU-only (no GPU feature in Cargo.toml) ✓ Task 1; public API matches spec §5 ✓ Task 7.
+- **Spec coverage:** read (single+sharded) ✓ Task 4; policy + mixtures + alignment ✓ Task 3; device selection (GPU-first) ✓ Task 2b; engine ✓ Task 7; verify ✓ Task 5; write + on-disk format ✓ Task 6 + ADR Task 8; GPU features + CPU fallback ✓ Task 1/2b; public API (incl. `device`) matches spec §5 ✓ Task 7.
 - **Placeholder scan:** none — every code step is complete. Task 0 spike confirms the one candle API detail before it's used in Task 6.
 - **Type consistency:** `QuantizeRequest`/`QuantMixture`/`QuantReport`/`TensorQuantStat`/`TensorRole`/`SafeTensorsSource`/`ArtifactWriter` names consistent across Tasks 3–8. `round_trip_mse`/`round_trip_max_abs` defined in Task 5, used in Task 7.
 - **Known risk:** `QTensor::data()` accessor (Task 6) is gated behind Task 0; `storage_size_in_bytes()` used in Task 7 for quant-byte accounting — confirm both exist in Task 0.
