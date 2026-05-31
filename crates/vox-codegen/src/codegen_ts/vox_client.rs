@@ -554,11 +554,15 @@ fn ts_ty(ty: &HirType) -> String {
         HirType::Generic(n, args) => match n.as_str() {
             "List" | "list" | "Set" | "set" => format!(
                 "readonly {}[]",
-                args.first().map(ts_ty).unwrap_or_else(|| "unknown".to_string())
+                args.first()
+                    .map(ts_ty)
+                    .unwrap_or_else(|| "unknown".to_string())
             ),
             "Option" => format!(
                 "{} | undefined",
-                args.first().map(ts_ty).unwrap_or_else(|| "unknown".to_string())
+                args.first()
+                    .map(ts_ty)
+                    .unwrap_or_else(|| "unknown".to_string())
             ),
             _ => "unknown".to_string(),
         },
