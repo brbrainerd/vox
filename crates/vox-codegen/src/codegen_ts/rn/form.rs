@@ -46,8 +46,16 @@ pub fn emit_form(form: &HirForm) -> String {
     for f in &visible {
         let label = f.label.as_deref().unwrap_or(&f.name);
         if f.required {
+            // Numeric fields hold a `number` (never `""`); use NaN as the
+            // "empty" sentinel so the check type-checks. String fields keep the
+            // `=== ""` empty check.
+            let empty_check = if field_is_numeric(&f.ty) {
+                format!("Number.isNaN({n})", n = f.name)
+            } else {
+                format!("{n} === \"\"", n = f.name)
+            };
             out.push_str(&format!(
-                "    if ({n} === undefined || {n} === null || {n} === \"\") e.{n} = \"{label} is required\";\n",
+                "    if ({n} === undefined || {n} === null || {empty_check}) e.{n} = \"{label} is required\";\n",
                 n = f.name
             ));
         }
@@ -145,13 +153,27 @@ pub fn emit_form(form: &HirForm) -> String {
             }
         }
 
+        // RN <TextInput> always works in strings. Numeric fields therefore
+        // stringify on the way out (`value`) and parse on the way in
+        // (`onChangeText`), so the `useState<number>` binding stays a number.
+        let (value_expr, on_change_expr) = if field_is_numeric(&f.ty) {
+            (
+                format!("String({fname} ?? \"\")", fname = f.name),
+                format!("(text) => set_{fname}(Number(text))", fname = f.name),
+            )
+        } else {
+            (
+                format!("{fname} ?? \"\"", fname = f.name),
+                format!("(text) => set_{fname}(text)", fname = f.name),
+            )
+        };
         out.push_str(&format!(
             "      <View style={{styles.field}}>\n\
              \x20       <Text style={{styles.label}}>{label}{req_marker}</Text>\n\
              \x20       <TextInput\n\
              \x20         style={{styles.input}}\n\
-             \x20         value={{{fname} ?? \"\"}}\n\
-             \x20         onChangeText={{(text) => set_{fname}(text)}}\n\
+             \x20         value={{{value_expr}}}\n\
+             \x20         onChangeText={{{on_change_expr}}}\n\
              \x20         accessibilityLabel={{\"{label}\"}}{kb_attr}{max_len_attr}\n\
              \x20       />\n\
              \x20       {{errors.{fname} && (\n\
@@ -177,6 +199,12 @@ fn hir_type_to_keyboard_type(ty: &HirType) -> &'static str {
         HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "numeric",
         _ => "",
     }
+}
+
+/// True for numeric field types whose `useState` binding is a `number` — these
+/// need string⇄number marshalling around the RN `<TextInput>`.
+fn field_is_numeric(ty: &HirType) -> bool {
+    matches!(ty, HirType::Named(t) if t == "int" || t == "float" || t == "decimal")
 }
 
 fn hir_type_to_ts(ty: &HirType) -> &'static str {
