@@ -241,16 +241,10 @@ fn confidence_state_for_model(m: &ModelSpec) -> super::autonomic::ModelConfidenc
     if pins.retired_ids.iter().any(|id| id == &m.id) {
         return super::autonomic::ModelConfidence::Deprecated;
     }
-    match m.pricing_source {
-        super::spec::PricingSource::Telemetry | super::spec::PricingSource::UserConfig => {
-            super::autonomic::ModelConfidence::Confirmed
-        }
-        super::spec::PricingSource::LiteLLM => super::autonomic::ModelConfidence::Shadowed,
-        super::spec::PricingSource::Unknown => super::autonomic::ModelConfidence::Provisional,
-        super::spec::PricingSource::OpenRouter
-        | super::spec::PricingSource::AnthropicDirect
-        | super::spec::PricingSource::Bootstrap => super::autonomic::ModelConfidence::Shadowed,
-    }
+    // Pricing-source heuristic (the `scoreboard: None` answer). The scoreboard-
+    // aware path that promotes discovered models on real evidence lives in
+    // `discovery_pipeline::resolve_eligibility`.
+    super::discovery_pipeline::resolve_eligibility(m, None, 0.0)
 }
 
 fn exploration_enabled() -> bool {

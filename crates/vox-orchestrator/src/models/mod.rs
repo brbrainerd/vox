@@ -1,5 +1,6 @@
 pub mod admission;
 pub mod autonomic;
+pub mod discovery_pipeline;
 pub mod generated;
 pub mod key_guard;
 pub mod policy;
