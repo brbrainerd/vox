@@ -242,12 +242,19 @@ pub fn resolve_mcp_chat_model_sync(
         // the registry's max_tokens sort. `accept` re-applies the local-Ollama /
         // routing-profile gating the router does not know about.
         let free = registry.free_models();
-        if let Some(m) = super::free_tier_adapter::route_free_tier_latency(
+        if let Some((m, rationale)) = super::free_tier_adapter::route_free_tier_latency(
             &free,
             &res,
             &required_capabilities,
             |m| caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m),
         ) {
+            tracing::info!(
+                model_id = %m.id,
+                provider = ?m.provider_type,
+                rationale,
+                route = "free-tier:latency-critical",
+                "MCP free-tier model selected via FreeTierRouter"
+            );
             let m = enforce_free_tier_if_needed(&registry, &res, m)?;
             return Ok((m.clone(), m.is_free));
         }

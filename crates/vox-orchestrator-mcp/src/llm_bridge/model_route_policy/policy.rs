@@ -14,6 +14,22 @@ pub(super) fn enforce_free_tier_if_needed(
         return Ok(spec);
     }
     let task = res.task_category;
+    // Prefer the capability-/tier-aware FreeTierRouter for the forced-free swap
+    // (so latency-critical/FIM hints are honored), surfacing its rationale; fall
+    // back to the registry's simple free helpers when the router returns nothing.
+    let free = registry.free_models();
+    if let Some((m, rationale)) =
+        super::free_tier_adapter::route_free_tier_latency(&free, res, &[], mcp_local_model_allowed)
+    {
+        tracing::info!(
+            model_id = %m.id,
+            provider = ?m.provider_type,
+            rationale,
+            route = "free-tier:enforced",
+            "MCP forced free-tier swap via FreeTierRouter"
+        );
+        return Ok(m);
+    }
     registry
         .best_free_for_with_filter(task, mcp_local_model_allowed)
         .or_else(|| registry.cheapest_free_with_filter(mcp_local_model_allowed))

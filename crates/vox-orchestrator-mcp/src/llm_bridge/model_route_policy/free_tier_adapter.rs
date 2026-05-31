@@ -26,7 +26,7 @@ pub fn route_free_tier_latency(
     res: &McpChatModelResolution,
     required_capabilities: &[Capability],
     accept: impl Fn(&ModelSpec) -> bool,
-) -> Option<ModelSpec> {
+) -> Option<(ModelSpec, &'static str)> {
     let req = FreeTierRouteRequest {
         task: res.task_category,
         context_tokens: 0,
@@ -37,11 +37,13 @@ pub fn route_free_tier_latency(
         max_candidates: 8,
     };
 
-    let mut candidates: Vec<ModelSpec> = FreeTierRouter::new()
+    // Carry each candidate's human-readable rationale alongside the spec so the
+    // caller can surface WHY a free model was chosen (tracing / provider status).
+    let mut candidates: Vec<(ModelSpec, &'static str)> = FreeTierRouter::new()
         .route(&req, free_models)
         .into_iter()
-        .map(|c| c.model)
-        .filter(|m| accept(m))
+        .filter(|c| accept(&c.model))
+        .map(|c| (c.model, c.rationale))
         .collect();
 
     if res.free_tier_latency_critical {
@@ -51,7 +53,7 @@ pub fn route_free_tier_latency(
         // *stable* partition keeps the router's relative ranking as the
         // within-tier tiebreaker, so the best Fast candidate wins, falling
         // back to the router's best non-Fast pick when no Fast model qualifies.
-        candidates.sort_by_key(|m| u8::from(m.capabilities.tier != ModelTier::Fast));
+        candidates.sort_by_key(|(m, _)| u8::from(m.capabilities.tier != ModelTier::Fast));
     }
 
     candidates.into_iter().next()
@@ -116,10 +118,11 @@ mod tests {
         let fast = free_spec("p/fast", ProviderType::Cerebras, ModelTier::Fast, 8_000, false, false);
         let models = vec![big, fast];
 
-        let got = route_free_tier_latency(&models, &latency_res(), &[], |_| true)
+        let (model, rationale) = route_free_tier_latency(&models, &latency_res(), &[], |_| true)
             .expect("a free model should be routed");
-        assert_eq!(got.id, "p/fast");
-        assert_eq!(got.capabilities.tier, ModelTier::Fast);
+        assert_eq!(model.id, "p/fast");
+        assert_eq!(model.capabilities.tier, ModelTier::Fast);
+        assert!(!rationale.is_empty(), "a human-readable rationale must accompany the pick");
     }
 
     #[test]
@@ -133,9 +136,9 @@ mod tests {
         let mut res = latency_res();
         res.free_tier_fill_in_middle = true;
 
-        let got = route_free_tier_latency(&models, &res, &[], |_| true)
+        let (model, _rationale) = route_free_tier_latency(&models, &res, &[], |_| true)
             .expect("a FIM-capable free model should be routed");
-        assert_eq!(got.provider_type, ProviderType::Mistral);
+        assert_eq!(model.provider_type, ProviderType::Mistral);
     }
 
     #[test]
