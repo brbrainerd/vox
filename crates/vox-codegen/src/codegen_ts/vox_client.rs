@@ -212,6 +212,15 @@ async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { 
         let local_names = compute_local_exec_names(hir);
         if !local_names.is_empty() {
             out.push_str(&local_exec_preamble());
+        } else if hir
+            .endpoint_fns
+            .iter()
+            .any(|f| !local_names.contains(&f.name) && f.kind != HirEndpointKind::Server)
+        {
+            // No on-device endpoints (so the full preamble is skipped), but
+            // `emit_unsupported_endpoint` still throws `new VoxRuntimeError(...)`.
+            // Import just that symbol so the reference resolves.
+            out.push_str("import { VoxRuntimeError } from \"@vox/runtime-rn\";\n\n");
         }
         // name → ordered param names, for the positional→named-object rewrite of
         // endpoint→endpoint calls inside local bodies.

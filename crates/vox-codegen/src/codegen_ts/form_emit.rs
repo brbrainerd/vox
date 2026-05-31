@@ -79,15 +79,26 @@ pub fn emit_form(form: &HirForm) -> String {
     let submit_fn = form.on_submit.as_deref().unwrap_or("_noSubmit");
     // vox-client mutations accept a single `args` object with named fields matching the endpoint
     // params. Emit `{ field1, field2 }` shorthand so the call matches the generated client signature.
-    let args_obj = visible
+    // Numeric fields hold `NaN` while empty (see `field_initial_value`). A
+    // *required* empty numeric is caught by `validate()` before submit, but an
+    // *optional* one would otherwise forward `NaN` into the client call (it
+    // serializes to `null` and can break endpoint validation or persist a wrong
+    // value). Coerce empty numerics to `undefined` so they're omitted from the
+    // JSON body; non-numeric fields use object shorthand unchanged.
+    let fields: Vec<String> = visible
         .iter()
-        .map(|f| f.name.as_str())
-        .collect::<Vec<_>>()
-        .join(", ");
-    let submit_call_args = if args_obj.is_empty() {
+        .map(|f| {
+            if hir_type_to_input_type(&f.ty) == "number" {
+                format!("{n}: Number.isNaN({n}) ? undefined : {n}", n = f.name)
+            } else {
+                f.name.clone()
+            }
+        })
+        .collect();
+    let submit_call_args = if fields.is_empty() {
         "{}".to_string()
     } else {
-        format!("{{ {args_obj} }}")
+        format!("{{ {} }}", fields.join(", "))
     };
     let err_msg = form
         .error_message

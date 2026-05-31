@@ -321,7 +321,11 @@ export function VoxApp(): React.ReactElement {
       const a = (e.target as HTMLElement).closest?.("a");
       if (!a) return;
       const href = a.getAttribute("href");
-      if (!href || href.startsWith("http") || href.startsWith("//") || href.startsWith("#")) return;
+      // Only intercept intra-app path navigations. Bail on protocol-relative
+      // (`//host`), in-page anchors (`#`), and ANY URL scheme — `http:`/`https:`
+      // but also `mailto:`/`tel:`/`sms:`/`blob:` etc. — so those reach the
+      // browser instead of being pushState'd onto a 404 route.
+      if (!href || href.startsWith("//") || href.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(href)) return;
       e.preventDefault();
       window.history.pushState(null, "", href);
       setPath(href);
@@ -337,7 +341,7 @@ export function VoxApp(): React.ReactElement {
   const route = findRoute(path);
   if (!route) {
     return (
-      <div className="mh-root">
+      <div className="vox-not-found">
         <h1>404</h1>
         <p>
           No route for <code>{path}</code>.

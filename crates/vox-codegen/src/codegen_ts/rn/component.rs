@@ -814,12 +814,22 @@ fn emit_rn_node(node: &RnNode, indent: usize) -> String {
             for c in body {
                 inner.push_str(&emit_rn_node(c, indent + 2));
             }
-            let inner_with_key = if let Some(k) = key_ts {
+            // A `.map(...)` arrow must return a single element. When the loop body
+            // lowers to multiple sibling nodes, wrap them in a keyed `<View>` (always
+            // imported, and unlike the `<>` shorthand it can carry the `key`). A
+            // single-node body injects `key` into that node directly.
+            let body_render = if body.len() > 1 {
+                let key_attr = key_ts
+                    .as_ref()
+                    .map(|k| format!(" key={{{k}}}"))
+                    .unwrap_or_default();
+                format!("{pad}  <View{key_attr}>\n{inner}{pad}  </View>\n")
+            } else if let Some(k) = key_ts {
                 inject_key_into_first_element(inner, k)
             } else {
                 inner
             };
-            format!("{pad}{{{iterator_ts}.map({params} => (\n{inner_with_key}{pad}  ))}}\n")
+            format!("{pad}{{{iterator_ts}.map({params} => (\n{body_render}{pad}  ))}}\n")
         }
         RnNode::CustomComponent {
             tag_name,

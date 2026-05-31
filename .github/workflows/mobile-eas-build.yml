@@ -83,26 +83,45 @@ jobs:
     name: EAS cloud build (Android APK)
     runs-on: ubuntu-latest
     needs: bundle
-    # Skips cleanly until the maintainer adds the EXPO_TOKEN secret.
-    if: ${{ github.event_name == 'workflow_dispatch' && secrets.EXPO_TOKEN != '' }}
+    # NOTE: the `secrets` context is NOT allowed in a job-level `if:` (GitHub
+    # rejects the workflow), so gate on the event here and check EXPO_TOKEN in a
+    # step guard below. The job still skips cleanly until the maintainer adds the
+    # EXPO_TOKEN secret.
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/setup-node@v6
+      - name: Check EXPO_TOKEN is configured
+        id: guard
+        run: |
+          if [ -z "${EXPO_TOKEN}" ]; then
+            echo "EXPO_TOKEN secret not configured — skipping EAS build."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.guard.outputs.enabled == 'true'
+        uses: actions/checkout@v6
+      - if: steps.guard.outputs.enabled == 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - if: steps.guard.outputs.enabled == 'true'
+        uses: actions/setup-node@v6
         with:
           node-version: 20
 
       - name: Build vox CLI + generate Expo app
+        if: steps.guard.outputs.enabled == 'true'
         run: |
           cargo build -p vox-cli
           ./target/debug/vox build apps/vox-mental-tracker/src/main.vox \
             --target=mobile -o "$RUNNER_TEMP/voxapp"
 
       - name: Install eas-cli
+        if: steps.guard.outputs.enabled == 'true'
         run: npm install -g eas-cli
 
       - name: EAS build (preview / Android APK)
+        if: steps.guard.outputs.enabled == 'true'
         working-directory: ${{ runner.temp }}/voxapp
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build --platform android --profile preview --non-interactive --no-wait

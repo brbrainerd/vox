@@ -75,11 +75,18 @@ impl CodegenOptions {
             target: None,
             mode: BuildMode::App,
             strict_ai: crate::web_migration_env::ts_strict_ai_gate_enabled(),
-            no_emit_entry: std::env::var("VOX_WEB_NO_EMIT_ENTRY")
-                .ok()
-                .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true")),
+            no_emit_entry: crate::web_migration_env::no_emit_entry_gate_enabled(),
         }
     }
+}
+
+/// Whether the web target should skip emitting the bootstrap (env
+/// `VOX_WEB_NO_EMIT_ENTRY`). Public re-export of the dedicated web-migration env
+/// gate so the CLI resolves the same flag through one module instead of reading
+/// `VOX_*` ad hoc in consumer code.
+#[must_use]
+pub fn no_emit_entry_from_env() -> bool {
+    crate::web_migration_env::no_emit_entry_gate_enabled()
 }
 
 /// Generate TypeScript files from a Vox module (options from [`CodegenOptions::from_env`]).
