@@ -4,6 +4,7 @@ mod commands;
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
+use tauri::Manager;
 
 #[tokio::main]
 async fn main() {
@@ -37,14 +38,25 @@ async fn main() {
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
-        .manage(commands::mcp::McpToolHost::default())
+        .manage(std::sync::Arc::new(
+            commands::daemon::PersistentDaemon::default(),
+        ))
         .setup(|app| {
+            // Single persistent orchestrator daemon shared by tool calls,
+            // approvals, and the status/event streams.
+            let daemon = app
+                .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                .inner()
+                .clone();
             // B1: start the live orchestrator status stream, re-emitting each
             // snapshot as the "vox://orch-status" Tauri event.
-            commands::orchestrator::spawn_orchestrator_status_stream(app.handle().clone());
+            commands::orchestrator::spawn_orchestrator_status_stream(
+                app.handle().clone(),
+                daemon.clone(),
+            );
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
-            commands::orchestrator::spawn_agent_event_stream(app.handle().clone());
+            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

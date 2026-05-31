@@ -1,7 +1,12 @@
+use std::sync::Arc;
+
 use tauri::Emitter;
-use vox_cli_core::daemon_ipc::dispatch::{call_daemon, subscribe_daemon};
+use vox_cli_core::daemon_ipc::dispatch::call_daemon;
 use vox_foundation::protocol::orch_daemon_method;
+use vox_orchestrator::orch_daemon::OrchDaemonClient;
 use vox_package_types::manifest::VoxManifest;
+
+use crate::commands::daemon::PersistentDaemon;
 
 /// Tauri event channel carrying live orchestrator status snapshots to the UI.
 pub const ORCH_STATUS_EVENT: &str = "vox://orch-status";
@@ -12,19 +17,20 @@ pub const ORCH_STATUS_EVENT: &str = "vox://orch-status";
 /// Resilient by design: if the daemon is unavailable or the stream ends, the task
 /// simply exits without crashing the app. The emitted payload has the same shape
 /// as [`get_orchestrator_status`] (the GUI-mapped status object with `agent_count`).
-pub fn spawn_orchestrator_status_stream(app_handle: tauri::AppHandle) {
+pub fn spawn_orchestrator_status_stream(
+    app_handle: tauri::AppHandle,
+    daemon: Arc<PersistentDaemon>,
+) {
     tokio::spawn(async move {
+        let addr = match daemon.ensure().await {
+            Ok(a) => a,
+            Err(_) => return,
+        };
         let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
 
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
-            let _ = subscribe_daemon(
-                "vox-orchestrator-d",
-                orch_daemon_method::SUBSCRIBE,
-                serde_json::json!({}),
-                tx,
-            )
-            .await;
+            let _ = OrchDaemonClient::new(addr).subscribe(tx).await;
         });
 
         while let Some(raw) = rx.recv().await {
@@ -52,19 +58,17 @@ pub const AGENT_EVENTS_EVENT: &str = "vox://agent-events";
 /// design: if the daemon is unavailable or the stream ends, the task simply
 /// exits without crashing the app. Each emitted payload is the raw serialized
 /// `AgentEvent` forwarded verbatim from the daemon.
-pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle) {
+pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<PersistentDaemon>) {
     tokio::spawn(async move {
+        let addr = match daemon.ensure().await {
+            Ok(a) => a,
+            Err(_) => return,
+        };
         let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
 
         // Drive the subscription in its own task so we can drain `rx` concurrently.
         let producer = tokio::spawn(async move {
-            let _ = subscribe_daemon(
-                "vox-orchestrator-d",
-                orch_daemon_method::SUBSCRIBE_EVENTS,
-                serde_json::json!({}),
-                tx,
-            )
-            .await;
+            let _ = OrchDaemonClient::new(addr).subscribe_events(tx).await;
         });
 
         while let Some(value) = rx.recv().await {
