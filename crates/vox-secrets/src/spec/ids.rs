@@ -505,6 +505,12 @@ pub enum SecretId {
 }
 
 pub const ALL_CHAT_OPTIONALS: &[SecretId] = &[
+    // The OpenRouter key is the primary cloud credential (blocking in Cloud mode
+    // via CHAT_CLOUD_PRIMARY), but it must still be *observable* as an optional
+    // capability in Local/Dev mode like every sibling provider — otherwise
+    // `vox secrets status` silently omits it. This list never contributes to the
+    // blocking set, so OpenRouter remains non-blocking in Dev.
+    SecretId::OpenRouterApiKey,
     SecretId::GeminiApiKey,
     SecretId::OpenaiApiKey,
     SecretId::AnthropicApiKey,

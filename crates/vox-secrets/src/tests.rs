@@ -91,6 +91,23 @@ fn profile_requirements_are_dynamic() {
 }
 
 #[test]
+fn openrouter_visible_in_local_chat_optionals_but_not_blocking_in_dev() {
+    // `vox secrets status` (Local/Dev) must surface OpenRouter like sibling
+    // providers — it was silently omitted because it lived only in the Cloud
+    // blocking set, not in the optional/observable set.
+    let req = requirements_for_profile_mode(Workflow::Chat, Profile::Dev, RequirementMode::Local);
+    assert!(
+        req.optional.contains(&SecretId::OpenRouterApiKey),
+        "OpenRouter must be an observable optional in Local mode"
+    );
+    // Invariant preserved: still non-blocking in Dev (the primary-cloud credential
+    // is only blocking under Cloud mode).
+    assert!(req.blocking.is_empty(), "Local Chat must have no blocking requirements");
+    let dev = required_for_profile(Workflow::Chat, Profile::Dev);
+    assert!(!dev.contains(&SecretId::OpenRouterApiKey));
+}
+
+#[test]
 fn workflow_requirements_have_any_of_for_chat() {
     let req = requirements_for_profile_mode(Workflow::Chat, Profile::Dev, RequirementMode::Cloud);
     assert!(
