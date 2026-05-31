@@ -13974,6 +13974,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-orchestrator-types",
  "vox-package",
+ "vox-plugin-catalog",
  "vox-plugin-host",
  "vox-plugin-types",
  "vox-populi",

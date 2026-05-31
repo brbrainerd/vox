@@ -112,6 +112,8 @@ pub mod models_tools;
 pub use models_tools as models;
 pub mod skills_tools;
 pub use skills_tools as skills;
+pub mod plugin_tools;
+pub use plugin_tools as plugins;
 pub mod trace_tools;
 pub use trace_tools as trace;
 pub mod dei_tools;

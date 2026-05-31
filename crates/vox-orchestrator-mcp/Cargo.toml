@@ -42,6 +42,7 @@ vox-skills.workspace = true
 vox-openclaw-runtime.workspace = true
 vox-plugin-host.workspace = true
 vox-plugin-types.workspace = true
+vox-plugin-catalog.workspace = true
 vox-orchestrator-types.workspace = true
 
 vox-db.workspace = true

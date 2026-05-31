@@ -1146,6 +1146,18 @@ async fn handle_tool_call_inner(
         )),
         "vox_skill_parse" => Ok(crate::skills::skill_parse(serde_json::from_value(args)?)),
 
+        "vox_plugin_list" => Ok(crate::plugins::plugin_list(state).await),
+        "vox_plugin_catalog" => Ok(crate::plugins::plugin_catalog()),
+        "vox_plugin_info" => {
+            Ok(crate::plugins::plugin_info(state, serde_json::from_value(args)?).await)
+        }
+        "vox_plugin_install" => {
+            Ok(crate::plugins::plugin_install(state, serde_json::from_value(args)?).await)
+        }
+        "vox_plugin_remove" => {
+            Ok(crate::plugins::plugin_remove(state, serde_json::from_value(args)?).await)
+        }
+
         "vox_set_context" => {
             Ok(crate::mcp_context::set_context(state, serde_json::from_value(args)?).await)
         }

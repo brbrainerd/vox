@@ -47,9 +47,17 @@ pub struct SkillInfo {
     pub category: String,
     pub description: String,
     pub tools: Vec<String>,
+    /// Provenance tag: `"plugin:<id>"`, `"bundle"`, `"openclaw:<node>"`, or
+    /// `"local"`. Lets the UI distinguish marketplace-installed skills from
+    /// locally-authored / plugin-bundled ones.
+    pub source: String,
+    /// Permissions the skill requested at install time (e.g. `"network"`).
+    pub permissions: Vec<String>,
+    /// Free-form discovery tags from the manifest.
+    pub tags: Vec<String>,
 }
 
-fn to_info(m: vox_skills::SkillManifest) -> SkillInfo {
+fn to_info_with_source(m: vox_skills::SkillManifest, source: String) -> SkillInfo {
     SkillInfo {
         id: m.id,
         name: m.name,
@@ -57,7 +65,18 @@ fn to_info(m: vox_skills::SkillManifest) -> SkillInfo {
         category: m.category.to_string(),
         description: m.description,
         tools: m.tools,
+        source,
+        permissions: m
+            .permissions
+            .iter()
+            .map(|p| format!("{p:?}"))
+            .collect(),
+        tags: m.tags,
     }
+}
+
+fn to_info(m: vox_skills::SkillManifest) -> SkillInfo {
+    to_info_with_source(m, "local".to_string())
 }
 
 // ---------------------------------------------------------------------------
