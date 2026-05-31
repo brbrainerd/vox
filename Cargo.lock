@@ -13510,6 +13510,7 @@ dependencies = [
  "vox-db",
  "vox-foundation",
  "vox-orchestrator",
+ "vox-orchestrator-mcp",
  "vox-package-types",
  "vox-repository",
  "vox-search",

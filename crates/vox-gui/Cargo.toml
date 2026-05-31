@@ -15,6 +15,7 @@ vox-cli = { workspace = true }
 vox-cli-core = { workspace = true }
 vox-foundation = { workspace = true }
 vox-orchestrator = { workspace = true }
+vox-orchestrator-mcp = { workspace = true }
 vox-repository = { workspace = true }
 vox-package-types = { workspace = true }
 vox-config = { workspace = true }

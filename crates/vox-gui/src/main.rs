@@ -37,6 +37,7 @@ async fn main() {
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
+        .manage(commands::mcp::McpToolHost::default())
         .setup(|app| {
             // B1: start the live orchestrator status stream, re-emitting each
             // snapshot as the "vox://orch-status" Tauri event.
@@ -77,6 +78,7 @@ async fn main() {
             commands::runs::finish_gui_run,
             commands::runs::list_gui_runs,
             commands::runs::get_gui_run,
+            commands::mcp::invoke_mcp_tool,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

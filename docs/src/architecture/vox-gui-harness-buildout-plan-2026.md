@@ -235,6 +235,44 @@ purpose-built store, not "add persistence."
 
 **Deferred to B3:** `approval_ref` is a real nullable column but unwired until HITL.
 
+## B5 implementation log (2026-05-31)
+
+**Decision (transport).** Three options existed: (a) call `vox_orchestrator_mcp::handle_tool_call`
+as a library, (b) spawn `vox mcp` over rmcp JSON-RPC stdio, (c) add a tool-call method to
+`vox-orchestrator-d`. Path (c) is the most coherent long-term (reuses the GUI's existing
+`call_daemon` channel, no second orchestrator) **but** the daemon's `dispatch_request` lives in
+the vox-orchestrator library, which cannot reference `ServerState` (vox-orchestrator →
+vox-orchestrator-mcp would cycle) — so (c) needs a serve-API refactor. Chose **(a)** as the
+lowest-risk initial integration.
+
+**Landed + verified:**
+- `crates/vox-gui/Cargo.toml` — `vox-orchestrator-mcp` dep (L5→L3, downward; arch-check EXIT=0,
+  no new violation).
+- `crates/vox-gui/src/commands/mcp.rs` — `McpToolHost { OnceCell<ServerState> }` (built once via
+  `ServerState::new_full(load_config())` + optional `with_db_initialized`, reused across calls) and
+  `#[tauri::command] invoke_mcp_tool(tool, args)` → `handle_tool_call`, returning
+  `{ tool, is_error, result }` (`is_error` via `tool_json_envelope_is_error`); dispatch failures
+  surface as `Err`, never panic.
+- `crates/vox-gui/src/{commands/mod.rs,main.rs}` — module + `.manage(McpToolHost)` +
+  `invoke_mcp_tool` registration.
+- `crates/vox-gui/ui/src/transport.ts` — the `handler_kind === 'mcp'` dead-end (was a 64-exit
+  "not executable" error) now invokes `invoke_mcp_tool` and wraps the JSON envelope as
+  `ExecuteOutput` (exit 1 when `is_error`). CLI/IPC branches unchanged.
+- Verified: `cargo check -p vox-gui` clean, `cargo run -p vox-arch-check` EXIT=0, `vite build` passes.
+
+**Caveats / follow-ups:**
+- The integration test (`crates/vox-gui/tests/mcp_bridge_tests.rs`, calls read-only `vox_git_status`)
+  is `#[ignore]`d: `ServerState::new_full` spawns background pollers and reads `Vox.toml` relative to
+  CWD, unreliable in a default `cargo test`. Run with `cargo test -p vox-gui -- --ignored` from a repo
+  root. The wiring is compile-verified; `handle_tool_call` itself is library-tested.
+- **Two orchestrators**: this runs an in-process `ServerState` orchestrator alongside the GUI's
+  per-call spawned `vox-orchestrator-d`. Acceptable for read-only tools; the coherent convergence is
+  **path (c)** — add an `orch.tool_call` daemon method (needs the serve-API refactor) so the GUI
+  reuses one daemon. Tracked as a follow-up.
+- Dangerous tools (`vox_write_file`, `vox_run_shell`) require `"user_approval": true` in `args` or
+  `handle_tool_call` returns an RBAC_VIOLATION envelope — the GUI must set this when wiring a
+  destructive action's form.
+
 ## Sequencing and dependencies
 
 ```text

@@ -201,12 +201,16 @@ class VoxTransport {
       a.command === `vox ${name.replace(/^vox_/, '').replace(/_/g, ' ')}`
     );
     if (action?.handler_kind === 'mcp') {
+      const tool = action.mcp_name ?? canonical;
+      const result = await invoke<any>('invoke_mcp_tool', { tool, args });
+      const isError =
+        result != null &&
+        typeof result === 'object' &&
+        (result as { is_error?: boolean }).is_error === true;
       return {
-        exit_code: 64,
-        stdout: '',
-        stderr:
-          `Operation "${name}" is MCP-only and not executable via the GUI sidecar. ` +
-          'Use the MCP server integration path or add an IPC handler for this action.',
+        exit_code: isError ? 1 : 0,
+        stdout: JSON.stringify(result),
+        stderr: '',
       };
     }
     const path = action?.cli_path ?? (await this.resolvePath(name));

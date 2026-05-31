@@ -5,6 +5,7 @@ pub mod catalog;
 pub mod control_plane;
 pub mod dynamic_mapping;
 pub mod execute;
+pub mod mcp;
 pub mod memory;
 pub mod models;
 pub mod orchestrator;
