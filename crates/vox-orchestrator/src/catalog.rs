@@ -506,6 +506,7 @@ pub async fn discover_populi_mesh_models() -> Result<Vec<ModelSpec>, anyhow::Err
                     ],
                     capabilities: ModelCapabilities {
                         tier: crate::models::ModelTier::Local,
+                        writes_vox: true,
                         ..Default::default()
                     },
                     supported_parameters: vec![],
@@ -578,6 +579,7 @@ impl ModelCatalog for MensCatalog {
                         strengths: vec![StrengthTag::Generalist, StrengthTag::Codegen],
                         capabilities: ModelCapabilities {
                             tier: crate::models::ModelTier::Local,
+                            writes_vox: true,
                             ..Default::default()
                         },
                         supported_parameters: vec![],

@@ -437,6 +437,67 @@ fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
 }
 
 #[test]
+fn mcp_request_to_canonical_decision_to_route_output_parity() {
+    use vox_actor_runtime::model_resolution::ChatRouteBackend;
+    use vox_actor_runtime::model_resolution::backend_telemetry_labels;
+    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    // SAFETY: env mutations are serialized by `INFERENCE_PROFILE_TEST_LOCK`.
+    unsafe {
+        std::env::set_var("OPENROUTER_API_KEY", "test-key");
+    }
+
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        tiny_registry_with_free_and_paid();
+
+    let request = McpChatModelResolution {
+        complexity: 5,
+        task_category: vox_orchestrator::types::TaskCategory::CodeGen,
+        allow_cheapest_fallback: true,
+        ..Default::default()
+    };
+
+    let (resolved_model, _) =
+        resolve_mcp_chat_model_sync(&orch, "generate a parser", None, request.clone(), None)
+            .expect("canonical decision");
+    let canonical_decision_model_id = resolved_model.id.clone();
+
+    let (sticky_reroute_model, _) = resolve_mcp_chat_model_sync(
+        &orch,
+        "generate a parser",
+        Some(&canonical_decision_model_id),
+        request,
+        None,
+    )
+    .expect("sticky route output");
+
+    assert_eq!(
+        sticky_reroute_model.id, canonical_decision_model_id,
+        "Route output must preserve canonical MCP decision model id"
+    );
+
+    let route_backend = route_backend_for_model(&sticky_reroute_model);
+    let expected_labels = backend_telemetry_labels(match route_backend {
+        ModelRouteBackend::GeminiDirect => ChatRouteBackend::GeminiDirect,
+        ModelRouteBackend::OpenRouter => ChatRouteBackend::OpenRouter,
+        ModelRouteBackend::Ollama => ChatRouteBackend::Ollama,
+        ModelRouteBackend::PopuliMesh => ChatRouteBackend::PopuliMesh,
+        ModelRouteBackend::CascadeFallback => ChatRouteBackend::CascadeFallback,
+        ModelRouteBackend::VoxLocal => ChatRouteBackend::VoxLocal,
+    });
+    assert_eq!(
+        mcp_provider_telemetry_labels(&sticky_reroute_model.provider_type),
+        expected_labels,
+        "Route telemetry output must match canonical route backend for resolved model"
+    );
+    unsafe {
+        std::env::remove_var("OPENROUTER_API_KEY");
+    }
+}
+
+#[test]
 fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
     let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
     unsafe { std::env::set_var("vox_populi::inference_PROFILE", "desktop_ollama") };

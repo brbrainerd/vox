@@ -15,10 +15,32 @@
 //! `rust_only`, and `command`.
 
 use anyhow::{Context, Result, bail};
-use clap::Args;
+use clap::{Args, Subcommand};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use crate::commands::audit_effort::EffortArgs;
+use crate::commands::audit_route::EffortRouteArgs;
+
+/// Nested subcommands under `vox audit <thing>`.
+///
+/// Today this is just `effort` (F1). The intent is for additional umbrella
+/// gates to graduate here over time — see AGENTS.md §10.2 ("vox audit" umbrella
+/// SSOT) for the contract.
+#[derive(Subcommand, Debug, Clone)]
+pub enum AuditSubcommand {
+    /// AI-judged audit of recent git commit history (token-spend estimates +
+    /// remediation suggestions). See
+    /// `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`.
+    Effort(EffortArgs),
+    /// Route effort-audit findings to verified, drafted enforcement-artifact
+    /// proposals (AGENTS.md rule / lint detector / arch rule / CI gate / corpus
+    /// example / Vox script). See
+    /// `docs/superpowers/specs/2026-05-30-effort-route-design.md`.
+    #[command(name = "effort-route")]
+    EffortRoute(EffortRouteArgs),
+}
 
 // ---------------------------------------------------------------------------
 // Manifest types
@@ -60,6 +82,12 @@ pub struct CheckEntry {
 ///     `vox_audit::registry()` for the v1.0 LLM-target CR-L gates (CR-L0..L8).
 #[derive(Args, Debug, Clone)]
 pub struct AuditArgs {
+    /// Optional nested subcommand (`vox audit effort`, future
+    /// `vox audit <thing>` slots). When present, the flag-based
+    /// check-targets / CR-L dispatch path is bypassed entirely.
+    #[command(subcommand)]
+    pub command: Option<AuditSubcommand>,
+
     /// Filter to a specific category (lint, test, audit, doc, arch).
     /// Ignored when `--gate` is set.
     #[arg(long, value_name = "CATEGORY")]
@@ -477,6 +505,7 @@ mod tests {
         ];
 
         let args = AuditArgs {
+            command: None,
             category: Some("lint".into()),
             list: false,
             dry_run: false,
@@ -499,6 +528,7 @@ mod tests {
 
     fn args_for_gate(gate: &str) -> AuditArgs {
         AuditArgs {
+            command: None,
             category: None,
             list: false,
             dry_run: false,
@@ -629,6 +659,7 @@ mod tests {
         ];
 
         let args = AuditArgs {
+            command: None,
             category: None,
             list: false,
             dry_run: false,

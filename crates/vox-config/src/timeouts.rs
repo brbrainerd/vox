@@ -81,6 +81,10 @@ pub const OP_STANDARD: Duration = D_60S;
 /// Long-running operation budget.
 pub const OP_LONG: Duration = D_300S;
 
+/// Per-commit LLM judge timeout for `vox audit effort`. See
+/// `docs/superpowers/specs/2026-05-28-effort-audit-core-design.md` §4.4.
+pub const EFFORT_AUDIT_JUDGE_TIMEOUT: Duration = D_60S;
+
 // ──────────────────────────────── lease / retention ────────────────────────────────
 
 /// One-hour lease (heartbeats, schedule windows).
@@ -96,5 +100,10 @@ mod tests {
         assert_eq!(HTTP_REQUEST, Duration::from_secs(30));
         assert_eq!(POLL_TICK_FAST, Duration::from_millis(100));
         assert_eq!(LEASE_HOUR, Duration::from_secs(3600));
+    }
+
+    #[test]
+    fn effort_audit_judge_timeout_is_60s() {
+        assert_eq!(EFFORT_AUDIT_JUDGE_TIMEOUT, Duration::from_secs(60));
     }
 }

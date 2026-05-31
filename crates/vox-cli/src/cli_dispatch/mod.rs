@@ -134,7 +134,19 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             run_review_subcommand(cmd).await?;
         }
         Cli::Audit { args } => {
-            crate::commands::audit::run(&args)?;
+            // F1: route the nested `vox audit effort` subcommand on the async
+            // path; the flag-based check-targets / CR-L dispatch stays sync.
+            match args.command.clone() {
+                Some(crate::commands::audit::AuditSubcommand::Effort(eff)) => {
+                    crate::commands::audit_effort::run(eff).await?;
+                }
+                Some(crate::commands::audit::AuditSubcommand::EffortRoute(route)) => {
+                    crate::commands::audit_route::run(route).await?;
+                }
+                None => {
+                    crate::commands::audit::run(&args)?;
+                }
+            }
         }
         Cli::Ci { cmd } => {
             crate::commands::ci::run(cmd).await?;

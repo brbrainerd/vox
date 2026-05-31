@@ -57,6 +57,27 @@ Manually-maintained files that **are** safe to edit:
 - `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
 - Individual ADR / architecture / how-to / tutorial / reference markdown files — these are the **sources** the generators read from.
 
+## Authored Markdown Frontmatter (Required)
+
+Every Markdown file you **create or substantially author** under `docs/src/` (excluding the auto-generated files above and `docs/src/archive/`) MUST begin with a YAML frontmatter block. This is not optional: the `vox-doc-pipeline` lint runs in the pre-push hook and on CI, and a missing or malformed block blocks the merge.
+
+Minimum required keys (full template and the canonical `category` / `status` vocabularies live in the SSOT: [`docs/src/contributors/documentation-governance.md` §Frontmatter](docs/src/contributors/documentation-governance.md)):
+
+```md
+---
+title: "Page title"
+description: "One specific sentence about what this page covers."
+category: "architecture"   # one of the canonical category values in the governance doc
+---
+```
+
+Rules for any agent writing docs:
+- **Write the frontmatter as part of creating the file** — never author the body first and leave the block to a later pass. A new `.md` without frontmatter is an incomplete file.
+- Do **not** hand-add `last_updated` — the pipeline derives it from Git history.
+- Pick the `category` from the governance vocabulary; add `status` when the shipped-vs-aspirational distinction matters to readers.
+- Verify before pushing with the scoped lint: `cargo run -p vox-doc-pipeline -- --lint-only --paths <your-file>.md` (or just let the fast pre-push hook's scoped doc-lint catch it).
+- Fenced `vox` code blocks in docs are compiled as doctests. Make them compile, or — only when the snippet is a genuine excerpt that depends on out-of-file symbols (inlining them would create a stub or a split-brain copy) — mark the block with a leading `// vox:skip` and a one-line reason.
+
 ## AI Context Exclusion (SSOT)
 
 `.voxignore` is the **single source of truth** for what files and directories should be excluded from AI context.
@@ -97,6 +118,33 @@ API key lifecycle checklist:
 
 All cryptographic logic MUST use the `vox-crypto` crate. We explicitly ban AEGIS, `ring`, `zig`-chains, and any wrapper dragging in `cmake` or `nasm` for C-assembly optimization on Windows. Pure-Rust `chacha20poly1305` is standard for AEAD. See:
 - Policy: [`docs/src/architecture/cryptography-ssot-2026.md`](docs/src/architecture/cryptography-ssot-2026.md)
+
+## `vox audit` Umbrella (SSOT)
+
+The unified `vox audit` umbrella hosts:
+
+- `vox audit code` — `vox-code-audit` source-policy detectors
+- `vox audit arch` — `vox-arch-check`
+- `vox audit retirement` — `vox ci retirement-audit` (planned per CR-L6)
+- `vox audit effort` — AI-judged commit history audit (vox-effort-audit)
+- `vox audit effort-route` — routes audit findings to verified enforcement-artifact proposals (vox-effort-route)
+
+New audit subcommands MUST emit findings JSONL with `schema_version` and a per-finding discriminator so downstream tooling can multiplex.
+
+## Model-Agnostic LLM Boundary (Required, SSOT)
+
+All LLM calls in this workspace MUST go through the model-agnostic facade at `vox_actor_runtime::llm` (`infer_with_retry`, `llm_chat`, `llm_stream`, `llm_embed`). Do NOT hardcode a vendor hostname (`api.anthropic.com`, `api.openai.com`, `generativelanguage.googleapis.com`, etc.) and do NOT instantiate a vendor SDK directly in workspace code.
+
+Model selection lives in `vox-orchestrator::models::{registry, select, autonomic}` and is driven by config + policy. A new model — Claude, MENS revision, OpenAI, Mistral, Cohere, or anything future — slots in by registering a `ModelRegistryEntry` with a per-task-class score, NOT by editing call sites. **MENS revisions are first-class candidates** evaluated on the same scoring axes (latency, cost-per-token, quality-score, locality) as any external model.
+
+**Why this is a normative cross-tool rule.** As frontier models ship (now monthly across providers), this boundary turns "adopt the better model" into a one-line config change instead of a workspace-wide sweep. Token-waste audits like `vox audit effort` (planned per [`docs/superpowers/specs/2026-05-28-effort-audit-core-design.md`](docs/superpowers/specs/2026-05-28-effort-audit-core-design.md)) self-improve when registry selection picks up a better-scoring judge — but only if every call site stays on the facade.
+
+**Enforcement.**
+- `vox-code-audit` detector `llm_provider_call` (at [`crates/vox-code-audit/src/detectors/llm_provider_call.rs`](crates/vox-code-audit/src/detectors/llm_provider_call.rs)) flags violations as `Error`. Hostnames already covered: Anthropic, OpenAI, Cohere, Mistral, Together, Replicate, HuggingFace, Fireworks, Perplexity, Google (generativelanguage + aiplatform), OpenRouter. Add new provider hostnames to that detector when they're integrated.
+- Languages covered: Vox, Rust, TypeScript.
+
+**Override (rare).** Only via a documented inline deprecation marker during a tracked migration:
+`// vox-deprecated-since="X.Y.Z" retire-by="X.Y.Z" reason="..." canonical="vox_actor_runtime::llm"`. No silent exceptions.
 
 ## VoxScript-First Glue Code (Required)
 
@@ -225,6 +273,27 @@ In Vox, tests are not just regression catchers — they are training data for th
 > **Canonical budgets:** `contracts/budgets/test-tier-budgets.v1.yaml`
 > **Full tier spec:** `docs/superpowers/specs/2026-05-27-test-suite-perf-and-gate-tiers-design.md §4`
 > **Per-flag details:** `docs/src/contributors/local-ci-pre-push.md`
+
+**Run CI locally first — do NOT use GitHub Actions as your primary feedback loop (Required).**
+GitHub-hosted CI is slow (minutes-to-tens-of-minutes per push) and burns runner
+minutes on iteration noise. Before every push, reproduce the relevant gates locally
+and only push once they are green. We have Docker available, so the full GitHub
+workflow suite can be run locally with `act`:
+
+- **Reproduce the actual GitHub jobs in Docker:** `vox ci pre-push --act` runs the
+  workflow jobs via [nektos/act](https://github.com/nektos/act) in containers that
+  mirror the CI runner image (secrets come from the git-ignored `.secrets` file).
+  Use this to catch container/runner-only failures (e.g. `lychee` check-links,
+  arch-check evidence-ledger) before they ever reach GitHub.
+- **Faster inner loop (no Docker):** `vox ci pre-push --full` for the native gate
+  tiers below; scope to changed crates with `--since <ref>`.
+- **Per-job spot-checks:** run the exact command a failing job runs (e.g.
+  `cargo run -q -p vox-arch-check`, `cargo run -q -p vox-cli -- ci check-links`)
+  rather than re-pushing to see if it passes.
+
+Push only after the local equivalent of the gates you expect to run is green. Treat
+a red GitHub check whose local equivalent passes as a runner/environment difference
+to reproduce locally (via `--act`), not as something to fix by repeated pushes.
 
 Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo run -q -p vox-cli -- ci install-hooks`.
 

@@ -98,6 +98,14 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `orch.cache.miss` | orchestrator session | Optional | LLM provider prompt-cache lookup missed; enables online miss-rate computation alongside `cache_read_input_tokens` on `ModelCallEvent` (`METRIC_TYPE_ORCH_CACHE_MISS`). |
 | `orch.task.cancelled` | orchestrator session | Optional | Task was explicitly cancelled mid-execution (user interrupt, parent timeout, or lease loss) (`METRIC_TYPE_ORCH_TASK_CANCELLED`). |
 | `vox.doctor.project_check` | `doctor:<path>` | Optional | CR-L7: per-`vox doctor --project <path>` health-check run — structured outcome alongside human-readable output (`METRIC_TYPE_DOCTOR_PROJECT_CHECK`). |
+| `audit.effort.run.started` | `audit:<run_id>` | Optional | `vox audit effort` run lifecycle: scan started (`METRIC_TYPE_AUDIT_EFFORT_RUN_STARTED`). |
+| `audit.effort.run.completed` | `audit:<run_id>` | Optional; duration in metadata | `vox audit effort` run lifecycle: scan completed successfully (`METRIC_TYPE_AUDIT_EFFORT_RUN_COMPLETED`). |
+| `audit.effort.commit.judged` | `audit:<run_id>` | Optional | `vox audit effort`: one commit scored/classified during a run (`METRIC_TYPE_AUDIT_EFFORT_COMMIT_JUDGED`). |
+| `audit.route.run.started` | `audit:<run_id>` | Optional | `vox audit effort-route` run lifecycle: routing started (`METRIC_TYPE_AUDIT_ROUTE_RUN_STARTED`). |
+| `audit.route.run.completed` | `audit:<run_id>` | Optional; duration in metadata | `vox audit effort-route` run lifecycle: routing completed successfully (`METRIC_TYPE_AUDIT_ROUTE_RUN_COMPLETED`). |
+| `audit.route.run.failed` | `audit:<run_id>` | Optional | `vox audit effort-route` run lifecycle: routing failed before completion (`METRIC_TYPE_AUDIT_ROUTE_RUN_FAILED`). |
+| `audit.route.cluster.decided` | `audit:<run_id>` | Optional | `vox audit effort-route`: one cluster-and-route decision recorded (`METRIC_TYPE_AUDIT_ROUTE_CLUSTER_DECIDED`). |
+| `audit.effort.run.failed` | `audit:<run_id>` | Optional | `vox audit effort` run lifecycle: scan failed before completion (`METRIC_TYPE_AUDIT_EFFORT_RUN_FAILED`). |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 

@@ -106,6 +106,8 @@ vox-inference             = { path = "crates/vox-inference" }
 
 vox-mesh-policy        = { path = "crates/vox-mesh-policy" }
 
+vox-effort-audit          = { path = "crates/vox-effort-audit" }
+vox-effort-route          = { path = "crates/vox-effort-route" }
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-dei-shim              = { path = "crates/vox-dei-shim" }
