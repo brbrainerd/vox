@@ -16,7 +16,7 @@ pub async fn run_train(
     output_dir: PathBuf,
     rank: Option<usize>,
     alpha: Option<f32>,
-    seq_len: usize,
+    seq_len: Option<usize>,
     batch_size: Option<usize>,
     grad_accum: Option<usize>,
     resume: Option<PathBuf>,
@@ -79,7 +79,7 @@ pub async fn run_train(
             spec.max_budget_usd = _max_budget;
             spec.max_runtime_secs = _max_runtime_secs;
             spec.preset = preset.clone().unwrap_or_else(|| "auto".to_string());
-            spec.seq_len = seq_len;
+            spec.seq_len = seq_len.unwrap_or(512);
             spec.batch_size = batch_size.unwrap_or(4);
             spec.epochs = epochs.unwrap_or(3);
             spec.num_samples = 5000;
@@ -180,7 +180,12 @@ pub async fn run_train(
 
     let mut effective_min_rating = min_rating;
     let mut effective_ce_last_k = qlora_ce_last_k;
-    let mut effective_seq_len = seq_len;
+    // Resolution order for memory-sizing knobs: explicit CLI > domain profile >
+    // VRAM-aware budget > preset fallback (applied in gpu.rs). `None` means
+    // "not yet set"; each stage fills only what an earlier stage left unset.
+    let mut effective_seq_len: Option<usize> = seq_len;
+    let mut effective_batch_size: Option<usize> = batch_size;
+    let mut effective_grad_accum: Option<usize> = grad_accum;
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -211,7 +216,10 @@ pub async fn run_train(
 
                 effective_min_rating = profile.min_rating.or(min_rating);
                 effective_ce_last_k = profile.ce_last_k.unwrap_or(qlora_ce_last_k);
-                effective_seq_len = profile.seq_len.unwrap_or(seq_len);
+                // Domain seq_len fills the slot only when the user did not pass --seq-len.
+                if effective_seq_len.is_none() {
+                    effective_seq_len = profile.seq_len;
+                }
                 effective_validation_split_ratio = profile
                     .validation_split_ratio
                     .unwrap_or(validation_split_ratio);
@@ -239,6 +247,54 @@ pub async fn run_train(
             }
             Err(e) => {
                 anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
+            }
+        }
+    }
+
+    // ── VRAM-aware memory budgeting ──────────────────────────────────────────
+    // When seq_len / batch_size / grad_accum were not pinned by the user or a
+    // domain profile, size them from the detected VRAM and model size so the run
+    // fits without OOM and still maximizes utilization. Only applies on CUDA.
+    {
+        use owo_colors::OwoColorize;
+        let device_is_cuda = vox_populi::mens::normalize_device(&device)
+            .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
+            .unwrap_or(false);
+        if device_is_cuda {
+            let model_hint = model
+                .as_deref()
+                .unwrap_or(vox_populi::mens::DEFAULT_MODEL_ID);
+            let params_b =
+                vox_populi::mens::tensor::memory_budget::params_b_from_model_hint(model_hint)
+                    .unwrap_or(4.0);
+            if let Some(vram_gb) = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb() {
+                let plan =
+                    vox_populi::mens::tensor::memory_budget::plan(vram_gb as f64, params_b);
+                eprintln!("  {} VRAM budget: {}", "⚙".cyan(), plan.rationale);
+                if plan.over_budget {
+                    eprintln!(
+                        "  {} {:.1}B params is tight for {:.0} GiB VRAM — using the smallest \
+                         safe config. If it still OOMs, train a smaller base model.",
+                        "⚠".yellow(),
+                        params_b,
+                        vram_gb
+                    );
+                }
+                if effective_seq_len.is_none() {
+                    effective_seq_len = Some(plan.seq_len);
+                }
+                if effective_batch_size.is_none() {
+                    effective_batch_size = Some(plan.batch_size);
+                }
+                if effective_grad_accum.is_none() {
+                    effective_grad_accum = Some(plan.grad_accum);
+                }
+            } else {
+                eprintln!(
+                    "  {} Could not detect VRAM; using preset defaults. Set VOX_VRAM_OVERRIDE_GB \
+                     to enable VRAM-aware sizing.",
+                    "⚙".cyan()
+                );
             }
         }
     }
@@ -282,9 +338,9 @@ pub async fn run_train(
         output_dir,
         rank,
         alpha,
-        Some(effective_seq_len),
-        batch_size,
-        grad_accum,
+        effective_seq_len,
+        effective_batch_size,
+        effective_grad_accum,
         resume,
         epochs,
         lr,

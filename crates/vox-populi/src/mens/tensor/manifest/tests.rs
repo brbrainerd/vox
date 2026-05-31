@@ -31,6 +31,7 @@ fn initial_training_manifest_burn_wires_kernel_and_candle_defaults() {
         trajectory_quality_floor: None,
         trajectory_quality_boost: 1.05,
         contamination_score: None,
+        launch_argv: Vec::new(),
     };
     let m = initial_training_manifest(
         ArchParams {
@@ -88,6 +89,7 @@ fn initial_training_manifest_candle_sets_proxy_and_objective() {
         trajectory_quality_floor: None,
         trajectory_quality_boost: 1.05,
         contamination_score: None,
+        launch_argv: Vec::new(),
     };
     let tok = Some("tokenizer.json".to_string());
     let m_stack = initial_training_manifest(
@@ -265,6 +267,7 @@ fn training_manifest_roundtrip_grad_accum() {
         trajectory_quality_floor: None,
         trajectory_quality_boost: 1.05,
         contamination_score: None,
+        launch_argv: Vec::new(),
     };
     write_training_manifest(dir.path(), m).expect("write");
     let loaded = load_manifest(dir.path()).expect("load").expect("some");
