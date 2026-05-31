@@ -26,3 +26,5 @@ artifact contract — the `u8` blobs are uninterpretable without it.
 - Downstream loaders (SP-2 inference) reconstruct `QTensor`s from the `u8` bytes + metadata
   via candle's `qtensor_from_ggml` / `QTensor::new`.
 - Artifacts remain hash-addressable for the CAS/bundle machinery.
+
+The `ggml_dtype` field is the Debug string of candle's `GgmlDType` (e.g. `Q4K`, `Q8_0`, `F32`). candle exposes no `FromStr` for `GgmlDType`, so the SP-2 reader must maintain an explicit `&str -> GgmlDType` mapping. This string is the round-trip contract between writer and reader.

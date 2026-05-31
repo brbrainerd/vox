@@ -8,10 +8,8 @@ license.workspace = true
 [dependencies]
 candle-core = { workspace = true }
 safetensors = { workspace = true }
-vox-hf-layout = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 workspace-hack = { workspace = true }

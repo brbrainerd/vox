@@ -37,6 +37,24 @@ pub fn quantize(req: &QuantizeRequest) -> Result<QuantReport, QuantizeError> {
         let src_bytes = (params * 4) as u64;
         total_src += src_bytes;
 
+        // A 0-D / scalar tensor has no last dimension to align against; a
+        // last_dim of 0 spuriously satisfies the 256-divisibility check and
+        // would route to a k-quant. Keep such tensors in F32.
+        if shape.is_empty() {
+            writer.add_f32(name, &t)?;
+            total_quant += src_bytes;
+            stats.push(TensorQuantStat {
+                name: name.clone(),
+                src_dtype: "F32".into(),
+                target_dtype: "F32".into(),
+                params,
+                mse: 0.0,
+                max_abs: 0.0,
+                fallback: false,
+            });
+            continue;
+        }
+
         let role = TensorRole::from_key(name);
         let desired = req.mixture.target_for(role);
 
@@ -204,5 +222,57 @@ mod tests {
         let report = quantize(&req).unwrap();
         assert_eq!(report.tensors.len(), 2);
         assert!(report.tensors.iter().all(|s| s.target_dtype == "Q4K"));
+    }
+
+    #[test]
+    fn quantizes_with_alignment_fallback() {
+        let indir = tempfile::tempdir().unwrap();
+        let outdir = tempfile::tempdir().unwrap();
+        let dev = Device::Cpu;
+        let mut t: HashMap<String, Tensor> = HashMap::new();
+        // last_dim 96: 96 % 256 != 0 but 96 % 32 == 0 -> Q8_0 fallback.
+        t.insert(
+            "model.language_model.layers.0.mlp.gate_proj.weight".into(),
+            Tensor::randn(0f32, 1f32, (256, 96), &dev).unwrap(),
+        );
+        // last_dim 100: divisible by neither 256 nor 32 -> F32 fallback.
+        t.insert(
+            "model.language_model.layers.0.mlp.up_proj.weight".into(),
+            Tensor::randn(0f32, 1f32, (256, 100), &dev).unwrap(),
+        );
+        // A norm weight: KEEP-F32 by role.
+        t.insert(
+            "model.language_model.norm.weight".into(),
+            Tensor::ones((256,), DType::F32, &dev).unwrap(),
+        );
+        candle_core::safetensors::save(&t, indir.path().join("model.safetensors")).unwrap();
+        std::fs::write(
+            indir.path().join("config.json"),
+            r#"{"model_type":"qwen3_5","architectures":["Qwen35ForCausalLM"],"hidden_size":256,"num_attention_heads":8,"num_hidden_layers":1,"vocab_size":512}"#,
+        )
+        .unwrap();
+
+        let req = QuantizeRequest {
+            input_dir: indir.path().to_path_buf(),
+            output_dir: outdir.path().to_path_buf(),
+            mixture: QuantMixture::Q4KM,
+            verify: true,
+            device: DevicePref::Cpu,
+        };
+        let report = quantize(&req).unwrap();
+        let by_name: std::collections::HashMap<_, _> =
+            report.tensors.iter().map(|s| (s.name.as_str(), s)).collect();
+
+        let gate = by_name["model.language_model.layers.0.mlp.gate_proj.weight"];
+        assert_eq!(gate.target_dtype, "Q8_0");
+        assert!(gate.fallback);
+
+        let up = by_name["model.language_model.layers.0.mlp.up_proj.weight"];
+        assert_eq!(up.target_dtype, "F32");
+        assert!(up.fallback);
+
+        let norm = by_name["model.language_model.norm.weight"];
+        assert_eq!(norm.target_dtype, "F32");
+        assert!(!norm.fallback);
     }
 }
