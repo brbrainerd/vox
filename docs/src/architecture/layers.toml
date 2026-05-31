@@ -374,8 +374,8 @@ vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 # vox-mesh-policy — promoted to [crates] 2026-05-24; renamed from vox-mesh
 # vox-distributed-training, vox-inference — promoted to [crates] (now on disk)
+# vox-dashboard — retired; migrated into the shipped vox-gui Tauri surface (ADR-037). No longer a planned crate.
 vox-cli-ci               = { plan = "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", layer = 3 }
-vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
 

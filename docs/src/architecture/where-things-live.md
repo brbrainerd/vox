@@ -344,5 +344,4 @@ These will be folded into `vox-scientia` sub-modules when implemented (Phase I o
 | `vox-ssg` | Static site generator for Vox docs surface. |
 | `vox-exec-grammar` | AST parser and risk classifier for shell/Vox command invocations. |
 | `vox-install-policy` | SSOT constants for Vox install/update surfaces. |
-| `vox-dashboard` | Local Axum-served orchestration dashboard (SPA host). |
 | `vox-mens-eval` | Mn-T12 eval harness types (`CompileVerdict`). |

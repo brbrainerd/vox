@@ -1,5 +1,4 @@
 scripts/arch-check.vox
-scripts/check_dashboard_ssot.vox
 scripts/ci-proximity-drift.vox
 scripts/ci/compile_kernels.vox
 scripts/ci/corpus_prep.vox

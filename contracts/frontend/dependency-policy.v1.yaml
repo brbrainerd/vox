@@ -9,7 +9,7 @@ policy:
     max: 8
 
 surfaces:
-  - path: crates/vox-dashboard/package.json
+  - path: crates/vox-gui/ui/package.json
   - path: apps/interop/marquee_app/package.json
   - path: apps/experimental/visualizer/package.json
   - path: tests/fixtures/frontend/test_app_bundle/app/package.json
