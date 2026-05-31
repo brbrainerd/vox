@@ -152,16 +152,43 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     hydrate();
   }, []);
 
+  const [advanced, setAdvanced] = useState(false);
+
   const updateRouting = async (patch: Partial<typeof routing>) => {
     const next = { ...routing, ...patch };
     setRouting(next);
     try {
       await voxTransport.setRoutingPriority(next);
-      pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY updated for this session' });
+      pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY persisted' });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err) });
     }
   };
+
+  // The three user-facing characteristics map onto the 6-axis priority:
+  //   intelligence -> precision, efficiency -> efficiency, responsiveness -> latency.
+  // availability / balance / mobile are system-derived and preserved as-is.
+  const applyEmphasis = (e: { intelligence: number; efficiency: number; responsiveness: number }) =>
+    updateRouting({ precision: e.intelligence, efficiency: e.efficiency, latency: e.responsiveness });
+
+  const EMPHASIS_PRESETS: [string, { intelligence: number; efficiency: number; responsiveness: number }][] = [
+    ['Balanced',       { intelligence: 33, efficiency: 33, responsiveness: 34 }],
+    ['Intelligence',   { intelligence: 70, efficiency: 15, responsiveness: 15 }],
+    ['Efficiency',     { intelligence: 15, efficiency: 70, responsiveness: 15 }],
+    ['Responsiveness', { intelligence: 15, efficiency: 15, responsiveness: 70 }],
+  ];
+
+  // Reverse-map current 6-axis priority into the 3 user-facing characteristics.
+  const emphasis = {
+    intelligence: routing.precision,
+    efficiency: routing.efficiency,
+    responsiveness: routing.latency,
+  };
+  const activePreset = EMPHASIS_PRESETS.find(([, p]) =>
+    p.intelligence === emphasis.intelligence &&
+    p.efficiency === emphasis.efficiency &&
+    p.responsiveness === emphasis.responsiveness,
+  )?.[0] ?? null;
 
   return (
     <div className="grid grid-cols-12 gap-5">
@@ -234,8 +261,46 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
         {section === 'routing' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Model routing</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Intelligence / efficiency / latency tradeoffs (maps to VOX_AUTO_ROUTING_PRIORITY)</p>
-            <div className="mt-4 space-y-3">
+            <p className="mt-0.5 text-[11px] text-zinc-500">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
+
+            {/* Emphasis: presets + three labeled characteristic sliders */}
+            <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <div className="font-display text-[12px] tracking-[0.12em] uppercase text-zinc-300">Emphasis</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                {EMPHASIS_PRESETS.map(([name, preset]) => (
+                  <button
+                    key={name}
+                    onClick={() => applyEmphasis(preset)}
+                    className={`rounded-lg border p-2 text-center transition ${
+                      activePreset === name ? 'border-brass/40 bg-brass/[0.05] text-zinc-50' : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/15 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="font-display text-[11px] tracking-wide">{name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 space-y-3">
+                <Row label="Intelligence" hint="Prefer higher-capability models">
+                  <RangeInline value={emphasis.intelligence} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, intelligence: v })} />
+                </Row>
+                <Row label="Efficiency" hint="Prefer cheaper models when viable">
+                  <RangeInline value={emphasis.efficiency} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, efficiency: v })} />
+                </Row>
+                <Row label="Responsiveness" hint="Prefer faster p50 models">
+                  <RangeInline value={emphasis.responsiveness} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, responsiveness: v })} />
+                </Row>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setAdvanced(a => !a)}
+              className="mt-4 font-display text-[11px] uppercase tracking-[0.15em] text-zinc-500 hover:text-zinc-300"
+            >
+              {advanced ? '▾ Hide advanced axes' : '▸ Advanced (all 6 axes)'}
+            </button>
+
+            {advanced && (
+            <div className="mt-3 space-y-3">
               <Row label="Efficiency (cost)" hint="Prefer cheaper models when viable">
                 <RangeInline value={routing.efficiency} min={0} max={100} onChange={v => updateRouting({ efficiency: v })} />
               </Row>
@@ -255,6 +320,7 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
                 <RangeInline value={routing.mobile} min={0} max={100} onChange={v => updateRouting({ mobile: v })} />
               </Row>
             </div>
+            )}
           </>
         )}
 

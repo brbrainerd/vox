@@ -44,6 +44,44 @@ impl From<AutoRoutingPriority> for RoutingPriorityDto {
     }
 }
 
+/// Parse a `VOX_AUTO_ROUTING_PRIORITY`-style CSV (`efficiency=25,precision=30,...`)
+/// onto a base priority, leaving any axes not present in the CSV untouched.
+fn apply_routing_csv(mut base: RoutingPriorityDto, csv: &str) -> RoutingPriorityDto {
+    for part in csv.split(',') {
+        let mut it = part.splitn(2, '=');
+        let key = it.next().map(str::trim).unwrap_or("").to_ascii_lowercase();
+        let Ok(parsed) = it.next().map(str::trim).unwrap_or("").parse::<u8>() else {
+            continue;
+        };
+        match key.as_str() {
+            "efficiency" | "cost" => base.efficiency = parsed,
+            "precision" | "quality" => base.precision = parsed,
+            "latency" | "speed" => base.latency = parsed,
+            "availability" => base.availability = parsed,
+            "balance" => base.balance = parsed,
+            "mobile" => base.mobile = parsed,
+            _ => {}
+        }
+    }
+    base
+}
+
+/// Resolve the effective routing priority: persisted DB pref (if present)
+/// overrides env/default; env/default is the base.
+async fn effective_routing_priority() -> RoutingPriorityDto {
+    let base: RoutingPriorityDto = AutoRoutingPriority::from_env().into();
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        if let Ok(Some(csv)) = db.get_user_preference("local_user", "routing_priority").await {
+            if !csv.trim().is_empty() {
+                return apply_routing_csv(base, &csv);
+            }
+        }
+    }
+    base
+}
+
 #[derive(Debug, Serialize)]
 pub struct RoutingSummaryDto {
     pub active_model: Option<String>,
@@ -171,7 +209,7 @@ pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
         active_model: active,
         exploration_spent_usd: 0.0,
         exploration_budget_usd: cfg.exploration.budget_usd_per_day,
-        routing_priority: AutoRoutingPriority::from_env().into(),
+        routing_priority: effective_routing_priority().await,
         arm_count: reg.arm_stats_snapshot().len(),
         model_count: reg.list_models().len(),
         decision_preview,
@@ -191,7 +229,14 @@ pub async fn set_routing_priority(
         "efficiency={efficiency},precision={precision},latency={latency},availability={availability},balance={balance},mobile={mobile}"
     );
     unsafe {
-        std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", csv);
+        std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", &csv);
+    }
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        let _ = db
+            .set_user_preference("local_user", "routing_priority", &csv)
+            .await;
     }
     Ok(())
 }
