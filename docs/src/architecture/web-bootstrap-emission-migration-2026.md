@@ -86,7 +86,11 @@ without a hand-written bootstrap.
 2. ✅ **Emit `runtime-install.ts`** — generic browser shims + `__VOX_TEST_TRANSCRIPT__`.
 3. ✅ **Emit `entry.tsx` + default `app-hooks.tsx`; repoint `index.html`** — app glue via app-owned `src/app-hooks.tsx` (overrides the emitted default via `postbuild-fixup.mjs`).
 4. ✅ **Delete orphans** — `main.tsx`, `runtime.ts`, `pages/SettingsPage.tsx`; repoint `runtime_shim.test.ts`.
-5. **In progress** — `--no-emit-entry` opt-out (`VOX_WEB_NO_EMIT_ENTRY`) wired; retire `scaffold.rs` bootstrap + this doc. Also folding the remaining hand-written glue (`ErrorBoundary`/`sync`) into emitted defaults so a fresh Vox web app needs zero hand-written TS.
+5. ✅ **Opt-out + glue + scaffold retirement** — `--no-emit-entry` (`VOX_WEB_NO_EMIT_ENTRY`) wired; the hand-written glue (`ErrorBoundary`/`sync`/`app-hooks`) folded into emitted defaults (`vox-error-boundary.tsx` + `vox-sw-register.ts` wired into the default `app-hooks.tsx`) so the mental-tracker's `src/` is now `main.vox` **only** — zero hand-written TS. `scaffold.rs` bootstrap retired: `react_interop_scaffold_files` → `web_config_files` (config-only; no `main.tsx`/`App.tsx`), `--scaffold` → `--emit-config` (deprecated alias kept).
+
+**Desktop (Tauri):** no change needed — the emitted bootstrap (`entry.tsx` mounting `#root` over the dependency-free router) runs unmodified inside a Tauri 2 webview; the same `web-dist` bundle is the desktop frontend.
+
+**Done.** All five stages landed and verified. A fresh Vox web app is fully generated from `.vox` with zero hand-written TypeScript.
 
 **Verification:** `web_entry` unit tests + cli-tests fixtures (20/0) + the app's Vite bundle of the emitted bootstrap + Playwright e2e (`build:web` must out-run Playwright's 180s `webServer` timeout — pre-build the release `vox` binary so `build:vox` is fast).
 

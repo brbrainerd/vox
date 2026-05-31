@@ -16,17 +16,21 @@ fn scaffold_write_skips_existing_user_files() {
     ));
     let _ = fs::remove_dir_all(&root);
     fs::create_dir_all(&root).expect("mkdir root");
-    let app = root.join("app");
-    fs::create_dir_all(&app).expect("mkdir");
-    let marker = "// user-edited App\n";
-    fs::write(app.join("App.tsx"), marker).expect("seed App");
+    // Seed a config file we actually emit (`vite.config.ts`) — the scaffold is
+    // config-only now; the app bootstrap (`entry.tsx`/`vox-app.tsx`) is emitted
+    // on every build, not scaffolded.
+    let marker = "// user-edited vite config\n";
+    fs::write(root.join("vite.config.ts"), marker).expect("seed vite config");
 
     write_scaffold_if_missing(&root, "vox-app").expect("first write");
-    let after = fs::read_to_string(app.join("App.tsx")).expect("read App");
-    assert_eq!(after, marker, "existing App.tsx must not be overwritten");
+    let after = fs::read_to_string(root.join("vite.config.ts")).expect("read vite config");
+    assert_eq!(
+        after, marker,
+        "existing vite.config.ts must not be overwritten"
+    );
 
     write_scaffold_if_missing(&root, "vox-app").expect("second write");
-    let after2 = fs::read_to_string(app.join("App.tsx")).expect("read App");
+    let after2 = fs::read_to_string(root.join("vite.config.ts")).expect("read vite config");
     assert_eq!(after2, marker);
     let _ = fs::remove_dir_all(&root);
 }

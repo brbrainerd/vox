@@ -3,8 +3,10 @@
 //! Writes **TypeScript** into `out_dir` and **Rust** under `target/generated/` (Axum-style backend)
 //! when `[build] target = "fullstack"` (default). Use **`--target=server`** for Rust-only or
 //! **`--target=client`** for a Library-shaped TS SDK (`openapi.json`, `vox-client.ts`, …).
-//! Optional **`--scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) writes user-owned Vite/app files via
-//! [`vox_codegen::codegen_ts::scaffold`]. `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
+//! Optional **`--emit-config`** (alias `--scaffold`, or `VOX_WEB_EMIT_SCAFFOLD=1`) writes one-shot
+//! toolchain **config** files (Vite/Tailwind/tsconfig/package.json) via
+//! [`vox_codegen::codegen_ts::scaffold`] — the app bootstrap is always emitted, so no `main.tsx`/`App.tsx`.
+//! `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
 
 use crate::cli_args::BuildMode;
 use anyhow::{Context, Result};
@@ -22,7 +24,7 @@ fn generated_backend_dir(start: Option<&Path>) -> PathBuf {
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
 ///
-/// `emit_scaffold`: write [`vox_codegen::codegen_ts::scaffold`] files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
+/// `emit_scaffold`: write [`vox_codegen::codegen_ts::scaffold`] config files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
 ///
 /// Build target precedence: `cli_build_target` (from `vox build --target`) overrides
 /// `VOX_BUILD_TARGET` and `Vox.toml [build] target` (both applied via [`vox_config::VoxConfig::load`]).
