@@ -90,6 +90,21 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    // Apply any GUI-persisted model-emphasis (routing priority) as this daemon's
+    // global scorer default. Per-call SelectionAxes still override it via the
+    // scorer's thread-local. Done before serving so all scoring sees it.
+    if let Some(db) = db_holder.as_ref() {
+        if let Ok(Some(csv)) = db.get_user_preference("local_user", "routing_priority").await {
+            let csv = csv.trim();
+            if !csv.is_empty() {
+                // SAFETY: set during single-threaded startup, before any worker
+                // threads/connections that would read the env concurrently.
+                unsafe { std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", csv) };
+                tracing::info!(priority = %csv, "applied persisted routing-priority emphasis");
+            }
+        }
+    }
+
     runtime::spawn_agent_fleet_if_enabled(orch.clone());
 
     // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
