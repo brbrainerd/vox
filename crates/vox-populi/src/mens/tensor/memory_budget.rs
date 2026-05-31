@@ -85,10 +85,17 @@ fn activation_gib(seq_len: usize, batch_size: usize, model_params_b: f64) -> f64
     ktok * model_params_b.sqrt() * ACT_GIB_PER_KTOK_PER_SQRTB
 }
 
-/// Resident (sequence-independent) VRAM (GiB) for a model of `model_params_b` billions.
-fn resident_gib(model_params_b: f64) -> f64 {
-    model_params_b * RESIDENT_GIB_PER_B_PARAMS + FIXED_OVERHEAD_GIB
+/// Resident (sequence-independent) VRAM (GiB) for a model of `model_params_b`
+/// billions, at a given per-B-param footprint. Different model families have
+/// different footprints (Qwen3.5's 248k vocab + MoE/MTP overhead is heavier than
+/// plain dense Qwen2 with a 151k vocab).
+fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
+    model_params_b * resident_per_b + FIXED_OVERHEAD_GIB
 }
+
+/// Resident footprint for plain dense Qwen2 / Qwen2.5-Coder: no MoE, no MTP, no
+/// vision tower, 151k vocab. Lighter per-param than Qwen3.5.
+const QWEN2_RESIDENT_GIB_PER_B: f64 = 2.6;
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget
@@ -104,9 +111,16 @@ const TARGET_EFFECTIVE_BATCH: usize = 8;
 /// fits `vram_gib × safety`, then sets `grad_accum` to hold the effective batch.
 #[must_use]
 pub fn plan(vram_gib: f64, model_params_b: f64) -> BudgetPlan {
+    plan_with_resident(vram_gib, model_params_b, RESIDENT_GIB_PER_B_PARAMS)
+}
+
+/// As [`plan`], but with an explicit resident-footprint-per-billion-params so
+/// different model families (Qwen3.5 vs dense Qwen2) get accurate budgets.
+#[must_use]
+pub fn plan_with_resident(vram_gib: f64, model_params_b: f64, resident_per_b: f64) -> BudgetPlan {
     let safety = safety_fraction();
     let budget = vram_gib * safety;
-    let resident = resident_gib(model_params_b);
+    let resident = resident_gib_at(model_params_b, resident_per_b);
     let activation_budget = budget - resident;
 
     // Not enough room for the model itself + any activations: floor the config and
@@ -246,6 +260,73 @@ pub fn plan_qwen35(vram_gib: f64, max_params_b: f64) -> ModelPlan {
     })
 }
 
+/// Qwen2.5-Coder ladder (largest → smallest): (parameter count in billions, HF repo id).
+/// Plain dense `qwen2` coders — the path the candle plugin reliably trains (no MoE,
+/// no MTP, no vision tower, no mRoPE). Verified available on the Qwen HF org.
+pub const QWEN25CODER_LADDER: &[(f64, &str)] = &[
+    (32.0, "Qwen/Qwen2.5-Coder-32B-Instruct"),
+    (14.0, "Qwen/Qwen2.5-Coder-14B-Instruct"),
+    (7.0, "Qwen/Qwen2.5-Coder-7B-Instruct"),
+    (3.0, "Qwen/Qwen2.5-Coder-3B-Instruct"),
+    (1.5, "Qwen/Qwen2.5-Coder-1.5B-Instruct"),
+    (0.5, "Qwen/Qwen2.5-Coder-0.5B-Instruct"),
+];
+
+/// True when a model id is a Qwen2.5-Coder (the coding-focused dense family).
+#[must_use]
+pub fn is_qwen25coder(model_id: &str) -> bool {
+    let l = model_id.to_ascii_lowercase();
+    l.contains("qwen2.5-coder") || l.contains("qwen2_5-coder") || l.contains("qwen25-coder")
+}
+
+/// Pick the largest Qwen2.5-Coder variant (≤ `max_params_b`) that fits `vram_gib`,
+/// sized with the lighter dense-Qwen2 resident footprint. Same retreat/scale
+/// semantics as [`plan_qwen35`] but for the coding family.
+#[must_use]
+pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
+    let mut smallest_tried: Option<ModelPlan> = None;
+    for &(params, id) in QWEN25CODER_LADDER {
+        if params > max_params_b + 1e-9 {
+            continue;
+        }
+        let p = plan_with_resident(vram_gib, params, QWEN2_RESIDENT_GIB_PER_B);
+        let retreated = (params - max_params_b).abs() > 1e-9;
+        let rationale = if retreated {
+            format!("requested ≈{max_params_b:.1}B does not fit {vram_gib:.0} GiB; retreated to {id} — {}", p.rationale)
+        } else {
+            format!("{id} — {}", p.rationale)
+        };
+        let mp = ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b: retreated.then_some(max_params_b),
+            over_budget: p.over_budget,
+            rationale,
+        };
+        if !p.over_budget {
+            return mp;
+        }
+        smallest_tried = Some(mp);
+    }
+    smallest_tried.unwrap_or_else(|| {
+        let (params, id) = *QWEN25CODER_LADDER.last().unwrap();
+        let p = plan_with_resident(vram_gib, params, QWEN2_RESIDENT_GIB_PER_B);
+        ModelPlan {
+            model_id: id.to_string(),
+            params_b: params,
+            seq_len: p.seq_len,
+            batch_size: p.batch_size,
+            grad_accum: p.grad_accum,
+            retreated_from_b: Some(max_params_b),
+            over_budget: true,
+            rationale: format!("no Qwen2.5-Coder variant fits {vram_gib:.0} GiB; {}", p.rationale),
+        }
+    })
+}
+
 /// Parse a model's parameter count (in billions) from a model id / hint.
 ///
 /// Recognizes patterns like `Qwen/Qwen3.5-4B`, `qwen2.5-0.8b`, `llama-9B`. Returns
@@ -368,20 +449,36 @@ mod tests {
     }
 
     #[test]
+    fn qwen25coder_ladder_fits_a_coder_on_16gb() {
+        // Dense Qwen2 is lighter than Qwen3.5; a real coder should fit 16 GiB.
+        let p = plan_qwen25coder(16.0, 7.0);
+        assert!(!p.over_budget, "a Qwen2.5-Coder variant should fit 16 GiB");
+        assert!(p.params_b >= 1.5, "should pick at least 1.5B on 16 GiB");
+        assert!(p.model_id.contains("Qwen2.5-Coder"));
+    }
+
+    #[test]
+    fn qwen25coder_scales_up() {
+        let small = plan_qwen25coder(16.0, 32.0);
+        let big = plan_qwen25coder(80.0, 32.0);
+        assert!(big.params_b >= small.params_b);
+    }
+
+    #[test]
+    fn qwen25coder_detection() {
+        assert!(is_qwen25coder("Qwen/Qwen2.5-Coder-7B-Instruct"));
+        assert!(!is_qwen25coder("Qwen/Qwen3.5-4B"));
+        assert!(!is_qwen25coder("Qwen/Qwen2.5-7B-Instruct")); // non-coder qwen2.5
+    }
+
+    #[test]
     fn qwen35_family_detection() {
         assert!(is_qwen35("Qwen/Qwen3.5-4B"));
         assert!(is_qwen35("qwen3.5-2b"));
         assert!(!is_qwen35("meta-llama/Llama-3-8B"));
     }
 
-    #[test]
-    fn safety_env_override_tightens_budget() {
-        // Lower safety → smaller-or-equal sequence length.
-        let normal = plan(24.0, 4.0);
-        // SAFETY: test-local env mutation; single-threaded test.
-        unsafe { std::env::set_var("VOX_MENS_VRAM_SAFETY", "0.55") };
-        let tight = plan(24.0, 4.0);
-        unsafe { std::env::remove_var("VOX_MENS_VRAM_SAFETY") };
-        assert!(tight.seq_len <= normal.seq_len);
-    }
+    // NOTE: the VOX_MENS_VRAM_SAFETY env override is intentionally not unit-tested
+    // here — mutating a process-global env var races with the other budget tests
+    // under cargo's parallel test runner. The override is exercised in integration.
 }
