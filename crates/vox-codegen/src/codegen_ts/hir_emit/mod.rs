@@ -895,7 +895,12 @@ fn emit_local_db_op(plan: &HirDbQueryPlan, args: &[HirArg], ctx: &EmitCtx<'_>) -
                 .unwrap_or_else(|| "{}".to_string());
             format!("Ok(await voxRuntime.recordMutation(\"{fname}\", \"{table}\", {row}))")
         }
-        HirDbTableOp::All => format!("Ok(await voxRuntime.replayTable(\"{table}\"))"),
+        // Cast the journal rows to the table's row type so endpoint bodies and
+        // helpers field-access them with full type-safety. vox-client.ts emits a
+        // matching `type {table} = {...}` alias for every table reached here.
+        HirDbTableOp::All => {
+            format!("Ok((await voxRuntime.replayTable(\"{table}\")) as {table}[])")
+        }
         HirDbTableOp::Count => {
             format!("Ok(__vox_len(await voxRuntime.replayTable(\"{table}\")))")
         }

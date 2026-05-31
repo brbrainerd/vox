@@ -15,7 +15,7 @@ use vox_compiler::contract_ir::{
     self, ContractEndpointKind, WireType, wire_type_to_ts, wire_type_to_zod,
 };
 use vox_compiler::hir::{
-    HirArg, HirDbTableOp, HirEndpointFn, HirEndpointKind, HirExpr, HirModule, HirStmt,
+    HirDbTableOp, HirEndpointFn, HirEndpointKind, HirExpr, HirModule, HirStmt, HirType,
 };
 
 use crate::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr, emit_hir_stmt};
@@ -225,6 +225,25 @@ async function $tauri<T>(cmd: string, args: Record<string, unknown>, schema?: { 
                 )
             })
             .collect();
+
+        // On-device materializer support: emit row-type aliases for the tables
+        // these bodies touch, then the pure module helpers (`fn _foo`) the local
+        // endpoints call. Both are referenced by the endpoint bodies below; TS
+        // type aliases and `function` declarations are order-independent
+        // (hoisted), so emitting them here keeps the endpoints strongly typed.
+        let helpers = reachable_local_helpers(hir, &local_names);
+        // Emit row-type aliases for every table reached by a local endpoint's db
+        // op (so each `replayTable(...) as Row[]` cast resolves) OR named in a
+        // reachable helper signature — independent of whether any helper exists.
+        let tables = referenced_table_names(hir, &local_names, &helpers);
+        for t in &hir.tables {
+            if tables.contains(&t.name) {
+                out.push_str(&emit_table_type(t));
+            }
+        }
+        for f in &helpers {
+            out.push_str(&emit_local_helper_fn(f, &local_names, &endpoint_params));
+        }
         for (i, ep) in ir.endpoints.iter().enumerate() {
             let hir_fn = &hir.endpoint_fns[i]; // contract_ir projects endpoint_fns 1:1, in order
             let is_query = ep.kind == ContractEndpointKind::Query;
@@ -340,9 +359,9 @@ function __isVoxTrySentinel(e: unknown): e is { value: unknown } {
 }
 function __voxUnwrap(v: unknown): unknown {
   if (v && typeof v === "object" && "_tag" in v) {
-    const t = (v as { _tag: string })._tag;
-    if (t === "Ok") return (v as { _p0: unknown })._p0;
-    if (t === "Error") throw new VoxRuntimeError("Internal", "on-device mutation returned Error");
+    const o = v as Record<string, unknown>;
+    if (o._tag === "Ok") return o._p0;
+    if (o._tag === "Error") throw new VoxRuntimeError("Internal", "on-device mutation returned Error");
   }
   return v;
 }
@@ -481,33 +500,404 @@ fn compute_local_exec_names(hir: &HirModule) -> HashSet<String> {
         .map(|e| e.name.clone())
         .chain(hir.functions.iter().map(|f| f.name.clone()))
         .collect();
+    // Seed: every non-`@server` endpoint AND every module helper fn (`fn _foo`).
+    // Helpers are now emitted on-device too, so an endpoint that calls a
+    // local-safe helper stays executable — the fixpoint below drops any name
+    // (endpoint or helper) whose body hits an un-mappable surface or calls a
+    // dropped name.
     let mut ok: HashSet<String> = hir
         .endpoint_fns
         .iter()
         .filter(|e| e.kind != HirEndpointKind::Server)
         .map(|e| e.name.clone())
+        .chain(hir.functions.iter().map(|f| f.name.clone()))
         .collect();
     loop {
         let mut changed = false;
         let snapshot = ok.clone();
-        for e in &hir.endpoint_fns {
-            if !snapshot.contains(&e.name) {
-                continue;
-            }
-            let safe = e
-                .body
-                .iter()
-                .all(|s| stmt_local_safe(s, &all_endpoints, &snapshot));
-            if !safe {
-                ok.remove(&e.name);
+        let mut drop_unsafe = |name: &str, body: &[HirStmt]| {
+            if snapshot.contains(name)
+                && !body
+                    .iter()
+                    .all(|s| stmt_local_safe(s, &all_endpoints, &snapshot))
+            {
+                ok.remove(name);
                 changed = true;
             }
+        };
+        for e in &hir.endpoint_fns {
+            drop_unsafe(&e.name, &e.body);
+        }
+        for f in &hir.functions {
+            drop_unsafe(&f.name, &f.body);
         }
         if !changed {
             break;
         }
     }
     ok
+}
+
+/// Map a Vox `HirType` to a TypeScript type for an on-device helper signature
+/// or a table-row alias. Named record/table types pass through by name (we emit
+/// a matching `type` alias); `List[T]` → `readonly T[]`; anything we don't model
+/// degrades to `unknown` rather than emitting an undefined identifier.
+fn ts_ty(ty: &HirType) -> String {
+    match ty {
+        HirType::Named(n) => match n.as_str() {
+            "str" => "string".to_string(),
+            "int" | "float" | "float64" => "number".to_string(),
+            "bool" => "boolean".to_string(),
+            "Unit" => "void".to_string(),
+            other => other.to_string(),
+        },
+        HirType::Generic(n, args) => match n.as_str() {
+            "List" | "list" | "Set" | "set" => format!(
+                "readonly {}[]",
+                args.first().map(ts_ty).unwrap_or_else(|| "unknown".to_string())
+            ),
+            "Option" => format!(
+                "{} | undefined",
+                args.first().map(ts_ty).unwrap_or_else(|| "unknown".to_string())
+            ),
+            _ => "unknown".to_string(),
+        },
+        HirType::Unit => "void".to_string(),
+        HirType::Decimal => "number".to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
+/// Emit a structural TS alias for a table row, so on-device helpers and the
+/// `replayTable(...) as Row[]` casts are strongly typed (no `any`).
+fn emit_table_type(t: &vox_compiler::hir::HirTable) -> String {
+    let fields = t
+        .fields
+        .iter()
+        .map(|f| format!("  readonly {}: {};", f.name, ts_ty(&f.type_ann)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!("type {} = {{\n{}\n}};\n\n", t.name, fields)
+}
+
+/// Emit a module helper (`fn _foo`) as an on-device TS function, using the same
+/// local-exec machinery as endpoints: the body runs in an async IIFE so db ops
+/// lower to `voxRuntime.*`, `match`/`?` get the sentinel-unwrapping treatment,
+/// and the final `__voxUnwrap(__r) as Ret` cast resolves the `T | undefined`
+/// that the exhaustive-match `default` arm would otherwise infer. Helpers are in
+/// `local_names`, so calls to them (from endpoints or sibling helpers) are
+/// `await`ed automatically.
+fn emit_local_helper_fn(
+    f: &vox_compiler::hir::HirFn,
+    local_names: &HashSet<String>,
+    endpoint_params: &std::collections::HashMap<String, Vec<String>>,
+) -> String {
+    let params = f
+        .params
+        .iter()
+        .map(|p| {
+            let t = p
+                .type_ann
+                .as_ref()
+                .map(ts_ty)
+                .unwrap_or_else(|| "unknown".to_string());
+            format!("{}: {}", p.name, t)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let ret = f
+        .return_type
+        .as_ref()
+        .map(ts_ty)
+        .unwrap_or_else(|| "void".to_string());
+    let empty_state: HashSet<String> = HashSet::new();
+    let ctx = EmitCtx::local_exec(&empty_state, local_names, endpoint_params, &f.name);
+    let mut body = String::new();
+    let n = f.body.len();
+    for (i, stmt) in f.body.iter().enumerate() {
+        if i + 1 == n {
+            if let HirStmt::Expr { expr, .. } = stmt {
+                body.push_str(&format!("    return {};\n", emit_hir_expr(expr, &ctx)));
+                continue;
+            }
+        }
+        body.push_str(&emit_hir_stmt(stmt, &ctx, 2));
+    }
+    format!(
+        "async function {name}({params}): Promise<{ret}> {{\n  \
+         const __r: unknown = await (async (): Promise<unknown> => {{\n\
+         {body}  }})().catch((__e: unknown) => {{ if (__isVoxTrySentinel(__e)) return (__e as {{ value: unknown }}).value; throw __e; }});\n  \
+         return __voxUnwrap(__r) as {ret};\n}}\n\n",
+        name = f.name
+    )
+}
+
+/// Collect the names of user functions called (directly) within an expression.
+fn collect_calls_expr(expr: &HirExpr, out: &mut HashSet<String>) {
+    match expr {
+        HirExpr::Call(callee, args, _, _) => {
+            if let HirExpr::Ident(name, _) = callee.as_ref() {
+                out.insert(name.clone());
+            }
+            collect_calls_expr(callee, out);
+            for a in args {
+                collect_calls_expr(&a.value, out);
+            }
+        }
+        HirExpr::MethodCall(obj, _, args, _, _) => {
+            collect_calls_expr(obj, out);
+            for a in args {
+                collect_calls_expr(&a.value, out);
+            }
+        }
+        HirExpr::Binary(_, l, r, _) => {
+            collect_calls_expr(l, out);
+            collect_calls_expr(r, out);
+        }
+        HirExpr::Unary(_, e, _) | HirExpr::FieldAccess(e, _, _) => collect_calls_expr(e, out),
+        HirExpr::Index(o, i, _) => {
+            collect_calls_expr(o, out);
+            collect_calls_expr(i, out);
+        }
+        HirExpr::Try(t) => collect_calls_expr(t.target.as_ref(), out),
+        HirExpr::ObjectLit(fields, _) => {
+            for (_, v) in fields {
+                collect_calls_expr(v, out);
+            }
+        }
+        HirExpr::ListLit(items, _) | HirExpr::TupleLit(items, _) => {
+            for e in items {
+                collect_calls_expr(e, out);
+            }
+        }
+        HirExpr::Block(stmts, _) => {
+            for s in stmts {
+                collect_calls_stmt(s, out);
+            }
+        }
+        HirExpr::If(c, t, e, _) => {
+            collect_calls_expr(c, out);
+            for s in t {
+                collect_calls_stmt(s, out);
+            }
+            if let Some(b) = e {
+                for s in b {
+                    collect_calls_stmt(s, out);
+                }
+            }
+        }
+        HirExpr::Match(subj, arms, _) => {
+            collect_calls_expr(subj, out);
+            for a in arms {
+                collect_calls_expr(&a.body, out);
+            }
+        }
+        HirExpr::For(_, _, iter, body, _, _) => {
+            collect_calls_expr(iter, out);
+            collect_calls_expr(body, out);
+        }
+        HirExpr::Lambda(_, _, body, _, _) => collect_calls_expr(body, out),
+        _ => {}
+    }
+}
+
+fn collect_calls_stmt(stmt: &HirStmt, out: &mut HashSet<String>) {
+    match stmt {
+        HirStmt::Let { value, .. } | HirStmt::Expr { expr: value, .. } => {
+            collect_calls_expr(value, out)
+        }
+        HirStmt::Assign { target, value, .. } => {
+            collect_calls_expr(target, out);
+            collect_calls_expr(value, out);
+        }
+        HirStmt::Return { value, .. } => {
+            if let Some(v) = value {
+                collect_calls_expr(v, out);
+            }
+        }
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            collect_calls_expr(condition, out);
+            for s in body {
+                collect_calls_stmt(s, out);
+            }
+        }
+        HirStmt::Loop { body, .. } => {
+            for s in body {
+                collect_calls_stmt(s, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Module helper fns transitively reachable from the local-executable endpoints,
+/// restricted to those that are themselves local-safe (`local`). Returned in
+/// `hir.functions` declaration order. Only these get emitted on-device — a
+/// helper reachable solely from a server/unsupported endpoint is never emitted,
+/// so no unused function trips `tsc`'s `noUnusedLocals`.
+fn reachable_local_helpers<'a>(
+    hir: &'a HirModule,
+    local: &HashSet<String>,
+) -> Vec<&'a vox_compiler::hir::HirFn> {
+    let fn_names: HashSet<&str> = hir.functions.iter().map(|f| f.name.as_str()).collect();
+    let mut reached: HashSet<String> = HashSet::new();
+    let mut frontier: HashSet<String> = HashSet::new();
+    // Roots: bodies of every local-executable endpoint.
+    for e in &hir.endpoint_fns {
+        if local.contains(&e.name) {
+            for s in &e.body {
+                collect_calls_stmt(s, &mut frontier);
+            }
+        }
+    }
+    while !frontier.is_empty() {
+        let mut next: HashSet<String> = HashSet::new();
+        for name in frontier.drain() {
+            if !fn_names.contains(name.as_str()) || reached.contains(&name) {
+                continue;
+            }
+            reached.insert(name.clone());
+            if let Some(f) = hir.functions.iter().find(|f| f.name == name) {
+                for s in &f.body {
+                    collect_calls_stmt(s, &mut next);
+                }
+            }
+        }
+        frontier = next;
+    }
+    hir.functions
+        .iter()
+        .filter(|f| reached.contains(&f.name) && local.contains(&f.name))
+        .collect()
+}
+
+/// Table names referenced by the emitted on-device surface — `replayTable` casts
+/// in local endpoint bodies, plus row types in reachable helper signatures.
+fn referenced_table_names(
+    hir: &HirModule,
+    local: &HashSet<String>,
+    helpers: &[&vox_compiler::hir::HirFn],
+) -> HashSet<String> {
+    let table_names: HashSet<&str> = hir.tables.iter().map(|t| t.name.as_str()).collect();
+    let mut out: HashSet<String> = HashSet::new();
+    let mut note_ty = |ty: &HirType, out: &mut HashSet<String>| {
+        let mut stack = vec![ty];
+        while let Some(t) = stack.pop() {
+            match t {
+                HirType::Named(n) if table_names.contains(n.as_str()) => {
+                    out.insert(n.clone());
+                }
+                HirType::Generic(_, args) => stack.extend(args.iter()),
+                _ => {}
+            }
+        }
+    };
+    // From reachable helper signatures.
+    for f in helpers {
+        for p in &f.params {
+            if let Some(ty) = &p.type_ann {
+                note_ty(ty, &mut out);
+            }
+        }
+        if let Some(ty) = &f.return_type {
+            note_ty(ty, &mut out);
+        }
+    }
+    // From local endpoint db plans (the `replayTable(...) as Row[]` casts).
+    for e in &hir.endpoint_fns {
+        if local.contains(&e.name) {
+            for s in &e.body {
+                collect_plan_tables_stmt(s, &table_names, &mut out);
+            }
+        }
+    }
+    out
+}
+
+fn collect_plan_tables_expr(expr: &HirExpr, tables: &HashSet<&str>, out: &mut HashSet<String>) {
+    if let HirExpr::MethodCall(obj, _, args, plan, _) = expr {
+        if let Some(p) = plan {
+            if tables.contains(p.table.as_str()) {
+                out.insert(p.table.clone());
+            }
+        }
+        collect_plan_tables_expr(obj, tables, out);
+        for a in args {
+            collect_plan_tables_expr(&a.value, tables, out);
+        }
+        return;
+    }
+    // Walk the common compound shapes so nested db calls are still found.
+    match expr {
+        HirExpr::Binary(_, l, r, _) => {
+            collect_plan_tables_expr(l, tables, out);
+            collect_plan_tables_expr(r, tables, out);
+        }
+        HirExpr::Unary(_, e, _) | HirExpr::FieldAccess(e, _, _) => {
+            collect_plan_tables_expr(e, tables, out)
+        }
+        HirExpr::Try(t) => collect_plan_tables_expr(t.target.as_ref(), tables, out),
+        HirExpr::Block(stmts, _) => {
+            for s in stmts {
+                collect_plan_tables_stmt(s, tables, out);
+            }
+        }
+        HirExpr::If(c, t, e, _) => {
+            collect_plan_tables_expr(c, tables, out);
+            for s in t {
+                collect_plan_tables_stmt(s, tables, out);
+            }
+            if let Some(b) = e {
+                for s in b {
+                    collect_plan_tables_stmt(s, tables, out);
+                }
+            }
+        }
+        HirExpr::Match(subj, arms, _) => {
+            collect_plan_tables_expr(subj, tables, out);
+            for a in arms {
+                collect_plan_tables_expr(&a.body, tables, out);
+            }
+        }
+        HirExpr::For(_, _, iter, body, _, _) => {
+            collect_plan_tables_expr(iter, tables, out);
+            collect_plan_tables_expr(body, tables, out);
+        }
+        _ => {}
+    }
+}
+
+fn collect_plan_tables_stmt(stmt: &HirStmt, tables: &HashSet<&str>, out: &mut HashSet<String>) {
+    match stmt {
+        HirStmt::Let { value, .. } | HirStmt::Expr { expr: value, .. } => {
+            collect_plan_tables_expr(value, tables, out)
+        }
+        HirStmt::Assign { target, value, .. } => {
+            collect_plan_tables_expr(target, tables, out);
+            collect_plan_tables_expr(value, tables, out);
+        }
+        HirStmt::Return { value, .. } => {
+            if let Some(v) = value {
+                collect_plan_tables_expr(v, tables, out);
+            }
+        }
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            collect_plan_tables_expr(condition, tables, out);
+            for s in body {
+                collect_plan_tables_stmt(s, tables, out);
+            }
+        }
+        HirStmt::Loop { body, .. } => {
+            for s in body {
+                collect_plan_tables_stmt(s, tables, out);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Emit an endpoint as a local async function that runs its body on-device.
