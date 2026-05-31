@@ -87,6 +87,8 @@
     "ars snippet save",
     "ars snippet search",
     "audit",
+    "audit effort",
+    "audit effort-route",
     "auth",
     "auth connect",
     "auth init",
