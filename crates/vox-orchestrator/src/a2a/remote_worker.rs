@@ -113,10 +113,71 @@ fn echo_result(envelope: &RemoteTaskEnvelope) -> RemoteTaskResult {
 /// verification. It does NOT add sandboxing beyond what `vox run` provides, and
 /// does NOT inject forwarded secrets into the subprocess (deferred — sandbox
 /// tiering). Bundle/native execution stays out of this path.
+/// Curated host env preserved across `env_clear()` so `vox`/the runtime still
+/// works; everything else (including the worker's OWN secrets) is stripped from
+/// the dispatched subprocess. Only keys present in the worker env are passed.
+fn baseline_passthrough_env() -> Vec<(String, String)> {
+    const KEYS: &[&str] = &[
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "USER",
+        "LOGNAME",
+        "LANG",
+        "LC_ALL",
+        "LD_LIBRARY_PATH",
+        "DYLD_LIBRARY_PATH",
+        // Windows essentials:
+        "SystemRoot",
+        "windir",
+        "SystemDrive",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "PATHEXT",
+        "ComSpec",
+        "NUMBER_OF_PROCESSORS",
+        "PROCESSOR_ARCHITECTURE",
+        "OS",
+    ];
+    KEYS.iter()
+        .filter_map(|k| std::env::var(k).ok().map(|v| ((*k).to_string(), v)))
+        .collect()
+}
+
+/// Harden a dispatched subprocess: `env_clear()` (so dispatched code can't read
+/// the worker's own environment / secrets), restore the curated baseline, then
+/// add the tier-gated forwarded secrets (empty for BareMetal).
+fn harden_dispatch_env(cmd: &mut std::process::Command, secret_env: &[(String, String)]) {
+    cmd.env_clear();
+    for (k, v) in baseline_passthrough_env() {
+        cmd.env(k, v);
+    }
+    for (k, v) in secret_env {
+        cmd.env(k, v);
+    }
+}
+
+/// Extract the task's declared `required_secrets` (SecretId names) from the
+/// envelope's `capability_requirements_json`. Empty when absent/unparseable.
+fn parse_required_secrets(capability_requirements_json: &str) -> Vec<String> {
+    serde_json::from_str::<serde_json::Value>(capability_requirements_json)
+        .ok()
+        .and_then(|v| {
+            v.get("required_secrets")
+                .and_then(|s| s.as_array())
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        })
+        .unwrap_or_default()
+}
+
 fn run_dispatched_source(
     source_b64: &str,
     expected_blake3_hex: Option<&str>,
     policy: &str,
+    secret_env: &[(String, String)],
 ) -> Option<DispatchedExecParts> {
     if policy == "no-exec" {
         return None;
@@ -157,12 +218,10 @@ fn run_dispatched_source(
     // Use the always-available interpreter (`--mode interp`) rather than
     // `--mode script` (which requires a `script-execution` feature build), so a
     // worker can run dispatched source without a specially-built `vox` binary.
-    let output = std::process::Command::new("vox")
-        .arg("run")
-        .arg("--mode")
-        .arg("interp")
-        .arg(&tmp_file)
-        .output();
+    let mut cmd = std::process::Command::new("vox");
+    cmd.arg("run").arg("--mode").arg("interp").arg(&tmp_file);
+    harden_dispatch_env(&mut cmd, secret_env);
+    let output = cmd.output();
     let _ = std::fs::remove_file(&tmp_file);
 
     Some(parts_from_output(output))
@@ -244,6 +303,7 @@ fn run_dispatched_bundle(
     bundle_b64: &str,
     expected_blake3_hex: Option<&str>,
     policy: &str,
+    secret_env: &[(String, String)],
 ) -> Option<DispatchedExecParts> {
     if policy == "no-exec" {
         return None;
@@ -305,13 +365,18 @@ fn run_dispatched_bundle(
     let output = match kind {
         // WASM runs under the wasmtime/WASI sandbox via the raw-.wasm runner
         // (`vox wasm run`), which is always available (not feature-gated).
-        BundleKind::Wasm => std::process::Command::new("vox")
-            .arg("wasm")
-            .arg("run")
-            .arg(&tmp_file)
-            .output(),
+        BundleKind::Wasm => {
+            let mut cmd = std::process::Command::new("vox");
+            cmd.arg("wasm").arg("run").arg(&tmp_file);
+            harden_dispatch_env(&mut cmd, secret_env);
+            cmd.output()
+        }
         // Native binary — permissive-only, executed directly.
-        BundleKind::Native => std::process::Command::new(&tmp_file).output(),
+        BundleKind::Native => {
+            let mut cmd = std::process::Command::new(&tmp_file);
+            harden_dispatch_env(&mut cmd, secret_env);
+            cmd.output()
+        }
     };
     let _ = std::fs::remove_file(&tmp_file);
 
@@ -409,7 +474,9 @@ async fn process_one_envelope(
             }
         }
     }
-    let _ = secret_bag; // threaded to skill runtime in Phase 5 (sandbox tiering)
+    // `secret_bag` is consumed below by the trust-tier gate (secret_gate). Under
+    // the only live tier (BareMetal) it forwards nothing, but the dispatched
+    // subprocess env is hardened regardless (env_clear + curated baseline).
 
     let payload_context = parse_remote_payload_context(&envelope.payload);
     let envelope_session_id = envelope
@@ -560,12 +627,35 @@ async fn process_one_envelope(
             .unwrap_or("permissive")
             .to_string();
 
+        // Trust-tier gate for forwarded secrets. Source + native bundle exec are
+        // BareMetal (no isolation), so the gate forwards NOTHING today; the env is
+        // hardened regardless. `declared` is the task's required_secrets.
+        let declared = parse_required_secrets(&envelope.capability_requirements_json);
+        let secret_env = match secret_bag.as_ref() {
+            Some(bag) => crate::a2a::secret_gate::gate_secrets(
+                crate::a2a::secret_gate::ExecTier::BareMetal,
+                &declared,
+                bag,
+            ),
+            None => Vec::new(),
+        };
+
         let executed = if let Some(source_b64) = envelope.exec_source_b64.as_deref() {
-            run_dispatched_source(source_b64, envelope.exec_source_blake3_hex.as_deref(), &policy)
-                .map(|parts| ("source", parts))
+            run_dispatched_source(
+                source_b64,
+                envelope.exec_source_blake3_hex.as_deref(),
+                &policy,
+                &secret_env,
+            )
+            .map(|parts| ("source", parts))
         } else if let Some(bundle_b64) = envelope.exec_bundle_b64.as_deref() {
-            run_dispatched_bundle(bundle_b64, envelope.exec_bundle_blake3_hex.as_deref(), &policy)
-                .map(|parts| ("bundle", parts))
+            run_dispatched_bundle(
+                bundle_b64,
+                envelope.exec_bundle_blake3_hex.as_deref(),
+                &policy,
+                &secret_env,
+            )
+            .map(|parts| ("bundle", parts))
         } else {
             None
         };
@@ -857,14 +947,14 @@ mod tests {
     #[test]
     fn no_exec_policy_returns_none_for_echo_fallback() {
         let src = "pub fn main() { print(\"x\") }";
-        let got = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "no-exec");
+        let got = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "no-exec", &[]);
         assert!(got.is_none(), "no-exec policy must decline (caller echoes)");
     }
 
     #[test]
     fn missing_integrity_hash_refuses_without_spawning() {
         let src = "pub fn main() { print(\"x\") }";
-        let parts = run_dispatched_source(&b64(src), None, "permissive")
+        let parts = run_dispatched_source(&b64(src), None, "permissive", &[])
             .expect("a decision is returned");
         assert!(!parts.success);
         assert!(parts.result.is_none());
@@ -878,7 +968,7 @@ mod tests {
     #[test]
     fn hash_mismatch_refuses_without_spawning() {
         let src = "pub fn main() { print(\"x\") }";
-        let parts = run_dispatched_source(&b64(src), Some("deadbeef"), "permissive")
+        let parts = run_dispatched_source(&b64(src), Some("deadbeef"), "permissive", &[])
             .expect("a decision is returned");
         assert!(!parts.success);
         assert!(parts.result.is_none());
@@ -891,7 +981,7 @@ mod tests {
 
     #[test]
     fn invalid_base64_refuses_without_spawning() {
-        let parts = run_dispatched_source("!!!not base64!!!", Some("deadbeef"), "permissive")
+        let parts = run_dispatched_source("!!!not base64!!!", Some("deadbeef"), "permissive", &[])
             .expect("a decision is returned");
         assert!(!parts.success);
         assert!(parts.error.as_deref().unwrap_or("").contains("base64"));
@@ -905,7 +995,7 @@ mod tests {
             return;
         }
         let src = "pub fn main() {\n    print(\"hello from \" + str(2 + 3))\n}\n";
-        let parts = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "permissive")
+        let parts = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "permissive", &[])
             .expect("executed");
         assert!(parts.success, "expected success, error={:?}", parts.error);
         assert!(
@@ -927,7 +1017,7 @@ mod tests {
         let src = "pub fn main() {\n    print(\"answer \" + str(6 * 7))\n}\n";
         let (b64, hex) = crate::a2a::exec_source::build_exec_source_fields(src);
         let parts =
-            run_dispatched_source(&b64, Some(&hex), "permissive").expect("executed");
+            run_dispatched_source(&b64, Some(&hex), "permissive", &[]).expect("executed");
         assert!(parts.success, "expected success, error={:?}", parts.error);
         assert!(
             parts.result.as_deref().unwrap_or("").contains("answer 42"),
@@ -945,7 +1035,7 @@ mod tests {
         }
         // Not valid Vox — `vox run` exits non-zero.
         let src = "this is not valid vox source @@@";
-        let parts = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "permissive")
+        let parts = run_dispatched_source(&b64(src), Some(&blake3_hex(src)), "permissive", &[])
             .expect("executed");
         assert!(!parts.success, "a failing script must report success=false");
         assert!(parts.error.is_some());
@@ -1016,7 +1106,7 @@ mod tests {
     #[test]
     fn bundle_no_exec_policy_returns_none_for_echo_fallback() {
         let got =
-            run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some(&blake3_hex_bytes(WASM_HEADER)), "no-exec");
+            run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some(&blake3_hex_bytes(WASM_HEADER)), "no-exec", &[]);
         assert!(got.is_none(), "no-exec policy must decline (caller echoes)");
     }
 
@@ -1026,6 +1116,7 @@ mod tests {
             &b64_bytes(WASM_HEADER),
             Some(&blake3_hex_bytes(WASM_HEADER)),
             "source-only",
+            &[],
         )
         .expect("a decision is returned");
         assert!(!parts.success);
@@ -1034,7 +1125,7 @@ mod tests {
 
     #[test]
     fn bundle_missing_integrity_hash_refuses_without_spawning() {
-        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), None, "permissive")
+        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), None, "permissive", &[])
             .expect("a decision is returned");
         assert!(!parts.success);
         assert!(parts.error.as_deref().unwrap_or("").contains("blake3"));
@@ -1042,7 +1133,7 @@ mod tests {
 
     #[test]
     fn bundle_hash_mismatch_refuses_without_spawning() {
-        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some("deadbeef"), "permissive")
+        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some("deadbeef"), "permissive", &[])
             .expect("a decision is returned");
         assert!(!parts.success);
         assert!(parts.error.as_deref().unwrap_or("").contains("hash mismatch"));
@@ -1054,7 +1145,7 @@ mod tests {
         // ever executing a native binary.
         let native = b"\x7fELF\x02\x01\x01\0 not a real binary";
         let parts =
-            run_dispatched_bundle(&b64_bytes(native), Some(&blake3_hex_bytes(native)), "strict")
+            run_dispatched_bundle(&b64_bytes(native), Some(&blake3_hex_bytes(native)), "strict", &[])
                 .expect("a decision is returned");
         assert!(!parts.success);
         assert!(
@@ -1096,6 +1187,7 @@ mod tests {
             &b64_bytes(&wasm),
             Some(&blake3_hex_bytes(&wasm)),
             "permissive",
+            &[],
         )
         .expect("a decision is returned (integrity + classification passed)");
 

@@ -4,6 +4,7 @@ mod bus;
 pub mod dispatch;
 mod envelope;
 pub mod exec_source;
+pub mod secret_gate;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]
