@@ -350,10 +350,24 @@ resolves in the same process — **no daemon RPC needed**. Chose the `ServerStat
   (`vox_run_shell` parks → resolve Rejected → error envelope). `cargo check -p vox-gui` clean,
   `cargo run -p vox-arch-check` EXIT=0, `vite build` + `vitest` (5/5) pass.
 
-**Deferred (clear follow-ups, not stubs):** cross-process resolve for *autonomous daemon*
-agents (registry on `Orchestrator` + `orch.resolve_approval`/`orch.list_pending_approvals`
-RPCs + a daemon-backed Approvals path); DB persistence (`hitl_approvals` table) for
-crash-durability; wiring `agent_runs.approval_ref` (B2) to link an approval to its run.
+**Follow-up — daemon dispatch backend landed (2026-05-31):** rather than move the registry
+to `Orchestrator`, the daemon now exposes its own `ServerState` via an `ExtraDispatch` hook
+(`vox-orchestrator::orch_daemon::ExtraDispatch` + `serve_listener_with_extra` /
+`run_{tcp,stdio}_server_with_extra`; impl `vox-orchestrator-mcp::daemon_extra::McpExtraDispatch`,
+wired in `vox-orchestrator-d`). New methods `orch.tool_call` (B5 path-c — run a tool through the
+one shared orchestrator), `orch.list_pending_approvals`, `orch.resolve_approval` (B3
+cross-process). Test `daemon_extra_tests` (orch.tool_call runs `vox_git_status`). All on the
+daemon's single `ServerState`, no cycle (the trait lives in vox-orchestrator, the heavy state in
+vox-orchestrator-mcp).
+
+**Still deferred (gated on persistent-daemon lifecycle):** switching the GUI's `invoke_mcp_tool`
++ Approvals panel to the daemon path can't use the current `call_daemon` (it **spawns the daemon
+per call** → the gate-await and the resolve would land in different processes/`ServerState`s). It
+needs the GUI to manage one long-lived `vox-orchestrator-d` (TCP) and use `OrchDaemonClient` — a
+separate piece. Until then the GUI keeps its working in-process `McpToolHost`. Also still open:
+DB persistence (`hitl_approvals`) — most meaningful with the persistent-daemon path (in-process
+parked calls die on restart regardless); and `agent_runs.approval_ref` wiring (the MCP gate has
+no run_id today).
 
 ## Sequencing and dependencies
 

@@ -62,6 +62,18 @@ pub mod orch_daemon_method {
     /// frames are pushed by the broadcast bus (no polling) and carry the
     /// serialized `AgentEvent` (`{ id, timestamp_ms, kind: { type, … } }`).
     pub const SUBSCRIBE_EVENTS: &str = "orch.subscribe_events";
+    /// Params: `{"name": "<tool>", "args": {...}}` → the MCP tool's JSON result
+    /// envelope. Dispatched against the daemon's MCP `ServerState` so callers
+    /// (e.g. the GUI) run tools through the one shared orchestrator rather than a
+    /// second in-process instance. Served via an `ExtraDispatch` hook.
+    pub const TOOL_CALL: &str = "orch.tool_call";
+    /// Params: `{}` → `{"approvals": [...]}` — HITL approvals awaiting a decision
+    /// in the daemon's `ServerState`. Served via `ExtraDispatch`.
+    pub const LIST_PENDING_APPROVALS: &str = "orch.list_pending_approvals";
+    /// Params: `{"approval_id": "...", "outcome": "approved"|"rejected"|"modified"}`
+    /// → `{"resolved": bool, ...}`. Wakes a parked dangerous-tool call in the
+    /// daemon. Served via `ExtraDispatch`.
+    pub const RESOLVE_APPROVAL: &str = "orch.resolve_approval";
 }
 
 pub mod dei_method {

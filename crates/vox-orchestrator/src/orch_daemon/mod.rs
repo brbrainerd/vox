@@ -480,10 +480,22 @@ pub async fn dispatch_request(
     }
 }
 
+/// Optional out-of-band dispatcher for methods that need state the core daemon
+/// does not hold — e.g. an MCP `ServerState` for `orch.tool_call` /
+/// `orch.resolve_approval` / `orch.list_pending_approvals`. The binary supplies
+/// the impl; the library stays free of the heavy MCP layer (no dependency cycle).
+#[async_trait::async_trait]
+pub trait ExtraDispatch: Send + Sync {
+    /// Return `Some(response)` to handle `req`; `None` to fall through to the
+    /// built-in `orch.*` dispatch.
+    async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse>;
+}
+
 async fn handle_connection(
     mut socket: TcpStream,
     repository_id: String,
     orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
 ) -> anyhow::Result<()> {
     let (read_half, mut write_half) = socket.split();
     let mut reader = BufReader::new(read_half);
@@ -515,6 +527,12 @@ async fn handle_connection(
             stream_agent_events(&req.id, &orch, &mut write_half).await?;
             break;
         }
+        if let Some(ex) = extra.as_ref() {
+            if let Some(resp) = ex.try_handle(&req).await {
+                write_frame(&mut write_half, &resp).await?;
+                continue;
+            }
+        }
         let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
         write_frame(&mut write_half, &resp).await?;
     }
@@ -528,14 +546,27 @@ pub async fn serve_listener(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
+    serve_listener_with_extra(listener, bind_display, repository_id, orch, None).await
+}
+
+/// [`serve_listener`] with an optional [`ExtraDispatch`] hook (the daemon binary
+/// wires one carrying its MCP `ServerState`).
+pub async fn serve_listener_with_extra(
+    listener: TcpListener,
+    bind_display: String,
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
+) -> anyhow::Result<()> {
     tracing::info!(bind = %bind_display, "vox-orchestrator-d listening");
     loop {
         let (socket, peer) = listener.accept().await?;
         tracing::debug!(%peer, "orch daemon accepted");
         let repo = repository_id.clone();
         let o = orch.clone();
+        let ex = extra.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle_connection(socket, repo, o).await {
+            if let Err(e) = handle_connection(socket, repo, o, ex).await {
                 tracing::debug!(error = %e, "orch daemon connection closed with error");
             }
         });
@@ -548,14 +579,33 @@ pub async fn run_tcp_server(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
+    run_tcp_server_with_extra(bind, repository_id, orch, None).await
+}
+
+/// [`run_tcp_server`] with an optional [`ExtraDispatch`] hook.
+pub async fn run_tcp_server_with_extra(
+    bind: &str,
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
+) -> anyhow::Result<()> {
     let listener = TcpListener::bind(bind).await?;
-    serve_listener(listener, bind.to_string(), repository_id, orch).await
+    serve_listener_with_extra(listener, bind.to_string(), repository_id, orch, extra).await
 }
 
 /// Read newline-delimited [`DispatchRequest`] from stdin; write [`DispatchResponse`] lines to stdout.
 pub async fn run_stdio_server(
     repository_id: String,
     orch: Arc<Orchestrator>,
+) -> anyhow::Result<()> {
+    run_stdio_server_with_extra(repository_id, orch, None).await
+}
+
+/// [`run_stdio_server`] with an optional [`ExtraDispatch`] hook.
+pub async fn run_stdio_server_with_extra(
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
 ) -> anyhow::Result<()> {
     tracing::info!("vox-orchestrator-d serving on stdio (line-delimited JSON)");
     let stdin = tokio::io::stdin();
@@ -587,6 +637,12 @@ pub async fn run_stdio_server(
         if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
             stream_agent_events(&req.id, &orch, &mut stdout).await?;
             break;
+        }
+        if let Some(ex) = extra.as_ref() {
+            if let Some(resp) = ex.try_handle(&req).await {
+                write_frame(&mut stdout, &resp).await?;
+                continue;
+            }
         }
         let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
         write_frame(&mut stdout, &resp).await?;

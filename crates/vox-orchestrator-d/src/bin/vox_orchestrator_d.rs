@@ -162,12 +162,19 @@ async fn main() -> anyhow::Result<()> {
         state = state.with_db_initialized(db).await;
     }
 
+    // Serve orch.tool_call / orch.resolve_approval / orch.list_pending_approvals
+    // against this same ServerState so the GUI runs tools + resolves HITL
+    // approvals through the one shared orchestrator (B5 path-c, B3 cross-process).
+    let extra: Option<Arc<dyn orch_daemon::ExtraDispatch>> = Some(Arc::new(
+        vox_orchestrator_mcp::daemon_extra::McpExtraDispatch::new(state.clone()),
+    ));
+
     if let Err(e) = vox_orchestrator_mcp::http_gateway::spawn_http_gateway_if_enabled(state) {
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
     }
 
     if orch_daemon::is_stdio_transport(&bind_raw) {
-        return orch_daemon::run_stdio_server(repository_id, orch).await;
+        return orch_daemon::run_stdio_server_with_extra(repository_id, orch, extra).await;
     }
 
     let bind = orch_daemon::normalize_tcp_bind_addr(&bind_raw);
@@ -175,5 +182,5 @@ async fn main() -> anyhow::Result<()> {
         anyhow::bail!("VOX_ORCHESTRATOR_DAEMON_SOCKET is empty after normalization");
     }
 
-    orch_daemon::run_tcp_server(&bind, repository_id, orch).await
+    orch_daemon::run_tcp_server_with_extra(&bind, repository_id, orch, extra).await
 }
