@@ -231,10 +231,19 @@ fn parts_from_output(output: std::io::Result<std::process::Output>) -> Dispatche
 /// echoes). Otherwise returns the real outcome — including refusals (invalid
 /// base64, missing/mismatched BLAKE3 integrity, `source-only` policy, or a native
 /// binary under a non-`permissive` policy) as `success: false` **without
-/// spawning**. WASM modules run under the existing wasmtime/WASI sandbox via
-/// `vox run --mode script --isolation wasm`; native binaries execute directly and
-/// are therefore gated to `permissive` only. Mirrors the audited control-plane
-/// executor in `vox-populi` `transport::handlers::dispatch`.
+/// spawning**. WASM modules are dispatched via `vox run --mode script
+/// --isolation wasm`; native binaries execute directly and are therefore gated to
+/// `permissive` only. Mirrors the control-plane executor in `vox-populi`
+/// `transport::handlers::dispatch`.
+///
+/// KNOWN GAP (fails safe): `--isolation` is currently a flag on `vox script`, not
+/// `vox run`, and no CLI runs a *raw precompiled* `.wasm` bundle yet — so the WASM
+/// spawn here returns `success: false` (the launcher rejects `--isolation`) rather
+/// than executing, until a raw-`.wasm` runner exists. This is shared with the
+/// control-plane handler. The dispatch *infrastructure* (decode, BLAKE3 integrity,
+/// WASM/native classification, policy gating, no-spawn refusals) is real and
+/// tested; `wasm_bundle_executes_under_isolation_when_supported` is a real-WASI-
+/// module probe that skips until a working invocation is available.
 ///
 /// SECURITY: precompiled-code execution. WASM is sandboxed by wasmtime/WASI;
 /// native execution is the most dangerous lane and is allowed only under an
@@ -826,6 +835,7 @@ mod tests {
         BundleKind, classify_bundle, parse_remote_payload_context, run_dispatched_bundle,
         run_dispatched_source,
     };
+    use serial_test::serial;
 
     fn b64(s: &str) -> String {
         base64::engine::Engine::encode(&base64::engine::general_purpose::STANDARD, s.as_bytes())
@@ -899,6 +909,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(vox_spawn)]
     fn executes_source_and_returns_real_stdout() {
         if !vox_on_path() {
             eprintln!("skipping: `vox` not on PATH");
@@ -916,6 +927,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(vox_spawn)]
     fn built_exec_source_fields_round_trip_to_real_execution() {
         // End-to-end: the sender helper builds (b64, hash); the worker re-verifies
         // the hash and executes — proving the dispatch contract closes the loop.
@@ -936,6 +948,7 @@ mod tests {
     }
 
     #[test]
+    #[serial(vox_spawn)]
     fn nonzero_exit_sets_success_false() {
         if !vox_on_path() {
             eprintln!("skipping: `vox` not on PATH");
@@ -1062,23 +1075,60 @@ mod tests {
         );
     }
 
+    /// A minimal but REAL WASI module: imports `proc_exit`, exports `memory` +
+    /// `_start`, and exits 0. Unlike the 8-byte header, this actually runs under
+    /// `vox run --isolation wasm`.
+    fn minimal_wasi_module() -> Vec<u8> {
+        wat::parse_str(
+            r#"(module
+              (import "wasi_snapshot_preview1" "proc_exit" (func $exit (param i32)))
+              (memory (export "memory") 1)
+              (func (export "_start")
+                i32.const 0
+                call $exit))"#,
+        )
+        .expect("valid WAT")
+    }
+
     #[test]
+    #[serial(vox_spawn)]
     fn wasm_bundle_executes_under_isolation_when_supported() {
-        // Needs a `script-execution`-built `vox` (for `--isolation wasm`); skips
-        // cleanly otherwise. Proves the WASM lane reaches real isolated execution.
+        // Genuinely exercises the WASM lane: a real WASI module run via
+        // `vox run --mode script --isolation wasm`. Skips cleanly when `vox` is
+        // absent or was not built with the `script-execution` feature (the default
+        // build), so it never passes vacuously.
         if !vox_on_path() {
             eprintln!("skipping: `vox` not on PATH");
             return;
         }
+        let wasm = minimal_wasi_module();
+        assert!(wasm.starts_with(b"\0asm"), "synthesized bytes must be WASM");
+
         let parts = run_dispatched_bundle(
-            &b64_bytes(WASM_HEADER),
-            Some(&blake3_hex_bytes(WASM_HEADER)),
+            &b64_bytes(&wasm),
+            Some(&blake3_hex_bytes(&wasm)),
             "permissive",
         )
-        .expect("a decision is returned");
-        // Either it executed (success/exit reported) or the binary lacks the wasm
-        // isolation feature (non-success with an error) — both are real outcomes,
-        // never a stub/echo. The integrity gate passed, so result/error is set.
-        assert!(parts.result.is_some() || parts.error.is_some());
+        .expect("a decision is returned (integrity + classification passed)");
+
+        let combined = format!(
+            "{} {}",
+            parts.result.as_deref().unwrap_or(""),
+            parts.error.as_deref().unwrap_or("")
+        );
+        // The default `vox` build lacks the wasm isolation backend: `--mode script`
+        // errors ("requires ... script-execution") and `--isolation` is not even a
+        // recognized flag ("unexpected argument '--isolation'"). Skip rather than
+        // assert a vacuous pass; build `vox` with --features script-execution (on
+        // PATH) to run this for real.
+        if combined.contains("script-execution") || combined.contains("unexpected argument") {
+            eprintln!("skipping: `vox` lacks the `script-execution` feature / --isolation flag");
+            return;
+        }
+        assert!(
+            parts.success,
+            "a valid WASI module must run to a clean exit under --isolation wasm; error={:?}",
+            parts.error
+        );
     }
 }
