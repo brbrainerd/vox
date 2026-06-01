@@ -383,6 +383,69 @@ pub async fn publication_claims(publication_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Publication ids whose candidate state is `retracted` (the dashboard's
+/// retraction queue). Pure; unit-tested.
+fn retraction_queue_from(candidates: &[vox_scientia::dashboard::CandidateRow]) -> Vec<String> {
+    candidates
+        .iter()
+        .filter(|c| c.state == "retracted")
+        .map(|c| c.candidate_id.clone())
+        .collect()
+}
+
+/// Phase H — `vox scientia dashboard`. Assemble a `QueueSnapshot` JSON directly
+/// from the live Codex DB: publication manifests become candidates, the
+/// extracted-claims tables drive `claims_pending`, and retracted candidates form
+/// the retraction queue. (Distinct from `publication-dashboard-snapshot`, which
+/// reads a supplied inputs file.) `manifests_in_reply_window` is empty until a
+/// reply-window source table exists.
+pub async fn scientia_dashboard() -> Result<()> {
+    use vox_scientia::dashboard::{
+        CandidateRow, ClaimsPendingSummary, DashboardInputs, ReplyWindowEntry, build_queue_snapshot,
+    };
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .context("connect to default Codex / VoxDb")?;
+    let manifests = db
+        .list_publication_manifests(Some("scientia"), None, 200)
+        .await
+        .context("list publication manifests")?;
+    // Manifests carry no confidence signal; sourced as 0.0 (honest unknown).
+    let candidates: Vec<CandidateRow> = manifests
+        .iter()
+        .map(|m| CandidateRow {
+            candidate_id: m.publication_id.clone(),
+            candidate_class: m.content_type.clone(),
+            confidence: 0.0,
+            state: m.state.clone(),
+            created_at_ms: m.created_at_ms,
+            updated_at_ms: m.updated_at_ms,
+        })
+        .collect();
+    let retraction_queue = retraction_queue_from(&candidates);
+    let counts = db
+        .scientia_claims_pending_summary()
+        .await
+        .context("claims-pending summary")?;
+    let claims_pending = ClaimsPendingSummary {
+        verifiable: counts.verifiable.max(0) as u64,
+        abstained: counts.abstained.max(0) as u64,
+        extraction_running: counts.extraction_running.max(0) as u64,
+    };
+    let manifests_in_reply_window: Vec<ReplyWindowEntry> = Vec::new();
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let inputs = DashboardInputs {
+        candidates: &candidates,
+        claims_pending,
+        manifests_in_reply_window: &manifests_in_reply_window,
+        retraction_queue: &retraction_queue,
+        now_ms,
+    };
+    let snapshot = build_queue_snapshot(&inputs);
+    println!("{}", serde_json::to_string_pretty(&snapshot)?);
+    Ok(())
+}
+
 /// Merge an `ExtractedClaimsSummary` into the manifest's existing
 /// `metadata_json` under `scientia_evidence.extracted_claims`, preserving
 /// every other key. Returns the serialized JSON ready for upsert.
@@ -592,6 +655,29 @@ mod tests {
         let a = publication_session_id("pub-aaa");
         assert_eq!(a, publication_session_id("pub-aaa"));
         assert_ne!(a, publication_session_id("pub-bbb"));
+    }
+
+    #[test]
+    fn retraction_queue_from_filters_retracted() {
+        use vox_scientia::dashboard::CandidateRow;
+        let mk = |id: &str, state: &str| CandidateRow {
+            candidate_id: id.to_string(),
+            candidate_class: "scientia".to_string(),
+            confidence: 0.0,
+            state: state.to_string(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+        };
+        let cands = vec![
+            mk("a", "published"),
+            mk("b", "retracted"),
+            mk("c", "retracted"),
+            mk("d", "draft"),
+        ];
+        assert_eq!(
+            retraction_queue_from(&cands),
+            vec!["b".to_string(), "c".to_string()]
+        );
     }
 
     fn tmp_json<T: serde::Serialize>(value: &T) -> tempfile::NamedTempFile {
