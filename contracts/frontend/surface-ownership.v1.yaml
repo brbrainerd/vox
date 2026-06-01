@@ -18,18 +18,18 @@ surfaces:
       - UI panels in crates/vox-gui/ui/src/components/surfaces must map to real handlers.
 
   - id: vox-dashboard
-    path: crates/vox-dashboard
-    status: planned
-    role: Historical Axum SPA dashboard reference; not currently the shipped canonical GUI.
+    path: crates/vox-gui
+    status: retired
+    role: Retired Axum SPA dashboard; migrated into the shipped Tauri vox-gui surface (ADR-037). Retained only as a migration-history alias.
     source_of_truth:
+      - docs/src/adr/037-tauri-gui-replaces-axum-dashboard.md
       - docs/src/adr/024-dashboard-axum-spa.md
-      - docs/src/reference/vox-web-stack.md
     ownership:
       team: platform-gui
-      review_label: gui-planned
+      review_label: gui-retired
     notes:
-      - Preserve references for migration history.
-      - Do not route new operator UX work here unless the crate is revived.
+      - The crates/vox-dashboard crate no longer exists; all operator UX ships in vox-gui.
+      - Preserve this entry for migration history only. Do not revive a standalone dashboard crate.
 
   - id: marquee-app
     path: apps/interop/marquee_app

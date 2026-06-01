@@ -1,6 +1,11 @@
 use super::*;
 #[cfg(feature = "populi-transport")]
 use crate::a2a::populi_remote_worker_tick_once;
+#[cfg(feature = "populi-transport")]
+use crate::a2a::{
+    REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE,
+    RemoteTaskEnvelope, RemoteTaskResult,
+};
 use crate::config::OrchestratorConfig;
 use crate::reconstruction::AgentExecutionRole;
 use crate::types::{
@@ -491,6 +496,12 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
         caller_agent_id: None,
         trace_id: None,
         span_depth: None,
+        bundle_ref: None,
+        bundle_inline_b64: None,
+        exec_source_b64: None,
+        exec_source_blake3_hex: None,
+        exec_bundle_b64: None,
+        exec_bundle_blake3_hex: None,
     };
     http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
         sender_agent_id: "1".into(),
@@ -617,6 +628,12 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         caller_agent_id: None,
         trace_id: None,
         span_depth: None,
+        bundle_ref: None,
+        bundle_inline_b64: None,
+        exec_source_b64: None,
+        exec_source_blake3_hex: None,
+        exec_bundle_b64: None,
+        exec_bundle_blake3_hex: None,
     };
     http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
         sender_agent_id: "1".into(),
@@ -1019,6 +1036,7 @@ async fn non_lease_remote_relay_includes_session_and_context_payload() {
             None,
             None,
             Some(sid.to_string()),
+            None,
         )
         .await
         .expect("submit");
@@ -1434,6 +1452,7 @@ async fn vram_admission_allows_task_when_node_meets_requirement() {
             None,
             Some(cap),
             Some(hints),
+            None,
             None,
         )
         .await

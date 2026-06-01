@@ -30,6 +30,9 @@ pub enum MensSubcommand {
         #[command(subcommand)]
         cmd: Box<vox_ml_cli::commands::populi_cli::PopuliCli>,
     },
+    /// Quantize a local SafeTensors model (data-free k-quants).
+    #[command(name = "quantize")]
+    Quantize(vox_ml_cli::commands::quantize::QuantizeArgs),
 }
 
 #[tokio::main]
@@ -52,5 +55,6 @@ async fn main() -> anyhow::Result<()> {
         MensSubcommand::Populi { cmd } => {
             vox_ml_cli::commands::populi_cli::run(*cmd, root.global.json).await
         }
+        MensSubcommand::Quantize(args) => vox_ml_cli::commands::quantize::run(args),
     }
 }

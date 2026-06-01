@@ -6,6 +6,8 @@ read_role_tools:
   - vox_git_status
   - vox_handoff_lineage
   - vox_journey_canonical_steps
+  - vox_mesh_nodes
+  - vox_mesh_queue_stats
   - vox_orchestrator_persistence_outbox_lifecycle
   - vox_orchestrator_persistence_outbox_queue
   - vox_orchestrator_status

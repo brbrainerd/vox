@@ -476,5 +476,5 @@ pub fn router() -> Router<GatewayState> {
         .route("/routing/summary", get(get_routing_summary))
         .route("/routing/manual-ssot", get(get_routing_manual_ssot))
         .route("/models/catalog", get(get_models_catalog))
-        .route("/mesh/nodes/:id/kill", post(post_mesh_node_kill))
+        .route("/mesh/nodes/{id}/kill", post(post_mesh_node_kill))
 }

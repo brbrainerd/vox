@@ -36,13 +36,9 @@ const FIXED_OVERHEAD_GIB: f64 = 1.6;
 
 /// Activation VRAM (GiB) per 1k tokens per unit of (params^0.5), per micro-batch.
 /// Activation memory grows with sequence length and (sub-linearly) with model width.
-///
-/// Calibrated HEAVY (≈6.5) to the measured bf16 reality: activations stay F32 and are
-/// retained across all layers for backward, so for 3B@seq512 they account for ~6.4 GiB
-/// of the ~15.8 GiB peak. At this coefficient the budget keeps 3B at seq ≈ 384 on a
-/// 16 GiB card (~14 GiB peak, a real ~2 GiB margin) rather than seq 512/1024 which run
-/// at/over the edge. This is the dominant lever — sequence length, not base size.
-const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 6.5;
+/// The candle graph runs activations in F32, so this is calibrated heavy (≈1.6) to
+/// leave real headroom and avoid the repeated OOMs seen on a near-full 16 GiB card.
+const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 1.6;
 
 /// Default fraction of total VRAM the plan is allowed to target.
 const DEFAULT_SAFETY: f64 = 0.88;
@@ -98,15 +94,13 @@ fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
     model_params_b * resident_per_b + FIXED_OVERHEAD_GIB
 }
 
-/// Sequence-independent resident footprint for dense Qwen2 / Qwen2.5-Coder under
-/// the bf16 base-matmul change (qlora-rs dequantizes the base weight to bf16).
+/// Resident footprint for plain dense Qwen2 / Qwen2.5-Coder.
 ///
-/// Calibrated to MEASURED bf16 training peaks on a 16 GiB RTX 4080: 3B@seq512
-/// plateaued at ~15.8 GiB (stable, no OOM). The base/embedding/LoRA/optimizer
-/// (seq-independent) part is ≈9.4 GiB for 3B → R ≈ 2.6 GiB/B + the fixed overhead.
-/// The F32 *activations* (kept F32 for stability) are the heavy swing term — see
-/// ACT_GIB_PER_KTOK_PER_SQRTB — so the budget trades sequence length, not base size.
-const QWEN2_RESIDENT_GIB_PER_B: f64 = 2.6;
+/// Calibrated to the candle plugin's reality: it dequantizes base weights to **F32**
+/// (4 bytes/param) and builds the whole training graph in F32, so a 3B model OOMed a
+/// 16 GiB card. ~4.3 GiB/B reflects F32 weights + embeddings + LoRA/optimizer state.
+/// (When the plugin's F32→BF16 mixed-precision work lands, drop this back toward 2.6.)
+const QWEN2_RESIDENT_GIB_PER_B: f64 = 4.3;
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget

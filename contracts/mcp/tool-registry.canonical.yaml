@@ -608,6 +608,21 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_mesh_dispatch
+  description: Dispatch a .vox script to the Vox Populi control plane for remote execution (requires configured control URL).
+  product_lane: workflow
+  http_read_role_eligible: false
+  tier: core
+- name: vox_mesh_nodes
+  description: List Vox Populi mesh nodes (control plane preferred, local-registry fallback) with status, GPU, trust tier, advertised models.
+  product_lane: workflow
+  http_read_role_eligible: true
+  tier: core
+- name: vox_mesh_queue_stats
+  description: Vox Populi mesh pending-queue stats (control plane preferred, local queue_depth fallback).
+  product_lane: workflow
+  http_read_role_eligible: true
+  tier: core
 - name: vox_my_files
   description: Returns all files currently owned by the specified agent.
   product_lane: ai
@@ -733,6 +748,11 @@ tools:
   product_lane: ai
   http_read_role_eligible: false
   tier: core
+- name: vox_pending_approvals
+  description: List human-in-the-loop tool-call approvals currently awaiting a decision.
+  product_lane: workflow
+  http_read_role_eligible: false
+  tier: core
 - name: vox_pending_questions
   description: List all questions waiting for my answer.
   product_lane: ai
@@ -762,6 +782,31 @@ tools:
   description: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   product_lane: ai
   http_read_role_eligible: true
+  tier: core
+- name: vox_plugin_catalog
+  description: List plugins available in the Vox plugin catalog (marketplace index).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plugin_info
+  description: Show manifest details for one installed or catalog Vox plugin.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plugin_install
+  description: Install a Vox plugin by id from the catalog into the local plugins directory.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plugin_list
+  description: List installed Vox plugins with id, version, and discovered skill count.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plugin_remove
+  description: Remove an installed Vox plugin from the local plugins directory.
+  product_lane: interop
+  http_read_role_eligible: false
   tier: core
 - name: vox_poll_events
   description: Poll recent orchestrator events for all agents.
@@ -901,6 +946,11 @@ tools:
 - name: vox_research_status
   description: MCP `vox_research_status` — read stage / progress for an async research session created by `vox_research_start`.
   product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_resolve_approval
+  description: Resolve a pending human-in-the-loop approval (approve / modify / reject) by id.
+  product_lane: workflow
   http_read_role_eligible: false
   tier: core
 - name: vox_resolve_conflict

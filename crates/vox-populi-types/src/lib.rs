@@ -20,7 +20,7 @@ pub mod node_record;
 
 pub use node_record::{
     MAX_MAINTENANCE_FOR_MS, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
-    filter_registry_by_max_stale_ms, node_maintenance_blocks_new_work,
+    filter_registry_by_max_stale_ms, merge_registry_by_last_seen, node_maintenance_blocks_new_work,
     sweep_expired_maintenance_on_nodes,
 };
 

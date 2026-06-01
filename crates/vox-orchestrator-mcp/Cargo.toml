@@ -17,7 +17,7 @@ news-publish = [
 ]
 toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
-populi-transport = ["vox-orchestrator/populi-transport"]
+populi-transport = ["vox-orchestrator/populi-transport", "vox-populi/transport"]
 oratio-rerank = ["dep:vox-oratio"]
 
 [dependencies]
@@ -42,6 +42,7 @@ vox-skills.workspace = true
 vox-openclaw-runtime.workspace = true
 vox-plugin-host.workspace = true
 vox-plugin-types.workspace = true
+vox-plugin-catalog.workspace = true
 vox-orchestrator-types.workspace = true
 
 vox-db.workspace = true

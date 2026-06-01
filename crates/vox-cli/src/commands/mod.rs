@@ -106,6 +106,8 @@ pub mod pm_lifecycle;
 pub mod repair;
 #[cfg(feature = "dei")]
 pub mod safety;
+/// Raw precompiled WASI module execution (`vox wasm run`) via vox-wasm-engine.
+pub mod wasm;
 
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;

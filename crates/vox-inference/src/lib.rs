@@ -6,6 +6,9 @@
 mod backend;
 pub mod backends;
 mod dispatcher;
+pub mod generate;
+pub mod qwen_forward;
+pub mod qwen_weights;
 pub mod swarm;
 
 pub use backend::{

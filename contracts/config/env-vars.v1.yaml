@@ -1,4 +1,4 @@
-x-vox-version: 1
+x-vox-version: 2
 version: 1
 variables:
   - name: "VOX_ROUTE_POLICY_PROFILE"
@@ -2988,6 +2988,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_POPULI_PERSIST_LOCAL_REGISTRY"
+    owner_crate: "vox-orchestrator"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Opt-in flag to persist the merged local node registry to disk after a control-plane sync. Boolean-like (`1`/`true`/`yes`/`on`); default false/unset."
   - name: "VOX_POPULI_TEMPERATURE"
     owner_crate: "vox-secrets"
     kind: "string"
@@ -4128,7 +4134,7 @@ variables:
     introduced_in: "0.5.0"
     description: "Base URL for the VoxLocal (MENS) inference server. Defaults to http://127.0.0.1:11434 (in-tree `vox-ml-cli mens serve`, Ollama-compat port). Older docs reference :7863 — that was an aspirational pre-implementation value that never shipped."
   - name: "VOX_CONFIG_DIR"
-    owner_crate: "vox-dashboard"
+    owner_crate: "vox-cli"
     kind: "string"
     required: false
     introduced_in: "0.5.0"
@@ -4140,7 +4146,7 @@ variables:
     introduced_in: "0.5.0"
     description: "TCP port for the dashboard HTTP server. Overrides the default port selected by the CLI."
   - name: "VOX_DASHBOARD_ASSET_DIR"
-    owner_crate: "vox-dashboard"
+    owner_crate: "vox-cli"
     kind: "string"
     required: false
     introduced_in: "0.5.0"

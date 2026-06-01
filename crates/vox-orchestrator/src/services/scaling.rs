@@ -164,6 +164,8 @@ mod tests {
             dynamic_agents: 0,
             context_entries: std::collections::HashMap::new(),
             max_handoff_count: 0,
+            total_cost_usd: 0.0,
+            budget_cap_usd: 0.05,
             agents: vec![AgentSummary {
                 id: AgentId(1),
                 name: "a1".to_string(),
@@ -182,6 +184,7 @@ mod tests {
                 max_handoff_count: 0,
                 active_skill: None,
                 current_phase: None,
+                cost_usd: 0.0,
             }],
         }
     }

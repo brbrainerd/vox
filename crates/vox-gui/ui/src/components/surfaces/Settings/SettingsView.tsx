@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
 import { voxTransport } from '../../../transport';
+import { PriorityChainEditor } from './PriorityChainEditor';
 
 const SECTIONS = [
   { id: 'orchestrator', icon: 'cpu',     label: 'Orchestrator' },
   { id: 'routing',      icon: 'matrix',  label: 'Model routing' },
   { id: 'mesh',         icon: 'flow',    label: 'Mesh & peers' },
   { id: 'signing',      icon: 'shield',  label: 'Signing keys' },
+  { id: 'secrets',      icon: 'shield',  label: 'Keys & Secrets' },
   { id: 'telemetry',    icon: 'scale',   label: 'Telemetry' },
   { id: 'keybinds',     icon: 'command', label: 'Keybinds' },
   { id: 'theme',        icon: 'spark',   label: 'Theme' },
@@ -89,6 +91,132 @@ const MOCK_KEYS = [
   { id: 'clavis-readonly', fp: 'ed25519:11:CD:8E…77:0A', rotated: '22d ago', scope: 'recall-only' },
 ];
 
+// Redaction-safe DTO mirroring the Rust `SecretStatusDto`. NOTE: there is no
+// field carrying the raw secret value — the backend never returns it.
+interface SecretStatusDto {
+  id: string;
+  canonicalEnv: string;
+  scopeDescription: string;
+  taxonomySlug: string;
+  authRegistry: string | null;
+  required: boolean;
+  isPresent: boolean;
+  status: string;
+  redacted: string;
+  source: string | null;
+  remediation: string;
+}
+
+function KeysSecretsSection({ pushToast }: { pushToast: (t: any) => void }) {
+  const [rows, setRows] = useState<SecretStatusDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  // Holds ONLY the in-flight input value per key. Cleared immediately on save.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const reload = async () => {
+    try {
+      const next = await invoke<SecretStatusDto[]>('list_secret_status');
+      setRows(next);
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Could not load secrets', body: String(err) });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { reload(); }, []);
+
+  const save = async (key: string) => {
+    const value = drafts[key];
+    if (!value) return;
+    setBusy(key);
+    try {
+      await invoke<boolean>('set_secret', { key, value });
+      // Clear the field immediately — the value never lives in UI state beyond this.
+      setDrafts(d => { const n = { ...d }; delete n[key]; return n; });
+      pushToast({ tone: 'ok', title: 'Secret saved', body: key });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Save failed', body: String(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (key: string) => {
+    setBusy(key);
+    try {
+      await invoke<boolean>('remove_secret', { key });
+      pushToast({ tone: 'ok', title: 'Secret removed', body: key });
+      await reload();
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Remove failed', body: String(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Keys &amp; Secrets</h2>
+      <p className="mt-0.5 text-[11px] text-zinc-500">
+        Managed API keys and tokens (Vox Secrets / Clavis). Values are write-only — once saved they are never shown again, only a redacted preview.
+      </p>
+      {loading ? (
+        <div className="mt-4 text-[12px] text-zinc-500">Loading…</div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {rows.map(r => (
+            <div key={r.id} className="rounded-md border border-white/5 bg-white/[0.02] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="leading-tight">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[12px] text-zinc-100">{r.canonicalEnv}</span>
+                    <span className="rounded-full bg-white/[0.04] px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-zinc-300">{r.taxonomySlug}</span>
+                    {r.required && (
+                      <span className="rounded-full bg-amber-400/15 px-2 py-0.5 font-display text-[9px] uppercase tracking-widest text-amber-300">required</span>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-[10px] text-zinc-500">{r.scopeDescription}</div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 font-display text-[9px] uppercase tracking-widest ${
+                    r.isPresent ? 'bg-emerald-400/15 text-emerald-300' : 'bg-zinc-700/40 text-zinc-400'
+                  }`}>{r.isPresent ? 'set' : 'missing'}</span>
+                  {r.isPresent && (
+                    <span className="font-mono text-[10px] text-zinc-500">{r.redacted}</span>
+                  )}
+                </div>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Paste new value…"
+                  value={drafts[r.canonicalEnv] ?? ''}
+                  onChange={e => setDrafts(d => ({ ...d, [r.canonicalEnv]: e.target.value }))}
+                  className="flex-1 rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[11px] text-zinc-100 placeholder:text-zinc-600 focus:border-brass/40 focus:outline-none"
+                />
+                <button
+                  disabled={!drafts[r.canonicalEnv] || busy === r.canonicalEnv}
+                  onClick={() => save(r.canonicalEnv)}
+                  className="rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[10px] text-zinc-300 hover:bg-white/5 disabled:opacity-40"
+                >save</button>
+                <button
+                  disabled={!r.isPresent || busy === r.canonicalEnv}
+                  onClick={() => remove(r.canonicalEnv)}
+                  className="rounded border border-rose-500/20 bg-rose-500/[0.04] px-2 py-1 font-mono text-[10px] text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+                >remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 interface SettingsViewProps {
   pushToast: (t: any) => void;
 }
@@ -152,16 +280,58 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
     hydrate();
   }, []);
 
-  const updateRouting = async (patch: Partial<typeof routing>) => {
+  const [advanced, setAdvanced] = useState(false);
+
+  // Trailing-debounce the success toast so a dragging RangeInline slider (which
+  // fires onChange on every tick) only surfaces one "saved" toast once the value
+  // settles. Persisting still happens on every change.
+  const savedToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
+  }, []);
+
+  const updateRouting = useCallback(async (patch: Partial<typeof routing>) => {
     const next = { ...routing, ...patch };
     setRouting(next);
     try {
       await voxTransport.setRoutingPriority(next);
-      pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY updated for this session' });
+      if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
+      savedToastTimer.current = setTimeout(() => {
+        pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY persisted' });
+      }, 600);
     } catch (err) {
+      if (savedToastTimer.current) {
+        clearTimeout(savedToastTimer.current);
+        savedToastTimer.current = null;
+      }
       pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err) });
     }
+  }, [routing, pushToast]);
+
+  // The three user-facing characteristics map onto the 6-axis priority:
+  //   intelligence -> precision, efficiency -> efficiency, responsiveness -> latency.
+  // availability / balance / mobile are system-derived and preserved as-is.
+  const applyEmphasis = (e: { intelligence: number; efficiency: number; responsiveness: number }) =>
+    updateRouting({ precision: e.intelligence, efficiency: e.efficiency, latency: e.responsiveness });
+
+  const EMPHASIS_PRESETS: [string, { intelligence: number; efficiency: number; responsiveness: number }][] = [
+    ['Balanced',       { intelligence: 33, efficiency: 33, responsiveness: 34 }],
+    ['Intelligence',   { intelligence: 70, efficiency: 15, responsiveness: 15 }],
+    ['Efficiency',     { intelligence: 15, efficiency: 70, responsiveness: 15 }],
+    ['Responsiveness', { intelligence: 15, efficiency: 15, responsiveness: 70 }],
+  ];
+
+  // Reverse-map current 6-axis priority into the 3 user-facing characteristics.
+  const emphasis = {
+    intelligence: routing.precision,
+    efficiency: routing.efficiency,
+    responsiveness: routing.latency,
   };
+  const activePreset = EMPHASIS_PRESETS.find(([, p]) =>
+    p.intelligence === emphasis.intelligence &&
+    p.efficiency === emphasis.efficiency &&
+    p.responsiveness === emphasis.responsiveness,
+  )?.[0] ?? null;
 
   return (
     <div className="grid grid-cols-12 gap-5">
@@ -234,8 +404,46 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
         {section === 'routing' && (
           <>
             <h2 className="font-display text-[18px] font-semibold tracking-tight text-zinc-100">Model routing</h2>
-            <p className="mt-0.5 text-[11px] text-zinc-500">Intelligence / efficiency / latency tradeoffs (maps to VOX_AUTO_ROUTING_PRIORITY)</p>
-            <div className="mt-4 space-y-3">
+            <p className="mt-0.5 text-[11px] text-zinc-500">Emphasis tunes how the scorer trades off intelligence, efficiency, and responsiveness (persisted to VOX_AUTO_ROUTING_PRIORITY)</p>
+
+            {/* Emphasis: presets + three labeled characteristic sliders */}
+            <div className="mt-4 rounded-xl border border-white/5 bg-white/[0.02] p-3">
+              <div className="font-display text-[12px] tracking-[0.12em] uppercase text-zinc-300">Emphasis</div>
+              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                {EMPHASIS_PRESETS.map(([name, preset]) => (
+                  <button
+                    key={name}
+                    onClick={() => applyEmphasis(preset)}
+                    className={`rounded-lg border p-2 text-center transition ${
+                      activePreset === name ? 'border-brass/40 bg-brass/[0.05] text-zinc-50' : 'border-white/5 bg-white/[0.02] text-zinc-400 hover:border-white/15 hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="font-display text-[11px] tracking-wide">{name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 space-y-3">
+                <Row label="Intelligence" hint="Prefer higher-capability models">
+                  <RangeInline value={emphasis.intelligence} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, intelligence: v })} />
+                </Row>
+                <Row label="Efficiency" hint="Prefer cheaper models when viable">
+                  <RangeInline value={emphasis.efficiency} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, efficiency: v })} />
+                </Row>
+                <Row label="Responsiveness" hint="Prefer faster p50 models">
+                  <RangeInline value={emphasis.responsiveness} min={0} max={100} onChange={v => applyEmphasis({ ...emphasis, responsiveness: v })} />
+                </Row>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setAdvanced(a => !a)}
+              className="mt-4 font-display text-[11px] uppercase tracking-[0.15em] text-zinc-500 hover:text-zinc-300"
+            >
+              {advanced ? '▾ Hide advanced axes' : '▸ Advanced (all 6 axes)'}
+            </button>
+
+            {advanced && (
+            <div className="mt-3 space-y-3">
               <Row label="Efficiency (cost)" hint="Prefer cheaper models when viable">
                 <RangeInline value={routing.efficiency} min={0} max={100} onChange={v => updateRouting({ efficiency: v })} />
               </Row>
@@ -255,6 +463,11 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
                 <RangeInline value={routing.mobile} min={0} max={100} onChange={v => updateRouting({ mobile: v })} />
               </Row>
             </div>
+            )}
+
+            {/* Ordered priority chain — the additive, orderable form of emphasis.
+                An EmphasizeAxis step is the ordered version of the sliders above. */}
+            <PriorityChainEditor pushToast={pushToast} />
           </>
         )}
 
@@ -318,6 +531,8 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
             </div>
           </>
         )}
+
+        {section === 'secrets' && <KeysSecretsSection pushToast={pushToast} />}
 
         {section === 'telemetry' && (
           <>

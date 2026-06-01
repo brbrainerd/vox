@@ -232,6 +232,9 @@ pub struct UnifiedCatalogReport {
     pub total_written: usize,
     pub cache_path: std::path::PathBuf,
     pub new_discovery_ids: Vec<String>,
+    /// Discovered-but-unconfirmed model ids that have no scoreboard row yet —
+    /// the eval backlog (`vox model discover --eval-shadowed`).
+    pub pending_eval_ids: Vec<String>,
 }
 
 pub const MODEL_CATALOG_LAST_REFRESH_KEY: &str = "model_catalog_last_refresh";
@@ -433,6 +436,29 @@ pub async fn run_unified_catalog_refresh(_force: bool) -> anyhow::Result<Unified
     std::fs::write(&cache_file, serde_json::to_string_pretty(&snapshot)?)?;
     persist_catalog_refresh_timestamp().await;
 
+    // Discovery backlog: discovered-but-unconfirmed models that still owe an eval
+    // (no scoreboard row), excluding council-retired ids. Pure derivation over the
+    // freshly-written snapshot + the scoreboard ids; best-effort (empty if no DB).
+    let pending_eval_ids = {
+        let scoreboard_ids: std::collections::HashSet<String> =
+            match vox_db::VoxDb::open_default().await {
+                Ok(db) => db
+                    .get_model_scoreboard(7)
+                    .await
+                    .map(|rows| rows.into_iter().map(|r| r.model_id).collect())
+                    .unwrap_or_default(),
+                Err(_) => std::collections::HashSet::new(),
+            };
+        let retired: std::collections::HashSet<String> = vox_config::load_model_pins_config()
+            .map(|p| p.retired_ids.into_iter().collect())
+            .unwrap_or_default();
+        crate::models::discovery_pipeline::pending_eval_candidates(
+            &snapshot,
+            &scoreboard_ids,
+            &retired,
+        )
+    };
+
     Ok(UnifiedCatalogReport {
         openrouter_count,
         ollama_count,
@@ -444,6 +470,7 @@ pub async fn run_unified_catalog_refresh(_force: bool) -> anyhow::Result<Unified
         total_written,
         cache_path: cache_file,
         new_discovery_ids,
+        pending_eval_ids,
     })
 }
 

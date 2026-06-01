@@ -330,3 +330,95 @@ mod registry_filter_tests {
         assert_eq!(picked.id, "a-paid");
     }
 }
+
+#[cfg(test)]
+mod scoreboard_latency_injection_tests {
+    use crate::models::scoring::latency_score;
+    use crate::models::{ModelRegistry, ModelSpec, ProviderType};
+    use vox_db::store::types::ModelScoreboardRow;
+
+    fn spec(id: &str) -> ModelSpec {
+        ModelSpec {
+            id: id.into(),
+            canonical_slug: id.into(),
+            provider: "test".into(),
+            provider_type: ProviderType::OpenRouter,
+            max_tokens: 8192,
+            cost_per_1k: 0.0,
+            cost_per_1k_input: 0.0,
+            cost_per_1k_output: 0.0,
+            is_free: true,
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
+            supported_parameters: vec![],
+        }
+    }
+
+    fn row(model_id: &str, p50: Option<i64>) -> ModelScoreboardRow {
+        ModelScoreboardRow {
+            model_id: model_id.into(),
+            task_category: "code_gen".into(),
+            strength_tag: "general".into(),
+            window_days: 7,
+            n_calls: 42,
+            success_rate: 0.9,
+            p50_latency_ms: p50,
+            p99_latency_ms: p50.map(|v| v * 2),
+            cost_per_success_usd: Some(0.01),
+            quality_score: 1.0,
+            updated_at_ms: 0,
+            success_count: 38,
+            cumulative_cost_usd: 0.4,
+        }
+    }
+
+    #[test]
+    fn inject_scoreboard_latency_updates_capability_and_drives_latency_score() {
+        let mut r = ModelRegistry::default();
+        r.register(spec("fast/model"));
+        r.register(spec("slow/model"));
+
+        // Before injection: no measured p50 -> scorer falls back to a provider constant.
+        let before = latency_score(&r.get("fast/model").unwrap());
+
+        let rows = vec![
+            row("fast/model", Some(200)),    // excellent -> 1.0
+            row("slow/model", Some(20_000)), // beyond poor band -> 0.0
+            row("unknown/model", Some(300)), // not in registry -> ignored
+        ];
+        let updated = r.inject_scoreboard_latency(&rows);
+        assert_eq!(updated, 2, "only the two registered models are updated");
+
+        let fast = r.get("fast/model").unwrap();
+        assert_eq!(fast.capabilities.latency_p50_ms, Some(200));
+        assert_eq!(
+            latency_score(&fast),
+            1.0,
+            "measured p50=200ms now drives the score to 1.0"
+        );
+        // The static-field path is now data-backed; pre-injection fallback differed.
+        assert!(latency_score(&fast) >= before - f64::EPSILON);
+
+        let slow = r.get("slow/model").unwrap();
+        assert_eq!(slow.capabilities.latency_p50_ms, Some(20_000));
+        assert_eq!(latency_score(&slow), 0.0, "measured slow p50 -> score 0.0");
+    }
+
+    #[test]
+    fn inject_scoreboard_latency_skips_missing_and_nonpositive_p50() {
+        let mut r = ModelRegistry::default();
+        r.register(spec("m1"));
+        r.register(spec("m2"));
+
+        let rows = vec![row("m1", None), row("m2", Some(0))];
+        let updated = r.inject_scoreboard_latency(&rows);
+        assert_eq!(updated, 0, "None and <=0 p50 are ignored");
+        assert_eq!(r.get("m1").unwrap().capabilities.latency_p50_ms, None);
+        assert_eq!(r.get("m2").unwrap().capabilities.latency_p50_ms, None);
+    }
+}

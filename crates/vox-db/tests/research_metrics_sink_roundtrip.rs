@@ -92,6 +92,7 @@ async fn sink_writes_model_call_event() {
         model: "claude-sonnet-4-6".into(),
         provider: "Anthropic".into(),
         route_profile: None,
+        selection_rationale: None,
         prompt_tokens: 100,
         completion_tokens: 50,
         cache_read_input_tokens: None,

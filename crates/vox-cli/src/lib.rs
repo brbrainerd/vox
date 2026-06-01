@@ -225,6 +225,11 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::RunArgs,
     },
+    /// Raw WASI module execution (`vox wasm run <file>`) via the in-process wasmtime SSOT.
+    Wasm {
+        #[command(subcommand)]
+        cmd: commands::wasm::WasmCmd,
+    },
     /// Run a `.vox` script (`fn main()`) via the native script cache (needs `--features script-execution`).
     #[cfg(feature = "script-execution")]
     Script {
@@ -529,7 +534,7 @@ pub enum Cli {
         cmd: commands::ci::CiCmd,
     },
     /// Manage models: discovery, scoreboard, and explainability (`vox model`).
-    #[command(name = "model")]
+    #[command(name = "model", visible_alias = "models")]
     Model {
         /// Subcommand.
         #[command(subcommand)]

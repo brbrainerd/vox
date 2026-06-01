@@ -3,7 +3,7 @@ title: "Mobile target evaluation 2026 — Tauri-mobile vs RN + Expo"
 description: "Bake-off comparing Tauri-mobile (ADR-037) and React Native + Expo as Vox's mobile target."
 category: "Architecture SSOTs"
 status: research
-last_updated: 2026-05-27
+last_updated: "2026-05-27"
 related:
   - adr-037 (Tauri canonical for desktop + mobile, 2026-05-11)
   - codegen-ssot-unification-design-2026

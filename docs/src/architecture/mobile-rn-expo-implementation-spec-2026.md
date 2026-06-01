@@ -3,7 +3,7 @@ title: "Mobile RN + Expo + uniffi: comprehensive implementation spec (2026)"
 description: "File-by-file, crate-by-crate plan for shipping Vox to iOS and Android via React Native + Expo with vox-runtime cross-compiled to mobile through uniffi. No stubs. Includes CLI integration test harness, Tauri desktop scoping, vox-mental-tracker migration."
 category: "Architecture SSOTs"
 status: experimental
-last_updated: 2026-05-28
+last_updated: "2026-05-28"
 authors: [vox-team]
 related:
   - mobile-target-evaluation-2026.md

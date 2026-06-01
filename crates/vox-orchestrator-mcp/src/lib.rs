@@ -7,7 +7,9 @@ pub mod services;
 
 /// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
 pub mod chat_fallback_tools;
+pub mod daemon_extra;
 pub mod params;
+pub mod pending_approvals;
 pub mod server_state;
 
 pub mod aci;
@@ -110,6 +112,8 @@ pub mod models_tools;
 pub use models_tools as models;
 pub mod skills_tools;
 pub use skills_tools as skills;
+pub mod plugin_tools;
+pub use plugin_tools as plugins;
 pub mod trace_tools;
 pub use trace_tools as trace;
 pub mod dei_tools;

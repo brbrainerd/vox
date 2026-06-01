@@ -47,3 +47,72 @@ pub(super) fn resolve_chat_api_key(config: &LlmConfig) -> String {
 pub(super) fn chat_requires_nonempty_api_key(provider: &str) -> bool {
     matches!(provider, "openrouter" | "openai" | "anthropic")
 }
+
+/// Returns OpenRouter attribution / routing headers for a `(provider, model)` pair.
+///
+/// Mirrors the orchestrator bridge's `extra_headers_for`
+/// (`vox-orchestrator-mcp::llm_bridge::provider_auth`) so that the facade streaming
+/// and non-streaming paths emit the same app attribution that the bridge does:
+/// - `HTTP-Referer` (only if [`SecretId::VoxOpenrouterHttpReferer`] is non-empty)
+/// - `X-Title` (only if [`SecretId::VoxOpenrouterAppTitle`] is non-empty)
+/// - `X-OpenRouter-Provider-Preferences` route hint, only for the `openrouter/auto`
+///   virtual model.
+///
+/// Returns an empty vec for non-OpenRouter providers, leaving them unchanged.
+pub(super) fn openrouter_extra_headers(provider: &str, model: &str) -> Vec<(&'static str, String)> {
+    let mut headers = Vec::new();
+    if provider != "openrouter" {
+        return headers;
+    }
+
+    if let Some(v) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterHttpReferer).expose()
+    {
+        if !v.trim().is_empty() {
+            headers.push(("HTTP-Referer", v.to_string()));
+        }
+    }
+    if let Some(v) =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterAppTitle).expose()
+    {
+        if !v.trim().is_empty() {
+            headers.push(("X-Title", v.to_string()));
+        }
+    }
+    // For the virtual auto-routing model, inject the cost-preference route hint so
+    // OpenRouter's broker picks the provider matching our intent.
+    if model == vox_config::OPENROUTER_AUTO {
+        let hint = openrouter_route_hint_from_env();
+        headers.push((
+            "X-OpenRouter-Provider-Preferences",
+            format!("{{\"route\":\"{}\"}}", hint.as_route_str()),
+        ));
+    }
+    headers
+}
+
+/// Resolve the [`vox_config::OpenRouterRouteHint`] from the route-hint / cost-preference
+/// secrets. Mirrors the bridge's `openrouter_route_hint_from_env`.
+fn openrouter_route_hint_from_env() -> vox_config::OpenRouterRouteHint {
+    use vox_config::{OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint};
+    let raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterRouteHint)
+        .expose()
+        .unwrap_or("")
+        .to_string();
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "price" | "economy" | "cheap" => OpenRouterRouteHint::Price,
+        "quality" | "performance" | "best" => OpenRouterRouteHint::Quality,
+        "fallback" | "resilience" => OpenRouterRouteHint::Fallback,
+        _ => {
+            let pref_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCostPreference)
+                .expose()
+                .unwrap_or("")
+                .to_string();
+            let pref = match pref_raw.trim().to_ascii_lowercase().as_str() {
+                "performance" | "quality" => RouteCostPreference::Performance,
+                _ => RouteCostPreference::Economy,
+            };
+            derive_openrouter_route_hint(pref)
+        }
+    }
+}

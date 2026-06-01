@@ -36,6 +36,9 @@ pub struct McpInferRouting<'a> {
     pub allow_cloud_ollama_fallback: bool,
     /// Optional tenant/session usage partition key for centralized accounting.
     pub user_id: Option<&'a str>,
+    /// Human-readable reason the model was selected (free-tier router), recorded
+    /// on the ModelCall telemetry event. `None` for the ordinary scorer path.
+    pub selection_rationale: Option<String>,
 }
 
 /// Whether to emit [`vox_orchestrator::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
@@ -570,6 +573,7 @@ pub async fn mcp_infer_tool_completion(
                         model: model.id.clone(),
                         provider: format!("{:?}", model.provider_type),
                         route_profile: None,
+                        selection_rationale: routing.selection_rationale.clone(),
                         prompt_tokens: pt,
                         completion_tokens: ct,
                         cache_read_input_tokens,
@@ -805,7 +809,7 @@ pub async fn call_llm(
         Ok(g) => g.clone(),
         Err(e) => return Err(e.to_string()),
     };
-    let (model, free_only, resolution_template) = {
+    let (model, free_only, resolution_template, selection_rationale) = {
         let orch = &state.orchestrator;
         let context_fill_ratio = super::model_route_policy::mcp_global_llm_context_fill_ratio(orch);
         let resolution_template = McpChatModelResolution {
@@ -813,7 +817,7 @@ pub async fn call_llm(
             context_fill_ratio,
             ..Default::default()
         };
-        let (model, free_only) = resolve_mcp_chat_model(
+        let choice = super::model_route_policy::resolve_mcp_chat_model_with_rationale(
             state,
             user_prompt,
             pref.as_deref(),
@@ -821,7 +825,12 @@ pub async fn call_llm(
             user_id,
         )
         .await?;
-        (model, free_only, resolution_template)
+        (
+            choice.model,
+            choice.is_free,
+            resolution_template,
+            choice.rationale,
+        )
     };
 
     let max_tokens = model.max_tokens.clamp(1, HTTP_MAX_OUTPUT_TOKENS_CAP);
@@ -832,6 +841,7 @@ pub async fn call_llm(
         free_only,
         allow_cloud_ollama_fallback: true,
         user_id,
+        selection_rationale,
     };
     mcp_infer_completion(
         state,

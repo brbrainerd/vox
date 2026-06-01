@@ -1,7 +1,6 @@
 # Paths under scripts/ allowed to appear in `.github/workflows/*.yml`.
 # Tighten this list as jobs migrate to `vox ci …`. Lines starting with `#` are ignored.
 scripts/arch-check.vox
-scripts/check_dashboard_ssot.vox
 scripts/ci/corpus_prep.vox
 scripts/generate-bench-scaffold.vox
 scripts/quality/audit-telemetry.vox

@@ -9,10 +9,13 @@ const LQ_MODES = [
   { id: "verify", label: "Verify", hint: "Re-run with stricter doubt + property tests", tone: "text-violet-300 border-violet-400/30 bg-violet-400/[0.08]" },
 ];
 
+// Static fallback tiers shown before the runtime model list loads.
+// Cost is `null` (unknown) — real per-1k pricing is injected from listModels()
+// once available. We never display a fabricated price.
 const LQ_TIERS = [
-  { id: "local",  label: "Local · Mens",    detail: "candle-cuda · 8B",   cost: 0.00, lat: "0.3s" },
-  { id: "mesh",   label: "Mesh · Peers",    detail: "3 peers · 14B",      cost: 0.04, lat: "0.6s" },
-  { id: "cloud",  label: "Cloud · Cascade", detail: "Sonnet → Opus",      cost: 0.42, lat: "1.4s" },
+  { id: "local",  label: "Local · Mens",    detail: "candle-cuda · 8B",    cost: null, lat: "0.3s" },
+  { id: "mesh",   label: "Mesh · Peers",    detail: "peers",               cost: null, lat: "0.6s" },
+  { id: "cloud",  label: "Cloud · Cascade", detail: "Sonnet → Opus",       cost: null, lat: "1.4s" },
   { id: "auto",   label: "Auto · Cascade",  detail: "tier-router decides", cost: null, lat: "var" },
 ];
 
@@ -147,13 +150,18 @@ export function Loquela({ chips, setChips, onSubmit, activeSkill, setActiveSkill
   useEffect(() => {
     voxTransport.listModels(24).then((models: any) => {
       if (!Array.isArray(models) || models.length === 0) return;
-      const dynamic = models.slice(0, 4).map((m: any, idx: number) => ({
-        id: m.model_id ?? `model-${idx}`,
-        label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
-        detail: m.provider ?? 'runtime',
-        cost: null,
-        lat: 'var',
-      }));
+      const dynamic = models.slice(0, 4).map((m: any, idx: number) => {
+        // Real per-1k-token price from the model registry when present;
+        // otherwise leave unknown (null) — never fabricate a number.
+        const perK = typeof m.cost_per_1k === 'number' ? m.cost_per_1k : null;
+        return {
+          id: m.model_id ?? `model-${idx}`,
+          label: m.display_name ?? m.model_id ?? `Model ${idx + 1}`,
+          detail: m.provider ?? 'runtime',
+          cost: perK,
+          lat: 'var',
+        };
+      });
       setRuntimeTiers([
         ...dynamic,
         { id: 'auto', label: 'Auto · Router', detail: 'live routing summary', cost: null, lat: 'var' },

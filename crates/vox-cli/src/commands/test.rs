@@ -73,7 +73,7 @@ async fn run_once(args: &crate::cli_args::TestArgs) -> Result<()> {
 async fn run_watch(args: &crate::cli_args::TestArgs) -> Result<()> {
     use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
     use std::sync::mpsc;
-    use std::time::{Duration, Instant};
+    use std::time::Instant;
 
     let watch_root = args
         .file

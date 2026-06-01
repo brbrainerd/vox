@@ -13779,6 +13779,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "toml 0.8.23",
+ "tracing",
  "turso",
  "vox-build-meta",
  "vox-cli",
@@ -13787,6 +13788,7 @@ dependencies = [
  "vox-db",
  "vox-foundation",
  "vox-orchestrator",
+ "vox-orchestrator-mcp",
  "vox-package-types",
  "vox-repository",
  "vox-search",
@@ -13841,14 +13843,20 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "candle-core",
+ "candle-nn",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
+ "tokenizers",
  "tokio",
  "tracing",
+ "vox-hf-layout",
  "vox-mesh-types",
  "vox-package",
+ "vox-quantize",
  "workspace-hack",
 ]
 
@@ -13979,6 +13987,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "blake3",
+ "candle-core",
  "clap",
  "cpal",
  "dialoguer",
@@ -14015,6 +14024,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-plugin-host",
  "vox-populi",
+ "vox-quantize",
  "vox-repository",
  "vox-scaling-policy",
  "vox-secrets",
@@ -14171,6 +14181,7 @@ dependencies = [
  "vox-telemetry",
  "vox-test-harness",
  "walkdir",
+ "wat",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -14263,6 +14274,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-orchestrator-types",
  "vox-package",
+ "vox-plugin-catalog",
  "vox-plugin-host",
  "vox-plugin-types",
  "vox-populi",
@@ -14814,6 +14826,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-quantize"
+version = "0.6.0"
+dependencies = [
+ "candle-core",
+ "safetensors 0.7.0",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-rename-registry"
 version = "0.6.0"
 dependencies = [
@@ -15002,6 +15028,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
  "turso",
  "vox-bounded-fs",
  "vox-crypto",

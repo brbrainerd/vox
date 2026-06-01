@@ -15,6 +15,7 @@ vox-cli = { workspace = true }
 vox-cli-core = { workspace = true }
 vox-foundation = { workspace = true }
 vox-orchestrator = { workspace = true }
+vox-orchestrator-mcp = { workspace = true }
 vox-repository = { workspace = true }
 vox-package-types = { workspace = true }
 vox-config = { workspace = true }
@@ -30,6 +31,7 @@ tauri-plugin-shell = { version = "2" }
 rmp-serde = "1.1"
 serde_bytes = "0.11"
 tokio = { workspace = true }
+tracing = { workspace = true }
 turso = { workspace = true }
 [build-dependencies]
 vox-build-meta = { workspace = true }

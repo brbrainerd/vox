@@ -3,6 +3,7 @@
 mod bus;
 pub mod dispatch;
 mod envelope;
+pub mod exec_source;
 #[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]
@@ -16,6 +17,7 @@ mod remote_worker;
 #[path = "remote_worker_noop.rs"]
 mod remote_worker;
 pub mod secret_bag;
+pub mod secret_gate;
 pub mod traceparent;
 
 pub use crate::types::{A2AMessage, A2AMessageType, MessageId};
@@ -35,6 +37,7 @@ pub use envelope::{
     REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE, RemoteTaskAck,
     RemoteTaskCancel, RemoteTaskEnvelope, RemoteTaskResult,
 };
+pub use exec_source::build_exec_source_fields;
 pub use remote_poller::{populi_remote_result_poll_once, spawn_populi_remote_result_poller};
 pub use remote_worker::{populi_remote_worker_tick_once, spawn_populi_remote_worker_poller};
 

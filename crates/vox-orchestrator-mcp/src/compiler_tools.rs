@@ -613,6 +613,7 @@ pub async fn generate_vox_code(state: &ServerState, args: serde_json::Value) -> 
             },
             free_only,
             allow_cloud_ollama_fallback: true,
+            selection_rationale: None,
             user_id: session_id.as_deref(),
         };
 
@@ -1066,6 +1067,7 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
                 resolution_template,
                 free_only,
                 allow_cloud_ollama_fallback: true,
+                selection_rationale: None,
                 user_id: session_id,
             };
 

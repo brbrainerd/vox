@@ -119,7 +119,60 @@ pub async fn handle_tool_call(
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
         if !approved {
-            return Ok(crate::params::ToolResult::<()>::err("RBAC_VIOLATION: This operation requires explicit UserApproval mode. Please set `user_approval: true` or seek explicit confirmation.").to_json_compact());
+            // B3 HITL: rather than rejecting outright, register an interactive
+            // approval and await the human decision (resolved in-process via the
+            // `vox_resolve_approval` tool). The `user_approval: true` fast path
+            // above stays for callers that pre-confirm.
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            let summary = {
+                let a = args.to_string();
+                let a: String = a.chars().take(200).collect();
+                format!("{name_canonical} {a}")
+            };
+            let (approval_id, rx) = state.pending_approvals.register(
+                name_canonical.to_string(),
+                summary.clone(),
+                now_ms,
+            );
+            // Durable audit trail (best-effort): record the request, then its outcome.
+            if let Some(db) = state.db.as_ref() {
+                let _ = db
+                    .hitl_approval_record(&approval_id, name_canonical, &summary, now_ms as i64)
+                    .await;
+            }
+            const APPROVAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+            let outcome = match tokio::time::timeout(APPROVAL_TIMEOUT, rx).await {
+                Ok(Ok(o)) => o,
+                Ok(Err(_)) => vox_orchestrator::ApprovalOutcome::Rejected, // resolver dropped
+                Err(_) => {
+                    state.pending_approvals.cancel(&approval_id);
+                    vox_orchestrator::ApprovalOutcome::TimedOut
+                }
+            };
+            if let Some(db) = state.db.as_ref() {
+                let resolved_ms = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as i64;
+                let status = format!("{outcome:?}").to_lowercase();
+                let _ = db
+                    .hitl_approval_resolve(&approval_id, &status, resolved_ms)
+                    .await;
+            }
+            if !matches!(
+                outcome,
+                vox_orchestrator::ApprovalOutcome::Approved
+                    | vox_orchestrator::ApprovalOutcome::Modified
+            ) {
+                return Ok(crate::params::ToolResult::<()>::err(format!(
+                    "Operation '{name_canonical}' was not approved (outcome: {outcome:?})."
+                ))
+                .to_json_compact());
+            }
+            // Approved / Modified: fall through and execute the tool.
         }
     }
 
@@ -280,6 +333,31 @@ async fn handle_tool_call_inner(
         }
         "vox_test_decision" => {
             Ok(task_tools::test_decision(state, serde_json::from_value(args)?).await)
+        }
+        // B3 HITL: list / resolve approvals awaiting a human decision (the
+        // dangerous-tool gate below parks on these).
+        "vox_pending_approvals" => Ok(crate::params::ToolResult::ok(serde_json::json!({
+            "approvals": state.pending_approvals.list(),
+        }))
+        .to_json_compact()),
+        "vox_resolve_approval" => {
+            let approval_id = args
+                .get("approval_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let decision = args
+                .get("outcome")
+                .or_else(|| args.get("decision"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let outcome = crate::pending_approvals::outcome_from_decision(decision);
+            let resolved = state.pending_approvals.resolve(approval_id, outcome);
+            Ok(crate::params::ToolResult::ok(serde_json::json!({
+                "resolved": resolved,
+                "approval_id": approval_id,
+                "outcome": format!("{outcome:?}"),
+            }))
+            .to_json_compact())
         }
         "vox_orchestrator_status" => crate::dei_tools::orchestrator_status(state).await,
         "vox_orchestrator_persistence_outbox_lifecycle" => {
@@ -1068,6 +1146,18 @@ async fn handle_tool_call_inner(
         )),
         "vox_skill_parse" => Ok(crate::skills::skill_parse(serde_json::from_value(args)?)),
 
+        "vox_plugin_list" => Ok(crate::plugins::plugin_list(state).await),
+        "vox_plugin_catalog" => Ok(crate::plugins::plugin_catalog()),
+        "vox_plugin_info" => {
+            Ok(crate::plugins::plugin_info(state, serde_json::from_value(args)?).await)
+        }
+        "vox_plugin_install" => {
+            Ok(crate::plugins::plugin_install(state, serde_json::from_value(args)?).await)
+        }
+        "vox_plugin_remove" => {
+            Ok(crate::plugins::plugin_remove(state, serde_json::from_value(args)?).await)
+        }
+
         "vox_set_context" => {
             Ok(crate::mcp_context::set_context(state, serde_json::from_value(args)?).await)
         }
@@ -1098,6 +1188,9 @@ async fn handle_tool_call_inner(
         "vox_oratio_status" => Ok(oratio_tools::status()),
 
         "vox_populi_local_status" => Ok(populi_tools::mesh_local_status(args)?),
+        "vox_mesh_nodes" => Ok(populi_tools::mesh_nodes(state, args).await?),
+        "vox_mesh_queue_stats" => Ok(populi_tools::mesh_queue_stats(state, args).await?),
+        "vox_mesh_dispatch" => Ok(populi_tools::mesh_dispatch(state, args).await?),
 
         "vox_browser_open" => {
             Ok(browser_tools::browser_open(state, serde_json::from_value(args)?).await)
