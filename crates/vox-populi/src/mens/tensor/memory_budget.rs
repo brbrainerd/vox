@@ -36,9 +36,13 @@ const FIXED_OVERHEAD_GIB: f64 = 1.6;
 
 /// Activation VRAM (GiB) per 1k tokens per unit of (params^0.5), per micro-batch.
 /// Activation memory grows with sequence length and (sub-linearly) with model width.
-/// The candle graph runs activations in F32, so this is calibrated heavy (≈1.6) to
-/// leave real headroom and avoid the repeated OOMs seen on a near-full 16 GiB card.
-const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 1.6;
+///
+/// Calibrated HEAVY (≈6.5) to the measured bf16 reality: activations stay F32 and are
+/// retained across all layers for backward, so for 3B@seq512 they account for ~6.4 GiB
+/// of the ~15.8 GiB peak. At this coefficient the budget keeps 3B at seq ≈ 384 on a
+/// 16 GiB card (~14 GiB peak, a real ~2 GiB margin) rather than seq 512/1024 which run
+/// at/over the edge. This is the dominant lever — sequence length, not base size.
+const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 6.5;
 
 /// Default fraction of total VRAM the plan is allowed to target.
 const DEFAULT_SAFETY: f64 = 0.88;
@@ -94,15 +98,15 @@ fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
     model_params_b * resident_per_b + FIXED_OVERHEAD_GIB
 }
 
-/// Resident footprint for plain dense Qwen2 / Qwen2.5-Coder.
+/// Sequence-independent resident footprint for dense Qwen2 / Qwen2.5-Coder under
+/// the bf16 base-matmul change (qlora-rs dequantizes the base weight to bf16).
 ///
-/// Calibrated to MEASURED bf16 training (qlora-rs now dequantizes the base weight to
-/// the bf16 compute dtype): on a 16 GiB RTX 4080, 1.5B@seq512 used 9.5 GiB and
-/// 3B@seq512 used 11.6 GiB (both training, not OOM). Solving est_peak = 3·R + fixed +
-/// activation against the 3B point gives R ≈ 2.9. With this, the ladder picks 3B for
-/// 16 GiB (≈13 GiB peak at seq 1024, ~3 GiB margin), 7B for 24-32 GiB.
-/// (Was 4.3 under the old all-F32 graph that OOMed even 3B.)
-const QWEN2_RESIDENT_GIB_PER_B: f64 = 2.9;
+/// Calibrated to MEASURED bf16 training peaks on a 16 GiB RTX 4080: 3B@seq512
+/// plateaued at ~15.8 GiB (stable, no OOM). The base/embedding/LoRA/optimizer
+/// (seq-independent) part is ≈9.4 GiB for 3B → R ≈ 2.6 GiB/B + the fixed overhead.
+/// The F32 *activations* (kept F32 for stability) are the heavy swing term — see
+/// ACT_GIB_PER_KTOK_PER_SQRTB — so the budget trades sequence length, not base size.
+const QWEN2_RESIDENT_GIB_PER_B: f64 = 2.6;
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget
