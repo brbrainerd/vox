@@ -81,8 +81,8 @@ pub fn set_secret(key: String, value: String) -> Result<bool, String> {
         vox_secrets::set_registry_token(registry, &value, None).map_err(|e| e.to_string())?;
     } else {
         let backend_key = spec.backend_key.unwrap_or(spec.canonical_env);
-        let backend = vox_secrets::backend::vox_vault::VoxCloudBackend::new()
-            .map_err(|e| e.to_string())?;
+        let backend =
+            vox_secrets::backend::vox_vault::VoxCloudBackend::new().map_err(|e| e.to_string())?;
         backend
             .write_secret(backend_key, &value)
             .map_err(|e| e.to_string())?;
@@ -103,8 +103,8 @@ pub fn remove_secret(key: String) -> Result<bool, String> {
         vox_secrets::remove_registry_token(registry).map_err(|e| e.to_string())?;
     } else {
         let backend_key = spec.backend_key.unwrap_or(spec.canonical_env);
-        let backend = vox_secrets::backend::vox_vault::VoxCloudBackend::new()
-            .map_err(|e| e.to_string())?;
+        let backend =
+            vox_secrets::backend::vox_vault::VoxCloudBackend::new().map_err(|e| e.to_string())?;
         backend
             .delete_secret(backend_key)
             .map_err(|e| e.to_string())?;

@@ -106,7 +106,11 @@ pub async fn finish_gui_run(
 
     // Load the existing row so we preserve start metadata; build a minimal
     // running-row fallback if this run was never started via start_gui_run.
-    let mut row = match db.agent_runs_get(&run_id).await.map_err(|e| e.to_string())? {
+    let mut row = match db
+        .agent_runs_get(&run_id)
+        .await
+        .map_err(|e| e.to_string())?
+    {
         Some(existing) => existing,
         None => AgentRunRow {
             run_id: run_id.clone(),
@@ -171,6 +175,9 @@ pub async fn get_gui_run(run_id: String) -> Result<Option<GuiRunRecord>, String>
     let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
         .await
         .ok_or_else(|| "No workspace db found".to_string())?;
-    let row = db.agent_runs_get(&run_id).await.map_err(|e| e.to_string())?;
+    let row = db
+        .agent_runs_get(&run_id)
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(row.map(GuiRunRecord::from))
 }

@@ -73,7 +73,10 @@ async fn effective_routing_priority() -> RoutingPriorityDto {
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
     {
-        if let Ok(Some(csv)) = db.get_user_preference("local_user", "routing_priority").await {
+        if let Ok(Some(csv)) = db
+            .get_user_preference("local_user", "routing_priority")
+            .await
+        {
             if !csv.trim().is_empty() {
                 return apply_routing_csv(base, &csv);
             }
@@ -338,7 +341,10 @@ pub async fn get_selection_policy() -> String {
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
     {
-        if let Ok(Some(json)) = db.get_user_preference("local_user", "selection_policy").await {
+        if let Ok(Some(json)) = db
+            .get_user_preference("local_user", "selection_policy")
+            .await
+        {
             if !json.trim().is_empty() {
                 return json;
             }

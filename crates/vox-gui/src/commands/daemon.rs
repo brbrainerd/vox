@@ -63,8 +63,7 @@ impl PersistentDaemon {
                 }
 
                 // Poll until the daemon answers a ping or the deadline elapses.
-                let deadline =
-                    std::time::Instant::now() + std::time::Duration::from_secs(15);
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
                 while std::time::Instant::now() < deadline {
                     if OrchDaemonClient::new(addr.clone()).ping().await.is_ok() {
                         return Ok(addr);

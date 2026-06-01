@@ -94,7 +94,10 @@ async fn main() -> anyhow::Result<()> {
     // global scorer default. Per-call SelectionAxes still override it via the
     // scorer's thread-local. Done before serving so all scoring sees it.
     if let Some(db) = db_holder.as_ref() {
-        if let Ok(Some(csv)) = db.get_user_preference("local_user", "routing_priority").await {
+        if let Ok(Some(csv)) = db
+            .get_user_preference("local_user", "routing_priority")
+            .await
+        {
             let csv = csv.trim();
             if !csv.is_empty() {
                 // SAFETY: set during single-threaded startup, before any worker
