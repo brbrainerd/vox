@@ -134,7 +134,97 @@ pub(crate) fn cli_top_level_into_fabrica_or_self(
     }
 }
 
+/// Reward events emitted for a fabrica lane command (SP-3 Ludus bus wiring).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct FabricaRewardEvents {
+    success: &'static str,
+    failure: Option<&'static str>,
+    capability_id: &'static str,
+    command_path: &'static str,
+}
+
+/// Stable lane name for a fabrica command (cheap; does not consume `cmd`).
+fn fabrica_lane_name(cmd: &latin_cmd::FabricaCmd) -> &'static str {
+    use latin_cmd::FabricaCmd;
+    match cmd {
+        FabricaCmd::Build(_) => "build",
+        FabricaCmd::Check(_) => "check",
+        FabricaCmd::Test(_) => "test",
+        FabricaCmd::Run(_) => "run",
+        FabricaCmd::Dev(_) => "dev",
+        FabricaCmd::Bundle(_) => "bundle",
+        FabricaCmd::Compile(_) => "compile",
+        FabricaCmd::Fmt(_) => "fmt",
+        #[cfg(feature = "script-execution")]
+        FabricaCmd::Script(_) => "script",
+    }
+}
+
+/// Map a fabrica lane to the Ludus reward events the policy already rewards
+/// (`vox_gamify::reward_policy::base_reward`). Lanes with no reward type
+/// (`run`/`dev`/`compile`/`script`) return `None`, so no hollow events are emitted.
+fn fabrica_reward_events(lane: &str) -> Option<FabricaRewardEvents> {
+    Some(match lane {
+        "build" => FabricaRewardEvents {
+            success: "build_completed",
+            failure: Some("build_failed"),
+            capability_id: "cli.build",
+            command_path: "build",
+        },
+        "check" => FabricaRewardEvents {
+            success: "check_completed",
+            failure: Some("check_failed"),
+            capability_id: "cli.check",
+            command_path: "check",
+        },
+        "test" => FabricaRewardEvents {
+            success: "test_pass",
+            failure: Some("test_fail"),
+            capability_id: "cli.test",
+            command_path: "test",
+        },
+        "bundle" => FabricaRewardEvents {
+            success: "bundle_completed",
+            failure: None,
+            capability_id: "cli.bundle",
+            command_path: "bundle",
+        },
+        "fmt" => FabricaRewardEvents {
+            success: "fmt_completed",
+            failure: None,
+            capability_id: "cli.fmt",
+            command_path: "fmt",
+        },
+        _ => return None,
+    })
+}
+
+/// Run a fabrica command, then emit its Ludus reward event (fire-and-forget).
+///
+/// Emission is non-blocking and self-gating: the shim opens its own DB, checks
+/// the gamification config gate, and silently no-ops when disabled — it can
+/// never change this command's result, exit code, or latency. Because the GUI
+/// shells the `vox` sidecar, GUI-driven commands earn rewards through this same
+/// path with no GUI-side code.
 pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()> {
+    let events = fabrica_reward_events(fabrica_lane_name(&cmd));
+    let result = run_fabrica_cmd_inner(cmd).await;
+    if let Some(ev) = events {
+        let success = result.is_ok();
+        let event_type = if success { Some(ev.success) } else { ev.failure };
+        if let Some(event_type) = event_type {
+            vox_cli_core::gamify_shim::record_cli_event_fire_and_forget(
+                event_type,
+                success,
+                Some(ev.capability_id),
+                Some(ev.command_path),
+            );
+        }
+    }
+    result
+}
+
+async fn run_fabrica_cmd_inner(cmd: latin_cmd::FabricaCmd) -> anyhow::Result<()> {
     use latin_cmd::FabricaCmd;
     match cmd {
         FabricaCmd::Build(a) => {
@@ -239,4 +329,43 @@ pub(crate) async fn run_ars_cmd(cmd: latin_cmd::ArsCmd) -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fabrica_reward_events_maps_known_commands() {
+        let build = fabrica_reward_events("build").expect("build is rewarded");
+        assert_eq!(build.success, "build_completed");
+        assert_eq!(build.failure, Some("build_failed"));
+        assert_eq!(build.capability_id, "cli.build");
+        assert_eq!(build.command_path, "build");
+
+        assert_eq!(
+            fabrica_reward_events("check").map(|e| e.success),
+            Some("check_completed")
+        );
+        assert_eq!(
+            fabrica_reward_events("test").and_then(|e| e.failure),
+            Some("test_fail")
+        );
+
+        // Commands the policy rewards on success but not failure → no hollow failure event.
+        assert_eq!(fabrica_reward_events("fmt").and_then(|e| e.failure), None);
+        assert_eq!(fabrica_reward_events("fmt").map(|e| e.success), Some("fmt_completed"));
+        assert_eq!(fabrica_reward_events("bundle").and_then(|e| e.failure), None);
+    }
+
+    #[test]
+    fn fabrica_reward_events_skips_unrewarded_lanes() {
+        // No reward type defined for these lanes yet → emit nothing (not a hollow event).
+        for lane in ["run", "dev", "compile", "script", "unknown"] {
+            assert!(
+                fabrica_reward_events(lane).is_none(),
+                "lane `{lane}` should not emit a reward event"
+            );
+        }
+    }
 }
