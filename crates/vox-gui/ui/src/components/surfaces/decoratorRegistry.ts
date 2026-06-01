@@ -45,4 +45,8 @@ export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecora
     { key: 'history', title: 'Recent Sessions', description: 'Persisted research sessions', path: ['research', 'history'] },
     { key: 'config', title: 'Configuration', description: 'Resolved research config', path: ['research', 'config', 'show'] },
   ]),
+  oratio: commandSurface('Vox Oratio', 'Speech-to-code runtime', [
+    { key: 'doctor', title: 'Runtime Health', description: 'Oratio runtime + configuration diagnostics', path: ['oratio', 'doctor'] },
+    { key: 'status', title: 'Backend Status', description: 'Available backends + passthrough modes', path: ['oratio', 'status'] },
+  ]),
 };

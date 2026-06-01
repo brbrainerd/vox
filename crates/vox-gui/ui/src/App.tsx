@@ -42,6 +42,7 @@ type View =
   | 'mens'
   | 'populi'
   | 'research'
+  | 'oratio'
   | 'settings';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
