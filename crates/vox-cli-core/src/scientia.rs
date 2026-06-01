@@ -524,6 +524,16 @@ pub enum ScientiaCmd {
         #[arg(long)]
         inputs: std::path::PathBuf,
     },
+
+    /// List a publication's extracted claims joined to each claim's latest
+    /// verdict, as JSON. Reads `scientia_claims` / `scientia_claim_verdicts`
+    /// (populated by `publication-extract-claims`).
+    #[command(name = "claims")]
+    Claims {
+        /// Publication id whose extracted claims to list.
+        #[arg(long)]
+        publication_id: String,
+    },
 }
 
 /// Output format for `vox scientia scout`.
