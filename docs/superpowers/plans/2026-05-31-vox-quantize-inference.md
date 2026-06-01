@@ -4,7 +4,7 @@
 
 **Goal:** Make `vox-inference` actually load an SP-1 quantized Qwen3.5 artifact and generate tokens — **CUDA-first** on the RTX 4080, with CPU as the CI/fallback path — without violating the L3→L4 layering rule.
 
-**Architecture:** Two slices. **SP-2a** extracts the Qwen3.5/2.5 forward pass out of the L4 plugin into a new L2 crate `vox-model-qwen` built on `QMatMul` (accepts quantized or f32 weights). **SP-2b** wires `vox-inference` backends to load SP-1 artifacts into `vox-model-qwen` and run a sampling loop.
+**Architecture (REVISED per Task 0 → Option B):** The Task 0 investigation (spec §9) found the plugin's forward uses qlora-rs `QuantizedLinear` (NF4 + LoRA training primitive — not GGUF/`QMatMul`), so a struct-copy extraction is not viable and would drag the training stack into L2. Instead **re-implement** a quantized-only Qwen3.5/2.5 forward directly inside `vox-inference`, built on candle `quantized::QMatMul`, reusing only the pure-math helpers (RoPE, delta-net recurrence, depthwise conv, RMSNorm, l2norm). This **dissolves the L3→L4 problem** — no plugin dependency, plugin untouched, no new L2 crate. (Promote to an L2 `vox-model-qwen` only if a second consumer ever appears.) SP-1's quantized artifact (GGUF k-quants as `QTensor`) feeds `QMatMul` natively; LoRA is already merged upstream (SP-3) or absent (base model).
 
 **Tech Stack:** Rust, `candle-core`/`candle-nn` (`quantized::QMatMul`), `vox-quantize` (SP-1), `vox-hf-layout`, `tokenizers`.
 
