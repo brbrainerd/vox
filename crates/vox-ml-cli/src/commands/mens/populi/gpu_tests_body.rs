@@ -54,7 +54,7 @@ fn merge_qlora_rejects_burn_bin_adapter() {
     let base = dir.path().join("base.safetensors");
     std::fs::write(&base, []).expect("base shard");
     let out = dir.path().join("merged.safetensors");
-    let result = merge_qlora::run_merge_qlora(vec![base], adapter, meta, out);
+    let result = merge_qlora::run_merge_qlora(vec![base], adapter, meta, out, None);
     assert!(result.is_err(), "expected rejection of Burn bin adapter");
     let msg = result.unwrap_err().to_string();
     assert!(
@@ -140,7 +140,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset() {
     .unwrap();
 
     let out_path = dir.path().join("merged.safetensors");
-    merge_qlora::run_merge_qlora(vec![base_path], ad_path, meta_path, out_path.clone())
+    merge_qlora::run_merge_qlora(vec![base_path], ad_path, meta_path, out_path.clone(), None)
         .expect("merge-qlora");
 
     let mut delta = vec![0f32; vocab * d];
@@ -251,7 +251,7 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     .unwrap();
 
     let out_path = dir.path().join("merged_v3.safetensors");
-    merge_qlora::run_merge_qlora(vec![base_path], ad_path, meta_path, out_path.clone())
+    merge_qlora::run_merge_qlora(vec![base_path], ad_path, meta_path, out_path.clone(), None)
         .expect("merge-qlora v3 meta");
 
     let mut delta = vec![0f32; vocab * d];

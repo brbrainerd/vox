@@ -16,7 +16,7 @@ pub async fn run_train(
     output_dir: PathBuf,
     rank: Option<usize>,
     alpha: Option<f32>,
-    seq_len: usize,
+    seq_len: Option<usize>,
     batch_size: Option<usize>,
     grad_accum: Option<usize>,
     resume: Option<PathBuf>,
@@ -79,7 +79,7 @@ pub async fn run_train(
             spec.max_budget_usd = _max_budget;
             spec.max_runtime_secs = _max_runtime_secs;
             spec.preset = preset.clone().unwrap_or_else(|| "auto".to_string());
-            spec.seq_len = seq_len;
+            spec.seq_len = seq_len.unwrap_or(512);
             spec.batch_size = batch_size.unwrap_or(4);
             spec.epochs = epochs.unwrap_or(3);
             spec.num_samples = 5000;
@@ -134,20 +134,33 @@ pub async fn run_train(
         use owo_colors::OwoColorize;
         let current_fp = vox_corpus::corpus::preflight::compute_corpus_fingerprint(root);
 
-        let is_fresh = if let Ok(db) = vox_db::VoxDb::connect_default().await {
+        let fingerprint_fresh = if let Ok(db) = vox_db::VoxDb::connect_default().await {
             db.is_corpus_fresh(&current_fp).await.unwrap_or(false)
         } else {
             let fp_file = vox_corpus::corpus::preflight::fingerprint_cache_path(root);
             vox_corpus::corpus::preflight::corpus_is_fresh(root, &fp_file)
         };
 
+        // Version gate: even when the input fingerprint is unchanged, a corpus
+        // produced by a different compiler version may use a stale pair-encoding
+        // schema. Force a refresh when `metadata.json`'s `compiler_version` does
+        // not match this build, so a version bump alone triggers regeneration.
+        let version_mismatch = corpus_compiler_version_mismatch(&data_dir);
+        let is_fresh = fingerprint_fresh && version_mismatch.is_none();
+
         let skip_regen = vox_corpus::training::mix_prepare::corpus_mix_skip_from_env();
         if !is_fresh && !skip_regen {
             let strict = matches!(data_mode, TrainDataModeCli::Strict);
+            let reason = match &version_mismatch {
+                Some((found, current)) => format!(
+                    "compiler version changed ({found} → {current}); fingerprint: {current_fp}"
+                ),
+                None => format!("fingerprint: {current_fp}"),
+            };
             eprintln!(
-                "  {} Stale corpus detected (fingerprint: {}). {}",
+                "  {} Stale corpus detected ({}). {}",
                 "🔄".cyan(),
-                current_fp,
+                reason,
                 if strict {
                     "Running blocking refresh before train..."
                 } else {
@@ -167,7 +180,14 @@ pub async fn run_train(
 
     let mut effective_min_rating = min_rating;
     let mut effective_ce_last_k = qlora_ce_last_k;
-    let mut effective_seq_len = seq_len;
+    // Resolution order for memory-sizing knobs: explicit CLI > domain profile >
+    // VRAM-aware budget > preset fallback (applied in gpu.rs). `None` means
+    // "not yet set"; each stage fills only what an earlier stage left unset.
+    let mut effective_seq_len: Option<usize> = seq_len;
+    let mut effective_batch_size: Option<usize> = batch_size;
+    let mut effective_grad_accum: Option<usize> = grad_accum;
+    // May be retreated to a smaller Qwen3.5 variant by the VRAM budget below.
+    let mut effective_model = model;
     let mut effective_validation_split_ratio = validation_split_ratio;
     let mut _effective_max_grad_norm = None; // pass down if needed
     let mut effective_curriculum = curriculum;
@@ -198,7 +218,10 @@ pub async fn run_train(
 
                 effective_min_rating = profile.min_rating.or(min_rating);
                 effective_ce_last_k = profile.ce_last_k.unwrap_or(qlora_ce_last_k);
-                effective_seq_len = profile.seq_len.unwrap_or(seq_len);
+                // Domain seq_len fills the slot only when the user did not pass --seq-len.
+                if effective_seq_len.is_none() {
+                    effective_seq_len = profile.seq_len;
+                }
                 effective_validation_split_ratio = profile
                     .validation_split_ratio
                     .unwrap_or(validation_split_ratio);
@@ -226,6 +249,128 @@ pub async fn run_train(
             }
             Err(e) => {
                 anyhow::bail!("Failed to load domain profile '{}': {}", domain_name, e);
+            }
+        }
+    }
+
+    // ── VRAM-aware memory budgeting ──────────────────────────────────────────
+    // When seq_len / batch_size / grad_accum were not pinned by the user or a
+    // domain profile, size them from the detected VRAM and model size so the run
+    // fits without OOM and still maximizes utilization. Only applies on CUDA.
+    {
+        use owo_colors::OwoColorize;
+        let device_is_cuda = vox_populi::mens::normalize_device(&device)
+            .map(|d| matches!(d, vox_populi::mens::DeviceKind::Cuda))
+            .unwrap_or(false);
+        if device_is_cuda {
+            use vox_populi::mens::tensor::memory_budget;
+            let model_hint = effective_model
+                .as_deref()
+                .unwrap_or(vox_populi::mens::DEFAULT_MODEL_ID);
+            let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(4.0);
+            if let Some(vram_gb) = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb() {
+                let vram = vram_gb as f64;
+                // Coding-focused dense Qwen2.5-Coder ladder takes precedence when the
+                // requested model is a coder (it is the family the candle plugin trains
+                // reliably — no MoE/MTP/vision/mRoPE).
+                if memory_budget::is_qwen25coder(model_hint) {
+                    let mp = memory_budget::plan_qwen25coder(vram, requested_b);
+                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), mp.rationale);
+                    if let Some(from_b) = mp.retreated_from_b {
+                        if effective_model.is_none() {
+                            eprintln!(
+                                "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
+                                "↓".yellow(),
+                                mp.model_id,
+                                vram,
+                                from_b
+                            );
+                            effective_model = Some(mp.model_id.clone());
+                        } else {
+                            eprintln!(
+                                "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
+                                "⚠".yellow(),
+                                model_hint,
+                                vram,
+                                mp.model_id
+                            );
+                        }
+                    }
+                    if effective_seq_len.is_none() {
+                        effective_seq_len = Some(mp.seq_len);
+                    }
+                    if effective_batch_size.is_none() {
+                        effective_batch_size = Some(mp.batch_size);
+                    }
+                    if effective_grad_accum.is_none() {
+                        effective_grad_accum = Some(mp.grad_accum);
+                    }
+                } else if memory_budget::is_qwen35(model_hint) {
+                    // For Qwen3.5 models (including the default), let the ladder pick the
+                    // largest variant that fits this card — retreating 4B → 2B → 0.8B as
+                    // needed, or scaling the sequence/batch up on roomier GPUs.
+                    let mp = memory_budget::plan_qwen35(vram, requested_b);
+                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), mp.rationale);
+                    if let Some(from_b) = mp.retreated_from_b {
+                        // Only switch the model when the user did not explicitly pin one.
+                        if effective_model.is_none() {
+                            eprintln!(
+                                "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would OOM).",
+                                "↓".yellow(),
+                                mp.model_id,
+                                vram,
+                                from_b
+                            );
+                            effective_model = Some(mp.model_id.clone());
+                        } else {
+                            eprintln!(
+                                "  {} {} is pinned but does not fit {:.0} GiB — it may OOM. \
+                                 Omit --model to auto-retreat to {}.",
+                                "⚠".yellow(),
+                                model_hint,
+                                vram,
+                                mp.model_id
+                            );
+                        }
+                    }
+                    if effective_seq_len.is_none() {
+                        effective_seq_len = Some(mp.seq_len);
+                    }
+                    if effective_batch_size.is_none() {
+                        effective_batch_size = Some(mp.batch_size);
+                    }
+                    if effective_grad_accum.is_none() {
+                        effective_grad_accum = Some(mp.grad_accum);
+                    }
+                } else {
+                    // Non-Qwen3.5: size the given model in place (no model swap).
+                    let plan = memory_budget::plan(vram, requested_b);
+                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), plan.rationale);
+                    if plan.over_budget {
+                        eprintln!(
+                            "  {} {:.1}B params is tight for {:.0} GiB VRAM — using the smallest \
+                             safe config. If it still OOMs, train a smaller base model.",
+                            "⚠".yellow(),
+                            requested_b,
+                            vram
+                        );
+                    }
+                    if effective_seq_len.is_none() {
+                        effective_seq_len = Some(plan.seq_len);
+                    }
+                    if effective_batch_size.is_none() {
+                        effective_batch_size = Some(plan.batch_size);
+                    }
+                    if effective_grad_accum.is_none() {
+                        effective_grad_accum = Some(plan.grad_accum);
+                    }
+                }
+            } else {
+                eprintln!(
+                    "  {} Could not detect VRAM; using preset defaults. Set VOX_VRAM_OVERRIDE_GB \
+                     to enable VRAM-aware sizing.",
+                    "⚙".cyan()
+                );
             }
         }
     }
@@ -263,15 +408,15 @@ pub async fn run_train(
     };
     let train_res = train::run_train(
         backend.into(),
-        model,
+        effective_model,
         device,
         data_dir,
         output_dir,
         rank,
         alpha,
-        Some(effective_seq_len),
-        batch_size,
-        grad_accum,
+        effective_seq_len,
+        effective_batch_size,
+        effective_grad_accum,
         resume,
         epochs,
         lr,
@@ -341,6 +486,32 @@ pub async fn run_train(
     }
 
     train_res
+}
+
+/// The version this build stamps into freshly generated corpora.
+fn current_corpus_compiler_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
+/// Inspect `<data_dir>/metadata.json` and return `Some((found, current))` when its
+/// recorded `compiler_version` differs from this build's version (i.e. the corpus
+/// was generated by a different compiler and should be regenerated). Returns `None`
+/// when the versions match, when there is no metadata yet (a fresh build will create
+/// it), or when the field is absent/unparseable (don't force a refresh on noise).
+fn corpus_compiler_version_mismatch(data_dir: &Path) -> Option<(String, String)> {
+    let meta_path = data_dir.join("metadata.json");
+    let raw = std::fs::read_to_string(&meta_path).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    let found = value.get("compiler_version")?.as_str()?.trim().to_string();
+    if found.is_empty() {
+        return None;
+    }
+    let current = current_corpus_compiler_version();
+    if found != current {
+        Some((found, current.to_string()))
+    } else {
+        None
+    }
 }
 
 /// Regenerate synthetic data, run `vox mens pipeline` with `skip_train`, optionally copy mix → `train.jsonl`,

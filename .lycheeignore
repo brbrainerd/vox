@@ -130,8 +130,10 @@ https://github\.com/gradio-app/gradio/pull/3370
 # strata.io returns 415 to bots; link is valid
 .*strata\.io/.*
 
-# expo.dev access-tokens settings 307-redirects to a login URL; link is valid
-.*expo\.dev/settings/access-tokens.*
+
+# expo.dev account settings require authentication; 307 redirect in CI is expected.
+# The link is valid for authenticated users following the mobile EAS CI setup guide.
+https://expo\.dev/settings/.*
 
 # puffersoft.com intermittently times out from GitHub Actions runners; link is valid
 .*puffersoft\.com/.*

@@ -171,6 +171,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             qlora_ce_last_k,
             checkpoint_every,
             force_restart,
+            no_auto_heal,
             require_gpu,
             allow_cpu_fallback,
             base_model_family,
@@ -194,6 +195,15 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             fast_corpus,
             persistent,
         } => {
+            // The plugin self-heal preflight (run_train.rs, cuda path) reads this
+            // env var. Setting it here keeps the opt-out from threading a bool
+            // through the ~60-arg train dispatch chain.
+            if no_auto_heal {
+                // SAFETY: single-threaded CLI startup, before any training threads spawn.
+                unsafe {
+                    std::env::set_var("VOX_MENS_NO_AUTO_HEAL", "1");
+                }
+            }
             super::train_arm::run_train(
                 model,
                 device,
@@ -422,7 +432,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             adapter,
             meta,
             output,
-        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output),
+            quantize,
+        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize),
 
         #[cfg(feature = "mens-dei")]
         PopuliAction::Generate {

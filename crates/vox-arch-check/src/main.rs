@@ -1152,34 +1152,37 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     // Plugin cdylibs are loaded dynamically at runtime via vox-plugin-host.
     // Linking them statically as a normal compile-time dep breaks the plugin
     // boundary. Only non-optional, non-dev deps are checked.
+    //
+    // Scope: only crates marked `kind = "plugin"` in layers.toml are subject to
+    // this rule. A crate may legitimately produce a `cdylib`/`staticlib` target
+    // for non-plugin reasons (e.g. a uniffi mobile FFI bridge built alongside a
+    // normal `rlib`); such dual-purpose `library` crates are linked as `rlib`
+    // in-tree and must not be flagged. The plugin boundary is defined by
+    // `kind = "plugin"`, not merely by the presence of a `cdylib` target.
     {
-        // A *dynamically-loaded plugin* is a PURE cdylib: it emits `cdylib` but
-        // no `lib`/`rlib`, so it can only be loaded at runtime via vox-plugin-host.
-        // A crate that emits both an rlib AND a cdylib (e.g. mobile crates that
-        // ship a `cdylib`/`staticlib` for the RN/iOS bridge alongside their normal
-        // rlib) is a legitimately-linkable library, not a plugin — don't flag it.
-        let is_plugin_cdylib = |p: &cargo_metadata::Package| {
-            let has_cdylib = p
-                .targets
-                .iter()
-                .any(|t| t.kind.iter().any(|k| k == "cdylib"));
-            let has_lib = p
-                .targets
-                .iter()
-                .any(|t| t.kind.iter().any(|k| k == "lib" || k == "rlib"));
-            has_cdylib && !has_lib
-        };
-
         let cdylib_pkg_names: HashSet<&str> = metadata_full
             .workspace_packages()
             .iter()
-            .filter(|p| is_plugin_cdylib(p))
+            .filter(|p| {
+                p.targets
+                    .iter()
+                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                    && layers
+                        .crates
+                        .get(p.name.as_str())
+                        .map(|e| e.kind == "plugin")
+                        .unwrap_or(false)
+            })
             .map(|p| p.name.as_str())
             .collect();
 
         if !cdylib_pkg_names.is_empty() {
             for pkg in metadata_full.workspace_packages() {
-                if is_plugin_cdylib(pkg) {
+                if pkg
+                    .targets
+                    .iter()
+                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                {
                     continue; // cdylib can depend on another cdylib (rare but not our concern here)
                 }
                 for dep in &pkg.dependencies {

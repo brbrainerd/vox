@@ -56,6 +56,8 @@ pub mod finetune_contract;
 pub mod finetune_registry;
 #[cfg(feature = "mens-train")]
 pub mod lora_train;
+#[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
+pub mod memory_budget;
 #[cfg(feature = "mens-train")]
 pub mod operator_messages;
 #[cfg(feature = "mens-train")]

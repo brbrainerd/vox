@@ -54,7 +54,6 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Crate | One-line scope |
 |---|---|
 | [`vox-foundation`](../../../crates/vox-foundation/) | Utility umbrella: cheap trace ids, exponential backoff, AgentOS mutation kinds (was `vox-primitives`), daemon wire-protocol types (was `vox-protocol`), `tracing_subscriber` bootstrap presets (was `vox-tracing-init`). Excluded from workspace-hack for fast-leaf compile. |
-| [`vox-runtime`](../../../crates/vox-runtime/) | Mobile-safe runtime core (config/lifecycle/profile). Deps limited to serde/thiserror/tracing so it cross-compiles to mobile targets; emits rlib + cdylib + staticlib. |
 | [`vox-bounded-fs`](../../../crates/vox-bounded-fs/) | UTF-8 file reads capped by vox-scaling-policy max_file_bytes_hint. |
 | [`vox-tauri-codegen`](../../../crates/vox-tauri-codegen/) | Hint-only Tauri 2 packaging under `target/generated/tauri-packaging/` (`tauri.conf.json` + `runtime-capabilities.projection.json` from [`contracts/capability/runtime-capabilities.v1.yaml`](../../../contracts/capability/runtime-capabilities.v1.yaml); not a full `src-tauri` crate yet). |
 | [`vox-crypto`](../../../crates/vox-crypto/) | Pure-Rust crypto primitives (chacha20poly1305 AEAD, ed25519, x25519); sole crypto SSOT per AGENTS.md §Cryptography Policy. |
@@ -67,6 +66,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro, `TelemetryConfig` (Phase D: org-policy hard-off + `VOX_TELEMETRY=on/off/debug`), per-task `TaskAggregate`, `record_task_started`. Zero domain dependencies. |
+| [`vox-runtime`](../../../crates/vox-runtime/) | Umbrella runtime foundation: `RuntimeProfile` (Desktop vs Mobile), lifecycle traits, `VoxConfig`. Consumed by downstream runtime crates and the uniffi mobile bridge. Zero internal deps. |
 | [`vox-http-client`](../../../crates/vox-http-client/) | Shared HTTP client presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
 | [`vox-rename-registry`](../../../crates/vox-rename-registry/) | Rename registry (`RenameKind`, `RenameRegistry`, `RegistryError`) and primitive-tag lookup (`primitive_tags::all_primitives`, `is_primitive`). L0 — zero workspace deps. Re-exported via `vox_compiler::parser::renames` and `vox_compiler::lowering_shared::primitive_tags`. |
 | [`vox-shell-stdlib-types`](../../../crates/vox-shell-stdlib-types/) | Shared data types for the Vox shell stdlib surface (`std.fs.*`). `VoxFileRecord` — the canonical file-metadata type used by both the compiler interpreter path and `vox-actor-runtime` codegen path. L0 — only `serde` dep. |
@@ -81,9 +81,9 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 |---|---|
 | [`vox-capability-registry`](../../../crates/vox-capability-registry/) | Transport-independent capability registry (YAML SSOT) + Mens chat tool descriptors. |
 | [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling; `project_manifest` parses `[workspace]` / `[bundle]` slices from `Vox.toml` for `vox compile`. |
-| [`vox-journal`](../../../crates/vox-journal/) | Durable append-only NDJSON event journal (mobile VoxDB). Depends on `vox-runtime`. |
 | [`vox-constrained-gen`](../../../crates/vox-constrained-gen/) | Grammar-constrained inference engine — Earley/PDA backends, deadlock watchdog, stream-of-revision. |
 | [`vox-doc-inventory`](../../../crates/vox-doc-inventory/) | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
+| [`vox-journal`](../../../crates/vox-journal/) | Generic append-only JSON Lines file journal; crash-safe via per-record sync_data, replays on open. Durable substrate for workflow/actor runtimes and the mobile vox-runtime-rn (deps vox-runtime). |
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
 | [`vox-eval`](../../../crates/vox-eval/) | Vox expression evaluator (interpreter for vox run --interp). |
@@ -116,6 +116,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-deploy-codegen`](../../../crates/vox-deploy-codegen/) | Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation. |
 | [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) | Docs lint + doctest helpers for `docs/src/`; Starlight sidebar and RSS are built at **docs-astro** publish time (see root `AGENTS.md`). |
 | [`vox-package`](../../../crates/vox-package/) | Vox package manager runtime: content-addressed artifact cache, registry HTTP client, workspace discovery. |
+| [`vox-quantize`](../../../crates/vox-quantize/) | Data-free k-quant PTQ engine (SafeTensors → Candle GGML quantized SafeTensors; GPU-first, CPU fallback). |
 | [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait, capability metadata, multi-backend dispatcher (stubs until CandleMetal/CUDA wiring). |
 | [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
@@ -144,7 +145,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-wasm-engine`](../../../crates/vox-wasm-engine/) | Single-source-of-truth Wasmtime engine + WASI execution for Vox programs and skill plugins. |
 | [`vox-wire-format-validator`](../../../crates/vox-wire-format-validator/) | CI guard: enforces Wire Format v1 SSOT and Contract IR implementation parity. |
 | [`vox-workflow-runtime`](../../../crates/vox-workflow-runtime/) | Interpreted workflow execution MVP (local + mens activity hooks). |
-| [`vox-runtime-rn`](../../../crates/vox-runtime-rn/) | React Native / mobile runtime bridge over `vox-runtime` + `vox-journal`; consumed by the mobile (RN/iOS) build, not in-tree Rust. |
+| [`vox-runtime-rn`](../../../crates/vox-runtime-rn/) | uniffi-bridged Rust runtime for Vox mobile (React Native + Expo); cross-compiles to iOS/Android, generates TS TurboModule bindings. Bridges vox-runtime + vox-journal to JS; consumed out-of-tree by clients/runtime-rn. |
 | [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Parses and pretty-prints `donations.vox` mesh policy files; defines `WorkerDonationPolicy`. |
 | [`vox-tauri-stt`](../../../crates/vox-tauri-stt/) | Tauri 2 on-device speech-to-text plugin — wire format, guest JS facade, Android/iOS native sources. |
 
@@ -347,4 +348,5 @@ These will be folded into `vox-scientia` sub-modules when implemented (Phase I o
 | `vox-ssg` | Static site generator for Vox docs surface. |
 | `vox-exec-grammar` | AST parser and risk classifier for shell/Vox command invocations. |
 | `vox-install-policy` | SSOT constants for Vox install/update surfaces. |
+| `vox-dashboard` | Local Axum-served orchestration dashboard (SPA host). |
 | `vox-mens-eval` | Mn-T12 eval harness types (`CompileVerdict`). |

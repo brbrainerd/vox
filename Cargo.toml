@@ -145,6 +145,7 @@ vox-research-events       = { path = "crates/vox-research-events" }
 
 
 
+vox-quantize             = { path = "crates/vox-quantize" }
 vox-rename-registry       = { path = "crates/vox-rename-registry" }
 vox-repository            = { path = "crates/vox-repository" }
 vox-shell-stdlib-types    = { path = "crates/vox-shell-stdlib-types" }

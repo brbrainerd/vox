@@ -320,14 +320,22 @@ pub fn run_training_loop(
                         trainer.config.adapter_config.learning_rate = lr_next;
                         trainer.update_lr();
 
-                        // Periodic CUDA memory-pool trim: return freed VRAM to the
-                        // OS so long QLoRA runs do not balloon driver-held memory.
-                        // Best-effort — log + continue on driver error. Gated on
-                        // `cuda` feature so CPU/Metal builds compile cleanly.
+                        // CUDA memory-pool trim: return freed VRAM to the OS so long
+                        // QLoRA runs do not balloon driver-held memory or fragment the
+                        // pool until a peak allocation OOMs. On memory-tight cards (a 4B
+                        // model on 16 GB sits near the ceiling) fragmentation across a few
+                        // dozen optimizer steps is enough to OOM, so trim every step by
+                        // default. Tunable via VOX_MENS_TRIM_EVERY_OPT_STEPS (>=1) to trade
+                        // reclamation aggressiveness against per-step sync cost.
+                        // Best-effort — log + continue on driver error. Gated on `cuda`.
                         #[cfg(feature = "cuda")]
                         {
-                            const TRIM_EVERY_OPT_STEPS: u32 = 16;
-                            if optimizer_step_count.is_multiple_of(TRIM_EVERY_OPT_STEPS) {
+                            let trim_every: u32 = std::env::var("VOX_MENS_TRIM_EVERY_OPT_STEPS")
+                                .ok()
+                                .and_then(|s| s.parse::<u32>().ok())
+                                .filter(|n| *n >= 1)
+                                .unwrap_or(1);
+                            if optimizer_step_count.is_multiple_of(trim_every) {
                                 if let Err(e) = crate::device::mem_pool::trim_default_pool(0) {
                                     tracing::warn!(
                                         error = %e,

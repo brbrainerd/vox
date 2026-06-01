@@ -90,7 +90,6 @@ vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumer
 
 vox-jsonschema-util   = { layer = 1 }
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
-vox-runtime           = { layer = 1 }   # mobile-safe runtime core (config/lifecycle/profile); deps: serde/thiserror/tracing only
 
 vox-identity          = { layer = 1 }
 vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 20 }
@@ -104,19 +103,21 @@ vox-plugin-api        = { layer = 1 }                            # type/trait su
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
+vox-runtime           = { layer = 1, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; zero internal deps (PR #97)
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
-vox-journal             = { layer = 2 }   # durable NDJSON journal; depends on vox-runtime (L1)
 vox-repository          = { layer = 2 }
 vox-populi-types        = { layer = 2, max_loc = 1_000 }  # ADR-042: NodeRecord + PopuliRegistryFile (pure-data, no async)
 vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2 }
 
 vox-project-scaffold    = { layer = 2 }
+vox-quantize            = { layer = 2, max_loc = 4_000 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
+vox-journal             = { layer = 2 }                          # append-only JSONL journal; deps vox-runtime (L1) (PR #97)
 # L3: both consume the vox-actor-runtime (L3) LLM facade — every actor-runtime
 # consumer (vox-search, vox-tensor, vox-dei-shim, vox-orchestrator) is L3, so
 # these are too (a heavy-runtime consumer is L3, not an L2 pure-data library).
@@ -154,7 +155,7 @@ vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
-vox-runtime-rn          = { layer = 3, orphan_exempt = true }   # React Native / mobile runtime bridge; consumed by the mobile (RN/iOS) build, not in-tree Rust. Depends on vox-runtime (L1) + vox-journal (L2)
+vox-runtime-rn          = { layer = 3, orphan_exempt = true }     # uniffi mobile bridge (RN/Expo); deps vox-runtime+vox-journal; consumed out-of-tree by clients/runtime-rn (PR #97)
 vox-distributed-training = { layer = 3, orphan_exempt = true }     # WIP/Mn-T1; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
 vox-inference           = { layer = 3, orphan_exempt = true }      # WIP/Mn-T2; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
 vox-mesh-policy  = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
@@ -377,8 +378,8 @@ vox-ssg                  = { plan = "docs/src/architecture/crate-structure-audit
 vox-install-policy       = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 # vox-mesh-policy — promoted to [crates] 2026-05-24; renamed from vox-mesh
 # vox-distributed-training, vox-inference — promoted to [crates] (now on disk)
-# vox-dashboard — retired; migrated into the shipped vox-gui Tauri surface (ADR-037). No longer a planned crate.
 vox-cli-ci               = { plan = "docs/src/architecture/2026-05-15-cli-ci-extraction-plan.md", layer = 3 }
+vox-dashboard            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 3 }
 vox-mens-eval            = { plan = "docs/src/architecture/crate-structure-audit-2026-05-15.md", layer = 2 }
 vox-agentos-mutation     = { plan = "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md", layer = 0 }
 

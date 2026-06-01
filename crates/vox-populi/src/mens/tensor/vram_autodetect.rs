@@ -18,7 +18,31 @@ pub fn get_system_vram_gb() -> Option<f32> {
         return Some(hardware.vram_mb as f32 / crate::mens::hardware::types::MB_PER_GB as f32);
     }
 
+    // Priority 3: nvidia-smi fallback. The hardware probe is a stub on some
+    // builds (returns 0); query the driver directly so VRAM-aware budgeting works
+    // out of the box on any machine with an NVIDIA driver.
+    if let Some(gb) = nvidia_smi_total_vram_gb() {
+        return Some(gb);
+    }
+
     None
+}
+
+/// Query total VRAM (GiB) of the first GPU via `nvidia-smi`. Returns `None` when
+/// nvidia-smi is absent or unparseable.
+fn nvidia_smi_total_vram_gb() -> Option<f32> {
+    let out = std::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=memory.total", "--format=csv,noheader,nounits"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&out.stdout);
+    // First line is the first GPU's total memory in MiB (nounits).
+    let first = text.lines().next()?.trim();
+    let mib: f32 = first.parse().ok()?;
+    if mib > 0.0 { Some(mib / 1024.0) } else { None }
 }
 
 /// Select the best training preset for the detected hardware.

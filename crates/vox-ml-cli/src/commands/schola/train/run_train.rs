@@ -134,6 +134,14 @@ pub async fn run_train(
                  Rebuild: `cargo build -p vox-cli --features gpu,mens-candle-cuda` (or `cargo vox-cuda-release`).\n\
                  On Windows use a VS Developer shell so `nvcc` can find MSVC."
             );
+            // Preflight: make sure the runtime cuda plugin is installed + loadable,
+            // self-healing (rebuild + reinstall) on a stale/missing/ABI-mismatched
+            // plugin so a plain `vox mens train --device cuda` works out of the box.
+            // Opt out with `--no-auto-heal` (sets VOX_MENS_NO_AUTO_HEAL).
+            // Gated on `mens-candle-cuda`: that is when the real CUDA dispatch is
+            // compiled (and it implies `gpu`, so plugin_heal is available).
+            #[cfg(feature = "mens-candle-cuda")]
+            crate::commands::mens::plugin_heal::ensure_cuda_plugin(true)?;
         }
         #[cfg(target_os = "macos")]
         if matches!(device_kind, vox_populi::mens::DeviceKind::Metal) {
