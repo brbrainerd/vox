@@ -1,7 +1,7 @@
 ---
 title: "ADR-043: Quantized SafeTensors On-Disk Format"
 description: "Quantized models are stored as SafeTensors-canonical u8 block tensors plus a quant-metadata.json sidecar."
-category: architecture
+category: "Architecture Decisions (ADRs)"
 ---
 
 # ADR-043: Quantized SafeTensors On-Disk Format
