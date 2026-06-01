@@ -96,11 +96,13 @@ fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
 
 /// Resident footprint for plain dense Qwen2 / Qwen2.5-Coder.
 ///
-/// Calibrated to the candle plugin's reality: it dequantizes base weights to **F32**
-/// (4 bytes/param) and builds the whole training graph in F32, so a 3B model OOMed a
-/// 16 GiB card. ~4.3 GiB/B reflects F32 weights + embeddings + LoRA/optimizer state.
-/// (When the plugin's F32→BF16 mixed-precision work lands, drop this back toward 2.6.)
-const QWEN2_RESIDENT_GIB_PER_B: f64 = 4.3;
+/// Calibrated to MEASURED bf16 training (qlora-rs now dequantizes the base weight to
+/// the bf16 compute dtype): on a 16 GiB RTX 4080, 1.5B@seq512 used 9.5 GiB and
+/// 3B@seq512 used 11.6 GiB (both training, not OOM). Solving est_peak = 3·R + fixed +
+/// activation against the 3B point gives R ≈ 2.9. With this, the ladder picks 3B for
+/// 16 GiB (≈13 GiB peak at seq 1024, ~3 GiB margin), 7B for 24-32 GiB.
+/// (Was 4.3 under the old all-F32 graph that OOMed even 3B.)
+const QWEN2_RESIDENT_GIB_PER_B: f64 = 2.9;
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget
