@@ -132,3 +132,6 @@ https://github\.com/gradio-app/gradio/pull/3370
 
 # expo.dev access-tokens settings 307-redirects to a login URL; link is valid
 .*expo\.dev/settings/access-tokens.*
+
+# puffersoft.com intermittently times out from GitHub Actions runners; link is valid
+.*puffersoft\.com/.*
