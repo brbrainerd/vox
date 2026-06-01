@@ -141,3 +141,6 @@ https://expo\.dev/settings/.*
 # v2.tauri.app docs intermittently time out from CI runners; links are valid
 # (heavily referenced across the Tauri-based GUI/architecture docs)
 .*tauri\.app/.*
+
+# inworld.ai returns intermittent 503 to CI bots; link is valid
+.*inworld\.ai/.*
