@@ -103,6 +103,7 @@ vox-plugin-api        = { layer = 1 }                            # type/trait su
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
 vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 vox-telemetry         = { layer = 1 }                            # L1 telemetry facade; zero domain deps
+vox-runtime           = { layer = 1, max_dependents = 20 }       # umbrella runtime: RuntimeProfile + lifecycle traits + VoxConfig; zero internal deps (PR #97)
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
@@ -112,9 +113,11 @@ vox-mcp-registry        = { layer = 2 }
 vox-capability-registry = { layer = 2 }
 
 vox-project-scaffold    = { layer = 2 }
+vox-quantize            = { layer = 2, max_loc = 4_000 }
 vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
+vox-journal             = { layer = 2 }                          # append-only JSONL journal; deps vox-runtime (L1) (PR #97)
 # L3: both consume the vox-actor-runtime (L3) LLM facade — every actor-runtime
 # consumer (vox-search, vox-tensor, vox-dei-shim, vox-orchestrator) is L3, so
 # these are too (a heavy-runtime consumer is L3, not an L2 pure-data library).
@@ -152,6 +155,7 @@ vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
+vox-runtime-rn          = { layer = 3, orphan_exempt = true }     # uniffi mobile bridge (RN/Expo); deps vox-runtime+vox-journal; consumed out-of-tree by clients/runtime-rn (PR #97)
 vox-distributed-training = { layer = 3, orphan_exempt = true }     # WIP/Mn-T1; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
 vox-inference           = { layer = 3, orphan_exempt = true }      # WIP/Mn-T2; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
 vox-mesh-policy  = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }

@@ -12,6 +12,10 @@ pub enum Quantization {
     Q8Zero,
     #[serde(rename = "q4_k")]
     Q4K,
+    #[serde(rename = "q5_k")]
+    Q5K,
+    #[serde(rename = "q6_k")]
+    Q6K,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

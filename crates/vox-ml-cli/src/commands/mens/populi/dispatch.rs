@@ -432,7 +432,8 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             adapter,
             meta,
             output,
-        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output),
+            quantize,
+        } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output, quantize),
 
         #[cfg(feature = "mens-dei")]
         PopuliAction::Generate {

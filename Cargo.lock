@@ -13841,14 +13841,20 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "candle-core",
+ "candle-nn",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
+ "tokenizers",
  "tokio",
  "tracing",
+ "vox-hf-layout",
  "vox-mesh-types",
  "vox-package",
+ "vox-quantize",
  "workspace-hack",
 ]
 
@@ -13979,6 +13985,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "blake3",
+ "candle-core",
  "clap",
  "cpal",
  "dialoguer",
@@ -14015,6 +14022,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-plugin-host",
  "vox-populi",
+ "vox-quantize",
  "vox-repository",
  "vox-scaling-policy",
  "vox-secrets",
@@ -14810,6 +14818,20 @@ dependencies = [
  "vox-scientia",
  "vox-secrets",
  "wiremock",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-quantize"
+version = "0.6.0"
+dependencies = [
+ "candle-core",
+ "safetensors 0.7.0",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
  "workspace-hack",
 ]
 
