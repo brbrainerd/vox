@@ -296,7 +296,10 @@ mod tests {
     fn parses_param_counts() {
         assert_eq!(params_b_from_model_hint("Qwen/Qwen3.5-4B"), Some(4.0));
         assert_eq!(params_b_from_model_hint("qwen2.5-0.8b"), Some(0.8));
-        assert_eq!(params_b_from_model_hint("meta-llama/Llama-3-70B"), Some(70.0));
+        assert_eq!(
+            params_b_from_model_hint("meta-llama/Llama-3-70B"),
+            Some(70.0)
+        );
         assert_eq!(params_b_from_model_hint("some-model"), None);
     }
 
@@ -332,7 +335,10 @@ mod tests {
         assert_eq!(p.model_id, "Qwen/Qwen3.5-2B");
         assert_eq!(p.retreated_from_b, Some(4.0));
         assert!(!p.over_budget);
-        assert!(p.seq_len >= 512, "2B on 16 GiB should afford a long sequence");
+        assert!(
+            p.seq_len >= 512,
+            "2B on 16 GiB should afford a long sequence"
+        );
     }
 
     #[test]
