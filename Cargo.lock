@@ -13779,6 +13779,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "toml 0.8.23",
+ "tracing",
  "turso",
  "vox-build-meta",
  "vox-cli",
