@@ -42,7 +42,12 @@ jobs:
             ${{ runner.os }}-cargo-cross-
       
       - name: cargo check (workspace)
-        run: cargo check --workspace --target ${{ matrix.target }}
+        # vox-gui is a Tauri bin: `tauri::generate_context!()` requires the built
+        # frontend (`frontendDist = "ui/dist"`) at compile time, which this
+        # lightweight cross-compile sanity check does not produce. Its full build
+        # (incl. the pnpm frontend) is covered by release-gui.yml, so exclude it
+        # here rather than add a node/pnpm toolchain to every cross-check run.
+        run: cargo check --workspace --exclude vox-gui --target ${{ matrix.target }}
       
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
