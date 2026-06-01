@@ -1152,6 +1152,13 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     // Plugin cdylibs are loaded dynamically at runtime via vox-plugin-host.
     // Linking them statically as a normal compile-time dep breaks the plugin
     // boundary. Only non-optional, non-dev deps are checked.
+    //
+    // Scope: only crates marked `kind = "plugin"` in layers.toml are subject to
+    // this rule. A crate may legitimately produce a `cdylib`/`staticlib` target
+    // for non-plugin reasons (e.g. a uniffi mobile FFI bridge built alongside a
+    // normal `rlib`); such dual-purpose `library` crates are linked as `rlib`
+    // in-tree and must not be flagged. The plugin boundary is defined by
+    // `kind = "plugin"`, not merely by the presence of a `cdylib` target.
     {
         let cdylib_pkg_names: HashSet<&str> = metadata_full
             .workspace_packages()
@@ -1160,6 +1167,11 @@ fn run(warn_only_flag: bool) -> Result<Report> {
                 p.targets
                     .iter()
                     .any(|t| t.kind.iter().any(|k| k == "cdylib"))
+                    && layers
+                        .crates
+                        .get(p.name.as_str())
+                        .map(|e| e.kind == "plugin")
+                        .unwrap_or(false)
             })
             .map(|p| p.name.as_str())
             .collect();

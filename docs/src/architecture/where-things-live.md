@@ -66,6 +66,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro, `TelemetryConfig` (Phase D: org-policy hard-off + `VOX_TELEMETRY=on/off/debug`), per-task `TaskAggregate`, `record_task_started`. Zero domain dependencies. |
+| [`vox-runtime`](../../../crates/vox-runtime/) | Umbrella runtime foundation: `RuntimeProfile` (Desktop vs Mobile), lifecycle traits, `VoxConfig`. Consumed by downstream runtime crates and the uniffi mobile bridge. Zero internal deps. |
 | [`vox-http-client`](../../../crates/vox-http-client/) | Shared HTTP client presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
 | [`vox-rename-registry`](../../../crates/vox-rename-registry/) | Rename registry (`RenameKind`, `RenameRegistry`, `RegistryError`) and primitive-tag lookup (`primitive_tags::all_primitives`, `is_primitive`). L0 — zero workspace deps. Re-exported via `vox_compiler::parser::renames` and `vox_compiler::lowering_shared::primitive_tags`. |
 | [`vox-shell-stdlib-types`](../../../crates/vox-shell-stdlib-types/) | Shared data types for the Vox shell stdlib surface (`std.fs.*`). `VoxFileRecord` — the canonical file-metadata type used by both the compiler interpreter path and `vox-actor-runtime` codegen path. L0 — only `serde` dep. |
@@ -82,6 +83,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling; `project_manifest` parses `[workspace]` / `[bundle]` slices from `Vox.toml` for `vox compile`. |
 | [`vox-constrained-gen`](../../../crates/vox-constrained-gen/) | Grammar-constrained inference engine — Earley/PDA backends, deadlock watchdog, stream-of-revision. |
 | [`vox-doc-inventory`](../../../crates/vox-doc-inventory/) | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
+| [`vox-journal`](../../../crates/vox-journal/) | Generic append-only JSON Lines file journal; crash-safe via per-record sync_data, replays on open. Durable substrate for workflow/actor runtimes and the mobile vox-runtime-rn (deps vox-runtime). |
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
 | [`vox-effort-route`](../../../crates/vox-effort-route/) | Routes effort-audit findings to verified, drafted enforcement artifacts (AGENTS.md rule / lint detector spec / arch rule / CI gate / corpus example / Vox script). CLI: `vox audit effort-route`. |
 | [`vox-eval`](../../../crates/vox-eval/) | Vox expression evaluator (interpreter for vox run --interp). |
@@ -143,6 +145,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-wasm-engine`](../../../crates/vox-wasm-engine/) | Single-source-of-truth Wasmtime engine + WASI execution for Vox programs and skill plugins. |
 | [`vox-wire-format-validator`](../../../crates/vox-wire-format-validator/) | CI guard: enforces Wire Format v1 SSOT and Contract IR implementation parity. |
 | [`vox-workflow-runtime`](../../../crates/vox-workflow-runtime/) | Interpreted workflow execution MVP (local + mens activity hooks). |
+| [`vox-runtime-rn`](../../../crates/vox-runtime-rn/) | uniffi-bridged Rust runtime for Vox mobile (React Native + Expo); cross-compiles to iOS/Android, generates TS TurboModule bindings. Bridges vox-runtime + vox-journal to JS; consumed out-of-tree by clients/runtime-rn. |
 | [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Parses and pretty-prints `donations.vox` mesh policy files; defines `WorkerDonationPolicy`. |
 | [`vox-tauri-stt`](../../../crates/vox-tauri-stt/) | Tauri 2 on-device speech-to-text plugin — wire format, guest JS facade, Android/iOS native sources. |
 
