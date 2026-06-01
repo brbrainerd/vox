@@ -270,10 +270,45 @@ pub async fn run_train(
             let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(4.0);
             if let Some(vram_gb) = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb() {
                 let vram = vram_gb as f64;
-                // For Qwen3.5 models (including the default), let the ladder pick the
-                // largest variant that fits this card — retreating 4B → 2B → 0.8B as
-                // needed, or scaling the sequence/batch up on roomier GPUs.
-                if memory_budget::is_qwen35(model_hint) {
+                // Coding-focused dense Qwen2.5-Coder ladder takes precedence when the
+                // requested model is a coder (it is the family the candle plugin trains
+                // reliably — no MoE/MTP/vision/mRoPE).
+                if memory_budget::is_qwen25coder(model_hint) {
+                    let mp = memory_budget::plan_qwen25coder(vram, requested_b);
+                    eprintln!("  {} VRAM budget: {}", "⚙".cyan(), mp.rationale);
+                    if let Some(from_b) = mp.retreated_from_b {
+                        if effective_model.is_none() {
+                            eprintln!(
+                                "  {} Auto-selected {} for {:.0} GiB VRAM (requested ≈{:.1}B would not fit).",
+                                "↓".yellow(),
+                                mp.model_id,
+                                vram,
+                                from_b
+                            );
+                            effective_model = Some(mp.model_id.clone());
+                        } else {
+                            eprintln!(
+                                "  {} {} is pinned but may not fit {:.0} GiB — omit --model to auto-retreat to {}.",
+                                "⚠".yellow(),
+                                model_hint,
+                                vram,
+                                mp.model_id
+                            );
+                        }
+                    }
+                    if effective_seq_len.is_none() {
+                        effective_seq_len = Some(mp.seq_len);
+                    }
+                    if effective_batch_size.is_none() {
+                        effective_batch_size = Some(mp.batch_size);
+                    }
+                    if effective_grad_accum.is_none() {
+                        effective_grad_accum = Some(mp.grad_accum);
+                    }
+                } else if memory_budget::is_qwen35(model_hint) {
+                    // For Qwen3.5 models (including the default), let the ladder pick the
+                    // largest variant that fits this card — retreating 4B → 2B → 0.8B as
+                    // needed, or scaling the sequence/batch up on roomier GPUs.
                     let mp = memory_budget::plan_qwen35(vram, requested_b);
                     eprintln!("  {} VRAM budget: {}", "⚙".cyan(), mp.rationale);
                     if let Some(from_b) = mp.retreated_from_b {

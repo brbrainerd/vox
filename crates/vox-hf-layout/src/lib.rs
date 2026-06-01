@@ -98,6 +98,31 @@ impl HfTransformerLayout {
             })
             .unwrap_or_default();
 
+        // Fail fast on vision-language / multimodal checkpoints. The candle text
+        // trainer has no vision tower, no mRoPE, and no MTP head, so it would spend
+        // ~10 minutes force-loading a huge multimodal embedding into RAM and then
+        // train a malformed graph. Reject up front with an actionable message.
+        // (e.g. Qwen3.5-2B/4B ship as `Qwen3_5ForConditionalGeneration` with a
+        // `vision_config` + image/video token ids.)
+        let is_conditional_generation = architectures
+            .iter()
+            .any(|a| a.contains("ForConditionalGeneration"));
+        let has_vision = v.get("vision_config").is_some()
+            || v.get("image_token_id").is_some()
+            || v.get("video_token_id").is_some();
+        if is_conditional_generation || has_vision {
+            anyhow::bail!(
+                "This checkpoint is a vision-language / multimodal model (architectures={architectures:?}\
+                {}), which the text QLoRA trainer cannot train. Use a text-only causal LM \
+                 (e.g. a Qwen2.5-Coder-*-Instruct or a text-only dense Qwen checkpoint).",
+                if has_vision {
+                    ", has vision_config/image_token"
+                } else {
+                    ""
+                }
+            );
+        }
+
         let cfg_source = qwen35_text_config(v, architecture).unwrap_or(v);
 
         // Llama / Mistral / Qwen2 / Qwen3.5 and many causal LMs.
