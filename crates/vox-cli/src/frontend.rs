@@ -5,7 +5,6 @@
 
 use anyhow::{Context, Result};
 use std::path::Path;
-use std::time::Duration;
 
 use crate::config;
 use crate::fs_utils;

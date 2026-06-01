@@ -72,9 +72,11 @@ pub enum PopuliAction {
         /// LoRA alpha scaling factor. Default: 32 (or r*2)
         #[arg(long)]
         alpha: Option<f32>,
-        /// Maximum sequence length. Default: 512 (auto-tuned if omitted for specific pipelines).
-        #[arg(long, default_value_t = 512)]
-        seq_len: usize,
+        /// Maximum sequence length. When omitted, sized automatically from detected VRAM
+        /// and model size (see `vox_populi::mens::tensor::memory_budget`) so it fits without
+        /// OOM; pass an explicit value to override the VRAM-aware default.
+        #[arg(long)]
+        seq_len: Option<usize>,
         /// Batch size per step. Default: 4 (or auto-tuned)
         #[arg(long)]
         batch_size: Option<usize>,
@@ -164,6 +166,12 @@ pub enum PopuliAction {
         /// Ignore existing resume state and force a fresh run from step 0.
         #[arg(long)]
         force_restart: bool,
+        /// Disable automatic rebuild/reinstall of the `mens-candle-cuda` plugin when it is
+        /// missing, stale, or ABI-mismatched. By default `--device cuda` self-heals the plugin
+        /// before training (also disableable via `VOX_MENS_NO_AUTO_HEAL=1`).
+        #[cfg(feature = "gpu")]
+        #[arg(long, default_value_t = false)]
+        no_auto_heal: bool,
         /// Require accelerator execution. Fails if selected runtime resolves to CPU.
         #[arg(long, default_value_t = false)]
         require_gpu: bool,

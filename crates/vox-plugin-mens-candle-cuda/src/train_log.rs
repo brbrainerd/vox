@@ -29,11 +29,18 @@ pub fn format_loss_for_log(loss: f64) -> String {
 }
 
 pub fn info(msg: &str) {
+    // Emit on tracing AND stderr. This crate is loaded as a dynamic cdylib whose
+    // `tracing` dispatcher is NOT connected to the host's subscriber across the
+    // dll boundary, so tracing-only events are silently dropped — leaving the
+    // preflight/graph-build progress invisible during a run. eprintln on stderr
+    // (unbuffered, boundary-safe) guarantees these diagnostics are visible live.
     tracing::info!(target: "vox_mens_train", "{}", msg);
+    eprintln!("  [mens] {msg}");
 }
 
 pub fn warn(msg: &str) {
     tracing::warn!(target: "vox_mens_train", "{}", msg);
+    eprintln!("  [mens][warn] {msg}");
 }
 
 pub fn _error(msg: impl Display) {

@@ -18,7 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{QLoraError, Result};
 use crate::quantization::{
-    dequantize_nf4, quantize_nf4_with_config, ComputeDType, QuantizationConfig, QuantizedTensor,
+    dequantize_nf4, dequantize_nf4_with_dtype, quantize_nf4_with_config, ComputeDType,
+    QuantizationConfig, QuantizedTensor,
 };
 
 fn warn_cpu_fallback(device: &Device) {
@@ -364,27 +365,54 @@ impl QuantizedLinear {
     /// # Errors
     /// Returns error if tensor operations fail
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
-        // Get dequantized weight (either from cache or on-the-fly)
+        // Get dequantized weight (either from cache or on-the-fly), honoring the
+        // configured compute dtype. With BF16 compute, the dequantized base weight
+        // — which candle retains through the backward pass to compute input
+        // gradients (the base is frozen, but d_input still needs the weight) — is
+        // held at 2 bytes/param instead of 4. For a multi-billion-param model that
+        // retained-weight term dominates VRAM, so this ~halves training footprint.
         let weight = if let Some(cached) = &self.cached_weight {
             cached.clone()
         } else {
             // On-the-fly dequantization (default, memory-optimal)
-            dequantize_nf4(&self.quantized_weight, &self.device)?
+            dequantize_nf4_with_dtype(
+                &self.quantized_weight,
+                &self.device,
+                self.config.quantization.compute_dtype,
+            )?
         };
         let weight_t = weight.t()?;
 
-        // Handle both 2D and 3D inputs for batch processing
+        // The base matmul runs in the weight's (compute) dtype. Cast the input to
+        // match only when dtypes differ (no-op cost on the all-F32 path), then cast
+        // the base output back to the input dtype so the LoRA residual + downstream
+        // norms — which stay in F32 for numerical stability — remain consistent.
+        let w_dtype = weight.dtype();
+        let in_dtype = input.dtype();
         let base_output = if input.dims().len() == 3 {
             // For [batch, seq, in_features], reshape to [batch * seq, in_features]
             let (batch, seq, in_features) = input.dims3()?;
-            let reshaped = input.reshape(&[batch * seq, in_features])?;
+            let mut reshaped = input.reshape(&[batch * seq, in_features])?;
+            if w_dtype != in_dtype {
+                reshaped = reshaped.to_dtype(w_dtype)?;
+            }
             let out = reshaped.matmul(&weight_t)?;
             // Reshape back to [batch, seq, out_features]
             let out_features = weight_t.dim(1)?;
             out.reshape(&[batch, seq, out_features])?
         } else {
             // For 2D [batch, in_features], standard matmul
-            input.matmul(&weight_t)?
+            let lhs = if w_dtype != in_dtype {
+                input.to_dtype(w_dtype)?
+            } else {
+                input.clone()
+            };
+            lhs.matmul(&weight_t)?
+        };
+        let base_output = if w_dtype != in_dtype {
+            base_output.to_dtype(in_dtype)?
+        } else {
+            base_output
         };
 
         // LoRA forward: adds x @ A^T @ B^T * scaling

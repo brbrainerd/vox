@@ -69,6 +69,30 @@ pub mod mem_pool {
         fn cuCtxGetDevice(device: *mut CUdevice) -> CUresult;
         fn cuDeviceGetMemPool(pool: *mut CUmemoryPool, dev: CUdevice) -> CUresult;
         fn cuMemPoolTrimTo(pool: CUmemoryPool, min_bytes_to_keep: usize) -> CUresult;
+        fn cuMemGetInfo_v2(free: *mut usize, total: *mut usize) -> CUresult;
+    }
+
+    /// Current device memory usage as `(used_mb, total_mb)`, via `cuMemGetInfo`.
+    ///
+    /// Returns `None` when there is no live CUDA context yet (before the first GPU op)
+    /// or the driver call fails. `used = total - free` includes all processes' usage,
+    /// which on a training box is dominated by this process once weights are resident.
+    #[must_use]
+    pub fn device_mem_used_total_mb() -> Option<(u64, u64)> {
+        // SAFETY: cuMemGetInfo writes two out-params; both are checked via the
+        // CUDA_SUCCESS return code before use.
+        unsafe {
+            let mut free: usize = 0;
+            let mut total: usize = 0;
+            if cuMemGetInfo_v2(&mut free, &mut total) != CUDA_SUCCESS {
+                return None;
+            }
+            let used = total.saturating_sub(free);
+            Some((
+                (used / (1024 * 1024)) as u64,
+                (total / (1024 * 1024)) as u64,
+            ))
+        }
     }
 
     /// Trim the current context's default memory pool, retaining at most `retain_bytes`.
