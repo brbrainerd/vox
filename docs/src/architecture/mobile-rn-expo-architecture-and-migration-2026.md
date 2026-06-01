@@ -3,7 +3,7 @@ title: "Mobile architecture and migration plan — RN + Expo + uniffi (2026)"
 description: "Mobile platform target evaluation: React Native + Expo + uniffi bridging strategy for Vox apps."
 category: "Architecture SSOTs"
 status: research
-last_updated: 2026-05-27
+last_updated: "2026-05-27"
 authors: [vox-team]
 related:
   - mobile-target-evaluation-2026.md (decision rationale)

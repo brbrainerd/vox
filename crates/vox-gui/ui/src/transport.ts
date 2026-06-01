@@ -1,5 +1,47 @@
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ActionManifest } from './types/actionManifest';
+
+/** Tauri event name carrying the orchestrator status snapshot (see B1 daemon stream). */
+export const ORCH_STATUS_EVENT = 'vox://orch-status';
+
+/**
+ * Subscribe to the pushed orchestrator-status event stream. The payload is the
+ * same status object shape returned by `get_orchestrator_status` / daemon
+ * `orch.status()` (fields like `agent_count`). Returns the `UnlistenFn` to call
+ * on cleanup. Rejects if not running inside Tauri (caller should fall back to polling).
+ */
+export function listenOrchStatus(
+  onStatus: (status: any) => void,
+): Promise<UnlistenFn> {
+  return listen<any>(ORCH_STATUS_EVENT, (event) => onStatus(event.payload));
+}
+
+/** Tauri event name carrying a single live AgentEvent (see B4 daemon stream). */
+export const AGENT_EVENTS_EVENT = 'vox://agent-events';
+
+/**
+ * A serialized `AgentEvent` value as pushed by the daemon's
+ * `orch.subscribe_events` stream. The `kind.type` discriminator is a snake_case
+ * variant name (e.g. "token_streamed", "task_started"); the remaining `kind`
+ * fields vary per variant.
+ */
+export interface AgentEventFrame {
+  id: number;
+  timestamp_ms: number;
+  kind: { type: string; [k: string]: any };
+}
+
+/**
+ * Subscribe to the pushed live agent-event stream (B4). Each emission carries
+ * one `AgentEventFrame`. Returns the `UnlistenFn` to call on cleanup. Rejects if
+ * not running inside Tauri (caller should degrade gracefully).
+ */
+export function listenAgentEvents(
+  onEvent: (e: AgentEventFrame) => void,
+): Promise<UnlistenFn> {
+  return listen<AgentEventFrame>(AGENT_EVENTS_EVENT, (event) => onEvent(event.payload));
+}
 
 export interface ExecuteOutput {
   exit_code: number;
@@ -144,6 +186,16 @@ class VoxTransport {
     return invoke('set_routing_priority', priority);
   }
 
+  /** Read the persisted selection-policy JSON (`{"steps":[...]}`). */
+  async getSelectionPolicy(): Promise<string> {
+    return invoke<string>('get_selection_policy');
+  }
+
+  /** Persist a selection-policy JSON; backend validates it parses as SelectionPolicy. */
+  async setSelectionPolicy(json: string): Promise<void> {
+    return invoke('set_selection_policy', { json });
+  }
+
   async getModelScoreboard(windowDays = 7) {
     return invoke('get_model_scoreboard', { windowDays });
   }
@@ -185,12 +237,16 @@ class VoxTransport {
       a.command === `vox ${name.replace(/^vox_/, '').replace(/_/g, ' ')}`
     );
     if (action?.handler_kind === 'mcp') {
+      const tool = action.mcp_name ?? canonical;
+      const result = await invoke<any>('invoke_mcp_tool', { tool, args });
+      const isError =
+        result != null &&
+        typeof result === 'object' &&
+        (result as { is_error?: boolean }).is_error === true;
       return {
-        exit_code: 64,
-        stdout: '',
-        stderr:
-          `Operation "${name}" is MCP-only and not executable via the GUI sidecar. ` +
-          'Use the MCP server integration path or add an IPC handler for this action.',
+        exit_code: isError ? 1 : 0,
+        stdout: JSON.stringify(result),
+        stderr: '',
       };
     }
     const path = action?.cli_path ?? (await this.resolvePath(name));

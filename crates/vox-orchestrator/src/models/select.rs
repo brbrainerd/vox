@@ -241,16 +241,10 @@ fn confidence_state_for_model(m: &ModelSpec) -> super::autonomic::ModelConfidenc
     if pins.retired_ids.iter().any(|id| id == &m.id) {
         return super::autonomic::ModelConfidence::Deprecated;
     }
-    match m.pricing_source {
-        super::spec::PricingSource::Telemetry | super::spec::PricingSource::UserConfig => {
-            super::autonomic::ModelConfidence::Confirmed
-        }
-        super::spec::PricingSource::LiteLLM => super::autonomic::ModelConfidence::Shadowed,
-        super::spec::PricingSource::Unknown => super::autonomic::ModelConfidence::Provisional,
-        super::spec::PricingSource::OpenRouter
-        | super::spec::PricingSource::AnthropicDirect
-        | super::spec::PricingSource::Bootstrap => super::autonomic::ModelConfidence::Shadowed,
-    }
+    // Pricing-source heuristic (the `scoreboard: None` answer). The scoreboard-
+    // aware path that promotes discovered models on real evidence lives in
+    // `discovery_pipeline::resolve_eligibility`.
+    super::discovery_pipeline::resolve_eligibility(m, None, 0.0)
 }
 
 fn exploration_enabled() -> bool {
@@ -572,11 +566,42 @@ pub enum SelectionReason {
 /// the caller-specific weights. The mutation is restored on return.
 #[allow(unsafe_code)]
 pub fn select(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<SelectionOutcome> {
+    // 0. Ordered selection-policy chain (process-global, set by the daemon from
+    //    the persisted `selection_policy` user preference). When no policy is
+    //    installed, or the policy is empty, or the policy yields nothing, this
+    //    falls through to the pre-existing cascade in `select_inner` — so
+    //    default behavior is unchanged.
+    if let Some(policy) = super::policy::active_policy() {
+        let ctx = super::policy::PolicyContext::from_env();
+        if let Some(o) = super::policy::resolve_policy(&policy, intent, registry, &ctx) {
+            emit_decision_event(intent, &o);
+            return Some(o);
+        }
+    }
+
     let outcome = select_inner(intent, registry);
     if let Some(ref o) = outcome {
         emit_decision_event(intent, o);
     }
     outcome
+}
+
+/// Select honoring an explicitly-supplied [`super::policy::SelectionPolicy`]
+/// and [`super::policy::PolicyContext`] (used by callers that thread a policy
+/// directly rather than via the process global — and by tests). Falls through
+/// to the pre-existing cascade when the policy yields nothing.
+#[must_use]
+pub fn select_with_policy(
+    intent: &SelectionIntent,
+    registry: &ModelRegistry,
+    policy: &super::policy::SelectionPolicy,
+    ctx: &super::policy::PolicyContext,
+) -> Option<SelectionOutcome> {
+    if let Some(o) = super::policy::resolve_policy(policy, intent, registry, ctx) {
+        emit_decision_event(intent, &o);
+        return Some(o);
+    }
+    select(intent, registry)
 }
 
 fn select_inner(intent: &SelectionIntent, registry: &ModelRegistry) -> Option<SelectionOutcome> {
@@ -700,6 +725,10 @@ fn select_via_scorer(
     let effective_axes = intent.axes.to_routing_priority(intent.prefer_local);
     let cost_pref = intent.axes.to_cost_preference();
     let intent_clone = intent.clone();
+    // Install this request's axes as the scorer's base weights for the duration
+    // of the pass, so per-task SelectionAxes actually drive the choice (not just
+    // the global VOX_AUTO_ROUTING_PRIORITY env). Restored on drop.
+    let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes.clone());
     let model = registry.best_for_with_filter(
         intent.task,
         intent.complexity,
@@ -707,12 +736,28 @@ fn select_via_scorer(
         |m| supports_intent_constraints(m, &intent_clone),
         None,
     )?;
+    drop(_axes_guard);
     Some(SelectionOutcome {
         model_id: model.id.clone(),
         model_spec: model,
         reason: SelectionReason::Scored,
         effective_axes,
     })
+}
+
+/// Crate-internal accessor for the policy resolver: run the scorer path with
+/// the (possibly axis-shaped) intent.
+pub(crate) fn select_via_scorer_public(
+    intent: &SelectionIntent,
+    registry: &ModelRegistry,
+) -> Option<SelectionOutcome> {
+    select_via_scorer(intent, registry)
+}
+
+/// Crate-internal accessor for the policy resolver: check intent hard filters.
+#[must_use]
+pub(crate) fn supports_intent_constraints_public(m: &ModelSpec, intent: &SelectionIntent) -> bool {
+    supports_intent_constraints(m, intent)
 }
 
 /// True iff `m` satisfies the intent's hard filters
@@ -1001,5 +1046,19 @@ mod tests {
             SelectionReason::LocalOnly => {} // acceptable fallback
             other => panic!("expected Scored or LocalOnly, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn select_with_empty_policy_falls_through_to_cascade() {
+        let registry = ModelRegistry::new();
+        let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
+        // An empty policy carries no steps, so the resolver yields nothing and
+        // `select_with_policy` falls through to the pre-existing `select` cascade.
+        let policy = super::policy::SelectionPolicy::default();
+        let ctx = super::policy::PolicyContext::default();
+        let via_policy = select_with_policy(&intent, &registry, &policy, &ctx)
+            .expect("a model exists for codegen");
+        let via_cascade = select(&intent, &registry).expect("a model exists for codegen");
+        assert_eq!(via_policy.model_id, via_cascade.model_id);
     }
 }

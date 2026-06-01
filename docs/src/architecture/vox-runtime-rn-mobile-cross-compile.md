@@ -3,7 +3,7 @@ title: "vox-runtime-rn mobile cross-compile (Android + iOS)"
 description: "How to build the vox-runtime-rn cdylib for the four Android architectures + four iOS architectures from a developer machine, and how the gate in crates/vox-cli-tests verifies it."
 category: "Architecture SSOTs"
 status: current
-last_updated: 2026-05-30
+last_updated: "2026-05-30"
 ---
 
 # vox-runtime-rn mobile cross-compile

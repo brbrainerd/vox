@@ -22,41 +22,8 @@ jobs:
           fi
           echo "All crates use workspace versioning."
 
-  check-dashboard-ssot:
-    runs-on: [self-hosted, linux, x64]
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0  # full history needed for commit-log check
-      - name: Install Vox toolchain
-        uses: ./.github/actions/install-vox
-        continue-on-error: true  # gracefully degrade if action not present yet
-      - name: Dashboard generated/ SSoT gate
-        run: |
-          if command -v vox &>/dev/null; then
-            vox run scripts/check_dashboard_ssot.vox
-          else
-            # Fallback: at minimum check that no .tsx in generated/ was committed
-            # without a .vox change in the same commit (git-only check).
-            echo "vox CLI not installed — running fallback git-log check"
-            violations=""
-            generated="crates/vox-dashboard/app/src/generated"
-            vox_source="crates/vox-dashboard/app/src/app.vox"
-            if [ -d "$generated" ]; then
-              for tsx in "$generated"/*.tsx; do
-                [ -f "$tsx" ] || continue
-                commit=$(git log -1 --format="%H" -- "$tsx")
-                [ -z "$commit" ] && continue
-                # Require the commit to have touched the canonical .vox source, not just any .vox.
-                if ! git show --name-only --format="" "$commit" | grep -qF "$vox_source"; then
-                  violations="$violations\n  $tsx (commit ${commit:0:8} did not touch $vox_source)"
-                fi
-              done
-            fi
-            if [ -n "$violations" ]; then
-              echo "::error title=Dashboard SSoT::Hand-edited .tsx files found in generated/:"
-              printf "$violations\n"
-              exit 1
-            fi
-            echo "Dashboard generated/ SSoT check passed."
-          fi
+  # check-dashboard-ssot: retired 2026-05-30. The legacy vox-dashboard crate was
+  # migrated into the Tauri vox-gui surface (ADR-037), which is hand-authored
+  # React (crates/vox-gui/ui/) with no .vox->generated/ pipeline, so the
+  # generated/-SSoT guard no longer applies. GUI drift is now enforced by
+  # `vox ci gui-catalog-parity`, `gui-surface-coverage`, and `gui-version-sync`.

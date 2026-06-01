@@ -236,6 +236,27 @@ impl PopuliHttpClient {
         Ok(v)
     }
 
+    /// Fetch the control-plane node list (`GET /v1/populi/nodes`), merge it into
+    /// the on-disk [`LocalRegistry`] at `reg` (deduped by id, fresher
+    /// `last_seen_unix_ms` wins, control plane authoritative on ties), and persist
+    /// atomically. Returns the merged view. The HTTP fetch is the only part that
+    /// needs a live control plane; the merge ([`merge_registry_by_last_seen`]) is
+    /// a pure, separately unit-tested function.
+    pub async fn sync_node_registry(
+        &self,
+        reg: &crate::LocalRegistry,
+    ) -> Result<PopuliRegistryFile, PopuliRegistryError> {
+        let incoming = self.list_nodes().await?;
+        let local = reg.load().unwrap_or_else(|_| PopuliRegistryFile {
+            schema_version: incoming.schema_version,
+            nodes: Vec::new(),
+            queue_depth: None,
+        });
+        let merged = vox_populi_types::merge_registry_by_last_seen(local, incoming);
+        reg.save(&merged)?;
+        Ok(merged)
+    }
+
     /// `GET /v1/populi/federation/directory`
     pub async fn federation_directory(
         &self,

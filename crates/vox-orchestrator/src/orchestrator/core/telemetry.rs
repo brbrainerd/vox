@@ -111,15 +111,22 @@ impl crate::orchestrator::Orchestrator {
         match db.get_model_scoreboard(7).await {
             Ok(rows) => {
                 let mut scoreboard = std::collections::HashMap::new();
-                for row in rows {
-                    scoreboard.insert(row.model_id.clone(), crate::models::ModelScore::from(row));
+                for row in &rows {
+                    scoreboard.insert(
+                        row.model_id.clone(),
+                        crate::models::ModelScore::from(row.clone()),
+                    );
                 }
 
                 let mut registry = self.models.write().unwrap();
                 registry.inject_scoreboard(scoreboard);
+                // Close the latency gap: write the measured scoreboard p50 into the
+                // static capability field the scorer actually reads.
+                let latency_updated = registry.inject_scoreboard_latency(&rows);
                 tracing::debug!(
-                    "Refreshed model scoreboard with {} entries",
-                    registry.scoreboard_len()
+                    "Refreshed model scoreboard with {} entries ({} latency p50s injected)",
+                    registry.scoreboard_len(),
+                    latency_updated
                 );
             }
             Err(e) => {

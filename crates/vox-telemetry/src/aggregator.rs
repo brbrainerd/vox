@@ -141,6 +141,7 @@ mod tests {
             model: "test".into(),
             provider: "test".into(),
             route_profile: None,
+            selection_rationale: None,
             prompt_tokens: prompt,
             completion_tokens: completion,
             cache_read_input_tokens: None,

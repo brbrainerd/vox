@@ -56,6 +56,79 @@ pub fn response_err(id: impl Into<String>, msg: impl Into<String>) -> DispatchRe
     }
 }
 
+/// How often [`stream_status_events`] re-samples orchestrator status while a
+/// subscriber is connected. Frames are only emitted when the snapshot changes.
+const SUBSCRIBE_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// Write one newline-delimited [`DispatchResponse`] frame and flush.
+async fn write_frame<W: AsyncWriteExt + Unpin>(
+    out: &mut W,
+    resp: &DispatchResponse,
+) -> anyhow::Result<()> {
+    let mut line = serde_json::to_string(resp)?;
+    line.push('\n');
+    out.write_all(line.as_bytes()).await?;
+    out.flush().await?;
+    Ok(())
+}
+
+/// Push orchestrator status snapshots as [`DispatchPayload::Event`] frames until
+/// the peer disconnects (a write error ends the stream). The daemon initiates
+/// every frame; the subscriber never polls. An initial snapshot is sent
+/// immediately, then a new frame is emitted on each change.
+async fn stream_status_events<W: AsyncWriteExt + Unpin>(
+    id: &str,
+    orch: &Arc<Orchestrator>,
+    out: &mut W,
+) -> anyhow::Result<()> {
+    let mut last = String::new();
+    loop {
+        let value = serde_json::to_value(orch.status()).unwrap_or(serde_json::Value::Null);
+        let serialized = value.to_string();
+        if serialized != last {
+            last = serialized;
+            let frame = DispatchResponse {
+                id: id.to_string(),
+                payload: DispatchPayload::Event { value },
+            };
+            // Propagates an error once the peer closes the connection, ending the stream.
+            write_frame(out, &frame).await?;
+        }
+        tokio::time::sleep(SUBSCRIBE_POLL_INTERVAL).await;
+    }
+}
+
+/// Push every `AgentEvent` from the orchestrator's broadcast event bus as a
+/// [`DispatchPayload::Event`] frame until the peer disconnects (a write error
+/// ends the stream). Fully push-driven — no polling. The bus has no replay, so
+/// only events emitted after this subscription are delivered; broadcast lag
+/// (slow consumer past the channel capacity) is skipped rather than fatal.
+async fn stream_agent_events<W: AsyncWriteExt + Unpin>(
+    id: &str,
+    orch: &Arc<Orchestrator>,
+    out: &mut W,
+) -> anyhow::Result<()> {
+    let mut rx = orch.event_bus().subscribe();
+    loop {
+        match rx.recv().await {
+            Ok(event) => {
+                let value = serde_json::to_value(&event).unwrap_or(serde_json::Value::Null);
+                let frame = DispatchResponse {
+                    id: id.to_string(),
+                    payload: DispatchPayload::Event { value },
+                };
+                // Errors once the peer closes the connection, ending the stream.
+                write_frame(out, &frame).await?;
+            }
+            // Slow consumer fell behind the broadcast capacity — skip the gap
+            // and keep streaming rather than dropping the subscriber.
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            // Sender (orchestrator) dropped — nothing more will arrive.
+            Err(tokio::sync::broadcast::error::RecvError::Closed) => return Ok(()),
+        }
+    }
+}
+
 /// Dispatch one parsed request against the live orchestrator.
 pub async fn dispatch_request(
     repository_id: &str,
@@ -407,10 +480,22 @@ pub async fn dispatch_request(
     }
 }
 
+/// Optional out-of-band dispatcher for methods that need state the core daemon
+/// does not hold — e.g. an MCP `ServerState` for `orch.tool_call` /
+/// `orch.resolve_approval` / `orch.list_pending_approvals`. The binary supplies
+/// the impl; the library stays free of the heavy MCP layer (no dependency cycle).
+#[async_trait::async_trait]
+pub trait ExtraDispatch: Send + Sync {
+    /// Return `Some(response)` to handle `req`; `None` to fall through to the
+    /// built-in `orch.*` dispatch.
+    async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse>;
+}
+
 async fn handle_connection(
     mut socket: TcpStream,
     repository_id: String,
     orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
 ) -> anyhow::Result<()> {
     let (read_half, mut write_half) = socket.split();
     let mut reader = BufReader::new(read_half);
@@ -425,14 +510,31 @@ async fn handle_connection(
         if trimmed.is_empty() {
             continue;
         }
-        let resp = match serde_json::from_str::<DispatchRequest>(trimmed) {
-            Ok(req) => dispatch_request(&repository_id, orch.clone(), &req).await,
-            Err(e) => response_err("0", format!("invalid DispatchRequest JSON: {e}")),
+        let req = match serde_json::from_str::<DispatchRequest>(trimmed) {
+            Ok(req) => req,
+            Err(e) => {
+                let resp = response_err("0", format!("invalid DispatchRequest JSON: {e}"));
+                write_frame(&mut write_half, &resp).await?;
+                continue;
+            }
         };
-        let mut out = serde_json::to_string(&resp)?;
-        out.push('\n');
-        write_half.write_all(out.as_bytes()).await?;
-        write_half.flush().await?;
+        if req.method == orch_daemon_method::SUBSCRIBE {
+            // Long-lived push stream; returns when the peer disconnects.
+            stream_status_events(&req.id, &orch, &mut write_half).await?;
+            break;
+        }
+        if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
+            stream_agent_events(&req.id, &orch, &mut write_half).await?;
+            break;
+        }
+        if let Some(ex) = extra.as_ref() {
+            if let Some(resp) = ex.try_handle(&req).await {
+                write_frame(&mut write_half, &resp).await?;
+                continue;
+            }
+        }
+        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        write_frame(&mut write_half, &resp).await?;
     }
     Ok(())
 }
@@ -444,14 +546,27 @@ pub async fn serve_listener(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
+    serve_listener_with_extra(listener, bind_display, repository_id, orch, None).await
+}
+
+/// [`serve_listener`] with an optional [`ExtraDispatch`] hook (the daemon binary
+/// wires one carrying its MCP `ServerState`).
+pub async fn serve_listener_with_extra(
+    listener: TcpListener,
+    bind_display: String,
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
+) -> anyhow::Result<()> {
     tracing::info!(bind = %bind_display, "vox-orchestrator-d listening");
     loop {
         let (socket, peer) = listener.accept().await?;
         tracing::debug!(%peer, "orch daemon accepted");
         let repo = repository_id.clone();
         let o = orch.clone();
+        let ex = extra.clone();
         tokio::spawn(async move {
-            if let Err(e) = handle_connection(socket, repo, o).await {
+            if let Err(e) = handle_connection(socket, repo, o, ex).await {
                 tracing::debug!(error = %e, "orch daemon connection closed with error");
             }
         });
@@ -464,14 +579,33 @@ pub async fn run_tcp_server(
     repository_id: String,
     orch: Arc<Orchestrator>,
 ) -> anyhow::Result<()> {
+    run_tcp_server_with_extra(bind, repository_id, orch, None).await
+}
+
+/// [`run_tcp_server`] with an optional [`ExtraDispatch`] hook.
+pub async fn run_tcp_server_with_extra(
+    bind: &str,
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
+) -> anyhow::Result<()> {
     let listener = TcpListener::bind(bind).await?;
-    serve_listener(listener, bind.to_string(), repository_id, orch).await
+    serve_listener_with_extra(listener, bind.to_string(), repository_id, orch, extra).await
 }
 
 /// Read newline-delimited [`DispatchRequest`] from stdin; write [`DispatchResponse`] lines to stdout.
 pub async fn run_stdio_server(
     repository_id: String,
     orch: Arc<Orchestrator>,
+) -> anyhow::Result<()> {
+    run_stdio_server_with_extra(repository_id, orch, None).await
+}
+
+/// [`run_stdio_server`] with an optional [`ExtraDispatch`] hook.
+pub async fn run_stdio_server_with_extra(
+    repository_id: String,
+    orch: Arc<Orchestrator>,
+    extra: Option<Arc<dyn ExtraDispatch>>,
 ) -> anyhow::Result<()> {
     tracing::info!("vox-orchestrator-d serving on stdio (line-delimited JSON)");
     let stdin = tokio::io::stdin();
@@ -488,14 +622,30 @@ pub async fn run_stdio_server(
         if trimmed.is_empty() {
             continue;
         }
-        let resp = match serde_json::from_str::<DispatchRequest>(trimmed) {
-            Ok(req) => dispatch_request(&repository_id, orch.clone(), &req).await,
-            Err(e) => response_err("0", format!("invalid DispatchRequest JSON: {e}")),
+        let req = match serde_json::from_str::<DispatchRequest>(trimmed) {
+            Ok(req) => req,
+            Err(e) => {
+                let resp = response_err("0", format!("invalid DispatchRequest JSON: {e}"));
+                write_frame(&mut stdout, &resp).await?;
+                continue;
+            }
         };
-        let mut out = serde_json::to_string(&resp)?;
-        out.push('\n');
-        stdout.write_all(out.as_bytes()).await?;
-        stdout.flush().await?;
+        if req.method == orch_daemon_method::SUBSCRIBE {
+            stream_status_events(&req.id, &orch, &mut stdout).await?;
+            break;
+        }
+        if req.method == orch_daemon_method::SUBSCRIBE_EVENTS {
+            stream_agent_events(&req.id, &orch, &mut stdout).await?;
+            break;
+        }
+        if let Some(ex) = extra.as_ref() {
+            if let Some(resp) = ex.try_handle(&req).await {
+                write_frame(&mut stdout, &resp).await?;
+                continue;
+            }
+        }
+        let resp = dispatch_request(&repository_id, orch.clone(), &req).await;
+        write_frame(&mut stdout, &resp).await?;
     }
     Ok(())
 }

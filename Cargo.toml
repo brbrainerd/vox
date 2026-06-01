@@ -160,7 +160,6 @@ vox-code-audit               = { path = "crates/vox-code-audit" }
 vox-drift-check              = { path = "crates/vox-drift-check" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
-vox-dashboard             = { path = "crates/vox-dashboard" }
 vox-tauri-codegen         = { path = "crates/vox-tauri-codegen" }
 vox-tauri-stt             = { path = "crates/vox-tauri-stt" }
 

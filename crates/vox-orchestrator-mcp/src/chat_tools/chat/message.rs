@@ -314,6 +314,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                         resolution_template,
                         free_only,
                         allow_cloud_ollama_fallback: true,
+                        selection_rationale: None,
                         user_id: Some(session_id.as_str()),
                     };
                     match crate::llm_bridge::mcp_infer_completion(

@@ -27,62 +27,57 @@ allowlist:
   # ── vox-dashboard ────────────────────────────────────────────────────────────
   - source: "docs/src/architecture/agentic-version-control-automation-research-2026.md"
     target: "../../../crates/vox-dashboard/"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/gui-authoring-syntax-2026.md"
     target: "../../../crates/vox-dashboard/app/src/surfaces/speak.vox"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md"
     target: "../../../crates/vox-dashboard/src/api/mesh.rs"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-and-language-distribution-ssot-2026.md"
     target: "../../../crates/vox-dashboard/app/src/generated/NetworkTab.tsx"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
     target: "../../../crates/vox-dashboard/"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
     target: "../../../crates/vox-dashboard/src/transport.ts"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
     target: "../../../crates/vox-dashboard/src/api/mesh.rs"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
     target: "../../../crates/vox-dashboard/app/src/generated/TaskDispatch.tsx"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
     target: "../../../crates/vox-dashboard/src/api/runs.rs"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/mesh-dashboard-and-distributed-compute-research-2026.md"
     target: "../../../crates/vox-dashboard/app/src/generated/NetworkTab.tsx"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   - source: "docs/src/architecture/unified-task-hopper-research-2026.md"
     target: "../../../crates/vox-dashboard/"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
-    expires: "2026-11-30"
-
-  - source: "docs/src/architecture/where-things-live.md"
-    target: "../../../crates/vox-dashboard/"
-    reason: "planned-crate: vox-dashboard not yet implemented; tracked in mesh SSOT phases 4-5"
+    reason: "retired-crate: vox-dashboard migrated into vox-gui (ADR-037); historical doc links preserved"
     expires: "2026-11-30"
 
   # ── vox-install-policy ───────────────────────────────────────────────────────

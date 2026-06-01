@@ -142,6 +142,40 @@ pub fn filter_registry_by_max_stale_ms(
     file
 }
 
+/// Merge `incoming` (control-plane truth) into `local`, deduped by `id`, keeping
+/// the record with the greater `last_seen_unix_ms`. Ties resolve to `incoming`
+/// (the control plane is authoritative). Never mutates timestamps. `schema_version`
+/// becomes the max; `queue_depth` prefers the live `incoming` value. Output node
+/// order is sorted by `id` for deterministic on-disk + test output.
+#[must_use]
+pub fn merge_registry_by_last_seen(
+    local: PopuliRegistryFile,
+    incoming: PopuliRegistryFile,
+) -> PopuliRegistryFile {
+    use std::collections::HashMap;
+    let mut by_id: HashMap<String, NodeRecord> = HashMap::new();
+    for n in local.nodes {
+        by_id.insert(n.id.clone(), n);
+    }
+    for n in incoming.nodes {
+        // Incoming wins unless the local record is strictly fresher (so ties go to
+        // the authoritative control plane).
+        let keep_local = by_id
+            .get(&n.id)
+            .is_some_and(|existing| existing.last_seen_unix_ms > n.last_seen_unix_ms);
+        if !keep_local {
+            by_id.insert(n.id.clone(), n);
+        }
+    }
+    let mut nodes: Vec<NodeRecord> = by_id.into_values().collect();
+    nodes.sort_by(|a, b| a.id.cmp(&b.id));
+    PopuliRegistryFile {
+        schema_version: local.schema_version.max(incoming.schema_version),
+        nodes,
+        queue_depth: incoming.queue_depth.or(local.queue_depth),
+    }
+}
+
 /// Whether this node should block **new** claims / exec lease grant+renew (drain semantics).
 #[must_use]
 pub fn node_maintenance_blocks_new_work(now_ms: u64, n: &NodeRecord) -> bool {
@@ -215,4 +249,78 @@ fn now_ms() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod merge_tests {
+    use super::*;
+
+    fn node(id: &str, last_seen: u64, version: &str) -> NodeRecord {
+        serde_json::from_value(serde_json::json!({
+            "id": id,
+            "capabilities": {},
+            "version": version,
+            "last_seen_unix_ms": last_seen,
+        }))
+        .expect("minimal NodeRecord")
+    }
+
+    fn file(schema: u32, queue: Option<usize>, nodes: Vec<NodeRecord>) -> PopuliRegistryFile {
+        PopuliRegistryFile {
+            schema_version: schema,
+            nodes,
+            queue_depth: queue,
+        }
+    }
+
+    #[test]
+    fn merge_unions_keeps_fresher_and_is_deterministic() {
+        let local = file(
+            1,
+            Some(2),
+            vec![node("a", 100, "local"), node("b", 500, "local")],
+        );
+        let incoming = file(
+            2,
+            Some(7),
+            vec![node("a", 200, "remote"), node("c", 50, "remote")],
+        );
+
+        let merged = merge_registry_by_last_seen(local, incoming);
+
+        // Union of ids, sorted deterministically.
+        let ids: Vec<&str> = merged.nodes.iter().map(|n| n.id.as_str()).collect();
+        assert_eq!(ids, vec!["a", "b", "c"]);
+        // 'a' conflict → incoming is fresher (200 > 100) → remote wins.
+        let a = merged.nodes.iter().find(|n| n.id == "a").unwrap();
+        assert_eq!(a.version, "remote");
+        // 'b' only local → kept; 'c' only incoming → inserted.
+        assert_eq!(
+            merged.nodes.iter().find(|n| n.id == "b").unwrap().version,
+            "local"
+        );
+        // schema = max, queue_depth = live incoming.
+        assert_eq!(merged.schema_version, 2);
+        assert_eq!(merged.queue_depth, Some(7));
+    }
+
+    #[test]
+    fn merge_tie_resolves_to_incoming_authoritative() {
+        let local = file(1, None, vec![node("x", 300, "local")]);
+        let incoming = file(1, None, vec![node("x", 300, "remote")]);
+        let merged = merge_registry_by_last_seen(local, incoming);
+        assert_eq!(merged.nodes.len(), 1);
+        assert_eq!(
+            merged.nodes[0].version, "remote",
+            "on an equal last_seen tie the control plane (incoming) wins"
+        );
+    }
+
+    #[test]
+    fn merge_keeps_strictly_fresher_local() {
+        let local = file(1, None, vec![node("y", 999, "local")]);
+        let incoming = file(1, None, vec![node("y", 100, "remote")]);
+        let merged = merge_registry_by_last_seen(local, incoming);
+        assert_eq!(merged.nodes[0].version, "local");
+    }
 }

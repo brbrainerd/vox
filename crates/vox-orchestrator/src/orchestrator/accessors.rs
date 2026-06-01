@@ -12,6 +12,9 @@ use std::collections::HashMap;
 
 impl Orchestrator {
     pub fn status(&self) -> OrchestratorStatus {
+        let budget = crate::sync_lock::rw_read(&self.budget_manager);
+        let total_cost_usd = budget.total_cost_usd();
+        let budget_cap_usd = budget.max_financial_cost_micros() as f64 / 1_000_000.0;
         let agents_map = crate::sync_lock::rw_read(&self.agents);
         let dynamic_agents = crate::sync_lock::rw_read(&self.dynamic_agents);
         let agents: Vec<AgentSummary> = agents_map
@@ -37,9 +40,12 @@ impl Orchestrator {
                     max_handoff_count: queue.max_handoff_count(),
                     active_skill: queue.current_task().and_then(|t| t.active_skill.clone()),
                     current_phase: queue.current_task().and_then(|t| t.current_phase),
+                    cost_usd: budget.cost_usd(*id),
                 }
             })
             .collect();
+
+        drop(budget);
 
         let dynamic_count = dynamic_agents.len();
         let reserved_count = agents_map.len().saturating_sub(dynamic_count);
@@ -99,6 +105,8 @@ impl Orchestrator {
                 .map(|a| a.max_handoff_count)
                 .max()
                 .unwrap_or(0),
+            total_cost_usd,
+            budget_cap_usd,
             agents,
         }
     }

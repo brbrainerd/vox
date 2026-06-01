@@ -414,6 +414,67 @@ pub fn get_registry_token(registry: &str) -> Option<String> {
         .map(|(s, _)| secrecy::ExposeSecret::expose_secret(&s).to_string())
 }
 
+/// Remove a registry token from both the secure store and `auth.json`.
+/// Returns `true` if an entry existed. Never returns the token material.
+pub fn remove_registry_token(registry: &str) -> Result<bool, SecretError> {
+    sources::auth_json::remove_registry_token(registry)
+}
+
 pub fn migrate_auth_store_to_secure_store() -> Result<usize, SecretError> {
     sources::auth_json::migrate_to_secure_store()
+}
+
+/// A redaction-safe summary row for one managed secret.
+///
+/// SECURITY: every field here is non-sensitive presence/metadata. The actual
+/// secret value is NEVER included — only the `head4…tail2` `redacted` preview
+/// from [`ResolvedSecret::redacted`]. Safe to serialize across an IPC / GUI
+/// boundary.
+#[derive(Debug, Clone)]
+pub struct SecretStatusRow {
+    /// `Debug` form of the `SecretId` enum variant (stable identifier).
+    pub id: String,
+    pub canonical_env: &'static str,
+    pub scope_description: &'static str,
+    /// Taxonomy class slug (e.g. `"llm"`, `"platform"`).
+    pub taxonomy_slug: &'static str,
+    /// Registry name for auth.json-backed tokens, if any.
+    pub auth_registry: Option<&'static str>,
+    pub required: bool,
+    pub is_present: bool,
+    /// `Debug` form of the resolution status.
+    pub status: String,
+    /// `head4…tail2 (redacted)` preview or `(missing)` — never the raw value.
+    pub redacted: String,
+    /// `Debug` form of the resolution source, if resolved.
+    pub source: Option<String>,
+    pub remediation: &'static str,
+}
+
+/// Build a redaction-safe status row for every real (non config-only) managed
+/// secret. Iterates [`all_specs`], filters out operator-tuning config, and
+/// resolves each. The returned rows carry only presence + a redacted preview.
+#[must_use]
+pub fn list_secret_status() -> Vec<SecretStatusRow> {
+    let mut out = Vec::new();
+    for spec in all_specs() {
+        if spec.id.metadata().taxonomy_class.is_config_only() {
+            continue;
+        }
+        let resolved = resolve_secret(spec.id);
+        out.push(SecretStatusRow {
+            id: format!("{:?}", spec.id),
+            canonical_env: spec.canonical_env,
+            scope_description: spec.scope_description,
+            taxonomy_slug: spec.id.metadata().taxonomy_class.slug(),
+            auth_registry: spec.auth_registry,
+            required: spec.policy.required,
+            is_present: resolved.is_present(),
+            status: format!("{:?}", resolved.status),
+            redacted: resolved.redacted(),
+            source: resolved.source.map(|s| format!("{s:?}")),
+            remediation: spec.remediation,
+        });
+    }
+    out
 }

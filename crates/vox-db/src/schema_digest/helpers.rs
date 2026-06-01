@@ -310,6 +310,7 @@ mod tests {
         Decl::Table(TableDecl {
             name: name.to_string(),
             fields,
+            primary_key: None,
             description: None,
             json_layout: None,
             auth_provider: None,

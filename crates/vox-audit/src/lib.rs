@@ -15,7 +15,7 @@
 //! ## Wiring summary
 //!
 //! - Library API (this file + `report.rs` + `subcommands/`): callable from
-//!   tests, vox-cli, and the upcoming `vox-dashboard` audit panel.
+//!   tests, vox-cli, and the vox-gui audit panel.
 //! - CLI binary (`src/main.rs`): the user-facing `vox-audit` executable.
 //! - Single planning anchor (`contracts/ci/vox-audit-contract.v1.yaml`)
 //!   declares: CLI flag set, exit-code convention, telemetry namespace,

@@ -415,6 +415,11 @@ pub struct ModelCallEvent {
     pub model: String,
     pub provider: String,
     pub route_profile: Option<String>,
+    /// Human-readable reason this model was selected (e.g. the free-tier router's
+    /// rationale). `None` for the ordinary scorer path. Back-compat: defaults to
+    /// `None` for events serialized before this field existed.
+    #[serde(default)]
+    pub selection_rationale: Option<String>,
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     /// Anthropic prompt-cache: tokens read from cache (~10× cheaper than fresh input).
@@ -1394,6 +1399,7 @@ mod tests {
             model: "claude-opus-4-7".into(),
             provider: "anthropic".into(),
             route_profile: Some("strong".into()),
+            selection_rationale: Some("Candidate selected for ultra-low latency".into()),
             prompt_tokens: 1234,
             completion_tokens: 567,
             cache_read_input_tokens: Some(800),

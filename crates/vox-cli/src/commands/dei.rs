@@ -2,7 +2,7 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_orchestrator::{
-    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
+    AgentId, FileAffinity, Orchestrator, OrchestratorConfig, TaskId, TaskPriority,
     build_repo_scoped_orchestrator, discover_repository_from_cwd, json_vcs_facade,
 };
 
@@ -120,7 +120,7 @@ pub async fn submit(
     };
 
     match orch
-        .submit_task(description, file_manifest, priority, session_id)
+        .submit_task(description, file_manifest, priority, session_id, None)
         .await
     {
         Ok(task_id) => {

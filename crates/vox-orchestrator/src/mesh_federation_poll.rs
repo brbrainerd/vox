@@ -86,6 +86,20 @@ pub fn spawn_populi_federation_poller(
             let now = vox_populi::wall_clock_unix_ms();
             match client.list_nodes().await {
                 Ok(f) => {
+                    // Opt-in (default OFF): persist the control-plane node list into
+                    // the on-disk LocalRegistry (merge by last-seen). Off by default
+                    // so the poller stays read-only unless an operator enables it.
+                    if std::env::var("VOX_POPULI_PERSIST_LOCAL_REGISTRY")
+                        .map(|v| matches!(v.trim(), "1" | "true" | "yes" | "on"))
+                        .unwrap_or(false)
+                    {
+                        let reg = vox_populi::LocalRegistry::new(
+                            vox_populi::LocalRegistry::resolved_default_path(),
+                        );
+                        if let Err(e) = client.sync_node_registry(&reg).await {
+                            tracing::debug!(error = %e, "populi: local-registry sync failed");
+                        }
+                    }
                     let brief: Vec<PopuliNodeBrief> = f
                         .nodes
                         .iter()

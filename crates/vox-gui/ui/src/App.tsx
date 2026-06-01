@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useReducer, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { decode } from '@msgpack/msgpack';
 import { Backdrop } from './components/ui/Backdrop';
@@ -8,6 +8,8 @@ import { CommandPalette } from './components/layout/CommandPalette';
 import { Toasts, ToastItem } from './components/ui/Toasts';
 import { Dashboard } from './components/surfaces/Dashboard/Dashboard';
 import { Loquela } from './components/surfaces/Loquela/Loquela';
+import { Transcript } from './components/surfaces/Loquela/Transcript';
+import { chatReducer, initialChatState } from './lib/chatCorrelation';
 import { Catalog } from './components/surfaces/Catalog/Catalog';
 import { Matrix } from './components/surfaces/Matrix/Matrix';
 import { AgentFlow } from './components/surfaces/Flow/AgentFlow';
@@ -19,7 +21,10 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
-import { voxTransport } from './transport';
+import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
+import { SkillsPluginsView } from './components/surfaces/SkillsPlugins/SkillsPluginsView';
+import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
+import type { UnlistenFn } from '@tauri-apps/api/event';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
 import { DashboardData, Agent, StreamItem, LudusAlert } from './types/dashboard';
@@ -37,6 +42,8 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'approvals'
+  | 'skills'
   | 'settings';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
@@ -65,6 +72,66 @@ function mapStream(e: any): StreamItem {
   };
 }
 
+// ─── Live AgentEvent (B4 "vox://agent-events") → dashboard StreamItem ─────────
+const AGENT_EVENT_LABELS: Record<string, string> = {
+  token_streamed: 'TOKEN',
+  task_started: 'TASK',
+  task_phase_changed: 'PHASE',
+  task_completed: 'DONE',
+  task_failed: 'FAILED',
+  agent_spawned: 'SPAWN',
+  agent_retired: 'RETIRE',
+  cost_incurred: 'COST',
+};
+
+function mapAgentEvent(e: AgentEventFrame): StreamItem {
+  const kind = e.kind ?? ({ type: 'unknown' } as AgentEventFrame['kind']);
+  const type = kind.type ?? 'unknown';
+  const tag = AGENT_EVENT_LABELS[type] ?? type.replace(/_/g, ' ').toUpperCase();
+
+  // Build a human-readable title/body per variant.
+  let title = type.replace(/_/g, ' ');
+  let body = '';
+  switch (type) {
+    case 'token_streamed':
+      title = `Token · ${kind.agent_id ?? '?'}`;
+      body = String(kind.text ?? '');
+      break;
+    case 'task_started':
+    case 'task_phase_changed':
+    case 'task_completed':
+    case 'task_failed':
+      title = `${tag} · task ${kind.task_id ?? '?'}`;
+      body = kind.phase
+        ? `phase: ${kind.phase}`
+        : kind.error
+          ? `error: ${kind.error}`
+          : kind.agent_id
+            ? `agent ${kind.agent_id}`
+            : '';
+      break;
+    case 'agent_spawned':
+    case 'agent_retired':
+      title = `${tag} · agent ${kind.agent_id ?? '?'}`;
+      break;
+    default:
+      body = '';
+  }
+
+  const isFailed = type === 'task_failed';
+  return {
+    // Numeric event id correlates with orchestrator doubt/overrule task ids.
+    id: String(e.id),
+    kind: isFailed ? 'doubted' : 'agent',
+    tag,
+    title,
+    body,
+    ts: e.timestamp_ms
+      ? new Date(e.timestamp_ms).toLocaleTimeString()
+      : 'now',
+  };
+}
+
 function mapAlert(a: any): LudusAlert {
   return { id: a.id, level: a.level, title: a.title, body: a.body };
 }
@@ -82,6 +149,9 @@ export default function App() {
   const [deployedSet, setDeployedSet] = useState(new Set<string>());
   const [selectedAgentId, setSelectedAgentId] = useState('ROOT');
   const [appVersion, setAppVersion] = useState<string>('loading…');
+
+  // ── B4-chat: pure-reducer transcript state for the Loquela composer ────────
+  const [chat, dispatchChat] = useReducer(chatReducer, initialChatState);
 
   // ── 5-minute rolling sparkline windows ──────────────────────────────────
   // Each hook persists its window to localStorage under a namespaced key.
@@ -150,36 +220,99 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'settings'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'approvals', 'skills', 'settings'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Polling status refresh (event stream integration pending) ─────────────
-  // We use `get_orchestrator_status_bin` to fetch raw MessagePack payloads,
-  // bypassing Tauri's default JSON string-escaping overhead for large states.
+  // ── Pushed status stream (B1: "vox://orch-status" Tauri event) ─────────────
+  // Primary path is the daemon-pushed event stream. We keep one initial snapshot
+  // fetch on mount, and fall back to polling ONLY if the listener can't be set
+  // up (e.g. running outside Tauri in a plain browser dev session).
   useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
     let fallbackInterval: ReturnType<typeof setInterval> | undefined;
+    let cancelled = false;
 
-    const poll = async () => {
+    // One-shot initial snapshot via the existing binary status command.
+    // We use `get_orchestrator_status_bin` to fetch raw MessagePack payloads,
+    // bypassing Tauri's default JSON string-escaping overhead for large states.
+    const fetchSnapshot = async () => {
       try {
         const rawBytes = await invoke<Uint8Array>('get_orchestrator_status_bin');
-        const status = decode(rawBytes);
-        applyStatus(status);
+        applyStatus(decode(rawBytes));
       } catch (err) {
-        // Silently ignore if backend is down or not ready
+        // Silently ignore if backend is down or not ready.
       }
     };
 
-    poll();
-    fallbackInterval = setInterval(poll, 2000);
+    const startFallbackPolling = () => {
+      if (fallbackInterval !== undefined) return;
+      fallbackInterval = setInterval(fetchSnapshot, 2000);
+    };
+
+    // Initial snapshot for first paint.
+    fetchSnapshot();
+
+    // Subscribe to the pushed event stream; fall back to polling on failure.
+    listenOrchStatus((status) => applyStatus(status))
+      .then((fn) => {
+        if (cancelled) {
+          // Effect already cleaned up before subscription resolved.
+          fn();
+          return;
+        }
+        unlisten = fn;
+      })
+      .catch(() => {
+        // listen() unavailable (e.g. plain browser) — degrade to polling.
+        if (!cancelled) startFallbackPolling();
+      });
 
     return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
       if (fallbackInterval !== undefined) clearInterval(fallbackInterval);
     };
   }, [applyStatus]);
+
+  // ── Pushed live agent-event stream (B4: "vox://agent-events" Tauri event) ──
+  // Each AgentEvent is prepended to the dashboard activity feed as a StreamItem.
+  // We keep this independent from the status subscription above; the list is
+  // capped so it does not grow unbounded.
+  useEffect(() => {
+    let unlisten: UnlistenFn | undefined;
+    let cancelled = false;
+
+    listenAgentEvents((frame) => {
+      // One listener, two consumers: the dashboard activity feed and the
+      // B4-chat transcript reducer.
+      const item = mapAgentEvent(frame);
+      setData(prev => ({
+        ...prev,
+        stream: [item, ...prev.stream].slice(0, 100),
+      }));
+      dispatchChat({ type: 'agentEvent', event: frame });
+    })
+      .then((fn) => {
+        if (cancelled) {
+          // Effect already cleaned up before subscription resolved.
+          fn();
+          return;
+        }
+        unlisten = fn;
+      })
+      .catch(() => {
+        // listen() unavailable (e.g. plain browser dev) — no live feed.
+      });
+
+    return () => {
+      cancelled = true;
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   const executeWithRun = useCallback(async (operationName: string, payload: any, workflowName: string) => {
     const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -214,8 +347,9 @@ export default function App() {
     }
   }, []);
 
-  const executeIpcWithRun = useCallback(async <T,>(command: string, payload: any, workflowName: string): Promise<T> => {
+  const executeIpcWithRun = useCallback(async <T,>(command: string, payload: any, workflowName: string, onRun?: (runId: string) => void): Promise<T> => {
     const runId = `gui-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    onRun?.(runId);
     await invoke('start_gui_run', {
       input: {
         run_id: runId,
@@ -261,14 +395,30 @@ export default function App() {
   // ── Action handlers ───────────────────────────────────────────────────────
   const handleLoquelaSubmit = useCallback(async (payload: any) => {
     pushToast({ tone: 'info', title: 'Task Dispatched', body: payload.description, cmd: 'vox submit-task' });
-    await executeIpcWithRun('submit_orchestrator_task', {
-      input: {
-        description: payload.description,
-        files: payload.files ?? [],
-        priority: payload.priority ?? null,
-        session_id: payload.session_id ?? 'gui-loquela',
-      }
-    }, 'gui.loquela.submit')
+    let runId = '';
+    await executeIpcWithRun<{ ok: boolean; message: string; task_id: string | null }>(
+      'submit_orchestrator_task',
+      {
+        input: {
+          description: payload.description,
+          files: payload.files ?? [],
+          priority: payload.priority ?? null,
+          session_id: payload.session_id ?? 'gui-loquela',
+        }
+      },
+      'gui.loquela.submit',
+      // Mint the runId and create the user/assistant bubbles BEFORE the invoke
+      // resolves so streamed tokens correlate to a live transcript entry.
+      (id) => {
+        runId = id;
+        dispatchChat({ type: 'submit', runId: id, prompt: String(payload.description ?? '') });
+      },
+    )
+      .then((result) => {
+        if (runId && result?.task_id != null) {
+          dispatchChat({ type: 'submitResolved', runId, taskId: String(result.task_id) });
+        }
+      })
       .catch(err => pushToast({ tone: 'warn', title: 'Dispatch Failed', body: String(err) }));
   }, [executeIpcWithRun, pushToast]);
 
@@ -418,6 +568,10 @@ export default function App() {
         return <GamifyView pushToast={pushToast} />;
       case 'harness':
         return <HarnessView pushToast={pushToast} />;
+      case 'approvals':
+        return <ApprovalsView pushToast={pushToast} />;
+      case 'skills':
+        return <SkillsPluginsView pushToast={pushToast} />;
       default:
         return null;
     }
@@ -449,6 +603,7 @@ export default function App() {
 
         {/* Loquela — fixed to the bottom of main, tracks sidebar width */}
         <div className="p-4 pt-0 mt-auto">
+          <Transcript messages={chat.messages} />
           <Loquela
             chips={chips}
             setChips={setChips}

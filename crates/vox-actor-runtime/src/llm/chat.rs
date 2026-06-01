@@ -5,7 +5,8 @@ use std::pin::Pin;
 
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
 use super::wire::{
-    OpenRouterRequest, OpenRouterResponse, chat_requires_nonempty_api_key, resolve_chat_api_key,
+    OpenRouterRequest, OpenRouterResponse, chat_requires_nonempty_api_key,
+    openrouter_extra_headers, resolve_chat_api_key,
 };
 use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 use crate::{ActivityOptions, ActivityResult, execute_activity};
@@ -64,6 +65,10 @@ pub async fn llm_chat(
             let mut req = client.post(&base_url).json(&req_body);
             if !api_key.is_empty() {
                 req = req.bearer_auth(api_key);
+            }
+            // OpenRouter app attribution / route-hint headers (mirrors the orchestrator bridge).
+            for (name, value) in openrouter_extra_headers(&config.provider, &config.model) {
+                req = req.header(name, value);
             }
             let start = std::time::Instant::now();
             let res = req

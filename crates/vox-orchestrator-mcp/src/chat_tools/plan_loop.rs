@@ -319,6 +319,7 @@ pub async fn maybe_refine_plan(
             resolution_template: resolution_template.clone(),
             free_only,
             allow_cloud_ollama_fallback: true,
+            selection_rationale: None,
             user_id: params.session_id.as_deref(),
         };
 
@@ -381,6 +382,7 @@ Broken output (may be truncated):
                     resolution_template: resolution_template.clone(),
                     free_only,
                     allow_cloud_ollama_fallback: true,
+                    selection_rationale: None,
                     user_id: params.session_id.as_deref(),
                 };
                 let retry_cap = u64::from(max_out).max(8192);

@@ -90,6 +90,58 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
+    // Apply any GUI-persisted model-emphasis (routing priority) as this daemon's
+    // global scorer default. Per-call SelectionAxes still override it via the
+    // scorer's thread-local. Done before serving so all scoring sees it.
+    if let Some(db) = db_holder.as_ref() {
+        if let Ok(Some(csv)) = db
+            .get_user_preference("local_user", "routing_priority")
+            .await
+        {
+            let csv = csv.trim();
+            if !csv.is_empty() {
+                // Install as a thread-safe process-global rather than mutating
+                // the process environment: under the multi-threaded tokio runtime
+                // other threads may `getenv` concurrently, so `set_var` here would
+                // be UB. The scorer reads this global (falling back to the env
+                // only when it is unset). See `install_base_routing_priority`.
+                match vox_config::AutoRoutingPriority::try_parse_csv(csv) {
+                    Some(axes) => {
+                        vox_orchestrator::models::install_base_routing_priority(Some(axes));
+                        tracing::info!(priority = %csv, "applied persisted routing-priority emphasis");
+                    }
+                    None => tracing::warn!(
+                        priority = %csv,
+                        "routing_priority preference parsed no axes; leaving scorer default unchanged"
+                    ),
+                }
+            }
+        }
+
+        // Apply any persisted ordered selection-policy chain. Installed as a
+        // process global the selection resolver reads; empty / absent leaves the
+        // pre-existing selection cascade unchanged.
+        if let Ok(Some(json)) = db
+            .get_user_preference("local_user", "selection_policy")
+            .await
+        {
+            let json = json.trim();
+            if !json.is_empty() {
+                match vox_orchestrator::models::SelectionPolicy::from_json(json) {
+                    Ok(policy) => {
+                        let n = policy.steps.len();
+                        vox_orchestrator::models::install_active_policy(Some(policy));
+                        tracing::info!(steps = n, "applied persisted selection-policy chain");
+                    }
+                    Err(e) => tracing::warn!(
+                        error = %e,
+                        "selection_policy preference is not valid JSON; ignoring"
+                    ),
+                }
+            }
+        }
+    }
+
     runtime::spawn_agent_fleet_if_enabled(orch.clone());
 
     // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.
@@ -162,12 +214,19 @@ async fn main() -> anyhow::Result<()> {
         state = state.with_db_initialized(db).await;
     }
 
+    // Serve orch.tool_call / orch.resolve_approval / orch.list_pending_approvals
+    // against this same ServerState so the GUI runs tools + resolves HITL
+    // approvals through the one shared orchestrator (B5 path-c, B3 cross-process).
+    let extra: Option<Arc<dyn orch_daemon::ExtraDispatch>> = Some(Arc::new(
+        vox_orchestrator_mcp::daemon_extra::McpExtraDispatch::new(state.clone()),
+    ));
+
     if let Err(e) = vox_orchestrator_mcp::http_gateway::spawn_http_gateway_if_enabled(state) {
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
     }
 
     if orch_daemon::is_stdio_transport(&bind_raw) {
-        return orch_daemon::run_stdio_server(repository_id, orch).await;
+        return orch_daemon::run_stdio_server_with_extra(repository_id, orch, extra).await;
     }
 
     let bind = orch_daemon::normalize_tcp_bind_addr(&bind_raw);
@@ -175,5 +234,5 @@ async fn main() -> anyhow::Result<()> {
         anyhow::bail!("VOX_ORCHESTRATOR_DAEMON_SOCKET is empty after normalization");
     }
 
-    orch_daemon::run_tcp_server(&bind, repository_id, orch).await
+    orch_daemon::run_tcp_server_with_extra(&bind, repository_id, orch, extra).await
 }

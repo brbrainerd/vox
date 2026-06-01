@@ -1,6 +1,92 @@
+use std::sync::Arc;
+
+use tauri::Emitter;
 use vox_cli_core::daemon_ipc::dispatch::call_daemon;
 use vox_foundation::protocol::orch_daemon_method;
+use vox_orchestrator::orch_daemon::OrchDaemonClient;
 use vox_package_types::manifest::VoxManifest;
+
+use crate::commands::daemon::PersistentDaemon;
+
+/// Tauri event channel carrying live orchestrator status snapshots to the UI.
+pub const ORCH_STATUS_EVENT: &str = "vox://orch-status";
+
+/// Spawn a background task that subscribes to the orchestrator daemon's status
+/// stream and re-emits each snapshot as the [`ORCH_STATUS_EVENT`] Tauri event.
+///
+/// Resilient by design: if the daemon is unavailable or the stream ends, the task
+/// simply exits without crashing the app. The emitted payload has the same shape
+/// as [`get_orchestrator_status`] (the GUI-mapped status object with `agent_count`).
+// toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
+pub fn spawn_orchestrator_status_stream(
+    app_handle: tauri::AppHandle,
+    daemon: Arc<PersistentDaemon>,
+) {
+    tokio::spawn(async move {
+        let addr = match daemon.ensure().await {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::debug!("daemon unavailable: {e}");
+                return;
+            }
+        };
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
+
+        // Drive the subscription in its own task so we can drain `rx` concurrently.
+        let producer = tokio::spawn(async move {
+            let _ = OrchDaemonClient::new(addr).subscribe(tx).await;
+        });
+
+        while let Some(raw) = rx.recv().await {
+            let gui_status = to_gui_status(raw);
+            if let Ok(value) = serde_json::to_value(&gui_status) {
+                let _ = app_handle.emit(ORCH_STATUS_EVENT, value);
+            }
+        }
+
+        // Stream ended (daemon stopped or errored); let the producer wind down.
+        let _ = producer.await;
+    });
+}
+
+/// Tauri event channel carrying live agent events from the orchestrator daemon
+/// to the UI. Payload is a serialized `AgentEvent` value
+/// (`{ id, timestamp_ms, kind: { type, ..fields } }`).
+pub const AGENT_EVENTS_EVENT: &str = "vox://agent-events";
+
+/// Spawn a background task that subscribes to the orchestrator daemon's
+/// agent-event stream and re-emits each event as the [`AGENT_EVENTS_EVENT`]
+/// Tauri event.
+///
+/// Mirrors [`spawn_orchestrator_status_stream`] (the B1 pattern). Resilient by
+/// design: if the daemon is unavailable or the stream ends, the task simply
+/// exits without crashing the app. Each emitted payload is the raw serialized
+/// `AgentEvent` forwarded verbatim from the daemon.
+// toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
+pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<PersistentDaemon>) {
+    tokio::spawn(async move {
+        let addr = match daemon.ensure().await {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::debug!("daemon unavailable: {e}");
+                return;
+            }
+        };
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
+
+        // Drive the subscription in its own task so we can drain `rx` concurrently.
+        let producer = tokio::spawn(async move {
+            let _ = OrchDaemonClient::new(addr).subscribe_events(tx).await;
+        });
+
+        while let Some(value) = rx.recv().await {
+            let _ = app_handle.emit(AGENT_EVENTS_EVENT, value);
+        }
+
+        // Stream ended (daemon stopped or errored); let the producer wind down.
+        let _ = producer.await;
+    });
+}
 
 #[derive(Debug, serde::Serialize)]
 pub struct GuiAgentSummary {
@@ -17,6 +103,8 @@ pub struct GuiAgentSummary {
     pub completed: usize,
     pub owned_files: usize,
     pub weighted_load: f64,
+    pub cost: Option<f64>,
+    pub budget: Option<f64>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -44,6 +132,12 @@ fn get_u64(v: &serde_json::Value, key: &str) -> u64 {
 
 fn get_f64(v: &serde_json::Value, key: &str) -> f64 {
     v.get(key).and_then(|x| x.as_f64()).unwrap_or(0.0)
+}
+
+/// Read a numeric field only if present, leaving `None` (unknown) otherwise.
+/// Never fabricates a value when the daemon did not report one.
+fn get_opt_f64(v: &serde_json::Value, key: &str) -> Option<f64> {
+    v.get(key).and_then(|x| x.as_f64())
 }
 
 async fn daemon_status() -> Result<serde_json::Value, String> {
@@ -117,13 +211,18 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
                     .get("weighted_load")
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0),
+                // Per-agent financial cost from the daemon (USD). Absent → unknown.
+                cost: get_opt_f64(&agent, "cost_usd"),
+                // No per-agent budget cap is reported today; leave unknown rather
+                // than fabricate. Follow-up: surface a per-agent cap if added.
+                budget: None,
             })
             .collect(),
         recent_events: Vec::new(),
         alerts: Vec::new(),
         peers: Vec::new(),
-        total_cost: 0.0,
-        budget_cap: 50.0,
+        total_cost: get_f64(&status, "total_cost_usd"),
+        budget_cap: get_f64(&status, "budget_cap_usd"),
         mesh_throughput: 0.0,
         total_vram_gb: 0.0,
     }

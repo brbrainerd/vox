@@ -10,6 +10,13 @@ training_rationale: "Grounded repository audit for GUI, CLI, and runtime-surface
 
 # Vox GUI Capability Audit 2026
 
+> **Successor.** This audit diagnoses the GUI's state. The executable, TDD-ready
+> build-out sequence derived from it lives in
+> [`vox-gui-harness-buildout-plan-2026.md`](vox-gui-harness-buildout-plan-2026.md)
+> (three tracks: stateful core, CLI-derived surface, design/UX). The
+> `vox-dashboard` → `vox-gui` migration called out in §"Phase 0" below is now
+> complete; the dangling references it flagged have been reconciled.
+
 ## Executive verdict
 
 Vox already has the right maintainability seed: the CLI has a real compiled command

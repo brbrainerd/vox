@@ -276,6 +276,7 @@ Rules:
         resolution_template: resolution_template.clone(),
         free_only,
         allow_cloud_ollama_fallback: true,
+        selection_rationale: None,
         user_id: params.session_id.as_deref(),
     };
 
@@ -326,6 +327,7 @@ Invalid prior output (may be truncated):
                 resolution_template: resolution_template.clone(),
                 free_only,
                 allow_cloud_ollama_fallback: true,
+                selection_rationale: None,
                 user_id: params.session_id.as_deref(),
             };
             let retry_cap = initial_cap.max(8192);
@@ -739,6 +741,7 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                         resolution_template: resolution,
                         free_only,
                         allow_cloud_ollama_fallback: true,
+                        selection_rationale: None,
                         user_id: Some(&params.session_id),
                     };
 

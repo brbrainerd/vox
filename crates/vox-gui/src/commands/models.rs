@@ -44,6 +44,47 @@ impl From<AutoRoutingPriority> for RoutingPriorityDto {
     }
 }
 
+/// Parse a `VOX_AUTO_ROUTING_PRIORITY`-style CSV (`efficiency=25,precision=30,...`)
+/// onto a base priority, leaving any axes not present in the CSV untouched.
+fn apply_routing_csv(mut base: RoutingPriorityDto, csv: &str) -> RoutingPriorityDto {
+    for part in csv.split(',') {
+        let mut it = part.splitn(2, '=');
+        let key = it.next().map(str::trim).unwrap_or("").to_ascii_lowercase();
+        let Ok(parsed) = it.next().map(str::trim).unwrap_or("").parse::<u8>() else {
+            continue;
+        };
+        match key.as_str() {
+            "efficiency" | "cost" => base.efficiency = parsed,
+            "precision" | "quality" => base.precision = parsed,
+            "latency" | "speed" => base.latency = parsed,
+            "availability" => base.availability = parsed,
+            "balance" => base.balance = parsed,
+            "mobile" => base.mobile = parsed,
+            _ => {}
+        }
+    }
+    base
+}
+
+/// Resolve the effective routing priority: persisted DB pref (if present)
+/// overrides env/default; env/default is the base.
+async fn effective_routing_priority() -> RoutingPriorityDto {
+    let base: RoutingPriorityDto = AutoRoutingPriority::from_env().into();
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        if let Ok(Some(csv)) = db
+            .get_user_preference("local_user", "routing_priority")
+            .await
+        {
+            if !csv.trim().is_empty() {
+                return apply_routing_csv(base, &csv);
+            }
+        }
+    }
+    base
+}
+
 #[derive(Debug, Serialize)]
 pub struct RoutingSummaryDto {
     pub active_model: Option<String>,
@@ -171,7 +212,7 @@ pub async fn get_routing_summary() -> Result<RoutingSummaryDto, String> {
         active_model: active,
         exploration_spent_usd: 0.0,
         exploration_budget_usd: cfg.exploration.budget_usd_per_day,
-        routing_priority: AutoRoutingPriority::from_env().into(),
+        routing_priority: effective_routing_priority().await,
         arm_count: reg.arm_stats_snapshot().len(),
         model_count: reg.list_models().len(),
         decision_preview,
@@ -191,7 +232,14 @@ pub async fn set_routing_priority(
         "efficiency={efficiency},precision={precision},latency={latency},availability={availability},balance={balance},mobile={mobile}"
     );
     unsafe {
-        std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", csv);
+        std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", &csv);
+    }
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        let _ = db
+            .set_user_preference("local_user", "routing_priority", &csv)
+            .await;
     }
     Ok(())
 }
@@ -278,6 +326,56 @@ pub async fn suggest_model_for_task(task: String) -> Result<String, String> {
 #[tauri::command]
 pub async fn get_routing_summary_live() -> Result<RoutingSummaryDto, String> {
     get_routing_summary().await
+}
+
+/// Empty-policy JSON returned when no `selection_policy` preference is persisted.
+const EMPTY_SELECTION_POLICY: &str = "{\"steps\":[]}";
+
+/// Read the persisted `selection_policy` user-preference (JSON for a
+/// [`vox_orchestrator::models::SelectionPolicy`]). Mirrors
+/// [`effective_routing_priority`] / [`get_active_model`]: reads the
+/// `("local_user","selection_policy")` pref via `connect_workspace_journey_optional`.
+/// Returns the stored JSON, or the empty policy (`{"steps":[]}`) when absent.
+#[tauri::command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_db preferences; behavior covered by orchestrator selection-policy tests
+pub async fn get_selection_policy() -> String {
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        if let Ok(Some(json)) = db
+            .get_user_preference("local_user", "selection_policy")
+            .await
+        {
+            if !json.trim().is_empty() {
+                return json;
+            }
+        }
+    }
+    EMPTY_SELECTION_POLICY.to_string()
+}
+
+/// Persist a `selection_policy` user-preference. Validates that `json` parses as
+/// a [`vox_orchestrator::models::SelectionPolicy`] (rejecting invalid input)
+/// before writing the `("local_user","selection_policy")` pref. Mirrors
+/// [`set_routing_priority`].
+///
+/// NOTE: the daemon reads this preference and installs the active policy at
+/// startup (mirroring how `routing_priority` is applied), so a saved policy
+/// takes effect on the next orchestrator (re)start, not immediately.
+#[tauri::command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_db preferences; behavior covered by orchestrator selection-policy tests
+pub async fn set_selection_policy(json: String) -> Result<(), String> {
+    // Reject anything that isn't a well-formed SelectionPolicy.
+    vox_orchestrator::models::SelectionPolicy::from_json(&json)
+        .map_err(|e| format!("invalid selection policy JSON: {e}"))?;
+    if let Some(db) =
+        vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
+    {
+        db.set_user_preference("local_user", "selection_policy", &json)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

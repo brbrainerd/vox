@@ -4069,6 +4069,30 @@
       "title": "Memory Store"
     },
     {
+      "capability_id": "mcp.vox_mesh_dispatch",
+      "curated": true,
+      "description_model": "Dispatch a .vox script to the Vox Populi control plane for remote execution (requires configured control URL).",
+      "implicit": false,
+      "mcp_tool": "vox_mesh_dispatch",
+      "title": "Mesh Dispatch"
+    },
+    {
+      "capability_id": "mcp.vox_mesh_nodes",
+      "curated": true,
+      "description_model": "List Vox Populi mesh nodes (control plane preferred, local-registry fallback) with status, GPU, trust tier, advertised models.",
+      "implicit": false,
+      "mcp_tool": "vox_mesh_nodes",
+      "title": "Mesh Nodes"
+    },
+    {
+      "capability_id": "mcp.vox_mesh_queue_stats",
+      "curated": true,
+      "description_model": "Vox Populi mesh pending-queue stats (control plane preferred, local queue_depth fallback).",
+      "implicit": false,
+      "mcp_tool": "vox_mesh_queue_stats",
+      "title": "Mesh Queue Stats"
+    },
+    {
       "capability_id": "mcp.vox_my_files",
       "curated": true,
       "description_model": "Returns all files currently owned by the specified agent.",
@@ -4305,6 +4329,14 @@
       "title": "Pause Agent"
     },
     {
+      "capability_id": "mcp.vox_pending_approvals",
+      "curated": true,
+      "description_model": "List human-in-the-loop tool-call approvals currently awaiting a decision.",
+      "implicit": false,
+      "mcp_tool": "vox_pending_approvals",
+      "title": "Pending Approvals"
+    },
+    {
       "capability_id": "mcp.vox_pending_questions",
       "curated": true,
       "description_model": "List all questions waiting for my answer.",
@@ -4351,6 +4383,46 @@
       "implicit": false,
       "mcp_tool": "vox_plan_status",
       "title": "Plan Status"
+    },
+    {
+      "capability_id": "mcp.vox_plugin_catalog",
+      "curated": true,
+      "description_model": "List plugins available in the Vox plugin catalog (marketplace index).",
+      "implicit": false,
+      "mcp_tool": "vox_plugin_catalog",
+      "title": "Plugin Catalog"
+    },
+    {
+      "capability_id": "mcp.vox_plugin_info",
+      "curated": true,
+      "description_model": "Show manifest details for one installed or catalog Vox plugin.",
+      "implicit": false,
+      "mcp_tool": "vox_plugin_info",
+      "title": "Plugin Info"
+    },
+    {
+      "capability_id": "mcp.vox_plugin_install",
+      "curated": true,
+      "description_model": "Install a Vox plugin by id from the catalog into the local plugins directory.",
+      "implicit": false,
+      "mcp_tool": "vox_plugin_install",
+      "title": "Plugin Install"
+    },
+    {
+      "capability_id": "mcp.vox_plugin_list",
+      "curated": true,
+      "description_model": "List installed Vox plugins with id, version, and discovered skill count.",
+      "implicit": false,
+      "mcp_tool": "vox_plugin_list",
+      "title": "Plugin List"
+    },
+    {
+      "capability_id": "mcp.vox_plugin_remove",
+      "curated": true,
+      "description_model": "Remove an installed Vox plugin from the local plugins directory.",
+      "implicit": false,
+      "mcp_tool": "vox_plugin_remove",
+      "title": "Plugin Remove"
     },
     {
       "capability_id": "mcp.vox_poll_events",
@@ -4611,6 +4683,14 @@
       "implicit": false,
       "mcp_tool": "vox_research_status",
       "title": "Research Session Status"
+    },
+    {
+      "capability_id": "mcp.vox_resolve_approval",
+      "curated": true,
+      "description_model": "Resolve a pending human-in-the-loop approval (approve / modify / reject) by id.",
+      "implicit": false,
+      "mcp_tool": "vox_resolve_approval",
+      "title": "Resolve Approval"
     },
     {
       "capability_id": "mcp.vox_resolve_conflict",

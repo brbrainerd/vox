@@ -4,6 +4,7 @@ mod commands;
 
 use commands::app_state::GuiState;
 use std::sync::Mutex;
+use tauri::Manager;
 
 #[tokio::main]
 async fn main() {
@@ -37,6 +38,27 @@ async fn main() {
         .manage(GuiState {
             initial_view: Mutex::new(initial_view),
         })
+        .manage(std::sync::Arc::new(
+            commands::daemon::PersistentDaemon::default(),
+        ))
+        .setup(|app| {
+            // Single persistent orchestrator daemon shared by tool calls,
+            // approvals, and the status/event streams.
+            let daemon = app
+                .state::<std::sync::Arc<commands::daemon::PersistentDaemon>>()
+                .inner()
+                .clone();
+            // B1: start the live orchestrator status stream, re-emitting each
+            // snapshot as the "vox://orch-status" Tauri event.
+            commands::orchestrator::spawn_orchestrator_status_stream(
+                app.handle().clone(),
+                daemon.clone(),
+            );
+            // B4: start the live agent-event stream, re-emitting each AgentEvent
+            // as the "vox://agent-events" Tauri event.
+            commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::catalog::get_command_catalog,
             commands::action_manifest::get_action_manifest,
@@ -59,6 +81,8 @@ async fn main() {
             commands::models::get_routing_summary,
             commands::models::get_routing_summary_live,
             commands::models::set_routing_priority,
+            commands::models::get_selection_policy,
+            commands::models::set_selection_policy,
             commands::models::get_model_scoreboard,
             commands::models::explain_model_selection,
             commands::models::suggest_model_for_task,
@@ -70,6 +94,11 @@ async fn main() {
             commands::runs::start_gui_run,
             commands::runs::finish_gui_run,
             commands::runs::list_gui_runs,
+            commands::runs::get_gui_run,
+            commands::mcp::invoke_mcp_tool,
+            commands::secrets::list_secret_status,
+            commands::secrets::set_secret,
+            commands::secrets::remove_secret,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

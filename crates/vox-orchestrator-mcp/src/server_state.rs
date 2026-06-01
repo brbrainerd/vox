@@ -37,6 +37,16 @@ pub struct ServerState {
     pub workspace_root: Option<std::path::PathBuf>,
     pub skill_registry: Arc<SkillRegistry>,
 
+    /// Plugin install root (`$VOX_PLUGINS_DIR` or platform-local default).
+    /// Kept so the GUI plugin tools can install into / remove from it and
+    /// then re-run discover to refresh both registries.
+    pub plugins_dir: Arc<std::path::PathBuf>,
+
+    /// Live plugin-host [`Registry`] from `discover(plugins_dir)`. Wrapped in an
+    /// async `RwLock` so `vox_plugin_install` / `vox_plugin_remove` can swap in a
+    /// freshly-discovered registry after mutating the install dir.
+    pub plugin_registry: Arc<TokRwLock<vox_plugin_host::registry::Registry>>,
+
     /// Map of `session_key` -> `cost_ms` representing how much "questioning attention" budget
     /// has been consumed by an agent's clarify/doubt loop.
     pub questioning_attention_spent_ms: Arc<PrRwLock<HashMap<String, u64>>>,
@@ -73,6 +83,10 @@ pub struct ServerState {
         >,
     >,
     pub observer: Arc<Observer>,
+    /// B3 HITL: approvals awaiting a human decision (shared by the dangerous-tool
+    /// gate in `dispatch.rs` and the `vox_pending_approvals` / `vox_resolve_approval`
+    /// tools — all reach it via `&ServerState`).
+    pub pending_approvals: Arc<crate::pending_approvals::PendingApprovals>,
 }
 
 impl ServerState {
@@ -112,13 +126,17 @@ impl ServerState {
         });
 
         // Bridge plugin-host discovered skills into the vox-skills registry.
-        let install_dir = std::env::var("VOX_PLUGINS_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::data_local_dir()
-                    .map(|p| p.join("vox").join("plugins"))
-                    .unwrap_or_else(|| std::path::PathBuf::from("./vox-plugins"))
-            });
+        let install_dir = vox_plugin_host::resolve_plugins_root();
+        // Discover the plugin-host registry once, synchronously, so we can KEEP it
+        // on `ServerState` for the plugin MCP tools. The skills bridge then runs in
+        // the background as before.
+        let plugin_registry = vox_plugin_host::discover(&install_dir).unwrap_or_else(|e| {
+            tracing::warn!("plugin-host discover failed at {install_dir:?}: {e}");
+            vox_plugin_host::registry::Registry::new()
+        });
+        let plugins_dir = Arc::new(install_dir.clone());
+        let plugin_registry = Arc::new(TokRwLock::new(plugin_registry));
+
         let registry_for_plugins = registry.clone();
         spawn_supervised_infallible("install_plugin_skills", async move {
             crate::plugin_skills_bridge::install_discovered_skills(
@@ -139,6 +157,8 @@ impl ServerState {
             db: None,
             repository,
             workspace_root,
+            plugins_dir,
+            plugin_registry,
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
@@ -157,6 +177,7 @@ impl ServerState {
             http_client,
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
+            pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
         };
 
         // Spawn pollers
@@ -189,6 +210,8 @@ impl ServerState {
             db: None,
             repository,
             workspace_root,
+            plugins_dir: Arc::new(vox_plugin_host::resolve_plugins_root()),
+            plugin_registry: Arc::new(TokRwLock::new(vox_plugin_host::registry::Registry::new())),
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
@@ -207,6 +230,7 @@ impl ServerState {
             http_client,
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
+            pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
         };
         state.spawn_scientia_research_mesh_background_jobs();
         state
@@ -460,6 +484,8 @@ impl ServerState {
             repository,
             workspace_root: None,
             skill_registry,
+            plugins_dir: Arc::new(vox_plugin_host::resolve_plugins_root()),
+            plugin_registry: Arc::new(TokRwLock::new(vox_plugin_host::registry::Registry::new())),
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
@@ -477,6 +503,7 @@ impl ServerState {
             http_client: vox_http_client::client(),
             mention_path_cache: Arc::new(PrMutex::new(None)),
             observer: Arc::new(Observer::with_default_policy()),
+            pending_approvals: Arc::new(crate::pending_approvals::PendingApprovals::default()),
         }
     }
 

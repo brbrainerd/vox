@@ -201,4 +201,75 @@ impl OrchDaemonClient {
         self.call(orch_daemon_method::WORKSPACE_JOURNEY, serde_json::json!({}))
             .await
     }
+
+    /// [`orch_daemon_method::SUBSCRIBE`] — open a long-lived status-snapshot
+    /// stream, forwarding each pushed [`DispatchPayload::Event`] value into `tx`.
+    /// Returns when the daemon closes the stream (`Done`) or the receiver drops.
+    pub async fn subscribe(
+        &self,
+        tx: tokio::sync::mpsc::Sender<serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        self.subscribe_with_method(orch_daemon_method::SUBSCRIBE, tx)
+            .await
+    }
+
+    /// [`orch_daemon_method::SUBSCRIBE_EVENTS`] — open the live agent-event
+    /// stream (token streaming + task/agent lifecycle). Each forwarded value is
+    /// a serialized `AgentEvent` (`{ id, timestamp_ms, kind: { type, … } }`).
+    pub async fn subscribe_events(
+        &self,
+        tx: tokio::sync::mpsc::Sender<serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        self.subscribe_with_method(orch_daemon_method::SUBSCRIBE_EVENTS, tx)
+            .await
+    }
+
+    /// Shared body for the `Event`-frame subscription methods: connect, send one
+    /// request for `method`, and forward each pushed `Event` value into `tx`
+    /// until the daemon closes the stream or the receiver drops.
+    async fn subscribe_with_method(
+        &self,
+        method: &str,
+        tx: tokio::sync::mpsc::Sender<serde_json::Value>,
+    ) -> anyhow::Result<()> {
+        let mut stream = TcpStream::connect(&self.addr).await?;
+        let (read_half, mut write_half) = stream.split();
+        let req = DispatchRequest {
+            id: uuid::Uuid::new_v4().to_string(),
+            method: method.to_string(),
+            params: serde_json::json!({}),
+        };
+        let mut line = serde_json::to_string(&req)?;
+        line.push('\n');
+        write_half.write_all(line.as_bytes()).await?;
+        write_half.flush().await?;
+
+        let mut reader = BufReader::new(read_half);
+        let mut buf = String::new();
+        loop {
+            buf.clear();
+            let n = reader.read_line(&mut buf).await?;
+            if n == 0 {
+                break; // daemon closed the connection
+            }
+            let trimmed = buf.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let resp: DispatchResponse = serde_json::from_str(trimmed)?;
+            match resp.payload {
+                DispatchPayload::Event { value } => {
+                    if tx.send(value).await.is_err() {
+                        break; // receiver dropped — stop consuming
+                    }
+                }
+                DispatchPayload::Error { message, code } => {
+                    anyhow::bail!("orchestrator daemon subscribe error ({code}): {message}")
+                }
+                DispatchPayload::Done { .. } => break,
+                _ => {}
+            }
+        }
+        Ok(())
+    }
 }

@@ -623,10 +623,7 @@
       "Bash(sed -n '70,92p' crates/vox-codegen/src/codegen_ts/emitter.rs)",
       "Bash(sed -n '740,775p' crates/vox-codegen/src/codegen_ts/rn/component.rs)",
       "Bash(sed -n '425,435p' crates/vox-secrets/src/spec/ids.rs)",
-      "Bash(grep -vcE \"^$\")",
-      "Bash(find ~/.cargo/registry/src -maxdepth 1 -type d -name 'candle-core*' 2>/dev/null)",
-      "Bash(find ~/.cargo/registry/src/ -maxdepth 2 -name \"candle-core-*\" -type d 2>/dev/null; find / -maxdepth 6 -name \"qtensor.rs\" -path \"*candle*\" 2>/dev/null | head)",
-      "Bash(echo \"ARCH EXIT=$?\")"
+      "Bash(grep -vcE \"^$\")"
     ]
   }
 }

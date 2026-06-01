@@ -107,6 +107,134 @@ async fn orchestrator_daemon_ping_and_task_status_inner() {
 }
 
 #[tokio::test]
+async fn orchestrator_daemon_subscribe_streams_status_event() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_subscribe_streams_status_event_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_subscribe_streams_status_event exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_subscribe_streams_status_event_inner() {
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+    orch.spawn_agent("sub1").expect("spawn");
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let server = tokio::spawn(orch_daemon::serve_listener(
+        listener,
+        addr.to_string(),
+        "ut-repo".to_string(),
+        orch.clone(),
+    ));
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+
+    // Subscribing must push at least one structured Event frame carrying an
+    // orchestrator status snapshot — the daemon initiates the push, the client
+    // does not poll.
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(8);
+    let sub = tokio::spawn(async move {
+        let _ = client.subscribe(tx).await;
+    });
+
+    let first = tokio::time::timeout(vox_config::timeouts::D_15S, rx.recv())
+        .await
+        .expect("first subscribe event within budget")
+        .expect("subscribe channel produced an event");
+    assert!(
+        first.get("agent_count").is_some(),
+        "first subscribe event must be a status snapshot, got: {first}"
+    );
+
+    drop(rx);
+    sub.abort();
+    server.abort();
+}
+
+#[tokio::test]
+async fn orchestrator_daemon_subscribe_events_streams_agent_events() {
+    tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
+        orchestrator_daemon_subscribe_events_inner().await;
+    })
+    .await
+    .expect("orchestrator_daemon_subscribe_events exceeded wall-clock budget");
+}
+
+async fn orchestrator_daemon_subscribe_events_inner() {
+    use vox_orchestrator::events::AgentEventKind;
+
+    let orch = Arc::new(Orchestrator::new(OrchestratorConfig::for_testing()));
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("local addr");
+    let server = tokio::spawn(orch_daemon::serve_listener(
+        listener,
+        addr.to_string(),
+        "ut-repo".to_string(),
+        orch.clone(),
+    ));
+    let addr_str = addr.to_string();
+    wait_until_async(
+        "orchestrator daemon TCP accepting (`orch.ping`)",
+        vox_config::timeouts::D_15S,
+        vox_config::timeouts::D_5MS,
+        || {
+            let c = orch_daemon::OrchDaemonClient::new(addr_str.clone());
+            async move { c.ping().await.is_ok() }
+        },
+    )
+    .await;
+
+    // Subscribe to the live agent-event stream (distinct from orch.subscribe's
+    // status snapshots).
+    let client = orch_daemon::OrchDaemonClient::new(addr_str);
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
+    let sub = tokio::spawn(async move {
+        let _ = client.subscribe_events(tx).await;
+    });
+
+    // The bus is a broadcast channel with no replay, so the daemon only sees
+    // events emitted after its subscription is established. Emit on an interval
+    // until the subscriber observes one.
+    let orch_emit = orch.clone();
+    let emitter = tokio::spawn(async move {
+        loop {
+            orch_emit.event_bus().emit(AgentEventKind::TokenStreamed {
+                agent_id: vox_orchestrator::AgentId(7),
+                text: "hello".to_string(),
+            });
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    });
+
+    let first = tokio::time::timeout(vox_config::timeouts::D_15S, rx.recv())
+        .await
+        .expect("agent event within budget")
+        .expect("event channel produced a frame");
+    assert_eq!(
+        first["kind"]["type"], "token_streamed",
+        "expected a token_streamed agent event, got: {first}"
+    );
+    assert_eq!(first["kind"]["text"], "hello");
+
+    emitter.abort();
+    drop(rx);
+    sub.abort();
+    server.abort();
+}
+
+#[tokio::test]
 async fn orchestrator_daemon_task_and_agent_write_methods() {
     tokio::time::timeout(DAEMON_TEST_TIMEOUT, async {
         orchestrator_daemon_task_and_agent_write_methods_inner().await;

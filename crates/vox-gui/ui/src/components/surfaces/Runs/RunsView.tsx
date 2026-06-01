@@ -21,6 +21,9 @@ interface RunRow {
   completed_steps: number;
   updated_at_ms: number;
   last_error?: string | null;
+  command?: string | null;
+  model?: string | null;
+  cost_usd?: number | null;
 }
 
 interface RunsViewProps {
@@ -32,6 +35,7 @@ export function RunsView({ pushToast }: RunsViewProps) {
   const [runs, setRuns] = useState<RunRow[]>([]);
   const [decision, setDecision] = useState<any>(null);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [fetchedRun, setFetchedRun] = useState<RunRow | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -56,7 +60,32 @@ export function RunsView({ pushToast }: RunsViewProps) {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const selectedRun = runs.find((r) => r.run_id === selectedRunId) ?? runs[0] ?? null;
+  // Replay-by-id: when a run is selected, fetch the single row from the backend so
+  // runs that have scrolled out of the recent window (e.g. after a restart) still open.
+  // Fall back to the in-memory list .find() if the invoke fails.
+  useEffect(() => {
+    if (!selectedRunId) {
+      setFetchedRun(null);
+      return;
+    }
+    let cancelled = false;
+    invoke<RunRow | null>('get_gui_run', { runId: selectedRunId })
+      .then((row) => {
+        if (!cancelled && row) setFetchedRun(row);
+      })
+      .catch(() => {
+        if (!cancelled) setFetchedRun(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRunId]);
+
+  const listSelected = runs.find((r) => r.run_id === selectedRunId) ?? runs[0] ?? null;
+  const selectedRun =
+    fetchedRun && fetchedRun.run_id === (selectedRunId ?? listSelected?.run_id)
+      ? fetchedRun
+      : listSelected;
 
   return (
     <div className="grid grid-cols-12 gap-5">
@@ -141,6 +170,18 @@ export function RunsView({ pushToast }: RunsViewProps) {
                 <div className="text-[10px] text-zinc-500 mt-1">
                   updated={new Date(selectedRun.updated_at_ms).toLocaleString()}
                 </div>
+                {selectedRun.command ? (
+                  <div className="font-mono text-[10px] text-zinc-400 mt-1 break-all">
+                    cmd={selectedRun.command}
+                  </div>
+                ) : null}
+                {selectedRun.model || selectedRun.cost_usd != null ? (
+                  <div className="text-[10px] text-zinc-500 mt-1">
+                    {selectedRun.model ? `model=${selectedRun.model}` : null}
+                    {selectedRun.model && selectedRun.cost_usd != null ? ' · ' : null}
+                    {selectedRun.cost_usd != null ? `cost=$${selectedRun.cost_usd.toFixed(4)}` : null}
+                  </div>
+                ) : null}
                 {selectedRun.last_error ? (
                   <pre className="mt-2 whitespace-pre-wrap rounded border border-rose-300/20 bg-rose-950/20 p-2 text-[10px] text-rose-200">
                     {selectedRun.last_error}

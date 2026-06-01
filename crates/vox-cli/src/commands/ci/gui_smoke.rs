@@ -109,5 +109,44 @@ pub fn run(root: &Path) -> Result<()> {
         );
     }
 
+    // Lane E: headless e2e relaunch — boots the real vox-orchestrator-d binary
+    // and drives OrchDaemonClient RPC + the command-catalog handler. No display,
+    // so it runs on bare runners (unlike Playwright). Requires the daemon binary,
+    // so we build it first.
+    if std::env::var("VOX_GUI_RELAUNCH_SMOKE").ok().as_deref() == Some("1") {
+        let build = Command::new(&cargo)
+            .current_dir(root)
+            .args(["build", "-p", "vox-orchestrator-d"])
+            .status()?;
+        if !build.success() {
+            return Err(anyhow!(
+                "gui-smoke: failed to build vox-orchestrator-d for the relaunch lane"
+            ));
+        }
+        let st = Command::new(&cargo)
+            .current_dir(root)
+            .env("VOX_GUI_RELAUNCH_SMOKE", "1")
+            .args([
+                "nextest",
+                "run",
+                "-p",
+                "vox-gui",
+                "--test",
+                "gui_relaunch_smoke",
+                "--run-ignored",
+                "ignored-only",
+                "--no-capture",
+            ])
+            .status()?;
+        if !st.success() {
+            return Err(anyhow!(
+                "gui-smoke: headless relaunch `gui_relaunch_smoke` failed (daemon boot / RPC)"
+            ));
+        }
+        println!("gui-smoke: headless relaunch (daemon boot + RPC + catalog) OK");
+    } else {
+        println!("gui-smoke: skip relaunch lane (set VOX_GUI_RELAUNCH_SMOKE=1)");
+    }
+
     Ok(())
 }

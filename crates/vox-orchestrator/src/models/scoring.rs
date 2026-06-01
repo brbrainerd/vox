@@ -231,6 +231,69 @@ pub(super) fn mobile_score(m: &ModelSpec) -> f64 {
     }
 }
 
+thread_local! {
+    /// Per-selection routing-weight override. Set by [`AxesOverrideGuard`] around
+    /// a single scorer pass so a request's `SelectionAxes` actually drive scoring,
+    /// instead of only the process-global `VOX_AUTO_ROUTING_PRIORITY` env. The
+    /// scoring path is synchronous (no `.await`), so concurrent daemon requests on
+    /// different worker threads never interleave through this cell.
+    static AXES_OVERRIDE: std::cell::RefCell<Option<AutoRoutingPriority>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// RAII guard installing a per-selection routing-weight override; restores the
+/// previous value (normally `None`, i.e. fall back to env) on drop.
+pub(crate) struct AxesOverrideGuard {
+    prev: Option<AutoRoutingPriority>,
+}
+
+impl AxesOverrideGuard {
+    pub(crate) fn set(axes: AutoRoutingPriority) -> Self {
+        let prev = AXES_OVERRIDE.with(|c| c.borrow_mut().replace(axes));
+        Self { prev }
+    }
+}
+
+impl Drop for AxesOverrideGuard {
+    fn drop(&mut self) {
+        AXES_OVERRIDE.with(|c| *c.borrow_mut() = self.prev.take());
+    }
+}
+
+/// Process-global base routing weights, installed by the daemon from the
+/// persisted `routing_priority` preference. Read by [`base_routing_weights`]
+/// when no per-selection thread-local override is active, taking precedence
+/// over the `VOX_AUTO_ROUTING_PRIORITY` env fallback.
+///
+/// This mirrors `install_active_policy`: a thread-safe replacement for mutating
+/// the process environment at runtime, which is undefined behavior under a
+/// multi-threaded async runtime (other threads may `getenv` concurrently).
+static BASE_AXES: std::sync::RwLock<Option<AutoRoutingPriority>> = std::sync::RwLock::new(None);
+
+/// Install (or clear, with `None`) the process-global base routing weights.
+/// Intended for daemon startup, before serving begins.
+pub fn install_base_routing_priority(axes: Option<AutoRoutingPriority>) {
+    if let Ok(mut g) = BASE_AXES.write() {
+        *g = axes;
+    }
+}
+
+/// Base routing weights for a scorer pass: the per-selection thread-local
+/// override if one is installed (the request's `SelectionAxes`), else the
+/// process-global base ([`install_base_routing_priority`]), else the
+/// `VOX_AUTO_ROUTING_PRIORITY` env default.
+fn base_routing_weights() -> AutoRoutingPriority {
+    if let Some(axes) = AXES_OVERRIDE.with(|c| c.borrow().clone()) {
+        return axes;
+    }
+    if let Ok(g) = BASE_AXES.read() {
+        if let Some(axes) = g.clone() {
+            return axes;
+        }
+    }
+    AutoRoutingPriority::from_env()
+}
+
 #[must_use]
 pub fn auto_score_model(
     m: &ModelSpec,
@@ -241,7 +304,7 @@ pub fn auto_score_model(
     hints: Option<&[RemainingBudget]>,
     scoreboard: Option<&super::registry::ModelScore>,
 ) -> f64 {
-    let mut w = AutoRoutingPriority::from_env();
+    let mut w = base_routing_weights();
     if complexity >= COMPLEXITY_HIGH_CUTOFF {
         w.precision = w.precision.saturating_add(COMPLEXITY_PRECISION_BONUS);
     } else if complexity <= COMPLEXITY_LOW_CUTOFF {
@@ -456,5 +519,86 @@ mod tests {
             None,
         );
         assert!(score <= RATE_LIMITED_SCORE_FLOOR, "rate-limited -> floor");
+    }
+}
+
+#[cfg(test)]
+mod axes_override_tests {
+    use super::*;
+    use crate::config::CostPreference;
+    use crate::models::generated::StrengthTag;
+    use crate::models::spec::PricingSource;
+    use crate::models::{ModelSpec, ProviderType};
+
+    fn paid_premium() -> ModelSpec {
+        ModelSpec {
+            id: "paid-premium".into(),
+            canonical_slug: "paid-premium".into(),
+            provider: "anthropic".into(),
+            provider_type: ProviderType::Anthropic,
+            max_tokens: 200_000,
+            cost_per_1k: 0.045,
+            cost_per_1k_input: 0.03,
+            cost_per_1k_output: 0.06,
+            is_free: false,
+            observed_cost_per_1k: None,
+            strengths: vec![StrengthTag::Codegen],
+            capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: PricingSource::OpenRouter,
+            supported_parameters: vec![],
+        }
+    }
+
+    fn axes(efficiency: u8, precision: u8, latency: u8) -> AutoRoutingPriority {
+        AutoRoutingPriority {
+            efficiency,
+            precision,
+            latency,
+            availability: 0,
+            balance: 0,
+            mobile: 0,
+        }
+    }
+
+    /// The process-global base (set by the daemon from the persisted preference)
+    /// must be observed by `base_routing_weights` when no per-call thread-local
+    /// override is active, and clearing it restores the env fallback. This is the
+    /// thread-safe replacement for the old `set_var` startup mutation.
+    #[test]
+    fn install_base_routing_priority_is_observed_then_cleared() {
+        // No thread-local override here (this test installs none).
+        install_base_routing_priority(Some(axes(11, 22, 33)));
+        let got = base_routing_weights();
+        assert_eq!((got.efficiency, got.precision, got.latency), (11, 22, 33));
+
+        // Clearing falls back to env (default when unset).
+        install_base_routing_priority(None);
+        let fallback = base_routing_weights();
+        assert_eq!(fallback, AutoRoutingPriority::from_env());
+    }
+
+    /// The per-call axes override must actually steer scoring. Before the fix
+    /// `auto_score_model` only read `VOX_AUTO_ROUTING_PRIORITY` from the env, so
+    /// the request's SelectionAxes were ignored and both scores were identical.
+    #[test]
+    fn axes_override_changes_score() {
+        let m = paid_premium();
+        let quality = {
+            let _g = AxesOverrideGuard::set(axes(15, 70, 15));
+            auto_score_model(&m, 5, false, None, CostPreference::Performance, None, None)
+        };
+        let cost = {
+            let _g = AxesOverrideGuard::set(axes(70, 15, 15));
+            auto_score_model(&m, 5, false, None, CostPreference::Performance, None, None)
+        };
+        assert_ne!(
+            quality, cost,
+            "per-call axes override must change the score (precision-heavy {quality} vs efficiency-heavy {cost})"
+        );
+        // The override is cleared on guard drop (falls back to env default).
+        assert!(super::AXES_OVERRIDE.with(|c| c.borrow().is_none()));
     }
 }

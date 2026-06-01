@@ -289,6 +289,7 @@ pub async fn vox_db_explain_query(state: &ServerState, args: serde_json::Value) 
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        selection_rationale: None,
         user_id: session_id.as_deref(),
     };
 

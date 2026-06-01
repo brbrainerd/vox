@@ -101,6 +101,7 @@ pub async fn ghost_text(state: &ServerState, params: GhostTextParams) -> String 
         resolution_template,
         free_only,
         allow_cloud_ollama_fallback: true,
+        selection_rationale: None,
         user_id: params.session_id.as_deref(),
     };
 

@@ -116,6 +116,10 @@ pub struct OrchestratorStatus {
     pub context_entries: std::collections::HashMap<String, crate::context::ContextEntry>,
     /// Maximum handoff count observed in any active task across all agents.
     pub max_handoff_count: u8,
+    /// Aggregate financial cost incurred so far this period, in USD.
+    pub total_cost_usd: f64,
+    /// Financial cost cap (budget) in USD, derived from the budget manager.
+    pub budget_cap_usd: f64,
     /// Per-agent rollups for UI tables.
     pub agents: Vec<AgentSummary>,
 }
@@ -157,4 +161,6 @@ pub struct AgentSummary {
     pub active_skill: Option<String>,
     /// Current execution phase (Wave 2 OOPAV).
     pub current_phase: Option<crate::types::TaskPhase>,
+    /// Financial cost incurred by this agent so far this period, in USD.
+    pub cost_usd: f64,
 }
