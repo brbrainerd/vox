@@ -138,6 +138,9 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
                 {c.confidence != null && (
                   <span className="font-mono text-[10px] text-zinc-400">conf {c.confidence.toFixed(2)}</span>
                 )}
+                {c.verifiability_score != null && (
+                  <span className="font-mono text-[10px] text-zinc-500">vscore {c.verifiability_score.toFixed(2)}</span>
+                )}
                 {c.is_numeric && (
                   <span className="rounded bg-cyan/10 px-1 font-mono text-[9px] uppercase tracking-wider text-cyan">numeric</span>
                 )}

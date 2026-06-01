@@ -191,6 +191,29 @@ impl VoxDb {
             .await
     }
 
+    /// Set the verifiability score for a stored claim (best-effort; a no-op if
+    /// the claim row does not exist). Kept separate from `store_claim` so its
+    /// signature stays stable for existing callers.
+    pub async fn update_claim_verifiability_score(
+        &self,
+        claim_id: u64,
+        score: f64,
+    ) -> Result<(), StoreError> {
+        let cid = claim_id as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE scientia_claims SET verifiability_score = ?2 WHERE claim_id = ?1",
+                    params![cid, score],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     /// Store a claim verification verdict.
     pub async fn store_claim_verdict(
         &self,

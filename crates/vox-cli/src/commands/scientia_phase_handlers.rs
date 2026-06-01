@@ -287,6 +287,9 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         )
         .await
         .context("persist extracted claim")?;
+        db.update_claim_verifiability_score(claim.id, claim.verifiability_score)
+            .await
+            .context("persist claim verifiability score")?;
         let (verdict_label, confidence) = verdict_to_row(verdict);
         db.store_claim_verdict(claim.id, verdict_label, confidence, &verifier_model)
             .await

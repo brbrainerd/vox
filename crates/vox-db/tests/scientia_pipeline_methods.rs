@@ -89,6 +89,9 @@ async fn list_publication_claims_and_pending_summary() {
     db.store_claim(sid, 111, "latency increased by 10ms", true, false, false)
         .await
         .unwrap();
+    db.update_claim_verifiability_score(111, 0.85)
+        .await
+        .unwrap();
     db.store_claim_verdict(111, "Supported", 0.9, "mock")
         .await
         .unwrap();
@@ -108,6 +111,8 @@ async fn list_publication_claims_and_pending_summary() {
     assert_eq!(by_id(111).verdict.as_deref(), Some("Supported"));
     assert_eq!(by_id(111).confidence, Some(0.9));
     assert_eq!(by_id(111).verifier_model.as_deref(), Some("mock"));
+    assert_eq!(by_id(111).verifiability_score, Some(0.85));
+    assert_eq!(by_id(333).verifiability_score, None);
     assert_eq!(by_id(222).verdict.as_deref(), Some("Abstain"));
     assert_eq!(by_id(333).verdict, None);
 
