@@ -1342,10 +1342,18 @@ mod path_url_tests {
                     Err(_) => return None,
                 };
                 let key = "DELETE_TEST_SECRET";
-                backend.write_secret(key, "sk-delete-me-0123456789").expect("write");
-                let present = backend.get_row(&backend.account_id, key).expect("get").is_some();
+                backend
+                    .write_secret(key, "sk-delete-me-0123456789")
+                    .expect("write");
+                let present = backend
+                    .get_row(&backend.account_id, key)
+                    .expect("get")
+                    .is_some();
                 let deleted = backend.delete_secret(key).expect("delete");
-                let absent = backend.get_row(&backend.account_id, key).expect("get2").is_none();
+                let absent = backend
+                    .get_row(&backend.account_id, key)
+                    .expect("get2")
+                    .is_none();
                 let deleted_again = backend.delete_secret(key).expect("delete2");
                 Some((present, deleted, absent, deleted_again))
             })

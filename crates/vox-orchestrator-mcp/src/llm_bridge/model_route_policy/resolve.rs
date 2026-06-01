@@ -158,7 +158,14 @@ pub fn resolve_mcp_chat_model_sync(
     availability_hint: Option<&[RemainingBudget]>,
 ) -> Result<(ModelSpec, bool), String> {
     let mut _rationale = None;
-    resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, availability_hint, &mut _rationale)
+    resolve_mcp_chat_model_sync_inner(
+        orch,
+        user_prompt,
+        pref,
+        res,
+        availability_hint,
+        &mut _rationale,
+    )
 }
 
 /// Sync resolver that also surfaces the selection rationale (for telemetry).
@@ -170,9 +177,19 @@ pub fn resolve_mcp_chat_model_sync_with_rationale(
     availability_hint: Option<&[RemainingBudget]>,
 ) -> Result<McpModelChoice, String> {
     let mut rationale = None;
-    let (model, is_free) =
-        resolve_mcp_chat_model_sync_inner(orch, user_prompt, pref, res, availability_hint, &mut rationale)?;
-    Ok(McpModelChoice { model, is_free, rationale })
+    let (model, is_free) = resolve_mcp_chat_model_sync_inner(
+        orch,
+        user_prompt,
+        pref,
+        res,
+        availability_hint,
+        &mut rationale,
+    )?;
+    Ok(McpModelChoice {
+        model,
+        is_free,
+        rationale,
+    })
 }
 
 fn resolve_mcp_chat_model_sync_inner(

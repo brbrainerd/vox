@@ -100,11 +100,15 @@ mod tests {
     #[test]
     fn sandboxed_injects_low_value_but_filters_credentials() {
         let declared = vec![
-            "OpenRouterApiKey".to_string(),     // credential → filtered
+            "OpenRouterApiKey".to_string(),       // credential → filtered
             "VoxOpenRouterChatModel".to_string(), // low-value → injected
         ];
         let injected = gate_secrets(ExecTier::Sandboxed, &declared, &bag());
-        assert_eq!(injected.len(), 1, "only the low-value secret should be injected");
+        assert_eq!(
+            injected.len(),
+            1,
+            "only the low-value secret should be injected"
+        );
         assert_eq!(injected[0].1, "some/model");
         assert!(
             !injected.iter().any(|(_, v)| v == "sk-secret"),
@@ -115,7 +119,13 @@ mod tests {
     #[test]
     fn sensitivity_classifier_matches_spec() {
         assert_eq!(sensitivity_of("OpenRouterApiKey"), Sensitivity::Credential);
-        assert_eq!(sensitivity_of("VoxOpenRouterChatModel"), Sensitivity::LowValue);
-        assert_eq!(sensitivity_of("totally-unknown-secret"), Sensitivity::Credential);
+        assert_eq!(
+            sensitivity_of("VoxOpenRouterChatModel"),
+            Sensitivity::LowValue
+        );
+        assert_eq!(
+            sensitivity_of("totally-unknown-secret"),
+            Sensitivity::Credential
+        );
     }
 }

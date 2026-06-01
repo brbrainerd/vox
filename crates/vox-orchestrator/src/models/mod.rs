@@ -23,8 +23,8 @@ pub use policy::{
 pub use registry::{ModelRegistry, ModelScore};
 pub use select::{
     CandidateScope, ModelSelectionDecision, ModelSelectionRequest, ScoreBreakdown, SelectionAxes,
-    SelectionIntent, SelectionOutcome, SelectionReason, decide, select, select_with_default_registry,
-    select_with_policy,
+    SelectionIntent, SelectionOutcome, SelectionReason, decide, select,
+    select_with_default_registry, select_with_policy,
 };
 pub use spec::{
     ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, PricingSource, ProviderType,

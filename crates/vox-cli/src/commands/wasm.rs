@@ -20,10 +20,7 @@ pub enum WasmCmd {
 }
 
 /// Parse `HOST[:GUEST]` preopen specs into engine `Preopen`s (guest defaults to host).
-fn parse_preopens(
-    ro: &[String],
-    rw: &[String],
-) -> anyhow::Result<Vec<vox_wasm_engine::Preopen>> {
+fn parse_preopens(ro: &[String], rw: &[String]) -> anyhow::Result<Vec<vox_wasm_engine::Preopen>> {
     fn one(spec: &str, write: bool) -> anyhow::Result<vox_wasm_engine::Preopen> {
         let (host, guest) = match spec.split_once(':') {
             Some((h, g)) if !g.is_empty() => (h.to_string(), g.to_string()),

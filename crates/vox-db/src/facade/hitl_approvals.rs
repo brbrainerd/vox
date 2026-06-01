@@ -25,8 +25,7 @@ pub struct HitlApprovalRow {
     pub resolved_at_ms: Option<i64>,
 }
 
-const SELECT_COLS: &str =
-    "approval_id, tool, summary, status, requested_at_ms, resolved_at_ms";
+const SELECT_COLS: &str = "approval_id, tool, summary, status, requested_at_ms, resolved_at_ms";
 
 fn map_row(row: &turso::Row) -> Result<HitlApprovalRow, StoreError> {
     let e = |err: turso::Error| StoreError::Db(err.to_string());
@@ -49,8 +48,11 @@ impl VoxDb {
         summary: &str,
         requested_at_ms: i64,
     ) -> Result<(), StoreError> {
-        let (approval_id, tool, summary) =
-            (approval_id.to_string(), tool.to_string(), summary.to_string());
+        let (approval_id, tool, summary) = (
+            approval_id.to_string(),
+            tool.to_string(),
+            summary.to_string(),
+        );
         let breaker = self.breaker.clone();
         let conn = self.conn.clone();
         breaker

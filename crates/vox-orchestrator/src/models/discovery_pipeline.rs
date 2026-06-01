@@ -118,7 +118,12 @@ mod tests {
         }
     }
 
-    fn scoreboard_row(model_id: &str, success_count: i64, p50_ms: i64, quality: f64) -> ModelScoreboardRow {
+    fn scoreboard_row(
+        model_id: &str,
+        success_count: i64,
+        p50_ms: i64,
+        quality: f64,
+    ) -> ModelScoreboardRow {
         ModelScoreboardRow {
             model_id: model_id.to_string(),
             task_category: "codegen".to_string(),

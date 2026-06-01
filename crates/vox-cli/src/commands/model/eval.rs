@@ -11,8 +11,8 @@
 use clap::Parser;
 use owo_colors::OwoColorize;
 use std::path::PathBuf;
-use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, llm_chat};
 use vox_actor_runtime::ActivityOptions;
+use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, llm_chat};
 use vox_db::store::types::ModelScoreboardRow;
 use vox_db::{DbConfig, VoxDb, now_unix_ms};
 use vox_orchestrator::models::ModelRegistry;
@@ -58,14 +58,12 @@ const FIXTURES: &[Fixture] = &[
         expect_substring: "green",
     },
     Fixture {
-        prompt:
-            "Output a JSON object with a single key \"status\" whose value is the string \"ok\". \
+        prompt: "Output a JSON object with a single key \"status\" whose value is the string \"ok\". \
              Reply with only the JSON.",
         expect_substring: "\"status\"",
     },
     Fixture {
-        prompt:
-            "Write a Python expression (no statement, no print) that returns the length of the \
+        prompt: "Write a Python expression (no statement, no print) that returns the length of the \
              string 'hello'. Reply with only the expression.",
         expect_substring: "len('hello')",
     },
@@ -227,7 +225,8 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let db = match VoxDb::connect(DbConfig::resolve_canonical().map_err(anyhow::Error::msg)?).await {
+    let db = match VoxDb::connect(DbConfig::resolve_canonical().map_err(anyhow::Error::msg)?).await
+    {
         Ok(db) => Some(db),
         Err(e) => {
             tracing::warn!(error = %e, "eval: DB unavailable; running without write-back");
@@ -280,7 +279,10 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
             if let Ok(sb_rows) = db.get_model_scoreboard(7).await {
                 let mut reg = ModelRegistry::new();
                 let injected = reg.inject_scoreboard_latency(&sb_rows);
-                tracing::debug!(injected, "eval: injected scoreboard p50 into registry latency");
+                tracing::debug!(
+                    injected,
+                    "eval: injected scoreboard p50 into registry latency"
+                );
             }
         }
     }
@@ -373,11 +375,20 @@ fn print_table(rows: &[Row]) {
             } => {
                 table.add_row(vec![
                     model_id.clone(),
-                    format!("{:.0}% ({}/{})", result.intelligence * 100.0, result.passed, result.n_calls),
+                    format!(
+                        "{:.0}% ({}/{})",
+                        result.intelligence * 100.0,
+                        result.passed,
+                        result.n_calls
+                    ),
                     format!("{:.1}", result.tokens_per_pass),
                     result.p50_ms.to_string(),
                     result.p99_ms.to_string(),
-                    if *wrote_back { "yes".to_string() } else { "no".to_string() },
+                    if *wrote_back {
+                        "yes".to_string()
+                    } else {
+                        "no".to_string()
+                    },
                 ]);
             }
             Row::Skipped { model_id, reason } => {

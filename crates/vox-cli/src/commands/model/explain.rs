@@ -222,10 +222,16 @@ mod tests {
         let ranked = render_free_tier(&req, &models);
         assert!(!ranked.is_empty(), "free models should be ranked");
         for (id, rationale) in &ranked {
-            assert!(!rationale.is_empty(), "every candidate must carry a rationale ({id})");
+            assert!(
+                !rationale.is_empty(),
+                "every candidate must carry a rationale ({id})"
+            );
         }
         // The Fast-tier model under latency_critical earns the low-latency rationale.
-        let fast = ranked.iter().find(|(id, _)| id == "groq/fast").expect("fast present");
+        let fast = ranked
+            .iter()
+            .find(|(id, _)| id == "groq/fast")
+            .expect("fast present");
         assert_eq!(fast.1, "Candidate selected for ultra-low latency");
     }
 

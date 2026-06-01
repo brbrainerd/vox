@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
-const REM_PLUGIN_ID: &str = "Run `vox_plugin_list` / `vox_plugin_catalog` and pass a known plugin `id`.";
-const REM_PLUGIN_INSTALL: &str =
-    "Provide a catalog `id`, or a local `path` to a directory containing Plugin.toml. Check disk permissions.";
+const REM_PLUGIN_ID: &str =
+    "Run `vox_plugin_list` / `vox_plugin_catalog` and pass a known plugin `id`.";
+const REM_PLUGIN_INSTALL: &str = "Provide a catalog `id`, or a local `path` to a directory containing Plugin.toml. Check disk permissions.";
 
 // ---------------------------------------------------------------------------
 // Parameters
@@ -166,7 +166,9 @@ pub async fn plugin_install(state: &ServerState, params: PluginInstallParams) ->
             // Catalog install: prefer a local workspace checkout, else require `local:` source.
             if let Some(local) = vox_plugin_host::workspace_local_plugin_source(id) {
                 local
-            } else if let Some(cat) = vox_plugin_catalog::all_plugins().iter().find(|p| &p.id == id)
+            } else if let Some(cat) = vox_plugin_catalog::all_plugins()
+                .iter()
+                .find(|p| &p.id == id)
             {
                 match cat.default_source.strip_prefix("local:") {
                     Some(rel) => std::path::PathBuf::from(rel),

@@ -217,9 +217,7 @@ impl ServerState {
             repository,
             workspace_root,
             plugins_dir: Arc::new(vox_plugin_host::resolve_plugins_root()),
-            plugin_registry: Arc::new(TokRwLock::new(
-                vox_plugin_host::registry::Registry::new(),
-            )),
+            plugin_registry: Arc::new(TokRwLock::new(vox_plugin_host::registry::Registry::new())),
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
@@ -493,9 +491,7 @@ impl ServerState {
             workspace_root: None,
             skill_registry,
             plugins_dir: Arc::new(vox_plugin_host::resolve_plugins_root()),
-            plugin_registry: Arc::new(TokRwLock::new(
-                vox_plugin_host::registry::Registry::new(),
-            )),
+            plugin_registry: Arc::new(TokRwLock::new(vox_plugin_host::registry::Registry::new())),
             questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
             catalog_cache: Arc::new(TokRwLock::new(None)),
             orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),

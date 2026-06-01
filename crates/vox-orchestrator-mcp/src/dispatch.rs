@@ -132,10 +132,11 @@ pub async fn handle_tool_call(
                 let a: String = a.chars().take(200).collect();
                 format!("{name_canonical} {a}")
             };
-            let (approval_id, rx) =
-                state
-                    .pending_approvals
-                    .register(name_canonical.to_string(), summary.clone(), now_ms);
+            let (approval_id, rx) = state.pending_approvals.register(
+                name_canonical.to_string(),
+                summary.clone(),
+                now_ms,
+            );
             // Durable audit trail (best-effort): record the request, then its outcome.
             if let Some(db) = state.db.as_ref() {
                 let _ = db
@@ -340,7 +341,10 @@ async fn handle_tool_call_inner(
         }))
         .to_json_compact()),
         "vox_resolve_approval" => {
-            let approval_id = args.get("approval_id").and_then(|v| v.as_str()).unwrap_or("");
+            let approval_id = args
+                .get("approval_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let decision = args
                 .get("outcome")
                 .or_else(|| args.get("decision"))

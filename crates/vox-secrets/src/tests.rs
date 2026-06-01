@@ -102,7 +102,10 @@ fn openrouter_visible_in_local_chat_optionals_but_not_blocking_in_dev() {
     );
     // Invariant preserved: still non-blocking in Dev (the primary-cloud credential
     // is only blocking under Cloud mode).
-    assert!(req.blocking.is_empty(), "Local Chat must have no blocking requirements");
+    assert!(
+        req.blocking.is_empty(),
+        "Local Chat must have no blocking requirements"
+    );
     let dev = required_for_profile(Workflow::Chat, Profile::Dev);
     assert!(!dev.contains(&SecretId::OpenRouterApiKey));
 }

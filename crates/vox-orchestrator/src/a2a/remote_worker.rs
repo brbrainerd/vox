@@ -168,7 +168,11 @@ fn parse_required_secrets(capability_requirements_json: &str) -> Vec<String> {
         .and_then(|v| {
             v.get("required_secrets")
                 .and_then(|s| s.as_array())
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
         })
         .unwrap_or_default()
 }
@@ -348,7 +352,11 @@ fn run_dispatched_bundle(
         );
     }
 
-    let ext = if kind == BundleKind::Wasm { ".wasm" } else { "" };
+    let ext = if kind == BundleKind::Wasm {
+        ".wasm"
+    } else {
+        ""
+    };
     let tmp_file = std::env::temp_dir().join(format!(
         "vox-bundle-{}{}",
         vox_foundation::primitives::id::simple_hex_id(),
@@ -993,7 +1001,11 @@ mod tests {
         assert!(!parts.success);
         assert!(parts.result.is_none());
         assert!(
-            parts.error.as_deref().unwrap_or("").contains("hash mismatch"),
+            parts
+                .error
+                .as_deref()
+                .unwrap_or("")
+                .contains("hash mismatch"),
             "error should report a hash mismatch, got {:?}",
             parts.error
         );
@@ -1019,7 +1031,11 @@ mod tests {
             .expect("executed");
         assert!(parts.success, "expected success, error={:?}", parts.error);
         assert!(
-            parts.result.as_deref().unwrap_or("").contains("hello from 5"),
+            parts
+                .result
+                .as_deref()
+                .unwrap_or("")
+                .contains("hello from 5"),
             "expected real stdout, got {:?}",
             parts.result
         );
@@ -1036,8 +1052,7 @@ mod tests {
         }
         let src = "pub fn main() {\n    print(\"answer \" + str(6 * 7))\n}\n";
         let (b64, hex) = crate::a2a::exec_source::build_exec_source_fields(src);
-        let parts =
-            run_dispatched_source(&b64, Some(&hex), "permissive", &[]).expect("executed");
+        let parts = run_dispatched_source(&b64, Some(&hex), "permissive", &[]).expect("executed");
         assert!(parts.success, "expected success, error={:?}", parts.error);
         assert!(
             parts.result.as_deref().unwrap_or("").contains("answer 42"),
@@ -1125,8 +1140,13 @@ mod tests {
 
     #[test]
     fn bundle_no_exec_policy_returns_none_for_echo_fallback() {
-        let got =
-            run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some(&blake3_hex_bytes(WASM_HEADER)), "no-exec", &[], None);
+        let got = run_dispatched_bundle(
+            &b64_bytes(WASM_HEADER),
+            Some(&blake3_hex_bytes(WASM_HEADER)),
+            "no-exec",
+            &[],
+            None,
+        );
         assert!(got.is_none(), "no-exec policy must decline (caller echoes)");
     }
 
@@ -1154,10 +1174,22 @@ mod tests {
 
     #[test]
     fn bundle_hash_mismatch_refuses_without_spawning() {
-        let parts = run_dispatched_bundle(&b64_bytes(WASM_HEADER), Some("deadbeef"), "permissive", &[], None)
-            .expect("a decision is returned");
+        let parts = run_dispatched_bundle(
+            &b64_bytes(WASM_HEADER),
+            Some("deadbeef"),
+            "permissive",
+            &[],
+            None,
+        )
+        .expect("a decision is returned");
         assert!(!parts.success);
-        assert!(parts.error.as_deref().unwrap_or("").contains("hash mismatch"));
+        assert!(
+            parts
+                .error
+                .as_deref()
+                .unwrap_or("")
+                .contains("hash mismatch")
+        );
     }
 
     #[test]
@@ -1165,9 +1197,14 @@ mod tests {
         // A non-WASM blob under a non-permissive policy must be refused WITHOUT
         // ever executing a native binary.
         let native = b"\x7fELF\x02\x01\x01\0 not a real binary";
-        let parts =
-            run_dispatched_bundle(&b64_bytes(native), Some(&blake3_hex_bytes(native)), "strict", &[], None)
-                .expect("a decision is returned");
+        let parts = run_dispatched_bundle(
+            &b64_bytes(native),
+            Some(&blake3_hex_bytes(native)),
+            "strict",
+            &[],
+            None,
+        )
+        .expect("a decision is returned");
         assert!(!parts.success);
         assert!(
             parts.error.as_deref().unwrap_or("").contains("native"),

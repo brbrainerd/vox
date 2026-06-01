@@ -30,12 +30,7 @@ fn sample_run(run_id: &str, status: &str) -> AgentRunRow {
 #[tokio::test]
 async fn agent_runs_persist_query_and_survive_restart() {
     let dir = tempdir().unwrap();
-    let path = dir
-        .path()
-        .join("vox.db")
-        .to_str()
-        .unwrap()
-        .to_string();
+    let path = dir.path().join("vox.db").to_str().unwrap().to_string();
 
     {
         let db = VoxDb::connect(DbConfig::Local { path: path.clone() })

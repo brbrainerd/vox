@@ -387,7 +387,7 @@ mod scoreboard_latency_injection_tests {
         let before = latency_score(&r.get("fast/model").unwrap());
 
         let rows = vec![
-            row("fast/model", Some(200)),   // excellent -> 1.0
+            row("fast/model", Some(200)),    // excellent -> 1.0
             row("slow/model", Some(20_000)), // beyond poor band -> 0.0
             row("unknown/model", Some(300)), // not in registry -> ignored
         ];

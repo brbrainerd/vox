@@ -825,7 +825,12 @@ pub async fn call_llm(
             user_id,
         )
         .await?;
-        (choice.model, choice.is_free, resolution_template, choice.rationale)
+        (
+            choice.model,
+            choice.is_free,
+            resolution_template,
+            choice.rationale,
+        )
     };
 
     let max_tokens = model.max_tokens.clamp(1, HTTP_MAX_OUTPUT_TOKENS_CAP);

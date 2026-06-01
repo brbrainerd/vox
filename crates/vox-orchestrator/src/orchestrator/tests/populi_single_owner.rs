@@ -3,8 +3,8 @@ use super::*;
 use crate::a2a::populi_remote_worker_tick_once;
 #[cfg(feature = "populi-transport")]
 use crate::a2a::{
-    REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE, RemoteTaskEnvelope,
-    RemoteTaskResult,
+    REMOTE_TASK_CANCEL_TYPE, REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE,
+    RemoteTaskEnvelope, RemoteTaskResult,
 };
 use crate::config::OrchestratorConfig;
 use crate::reconstruction::AgentExecutionRole;

@@ -91,10 +91,7 @@ pub enum SelectionStep {
     /// `EmphasizeAxis` steps **compose in priority order** — the first one seen
     /// keeps its full weight, later ones are damped so earlier = higher
     /// priority. After accumulating, the existing scorer path runs.
-    EmphasizeAxis {
-        axis: SelectionAxisKind,
-        weight: u8,
-    },
+    EmphasizeAxis { axis: SelectionAxisKind, weight: u8 },
     /// Pin a specific model by id. Selected iff present + eligible in the
     /// registry; otherwise the step yields nothing and the chain continues.
     PinModel(String),
@@ -569,8 +566,7 @@ mod tests {
         let policy = SelectionPolicy::default();
         // select_with_policy with an empty policy must reproduce plain select().
         let baseline = super::super::select::select(&intent(), &r);
-        let via_policy =
-            super::super::select::select_with_policy(&intent(), &r, &policy, &ctx());
+        let via_policy = super::super::select::select_with_policy(&intent(), &r, &policy, &ctx());
         assert_eq!(
             baseline.map(|o| o.model_id),
             via_policy.map(|o| o.model_id),

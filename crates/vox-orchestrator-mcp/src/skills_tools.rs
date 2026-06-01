@@ -66,11 +66,7 @@ fn to_info_with_source(m: vox_skills::SkillManifest, source: String) -> SkillInf
         description: m.description,
         tools: m.tools,
         source,
-        permissions: m
-            .permissions
-            .iter()
-            .map(|p| format!("{p:?}"))
-            .collect(),
+        permissions: m.permissions.iter().map(|p| format!("{p:?}")).collect(),
         tags: m.tags,
     }
 }

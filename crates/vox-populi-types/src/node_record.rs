@@ -295,7 +295,10 @@ mod merge_tests {
         let a = merged.nodes.iter().find(|n| n.id == "a").unwrap();
         assert_eq!(a.version, "remote");
         // 'b' only local → kept; 'c' only incoming → inserted.
-        assert_eq!(merged.nodes.iter().find(|n| n.id == "b").unwrap().version, "local");
+        assert_eq!(
+            merged.nodes.iter().find(|n| n.id == "b").unwrap().version,
+            "local"
+        );
         // schema = max, queue_depth = live incoming.
         assert_eq!(merged.schema_version, 2);
         assert_eq!(merged.queue_depth, Some(7));

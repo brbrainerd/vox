@@ -21,10 +21,7 @@ fn render_eval_plan(pending: &[String]) -> String {
     if pending.is_empty() {
         return "No shadowed models awaiting evaluation.".to_string();
     }
-    let mut s = format!(
-        "{} shadowed model(s) awaiting evaluation:\n",
-        pending.len()
-    );
+    let mut s = format!("{} shadowed model(s) awaiting evaluation:\n", pending.len());
     for id in pending {
         s.push_str(&format!("  - {id}\n"));
     }
@@ -84,7 +81,10 @@ pub async fn run(args: DiscoverArgs) -> anyhow::Result<()> {
             // model-agnostic secrets facade). Without it we print the plan and
             // exit 0 — never fabricate eval results.
             if vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey).is_present() {
-                println!("\n{} Running batch eval over the backlog...", " INFO ".on_blue().white().bold());
+                println!(
+                    "\n{} Running batch eval over the backlog...",
+                    " INFO ".on_blue().white().bold()
+                );
                 crate::commands::model::eval::run(crate::commands::model::eval::EvalArgs {
                     models: report.pending_eval_ids.clone(),
                     category: "general".to_string(),
@@ -110,7 +110,10 @@ mod tests {
 
     #[test]
     fn render_eval_plan_empty_backlog() {
-        assert_eq!(render_eval_plan(&[]), "No shadowed models awaiting evaluation.");
+        assert_eq!(
+            render_eval_plan(&[]),
+            "No shadowed models awaiting evaluation."
+        );
     }
 
     #[test]

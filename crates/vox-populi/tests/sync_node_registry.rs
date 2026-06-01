@@ -67,12 +67,34 @@ async fn sync_node_registry_merges_control_plane_truth_and_persists() {
 
     // Union of ids, deterministically sorted by id.
     let ids: Vec<&str> = persisted.nodes.iter().map(|n| n.id.as_str()).collect();
-    assert_eq!(ids, vec!["conflict", "local-only", "remote-only", "stale-remote"]);
+    assert_eq!(
+        ids,
+        vec!["conflict", "local-only", "remote-only", "stale-remote"]
+    );
 
-    assert_eq!(last_seen("conflict"), 5000, "control-plane fresher wins the conflict");
+    assert_eq!(
+        last_seen("conflict"),
+        5000,
+        "control-plane fresher wins the conflict"
+    );
     assert_eq!(last_seen("local-only"), 1000, "local-only node is kept");
-    assert_eq!(last_seen("remote-only"), 3000, "control-plane-only node is added");
-    assert_eq!(last_seen("stale-remote"), 9000, "strictly-fresher local copy is retained");
-    assert_eq!(persisted.schema_version, 2, "schema_version = max(local, incoming)");
-    assert_eq!(persisted.queue_depth, Some(7), "queue_depth comes from the live control plane");
+    assert_eq!(
+        last_seen("remote-only"),
+        3000,
+        "control-plane-only node is added"
+    );
+    assert_eq!(
+        last_seen("stale-remote"),
+        9000,
+        "strictly-fresher local copy is retained"
+    );
+    assert_eq!(
+        persisted.schema_version, 2,
+        "schema_version = max(local, incoming)"
+    );
+    assert_eq!(
+        persisted.queue_depth,
+        Some(7),
+        "queue_depth comes from the live control plane"
+    );
 }

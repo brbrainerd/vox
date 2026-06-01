@@ -159,8 +159,6 @@ pub mod plugin_state_backend;
 pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
-pub use facade::agent_runs::AgentRunRow;
-pub use facade::hitl_approvals::HitlApprovalRow;
 pub use codex_chat::WorkspaceTranscriptTurnRow;
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
@@ -174,6 +172,8 @@ pub use connect_policy::{
 pub use data_flow::{DataFlowMap, build_data_flow};
 pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};
 pub use error_enrichment::{EnrichedDbError, enrich_error};
+pub use facade::agent_runs::AgentRunRow;
+pub use facade::hitl_approvals::HitlApprovalRow;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};

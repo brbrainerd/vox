@@ -114,23 +114,52 @@ mod tests {
     fn latency_critical_prefers_fast_tier_not_largest_context() {
         // The legacy `best_free_for_with_filter` ranks by max_tokens and would
         // pick `big`; the FreeTierRouter's +5.0 Fast-tier latency bonus must win.
-        let big = free_spec("p/big", ProviderType::OpenRouter, ModelTier::Pro, 1_000_000, false, false);
-        let fast = free_spec("p/fast", ProviderType::Cerebras, ModelTier::Fast, 8_000, false, false);
+        let big = free_spec(
+            "p/big",
+            ProviderType::OpenRouter,
+            ModelTier::Pro,
+            1_000_000,
+            false,
+            false,
+        );
+        let fast = free_spec(
+            "p/fast",
+            ProviderType::Cerebras,
+            ModelTier::Fast,
+            8_000,
+            false,
+            false,
+        );
         let models = vec![big, fast];
 
         let (model, rationale) = route_free_tier_latency(&models, &latency_res(), &[], |_| true)
             .expect("a free model should be routed");
         assert_eq!(model.id, "p/fast");
         assert_eq!(model.capabilities.tier, ModelTier::Fast);
-        assert!(!rationale.is_empty(), "a human-readable rationale must accompany the pick");
+        assert!(
+            !rationale.is_empty(),
+            "a human-readable rationale must accompany the pick"
+        );
     }
 
     #[test]
     fn fim_hint_excludes_non_fim_providers() {
-        let fast_nonfim =
-            free_spec("x/fast", ProviderType::Cerebras, ModelTier::Fast, 32_000, false, false);
-        let mistral =
-            free_spec("mistral/codestral", ProviderType::Mistral, ModelTier::Pro, 32_000, false, false);
+        let fast_nonfim = free_spec(
+            "x/fast",
+            ProviderType::Cerebras,
+            ModelTier::Fast,
+            32_000,
+            false,
+            false,
+        );
+        let mistral = free_spec(
+            "mistral/codestral",
+            ProviderType::Mistral,
+            ModelTier::Pro,
+            32_000,
+            false,
+            false,
+        );
         let models = vec![fast_nonfim, mistral];
 
         let mut res = latency_res();
@@ -144,15 +173,27 @@ mod tests {
     #[test]
     fn required_vision_filters_non_vision_and_keeps_vision() {
         let caps = vec![Capability::SupportsVision];
-        let no_vision =
-            free_spec("a/novis", ProviderType::OpenRouter, ModelTier::Pro, 64_000, false, true);
+        let no_vision = free_spec(
+            "a/novis",
+            ProviderType::OpenRouter,
+            ModelTier::Pro,
+            64_000,
+            false,
+            true,
+        );
         assert!(
             route_free_tier_latency(&[no_vision], &latency_res(), &caps, |_| true).is_none(),
             "a non-vision model must not satisfy a vision requirement"
         );
 
-        let vision =
-            free_spec("a/vis", ProviderType::OpenRouter, ModelTier::Pro, 64_000, true, false);
+        let vision = free_spec(
+            "a/vis",
+            ProviderType::OpenRouter,
+            ModelTier::Pro,
+            64_000,
+            true,
+            false,
+        );
         assert!(
             route_free_tier_latency(&[vision], &latency_res(), &caps, |_| true).is_some(),
             "a vision-capable free model must be routable under a vision requirement"
@@ -163,7 +204,14 @@ mod tests {
     fn accept_filter_excludes_blocked_local() {
         // Preserve the caller's local-Ollama / routing-profile gating: the
         // router may surface an Ollama free model, but `accept` rejects it.
-        let ollama = free_spec("ollama/x", ProviderType::Ollama, ModelTier::Local, 8_000, false, false);
+        let ollama = free_spec(
+            "ollama/x",
+            ProviderType::Ollama,
+            ModelTier::Local,
+            8_000,
+            false,
+            false,
+        );
         let got = route_free_tier_latency(&[ollama], &latency_res(), &[], |m| {
             m.provider_type != ProviderType::Ollama
         });

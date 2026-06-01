@@ -16,7 +16,11 @@ async fn hitl_approval_record_resolve_and_survive_restart() {
             .await
             .unwrap();
 
-        let pending = db.hitl_approval_get("AP-000001").await.unwrap().expect("present");
+        let pending = db
+            .hitl_approval_get("AP-000001")
+            .await
+            .unwrap()
+            .expect("present");
         assert_eq!(pending.status, "pending");
         assert_eq!(pending.tool, "vox_run_shell");
         assert!(pending.resolved_at_ms.is_none());

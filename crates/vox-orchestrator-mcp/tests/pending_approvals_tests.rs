@@ -8,7 +8,11 @@ use vox_orchestrator_mcp::{ServerState, handle_tool_call, load_config};
 #[tokio::test]
 async fn register_then_resolve_wakes_the_awaiter() {
     let reg = PendingApprovals::default();
-    let (id, rx) = reg.register("vox_write_file".to_string(), "write src/x.rs".to_string(), 1000);
+    let (id, rx) = reg.register(
+        "vox_write_file".to_string(),
+        "write src/x.rs".to_string(),
+        1000,
+    );
 
     // Visible while pending.
     let listed = reg.list();
@@ -76,9 +80,11 @@ async fn dangerous_tool_parks_until_resolved() {
     assert_eq!(pending[0].tool, "vox_run_shell");
 
     // Reject it; the parked call should wake and return an error envelope.
-    assert!(state
-        .pending_approvals
-        .resolve(&pending[0].approval_id, ApprovalOutcome::Rejected));
+    assert!(
+        state
+            .pending_approvals
+            .resolve(&pending[0].approval_id, ApprovalOutcome::Rejected)
+    );
 
     let raw = call.await.expect("join").expect("dispatch ok");
     assert!(
