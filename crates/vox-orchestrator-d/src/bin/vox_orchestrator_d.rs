@@ -105,9 +105,16 @@ async fn main() -> anyhow::Result<()> {
                 // other threads may `getenv` concurrently, so `set_var` here would
                 // be UB. The scorer reads this global (falling back to the env
                 // only when it is unset). See `install_base_routing_priority`.
-                let axes = vox_config::AutoRoutingPriority::parse_csv(csv);
-                vox_orchestrator::models::install_base_routing_priority(Some(axes));
-                tracing::info!(priority = %csv, "applied persisted routing-priority emphasis");
+                match vox_config::AutoRoutingPriority::try_parse_csv(csv) {
+                    Some(axes) => {
+                        vox_orchestrator::models::install_base_routing_priority(Some(axes));
+                        tracing::info!(priority = %csv, "applied persisted routing-priority emphasis");
+                    }
+                    None => tracing::warn!(
+                        priority = %csv,
+                        "routing_priority preference parsed no axes; leaving scorer default unchanged"
+                    ),
+                }
             }
         }
 

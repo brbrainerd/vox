@@ -79,9 +79,24 @@ impl AutoRoutingPriority {
     /// mentioned keep their [`Default`] value. This is the thread-safe way to
     /// turn a persisted preference string into axes without mutating the
     /// process environment.
+    ///
+    /// Returns [`Default`] for both a valid all-defaults payload and a fully
+    /// malformed one — callers that need to distinguish "valid preference" from
+    /// "garbage that should fall back to another source" should use
+    /// [`try_parse_csv`](Self::try_parse_csv).
     #[must_use]
     pub fn parse_csv(raw: &str) -> Self {
+        Self::try_parse_csv(raw).unwrap_or_default()
+    }
+
+    /// Like [`parse_csv`](Self::parse_csv) but returns `None` when *no* axis was
+    /// successfully assigned (empty or wholly-malformed input), so callers can
+    /// reject bad persisted data instead of silently installing default weights
+    /// that mask a valid fallback source.
+    #[must_use]
+    pub fn try_parse_csv(raw: &str) -> Option<Self> {
         let mut out = Self::default();
+        let mut any_parsed = false;
         for part in raw.split(',') {
             let mut it = part.splitn(2, '=');
             let key = it.next().map(str::trim).unwrap_or("").to_ascii_lowercase();
@@ -96,10 +111,11 @@ impl AutoRoutingPriority {
                 "availability" => out.availability = parsed,
                 "balance" => out.balance = parsed,
                 "mobile" => out.mobile = parsed,
-                _ => {}
+                _ => continue,
             }
+            any_parsed = true;
         }
-        out
+        any_parsed.then_some(out)
     }
 }
 
@@ -242,6 +258,24 @@ mod tests {
         assert_eq!(
             AutoRoutingPriority::parse_csv(""),
             AutoRoutingPriority::default()
+        );
+    }
+
+    #[test]
+    fn try_parse_csv_distinguishes_valid_from_garbage() {
+        // At least one axis parsed → Some.
+        assert_eq!(
+            AutoRoutingPriority::try_parse_csv("latency=42"),
+            Some(AutoRoutingPriority {
+                latency: 42,
+                ..AutoRoutingPriority::default()
+            })
+        );
+        // Empty or wholly-malformed input → None, so callers can reject it.
+        assert_eq!(AutoRoutingPriority::try_parse_csv(""), None);
+        assert_eq!(
+            AutoRoutingPriority::try_parse_csv("garbage,foo=bar,=,9"),
+            None
         );
     }
 

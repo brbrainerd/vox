@@ -1,4 +1,4 @@
-x-vox-version: 1
+x-vox-version: 2
 version: 1
 variables:
   - name: "VOX_ROUTE_POLICY_PROFILE"
