@@ -1,0 +1,35 @@
+extra_args = ["--target", "mobile"]
+emits_rust_backend = false
+required = [
+  # Four components emitted as RN files
+  "Home.tsx",
+  "Entry.tsx",
+  "Detail.tsx",
+  "EntryCard.tsx",
+  # Form file
+  "forms.tsx",
+  # std.mobile -> voxRuntime bridge (auto-emitted when source uses `mobile`)
+  "mobile-utils.ts",
+  # Mobile primitive adapter wiring (back_button + push)
+  "mobile.ts",
+  # vox-client fetch SDK for endpoints
+  "vox-client.ts",
+  "openapi.json",
+  "vox-app-contract.json",
+  # Expo Router file tree
+  "app/_layout.tsx",
+  "app/index.tsx",
+  "app/entry.tsx",
+  "app/detail/[id].tsx",
+  # Expo project scaffold
+  "app.json",
+  "package.json",
+  "babel.config.js",
+  "metro.config.js",
+  "eas.json",
+  "tsconfig.json",
+]
+forbidden = [
+  # When routes are declared, expo-router owns the boot path.
+  "App.tsx",
+]

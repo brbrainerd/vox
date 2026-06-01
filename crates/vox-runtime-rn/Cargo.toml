@@ -1,0 +1,32 @@
+[package]
+name = "vox-runtime-rn"
+version = "0.6.0"
+edition = "2024"
+description = "uniffi-bridged Rust runtime for Vox mobile targets (React Native + Expo). Cross-compiles to aarch64-apple-ios / aarch64-linux-android / etc.; uniffi-bindgen-react-native generates the TypeScript TurboModule bindings that clients/runtime-rn/ consumes. Bridges the typed vox-runtime foundation types to JS."
+license = "Apache-2.0"
+publish = false
+
+[lib]
+# cdylib + staticlib for cross-compile to Android / iOS as a native library.
+# rlib so workspace tests and downstream crates can depend on it directly.
+crate-type = ["rlib", "cdylib", "staticlib"]
+name = "vox_runtime_rn"
+
+[dependencies]
+vox-runtime = { path = "../vox-runtime" }
+vox-journal = { path = "../vox-journal" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+uniffi = { version = "0.28", features = ["build", "tokio"] }
+
+# NOTE: workspace-hack is deliberately NOT a dep of this crate.
+# It pulls in `native-tls` -> `openssl-sys` which can't cross-compile to
+# `aarch64-linux-android` without vendoring OpenSSL source. The workspace-hack
+# unification is a host-build performance optimization; we accept slightly
+# slower host builds here in exchange for being able to ship to mobile.
+
+
+[dev-dependencies]
+serde_json = { workspace = true }

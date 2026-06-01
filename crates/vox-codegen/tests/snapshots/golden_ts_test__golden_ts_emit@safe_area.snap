@@ -7,10 +7,12 @@ import React from "react";
 
 export function SafeView(): React.ReactElement {
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col"].filter(Boolean).join(" ")} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <p className={"text-base"}>
         {"Content"}
       </p>
+    </div>
     </div>
   );
 }

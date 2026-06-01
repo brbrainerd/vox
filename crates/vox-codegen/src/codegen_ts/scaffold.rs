@@ -1,65 +1,21 @@
-//! One-time user-owned scaffold files (never overwrite if present).
+//! One-time user-owned **config** files (never overwrite if present).
+//!
+//! These are project toolchain files (Vite, Tailwind, tsconfig, package.json)
+//! that a host project may want as a starting point. The app *bootstrap* itself
+//! — `entry.tsx` / `vox-app.tsx` / `app-hooks.tsx` / error boundary / SW — is
+//! **emitted on every build** by [`super::web_entry`], so `main.tsx` / `App.tsx`
+//! are no longer scaffolded (they would shadow the generated router).
 
 use std::path::Path;
 
 /// Files relative to project root (`app/`, `vite.config.ts`, etc.).
 pub type ScaffoldFile = (String, String);
 
+/// One-shot toolchain config files written next to the build output when
+/// `--emit-config` (alias `--scaffold`) is set. Config only — no bootstrap.
 #[must_use]
-pub fn react_interop_scaffold_files(_project_name: &str) -> Vec<ScaffoldFile> {
+pub fn web_config_files(_project_name: &str) -> Vec<ScaffoldFile> {
     vec![
-        (
-            "app/main.tsx".to_string(),
-            r#"import React from "react"
-import ReactDOM from "react-dom/client"
-import { App } from "./App"
-import "./globals.css"
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
-"#
-            .to_string(),
-        ),
-        (
-            "app/App.tsx".to_string(),
-            r#"// User-owned router adapter — customize for React Router, TanStack Router, or Next.js.
-import { BrowserRouter, Route, Routes } from "react-router"
-import { Suspense, type ReactNode } from "react"
-import { voxRoutes, type VoxRoute } from "../dist/routes.manifest"
-
-// When `routes.manifest.ts` exports `notFoundComponent`, `errorComponent`, or `globalPendingComponent`,
-// import them from the same module and wire e.g. `<Route path="*" element={<notFoundComponent />} />`.
-
-function renderRoutes(routes: VoxRoute[]): ReactNode {
-  return routes.map((r) => (
-    <Route
-      key={r.path}
-      path={r.path}
-      index={r.index}
-      element={
-        <Suspense fallback={r.pendingComponent ? <r.pendingComponent /> : <span />}>
-          <r.component />
-        </Suspense>
-      }
-    >
-      {r.children ? renderRoutes(r.children) : null}
-    </Route>
-  ))
-}
-
-export function App(): React.ReactElement {
-  return (
-    <BrowserRouter>
-      <Routes>{renderRoutes(voxRoutes)}</Routes>
-    </BrowserRouter>
-  )
-}
-"#
-            .to_string(),
-        ),
         (
             "app/globals.css".to_string(),
             "@import \"tailwindcss\";\n".to_string(),
@@ -164,9 +120,9 @@ export default defineConfig({
     ]
 }
 
-/// Write scaffold files under `project_root` if missing.
+/// Write one-shot config files under `project_root` if missing.
 pub fn write_scaffold_if_missing(project_root: &Path, project_name: &str) -> std::io::Result<()> {
-    for (rel, content) in react_interop_scaffold_files(project_name) {
+    for (rel, content) in web_config_files(project_name) {
         let path = project_root.join(&rel);
         if path.exists() {
             continue;

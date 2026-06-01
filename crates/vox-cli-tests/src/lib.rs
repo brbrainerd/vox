@@ -284,6 +284,22 @@ impl BuildRun {
             )
         });
 
+        // Drop an ambient declaration for the on-device runtime package so the
+        // RN `vox-client.ts` preamble's `import ... from "@vox/runtime-rn"`
+        // resolves under `tsc --noEmit`. The real Expo app gets the actual
+        // package from its node_modules; the harness has no install for it.
+        let ambient_src = tests_dir.join("ambient-vox-runtime-rn.d.ts");
+        if ambient_src.is_file() {
+            let ambient_dst = self.out_dir.path().join("ambient-vox-runtime-rn.d.ts");
+            std::fs::copy(&ambient_src, &ambient_dst).unwrap_or_else(|e| {
+                panic!(
+                    "copy ambient decl {} → {}: {e}",
+                    ambient_src.display(),
+                    ambient_dst.display()
+                )
+            });
+        }
+
         // Point tsc's module resolution at the shared node_modules so emitted
         // `import { ... } from "react"` resolves without per-fixture npm install.
         let shared_node_modules = tests_dir.join("node_modules");

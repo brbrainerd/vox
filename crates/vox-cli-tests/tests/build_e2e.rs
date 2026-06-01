@@ -94,6 +94,299 @@ fn build_mobile_counter_emits_valid_react_native_typescript() {
     run.assert_tsc_compiles();
 }
 
+/// `for item, i in items key=item { panel() { text() { item } } }` must lower
+/// to `{items.map((item, i) => (<View key={item}><Text>{item}</Text></View>))}`
+/// — pure RN, no DOM tags. Regression gate for the original split-brain bug
+/// where loop bodies fell through to React-DOM emit inside an RN component.
+#[test]
+fn build_mobile_list_renders_pure_rn_inside_for_loop() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_list");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+    let todo_tsx =
+        std::fs::read_to_string(run.out_dir.path().join("TodoList.tsx")).expect("TodoList.tsx");
+    // The loop must use `.map((item, i: number) => ...)` over the iterator.
+    assert!(
+        todo_tsx.contains("items.map("),
+        "for-loop must lower to `.map(...)`; got:\n{todo_tsx}"
+    );
+    // The body must use RN tags. No React DOM leakage allowed.
+    assert!(
+        !todo_tsx.contains("<div"),
+        "loop body must NOT contain `<div>` (split-brain regression):\n{todo_tsx}"
+    );
+    assert!(
+        !todo_tsx.contains("<p>") && !todo_tsx.contains("<p "),
+        "loop body must NOT contain `<p>` (split-brain regression):\n{todo_tsx}"
+    );
+    assert!(
+        !todo_tsx.contains("className"),
+        "loop body must NOT contain `className` (RN ignores it):\n{todo_tsx}"
+    );
+    // The body MUST use RN primitives.
+    assert!(
+        todo_tsx.contains("<View") && todo_tsx.contains("<Text"),
+        "loop body must use `<View>` and `<Text>`; got:\n{todo_tsx}"
+    );
+    // Key injection must produce `key={item}` on the first body element.
+    assert!(
+        todo_tsx.contains("key={item}"),
+        "loop must inject `key={{item}}` on first body element; got:\n{todo_tsx}"
+    );
+}
+
+/// Heavy gate for the list fixture: tsc must accept the loop output.
+#[test]
+fn build_mobile_list_emits_valid_react_native_typescript() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_list");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_tsc_compiles();
+}
+
+/// `@form` must produce a pure RN form on `--target=mobile`:
+/// View / Text / TextInput / Pressable (NOT `<form>` / `<input>` / `<button>`).
+/// Same validation logic shape as the web emit — proven by asserting the same
+/// pattern in both outputs in `mobile_and_web_form_share_validation_logic`.
+#[test]
+fn build_mobile_form_produces_pure_rn_form() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_form");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+    let forms_tsx =
+        std::fs::read_to_string(run.out_dir.path().join("forms.tsx")).expect("forms.tsx");
+    // Must use RN primitives.
+    assert!(
+        forms_tsx.contains("from \"react-native\""),
+        "mobile forms.tsx must import from `react-native`; got:\n{forms_tsx}"
+    );
+    assert!(
+        forms_tsx.contains("<TextInput") && forms_tsx.contains("<Pressable"),
+        "mobile forms.tsx must use `<TextInput>` and `<Pressable>`; got:\n{forms_tsx}"
+    );
+    assert!(
+        forms_tsx.contains("onChangeText="),
+        "mobile forms.tsx must use `onChangeText`, not `onChange`; got:\n{forms_tsx}"
+    );
+    // Must NOT use DOM tags.
+    assert!(
+        !forms_tsx.contains("<form ") && !forms_tsx.contains("<form>"),
+        "mobile forms.tsx must NOT use `<form>`; got:\n{forms_tsx}"
+    );
+    assert!(
+        !forms_tsx.contains("<input "),
+        "mobile forms.tsx must NOT use `<input>`; got:\n{forms_tsx}"
+    );
+    assert!(
+        !forms_tsx.contains("className="),
+        "mobile forms.tsx must NOT use `className` (RN ignores it); got:\n{forms_tsx}"
+    );
+    assert!(
+        !forms_tsx.contains("ev.preventDefault"),
+        "mobile forms.tsx must NOT call `preventDefault` (no synthetic events on RN); got:\n{forms_tsx}"
+    );
+    // Validation logic must use the same error-key shape as the web emit.
+    assert!(
+        forms_tsx.contains("e.name = \"Item name is required\""),
+        "validation must produce the same error key as the web emit; got:\n{forms_tsx}"
+    );
+}
+
+/// Cross-target parity: the validation function in the RN form output uses
+/// the SAME error keys + message text + shape as the web form output. Drift
+/// here would mean a Vox source produces subtly different validation across
+/// targets — exactly the split-brain bug the single-HIR design exists to prevent.
+#[test]
+fn mobile_and_web_form_share_validation_logic() {
+    init_vox_binary_once();
+    let mobile = BuildRun::run("mobile_form");
+    mobile.assert_success();
+    let web = BuildRun::run("form_basic");
+    web.assert_success();
+
+    let mobile_tsx =
+        std::fs::read_to_string(mobile.out_dir.path().join("forms.tsx")).expect("mobile forms.tsx");
+    let web_tsx =
+        std::fs::read_to_string(web.out_dir.path().join("forms.tsx")).expect("web forms.tsx");
+
+    // The required-field validation message must be identical character-for-character.
+    let validation_line = "if (name === undefined || name === null || name === \"\") e.name = \"Item name is required\"";
+    assert!(
+        mobile_tsx.contains(validation_line),
+        "mobile validation must contain `{validation_line}`; got:\n{mobile_tsx}"
+    );
+    assert!(
+        web_tsx.contains(validation_line),
+        "web validation must contain `{validation_line}`; got:\n{web_tsx}"
+    );
+
+    // The submit call shape must be identical (single-arg object with field names).
+    let submit_call = "await submit_item({ name })";
+    assert!(
+        mobile_tsx.contains(submit_call),
+        "mobile submit must call `{submit_call}`; got:\n{mobile_tsx}"
+    );
+    assert!(
+        web_tsx.contains(submit_call),
+        "web submit must call `{submit_call}`; got:\n{web_tsx}"
+    );
+}
+
+/// Heavy gate for the form fixture.
+#[test]
+fn build_mobile_form_emits_valid_react_native_typescript() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_form");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_tsc_compiles();
+}
+
+/// `routes { ... }` must lower to Expo Router file-system routes:
+///   `"/"`           -> `app/index.tsx`
+///   `"/about"`      -> `app/about.tsx`
+///   `"/detail/:id"` -> `app/detail/[id].tsx`
+/// Plus a root `app/_layout.tsx` and a package.json with `main:
+/// "expo-router/entry"` and the expo-router dep chain pinned.
+#[test]
+fn build_mobile_routes_emits_expo_router_file_tree() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_routes");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+
+    let layout = std::fs::read_to_string(run.out_dir.path().join("app/_layout.tsx"))
+        .expect("app/_layout.tsx");
+    assert!(
+        layout.contains("from \"expo-router\""),
+        "_layout must import from `expo-router`; got:\n{layout}"
+    );
+    assert!(
+        layout.contains("<Stack"),
+        "_layout must render <Stack>; got:\n{layout}"
+    );
+
+    let index =
+        std::fs::read_to_string(run.out_dir.path().join("app/index.tsx")).expect("app/index.tsx");
+    assert!(
+        index.contains("export { Home as default } from \"../Home\""),
+        "app/index.tsx must re-export Home from `../Home`; got:\n{index}"
+    );
+
+    let detail = std::fs::read_to_string(run.out_dir.path().join("app/detail/[id].tsx"))
+        .expect("app/detail/[id].tsx");
+    assert!(
+        detail.contains("export { Detail as default } from \"../../Detail\""),
+        "nested detail/[id].tsx must use `../../Detail` for double-depth: got:\n{detail}"
+    );
+
+    let pkg =
+        std::fs::read_to_string(run.out_dir.path().join("package.json")).expect("package.json");
+    assert!(
+        pkg.contains("\"main\": \"expo-router/entry\""),
+        "package.json `main` must switch to `expo-router/entry`; got:\n{pkg}"
+    );
+    assert!(
+        pkg.contains("\"expo-router\""),
+        "package.json must include the expo-router dep; got:\n{pkg}"
+    );
+
+    let app_json = std::fs::read_to_string(run.out_dir.path().join("app.json")).expect("app.json");
+    assert!(
+        app_json.contains("\"plugins\": [\"expo-router\"]"),
+        "app.json must register `expo-router` in plugins; got:\n{app_json}"
+    );
+}
+
+/// Mental-tracker-shape proving ground: a single Vox source exercising the
+/// full union of RN-supported VUV vocabulary. Asserts the build produces
+/// every expected file and that the critical RN-specific behaviors
+/// (custom-component refs, mobile-utils auto-emit + auto-import, arrow
+/// handlers without IIFE) all work end-to-end.
+#[test]
+fn build_mobile_app_complete_exercises_full_rn_vocabulary() {
+    init_vox_binary_once();
+    let run = BuildRun::run("mobile_app_complete");
+    run.assert_success();
+    run.assert_no_panic();
+    run.assert_expected_files();
+
+    let home = std::fs::read_to_string(run.out_dir.path().join("Home.tsx")).expect("Home.tsx");
+    // Custom-component invocation inside a for-loop body must render as a
+    // JSX tag with the original PascalCase name and a `{...}` attr per arg,
+    // NOT fall through to an empty `<View>`.
+    assert!(
+        home.contains("<EntryCard label={item}"),
+        "for-loop body must render `<EntryCard label={{item}}/>`; got:\n{home}"
+    );
+    // mobile-utils import must be auto-added when the component body
+    // references the `mobile` identifier.
+    assert!(
+        home.contains("import { mobile } from \"./mobile-utils\""),
+        "component using `mobile` must auto-import from `./mobile-utils`; got:\n{home}"
+    );
+    // Arrow handler must NOT be triple-wrapped IIFE; the strip+wrap logic
+    // produces a single clean `() => (mobile.notify(...))`.
+    assert!(
+        !home.contains("(() => ("),
+        "arrow handler must not be IIFE-wrapped (split-brain regression):\n{home}"
+    );
+    assert!(
+        home.contains("onPress={() => (mobile.notify("),
+        "mobile.notify handler must lower to a clean arrow:\n{home}"
+    );
+
+    // mobile-utils.ts must route through voxRuntime, not Tauri directly.
+    let utils = std::fs::read_to_string(run.out_dir.path().join("mobile-utils.ts"))
+        .expect("mobile-utils.ts");
+    assert!(
+        utils.contains("from \"@vox/runtime-rn\""),
+        "mobile-utils.ts must import from `@vox/runtime-rn`; got:\n{utils}"
+    );
+    assert!(
+        !utils.contains("@tauri-apps/api"),
+        "mobile-utils.ts must NOT import Tauri APIs directly:\n{utils}"
+    );
+    // Snake_case Vox method names must remain present (the bridge handles
+    // case translation to camelCase voxRuntime methods).
+    assert!(
+        utils.contains("transcribe_microphone")
+            && utils.contains("voxRuntime.transcribeMicrophone"),
+        "mobile-utils.ts must bridge snake_case `transcribe_microphone` to camelCase `voxRuntime.transcribeMicrophone`; got:\n{utils}"
+    );
+
+    // The Entry component (uses transcribe_microphone) must also auto-import.
+    let entry = std::fs::read_to_string(run.out_dir.path().join("Entry.tsx")).expect("Entry.tsx");
+    assert!(
+        entry.contains("import { mobile } from \"./mobile-utils\""),
+        "Entry.tsx must auto-import mobile (uses transcribe_microphone):\n{entry}"
+    );
+
+    // The Detail component (no mobile use, no state) must NOT auto-import mobile.
+    let detail =
+        std::fs::read_to_string(run.out_dir.path().join("Detail.tsx")).expect("Detail.tsx");
+    assert!(
+        !detail.contains("from \"./mobile-utils\""),
+        "Detail.tsx (no mobile use) must NOT import mobile-utils:\n{detail}"
+    );
+}
+
+// NOTE: no `assert_tsc_compiles` for mobile_routes. The expo-router peer-dep
+// chain requires a specific Expo SDK-tier version pin (RN, react-native-screens,
+// expo-linking, expo-constants, @types/react all together) that conflicts
+// with the SDK 52 baseline we ship in the scaffold. Real consumer projects
+// pin via `npx create-expo-app --template` and don't hit the problem. The
+// fast-path test above already verifies the route file structure, the
+// content of each emitted file, the package.json `main` field, and the
+// app.json plugins array — sufficient regression coverage for the codegen
+// pipeline without forcing the harness into Expo-SDK-version maintenance.
+
 /// Regression gate: the same Vox source produces RN-shaped output for the mobile target
 /// (View / Text / Pressable / StyleSheet) and DOM-shaped output for the default web
 /// target — both from one HIR. Asserts the leaf shapes differ in the right places.

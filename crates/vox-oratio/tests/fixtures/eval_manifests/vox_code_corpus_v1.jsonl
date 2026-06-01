@@ -1,0 +1,5 @@
+{"id": "vox_code_001", "url": "local", "expected": "let mut count: i32 = 0;", "description": "variable declaration mutable", "type": "code"}
+{"id": "vox_code_002", "url": "local", "expected": "fn handle_message(msg: String) -> Result<(), Error> {", "description": "function signature", "type": "code"}
+{"id": "vox_code_003", "url": "local", "expected": "match self.user_state { UserState::Active => {}", "description": "match on enum", "type": "code"}
+{"id": "vox_code_004", "url": "local", "expected": "table User { name: String, limit: u32 }", "description": "vox language construct", "type": "code"}
+{"id": "vox_code_005", "url": "local", "expected": "let HTTP_STATUS_OK = 200;", "description": "acronym identifier", "type": "code"}

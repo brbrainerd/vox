@@ -1,0 +1,26 @@
+[package]
+name = "vox-journal"
+version = "0.6.0"
+edition = "2024"
+description = "Generic append-only JSON Lines file journal for Vox. Crash-safe via per-record sync_data; replays on open. Used as the durable substrate by vox-workflow-runtime, vox-actor-runtime, and the mobile-shipped vox-runtime-rn (via uniffi)."
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["rlib", "cdylib", "staticlib"]
+
+[dependencies]
+vox-runtime = { path = "../vox-runtime" }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# NOTE: workspace-hack is deliberately NOT a dep of this crate.
+# Same rationale as vox-runtime / vox-runtime-rn: workspace-hack transitively
+# pulls in `gix` -> `reqwest` -> `native-tls` -> `openssl-sys` which doesn't
+# cross-compile to mobile without vendoring OpenSSL.
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

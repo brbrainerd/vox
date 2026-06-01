@@ -57,9 +57,11 @@ pub struct BuildArgs {
     /// Native mobile build target (e.g., ios, android, native). Distinct from `--target`.
     #[arg(long = "mobile-target")]
     pub mobile_target: Option<String>,
-    /// Write one-shot user scaffold (`app/App.tsx`, Vite, Tailwind v4) next to output if files are missing.
-    /// Same as `VOX_WEB_EMIT_SCAFFOLD=1` (flag takes precedence when either is set).
-    #[arg(long)]
+    /// Write one-shot toolchain **config** files (Vite, Tailwind v4, tsconfig, package.json) next to
+    /// output if missing. The app bootstrap (`entry.tsx`/`vox-app.tsx`) is always emitted, so no
+    /// `main.tsx`/`App.tsx` is scaffolded. Same as `VOX_WEB_EMIT_SCAFFOLD=1` (flag wins). `--scaffold`
+    /// is a deprecated alias.
+    #[arg(long = "emit-config", visible_alias = "scaffold")]
     pub scaffold: bool,
     /// Emit **WebIR** JSON (`web-ir.v1.json`) into the output directory (frontend IR only).
     /// For the full **VoxIrModule** bundle (HIR + embedded WebIR), use `vox check <file>.vox --emit-ir`.

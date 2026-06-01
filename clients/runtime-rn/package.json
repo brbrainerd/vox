@@ -1,0 +1,34 @@
+{
+  "name": "@vox/runtime-rn",
+  "version": "0.6.0",
+  "description": "Vox runtime for React Native + Expo targets. Expo-SDK backed implementation of @vox/runtime-types. Used by every emitted Vox app that runs on a phone (Android / iOS) via Expo Router.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "generate-bindings": "node scripts/generate-bindings.mjs",
+    "tsc": "tsc -p tsconfig.test.json"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-native": ">=0.74.0",
+    "expo-haptics": ">=14.0.0",
+    "expo-image-picker": ">=16.0.0",
+    "expo-linking": ">=7.0.0",
+    "expo-notifications": ">=0.29.0",
+    "expo-file-system": ">=18.0.0"
+  },
+  "dependencies": {
+    "@vox/runtime-types": "0.6.0"
+  },
+  "license": "Apache-2.0"
+}

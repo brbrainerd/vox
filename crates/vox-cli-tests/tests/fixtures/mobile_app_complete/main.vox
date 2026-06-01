@@ -1,0 +1,83 @@
+// Mental-tracker-shape proving ground for --target=mobile.
+//
+// Exercises the FULL union of VUV vocabulary the RN target supports today:
+//   - Multiple components with state
+//   - View primitives (column, row, text, heading, button, panel, image)
+//   - for-loop with key over a state list
+//   - @form with required + label + min_len + max_len + on_submit
+//   - @routes with literal + parameter segments
+//   - @back_button (one of three @vox/runtime mobile primitives)
+//   - @push (push-notification wiring)
+//   - @query / @mutation endpoints (HTTP via vox-client.ts on device)
+//   - std.mobile bridge (notify, transcribeMicrophone — adapter-routed)
+//
+// If this fixture builds clean to mobile + every emitted file passes the
+// regression assertions, the RN target is feature-complete for the
+// vox-mental-tracker shape (modulo on-device durable storage which is
+// Phase 2 / uniffi territory).
+
+import std.mobile
+
+@query fn list_entries() to int { return 0 }
+
+@mutation fn record_entry(text: str, mood: int) to int { return 0 }
+
+@mutation fn on_back() to bool { return false }
+
+@mutation fn on_push_token(token: str) to int { return 0 }
+
+@back_button {
+    on_press: on_back
+}
+
+@push {
+    on_register: on_push_token
+}
+
+@form NewEntry {
+    field text: str required label("Entry text") max_len(280)
+    field mood: int required label("Mood (1-10)")
+    on_submit: record_entry
+}
+
+component EntryCard(label: str) {
+    view: panel() {
+        text() { label }
+    }
+}
+
+component Home() {
+    state items = ["Felt good today", "Workout done", "Reading more"]
+    state count: int = 0
+
+    view: column() {
+        heading(level=1) { "Tracker" }
+        text() { "Entries:" }
+        for item, i in items key=item {
+            EntryCard(label=item)
+        }
+        button(on_click={count = count + 1}) { "Bump counter" }
+        button(on_click={fn() { mobile.notify("Reminder", "Time to log") }}) { "Notify" }
+    }
+}
+
+component Entry() {
+    view: column() {
+        heading(level=1) { "New Entry" }
+        text() { "Tap to dictate or fill the form below." }
+        button(on_click={fn() { mobile.transcribe_microphone() }}) { "Dictate" }
+    }
+}
+
+component Detail() {
+    view: column() {
+        heading(level=1) { "Detail" }
+        text() { "Single entry view" }
+    }
+}
+
+routes {
+    "/" to Home
+    "/entry" to Entry
+    "/detail/:id" to Detail
+}

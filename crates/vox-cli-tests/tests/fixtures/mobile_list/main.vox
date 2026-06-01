@@ -1,0 +1,15 @@
+// VUV for-loop with key — must render as `{items.map(...)}` in RN with proper
+// View/Text wrapping and key injection. Regression gate for the split-brain bug
+// where shared HIR-to-TS emit produced `<div>`/`<p>` inside the RN tree.
+component TodoList() {
+    state items = ["Buy groceries", "Read paper", "Walk dog"]
+
+    view: column() {
+        heading(level=1) { "Todos" }
+        for item, i in items key=item {
+            panel() {
+                text() { item }
+            }
+        }
+    }
+}

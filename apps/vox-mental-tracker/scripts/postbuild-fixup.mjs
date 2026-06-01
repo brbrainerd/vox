@@ -2,15 +2,16 @@
 /**
  * Post-vox-build codegen fixups.
  *
- * All codegen gaps previously patched here have landed in the compiler:
- * - §1.A.3 `.length()` → `.length`: fixed in vox-compiler (EmitCtx refactor, 2026-05-08).
- * - §1.A.1/§1.A.2 handler body invocation + async await: fixed in vox-compiler (2026-05-08).
+ * Now a no-op. Every prior patch has landed in the Vox compiler:
+ * - handler invocation / async await / `.length()` → `.length`
+ * - runtime globals via the emitted `dist/runtime-install.ts`
+ * - the web bootstrap (entry.tsx / vox-app.tsx) is emitted
+ * - app glue (error boundary + service-worker registration) is emitted into the
+ *   default `dist/app-hooks.tsx` (wiring `dist/vox-error-boundary.tsx` +
+ *   `dist/vox-sw-register.ts`), so this app needs no hand-written TypeScript and
+ *   no app-hooks override.
  *
- * This script is now a no-op. It remains in place as a hook point for future
- * emergency patches; once we confirm the app is fully compiler-driven, it can
- * be removed alongside the `postbuild` npm script entry.
- *
- * Other globals (`Speech.transcribe_microphone`, `str(...)`, `std.time.now_ms()`, etc.)
- * resolve via globals installed in src/runtime.ts — tracked as §1.B.1.
+ * Kept as a build hook point; remove alongside the `build:fixup` script once we
+ * confirm no future emergency patch is needed.
  */
-console.log("postbuild-fixup: no patches needed (all gaps closed in compiler)");
+console.log("postbuild-fixup: no patches needed (app is fully Vox-generated)");

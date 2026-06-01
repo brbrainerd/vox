@@ -53,6 +53,12 @@ pub struct CodegenOptions {
     pub mode: BuildMode,
     /// Fail TS codegen when AI fixtures are present but not lowered (`VOX_TS_STRICT_AI` when using [`Self::from_env`]).
     pub strict_ai: bool,
+    /// Skip emitting the web bootstrap (`entry.tsx` / `vox-app.tsx` /
+    /// `runtime-install.ts` / default `app-hooks.tsx`). For external-React
+    /// consumers (interop Phase 5) that own their own root and only want the
+    /// components + routes manifest + client. Default `false` (emit-by-default,
+    /// RN parity). `VOX_WEB_NO_EMIT_ENTRY=1` via [`Self::from_env`].
+    pub no_emit_entry: bool,
 }
 
 impl CodegenOptions {
@@ -69,8 +75,18 @@ impl CodegenOptions {
             target: None,
             mode: BuildMode::App,
             strict_ai: crate::web_migration_env::ts_strict_ai_gate_enabled(),
+            no_emit_entry: crate::web_migration_env::no_emit_entry_gate_enabled(),
         }
     }
+}
+
+/// Whether the web target should skip emitting the bootstrap (env
+/// `VOX_WEB_NO_EMIT_ENTRY`). Public re-export of the dedicated web-migration env
+/// gate so the CLI resolves the same flag through one module instead of reading
+/// `VOX_*` ad hoc in consumer code.
+#[must_use]
+pub fn no_emit_entry_from_env() -> bool {
+    crate::web_migration_env::no_emit_entry_gate_enabled()
 }
 
 /// Generate TypeScript files from a Vox module (options from [`CodegenOptions::from_env`]).
@@ -257,12 +273,10 @@ pub fn generate_with_options(
     // Emit @form React components (Task C3).
     let forms_content: String = hir.forms.iter().map(super::form_emit::emit_form).collect();
     if !forms_content.is_empty() {
-        let needs_navigate = hir.forms.iter().any(|f| f.success_redirect.is_some());
-        let navigate_import = if needs_navigate {
-            "import { useNavigate } from '@tanstack/react-router';\n"
-        } else {
-            ""
-        };
+        // Forms redirect via the history API (router-agnostic), so no router
+        // library import is needed — works with the Vox-emitted dependency-free
+        // router and with react-router/@tanstack (both observe `popstate`).
+        let navigate_import = "";
         // Collect all `on_submit` endpoint references so they can be imported from vox-client.
         // Without this import, tsc reports "Cannot find name 'submit_item'" etc.
         let mut submit_imports: std::collections::BTreeSet<String> =
@@ -292,9 +306,16 @@ pub fn generate_with_options(
     // go through the `@vox/runtime` adapter contract so the same emitted source runs
     // on desktop (Tauri) and mobile (RN + Expo). The `target` string selects which
     // npm package the runtime is imported from (`@vox/runtime` vs `@vox/runtime-rn`).
-    if let Some(mobile_content) =
-        super::mobile_emit::emit_mobile_setup_for_target(&bundle.shell, options.target.as_deref())
-    {
+    let endpoint_param0: std::collections::HashMap<String, String> = hir
+        .endpoint_fns
+        .iter()
+        .filter_map(|e| e.params.first().map(|p| (e.name.clone(), p.name.clone())))
+        .collect();
+    if let Some(mobile_content) = super::mobile_emit::emit_mobile_setup_for_target(
+        &bundle.shell,
+        options.target.as_deref(),
+        &endpoint_param0,
+    ) {
         files.push(("mobile.ts".into(), mobile_content));
     }
 
@@ -403,8 +424,50 @@ pub fn generate_with_options(
             )?,
         )
     };
+    let has_route_manifest = route_manifest.is_some();
     if let Some(manifest) = route_manifest {
         files.push((manifest_filename.to_string(), manifest));
+    }
+
+    // Stage 1 (web-bootstrap migration): emit `vox-app.tsx` — the runnable web
+    // app root. When routes are declared it renders the dependency-free history
+    // router over the emitted `routes.manifest`; otherwise it flat-mounts the
+    // first component (RN-parity bootstrap). Skipped for Library mode (consumers
+    // own their root) and when there are no components to mount.
+    if options.mode != BuildMode::Library && !options.no_emit_entry && !hir.components.is_empty() {
+        let root_component = hir.components.first().map(|c| c.name.as_str());
+        files.push((
+            crate::codegen_ts::web_entry::VOX_APP_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_web_app(has_route_manifest, root_component),
+        ));
+        // Stage 2: emit the browser runtime-global install (Speech/std/mobile/
+        // str/len shims) so emitted bare references resolve. Side-effect module
+        // imported by entry.tsx (Stage 3).
+        files.push((
+            crate::codegen_ts::web_entry::RUNTIME_INSTALL_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_runtime_install(),
+        ));
+        // Stage 3: emit the web entry point. Mounts <VoxApp/> to #root and
+        // delegates app glue to the app-owned src/app-hooks.ts.
+        files.push((
+            crate::codegen_ts::web_entry::ENTRY_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_web_entry(),
+        ));
+        // Default app hooks (wires the generic error boundary + PWA SW register
+        // below) so entry.tsx's `./app-hooks` import always resolves and a fresh
+        // app needs no hand-written glue; apps may override it post-build.
+        files.push((
+            crate::codegen_ts::web_entry::APP_HOOKS_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_app_hooks_default(),
+        ));
+        files.push((
+            crate::codegen_ts::web_entry::ERROR_BOUNDARY_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_error_boundary(),
+        ));
+        files.push((
+            crate::codegen_ts::web_entry::SW_REGISTER_FILENAME.to_string(),
+            crate::codegen_ts::web_entry::emit_sw_register(),
+        ));
     }
 
     // GA-09a: typed RouteId module (routes.ts) — emitted whenever routes are declared.

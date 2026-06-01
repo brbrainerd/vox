@@ -35,6 +35,8 @@ const CMD_WORKFLOW_AWAIT = "vox_runtime_workflow_await";
 const CMD_WORKFLOW_SUSPEND = "vox_runtime_workflow_suspend";
 const CMD_WORKFLOW_RESUME = "vox_runtime_workflow_resume";
 const CMD_INFER = "vox_runtime_infer";
+const CMD_RECORD_MUTATION = "vox_runtime_record_mutation";
+const CMD_REPLAY_TABLE = "vox_runtime_replay_table";
 const CMD_REQUEST_PUSH = "vox_runtime_request_push_registration";
 const CMD_EXIT = "plugin:process|exit";
 
@@ -273,6 +275,29 @@ class TauriVoxRuntime implements VoxRuntime {
     } catch (e) {
       throw asRuntimeError(e);
     }
+  }
+
+  // ── On-device durable persistence ─────────────────────────────────────────
+
+  async recordMutation(name: string, table: string, row: unknown): Promise<void> {
+    try {
+      await invoke(CMD_RECORD_MUTATION, { name, table, row });
+    } catch (e) {
+      throw asRuntimeError(e);
+    }
+  }
+
+  async replayTable(table: string): Promise<unknown[]> {
+    try {
+      return await invoke<unknown[]>(CMD_REPLAY_TABLE, { table });
+    } catch (e) {
+      throw asRuntimeError(e);
+    }
+  }
+
+  uuid(): string {
+    // The desktop webview has a standards `crypto.randomUUID`.
+    return globalThis.crypto.randomUUID();
   }
 }
 

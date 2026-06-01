@@ -1,0 +1,7 @@
+extra_args = ["--target", "mobile"]
+emits_rust_backend = false
+required = [
+  "TodoList.tsx",
+  "App.tsx",
+  "app.json",
+]

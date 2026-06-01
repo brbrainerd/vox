@@ -76,7 +76,6 @@ mod tests {
             ],
             is_pub: true,
             is_deprecated: false,
-            primary_key: "id".to_string(),
             span: Span::new(0, 0),
         }
     }
@@ -364,7 +363,6 @@ mod tests {
             rate_limit: None,
             pii: None,
             layer: None,
-            stream_interval: None,
             span: sp,
         });
         module.endpoint_fns.push(HirEndpointFn {
@@ -385,7 +383,6 @@ mod tests {
             rate_limit: None,
             pii: None,
             layer: None,
-            stream_interval: None,
             span: sp,
         });
 
@@ -421,7 +418,6 @@ mod tests {
             rate_limit: None,
             pii: None,
             layer: None,
-            stream_interval: None,
             span: sp,
         });
 

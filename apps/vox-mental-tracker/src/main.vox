@@ -66,6 +66,16 @@ type ParsedVoice {
     return record_health_event(event_kind, payload_json, event_at, source, "", of_event_id, tz_iana, tz_offset_minutes)
 }
 
+/// Append-only delete: tombstone the row `of_event_id` by recording a `_deleted`
+/// sentinel whose `correction_of` points at it. The materializer collapses the
+/// pair — the target is superseded and the tombstone is kind-hidden — so the
+/// event disappears from the timeline, weekly rollup, and clinical export
+/// without ever mutating or removing a physical row (db.Delete is unsupported
+/// on-device). Returns the tombstone's own event id.
+@mutation fn record_deletion(of_event_id: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    return record_health_event("_deleted", "{}", "", "app", "", of_event_id, tz_iana, tz_offset_minutes)
+}
+
 @mutation fn record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
     let tid = std.crypto.uuid()
     let ms = std.time.now_ms()
@@ -83,10 +93,7 @@ type ParsedVoice {
 /// returns the supplied default on any parse failure.
 fn _parse_int_default(s: str, default_value: int) to int {
     return match std.json.parse("{\"v\":" + s + "}") {
-        Ok(j) => match j.get_int("v") {
-            Ok(n) => n
-            Error(_) => default_value
-        }
+        Ok(j) => j.get("v").and_then(fn(x: Json) to Option[int] { x.as_int() }).unwrap_or(default_value)
         Error(_) => default_value
     }
 }
@@ -123,6 +130,62 @@ fn _is_superseded_in(check_id: str, rows: List[HealthEventLog]) to bool {
     return found
 }
 
+/// Sentinel `event_kind` written by `record_deletion` to tombstone a prior row.
+/// A tombstone supersedes its target (its `correction_of` points at the target,
+/// so the target fails `_is_effective`) AND is itself hidden — nothing references
+/// the tombstone's own id, so without this kind-check it would leak into the
+/// timeline / rollup / export as a bare "_deleted" row.
+fn _is_effective(r: HealthEventLog, rows: List[HealthEventLog]) to bool {
+    return r.event_kind != "_deleted" and not _is_superseded_in(r.event_id, rows)
+}
+
+/// In-memory HealthEventLog value for unit tests (no db insert). Defaults the
+/// non-salient fields so each test only states the id / kind / correction_of
+/// that the assertion turns on.
+fn _mk_test_event(event_id: str, event_kind: str, correction_of: str) to HealthEventLog {
+    return {
+        event_id: event_id,
+        event_kind: event_kind,
+        schema_version: 1,
+        payload_json: "{}",
+        event_at: "0",
+        recorded_at: "0",
+        recorded_at_monotonic: 0,
+        tz_iana: "UTC",
+        tz_offset_minutes: 0,
+        source: "test",
+        raw_transcript_id: "",
+        correction_of: correction_of,
+    }
+}
+
+@test
+fn test_effective_plain_event_is_visible() to Unit {
+    let e = _mk_test_event("e1", "mood_recorded", "")
+    let rows = [e]
+    assert(_is_effective(e, rows))
+}
+
+@test
+fn test_effective_deletion_hides_target_and_tombstone() to Unit {
+    let target = _mk_test_event("e1", "mood_recorded", "")
+    let tomb = _mk_test_event("t1", "_deleted", "e1")
+    let rows = [target, tomb]
+    // Target is superseded by the tombstone → hidden.
+    assert(not _is_effective(target, rows))
+    // Tombstone itself is hidden by its sentinel kind → never leaks into views.
+    assert(not _is_effective(tomb, rows))
+}
+
+@test
+fn test_effective_correction_supersedes_original_but_stays_visible() to Unit {
+    let original = _mk_test_event("e1", "mood_recorded", "")
+    let correction = _mk_test_event("e2", "mood_recorded", "e1")
+    let rows = [original, correction]
+    assert(not _is_effective(original, rows))
+    assert(_is_effective(correction, rows))
+}
+
 @test
 fn test_is_backdated_over_threshold() to Unit {
     assert(_is_backdated("1000000", "1301000"))
@@ -130,12 +193,12 @@ fn test_is_backdated_over_threshold() to Unit {
 
 @test
 fn test_is_backdated_under_threshold() to Unit {
-    assert(!_is_backdated("1000000", "1299999"))
+    assert(not _is_backdated("1000000", "1299999"))
 }
 
 @test
 fn test_is_backdated_zero_event_at() to Unit {
-    assert(!_is_backdated("0", "999999"))
+    assert(not _is_backdated("0", "999999"))
 }
 
 @test
@@ -232,7 +295,7 @@ fn test_csv_quote_inner_quotes() to Unit {
             let mut exercises = 0
             let mut notes = 0
             for r in rows {
-                if !_is_superseded_in(r.event_id, rows) {
+                if _is_effective(r, rows) {
                     total = total + 1
                     if r.event_kind == "mood_recorded" { moods = moods + 1 }
                     if r.event_kind == "meal_recorded" { meals = meals + 1 }
@@ -242,7 +305,8 @@ fn test_csv_quote_inner_quotes() to Unit {
                     if r.event_kind == "note_recorded" { notes = notes + 1 }
                 }
             }
-            "{\"window_days\":7,\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
+            let result = "{\"window_days\":7,\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
+            result
         }
         Error(_) => "{\"error\":\"db\"}"
     }
@@ -256,14 +320,16 @@ fn test_csv_quote_inner_quotes() to Unit {
             let mut out = "["
             let mut first = true
             for r in rows {
-                if !_is_superseded_in(r.event_id, rows) {
+                if _is_effective(r, rows) {
                     if first { first = false } else { out = out + "," }
                     let backdated = _is_backdated(r.event_at, r.recorded_at)
                     let pj = r.payload_json.replace("\\", "\\\\").replace("\"", "\\\"")
-                    out = out + "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\",\"is_backdated\":" + str(backdated) + "}"
+                    let chunk = "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\",\"is_backdated\":" + str(backdated) + "}"
+                    out = out + chunk
                 }
             }
-            out + "]"
+            let result = out + "]"
+            result
         }
         Error(_) => "[]"
     }
@@ -277,7 +343,7 @@ fn test_csv_quote_inner_quotes() to Unit {
         Ok(rows) => {
             let mut out = header
             for r in rows {
-                if !_is_superseded_in(r.event_id, rows) {
+                if _is_effective(r, rows) {
                     let backdated = _is_backdated(r.event_at, r.recorded_at)
                     let mut row = _csv_quote(r.event_id) + "," + _csv_quote(r.event_kind) + "," + str(r.schema_version)
                     row = row + "," + _csv_quote(r.payload_json) + "," + _csv_quote(r.event_at) + "," + _csv_quote(r.recorded_at)
@@ -298,7 +364,15 @@ fn test_csv_quote_inner_quotes() to Unit {
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
     match db.HealthEventLog.all() {
-        Ok(rows) => "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256\":\"" + hash + "\",\"row_count\":" + str(len(rows)) + "}"
+        Ok(rows) => {
+            // row_count tracks the EFFECTIVE rows in the CSV the hash is taken
+            // over — exclude tombstones + superseded rows so metadata matches.
+            let mut eff = 0
+            for r in rows {
+                if _is_effective(r, rows) { eff = eff + 1 }
+            }
+            "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256\":\"" + hash + "\",\"row_count\":" + str(eff) + "}"
+        }
         Error(_) => "{\"error\":\"db\"}"
     }
 }
@@ -308,7 +382,10 @@ fn test_csv_quote_inner_quotes() to Unit {
     let summary = weekly_summary_json()
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
-    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>body{font-family:system-ui;margin:24px;}pre{white-space:pre-wrap;overflow-x:auto;font-size:12px;}</style></head><body>"
+    let lbrace = "{"
+    let rbrace = "}"
+    let css = "body" + lbrace + "font-family:system-ui;margin:24px;" + rbrace + "pre" + lbrace + "white-space:pre-wrap;overflow-x:auto;font-size:12px;" + rbrace
+    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>" + css + "</style></head><body>"
     body = body + "<h1>Clinical export</h1><p>Generated (UTC ms): " + str(std.time.now_ms()) + "</p><p>Content SHA-256: <code>" + hash + "</code></p>"
     body = body + "<h2>Weekly summary</h2><pre>" + summary + "</pre>"
     body = body + "<h2>Methodology</h2><p>Append-only event log. Rows whose <code>correction_of</code> references a prior row supersede that row. <code>is_backdated</code> is set when <code>recorded_at − event_at &gt; 5 min</code>.</p>"
@@ -334,6 +411,16 @@ fn test_csv_quote_inner_quotes() to Unit {
     on_submit: save_mood
     success_redirect: "/timeline"
     error_message: "Couldn't save mood. Try again."
+}
+
+/// Routable page wrapping the `Mood` @form (forms can't be route targets
+/// directly — a route needs a component with a view root).
+component MoodPage() {
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Log your mood" }
+        Mood()
+    }
 }
 
 component NavBar() {
@@ -532,8 +619,6 @@ component VoicePage() {
     }
 }
 
-@mutation fn record_crash_report(json: str) to int { return 0 }
-
 @table type CrashReport {
     id: int
     error: str
@@ -542,13 +627,108 @@ component VoicePage() {
     route: str
 }
 
-@mutation fn store_push_token(token: str) to int {
-    return record_push_token_internal(token)
+/// Parse a flat `{"error":..,"stack":..,"route":..}` crash payload and persist
+/// it. Returns 1 on a durable write, 0 if the payload was unparseable or the
+/// insert failed — callers treat any non-positive result as "not recorded".
+@mutation fn record_crash_report(json: str) to int {
+    match std.json.parse(json) {
+        Ok(j) => {
+            let err = j.get("error").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            let stack = j.get("stack").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            let route = j.get("route").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            match db.CrashReport.insert({
+                id: 0,
+                error: err,
+                stack: stack,
+                ts: str(std.time.now_ms()),
+                route: route,
+            }) {
+                Ok(_) => 1
+                Error(_) => 0
+            }
+        }
+        Error(_) => 0
+    }
 }
 
-@mutation fn handle_push_payload(json: str) to int { return 0 }
+@table type PushToken {
+    id: int
+    token: str
+    registered_at: str
+}
 
-@mutation fn handle_push_tap(json: str) to int { return 0 }
+/// Persist a device push-registration token. Returns 1 on a durable write,
+/// 0 if the insert failed. This is the on-device record of "this install can
+/// receive notifications"; the export/clinical surfaces don't touch it.
+@mutation fn store_push_token(token: str) to int {
+    match db.PushToken.insert({
+        id: 0,
+        token: token,
+        registered_at: str(std.time.now_ms()),
+    }) {
+        Ok(_) => 1
+        Error(_) => 0
+    }
+}
+
+/// Engagement/adherence log for push interactions. Kept deliberately separate
+/// from HealthEventLog so it never leaks into the clinical CSV/HTML export
+/// (§3.B/§3.C), while still being durable on-device data — "did the reminder
+/// land, and did the user act on it" is meaningful for a mental-health tool.
+@table type NotificationLog {
+    id: int
+    kind: str
+    title: str
+    body: str
+    action_id: str
+    payload_json: str
+    occurred_at: str
+}
+
+/// `on_notification` — a push was delivered to the device. Records a
+/// "received" engagement row from the `{title, body}` payload. Returns 1 on a
+/// durable write, 0 on parse/insert failure.
+@mutation fn handle_push_payload(json: str) to int {
+    return _record_notification("received", json, "")
+}
+
+/// `on_action` — the user tapped a notification (action). Records a "tapped"
+/// row, preserving which action button fired via `action_id`. Returns 1 on a
+/// durable write, 0 on parse/insert failure.
+@mutation fn handle_push_tap(json: str) to int {
+    match std.json.parse(json) {
+        Ok(j) => {
+            let action_id = j.get("action_id").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            return _record_notification("tapped", json, action_id)
+        }
+        Error(_) => return 0
+    }
+}
+
+/// Shared insert path for both push handlers. Parses `{title, body}` out of the
+/// raw payload (retained verbatim in `payload_json` for forensics) and writes
+/// one NotificationLog row.
+fn _record_notification(kind: str, json: str, action_id: str) to int {
+    match std.json.parse(json) {
+        Ok(j) => {
+            let title = j.get("title").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            let body = j.get("body").and_then(fn(x: Json) to Option[str] { x.as_str() }).unwrap_or("")
+            match db.NotificationLog.insert({
+                id: 0,
+                kind: kind,
+                title: title,
+                body: body,
+                action_id: action_id,
+                payload_json: json,
+                occurred_at: str(std.time.now_ms()),
+            }) {
+                Ok(_) => 1
+                Error(_) => 0
+            }
+        }
+        Error(_) => 0
+    }
+}
 
 @push {
     on_register: store_push_token
@@ -567,7 +747,7 @@ component SettingsPage() {
 
 routes {
     "/" to Home
-    "/mood" to Mood
+    "/mood" to MoodPage
     "/timeline" to TimelinePage
     "/weekly" to WeeklyPage
     "/export" to ExportPage

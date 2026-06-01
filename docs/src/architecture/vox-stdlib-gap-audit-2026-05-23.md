@@ -52,7 +52,7 @@ primary author" pitch: the corpus an LLM would learn from does not run.
 
 ## 2. Reproduction matrix
 
-All probes live under `tmp/vox-audit-probes/` (not
+All probes live under `tmp/vox-audit-probes/` (a transient local scratch dir, not
 committed). Each one is 5–10 lines of `.vox`. Run with
 `vox run --mode interp tmp/vox-audit-probes/<file>.vox` unless noted.
 

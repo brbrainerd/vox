@@ -24,7 +24,7 @@
 
 use crate::codegen_ts::hir_emit::{
     EmitCtx, emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
-    map_hir_type_to_ts,
+    map_hir_type_to_ts, wrap_effect_body_if_async,
 };
 use crate::web_ir::{WebIrDiagnostic, WebIrModule};
 use std::collections::HashSet;
@@ -687,7 +687,11 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
 
 /// Walk an HIR expression tree and collect names of free-fn calls that match a known
 /// set of identifiers (used for @endpoint imports — see [`generate_reactive_component`]).
-fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
+pub(crate) fn collect_callee_refs(
+    expr: &HirExpr,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
     match expr {
         HirExpr::Call(callee, args, _, _) => {
             if let HirExpr::Ident(name, _) = callee.as_ref() {
@@ -765,7 +769,11 @@ fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSe
     }
 }
 
-fn collect_callee_refs_stmt(stmt: &HirStmt, known: &HashSet<String>, out: &mut HashSet<String>) {
+pub(crate) fn collect_callee_refs_stmt(
+    stmt: &HirStmt,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
     match stmt {
         HirStmt::Expr { expr, .. }
         | HirStmt::Let { value: expr, .. }
@@ -790,7 +798,11 @@ fn collect_callee_refs_stmt(stmt: &HirStmt, known: &HashSet<String>, out: &mut H
 
 /// Walk an HIR expression tree and collect uppercase JSX tag names that correspond
 /// to known Vox components. Used to emit cross-component import statements.
-fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
+pub(crate) fn collect_jsx_component_refs(
+    expr: &HirExpr,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
     match expr {
         HirExpr::Jsx(el) => {
             if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
@@ -834,7 +846,7 @@ fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut
     }
 }
 
-fn collect_jsx_component_refs_stmt(
+pub(crate) fn collect_jsx_component_refs_stmt(
     stmt: &HirStmt,
     known: &HashSet<String>,
     out: &mut HashSet<String>,
@@ -846,6 +858,57 @@ fn collect_jsx_component_refs_stmt(
         HirStmt::Return { value: Some(v), .. } => collect_jsx_component_refs(v, known, out),
         _ => {}
     }
+}
+
+/// Single source of truth for a component's cross-file import sets, shared by
+/// the web (reactive) and React-Native component emitters so they never drift.
+///
+/// Walks the `view:` expression AND every member body — state initialisers,
+/// derived expressions, effects, `on mount` / `on cleanup`, and prelude
+/// statements — collecting:
+/// - sibling component refs (PascalCase JSX tags in `known_components`), and
+/// - endpoint-fn refs (free-fn calls in `endpoint_names`).
+///
+/// Self-references are removed. Both vectors are returned sorted for stable,
+/// deterministic emit. Walking member bodies (not just the view + prelude)
+/// matters because the common case — loading data in `on mount:` via a
+/// `@query` fn — would otherwise emit a call with no matching import.
+pub(crate) fn collect_component_import_refs(
+    rc: &HirReactiveComponent,
+    known_components: &HashSet<String>,
+    endpoint_names: &HashSet<String>,
+) -> (Vec<String>, Vec<String>) {
+    let mut comps: HashSet<String> = HashSet::new();
+    let mut endpoints: HashSet<String> = HashSet::new();
+
+    let mut visit = |e: &HirExpr, comps: &mut HashSet<String>, endpoints: &mut HashSet<String>| {
+        collect_jsx_component_refs(e, known_components, comps);
+        collect_callee_refs(e, endpoint_names, endpoints);
+    };
+
+    if let Some(view) = &rc.view {
+        visit(view, &mut comps, &mut endpoints);
+    }
+    for m in &rc.members {
+        match m {
+            HirReactiveMember::State(s) => visit(&s.init, &mut comps, &mut endpoints),
+            HirReactiveMember::Derived(d) => visit(&d.expr, &mut comps, &mut endpoints),
+            HirReactiveMember::Effect(e) => visit(&e.body, &mut comps, &mut endpoints),
+            HirReactiveMember::OnMount(o) => visit(&o.body, &mut comps, &mut endpoints),
+            HirReactiveMember::OnCleanup(o) => visit(&o.body, &mut comps, &mut endpoints),
+            HirReactiveMember::Stmt(s) => {
+                collect_jsx_component_refs_stmt(s, known_components, &mut comps);
+                collect_callee_refs_stmt(s, endpoint_names, &mut endpoints);
+            }
+        }
+    }
+
+    comps.remove(&rc.name);
+    let mut comps_v: Vec<String> = comps.into_iter().collect();
+    comps_v.sort();
+    let mut endpoints_v: Vec<String> = endpoints.into_iter().collect();
+    endpoints_v.sort();
+    (comps_v, endpoints_v)
 }
 
 /// `hir` must be the full module (imports, endpoints, `@reactive` callees, etc.).
@@ -900,45 +963,39 @@ pub fn generate_reactive_component(
         out.push('\n');
     }
 
-    // Emit import statements for other Vox components referenced in the view.
-    let known_components: HashSet<String> = hir.components.iter().map(|c| c.name.clone()).collect();
-    let mut comp_refs: HashSet<String> = HashSet::new();
-    if let Some(view_expr) = &rc.view {
-        collect_jsx_component_refs(view_expr, &known_components, &mut comp_refs);
-    }
-    // Also walk the view inside members (e.g. inline JSX in state initialisers).
-    for m in &rc.members {
-        if let HirReactiveMember::Stmt(s) = m {
-            collect_jsx_component_refs_stmt(s, &known_components, &mut comp_refs);
-        }
-    }
-    let mut sorted_refs: Vec<String> = comp_refs.into_iter().collect();
-    sorted_refs.sort();
+    // Cross-file imports — sibling components and endpoint fns this component
+    // references, anywhere in its view or member bodies. Shared with the RN
+    // emit via `collect_component_import_refs` so both targets agree.
+    // `@form` components (emitted into `forms.tsx`) are referenceable in a view
+    // too — e.g. a routable page wrapping a form: `component MoodPage { view: …
+    // Mood() }`. Include their names so the ref is recognized, and import them
+    // from `./forms` (not the per-component `./Name` convention).
+    let form_names: HashSet<String> = hir.forms.iter().map(|f| f.name.clone()).collect();
+    let known_components: HashSet<String> = hir
+        .components
+        .iter()
+        .map(|c| c.name.clone())
+        .chain(form_names.iter().cloned())
+        .collect();
+    let endpoint_names: HashSet<String> = hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
+    let (sorted_refs, endpoint_refs) =
+        collect_component_import_refs(rc, &known_components, &endpoint_names);
     for comp in &sorted_refs {
-        out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+        if form_names.contains(comp) {
+            out.push_str(&format!("import {{ {comp} }} from \"./forms\";\n"));
+        } else {
+            out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+        }
     }
     if !sorted_refs.is_empty() {
         out.push('\n');
     }
-
-    // Bug D: emit import for every @endpoint fn referenced from this component.
-    // Endpoint fns are exported from `vox-client.ts` (see [`crate::codegen_ts::vox_client`]).
-    let endpoint_names: HashSet<String> = hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
-    let mut endpoint_refs: HashSet<String> = HashSet::new();
-    if let Some(view_expr) = &rc.view {
-        collect_callee_refs(view_expr, &endpoint_names, &mut endpoint_refs);
-    }
-    for m in &rc.members {
-        if let HirReactiveMember::Stmt(s) = m {
-            collect_callee_refs_stmt(s, &endpoint_names, &mut endpoint_refs);
-        }
-    }
+    // Bug D: endpoint fns are exported from `vox-client.ts`
+    // (see [`crate::codegen_ts::vox_client`]).
     if !endpoint_refs.is_empty() {
-        let mut sorted: Vec<String> = endpoint_refs.into_iter().collect();
-        sorted.sort();
         out.push_str(&format!(
             "import {{ {} }} from \"./vox-client\";\n\n",
-            sorted.join(", ")
+            endpoint_refs.join(", ")
         ));
     }
 
@@ -972,8 +1029,22 @@ pub fn generate_reactive_component(
 
     // §1.A.2: build an emit context that threads endpoint (async) fn names into handler emission,
     // so calls to @endpoint fns inside onClick/onChange etc. receive `await`.
-    let plain_ctx = EmitCtx::new(&state_names);
-    let view_ctx = EmitCtx::with_async(&state_names, &endpoint_names);
+    // `endpoint_params` additionally drives the positional→named-object call
+    // rewrite (vox-client endpoint fns take a single args object); shared with
+    // the RN emit via `EmitCtx`.
+    let endpoint_params: std::collections::HashMap<String, Vec<String>> = hir
+        .endpoint_fns
+        .iter()
+        .map(|e| {
+            (
+                e.name.clone(),
+                e.params.iter().map(|p| p.name.clone()).collect(),
+            )
+        })
+        .collect();
+    let plain_ctx = EmitCtx::with_endpoints(&state_names, &endpoint_params);
+    let view_ctx =
+        EmitCtx::with_async_and_endpoints(&state_names, &endpoint_names, &endpoint_params);
 
     for member in &rc.members {
         match member {
@@ -1000,7 +1071,11 @@ pub fn generate_reactive_component(
                 ));
             }
             HirReactiveMember::Effect(e) => {
-                let stmts_str = emit_block_stmts(&e.body, &plain_ctx, 2);
+                // Async-aware ctx (`view_ctx`) so calls to async @endpoint fns
+                // get `await`; the body is then wrapped in a fire-and-forget
+                // async IIFE since the useEffect callback must stay sync.
+                let stmts_str = emit_block_stmts(&e.body, &view_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts_str, 2);
                 let analysis = extract_state_deps_with_diagnostics(
                     &e.body,
                     &state_names,
@@ -1011,19 +1086,18 @@ pub fn generate_reactive_component(
                 let dep_str = analysis.deps.join(", ");
                 out.push_str(&format!(
                     "  useEffect(() => {{\n{}  }}, [{}]);\n",
-                    stmts_str, dep_str
+                    body, dep_str
                 ));
             }
             HirReactiveMember::OnMount(m) => {
-                let stmts_str = emit_block_stmts(&m.body, &plain_ctx, 2);
-                out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", stmts_str));
+                let stmts_str = emit_block_stmts(&m.body, &view_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts_str, 2);
+                out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", body));
             }
             HirReactiveMember::OnCleanup(c) => {
-                let stmts_str = emit_block_stmts(&c.body, &plain_ctx, 2);
-                out.push_str(&format!(
-                    "  useEffect(() => () => {{\n{}  }}, []);\n",
-                    stmts_str
-                ));
+                let stmts_str = emit_block_stmts(&c.body, &view_ctx, 2);
+                let body = wrap_effect_body_if_async(&stmts_str, 2);
+                out.push_str(&format!("  useEffect(() => () => {{\n{}  }}, []);\n", body));
             }
             HirReactiveMember::Stmt(s) => {
                 out.push_str(&emit_hir_stmt(s, &plain_ctx, 2));
@@ -1031,9 +1105,21 @@ pub fn generate_reactive_component(
         }
     }
 
-    if rc.view.is_some() {
+    if let Some(view_expr) = &rc.view {
         let view_js = emit_reactive_view_body(name, rc, &view_ctx, web_projection, stats);
-        out.push_str(&format!("  return (\n{}\n  );\n", view_js));
+        // Screen-root components get default horizontal edge padding (`px-4` =
+        // 16px, matching the RN target's paddingHorizontal:16) unless the root
+        // view opts out with `bleed`. Same screen-root set + opt-out rule as RN.
+        let pad_screen = crate::codegen_ts::screen_root_component_names(hir).contains(name)
+            && !crate::codegen_ts::rn::component::root_view_bleeds(view_expr);
+        if pad_screen {
+            out.push_str(&format!(
+                "  return (\n    <div className=\"px-4\">\n{}\n    </div>\n  );\n",
+                view_js
+            ));
+        } else {
+            out.push_str(&format!("  return (\n{}\n  );\n", view_js));
+        }
     }
 
     out.push_str("}\n");
