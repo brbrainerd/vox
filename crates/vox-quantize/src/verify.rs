@@ -1,8 +1,8 @@
 //! Round-trip error measurement and the report structs the engine returns.
 
 use crate::error::QuantizeError;
-use candle_core::quantized::QTensor;
 use candle_core::Tensor;
+use candle_core::quantized::QTensor;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -44,8 +44,8 @@ pub fn round_trip_max_abs(src: &Tensor, q: &QTensor) -> Result<f64, QuantizeErro
 #[cfg(test)]
 mod tests {
     use super::*;
-    use candle_core::{Device, Tensor};
     use candle_core::quantized::{GgmlDType, QTensor};
+    use candle_core::{Device, Tensor};
 
     #[test]
     fn q8_0_error_smaller_than_q4k() {

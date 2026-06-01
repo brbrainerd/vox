@@ -4,11 +4,11 @@
 //! [`verify`](crate::verify), and [`write`](crate::write) behind a single
 //! [`quantize`] entry point driven by a [`QuantizeRequest`].
 
-use crate::device::{select, DevicePref};
+use crate::device::{DevicePref, select};
 use crate::error::QuantizeError;
-use crate::policy::{resolve_dtype, QuantMixture, TensorRole};
+use crate::policy::{QuantMixture, TensorRole, resolve_dtype};
 use crate::read::SafeTensorsSource;
-use crate::verify::{round_trip_max_abs, round_trip_mse, QuantReport, TensorQuantStat};
+use crate::verify::{QuantReport, TensorQuantStat, round_trip_max_abs, round_trip_mse};
 use crate::write::ArtifactWriter;
 use candle_core::quantized::{GgmlDType, QTensor};
 use std::path::PathBuf;
@@ -154,7 +154,7 @@ mod tests {
     use super::*;
     use crate::device::DevicePref;
     use crate::policy::QuantMixture;
-    use candle_core::{Device, DType, Tensor};
+    use candle_core::{DType, Device, Tensor};
     use std::collections::HashMap;
 
     fn tiny_model(dir: &std::path::Path) {
@@ -164,11 +164,26 @@ mod tests {
         let w = |r, c| Tensor::randn(0f32, 1f32, (r, c), &dev).unwrap();
         let v = |n| Tensor::ones((n,), DType::F32, &dev).unwrap();
         t.insert("model.language_model.embed_tokens.weight".into(), w(512, d));
-        t.insert("model.language_model.layers.0.self_attn.q_proj.weight".into(), w(d, d));
-        t.insert("model.language_model.layers.0.self_attn.v_proj.weight".into(), w(d, d));
-        t.insert("model.language_model.layers.0.mlp.down_proj.weight".into(), w(d, d));
-        t.insert("model.language_model.layers.0.input_layernorm.weight".into(), v(d));
-        t.insert("model.language_model.layers.0.linear_attn.A_log".into(), v(d));
+        t.insert(
+            "model.language_model.layers.0.self_attn.q_proj.weight".into(),
+            w(d, d),
+        );
+        t.insert(
+            "model.language_model.layers.0.self_attn.v_proj.weight".into(),
+            w(d, d),
+        );
+        t.insert(
+            "model.language_model.layers.0.mlp.down_proj.weight".into(),
+            w(d, d),
+        );
+        t.insert(
+            "model.language_model.layers.0.input_layernorm.weight".into(),
+            v(d),
+        );
+        t.insert(
+            "model.language_model.layers.0.linear_attn.A_log".into(),
+            v(d),
+        );
         t.insert("model.language_model.norm.weight".into(), v(d));
         candle_core::safetensors::save(&t, dir.join("model.safetensors")).unwrap();
         std::fs::write(dir.join("config.json"),
@@ -188,14 +203,36 @@ mod tests {
             device: DevicePref::Cpu,
         };
         let report = quantize(&req).unwrap();
-        let by_name: std::collections::HashMap<_, _> =
-            report.tensors.iter().map(|s| (s.name.as_str(), s)).collect();
-        assert_eq!(by_name["model.language_model.layers.0.input_layernorm.weight"].target_dtype, "F32");
-        assert_eq!(by_name["model.language_model.layers.0.linear_attn.A_log"].target_dtype, "F32");
-        assert_eq!(by_name["model.language_model.layers.0.self_attn.q_proj.weight"].target_dtype, "Q4K");
-        assert_eq!(by_name["model.language_model.layers.0.mlp.down_proj.weight"].target_dtype, "Q6K");
-        assert_eq!(by_name["model.language_model.layers.0.self_attn.v_proj.weight"].target_dtype, "Q6K");
-        assert!(report.compression_ratio > 1.5, "ratio {}", report.compression_ratio);
+        let by_name: std::collections::HashMap<_, _> = report
+            .tensors
+            .iter()
+            .map(|s| (s.name.as_str(), s))
+            .collect();
+        assert_eq!(
+            by_name["model.language_model.layers.0.input_layernorm.weight"].target_dtype,
+            "F32"
+        );
+        assert_eq!(
+            by_name["model.language_model.layers.0.linear_attn.A_log"].target_dtype,
+            "F32"
+        );
+        assert_eq!(
+            by_name["model.language_model.layers.0.self_attn.q_proj.weight"].target_dtype,
+            "Q4K"
+        );
+        assert_eq!(
+            by_name["model.language_model.layers.0.mlp.down_proj.weight"].target_dtype,
+            "Q6K"
+        );
+        assert_eq!(
+            by_name["model.language_model.layers.0.self_attn.v_proj.weight"].target_dtype,
+            "Q6K"
+        );
+        assert!(
+            report.compression_ratio > 1.5,
+            "ratio {}",
+            report.compression_ratio
+        );
         assert!(report.worst_mse.is_finite());
         assert!(outdir.path().join("quant-metadata.json").exists());
         assert!(outdir.path().join("config.json").exists());
@@ -208,16 +245,27 @@ mod tests {
         let dev = candle_core::Device::Cpu;
         let w = |r, c| candle_core::Tensor::randn(0f32, 1f32, (r, c), &dev).unwrap();
         let mut s1 = std::collections::HashMap::new();
-        s1.insert("model.language_model.layers.0.mlp.gate_proj.weight".to_string(), w(256, 256));
+        s1.insert(
+            "model.language_model.layers.0.mlp.gate_proj.weight".to_string(),
+            w(256, 256),
+        );
         let mut s2 = std::collections::HashMap::new();
-        s2.insert("model.language_model.layers.0.mlp.up_proj.weight".to_string(), w(256, 256));
-        candle_core::safetensors::save(&s1, indir.path().join("model-00001-of-00002.safetensors")).unwrap();
-        candle_core::safetensors::save(&s2, indir.path().join("model-00002-of-00002.safetensors")).unwrap();
+        s2.insert(
+            "model.language_model.layers.0.mlp.up_proj.weight".to_string(),
+            w(256, 256),
+        );
+        candle_core::safetensors::save(&s1, indir.path().join("model-00001-of-00002.safetensors"))
+            .unwrap();
+        candle_core::safetensors::save(&s2, indir.path().join("model-00002-of-00002.safetensors"))
+            .unwrap();
         std::fs::write(indir.path().join("model.safetensors.index.json"),
             r#"{"weight_map":{"model.language_model.layers.0.mlp.gate_proj.weight":"model-00001-of-00002.safetensors","model.language_model.layers.0.mlp.up_proj.weight":"model-00002-of-00002.safetensors"}}"#).unwrap();
         let req = QuantizeRequest {
-            input_dir: indir.path().to_path_buf(), output_dir: outdir.path().to_path_buf(),
-            mixture: QuantMixture::Q4KM, verify: true, device: DevicePref::Cpu,
+            input_dir: indir.path().to_path_buf(),
+            output_dir: outdir.path().to_path_buf(),
+            mixture: QuantMixture::Q4KM,
+            verify: true,
+            device: DevicePref::Cpu,
         };
         let report = quantize(&req).unwrap();
         assert_eq!(report.tensors.len(), 2);
@@ -260,8 +308,11 @@ mod tests {
             device: DevicePref::Cpu,
         };
         let report = quantize(&req).unwrap();
-        let by_name: std::collections::HashMap<_, _> =
-            report.tensors.iter().map(|s| (s.name.as_str(), s)).collect();
+        let by_name: std::collections::HashMap<_, _> = report
+            .tensors
+            .iter()
+            .map(|s| (s.name.as_str(), s))
+            .collect();
 
         let gate = by_name["model.language_model.layers.0.mlp.gate_proj.weight"];
         assert_eq!(gate.target_dtype, "Q8_0");

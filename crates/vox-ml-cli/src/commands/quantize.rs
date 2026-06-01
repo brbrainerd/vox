@@ -1,7 +1,7 @@
 //! `vox quantize` — quantize a local SafeTensors model with vox-quantize.
 use std::path::PathBuf;
 
-use vox_quantize::{quantize, DevicePref, QuantMixture};
+use vox_quantize::{DevicePref, QuantMixture, quantize};
 
 #[derive(Debug, clap::Args)]
 pub struct QuantizeArgs {
@@ -97,7 +97,10 @@ mod tests {
 
     #[test]
     fn parse_mixture_maps_known_values() {
-        assert!(matches!(parse_mixture("q4_k_m").unwrap(), QuantMixture::Q4KM));
+        assert!(matches!(
+            parse_mixture("q4_k_m").unwrap(),
+            QuantMixture::Q4KM
+        ));
         assert!(matches!(parse_mixture("Q8_0").unwrap(), QuantMixture::Q8_0));
         assert!(parse_mixture("bogus").is_err());
     }

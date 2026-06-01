@@ -267,8 +267,7 @@ pub async fn run_train(
             let model_hint = effective_model
                 .as_deref()
                 .unwrap_or(vox_populi::mens::DEFAULT_MODEL_ID);
-            let requested_b =
-                memory_budget::params_b_from_model_hint(model_hint).unwrap_or(4.0);
+            let requested_b = memory_budget::params_b_from_model_hint(model_hint).unwrap_or(4.0);
             if let Some(vram_gb) = vox_populi::mens::tensor::vram_autodetect::get_system_vram_gb() {
                 let vram = vram_gb as f64;
                 // For Qwen3.5 models (including the default), let the ladder pick the

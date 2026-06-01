@@ -113,14 +113,35 @@ mod tests {
 
     #[test]
     fn role_classification_keeps_norms_f32() {
-        assert_eq!(TensorRole::from_key("model.language_model.layers.3.input_layernorm.weight"), TensorRole::KeepF32);
-        assert_eq!(TensorRole::from_key("model.language_model.layers.3.linear_attn.A_log"), TensorRole::KeepF32);
-        assert_eq!(TensorRole::from_key("model.language_model.layers.3.linear_attn.dt_bias"), TensorRole::KeepF32);
-        assert_eq!(TensorRole::from_key("model.language_model.layers.3.mlp.down_proj.weight"), TensorRole::DownProj);
-        assert_eq!(TensorRole::from_key("model.language_model.layers.3.self_attn.v_proj.weight"), TensorRole::VProj);
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.input_layernorm.weight"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.linear_attn.A_log"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.linear_attn.dt_bias"),
+            TensorRole::KeepF32
+        );
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.mlp.down_proj.weight"),
+            TensorRole::DownProj
+        );
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.self_attn.v_proj.weight"),
+            TensorRole::VProj
+        );
         assert_eq!(TensorRole::from_key("lm.head.weight"), TensorRole::Output);
-        assert_eq!(TensorRole::from_key("model.language_model.embed_tokens.weight"), TensorRole::Embedding);
-        assert_eq!(TensorRole::from_key("model.language_model.layers.3.mlp.gate_proj.weight"), TensorRole::Matrix);
+        assert_eq!(
+            TensorRole::from_key("model.language_model.embed_tokens.weight"),
+            TensorRole::Embedding
+        );
+        assert_eq!(
+            TensorRole::from_key("model.language_model.layers.3.mlp.gate_proj.weight"),
+            TensorRole::Matrix
+        );
     }
 
     #[test]

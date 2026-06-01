@@ -25,8 +25,8 @@ impl SafeTensorsSource {
         let mut map = HashMap::new();
         if index.exists() {
             let raw = std::fs::read_to_string(&index)?;
-            let idx: ShardIndex = serde_json::from_str(&raw)
-                .map_err(|e| QuantizeError::ShardIndex(e.to_string()))?;
+            let idx: ShardIndex =
+                serde_json::from_str(&raw).map_err(|e| QuantizeError::ShardIndex(e.to_string()))?;
             for (name, file) in idx.weight_map {
                 map.insert(name, dir.join(file));
             }
@@ -56,9 +56,9 @@ impl SafeTensorsSource {
             .get(name)
             .ok_or_else(|| QuantizeError::ReadModel(format!("tensor `{name}` not found")))?;
         let st = candle_core::safetensors::load(path, &Device::Cpu)?;
-        let t = st
-            .get(name)
-            .ok_or_else(|| QuantizeError::ReadModel(format!("tensor `{name}` missing from shard")))?;
+        let t = st.get(name).ok_or_else(|| {
+            QuantizeError::ReadModel(format!("tensor `{name}` missing from shard"))
+        })?;
         Ok(t.to_dtype(candle_core::DType::F32)?)
     }
 }
@@ -70,7 +70,10 @@ mod tests {
     use std::collections::HashMap;
 
     fn write_st(dir: &std::path::Path, name: &str, tensors: &[(&str, Tensor)]) {
-        let map: HashMap<String, Tensor> = tensors.iter().map(|(k, t)| (k.to_string(), t.clone())).collect();
+        let map: HashMap<String, Tensor> = tensors
+            .iter()
+            .map(|(k, t)| (k.to_string(), t.clone()))
+            .collect();
         candle_core::safetensors::save(&map, dir.join(name)).unwrap();
     }
 

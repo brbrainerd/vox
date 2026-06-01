@@ -15,7 +15,7 @@
 //! GPU step against the plugin reference.
 
 use candle_core::quantized::QMatMul;
-use candle_core::{DType, Device, Module, Tensor, D};
+use candle_core::{D, DType, Device, Module, Tensor};
 use candle_nn::RmsNorm;
 use vox_hf_layout::HfTransformerLayout;
 
@@ -168,10 +168,10 @@ impl FullAttention {
             let att = candle_nn::ops::softmax(&att, D::Minus1)?;
             att.matmul(&v.contiguous()?)?
         };
-        let y = y
-            .transpose(1, 2)?
-            .contiguous()?
-            .reshape((b, seq_len, self.n_heads * self.head_dim))?;
+        let y =
+            y.transpose(1, 2)?
+                .contiguous()?
+                .reshape((b, seq_len, self.n_heads * self.head_dim))?;
         self.o_proj.forward(&y)
     }
 
@@ -254,7 +254,10 @@ impl LinearAttention {
         Ok(x.broadcast_mul(&inv)?)
     }
 
-    fn causal_depthwise_conv_silu(x: &Tensor, conv_weight: &Tensor) -> Result<Tensor, ForwardError> {
+    fn causal_depthwise_conv_silu(
+        x: &Tensor,
+        conv_weight: &Tensor,
+    ) -> Result<Tensor, ForwardError> {
         let (b, s, c) = x.dims3()?;
         let k = conv_weight.dim(1)?;
         let dev = x.device();
@@ -291,12 +294,18 @@ impl LinearAttention {
             )));
         }
 
-        let query = mixed_qkv
-            .narrow(D::Minus1, 0, key_dim)?
-            .reshape((b, seq_len, self.num_k_heads, self.head_k_dim))?;
-        let key = mixed_qkv
-            .narrow(D::Minus1, key_dim, key_dim)?
-            .reshape((b, seq_len, self.num_k_heads, self.head_k_dim))?;
+        let query = mixed_qkv.narrow(D::Minus1, 0, key_dim)?.reshape((
+            b,
+            seq_len,
+            self.num_k_heads,
+            self.head_k_dim,
+        ))?;
+        let key = mixed_qkv.narrow(D::Minus1, key_dim, key_dim)?.reshape((
+            b,
+            seq_len,
+            self.num_k_heads,
+            self.head_k_dim,
+        ))?;
         let value = mixed_qkv
             .narrow(D::Minus1, key_dim + key_dim, value_dim)?
             .reshape((b, seq_len, self.num_v_heads, self.head_v_dim))?;
@@ -305,8 +314,11 @@ impl LinearAttention {
             .z_proj
             .forward(x)?
             .reshape((b, seq_len, self.num_v_heads, self.head_v_dim))?;
-        let beta = candle_nn::ops::sigmoid(&self.b_proj.forward(x)?)?
-            .reshape((b, seq_len, self.num_v_heads))?;
+        let beta = candle_nn::ops::sigmoid(&self.b_proj.forward(x)?)?.reshape((
+            b,
+            seq_len,
+            self.num_v_heads,
+        ))?;
         let a = self
             .a_proj
             .forward(x)?
@@ -454,10 +466,7 @@ impl QwenForward {
         // it, so we use the Qwen default; flagged as a numerical-parity consideration.
 
         // embed_tokens is quantized by SP-1 (role Embedding); dequantize for index_select.
-        let embed_key = format!(
-            "{}.embed_tokens.weight",
-            prefix.trim_end_matches(".layers")
-        );
+        let embed_key = format!("{}.embed_tokens.weight", prefix.trim_end_matches(".layers"));
         let embed_tokens = if let Some(q) = w.qmatmul(&embed_key) {
             dequantize_qmatmul(q, dev)?
         } else if let Some(t) = w.tensor(&embed_key) {
@@ -489,8 +498,7 @@ impl QwenForward {
                 .map(String::as_str)
                 .unwrap_or("full_attention");
 
-            let input_layernorm =
-                load_rmsnorm(w, &format!("{lp}.input_layernorm.weight"), eps)?;
+            let input_layernorm = load_rmsnorm(w, &format!("{lp}.input_layernorm.weight"), eps)?;
             let post_attention_layernorm =
                 load_rmsnorm(w, &format!("{lp}.post_attention_layernorm.weight"), eps)?;
 
@@ -575,10 +583,10 @@ impl QwenForward {
     pub fn forward(&mut self, input_ids: &Tensor, pos: usize) -> Result<Tensor, ForwardError> {
         let (b, seq_len) = input_ids.dims2()?;
         let ids = input_ids.flatten_all()?;
-        let mut x = self
-            .embed_tokens
-            .index_select(&ids, 0)?
-            .reshape((b, seq_len, self.hidden_size))?;
+        let mut x =
+            self.embed_tokens
+                .index_select(&ids, 0)?
+                .reshape((b, seq_len, self.hidden_size))?;
 
         for layer in &self.layers {
             x = layer.forward(&x, pos)?;
@@ -658,17 +666,47 @@ mod tests {
         );
 
         let mut t = std::collections::HashMap::new();
-        t.insert("model.language_model.embed_tokens.weight".into(), rand2(vocab, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.q_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.k_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.v_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.o_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.gate_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.up_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.down_proj.weight"), rand2(hidden, inter, &dev));
+        t.insert(
+            "model.language_model.embed_tokens.weight".into(),
+            rand2(vocab, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.q_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.k_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.v_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.o_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.gate_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.up_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.down_proj.weight"),
+            rand2(hidden, inter, &dev),
+        );
         t.insert(format!("{p}.0.input_layernorm.weight"), ones1(hidden, &dev));
-        t.insert(format!("{p}.0.post_attention_layernorm.weight"), ones1(hidden, &dev));
-        t.insert("model.language_model.norm.weight".into(), ones1(hidden, &dev));
+        t.insert(
+            format!("{p}.0.post_attention_layernorm.weight"),
+            ones1(hidden, &dev),
+        );
+        t.insert(
+            "model.language_model.norm.weight".into(),
+            ones1(hidden, &dev),
+        );
         t.insert("lm_head.weight".into(), rand2(vocab, hidden, &dev));
 
         let outdir = build_artifact(&cfg, &t, &dev);
@@ -716,23 +754,68 @@ mod tests {
         );
 
         let mut t = std::collections::HashMap::new();
-        t.insert("model.language_model.embed_tokens.weight".into(), rand2(vocab, hidden, &dev));
-        t.insert(format!("{p}.0.linear_attn.in_proj_qkv.weight"), rand2(qkv_out, hidden, &dev));
-        t.insert(format!("{p}.0.linear_attn.in_proj_z.weight"), rand2(value_dim, hidden, &dev));
-        t.insert(format!("{p}.0.linear_attn.in_proj_a.weight"), rand2(num_v_heads, hidden, &dev));
-        t.insert(format!("{p}.0.linear_attn.in_proj_b.weight"), rand2(num_v_heads, hidden, &dev));
-        t.insert(format!("{p}.0.linear_attn.out_proj.weight"), rand2(hidden, value_dim, &dev));
+        t.insert(
+            "model.language_model.embed_tokens.weight".into(),
+            rand2(vocab, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.in_proj_qkv.weight"),
+            rand2(qkv_out, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.in_proj_z.weight"),
+            rand2(value_dim, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.in_proj_a.weight"),
+            rand2(num_v_heads, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.in_proj_b.weight"),
+            rand2(num_v_heads, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.out_proj.weight"),
+            rand2(hidden, value_dim, &dev),
+        );
         // conv1d weight [channels=qkv_out, kernel]; KEEP-F32 (not a *.weight matmul role? it is Matrix-> but 2D kernel small). Keep as f32 by naming convention: conv1d.weight is Matrix role, but last dim = conv_k (4) -> not 256-aligned -> resolve_dtype falls back to F32. Good: loader puts it in f32 map.
-        t.insert(format!("{p}.0.linear_attn.conv1d.weight"), (Tensor::randn(0f32, 1f32, (qkv_out, conv_k), &dev).unwrap() * 0.1).unwrap());
-        t.insert(format!("{p}.0.linear_attn.dt_bias"), (Tensor::randn(0f32, 1f32, (num_v_heads,), &dev).unwrap() * 0.1).unwrap());
-        t.insert(format!("{p}.0.linear_attn.A_log"), Tensor::zeros((num_v_heads,), DType::F32, &dev).unwrap());
-        t.insert(format!("{p}.0.linear_attn.norm.weight"), ones1(head_v_dim, &dev));
-        t.insert(format!("{p}.0.mlp.gate_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.up_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.down_proj.weight"), rand2(hidden, inter, &dev));
+        t.insert(
+            format!("{p}.0.linear_attn.conv1d.weight"),
+            (Tensor::randn(0f32, 1f32, (qkv_out, conv_k), &dev).unwrap() * 0.1).unwrap(),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.dt_bias"),
+            (Tensor::randn(0f32, 1f32, (num_v_heads,), &dev).unwrap() * 0.1).unwrap(),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.A_log"),
+            Tensor::zeros((num_v_heads,), DType::F32, &dev).unwrap(),
+        );
+        t.insert(
+            format!("{p}.0.linear_attn.norm.weight"),
+            ones1(head_v_dim, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.gate_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.up_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.down_proj.weight"),
+            rand2(hidden, inter, &dev),
+        );
         t.insert(format!("{p}.0.input_layernorm.weight"), ones1(hidden, &dev));
-        t.insert(format!("{p}.0.post_attention_layernorm.weight"), ones1(hidden, &dev));
-        t.insert("model.language_model.norm.weight".into(), ones1(hidden, &dev));
+        t.insert(
+            format!("{p}.0.post_attention_layernorm.weight"),
+            ones1(hidden, &dev),
+        );
+        t.insert(
+            "model.language_model.norm.weight".into(),
+            ones1(hidden, &dev),
+        );
         t.insert("lm_head.weight".into(), rand2(vocab, hidden, &dev));
 
         let outdir = build_artifact(&cfg, &t, &dev);

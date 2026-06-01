@@ -183,17 +183,47 @@ mod tests {
         );
 
         let mut t = std::collections::HashMap::new();
-        t.insert("model.language_model.embed_tokens.weight".into(), rand2(vocab, hidden, dev));
-        t.insert(format!("{p}.0.self_attn.q_proj.weight"), rand2(hidden, hidden, dev));
-        t.insert(format!("{p}.0.self_attn.k_proj.weight"), rand2(hidden, hidden, dev));
-        t.insert(format!("{p}.0.self_attn.v_proj.weight"), rand2(hidden, hidden, dev));
-        t.insert(format!("{p}.0.self_attn.o_proj.weight"), rand2(hidden, hidden, dev));
-        t.insert(format!("{p}.0.mlp.gate_proj.weight"), rand2(inter, hidden, dev));
-        t.insert(format!("{p}.0.mlp.up_proj.weight"), rand2(inter, hidden, dev));
-        t.insert(format!("{p}.0.mlp.down_proj.weight"), rand2(hidden, inter, dev));
+        t.insert(
+            "model.language_model.embed_tokens.weight".into(),
+            rand2(vocab, hidden, dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.q_proj.weight"),
+            rand2(hidden, hidden, dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.k_proj.weight"),
+            rand2(hidden, hidden, dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.v_proj.weight"),
+            rand2(hidden, hidden, dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.o_proj.weight"),
+            rand2(hidden, hidden, dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.gate_proj.weight"),
+            rand2(inter, hidden, dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.up_proj.weight"),
+            rand2(inter, hidden, dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.down_proj.weight"),
+            rand2(hidden, inter, dev),
+        );
         t.insert(format!("{p}.0.input_layernorm.weight"), ones1(hidden, dev));
-        t.insert(format!("{p}.0.post_attention_layernorm.weight"), ones1(hidden, dev));
-        t.insert("model.language_model.norm.weight".into(), ones1(hidden, dev));
+        t.insert(
+            format!("{p}.0.post_attention_layernorm.weight"),
+            ones1(hidden, dev),
+        );
+        t.insert(
+            "model.language_model.norm.weight".into(),
+            ones1(hidden, dev),
+        );
         t.insert("lm_head.weight".into(), rand2(vocab, hidden, dev));
 
         let outdir = build_artifact(&cfg, &t);
@@ -217,10 +247,16 @@ mod tests {
 
         let out1 = generate(&mut model, &prompt, &cfg, &dev).unwrap();
         assert!(out1.len() <= 3, "must not exceed max_new_tokens");
-        assert!(out1.iter().all(|&id| (id as usize) < vocab), "ids must be in vocab");
+        assert!(
+            out1.iter().all(|&id| (id as usize) < vocab),
+            "ids must be in vocab"
+        );
 
         // Determinism: greedy decode on the same model across repeated calls is identical.
         let out2 = generate(&mut model, &prompt, &cfg, &dev).unwrap();
-        assert_eq!(out1, out2, "greedy decode must be deterministic across runs");
+        assert_eq!(
+            out1, out2,
+            "greedy decode must be deterministic across runs"
+        );
     }
 }

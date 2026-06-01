@@ -7,7 +7,11 @@ use std::path::Path;
 /// Build a complete f32 model in `out_dir` by taking every base tensor and
 /// overwriting the keys present in the merged subset. Errors if the subset
 /// contains a key absent from the base (a sign of an adapter/base mismatch).
-pub fn recombine(base_dir: &Path, merged_subset: &Path, out_dir: &Path) -> Result<(), QuantizeError> {
+pub fn recombine(
+    base_dir: &Path,
+    merged_subset: &Path,
+    out_dir: &Path,
+) -> Result<(), QuantizeError> {
     let base = SafeTensorsSource::open(base_dir)?;
     let merged = candle_core::safetensors::load(merged_subset, &Device::Cpu)?;
 
@@ -63,20 +67,49 @@ mod tests {
         let out = tempfile::tempdir().unwrap();
 
         let mut b: HashMap<String, Tensor> = HashMap::new();
-        b.insert("w_adapted".into(), Tensor::zeros((256, 256), candle_core::DType::F32, &dev).unwrap());
-        b.insert("w_frozen".into(), Tensor::ones((256, 256), candle_core::DType::F32, &dev).unwrap());
+        b.insert(
+            "w_adapted".into(),
+            Tensor::zeros((256, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
+        b.insert(
+            "w_frozen".into(),
+            Tensor::ones((256, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
         candle_core::safetensors::save(&b, base.path().join("model.safetensors")).unwrap();
         std::fs::write(base.path().join("config.json"), r#"{"model_type":"qwen3_5","architectures":["Qwen35ForCausalLM"],"hidden_size":256,"num_attention_heads":8,"num_hidden_layers":1,"vocab_size":512}"#).unwrap();
 
         let mut m: HashMap<String, Tensor> = HashMap::new();
-        m.insert("w_adapted".into(), Tensor::full(2.0f32, (256, 256), &dev).unwrap());
+        m.insert(
+            "w_adapted".into(),
+            Tensor::full(2.0f32, (256, 256), &dev).unwrap(),
+        );
         candle_core::safetensors::save(&m, merged.path().join("merged.safetensors")).unwrap();
 
-        recombine(base.path(), &merged.path().join("merged.safetensors"), out.path()).unwrap();
+        recombine(
+            base.path(),
+            &merged.path().join("merged.safetensors"),
+            out.path(),
+        )
+        .unwrap();
 
-        let result = candle_core::safetensors::load(out.path().join("model.safetensors"), &dev).unwrap();
-        assert_eq!(result["w_adapted"].mean_all().unwrap().to_scalar::<f32>().unwrap(), 2.0);
-        assert_eq!(result["w_frozen"].mean_all().unwrap().to_scalar::<f32>().unwrap(), 1.0);
+        let result =
+            candle_core::safetensors::load(out.path().join("model.safetensors"), &dev).unwrap();
+        assert_eq!(
+            result["w_adapted"]
+                .mean_all()
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap(),
+            2.0
+        );
+        assert_eq!(
+            result["w_frozen"]
+                .mean_all()
+                .unwrap()
+                .to_scalar::<f32>()
+                .unwrap(),
+            1.0
+        );
         assert!(out.path().join("config.json").exists());
     }
 
@@ -87,12 +120,25 @@ mod tests {
         let merged = tempfile::tempdir().unwrap();
         let out = tempfile::tempdir().unwrap();
         let mut b: HashMap<String, Tensor> = HashMap::new();
-        b.insert("w_frozen".into(), Tensor::ones((256, 256), candle_core::DType::F32, &dev).unwrap());
+        b.insert(
+            "w_frozen".into(),
+            Tensor::ones((256, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
         candle_core::safetensors::save(&b, base.path().join("model.safetensors")).unwrap();
         let mut m: HashMap<String, Tensor> = HashMap::new();
-        m.insert("not_in_base".into(), Tensor::zeros((256, 256), candle_core::DType::F32, &dev).unwrap());
+        m.insert(
+            "not_in_base".into(),
+            Tensor::zeros((256, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
         candle_core::safetensors::save(&m, merged.path().join("merged.safetensors")).unwrap();
-        assert!(recombine(base.path(), &merged.path().join("merged.safetensors"), out.path()).is_err());
+        assert!(
+            recombine(
+                base.path(),
+                &merged.path().join("merged.safetensors"),
+                out.path()
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -102,12 +148,22 @@ mod tests {
         let merged = tempfile::tempdir().unwrap();
         let out = tempfile::tempdir().unwrap();
         let mut b = std::collections::HashMap::new();
-        b.insert("w".to_string(), candle_core::Tensor::ones((256, 256), candle_core::DType::F32, &dev).unwrap());
+        b.insert(
+            "w".to_string(),
+            candle_core::Tensor::ones((256, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
         candle_core::safetensors::save(&b, base.path().join("model.safetensors")).unwrap();
         let mut m = std::collections::HashMap::new();
-        m.insert("w".to_string(), candle_core::Tensor::ones((128, 256), candle_core::DType::F32, &dev).unwrap());
+        m.insert(
+            "w".to_string(),
+            candle_core::Tensor::ones((128, 256), candle_core::DType::F32, &dev).unwrap(),
+        );
         candle_core::safetensors::save(&m, merged.path().join("merged.safetensors")).unwrap();
-        let err = recombine(base.path(), &merged.path().join("merged.safetensors"), out.path());
+        let err = recombine(
+            base.path(),
+            &merged.path().join("merged.safetensors"),
+            out.path(),
+        );
         assert!(err.is_err(), "shape mismatch must error");
     }
 }

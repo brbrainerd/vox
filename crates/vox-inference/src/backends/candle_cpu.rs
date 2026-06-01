@@ -3,7 +3,7 @@ use crate::backend::{
     Quantization, SamplingParams, Verdict,
 };
 use crate::backends::candle_device::{self, LoadedState};
-use crate::generate::{generate, GenConfig};
+use crate::generate::{GenConfig, generate};
 use async_trait::async_trait;
 use candle_core::Device;
 use std::collections::HashMap;
@@ -190,17 +190,47 @@ mod tests {
         );
 
         let mut t = std::collections::HashMap::new();
-        t.insert("model.language_model.embed_tokens.weight".into(), rand2(vocab, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.q_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.k_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.v_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.o_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.gate_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.up_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.down_proj.weight"), rand2(hidden, inter, &dev));
+        t.insert(
+            "model.language_model.embed_tokens.weight".into(),
+            rand2(vocab, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.q_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.k_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.v_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.o_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.gate_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.up_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.down_proj.weight"),
+            rand2(hidden, inter, &dev),
+        );
         t.insert(format!("{p}.0.input_layernorm.weight"), ones1(hidden, &dev));
-        t.insert(format!("{p}.0.post_attention_layernorm.weight"), ones1(hidden, &dev));
-        t.insert("model.language_model.norm.weight".into(), ones1(hidden, &dev));
+        t.insert(
+            format!("{p}.0.post_attention_layernorm.weight"),
+            ones1(hidden, &dev),
+        );
+        t.insert(
+            "model.language_model.norm.weight".into(),
+            ones1(hidden, &dev),
+        );
         t.insert("lm_head.weight".into(), rand2(vocab, hidden, &dev));
 
         let indir = tempfile::tempdir().unwrap();
@@ -251,17 +281,20 @@ mod tests {
         let loaded = backend.load_from_dir(dir.path()).expect("load_from_dir");
         assert!(loaded.label.starts_with("candle-cpu-dir-"));
         // registered
-        assert!(backend
-            .loaded
-            .lock()
-            .unwrap()
-            .contains_key(&loaded.label));
+        assert!(backend.loaded.lock().unwrap().contains_key(&loaded.label));
 
         let out = backend
             .predict(
                 &loaded,
-                PromptInput { text: "hello world".into(), system: None },
-                SamplingParams { temperature: 0.0, top_p: 1.0, max_tokens: Some(4) },
+                PromptInput {
+                    text: "hello world".into(),
+                    system: None,
+                },
+                SamplingParams {
+                    temperature: 0.0,
+                    top_p: 1.0,
+                    max_tokens: Some(4),
+                },
             )
             .await
             .expect("predict");
@@ -270,8 +303,15 @@ mod tests {
         let out2 = backend
             .predict(
                 &loaded,
-                PromptInput { text: "hello world".into(), system: None },
-                SamplingParams { temperature: 0.0, top_p: 1.0, max_tokens: Some(4) },
+                PromptInput {
+                    text: "hello world".into(),
+                    system: None,
+                },
+                SamplingParams {
+                    temperature: 0.0,
+                    top_p: 1.0,
+                    max_tokens: Some(4),
+                },
             )
             .await
             .expect("predict 2");
@@ -285,12 +325,22 @@ mod tests {
     #[tokio::test]
     async fn predict_unknown_label_errors() {
         let backend = CandleCpuBackend::new();
-        let bogus = LoadedModel { backend: BackendId::CandleCpu, label: "nope".into() };
+        let bogus = LoadedModel {
+            backend: BackendId::CandleCpu,
+            label: "nope".into(),
+        };
         let err = backend
             .predict(
                 &bogus,
-                PromptInput { text: "hi".into(), system: None },
-                SamplingParams { temperature: 0.0, top_p: 1.0, max_tokens: Some(1) },
+                PromptInput {
+                    text: "hi".into(),
+                    system: None,
+                },
+                SamplingParams {
+                    temperature: 0.0,
+                    top_p: 1.0,
+                    max_tokens: Some(1),
+                },
             )
             .await
             .expect_err("unknown label must error");

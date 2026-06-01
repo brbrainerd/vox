@@ -5,8 +5,8 @@
 //! the per-tensor GGML dtype, original shape/dtype, and the mixture name.
 
 use crate::error::QuantizeError;
-use candle_core::quantized::QTensor;
 use candle_core::Tensor;
+use candle_core::quantized::QTensor;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
@@ -98,7 +98,11 @@ impl ArtifactWriter {
                         .collect();
                     Tensor::from_vec(floats, shape.clone(), &Device::Cpu)?
                 }
-                _ => return Err(QuantizeError::Write(format!("unexpected dtype for `{name}`"))),
+                _ => {
+                    return Err(QuantizeError::Write(format!(
+                        "unexpected dtype for `{name}`"
+                    )));
+                }
             };
             tensors.insert(name, t);
         }
@@ -109,8 +113,8 @@ impl ArtifactWriter {
             writer_version: env!("CARGO_PKG_VERSION").to_string(),
             tensors: self.meta,
         };
-        let json = serde_json::to_string_pretty(&meta)
-            .map_err(|e| QuantizeError::Write(e.to_string()))?;
+        let json =
+            serde_json::to_string_pretty(&meta).map_err(|e| QuantizeError::Write(e.to_string()))?;
         std::fs::write(out_dir.join("quant-metadata.json"), json)?;
         Ok(())
     }
@@ -143,8 +147,7 @@ mod tests {
         // appear literally. Asserting against the parsed value keeps the
         // intent (metadata records dtype + mixture) without coupling to
         // serializer whitespace.
-        let meta_raw =
-            std::fs::read_to_string(dir.path().join("quant-metadata.json")).unwrap();
+        let meta_raw = std::fs::read_to_string(dir.path().join("quant-metadata.json")).unwrap();
         let meta: serde_json::Value = serde_json::from_str(&meta_raw).unwrap();
         assert_eq!(meta["tensors"]["w"]["ggml_dtype"], "Q4K");
         assert_eq!(meta["tensors"]["w"]["quantized"], true);

@@ -87,7 +87,10 @@ mod tests {
             .expect_err("ModelBundle load is unsupported until CAS lands");
         match err {
             InferenceError::Unsupported(_, msg) => {
-                assert!(msg.contains("CAS"), "expected CAS-not-wired message, got: {msg}");
+                assert!(
+                    msg.contains("CAS"),
+                    "expected CAS-not-wired message, got: {msg}"
+                );
             }
             other => panic!("expected Unsupported, got {other:?}"),
         }

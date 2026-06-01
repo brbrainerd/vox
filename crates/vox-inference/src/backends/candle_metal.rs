@@ -3,7 +3,7 @@ use crate::backend::{
     Quantization, SamplingParams, Verdict,
 };
 use crate::backends::candle_device::{self, LoadedState};
-use crate::generate::{generate, GenConfig};
+use crate::generate::{GenConfig, generate};
 use async_trait::async_trait;
 use candle_core::Device;
 use std::collections::HashMap;
@@ -39,9 +39,7 @@ impl CandleMetalBackend {
     /// unavailable (non-Apple platform or feature off).
     pub fn load_from_dir(&self, dir: &std::path::Path) -> Result<LoadedModel, InferenceError> {
         let dev = Device::new_metal(0).unwrap_or_else(|_| {
-            tracing::warn!(
-                "Metal unavailable, falling back to CPU for CandleMetalBackend"
-            );
+            tracing::warn!("Metal unavailable, falling back to CPU for CandleMetalBackend");
             Device::Cpu
         });
         let id = self.counter.fetch_add(1, Ordering::Relaxed);
@@ -190,17 +188,47 @@ mod tests {
         );
 
         let mut t = std::collections::HashMap::new();
-        t.insert("model.language_model.embed_tokens.weight".into(), rand2(vocab, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.q_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.k_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.v_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.self_attn.o_proj.weight"), rand2(hidden, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.gate_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.up_proj.weight"), rand2(inter, hidden, &dev));
-        t.insert(format!("{p}.0.mlp.down_proj.weight"), rand2(hidden, inter, &dev));
+        t.insert(
+            "model.language_model.embed_tokens.weight".into(),
+            rand2(vocab, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.q_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.k_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.v_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.self_attn.o_proj.weight"),
+            rand2(hidden, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.gate_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.up_proj.weight"),
+            rand2(inter, hidden, &dev),
+        );
+        t.insert(
+            format!("{p}.0.mlp.down_proj.weight"),
+            rand2(hidden, inter, &dev),
+        );
         t.insert(format!("{p}.0.input_layernorm.weight"), ones1(hidden, &dev));
-        t.insert(format!("{p}.0.post_attention_layernorm.weight"), ones1(hidden, &dev));
-        t.insert("model.language_model.norm.weight".into(), ones1(hidden, &dev));
+        t.insert(
+            format!("{p}.0.post_attention_layernorm.weight"),
+            ones1(hidden, &dev),
+        );
+        t.insert(
+            "model.language_model.norm.weight".into(),
+            ones1(hidden, &dev),
+        );
         t.insert("lm_head.weight".into(), rand2(vocab, hidden, &dev));
 
         let indir = tempfile::tempdir().unwrap();
@@ -253,8 +281,15 @@ mod tests {
         let out = backend
             .predict(
                 &loaded,
-                PromptInput { text: "hello".into(), system: None },
-                SamplingParams { temperature: 0.0, top_p: 1.0, max_tokens: Some(3) },
+                PromptInput {
+                    text: "hello".into(),
+                    system: None,
+                },
+                SamplingParams {
+                    temperature: 0.0,
+                    top_p: 1.0,
+                    max_tokens: Some(3),
+                },
             )
             .await
             .expect("predict");
