@@ -537,7 +537,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             parse_obj(r#"{"type":"object","additionalProperties":false}"#)
         }
         "vox_mesh_dispatch" => parse_obj(
-            r#"{"type":"object","properties":{"source":{"type":"string","minLength":1,"description":".vox source to execute remotely"},"script":{"type":"string","minLength":1,"description":"Alias for `source`"},"node_id":{"type":"string","description":"Optional target node id"},"task_kind":{"type":"string"},"min_vram_mb":{"type":"integer","minimum":0}},"additionalProperties":false}"#,
+            r#"{"type":"object","anyOf":[{"required":["source"]},{"required":["script"]}],"properties":{"source":{"type":"string","minLength":1,"description":".vox source to execute remotely"},"script":{"type":"string","minLength":1,"description":"Alias for `source`"},"node_id":{"type":"string","description":"Optional target node id"},"task_kind":{"type":"string"},"min_vram_mb":{"type":"integer","minimum":0}},"additionalProperties":false}"#,
         ),
 
         // ── Plugins (installed + catalog) ───────────────────────────────────
@@ -548,13 +548,13 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
             r#"{"type":"object","properties":{"id":{"type":"string","minLength":1,"description":"Plugin id"}},"required":["id"],"additionalProperties":false}"#,
         ),
         "vox_plugin_install" => parse_obj(
-            r#"{"type":"object","properties":{"id":{"type":"string","minLength":1,"description":"Catalog plugin id to install"},"path":{"type":"string","minLength":1,"description":"Local plugin directory to install from (alternative to `id`)"}},"additionalProperties":false}"#,
+            r#"{"type":"object","oneOf":[{"required":["id"]},{"required":["path"]}],"properties":{"id":{"type":"string","minLength":1,"description":"Catalog plugin id to install"},"path":{"type":"string","minLength":1,"description":"Local plugin directory to install from (alternative to `id`)"}},"additionalProperties":false}"#,
         ),
 
         // ── HITL approvals ──────────────────────────────────────────────────
         "vox_pending_approvals" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
         "vox_resolve_approval" => parse_obj(
-            r#"{"type":"object","properties":{"approval_id":{"type":"string","minLength":1},"outcome":{"type":"string","enum":["approve","approved","modify","modified","reject","rejected"]},"decision":{"type":"string","description":"Alias for `outcome`"}},"required":["approval_id"],"additionalProperties":false}"#,
+            r#"{"type":"object","properties":{"approval_id":{"type":"string","minLength":1},"outcome":{"type":"string","enum":["approve","approved","modify","modified","reject","rejected"]},"decision":{"type":"string","description":"Alias for `outcome`"}},"required":["approval_id"],"anyOf":[{"required":["outcome"]},{"required":["decision"]}],"additionalProperties":false}"#,
         ),
 
         // ── Unified news (syndication safety + templates) ───────────────────

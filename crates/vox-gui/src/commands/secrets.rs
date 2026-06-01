@@ -50,6 +50,7 @@ impl From<vox_secrets::SecretStatusRow> for SecretStatusDto {
 /// List every real (non config-only) managed secret with presence + redacted
 /// preview. No raw values are ever included.
 #[command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets/vox_vault backends; redaction + routing covered by vox-secrets tests
 pub fn list_secret_status() -> Vec<SecretStatusDto> {
     vox_secrets::list_secret_status()
         .into_iter()
@@ -71,6 +72,7 @@ fn spec_for_key(key: &str) -> Result<&'static SecretSpec, String> {
 /// `is_present` (always `true` on success) — NEVER the value, which is
 /// dropped as soon as it is persisted.
 #[command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets/vox_vault backends; redaction + routing covered by vox-secrets tests
 pub fn set_secret(key: String, value: String) -> Result<bool, String> {
     if value.is_empty() {
         return Err("secret value must not be empty".to_string());
@@ -96,6 +98,7 @@ pub fn set_secret(key: String, value: String) -> Result<bool, String> {
 /// `remove_registry_token`, everything else to the vault `delete_secret`.
 /// Returns `is_present` (`false` on success) — never any value.
 #[command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_secrets/vox_vault backends; redaction + routing covered by vox-secrets tests
 pub fn remove_secret(key: String) -> Result<bool, String> {
     let spec = spec_for_key(&key)?;
 

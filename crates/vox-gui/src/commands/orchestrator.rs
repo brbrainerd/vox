@@ -17,6 +17,7 @@ pub const ORCH_STATUS_EVENT: &str = "vox://orch-status";
 /// Resilient by design: if the daemon is unavailable or the stream ends, the task
 /// simply exits without crashing the app. The emitted payload has the same shape
 /// as [`get_orchestrator_status`] (the GUI-mapped status object with `agent_count`).
+// toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
 pub fn spawn_orchestrator_status_stream(
     app_handle: tauri::AppHandle,
     daemon: Arc<PersistentDaemon>,
@@ -24,7 +25,10 @@ pub fn spawn_orchestrator_status_stream(
     tokio::spawn(async move {
         let addr = match daemon.ensure().await {
             Ok(a) => a,
-            Err(_) => return,
+            Err(e) => {
+                tracing::debug!("daemon unavailable: {e}");
+                return;
+            }
         };
         let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(64);
 
@@ -58,11 +62,15 @@ pub const AGENT_EVENTS_EVENT: &str = "vox://agent-events";
 /// design: if the daemon is unavailable or the stream ends, the task simply
 /// exits without crashing the app. Each emitted payload is the raw serialized
 /// `AgentEvent` forwarded verbatim from the daemon.
+// toestub-ignore(skeleton/untested-pub-api) — spawns a background task bridging the orchestrator daemon to Tauri events; covered by integration
 pub fn spawn_agent_event_stream(app_handle: tauri::AppHandle, daemon: Arc<PersistentDaemon>) {
     tokio::spawn(async move {
         let addr = match daemon.ensure().await {
             Ok(a) => a,
-            Err(_) => return,
+            Err(e) => {
+                tracing::debug!("daemon unavailable: {e}");
+                return;
+            }
         };
         let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(256);
 

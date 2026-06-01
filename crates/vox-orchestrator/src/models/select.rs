@@ -1047,4 +1047,18 @@ mod tests {
             other => panic!("expected Scored or LocalOnly, got {:?}", other),
         }
     }
+
+    #[test]
+    fn select_with_empty_policy_falls_through_to_cascade() {
+        let registry = ModelRegistry::new();
+        let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
+        // An empty policy carries no steps, so the resolver yields nothing and
+        // `select_with_policy` falls through to the pre-existing `select` cascade.
+        let policy = super::policy::SelectionPolicy::default();
+        let ctx = super::policy::PolicyContext::default();
+        let via_policy = select_with_policy(&intent, &registry, &policy, &ctx)
+            .expect("a model exists for codegen");
+        let via_cascade = select(&intent, &registry).expect("a model exists for codegen");
+        assert_eq!(via_policy.model_id, via_cascade.model_id);
+    }
 }

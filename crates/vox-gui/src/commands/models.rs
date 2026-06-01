@@ -337,6 +337,7 @@ const EMPTY_SELECTION_POLICY: &str = "{\"steps\":[]}";
 /// `("local_user","selection_policy")` pref via `connect_workspace_journey_optional`.
 /// Returns the stored JSON, or the empty policy (`{"steps":[]}`) when absent.
 #[tauri::command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_db preferences; behavior covered by orchestrator selection-policy tests
 pub async fn get_selection_policy() -> String {
     if let Some(db) =
         vox_db::connect_workspace_journey_optional(vox_db::DbConnectSurface::Runtime, true).await
@@ -362,6 +363,7 @@ pub async fn get_selection_policy() -> String {
 /// startup (mirroring how `routing_priority` is applied), so a saved policy
 /// takes effect on the next orchestrator (re)start, not immediately.
 #[tauri::command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_db preferences; behavior covered by orchestrator selection-policy tests
 pub async fn set_selection_policy(json: String) -> Result<(), String> {
     // Reject anything that isn't a well-formed SelectionPolicy.
     vox_orchestrator::models::SelectionPolicy::from_json(&json)

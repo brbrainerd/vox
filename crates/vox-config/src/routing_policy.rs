@@ -70,6 +70,17 @@ impl AutoRoutingPriority {
         else {
             return Self::default();
         };
+        Self::parse_csv(&raw)
+    }
+
+    /// Parse the `efficiency=..,precision=..,latency=..` CSV form (the same
+    /// shape carried by the `VOX_AUTO_ROUTING_PRIORITY` env value) into axis
+    /// weights. Unknown keys and non-numeric values are ignored; axes not
+    /// mentioned keep their [`Default`] value. This is the thread-safe way to
+    /// turn a persisted preference string into axes without mutating the
+    /// process environment.
+    #[must_use]
+    pub fn parse_csv(raw: &str) -> Self {
         let mut out = Self::default();
         for part in raw.split(',') {
             let mut it = part.splitn(2, '=');
@@ -213,6 +224,25 @@ mod tests {
                 std::env::remove_var("VOX_AUTO_ROUTING_PRIORITY");
             }
         }
+    }
+
+    #[test]
+    fn parse_csv_reads_axes_and_ignores_garbage() {
+        let p = AutoRoutingPriority::parse_csv(
+            "efficiency=40,quality=30,speed=10,availability=10,balance=5,mobile=5,bogus=99,latency=oops",
+        );
+        assert_eq!(p.efficiency, 40);
+        assert_eq!(p.precision, 30); // "quality" alias
+        assert_eq!(p.availability, 10);
+        assert_eq!(p.balance, 5);
+        assert_eq!(p.mobile, 5);
+        // "speed" alias set latency=10; the later non-numeric "latency=oops" is ignored.
+        assert_eq!(p.latency, 10);
+        // Empty input yields all-default.
+        assert_eq!(
+            AutoRoutingPriority::parse_csv(""),
+            AutoRoutingPriority::default()
+        );
     }
 
     #[test]

@@ -290,7 +290,7 @@ function MarketplaceTab(props: {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && runSearch()}
-            placeholder="Search installed skills…"
+            placeholder="Search for skills…"
             className="flex-1 rounded-md border border-white/10 bg-white/[0.02] px-3 py-1.5 font-mono text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-brass/40"
           />
           <button

@@ -201,7 +201,9 @@ pub fn remove_registry_token(registry: &str) -> Result<bool, SecretError> {
         match entry.delete_credential() {
             Ok(()) => removed = true,
             Err(keyring::Error::NoEntry) => {}
-            Err(_) => {}
+            Err(e) => {
+                tracing::warn!(registry = %registry, error = %e, "keyring delete failed (continuing best-effort)");
+            }
         }
     }
 

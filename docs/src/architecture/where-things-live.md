@@ -54,6 +54,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | Crate | One-line scope |
 |---|---|
 | [`vox-foundation`](../../../crates/vox-foundation/) | Utility umbrella: cheap trace ids, exponential backoff, AgentOS mutation kinds (was `vox-primitives`), daemon wire-protocol types (was `vox-protocol`), `tracing_subscriber` bootstrap presets (was `vox-tracing-init`). Excluded from workspace-hack for fast-leaf compile. |
+| [`vox-runtime`](../../../crates/vox-runtime/) | Mobile-safe runtime core (config/lifecycle/profile). Deps limited to serde/thiserror/tracing so it cross-compiles to mobile targets; emits rlib + cdylib + staticlib. |
 | [`vox-bounded-fs`](../../../crates/vox-bounded-fs/) | UTF-8 file reads capped by vox-scaling-policy max_file_bytes_hint. |
 | [`vox-tauri-codegen`](../../../crates/vox-tauri-codegen/) | Hint-only Tauri 2 packaging under `target/generated/tauri-packaging/` (`tauri.conf.json` + `runtime-capabilities.projection.json` from [`contracts/capability/runtime-capabilities.v1.yaml`](../../../contracts/capability/runtime-capabilities.v1.yaml); not a full `src-tauri` crate yet). |
 | [`vox-crypto`](../../../crates/vox-crypto/) | Pure-Rust crypto primitives (chacha20poly1305 AEAD, ed25519, x25519); sole crypto SSOT per AGENTS.md §Cryptography Policy. |
@@ -80,6 +81,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 |---|---|
 | [`vox-capability-registry`](../../../crates/vox-capability-registry/) | Transport-independent capability registry (YAML SSOT) + Mens chat tool descriptors. |
 | [`vox-config`](../../../crates/vox-config/) | Centralized configuration and env/default resolution for Vox tooling; `project_manifest` parses `[workspace]` / `[bundle]` slices from `Vox.toml` for `vox compile`. |
+| [`vox-journal`](../../../crates/vox-journal/) | Durable append-only NDJSON event journal (mobile VoxDB). Depends on `vox-runtime`. |
 | [`vox-constrained-gen`](../../../crates/vox-constrained-gen/) | Grammar-constrained inference engine — Earley/PDA backends, deadlock watchdog, stream-of-revision. |
 | [`vox-doc-inventory`](../../../crates/vox-doc-inventory/) | Generate and verify docs/agents/doc-inventory.json (schema v3) without Python. |
 | [`vox-effort-audit`](../../../crates/vox-effort-audit/) | AI-judged audit of git commit history; walks commits, calls model-agnostic judge facade, emits ranked findings JSONL + report. CLI: `vox audit effort`. |
@@ -142,6 +144,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-wasm-engine`](../../../crates/vox-wasm-engine/) | Single-source-of-truth Wasmtime engine + WASI execution for Vox programs and skill plugins. |
 | [`vox-wire-format-validator`](../../../crates/vox-wire-format-validator/) | CI guard: enforces Wire Format v1 SSOT and Contract IR implementation parity. |
 | [`vox-workflow-runtime`](../../../crates/vox-workflow-runtime/) | Interpreted workflow execution MVP (local + mens activity hooks). |
+| [`vox-runtime-rn`](../../../crates/vox-runtime-rn/) | React Native / mobile runtime bridge over `vox-runtime` + `vox-journal`; consumed by the mobile (RN/iOS) build, not in-tree Rust. |
 | [`vox-mesh-policy`](../../../crates/vox-mesh-policy/) | Parses and pretty-prints `donations.vox` mesh policy files; defines `WorkerDonationPolicy`. |
 | [`vox-tauri-stt`](../../../crates/vox-tauri-stt/) | Tauri 2 on-device speech-to-text plugin — wire format, guest JS facade, Android/iOS native sources. |
 

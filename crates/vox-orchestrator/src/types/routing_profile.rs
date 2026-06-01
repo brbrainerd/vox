@@ -102,3 +102,87 @@ pub fn config_to_routing_profile(cfg: &crate::config::OrchestratorConfig) -> Rou
         crate::config::CostPreference::Performance => RoutingProfile::Performance,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn is_free_only_per_variant() {
+        assert!(RoutingProfile::Free.is_free_only());
+        assert!(!RoutingProfile::Mixed.is_free_only());
+        assert!(!RoutingProfile::Performance.is_free_only());
+        assert!(!RoutingProfile::Local.is_free_only());
+    }
+
+    #[test]
+    fn prefers_free_per_variant() {
+        assert!(RoutingProfile::Free.prefers_free());
+        assert!(RoutingProfile::Mixed.prefers_free());
+        assert!(!RoutingProfile::Performance.prefers_free());
+        assert!(!RoutingProfile::Local.prefers_free());
+    }
+
+    #[test]
+    fn is_local_only_per_variant() {
+        assert!(!RoutingProfile::Free.is_local_only());
+        assert!(!RoutingProfile::Mixed.is_local_only());
+        assert!(!RoutingProfile::Performance.is_local_only());
+        assert!(RoutingProfile::Local.is_local_only());
+    }
+
+    #[test]
+    fn default_is_free() {
+        assert_eq!(RoutingProfile::default(), RoutingProfile::Free);
+    }
+
+    #[test]
+    fn from_str_round_trips_canonical_keys() {
+        for p in [
+            RoutingProfile::Free,
+            RoutingProfile::Mixed,
+            RoutingProfile::Performance,
+            RoutingProfile::Local,
+        ] {
+            assert_eq!(RoutingProfile::from_str(p.as_str()), Ok(p));
+        }
+    }
+
+    #[test]
+    fn from_str_accepts_perf_alias_and_is_case_insensitive() {
+        assert_eq!(
+            RoutingProfile::from_str("perf"),
+            Ok(RoutingProfile::Performance)
+        );
+        assert_eq!(
+            RoutingProfile::from_str("  PERFORMANCE  "),
+            Ok(RoutingProfile::Performance)
+        );
+    }
+
+    #[test]
+    fn from_str_rejects_unknown() {
+        assert_eq!(RoutingProfile::from_str("nonsense"), Err(()));
+    }
+
+    #[test]
+    fn config_maps_cost_preference_when_secret_unset() {
+        // The secret overlay reads VOX_ROUTING_PROFILE; remove it so the
+        // CostPreference branch is exercised deterministically.
+        let prior = std::env::var("VOX_ROUTING_PROFILE").ok();
+        unsafe { std::env::remove_var("VOX_ROUTING_PROFILE") };
+
+        let mut cfg = crate::config::OrchestratorConfig::default();
+        cfg.cost_preference = crate::config::CostPreference::Economy;
+        assert_eq!(config_to_routing_profile(&cfg), RoutingProfile::Free);
+        cfg.cost_preference = crate::config::CostPreference::Performance;
+        assert_eq!(config_to_routing_profile(&cfg), RoutingProfile::Performance);
+
+        unsafe {
+            if let Some(v) = prior {
+                std::env::set_var("VOX_ROUTING_PROFILE", v);
+            }
+        }
+    }
+}

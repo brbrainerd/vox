@@ -126,13 +126,7 @@ impl ServerState {
         });
 
         // Bridge plugin-host discovered skills into the vox-skills registry.
-        let install_dir = std::env::var("VOX_PLUGINS_DIR")
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs::data_local_dir()
-                    .map(|p| p.join("vox").join("plugins"))
-                    .unwrap_or_else(|| std::path::PathBuf::from("./vox-plugins"))
-            });
+        let install_dir = vox_plugin_host::resolve_plugins_root();
         // Discover the plugin-host registry once, synchronously, so we can KEEP it
         // on `ServerState` for the plugin MCP tools. The skills bridge then runs in
         // the background as before.

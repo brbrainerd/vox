@@ -4,6 +4,11 @@
 //! dangerous-tool approval request, written `pending` at the gate and updated to
 //! its outcome when resolved. Survives restarts (audit/visibility); the live
 //! await itself is in-memory and not resumable across restarts.
+//!
+//! Writes (`hitl_approval_record`, `hitl_approval_resolve`) run through
+//! `self.breaker.call` for circuit-breaker protection; the reads
+//! (`hitl_approval_get`, `hitl_approvals_recent`) query the connection directly,
+//! consistent with sibling facades like `agent_runs.rs`.
 
 use crate::StoreError;
 use crate::VoxDb;
@@ -41,6 +46,7 @@ fn map_row(row: &turso::Row) -> Result<HitlApprovalRow, StoreError> {
 
 impl VoxDb {
     /// Record a newly-requested approval (status `pending`).
+    // toestub-ignore(skeleton/untested-pub-api) — DB facade methods exercised by tests/hitl_approvals_tests.rs integration tests
     pub async fn hitl_approval_record(
         &self,
         approval_id: &str,
@@ -73,6 +79,7 @@ impl VoxDb {
     }
 
     /// Update an approval to its terminal outcome.
+    // toestub-ignore(skeleton/untested-pub-api) — DB facade methods exercised by tests/hitl_approvals_tests.rs integration tests
     pub async fn hitl_approval_resolve(
         &self,
         approval_id: &str,
@@ -95,6 +102,7 @@ impl VoxDb {
     }
 
     /// Fetch one approval by id.
+    // toestub-ignore(skeleton/untested-pub-api) — DB facade methods exercised by tests/hitl_approvals_tests.rs integration tests
     pub async fn hitl_approval_get(
         &self,
         approval_id: &str,
@@ -111,6 +119,7 @@ impl VoxDb {
     }
 
     /// Most-recently-requested approvals, newest first.
+    // toestub-ignore(skeleton/untested-pub-api) — DB facade methods exercised by tests/hitl_approvals_tests.rs integration tests
     pub async fn hitl_approvals_recent(
         &self,
         limit: i64,

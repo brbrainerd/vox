@@ -21,6 +21,7 @@ pub use policy::{
     active_policy, install_active_policy, policy_for_profile, resolve_policy,
 };
 pub use registry::{ModelRegistry, ModelScore};
+pub use scoring::install_base_routing_priority;
 pub use select::{
     CandidateScope, ModelSelectionDecision, ModelSelectionRequest, ScoreBreakdown, SelectionAxes,
     SelectionIntent, SelectionOutcome, SelectionReason, decide, select,

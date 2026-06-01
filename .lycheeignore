@@ -129,3 +129,6 @@ https://github\.com/gradio-app/gradio/pull/3370
 
 # strata.io returns 415 to bots; link is valid
 .*strata\.io/.*
+
+# expo.dev access-tokens settings 307-redirects to a login URL; link is valid
+.*expo\.dev/settings/access-tokens.*

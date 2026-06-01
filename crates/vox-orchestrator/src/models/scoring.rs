@@ -260,12 +260,38 @@ impl Drop for AxesOverrideGuard {
     }
 }
 
-/// Base routing weights for a scorer pass: the per-selection override if one is
-/// installed (the request's `SelectionAxes`), else the process env default.
+/// Process-global base routing weights, installed by the daemon from the
+/// persisted `routing_priority` preference. Read by [`base_routing_weights`]
+/// when no per-selection thread-local override is active, taking precedence
+/// over the `VOX_AUTO_ROUTING_PRIORITY` env fallback.
+///
+/// This mirrors `install_active_policy`: a thread-safe replacement for mutating
+/// the process environment at runtime, which is undefined behavior under a
+/// multi-threaded async runtime (other threads may `getenv` concurrently).
+static BASE_AXES: std::sync::RwLock<Option<AutoRoutingPriority>> = std::sync::RwLock::new(None);
+
+/// Install (or clear, with `None`) the process-global base routing weights.
+/// Intended for daemon startup, before serving begins.
+pub fn install_base_routing_priority(axes: Option<AutoRoutingPriority>) {
+    if let Ok(mut g) = BASE_AXES.write() {
+        *g = axes;
+    }
+}
+
+/// Base routing weights for a scorer pass: the per-selection thread-local
+/// override if one is installed (the request's `SelectionAxes`), else the
+/// process-global base ([`install_base_routing_priority`]), else the
+/// `VOX_AUTO_ROUTING_PRIORITY` env default.
 fn base_routing_weights() -> AutoRoutingPriority {
-    AXES_OVERRIDE
-        .with(|c| c.borrow().clone())
-        .unwrap_or_else(AutoRoutingPriority::from_env)
+    if let Some(axes) = AXES_OVERRIDE.with(|c| c.borrow().clone()) {
+        return axes;
+    }
+    if let Ok(g) = BASE_AXES.read() {
+        if let Some(axes) = g.clone() {
+            return axes;
+        }
+    }
+    AutoRoutingPriority::from_env()
 }
 
 #[must_use]
@@ -535,6 +561,23 @@ mod axes_override_tests {
             balance: 0,
             mobile: 0,
         }
+    }
+
+    /// The process-global base (set by the daemon from the persisted preference)
+    /// must be observed by `base_routing_weights` when no per-call thread-local
+    /// override is active, and clearing it restores the env fallback. This is the
+    /// thread-safe replacement for the old `set_var` startup mutation.
+    #[test]
+    fn install_base_routing_priority_is_observed_then_cleared() {
+        // No thread-local override here (this test installs none).
+        install_base_routing_priority(Some(axes(11, 22, 33)));
+        let got = base_routing_weights();
+        assert_eq!((got.efficiency, got.precision, got.latency), (11, 22, 33));
+
+        // Clearing falls back to env (default when unset).
+        install_base_routing_priority(None);
+        let fallback = base_routing_weights();
+        assert_eq!(fallback, AutoRoutingPriority::from_env());
     }
 
     /// The per-call axes override must actually steer scoring. Before the fix

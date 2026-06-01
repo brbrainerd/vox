@@ -83,6 +83,11 @@ export function PriorityChainEditor({ pushToast }: Props) {
   const [adding, setAdding] = useState(false);
   const dragIndex = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  // Monotonic write-id so a slower, older setSelectionPolicy write can't clobber
+  // a newer one. lastConfirmed holds the most recent successfully-persisted state
+  // to revert to on failure of the latest write.
+  const writeId = useRef(0);
+  const lastConfirmed = useRef<SelectionStep[]>([]);
 
   // Hydrate from persisted policy + load model list (reuse Models surface source).
   useEffect(() => {
@@ -90,7 +95,9 @@ export function PriorityChainEditor({ pushToast }: Props) {
       try {
         const json = await voxTransport.getSelectionPolicy();
         const parsed = JSON.parse(json) as SelectionPolicy;
-        setSteps(Array.isArray(parsed.steps) ? parsed.steps : []);
+        const hydrated = Array.isArray(parsed.steps) ? parsed.steps : [];
+        setSteps(hydrated);
+        lastConfirmed.current = hydrated;
       } catch (err) {
         pushToast({ tone: 'warn', title: 'Could not load priority chain', body: String(err) });
       } finally {
@@ -105,12 +112,20 @@ export function PriorityChainEditor({ pushToast }: Props) {
     })();
   }, []);
 
-  // Persist the chain. Called on every mutation (save-on-change).
+  // Persist the chain. Called on every mutation (save-on-change). Writes are
+  // versioned: only the latest write's result is honoured, so a slower older
+  // write can't overwrite newer UI/state. On failure of the latest write we
+  // revert to the last-confirmed state and surface the error.
   const persist = async (next: SelectionStep[]) => {
     setSteps(next);
+    const id = ++writeId.current;
     try {
       await voxTransport.setSelectionPolicy(JSON.stringify({ steps: next }));
+      if (id !== writeId.current) return; // a newer write superseded this one
+      lastConfirmed.current = next;
     } catch (err) {
+      if (id !== writeId.current) return; // stale failure; a newer write owns state
+      setSteps(lastConfirmed.current);
       pushToast({ tone: 'warn', title: 'Priority chain save failed', body: String(err) });
     }
   };
@@ -241,6 +256,15 @@ function AddStepMenu({
   const [thenAxis, setThenAxis] = useState<AxisKind>('efficiency');
   const [thenWeight, setThenWeight] = useState(50);
   const [thenPin, setThenPin] = useState(models[0] ?? '');
+
+  // models may resolve after mount (listModels() is async); fill the pin defaults
+  // once it arrives, but only if the user hasn't already chosen something.
+  useEffect(() => {
+    if (models.length > 0) {
+      setPin((c) => c || models[0]);
+      setThenPin((c) => c || models[0]);
+    }
+  }, [models]);
 
   const buildThen = (): SelectionStep => {
     if (thenKind === 'prefer_free') return 'prefer_free';

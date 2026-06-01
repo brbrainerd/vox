@@ -272,21 +272,6 @@ pub async fn run(args: EvalArgs) -> anyhow::Result<()> {
         }
     }
 
-    // After write-back, refresh the live registry's latency capability from the new
-    // scoreboard rows so the latency scorer is immediately data-backed for this window.
-    if !args.no_write_back {
-        if let Some(db) = &db {
-            if let Ok(sb_rows) = db.get_model_scoreboard(7).await {
-                let mut reg = ModelRegistry::new();
-                let injected = reg.inject_scoreboard_latency(&sb_rows);
-                tracing::debug!(
-                    injected,
-                    "eval: injected scoreboard p50 into registry latency"
-                );
-            }
-        }
-    }
-
     print_table(&rows);
     if let Some(path) = &args.output {
         write_artifact(path, &args.category, &rows)?;

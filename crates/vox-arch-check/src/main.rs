@@ -1153,24 +1153,33 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     // Linking them statically as a normal compile-time dep breaks the plugin
     // boundary. Only non-optional, non-dev deps are checked.
     {
+        // A *dynamically-loaded plugin* is a PURE cdylib: it emits `cdylib` but
+        // no `lib`/`rlib`, so it can only be loaded at runtime via vox-plugin-host.
+        // A crate that emits both an rlib AND a cdylib (e.g. mobile crates that
+        // ship a `cdylib`/`staticlib` for the RN/iOS bridge alongside their normal
+        // rlib) is a legitimately-linkable library, not a plugin — don't flag it.
+        let is_plugin_cdylib = |p: &cargo_metadata::Package| {
+            let has_cdylib = p
+                .targets
+                .iter()
+                .any(|t| t.kind.iter().any(|k| k == "cdylib"));
+            let has_lib = p
+                .targets
+                .iter()
+                .any(|t| t.kind.iter().any(|k| k == "lib" || k == "rlib"));
+            has_cdylib && !has_lib
+        };
+
         let cdylib_pkg_names: HashSet<&str> = metadata_full
             .workspace_packages()
             .iter()
-            .filter(|p| {
-                p.targets
-                    .iter()
-                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
-            })
+            .filter(|p| is_plugin_cdylib(p))
             .map(|p| p.name.as_str())
             .collect();
 
         if !cdylib_pkg_names.is_empty() {
             for pkg in metadata_full.workspace_packages() {
-                if pkg
-                    .targets
-                    .iter()
-                    .any(|t| t.kind.iter().any(|k| k == "cdylib"))
-                {
+                if is_plugin_cdylib(pkg) {
                     continue; // cdylib can depend on another cdylib (rare but not our concern here)
                 }
                 for dep in &pkg.dependencies {

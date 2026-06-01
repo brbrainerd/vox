@@ -2988,6 +2988,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_POPULI_PERSIST_LOCAL_REGISTRY"
+    owner_crate: "vox-orchestrator"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Opt-in flag to persist the merged local node registry to disk after a control-plane sync. Boolean-like (`1`/`true`/`yes`/`on`); default false/unset."
   - name: "VOX_POPULI_TEMPERATURE"
     owner_crate: "vox-secrets"
     kind: "string"

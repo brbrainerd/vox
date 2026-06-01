@@ -171,6 +171,7 @@ pub async fn list_gui_runs(limit: Option<u32>) -> Result<Vec<GuiRunRecord>, Stri
 }
 
 #[tauri::command]
+// toestub-ignore(skeleton/untested-pub-api) — thin Tauri IPC over vox_db agent_runs read; covered by vox-db agent_runs tests
 pub async fn get_gui_run(run_id: String) -> Result<Option<GuiRunRecord>, String> {
     let db = connect_workspace_journey_optional(DbConnectSurface::Runtime, true)
         .await

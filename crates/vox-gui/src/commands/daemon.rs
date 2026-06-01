@@ -37,6 +37,7 @@ impl PersistentDaemon {
     /// Cached on success (subsequent calls reuse the address); failures are not
     /// cached, so a later call retries. If no daemon answers a ping, one is
     /// spawned and we poll until it is ready (or a ~15s deadline elapses).
+    // toestub-ignore(skeleton/untested-pub-api) — spawns/pings external vox-orchestrator-d process; covered by integration tests
     pub async fn ensure(&self) -> Result<String, String> {
         self.addr
             .get_or_try_init(|| async {
@@ -59,7 +60,9 @@ impl PersistentDaemon {
                     .spawn()
                     .map_err(|e| format!("failed to spawn vox-orchestrator-d: {e}"))?;
                 if let Ok(mut slot) = self.child.lock() {
-                    *slot = Some(child);
+                    if let Some(mut old) = slot.replace(child) {
+                        let _ = old.kill();
+                    }
                 }
 
                 // Poll until the daemon answers a ping or the deadline elapses.
@@ -69,6 +72,12 @@ impl PersistentDaemon {
                         return Ok(addr);
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+
+                if let Ok(mut slot) = self.child.lock() {
+                    if let Some(mut spawned) = slot.take() {
+                        let _ = spawned.kill();
+                    }
                 }
 
                 Err(format!(

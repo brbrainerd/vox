@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Glass } from '../../ui/Glass';
 import { invoke } from '@tauri-apps/api/core';
 import { Icon } from '../../ui/Icons';
@@ -282,16 +282,31 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
 
   const [advanced, setAdvanced] = useState(false);
 
-  const updateRouting = async (patch: Partial<typeof routing>) => {
+  // Trailing-debounce the success toast so a dragging RangeInline slider (which
+  // fires onChange on every tick) only surfaces one "saved" toast once the value
+  // settles. Persisting still happens on every change.
+  const savedToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
+  }, []);
+
+  const updateRouting = useCallback(async (patch: Partial<typeof routing>) => {
     const next = { ...routing, ...patch };
     setRouting(next);
     try {
       await voxTransport.setRoutingPriority(next);
-      pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY persisted' });
+      if (savedToastTimer.current) clearTimeout(savedToastTimer.current);
+      savedToastTimer.current = setTimeout(() => {
+        pushToast({ tone: 'ok', title: 'Routing weights saved', body: 'VOX_AUTO_ROUTING_PRIORITY persisted' });
+      }, 600);
     } catch (err) {
+      if (savedToastTimer.current) {
+        clearTimeout(savedToastTimer.current);
+        savedToastTimer.current = null;
+      }
       pushToast({ tone: 'warn', title: 'Routing save failed', body: String(err) });
     }
-  };
+  }, [routing, pushToast]);
 
   // The three user-facing characteristics map onto the 6-axis priority:
   //   intelligence -> precision, efficiency -> efficiency, responsiveness -> latency.

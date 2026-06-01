@@ -100,9 +100,13 @@ async fn main() -> anyhow::Result<()> {
         {
             let csv = csv.trim();
             if !csv.is_empty() {
-                // SAFETY: set during single-threaded startup, before any worker
-                // threads/connections that would read the env concurrently.
-                unsafe { std::env::set_var("VOX_AUTO_ROUTING_PRIORITY", csv) };
+                // Install as a thread-safe process-global rather than mutating
+                // the process environment: under the multi-threaded tokio runtime
+                // other threads may `getenv` concurrently, so `set_var` here would
+                // be UB. The scorer reads this global (falling back to the env
+                // only when it is unset). See `install_base_routing_priority`.
+                let axes = vox_config::AutoRoutingPriority::parse_csv(csv);
+                vox_orchestrator::models::install_base_routing_priority(Some(axes));
                 tracing::info!(priority = %csv, "applied persisted routing-priority emphasis");
             }
         }

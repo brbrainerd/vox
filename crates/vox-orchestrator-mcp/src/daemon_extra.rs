@@ -22,6 +22,7 @@ pub struct McpExtraDispatch {
 }
 
 impl McpExtraDispatch {
+    // toestub-ignore(skeleton/untested-pub-api) — constructor wires ServerState; exercised via tests/daemon_extra_tests.rs
     #[must_use]
     pub fn new(state: ServerState) -> Self {
         Self { state }
@@ -86,7 +87,15 @@ impl ExtraDispatch for McpExtraDispatch {
                 let outcome = match decision {
                     "approve" | "approved" => vox_orchestrator::ApprovalOutcome::Approved,
                     "modify" | "modified" => vox_orchestrator::ApprovalOutcome::Modified,
-                    _ => vox_orchestrator::ApprovalOutcome::Rejected,
+                    "reject" | "rejected" => vox_orchestrator::ApprovalOutcome::Rejected,
+                    other => {
+                        return Some(error(
+                            &req.id,
+                            format!(
+                                "unrecognized approval decision {other:?}; expected one of approve|approved|modify|modified|reject|rejected"
+                            ),
+                        ));
+                    }
                 };
                 let resolved = self.state.pending_approvals.resolve(approval_id, outcome);
                 Some(result(

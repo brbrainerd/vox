@@ -220,6 +220,7 @@ pub async fn call_daemon_streaming(
 /// Mirrors [`call_daemon_streaming`]'s spawn/child-handling model but forwards
 /// events into a channel instead of printing to stdout. Returns `Ok(())` once the
 /// loop exits and the child process has been terminated.
+// toestub-ignore(skeleton/untested-pub-api) — spawns and streams from a child daemon process; covered by integration tests
 pub async fn subscribe_daemon(
     daemon: &str,
     method: &str,

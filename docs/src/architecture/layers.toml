@@ -90,6 +90,7 @@ vox-secrets           = { layer = 1, max_dependents = 27 }  # 26 direct consumer
 
 vox-jsonschema-util   = { layer = 1 }
 vox-foundation        = { layer = 1, staleness_exempt = true, max_dependents = 18 }   # umbrella: vox-primitives + vox-protocol + vox-tracing-init
+vox-runtime           = { layer = 1 }   # mobile-safe runtime core (config/lifecycle/profile); deps: serde/thiserror/tracing only
 
 vox-identity          = { layer = 1 }
 vox-http-client  = { layer = 1, staleness_exempt = true, max_dependents = 20 }
@@ -106,6 +107,7 @@ vox-telemetry         = { layer = 1 }                            # L1 telemetry 
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2, max_dependents = 20 }
+vox-journal             = { layer = 2 }   # durable NDJSON journal; depends on vox-runtime (L1)
 vox-repository          = { layer = 2 }
 vox-populi-types        = { layer = 2, max_loc = 1_000 }  # ADR-042: NodeRecord + PopuliRegistryFile (pure-data, no async)
 vox-mcp-registry        = { layer = 2 }
@@ -152,6 +154,7 @@ vox-forge               = { layer = 3 }
 vox-git                 = { layer = 3 }
 vox-openclaw-runtime    = { layer = 3 }
 vox-workflow-runtime    = { layer = 3 }
+vox-runtime-rn          = { layer = 3, orphan_exempt = true }   # React Native / mobile runtime bridge; consumed by the mobile (RN/iOS) build, not in-tree Rust. Depends on vox-runtime (L1) + vox-journal (L2)
 vox-distributed-training = { layer = 3, orphan_exempt = true }     # WIP/Mn-T1; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
 vox-inference           = { layer = 3, orphan_exempt = true }      # WIP/Mn-T2; promoted from [planned] 2026-05-23; no in-tree consumers until mesh Phase 3
 vox-mesh-policy  = { layer = 3, kind = "library", staleness_exempt = true, orphan_exempt = true }
