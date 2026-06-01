@@ -61,14 +61,23 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["name", "required", "takes_value"],
+              "required": ["name", "required", "takes_value", "value_kind"],
               "properties": {
                 "name": { "type": "string", "minLength": 1 },
                 "short": { "type": ["string", "null"] },
                 "long": { "type": ["string", "null"] },
                 "help": { "type": ["string", "null"] },
                 "required": { "type": "boolean" },
-                "takes_value": { "type": "boolean" }
+                "takes_value": { "type": "boolean" },
+                "value_kind": { "enum": ["flag", "value", "count"] },
+                "possible_values": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "default_values": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
               }
             }
           }
