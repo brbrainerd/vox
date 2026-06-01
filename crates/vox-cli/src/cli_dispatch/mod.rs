@@ -20,7 +20,70 @@ pub(crate) use lanes::{
     run_fabrica_cmd,
 };
 
+/// Map a top-level command to the `command_path` recorded for its generic
+/// Ludus reward, or `None` when it must not emit one here.
+///
+/// Returns `None` for the fabrica lanes (`build`/`check`/… and `fabrica`), which
+/// self-reward with specific event types inside [`run_fabrica_cmd`], and for
+/// meta/introspection commands where a reward would be noise. Every other command
+/// earns the generic `cli_command_completed` / `cli_command_failed` reward, so
+/// gamification covers the whole CLI from this single seam.
+fn universal_reward_command_path(cli: &Cli) -> Option<&'static str> {
+    match cli {
+        // Fabrica-routed lanes self-reward in run_fabrica_cmd (avoid double-emit).
+        Cli::Build { .. }
+        | Cli::Check { .. }
+        | Cli::Test { .. }
+        | Cli::Run { .. }
+        | Cli::Dev { .. }
+        | Cli::BundleApp { .. }
+        | Cli::Compile { .. }
+        | Cli::Fmt { .. }
+        | Cli::Fabrica { .. } => None,
+        // Meta / introspection: rewarding these is noise.
+        Cli::Completions { .. } | Cli::Commands { .. } => None,
+        // Named paths for common surfaces (richer telemetry); the long tail and
+        // feature-gated commands fall through to a generic path.
+        Cli::Scientia { .. } => Some("scientia"),
+        Cli::Audit { .. } => Some("audit"),
+        Cli::Ci { .. } => Some("ci"),
+        Cli::Db { .. } => Some("db"),
+        Cli::Mens { .. } => Some("mens"),
+        Cli::Populi { .. } => Some("populi"),
+        Cli::Research { .. } => Some("research"),
+        Cli::Deploy { .. } => Some("deploy"),
+        Cli::Plan { .. } => Some("plan"),
+        Cli::Doctor { .. } => Some("doctor"),
+        _ => Some("command"),
+    }
+}
+
+/// Dispatch a parsed CLI command, then emit its generic Ludus reward event.
+///
+/// Fabrica lanes self-reward inside [`run_fabrica_cmd`]; every other command
+/// earns a generic completion reward here via the fire-and-forget shim (opens its
+/// own DB, honors the config gate, never affects this command's result, exit code,
+/// or latency). GUI-driven commands inherit this through the `vox` sidecar.
 pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
+    let reward_path = universal_reward_command_path(&cli);
+    let result = dispatch_cli_inner(cli, global).await;
+    if let Some(command_path) = reward_path {
+        let success = result.is_ok();
+        vox_cli_core::gamify_shim::record_cli_event_fire_and_forget(
+            if success {
+                "cli_command_completed"
+            } else {
+                "cli_command_failed"
+            },
+            success,
+            Some("cli.command"),
+            Some(command_path),
+        );
+    }
+    result
+}
+
+async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()> {
     {
         let _ = global;
     }
@@ -422,4 +485,36 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn universal_reward_maps_named_surfaces_and_generic_tail() {
+        // Named surfaces get a specific command_path.
+        assert_eq!(
+            universal_reward_command_path(&Cli::Mens { args: vec![] }),
+            Some("mens")
+        );
+        assert_eq!(
+            universal_reward_command_path(&Cli::Populi { args: vec![] }),
+            Some("populi")
+        );
+        // Long-tail commands fall through to the generic path.
+        assert_eq!(universal_reward_command_path(&Cli::Mcp), Some("command"));
+    }
+
+    #[test]
+    fn universal_reward_excludes_meta_commands() {
+        // Meta/introspection is excluded (the fabrica lanes are likewise excluded
+        // via their explicit None arm so they don't double-reward).
+        assert_eq!(
+            universal_reward_command_path(&Cli::Completions {
+                shell: clap_complete::Shell::Bash,
+            }),
+            None
+        );
+    }
 }
