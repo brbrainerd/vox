@@ -241,6 +241,7 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                         None,
                         Some(hints),
                         None,
+                        None,
                     )
                     .await
                     .map_err(|e| miette::miette!("Failed to submit VLM task: {}", e))?;
