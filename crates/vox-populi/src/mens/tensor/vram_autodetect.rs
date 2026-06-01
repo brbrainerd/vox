@@ -42,11 +42,7 @@ fn nvidia_smi_total_vram_gb() -> Option<f32> {
     // First line is the first GPU's total memory in MiB (nounits).
     let first = text.lines().next()?.trim();
     let mib: f32 = first.parse().ok()?;
-    if mib > 0.0 {
-        Some(mib / 1024.0)
-    } else {
-        None
-    }
+    if mib > 0.0 { Some(mib / 1024.0) } else { None }
 }
 
 /// Select the best training preset for the detected hardware.
