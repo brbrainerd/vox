@@ -5,6 +5,8 @@ export interface ActionPlatform {
   mobile: boolean;
 }
 
+export type ArgValueKind = 'flag' | 'value' | 'count';
+
 export interface ActionArgument {
   name: string;
   short: string | null;
@@ -12,6 +14,9 @@ export interface ActionArgument {
   help: string | null;
   required: boolean;
   takes_value: boolean;
+  value_kind: ArgValueKind;
+  possible_values?: string[];
+  default_values?: string[];
 }
 
 export interface ActionManifestEntry {
