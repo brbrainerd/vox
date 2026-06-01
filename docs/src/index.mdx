@@ -49,29 +49,29 @@ fn main() {
 
 ---
 
-<!-- SYNC-FROM-README: why_vox -->
+{/* SYNC-FROM-README: why_vox */}
 ## Why Vox
 
 Mainstream languages predate LLMs by decades. They tolerate implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for a person; it's a minefield for a statistical code generator. A million-token context window doesn't help when most of it is integration boilerplate.
 
 <div align="center">
-  <img src="./assets/old_internet_knot_abstract.png" alt="A diagram illustrating the complexity of traditional web development fragmentation." width="80%">
+  <img src="./assets/old_internet_knot_abstract.png" alt="A diagram illustrating the complexity of traditional web development fragmentation." width="80%" />
   <p>
-    <strong>Fragmentation in Traditional Web Development</strong><br>
+    <strong>Fragmentation in Traditional Web Development</strong><br />
     Traditional development requires restating data models and logic across frontend, API, backend, and database layers. This duplication creates significant maintenance overhead and increases the risk of integration drift.
   </p>
 </div>
 
 Vox is what falls out when you design the language *after* the model: collapse the duplications, push errors into the type system, draw the browser/server boundary in one place, and build durability and tool exposure into the grammar instead of layering them on top.
-<!-- SYNC-END: why_vox -->
+{/* SYNC-END: why_vox */}
 
-<!-- SYNC-FROM-README: how_vox -->
+{/* SYNC-FROM-README: how_vox */}
 ## How Vox works
 
 <div align="center">
-  <img src="./assets/vox_architecture_prism.png" alt="A diagram showing one source file generating multiple stack components." width="80%">
+  <img src="./assets/vox_architecture_prism.png" alt="A diagram showing one source file generating multiple stack components." width="80%" />
   <p>
-    <strong>Unified Compilation from a Single Source</strong><br>
+    <strong>Unified Compilation from a Single Source</strong><br />
     Vox uses a single .vox file to derive the entire technology stack. The compiler uses this unified source of truth to generate synchronized database schemas, API servers, and reactive UI components simultaneously.
   </p>
 </div>
@@ -162,7 +162,7 @@ fn recent_orders() to list[Order] {
 [`vox-orchestrator`](https://github.com/vox-foundation/vox/tree/main/crates/vox-orchestrator/) routes work to agents by file affinity and ten policy modules (tier cascade, plan-mode trigger, risk matrix, budget gate, circuit breaker, calibration, …). Capabilities are extensible: dozens of first-party plugins (compiler, git, memory, RAG, testing, Mens-Candle-CUDA/Metal, WASM and OCI runtimes) load through [`vox-plugin-host`](https://github.com/vox-foundation/vox/tree/main/crates/vox-plugin-host/) behind a stable ABI.
 
 <div align="center">
-  <img src="./assets/durable_essentialist_loop.webp" alt="A continuous ribbon with four checkpoint markers — the durability loop the workflow runtime executes." width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+  <img src="./assets/durable_essentialist_loop.webp" alt="A continuous ribbon with four checkpoint markers — the durability loop the workflow runtime executes." width="600px" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
   <div style="max-width: 600px; text-align: left; margin-top: 15px;">
     <h3>Durable execution</h3>
     <p>
@@ -217,7 +217,7 @@ Properties enforced on the project itself, invisible from the language surface:
 - **Layered crate graph.** All 101 workspace crates declare a layer (L0 pure types → L5 surfaces) in [`layers.toml`](./architecture/layers.toml). [`vox-arch-check`](https://github.com/vox-foundation/vox/tree/main/crates/vox-arch-check/) blocks inversions, fan-in violations, LoC budget overruns, and orphaned modules.
 - **Sandboxed execution.** [`vox-wasm-engine`](https://github.com/vox-foundation/vox/tree/main/crates/vox-wasm-engine/) ([Wasmtime](https://wasmtime.dev/)), [`vox-container`](https://github.com/vox-foundation/vox/tree/main/crates/vox-container/) ([OCI](https://opencontainers.org/)), [`vox-bounded-fs`](https://github.com/vox-foundation/vox/tree/main/crates/vox-bounded-fs/) (size-capped reads), [`vox-exec-grammar`](https://github.com/vox-foundation/vox/tree/main/crates/vox-exec-grammar/) (shell risk classifier). Tiers are selectable on `vox run`.
 - **Declared capabilities.** [`vox-capability-registry`](https://github.com/vox-foundation/vox/tree/main/crates/vox-capability-registry/) gates what tools can do; [`vox-identity`](https://github.com/vox-foundation/vox/tree/main/crates/vox-identity/) signs with [ed25519](https://en.wikipedia.org/wiki/EdDSA#Ed25519) against a trust ledger; [`vox-secrets`](https://github.com/vox-foundation/vox/tree/main/crates/vox-secrets/) is the only path to a secret value.
-<!-- SYNC-END: how_vox -->
+{/* SYNC-END: how_vox */}
 
 ---
 
@@ -255,7 +255,7 @@ fn complete_task(id: Id[Task]) to Result[Unit] {
 
 ## Stability
 
-<!-- SYNC-FROM-README: tier_table -->
+{/* SYNC-FROM-README: tier_table */}
 Vox is marching toward a production-hardened v1.0 release. Surfaces are graded by their architectural stability and proximity to the v1 criteria.
 
 | Feature Area | Status | Context & Maturity |
@@ -291,7 +291,7 @@ Vox is marching toward a production-hardened v1.0 release. Surfaces are graded b
 - 🔬 **Research**: Internal prototypes; not yet exposed in the standard CLI surface.
 
 v1.0 criteria: [`docs/src/architecture/v1-release-criteria.md`](./architecture/v1-release-criteria.md). Roadmap: [GUI-native phases](./architecture/gui-native-roadmap-status-2026.md). History: [`CHANGELOG.md`](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md).
-<!-- SYNC-END: tier_table -->
+{/* SYNC-END: tier_table */}
 
 ---
 

@@ -36,3 +36,35 @@ if (!existsSync(link)) {
     console.log('[setup-content] docs-astro/src/content/docs already points to docs/src, skipping.');
   }
 }
+
+// Second link: expose repo-root examples/ so remark-vox-include can resolve
+// {{#include ../../../examples/golden/X.vox}} from any docs section subdirectory.
+// From docs-astro/src/content/docs/<section>/, going up 3 levels reaches
+// docs-astro/src/, so the plugin looks for docs-astro/src/examples/golden/X.vox.
+const examplesTarget = join(repoRoot, 'examples');
+const examplesLink = join(repoRoot, 'docs-astro', 'src', 'examples');
+
+function createExamplesLink() {
+  mkdirSync(join(repoRoot, 'docs-astro', 'src'), { recursive: true });
+  symlinkSync(examplesTarget, examplesLink, type);
+  console.log(`[setup-content] Created ${type}: docs-astro/src/examples → examples`);
+}
+
+if (!existsSync(examplesLink)) {
+  createExamplesLink();
+} else {
+  const stat = lstatSync(examplesLink);
+  if (!stat.isSymbolicLink()) {
+    throw new Error(
+      `[setup-content] docs-astro/src/examples exists but is not a symlink (is a ${stat.isDirectory() ? 'directory' : 'file'}). Remove it manually and re-run.`
+    );
+  }
+  const actual = readlinkSync(examplesLink);
+  if (actual !== examplesTarget) {
+    console.log(`[setup-content] Stale examples link (${actual} → ${examplesTarget}), recreating...`);
+    rmSync(examplesLink, { recursive: true });
+    createExamplesLink();
+  } else {
+    console.log('[setup-content] docs-astro/src/examples already points to examples, skipping.');
+  }
+}
