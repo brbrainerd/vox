@@ -90,6 +90,7 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
           <NavItem collapsed={collapsed} active={view === "flow"}      onClick={() => setView("flow")}      icon={<Icon.flow className="size-4"/>}      label="Agents" badge={agentsCount} />
           <NavItem collapsed={collapsed} active={view === "catalog"}   onClick={() => setView("catalog")}   icon={<Icon.catalog className="size-4"/>}   label="Commands" />
           <NavItem collapsed={collapsed} active={view === "matrix"}    onClick={() => setView("matrix")}    icon={<Icon.matrix className="size-4"/>}    label="Policies" />
+          <NavItem collapsed={collapsed} active={view === "scientia"}  onClick={() => setView("scientia")}  icon={<Icon.file className="size-4"/>}   label="Scientia" />
           <NavItem collapsed={collapsed} active={view === "models"}    onClick={() => setView("models")}    icon={<Icon.cpu className="size-4"/>}    label="Models" />
           <NavItem collapsed={collapsed} active={view === "harness"}   onClick={() => setView("harness")}   icon={<Icon.command className="size-4"/>} label="Harness" />
           <NavItem collapsed={collapsed} active={view === "repository"} onClick={() => setView("repository")} icon={<Icon.file className="size-4"/>} label="Repository" />

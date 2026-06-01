@@ -19,6 +19,7 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
+import { surfaceDecorators } from './components/surfaces/decoratorRegistry';
 import { voxTransport } from './transport';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { usePersistedSparkWindow } from './hooks/useSparkWindow';
@@ -37,6 +38,7 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'scientia'
   | 'settings';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
@@ -359,6 +361,9 @@ export default function App() {
 
   // ── View renderer ─────────────────────────────────────────────────────────
   const renderView = () => {
+    // Decorator registry: a surface may override its default view (SP-4 seam).
+    const Decorator = surfaceDecorators[activeView];
+    if (Decorator) return <Decorator pushToast={pushToast} />;
     switch (activeView) {
       case 'dashboard':
         return (
