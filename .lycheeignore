@@ -137,3 +137,7 @@ https://expo\.dev/settings/.*
 
 # puffersoft.com intermittently times out from GitHub Actions runners; link is valid
 .*puffersoft\.com/.*
+
+# v2.tauri.app docs intermittently time out from CI runners; links are valid
+# (heavily referenced across the Tauri-based GUI/architecture docs)
+.*tauri\.app/.*
