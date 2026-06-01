@@ -269,9 +269,17 @@ impl QuantizedLinear {
         // Quantize the base weight using full config
         let quantized_weight = quantize_nf4_with_config(weight, &config.quantization)?;
 
-        // Only cache if explicitly requested (opt-in for inference)
+        // Only cache if explicitly requested. Cache at the configured COMPUTE dtype
+        // (bf16) — not F32 — so a cached 3B base is ~6 GiB, not ~12 GiB. Caching
+        // avoids re-running the (CPU, scalar-loop) NF4 dequant on every forward pass,
+        // which otherwise dominates training time; the dequantized weight is resident
+        // through backward anyway, so caching does not raise the peak.
         let cached_weight = if config.cache_dequantized {
-            Some(dequantize_nf4(&quantized_weight, device)?)
+            Some(dequantize_nf4_with_dtype(
+                &quantized_weight,
+                device,
+                config.quantization.compute_dtype,
+            )?)
         } else {
             None
         };
@@ -434,7 +442,11 @@ impl QuantizedLinear {
     /// Returns error if dequantization fails.
     pub fn enable_weight_caching(&mut self) -> Result<()> {
         if self.cached_weight.is_none() {
-            self.cached_weight = Some(dequantize_nf4(&self.quantized_weight, &self.device)?);
+            self.cached_weight = Some(dequantize_nf4_with_dtype(
+                &self.quantized_weight,
+                &self.device,
+                self.config.quantization.compute_dtype,
+            )?);
         }
         Ok(())
     }

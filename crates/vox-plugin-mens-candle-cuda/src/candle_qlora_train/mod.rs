@@ -450,7 +450,14 @@ pub fn run_candle_qlora_train(
     // ── qlora-rs config ───────────────────────────────────────────────────────
     let rank = config.rank.max(1);
     let alpha_u = config.alpha.round() as usize;
-    let qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
+    let mut qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
+    // Cache the dequantized (bf16) base weight per layer instead of re-running the
+    // NF4 dequant — which is a CPU scalar loop (GPU→CPU→GPU roundtrip) — on EVERY
+    // forward pass. That per-forward dequant dominated training time (~5 s/microstep
+    // for 3B). The dequantized weights are resident through backward anyway, so
+    // caching at the bf16 compute dtype does not raise the peak (a 3B cached base is
+    // ~6 GiB). Opt out with VOX_MENS_NO_WEIGHT_CACHE=1 if build-time memory is tight.
+    qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_none();
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;
