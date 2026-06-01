@@ -78,6 +78,49 @@ async fn store_claim_and_verdict() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn list_publication_claims_and_pending_summary() {
+    let db = test_db().await;
+    let sid = db
+        .create_research_session("sess-claims-rd", "claims read")
+        .await
+        .unwrap();
+
+    // claim 111 → Supported; claim 222 → Abstain; claim 333 → no verdict yet.
+    db.store_claim(sid, 111, "latency increased by 10ms", true, false, false)
+        .await
+        .unwrap();
+    db.store_claim_verdict(111, "Supported", 0.9, "mock")
+        .await
+        .unwrap();
+    db.store_claim(sid, 222, "performance may improve", false, false, false)
+        .await
+        .unwrap();
+    db.store_claim_verdict(222, "Abstain", 0.0, "mock")
+        .await
+        .unwrap();
+    db.store_claim(sid, 333, "throughput doubled", true, false, false)
+        .await
+        .unwrap();
+
+    let claims = db.list_publication_claims(sid).await.expect("list claims");
+    assert_eq!(claims.len(), 3);
+    let by_id = |id: i64| claims.iter().find(|c| c.claim_id == id).unwrap();
+    assert_eq!(by_id(111).verdict.as_deref(), Some("Supported"));
+    assert_eq!(by_id(111).confidence, Some(0.9));
+    assert_eq!(by_id(111).verifier_model.as_deref(), Some("mock"));
+    assert_eq!(by_id(222).verdict.as_deref(), Some("Abstain"));
+    assert_eq!(by_id(333).verdict, None);
+
+    let counts = db
+        .scientia_claims_pending_summary()
+        .await
+        .expect("pending summary");
+    assert_eq!(counts.verifiable, 1);
+    assert_eq!(counts.abstained, 1);
+    assert_eq!(counts.extraction_running, 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn store_training_pair_roundtrip() {
     let db = test_db().await;
     let sid = db
