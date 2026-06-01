@@ -50,9 +50,13 @@ mod tests {
     use super::*;
     use crate::backends::CandleCpuBackend;
 
+    // The CandleCpu backend picks this bundle (hash verifies) but `load(&ModelBundle)`
+    // now returns the documented CAS-not-wired error — there is no resolver to map a
+    // hash-only bundle to local artifact files yet (Mn-T3). Real inference goes through
+    // `CandleCpuBackend::load_from_dir`. So `predict_auto` surfaces that error.
     #[tokio::test]
-    async fn auto_dispatch_hits_cpu_stub() {
-        let d = InferenceDispatcher::new(vec![Arc::new(CandleCpuBackend)]);
+    async fn auto_dispatch_picks_cpu_but_bundle_load_unsupported() {
+        let d = InferenceDispatcher::new(vec![Arc::new(CandleCpuBackend::new())]);
         let mut bundle = ModelBundle {
             weights_hash: [1u8; 64],
             weights_merkle_leaves: None,
@@ -66,7 +70,7 @@ mod tests {
             },
         };
         bundle.bundle_hash = vox_package::compute_model_bundle_content_hash(&bundle);
-        let out = d
+        let err = d
             .predict_auto(
                 &bundle,
                 PromptInput {
@@ -80,7 +84,12 @@ mod tests {
                 },
             )
             .await
-            .unwrap();
-        assert!(out.contains("stub"));
+            .expect_err("ModelBundle load is unsupported until CAS lands");
+        match err {
+            InferenceError::Unsupported(_, msg) => {
+                assert!(msg.contains("CAS"), "expected CAS-not-wired message, got: {msg}");
+            }
+            other => panic!("expected Unsupported, got {other:?}"),
+        }
     }
 }
