@@ -3,7 +3,7 @@ title: "Mobile: emulator run proof + EAS CI / Expo account setup"
 description: "How the Vox-generated Expo app was verified running on an Android emulator, the exact reproducible run procedure, and the steps to wire up an Expo account + EAS Build CI runner."
 category: "Architecture SSOTs"
 status: current
-last_updated: 2026-05-30
+last_updated: "2026-05-30"
 ---
 
 # Mobile: emulator run proof + EAS CI / Expo account setup
