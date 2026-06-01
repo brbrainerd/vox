@@ -17,7 +17,8 @@ use crate::commands::runtime::run::script::ScriptOpts;
 mod platform {
     use super::*;
     use landlock::{
-        ABI, Access, AccessFs, PathBeneath, PathFd, Ruleset, RulesetAttr, RulesetCreatedAttr,
+        ABI, Access, AccessFs, BitFlags, PathBeneath, PathFd, Ruleset, RulesetAttr,
+        RulesetCreatedAttr,
     };
     use std::path::Path;
 
@@ -45,7 +46,7 @@ mod platform {
 
         // Collect paths before fork — PathFd is fd-based so we must open in parent.
         let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        let mut rules: Vec<(std::path::PathBuf, AccessFs)> = Vec::new();
+        let mut rules: Vec<(std::path::PathBuf, BitFlags<AccessFs>)> = Vec::new();
 
         for &p in READ_ONLY_PATHS {
             let path = Path::new(p);
