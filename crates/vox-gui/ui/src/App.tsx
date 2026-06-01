@@ -39,6 +39,9 @@ type View =
   | 'gamify'
   | 'harness'
   | 'scientia'
+  | 'mens'
+  | 'populi'
+  | 'research'
   | 'settings';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
