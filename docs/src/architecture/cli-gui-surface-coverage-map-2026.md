@@ -2,7 +2,7 @@
 title: "CLI→GUI Surface Coverage Map 2026"
 description: "Per-surface gap matrix of every top-level Vox CLI surface versus its GUI representation, and the association thesis linking the action-manifest derivation spine, the Ludus event bus, and Scientia as the first promoted surface."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 last_updated: "2026-06-01"
 training_eligible: true
 training_rationale: "Grounded per-surface audit of CLI-to-GUI coverage; companion to the GUI capability audit."

@@ -227,7 +227,7 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'approvals', 'skills', 'settings'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});

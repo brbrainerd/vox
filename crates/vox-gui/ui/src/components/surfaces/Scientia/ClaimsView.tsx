@@ -79,12 +79,12 @@ export function ClaimsView({ pushToast }: SurfaceDecoratorProps) {
       });
       if (out.exit_code === 0) {
         await loadClaims();
-        return;
       }
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Extraction failed', body: String(err) });
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   return (

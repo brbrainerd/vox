@@ -362,6 +362,20 @@ pub(crate) fn verdict_to_row(
     }
 }
 
+/// Build the JSON payload for `vox scientia claims` from a publication id and its
+/// claim rows. Pure (no IO) so the shape is unit-testable without a DB.
+fn build_claims_payload<T: serde::Serialize>(
+    publication_id: &str,
+    claims: &[T],
+) -> serde_json::Value {
+    serde_json::json!({
+        "schema_kind": "scientia_publication_claims",
+        "publication_id": publication_id,
+        "claim_count": claims.len(),
+        "claims": claims,
+    })
+}
+
 /// `vox scientia claims --publication-id X` — print a publication's extracted
 /// claims joined to each claim's latest verdict as JSON.
 pub async fn publication_claims(publication_id: &str) -> Result<()> {
@@ -373,12 +387,7 @@ pub async fn publication_claims(publication_id: &str) -> Result<()> {
         .list_publication_claims(session_id)
         .await
         .context("list publication claims")?;
-    let payload = serde_json::json!({
-        "schema_kind": "scientia_publication_claims",
-        "publication_id": publication_id,
-        "claim_count": claims.len(),
-        "claims": claims,
-    });
+    let payload = build_claims_payload(publication_id, &claims);
     println!("{}", serde_json::to_string_pretty(&payload)?);
     Ok(())
 }
@@ -655,6 +664,22 @@ mod tests {
         let a = publication_session_id("pub-aaa");
         assert_eq!(a, publication_session_id("pub-aaa"));
         assert_ne!(a, publication_session_id("pub-bbb"));
+    }
+
+    #[test]
+    fn build_claims_payload_shape() {
+        // Exercises the payload-building core of `publication_claims` without a DB.
+        let empty: Vec<serde_json::Value> = vec![];
+        let p = build_claims_payload("pub-x", &empty);
+        assert_eq!(p["schema_kind"], "scientia_publication_claims");
+        assert_eq!(p["publication_id"], "pub-x");
+        assert_eq!(p["claim_count"], 0);
+        assert!(p["claims"].is_array());
+
+        let one = vec![serde_json::json!({ "claim_id": 1 })];
+        let p2 = build_claims_payload("pub-y", &one);
+        assert_eq!(p2["claim_count"], 1);
+        assert_eq!(p2["claims"][0]["claim_id"], 1);
     }
 
     #[test]

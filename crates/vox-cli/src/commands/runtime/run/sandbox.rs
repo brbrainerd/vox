@@ -106,7 +106,10 @@ mod platform {
                 }
 
                 // restrict_self() is a single prctl() syscall — async-signal-safe.
-                let _ = ruleset.restrict_self();
+                // Fail closed: a failed restriction must not let the child run unsandboxed.
+                ruleset
+                    .restrict_self()
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
                 Ok(())
             });
         }

@@ -61,7 +61,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["name", "required", "takes_value", "value_kind"],
+              "required": ["name", "required", "takes_value"],
               "properties": {
                 "name": { "type": "string", "minLength": 1 },
                 "short": { "type": ["string", "null"] },
