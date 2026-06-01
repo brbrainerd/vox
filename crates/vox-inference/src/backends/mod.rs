@@ -1,5 +1,6 @@
 pub mod candle_cpu;
 pub mod candle_cuda;
+pub(crate) mod candle_device;
 pub mod candle_metal;
 pub mod llama_cpp_rpc;
 pub mod ollama_subprocess;

@@ -2,29 +2,14 @@ use crate::backend::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, LoadedModel, PromptInput,
     Quantization, SamplingParams, Verdict,
 };
+use crate::backends::candle_device::{self, LoadedState};
 use crate::generate::{generate, GenConfig};
-use crate::qwen_forward::QwenForward;
-use crate::qwen_weights::QwenWeights;
 use async_trait::async_trait;
 use candle_core::Device;
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use vox_hf_layout::HfTransformerLayout;
 use vox_package::ModelBundle;
-
-/// Default Qwen end-of-sequence token id (`<|endoftext|>`), used when the tokenizer
-/// does not expose one explicitly.
-const QWEN_DEFAULT_EOS: u32 = 151_643;
-
-/// Internal per-model state owned by the backend. The trait's [`LoadedModel`] is opaque
-/// (carries only a label), so the real model lives here keyed by that label.
-struct LoadedState {
-    forward: Mutex<QwenForward>,
-    tokenizer: tokenizers::Tokenizer,
-    eos: Option<u32>,
-}
 
 /// CPU inference backend backed by candle `QMatMul` quantized weights.
 ///
@@ -55,37 +40,16 @@ impl CandleCpuBackend {
     /// This is the supported entry point for local inference. [`InferenceBackend::load`]
     /// (the `ModelBundle` path) intentionally errors until a content-addressed store
     /// resolver exists — see its doc comment.
-    pub fn load_from_dir(&self, dir: &Path) -> Result<LoadedModel, InferenceError> {
-        let dev = Device::Cpu;
-        let layout = HfTransformerLayout::from_config_path(&dir.join("config.json"))
-            .map_err(|e| InferenceError::Internal(format!("parse config.json: {e}")))?;
-        let weights = QwenWeights::load(dir, &dev)
-            .map_err(|e| InferenceError::Internal(format!("load weights: {e}")))?;
-        let forward = QwenForward::new(&layout, weights, &dev)
-            .map_err(|e| InferenceError::Internal(format!("build forward: {e}")))?;
-
-        let tokenizer = tokenizers::Tokenizer::from_file(dir.join("tokenizer.json"))
-            .map_err(|e| InferenceError::Internal(format!("load tokenizer.json: {e}")))?;
-        let eos = tokenizer
-            .token_to_id("<|endoftext|>")
-            .or(Some(QWEN_DEFAULT_EOS));
-
+    pub fn load_from_dir(&self, dir: &std::path::Path) -> Result<LoadedModel, InferenceError> {
         let id = self.counter.fetch_add(1, Ordering::Relaxed);
         let label = format!("candle-cpu-dir-{id}");
-        let state = Arc::new(LoadedState {
-            forward: Mutex::new(forward),
-            tokenizer,
-            eos,
-        });
-        self.loaded
-            .lock()
-            .expect("loaded map poisoned")
-            .insert(label.clone(), state);
-
-        Ok(LoadedModel {
-            backend: self.id(),
+        candle_device::load_from_dir_on_device(
+            dir,
+            Device::Cpu,
+            BackendId::CandleCpu,
             label,
-        })
+            &self.loaded,
+        )
     }
 }
 
