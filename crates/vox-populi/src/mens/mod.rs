@@ -25,7 +25,14 @@ pub mod cloud;
 pub mod discovery_publish;
 
 /// Default HuggingFace model for Mens training and serving (VoxMens QLoRA SSOT).
-pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3.5-4B";
+///
+/// Qwen2.5-Coder is the coding-focused dense family the candle QLoRA trainer
+/// supports end-to-end (full-attention, no MoE/MTP/vision). The VRAM-aware ladder
+/// retreats this 7B request to the largest variant that fits the card — 3B on a
+/// 16 GiB consumer GPU (bf16), 7B on 24-32 GiB. The previous default, Qwen3.5-4B,
+/// is a `*ForConditionalGeneration` vision-language checkpoint that the text
+/// trainer cannot train (it is rejected up front by the vox-hf-layout VL guard).
+pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";
 
 pub use tensor::{
     DeviceKind, GpuInfo, apply_backend_env, detect_gpu_vendor, estimate_training_vram_mb,

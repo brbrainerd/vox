@@ -5,7 +5,7 @@ schema_version: 1
 description: >-
   Canonical preset identifiers for `vox mens train --preset` / schola `--preset`.
   Aliases are optional alternate CLI spellings resolving to the same profile.
-default_base_model: Qwen/Qwen3.5-4B
+default_base_model: Qwen/Qwen2.5-Coder-7B-Instruct
 presets:
   - id: tiny
   - id: safe
