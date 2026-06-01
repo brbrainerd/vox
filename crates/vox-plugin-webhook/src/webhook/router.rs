@@ -64,7 +64,7 @@ pub fn build_router(state: WebhookState) -> Router {
     Router::new()
         .route("/webhooks/health", get(health_check))
         .route("/webhooks/channels", get(list_channels))
-        .route("/webhooks/:source", post(receive_webhook))
+        .route("/webhooks/{source}", post(receive_webhook))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
             bearer_auth_middleware,
