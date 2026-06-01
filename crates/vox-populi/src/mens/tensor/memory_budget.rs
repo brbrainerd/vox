@@ -303,7 +303,10 @@ pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
         let p = plan_with_resident(vram_gib, params, QWEN2_RESIDENT_GIB_PER_B);
         let retreated = (params - max_params_b).abs() > 1e-9;
         let rationale = if retreated {
-            format!("requested ≈{max_params_b:.1}B does not fit {vram_gib:.0} GiB; retreated to {id} — {}", p.rationale)
+            format!(
+                "requested ≈{max_params_b:.1}B does not fit {vram_gib:.0} GiB; retreated to {id} — {}",
+                p.rationale
+            )
         } else {
             format!("{id} — {}", p.rationale)
         };
@@ -333,7 +336,10 @@ pub fn plan_qwen25coder(vram_gib: f64, max_params_b: f64) -> ModelPlan {
             grad_accum: p.grad_accum,
             retreated_from_b: Some(max_params_b),
             over_budget: true,
-            rationale: format!("no Qwen2.5-Coder variant fits {vram_gib:.0} GiB; {}", p.rationale),
+            rationale: format!(
+                "no Qwen2.5-Coder variant fits {vram_gib:.0} GiB; {}",
+                p.rationale
+            ),
         }
     })
 }
@@ -388,7 +394,10 @@ mod tests {
     fn parses_param_counts() {
         assert_eq!(params_b_from_model_hint("Qwen/Qwen3.5-4B"), Some(4.0));
         assert_eq!(params_b_from_model_hint("qwen2.5-0.8b"), Some(0.8));
-        assert_eq!(params_b_from_model_hint("meta-llama/Llama-3-70B"), Some(70.0));
+        assert_eq!(
+            params_b_from_model_hint("meta-llama/Llama-3-70B"),
+            Some(70.0)
+        );
         assert_eq!(params_b_from_model_hint("some-model"), None);
     }
 
@@ -424,7 +433,10 @@ mod tests {
         assert_eq!(p.model_id, "Qwen/Qwen3.5-2B");
         assert_eq!(p.retreated_from_b, Some(4.0));
         assert!(!p.over_budget);
-        assert!(p.seq_len >= 512, "2B on 16 GiB should afford a long sequence");
+        assert!(
+            p.seq_len >= 512,
+            "2B on 16 GiB should afford a long sequence"
+        );
     }
 
     #[test]

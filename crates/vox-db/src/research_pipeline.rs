@@ -317,9 +317,7 @@ impl VoxDb {
     /// Global claims-pending counts for the SCIENTIA dashboard: each claim
     /// bucketed by its latest non-span verdict (`Supported` → verifiable,
     /// `Abstain` → abstained, none yet → extraction_running).
-    pub async fn scientia_claims_pending_summary(
-        &self,
-    ) -> Result<ClaimsPendingCounts, StoreError> {
+    pub async fn scientia_claims_pending_summary(&self) -> Result<ClaimsPendingCounts, StoreError> {
         let rows = self
             .query_all(
                 "SELECT \

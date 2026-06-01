@@ -100,10 +100,7 @@ fn rebuild_and_reinstall() -> Result<()> {
     );
     run_plugin_build(&workspace_root).context("cargo build for the cuda plugin")?;
 
-    let artifact = workspace_root
-        .join("target")
-        .join("release")
-        .join(ARTIFACT);
+    let artifact = workspace_root.join("target").join("release").join(ARTIFACT);
     if !artifact.is_file() {
         anyhow::bail!(
             "build reported success but artifact {} was not produced",
@@ -124,7 +121,11 @@ fn rebuild_and_reinstall() -> Result<()> {
         let _ = std::fs::rename(&dest_artifact, install_dir.join(format!("{ARTIFACT}.prev")));
     }
     std::fs::copy(&artifact, &dest_artifact).with_context(|| {
-        format!("copying {} -> {}", artifact.display(), dest_artifact.display())
+        format!(
+            "copying {} -> {}",
+            artifact.display(),
+            dest_artifact.display()
+        )
     })?;
     for meta in ["Plugin.toml", "Cargo.toml"] {
         let from = source_dir.join(meta);
@@ -133,7 +134,10 @@ fn rebuild_and_reinstall() -> Result<()> {
         }
     }
 
-    eprintln!("   reinstalled '{PLUGIN_ID}' v{version} → {}", install_dir.display());
+    eprintln!(
+        "   reinstalled '{PLUGIN_ID}' v{version} → {}",
+        install_dir.display()
+    );
     Ok(())
 }
 
@@ -209,7 +213,8 @@ fn run_plugin_build_unix(workspace_root: &Path) -> Result<std::process::ExitStat
             .env("CUDA_HOME", &cuda)
             .env("CUDA_ROOT", &cuda);
     }
-    cmd.status().context("spawning cargo for the unix plugin build")
+    cmd.status()
+        .context("spawning cargo for the unix plugin build")
 }
 
 // Keep the opposite-platform builder referenced so dead_code lints stay quiet
@@ -245,8 +250,8 @@ fn find_workspace_root(start: &Path) -> Option<PathBuf> {
 /// Parse the `version = "x.y.z"` line from the plugin's Plugin.toml `[plugin]` table.
 fn read_plugin_version(source_dir: &Path) -> Result<String> {
     let path = source_dir.join("Plugin.toml");
-    let text = std::fs::read_to_string(&path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let text =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
     // Minimal parse: first `version = "..."` under the file (the [plugin] table
     // is first). Avoids pulling a TOML dep into the hot path.
     for line in text.lines() {
@@ -267,8 +272,8 @@ fn read_plugin_version(source_dir: &Path) -> Result<String> {
 #[cfg(windows)]
 fn find_vcvars() -> Option<PathBuf> {
     // 1. vswhere (handles non-default install locations + editions).
-    let pf86 = std::env::var("ProgramFiles(x86)")
-        .unwrap_or_else(|_| "C:/Program Files (x86)".to_string());
+    let pf86 =
+        std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:/Program Files (x86)".to_string());
     let vswhere = PathBuf::from(&pf86)
         .join("Microsoft Visual Studio")
         .join("Installer")
@@ -361,6 +366,10 @@ fn cuda_is_usable(root: &Path) -> bool {
     } else {
         // libcuda is provided by the driver; the toolkit ships nvcc + stubs.
         root.join("bin").join("nvcc").is_file()
-            || root.join("lib64").join("stubs").join("libcuda.so").is_file()
+            || root
+                .join("lib64")
+                .join("stubs")
+                .join("libcuda.so")
+                .is_file()
     }
 }

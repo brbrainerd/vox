@@ -211,7 +211,11 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
     let result = run_fabrica_cmd_inner(cmd).await;
     if let Some(ev) = events {
         let success = result.is_ok();
-        let event_type = if success { Some(ev.success) } else { ev.failure };
+        let event_type = if success {
+            Some(ev.success)
+        } else {
+            ev.failure
+        };
         if let Some(event_type) = event_type {
             vox_cli_core::gamify_shim::record_cli_event_fire_and_forget(
                 event_type,
@@ -354,8 +358,14 @@ mod tests {
 
         // Commands the policy rewards on success but not failure → no hollow failure event.
         assert_eq!(fabrica_reward_events("fmt").and_then(|e| e.failure), None);
-        assert_eq!(fabrica_reward_events("fmt").map(|e| e.success), Some("fmt_completed"));
-        assert_eq!(fabrica_reward_events("bundle").and_then(|e| e.failure), None);
+        assert_eq!(
+            fabrica_reward_events("fmt").map(|e| e.success),
+            Some("fmt_completed")
+        );
+        assert_eq!(
+            fabrica_reward_events("bundle").and_then(|e| e.failure),
+            None
+        );
     }
 
     #[test]

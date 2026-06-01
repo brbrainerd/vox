@@ -371,9 +371,8 @@ mod tests {
         let schema_raw = std::fs::read_to_string(&schema_path).expect("read schema");
         let schema_val: serde_json::Value =
             serde_json::from_str(&schema_raw).expect("parse schema");
-        let validator =
-            vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
-                .expect("compile schema");
+        let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+            .expect("compile schema");
         vox_jsonschema_util::validate(&manifest, &validator, "action manifest schema")
             .expect("generated manifest must validate against schema");
 
