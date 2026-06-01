@@ -115,7 +115,11 @@ impl HfTransformerLayout {
                 "This checkpoint is a vision-language / multimodal model (architectures={architectures:?}\
                 {}), which the text QLoRA trainer cannot train. Use a text-only causal LM \
                  (e.g. a Qwen2.5-Coder-*-Instruct or a text-only dense Qwen checkpoint).",
-                if has_vision { ", has vision_config/image_token" } else { "" }
+                if has_vision {
+                    ", has vision_config/image_token"
+                } else {
+                    ""
+                }
             );
         }
 
