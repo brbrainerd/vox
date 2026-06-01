@@ -86,15 +86,22 @@ mod platform {
         // The parent `vox` process is never restricted.
         unsafe {
             cmd.pre_exec(move || {
-                let ruleset = Ruleset::default()
+                let mut ruleset = Ruleset::default()
                     .handle_access(write_access)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
                     .create()
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
+                // landlock 0.4's `add_rule` consumes the ruleset and returns the
+                // updated one, so reassign rather than discard. Fail closed if a
+                // rule cannot be added — better than running under-restricted.
                 for (path, access) in &rules {
                     if let Ok(fd) = PathFd::new(path) {
-                        let _ = ruleset.add_rule(PathBeneath::new(fd, *access));
+                        ruleset = ruleset
+                            .add_rule(PathBeneath::new(fd, *access))
+                            .map_err(|e| {
+                                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+                            })?;
                     }
                 }
 
