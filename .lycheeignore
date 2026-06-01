@@ -148,3 +148,7 @@ https://expo\.dev/settings/.*
 # PMC / NCBI rate-limit datacenter IPs (HTTP 529) and survive lychee's retries
 # from GitHub Actions runners; the cited articles are valid for human readers.
 .*pmc\.ncbi\.nlm\.nih\.gov/.*
+
+# cambridge.org/core intermittently returns 504 Gateway Timeout to CI runners;
+# the cited journal articles are valid for human readers.
+.*cambridge\.org/.*
