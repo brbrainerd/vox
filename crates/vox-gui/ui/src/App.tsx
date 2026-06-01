@@ -39,6 +39,7 @@ type View =
   | 'gamify'
   | 'harness'
   | 'scientia'
+  | 'claims'
   | 'mens'
   | 'populi'
   | 'research'

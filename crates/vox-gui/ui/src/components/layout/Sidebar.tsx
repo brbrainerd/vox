@@ -91,6 +91,7 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
           <NavItem collapsed={collapsed} active={view === "catalog"}   onClick={() => setView("catalog")}   icon={<Icon.catalog className="size-4"/>}   label="Commands" />
           <NavItem collapsed={collapsed} active={view === "matrix"}    onClick={() => setView("matrix")}    icon={<Icon.matrix className="size-4"/>}    label="Policies" />
           <NavItem collapsed={collapsed} active={view === "scientia"}  onClick={() => setView("scientia")}  icon={<Icon.file className="size-4"/>}   label="Scientia" />
+          <NavItem collapsed={collapsed} active={view === "claims"}    onClick={() => setView("claims")}    icon={<Icon.matrix className="size-4"/>} label="Claims" />
           <NavItem collapsed={collapsed} active={view === "mens"}      onClick={() => setView("mens")}      icon={<Icon.cpu className="size-4"/>}    label="Mens" />
           <NavItem collapsed={collapsed} active={view === "populi"}    onClick={() => setView("populi")}    icon={<Icon.flow className="size-4"/>}   label="Populi" />
           <NavItem collapsed={collapsed} active={view === "research"}  onClick={() => setView("research")}  icon={<Icon.memory className="size-4"/>} label="Research" />
