@@ -549,6 +549,8 @@
     "train",
     "update",
     "upgrade",
+    "wasm",
+    "wasm run",
     "workflow",
     "workflow drain",
     "workflow ls",
