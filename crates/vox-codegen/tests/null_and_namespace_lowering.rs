@@ -82,6 +82,26 @@ fn process_run_lowers_to_option_capture_builtin() {
 }
 
 #[test]
+fn script_lib_functions_are_pub_for_bin_visibility() {
+    // Script mode splits into a `vox-script` lib + a thin bin whose `main.rs`
+    // does `use vox-script::*` and calls the user's helper functions. Glob
+    // imports only see `pub` items, so script-defined functions must be `pub`
+    // in the lib or the bin fails with E0425 (regression: `check_command` in
+    // scripts/setup.vox).
+    let module = parse(lex(
+        "fn helper(x: int) to int { return x + 1 }\nfn main() { let y = helper(2) }",
+    ))
+    .expect("parse");
+    let hir = lower_module(&module);
+    let out = generate_script(&hir, "vox-script", None).expect("generate_script");
+    let lib = out.files.get("src/lib.rs").expect("lib.rs emitted");
+    assert!(
+        lib.contains("pub fn helper"),
+        "script-defined helper fns must be `pub` so the bin's `use crate::*` can call them; got:\n{lib}"
+    );
+}
+
+#[test]
 fn generated_native_manifest_declares_tracing() {
     // `log.*` lowers to `tracing::*!`, so the generated script crate must depend
     // on `tracing` or the crate fails to compile (E0433 unresolved `tracing`).

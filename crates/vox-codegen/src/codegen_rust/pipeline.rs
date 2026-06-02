@@ -214,8 +214,18 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
     };
     files.insert("Cargo.toml".to_string(), cargo_toml);
 
-    // Emit lib.rs with all non-main declarations (no warp/SSE for script mode)
-    files.insert("src/lib.rs".to_string(), emit::emit_lib(module));
+    // Emit lib.rs with all non-main declarations (no warp/SSE for script mode).
+    // Script mode splits the program into a `vox-script` lib + a thin bin whose
+    // `main.rs` does `use vox-script::*` and calls the user's helper functions.
+    // Glob imports only see `pub` items, so script-defined functions must be
+    // `pub` in the lib or the bin fails with E0425 (e.g. `check_command` in
+    // scripts/setup.vox). Force `pub` here — local to script codegen so app-mode
+    // lib emission (and its golden snapshots) is untouched.
+    let mut script_module = module.clone();
+    for f in &mut script_module.functions {
+        f.is_pub = true;
+    }
+    files.insert("src/lib.rs".to_string(), emit::emit_lib(&script_module));
 
     // Emit a script-mode main.rs: just `use crate::*;` and the user's main fn body
     let mut main_rs = String::new();
