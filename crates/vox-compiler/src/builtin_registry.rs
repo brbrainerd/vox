@@ -545,9 +545,18 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Option(Box::new(Ty::List(Box::new(Ty::Str))))),
         ),
         ("process", "which") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        // `process.run` is capture-and-guard: `Some({code, stdout, stderr})` on
+        // spawn success, `None` on spawn failure. This matches the interpreter
+        // (`eval/builtins.rs`) and the scripts that guard with `is null` then
+        // read `.unwrap().code`. (Earlier this was mis-declared `Result[Int]`,
+        // which disagreed with both the interpreter and codegen.)
         ("process", "run") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-            Box::new(Ty::Result(Box::new(Ty::Int))),
+            Box::new(Ty::Option(Box::new(Ty::Record(vec![
+                ("code".into(), Ty::Int),
+                ("stdout".into(), Ty::Str),
+                ("stderr".into(), Ty::Str),
+            ])))),
         ),
         ("process", "run_ex") => Ty::Fn(
             vec![
@@ -821,66 +830,66 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("process", "run") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_run(({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
+            "(vox_actor_runtime::builtins::vox_process_run_opt(({}).as_str(), {}.as_slice()))",
             args[0], args[1]
         )),
         ("process", "run_ex") if args.len() >= 4 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_run_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_run_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Err(m) }})",
             args[0], args[1], args[2], args[3]
         )),
         ("process", "run_capture") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_run_capture(({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_run_capture(({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("process", "run_capture_ex") if args.len() >= 4 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Err(m) }})",
             args[0], args[1], args[2], args[3]
         )),
         ("process", "run_capture_json") if args.len() >= 2 => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_process_run_capture_json(({}).as_str(), {}.as_slice()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_process_run_capture_json(({}).as_str(), {}.as_slice()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("process", "run_capture_lines") if args.len() >= 2 => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_process_run_capture_lines(({}).as_str(), {}.as_slice()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_process_run_capture_lines(({}).as_str(), {}.as_slice()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("process", "spawn_background") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_spawn_background(({}).as_str(), {}.as_slice()) {{ Ok(id) => Ok(id), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_spawn_background(({}).as_str(), {}.as_slice()) {{ Ok(id) => Ok(id), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("process", "exec") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_exec(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_exec(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("process", "register_exit_command") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_register_exit_command(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_register_exit_command(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("process", "exit") if !args.is_empty() => {
             Some(format!("{{ std::process::exit({} as i32) }}", args[0]))
         }
         ("fs", "list_dir_detailed") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_fs_list_dir_detailed(({}).as_str()) {{ Ok(rows) => Ok(rows.into_iter().map(|r| serde_json::json!({{ \"name\": r.name, \"path\": r.path, \"size\": r.size, \"modified_ms\": r.modified_ms, \"is_dir\": r.is_dir, \"is_file\": r.is_file, \"is_symlink\": r.is_symlink }})).collect::<Vec<serde_json::Value>>()), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_fs_list_dir_detailed(({}).as_str()) {{ Ok(rows) => Ok(rows.into_iter().map(|r| serde_json::json!({{ \"name\": r.name, \"path\": r.path, \"size\": r.size, \"modified_ms\": r.modified_ms, \"is_dir\": r.is_dir, \"is_file\": r.is_file, \"is_symlink\": r.is_symlink }})).collect::<Vec<serde_json::Value>>()), Err(m) => Err(m) }})",
             args[0]
         )),
         ("fs", "stat") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_fs_stat(({}).as_str()) {{ Ok(r) => Ok(serde_json::json!({{ \"name\": r.name, \"path\": r.path, \"size\": r.size, \"modified_ms\": r.modified_ms, \"is_dir\": r.is_dir, \"is_file\": r.is_file, \"is_symlink\": r.is_symlink }})), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_fs_stat(({}).as_str()) {{ Ok(r) => Ok(serde_json::json!({{ \"name\": r.name, \"path\": r.path, \"size\": r.size, \"modified_ms\": r.modified_ms, \"is_dir\": r.is_dir, \"is_file\": r.is_file, \"is_symlink\": r.is_symlink }})), Err(m) => Err(m) }})",
             args[0]
         )),
         ("fs", "list_dir") if !args.is_empty() => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_list_dir(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_list_dir(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0]
         )),
         ("fs", "glob") if !args.is_empty() => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_fs_glob(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_fs_glob(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0]
         )),
         ("fs", "remove_dir_all") if !args.is_empty() => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_fs_remove_dir_all(({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_fs_remove_dir_all(({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Err(m) }})",
             args[0]
         )),
         ("fs", "copy") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_fs_copy(({}).as_str(), ({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_fs_copy(({}).as_str(), ({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("path", "join_many") if !args.is_empty() => Some(format!(
@@ -888,11 +897,11 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("json", "read_str") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_json_read_str(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_json_read_str(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("json", "read_f64") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_json_read_f64(({}).as_str(), ({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_json_read_f64(({}).as_str(), ({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("json", "quote") if !args.is_empty() => Some(format!(
@@ -900,59 +909,59 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("http", "get_text") if !args.is_empty() => Some(format!(
-            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"std.http.get_text is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_actor_runtime::builtins::vox_http_get_text(({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }} }} }})",
+            "({{ #[cfg(target_arch = \"wasm32\")] {{ Err(\"std.http.get_text is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_actor_runtime::builtins::vox_http_get_text(({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Err(m) }} }} }})",
             args[0]
         )),
         ("http", "post_json") if args.len() >= 2 => Some(format!(
-            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"std.http.post_json is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_actor_runtime::builtins::vox_http_post_json(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }} }} }})",
+            "({{ #[cfg(target_arch = \"wasm32\")] {{ Err(\"std.http.post_json is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_actor_runtime::builtins::vox_http_post_json(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Err(m) }} }} }})",
             args[0], args[1]
         )),
         ("regex", "compile") if !args.is_empty() => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_regex_compile(({}).as_str()) {{ Ok(r) => Ok(r), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_regex_compile(({}).as_str()) {{ Ok(r) => Ok(r), Err(m) => Err(m) }})",
             args[0]
         )),
         ("csv", "parse") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_csv_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0]
         )),
         ("csv", "parse_records") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_csv_parse_records(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_csv_parse_records(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0]
         )),
         ("csv", "render") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_csv_render({}.as_slice()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_csv_render({}.as_slice()) {{ Ok(s) => Ok(s), Err(m) => Err(m) }})",
             args[0]
         )),
         ("toml", "parse") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_toml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_toml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0]
         )),
         ("toml", "render") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_toml_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_toml_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Err(m) }})",
             args[0]
         )),
         ("yaml", "parse") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_yaml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_yaml_parse(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0]
         )),
         ("yaml", "render") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_yaml_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_yaml_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Err(m) }})",
             args[0]
         )),
         ("io", "open") if !args.is_empty() => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_io_open(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_io_open(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Err(m) }})",
             args[0]
         )),
         ("io", "save") if args.len() >= 2 => Some(format!(
-            "(match ::vox_actor_runtime::builtins::vox_io_save(({}).as_str(), &({})) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match ::vox_actor_runtime::builtins::vox_io_save(({}).as_str(), &({})) {{ Ok(()) => Ok(()), Err(m) => Err(m) }})",
             args[0], args[1]
         )),
         ("json", "render") if !args.is_empty() => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_json_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_json_render(&({})) {{ Ok(s) => Ok(s), Err(m) => Err(m) }})",
             args[0]
         )),
         ("json", "parse") if !args.is_empty() => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Err(m) }})",
             args[0]
         )),
         ("agentos", "mutation_kind_for_tool") if !args.is_empty() => Some(format!(

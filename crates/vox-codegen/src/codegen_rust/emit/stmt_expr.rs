@@ -312,6 +312,27 @@ where
             emit(l, OwnershipMode::Owned)
         );
     }
+    // `x is null` / `x isnt null` are Option None-checks. `null` is a bare Ident in
+    // HIR (not a Rust value), so `== null` is invalid Rust — lower to `.is_none()` /
+    // `.is_some()` on the non-null operand.
+    if matches!(op, HirBinOp::Is | HirBinOp::Isnt) {
+        let is_null = |e: &HirExpr| matches!(e, HirExpr::Ident(n, _) if n == "null");
+        let opt = if is_null(r) {
+            Some(l)
+        } else if is_null(l) {
+            Some(r)
+        } else {
+            None
+        };
+        if let Some(opt_expr) = opt {
+            let method = if matches!(op, HirBinOp::Is) {
+                "is_none"
+            } else {
+                "is_some"
+            };
+            return format!("({}).{}()", emit(opt_expr, OwnershipMode::Owned), method);
+        }
+    }
     let op_str = match op {
         HirBinOp::Add => "+",
         HirBinOp::Sub => "-",
@@ -359,6 +380,13 @@ fn emit_ident_expr(
     usage: Option<&super::usage::UsageTracker>,
     mode: OwnershipMode,
 ) -> String {
+    // `null` is Vox's typed None literal (typeck binds it as a `Constructor`
+    // of type `Option[T]`). In value position it lowers to Rust `None`; the
+    // `is null` / `isnt null` comparison forms are handled earlier in
+    // `emit_binary_expr` (→ `.is_none()` / `.is_some()`).
+    if n == "null" {
+        return "None".to_string();
+    }
     // These identifiers are always passed bare — no `.clone()` or `.as_str()`.
     if n == "request"
         || n == "std"

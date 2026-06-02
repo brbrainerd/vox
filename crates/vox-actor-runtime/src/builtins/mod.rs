@@ -682,6 +682,36 @@ pub fn vox_process_run(cmd: &str, args: &[String]) -> Result<i32, String> {
     }
 }
 
+/// Spawned-process outcome for `std.process.run` (`{code, stdout, stderr}`).
+///
+/// Mirrors the interpreter contract: `process.run` is **capture-and-guard** —
+/// it returns `Some(outcome)` whenever the process was spawned and its output
+/// read (non-zero exits are reported via `code`, not `None`), and `None` only
+/// when the process could not be spawned. This is why scripts guard with
+/// `if proc is null { ... }` and then read `proc.unwrap().code`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VoxProcessOutcome {
+    /// Process exit code (0 when the platform reported none).
+    pub code: i64,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+/// `std.process.run(cmd, args)` — spawn `cmd`, capture stdout/stderr/exit, and
+/// return `Some(outcome)` on spawn success or `None` on spawn failure.
+///
+/// Returns the full `{code, stdout, stderr}` record (not just the exit code) so
+/// the typed contract matches the interpreter and the scripts that consume it.
+#[must_use]
+pub fn vox_process_run_opt(cmd: &str, args: &[String]) -> Option<VoxProcessOutcome> {
+    let out = std::process::Command::new(cmd).args(args).output().ok()?;
+    Some(VoxProcessOutcome {
+        code: i64::from(out.status.code().unwrap_or(0)),
+        stdout: String::from_utf8_lossy(&out.stdout).to_string(),
+        stderr: String::from_utf8_lossy(&out.stderr).to_string(),
+    })
+}
+
 /// Resolve `cmd` on the process `PATH` (`std.process.which` in Vox scripts).
 ///
 /// Returns the absolute path as a string when found, or `None` when not found or resolution fails.

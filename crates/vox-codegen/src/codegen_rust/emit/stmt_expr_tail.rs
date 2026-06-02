@@ -215,7 +215,7 @@ where
 ///
 /// Extracted from the `FieldAccess` arm of `try_emit_expr_tail` per CR-A1:
 /// the original `||` chain contributed 16 decision points to the caller.
-fn is_vox_namespace_ident(name: &str) -> bool {
+pub(super) fn is_vox_namespace_ident(name: &str) -> bool {
     matches!(
         name,
         "fs" | "path"

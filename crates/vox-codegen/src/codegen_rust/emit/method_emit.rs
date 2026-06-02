@@ -503,6 +503,18 @@ where
     }
     // Vox str method lowering for Rust: snake_case names that don't exist directly on String.
     let arg_exprs: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
+    // Namespace-module calls in statement position (e.g. `process.exit(1)`,
+    // `process.run(..)`, `fs.write(..)`) parse as MethodCall, bypassing the
+    // expression-position FieldAccess lowering. Route them through the same
+    // runtime-call registry so the receiver lowers to the builtin instead of a
+    // method on an undefined `process`/`fs`/… value.
+    if let HirExpr::Ident(ns, _) = obj
+        && super::stmt_expr_tail::is_vox_namespace_ident(ns)
+        && let Some(s) =
+            vox_compiler::builtin_registry::std_namespace_runtime_call(ns, method, &arg_exprs)
+    {
+        return s;
+    }
     if let Some(s) = try_emit_str_method(method, &o, &arg_exprs) {
         return s;
     }
