@@ -372,6 +372,28 @@ fn emit_component_pattern(pattern: &vox_compiler::ast::pattern::Pattern) -> Stri
 }
 
 /// Map a Vox type expression to a TypeScript type string.
+/// A type-appropriate placeholder value, as a JSX attribute expression (e.g.
+/// `{0}`), for a **required** prop in the auto-generated flat-app scaffold. The
+/// scaffold flat-mounts the first component but cannot know real app data, so a
+/// required prop with no Vox default would otherwise emit `<C />` and fail
+/// `tsc` (TS2741). The value keeps the generated preview type-valid.
+pub fn ts_default_value(ts_type: &str) -> &'static str {
+    let t = ts_type.trim();
+    if t == "number" {
+        "{0}"
+    } else if t == "string" {
+        "{\"\"}"
+    } else if t == "boolean" {
+        "{false}"
+    } else if t.ends_with("[]") {
+        "{[]}"
+    } else if t.contains("| undefined") {
+        "{undefined}"
+    } else {
+        "{undefined as any}"
+    }
+}
+
 pub fn map_vox_type_to_ts(ty: &vox_compiler::ast::types::TypeExpr) -> String {
     match ty {
         vox_compiler::ast::types::TypeExpr::Named { name, .. } => {

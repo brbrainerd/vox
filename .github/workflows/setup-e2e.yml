@@ -12,6 +12,10 @@ jobs:
     name: Clean Room Setup + Idempotency
     runs-on: ${{ matrix.os }}
     strategy:
+      # Run all three OSes to completion — a failure on one must not cancel the
+      # others (that previously hid per-OS clean-room failures behind a single
+      # fail-fast cancellation).
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -43,12 +47,16 @@ jobs:
           cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
 
       - name: Run setup.vox (Second run - Idempotency)
-        # Timeout on Unix, on Windows we can use PowerShell timeout or just let it run.
+        # The second run re-runs the full script (including `cargo check
+        # --workspace`, which is cached but not instant, plus install-hooks). The
+        # timeout is a hang safety-net, not a speed assertion — 10s was far too
+        # short and killed a healthy run. 600s is generous while still catching a
+        # genuine hang. (`timeout` is GNU coreutils; skip it on Windows bash.)
         shell: bash
         run: |
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            timeout 10s cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
+            timeout 600s cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
           else
             cargo run -p vox-cli --features script-execution -- run scripts/setup.vox
           fi

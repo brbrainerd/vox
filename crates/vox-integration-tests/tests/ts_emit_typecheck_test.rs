@@ -162,6 +162,19 @@ fn all_golden_fixtures_emit_valid_typescript() {
     )
     .expect("Failed to write tsconfig.json");
 
+    // Emitted mobile code does `import { voxRuntime } from "@vox/runtime"`. The
+    // real `@vox/runtime` is published to npm (installed by real apps); here we
+    // provide a minimal ambient declaration so `tsc` resolves the import without
+    // pulling in the runtime package's own source + transitive deps.
+    std::fs::write(
+        emit_dir.join("vox-runtime-shim.d.ts"),
+        "// Test shim for the npm-published `@vox/runtime` adapter.\n\
+         declare module \"@vox/runtime\" {\n\
+         \x20 export const voxRuntime: any;\n\
+         }\n",
+    )
+    .expect("Failed to write vox-runtime-shim.d.ts");
+
     // Resolve tsc: prefer the local node_modules/.bin/tsc (avoids PATH resolution issues
     // on Windows), falling back to npx tsc if the local binary isn't present.
     let tsc_bin = {
