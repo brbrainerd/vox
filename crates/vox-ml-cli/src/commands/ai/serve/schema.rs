@@ -44,6 +44,10 @@ fn default_max_retries() -> u32 {
 #[derive(Debug, Serialize)]
 pub struct GenerateResponse {
     pub text: String,
+    /// Alias for `text` — the orchestrator's VoxLocalAdapter (provider_endpoints.rs +
+    /// provider_adapter.rs) deserializes `{ code, valid, errors }` from this endpoint.
+    /// Emitting both lets the same server satisfy both callers without a protocol break.
+    pub code: String,
     pub tokens_generated: usize,
     pub model: String,
     pub object: &'static str,
@@ -51,6 +55,11 @@ pub struct GenerateResponse {
     /// P017: Number of repair retries when output_mode validation failed (0 if none).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repair_attempts: Option<u32>,
+    /// Validation status expected by VoxLocalAdapter: true when output parsed cleanly.
+    pub valid: bool,
+    /// Validation errors expected by VoxLocalAdapter.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub errors: Vec<String>,
 }
 
 #[cfg(feature = "execution-api")]

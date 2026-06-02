@@ -322,20 +322,42 @@ impl QuantizedLinear {
             return Err(QLoraError::InvalidConfig("weight must be 2D".into()));
         }
         let (out_features, in_features) = (shape[0], shape[1]);
-        let device = weight.device();
-        warn_cpu_fallback(device);
+        // DECOUPLE quantize-device from compute-device. The base `weight` may live on the
+        // CPU (the caller can keep the full-precision base off the GPU so it never costs
+        // VRAM during construction — critical for fitting multi-billion-param models). The
+        // QuantizedTensor produced by quantization is host-side bytes regardless. All the
+        // GPU-resident state (the BF16 cache, the trainable LoRA, the forward device) uses
+        // the VarBuilder's device, which the trainer puts on the GPU.
+        let compute_device = vb.device().clone();
+        warn_cpu_fallback(&compute_device);
 
-        // Quantize the base weight using full config
+        // Quantize on the base weight's own device (CPU when the caller mmapped it there).
         let quantized_weight = quantize_nf4_with_config(weight, &config.quantization)?;
 
-        // Only cache if explicitly requested (should be false for training)
+        // Cache the dequantized base weight on the COMPUTE device in the COMPUTE dtype
+        // (BF16). Built from the small host-side NF4 (uploaded once), so the full-precision
+        // weight never needs to be resident on the GPU. Caching once (resident) avoids
+        // re-dequantizing every forward — which churns/fragments the pool and forces candle
+        // to retain a fresh dequant per layer through backward.
         let cached_weight = if config.cache_dequantized {
-            Some(dequantize_nf4(&quantized_weight, device)?)
+            // Dequantize on the BASE weight's device first, then move the (BF16) result to
+            // the compute device. When the base is on the CPU this means the per-weight
+            // dequant temporaries (nibble LUTs, codes, vals — each numel-sized) are built on
+            // the CPU, and only the final BF16 cache tensor is uploaded to the GPU. That
+            // keeps the GPU build peak at ~the resident cache size instead of accumulating a
+            // numel-sized GPU temporary per weight (which OOMs 3B at build). `to_device` is a
+            // no-op when the base already lives on the compute device (e.g. the LM head).
+            let cache = dequantize_nf4_with_dtype(
+                &quantized_weight,
+                weight.device(),
+                config.quantization.compute_dtype,
+            )?;
+            Some(cache.to_device(&compute_device)?)
         } else {
             None
         };
 
-        // Create LoRA adapter with VarBuilder for gradient tracking
+        // Create LoRA adapter with VarBuilder for gradient tracking (on the compute device).
         let lora = LoraLayer::new(in_features, out_features, config.lora.clone(), vb)?;
 
         Ok(Self {
@@ -343,7 +365,7 @@ impl QuantizedLinear {
             cached_weight,
             bias,
             lora,
-            device: device.clone(),
+            device: compute_device,
             config: config.clone(),
         })
     }

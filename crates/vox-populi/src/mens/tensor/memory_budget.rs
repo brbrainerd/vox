@@ -36,9 +36,14 @@ const FIXED_OVERHEAD_GIB: f64 = 1.6;
 
 /// Activation VRAM (GiB) per 1k tokens per unit of (params^0.5), per micro-batch.
 /// Activation memory grows with sequence length and (sub-linearly) with model width.
-/// The candle graph runs activations in F32, so this is calibrated heavy (≈1.6) to
-/// leave real headroom and avoid the repeated OOMs seen on a near-full 16 GiB card.
-const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 1.6;
+///
+/// Re-calibrated to MEASURED real-backprop peaks (the old 6.5 came from the degenerate
+/// gradient-bug graph). On a 16 GiB RTX 4080 Super, 1.5B@seq512 peaked at ~15.9 GiB with
+/// resident ≈9.1 GiB → activations ≈6.8 GiB at seq512 ⇒ coefficient ≈9.5 (activations stay
+/// F32 and are retained across all layers for backward). At 9.5 the budget keeps 1.5B at
+/// seq ≈ 384 on 16 GiB (~14 GiB peak, a real ~2 GiB margin) instead of seq 512 which runs
+/// at the edge. This is the dominant lever — sequence length, not base size.
+const ACT_GIB_PER_KTOK_PER_SQRTB: f64 = 9.5;
 
 /// Default fraction of total VRAM the plan is allowed to target.
 const DEFAULT_SAFETY: f64 = 0.88;
@@ -94,13 +99,17 @@ fn resident_gib_at(model_params_b: f64, resident_per_b: f64) -> f64 {
     model_params_b * resident_per_b + FIXED_OVERHEAD_GIB
 }
 
-/// Resident footprint for plain dense Qwen2 / Qwen2.5-Coder.
+/// Sequence-independent resident footprint for dense Qwen2 / Qwen2.5-Coder during
+/// REAL full-graph QLoRA backprop with the resident BF16 weight cache.
 ///
-/// Calibrated to the candle plugin's reality: it dequantizes base weights to **F32**
-/// (4 bytes/param) and builds the whole training graph in F32, so a 3B model OOMed a
-/// 16 GiB card. ~4.3 GiB/B reflects F32 weights + embeddings + LoRA/optimizer state.
-/// (When the plugin's F32→BF16 mixed-precision work lands, drop this back toward 2.6.)
-const QWEN2_RESIDENT_GIB_PER_B: f64 = 4.3;
+/// The earlier 2.6 GiB/B figure was calibrated against a DEGENERATE graph (a gradient
+/// bug meant only the lm_head adapter trained, so the backward pass was tiny and 3B
+/// "fit" at ~15.8 GiB). With the fix, the backward retains the full BF16 base weights
+/// (~2 GiB/B) on top of the NF4 base + embedding + optimizer, so the true resident
+/// footprint is ≈5 GiB/B. MEASURED on a 16 GiB RTX 4080 Super: 1.5B trains STABLY
+/// (270+ steps, loss 9.6→1.5, no OOM); 3B cannot build/sustain (OOM) and needs gradient
+/// checkpointing. R=5.0 makes the ladder retreat 3B→1.5B on 16 GiB, as observed.
+const QWEN2_RESIDENT_GIB_PER_B: f64 = 5.0;
 
 /// Target effective batch (batch_size × grad_accum) for stable QLoRA convergence.
 /// Effective batch is kept roughly constant regardless of how the VRAM budget
@@ -427,9 +436,11 @@ mod tests {
         assert_eq!(p.model_id, "Qwen/Qwen3.5-2B");
         assert_eq!(p.retreated_from_b, Some(4.0));
         assert!(!p.over_budget);
+        // Under the honest real-backprop activation coefficient, 2B on 16 GiB affords a
+        // mid sequence (≈384) rather than the optimistic 512 the old calibration implied.
         assert!(
-            p.seq_len >= 512,
-            "2B on 16 GiB should afford a long sequence"
+            p.seq_len >= 256,
+            "2B on 16 GiB should not be floored to the min seq"
         );
     }
 
@@ -443,11 +454,13 @@ mod tests {
 
     #[test]
     fn ladder_scales_up_for_big_cards() {
-        // 80 GiB / 4B → keep 4B with a long sequence and real batch.
+        // 80 GiB / 4B → keep 4B and scale up. The planner maximizes sequence length first
+        // (a long context), then holds the effective batch via batch×grad_accum. A big card
+        // affords a long sequence and the full effective batch.
         let p = plan_qwen35(80.0, 4.0);
         assert_eq!(p.model_id, "Qwen/Qwen3.5-4B");
         assert!(p.seq_len >= 1024);
-        assert!(p.batch_size >= 2);
+        assert!(p.batch_size * p.grad_accum >= TARGET_EFFECTIVE_BATCH);
     }
 
     #[test]
@@ -472,6 +485,19 @@ mod tests {
         assert!(!p.over_budget, "a Qwen2.5-Coder variant should fit 16 GiB");
         assert!(p.params_b >= 1.5, "should pick at least 1.5B on 16 GiB");
         assert!(p.model_id.contains("Qwen2.5-Coder"));
+    }
+
+    #[test]
+    fn qwen25coder_retreats_3b_to_1_5b_on_16gb() {
+        // Full-graph backprop retains the BF16 base weights, so 3B does NOT fit 16 GiB
+        // (measured: OOM). The ladder must retreat to the 1.5B coder, which trains stably.
+        let p = plan_qwen25coder(16.0, 3.0);
+        assert!(!p.over_budget, "the retreat target must fit");
+        assert!(
+            (p.params_b - 1.5).abs() < 1e-9,
+            "16 GiB should land on 1.5B (3B OOMs with real backprop), got {}",
+            p.params_b
+        );
     }
 
     #[test]

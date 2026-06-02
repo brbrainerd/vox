@@ -355,24 +355,42 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
                 }
             }
 
-            // Serve delegates directly to the lightweight vox-schola binary inference mode
-            println!("Delegating to vox-schola serve...");
-
-            let mut cmd = std::process::Command::new("vox-schola");
-            cmd.arg("serve");
-            cmd.arg("--model").arg(model);
-            cmd.arg("--port").arg(port.to_string());
-            cmd.arg("--host").arg(host);
-            cmd.arg("--max-tokens").arg(max_tokens.to_string());
-            cmd.arg("--temperature").arg(temperature.to_string());
-
-            let status = cmd
-                .status()
-                .map_err(|e| anyhow::anyhow!("Failed to spawn vox-schola: {}", e))?;
-            if !status.success() {
-                anyhow::bail!("vox-schola serve exited with status: {}", status);
+            // Serve via the built-in Axum server (execution-api feature) when available.
+            // Falls back to the external vox-schola binary only when execution-api is off.
+            #[cfg(feature = "execution-api")]
+            {
+                let cfg = crate::commands::ai::serve::ServeConfig {
+                    model_path: model,
+                    port,
+                    host,
+                    max_tokens,
+                    temperature,
+                    system_prompt: None,
+                };
+                // run_serve creates its own Tokio runtime; call it from a blocking thread
+                // so it doesn't conflict with the outer async executor.
+                return tokio::task::block_in_place(|| crate::commands::ai::serve::run_serve(&cfg));
             }
-            Ok(())
+
+            #[cfg(not(feature = "execution-api"))]
+            {
+                println!("Delegating to vox-schola serve...");
+                let mut cmd = std::process::Command::new("vox-schola");
+                cmd.arg("serve");
+                cmd.arg("--model").arg(model);
+                cmd.arg("--port").arg(port.to_string());
+                cmd.arg("--host").arg(host);
+                cmd.arg("--max-tokens").arg(max_tokens.to_string());
+                cmd.arg("--temperature").arg(temperature.to_string());
+
+                let status = cmd
+                    .status()
+                    .map_err(|e| anyhow::anyhow!("Failed to spawn vox-schola: {}", e))?;
+                if !status.success() {
+                    anyhow::bail!("vox-schola serve exited with status: {}", status);
+                }
+                Ok(())
+            }
         }
 
         PopuliAction::Corpus(action) => crate::commands::corpus::run(action).await,
