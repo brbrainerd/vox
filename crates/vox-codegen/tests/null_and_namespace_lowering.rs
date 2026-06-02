@@ -10,6 +10,7 @@
 //! method call on an undefined `process` value. These tests pin the fixes.
 
 use vox_codegen::codegen_rust::emit::emit_fn;
+use vox_codegen::codegen_rust::generate_script;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
@@ -64,13 +65,45 @@ fn bare_null_lowers_to_none() {
 }
 
 #[test]
-fn process_run_error_arm_is_err_not_error() {
-    // Regression: the namespace runtime-call templates emitted the undefined
-    // Rust constructor `Error(m)` instead of `Err(m)` for the error arm.
-    let rust = emit_first_fn("fn f() to unit { let r = process.run(\"cargo\", [\"build\"]) }");
+fn process_run_lowers_to_option_capture_builtin() {
+    // `process.run` is `Option[Record{code, stdout, stderr}]` (capture-and-guard),
+    // matching the interpreter and the scripts that do `is null` + `.unwrap().code`.
+    // It must lower to `vox_process_run_opt` (Option-returning), not the old
+    // exit-code-only `vox_process_run` (Result<i32>).
+    let rust = emit_first_fn("fn f() to unit { let r = process.run(\"git\", [\"--version\"]) }");
     assert!(
-        rust.contains("vox_process_run"),
-        "`process.run` MUST lower to the runtime builtin; got:\n{rust}"
+        rust.contains("vox_process_run_opt"),
+        "`process.run` MUST lower to the Option-returning capture builtin; got:\n{rust}"
+    );
+    assert!(
+        !rust.contains("vox_process_run("),
+        "`process.run` must not call the old exit-code-only `vox_process_run`; got:\n{rust}"
+    );
+}
+
+#[test]
+fn generated_native_manifest_declares_tracing() {
+    // `log.*` lowers to `tracing::*!`, so the generated script crate must depend
+    // on `tracing` or the crate fails to compile (E0433 unresolved `tracing`).
+    let module = parse(lex("fn main() { log.error(\"boom\") }")).expect("parse");
+    let hir = lower_module(&module);
+    let out = generate_script(&hir, "vox-script", None).expect("generate_script");
+    let cargo = out.files.get("Cargo.toml").expect("Cargo.toml emitted");
+    assert!(
+        cargo.contains("tracing"),
+        "generated native manifest MUST declare the `tracing` dependency; got:\n{cargo}"
+    );
+}
+
+#[test]
+fn namespace_result_error_arm_is_err_not_error() {
+    // Regression: the namespace runtime-call templates emitted the undefined
+    // Rust constructor `Error(m)` instead of `Err(m)` for the error arm. Use a
+    // Result-returning builtin (`json.parse`) that still lowers to the match form.
+    let rust = emit_first_fn("fn f() to unit { let j = json.parse(\"{}\") }");
+    assert!(
+        rust.contains("vox_json_parse"),
+        "`json.parse` MUST lower to the runtime builtin; got:\n{rust}"
     );
     assert!(
         rust.contains("Err(m)") && !rust.contains("Error(m)"),

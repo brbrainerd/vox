@@ -545,9 +545,18 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Option(Box::new(Ty::List(Box::new(Ty::Str))))),
         ),
         ("process", "which") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        // `process.run` is capture-and-guard: `Some({code, stdout, stderr})` on
+        // spawn success, `None` on spawn failure. This matches the interpreter
+        // (`eval/builtins.rs`) and the scripts that guard with `is null` then
+        // read `.unwrap().code`. (Earlier this was mis-declared `Result[Int]`,
+        // which disagreed with both the interpreter and codegen.)
         ("process", "run") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-            Box::new(Ty::Result(Box::new(Ty::Int))),
+            Box::new(Ty::Option(Box::new(Ty::Record(vec![
+                ("code".into(), Ty::Int),
+                ("stdout".into(), Ty::Str),
+                ("stderr".into(), Ty::Str),
+            ])))),
         ),
         ("process", "run_ex") => Ty::Fn(
             vec![
@@ -821,7 +830,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("process", "run") if args.len() >= 2 => Some(format!(
-            "(match vox_actor_runtime::builtins::vox_process_run(({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Err(m) }})",
+            "(vox_actor_runtime::builtins::vox_process_run_opt(({}).as_str(), {}.as_slice()))",
             args[0], args[1]
         )),
         ("process", "run_ex") if args.len() >= 4 => Some(format!(
