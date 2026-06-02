@@ -17,7 +17,8 @@ use crate::commands::runtime::run::script::ScriptOpts;
 mod platform {
     use super::*;
     use landlock::{
-        ABI, Access, AccessFs, PathBeneath, PathFd, Ruleset, RulesetAttr, RulesetCreatedAttr,
+        ABI, Access, AccessFs, BitFlags, PathBeneath, PathFd, Ruleset, RulesetAttr,
+        RulesetCreatedAttr,
     };
     use std::path::Path;
 
@@ -45,7 +46,7 @@ mod platform {
 
         // Collect paths before fork — PathFd is fd-based so we must open in parent.
         let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-        let mut rules: Vec<(std::path::PathBuf, AccessFs)> = Vec::new();
+        let mut rules: Vec<(std::path::PathBuf, BitFlags<AccessFs>)> = Vec::new();
 
         for &p in READ_ONLY_PATHS {
             let path = Path::new(p);
@@ -85,20 +86,30 @@ mod platform {
         // The parent `vox` process is never restricted.
         unsafe {
             cmd.pre_exec(move || {
-                let ruleset = Ruleset::default()
+                let mut ruleset = Ruleset::default()
                     .handle_access(write_access)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
                     .create()
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
+                // landlock 0.4's `add_rule` consumes the ruleset and returns the
+                // updated one, so reassign rather than discard. Fail closed if a
+                // rule cannot be added — better than running under-restricted.
                 for (path, access) in &rules {
                     if let Ok(fd) = PathFd::new(path) {
-                        let _ = ruleset.add_rule(PathBeneath::new(fd, *access));
+                        ruleset = ruleset
+                            .add_rule(PathBeneath::new(fd, *access))
+                            .map_err(|e| {
+                                std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+                            })?;
                     }
                 }
 
                 // restrict_self() is a single prctl() syscall — async-signal-safe.
-                let _ = ruleset.restrict_self();
+                // Fail closed: a failed restriction must not let the child run unsandboxed.
+                ruleset
+                    .restrict_self()
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
                 Ok(())
             });
         }
