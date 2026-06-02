@@ -1,5 +1,7 @@
 export type CatalogTier = 'recommended' | 'advanced' | 'feature_gated';
 
+export type ArgValueKind = 'flag' | 'value' | 'count';
+
 export interface CommandCatalogArgument {
   name: string;
   short: string | null;
@@ -7,6 +9,9 @@ export interface CommandCatalogArgument {
   help: string | null;
   required: boolean;
   takes_value: boolean;
+  value_kind: ArgValueKind;
+  possible_values?: string[];
+  default_values?: string[];
 }
 
 export interface CommandCatalogEntry {

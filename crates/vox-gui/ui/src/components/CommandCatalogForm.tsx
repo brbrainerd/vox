@@ -1,11 +1,26 @@
 import React, { useState } from 'react';
-import type { CommandCatalog, CommandCatalogEntry } from '../types/catalog';
+import type { CommandCatalog, CommandCatalogEntry, CommandCatalogArgument } from '../types/catalog';
 import { voxTransport } from '../transport';
 
 export interface ExecuteOutput {
     exit_code: number;
     stdout: string;
     stderr: string;
+}
+
+/** Which input control a typed argument should render as. */
+export type ArgControl = 'flag' | 'select' | 'count' | 'text';
+
+/**
+ * Map a clap-derived argument (SP-1 typed metadata) to its GUI control:
+ * boolean flags → checkbox, repeatable counters → number, enumerated values
+ * → dropdown, everything else → free text.
+ */
+export function argControl(arg: CommandCatalogArgument): ArgControl {
+    if (arg.value_kind === 'flag') return 'flag';
+    if (arg.value_kind === 'count') return 'count';
+    if (arg.possible_values && arg.possible_values.length > 0) return 'select';
+    return 'text';
 }
 
 export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
@@ -17,9 +32,19 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
     const commandList = catalog?.entries || [];
 
     const handleCommandSelect = (pathArray: string[]) => {
-        setSelectedPath(pathArray.join(' '));
+        const path = pathArray.join(' ');
+        setSelectedPath(path);
         setArgsInput('');
-        setArgValues({});
+        // Seed argument values from the CLI's real defaults (SP-1 default_values).
+        const cmd = commandList.find((c: CommandCatalogEntry) => c.path.join(' ') === path);
+        const seeded: Record<string, string | boolean> = {};
+        for (const arg of cmd?.arguments ?? []) {
+            const def = arg.default_values?.[0];
+            if (def === undefined) continue;
+            const fieldKey = arg.long || arg.name;
+            seeded[fieldKey] = argControl(arg) === 'flag' ? def === 'true' : def;
+        }
+        setArgValues(seeded);
         setOutput(null);
     };
 
@@ -94,34 +119,59 @@ export function CommandCatalogForm({ catalog }: { catalog: CommandCatalog }) {
                             <div className="space-y-4 mb-6">
                                 <h3 className="text-sm font-bold tracking-widest text-brass uppercase border-b border-border pb-2">Arguments & Flags</h3>
                                 <div className="grid grid-cols-1 gap-4">
-                                    {currentCommand.arguments.map((arg: any) => {
-                                        const isFlag = !arg.takes_value;
+                                    {currentCommand.arguments.map((arg: CommandCatalogArgument) => {
+                                        const control = argControl(arg);
                                         const label = arg.long ? `--${arg.long}` : (arg.short ? `-${arg.short}` : arg.name);
                                         const fieldKey = arg.long || arg.name;
+                                        const inputClass = "bg-void border border-border rounded px-3 py-1.5 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors max-w-md";
                                         return (
                                             <div key={arg.name} className="flex flex-col">
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    {isFlag ? (
-                                                        <input 
+                                                    {control === 'flag' && (
+                                                        <input
                                                             type="checkbox"
                                                             id={arg.name}
                                                             checked={!!argValues[fieldKey]}
                                                             onChange={e => setArgValues(prev => ({ ...prev, [fieldKey]: e.target.checked }))}
                                                             className="bg-void border border-border rounded focus:border-cyan"
                                                         />
-                                                    ) : null}
+                                                    )}
                                                     <label htmlFor={arg.name} className="text-xs font-bold tracking-widest text-steel font-mono">{label}</label>
                                                     {arg.required && <span className="text-[10px] text-red-400">REQUIRED</span>}
                                                 </div>
                                                 {arg.help && <div className="text-[10px] text-steel/60 mb-1">{arg.help}</div>}
-                                                {!isFlag && (
-                                                    <input 
-                                                        type="text" 
+                                                {control === 'select' && (
+                                                    <select
                                                         id={arg.name}
-                                                        value={(argValues[fieldKey] as string) || ''}
+                                                        value={(argValues[fieldKey] as string) ?? ''}
+                                                        onChange={e => setArgValues(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                                                        className={inputClass}
+                                                    >
+                                                        {!arg.required && <option value="">—</option>}
+                                                        {arg.possible_values?.map(v => (
+                                                            <option key={v} value={v}>{v}</option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                                {control === 'count' && (
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        id={arg.name}
+                                                        value={(argValues[fieldKey] as string) ?? ''}
                                                         onChange={e => setArgValues(prev => ({ ...prev, [fieldKey]: e.target.value }))}
                                                         placeholder={arg.name}
-                                                        className="bg-void border border-border rounded px-3 py-1.5 text-sm text-foreground font-mono focus:border-cyan focus:outline-none transition-colors max-w-md"
+                                                        className={inputClass}
+                                                    />
+                                                )}
+                                                {control === 'text' && (
+                                                    <input
+                                                        type="text"
+                                                        id={arg.name}
+                                                        value={(argValues[fieldKey] as string) ?? ''}
+                                                        onChange={e => setArgValues(prev => ({ ...prev, [fieldKey]: e.target.value }))}
+                                                        placeholder={arg.name}
+                                                        className={inputClass}
                                                     />
                                                 )}
                                             </div>

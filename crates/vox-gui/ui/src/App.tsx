@@ -21,6 +21,7 @@ import { RepositoryView } from './components/surfaces/Repository/RepositoryView'
 import { MeshView } from './components/surfaces/Mesh/MeshView';
 import { GamifyView } from './components/surfaces/Gamify/GamifyView';
 import { HarnessView } from './components/surfaces/Harness/HarnessView';
+import { surfaceDecorators } from './components/surfaces/decoratorRegistry';
 import { ApprovalsView } from './components/surfaces/Approvals/ApprovalsView';
 import { SkillsPluginsView } from './components/surfaces/SkillsPlugins/SkillsPluginsView';
 import { voxTransport, listenOrchStatus, listenAgentEvents, type AgentEventFrame } from './transport';
@@ -42,6 +43,12 @@ type View =
   | 'mesh'
   | 'gamify'
   | 'harness'
+  | 'scientia'
+  | 'claims'
+  | 'mens'
+  | 'populi'
+  | 'research'
+  | 'oratio'
   | 'approvals'
   | 'skills'
   | 'settings';
@@ -220,7 +227,7 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'approvals', 'skills', 'settings'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
@@ -509,6 +516,9 @@ export default function App() {
 
   // ── View renderer ─────────────────────────────────────────────────────────
   const renderView = () => {
+    // Decorator registry: a surface may override its default view (SP-4 seam).
+    const Decorator = surfaceDecorators[activeView];
+    if (Decorator) return <Decorator pushToast={pushToast} />;
     switch (activeView) {
       case 'dashboard':
         return (

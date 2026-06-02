@@ -154,6 +154,10 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "check_failed" => BaseReward::new(3, 0), // Struggle XP
         "test_fail" => BaseReward::new(10, 0),   // Struggle XP: at least you ran it
         "fmt_completed" => BaseReward::new(2, 0),
+        // Generic CLI command completion (any command not covered by a specific
+        // type above), emitted once per invocation by central dispatch.
+        "cli_command_completed" => BaseReward::new(8, 1),
+        "cli_command_failed" => BaseReward::new(2, 0), // Struggle XP
         // LSP events
         "diagnostics_clean" => BaseReward::new(5, 1),
         "completion_accepted" => BaseReward::new(1, 0),

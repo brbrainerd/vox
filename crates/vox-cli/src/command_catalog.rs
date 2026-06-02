@@ -20,6 +20,18 @@ pub enum CatalogTier {
     FeatureGated,
 }
 
+/// Typed argument kind for GUI form generation, derived from the clap action.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ArgValueKind {
+    /// Boolean flag (clap `SetTrue`/`SetFalse`) — presence-only, no value.
+    Flag,
+    /// Takes one or more values (clap `Set`/`Append`).
+    Value,
+    /// Repeatable counter (clap `Count`), e.g. `-vvv`.
+    Count,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct CommandCatalogArgument {
     pub name: String,
@@ -28,6 +40,14 @@ pub struct CommandCatalogArgument {
     pub help: Option<String>,
     pub required: bool,
     pub takes_value: bool,
+    /// Typed argument kind for GUI form generation (flag vs value vs count).
+    pub value_kind: ArgValueKind,
+    /// Enumerated accepted values (clap `value_enum` / possible values); empty when unconstrained.
+    #[serde(default)]
+    pub possible_values: Vec<String>,
+    /// Default values clap applies when the argument is omitted; empty when none.
+    #[serde(default)]
+    pub default_values: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -311,16 +331,32 @@ fn push_catalog_entry(cmd: &Command, path: &[String], out: &mut Vec<CommandCatal
         capability_id: None,
         arguments: cmd
             .get_arguments()
-            .map(|arg| CommandCatalogArgument {
-                name: arg.get_id().to_string(),
-                short: arg.get_short(),
-                long: arg.get_long().map(|s| s.to_string()),
-                help: arg.get_help().map(|s| s.to_string()),
-                required: arg.is_required_set(),
-                takes_value: matches!(
-                    arg.get_action(),
-                    clap::ArgAction::Set | clap::ArgAction::Append
-                ),
+            .map(|arg| {
+                let action = arg.get_action();
+                let value_kind = match action {
+                    clap::ArgAction::SetTrue | clap::ArgAction::SetFalse => ArgValueKind::Flag,
+                    clap::ArgAction::Count => ArgValueKind::Count,
+                    _ => ArgValueKind::Value,
+                };
+                CommandCatalogArgument {
+                    name: arg.get_id().to_string(),
+                    short: arg.get_short(),
+                    long: arg.get_long().map(|s| s.to_string()),
+                    help: arg.get_help().map(|s| s.to_string()),
+                    required: arg.is_required_set(),
+                    takes_value: matches!(action, clap::ArgAction::Set | clap::ArgAction::Append),
+                    value_kind,
+                    possible_values: arg
+                        .get_possible_values()
+                        .iter()
+                        .map(|pv| pv.get_name().to_string())
+                        .collect(),
+                    default_values: arg
+                        .get_default_values()
+                        .iter()
+                        .map(|v| v.to_string_lossy().into_owned())
+                        .collect(),
+                }
             })
             .collect(),
     });
@@ -477,5 +513,36 @@ mod tests {
             results.is_empty(),
             "expected no results for nonsense pattern"
         );
+    }
+
+    #[test]
+    fn catalog_arguments_carry_value_kind_and_possible_values() {
+        let catalog = build_catalog();
+        let commands = catalog
+            .entries
+            .iter()
+            .find(|e| e.path == ["commands"])
+            .expect("`commands` subcommand present in default build");
+        // `--format` is a value_enum (text|json) → Value kind with possible values.
+        let format = commands
+            .arguments
+            .iter()
+            .find(|a| a.name == "format")
+            .expect("`commands` has a `format` argument");
+        assert_eq!(format.value_kind, ArgValueKind::Value);
+        assert!(
+            format.possible_values.iter().any(|v| v == "json"),
+            "format should expose enum value 'json'; got {:?}",
+            format.possible_values
+        );
+        // `--recommended` is a bool flag → Flag kind. (clap reports the
+        // synthetic `["true","false"]` possible values for bool flags; the GUI
+        // renders a checkbox from `value_kind`, so that is the load-bearing field.)
+        let recommended = commands
+            .arguments
+            .iter()
+            .find(|a| a.name == "recommended")
+            .expect("`commands` has a `recommended` argument");
+        assert_eq!(recommended.value_kind, ArgValueKind::Flag);
     }
 }

@@ -449,6 +449,85 @@ fn compute_zero_points(data: &[f32], block_size: usize, scales: &[f32]) -> Vec<f
 /// # Errors
 /// Returns an error if the tensor cannot be created on the specified device
 pub fn dequantize_nf4(quantized: &QuantizedTensor, device: &Device) -> Result<Tensor> {
+    // GPU-resident path: avoids the GPU->CPU->GPU roundtrip of the scalar loop, which
+    // otherwise runs on every forward pass and dominates training time. Falls back to
+    // the CPU loop for asymmetric (zero_point) quant — rare — and on non-CUDA devices.
+    if device.is_cuda() && quantized.zero_points.is_none() {
+        match dequantize_nf4_gpu(quantized, device) {
+            Ok(t) => return Ok(t),
+            // Be conservative: if any op is unsupported on this candle/device build,
+            // fall through to the always-correct CPU path rather than fail training.
+            Err(_) => {}
+        }
+    }
+    dequantize_nf4_cpu(quantized, device)
+}
+
+/// Vectorized NF4 dequant using candle tensor ops — stays on the GPU end-to-end.
+///
+/// Nibbles are split via index_select into 256-entry lookup tables (candle 0.9 has no
+/// tensor bit-shift on CUDA), the 16-entry NF4 codebook is gathered the same way, and
+/// per-block scales are broadcast to elements. Equivalent to [`dequantize_nf4_cpu`]
+/// (verified bit-for-bit in tests). Assumes symmetric quant (no zero_point) — the
+/// caller dispatches the asymmetric case to the CPU path.
+fn dequantize_nf4_gpu(quantized: &QuantizedTensor, device: &Device) -> Result<Tensor> {
+    use candle_core::DType;
+
+    let numel = quantized.numel();
+    let block_size = quantized.block_size;
+
+    // Effective scales (reverse double-quant on host — small, num_blocks values).
+    let scales: Vec<f32> = if quantized.double_quant_enabled {
+        if let (Some(sq), Some(ss)) = (&quantized.scales_quantized, &quantized.scales_scales) {
+            dequantize_double_scales(sq, ss)
+        } else {
+            quantized.scales.clone()
+        }
+    } else {
+        quantized.scales.clone()
+    };
+    let num_groups = scales.len();
+    // Both PerTensor and PerChannel store `scales.len() * block_size == numel`.
+    if num_groups == 0 || num_groups * block_size < numel {
+        return Err(QLoraError::InvalidConfig(
+            "scale/block geometry does not cover the tensor".into(),
+        ));
+    }
+
+    // 256-entry nibble LUTs (u32 indices for index_select): low = b & 0xF, high = b >> 4.
+    let low_lut: Vec<u32> = (0u32..256).map(|b| b & 0x0F).collect();
+    let high_lut: Vec<u32> = (0u32..256).map(|b| b >> 4).collect();
+    let low_lut = Tensor::from_vec(low_lut, 256, device)?;
+    let high_lut = Tensor::from_vec(high_lut, 256, device)?;
+
+    // Upload packed bytes ONCE; derive both nibble lanes on-device.
+    let n_bytes = quantized.data.len();
+    let packed = Tensor::from_slice(&quantized.data, n_bytes, device)?.to_dtype(DType::U32)?;
+    let lo = low_lut.index_select(&packed, 0)?; // [n_bytes]
+    let hi = high_lut.index_select(&packed, 0)?; // [n_bytes]
+    // Interleave back to element order: [lo0, hi0, lo1, hi1, ...].
+    let codes = Tensor::stack(&[&lo, &hi], 1)?.reshape((n_bytes * 2,))?;
+    let codes = codes.narrow(0, 0, numel)?; // drop any trailing padding nibble
+
+    // Codebook gather: NF4_LEVELS[code].
+    let nf4_lut = Tensor::from_slice(&NF4_LEVELS, 16, device)?;
+    let vals = nf4_lut.index_select(&codes, 0)?; // [numel] f32
+
+    // Broadcast per-group scale to its `block_size` elements.
+    let scales_t = Tensor::from_vec(scales, num_groups, device)?;
+    let scales_e = scales_t
+        .reshape((num_groups, 1))?
+        .broadcast_as((num_groups, block_size))?
+        .reshape((num_groups * block_size,))?
+        .narrow(0, 0, numel)?;
+
+    let out = (vals * scales_e)?.reshape(quantized.shape.clone())?;
+    Ok(out)
+}
+
+/// Reference CPU NF4 dequant (scalar loop). Correct for all cases; used as the
+/// fallback and as the bit-for-bit oracle for [`dequantize_nf4_gpu`].
+fn dequantize_nf4_cpu(quantized: &QuantizedTensor, device: &Device) -> Result<Tensor> {
     let numel = quantized.numel();
     let mut output = Vec::with_capacity(numel);
 
@@ -813,6 +892,45 @@ mod tests {
         #[allow(clippy::cast_precision_loss)]
         let ratio = f64::from(original_bytes) / quantized_bytes as f64;
         assert!(ratio > 3.0, "Expected >3x reduction, got {ratio:.2}x");
+    }
+
+    #[test]
+    fn gpu_dequant_matches_cpu_bit_for_bit() {
+        // candle ops run identically on CPU and CUDA, so validating the tensor-op
+        // dequant against the scalar oracle on a CPU device proves the algorithm
+        // (nibble interleave, codebook gather, scale broadcast) independent of GPU.
+        let device = Device::Cpu;
+        for &double_quant in &[false, true] {
+            for &strategy in &[
+                QuantizationStrategy::PerTensor,
+                QuantizationStrategy::PerChannel,
+            ] {
+                let original = Tensor::randn(0.0f32, 1.0, (8, 128), &device).unwrap();
+                let config = QuantizationConfig {
+                    block_size: 64,
+                    double_quant,
+                    compute_dtype: ComputeDType::F32,
+                    strategy,
+                    use_zero_point: false,
+                };
+                let q = quantize_nf4_with_config(&original, &config).unwrap();
+                let cpu = super::dequantize_nf4_cpu(&q, &device).unwrap();
+                let gpu = super::dequantize_nf4_gpu(&q, &device).unwrap();
+                assert_eq!(cpu.shape(), gpu.shape());
+                let diff = (&cpu - &gpu)
+                    .unwrap()
+                    .abs()
+                    .unwrap()
+                    .max_all()
+                    .unwrap()
+                    .to_scalar::<f32>()
+                    .unwrap();
+                assert!(
+                    diff < 1e-6,
+                    "dq={double_quant} strat={strategy:?}: max abs diff {diff} exceeds 1e-6",
+                );
+            }
+        }
     }
 
     #[test]

@@ -201,7 +201,10 @@ fn generated_manifest_payload(repo_root: &PathBuf) -> Result<serde_json::Value> 
                 "long": "payload",
                 "help": "JSON payload for MCP tool invocation",
                 "required": false,
-                "takes_value": true
+                "takes_value": true,
+                "value_kind": "value",
+                "possible_values": [],
+                "default_values": []
             }],
         }));
     }
@@ -352,4 +355,45 @@ pub fn run(repo_root: &PathBuf) -> Result<()> {
 
     tracing::info!("gui-catalog-parity check passed.");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_manifest_validates_with_typed_args() {
+        let repo_root = vox_repository::resolve_repo_root_for_ci();
+        let manifest = generated_manifest_payload(&repo_root).expect("build manifest payload");
+
+        // Schema validation (same schema the guard enforces).
+        let schema_path = repo_root.join("contracts/gui/action-manifest.v1.schema.json");
+        let schema_raw = std::fs::read_to_string(&schema_path).expect("read schema");
+        let schema_val: serde_json::Value =
+            serde_json::from_str(&schema_raw).expect("parse schema");
+        let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())
+            .expect("compile schema");
+        vox_jsonschema_util::validate(&manifest, &validator, "action manifest schema")
+            .expect("generated manifest must validate against schema");
+
+        // Every argument (CLI-derived and synthetic) must carry value_kind.
+        let actions = manifest
+            .get("actions")
+            .and_then(|v| v.as_array())
+            .expect("actions array");
+        let mut saw_arg = false;
+        for action in actions {
+            if let Some(args) = action.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    assert!(
+                        arg.get("value_kind").and_then(|v| v.as_str()).is_some(),
+                        "argument missing value_kind in action {:?}",
+                        action.get("id")
+                    );
+                    saw_arg = true;
+                }
+            }
+        }
+        assert!(saw_arg, "expected at least one argument in the manifest");
+    }
 }

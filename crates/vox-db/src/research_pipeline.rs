@@ -5,7 +5,10 @@
 use crate::VoxDb;
 use crate::store::StoreError;
 use turso::params;
-use vox_db_types::{ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary};
+use vox_db_types::{
+    ClaimsPendingCounts, ResearchArtifactRecord, ResearchSessionRecord, ResearchSessionSummary,
+    ScientiaClaimWithVerdict,
+};
 
 impl VoxDb {
     /// Create a new research session and return its row id.
@@ -188,6 +191,29 @@ impl VoxDb {
             .await
     }
 
+    /// Set the verifiability score for a stored claim (best-effort; a no-op if
+    /// the claim row does not exist). Kept separate from `store_claim` so its
+    /// signature stays stable for existing callers.
+    pub async fn update_claim_verifiability_score(
+        &self,
+        claim_id: u64,
+        score: f64,
+    ) -> Result<(), StoreError> {
+        let cid = claim_id as i64;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE scientia_claims SET verifiability_score = ?2 WHERE claim_id = ?1",
+                    params![cid, score],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     /// Store a claim verification verdict.
     pub async fn store_claim_verdict(
         &self,
@@ -243,6 +269,82 @@ impl VoxDb {
                 Ok::<(), StoreError>(())
             })
             .await
+    }
+
+    /// List a publication's extracted claims, each joined to its latest
+    /// non-span verdict. `session_id` is derived from the publication id by the
+    /// caller (vox-cli). Newest claims first.
+    pub async fn list_publication_claims(
+        &self,
+        session_id: i64,
+    ) -> Result<Vec<ScientiaClaimWithVerdict>, StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT c.claim_id, c.text, c.is_numeric, c.verifiability_score, \
+                   (SELECT v.verdict FROM scientia_claim_verdicts v \
+                    WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                    ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) AS verdict, \
+                   (SELECT v.confidence FROM scientia_claim_verdicts v \
+                    WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                    ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) AS confidence, \
+                   (SELECT v.verifier_model FROM scientia_claim_verdicts v \
+                    WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                    ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) AS verifier_model, \
+                   c.created_at_ms \
+                 FROM scientia_claims c \
+                 WHERE c.session_id = ?1 \
+                 ORDER BY c.created_at_ms DESC, c.claim_id DESC",
+                (session_id,),
+            )
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for r in rows {
+            let is_numeric: i64 = r.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push(ScientiaClaimWithVerdict {
+                claim_id: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                text: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                is_numeric: is_numeric != 0,
+                verifiability_score: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                verdict: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                confidence: r.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                verifier_model: r.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
+                created_at_ms: r.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
+            });
+        }
+        Ok(out)
+    }
+
+    /// Global claims-pending counts for the SCIENTIA dashboard: each claim
+    /// bucketed by its latest non-span verdict (`Supported` → verifiable,
+    /// `Abstain` → abstained, none yet → extraction_running).
+    pub async fn scientia_claims_pending_summary(&self) -> Result<ClaimsPendingCounts, StoreError> {
+        let rows = self
+            .query_all(
+                "SELECT \
+                   COALESCE(SUM(CASE WHEN verdict = 'Supported' THEN 1 ELSE 0 END), 0), \
+                   COALESCE(SUM(CASE WHEN verdict = 'Abstain' THEN 1 ELSE 0 END), 0), \
+                   COALESCE(SUM(CASE WHEN verdict IS NULL THEN 1 ELSE 0 END), 0) \
+                 FROM ( \
+                   SELECT (SELECT v.verdict FROM scientia_claim_verdicts v \
+                           WHERE v.claim_id = c.claim_id AND v.verdict <> 'Unverified' \
+                           ORDER BY v.created_at_ms DESC, v.id DESC LIMIT 1) AS verdict \
+                   FROM scientia_claims c \
+                 )",
+                (),
+            )
+            .await?;
+        match rows.into_iter().next() {
+            Some(r) => Ok(ClaimsPendingCounts {
+                verifiable: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                abstained: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                extraction_running: r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+            }),
+            None => Ok(ClaimsPendingCounts {
+                verifiable: 0,
+                abstained: 0,
+                extraction_running: 0,
+            }),
+        }
     }
 
     /// Store a training pair (query + answer + quality score).

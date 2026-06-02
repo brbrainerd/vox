@@ -268,6 +268,34 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         "mock".to_string()
     };
 
+    // Persist individual claims + latest verdicts to the SCIENTIA claim ledger so
+    // `vox scientia claims` and the dashboard can read structured rows. session_id
+    // is derived from the publication id (scientia_claims is keyed by session_id).
+    // `claims[i]` and `verdicts[i]` are parallel (same pipeline loop order).
+    let session_id = publication_session_id(publication_id);
+    for (claim, verdict) in result.claims.iter().zip(result.verdicts.iter()) {
+        use vox_scientia::claim_extractor::VerifiabilityClass;
+        let is_numeric = matches!(claim.verifiability, VerifiabilityClass::Numeric);
+        let is_named_event = matches!(claim.verifiability, VerifiabilityClass::EventBased);
+        db.store_claim(
+            session_id,
+            claim.id,
+            &claim.text,
+            is_numeric,
+            false,
+            is_named_event,
+        )
+        .await
+        .context("persist extracted claim")?;
+        db.update_claim_verifiability_score(claim.id, claim.verifiability_score)
+            .await
+            .context("persist claim verifiability score")?;
+        let (verdict_label, confidence) = verdict_to_row(verdict);
+        db.store_claim_verdict(claim.id, verdict_label, confidence, &verifier_model)
+            .await
+            .context("persist claim verdict")?;
+    }
+
     let summary = vox_publisher::scientia_evidence::ExtractedClaimsSummary {
         schema_version: 1,
         total_atomic,
@@ -307,6 +335,123 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         .context("upsert manifest with extracted_claims summary")?;
 
     println!("{}", serde_json::to_string_pretty(&summary)?);
+    Ok(())
+}
+
+/// Derive a stable `session_id` from a publication id (FNV-1a). `scientia_claims`
+/// is keyed by `session_id`; a publication's extracted claims share this bucket.
+pub(crate) fn publication_session_id(publication_id: &str) -> i64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in publication_id.as_bytes() {
+        hash ^= *b as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash as i64
+}
+
+/// Map a `ClaimVerdict` to its persisted `(verdict_label, confidence)` form.
+pub(crate) fn verdict_to_row(
+    verdict: &vox_scientia::claim_extractor::ClaimVerdict,
+) -> (&'static str, f64) {
+    use vox_scientia::claim_extractor::ClaimVerdict;
+    match verdict {
+        ClaimVerdict::Supported { confidence } => ("Supported", *confidence),
+        ClaimVerdict::Contested { confidence } => ("Contested", *confidence),
+        ClaimVerdict::Contradicted { confidence } => ("Contradicted", *confidence),
+        ClaimVerdict::Abstain { .. } => ("Abstain", 0.0),
+    }
+}
+
+/// Build the JSON payload for `vox scientia claims` from a publication id and its
+/// claim rows. Pure (no IO) so the shape is unit-testable without a DB.
+fn build_claims_payload<T: serde::Serialize>(
+    publication_id: &str,
+    claims: &[T],
+) -> serde_json::Value {
+    serde_json::json!({
+        "schema_kind": "scientia_publication_claims",
+        "publication_id": publication_id,
+        "claim_count": claims.len(),
+        "claims": claims,
+    })
+}
+
+/// `vox scientia claims --publication-id X` — print a publication's extracted
+/// claims joined to each claim's latest verdict as JSON.
+pub async fn publication_claims(publication_id: &str) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .context("connect to default Codex / VoxDb")?;
+    let session_id = publication_session_id(publication_id);
+    let claims = db
+        .list_publication_claims(session_id)
+        .await
+        .context("list publication claims")?;
+    let payload = build_claims_payload(publication_id, &claims);
+    println!("{}", serde_json::to_string_pretty(&payload)?);
+    Ok(())
+}
+
+/// Publication ids whose candidate state is `retracted` (the dashboard's
+/// retraction queue). Pure; unit-tested.
+fn retraction_queue_from(candidates: &[vox_scientia::dashboard::CandidateRow]) -> Vec<String> {
+    candidates
+        .iter()
+        .filter(|c| c.state == "retracted")
+        .map(|c| c.candidate_id.clone())
+        .collect()
+}
+
+/// Phase H — `vox scientia dashboard`. Assemble a `QueueSnapshot` JSON directly
+/// from the live Codex DB: publication manifests become candidates, the
+/// extracted-claims tables drive `claims_pending`, and retracted candidates form
+/// the retraction queue. (Distinct from `publication-dashboard-snapshot`, which
+/// reads a supplied inputs file.) `manifests_in_reply_window` is empty until a
+/// reply-window source table exists.
+pub async fn scientia_dashboard() -> Result<()> {
+    use vox_scientia::dashboard::{
+        CandidateRow, ClaimsPendingSummary, DashboardInputs, ReplyWindowEntry, build_queue_snapshot,
+    };
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .context("connect to default Codex / VoxDb")?;
+    let manifests = db
+        .list_publication_manifests(Some("scientia"), None, 200)
+        .await
+        .context("list publication manifests")?;
+    // Manifests carry no confidence signal; sourced as 0.0 (honest unknown).
+    let candidates: Vec<CandidateRow> = manifests
+        .iter()
+        .map(|m| CandidateRow {
+            candidate_id: m.publication_id.clone(),
+            candidate_class: m.content_type.clone(),
+            confidence: 0.0,
+            state: m.state.clone(),
+            created_at_ms: m.created_at_ms,
+            updated_at_ms: m.updated_at_ms,
+        })
+        .collect();
+    let retraction_queue = retraction_queue_from(&candidates);
+    let counts = db
+        .scientia_claims_pending_summary()
+        .await
+        .context("claims-pending summary")?;
+    let claims_pending = ClaimsPendingSummary {
+        verifiable: counts.verifiable.max(0) as u64,
+        abstained: counts.abstained.max(0) as u64,
+        extraction_running: counts.extraction_running.max(0) as u64,
+    };
+    let manifests_in_reply_window: Vec<ReplyWindowEntry> = Vec::new();
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let inputs = DashboardInputs {
+        candidates: &candidates,
+        claims_pending,
+        manifests_in_reply_window: &manifests_in_reply_window,
+        retraction_queue: &retraction_queue,
+        now_ms,
+    };
+    let snapshot = build_queue_snapshot(&inputs);
+    println!("{}", serde_json::to_string_pretty(&snapshot)?);
     Ok(())
 }
 
@@ -492,6 +637,73 @@ pub fn dashboard_snapshot(inputs_path: &Path) -> Result<()> {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn verdict_to_row_maps_variants() {
+        use vox_scientia::claim_extractor::ClaimVerdict;
+        assert_eq!(
+            verdict_to_row(&ClaimVerdict::Supported { confidence: 0.9 }),
+            ("Supported", 0.9)
+        );
+        assert_eq!(
+            verdict_to_row(&ClaimVerdict::Contested { confidence: 0.5 }),
+            ("Contested", 0.5)
+        );
+        assert_eq!(
+            verdict_to_row(&ClaimVerdict::Contradicted { confidence: 0.2 }),
+            ("Contradicted", 0.2)
+        );
+        assert_eq!(
+            verdict_to_row(&ClaimVerdict::Abstain { reason: "x".into() }),
+            ("Abstain", 0.0)
+        );
+    }
+
+    #[test]
+    fn publication_session_id_is_stable_and_distinct() {
+        let a = publication_session_id("pub-aaa");
+        assert_eq!(a, publication_session_id("pub-aaa"));
+        assert_ne!(a, publication_session_id("pub-bbb"));
+    }
+
+    #[test]
+    fn build_claims_payload_shape() {
+        // Exercises the payload-building core of `publication_claims` without a DB.
+        let empty: Vec<serde_json::Value> = vec![];
+        let p = build_claims_payload("pub-x", &empty);
+        assert_eq!(p["schema_kind"], "scientia_publication_claims");
+        assert_eq!(p["publication_id"], "pub-x");
+        assert_eq!(p["claim_count"], 0);
+        assert!(p["claims"].is_array());
+
+        let one = vec![serde_json::json!({ "claim_id": 1 })];
+        let p2 = build_claims_payload("pub-y", &one);
+        assert_eq!(p2["claim_count"], 1);
+        assert_eq!(p2["claims"][0]["claim_id"], 1);
+    }
+
+    #[test]
+    fn retraction_queue_from_filters_retracted() {
+        use vox_scientia::dashboard::CandidateRow;
+        let mk = |id: &str, state: &str| CandidateRow {
+            candidate_id: id.to_string(),
+            candidate_class: "scientia".to_string(),
+            confidence: 0.0,
+            state: state.to_string(),
+            created_at_ms: 0,
+            updated_at_ms: 0,
+        };
+        let cands = vec![
+            mk("a", "published"),
+            mk("b", "retracted"),
+            mk("c", "retracted"),
+            mk("d", "draft"),
+        ];
+        assert_eq!(
+            retraction_queue_from(&cands),
+            vec!["b".to_string(), "c".to_string()]
+        );
+    }
 
     fn tmp_json<T: serde::Serialize>(value: &T) -> tempfile::NamedTempFile {
         let mut f = tempfile::NamedTempFile::new().unwrap();

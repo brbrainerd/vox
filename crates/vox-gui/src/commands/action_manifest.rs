@@ -284,6 +284,9 @@ pub fn build_action_manifest() -> Result<GuiActionManifest, String> {
                 help: Some("JSON payload for MCP tool invocation".to_string()),
                 required: false,
                 takes_value: true,
+                value_kind: vox_cli::command_catalog::ArgValueKind::Value,
+                possible_values: Vec::new(),
+                default_values: Vec::new(),
             }],
         });
     }

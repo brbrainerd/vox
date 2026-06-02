@@ -320,13 +320,13 @@ pub fn run_training_loop(
                         trainer.config.adapter_config.learning_rate = lr_next;
                         trainer.update_lr();
 
-                        // CUDA memory-pool trim: return freed VRAM to the OS so long
-                        // QLoRA runs do not balloon driver-held memory or fragment the
-                        // pool until a peak allocation OOMs. On memory-tight cards (a 4B
-                        // model on 16 GB sits near the ceiling) fragmentation across a few
-                        // dozen optimizer steps is enough to OOM, so trim every step by
-                        // default. Tunable via VOX_MENS_TRIM_EVERY_OPT_STEPS (>=1) to trade
-                        // reclamation aggressiveness against per-step sync cost.
+                        // CUDA memory-pool trim: periodically return freed VRAM to the OS
+                        // so long runs do not balloon driver-held memory or fragment the
+                        // pool. cuMemPoolTrimTo(0) returns ALL pooled memory, forcing the
+                        // next step to re-request it — so trimming every step is pure
+                        // overhead when there is VRAM margin. With the bf16 budget leaving
+                        // a real margin, the default is every 16 optimizer steps; drop it
+                        // (VOX_MENS_TRIM_EVERY_OPT_STEPS=1) only on a memory-tight run.
                         // Best-effort — log + continue on driver error. Gated on `cuda`.
                         #[cfg(feature = "cuda")]
                         {
@@ -334,7 +334,7 @@ pub fn run_training_loop(
                                 .ok()
                                 .and_then(|s| s.parse::<u32>().ok())
                                 .filter(|n| *n >= 1)
-                                .unwrap_or(1);
+                                .unwrap_or(16);
                             if optimizer_step_count.is_multiple_of(trim_every) {
                                 if let Err(e) = crate::device::mem_pool::trim_default_pool(0) {
                                     tracing::warn!(

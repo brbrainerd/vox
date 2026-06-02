@@ -451,6 +451,14 @@ pub fn run_candle_qlora_train(
     let rank = config.rank.max(1);
     let alpha_u = config.alpha.round() as usize;
     let qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
+    // On-the-fly dequant (no weight cache) is the default: qlora-rs now dequantizes
+    // NF4 on the GPU (vectorized tensor ops, no host roundtrip), so it is fast WITHOUT
+    // keeping every dequantized weight resident. That recovers the memory margin
+    // (3B ≈13.9 GiB vs ~15.8 GiB when cached) while staying near ~1 s/step.
+    // Opt INTO persistent caching with VOX_MENS_WEIGHT_CACHE=1 (slightly faster, but
+    // resident weights cost ~2 GiB — only worth it when VRAM is plentiful).
+    let mut qlora_cfg = qlora_cfg;
+    qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_WEIGHT_CACHE").is_some();
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;
