@@ -162,3 +162,14 @@ https://expo\.dev/settings/.*
 
 # frontendmasters.com blocks CI bots with 403 Forbidden; link is valid for humans.
 .*frontendmasters\.com/.*
+
+# The following hosts intermittently TIME OUT from GitHub Actions runners (slow
+# or geo-throttled origins). They are pre-existing citations in research docs and
+# are valid for human readers; ignore to keep check-links deterministic.
+.*infoq\.com/.*
+.*incidentdatabase\.ai/.*
+.*wayland\.app/.*
+.*streamlit\.io/.*
+.*jj-vcs\.github\.io/.*
+.*pijul\.com/.*
+.*localhost\.run/.*
