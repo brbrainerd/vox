@@ -45,7 +45,7 @@ fn main() {
     if not node_ok {
         print("Node.js missing. The frontend build may fail. Install via fnm or nvm.")
     }
-    if not pnpm_ok and node_ok {
+    if (not pnpm_ok) and node_ok {
         print("pnpm missing. Run `corepack enable` to install it.")
     }
 
