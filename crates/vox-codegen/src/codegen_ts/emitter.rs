@@ -435,7 +435,28 @@ pub fn generate_with_options(
     // first component (RN-parity bootstrap). Skipped for Library mode (consumers
     // own their root) and when there are no components to mount.
     if options.mode != BuildMode::Library && !options.no_emit_entry && !hir.components.is_empty() {
-        let root_component = hir.components.first().map(|c| c.name.as_str());
+        // Flat-mount the first component. Required props (no Vox default) get a
+        // type-appropriate placeholder so the generated `<C .. />` type-checks —
+        // the scaffold can't know real app data.
+        let root_component = hir.components.first().map(|c| {
+            let props: String = c
+                .params
+                .iter()
+                .filter(|p| p.default.is_none())
+                .map(|p| {
+                    let ts = p.type_ann.as_ref().map_or_else(
+                        || "any".to_string(),
+                        crate::codegen_ts::hir_emit::map_hir_type_to_ts,
+                    );
+                    format!(
+                        " {}={}",
+                        p.name,
+                        crate::codegen_ts::component::ts_default_value(&ts)
+                    )
+                })
+                .collect();
+            (c.name.as_str(), props)
+        });
         files.push((
             crate::codegen_ts::web_entry::VOX_APP_FILENAME.to_string(),
             crate::codegen_ts::web_entry::emit_web_app(has_route_manifest, root_component),

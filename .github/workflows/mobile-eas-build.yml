@@ -68,7 +68,15 @@ jobs:
         working-directory: ${{ runner.temp }}/voxapp
         run: |
           npm install --no-audit --no-fund
-          npx expo install expo-asset expo-status-bar react-native --fix || true
+          # `expo-file-system` is required by the @vox/runtime-rn CI shim
+          # (shims-vox-runtime-rn/index.js) for its durable NDJSON journal.
+          # `expo install --fix` pins the SDK-compatible version into package.json
+          # but does NOT always install it ("added as a dependency ... but it
+          # doesn't seem to be installed"), so run `npm install` afterward to
+          # actually materialize it in node_modules — otherwise Metro can't
+          # resolve it at export time.
+          npx expo install expo-asset expo-status-bar react-native expo-file-system --fix || true
+          npm install --no-audit --no-fund
 
       - name: Export bundle (proves the app compiles + bundles)
         working-directory: ${{ runner.temp }}/voxapp
