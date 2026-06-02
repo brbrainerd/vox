@@ -67,14 +67,24 @@ fn main() {
     }
 
     print("[6] Validating Workspace Integrity...")
-    print("Running cargo check --workspace...")
-    let check_opt = process.run("cargo", ["check", "--workspace"])
+    print("Running cargo check --workspace (excluding vox-gui)...")
+    // Exclude `vox-gui`: it is a native Tauri desktop app (WebKit/Cocoa system
+    // frameworks) that is not in `default-members` and does not check in a stripped
+    // clean room (notably macOS). The cross-platform CI excludes it for the same
+    // reason — a setup-integrity check shouldn't gate on the native GUI toolchain.
+    let check_opt = process.run("cargo", ["check", "--workspace", "--exclude", "vox-gui"])
     if check_opt is null {
         print("Failed to spawn cargo check.")
         process.exit(1)
     }
     let check = check_opt.unwrap()
     if check.code != 0 {
+        // `process.run` captures stdout/stderr, so cargo's diagnostics are NOT
+        // streamed to the terminal — echo the captured output here, otherwise the
+        // failure is undiagnosable (this is what hid the macOS clean-room compile
+        // error in CI: "resolve the compilation errors above" with nothing above).
+        print(check.stdout)
+        print(check.stderr)
         print("Workspace verification failed. Please resolve the compilation errors above.")
         process.exit(1)
     }

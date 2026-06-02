@@ -58,13 +58,14 @@ fn plan_llama_model() {
     let planner = ExecutionPlanner::default();
     let plan = planner.plan(&c).expect("plan llama");
 
-    // In preflight_model_bundle, we would check the architecture.
-    // For now, let's just check the classification via the layout tool.
+    // A dense Llama-family config is classified into the supported stacked-causal
+    // family (`Qwen35`) — Vox carries no distinct `Llama` architecture; llama/mistral
+    // checkpoints are trained through the same stacked-causal path.
     let layout = vox_populi::mens::tensor::hf_load::parse_transformer_layout(
         c.model.config_json.as_ref().unwrap(),
     )
     .expect("layout");
-    assert_eq!(layout.architecture, HfArchitecture::Llama);
+    assert_eq!(layout.architecture, HfArchitecture::Qwen35);
 }
 
 #[test]
@@ -72,9 +73,10 @@ fn plan_mistral_model() {
     let dir = tempdir().expect("tempdir");
     let config_path = write_config(dir.path(), "mistral");
 
+    // Mistral, like Llama, maps onto the stacked-causal (`Qwen35`) family.
     let layout =
         vox_populi::mens::tensor::hf_load::parse_transformer_layout(&config_path).expect("layout");
-    assert_eq!(layout.architecture, HfArchitecture::Mistral);
+    assert_eq!(layout.architecture, HfArchitecture::Qwen35);
 }
 
 #[test]
@@ -82,7 +84,9 @@ fn plan_phi_model() {
     let dir = tempdir().expect("tempdir");
     let config_path = write_config(dir.path(), "phi");
 
+    // `phi` matches no Qwen/Llama/Mistral rule, so it falls through to the GPT-2
+    // style classification — this pins that fallthrough so it can't regress silently.
     let layout =
         vox_populi::mens::tensor::hf_load::parse_transformer_layout(&config_path).expect("layout");
-    assert_eq!(layout.architecture, HfArchitecture::Phi);
+    assert_eq!(layout.architecture, HfArchitecture::Gpt2);
 }

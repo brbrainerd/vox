@@ -34,7 +34,7 @@ pub struct ModelSpec {
 }
 
 /// Lineage and attribution metadata for downstream artifacts.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ModelProvenanceSpec {
     pub base_family: Option<String>,
     pub upstream_model_id: Option<String>,
@@ -91,7 +91,7 @@ pub struct QuantSpec {
     pub double_quant: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ExecSpec {
     pub epochs: usize,
     pub seq_len: usize,
