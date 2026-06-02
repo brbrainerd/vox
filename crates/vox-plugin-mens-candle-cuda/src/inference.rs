@@ -41,6 +41,28 @@ fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf>
     None
 }
 
+/// Synthesize RoPE inverse-frequency table from `rope_theta`, identical to the
+/// trainer's `candle_qlora_train::synthesize_rope_inv_freq`. Kept byte-for-byte in
+/// sync so inference applies the same rotary frequencies the adapter trained against.
+fn synthesize_rope_inv_freq(
+    head_dim: usize,
+    rope_theta: Option<f64>,
+    device: &Device,
+) -> Result<Tensor> {
+    let half = head_dim / 2;
+    if half == 0 {
+        anyhow::bail!("invalid head_dim={head_dim} for RoPE synthesis");
+    }
+    let theta = rope_theta.unwrap_or(10_000.0) as f32;
+    let hd = head_dim as f32;
+    let mut vals = Vec::with_capacity(half);
+    for i in 0..half {
+        let exponent = (2.0_f32 * i as f32) / hd;
+        vals.push(1.0_f32 / theta.powf(exponent));
+    }
+    Ok(Tensor::from_vec(vals, (half,), device)?)
+}
+
 impl InferenceEngine {
     pub fn load(model_dir: &Path, device_kind: &crate::device::DeviceKind) -> Result<Self> {
         let tokenizer_path = model_dir.join("tokenizer.json");
@@ -269,11 +291,19 @@ impl InferenceEngine {
                         &qlora_cfg,
                         &_device,
                     )?;
+                    // Qwen2/Qwen2.5 additive qkv biases (optional — absent on pure Qwen3.5).
+                    // Must match training (mod.rs loads these) or a merged/served model drifts.
+                    let q_bias = get_tensor(&format!("{p}.self_attn.q_proj.bias")).ok();
+                    let k_bias = get_tensor(&format!("{p}.self_attn.k_proj.bias")).ok();
+                    let v_bias = get_tensor(&format!("{p}.self_attn.v_proj.bias")).ok();
                     Qwen35AttentionBlock::Full(Qwen2Attention {
                         q_proj,
                         k_proj,
                         v_proj,
                         o_proj,
+                        q_bias,
+                        k_bias,
+                        v_bias,
                         n_heads,
                         n_kv_heads,
                         head_dim,
@@ -300,9 +330,16 @@ impl InferenceEngine {
                         &_device,
                     )?,
                 };
+                // RoPE: HF Qwen2.5/Qwen3.5 shards usually omit per-layer `inv_freq`; the
+                // trainer synthesizes it from `config.rope_theta` (see candle_qlora_train::
+                // synthesize_rope_inv_freq). Inference MUST do the same or the forward runs
+                // with zero positional encoding and emits token-salad. Match the trainer.
                 let inv_freq = get_tensor(&format!("{p}.self_attn.rotary_emb.inv_freq"))
                     .or_else(|_| get_tensor(&format!("{p}.linear_attn.rotary_emb.inv_freq")))
-                    .ok();
+                    .ok()
+                    .or_else(|| {
+                        synthesize_rope_inv_freq(head_dim, layout.rope_theta, &_device).ok()
+                    });
 
                 layers.push(Qwen35Layer {
                     input_layernorm: ln1,

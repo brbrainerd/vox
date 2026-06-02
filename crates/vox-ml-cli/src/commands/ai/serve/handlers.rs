@@ -135,11 +135,14 @@ pub async fn do_generate(
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(GenerateResponse {
                     text: "Inference worker unavailable".into(),
+                    code: "Inference worker unavailable".into(),
                     tokens_generated: 0,
                     model: state.model_name.to_string(),
                     object: "text_completion",
                     choices: vec![],
                     repair_attempts: None,
+                    valid: false,
+                    errors: vec!["Inference worker unavailable".into()],
                 }),
             );
         }
@@ -166,7 +169,9 @@ pub async fn do_generate(
             } else {
                 None
             };
+            let err_list: Vec<String> = last_error.take().into_iter().collect();
             let resp = GenerateResponse {
+                code: last_text.clone(),
                 text: last_text.clone(),
                 tokens_generated: total_tokens,
                 model: state.model_name.to_string(),
@@ -177,6 +182,8 @@ pub async fn do_generate(
                     finish_reason: "stop",
                 }],
                 repair_attempts,
+                valid,
+                errors: err_list,
             };
             return (StatusCode::OK, Json(resp));
         }

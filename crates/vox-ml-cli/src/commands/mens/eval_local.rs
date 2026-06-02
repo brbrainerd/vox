@@ -73,13 +73,29 @@ pub fn run_eval_local(
         system_prompt: None,
     };
 
-    // SP3 Unit 3: candle_inference_serve deleted from vox-populi; authoritative copy lives in
-    // vox-plugin-mens-candle-cuda/src/inference.rs.  vox-ml-cli drives inference through the plugin
-    // host (MlBackend::generate / plugin dispatch).  Until the plugin-host wiring is plumbed into
-    // eval_local, the engine is unconditionally None.
+    // Inference runs through the `mens-candle-cuda` plugin host: load the model directory
+    // once (the handle carries the dir; `run_inference` rebuilds the engine from disk per
+    // call), then dispatch one generation per benchmark prompt below. `--model` must be the
+    // training run directory containing the merged/adapter + manifest + tokenizer + config.
     #[cfg(feature = "gpu")]
-    #[allow(unused_mut)]
-    let mut engine: Option<()> = None;
+    let engine = {
+        let loaded = vox_plugin_host::cached_code_plugin("mens-candle-cuda")
+            .map_err(|e| anyhow::anyhow!("mens-candle-cuda plugin not found: {e}"))?;
+        let backend =
+            loaded.plugin.as_ml_backend().into_option().ok_or_else(|| {
+                anyhow::anyhow!("mens-candle-cuda plugin does not provide MlBackend")
+            })?;
+        let handle = backend
+            .load_model(model.to_string_lossy().as_ref().into())
+            .into_result()
+            .map_err(|e| anyhow::anyhow!("load_model({}): {e}", model.display()))?;
+        eprintln!(
+            "  {} Inference backend: mens-candle-cuda plugin loaded",
+            "✓".green()
+        );
+        // Keep `loaded` alive alongside the handle for the duration of the eval.
+        (loaded, backend, handle)
+    };
 
     let mut results: Vec<serde_json::Value> = Vec::new();
     let mut passed_k = 0usize;
@@ -112,50 +128,89 @@ pub fn run_eval_local(
         let semantic_expected_contains = w.semantic_expected_contains;
         let manifest_index = w.manifest_index;
 
-        let (pass_at_1, pass_at_k, samples_json): (bool, bool, Vec<serde_json::Value>) =
-            if prompt.is_empty() || !model.exists() {
+        let (pass_at_1, pass_at_k, samples_json): (bool, bool, Vec<serde_json::Value>) = if prompt
+            .is_empty()
+            || !model.exists()
+        {
+            (
+                false,
+                false,
+                vec![serde_json::json!({
+                    "sample_index": 0,
+                    "pass": false,
+                    "error": "no prompt or model"
+                })],
+            )
+        } else {
+            #[cfg(feature = "gpu")]
+            {
+                let (_loaded, backend, handle) = &engine;
+                // Greedy decoding is deterministic, so one generation suffices for pass@k.
+                let prompt_json = serde_json::json!({
+                    "prompt": &prompt,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                })
+                .to_string();
+                match backend
+                    .run_inference(&**handle, prompt_json.as_str().into())
+                    .into_result()
+                {
+                    Ok(resp) => {
+                        let completion = serde_json::from_str::<serde_json::Value>(resp.as_str())
+                            .ok()
+                            .and_then(|v| {
+                                v.get("generated_text")
+                                    .and_then(|x| x.as_str())
+                                    .map(str::to_string)
+                            })
+                            .unwrap_or_default();
+                        let v = verify_completion(
+                            &completion,
+                            &bench,
+                            &file,
+                            &id,
+                            manifest_index,
+                            &semantic_expected_contains,
+                        );
+                        let sample = serde_json::json!({
+                            "sample_index": 0,
+                            "pass": v.pass,
+                            "semantic_pass": v.semantic_pass,
+                            "anti_stub_pass": v.anti_stub_pass,
+                            "checks": v.checks,
+                            "completion_preview": completion.chars().take(240).collect::<String>(),
+                        });
+                        (v.pass, v.pass, vec![sample])
+                    }
+                    Err(e) => (
+                        false,
+                        false,
+                        vec![serde_json::json!({
+                            "sample_index": 0,
+                            "pass": false,
+                            "error": format!("run_inference: {e}"),
+                        })],
+                    ),
+                }
+            }
+            #[cfg(not(feature = "gpu"))]
+            {
                 (
                     false,
                     false,
                     vec![serde_json::json!({
                         "sample_index": 0,
                         "pass": false,
-                        "error": "no prompt or model"
+                        "error": format!(
+                            "CPU: GPU needed for inference — model {:.1}MB, prompt {} chars",
+                            model_size as f64 / 1_048_576.0,
+                            prompt.len()
+                        )
                     })],
                 )
-            } else {
-                // SP3 Unit 3: InferenceEngine removed from vox-populi; engine is always None
-                // until vox-ml-cli eval-local is rewired through the plugin host.
-                #[cfg(feature = "gpu")]
-                {
-                    let _ = &engine; // suppress unused warning
-                    (
-                        false,
-                        false,
-                        vec![serde_json::json!({
-                            "sample_index": 0,
-                            "pass": false,
-                            "error": "inference engine not yet wired to plugin host (SP3 Unit 3)"
-                        })],
-                    )
-                }
-                #[cfg(not(feature = "gpu"))]
-                {
-                    (
-                        false,
-                        false,
-                        vec![serde_json::json!({
-                            "sample_index": 0,
-                            "pass": false,
-                            "error": format!(
-                                "CPU: GPU needed for inference — model {:.1}MB, prompt {} chars",
-                                model_size as f64 / 1_048_576.0,
-                                prompt.len()
-                            )
-                        })],
-                    )
-                }
-            };
+            }
+        };
 
         let semantic_pass_at_k = samples_json.iter().any(|v| {
             v.get("semantic_pass")

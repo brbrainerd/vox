@@ -1,0 +1,23 @@
+// Starts the Vox MENS v1 inference server.
+// This serves the fine-tuned Qwen2.5-Coder-1.5B model on port 7863
+// for the orchestrator's VoxLocal path (POST /generate) and
+// port 11434 via Ollama for general model routing.
+//
+// Usage: vox run scripts/serve_mens_v1.vox
+// Or individually:
+//   vox mens serve --model mens/runs/vox_mens_v1 --port 7863
+//   ollama serve  (then model vox-mens-v1 is available)
+
+let model_dir = "mens/runs/vox_mens_v1"
+let vox_port = 7863
+let ollama_model = "vox-mens-v1"
+
+print("Starting Vox MENS v1 inference server...")
+print("  VoxLocal endpoint: http://127.0.0.1:7863/generate")
+print("  Ollama model:      " + ollama_model + " at http://localhost:11434")
+print("")
+print("Orchestrator env vars:")
+print("  VOX_LOCAL_ENDPOINT=http://127.0.0.1:7863")
+print("  POPULI_URL=http://localhost:11434")
+print("  POPULI_MODEL=" + ollama_model)
+// vox:skip - exec not yet available

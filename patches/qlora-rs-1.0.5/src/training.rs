@@ -574,6 +574,22 @@ impl QLoraTrainer {
         self.state.epoch
     }
 
+    /// Zero every `lora_b` weight in the varmap (standard LoRA init: B=0 so the initial
+    /// adapter delta is 0 and training starts AT the base model). peft-rs `LoraLayer::new`
+    /// builds B with `linear_no_bias` = kaiming (nonzero), which makes the untrained adapter
+    /// a large random perturbation (~2.6x the base weight) — a pathological starting point.
+    /// Call once after the graph is built and before the training loop.
+    pub fn zero_lora_b(&mut self) -> Result<()> {
+        let vars = self.varmap.data().lock().unwrap();
+        for (k, v) in vars.iter() {
+            if k.contains("lora_b") {
+                let z = v.as_tensor().zeros_like().map_err(QLoraError::Candle)?;
+                v.set(&z).map_err(QLoraError::Candle)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Save the trainable LoRA adapter weights to a safetensors file.
     ///
     /// # Arguments
@@ -638,6 +654,10 @@ impl QLoraTrainer {
                     if let Some(grad) = grads.get(var.as_tensor()) {
                         let mut param = var.as_tensor().clone();
                         paged_optimizer.step_param(name, &mut param, grad)?;
+                        // step_param updates a *clone*; write the result back into the
+                        // Var or the optimizer step is silently discarded and the
+                        // parameter never changes (frozen at init).
+                        var.set(&param)?;
                     }
                 }
                 drop(varmap_data);
@@ -864,6 +884,10 @@ impl QLoraTrainer {
                     if let Some(grad) = grads.get(var.as_tensor()) {
                         let mut param = var.as_tensor().clone();
                         paged_optimizer.step_param(name, &mut param, grad)?;
+                        // step_param updates a *clone*; write the result back into the
+                        // Var or the optimizer step is silently discarded and the
+                        // parameter never changes (frozen at init).
+                        var.set(&param)?;
                     }
                 }
                 drop(varmap_data);

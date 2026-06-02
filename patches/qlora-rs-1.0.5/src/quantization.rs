@@ -453,7 +453,7 @@ pub fn dequantize_nf4(quantized: &QuantizedTensor, device: &Device) -> Result<Te
     // otherwise runs on every forward pass and dominates training time. Falls back to
     // the CPU loop for asymmetric (zero_point) quant — rare — and on non-CUDA devices.
     if device.is_cuda() && quantized.zero_points.is_none() {
-        match dequantize_nf4_gpu(quantized, device) {
+        match dequantize_nf4_gpu(quantized, device, candle_core::DType::F32) {
             Ok(t) => return Ok(t),
             // Be conservative: if any op is unsupported on this candle/device build,
             // fall through to the always-correct CPU path rather than fail training.
@@ -470,7 +470,11 @@ pub fn dequantize_nf4(quantized: &QuantizedTensor, device: &Device) -> Result<Te
 /// per-block scales are broadcast to elements. Equivalent to [`dequantize_nf4_cpu`]
 /// (verified bit-for-bit in tests). Assumes symmetric quant (no zero_point) — the
 /// caller dispatches the asymmetric case to the CPU path.
-fn dequantize_nf4_gpu(quantized: &QuantizedTensor, device: &Device) -> Result<Tensor> {
+fn dequantize_nf4_gpu(
+    quantized: &QuantizedTensor,
+    device: &Device,
+    out_dtype: candle_core::DType,
+) -> Result<Tensor> {
     use candle_core::DType;
 
     let numel = quantized.numel();
@@ -509,12 +513,15 @@ fn dequantize_nf4_gpu(quantized: &QuantizedTensor, device: &Device) -> Result<Te
     let codes = Tensor::stack(&[&lo, &hi], 1)?.reshape((n_bytes * 2,))?;
     let codes = codes.narrow(0, 0, numel)?; // drop any trailing padding nibble
 
-    // Codebook gather: NF4_LEVELS[code].
-    let nf4_lut = Tensor::from_slice(&NF4_LEVELS, 16, device)?;
-    let vals = nf4_lut.index_select(&codes, 0)?; // [numel] f32
+    // Codebook gather: NF4_LEVELS[code]. Build the codebook and scales DIRECTLY in the
+    // output dtype so we never materialize a full-size F32 intermediate — the BF16 cache
+    // build for a multi-billion-param model would otherwise accumulate F32 dequant temps
+    // and OOM at build time.
+    let nf4_lut = Tensor::from_slice(&NF4_LEVELS, 16, device)?.to_dtype(out_dtype)?;
+    let vals = nf4_lut.index_select(&codes, 0)?; // [numel] out_dtype
 
     // Broadcast per-group scale to its `block_size` elements.
-    let scales_t = Tensor::from_vec(scales, num_groups, device)?;
+    let scales_t = Tensor::from_vec(scales, num_groups, device)?.to_dtype(out_dtype)?;
     let scales_e = scales_t
         .reshape((num_groups, 1))?
         .broadcast_as((num_groups, block_size))?
@@ -612,16 +619,27 @@ pub fn dequantize_nf4_with_dtype(
     device: &Device,
     compute_dtype: ComputeDType,
 ) -> Result<Tensor> {
-    // First dequantize to f32
-    let f32_tensor = dequantize_nf4(quantized, device)?;
-
-    // Convert to target dtype
     let dtype = match compute_dtype {
-        ComputeDType::F32 => return Ok(f32_tensor),
+        ComputeDType::F32 => DType::F32,
         ComputeDType::F16 => DType::F16,
         ComputeDType::BF16 => DType::BF16,
     };
 
+    // Fast path: dequantize DIRECTLY in the target dtype on the GPU, so we never
+    // materialize a full-size F32 intermediate. Critical for the resident weight cache
+    // of multi-billion-param models — the F32-then-cast path accumulates F32 temps across
+    // hundreds of weights and OOMs at build. Falls back to F32-then-cast off-CUDA or for
+    // asymmetric quant.
+    if device.is_cuda() && quantized.zero_points.is_none() {
+        if let Ok(t) = dequantize_nf4_gpu(quantized, device, dtype) {
+            return Ok(t);
+        }
+    }
+
+    let f32_tensor = dequantize_nf4(quantized, device)?;
+    if dtype == DType::F32 {
+        return Ok(f32_tensor);
+    }
     let converted = f32_tensor.to_dtype(dtype)?;
     Ok(converted)
 }
@@ -915,7 +933,7 @@ mod tests {
                 };
                 let q = quantize_nf4_with_config(&original, &config).unwrap();
                 let cpu = super::dequantize_nf4_cpu(&q, &device).unwrap();
-                let gpu = super::dequantize_nf4_gpu(&q, &device).unwrap();
+                let gpu = super::dequantize_nf4_gpu(&q, &device, candle_core::DType::F32).unwrap();
                 assert_eq!(cpu.shape(), gpu.shape());
                 let diff = (&cpu - &gpu)
                     .unwrap()

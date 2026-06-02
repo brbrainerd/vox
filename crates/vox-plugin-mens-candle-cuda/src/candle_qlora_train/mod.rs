@@ -436,6 +436,20 @@ pub fn run_candle_qlora_train(
     #[allow(unsafe_code)]
     let vb_mmap =
         unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
+    // CPU-resident view of the SAME base weights. The big per-layer projection weights
+    // (q/k/v/o/gate/up/down) are loaded F32 on the CPU and quantized there, so the
+    // full-precision weight never lands on the GPU during construction — only the small
+    // NF4 (host bytes) is uploaded to build the BF16 cache. This keeps the build-time VRAM
+    // peak near the resident-cache size and lets 3B+ fit on 16 GiB. Embeddings, norms,
+    // biases and the LM head stay on `vb_mmap` (GPU) since they're used directly there.
+    #[allow(unsafe_code)]
+    let vb_mmap_cpu = unsafe {
+        VarBuilder::from_mmaped_safetensors(
+            &bundle.weight_paths,
+            DType::F32,
+            &candle_core::Device::Cpu,
+        )?
+    };
     train_log::info(&format!(
         "Loading embeddings ('{}', {}x{} = {:.2} GiB as f32) to device...",
         bundle.embed_key,
@@ -457,8 +471,14 @@ pub fn run_candle_qlora_train(
     // (3B ≈13.9 GiB vs ~15.8 GiB when cached) while staying near ~1 s/step.
     // Opt INTO persistent caching with VOX_MENS_WEIGHT_CACHE=1 (slightly faster, but
     // resident weights cost ~2 GiB — only worth it when VRAM is plentiful).
+    // Resident BF16 weight cache is the DEFAULT for training. On-the-fly dequant
+    // re-allocates all base weights every step, which fragments the CUDA pool until it
+    // OOMs over a long run (3B died ~step 30, 1.5B ~step 60 — only 0.5B survived). The
+    // cache dequantizes once (BF16, ~2 bytes/param resident) and is reused, so VRAM is
+    // stable for the whole run (verified: 1.5B trained 270+ steps, loss 9.6→1.5, no OOM).
+    // Opt OUT with VOX_MENS_NO_WEIGHT_CACHE=1.
     let mut qlora_cfg = qlora_cfg;
-    qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_WEIGHT_CACHE").is_some();
+    qlora_cfg.cache_dequantized = std::env::var_os("VOX_MENS_NO_WEIGHT_CACHE").is_none();
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;
@@ -476,6 +496,13 @@ pub fn run_candle_qlora_train(
             max_grad_norm: Some(1.0),
         },
         num_epochs: config.epochs,
+        // Use the standard candle AdamW optimizer, NOT the paged one. The paged
+        // optimizer (qlora-rs default) computes AdamW updates into a *clone* of each
+        // Var's tensor and never writes them back (training.rs step_param does
+        // `*param = …` on a local clone) — so LoRA weights stay frozen at random init
+        // and the run produces a non-learning (noise) adapter. LoRA optimizer state for
+        // rank-r adapters is tiny, so CPU paging buys nothing here anyway.
+        use_paged_optimizer: false,
         ..Default::default()
     };
 
@@ -672,22 +699,44 @@ pub fn run_candle_qlora_train(
 
                 let q_rows = n_heads * head_dim;
                 let q_fallback_rows = q_rows.saturating_mul(2);
-                let mut w_q = vb_mmap
+                // Load projection weights on the CPU (vb_mmap_cpu) — they are quantized on
+                // the CPU so the F32 base never costs GPU VRAM during build.
+                let mut w_q = vb_mmap_cpu
                     .get((q_rows, bundle.d_model), &q_key)
-                    .or_else(|_| vb_mmap.get((q_fallback_rows, bundle.d_model), &q_key))?
+                    .or_else(|_| vb_mmap_cpu.get((q_fallback_rows, bundle.d_model), &q_key))?
                     .to_dtype(DType::F32)?;
                 if w_q.dim(0)? > q_rows {
                     w_q = w_q.narrow(0, 0, q_rows)?;
                 }
-                let w_k = vb_mmap
+                let w_k = vb_mmap_cpu
                     .get((kv_dim, bundle.d_model), &k_key)?
                     .to_dtype(DType::F32)?;
-                let w_v = vb_mmap
+                let w_v = vb_mmap_cpu
                     .get((kv_dim, bundle.d_model), &v_key)?
                     .to_dtype(DType::F32)?;
-                let w_o = vb_mmap
+                let w_o = vb_mmap_cpu
                     .get((bundle.d_model, q_rows), &o_key)?
                     .to_dtype(DType::F32)?;
+
+                // Qwen2/Qwen2.5 q/k/v projection biases (frozen, not LoRA-adapted).
+                // Optional: pure Qwen3.5 checkpoints may omit them.
+                let load_bias =
+                    |key_w: &str, rows: usize, fallback: Option<usize>| -> Option<Tensor> {
+                        let bias_key = key_w.replace(".weight", ".bias");
+                        let mut t = vb_mmap.get((rows,), &bias_key).ok();
+                        if t.is_none() {
+                            if let Some(fb) = fallback {
+                                t = vb_mmap
+                                    .get((fb,), &bias_key)
+                                    .ok()
+                                    .and_then(|t| t.narrow(0, 0, rows).ok());
+                            }
+                        }
+                        t.and_then(|t| t.to_dtype(DType::F32).ok())
+                    };
+                let q_bias = load_bias(&q_key, q_rows, Some(q_fallback_rows));
+                let k_bias = load_bias(&k_key, kv_dim, None);
+                let v_bias = load_bias(&v_key, kv_dim, None);
 
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
@@ -733,6 +782,9 @@ pub fn run_candle_qlora_train(
                     k_proj,
                     v_proj,
                     o_proj,
+                    q_bias,
+                    k_bias,
+                    v_bias,
                     n_heads,
                     n_kv_heads,
                     head_dim,
@@ -754,13 +806,14 @@ pub fn run_candle_qlora_train(
             let up_key = format!("{layer_prefix}.mlp.up_proj.weight");
             let down_key = format!("{layer_prefix}.mlp.down_proj.weight");
 
-            let w_gate = vb_mmap
+            // MLP projections on the CPU (quantized there; F32 base never on the GPU).
+            let w_gate = vb_mmap_cpu
                 .get((inter_sz, bundle.d_model), &gate_key)?
                 .to_dtype(DType::F32)?;
-            let w_up = vb_mmap
+            let w_up = vb_mmap_cpu
                 .get((inter_sz, bundle.d_model), &up_key)?
                 .to_dtype(DType::F32)?;
-            let w_down = vb_mmap
+            let w_down = vb_mmap_cpu
                 .get((bundle.d_model, inter_sz), &down_key)?
                 .to_dtype(DType::F32)?;
 
@@ -879,6 +932,12 @@ pub fn run_candle_qlora_train(
     trainer
         .init_optimizer(&[])
         .context("init qlora optimizer")?;
+
+    // Standard LoRA init requires B=0 (delta starts at 0 → training begins AT the base
+    // model). peft-rs builds lora_b with kaiming (nonzero), so without this the untrained
+    // adapter is a ~2.6x-base random perturbation. Checkpoint resume (below) overwrites
+    // these with the loaded trained weights, so unconditional zeroing here is safe.
+    trainer.zero_lora_b().context("zero-init lora_b")?;
 
     let model = TrainGraphModel::Qwen35(crate::model::Qwen35Model {
         embed_tokens: wte,

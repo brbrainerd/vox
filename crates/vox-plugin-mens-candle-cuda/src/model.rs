@@ -62,6 +62,13 @@ pub struct Qwen2Attention {
     pub k_proj: QuantizedLinear,
     pub v_proj: QuantizedLinear,
     pub o_proj: QuantizedLinear,
+    /// Qwen2/Qwen2.5 use additive biases on the q/k/v projections. Omitting them
+    /// makes the forward subtly wrong (the model — and any adapter trained against
+    /// it — only matches a bias-less engine, not standard Qwen2). `None` for
+    /// architectures without qkv bias.
+    pub q_bias: Option<Tensor>,
+    pub k_bias: Option<Tensor>,
+    pub v_bias: Option<Tensor>,
     pub n_heads: usize,
     pub n_kv_heads: usize,
     pub head_dim: usize,
@@ -90,6 +97,20 @@ impl Qwen2Attention {
             .v_proj
             .forward(x)
             .map_err(|e| candle_core::Error::Msg(e.to_string()))?;
+
+        // Qwen2/Qwen2.5 additive qkv biases (broadcast over [b, seq, out_features]).
+        let q = match &self.q_bias {
+            Some(bias) => q.broadcast_add(bias)?,
+            None => q,
+        };
+        let k = match &self.k_bias {
+            Some(bias) => k.broadcast_add(bias)?,
+            None => k,
+        };
+        let v = match &self.v_bias {
+            Some(bias) => v.broadcast_add(bias)?,
+            None => v,
+        };
 
         let q = q
             .reshape((b, seq_len, self.n_heads, self.head_dim))?
@@ -404,7 +425,10 @@ impl Qwen35LinearAttention {
         }
         let y_flat = y.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
         let z_flat = z.reshape((b * seq_len * self.num_v_heads, self.head_v_dim))?;
-        let y_norm = self.norm.forward(&y_flat)?;
+        // forward_diff = differentiable (composed) RMSNorm; the Module `forward` uses a
+        // fused apply_op2_no_bwd kernel with NO backward, which silently severs gradient
+        // flow through the norm (only post-norm params would train). Same numerics.
+        let y_norm = self.norm.forward_diff(&y_flat)?;
         let y_gate = y_norm.broadcast_mul(&candle_nn::ops::silu(&z_flat)?)?;
         y = y_gate.reshape((b, seq_len, value_dim))?;
 
@@ -436,7 +460,7 @@ impl Qwen35Layer {
         kv_cache: Option<&mut Qwen35LayerCache>,
     ) -> Result<Tensor> {
         let residual = x;
-        let h = self.input_layernorm.forward(x)?;
+        let h = self.input_layernorm.forward_diff(x)?;
         let h = match &self.attention {
             Qwen35AttentionBlock::Full(a) => {
                 let cache = match kv_cache {
@@ -468,7 +492,7 @@ impl Qwen35Layer {
         let x = (residual + h)?;
 
         let residual = &x;
-        let h = self.post_attention_layernorm.forward(&x)?;
+        let h = self.post_attention_layernorm.forward_diff(&x)?;
         let h = self.mlp.forward(&h)?;
         residual + h
     }
@@ -494,7 +518,7 @@ impl Qwen35Model {
         for layer in &self.layers {
             x = layer.forward(&x, 0, None)?;
         }
-        let x = self.norm.forward(&x)?;
+        let x = self.norm.forward_diff(&x)?;
         let x = x.clamp(-64f64, 64f64)?;
         self.lm_head
             .forward(&x)
@@ -514,32 +538,47 @@ pub enum Qwen35LayerCache {
 /// vox-populi's preflight logic. Batch 3 wires vox-populi to construct the model and
 /// pass it to the plugin via an alternative init path.
 pub struct CandleModel {
-    pub _inner: Qwen35Model,
+    /// Eagerly-built model graph. Unused on the inference path — `run_inference`
+    /// reloads a fresh `InferenceEngine` from `model_path` on every call — so it is
+    /// left `None` for handles produced by [`Self::load_from_path`].
+    pub _inner: Option<Qwen35Model>,
     /// Path to the model directory, stored so `run_inference` can reload the engine.
     pub model_path: String,
 }
 
 impl CandleModel {
-    /// Load a Qwen3.5 QLoRA model from `model_path`.
+    /// Open an inference-ready model directory.
     ///
-    /// # SP3 stub
-    ///
-    /// The full implementation requires `QloraEmbedBundle` (HF config.json parsing,
-    /// safetensors shard discovery, `VarBuilder::from_mmaped_safetensors`, and the
-    /// layer-building loop from `vox-populi/src/mens/tensor/candle_qlora_train/mod.rs`
-    /// lines 430-822). All of that code depends on vox-populi-internal types
-    /// (`LoraTrainingConfig`, `QloraEmbedBundle`, `HfArchitecture`, etc.) that were not
-    /// extracted in SP3 to avoid a large type-copy explosion.
-    ///
-    /// Batch 4 options:
-    /// (A) Copy the required types into this crate (Option A from the SP3 spec).
-    /// (B) Accept a pre-built model handle serialized via `unsafe` pointer from vox-populi
-    ///     (avoids duplication but couples lifetimes).
-    pub fn load_from_path(_model_path: &str) -> anyhow::Result<Self> {
-        anyhow::bail!(
-            "vox-plugin-mens-candle-cuda: load_from_path not yet wired (SP3 stub). \
-             The model construction requires QloraEmbedBundle from vox-populi. \
-             Batch 3/4 will wire the full path. See model.rs for details."
-        )
+    /// The handle only carries `model_path`; the actual model graph is rebuilt by
+    /// [`crate::inference::run`] (via `InferenceEngine::load`) on each `run_inference`
+    /// call, so no `QloraEmbedBundle` construction is needed here. We validate that the
+    /// directory contains the artifacts `InferenceEngine::load` requires, failing early
+    /// with an actionable message rather than deep inside the load path.
+    pub fn load_from_path(model_path: &str) -> anyhow::Result<Self> {
+        let dir = std::path::Path::new(model_path);
+        if !dir.is_dir() {
+            anyhow::bail!(
+                "model path {model_path} is not a directory — pass the training run dir \
+                 (containing candle_qlora_adapter.safetensors, adapter_manifest.json, \
+                 tokenizer.json, config.json)"
+            );
+        }
+        for required in [
+            "candle_qlora_adapter.safetensors",
+            "adapter_manifest.json",
+            "tokenizer.json",
+            "config.json",
+        ] {
+            if !dir.join(required).is_file() {
+                anyhow::bail!(
+                    "model dir {model_path} is missing {required} — run \
+                     `vox mens merge-qlora` / finalize the run before inference"
+                );
+            }
+        }
+        Ok(Self {
+            _inner: None,
+            model_path: model_path.to_string(),
+        })
     }
 }
