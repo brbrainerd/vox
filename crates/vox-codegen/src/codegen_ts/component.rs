@@ -371,7 +371,6 @@ fn emit_component_pattern(pattern: &vox_compiler::ast::pattern::Pattern) -> Stri
     }
 }
 
-/// Map a Vox type expression to a TypeScript type string.
 /// A type-appropriate placeholder value, as a JSX attribute expression (e.g.
 /// `{0}`), for a **required** prop in the auto-generated flat-app scaffold. The
 /// scaffold flat-mounts the first component but cannot know real app data, so a
@@ -394,6 +393,7 @@ pub fn ts_default_value(ts_type: &str) -> &'static str {
     }
 }
 
+/// Map a Vox type expression to a TypeScript type string.
 pub fn map_vox_type_to_ts(ty: &vox_compiler::ast::types::TypeExpr) -> String {
     match ty {
         vox_compiler::ast::types::TypeExpr::Named { name, .. } => {
@@ -493,5 +493,22 @@ fn uses_mobile_ident_in_expr(expr: &Expr) -> bool {
         }
         Expr::Try { target, .. } | Expr::Spawn { target, .. } => uses_mobile_ident_in_expr(target),
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ts_default_value_covers_primitive_array_and_fallback() {
+        assert_eq!(ts_default_value("number"), "{0}");
+        assert_eq!(ts_default_value("string"), "{\"\"}");
+        assert_eq!(ts_default_value("boolean"), "{false}");
+        assert_eq!(ts_default_value("Foo[]"), "{[]}");
+        assert_eq!(ts_default_value("string | undefined"), "{undefined}");
+        assert_eq!(ts_default_value("SomeIface"), "{undefined as any}");
+        // Leading/trailing whitespace is trimmed before matching.
+        assert_eq!(ts_default_value("  number  "), "{0}");
     }
 }

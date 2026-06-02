@@ -91,7 +91,7 @@ pub struct QuantSpec {
     pub double_quant: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ExecSpec {
     pub epochs: usize,
     pub seq_len: usize,
@@ -115,6 +115,33 @@ pub struct ExecSpec {
     pub qlora_ce_last_k: usize,
     /// Dynamic curriculum schedule for difficult-gated training.
     pub curriculum_schedule: Option<super::training_config::CurriculumSchedule>,
+}
+
+impl Default for ExecSpec {
+    /// A *runnable* default — not the zero-value a `derive` would produce. The
+    /// planner normally recomputes `seq_len`/`batch_size`/`grad_accum` from the
+    /// VRAM budget, but a `derive`d `Default` (epochs 0, lr 0.0, seq_len 0) is a
+    /// footgun if used directly, so the explicit values are sane starting points.
+    fn default() -> Self {
+        Self {
+            epochs: 1,
+            seq_len: 512,
+            batch_size: 1,
+            grad_accum: 1,
+            learning_rate: 1e-4,
+            warmup_steps: 0,
+            seed: 0,
+            resume_from: None,
+            max_vram_fraction: None,
+            adapter_tag: None,
+            qlora_require_full_proxy_stack: false,
+            qlora_max_skip_rate: None,
+            qlora_lm_head_only: false,
+            qlora_proxy_max_layers: None,
+            qlora_ce_last_k: 1,
+            curriculum_schedule: None,
+        }
+    }
 }
 
 /// Export / merge preferences.

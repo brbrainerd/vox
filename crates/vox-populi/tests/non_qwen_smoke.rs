@@ -55,8 +55,9 @@ fn plan_llama_model() {
         artifact: ArtifactSpec::default(),
     };
 
+    // Smoke: planning a dense Llama-family contract must not panic/err.
     let planner = ExecutionPlanner::default();
-    let plan = planner.plan(&c).expect("plan llama");
+    planner.plan(&c).expect("plan llama");
 
     // A dense Llama-family config is classified into the supported stacked-causal
     // family (`Qwen35`) — Vox carries no distinct `Llama` architecture; llama/mistral
