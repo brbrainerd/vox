@@ -3,5 +3,9 @@
   "version": "0.6.0-cishim",
   "description": "JS-only stand-in for the uniffi-backed @vox/runtime-rn native module. Lets CI (and a local Expo Go run) bundle the generated app WITHOUT a native build. Methods log + return benign defaults. The real native module ships via EAS Build / a dev client.",
   "main": "index.js",
-  "private": true
+  "private": true,
+  "comment": "expo-file-system is imported by index.js (durable NDJSON journal). Declared here so Metro resolves it from the shim's own scope when the shim is installed as a `file:` dependency; the `*` dedupes to the SDK-compatible version the app's `expo install` pins.",
+  "dependencies": {
+    "expo-file-system": "*"
+  }
 }
