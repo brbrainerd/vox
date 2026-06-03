@@ -92,11 +92,11 @@ pub struct HirDbQueryPlan {
     /// Empty when the plan has no predicate. (The interpreter threads these
     /// positionally against `predicate`; codegen has its own arg path and
     /// ignores them.)
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub predicate_args: Vec<HirArg>,
     /// The `limit(n)` value expression, when present — carried so a fused chain
     /// retains the limit even when `.limit` is not the outermost call.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit_value: Option<Box<HirExpr>>,
 }
 
