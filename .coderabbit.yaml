@@ -1,0 +1,25 @@
+# CodeRabbit configuration
+# Schema: https://docs.coderabbit.ai/reference/configuration
+#
+# Rationale (2026-06-03): on the Pro tier each developer gets ~5 PR reviews/hour
+# on a *refilling* allowance, and every push to an open PR otherwise triggers a
+# fresh full review. Rapid iteration (many small pushes) drains that allowance
+# and trips the fair-usage throttle, which is why we kept hitting "review limit
+# reached". The fix is to make reviews intentional rather than per-push:
+#   - keep ONE automatic review when a PR opens (auto_review.enabled: true)
+#   - do NOT re-review on every incremental push (auto_incremental_review: false)
+#   - trigger incremental reviews on demand by commenting `@coderabbitai review`
+# This collapses N per-push reviews into 1 deliberate review per ready PR.
+
+version: 2
+
+reviews:
+  auto_review:
+    # Still review automatically when a PR is first opened.
+    enabled: true
+    # Do NOT automatically re-review on each subsequent push — request a
+    # re-review manually with `@coderabbitai review` when the PR is ready.
+    # This is the key fair-usage fix: it stops every push from burning quota.
+    auto_incremental_review: false
+    # Don't review draft PRs (review once they're marked ready).
+    drafts: false
