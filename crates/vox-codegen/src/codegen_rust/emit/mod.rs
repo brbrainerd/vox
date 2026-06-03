@@ -392,7 +392,11 @@ use {}::*;
     }
 
     if needs_setup {
-        out.push_str("        .setup(|app| {\n");
+        // `app` is only referenced by the `app.manage(...)` block emitted for
+        // tables; a scheduled-only setup never touches it, so use `_app` to
+        // avoid an `unused variable: app` warning in the generated crate.
+        let setup_param = if has_tables { "app" } else { "_app" };
+        out.push_str(&format!("        .setup(|{setup_param}| {{\n"));
         if has_tables {
             out.push_str(r#"            let db_url = std::env::var("VOX_DB_URL").unwrap_or_else(|_| "sqlite://local.db".to_string());
             let db_token = std::env::var("VOX_DB_TOKEN").unwrap_or_default();
