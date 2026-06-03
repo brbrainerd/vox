@@ -52,6 +52,28 @@ fn non_exhaustive_result_match_is_rejected() {
 }
 
 #[test]
+fn db_query_chaining_typechecks() {
+    // B5: chained db query plan methods (.where/.order_by/.limit) typecheck to
+    // Result[List[Record]] instead of erroring ("method not found" / "not
+    // supported yet"). The Rust codegen already emits the SQL.
+    let src = "
+    @table type Task {
+        title: str
+        done: bool
+    }
+    @query fn active() to int {
+        let rows = db.Task.where({ done: { eq: false } }).order_by(\"title\").limit(10)
+        return len(rows)
+    }
+    ";
+    let errs = error_codes(src);
+    assert!(
+        errs.is_empty(),
+        "chained db query (.where/.order_by/.limit) should typecheck; got {errs:?}"
+    );
+}
+
+#[test]
 fn result_error_arm_binds_declared_error_type() {
     // C1: `Result[T, E]` threads the error type. The `Error(code)` arm must bind
     // `code` to the declared `E` (here `int`) — NOT the historical hardcoded
