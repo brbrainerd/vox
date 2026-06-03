@@ -226,9 +226,17 @@ pub enum Cli {
         args: cli_args::RunArgs,
     },
     /// Raw WASI module execution (`vox wasm run <file>`) via the in-process wasmtime SSOT.
+    #[cfg(feature = "script-execution")]
     Wasm {
         #[command(subcommand)]
         cmd: commands::wasm::WasmCmd,
+    },
+    #[cfg(not(feature = "script-execution"))]
+    /// Raw precompiled WASI module execution (needs `--features script-execution`)
+    #[command(name = "wasm")]
+    WasmStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
     },
     /// Run a `.vox` script (`fn main()`) via the native script cache (needs `--features script-execution`).
     #[cfg(feature = "script-execution")]
@@ -293,6 +301,12 @@ pub enum Cli {
     Remove {
         #[command(flatten)]
         args: cli_args::RemoveDependencyArgs,
+    },
+    /// Vendor a shadcn/ui component into the project (fetches source from
+    /// ui.shadcn.com and writes it under your `components.json` aliases).
+    Component {
+        /// Component name from the shadcn registry (e.g. `button`).
+        name: String,
     },
     /// Refresh `vox.lock` from the local PM index (project graph — not the Vox toolchain).
     Update,

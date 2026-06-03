@@ -452,6 +452,52 @@ fn mobile_and_web_emit_differ_in_leaf_shape_not_in_logic() {
     );
 }
 
+/// Regression gate: the desktop (Tauri) target must wire `@scheduled` jobs into the
+/// generated `src-tauri/src/main.rs`. Before the 2026-06-03 fix, `emit_tauri_main_rs`
+/// silently dropped `@scheduled` functions — they compiled into lib.rs but were never
+/// registered or started, so scheduled jobs never ran on desktop (the Axum path wired
+/// them, the Tauri path did not — a codegen split-brain).
+///
+/// This drives the same `RustAppShell::TauriApp` codegen path that
+/// `vox compile --target desktop` uses (via `bundle::run` → `build::run`), but asserts
+/// on emitted file content rather than running a full `cargo check` of the generated
+/// Tauri crate — that needs the Tauri toolchain, which is not guaranteed in CI. The
+/// string assertion is the deterministic guard.
+// TODO(ci): cargo check the generated Tauri crate when the tauri toolchain is available.
+#[test]
+fn tauri_desktop_target_wires_scheduled_jobs() {
+    init_vox_binary_once();
+    let src = r#"
+@scheduled("1m")
+fn heartbeat() { }
+"#;
+    let res = vox_compiler::pipeline::run_frontend_str(src, "scheduled_desktop.vox")
+        .expect("frontend ok");
+    let module = res.hir;
+    let out = vox_codegen::codegen_rust::generate(
+        &module,
+        "pkg",
+        vox_codegen::codegen_rust::RustAppShell::TauriApp,
+    )
+    .expect("tauri codegen");
+    let main = out
+        .files
+        .get("src-tauri/src/main.rs")
+        .expect("desktop target must emit src-tauri/src/main.rs");
+    assert!(
+        main.contains("vox_workflow_runtime::scheduled::register"),
+        "desktop main.rs must register @scheduled fns:\n{main}"
+    );
+    assert!(
+        main.contains("scheduled::start"),
+        "desktop main.rs must start the scheduler:\n{main}"
+    );
+    assert!(
+        main.contains("load_hir_module_from_embedded"),
+        "desktop main.rs must embed + register the HirModule:\n{main}"
+    );
+}
+
 /// Regression gate: `mobile.ts` must import from the `@vox/runtime` adapter contract,
 /// never from `@tauri-apps/api/event` directly. Catches any future split-brain attempt
 /// to wire mobile primitives straight to Tauri (which would break the RN target).

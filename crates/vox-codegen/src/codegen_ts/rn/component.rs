@@ -13,7 +13,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use vox_compiler::hir::{
-    HirExpr, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember, HirStmt,
+    HirExpr, HirImport, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember, HirStmt,
 };
 
 use crate::web_ir::WebIrDiagnostic;
@@ -1224,6 +1224,7 @@ pub fn emit_rn_component(
     form_names: &HashSet<String>,
     endpoint_params: &HashMap<String, Vec<String>>,
     screen_root_names: &HashSet<String>,
+    es_imports: &[HirImport],
     diagnostics: &mut Vec<WebIrDiagnostic>,
 ) -> (String, String) {
     use crate::codegen_ts::reactive::collect_component_import_refs;
@@ -1253,6 +1254,18 @@ pub fn emit_rn_component(
     if component_uses_link(rc) {
         out.push_str("import { Link } from \"expo-router\";\n");
     }
+
+    // Phase 5 S7: external React/TS component imports (`import react …`). Shared
+    // with the web target via `emit_react_es_import_lines` so both agree. JS-only
+    // RN component libraries (e.g. Tamagui) work; native-module libraries still
+    // require a native rebuild (autolinking) — that diagnostic is gated on the
+    // per-library SSOT (separate slice), not emitted here.
+    let react_es = crate::codegen_ts::reactive::emit_react_es_import_lines(es_imports);
+    out.push_str(&react_es);
+    // Phase 5 SSOT: mandatory-provider guidance for known RN libs (Paper/Tamagui).
+    out.push_str(&crate::codegen_ts::reactive::emit_external_lib_support(
+        es_imports, true,
+    ));
 
     // Cross-file imports: sibling components (`<NavBar />` → `./NavBar`) and
     // endpoint fns this component calls (`record_event(...)` → `./vox-client`),

@@ -108,6 +108,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-compiler`](../../../crates/vox-compiler/) | Unified Vox compiler: lexer, parser, AST, HIR, typechecker, and codegen. MENS decorators `@inference`, `@training_step`, `@distributed_train` parse in `parser/descent`, effects + CUDA gate in `typeck/`. Orientation: [`vox-compiler-architecture-research-2026.md`](./vox-compiler-architecture-research-2026.md). |
 | [`vox-compiler/src/eval/shell_stdlib.rs`](../../../crates/vox-compiler/src/eval/shell_stdlib.rs) | Interpreter (`--interp`) mirror of shell‑tier `std.*` builtins — **must stay aligned** with `vox-actor-runtime` (Cargo cycle prevents a direct dep; shared types extracted to `vox-shell-stdlib-types`). See [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md). |
 | [`vox-actor-runtime/src/builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) | SSOT Rust lowering targets for `std.fs` / `std.process` / structured formats (`std.csv`, `std.toml`, `std.yaml`, `std.io`) used by native codegen. |
+| Static web scraping (`Scrape.*` builtins) | `vox_scrape_*` in [`vox-actor-runtime/src/builtins/mod.rs`](../../../crates/vox-actor-runtime/src/builtins/mod.rs) (`fetch`/`fetch_html`/`select`/`select_attr` — reqwest + `scraper` CSS, no browser); registered in [`builtin_registry.rs`](../../../crates/vox-compiler/src/builtin_registry.rs). Native-codegen only (no interp/WASI); effect `Net`. For JS-rendered pages use `Browser.*` ([`vox-plugin-browser`](../../../crates/vox-plugin-browser/), chromiumoxide CDP). See [scoping doc](./vox-native-scraping-scoping-2026-06-03.md). |
 | [`vox-shell-stdlib-ssot-2026.md`](./vox-shell-stdlib-ssot-2026.md) | Architecture SSOT: argv‑first shell‑tier stdlib vs host shells / `vox_run_shell`. |
 | [`vox-container-types`](../../../crates/vox-container-types/) | Pure OCI types: `ContainerRuntime` trait, `BuildOpts`/`RunOpts`, `RuntimePreference`, `exec_grammar` parser. L0; no I/O. |
 | [`vox-container`](../../../crates/vox-container/) | OCI container runtime backends (Docker + Podman CLI) and `detect_runtime`. L3; re-exports all types from `vox-container-types`. |
@@ -120,7 +121,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait, capability metadata, multi-backend dispatcher (stubs until CandleMetal/CUDA wiring). |
 | [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
-| [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, GitLab, Gitea, Forgejo. |
+| [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, Gitea, Forgejo (GitLab deprecated/unsupported as of 2026-06-03). |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). Capability matrix: [`vox-lsp-capabilities-ssot-2026.md`](./vox-lsp-capabilities-ssot-2026.md). |
@@ -257,7 +258,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-publication`](../../../crates/vox-plugin-publication/) | Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube publish, scholarly job feeds. |
 | [`vox-plugin-runtime-container`](../../../crates/vox-plugin-runtime-container/) | Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime. |
 | [`vox-plugin-runtime-wasm`](../../../crates/vox-plugin-runtime-wasm/) | Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). |
-| [`vox-plugin-webhook`](../../../crates/vox-plugin-webhook/) | Webhook plugin: HTTP listener with HMAC signature verification (GitHub, GitLab, Discord, Slack). Inlines the full webhook gateway (inbound handler, outbound delivery, channel adapters, bridge) in the `webhook` submodule — no separate library crate. |
+| [`vox-plugin-webhook`](../../../crates/vox-plugin-webhook/) | Webhook plugin: HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated). Inlines the full webhook gateway (inbound handler, outbound delivery, channel adapters, bridge) in the `webhook` submodule — no separate library crate. |
 
 ## When to NOT add a new crate
 

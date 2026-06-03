@@ -2,7 +2,7 @@
 id = "webhook"
 name = "Vox Webhook Gateway"
 version = "0.1.0"
-description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, generic)."
+description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated)."
 license = "Apache-2.0"
 
 [plugin.host]

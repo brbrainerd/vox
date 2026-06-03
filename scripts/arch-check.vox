@@ -4,7 +4,7 @@
 //
 // Invokes `cargo run -p vox-arch-check --quiet` and forwards the exit code.
 // .github/workflows/ci.yml calls this script so the invocation flags live in
-// one place.
+// one place. (The former .gitlab-ci.yml mirror was retired on 2026-06-03.)
 //
 // Usage: vox run scripts/arch-check.vox
 // Source of truth: docs/src/architecture/layers.toml

@@ -42,8 +42,8 @@ fn form_emits_react_component_with_inputs_and_labels() {
         "must await endpoint call, got:\n{ts}"
     );
     assert!(
-        ts.contains("navigate("),
-        "must trigger redirect, got:\n{ts}"
+        ts.contains("pushState(") && ts.contains("PopStateEvent("),
+        "must trigger redirect via history API, got:\n{ts}"
     );
 }
 

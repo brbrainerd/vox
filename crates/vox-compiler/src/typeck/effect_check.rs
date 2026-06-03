@@ -511,6 +511,9 @@ fn stdlib_module_capability(module: &str) -> Option<HirCapability> {
         "env" | "environment" => Some(HirCapability::Env),
         "time" | "clock" | "Clock" => Some(HirCapability::Clock),
         "process" | "Process" => Some(HirCapability::Spawn),
+        // Web automation/scraping are network-bearing (Browser also launches a
+        // process; Net is the load-bearing capability). Previously ungoverned.
+        "Scrape" | "scrape" | "Browser" | "OpenClaw" => Some(HirCapability::Net),
         _ => None,
     }
 }

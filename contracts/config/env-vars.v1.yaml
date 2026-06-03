@@ -3868,7 +3868,7 @@ variables:
     kind: "string"
     required: false
     introduced_in: "0.3.0"
-    description: "TODO"
+    description: "DEPRECATED (2026-06-03): GitLab support retired and unsupported. API host for the legacy GitLab release backend."
   - name: "VOX_UPGRADE_PROVIDER"
     owner_crate: "vox-cli"
     kind: "string"

@@ -8,6 +8,9 @@ mod command_registry_handler_needles;
 
 pub mod add;
 
+/// `vox component <name>` — vendor a shadcn/ui component into the project.
+pub mod add_component;
+
 /// Quality-gate umbrella command (`vox audit`); reads `contracts/ci/check-targets.v1.yaml`.
 pub mod audit;
 
@@ -107,6 +110,9 @@ pub mod repair;
 #[cfg(feature = "dei")]
 pub mod safety;
 /// Raw precompiled WASI module execution (`vox wasm run`) via vox-wasm-engine.
+/// Gated with `script-execution`: vox-wasm-engine pulls the full wasmtime stack
+/// (~147 crates), which should not ride into the lean default CLI build.
+#[cfg(feature = "script-execution")]
 pub mod wasm;
 
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).

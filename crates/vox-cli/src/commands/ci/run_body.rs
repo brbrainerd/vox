@@ -240,6 +240,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
+        CiCmd::FmtCheck => super::pre_push::check_fmt(&root),
         CiCmd::LineEndings { all, base, autofix } => line_endings::run(&root, all, base, autofix),
         CiCmd::ParseStatus { write } => parse_status::run(&root, write),
         CiCmd::MeshGate {

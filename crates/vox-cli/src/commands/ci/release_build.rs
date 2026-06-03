@@ -173,17 +173,24 @@ fn build_and_package_binary(
     built_bin_name: &str,
     archive_name: &str,
 ) -> Result<String> {
-    let status = Command::new(super::cargo_bin())
-        .current_dir(repo_root)
-        .args([
-            "build",
-            "-p",
-            package_name,
-            "--release",
-            "--locked",
-            "--target",
-            target,
-        ])
+    let mut cmd = Command::new(super::cargo_bin());
+    cmd.current_dir(repo_root).args([
+        "build",
+        "-p",
+        package_name,
+        "--release",
+        "--locked",
+        "--target",
+        target,
+    ]);
+    // The shipped `vox` binary keeps full on-disk retrieval (tantivy full-text +
+    // web-scrape). That stack is gated behind the `heavy-retrieval` feature, which
+    // is OFF by default so lean dev/CI/mobile builds stay slim (WS2-T3). Re-enable
+    // it here so end users are unaffected. Other packages don't have the feature.
+    if package_name == "vox-cli" {
+        cmd.args(["--features", "heavy-retrieval"]);
+    }
+    let status = cmd
         .status()
         .with_context(|| format!("spawn cargo build for {package_name} release artifact"))?;
     if !status.success() {

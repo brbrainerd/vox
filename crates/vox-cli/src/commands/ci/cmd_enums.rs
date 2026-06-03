@@ -276,6 +276,11 @@ pub enum CiCmd {
         #[arg(long, default_value = "docs/agents/workflow-script-allowlist.txt")]
         allowlist: PathBuf,
     },
+    /// Cross-platform `rustfmt --check` over the whole workspace. Chunked over crate
+    /// target roots, so it avoids the Windows os-206 command-line overflow of
+    /// `cargo fmt --all` and stays robust as crates are added/removed.
+    #[command(name = "fmt-check")]
+    FmtCheck,
     /// Fail if changed LF-policy text files contain CRLF / CR (`*.ps1` exempt). Forward-only unless `--all`.
     #[command(name = "line-endings")]
     LineEndings {
@@ -433,7 +438,7 @@ pub enum CiCmd {
     /// Histogram of AST decl kinds across `examples/golden` (requires `vox-corpus/ast-extract`).
     #[command(name = "corpus-decl-coverage", visible_alias = "corpus-coverage")]
     CorpusDeclCoverage,
-    /// Repository hygiene guards (`TypeVar(0)` in codegen crates only, filtered `open-code` refs, stray root files) — GitLab parity.
+    /// Repository hygiene guards (`TypeVar(0)` in codegen crates only, filtered `open-code` refs, stray root files).
     #[command(name = "repo-guards")]
     RepoGuards,
     /// Fail when changed files add direct secret env reads outside Clavis-owned modules.
@@ -866,8 +871,6 @@ pub struct GuardOpts {
 pub enum GrammarDriftEmit {
     /// One line: `drift=true` or `drift=false` (GitHub Actions / shell).
     Github,
-    /// Writes `drift.env` in the repo root with `drift=true|false` (GitLab-style artifact).
-    Gitlab,
 }
 
 /// Subcommands for the doc inventory schema verifier.

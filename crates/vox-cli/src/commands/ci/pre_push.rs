@@ -774,33 +774,63 @@ fn changed_docs_md_rel_paths(root: &Path) -> Result<Vec<String>> {
 }
 
 fn step_fmt(root: &Path) -> Result<()> {
-    // On Windows, `cargo fmt --all -- --check` fails with os error 206 (path too long)
-    // when the combined rustfmt invocation exceeds Windows command-line/path limits.
-    // Work around by running per-package on Windows; CI (Linux) uses the fast `--all` path.
-    if cfg!(target_os = "windows") {
-        let meta = MetadataCommand::new()
-            .manifest_path(root.join("Cargo.toml"))
-            .no_deps()
-            .exec()
-            .context("cargo metadata for step_fmt")?;
-        for pkg in meta.workspace_packages() {
-            let status = cargo()
-                .args(["fmt", "-p", pkg.name.as_str(), "--", "--check"])
-                .current_dir(root)
-                .status()
-                .with_context(|| format!("spawn cargo fmt -p {}", pkg.name))?;
-            if !status.success() {
-                bail!(
-                    "cargo fmt -p {} -- --check exited with {:?}",
-                    pkg.name,
-                    status.code()
-                );
-            }
+    check_fmt(root)
+}
+
+/// Cross-platform, crate-agnostic `rustfmt --check` over the whole workspace.
+///
+/// `cargo fmt --all` collects every `.rs` file in the workspace and passes them all
+/// to a single rustfmt invocation, which overflows the Windows command-line limit
+/// (os error 206) on a large workspace with long paths. Instead we pass only each
+/// crate's TARGET ROOT files (lib.rs / main.rs / build.rs / test & example roots)
+/// from live `cargo metadata` — rustfmt resolves the `mod` tree from each root
+/// internally, so our command line carries ~one path per target rather than every
+/// source file — and we run `rustfmt --check` in fixed-size chunks that stay well
+/// under the OS arg limit on every platform. rustfmt reads the edition + style from
+/// the workspace `rustfmt.toml` (via `--config-path`). Robust to crates being added
+/// or removed because the target set comes from metadata, never a hard-coded list.
+pub(crate) fn check_fmt(root: &Path) -> Result<()> {
+    let meta = MetadataCommand::new()
+        .manifest_path(root.join("Cargo.toml"))
+        .no_deps()
+        .exec()
+        .context("cargo metadata for fmt check")?;
+    let mut roots: Vec<String> = Vec::new();
+    for pkg in meta.workspace_packages() {
+        for target in &pkg.targets {
+            roots.push(target.src_path.as_str().to_string());
         }
-        Ok(())
-    } else {
-        cargo_status(root, &["fmt", "--all", "--", "--check"])
     }
+    roots.sort();
+    roots.dedup();
+    if roots.is_empty() {
+        return Ok(());
+    }
+    // ~50 root paths per call: even with long absolute Windows paths (~120 chars)
+    // that is ~6 KB, far under the ~32 KB limit. rustfmt expands each root's module
+    // tree itself, so chunk size is independent of any single crate's file count.
+    const CHUNK: usize = 50;
+    let mut unformatted = false;
+    for chunk in roots.chunks(CHUNK) {
+        let status = std::process::Command::new("rustfmt")
+            .arg("--check")
+            .arg("--config-path")
+            .arg(root)
+            .args(chunk)
+            .current_dir(root)
+            .status()
+            .context("spawn rustfmt --check")?;
+        if !status.success() {
+            unformatted = true;
+        }
+    }
+    if unformatted {
+        bail!(
+            "rustfmt --check found unformatted files (diffs above). \
+             Run `cargo fmt` (or `cargo fmt -p <crate>`) to fix."
+        );
+    }
+    Ok(())
 }
 
 fn step_line_endings(root: &Path) -> Result<()> {

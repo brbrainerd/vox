@@ -65,7 +65,10 @@ vox-code-audit = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
 tower-lsp-server = { workspace = true, optional = true }
 vox-db.workspace = true
-vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape", "tavily"] }
+# Lean by default (qdrant-vector + tavily); tantivy/web-scrape are turned on
+# graph-wide by vox-cli's `heavy-retrieval` feature (WS2-T3). Code paths here use
+# the feature-agnostic execution.tantivy_doc_lines field (empty when tantivy is off).
+vox-search = { workspace = true }
 vox-orchestrator-types.workspace = true
 vox-orchestrator-queue.workspace = true
 vox-config.workspace = true

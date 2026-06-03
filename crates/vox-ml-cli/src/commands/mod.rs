@@ -24,4 +24,5 @@ pub mod ai;
 #[cfg(feature = "mens-base")]
 pub mod corpus;
 
+#[cfg(feature = "quantize")]
 pub mod quantize;

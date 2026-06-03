@@ -16,6 +16,7 @@ export function Counter({ initial }: CounterProps): React.ReactElement {
     log("mounted");
   }, []);
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col", "p-4"].filter(Boolean).join(" ")}>
       <h1 className={["text-3xl", "font-semibold"].filter(Boolean).join(" ")}>
         {"Count: " + count}
@@ -28,6 +29,7 @@ export function Counter({ initial }: CounterProps): React.ReactElement {
     }}>
         {"Increment"}
       </button>
+    </div>
     </div>
   );
 }

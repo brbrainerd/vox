@@ -390,7 +390,10 @@ jobs:
         run: |
           cargo run -p vox-cli --quiet -- ci eval-matrix verify
           cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts
-          cargo check -p vox-cli --features gpu
+          # GPU compile smoke = the actual GPU crate (the candle-cuda plugin), not
+          # `vox-cli --features gpu` (no such feature). `check` without the `cuda`
+          # feature compiles the plugin against CPU candle, so no CUDA toolchain needed.
+          cargo check -p vox-plugin-mens-candle-cuda
 
       - name: WebIR structural validate gate (TS codegen path)
         env:

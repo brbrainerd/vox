@@ -32,7 +32,6 @@ default = ["keyring-store"]
 # OS credential store for `vox login` / `vox auth connect` vault persistence.
 # Disable on headless CI builds where no keyring daemon is available.
 keyring-store = ["dep:keyring"]
-ai-fixtures-v1 = []
 # Fast fuzzy ranking for command catalog, MCP tool picker, dashboard palette.
 # Uses nucleo-matcher (same scorer as Helix/Zed). Adds ~300KB to binary.
 fuzzy-search = ["dep:nucleo"]
@@ -48,6 +47,12 @@ mcp-server = [
 ]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
+# Heavy on-disk retrieval: tantivy full-text index + web-scrape (scraper/html2text).
+# OFF by default to keep the CLI lean — resolver-2 feature unification means this
+# single switch turns tantivy on across every vox-search instance in the graph
+# (vox-orchestrator / vox-dei-shim / vox-orchestrator-mcp included). Shipped release
+# binaries enable this so end users keep full `vox search`. See WS2-T3.
+heavy-retrieval = ["vox-search/tantivy-lexical", "vox-search/web-scrape"]
 
 
 
@@ -55,6 +60,7 @@ database = ["vox-corpus/database"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:xxhash-rust",
+    "dep:vox-wasm-engine",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
     "dep:landlock",
@@ -136,7 +142,7 @@ vox-package = { workspace = true }
 
 vox-eval = { workspace = true }
 vox-container = { workspace = true }
-vox-wasm-engine = { workspace = true }
+vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-openclaw-runtime = { workspace = true, optional = true }
@@ -148,8 +154,10 @@ vox-research-events = { workspace = true }
 # `vox-scientia::ro_crate::MainEntity` is the input shape for the replay
 # handler; not pulled in via the producers crate.
 vox-scientia = { workspace = true }
-# Narrow retrieval features for CLI (avoid default qdrant/tavily stacks).
-vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape"] }
+# Lean by default (qdrant-vector + tavily). The heavy tantivy full-text + web-scrape
+# stacks are gated behind the `heavy-retrieval` feature (off by default; shipped
+# release binaries enable it). See WS2-T3.
+vox-search = { workspace = true }
 # `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI
 # routes `db/publication/ingest.rs` through `vox-plugin-host`'s ABI surface
 # (the `Publication` extension point on `VoxPlugin`) to keep the heavy

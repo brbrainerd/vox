@@ -572,6 +572,17 @@ impl BuiltinTypes {
             },
         );
 
+        // Static scraping module (fetch + CSS-select; no browser).
+        env.define(
+            "Scrape".into(),
+            Binding {
+                ty: Ty::Named("ScrapeModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // Mobile native bridge (std.mobile).
         env.define(
             "mobile".into(),
@@ -1108,13 +1119,14 @@ impl BuiltinTypes {
                 Box::new(Ty::Option(Box::new(process_output.clone()))),
             ),
         );
-        // `run_ex` — variant of `run` that also takes a cwd + env map. Same
-        // return shape. The 3-arg form matches the corpus call sites.
+        // `run_ex` — variant of `run` that also takes a cwd. Returns Result[int]
+        // (exit code), unified with std.process.run_ex (2026-06). Callers needing
+        // stdout/stderr use `run_capture` / `run_capture_ex` (return the record).
         process_methods.insert(
             "run_ex".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str)), Ty::Str],
-                Box::new(Ty::Result(Box::new(process_output.clone()))),
+                Box::new(Ty::Result(Box::new(Ty::Int))),
             ),
         );
         // `run_capture_lines` — stdout split on newlines.
@@ -1357,6 +1369,22 @@ impl BuiltinTypes {
         }
         methods.insert("BrowserModule".into(), browser_methods);
 
+        let mut scrape_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "Scrape")
+        {
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
+            };
+            scrape_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
+            );
+        }
+        methods.insert("ScrapeModule".into(), scrape_methods);
+
         let mut mobile_methods = std::collections::HashMap::new();
         for entry in builtin_registry_entries()
             .iter()
@@ -1545,8 +1573,16 @@ impl BuiltinTypes {
         if let Ty::Table(_, fields) = obj_ty {
             return match method {
                 "insert" => {
-                    // insert(item: Record) -> Result[i64]
-                    let item_ty = Ty::Record(fields.clone());
+                    // insert(item: Record) -> Result[i64]. The auto-generated primary
+                    // key `id` is assigned by the store (get/delete key on `int id`),
+                    // so it is NOT required on insert — matching the canonical CRUD
+                    // pattern `db.T.insert({ ...non-id fields })`.
+                    let item_fields: Vec<(String, Ty)> = fields
+                        .iter()
+                        .filter(|(name, _)| name != "id")
+                        .cloned()
+                        .collect();
+                    let item_ty = Ty::Record(item_fields);
                     Some(Ty::Fn(
                         vec![item_ty],
                         Box::new(Ty::Result(Box::new(Ty::Int))),
