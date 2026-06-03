@@ -41,8 +41,6 @@ pub mod diagnostics;
 pub mod effect_check;
 /// Environment management for symbols, types, and scopes.
 pub mod env;
-/// Core logic for unification-based type inference.
-pub mod infer;
 pub mod policy;
 /// Logic for registering declarations into the global environment.
 pub mod registration;
