@@ -230,8 +230,7 @@ mod tests {
         assert_eq!(app.server_fns[0].route_path, "/api/sf_one");
         assert_eq!(app.server_fns[1].route_path, "/api/sf_two");
         assert_eq!(
-            app.server_fns[0].signature,
-            "fn(a: int) -> str",
+            app.server_fns[0].signature, "fn(a: int) -> str",
             "server_fns[0] signature is the HIR-level type signature"
         );
         assert_eq!(app.server_fns[1].signature, "fn() -> int");

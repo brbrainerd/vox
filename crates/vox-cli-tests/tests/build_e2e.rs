@@ -471,8 +471,8 @@ fn tauri_desktop_target_wires_scheduled_jobs() {
 @scheduled("1m")
 fn heartbeat() { }
 "#;
-    let res =
-        vox_compiler::pipeline::run_frontend_str(src, "scheduled_desktop.vox").expect("frontend ok");
+    let res = vox_compiler::pipeline::run_frontend_str(src, "scheduled_desktop.vox")
+        .expect("frontend ok");
     let module = res.hir;
     let out = vox_codegen::codegen_rust::generate(
         &module,

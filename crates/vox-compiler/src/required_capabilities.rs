@@ -361,8 +361,7 @@ mod tests {
 
     #[test]
     fn no_microphone_capability_without_speech() {
-        let res = crate::pipeline::run_frontend_str("fn f() { }", "t.vox")
-            .expect("frontend ok");
+        let res = crate::pipeline::run_frontend_str("fn f() { }", "t.vox").expect("frontend ok");
         let caps = project_required_capabilities(&res.hir).capability_ids;
         assert!(!caps.iter().any(|c| c == "microphone"), "{caps:?}");
     }
