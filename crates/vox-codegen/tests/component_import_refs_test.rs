@@ -130,9 +130,20 @@ component Solo() {
     view: column { text { "alone" } }
 }
 "#;
-    let ts = emit(src);
+    // Scope the invariant to the `Solo.tsx` COMPONENT file: the root component
+    // must not import itself. The emitted `vox-app.tsx` bootstrap legitimately
+    // imports the root component `Solo`, so a whole-bundle join would false-fail.
+    let m = parse(lex(src)).expect("parse");
+    let hir = lower_module(&m);
+    let solo = generate(&hir)
+        .expect("emit")
+        .files
+        .iter()
+        .find(|(name, _)| name == "Solo.tsx")
+        .map(|(_, c)| c.clone())
+        .expect("Solo.tsx must be emitted");
     assert!(
-        !ts.contains("import { Solo } from \"./Solo\""),
-        "component must not self-import; got:\n{ts}"
+        !solo.contains("import { Solo } from \"./Solo\""),
+        "component must not self-import; got:\n{solo}"
     );
 }
