@@ -15,10 +15,11 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
+use crate::eval::expr::eval_expr;
 use crate::eval::value::VoxValue;
 use crate::eval::EvalError;
 use crate::eval::Interpreter;
-use crate::hir::nodes::{HirDbQueryPlan, HirDbTableOp};
+use crate::hir::nodes::{HirDbPredicate, HirDbQueryPlan, HirDbTableOp};
 
 /// One row is an ordered list of `(field, value)` pairs, matching
 /// `VoxValue::Object`. Every row carries an auto-assigned `_id` field.
@@ -94,56 +95,88 @@ fn apply_op(op: &str, have: &VoxValue, want: &VoxValue) -> bool {
     }
 }
 
-/// Evaluate a `where`/`filter` surface object against a row. The object follows
-/// the lowering's vocabulary (`parse_where_object_predicate`):
-/// `{ and: [..] }`, `{ or: [..] }`, `{ not: {..} }`, `{ field: { op: val } }`,
-/// `{ field: { is_null: _ } }`, `{ field: { in: [..] } }`, and the scalar
-/// shorthand `{ field: val }` (equality). Reading values directly from the
-/// surface object keeps the comparison values that the plan's predicate
-/// structure does not carry.
-fn matches_object(row: &Row, obj: &[(String, VoxValue)]) -> bool {
-    obj.iter().all(|(key, spec)| match key.as_str() {
-        "and" => match spec {
-            VoxValue::List(items) => items.iter().all(|it| match it {
-                VoxValue::Object(inner) => matches_object(row, inner),
+/// Take the next flattened predicate value, advancing the cursor.
+fn take(vals: &[VoxValue], pos: &mut usize) -> Option<VoxValue> {
+    let v = vals.get(*pos).cloned();
+    if v.is_some() {
+        *pos += 1;
+    }
+    v
+}
+
+/// Evaluate a predicate against a row, threading the flattened comparison values
+/// (`vals`) positionally via `pos`. The order matches how the lowering's
+/// `parse_where_object_predicate` flattened them (predicate DFS order), so
+/// carrying `vals` on the plan lets the interpreter filter even *fused* chains
+/// where the surface object is not on the executed node.
+///
+/// `And`/`Or` evaluate **every** part (no short-circuit) so the cursor stays
+/// aligned regardless of which branches match. `is_null` consumes no value;
+/// each comparison leaf consumes one; `in` consumes `arity`.
+fn eval_predicate(pred: &HirDbPredicate, row: &Row, vals: &[VoxValue], pos: &mut usize) -> bool {
+    match pred {
+        HirDbPredicate::Eq { field: f }
+        | HirDbPredicate::Neq { field: f }
+        | HirDbPredicate::Lt { field: f }
+        | HirDbPredicate::Lte { field: f }
+        | HirDbPredicate::Gt { field: f }
+        | HirDbPredicate::Gte { field: f }
+        | HirDbPredicate::Contains { field: f } => {
+            let want = take(vals, pos);
+            match (want, field(row, f)) {
+                (Some(w), Some(have)) => apply_op(predicate_op(pred), have, &w),
                 _ => false,
-            }),
-            _ => false,
-        },
-        "or" => match spec {
-            VoxValue::List(items) => items.iter().any(|it| match it {
-                VoxValue::Object(inner) => matches_object(row, inner),
-                _ => false,
-            }),
-            _ => false,
-        },
-        "not" => match spec {
-            VoxValue::Object(inner) => !matches_object(row, inner),
-            _ => false,
-        },
-        field_name => {
-            let have = match field(row, field_name) {
-                Some(v) => v,
-                None => return false,
-            };
-            match spec {
-                // `{ field: { op: val } }` — single-key operator object.
-                VoxValue::Object(op_fields) if op_fields.len() == 1 => {
-                    let (op, op_val) = &op_fields[0];
-                    match op.as_str() {
-                        "is_null" => matches!(have, VoxValue::Null),
-                        "in" => match op_val {
-                            VoxValue::List(items) => items.iter().any(|it| it == have),
-                            _ => false,
-                        },
-                        other => apply_op(other, have, op_val),
-                    }
-                }
-                // `{ field: val }` — equality shorthand.
-                scalar => have == scalar,
             }
         }
-    })
+        HirDbPredicate::In { field: f, arity } => {
+            let have = field(row, f).cloned();
+            let mut matched = false;
+            for _ in 0..*arity {
+                if let Some(w) = take(vals, pos) {
+                    if have.as_ref() == Some(&w) {
+                        matched = true;
+                    }
+                }
+            }
+            matched
+        }
+        HirDbPredicate::IsNull { field: f } => {
+            matches!(field(row, f), None | Some(VoxValue::Null))
+        }
+        HirDbPredicate::And(parts) => {
+            let mut all = true;
+            for p in parts {
+                if !eval_predicate(p, row, vals, pos) {
+                    all = false;
+                }
+            }
+            all
+        }
+        HirDbPredicate::Or(parts) => {
+            let mut any = false;
+            for p in parts {
+                if eval_predicate(p, row, vals, pos) {
+                    any = true;
+                }
+            }
+            any
+        }
+        HirDbPredicate::Not(inner) => !eval_predicate(inner, row, vals, pos),
+    }
+}
+
+/// The operator keyword for a comparison-leaf predicate (for [`apply_op`]).
+fn predicate_op(pred: &HirDbPredicate) -> &'static str {
+    match pred {
+        HirDbPredicate::Eq { .. } => "eq",
+        HirDbPredicate::Neq { .. } => "neq",
+        HirDbPredicate::Lt { .. } => "lt",
+        HirDbPredicate::Lte { .. } => "lte",
+        HirDbPredicate::Gt { .. } => "gt",
+        HirDbPredicate::Gte { .. } => "gte",
+        HirDbPredicate::Contains { .. } => "contains",
+        _ => "eq",
+    }
 }
 
 /// Execute a lowered DB plan against the interpreter's in-memory store. `args`
@@ -198,35 +231,39 @@ pub fn execute_db_plan(
         HirDbTableOp::All
         | HirDbTableOp::FilterRecord
         | HirDbTableOp::UnsafeQueryRawClause => {
-            // Snapshot rows, filter by the surface `where`/`filter` object, then
-            // apply projection / order_by / limit. The filter object is the
-            // first object-valued arg on this call.
+            // Evaluate the plan-carried predicate values and limit first (both
+            // borrow `interp` mutably via `eval_expr`), then snapshot rows and
+            // filter / order / limit / project. The predicate values come from
+            // the plan — not the surface args — so a *fused* chain
+            // (`.where({..}).select(..)`) filters correctly even though its
+            // `where` object is not on the executed node.
             // `UnsafeQueryRawClause` has no interpreter SQL analogue.
-            let rows: Vec<Row> = interp.db.table_mut(&plan.table).rows.clone();
-            let filter_obj = args.iter().find_map(|(_, v)| match v {
-                VoxValue::Object(fields) => Some(fields.clone()),
-                _ => None,
-            });
-            // A plan that carries a predicate but no surface filter object is a
-            // *fused* query chain (`.where({..}).select(..)`) whose comparison
-            // values live on an inner chain node we never executed. Rather than
-            // silently return unfiltered rows (wrong data), fail loudly. Single
-            // `.where(..)`/`.filter(..)` calls carry their object here and work.
-            // Lifting this is the documented follow-on (carry predicate values
-            // in the plan) — see the interpreter-db-execution spec.
-            if plan.predicate.is_some() && filter_obj.is_none() {
-                return Ok(VoxValue::Result(Err(crate::eval::value::err_str(
-                    "interp db: fused query-chain predicates (e.g. \
-                     `.where({..}).select(..)`) are not yet executable under \
-                     --mode interp; run a single `.where`/`.filter` call, or use \
-                     --mode script. See interpreter-db-execution spec."
-                        .to_string(),
-                ))));
+            let mut pred_vals: Vec<VoxValue> = Vec::with_capacity(plan.predicate_args.len());
+            for a in &plan.predicate_args {
+                pred_vals.push(eval_expr(interp, &a.value)?);
             }
-            let mut out: Vec<Row> = match &filter_obj {
-                Some(obj) => rows
+            // limit: prefer the plan-carried value (survives fusion); else fall
+            // back to a trailing Int surface arg when `has_limit` is set.
+            let limit_n: Option<usize> = match &plan.limit_value {
+                Some(e) => match eval_expr(interp, e)? {
+                    VoxValue::Int(n) => Some(n.max(0) as usize),
+                    _ => None,
+                },
+                None if plan.has_limit => args.iter().rev().find_map(|(_, v)| match v {
+                    VoxValue::Int(n) => Some((*n).max(0) as usize),
+                    _ => None,
+                }),
+                None => None,
+            };
+
+            let rows: Vec<Row> = interp.db.table_mut(&plan.table).rows.clone();
+            let mut out: Vec<Row> = match &plan.predicate {
+                Some(pred) => rows
                     .into_iter()
-                    .filter(|r| matches_object(r, obj))
+                    .filter(|r| {
+                        let mut pos = 0;
+                        eval_predicate(pred, r, &pred_vals, &mut pos)
+                    })
                     .collect(),
                 None => rows,
             };
@@ -241,11 +278,8 @@ pub fn execute_db_plan(
                 });
             }
 
-            if plan.has_limit {
-                if let Some((_, VoxValue::Int(n))) = args.last() {
-                    let n = (*n).max(0) as usize;
-                    out.truncate(n);
-                }
+            if let Some(n) = limit_n {
+                out.truncate(n);
             }
 
             let projected: Vec<VoxValue> = match &plan.projection {

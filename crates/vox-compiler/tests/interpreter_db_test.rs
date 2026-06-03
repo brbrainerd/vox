@@ -121,25 +121,49 @@ fn all_order_by_then_limit() {
 }
 
 #[test]
-fn fused_predicate_chain_fails_loudly_not_silently() {
-    // `.where({..}).select(..)` splits the predicate value onto an inner node
-    // the interpreter never executes; the executor must return Err rather than
-    // silently return unfiltered rows.
+fn fused_predicate_chain_filters_then_projects() {
+    // `.where({..}).select(..)` is a fused chain: the predicate value lives on
+    // an inner node, but the plan now carries it, so the interpreter filters
+    // correctly before projecting (was a loud Err before the plan-carried
+    // predicate values landed).
+    let res = run_main(
+        "
+        @table type User { name: str, age: int }
+        fn main() to int {
+            db.User.insert({ name: \"a\", age: 5 })
+            db.User.insert({ name: \"b\", age: 90 })
+            db.User.insert({ name: \"c\", age: 40 })
+            return len(db.User.where({ age: { gte: 18 } }).select(\"name\"))
+        }
+        ",
+    );
+    // age >= 18 keeps b(90) and c(40); the projection does not change the count.
+    assert_eq!(
+        res,
+        VoxValue::Int(2),
+        "fused where(gte 18).select() must filter to 2 rows, then project"
+    );
+}
+
+#[test]
+fn fused_where_order_by_limit_compose() {
+    // where + order_by + limit fused into one chain, all carried on the plan.
     let res = run_main(
         "
         @table type User { name: str, age: int }
         fn main() to str {
-            db.User.insert({ name: \"a\", age: 5 })
-            return match db.User.where({ age: { gte: 18 } }).select(\"name\") {
-                Ok(rows) => \"silently-wrong\"
-                Error(e) => \"loud-err\"
-            }
+            db.User.insert({ name: \"young\", age: 5 })
+            db.User.insert({ name: \"old\", age: 90 })
+            db.User.insert({ name: \"mid\", age: 40 })
+            let top = db.User.where({ age: { gte: 18 } }).order_by(\"age\", true).limit(1).unwrap()
+            return top.first().unwrap().name
         }
         ",
     );
+    // age >= 18 → {old:90, mid:40}; asc → mid first; limit 1 → [mid].
     assert_eq!(
         res,
-        VoxValue::Str("loud-err".to_string()),
-        "fused where().select() must Err, not return unfiltered rows"
+        VoxValue::Str("mid".to_string()),
+        "fused where+order_by(asc)+limit(1) must yield the youngest adult"
     );
 }

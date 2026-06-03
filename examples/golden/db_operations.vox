@@ -147,21 +147,25 @@
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 6. Documented limitation — a fused predicate chain (`.where(..).select(..)`)
-//    cannot resolve the inner predicate value under --mode interp, so it fails
-//    loudly with an Err rather than returning silently-wrong rows. Run a single
-//    `.where`/`.filter`, or use --mode script, for filtered projections.
+// 6. Fused query chains — `where` composed with `select` / `order_by` / `limit`.
+//    The plan carries the predicate values, so the interpreter filters before
+//    projecting/ordering/limiting even though the `where` object is not on the
+//    outermost call.
 // ─────────────────────────────────────────────────────────────────────────────
 @table type Account {
     owner: str
     balance: int
 }
 
-@test fn fused_predicate_chain_fails_loudly() {
-    db.Account.insert({ owner: "x", balance: 5 })
-    let outcome = match db.Account.where({ balance: { gte: 100 } }).select("owner") {
-        Ok(rows) => "silently-wrong"
-        Error(e) => "loud-err"
-    }
-    assert(outcome is "loud-err")
+@test fn fused_query_chains_filter_correctly() {
+    db.Account.insert({ owner: "poor", balance: 5 })
+    db.Account.insert({ owner: "rich", balance: 900 })
+    db.Account.insert({ owner: "mid", balance: 200 })
+
+    // where + select: filter to balance >= 100 (rich, mid), then project owner.
+    assert(len(db.Account.where({ balance: { gte: 100 } }).select("owner")) is 2)
+
+    // where + order_by(desc) + limit(1): the single richest qualifying account.
+    let top = db.Account.where({ balance: { gte: 100 } }).order_by("balance", false).limit(1).unwrap()
+    assert(top.first().unwrap().owner is "rich")
 }

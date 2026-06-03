@@ -101,12 +101,12 @@ pub(super) fn extract_count_chain_args(
 pub(crate) struct DbQueryChain {
     pub(crate) table: String,
     pub(crate) op: HirDbTableOp,
-    /// Flattened per-field args carried for downstream codegen. As of
-    /// 2026-05-18 the lowering at expr.rs:83 passes the SURFACE args
-    /// onto the MethodCall instead of these flattened ones so typecheck
-    /// can match the `filter(record)` signature; the plan carries the
-    /// predicate info separately.
-    #[allow(dead_code)]
+    /// Flattened per-field predicate values in predicate DFS order. The
+    /// MethodCall still receives the SURFACE args (so typecheck matches the
+    /// `filter(record)` / `where(obj)` signature), but these flattened values
+    /// are now also copied onto the plan (`predicate_args`) so the interpreter
+    /// can filter fused chains where the surface object is not on the executed
+    /// node.
     pub(crate) args: Vec<HirArg>,
     pub(crate) predicate: Option<HirDbPredicate>,
     pub(crate) select_cols: Option<Vec<String>>,
@@ -124,6 +124,10 @@ pub(super) fn make_db_plan_from_chain(chain: &DbQueryChain) -> HirDbQueryPlan {
         order_by: chain.order_by.clone(),
         has_limit: chain.limit.is_some(),
         capabilities: chain.capabilities.clone(),
+        // Carry the flattened predicate values + limit onto the plan so a fused
+        // chain keeps them when the surface args belong to an outer modifier.
+        predicate_args: chain.args.clone(),
+        limit_value: chain.limit.clone().map(Box::new),
     }
 }
 

@@ -26,6 +26,8 @@ fn fallback_plan_from_db_op(
         order_by: order_by.clone(),
         has_limit: limit.is_some(),
         capabilities: vox_compiler::hir::HirDbPlanCapabilities::default(),
+        predicate_args: Vec::new(),
+        limit_value: limit.clone(),
     }
 }
 

@@ -337,6 +337,8 @@ impl LowerCtx {
                 order_by: None,
                 has_limit: false,
                 capabilities: HirDbPlanCapabilities::default(),
+                predicate_args: Vec::new(),
+                limit_value: None,
             };
             return HirExpr::MethodCall(
                 Box::new(obj_hir),
@@ -368,6 +370,10 @@ impl LowerCtx {
                 order_by: None,
                 has_limit: false,
                 capabilities: HirDbPlanCapabilities::default(),
+                // Predicate values are the filter record fields, in the same
+                // order as the `And([Eq{field}..])` predicate above.
+                predicate_args: filter_args.clone(),
+                limit_value: None,
             };
             // Pass the ORIGINAL hir_args so typecheck matches the
             // `filter(record) -> Result[List[Row]]` signature.
@@ -396,6 +402,8 @@ impl LowerCtx {
                     order_by: None,
                     has_limit: false,
                     capabilities: cap,
+                    predicate_args: Vec::new(),
+                    limit_value: None,
                 })),
                 span,
             )

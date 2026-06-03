@@ -76,22 +76,20 @@ truncates (limit value is the trailing arg).
   closing the "no behavioral test caught this" gap.
 - Full vox-compiler suite + golden sweep 71/71 + HumanEval unchanged.
 
-## Out of scope (follow-on)
+## Fused query chains (lifted 2026-06-03)
 
-**Fused predicate chains.** Single `.where({..})` / `.filter({..})` calls carry
-their filter object on the executed node and work. But a *fused* chain that puts
-a predicate behind a later modifier — `.where({age:{gte:18}}).select("name")` —
-splits the comparison value onto an inner chain node the interpreter never
-executes (only the outer node runs, and its plan carries the predicate
-*structure* without the *value*). Rather than return silently-wrong unfiltered
-rows, the executor detects this (`predicate present, no surface object`) and
-returns a **loud `Err`**. Lifting it means carrying predicate arg values in
-`HirDbQueryPlan` itself (today they are extracted into `DbQueryChain::args` and
-dropped from the lowered MethodCall) — a follow-on that also unblocks
-`order_by`/`limit`/`select` *composed with* `where`.
-
-Note: `all().select(..)`, `all().order_by(..)`, `all().order_by(..).limit(n)`
-(modifiers over an unfiltered base) DO work — they carry no predicate.
+A *fused* chain that puts a predicate behind a later modifier —
+`.where({age:{gte:18}}).select("name")` — splits the comparison value onto an
+inner chain node, while only the outer node executes. This was originally a
+loud `Err`. It is now **fully supported**: `HirDbQueryPlan` carries
+`predicate_args` (the flattened comparison values in predicate DFS order) and
+`limit_value`, populated by `make_db_plan_from_chain` from `DbQueryChain`. The
+interpreter threads `predicate_args` positionally against `predicate`
+(`And`/`Or` evaluate every branch so the cursor stays aligned), so `where`
+composes correctly with `select` / `order_by` / `limit`. Codegen ignores the new
+fields (it has its own arg path). `HirDbQueryPlan` consequently drops its
+`PartialEq`/`Eq` derive (`HirExpr` is not comparable); nothing compared plans by
+value.
 
 **UnsafeQueryRawClause** (raw SQL fragment) has no interp analogue — it degrades
 to an unfiltered scan. Capability modifiers (`using`/`live`/`scope`/`sync`) are
