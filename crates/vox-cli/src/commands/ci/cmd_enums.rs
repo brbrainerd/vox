@@ -269,6 +269,11 @@ pub enum CiCmd {
         #[arg(long, default_value = "docs/agents/workflow-script-allowlist.txt")]
         allowlist: PathBuf,
     },
+    /// Cross-platform `rustfmt --check` over the whole workspace. Chunked over crate
+    /// target roots, so it avoids the Windows os-206 command-line overflow of
+    /// `cargo fmt --all` and stays robust as crates are added/removed.
+    #[command(name = "fmt-check")]
+    FmtCheck,
     /// Fail if changed LF-policy text files contain CRLF / CR (`*.ps1` exempt). Forward-only unless `--all`.
     #[command(name = "line-endings")]
     LineEndings {

@@ -59,7 +59,6 @@ futures-sink = { version = "0.3" }
 futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std", "wasm_js"] }
-getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 gimli = { version = "0.33", default-features = false, features = ["read", "std", "write"] }
 gix = { version = "0.70", default-features = false, features = ["blocking-http-transport-reqwest", "progress-tree", "revision"] }
 gix-features = { version = "0.40", features = ["crc32", "fs-read-dir", "io-pipe", "once_cell", "progress", "rustsha1", "walkdir", "zlib"] }
@@ -129,7 +128,6 @@ smallvec = { version = "1", default-features = false, features = ["const_new", "
 stable_deref_trait = { version = "1" }
 subtle = { version = "2" }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
-tauri-utils = { version = "2", default-features = false, features = ["build-2", "compression", "resources"] }
 textwrap = { version = "0.16", default-features = false, features = ["smawk", "unicode-linebreak", "unicode-width"] }
 thiserror = { version = "2" }
 time = { version = "0.3", features = ["macros", "serde-well-known"] }
@@ -203,7 +201,6 @@ futures-sink = { version = "0.3" }
 futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std", "wasm_js"] }
-getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 gimli = { version = "0.33", default-features = false, features = ["read", "std", "write"] }
 gix = { version = "0.70", default-features = false, features = ["blocking-http-transport-reqwest", "progress-tree", "revision"] }
 gix-features = { version = "0.40", features = ["crc32", "fs-read-dir", "io-pipe", "once_cell", "progress", "rustsha1", "walkdir", "zlib"] }
@@ -274,8 +271,6 @@ smallvec = { version = "1", default-features = false, features = ["const_new", "
 stable_deref_trait = { version = "1" }
 subtle = { version = "2" }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
-tauri-build = { version = "2" }
-tauri-utils = { version = "2", default-features = false, features = ["build-2", "compression", "resources"] }
 textwrap = { version = "0.16", default-features = false, features = ["smawk", "unicode-linebreak", "unicode-width"] }
 thiserror = { version = "2" }
 time = { version = "0.3", features = ["macros", "serde-well-known"] }
@@ -308,6 +303,7 @@ zstd-sys = { version = "2", default-features = false, features = ["experimental"
 bitflags = { version = "2", default-features = false, features = ["serde"] }
 crossbeam-epoch = { version = "0.9" }
 futures-executor = { version = "0.3" }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
@@ -327,6 +323,7 @@ tracing = { version = "0.1" }
 bitflags = { version = "2", default-features = false, features = ["serde"] }
 crossbeam-epoch = { version = "0.9" }
 futures-executor = { version = "0.3" }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
@@ -350,6 +347,7 @@ core-foundation-sys = { version = "0.8" }
 crossbeam-epoch = { version = "0.9" }
 dispatch2 = { version = "0.3" }
 errno = { version = "0.3" }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
@@ -374,6 +372,7 @@ core-foundation-sys = { version = "0.8" }
 crossbeam-epoch = { version = "0.9" }
 dispatch2 = { version = "0.3" }
 errno = { version = "0.3" }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
@@ -394,6 +393,7 @@ tracing = { version = "0.1" }
 [target.x86_64-pc-windows-msvc.dependencies]
 bitflags = { version = "2", default-features = false, features = ["serde"] }
 crossbeam-epoch = { version = "0.9" }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 object = { version = "0.37", default-features = false, features = ["read"] }
@@ -414,6 +414,7 @@ windows-sys-d4189bed749088b6 = { package = "windows-sys", version = "0.61", feat
 [target.x86_64-pc-windows-msvc.build-dependencies]
 bitflags = { version = "2", default-features = false, features = ["serde"] }
 crossbeam-epoch = { version = "0.9" }
+getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 object = { version = "0.37", default-features = false, features = ["read"] }

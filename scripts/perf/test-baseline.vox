@@ -18,9 +18,11 @@ fn measure_ms(cmd: str, args: list[str]) to int {
     let r = res.unwrap()
     if r.code != 0 { return -1 }
     let ms_str = r.stdout.trim()
-    let dot_pos = ms_str.find(".")
-    if dot_pos >= 0 { return int(ms_str.slice(0, dot_pos)) }
-    return int(ms_str)
+    let dot_pos = ms_str.index_of(".")
+    match dot_pos {
+        Some(p) => { return int(ms_str.slice(0, p)) }
+        None => { return int(ms_str) }
+    }
 }
 
 fn run_and_record(label: str, cmd: str, args: list[str]) to Json {

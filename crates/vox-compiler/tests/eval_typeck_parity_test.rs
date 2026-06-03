@@ -153,7 +153,11 @@ fn path_helpers_dispatch() {
     let source = r#"
     fn main() to bool {
         let ext = path.extension("foo/bar.txt")
-        let stem = path.stem("foo/bar.txt")
+        // `path.stem` returns Option[str] (typeck/interp parity); unwrap it.
+        let stem = match path.stem("foo/bar.txt") {
+            Some(s) => s
+            None => ""
+        }
         return ext == "txt" and stem == "bar"
     }
     "#;

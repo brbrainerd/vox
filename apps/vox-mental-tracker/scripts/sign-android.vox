@@ -1,13 +1,31 @@
-fn main() to int {
-    let keystore = std.env("VOX_ANDROID_KEYSTORE")
-    let ks_pass = std.env("VOX_ANDROID_KEYSTORE_PASSWORD")
-    let alias = std.env("VOX_ANDROID_KEY_ALIAS")
-    let key_pass = std.env("VOX_ANDROID_KEY_PASSWORD")
+// vox:caps process
+fn env_or_empty(name: str) to str {
+    let v = env.get(name)
+    if v.is_some() {
+        return v.unwrap()
+    }
+    return ""
+}
 
-    let cmd = "cd android && ./gradlew assembleRelease "
-        + "-Pandroid.injected.signing.store.file=" + keystore + " "
-        + "-Pandroid.injected.signing.store.password=" + ks_pass + " "
-        + "-Pandroid.injected.signing.key.alias=" + alias + " "
-        + "-Pandroid.injected.signing.key.password=" + key_pass
-    return shell_exec(cmd)
+fn main() to int {
+    let keystore = env_or_empty("VOX_ANDROID_KEYSTORE")
+    let ks_pass = env_or_empty("VOX_ANDROID_KEYSTORE_PASSWORD")
+    let alias = env_or_empty("VOX_ANDROID_KEY_ALIAS")
+    let key_pass = env_or_empty("VOX_ANDROID_KEY_PASSWORD")
+
+    let args = [
+        "assembleRelease",
+        "-Pandroid.injected.signing.store.file=" + keystore,
+        "-Pandroid.injected.signing.store.password=" + ks_pass,
+        "-Pandroid.injected.signing.key.alias=" + alias,
+        "-Pandroid.injected.signing.key.password=" + key_pass,
+    ]
+    let r = std.process.run_ex("./gradlew", args, "android", [])
+    match r {
+        Ok(code) => return code
+        Error(e) => {
+            print("sign-android failed: " + e)
+            return 1
+        }
+    }
 }

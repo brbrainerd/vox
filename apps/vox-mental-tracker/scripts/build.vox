@@ -1,12 +1,13 @@
+// vox:caps process
 // Build web assets into dist/ — run from repo root:
 //   vox run scripts/build.vox
 // Requires `vox` on PATH (see Vox docs: docs/src/how-to/external-app-bootstrap.md).
 
 fn main() to int {
-    shell_exec("vox build src/main.vox -o dist")
-    shell_exec("node scripts/postbuild-fixup.mjs")
-    shell_exec("pnpm build:web")
-    shell_exec("vox run scripts/generate-icons.vox")
-    shell_exec("npx cap sync")
+    std.process.run("vox", ["build", "src/main.vox", "-o", "dist"])
+    std.process.run("node", ["scripts/postbuild-fixup.mjs"])
+    std.process.run("pnpm", ["build:web"])
+    std.process.run("vox", ["run", "scripts/generate-icons.vox"])
+    std.process.run("npx", ["cap", "sync"])
     return 0
 }

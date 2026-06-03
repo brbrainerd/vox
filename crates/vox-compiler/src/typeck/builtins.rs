@@ -1167,16 +1167,14 @@ impl BuiltinTypes {
                 Box::new(Ty::Option(Box::new(process_output.clone()))),
             ),
         );
-        // `run_ex` — variant of `run` that also takes a cwd + env map. Same
-        // return shape. The 3-arg form matches the corpus call sites.
+        // `run_ex` — variant of `run` that also takes a cwd. Returns Result[int]
+        // (exit code), unified with std.process.run_ex (2026-06). Callers needing
+        // stdout/stderr use `run_capture` / `run_capture_ex` (return the record).
         process_methods.insert(
             "run_ex".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str)), Ty::Str],
-                Box::new(Ty::Result(
-                    Box::new(process_output.clone()),
-                    Box::new(Ty::Str),
-                )),
+                Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
             ),
         );
         // `run_capture_lines` — stdout split on newlines.
@@ -1647,8 +1645,16 @@ impl BuiltinTypes {
         if let Ty::Table(_, fields) = obj_ty {
             return match method {
                 "insert" => {
-                    // insert(item: Record) -> Result[i64]
-                    let item_ty = Ty::Record(fields.clone());
+                    // insert(item: Record) -> Result[i64]. The auto-generated primary
+                    // key `id` is assigned by the store (get/delete key on `int id`),
+                    // so it is NOT required on insert — matching the canonical CRUD
+                    // pattern `db.T.insert({ ...non-id fields })`.
+                    let item_fields: Vec<(String, Ty)> = fields
+                        .iter()
+                        .filter(|(name, _)| name != "id")
+                        .cloned()
+                        .collect();
+                    let item_ty = Ty::Record(item_fields);
                     Some(Ty::Fn(
                         vec![item_ty],
                         Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),

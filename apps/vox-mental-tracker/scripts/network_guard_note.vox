@@ -1,5 +1,5 @@
 // Product builds must contain no fetch/XMLHttpRequest/WebSocket outside Share/export paths.
 // CI enforces this with ripgrep on dist/ — see .github/workflows/ci.yml.
 
-println("CI guard: rg -n \"\\\\bfetch\\\\(|XMLHttpRequest|WebSocket\\\\(\" dist/ || true");
-println("Adjust allowlist in workflow when adding Share-only networking.");
+print("CI guard: rg -n \"\\\\bfetch\\\\(|XMLHttpRequest|WebSocket\\\\(\" dist/ || true");
+print("Adjust allowlist in workflow when adding Share-only networking.");

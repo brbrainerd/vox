@@ -9,10 +9,13 @@ pre-commit:
   commands:
     # Formatting must pass before any other check so CI never sees a format failure
     # that slipped through locally.
+    # Cross-platform rustfmt check. Uses `vox ci fmt-check` (chunked over crate
+    # target roots) instead of `cargo fmt --all`, which overflows the Windows
+    # command-line limit (os error 206) on this large workspace with long paths.
     fmt-check:
-      run: cargo fmt --all -- --check
+      run: cargo run -p vox-cli --quiet -- ci fmt-check
       glob: "**/*.rs"
-      fail_text: "rustfmt check failed. Run `cargo fmt --all` to fix."
+      fail_text: "rustfmt check failed. Run `cargo fmt` to fix."
 
     sync-ignore-files:
       run: cargo run -p vox-cli --quiet -- ci sync-ignore-files

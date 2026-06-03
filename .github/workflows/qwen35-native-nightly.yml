@@ -21,18 +21,22 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Build vox-cli (gpu)
-        run: cargo build -p vox-cli --features gpu
+      - name: Build vox-cli
+        # GPU training is loaded at runtime via the vox-plugin-mens-candle-cuda
+        # cdylib plugin (selected by `--device cuda` below), NOT a vox-cli compile
+        # feature. `vox-cli` has no `gpu` feature; the old `--features gpu` was a
+        # no-op-at-best / hard cargo error. See build-and-crate-org-improvement-plan-2026-06.md.
+        run: cargo build -p vox-cli
 
       - name: Prepare Mens corpus mix inputs
-        run: cargo run -p vox-cli --features gpu --quiet -- run --interp scripts/ci/corpus_prep.vox
+        run: cargo run -p vox-cli --quiet -- run --interp scripts/ci/corpus_prep.vox
 
       - name: Mix corpus (strict)
         run: cargo run -p vox-cli --quiet -- mens corpus mix --config mens/config/mix.yaml
 
       - name: Qwen3.5-0.8B native smoke
         run: |
-          cargo run -p vox-cli --features gpu -- mens train \
+          cargo run -p vox-cli -- mens train \
             --backend qlora \
             --tokenizer hf \
             --preset qwen_4080_16g \

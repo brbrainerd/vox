@@ -110,6 +110,9 @@ pub mod repair;
 #[cfg(feature = "dei")]
 pub mod safety;
 /// Raw precompiled WASI module execution (`vox wasm run`) via vox-wasm-engine.
+/// Gated with `script-execution`: vox-wasm-engine pulls the full wasmtime stack
+/// (~147 crates), which should not ride into the lean default CLI build.
+#[cfg(feature = "script-execution")]
 pub mod wasm;
 
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
