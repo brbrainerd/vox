@@ -164,8 +164,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         EvalError::AssertionFailed(format!("integer modulo overflow: {a} % {b}"))
                     })
                 }
-                (HirBinOp::Is, a, b) => Ok(VoxValue::Bool(a == b)),
-                (HirBinOp::Isnt, a, b) => Ok(VoxValue::Bool(a != b)),
+                // Normalize bare nullary constructors (`None` is stored as
+                // Constructor("None") until used as a value) so `opt is None`
+                // compares against the canonical Option(None) form on both sides.
+                (HirBinOp::Is, a, b) => Ok(VoxValue::Bool(
+                    normalize_constructor(a) == normalize_constructor(b),
+                )),
+                (HirBinOp::Isnt, a, b) => Ok(VoxValue::Bool(
+                    normalize_constructor(a) != normalize_constructor(b),
+                )),
                 (HirBinOp::Lt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a < b)),
                 (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a > b)),
                 (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a <= b)),

@@ -64,6 +64,39 @@ fn decimal_arithmetic_is_exact_in_interp() {
     );
 }
 
+/// A returned `Option` that is `None` must compare equal to the `None` literal.
+/// Bare `None` is stored as `Constructor("None")` until normalized; without
+/// normalizing both `is` operands, `mk() is None` was silently `false`.
+#[test]
+fn returned_none_is_equal_to_none_literal() {
+    let source = "
+    fn mk() to Option[int] {
+        return None
+    }
+    fn main() to bool {
+        return mk() is None
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Bool(true),
+        "`mk() is None` (mk returns None) must be true"
+    );
+}
+
 /// B2 — compiled-regex object idiom in the interpreter. `std.regex.compile`
 /// must return a real Regex value whose `.find()` yields a Match with `.group(i)`
 /// (the form `regex_stdlib.vox` teaches). Previously `compile` returned a bare
