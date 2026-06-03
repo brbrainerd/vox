@@ -191,8 +191,18 @@ impl Parser {
                         span: start.merge(self.span()),
                     })
                 } else {
-                    Ok(Pattern::Ident {
+                    // A bare capitalized name (`TypeIdent`) with no `(...)` is a
+                    // *nullary constructor* pattern, not a binding. Vox reserves
+                    // capitalized identifiers for types/variants, so `Red` in
+                    // `match c { Red => .. Green => .. }` must match only the
+                    // `Red` variant — never bind the scrutinee unconditionally.
+                    // (Lowercase `Token::Ident` below remains a binding.)
+                    // Before this, `Red` lowered to `Pattern::Ident`, making the
+                    // first arm an unconditional catch-all — the nullary-variant
+                    // match regression.
+                    Ok(Pattern::Constructor {
                         name,
+                        fields: Vec::new(),
                         span: start.merge(self.span()),
                     })
                 }

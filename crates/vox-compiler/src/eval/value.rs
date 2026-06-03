@@ -27,7 +27,11 @@ pub enum VoxValue {
         env: crate::eval::env::Scope,
     },
     Option(core::option::Option<Box<VoxValue>>),
-    Result(core::result::Result<Box<VoxValue>, String>),
+    /// `Result[T, E]`. The Err side carries a real `VoxValue` (was `String`) so
+    /// typed errors — `Error(MyAdt)` as well as `Error("string")` — survive at
+    /// runtime, matching the two-parameter `Ty::Result`. A string error boxes to
+    /// `VoxValue::Str` (see [`err_str`]), preserving the historical behavior.
+    Result(core::result::Result<Box<VoxValue>, Box<VoxValue>>),
     /// An ADT variant constructor callable (not yet applied). Created by `run_module`.
     Constructor(String),
     /// An applied ADT variant value, e.g. `Applied(10, 0)`.
@@ -92,4 +96,11 @@ impl PartialEq for VoxValue {
             _ => false,
         }
     }
+}
+
+/// Box a string error message as the `VoxValue::Str` carried in a `Result` Err
+/// slot. Used by stdlib builtins that produce string-valued errors, so they keep
+/// their historical behavior under the widened `Result(_, Box<VoxValue>)` shape.
+pub(crate) fn err_str(s: String) -> Box<VoxValue> {
+    Box::new(VoxValue::Str(s))
 }

@@ -398,11 +398,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         eval_args.into_iter().next().unwrap(),
                     )))),
                     "Err" | "Error" if eval_args.len() == 1 => {
-                        let msg = match eval_args.into_iter().next().unwrap() {
-                            VoxValue::Str(s) => s,
-                            other => format!("{other:?}"),
-                        };
-                        Ok(VoxValue::Result(Err(msg)))
+                        // Box the actual error value so typed errors `Error(MyAdt)`
+                        // survive at runtime; `Error("string")` boxes to Str.
+                        let err_val = eval_args.into_iter().next().unwrap();
+                        Ok(VoxValue::Result(Err(Box::new(err_val))))
                     }
                     _ => Ok(VoxValue::Tagged {
                         name,
@@ -849,15 +848,10 @@ fn apply_closure_method(
         (VoxValue::Result(res), "map_err") => match res.as_ref() {
             Ok(v) => Ok(Some(VoxValue::Result(Ok(v.clone())))),
             Err(e) => {
-                let mapped = apply_closure(interp, &closure, vec![VoxValue::Str(e.clone())])?;
-                if let VoxValue::Str(new_msg) = mapped {
-                    Ok(Some(VoxValue::Result(Err(new_msg))))
-                } else {
-                    Err(EvalError::TypeError {
-                        expected: "str",
-                        found: super::builtins::vox_value_type_name(&mapped).into(),
-                    })
-                }
+                // Pass the real error value to the closure and box whatever it
+                // returns (no longer restricted to str-in / str-out).
+                let mapped = apply_closure(interp, &closure, vec![(**e).clone()])?;
+                Ok(Some(VoxValue::Result(Err(Box::new(mapped)))))
             }
         },
         (VoxValue::Result(res), "and_then") => match res.as_ref() {

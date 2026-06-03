@@ -97,6 +97,72 @@ fn returned_none_is_equal_to_none_literal() {
     );
 }
 
+/// C1 runtime: `Result[T, E]` carries a real error VALUE at runtime, not a
+/// stringified form. `Error(Timeout(30))` round-trips through the Err arm and
+/// matches back to the ADT variant (was a `String` before the Err-widening).
+#[test]
+fn result_carries_typed_error_value() {
+    let source = "
+    type ErrKind = | NotFound | Timeout(ms: int)
+    fn f() to Result[int, ErrKind] {
+        return Error(Timeout(30))
+    }
+    fn main() to int {
+        return match f() {
+            Ok(x) => x
+            Error(e) => match e {
+                Timeout(ms) => ms
+                NotFound => 0
+            }
+        }
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Int(30),
+        "Error(Timeout(30)) should carry the ADT to the match, yielding 30"
+    );
+}
+
+/// Nullary-variant match regression: a bare capitalized pattern (`Red`) is a
+/// *nullary constructor* pattern, not a binding. Before the parser fix it
+/// lowered to `Pattern::Ident`, so the FIRST arm bound the scrutinee
+/// unconditionally and became a catch-all — `match Green { Red => .. }` wrongly
+/// took the `Red` arm. Each arm must match only its own variant.
+#[test]
+fn nullary_variant_match_is_not_catch_all() {
+    let source = "
+    type Color = | Red | Green | Blue
+    fn pick() to Color {
+        return Green
+    }
+    fn main() to int {
+        return match pick() {
+            Red => 1
+            Green => 2
+            Blue => 3
+        }
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Int(2),
+        "match pick() (=Green) must take the Green arm (2), not the first arm"
+    );
+}
+
 /// Gap Finding 1: `for` over a map (yields (k,v) tuples) and over a string
 /// (yields chars) must run, not crash with TypeError{expected:"List"}.
 #[test]
@@ -267,6 +333,8 @@ fn std_http_get_text_performs_real_request_in_interp() {
         .expect("Failed to call main");
     match res {
         vox_compiler::eval::value::VoxValue::Result(Err(msg)) => {
+            // Err side is now a boxed VoxValue; the http transport error is a Str.
+            let msg = format!("{:?}", *msg);
             assert!(
                 !msg.contains("--mode script"),
                 "std.http should perform a real request in interp, not return a stub: {msg}"
