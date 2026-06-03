@@ -1,9 +1,3 @@
-// vox:skip — exercises the planned chained-query surface
-// (`.where(...).using(...).live(...).scope(...).sync().order_by(...).limit(...).select(...)`)
-// which the type-checker currently rejects with
-// "db query chaining via '.limit(...)' is not supported yet". Re-enable
-// once the typed db.Table query plan IR lands (tracked alongside the
-// vox-db query-shape SSOT).
 // ---
 // title: "DB Native IR Example"
 // description: "Demonstrating db.Table operations: all(), get(), insert(), and len() aggregation."
@@ -14,6 +8,7 @@
 // last_validated: 2026-05-13
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // Note: Advanced query chaining (where/using/live/scope/order_by/limit/select) is planned
 // for a future release. Current supported ops: all(), get(id), insert({...}).

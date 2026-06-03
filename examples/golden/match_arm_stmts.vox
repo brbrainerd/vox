@@ -8,6 +8,7 @@
 // last_validated: 2026-05-08
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Use match-arm statement bodies in Vox: return inside an arm, multi-stmt block, and a bare expression
 fn classify(code: int) to str {

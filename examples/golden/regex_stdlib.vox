@@ -8,6 +8,7 @@
 // last_validated: 2026-05-08
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Use std.regex to compile a pattern and extract a capture group
 fn extract_mood(transcript: str) to Option[str] {

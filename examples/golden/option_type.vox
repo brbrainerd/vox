@@ -8,6 +8,7 @@
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Show how to use Option[T] in Vox: Some, None, and match-based unwrapping.
 // ANCHOR: display

@@ -8,6 +8,7 @@
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Show Vox error propagation: chained Result operations, early return on Error, and workflow-level error handling.
 // ANCHOR: display

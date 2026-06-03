@@ -1,3 +1,15 @@
+// ---
+// title: "Reference: Actor Increment Helper"
+// description: "Reference snippet for the actor surface: a Counter increment helper invoked directly while native spawn/send grammar is restored."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, let, print]
+// last_validated: "2026-06-03"
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: beginner
+// ---
 // ANCHOR: basic_actor
 fn Counter_increment(current: int) to int {
     let count = current + 1

@@ -1,3 +1,15 @@
+// ---
+// title: "Reactive Counter Component"
+// description: "Reactive component with state, derived values, effect, and on mount / on cleanup lifecycle hooks driving a counter view."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [component, state, derived, effect, on mount, on cleanup]
+// last_validated: "2026-06-03"
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: intermediate
+// ---
 /// Reactive counter demo (current `component` surface). Uses `on mount` / `on cleanup`
 /// (not bare `mount:` / `cleanup:`). See `crates/vox-compiler/tests/reactive_smoke.rs`.
 

@@ -8,6 +8,7 @@
 // last_validated: 2026-05-23
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: intermediate
 // ---
 // @training_prompt: Write a Vox checkout flow using workflow + activity keywords with Result/match error propagation. Per ADR-041, durable execution is shipped for the supported subset.
 // ANCHOR: display

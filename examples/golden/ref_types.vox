@@ -1,3 +1,15 @@
+// ---
+// title: "Reference: Types and Matching"
+// description: "Reference snippet covering scalar types, List/Map collections, an ADT with variants, and match-based handling for the type SSOT."
+// syntax_version: "0.5.0"
+// status: golden
+// category: example
+// constructs: [fn, type, List, Map, match]
+// last_validated: "2026-06-03"
+// training_eligible: true
+// training_weight: 1.0
+// difficulty: intermediate
+// ---
 // ANCHOR: scalar
 fn demo_scalars() {
     let i: int = 42

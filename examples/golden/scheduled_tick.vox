@@ -8,6 +8,7 @@
 // last_validated: 2026-05-18
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: beginner
 // ---
 // ANCHOR: scheduled_region
 // Cadence: 1h (run via external scheduler until @scheduled lands).

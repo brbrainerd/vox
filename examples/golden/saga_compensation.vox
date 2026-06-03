@@ -8,6 +8,7 @@
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
+// difficulty: advanced
 // ---
 // @training_prompt: Show a saga pattern implementation in Vox using workflows for compensation handling on failure.
 // ANCHOR: display
