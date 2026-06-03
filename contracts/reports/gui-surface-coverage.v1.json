@@ -595,6 +595,7 @@
     "list_secret_status",
     "mnemosyne_recall",
     "mnemosyne_reindex",
+    "open_locator",
     "overrule_orchestrator_task",
     "pause_orchestrator_agent",
     "remove_secret",

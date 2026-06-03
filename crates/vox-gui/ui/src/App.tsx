@@ -512,6 +512,8 @@ export default function App() {
         setDeployedSet(prev => new Set([...prev, s.id]));
         handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: s.id });
       }
+    } else if (cmd.id === 'search') {
+      setActiveView('search');
     } else {
       pushToast({ tone: 'info', title: 'Command', body: cmd.label });
     }

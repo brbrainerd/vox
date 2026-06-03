@@ -108,6 +108,7 @@ async fn main() {
             commands::scientia::get_research_session_detail,
             commands::scientia::list_publication_manifests,
             commands::search::vox_search_query,
+            commands::search::open_locator,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
