@@ -45,8 +45,12 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
 export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   const [snap, setSnap] = useState<QueueSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
+  // Guard against interval-triggered overlapping fetches while one is in flight.
+  const fetchingRef = React.useRef(false);
 
   const refresh = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setLoading(true);
     try {
       const out = await invoke<ExecuteOutput>('execute_command', {
@@ -64,11 +68,15 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
       setSnap(null);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, [pushToast]);
 
+  // Initial fetch + 10 s auto-refresh; interval is cleared on unmount.
   useEffect(() => {
     refresh();
+    const id = setInterval(refresh, 10_000);
+    return () => clearInterval(id);
   }, [refresh]);
 
   return (
