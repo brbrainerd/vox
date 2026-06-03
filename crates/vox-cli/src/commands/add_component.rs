@@ -129,25 +129,35 @@ const SRC_DIR: &str = "app";
 
 /// Resolve an alias string (`@/components/ui`) to a project-relative dir
 /// (`app/components/ui`).
-fn alias_dir(alias: &str) -> PathBuf {
+///
+/// Segments are validated: only `Normal` path components are accepted, so a
+/// malicious `components.json` alias (`@/../../etc`, absolute paths, `..`) can
+/// never produce a write target outside `project_root`.
+fn alias_dir(alias: &str) -> Result<PathBuf> {
     let rest = alias.strip_prefix("@/").unwrap_or(alias);
     let mut p = PathBuf::from(SRC_DIR);
     for seg in rest.split('/') {
-        if !seg.is_empty() {
-            p.push(seg);
+        if seg.is_empty() {
+            continue;
+        }
+        match Path::new(seg).components().next() {
+            Some(std::path::Component::Normal(s)) if Path::new(seg).components().count() == 1 => {
+                p.push(s);
+            }
+            _ => bail!("unsafe alias segment `{seg}` in components.json alias `{alias}`"),
         }
     }
-    p
+    Ok(p)
 }
 
 /// Parent alias of `@/lib/utils` → `@/lib` (where `registry:lib` files land).
-fn lib_dir(utils_alias: &str) -> PathBuf {
-    let dir = alias_dir(utils_alias);
-    dir.parent().map_or_else(|| dir.clone(), Path::to_path_buf)
+fn lib_dir(utils_alias: &str) -> Result<PathBuf> {
+    let dir = alias_dir(utils_alias)?;
+    Ok(dir.parent().map_or(dir.clone(), Path::to_path_buf))
 }
 
 /// Pick the target directory for a file based on its registry type.
-fn target_dir(file_type: Option<&str>, cfg: &ComponentsConfig) -> PathBuf {
+fn target_dir(file_type: Option<&str>, cfg: &ComponentsConfig) -> Result<PathBuf> {
     match file_type {
         Some("registry:ui") => alias_dir(&cfg.aliases.ui),
         Some("registry:lib") => lib_dir(&cfg.aliases.utils),
@@ -200,7 +210,7 @@ pub fn plan_files(item: &RegistryItem, cfg: &ComponentsConfig) -> Result<Vec<Pla
             .file_name()
             .and_then(|s| s.to_str())
             .with_context(|| format!("registry file has no basename: {}", f.path))?;
-        let rel_path = target_dir(f.file_type.as_deref(), cfg).join(basename);
+        let rel_path = target_dir(f.file_type.as_deref(), cfg)?.join(basename);
 
         let mut content = rewrite_aliases(&f.content, cfg);
         if cfg.rsc
@@ -216,24 +226,28 @@ pub fn plan_files(item: &RegistryItem, cfg: &ComponentsConfig) -> Result<Vec<Pla
 }
 
 /// Load `components.json` from `<root>/app/components.json` (Vox scaffold) or
-/// `<root>/components.json`; fall back to defaults if neither exists.
-fn load_components_config(project_root: &Path) -> ComponentsConfig {
+/// `<root>/components.json`. Falls back to defaults only when neither file
+/// exists; a present-but-malformed file is a hard error (rather than silently
+/// vendoring into unexpected locations).
+fn load_components_config(project_root: &Path) -> Result<ComponentsConfig> {
     for candidate in ["app/components.json", "components.json"] {
         let path = project_root.join(candidate);
-        if let Ok(text) = std::fs::read_to_string(&path)
-            && let Ok(cfg) = serde_json::from_str::<ComponentsConfig>(&text)
-        {
-            return cfg;
+        if path.exists() {
+            let text = std::fs::read_to_string(&path)
+                .with_context(|| format!("read {}", path.display()))?;
+            let cfg = serde_json::from_str::<ComponentsConfig>(&text)
+                .with_context(|| format!("parse {}", path.display()))?;
+            return Ok(cfg);
         }
     }
-    ComponentsConfig::default()
+    Ok(ComponentsConfig::default())
 }
 
 /// `vox component <name>` — fetch the named shadcn registry item (and its
 /// registry dependencies) and vendor the source into the current project.
 pub async fn run(name: &str) -> Result<()> {
     let project_root = std::env::current_dir().context("resolve current directory")?;
-    let cfg = load_components_config(&project_root);
+    let cfg = load_components_config(&project_root)?;
     let client = vox_http_client::client();
 
     let mut visited: HashSet<String> = HashSet::new();
@@ -330,6 +344,24 @@ mod tests {
                 .contains("import { cn } from \"@/lib/utils\"")
         );
         assert!(!planned[0].content.contains("use client"));
+    }
+
+    #[test]
+    fn traversal_alias_is_rejected_no_escape_outside_project_root() {
+        // A malicious components.json alias must not be able to write outside
+        // the project root via `..`.
+        let item = fixture_button();
+        let cfg = ComponentsConfig {
+            aliases: Aliases {
+                ui: "@/../../etc".to_string(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(
+            plan_files(&item, &cfg).is_err(),
+            "alias containing `..` must be rejected"
+        );
     }
 
     #[test]

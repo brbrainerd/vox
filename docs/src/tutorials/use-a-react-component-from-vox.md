@@ -2,6 +2,8 @@
 title: "Use a React component from Vox"
 description: "Import an external React (or React Native) component or hook into a .vox component and render it — supported import forms, what the compiler emits, auto-injected CSS, provider guidance, and current limitations."
 category: "Tutorials"
+status: "current"
+training_eligible: true
 ---
 
 # Use a React component from Vox
@@ -30,6 +32,7 @@ Reference an imported component in a `view:` using call syntax. It lowers to a
 JSX tag:
 
 ```vox
+// vox:skip — placeholder package `@acme/ui`; validated copy lives at examples/golden/react_interop.vox
 import react { Button } from "@acme/ui"
 
 component Page() {

@@ -153,6 +153,16 @@ impl Parser {
                         break;
                     }
                 }
+                if names.is_empty() {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Expected at least one name inside `import react { ... }`.",
+                        vec!["Dialog".into(), "Dialog as D".into()],
+                        Some("}".into()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
                 self.expect(&Token::RBrace)?;
                 ReactBinding::Named(names)
             }

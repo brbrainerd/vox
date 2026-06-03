@@ -202,3 +202,14 @@ import surfaces/settings as { SettingsSurface }
         hir.imports.len()
     );
 }
+
+#[test]
+fn react_named_import_rejects_empty_braces() {
+    // `import react { } from "…"` must be a parse error, not a silent no-op that
+    // lowers to zero imports.
+    let tokens = lex(r#"import react { } from "@x/y""#);
+    assert!(
+        parse(tokens).is_err(),
+        "empty named react import must be rejected"
+    );
+}
