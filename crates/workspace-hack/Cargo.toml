@@ -141,7 +141,7 @@ ureq = { version = "2", features = ["json", "native-tls", "proxy-from-env", "soc
 url = { version = "2", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4", "v5", "v7"] }
 wasm-encoder = { version = "0.244", features = ["wasmparser"] }
-wasmtime-environ = { version = "42", default-features = false, features = ["backtrace", "compile", "component-model", "demangle", "gc-drc", "gc-null", "stack-switching", "threads"] }
+wasmtime-environ = { version = "45", default-features = false, features = ["backtrace", "compile", "component-model", "demangle", "gc-drc", "gc-null", "stack-switching", "threads"] }
 wasmtime-internal-core = { version = "42", default-features = false, features = ["anyhow", "backtrace"] }
 winnow = { version = "0.7" }
 yoke = { version = "0.8", features = ["derive"] }
@@ -283,7 +283,7 @@ ureq = { version = "2", features = ["json", "native-tls", "proxy-from-env", "soc
 url = { version = "2", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4", "v5", "v7"] }
 wasm-encoder = { version = "0.244", features = ["wasmparser"] }
-wasmtime-environ = { version = "42", default-features = false, features = ["backtrace", "compile", "component-model", "demangle", "gc-drc", "gc-null", "stack-switching", "threads"] }
+wasmtime-environ = { version = "45", default-features = false, features = ["backtrace", "compile", "component-model", "demangle", "gc-drc", "gc-null", "stack-switching", "threads"] }
 wasmtime-internal-core = { version = "42", default-features = false, features = ["anyhow", "backtrace"] }
 winnow = { version = "0.7" }
 yoke = { version = "0.8", features = ["derive"] }
