@@ -948,6 +948,112 @@ pub fn vox_http_post_json(url: &str, body_json: &str) -> Result<String, String> 
     })
 }
 
+// ── Static scraping (`Scrape.*`) ─────────────────────────────────────────────
+// The no-browser tier: fetch over the shared HTTP facade, parse with html5ever
+// (scraper), and extract via CSS selectors. Pure-Rust, no external binary. For
+// JS-rendered pages use the `Browser.*` builtins (chromiumoxide CDP) instead.
+
+/// Reduce an HTML document to readability-style plain text: prefer a main-content
+/// container (`main`/`article`/`#content`/`.content`/`.post-content`), fall back
+/// to `<body>`, take its text, and collapse runs of whitespace.
+fn scrape_extract_text(html: &str) -> String {
+    use scraper::{Html, Selector};
+    let document = Html::parse_document(html);
+    let main_selector = Selector::parse("main, article, #content, .content, .post-content")
+        .expect("static selector");
+    let body_selector = Selector::parse("body").expect("static selector");
+    let raw: String = if let Some(el) = document.select(&main_selector).next() {
+        el.text().collect::<Vec<_>>().join(" ")
+    } else if let Some(el) = document.select(&body_selector).next() {
+        el.text().collect::<Vec<_>>().join(" ")
+    } else {
+        document.root_element().text().collect::<Vec<_>>().join(" ")
+    };
+    raw.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// `Scrape.fetch(url)` → readability-extracted plain text for a URL (network I/O).
+pub fn vox_scrape_fetch(url: &str) -> Result<String, String> {
+    let html = vox_http_get_text(url)?;
+    Ok(scrape_extract_text(&html))
+}
+
+/// `Scrape.fetch_html(url)` → the raw HTML body for a URL (network I/O).
+pub fn vox_scrape_fetch_html(url: &str) -> Result<String, String> {
+    vox_http_get_text(url)
+}
+
+/// `Scrape.select(html, css)` → newline-joined, whitespace-collapsed text of
+/// every element matching the CSS selector. Pure (no network).
+pub fn vox_scrape_select(html: &str, css: &str) -> Result<String, String> {
+    use scraper::{Html, Selector};
+    let document = Html::parse_document(html);
+    let selector =
+        Selector::parse(css).map_err(|e| format!("invalid CSS selector '{css}': {e:?}"))?;
+    let out: Vec<String> = document
+        .select(&selector)
+        .map(|el| {
+            el.text()
+                .collect::<String>()
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .filter(|s| !s.is_empty())
+        .collect();
+    Ok(out.join("\n"))
+}
+
+/// `Scrape.select_attr(html, css, attr)` → newline-joined attribute value for
+/// every element matching the selector that carries the attribute. Pure.
+pub fn vox_scrape_select_attr(html: &str, css: &str, attr: &str) -> Result<String, String> {
+    use scraper::{Html, Selector};
+    let document = Html::parse_document(html);
+    let selector =
+        Selector::parse(css).map_err(|e| format!("invalid CSS selector '{css}': {e:?}"))?;
+    let out: Vec<String> = document
+        .select(&selector)
+        .filter_map(|el| el.value().attr(attr).map(str::to_string))
+        .collect();
+    Ok(out.join("\n"))
+}
+
+#[cfg(test)]
+mod scrape_tests {
+    use super::*;
+
+    const DOC: &str = r#"<html><body><main>
+        <h1 class="t">Hello   World</h1>
+        <a class="lnk" href="/a">one</a><a class="lnk" href="/b">two</a>
+    </main></body></html>"#;
+
+    #[test]
+    fn select_collapses_whitespace_and_joins() {
+        assert_eq!(vox_scrape_select(DOC, "h1.t").unwrap(), "Hello World");
+        assert_eq!(vox_scrape_select(DOC, "a.lnk").unwrap(), "one\ntwo");
+    }
+
+    #[test]
+    fn select_attr_extracts_each_match() {
+        assert_eq!(
+            vox_scrape_select_attr(DOC, "a.lnk", "href").unwrap(),
+            "/a\n/b"
+        );
+    }
+
+    #[test]
+    fn invalid_selector_is_an_err_not_a_panic() {
+        assert!(vox_scrape_select(DOC, ">>>bad").is_err());
+    }
+
+    #[test]
+    fn extract_text_prefers_main_and_collapses_whitespace() {
+        let text = scrape_extract_text(DOC);
+        assert!(text.contains("Hello World"), "got: {text}");
+        assert!(!text.contains("   "), "whitespace not collapsed: {text}");
+    }
+}
+
 /// OpenClaw WS control-plane call from Vox scripts (`OpenClaw.call`).
 pub fn vox_openclaw_call(method: &str, params_json: &str) -> Result<String, String> {
     run_openclaw_op(OpenClawOp::GatewayCall {

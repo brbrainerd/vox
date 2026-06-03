@@ -572,6 +572,17 @@ impl BuiltinTypes {
             },
         );
 
+        // Static scraping module (fetch + CSS-select; no browser).
+        env.define(
+            "Scrape".into(),
+            Binding {
+                ty: Ty::Named("ScrapeModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // Mobile native bridge (std.mobile).
         env.define(
             "mobile".into(),
@@ -1356,6 +1367,22 @@ impl BuiltinTypes {
             );
         }
         methods.insert("BrowserModule".into(), browser_methods);
+
+        let mut scrape_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "Scrape")
+        {
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
+            };
+            scrape_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
+            );
+        }
+        methods.insert("ScrapeModule".into(), scrape_methods);
 
         let mut mobile_methods = std::collections::HashMap::new();
         for entry in builtin_registry_entries()
