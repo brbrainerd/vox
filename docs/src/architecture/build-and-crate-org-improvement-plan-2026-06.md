@@ -44,6 +44,34 @@ sections of [comprehensive-audit-v2-2026.md](./comprehensive-audit-v2-2026.md) (
 - **One dead hub edge:** `vox-compiler` (44.5K LoC, 18 dependents, center of the deepest
   21-edge chain) declared `vox-deploy-codegen` with **zero** source uses.
 
+## Execution log (2026-06-03) — landed & verified
+
+All measured before/after; dependency counts via `cargo tree -p <crate> -e normal` unique crates.
+
+| Item | Before → After | Verification |
+|---|---|---|
+| WS1-T1 reclaim orphan `target/` | **−83.03 GB** | per-dir measured; only unregistered, >47 h-idle worktrees; `target/` only |
+| WS2-T1 hakari `tauri-utils` exclude | vox-cli 833 → 790 | `cargo tree` |
+| WS2-T2 wasmtime gate (`script-execution`) | vox-cli 790 → **719** (−71) | `cargo check` default **+** script-execution rc=0 |
+| WS2-T3 tantivy gate (`heavy-retrieval`) | vox-cli 719 → **692** (−27) | libs + lean + heavy-retrieval all rc=0; release_build keeps shipped full search |
+| WS2-T4 quantize gate + dead-stub removal | vox-ml-cli 613 → **593** (−20) | `cargo build` default **+** `--features quantize` rc=0; candle ~20s/30 MB measured |
+| WS3-T1 dead `vox-deploy-codegen` edge | edge removed | `cargo check -p vox-compiler` rc=0 |
+| WS1-T3 sccache | installed + machine-local `~/.cargo/config.toml` | server up; per-worktree+sccache strategy |
+| WS1-T4 GC-script worktree guard | gated behind `VOX_CLEAN_WORKTREES` | `vox check` rc=0 |
+| ai-fixtures-v1 ×3, CUDA-CI fix, WS6-T1 banner | done | committed |
+
+**Cumulative: vox-cli default 833 → 692 crates (−141, −16.9%); vox-ml-cli 613 → 593.** Commits:
+`7ba5a96810` (quick wins), `f122932a75` (wasmtime+quantize), WS2-T3, WS1-T4 on
+`cc_bdesktop2/objective-wilbur-19a990`.
+
+**Reality-checks (assumptions corrected by measurement):** the audit's "subtree" sizes were
+marginal-cost overcounts (wasmtime −71 vs ~147 claimed; candle −20 vs "504"); `cargo hakari verify`
+fails on the *untouched* baseline (pre-existing); the CUDA-CI "retarget to vox-ml-cli" rec was wrong
+(those are vox-cli subcommands; GPU is a runtime plugin); WS2-T2 had a real compile break (ungated
+`Cli::Wasm`) caught by verification; and A-5's `vox-build-driver` extraction is blocked by the shared
+`pipeline` spine (see WS5-T3). Net: **the 83 GB reclaim is the dominant win; the dep cuts are real but
+modest.**
+
 ## Workstreams
 
 IDs are stable. Status reflects the 2026-06-03 execution pass.
@@ -120,8 +148,23 @@ IDs are stable. Status reflects the 2026-06-03 execution pass.
   budget (27,345 / 25,000). Raise budget with rationale OR extract `codegen_ts/rn/*`,
   keeping `project_bundle_from_hir` as the single assembly point.
 - **WS5-T2** — Hand-audit `vox-config` fan-in (37 / 20); bump budget or facade.
-- **WS5-T3 (prereq)** — Land the A-5 `vox-cli-core` migration (`build_service` + `fs_utils`
-  + 3 shared modules) to remove the `vox-ml-cli → vox-cli` inversion and unblock WS5-T4.
+- **WS5-T3 (prereq) — REASSESSED 2026-06-03, blocked-as-specified.** The inversion is 3
+  call sites in `vox-ml-cli/src/commands/ai/workflow.rs` (under `cfg(not(workflow-runtime))`):
+  `vox_cli::commands::build::run`, `::fs_utils::run_target_dir_for_workspace`, `::RustAppShell`.
+  Verification found the `vox-build-driver` plan understated the cost: `build::run` transitively
+  needs `crate::pipeline` (365 LoC) which is used by **~17 other vox-cli commands** (check, doc,
+  repair, play, debug, emit, db, ci/doctest, compilerd, …), plus `utils::ssg`, `v0_tsx_normalize`
+  (174), `fs_utils` (207), and the codegen graph (RustAppShell ← vox-codegen). Extracting
+  `build::run` therefore either drags the shared `pipeline` spine into the driver (17+ shim sites)
+  or creates a `vox-build-driver → vox-cli` cycle. **This is a large, invasive refactor, not a
+  quick do-now.** Real options to actually remove the inversion: (a) extract the `pipeline`/build
+  spine into an L3 `vox-build-driver` (large; the honest scope); (b) have vox-ml-cli's fallback
+  shell out to the `vox` binary (`vox build`) instead of the library call — removes the inversion
+  with no extraction, but a behavior change the inversion's own reason-text discouraged;
+  (c) leave the documented `known_inversion` as-is (it is sanctioned and stable). A self-contained
+  partial win available regardless: merge the 207-LoC `fs_utils` superset into `vox-cli-core`
+  (dedups the 59-LoC stub) and repoint the one `fs_utils` inversion call — but that alone does
+  not remove the `known_inversion` (build::run + RustAppShell edges remain).
 - **WS5-T4 (URGENT, gated)** — Execute the `vox-cli-ci` extraction (26,337 LoC; `vox-cli`
   at 92% of its 90K budget) per the existing
   [2026-05-15-cli-ci-extraction-plan.md](./2026-05-15-cli-ci-extraction-plan.md).
