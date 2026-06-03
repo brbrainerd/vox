@@ -39,6 +39,14 @@ Disciplined execution pass: every plan premise re-verified against live source/b
   - **V12 (make-real candidate):** `db.Table.all()` is typed `Result[List[Record]]`; a bare `let logs = db.T.all(); for e in logs { e.field }` fails type inference — field access requires an explicit `match Ok(logs)` unwrap. Idiomatic, but a sharp edge; worth a golden + possibly inference help.
   - **NEW TASK A5 (P0, supersedes part of A1):** add a `vox check` (full typecheck) gate over **all** goldens in `vox-integration-tests` — it would have caught both breakages and is cheaper/more universal than the `// EXPECT` harness. Promote above A1.
 
+### Specs for the spec-gated remainder (written 2026-06-03)
+
+The no-spec-required work (B1–B4, C2, A5, I1, Track E, Track F, G1–G4, E8, hakari) is landed + committed (5 commits on `cc_bdesktop2/distracted-villani-a55822`). What remains genuinely needs design first; specs written:
+
+- **B5** → [`specs/2026-06-03-db-query-plan-typecheck-design.md`](../specs/2026-06-03-db-query-plan-typecheck-design.md) — `.where/.filter/.order_by/.limit/.select` typed chaining. Corrects the scout's "one-line guard removal" (empirically `.where` itself fails typecheck). Step 0 = verify the codegen side.
+- **C1** → [`specs/2026-06-03-result-two-param-reconciliation.md`](../specs/2026-06-03-result-two-param-reconciliation.md), an addendum to the canonical [`specs/2026-05-18-result-two-param-design.md`](../specs/2026-05-18-result-two-param-design.md). Records: C2 done, `@endpoint` retired, `infer.rs` dead (2 live lowering paths not 3).
+- **Track D** → [`specs/2026-06-03-durable-codegen-de-noop-design.md`](../specs/2026-06-03-durable-codegen-de-noop-design.md) — actor dispatch no-op (confirmed `durability_lower.rs:119`), workflow `DefaultTracker`, activity journal. D3 (actor dispatch) first.
+
 ### Pass 2 (continued, 2026-06-03) — A5 + G2 + G3 landed (all verified)
 
 - **A5 DONE.** New `crates/vox-integration-tests/tests/golden_typecheck_gate.rs`: runs `typecheck_module` over all 62 goldens (the same typecheck `vox check` uses), fails on any Error-severity diagnostic, **plus** a `gate_actually_catches_type_errors` self-test (a `let x: int = "s"` mismatch) proving it is not a no-op. Result: **`62 golden files typecheck clean ✓` + self-test pass** (`2 passed; 0 failed`). This permanently closes the "golden ships type-broken" gap.
