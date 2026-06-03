@@ -68,9 +68,15 @@ fn test_replace_and_captures() to Unit {
     let redacted = redact_digits("order 42 of 7 items")
     assert(redacted is "order *** of *** items")
 
-    let ver = extract_version("release v2.14.0 is live")
-    assert(ver is Some("2.14.0"))
+    // Match on the Option (idiomatic) rather than comparing against a
+    // Some/None literal with `is`.
+    match extract_version("release v2.14.0 is live") {
+        Some(v) => assert(v is "2.14.0")
+        None => assert(false)
+    }
 
-    let no_ver = extract_version("no version here")
-    assert(no_ver is None)
+    match extract_version("no version here") {
+        Some(_) => assert(false)
+        None => assert(true)
+    }
 }
