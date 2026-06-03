@@ -48,7 +48,13 @@ third-party = [
     { name = "candle-nn" },
     { name = "candle-transformers" },
     { name = "float8" },
-    { name = "cudarc" }
+    { name = "cudarc" },
+    # Tauri build-time crates (tauri-utils pulls a duplicate html5ever 0.38 /
+    # dom_query / selectors 0.36 parser stack). Only vox-gui / vox-tauri-stt need
+    # Tauri; excluding here keeps it out of every non-GUI build (vox-cli default
+    # 833 -> 790 crates). See docs/src/architecture build-time audit (2026-06).
+    { name = "tauri-utils" },
+    { name = "tauri-build" }
 ]
 # Don't add `workspace-hack = ...` to these — they're truly leaf and shouldn't
 # pay the workspace-hack compile cost.

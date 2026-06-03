@@ -15,6 +15,8 @@ Bert — full audit triangulating `crates/`, the 280 docs in `docs/src/architect
 
 This v2 supersedes the prior file; it corrects two count errors (crates=63, ADRs=23) and notes the `vox-doc-pipeline` build break is **fixed** as of today.
 
+> **Staleness note (2026-06-03):** This document is dated 2026-04-18 and predates the workspace reorg, the 2026-05 crate-structure audits, and substantial subsequent work. **Crate counts (63) and many specific items here are out of date** (the workspace now has 103 crates). For the current build-time / crate-organization / target-sprawl state and the active improvement plan, see [build-and-crate-org-improvement-plan-2026-06.md](./build-and-crate-org-improvement-plan-2026-06.md). Do **not** treat any "candidate for deletion" or dead-crate signal here as current — the latest audit found **zero** dead crates.
+
 ## Part I — Executive diagnosis
 
 ### What is real and good

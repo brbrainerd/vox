@@ -226,9 +226,17 @@ pub enum Cli {
         args: cli_args::RunArgs,
     },
     /// Raw WASI module execution (`vox wasm run <file>`) via the in-process wasmtime SSOT.
+    #[cfg(feature = "script-execution")]
     Wasm {
         #[command(subcommand)]
         cmd: commands::wasm::WasmCmd,
+    },
+    #[cfg(not(feature = "script-execution"))]
+    /// Raw precompiled WASI module execution (needs `--features script-execution`)
+    #[command(name = "wasm")]
+    WasmStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
     },
     /// Run a `.vox` script (`fn main()`) via the native script cache (needs `--features script-execution`).
     #[cfg(feature = "script-execution")]

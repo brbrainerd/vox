@@ -6,14 +6,12 @@ description = "Unified Vox compiler crate containing lexer, parser, AST, HIR, ty
 
 [features]
 default = []
-ai-fixtures-v1 = []
 
 [dependencies]
 logos = { workspace = true }
 vox-eval = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-repository = { workspace = true }
-vox-deploy-codegen = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

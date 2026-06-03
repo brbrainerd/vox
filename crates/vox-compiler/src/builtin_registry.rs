@@ -510,12 +510,19 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
 /// `std.<namespace>.<method>` signatures used by type checking.
 #[must_use]
 pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
+    // Reliability gate (SSOT): for a namespace OWNED by the canonical
+    // NAMESPACE_BUILTINS table, a method not listed there is rejected here.
+    // Combined with the parity tests (which assert every listed method has
+    // interp + codegen impls), this makes the table == the set of typecheckable
+    // std.<ns>.<method> — so a method cannot be added to typecheck without the
+    // interp↔codegen parity check covering it. Unowned namespaces are unaffected.
+    if namespace_builtin_owned(namespace) && !namespace_builtin_listed(namespace, method) {
+        return None;
+    }
     Some(match (namespace, method) {
-        ("fs", "read")
-        | ("fs", "read_file")
-        | ("fs", "read_to_string")
-        | ("fs", "remove")
-        | ("fs", "mkdir") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        ("fs", "read") | ("fs", "read_file") | ("fs", "read_to_string") => {
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str))))
+        }
         ("fs", "read_bytes") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         ("fs", "write") | ("fs", "write_file") | ("fs", "write_to_file") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
@@ -541,7 +548,12 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             vec![Ty::Str],
             Box::new(Ty::Result(Box::new(file_record_ty()))),
         ),
-        ("fs", "remove_dir_all") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
+        // remove (delete file) + mkdir create/delete and return unit — they were
+        // wrongly grouped with the read family (Result[str]); interp+codegen treat
+        // them as unit/bool. (Wrong-shape parity fix surfaced by the shape test.)
+        ("fs", "remove_dir_all") | ("fs", "remove") | ("fs", "mkdir") => {
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit))))
+        }
         ("fs", "copy") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::Unit))),
@@ -763,6 +775,24 @@ pub fn std_namespace_runtime_call(
         ("fs", "write") if args.len() >= 2 => Some(format!(
             "::vox_actor_runtime::builtins::vox_fs_write(({}).as_str(), ({}).as_str())",
             args[0], args[1]
+        )),
+        // Interp/codegen parity: these fs aliases typecheck and run under --interp,
+        // but previously fell through to invalid `::std::fs::read_file(...)` etc. in
+        // native emit. Route them to the canonical runtime fns (same as read/write).
+        ("fs", "read_file" | "read_to_string") if !args.is_empty() => Some(format!(
+            "::vox_actor_runtime::builtins::vox_fs_read(({}).as_str())",
+            args[0]
+        )),
+        ("fs", "write_file" | "write_to_file") if args.len() >= 2 => Some(format!(
+            "::vox_actor_runtime::builtins::vox_fs_write(({}).as_str(), ({}).as_str())",
+            args[0], args[1]
+        )),
+        ("fs", "cwd") => Some(
+            "::std::env::current_dir().map(|p| p.to_string_lossy().to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)".to_string(),
+        ),
+        ("fs", "walk" | "list_recursive") if !args.is_empty() => Some(format!(
+            "::vox_actor_runtime::builtins::vox_fs_glob(format!(\"{{}}/**/*\", {}).as_str())",
+            args[0]
         )),
         ("fs", "exists") if !args.is_empty() => {
             Some(format!("std::path::Path::new(&{}).exists()", args[0]))
@@ -1087,5 +1117,474 @@ mod browser_registry_tests {
             // All Scrape fns return Result[str].
             assert!(!e.returns_unit, "Scrape.{} must return Result[str]", e.name);
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Canonical surface-flagged registry of `std.<ns>.<method>` builtins.
+//
+// SSOT for the interp↔codegen↔typecheck parity guard. Each entry declares which
+// SURFACES the builtin must be implemented on, so the parity tests below can
+// assert coverage without false-positives on native/codegen-only builtins
+// (http/crypto have no interpreter network/crypto stack — they are RUST-only).
+//
+// Adding a `std.<ns>.<method>` to the typechecker (std_namespace_method_ty) WITHOUT
+// adding it here, or here without the declared impls, fails the parity tests.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Surface bitflags for [`NAMESPACE_BUILTINS`].
+pub mod surface {
+    /// Tree-walking interpreter (`vox run --interp`) via `call_builtin_method`.
+    pub const INTERP: u8 = 0b01;
+    /// Native Rust codegen (`--mode script` / compiled) via `std_namespace_runtime_call`.
+    pub const RUST: u8 = 0b10;
+    /// Both interpreter and Rust codegen.
+    pub const IR: u8 = INTERP | RUST;
+}
+
+/// `(namespace, method, arg_count, surfaces)` — the canonical set of
+/// `std.<ns>.<method>` builtins and the surfaces each must support.
+pub const NAMESPACE_BUILTINS: &[(&str, &str, usize, u8)] = &[
+    // fs — file system (interp + native)
+    ("fs", "read", 1, surface::IR),
+    ("fs", "read_file", 1, surface::IR),
+    ("fs", "read_to_string", 1, surface::IR),
+    ("fs", "read_bytes", 1, surface::IR),
+    ("fs", "write", 2, surface::IR),
+    ("fs", "write_file", 2, surface::IR),
+    ("fs", "write_to_file", 2, surface::IR),
+    ("fs", "cwd", 0, surface::IR),
+    ("fs", "walk", 1, surface::IR),
+    ("fs", "list_recursive", 1, surface::IR),
+    ("fs", "exists", 1, surface::IR),
+    ("fs", "is_file", 1, surface::IR),
+    ("fs", "is_dir", 1, surface::IR),
+    ("fs", "canonicalize", 1, surface::IR),
+    ("fs", "list_dir", 1, surface::IR),
+    ("fs", "glob", 1, surface::IR),
+    ("fs", "list_dir_detailed", 1, surface::IR),
+    ("fs", "stat", 1, surface::IR),
+    ("fs", "remove_dir_all", 1, surface::IR),
+    ("fs", "copy", 2, surface::IR),
+    ("fs", "remove", 1, surface::IR),
+    ("fs", "mkdir", 1, surface::IR),
+    // path
+    ("path", "join", 2, surface::IR),
+    ("path", "join_many", 1, surface::IR),
+    ("path", "basename", 1, surface::IR),
+    ("path", "dirname", 1, surface::IR),
+    ("path", "extension", 1, surface::IR),
+    ("path", "parent", 1, surface::IR),
+    ("path", "file_name", 1, surface::IR),
+    ("path", "stem", 1, surface::IR),
+    ("path", "is_absolute", 1, surface::IR),
+    ("path", "resolve", 1, surface::IR),
+    // env
+    ("env", "get", 1, surface::IR),
+    ("env", "args", 0, surface::IR),
+    ("env", "set", 2, surface::IR),
+    // regex
+    ("regex", "replace", 3, surface::IR),
+    ("regex", "find", 2, surface::IR),
+    ("regex", "is_match", 2, surface::IR),
+    ("regex", "captures", 2, surface::IR),
+    // Present on all surfaces, but its return SHAPE differs (typeck Result[Regex]
+    // vs interp/codegen str) — a wrong-shape issue the presence checker can't catch.
+    ("regex", "compile", 1, surface::IR),
+    // process
+    ("process", "which", 1, surface::IR),
+    ("process", "run", 2, surface::IR),
+    ("process", "run_ex", 4, surface::IR),
+    ("process", "run_capture", 2, surface::IR),
+    ("process", "run_capture_ex", 4, surface::IR),
+    ("process", "run_capture_json", 2, surface::IR),
+    ("process", "run_capture_lines", 2, surface::IR),
+    ("process", "spawn_background", 2, surface::IR),
+    ("process", "exec", 2, surface::IR),
+    ("process", "register_exit_command", 2, surface::IR),
+    ("process", "exit", 1, surface::IR),
+    // structured formats
+    ("csv", "parse", 1, surface::IR),
+    ("csv", "parse_records", 1, surface::IR),
+    ("csv", "render", 1, surface::IR),
+    ("toml", "parse", 1, surface::IR),
+    ("toml", "render", 1, surface::IR),
+    ("yaml", "parse", 1, surface::IR),
+    ("yaml", "render", 1, surface::IR),
+    ("io", "open", 1, surface::IR),
+    ("io", "save", 2, surface::IR),
+    ("json", "parse", 1, surface::IR),
+    ("json", "render", 1, surface::IR),
+    ("json", "read_str", 2, surface::IR),
+    ("json", "read_f64", 2, surface::IR),
+    ("json", "quote", 1, surface::IR),
+    // logging
+    ("log", "debug", 1, surface::IR),
+    ("log", "info", 1, surface::IR),
+    ("log", "warn", 1, surface::IR),
+    ("log", "error", 1, surface::IR),
+    // time
+    ("time", "now_ms", 0, surface::IR),
+    // agentos
+    ("agentos", "mutation_kind_for_tool", 1, surface::IR),
+    // crypto + http — NATIVE/codegen only. The tree-walking interpreter has no
+    // crypto/network stack; scripts needing these run via --mode script.
+    ("crypto", "hash_fast", 1, surface::RUST),
+    ("crypto", "hash_secure", 1, surface::RUST),
+    ("crypto", "uuid", 0, surface::RUST),
+    ("http", "get_text", 1, surface::RUST),
+    ("http", "post_json", 2, surface::RUST),
+];
+
+/// True if `namespace` is owned by the canonical [`NAMESPACE_BUILTINS`] table
+/// (i.e. its full method set is declared there). Used by the typecheck gate.
+#[must_use]
+pub fn namespace_builtin_owned(namespace: &str) -> bool {
+    NAMESPACE_BUILTINS
+        .iter()
+        .any(|(ns, _, _, _)| *ns == namespace)
+}
+
+/// True if `(namespace, method)` is listed in [`NAMESPACE_BUILTINS`].
+#[must_use]
+pub fn namespace_builtin_listed(namespace: &str, method: &str) -> bool {
+    NAMESPACE_BUILTINS
+        .iter()
+        .any(|(ns, m, _, _)| *ns == namespace && *m == method)
+}
+
+#[cfg(test)]
+mod namespace_builtin_parity_tests {
+    use super::*;
+    use crate::eval::builtins::call_builtin_method;
+    use crate::eval::value::VoxValue;
+
+    fn ns_receiver(ns: &str) -> VoxValue {
+        VoxValue::Object(vec![(
+            "__namespace__".to_string(),
+            VoxValue::Str(ns.to_string()),
+        )])
+    }
+
+    /// Every INTERP-surface builtin must dispatch in the tree-walking interpreter.
+    /// A missing arm makes `call_builtin_method` return None ("Method not found"
+    /// at runtime) — the regression we are guarding against (now_ms/path.basename).
+    #[test]
+    fn interpreter_dispatches_every_interp_builtin() {
+        // Robust probe: a missing method returns Ok(None) ("Method not found").
+        // An arm that exists but panics on our type-agnostic dummy args (e.g.
+        // process.run expects a list arg) unwinds — we catch it and treat it as
+        // PRESENT, since dispatch was reached. Only a clean None is a real gap.
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let mut missing = Vec::new();
+        for (ns, method, argc, surfaces) in NAMESPACE_BUILTINS {
+            if surfaces & surface::INTERP == 0 {
+                continue;
+            }
+            // process.exit calls std::process::exit — executing it would kill the
+            // test harness (catch_unwind can't stop it). Its interp arm exists by
+            // inspection; the codegen-surface test covers it safely.
+            if (*ns, *method) == ("process", "exit") {
+                continue;
+            }
+            let (ns, method, argc) = (*ns, *method, *argc);
+            let probe = std::panic::catch_unwind(|| {
+                let args: Vec<VoxValue> =
+                    (0..argc).map(|_| VoxValue::Str("x".to_string())).collect();
+                call_builtin_method(&ns_receiver(ns), method, args, None)
+            });
+            if matches!(probe, Ok(None)) {
+                missing.push(format!("std.{ns}.{method}"));
+            }
+        }
+        std::panic::set_hook(prev);
+        assert!(
+            missing.is_empty(),
+            "interpreter missing dispatch for: {missing:#?}"
+        );
+    }
+
+    /// Every RUST-surface builtin must have an explicit Rust-codegen lowering
+    /// (no arm => fallthrough to invalid `::std::ns::method(...)`).
+    #[test]
+    fn codegen_lowers_every_rust_builtin() {
+        let mut missing = Vec::new();
+        for (ns, method, argc, surfaces) in NAMESPACE_BUILTINS {
+            if surfaces & surface::RUST == 0 {
+                continue;
+            }
+            let args: Vec<String> = (0..*argc).map(|i| format!("a{i}")).collect();
+            if std_namespace_runtime_call(ns, method, &args).is_none() {
+                missing.push(format!("std.{ns}.{method}"));
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "codegen missing lowering for: {missing:#?}"
+        );
+    }
+
+    /// The canonical list must be a subset of what the typechecker accepts —
+    /// catches list entries that name a builtin the typechecker doesn't know.
+    #[test]
+    fn typecheck_knows_every_listed_builtin() {
+        let mut missing = Vec::new();
+        for (ns, method, _argc, _surfaces) in NAMESPACE_BUILTINS {
+            if std_namespace_method_ty(ns, method).is_none() {
+                missing.push(format!("std.{ns}.{method}"));
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "typecheck missing signature for: {missing:#?}"
+        );
+    }
+
+    /// The typecheck gate makes the table the SSOT: an unlisted method in an
+    /// owned namespace is rejected, so typecheck cannot drift ahead of the table.
+    #[test]
+    fn typecheck_gate_enforces_table_as_ssot() {
+        // Owned namespace + listed method → resolves.
+        assert!(std_namespace_method_ty("fs", "read").is_some());
+        // Owned namespace + UNlisted method → rejected by the gate.
+        assert!(std_namespace_method_ty("fs", "totally_not_a_real_fs_method").is_none());
+        assert!(std_namespace_method_ty("process", "no_such_method").is_none());
+        // The owned-namespace set is exactly the table's namespaces.
+        assert!(namespace_builtin_owned("fs"));
+        assert!(!namespace_builtin_owned("mobile")); // mobile dispatches elsewhere — not gated.
+    }
+
+    /// Does the runtime VALUE's shape match the typecheck return Ty? Catches
+    /// WRONG-SHAPE drift (e.g. typeck Option[str] but interp returns a bare str)
+    /// that the presence checker cannot. On Err/None the inner is not observable,
+    /// so we accept it; unmodelled Ty variants are permissive (never false-fail).
+    fn shape_matches(ty: &Ty, val: &VoxValue) -> bool {
+        match ty {
+            Ty::Result(inner) => match val {
+                VoxValue::Result(Ok(b)) => shape_matches(inner, &**b),
+                VoxValue::Result(Err(_)) => true,
+                _ => false,
+            },
+            Ty::Option(inner) => match val {
+                VoxValue::Option(Some(b)) => shape_matches(inner, &**b),
+                VoxValue::Option(None) => true,
+                _ => false,
+            },
+            Ty::Int => matches!(val, VoxValue::Int(_)),
+            Ty::Float => matches!(val, VoxValue::Float(_) | VoxValue::Int(_)),
+            Ty::Str => matches!(val, VoxValue::Str(_)),
+            Ty::Bool => matches!(val, VoxValue::Bool(_)),
+            Ty::List(_) => matches!(val, VoxValue::List(_)),
+            Ty::Record(_) => matches!(val, VoxValue::Object(_)),
+            // unit = "no meaningful value"; interp variously returns Null/Bool(true) for
+            // write/mkdir/etc. — all acceptable shapes for a unit return.
+            Ty::Unit => true,
+            Ty::Named(n) if n == "Regex" => {
+                matches!(val, VoxValue::Tagged { name, .. } if name == "Regex")
+            }
+            Ty::Named(n) if n == "Match" => {
+                matches!(val, VoxValue::Tagged { name, .. } if name == "Match")
+            }
+            // Json is dynamic; Map/Set/Named(other)/generics are not modelled here.
+            _ => true,
+        }
+    }
+
+    /// Behavioral shape parity: each pure/hermetic std.<ns>.<method> is invoked in
+    /// the interpreter with valid inputs (so the success shape is observable) and
+    /// its return shape is asserted against the typecheck return Ty. This catches
+    /// the wrong-shape class (process.run_ex Result[int]-vs-record, regex.compile
+    /// Regex-vs-str, path.parent Option-vs-bare) that presence parity can't.
+    /// Scope: pure/string-in builtins (no process spawn). FS/process shape checks
+    /// need fixtures — a follow-up slice.
+    #[test]
+    fn interpreter_return_shape_matches_typecheck() {
+        fn s(x: &str) -> VoxValue {
+            VoxValue::Str(x.to_string())
+        }
+        let obj_k1 = VoxValue::Object(vec![("k".to_string(), VoxValue::Int(1))]);
+        let probes: Vec<(&str, &str, Vec<VoxValue>)> = vec![
+            ("path", "join", vec![s("a"), s("b")]),
+            (
+                "path",
+                "join_many",
+                vec![VoxValue::List(vec![s("a"), s("b")])],
+            ),
+            ("path", "basename", vec![s("a/b.txt")]),
+            ("path", "dirname", vec![s("a/b")]),
+            ("path", "extension", vec![s("a.txt")]),
+            ("path", "parent", vec![s("a/b")]),
+            ("path", "file_name", vec![s("a/b")]),
+            ("path", "stem", vec![s("a.txt")]),
+            ("path", "is_absolute", vec![s("/a")]),
+            ("path", "resolve", vec![s(".")]),
+            ("regex", "replace", vec![s("a1"), s(r"\d"), s("X")]),
+            ("regex", "find", vec![s("a1"), s(r"\d")]),
+            ("regex", "is_match", vec![s("a1"), s(r"\d")]),
+            ("regex", "captures", vec![s("a1"), s(r"(\d)")]),
+            ("regex", "compile", vec![s(r"\d+")]),
+            ("json", "parse", vec![s("{}")]),
+            ("json", "render", vec![obj_k1.clone()]),
+            ("json", "read_str", vec![s(r#"{"k":"v"}"#), s("k")]),
+            ("json", "read_f64", vec![s(r#"{"n":1}"#), s("n")]),
+            ("json", "quote", vec![s("a")]),
+            ("csv", "parse", vec![s("a,b\n1,2")]),
+            ("csv", "parse_records", vec![s("a,b\n1,2")]),
+            (
+                "csv",
+                "render",
+                vec![VoxValue::List(vec![VoxValue::List(vec![s("a"), s("b")])])],
+            ),
+            ("toml", "parse", vec![s("k = 1")]),
+            ("toml", "render", vec![obj_k1.clone()]),
+            ("yaml", "parse", vec![s("k: 1")]),
+            ("yaml", "render", vec![obj_k1.clone()]),
+            ("time", "now_ms", vec![]),
+            ("env", "args", vec![]),
+            ("env", "get", vec![s("PATH")]),
+            ("agentos", "mutation_kind_for_tool", vec![s("read_file")]),
+        ];
+        let receiver = |ns: &str| {
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str(ns.to_string()),
+            )])
+        };
+        let mut mismatches = Vec::new();
+        for (ns, method, args) in probes {
+            let ret = match std_namespace_method_ty(ns, method) {
+                Some(Ty::Fn(_, ret)) => *ret,
+                other => {
+                    mismatches.push(format!("std.{ns}.{method}: no Fn typeck sig ({other:?})"));
+                    continue;
+                }
+            };
+            match call_builtin_method(&receiver(ns), method, args, None) {
+                Some(val) => {
+                    if !shape_matches(&ret, &val) {
+                        mismatches.push(format!(
+                            "std.{ns}.{method}: typeck {ret:?} but interp returned {val:?}"
+                        ));
+                    }
+                }
+                None => mismatches.push(format!("std.{ns}.{method}: interp returned None")),
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "interp return-shape mismatches vs typecheck:\n{}",
+            mismatches.join("\n")
+        );
+    }
+
+    /// Return-shape parity for FS + process builtins, using real fixtures (a temp
+    /// dir/file and the `rustc` command, present in any test env) so the success
+    /// path is exercised and the inner shape (Result[Record], Result[list], etc.)
+    /// is observed. Locks in fs.stat/list_dir_detailed records, run_ex Result[int],
+    /// run_capture records, etc. If a process spawn fails (cmd absent) the result is
+    /// still Result/Option-shaped, so the test never false-fails — it just observes
+    /// less inner detail.
+    #[test]
+    fn interpreter_return_shape_matches_typecheck_fs_process() {
+        fn s(x: &str) -> VoxValue {
+            VoxValue::Str(x.to_string())
+        }
+        let receiver = |ns: &str| {
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str(ns.to_string()),
+            )])
+        };
+
+        // Hermetic fixture: a unique temp dir + a file with content.
+        let tmp = std::env::temp_dir().join(format!("vox_shape_parity_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&tmp);
+        let file = tmp.join("f.txt");
+        let _ = std::fs::write(&file, "hello");
+        let dir_s = tmp.to_string_lossy().to_string();
+        let file_s = file.to_string_lossy().to_string();
+        let glob_s = format!("{dir_s}/*");
+        let args_list = || VoxValue::List(vec![s("--version")]);
+
+        let probes: Vec<(&str, &str, Vec<VoxValue>)> = vec![
+            ("fs", "read", vec![s(&file_s)]),
+            ("fs", "read_file", vec![s(&file_s)]),
+            ("fs", "read_to_string", vec![s(&file_s)]),
+            ("fs", "read_bytes", vec![s(&file_s)]),
+            (
+                "fs",
+                "write",
+                vec![s(&tmp.join("w.txt").to_string_lossy()), s("x")],
+            ),
+            (
+                "fs",
+                "write_file",
+                vec![s(&tmp.join("w2.txt").to_string_lossy()), s("x")],
+            ),
+            ("fs", "exists", vec![s(&file_s)]),
+            ("fs", "is_file", vec![s(&file_s)]),
+            ("fs", "is_dir", vec![s(&dir_s)]),
+            ("fs", "canonicalize", vec![s(&dir_s)]),
+            ("fs", "list_dir", vec![s(&dir_s)]),
+            ("fs", "glob", vec![s(&glob_s)]),
+            ("fs", "list_dir_detailed", vec![s(&dir_s)]),
+            ("fs", "stat", vec![s(&file_s)]),
+            ("fs", "walk", vec![s(&dir_s)]),
+            ("fs", "list_recursive", vec![s(&dir_s)]),
+            (
+                "fs",
+                "copy",
+                vec![s(&file_s), s(&tmp.join("c.txt").to_string_lossy())],
+            ),
+            ("fs", "mkdir", vec![s(&tmp.join("sub").to_string_lossy())]),
+            ("fs", "cwd", vec![]),
+            ("process", "which", vec![s("rustc")]),
+            ("process", "run", vec![s("rustc"), args_list()]),
+            (
+                "process",
+                "run_ex",
+                vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])],
+            ),
+            ("process", "run_capture", vec![s("rustc"), args_list()]),
+            (
+                "process",
+                "run_capture_ex",
+                vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])],
+            ),
+            ("process", "run_capture_json", vec![s("rustc"), args_list()]),
+            (
+                "process",
+                "run_capture_lines",
+                vec![s("rustc"), args_list()],
+            ),
+        ];
+
+        let mut mismatches = Vec::new();
+        for (ns, method, args) in probes {
+            let ret = match std_namespace_method_ty(ns, method) {
+                Some(Ty::Fn(_, ret)) => *ret,
+                other => {
+                    mismatches.push(format!("std.{ns}.{method}: no Fn typeck sig ({other:?})"));
+                    continue;
+                }
+            };
+            match call_builtin_method(&receiver(ns), method, args, None) {
+                Some(val) => {
+                    if !shape_matches(&ret, &val) {
+                        mismatches.push(format!(
+                            "std.{ns}.{method}: typeck {ret:?} but interp returned {val:?}"
+                        ));
+                    }
+                }
+                None => mismatches.push(format!("std.{ns}.{method}: interp returned None")),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+        assert!(
+            mismatches.is_empty(),
+            "interp FS/process return-shape mismatches vs typecheck:\n{}",
+            mismatches.join("\n")
+        );
     }
 }

@@ -1,3 +1,4 @@
+// vox:caps process
 // scripts/pre-claim.vox
 //
 // Pre-flight guard for *claims of closure* against the v1.0 audit scorecard.
@@ -22,54 +23,57 @@
 // Source of truth: docs/superpowers/specs/2026-05-21-v1-honest-completion-plan.md §10.
 
 fn main() {
-    println("Running pre-claim: refreshing CR-L gate snapshot...");
+    print("Running pre-claim: refreshing CR-L gate snapshot...");
 
-    let refresh = std::process::Command::new("cargo")
-        .args(["run", "-q", "-p", "vox-cli", "--", "audit", "--gate", "all"])
-        .status();
-
+    let refresh = std.process.run_ex(
+        "cargo",
+        ["run", "-q", "-p", "vox-cli", "--", "audit", "--gate", "all"],
+        ".",
+        [],
+    );
     match refresh {
-        Ok(_status) => {
-            println("pre-claim: snapshot refreshed at contracts/reports/_snapshot/<UTC>.json");
+        Ok(_code) => {
+            print("pre-claim: snapshot refreshed at contracts/reports/_snapshot/<UTC>.json");
         }
-        Err(e) => {
-            eprintln("pre-claim: could not refresh snapshot: {}", e);
-            std::process::exit(2);
+        Error(e) => {
+            print("pre-claim: could not refresh snapshot: " + e);
+            std.process.exit(2);
         }
     }
 
-    println("Running pre-claim: enforcing --strict-block-ga...");
-    let strict = std::process::Command::new("cargo")
-        .args([
+    print("Running pre-claim: enforcing --strict-block-ga...");
+    let strict = std.process.run_ex(
+        "cargo",
+        [
             "run", "-q", "-p", "vox-cli", "--",
             "audit", "--gate", "all",
             "--strict-block-ga", "--no-canonical-report",
-        ])
-        .status();
-
+        ],
+        ".",
+        [],
+    );
     match strict {
-        Ok(status) => {
-            if status.success() {
-                println("pre-claim: all block-GA gates met ✓");
-                std::process::exit(0);
+        Ok(code) => {
+            if code == 0 {
+                print("pre-claim: all block-GA gates met");
+                std.process.exit(0);
             } else {
-                eprintln("");
-                eprintln("pre-claim: REFUSED");
-                eprintln("");
-                eprintln("One or more block-GA gates is not met. New 'CLOSED' /");
-                eprintln("'PASSING' claims in the audit scorecard are forbidden");
-                eprintln("until the corresponding gate is green.");
-                eprintln("");
-                eprintln("Inspect contracts/reports/_snapshot/<today>.json,");
-                eprintln("close the failing gate, then re-run this script.");
-                eprintln("");
-                let code = status.code().unwrap_or(3);
-                std::process::exit(code);
+                print("");
+                print("pre-claim: REFUSED");
+                print("");
+                print("One or more block-GA gates is not met. New 'CLOSED' /");
+                print("'PASSING' claims in the audit scorecard are forbidden");
+                print("until the corresponding gate is green.");
+                print("");
+                print("Inspect contracts/reports/_snapshot/<today>.json,");
+                print("close the failing gate, then re-run this script.");
+                print("");
+                std.process.exit(code);
             }
         }
-        Err(e) => {
-            eprintln("pre-claim: could not invoke strict gate: {}", e);
-            std::process::exit(2);
+        Error(e) => {
+            print("pre-claim: could not invoke strict gate: " + e);
+            std.process.exit(2);
         }
     }
 }
