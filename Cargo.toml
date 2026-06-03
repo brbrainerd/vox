@@ -256,7 +256,7 @@ nvml-wrapper       = { version = "0.11", default-features = false }
 dashmap            = { version = "6", default-features = false }
 rust_decimal       = { version = "1.36", features = ["serde", "db-diesel-postgres"], default-features = false }
 aes-gcm            = "0.10"
-unicode-segmentation = "1.12"
+unicode-segmentation = "1.13"
 argon2             = "0.5"
 
 # [VOX AUDIT 2026-04-13] Centralized sprawling versions found in sub-crates
@@ -264,7 +264,7 @@ axum               = { version = "0.8", default-features = false }
 axum-extra         = "0.12.5"
 hyper              = { version = "1", features = ["full"] }
 hyper-util         = { version = "0.1", features = ["client", "client-legacy", "tokio"] }
-tower-http         = "0.6.2"
+tower-http         = "0.6.11"
 subtle             = "2.6"
 futures            = "0.3"
 chacha20poly1305   = "0.10"
@@ -275,7 +275,7 @@ wasmtime           = "42.0.1"
 wasmtime-wasi      = "42.0.1"
 
 self_update        = "0.43.1"
-landlock           = "0.4.4"
+landlock           = "0.4.5"
 win32job           = "2"
 windows-sys        = "0.59"
 tavily             = "2.1.0"
@@ -290,7 +290,7 @@ tauri              = { version = "2", features = [] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = { version = "0.5.4", default-features = false }
-sherpa-onnx        = "1.12"
+sherpa-onnx        = "1.13"
 syn                = "2"
 prettyplease       = "0.2"
 proc-macro2        = "1"

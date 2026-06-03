@@ -125,7 +125,7 @@ tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { workspace = true, features = ["util"] }
 # WAT→WASM for the mesh bundle-execution test (synthesize a real WASI module).
-wat = "1.220"
+wat = "1.251"
 
 [[test]]
 name = "skill_runtime_inproc"
