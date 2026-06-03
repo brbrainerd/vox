@@ -99,6 +99,11 @@ async fn main() {
             commands::secrets::list_secret_status,
             commands::secrets::set_secret,
             commands::secrets::remove_secret,
+            commands::gamify::get_ludus_profile,
+            commands::gamify::list_ludus_notifications,
+            commands::gamify::ack_ludus_notification,
+            commands::gamify::get_gamify_settings,
+            commands::gamify::set_gamify_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

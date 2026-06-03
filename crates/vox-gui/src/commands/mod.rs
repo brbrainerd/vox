@@ -1,4 +1,5 @@
 pub mod action_manifest;
+pub mod gamify;
 pub mod app_state;
 pub mod build_info;
 pub mod catalog;

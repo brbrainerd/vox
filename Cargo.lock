@@ -13787,6 +13787,7 @@ dependencies = [
  "vox-config",
  "vox-db",
  "vox-foundation",
+ "vox-gamify",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-package-types",

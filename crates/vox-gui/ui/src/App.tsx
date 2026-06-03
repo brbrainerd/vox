@@ -494,9 +494,9 @@ export default function App() {
 
   const handleAckAlert = useCallback(async (note: LudusAlert) => {
     setData(prev => ({ ...prev, alerts: prev.alerts.filter(x => x.id !== note.id) }));
-    await executeWithRun('vox_gamify_notification_ack', { notification_id: note.id }, 'gui.alert.ack')
+    await invoke('ack_ludus_notification', { notificationId: note.id })
       .catch((err) => pushToast({ tone: 'warn', title: 'Alert ack failed', body: String(err) }));
-  }, [executeWithRun, pushToast]);
+  }, [pushToast]);
 
   const handleCommandAction = useCallback((cmd: any) => {
     if (cmd.id === 'submit') document.querySelector('textarea')?.focus();
