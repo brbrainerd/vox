@@ -102,7 +102,7 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     // Contract IR; `wraps_db_transaction` stays module-level (it is not a
     // Contract IR property).
     let ir = crate::contract_ir::project(module);
-    debug_assert_eq!(
+    assert_eq!(
         ir.endpoints.len(),
         module.endpoint_fns.len(),
         "contract_ir::project must project endpoint_fns 1:1 in source order"

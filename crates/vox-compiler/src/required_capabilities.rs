@@ -182,6 +182,7 @@ fn collect_usage_from_expr(expr: &HirExpr, flags: &mut UsageFlags) {
             }
         }
         HirExpr::Spawn(inner, _) => collect_usage_from_expr(inner, flags),
+        HirExpr::Try(t) => collect_usage_from_expr(t.target.as_ref(), flags),
         HirExpr::JsxFragment(children, _) => {
             for c in children {
                 collect_usage_from_expr(c, flags);
@@ -214,7 +215,6 @@ fn collect_usage_from_expr(expr: &HirExpr, flags: &mut UsageFlags) {
         | HirExpr::Ident(..)
         | HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
-        | HirExpr::Try(_)
         | HirExpr::WorkflowVersion(_) => {}
     }
 }
@@ -369,6 +369,31 @@ mod tests {
         // `transcribe_microphone` derives BOTH speech (STT plugin) and microphone (OS mic permission).
         assert!(caps.iter().any(|c| c == "microphone"), "{caps:?}");
         assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
+    }
+
+    #[test]
+    fn try_postfix_microphone_call_derives_speech_and_microphone() {
+        let res = crate::pipeline::run_frontend_str(
+            "fn f() -> Result[str] { Speech.transcribe_microphone()? }",
+            "t.vox",
+        )
+        .expect("frontend ok");
+        let caps = project_required_capabilities(&res.hir).capability_ids;
+        // A try-postfix (`?`) call must still derive its capabilities.
+        assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
+        assert!(caps.iter().any(|c| c == "microphone"), "{caps:?}");
+    }
+
+    #[test]
+    fn try_postfix_fs_read_call_derives_fs_read() {
+        let res = crate::pipeline::run_frontend_str(
+            "fn f(p: str) -> Result[str] { fs.read(p)? }",
+            "t.vox",
+        )
+        .expect("frontend ok");
+        let caps = project_required_capabilities(&res.hir).capability_ids;
+        // A try-postfix (`?`) fs read must derive the fs.read capability.
+        assert!(caps.iter().any(|c| c == "fs.read"), "{caps:?}");
     }
 
     #[test]

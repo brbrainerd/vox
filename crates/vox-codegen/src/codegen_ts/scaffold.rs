@@ -148,9 +148,15 @@ mod tests {
             .iter()
             .find(|(rel, _)| rel == "package.json")
             .expect("package.json scaffold file present");
-        assert!(
-            !pkg.contains("react-router"),
-            "scaffold package.json must not depend on react-router; emitted router is dependency-free"
-        );
+        let json: serde_json::Value =
+            serde_json::from_str(pkg).expect("scaffold package.json must be valid JSON");
+        for section in ["dependencies", "devDependencies"] {
+            if let Some(deps) = json.get(section).and_then(|v| v.as_object()) {
+                assert!(
+                    !deps.contains_key("react-router"),
+                    "scaffold package.json `{section}` must not depend on react-router; emitted router is dependency-free"
+                );
+            }
+        }
     }
 }

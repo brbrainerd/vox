@@ -398,11 +398,20 @@ use {}::*;
         let setup_param = if has_tables { "app" } else { "_app" };
         out.push_str(&format!("        .setup(|{setup_param}| {{\n"));
         if has_tables {
-            out.push_str(r#"            let db_url = std::env::var("VOX_DB_URL").unwrap_or_else(|_| "sqlite://local.db".to_string());
-            let db_token = std::env::var("VOX_DB_TOKEN").unwrap_or_default();
-            let db = vox_db::Codex::open_with_embedded_migrations(&db_url, &db_token);
+            out.push_str(
+                r#"            // Resolve DB config via the secret-policy SSOT (VOX_DB_*, legacy
+            // TURSO_*, or local file) — never read VOX_DB_* directly. Mirrors
+            // `emit_db_setup` (tables/codegen.rs) + `emit_durable_boot_prelude`.
+            // `Codex::connect` is async; the Tauri `.setup` closure is sync, so
+            // run it to completion on Tauri's runtime.
+            let db = tauri::async_runtime::block_on(async {
+                let cfg = vox_db::DbConfig::resolve_canonical()
+                    .expect("resolve Codex DB config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)");
+                vox_db::Codex::connect(cfg).await.expect("Failed to open Codex database")
+            });
             app.manage(std::sync::Arc::new(db));
-"#);
+"#,
+            );
         }
         if has_scheduled {
             // Tauri's `fn main()` is synchronous but the durable-boot prelude

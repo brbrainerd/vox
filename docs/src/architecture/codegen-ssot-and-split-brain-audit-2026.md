@@ -2,7 +2,7 @@
 title: "Codegen SSOT & split-brain audit (2026)"
 description: "Beginner-friendly advisory auditing every IR and emit stack on the path from .vox source to web, Tauri desktop, and React Native output; states the minimum emission set, separates necessary platform divergence from accidental duplication, and ranks the cleanup work."
 category: "Architecture SSOTs"
-status: "current"
+status: "research"
 last_updated: "2026-06-02"
 training_eligible: true
 training_rationale: "Canonical audit of the multi-target codegen pipeline; teaches the HIR-core + typed-projection model and the concrete minimum-emission set for web/Tauri/RN."

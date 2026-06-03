@@ -137,9 +137,14 @@ if needs_setup {
     out.push_str("        .setup(|app| {\n");
     if has_tables {
         // EXISTING Codex managed-state block stays here (mod.rs:367-374).
-        out.push_str(r#"            let db_url = std::env::var("VOX_DB_URL").unwrap_or_else(|_| "sqlite://local.db".to_string());
-            let db_token = std::env::var("VOX_DB_TOKEN").unwrap_or_default();
-            let db = vox_db::Codex::open_with_embedded_migrations(&db_url, &db_token);
+        out.push_str(r#"            // Secret-policy-compliant resolution (mirrors emit_db_setup):
+            // resolve_canonical() reads VOX_DB_* / legacy TURSO_* / local file.
+            // Codex::connect is async; .setup is sync, so block_on it.
+            let db = tauri::async_runtime::block_on(async {
+                let cfg = vox_db::DbConfig::resolve_canonical()
+                    .expect("resolve Codex DB config (VOX_DB_URL+TOKEN, or VOX_DB_PATH)");
+                vox_db::Codex::connect(cfg).await.expect("Failed to open Codex database")
+            });
             app.manage(std::sync::Arc::new(db));
 "#);
     }
