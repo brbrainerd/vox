@@ -952,17 +952,23 @@ pub(crate) fn emit_block_stmts(expr: &HirExpr, ctx: &EmitCtx<'_>, indent: usize)
     }
 }
 
-/// When this context will emit `expr` as a call to a `vox-client` endpoint fn
-/// WITHOUT `await` (a fire-and-forget Promise), return the fn name. Such a
-/// promise left bare as a statement becomes an *unhandled rejection* if the
-/// call fails — e.g. an RN button handler whose `record_event(...)` POSTs to a
-/// server that isn't on the device. We wrap those in `.catch(...)` so a failed
-/// background call logs instead of crashing the app / spamming the dev log.
+/// When `expr` is a call to a `vox-client` endpoint fn whose result is
+/// *discarded* (`let _ = …`) or used as a bare statement, return the fn name.
+/// Such a call is fire-and-forget: a bare/discarded Promise becomes an
+/// *unhandled rejection* if it fails — e.g. an RN button handler whose
+/// `record_event(...)` POSTs to a server that isn't on the device. We wrap
+/// those in `.catch(...)` so a failed background call logs instead of crashing
+/// the app / spamming the dev log.
+///
+/// This applies even when the endpoint is async: in an `async` event handler
+/// (per the handler-await lowering) an awaited-then-discarded call still leaks
+/// its rejection past the handler. Since the result is unused, fire-and-forget
+/// + `.catch` is both correct and safe. (Calls whose result is *used* are
+/// awaited normally — they never reach this helper.)
 fn floating_endpoint_call_name<'a>(expr: &'a HirExpr, ctx: &EmitCtx<'_>) -> Option<&'a str> {
     if let HirExpr::Call(callee, _, _, _) = expr {
         if let HirExpr::Ident(name, _) = callee.as_ref() {
-            if ctx.endpoint_params.contains_key(name) && !ctx.async_fn_names.contains(name.as_str())
-            {
+            if ctx.endpoint_params.contains_key(name) {
                 return Some(name.as_str());
             }
         }
