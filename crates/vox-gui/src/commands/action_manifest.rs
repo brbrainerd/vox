@@ -325,5 +325,7 @@ mod tests {
                 a.id
             );
         }
+        let cli_count = manifest.actions.iter().filter(|a| a.handler_kind == ActionHandlerKind::Cli).count();
+        assert!(cli_count > 0, "expected at least one CLI action in the manifest");
     }
 }
