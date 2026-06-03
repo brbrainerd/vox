@@ -97,6 +97,77 @@ fn returned_none_is_equal_to_none_literal() {
     );
 }
 
+/// Gap Finding 1: `for` over a map (yields (k,v) tuples) and over a string
+/// (yields chars) must run, not crash with TypeError{expected:"List"}.
+#[test]
+fn for_over_map_and_string_iterate() {
+    let source = "
+    fn count_map() to int {
+        let m = { a: 1, b: 2, c: 3 }
+        let mut n = 0
+        for entry in m { n = n + 1 }
+        return n
+    }
+    fn count_str() to int {
+        let mut n = 0
+        for ch in \"abcd\" { n = n + 1 }
+        return n
+    }
+    fn main() to int {
+        return count_map() + count_str()
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Int(7),
+        "for over map (3) + for over string (4) = 7"
+    );
+}
+
+/// Gap Finding 2: mixed Int/Float arithmetic must promote to Float (the
+/// typechecker already does), not crash.
+#[test]
+fn mixed_int_float_arithmetic() {
+    let source = "
+    fn main() to float {
+        let x = 1
+        let y = 2.0
+        return x + y
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(res, vox_compiler::eval::value::VoxValue::Float(3.0));
+}
+
+/// Gap Finding 3: cross-numeric `is` is value equality (consistent with
+/// arithmetic promotion) — `1 is 1.0` is true, not silently false.
+#[test]
+fn cross_numeric_is_equality() {
+    let source = "
+    fn main() to bool {
+        return 1 is 1.0
+    }
+    ";
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+    let mut interp = vox_compiler::eval::Interpreter::new(100_000);
+    interp.run_module(&lowered).expect("run_module");
+    let res = interp.call("main", vec![]).expect("call main");
+    assert_eq!(res, vox_compiler::eval::value::VoxValue::Bool(true));
+}
+
 /// B2 — compiled-regex object idiom in the interpreter. `std.regex.compile`
 /// must return a real Regex value whose `.find()` yields a Match with `.group(i)`
 /// (the form `regex_stdlib.vox` teaches). Previously `compile` returned a bare

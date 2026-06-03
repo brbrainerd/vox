@@ -62,6 +62,9 @@ impl PartialEq for VoxValue {
         match (self, other) {
             (Self::Int(a), Self::Int(b)) => a == b,
             (Self::Float(a), Self::Float(b)) => a == b,
+            // Cross-numeric value equality, consistent with mixed Int/Float
+            // arithmetic promotion — `1 is 1.0` is true.
+            (Self::Int(a), Self::Float(b)) | (Self::Float(b), Self::Int(a)) => (*a as f64) == *b,
             // rust_decimal's Eq compares numeric value regardless of trailing
             // zeros, so `8.2500dec == 8.25dec` is true.
             (Self::Decimal(a), Self::Decimal(b)) => a == b,
