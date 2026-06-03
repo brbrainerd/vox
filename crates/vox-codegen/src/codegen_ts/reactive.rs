@@ -1211,6 +1211,76 @@ mod tests {
     }
 
     #[test]
+    fn imported_react_component_used_in_view_emits_es_import_not_sibling_import() {
+        // Phase 5 S2: an `import react …` component referenced in a `view:` must
+        // (a) emit the ES import, (b) render as a component tag, and (c) NOT emit a
+        // bogus sibling `./Name` import (the ES import already binds it).
+        let files = compile(
+            "import react MyButton from \"@acme/btn\"\n\
+             component Page() { view: column() { MyButton() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import MyButton from \"@acme/btn\";"),
+            "expected ES import for MyButton, got:\n{page}"
+        );
+        assert!(
+            page.contains("<MyButton"),
+            "expected MyButton rendered as a component tag, got:\n{page}"
+        );
+        assert!(
+            !page.contains("from \"./MyButton\""),
+            "must NOT emit a sibling ./MyButton import, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn imported_react_namespace_emits_namespace_import() {
+        // Phase 5 S2: a namespace react import emits `import * as X from "<spec>"`.
+        //
+        // LIMITATION (documented, not a stub): using a namespace *member* as a JSX
+        // element (`<Dialog.Root>`) is not yet supported — `Dialog.Root()` in a
+        // `view:` lowers to a call expression (`{Dialog.Root()}`), not a
+        // `<Dialog.Root/>` tag, because dotted member-call → JSX-element lowering
+        // is not implemented. The supported path for Radix-style component sets is
+        // the NAMED form, which renders as tags:
+        //   `import react { Dialog, DialogContent } from "@radix-ui/react-dialog"`.
+        let files = compile(
+            "import react * as Dialog from \"@radix-ui/react-dialog\"\n\
+             component Page() { view: column() { text() { \"x\" } } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import * as Dialog from \"@radix-ui/react-dialog\";"),
+            "expected namespace import line, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn imported_react_named_components_render_as_tags() {
+        // Phase 5 S2: the NAMED form (the supported Radix-style path) emits a
+        // grouped named import and renders each name as a component tag.
+        let files = compile(
+            "import react { Dialog, DialogContent } from \"@radix-ui/react-dialog\"\n\
+             component Page() { view: column() { Dialog() DialogContent() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import { Dialog, DialogContent } from \"@radix-ui/react-dialog\";"),
+            "expected grouped named import, got:\n{page}"
+        );
+        assert!(page.contains("<Dialog"), "expected <Dialog> tag, got:\n{page}");
+        assert!(
+            page.contains("<DialogContent"),
+            "expected <DialogContent> tag, got:\n{page}"
+        );
+        assert!(
+            !page.contains("from \"./Dialog\""),
+            "must not emit sibling import for an external named component, got:\n{page}"
+        );
+    }
+
+    #[test]
     fn test_no_import_for_html_primitives() {
         let files = compile("component Card() { view: panel() { text() { \"x\" } } }");
         let card = get(&files, "Card.tsx");
