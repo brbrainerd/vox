@@ -6,7 +6,11 @@
 //
 // Env:
 //   VOX_REPO_ROOT — repo root (default "." relative to process CWD when you run vox; set explicitly when needed).
-//   VOX_CLEAN_EXECUTE=1 — run cargo clean at repo root and remove discovered target/ dirs.
+//   VOX_CLEAN_EXECUTE=1 — run cargo clean at repo root and remove discovered nested target/ dirs.
+//   VOX_CLEAN_WORKTREES=1 — ALSO delete worktree target/ dirs (requires VOX_CLEAN_EXECUTE=1 too).
+//     DANGER: this can wipe the build artifacts of OTHER currently-active agent worktrees.
+//     Auto-skipping active worktrees is not yet possible from pure Vox (needs `git worktree
+//     list` stdout + mtime). Until then this is a manual, explicit opt-in.
 //   VOX_WORKTREE_BASE — worktree parent directory (default .claude/worktrees).
 //   VOX_CLEAN_NESTED_CRATE_TARGETS=1 — also scan crates/*/target/ (dry-run lists; deletes only with VOX_CLEAN_EXECUTE=1).
 //
@@ -68,6 +72,12 @@ fn main() {
     let repo = resolve_repo();
     let execute = env_flag("VOX_CLEAN_EXECUTE");
     let nested = env_flag("VOX_CLEAN_NESTED_CRATE_TARGETS");
+    // Worktree target/ deletion is gated behind its OWN opt-in: it can destroy the
+    // build artifacts of currently-ACTIVE agent worktrees. We cannot yet auto-skip
+    // active worktrees from pure Vox (that needs `git worktree list` stdout capture
+    // + mtime, which the current std.process/std.fs surface does not expose — see
+    // docs/src/architecture/build-and-crate-org-improvement-plan-2026-06.md WS1-T4).
+    let wt_optin = env_flag("VOX_CLEAN_WORKTREES");
 
     let wt_opt = std.env.get("VOX_WORKTREE_BASE");
     let mut wt_base = ".claude/worktrees";
@@ -109,19 +119,30 @@ fn main() {
         let pattern = worktree_target_pattern(wt_base);
         let hits = collect_glob(pattern);
         let mut n = 0;
+        if execute {
+            if not wt_optin {
+                print("  [warn] VOX_CLEAN_EXECUTE is set but VOX_CLEAN_WORKTREES is NOT.");
+                print("  [warn] Worktree target/ deletion is SKIPPED — it may hit ACTIVE agent worktrees.");
+                print("  [warn] Re-run with VOX_CLEAN_WORKTREES=1 only if you are sure no agent is building here.");
+            }
+        }
         for p in hits {
             if is_target_dir(p) {
                 n = n + 1;
                 let pn = norm(p);
                 if execute {
-                    let rm = std.fs.remove_dir_all(p);
-                    match rm {
-                        Ok(_) => print("  removed: " + pn)
-                        Error(e) => {
-                            print("  [err] remove_dir_all");
-                            print(pn);
-                            print(e);
+                    if wt_optin {
+                        let rm = std.fs.remove_dir_all(p);
+                        match rm {
+                            Ok(_) => print("  removed: " + pn)
+                            Error(e) => {
+                                print("  [err] remove_dir_all");
+                                print(pn);
+                                print(e);
+                            }
                         }
+                    } else {
+                        print("  would remove (gated; set VOX_CLEAN_WORKTREES=1): " + pn);
                     }
                 } else {
                     print("  would remove: " + pn);
