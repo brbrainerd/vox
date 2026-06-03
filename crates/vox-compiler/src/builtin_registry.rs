@@ -472,6 +472,15 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
 /// `std.<namespace>.<method>` signatures used by type checking.
 #[must_use]
 pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
+    // Reliability gate (SSOT): for a namespace OWNED by the canonical
+    // NAMESPACE_BUILTINS table, a method not listed there is rejected here.
+    // Combined with the parity tests (which assert every listed method has
+    // interp + codegen impls), this makes the table == the set of typecheckable
+    // std.<ns>.<method> — so a method cannot be added to typecheck without the
+    // interp↔codegen parity check covering it. Unowned namespaces are unaffected.
+    if namespace_builtin_owned(namespace) && !namespace_builtin_listed(namespace, method) {
+        return None;
+    }
     Some(match (namespace, method) {
         ("fs", "read")
         | ("fs", "read_file")
@@ -1112,6 +1121,9 @@ pub const NAMESPACE_BUILTINS: &[(&str, &str, usize, u8)] = &[
     ("regex", "find", 2, surface::IR),
     ("regex", "is_match", 2, surface::IR),
     ("regex", "captures", 2, surface::IR),
+    // Present on all surfaces, but its return SHAPE differs (typeck Result[Regex]
+    // vs interp/codegen str) — a wrong-shape issue the presence checker can't catch.
+    ("regex", "compile", 1, surface::IR),
     // process
     ("process", "which", 1, surface::IR),
     ("process", "run", 2, surface::IR),
@@ -1156,6 +1168,21 @@ pub const NAMESPACE_BUILTINS: &[(&str, &str, usize, u8)] = &[
     ("http", "get_text", 1, surface::RUST),
     ("http", "post_json", 2, surface::RUST),
 ];
+
+/// True if `namespace` is owned by the canonical [`NAMESPACE_BUILTINS`] table
+/// (i.e. its full method set is declared there). Used by the typecheck gate.
+#[must_use]
+pub fn namespace_builtin_owned(namespace: &str) -> bool {
+    NAMESPACE_BUILTINS.iter().any(|(ns, _, _, _)| *ns == namespace)
+}
+
+/// True if `(namespace, method)` is listed in [`NAMESPACE_BUILTINS`].
+#[must_use]
+pub fn namespace_builtin_listed(namespace: &str, method: &str) -> bool {
+    NAMESPACE_BUILTINS
+        .iter()
+        .any(|(ns, m, _, _)| *ns == namespace && *m == method)
+}
 
 #[cfg(test)]
 mod namespace_builtin_parity_tests {
@@ -1243,5 +1270,19 @@ mod namespace_builtin_parity_tests {
             missing.is_empty(),
             "typecheck missing signature for: {missing:#?}"
         );
+    }
+
+    /// The typecheck gate makes the table the SSOT: an unlisted method in an
+    /// owned namespace is rejected, so typecheck cannot drift ahead of the table.
+    #[test]
+    fn typecheck_gate_enforces_table_as_ssot() {
+        // Owned namespace + listed method → resolves.
+        assert!(std_namespace_method_ty("fs", "read").is_some());
+        // Owned namespace + UNlisted method → rejected by the gate.
+        assert!(std_namespace_method_ty("fs", "totally_not_a_real_fs_method").is_none());
+        assert!(std_namespace_method_ty("process", "no_such_method").is_none());
+        // The owned-namespace set is exactly the table's namespaces.
+        assert!(namespace_builtin_owned("fs"));
+        assert!(!namespace_builtin_owned("mobile")); // mobile dispatches elsewhere — not gated.
     }
 }
