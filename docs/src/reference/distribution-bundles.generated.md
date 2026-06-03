@@ -102,7 +102,7 @@ Extends: `vox-base`
 - `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-memory` — Agent-facing skill for memory and context management.
-- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, Discord, Slack).
+- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated).
 
 ### `vox-edge`
 
@@ -147,7 +147,7 @@ Extends: `vox-fullstack`
 - `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
 - `oratio` — Audio capture + speech-to-text (Candle Whisper).
 - `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.
-- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, Discord, Slack).
+- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated).
 
 ### `vox-mobile`
 

@@ -1,6 +1,6 @@
 [package]
 name = "vox-forge"
-description = "Platform-agnostic Git forge API for Vox — GitHub, GitLab, Gitea, Forgejo"
+description = "Platform-agnostic Git forge API for Vox — GitHub, Gitea, Forgejo (GitLab deprecated)"
 version.workspace = true
 edition.workspace = true
 
@@ -8,7 +8,9 @@ edition.workspace = true
 default = []
 # Enable GitHub forge implementation.
 github = []
-# Enable GitLab forge implementation.
+# DEPRECATED (2026-06-03): GitLab is no longer a supported forge target.
+# The implementation is retained for now but emits a runtime deprecation
+# warning and will be removed in a future release. Do not enable for new work.
 gitlab = []
 # Enable Gitea/Forgejo implementation (API-compatible).
 gitea = []

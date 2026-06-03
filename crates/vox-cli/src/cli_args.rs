@@ -506,7 +506,7 @@ pub enum UpgradeReleaseProvider {
     /// GitHub Releases (default for upstream).
     #[default]
     Github,
-    /// GitLab Releases API.
+    /// GitLab Releases API. **DEPRECATED (2026-06-03): no longer supported; will be removed.** Use `github` or `http`.
     Gitlab,
     /// Static HTTP mirror using the binary release URL layout (`…/releases/download/<tag>/…`).
     Http,
@@ -545,13 +545,13 @@ pub struct UpgradeToolchainArgs {
     /// Where to fetch releases (`VOX_UPGRADE_PROVIDER`).
     #[arg(long, value_enum)]
     pub provider: Option<UpgradeReleaseProvider>,
-    /// Repository `owner/name` (GitHub) or `namespace/project` (GitLab). Default: `vox-foundation/vox`.
+    /// Repository `owner/name` (GitHub). Default: `vox-foundation/vox`.
     #[arg(long, value_name = "OWNER/REPO")]
     pub repo: Option<String>,
     /// For `--provider http`: base URL such as `https://github.com/org/repo/releases`.
     #[arg(long, value_name = "URL")]
     pub base_url: Option<String>,
-    /// For `--provider gitlab`: API host (default `https://gitlab.com`). `VOX_UPGRADE_GITLAB_HOST`.
+    /// **DEPRECATED** (GitLab support retired 2026-06-03): API host for the unsupported `--provider gitlab`. `VOX_UPGRADE_GITLAB_HOST`.
     #[arg(long, value_name = "URL")]
     pub gitlab_host: Option<String>,
     /// Custom GitHub API root (Enterprise/CN mirror). `VOX_UPGRADE_GITHUB_API_URL`.

@@ -27,7 +27,7 @@ pub(crate) fn forge_token() -> Result<String> {
     vox_secrets::resolve_secret(vox_secrets::SecretId::ForgeToken)
         .expose()
         .map(std::string::ToString::to_string)
-        .context("Forge token required: set FORGE_TOKEN, GITHUB_TOKEN, or GITLAB_TOKEN.")
+        .context("Forge token required: set FORGE_TOKEN or GITHUB_TOKEN.")
 }
 
 pub(crate) fn owner_repo_from_path(path: &Path) -> Result<(String, String)> {

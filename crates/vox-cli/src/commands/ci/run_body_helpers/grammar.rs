@@ -49,11 +49,6 @@ pub(crate) fn run_grammar_drift(root: &Path, emit: Option<GrammarDriftEmit>) -> 
     let drift_line = if drift { "drift=true" } else { "drift=false" };
     match emit {
         Some(GrammarDriftEmit::Github) => println!("{drift_line}"),
-        Some(GrammarDriftEmit::Gitlab) => {
-            let p = root.join("drift.env");
-            fs::write(&p, format!("{drift_line}\n"))?;
-            eprintln!("Wrote {}", p.display());
-        }
         None => {}
     }
     Ok(())

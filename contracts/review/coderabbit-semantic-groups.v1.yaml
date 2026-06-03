@@ -24,7 +24,6 @@ prefix_rules:
     any_prefix:
       - ".cargo/"
       - ".config/"
-      - ".gitlab-ci.yml"
       - ".gitignore"
       - ".aiignore"
       - ".cursorignore"

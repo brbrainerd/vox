@@ -3,7 +3,7 @@ name = "vox-plugin-webhook"
 version = "0.1.0"
 edition.workspace = true
 publish = false
-description = "Webhook plugin: HTTP listener with HMAC signature verification (GitHub, GitLab, generic)"
+description = "Webhook plugin: HTTP listener with HMAC signature verification (GitHub, generic; GitLab deprecated)"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

@@ -176,6 +176,8 @@ async fn receive_webhook(
     let event_type = headers
         .get("x-vox-event")
         .or_else(|| headers.get("x-github-event"))
+        // DEPRECATED (2026-06-03): GitLab is no longer supported; the
+        // `x-gitlab-event` header is still read for backward compatibility only.
         .or_else(|| headers.get("x-gitlab-event"))
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown")

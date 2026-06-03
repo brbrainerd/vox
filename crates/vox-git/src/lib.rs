@@ -12,7 +12,7 @@
 //!     │
 //!     ├── gix::Repository ── local .git/
 //!     │
-//!     └── GitForgeProvider ──► GitHub / GitLab (via `vox-forge`)
+//!     └── GitForgeProvider ──► GitHub (via `vox-forge`; GitLab deprecated)
 //! ```
 //!
 //! ## Design principles

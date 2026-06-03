@@ -92,14 +92,14 @@ Do not point Codex and the vault at the same file unless you have an explicit op
 
 | Variable | Role |
 |----------|------|
-| `VOX_UPGRADE_PROVIDER` | `github` (default), `gitlab`, or `http` — override release backend when not passing **`--provider`**. |
-| `VOX_UPGRADE_REPO` | `owner/repo` (GitHub) or `namespace/project` (GitLab). Default upstream: **`vox-foundation/vox`**. |
+| `VOX_UPGRADE_PROVIDER` | `github` (default) or `http` — override release backend when not passing **`--provider`**. (`gitlab` is **deprecated/unsupported** as of 2026-06-03.) |
+| `VOX_UPGRADE_REPO` | `owner/repo` (GitHub). Default upstream: **`vox-foundation/vox`**. |
 | `VOX_UPGRADE_BASE_URL` | For **`http`**: base URL such as `https://github.com/org/repo/releases` (requires **`--version`** or **`VOX_UPGRADE_VERSION`**). |
 | `VOX_UPGRADE_VERSION` | Pinned tag for **`http`** mirror when omitted on the CLI. |
-| `VOX_UPGRADE_GITLAB_HOST` | GitLab API root (default `https://gitlab.com`). |
+| `VOX_UPGRADE_GITLAB_HOST` | **DEPRECATED (2026-06-03, unsupported):** GitLab API root (default `https://gitlab.com`) for the retired GitLab release backend. |
 | `VOX_UPGRADE_GITHUB_API_URL` | GitHub API base (Enterprise), e.g. `https://github.example.com/api/v3`. |
 | `GITHUB_TOKEN` / `GH_TOKEN` / `VOX_GITHUB_TOKEN` | Optional; raises GitHub API rate limits and enables **private** release assets. |
-| `GITLAB_TOKEN` / `VOX_GITLAB_TOKEN` | Optional GitLab **private-token** style access for private releases / asset URLs. |
+| `GITLAB_TOKEN` / `VOX_GITLAB_TOKEN` | **DEPRECATED (2026-06-03, unsupported):** GitLab **private-token** style access for the retired GitLab release/forge backend. |
 | `CARGO` | Optional: path to the **`cargo`** executable for **`vox upgrade --source repo --apply`** (defaults to **`cargo`** on `PATH`). |
 
 ## Orchestrator (`vox-orchestrator`)
@@ -410,7 +410,7 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 
 ## Related
 
-- [Deployment compose SSOT](deployment-compose.md) — Compose profiles and Coolify/GitLab notes.
+- [Deployment compose SSOT](deployment-compose.md) — Compose profiles and Coolify notes.
 - [CI runner contract](../ci/runner-contract.md) — self-hosted labels and CUDA workflow notes.
 - [ADR 005 / Socrates](../adr/) — policy and orchestration gates (index in repo).
 - [Secrets SSOT](secrets-ssot.md) — canonical managed secret env names and secret-resolution precedence.

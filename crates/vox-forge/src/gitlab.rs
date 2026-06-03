@@ -1,5 +1,10 @@
 //! GitLab forge implementation for `vox-forge`.
 //!
+//! > **DEPRECATED (2026-06-03): GitLab is no longer a supported forge target.**
+//! > This module is retained behind the deprecated `gitlab` feature flag and
+//! > emits a runtime warning when a `GitLabProvider` is constructed. It will
+//! > be removed in a future release; new integrations must use GitHub.
+//!
 //! Uses GitLab REST API v4. Works with gitlab.com and self-hosted GitLab CE/EE.
 //! Authentication: personal access token or project access token.
 
@@ -32,6 +37,10 @@ impl GitLabProvider {
 
     /// Create with a custom API base (for self-hosted GitLab).
     pub fn with_base(token: impl Into<String>, api_base: &str) -> Result<Self, ForgeError> {
+        tracing::warn!(
+            "GitLab forge support is DEPRECATED (2026-06-03) and no longer supported; \
+             it will be removed in a future release. Migrate to GitHub."
+        );
         let client = vox_http_client::client_builder()
             .user_agent("vox-forge/0.1 (https://github.com/vox-lang/vox)")
             .build()
