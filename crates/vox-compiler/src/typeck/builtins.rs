@@ -1108,13 +1108,14 @@ impl BuiltinTypes {
                 Box::new(Ty::Option(Box::new(process_output.clone()))),
             ),
         );
-        // `run_ex` — variant of `run` that also takes a cwd + env map. Same
-        // return shape. The 3-arg form matches the corpus call sites.
+        // `run_ex` — variant of `run` that also takes a cwd. Returns Result[int]
+        // (exit code), unified with std.process.run_ex (2026-06). Callers needing
+        // stdout/stderr use `run_capture` / `run_capture_ex` (return the record).
         process_methods.insert(
             "run_ex".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str)), Ty::Str],
-                Box::new(Ty::Result(Box::new(process_output.clone()))),
+                Box::new(Ty::Result(Box::new(Ty::Int))),
             ),
         );
         // `run_capture_lines` — stdout split on newlines.

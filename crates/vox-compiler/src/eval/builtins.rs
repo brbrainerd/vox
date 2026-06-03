@@ -89,6 +89,22 @@ fn voxvalue_as_table_str(v: &VoxValue) -> Option<Vec<Vec<String>>> {
 
 /// Dispatch a method call on a runtime value. Returns `None` if the method is
 /// not known — callers should surface a user-visible `MethodNotFound` error.
+/// Build a Tagged "Match" value from regex captures: field `i` is capture group
+/// `i` (group 0 = full match) as a Str, or Null if that group did not participate.
+/// `Match.group(i)` reads these back. Used by the interp Regex value type.
+fn build_match_value(caps: &regex::Captures) -> VoxValue {
+    let groups: Vec<VoxValue> = (0..caps.len())
+        .map(|i| match caps.get(i) {
+            Some(m) => VoxValue::Str(m.as_str().to_string()),
+            None => VoxValue::Null,
+        })
+        .collect();
+    VoxValue::Tagged {
+        name: "Match".to_string(),
+        fields: groups,
+    }
+}
+
 pub fn call_builtin_method(
     obj: &VoxValue,
     method: &str,
@@ -130,6 +146,84 @@ pub fn call_builtin_method(
             }));
         }
         _ => {} // fall through to per-type dispatch below
+    }
+
+    // Compiled-regex value type: `std.regex.compile` returns a Tagged "Regex"; this
+    // dispatches its matches/find/find_all and Match.group in the interpreter,
+    // matching the typeck Regex/Match value-type contract (presence parity alone
+    // could not catch this — a golden does `re.matches(s)`). Non-Regex/Match tagged
+    // values fall through (args untouched).
+    if let VoxValue::Tagged { name, fields } = obj {
+        match (name.as_str(), method) {
+            ("Regex", "matches") => {
+                let pattern = match fields.first() {
+                    Some(VoxValue::Str(p)) => p,
+                    _ => return Some(VoxValue::Bool(false)),
+                };
+                let haystack = match args.first() {
+                    Some(VoxValue::Str(s)) => s,
+                    _ => return Some(VoxValue::Bool(false)),
+                };
+                return Some(VoxValue::Bool(
+                    regex::Regex::new(pattern)
+                        .map(|re| re.is_match(haystack))
+                        .unwrap_or(false),
+                ));
+            }
+            ("Regex", "find") => {
+                let pattern = match fields.first() {
+                    Some(VoxValue::Str(p)) => p,
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                let haystack = match args.first() {
+                    Some(VoxValue::Str(s)) => s,
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                let re = match regex::Regex::new(pattern) {
+                    Ok(re) => re,
+                    Err(_) => return Some(VoxValue::Option(None)),
+                };
+                return Some(VoxValue::Option(
+                    re.captures(haystack)
+                        .map(|c| Box::new(build_match_value(&c))),
+                ));
+            }
+            ("Regex", "find_all") => {
+                let pattern = match fields.first() {
+                    Some(VoxValue::Str(p)) => p,
+                    _ => return Some(VoxValue::List(vec![])),
+                };
+                let haystack = match args.first() {
+                    Some(VoxValue::Str(s)) => s,
+                    _ => return Some(VoxValue::List(vec![])),
+                };
+                let re = match regex::Regex::new(pattern) {
+                    Ok(re) => re,
+                    Err(_) => return Some(VoxValue::List(vec![])),
+                };
+                return Some(VoxValue::List(
+                    re.captures_iter(haystack)
+                        .map(|c| build_match_value(&c))
+                        .collect(),
+                ));
+            }
+            ("Match", "group") => {
+                let idx = match args.first() {
+                    Some(VoxValue::Int(i)) => *i,
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                if idx < 0 {
+                    return Some(VoxValue::Option(None));
+                }
+                return Some(match fields.get(idx as usize) {
+                    Some(VoxValue::Str(s)) => {
+                        VoxValue::Option(Some(Box::new(VoxValue::Str(s.clone()))))
+                    }
+                    _ => VoxValue::Option(None),
+                });
+            }
+            _ => {}
+        }
     }
 
     match obj {
@@ -1351,33 +1445,18 @@ pub fn call_builtin_method(
                         };
                         let _env_list = it.next();
 
-                        // Match the typeck signature `Result[Record]` —
-                        // return the full {stdout, stderr, code} record so
-                        // callers can inspect all three without a second
-                        // shell-out. Prior impl returned bare Int (exit code
-                        // only), which created a typeck/eval mismatch that
-                        // surfaced as either "type error" at check OR
-                        // "Cannot access field 'code'" at run depending on
-                        // which side was authoritative.
-                        let output = std::process::Command::new(&cmd_name)
+                        // run_ex returns Result[int] (exit code) on BOTH the
+                        // std.process and bare-process surfaces (unified 2026-06).
+                        // Callers needing stdout/stderr use run_capture_ex, which
+                        // returns the full {exit, stdout, stderr} record.
+                        let res = match std::process::Command::new(&cmd_name)
                             .args(&cmd_args)
                             .current_dir(&cwd)
-                            .output();
-                        let res = match output {
-                            Ok(out) => Ok(Box::new(VoxValue::Object(vec![
-                                (
-                                    "stdout".to_string(),
-                                    VoxValue::Str(String::from_utf8_lossy(&out.stdout).to_string()),
-                                ),
-                                (
-                                    "stderr".to_string(),
-                                    VoxValue::Str(String::from_utf8_lossy(&out.stderr).to_string()),
-                                ),
-                                (
-                                    "code".to_string(),
-                                    VoxValue::Int(out.status.code().unwrap_or(0) as i64),
-                                ),
-                            ]))),
+                            .status()
+                        {
+                            Ok(status) => {
+                                Ok(Box::new(VoxValue::Int(status.code().unwrap_or(0) as i64)))
+                            }
                             Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
@@ -1964,9 +2043,15 @@ pub fn call_builtin_method(
                                 }
                             };
                             match regex::Regex::new(&pattern) {
-                                Ok(_) => {
-                                    Some(VoxValue::Result(Ok(Box::new(VoxValue::Str(pattern)))))
-                                }
+                                // Return a compiled-Regex VALUE (Tagged "Regex") so
+                                // re.matches/find/find_all dispatch in the interpreter,
+                                // matching the typeck Result[Regex] contract (a golden
+                                // does `re.matches(s)`). Previously returned a bare str,
+                                // which crashed under --interp on `.matches`.
+                                Ok(_) => Some(VoxValue::Result(Ok(Box::new(VoxValue::Tagged {
+                                    name: "Regex".to_string(),
+                                    fields: vec![VoxValue::Str(pattern)],
+                                })))),
                                 Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
                             }
                         }
@@ -2464,6 +2549,45 @@ mod time_namespace_interp_tests {
                 assert_eq!(n, "a/b/c", "join_many got {s}");
             }
             other => panic!("std.path.join_many did not dispatch: {other:?}"),
+        }
+    }
+
+    /// The compiled-Regex value type (Tagged "Regex") dispatches matches/find/
+    /// find_all + Match.group in the interpreter, matching the typeck contract.
+    /// Regression guard for the wrong-shape bug (compile used to return a bare str
+    /// → `re.matches(...)` crashed under --interp).
+    #[test]
+    fn regex_value_type_dispatches_in_interpreter() {
+        let re = VoxValue::Tagged {
+            name: "Regex".to_string(),
+            fields: vec![VoxValue::Str(r"(\d+)-(\d+)".to_string())],
+        };
+        assert_eq!(
+            call_builtin_method(&re, "matches", vec![VoxValue::Str("12-34".to_string())], None),
+            Some(VoxValue::Bool(true))
+        );
+        // find → Some(Match); Match.group(1) == "12".
+        let found =
+            call_builtin_method(&re, "find", vec![VoxValue::Str("x 12-34".to_string())], None);
+        let m = match found {
+            Some(VoxValue::Option(Some(boxed))) => *boxed,
+            other => panic!("regex.find did not return Some(Match): {other:?}"),
+        };
+        let g1 = call_builtin_method(&m, "group", vec![VoxValue::Int(1)], None);
+        assert_eq!(
+            g1,
+            Some(VoxValue::Option(Some(Box::new(VoxValue::Str("12".to_string())))))
+        );
+        // find_all → 2 matches.
+        let all = call_builtin_method(
+            &re,
+            "find_all",
+            vec![VoxValue::Str("1-2 3-4".to_string())],
+            None,
+        );
+        match all {
+            Some(VoxValue::List(items)) => assert_eq!(items.len(), 2, "find_all count"),
+            other => panic!("regex.find_all did not return a list: {other:?}"),
         }
     }
 }
