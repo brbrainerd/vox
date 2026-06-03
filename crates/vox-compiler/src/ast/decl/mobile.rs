@@ -1,9 +1,10 @@
-//! Mobile Capacitor primitive declarations: `@back_button`, `@deep_link`, `@push`.
+//! Mobile primitive declarations: `@back_button`, `@deep_link`, `@push`. These lower
+//! through the `@vox/runtime` adapter (Tauri 2 on desktop, React Native + Expo on mobile).
 
 use crate::ast::span::Span;
 
 /// `@back_button { on_press: handler [fallback: handler] }` —
-/// registers a Capacitor `App.addListener('backButton', …)` handler.
+/// wires the `@vox/runtime` `onBackButton` handler (Tauri 2 event API on desktop, React Native `BackHandler` on mobile).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BackButtonDecl {
     /// Endpoint function called on back-press; returns bool (handled?).
@@ -15,7 +16,7 @@ pub struct BackButtonDecl {
 }
 
 /// `@deep_link { scheme: "…" on_link: handler [universal_link: "…"] }` —
-/// registers a Capacitor `App.addListener('appUrlOpen', …)` handler.
+/// wires the `@vox/runtime` `onDeepLink` handler (Tauri 2 event API on desktop, `expo-linking` on mobile).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeepLinkDecl {
     /// URL scheme (e.g. `"voxmental"`).
@@ -29,7 +30,7 @@ pub struct DeepLinkDecl {
 }
 
 /// `@push { [on_register: handler] [on_notification: handler] [on_action: handler] }` —
-/// wires Capacitor `PushNotifications` registration + listeners.
+/// wires the `@vox/runtime` `installPushNotifications` registration + listeners (Tauri 2 on desktop, `expo-notifications` on mobile).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PushDecl {
     /// Endpoint called after push registration to store the token.

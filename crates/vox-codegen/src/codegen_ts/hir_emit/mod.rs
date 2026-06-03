@@ -1419,7 +1419,7 @@ export const mobile = {
 
   async store_file(name: string, base64: string): Promise<{ Ok?: boolean; Error?: string }> {
     try {
-      // Very simple local persistence fallback via generic web API. For real mobile files, Capacitor is preferred.
+      // Very simple local persistence fallback via generic web API. For real mobile files, use the Tauri FS plugin.
       localStorage.setItem(`vox-file-${name}`, base64);
       return { Ok: true };
     } catch (e: any) {

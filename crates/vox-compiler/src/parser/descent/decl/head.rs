@@ -2582,7 +2582,7 @@ impl Parser {
         effects
     }
 
-    // ── Mobile Capacitor primitives (Tasks D2-D4) ─────────────────────────
+    // ── Mobile primitives (Tasks D2-D4) ───────────────────────────────────
 
     /// Parse `@back_button { on_press: handler [fallback: handler] }`.
     pub(crate) fn parse_back_button_decl(&mut self) -> Result<Decl, ()> {

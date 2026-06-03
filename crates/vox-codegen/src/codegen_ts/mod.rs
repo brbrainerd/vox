@@ -22,7 +22,7 @@ pub mod hir_emit;
 pub mod jsx;
 /// `package.json` skeleton for Library / client-target SDK folders.
 pub mod library_package_emit;
-/// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
+/// Mobile primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` via `@vox/runtime` adapter (Tasks D2-D4).
 pub mod mobile_emit;
 /// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
 /// external frontend interop plan).

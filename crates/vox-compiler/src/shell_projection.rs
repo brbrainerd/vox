@@ -38,7 +38,7 @@ pub struct ShellPush {
     pub on_action: Option<String>,
 }
 
-/// Module-level shell projection for native / Capacitor-style wiring.
+/// Module-level shell projection for native mobile-primitive wiring (Tauri 2 / React Native via the `@vox/runtime` adapter).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShellProjectionModule {
     pub schema_version: u32,
