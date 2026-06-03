@@ -288,10 +288,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             let c = eval_expr(interp, cond)?;
             let b = match c {
                 VoxValue::Bool(b) => b,
-                _ => {
+                other => {
                     return Err(EvalError::TypeError {
                         expected: "bool",
-                        found: "other".into(),
+                        found: super::builtins::vox_value_type_name(&other).into(),
                     });
                 }
             };
@@ -408,9 +408,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                         fields: eval_args,
                     }),
                 },
-                _ => Err(EvalError::TypeError {
+                other => Err(EvalError::TypeError {
                     expected: "function",
-                    found: "other".into(),
+                    found: super::builtins::vox_value_type_name(&other).into(),
                 }),
             }
         }
@@ -571,7 +571,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         }
         HirExpr::FieldAccess(obj, field, _) => {
             let o = eval_expr(interp, obj)?;
-            if let VoxValue::Object(fields) = o {
+            if let VoxValue::Object(fields) = &o {
                 fields
                     .iter()
                     .find(|(k, _)| k == field)
@@ -582,7 +582,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             } else {
                 Err(EvalError::TypeError {
                     expected: "Object",
-                    found: "other".into(),
+                    found: super::builtins::vox_value_type_name(&o).into(),
                 })
             }
         }
