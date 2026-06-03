@@ -101,7 +101,6 @@ export default defineConfig({
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router": "^7.0.0",
     "lucide-react": "^0.400.0"
   },
   "devDependencies": {
@@ -133,4 +132,25 @@ pub fn write_scaffold_if_missing(project_root: &Path, project_name: &str) -> std
         std::fs::write(path, content)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The emitted `vox-app.tsx` ships a dependency-free router, and
+    /// `web_entry.rs` asserts no react-router import. The scaffold's
+    /// `package.json` must therefore NOT pull in `react-router`.
+    #[test]
+    fn package_json_has_no_react_router() {
+        let files = web_config_files("vox-app");
+        let (_, pkg) = files
+            .iter()
+            .find(|(rel, _)| rel == "package.json")
+            .expect("package.json scaffold file present");
+        assert!(
+            !pkg.contains("react-router"),
+            "scaffold package.json must not depend on react-router; emitted router is dependency-free"
+        );
+    }
 }
