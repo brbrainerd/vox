@@ -80,6 +80,7 @@ fn model_call() -> TelemetryEvent {
         parent_task_id: None,
         trace_id: None,
         caller_agent_id: None,
+        selection_rationale: None,
     })
 }
 
