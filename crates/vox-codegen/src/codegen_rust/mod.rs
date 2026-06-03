@@ -454,15 +454,66 @@ mod tests {
             .get("src-tauri/src/main.rs")
             .expect("src-tauri main.rs");
         assert!(main.contains("rust_app_shell=TauriApp"), "{main}");
+    }
+
+    #[test]
+    fn tauri_main_registers_scheduled_fns() {
+        let src = r#"
+@scheduled("1m")
+fn heartbeat() { }
+"#;
+        let res =
+            vox_compiler::pipeline::run_frontend_str(src, "sched_test.vox").expect("frontend ok");
+        let module = res.hir;
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        let main = out
+            .files
+            .get("src-tauri/src/main.rs")
+            .expect("src-tauri main.rs");
         assert!(
-            main.contains("vox_tauri_stt::plugin::init()"),
-            "expected STT plugin registration: {main}"
+            main.contains("vox_workflow_runtime::scheduled::register"),
+            "must register @scheduled fns: {main}"
+        );
+        assert!(
+            main.contains("scheduled::start"),
+            "must start scheduler: {main}"
+        );
+        assert!(
+            main.contains("load_hir_module_from_embedded"),
+            "must embed+register HirModule: {main}"
+        );
+    }
+
+    #[test]
+    fn tauri_tables_only_emits_setup_without_scheduler() {
+        // Regression guard: the `needs_setup` refactor must still emit `.setup()` + Codex
+        // management for a @table-only module (no @scheduled functions).
+        let mut module = empty_module();
+        module.tables.push(simple_task_table());
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        let main = out.files.get("src-tauri/src/main.rs").unwrap();
+        assert!(
+            main.contains(".setup("),
+            "tables-only app must still emit a setup block: {main}"
+        );
+        assert!(
+            main.contains("app.manage"),
+            "tables-only app must manage the Codex db: {main}"
+        );
+        assert!(
+            !main.contains("scheduled::register"),
+            "tables-only app must NOT register a scheduler: {main}"
         );
     }
 
     #[test]
     fn tauri_emit_registers_sherpa_acl_in_build_rs() {
-        let module = empty_module();
+        let module = vox_compiler::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe_microphone() }",
+            "t.vox",
+        )
+        .expect("frontend ok")
+        .hir;
         let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
         let build_rs = out.files.get("src-tauri/build.rs").expect("build.rs");
         assert!(
@@ -496,6 +547,102 @@ mod tests {
         assert!(
             cap.contains("vox-stt:default"),
             "expected vox-stt default permission in capability: {cap}"
+        );
+    }
+
+    #[test]
+    fn tauri_emits_stt_only_when_speech_used() {
+        let module = vox_compiler::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe_microphone() }",
+            "t.vox",
+        )
+        .expect("frontend ok")
+        .hir;
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        assert!(
+            out.files
+                .get("src-tauri/src/main.rs")
+                .unwrap()
+                .contains("vox_tauri_stt::plugin::init()")
+        );
+        assert!(
+            out.files
+                .get("src-tauri/build.rs")
+                .unwrap()
+                .contains("\"vox-stt\"")
+        );
+        assert!(
+            out.files
+                .get("src-tauri/capabilities/default.json")
+                .unwrap()
+                .contains("vox-stt:default")
+        );
+    }
+
+    #[test]
+    fn tauri_emits_stt_for_file_transcribe_without_mic_permission() {
+        // File-based `transcribe(path)` derives `speech` (STT plugin) but NOT `microphone`.
+        let module = vox_compiler::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe(\"/tmp/a.wav\") }",
+            "t.vox",
+        )
+        .expect("frontend ok")
+        .hir;
+        let caps = crate::projection_bundle::project_bundle_from_hir(&module)
+            .capabilities
+            .capability_ids;
+        assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
+        assert!(!caps.iter().any(|c| c == "microphone"), "{caps:?}");
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        // STT plugin still emitted (gated on speech).
+        assert!(
+            out.files
+                .get("src-tauri/src/main.rs")
+                .unwrap()
+                .contains("vox_tauri_stt::plugin::init()")
+        );
+        let default_json = out
+            .files
+            .get("src-tauri/capabilities/default.json")
+            .unwrap();
+        assert!(default_json.contains("vox-stt:default"));
+        // "without mic permission": the emitted Tauri capability manifest must NOT carry any
+        // microphone-permission token. The OS mic permission (RECORD_AUDIO / NSMicrophone) is a
+        // strictly narrower concern owned by `transcribe_microphone`; a file-based `transcribe`
+        // derives `speech` only, so nothing microphone-related may appear in default.json.
+        assert!(
+            !default_json.to_lowercase().contains("microphone"),
+            "file-transcribe default.json must not request a microphone permission: {default_json}"
+        );
+    }
+
+    #[test]
+    fn tauri_omits_stt_without_speech() {
+        let out = pipeline::generate(&empty_module(), "pkg", RustAppShell::TauriApp).unwrap();
+        assert!(
+            !out.files
+                .get("src-tauri/src/main.rs")
+                .unwrap()
+                .contains("vox_tauri_stt")
+        );
+        assert!(
+            !out.files
+                .get("src-tauri/build.rs")
+                .unwrap()
+                .contains("vox-stt")
+        );
+        assert!(
+            !out.files
+                .get("src-tauri/capabilities/default.json")
+                .unwrap()
+                .contains("vox-stt")
+        );
+        assert!(
+            !out.files
+                .get("src-tauri/Cargo.toml")
+                .unwrap()
+                .contains("vox-tauri-stt"),
+            "vox-tauri-stt must not appear in Cargo.toml without speech"
         );
     }
 

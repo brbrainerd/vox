@@ -267,7 +267,7 @@ Each archetype lists:
 - **A14-05 No file-attachment** — see CC-01.
 - **A14-06 No saved-filter / saved-view** — see A3-06.
 - **A14-07 No webhook-out primitive** — "post to Slack when issue closed" is per-app. Slot: stdlib outbound webhook; couples to CC-04 (signing) for verifiable delivery.
-- **A14-08 No GitHub / GitLab integration adapter** — `vox-forge` exists but isn't surfaced as a stdlib bridge for app-level use. Slot: expose forge as `std.forge.{github, gitlab}` adapters.
+- **A14-08 No GitHub integration adapter** — `vox-forge` exists but isn't surfaced as a stdlib bridge for app-level use. Slot: expose forge as a `std.forge.github` adapter. (GitLab support in `vox-forge` is deprecated/unsupported as of 2026-06-03 and is not a target.)
 - **A14-09 No bulk-edit primitive** — "select 50 issues, change status" is per-app. Slot: `@bulk_mutation` decorator that batches under a single transaction.
 
 **Cross-cutting links:** CC-00, CC-01, CC-03, CC-04, CC-09, CC-12.
@@ -711,7 +711,7 @@ These are *meta* gaps — independent of any archetype, they degrade the prompt 
 
 ### M17. Seamless `vox forge` <-> dashboard integration
 
-**What's missing:** `vox-forge` exists for GitHub/GitLab interactions. Not surfaced in the dashboard for app-level use (e.g. "PR-from-dashboard"). Substrate scan.
+**What's missing:** `vox-forge` exists for GitHub interactions (GitLab deprecated/unsupported as of 2026-06-03). Not surfaced in the dashboard for app-level use (e.g. "PR-from-dashboard"). Substrate scan.
 **Why it blocks:** Users drop to terminal for git ops. Loses momentum.
 **Slot:** Dashboard panel + CC-08 to gate destructive ops.
 

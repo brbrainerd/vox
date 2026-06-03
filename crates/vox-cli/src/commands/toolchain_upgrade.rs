@@ -188,6 +188,12 @@ fn resolve_provider(args: &UpgradeToolchainArgs) -> Result<Provider> {
             })
         }
         UpgradeReleaseProvider::Gitlab => {
+            eprintln!(
+                "warning: `--provider gitlab` is DEPRECATED (2026-06-03) and no longer supported. \
+                 GitLab release upgrades will be removed in a future version; use `--provider github` \
+                 (or `--provider http`) instead."
+            );
+            tracing::warn!("vox upgrade: deprecated GitLab release provider selected");
             let (owner, repo) = parse_owner_repo(
                 &repo_arg,
                 DEFAULT_RELEASE_GITHUB_OWNER,

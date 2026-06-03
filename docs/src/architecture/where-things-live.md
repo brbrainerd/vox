@@ -120,7 +120,7 @@ Grouped map of **top-level trees** — use this before inventing a new parallel 
 | [`vox-inference`](../../../crates/vox-inference/) | MENS Mn-T2: `InferenceBackend` trait, capability metadata, multi-backend dispatcher (stubs until CandleMetal/CUDA wiring). |
 | [`vox-distributed-training`](../../../crates/vox-distributed-training/) | MENS Mn-T1/Mn-T6: `TrainingSession`, signed `GradientShard` / `CheckpointBundle`, `OperationKind::TrainingCheckpoint` mapping. |
 | [`vox-ml-cli`](../../../crates/vox-ml-cli/) | ML / Oratio / Populi / telemetry CLI binary (`vox-ml-cli`); Mens training, GPU features, optional workflow glue. |
-| [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, GitLab, Gitea, Forgejo. |
+| [`vox-forge`](../../../crates/vox-forge/) | Platform-agnostic Git forge API — GitHub, Gitea, Forgejo (GitLab deprecated/unsupported as of 2026-06-03). |
 | [`vox-gamify`](../../../crates/vox-gamify/) | Gamification layer — companions, quests, battles, and free AI integration. |
 | [`vox-git`](../../../crates/vox-git/) | Pure-Rust Git bridge using gix (no C, no libgit2). |
 | [`vox-lsp`](../../../crates/vox-lsp/) | Vox Language Server (stdio JSON-RPC). Capability matrix: [`vox-lsp-capabilities-ssot-2026.md`](./vox-lsp-capabilities-ssot-2026.md). |
@@ -257,7 +257,7 @@ Don't depend on `vox-orchestrator` or `vox-cli` from a plugin.
 | [`vox-plugin-publication`](../../../crates/vox-plugin-publication/) | Publication plugin: RSS/Atom ingest with dedup, Reddit/YouTube publish, scholarly job feeds. |
 | [`vox-plugin-runtime-container`](../../../crates/vox-plugin-runtime-container/) | Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime. |
 | [`vox-plugin-runtime-wasm`](../../../crates/vox-plugin-runtime-wasm/) | Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). |
-| [`vox-plugin-webhook`](../../../crates/vox-plugin-webhook/) | Webhook plugin: HTTP listener with HMAC signature verification (GitHub, GitLab, Discord, Slack). Inlines the full webhook gateway (inbound handler, outbound delivery, channel adapters, bridge) in the `webhook` submodule — no separate library crate. |
+| [`vox-plugin-webhook`](../../../crates/vox-plugin-webhook/) | Webhook plugin: HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated). Inlines the full webhook gateway (inbound handler, outbound delivery, channel adapters, bridge) in the `webhook` submodule — no separate library crate. |
 
 ## When to NOT add a new crate
 

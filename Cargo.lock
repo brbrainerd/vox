@@ -13250,6 +13250,8 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "vox-cli",
+ "vox-codegen",
+ "vox-compiler",
 ]
 
 [[package]]

@@ -45,7 +45,6 @@ on:
 
 # ── Platform portability notes ───────────────────────────────────────────────
 # GitHub-specific: github.sha, github.event.inputs.*, workflow_dispatch
-# GitLab equivalent: CI_COMMIT_SHA, manual job variables
 # Forgejo equivalent: gitea.sha, workflow_dispatch (Forgejo Actions supports this)
 # Abstract env var VCS_SHA is set in each job's env block for portability.
 
@@ -55,7 +54,6 @@ jobs:
     runs-on: [self-hosted, linux, x64]
     env:
       # Abstract VCS_SHA: use github.sha on GitHub Actions.
-      # On GitLab: set VCS_SHA: $CI_COMMIT_SHA in variables block.
       # On Forgejo: set VCS_SHA: ${{ gitea.sha }}
       VCS_SHA: ${{ github.sha }}
     outputs:
@@ -190,8 +188,7 @@ jobs:
       - name: Upload training data artifact
         uses: actions/upload-artifact@v7
         with:
-          # Portable note: GitLab uses `artifacts: paths:` block.
-          # Forgejo Actions uses identical syntax to GitHub Actions.
+          # Portable note: Forgejo Actions uses identical syntax to GitHub Actions.
           name: training-data-${{ env.VCS_SHA }}
           path: |
             target/dogfood/train.jsonl
@@ -207,8 +204,7 @@ jobs:
       needs.extract.outputs.corpus_changed == 'true' ||
       github.event.inputs.force_train == 'true' ||
       github.event_name == 'workflow_dispatch'
-    # Portable note: On GitLab, use `when: manual` + `rules:` with CI variables.
-    # On Forgejo Actions, workflow_dispatch and event.inputs work identically.
+    # Portable note: On Forgejo Actions, workflow_dispatch and event.inputs work identically.
     runs-on: [self-hosted, linux, x64, gpu]
     env:
       VCS_SHA: ${{ github.sha }}

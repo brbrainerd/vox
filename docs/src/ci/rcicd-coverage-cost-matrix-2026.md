@@ -57,6 +57,7 @@ For runner labels and exceptions, see [runner-contract.md](runner-contract.md) a
 
 - **Ignored tests:** Inventory in `contracts/reports/test-inventory.v1.json`; governance via `vox ci ignored-test-age`, `test-inventory`. Large ignored counts hide regressions if ignored-only lanes are skipped.
 - **Mutation scope:** PR mutation gate is limited to compiler/codegen paths; other crates rely on unit/integration coverage only.
+- **GitLab mirror retired (2026-06-03):** the `.gitlab-ci.yml` mirror and its **`vox-ci-guards`** job have been deleted; GitLab CI is no longer a supported target, so GitLab↔GitHub parity is no longer tracked.
 
 ## Cost optimizations applied
 

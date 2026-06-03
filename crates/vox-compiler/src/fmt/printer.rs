@@ -401,11 +401,33 @@ impl Printer {
                     self.out.push_str(&segments.join("."));
                 }
                 ImportPathKind::ReactComponent {
-                    local_name,
                     module_specifier,
+                    binding,
                 } => {
                     self.out.push_str("react ");
-                    self.out.push_str(local_name);
+                    match binding {
+                        ReactBinding::Default { local_name } => {
+                            self.out.push_str(local_name);
+                        }
+                        ReactBinding::Namespace { local_name } => {
+                            self.out.push_str("* as ");
+                            self.out.push_str(local_name);
+                        }
+                        ReactBinding::Named(names) => {
+                            self.out.push_str("{ ");
+                            for (i, n) in names.iter().enumerate() {
+                                if i > 0 {
+                                    self.out.push_str(", ");
+                                }
+                                self.out.push_str(&n.imported);
+                                if n.local != n.imported {
+                                    self.out.push_str(" as ");
+                                    self.out.push_str(&n.local);
+                                }
+                            }
+                            self.out.push_str(" }");
+                        }
+                    }
                     self.out.push_str(" from ");
                     self.out.push('"');
                     self.out.push_str(module_specifier);

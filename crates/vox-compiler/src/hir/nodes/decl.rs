@@ -229,9 +229,15 @@ pub struct HirImport {
     pub module_path: Vec<String>,
     /// Imported symbol name.
     pub item: String,
-    /// When `Some`, emit `import <item> from "<spec>"` for external React components (Phase 5).
+    /// When `Some`, this is an external React/TS import (Phase 5); the emitted
+    /// statement targets `"<spec>"`. The shape (default/named/namespace) is in
+    /// [`Self::es_import_kind`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub es_module_specifier: Option<String>,
+    /// Import shape for an external React/TS import. `None` for non-ES imports
+    /// (symbol paths, local files). `Some` whenever `es_module_specifier` is set.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub es_import_kind: Option<EsImportKind>,
     /// When `Some(path)`, this is an intra-project Vox-file import
     /// (`import "./helpers/foo.vox"`). The path is resolved relative to the
     /// importing file at run-module time; `pub fn`s from the target are
@@ -246,6 +252,22 @@ pub struct HirImport {
     pub local_file_alias: Option<String>,
     /// Span in source.
     pub span: Span,
+}
+
+/// Shape of an external React/TS import (Phase 5). Drives TS emission:
+/// the local binding name is [`HirImport::item`] and the module is
+/// [`HirImport::es_module_specifier`].
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum EsImportKind {
+    /// `import <item> from "<spec>"`
+    Default,
+    /// `import { <imported> as <item> } from "<spec>"` (no `as` when `imported == item`).
+    Named {
+        /// Name exported by the module.
+        imported: String,
+    },
+    /// `import * as <item> from "<spec>"`
+    Namespace,
 }
 
 /// A Rust crate import declaration lowered from source.

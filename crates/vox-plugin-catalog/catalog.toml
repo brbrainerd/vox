@@ -155,7 +155,7 @@ bundled-in = ["vox-fullstack", "vox-edge"]
 [[plugin]]
 id = "webhook"
 payload-kind = "code"
-description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, Discord, Slack)."
+description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, Discord, Slack; GitLab deprecated)."
 status = "stable"
 extension-points = ["HttpListener"]
 default-source = "local:crates/vox-plugin-webhook"

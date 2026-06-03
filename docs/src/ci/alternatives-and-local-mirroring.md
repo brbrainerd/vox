@@ -9,6 +9,8 @@ schema_type: "TechArticle"
 
 # CI alternatives and local Docker-based mirroring
 
+> **Update (2026-06-03):** The parallel GitLab CI mirror (`.gitlab-ci.yml`) has been **retired and deleted** — GitLab CI is no longer a supported target. The notes below that described it as "already mirrored" / "a safety net" are kept for historical context but no longer reflect the repo; GitHub Actions (`.github/workflows/`) is the sole CI surface.
+
 Research output. No workflow YAML or runner topology is changed by this
 document — it captures findings so we can decide how (or whether) to invest.
 
@@ -180,10 +182,12 @@ container-first OSS server we control.
 
 ### 4. GitLab CI
 
-A `.gitlab-ci.yml` mirror was previously maintained here for job parity, but it
-was **removed on 2026-06-03**: maintaining a parallel CI pipeline was judged not
-worth the upkeep. GitLab CI remains a viable alternative *provider* should we
-ever migrate, but we no longer keep a parallel pipeline in this repo.
+**Retired (2026-06-03).** Vox previously maintained a `.gitlab-ci.yml` mirror
+for job parity; it was deleted because keeping a parallel pipeline alongside
+GitHub Actions was not worth the upkeep, and GitLab CI is no longer a supported
+target here. It remains a viable alternative *provider* in the abstract should
+we ever migrate, but re-adopting it would now be a full from-scratch port, not a
+re-sync — not recommended.
 
 ### 5. Faster GitHub-Actions-compatible runner clouds
 

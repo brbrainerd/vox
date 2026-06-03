@@ -33,13 +33,16 @@ pub struct ImportPath {
 pub enum ImportPathKind {
     /// Dot-separated symbol path (e.g. `react.use_state`).
     SymbolPath { segments: Vec<String> },
-    /// Consume a React `.tsx` component from disk — Phase 5 interop
-    /// (`import react MyButton from "../ui/MyButton.tsx"`).
+    /// Consume an external React/TS component or hook from a module — Phase 5
+    /// interop. Supports default, named, and namespace import shapes:
+    ///   `import react MyButton from "../ui/MyButton.tsx"`        (default)
+    ///   `import react { Dialog, Trigger as T } from "@radix-ui/react-dialog"` (named)
+    ///   `import react * as Dialog from "@radix-ui/react-dialog"` (namespace)
     ReactComponent {
-        /// Local binding (typically PascalCase).
-        local_name: String,
-        /// ES module specifier string literal (relative or package path).
+        /// ES module specifier string literal (relative or bare package path).
         module_specifier: String,
+        /// What is bound from the module.
+        binding: ReactBinding,
     },
     /// Rust crate import (`import rust:serde_json`).
     RustCrate(RustCrateImport),
@@ -52,6 +55,33 @@ pub enum ImportPathKind {
         /// Source path string exactly as written (e.g. `./helpers/walk_docs.vox`).
         path: String,
     },
+}
+
+/// What an `import react … from "<spec>"` binds from the module.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ReactBinding {
+    /// `import react X from "<spec>"` — default export bound to `local_name`.
+    Default {
+        /// Local binding name (typically PascalCase).
+        local_name: String,
+    },
+    /// `import react { A, B as C } from "<spec>"` — named exports.
+    Named(Vec<ReactNamedImport>),
+    /// `import react * as Ns from "<spec>"` — namespace import; members reached
+    /// as `Ns.Member` (usable as a dotted JSX tag, e.g. `<Ns.Root/>`).
+    Namespace {
+        /// Local namespace binding name.
+        local_name: String,
+    },
+}
+
+/// One name in a React named import (`{ imported as local }`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReactNamedImport {
+    /// Name exported by the module.
+    pub imported: String,
+    /// Local binding name (== `imported` unless an `as` alias is given).
+    pub local: String,
 }
 
 /// Rust crate import metadata.

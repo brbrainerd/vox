@@ -11,6 +11,8 @@ pub mod builtin_registry;
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
+/// SSOT for external React/RN component libraries (CSS imports, providers, peers).
+pub mod external_libs;
 /// `@form` declaration → React form components in `forms.tsx` (Task C3).
 pub mod form_emit;
 /// `fragment` declaration → typed React function components in `fragments.tsx`

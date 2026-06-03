@@ -63,6 +63,22 @@ fn deep_link_and_push_sorted() {
 }
 
 #[test]
+fn transcribe_microphone_derives_speech_and_microphone() {
+    let hir = lower_src("fn note() -> Result[str] { Speech.transcribe_microphone() }");
+    let r = project_required_capabilities(&hir);
+    assert!(r.capability_ids.iter().any(|c| c == "speech"), "{r:?}");
+    assert!(r.capability_ids.iter().any(|c| c == "microphone"), "{r:?}");
+}
+
+#[test]
+fn file_transcribe_derives_speech_only() {
+    let hir = lower_src("fn note() -> Result[str] { Speech.transcribe(\"/tmp/a.wav\") }");
+    let r = project_required_capabilities(&hir);
+    assert!(r.capability_ids.iter().any(|c| c == "speech"), "{r:?}");
+    assert!(!r.capability_ids.iter().any(|c| c == "microphone"), "{r:?}");
+}
+
+#[test]
 fn fs_read_in_body_maps_fs_read() {
     let src = r#"
 fn read_hosts() uses fs to str {

@@ -83,12 +83,14 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
     SecretSpec {
         id: SecretId::ForgeToken,
         canonical_env: "FORGE_TOKEN",
-        aliases: &["VOX_FORGE_TOKEN", "GITHUB_TOKEN", "GITLAB_TOKEN"],
-        deprecated_aliases: &["GH_TOKEN", "GL_TOKEN"],
+        aliases: &["VOX_FORGE_TOKEN", "GITHUB_TOKEN"],
+        // GITLAB_TOKEN demoted to a deprecated alias: GitLab forge support was
+        // retired 2026-06-03 and is no longer supported.
+        deprecated_aliases: &["GH_TOKEN", "GL_TOKEN", "GITLAB_TOKEN"],
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Set FORGE_TOKEN (or GITHUB_TOKEN/GITLAB_TOKEN, matched in that order) for forge API flows.",
+        remediation: "Set FORGE_TOKEN (or GITHUB_TOKEN) for forge API flows. GITLAB_TOKEN is a deprecated alias (GitLab support retired 2026-06-03).",
         scope_description: "",
     },
     SecretSpec {

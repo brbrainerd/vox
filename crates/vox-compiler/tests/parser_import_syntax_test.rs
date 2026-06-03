@@ -120,6 +120,62 @@ import react Sheet from "./Sheet.tsx"
     );
 }
 
+#[test]
+fn react_named_import_expands_to_one_per_name() {
+    let imports = parse_imports(
+        r#"import react { Dialog, Trigger as DialogTrigger } from "@radix-ui/react-dialog""#,
+    );
+    assert_eq!(imports.len(), 2, "two names → two HirImports");
+    // First name: no alias → item == imported.
+    let dialog = imports
+        .iter()
+        .find(|i| i.item == "Dialog")
+        .expect("Dialog present");
+    assert_eq!(
+        dialog.es_module_specifier.as_deref(),
+        Some("@radix-ui/react-dialog")
+    );
+    // Second name: aliased → item is the local, imported is recorded in the kind.
+    let trigger = imports
+        .iter()
+        .find(|i| i.item == "DialogTrigger")
+        .expect("DialogTrigger present");
+    match trigger.es_import_kind.as_ref().expect("named kind") {
+        vox_compiler::hir::EsImportKind::Named { imported } => {
+            assert_eq!(
+                imported, "Trigger",
+                "aliased import keeps the exported name"
+            )
+        }
+        other => panic!("expected Named, got {other:?}"),
+    }
+}
+
+#[test]
+fn react_namespace_import_lowers_with_namespace_kind() {
+    let imports = parse_imports(r#"import react * as Dialog from "@radix-ui/react-dialog""#);
+    assert_eq!(imports.len(), 1);
+    assert_eq!(imports[0].item, "Dialog");
+    assert_eq!(
+        imports[0].es_module_specifier.as_deref(),
+        Some("@radix-ui/react-dialog")
+    );
+    assert!(matches!(
+        imports[0].es_import_kind.as_ref(),
+        Some(vox_compiler::hir::EsImportKind::Namespace)
+    ));
+}
+
+#[test]
+fn react_default_import_has_default_kind() {
+    let imports = parse_imports(r#"import react MyButton from "../ui/MyButton.tsx""#);
+    assert_eq!(imports.len(), 1);
+    assert!(matches!(
+        imports[0].es_import_kind.as_ref(),
+        Some(vox_compiler::hir::EsImportKind::Default)
+    ));
+}
+
 // ── full app.vox import block ─────────────────────────────────────────────────
 
 #[test]
@@ -144,5 +200,16 @@ import surfaces/settings as { SettingsSurface }
         10,
         "expected 10 HirImports from the app.vox import block, got {}",
         hir.imports.len()
+    );
+}
+
+#[test]
+fn react_named_import_rejects_empty_braces() {
+    // `import react { } from "…"` must be a parse error, not a silent no-op that
+    // lowers to zero imports.
+    let tokens = lex(r#"import react { } from "@x/y""#);
+    assert!(
+        parse(tokens).is_err(),
+        "empty named react import must be rejected"
     );
 }
