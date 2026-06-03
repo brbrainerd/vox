@@ -4,6 +4,13 @@
 
 **Context:** PR #136 (`cc_bdesktop2/nifty-noyce-07ae23`) closed the GUI↔CLI/Scientia *coverage* gap: a self-surfacing CI gate (Track A), the Scientia/gamify/search surfaces it guarded (Tracks B/C + search), the five backend "doesn't-exist" pieces, and works-as-expected polish (typecheck gate, empty states, real per-phase cost split for the **extraction** phase, live dashboard). This plan scopes the **four remaining net-new features** that PR deliberately left as honest TODOs. Each is audit-grounded against the live tree (anchors verified by hand 2026-06-03, not LoC/graph inference).
 
+> **Status (2026-06-03): ALL FOUR IMPLEMENTED** on `cc_bdesktop2/nifty-noyce-07ae23` (PR #136).
+> F1 `feat(scientia): surface LlmResponse.cost_usd + wire critic-phase cost emit`;
+> F2 `feat(gui): live Scientia-queue push bridge + fix gateway cost 3-tuple` (also fixed a latent PR-#136 compile break in `vox-orchestrator-mcp`);
+> F3 `feat(gui): gamify leaderboard / companions / quests surfaces`;
+> F4 `feat(gui): publication-lifecycle drill-down + venue routing`.
+> Verification: vox-actor-runtime + vox-cli + vox-gui unit tests green; `tsc --noEmit` + 21 vitest green; `vox ci gui-surface-registry` green. Prereg (F4) intentionally deferred — no CLI/DB backing.
+
 **The four features, ordered by leverage-per-effort:**
 
 | # | Feature | Effort | Honest blocker |
