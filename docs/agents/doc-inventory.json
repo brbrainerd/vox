@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "generated_at": "2026-06-03T05:09:18.370Z",
+  "generated_at": "2026-06-03T05:57:25.745Z",
   "description": "Per-file comment/doc counts for LLM batch targeting. Rust: lines_triple_slash=///, lines_inner_doc=//!, lines_plain_comment=// excluding doc. Markdown: lines_total=all lines; lines_other_doc_signal=# heading count. hotspot_tier: 1=plan-listed path, 2=high-density heuristic, 0=other. symbol_hints (schema v3): plan-hotspot Rust only; /// or //! linked to next item; containing_symbol, doc_preview, comment_type, quality_tag (mechanical|operational|section_divider|user_help|narrative|ssot_sensitive).",
   "first_read_for_agents": [
     "AGENTS.md",
@@ -2662,6 +2662,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/ci/alternatives-and-local-mirroring.md",
+      "kind": "markdown",
+      "lines_total": 264,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 19,
+      "hotspot_tier": 2,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/archive/research-2026-q1/comprehensive-audit-findings-2026.md",
       "kind": "markdown",
       "lines_total": 263,
@@ -2680,17 +2691,6 @@
       "lines_inner_doc": 0,
       "lines_plain_comment": 0,
       "lines_other_doc_signal": 18,
-      "hotspot_tier": 2,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": "docs/src/ci/alternatives-and-local-mirroring.md",
-      "kind": "markdown",
-      "lines_total": 262,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 19,
       "hotspot_tier": 2,
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
@@ -8657,6 +8657,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli/src/commands/runtime/run/script.rs",
+      "kind": "rust",
+      "lines_total": 404,
+      "lines_triple_slash": 35,
+      "lines_inner_doc": 7,
+      "lines_plain_comment": 37,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-db/src/config.rs",
       "kind": "rust",
       "lines_total": 391,
@@ -9323,17 +9334,6 @@
       "lines_triple_slash": 24,
       "lines_inner_doc": 12,
       "lines_plain_comment": 10,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/commands/runtime/run/script.rs",
-      "kind": "rust",
-      "lines_total": 329,
-      "lines_triple_slash": 29,
-      "lines_inner_doc": 7,
-      "lines_plain_comment": 13,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -11858,6 +11858,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-forge/src/lib.rs",
+      "kind": "rust",
+      "lines_total": 41,
+      "lines_triple_slash": 5,
+      "lines_inner_doc": 19,
+      "lines_plain_comment": 1,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-plugin-mens-candle-cuda/src/checkpoint.rs",
       "kind": "rust",
       "lines_total": 35,
@@ -12150,17 +12161,6 @@
       "lines_triple_slash": 12,
       "lines_inner_doc": 11,
       "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-forge/src/lib.rs",
-      "kind": "rust",
-      "lines_total": 40,
-      "lines_triple_slash": 5,
-      "lines_inner_doc": 18,
-      "lines_plain_comment": 1,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -20770,7 +20770,7 @@
     {
       "path": "crates/vox-cli/tests/telemetry_corpus_feedback_e2e.rs",
       "kind": "rust",
-      "lines_total": 161,
+      "lines_total": 162,
       "lines_triple_slash": 1,
       "lines_inner_doc": 7,
       "lines_plain_comment": 16,
@@ -33121,6 +33121,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": "crates/vox-cli/src/commands/runtime/run/backend/native.rs",
+      "kind": "rust",
+      "lines_total": 175,
+      "lines_triple_slash": 1,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 13,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "rustdoc + inline //"
+    },
+    {
       "path": "crates/vox-orchestrator/tests/economy_test.rs",
       "kind": "rust",
       "lines_total": 174,
@@ -33171,17 +33182,6 @@
       "lines_triple_slash": 1,
       "lines_inner_doc": 0,
       "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "rustdoc + inline //"
-    },
-    {
-      "path": "crates/vox-cli/src/commands/runtime/run/backend/native.rs",
-      "kind": "rust",
-      "lines_total": 164,
-      "lines_triple_slash": 1,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
@@ -36885,7 +36885,7 @@
     {
       "path": ".github/workflows/ci.yml",
       "kind": "yaml",
-      "lines_total": 975,
+      "lines_total": 979,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
       "lines_plain_comment": 65,
@@ -37114,6 +37114,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": ".github/workflows/cr-l8-corpus-feedback.yml",
+      "kind": "yaml",
+      "lines_total": 412,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 103,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "apps/editor/vox-vscode/src/speech/registerOratioSpeechCommands.ts",
       "kind": "typescript",
       "lines_total": 412,
@@ -37123,17 +37134,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "approx // and block comments"
-    },
-    {
-      "path": ".github/workflows/cr-l8-corpus-feedback.yml",
-      "kind": "yaml",
-      "lines_total": 408,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 103,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-publisher/src/submission/validation.rs",
@@ -37862,6 +37862,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": ".github/workflows/docs-deploy.yml",
+      "kind": "yaml",
+      "lines_total": 188,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-orchestrator-mcp/src/scientia_tools/common.rs",
       "kind": "rust",
       "lines_total": 187,
@@ -37937,17 +37948,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": ".github/workflows/docs-deploy.yml",
-      "kind": "yaml",
-      "lines_total": 184,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-gui/src/commands/runs.rs",
@@ -38324,6 +38324,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": ".github/workflows/mobile-eas-build.yml",
+      "kind": "yaml",
+      "lines_total": 143,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 25,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-corpus/src/synthetic_gen/tests.rs",
       "kind": "rust",
       "lines_total": 143,
@@ -38423,17 +38434,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": ".github/workflows/mobile-eas-build.yml",
-      "kind": "yaml",
-      "lines_total": 135,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 25,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": ".github/workflows/release-binaries.yml",
       "kind": "yaml",
       "lines_total": 135,
@@ -38500,6 +38500,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": ".github/workflows/cr-l-gates.yml",
+      "kind": "yaml",
+      "lines_total": 132,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 28,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-orchestrator/tests/populi_coordination.rs",
       "kind": "rust",
       "lines_total": 131,
@@ -38555,17 +38566,6 @@
       "notes": "rustdoc + inline //"
     },
     {
-      "path": ".github/workflows/cr-l-gates.yml",
-      "kind": "yaml",
-      "lines_total": 128,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 28,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-drift-check/src/rules/reqwest_bypass.rs",
       "kind": "rust",
       "lines_total": 127,
@@ -38575,6 +38575,17 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
+    },
+    {
+      "path": ".github/workflows/vox-mental-tracker.yml",
+      "kind": "yaml",
+      "lines_total": 125,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "apps/editor/vox-vscode/src/McpAgentConnection.ts",
@@ -38663,17 +38674,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": ".github/workflows/vox-mental-tracker.yml",
-      "kind": "yaml",
-      "lines_total": 121,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-cli/src/commands/ci/gui_version_sync.rs",
@@ -38808,6 +38808,17 @@
       "notes": "rustdoc + inline //"
     },
     {
+      "path": ".github/workflows/docs-quality.yml",
+      "kind": "yaml",
+      "lines_total": 112,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 11,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-code-audit/src/detectors/scaling_tests.rs",
       "kind": "rust",
       "lines_total": 112,
@@ -38883,17 +38894,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": ".github/workflows/docs-quality.yml",
-      "kind": "yaml",
-      "lines_total": 108,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 11,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "apps/editor/vox-vscode/src/features/linkDiagnostics.ts",
@@ -39369,6 +39369,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": ".github/workflows/mutation-pr.yml",
+      "kind": "yaml",
+      "lines_total": 90,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 8,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": ".github/workflows/release-gui.yml",
       "kind": "yaml",
       "lines_total": 90,
@@ -39510,17 +39521,6 @@
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "rustdoc + inline //"
-    },
-    {
-      "path": ".github/workflows/mutation-pr.yml",
-      "kind": "yaml",
-      "lines_total": 86,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 8,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-scientia/src/ro_crate/cff.rs",
@@ -39730,6 +39730,17 @@
       "lines_other_doc_signal": 7,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": ".github/workflows/docker-eval.yml",
+      "kind": "yaml",
+      "lines_total": 81,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-codegen/tests/form_emit_test.rs",
@@ -40271,6 +40282,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": ".github/workflows/ci-fallback-hosted.yml",
+      "kind": "yaml",
+      "lines_total": 71,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 16,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-cli/src/commands/ci/dep_sprawl.rs",
       "kind": "rust",
       "lines_total": 71,
@@ -40478,6 +40500,17 @@
       "lines_other_doc_signal": 6,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": ".github/workflows/setup-e2e.yml",
+      "kind": "yaml",
+      "lines_total": 68,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 14,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-cli/src/commands/ci/kill_stuck_tests.rs",
@@ -40700,6 +40733,28 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": ".github/workflows/compile-matrix.yml",
+      "kind": "yaml",
+      "lines_total": 65,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
+      "path": ".github/workflows/cross-platform-check.yml",
+      "kind": "yaml",
+      "lines_total": 65,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 5,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-cli/src/commands/extras/ars/run_skill.rs",
       "kind": "rust",
       "lines_total": 65,
@@ -40764,17 +40819,6 @@
       "lines_other_doc_signal": 7,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": ".github/workflows/docker-eval.yml",
-      "kind": "yaml",
-      "lines_total": 64,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 1,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-bounded-fs/tests/workspace_guardrails.rs",
@@ -40964,12 +41008,12 @@
       "notes": "comments + structure"
     },
     {
-      "path": ".github/workflows/setup-e2e.yml",
+      "path": ".github/workflows/codeql.yml",
       "kind": "yaml",
       "lines_total": 62,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 14,
+      "lines_plain_comment": 11,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "comments + structure"
@@ -40984,17 +41028,6 @@
       "lines_other_doc_signal": 6,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": ".github/workflows/cross-platform-check.yml",
-      "kind": "yaml",
-      "lines_total": 61,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 5,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-compiler/tests/form_hir_test.rs",
@@ -41228,12 +41261,12 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/compile-matrix.yml",
+      "path": ".github/workflows/vox-visus-audit.yml",
       "kind": "yaml",
       "lines_total": 58,
       "lines_triple_slash": 0,
       "lines_inner_doc": 0,
-      "lines_plain_comment": 2,
+      "lines_plain_comment": 4,
       "lines_other_doc_signal": 0,
       "hotspot_tier": 0,
       "notes": "comments + structure"
@@ -41347,6 +41380,17 @@
       "lines_other_doc_signal": 4,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": ".github/workflows/mobile-e2e-ios.yml",
+      "kind": "yaml",
+      "lines_total": 57,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": ".github/workflows/qwen35-native-nightly.yml",
@@ -41679,17 +41723,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/vox-visus-audit.yml",
-      "kind": "yaml",
-      "lines_total": 54,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 4,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "apps/editor/vox-vscode/src/core/CapabilityRegistry.ts",
       "kind": "typescript",
       "lines_total": 54,
@@ -41842,17 +41875,6 @@
       "lines_other_doc_signal": 7,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": ".github/workflows/mobile-e2e-ios.yml",
-      "kind": "yaml",
-      "lines_total": 53,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "apps/editor/vox-vscode/src/context/WorkspaceContextEngine.ts",
@@ -42194,6 +42216,17 @@
       "lines_other_doc_signal": 4,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": ".github/workflows/mobile-e2e-android.yml",
+      "kind": "yaml",
+      "lines_total": 49,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/vox_ignore.rs",
@@ -42636,17 +42669,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/mobile-e2e-android.yml",
-      "kind": "yaml",
-      "lines_total": 45,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": ".github/workflows/mutation-nightly.yml",
       "kind": "yaml",
       "lines_total": 45,
@@ -42788,6 +42810,17 @@
       "lines_other_doc_signal": 6,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": ".github/workflows/ts-emit-noemit.yml",
+      "kind": "yaml",
+      "lines_total": 44,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-cli/src/commands/ci/run_body_helpers/cuda.rs",
@@ -43285,17 +43318,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/ts-emit-noemit.yml",
-      "kind": "yaml",
-      "lines_total": 40,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-cli/tests/workflow_cli_durability_ux.rs",
       "kind": "rust",
       "lines_total": 40,
@@ -43437,6 +43459,17 @@
       "lines_other_doc_signal": 5,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": ".github/workflows/gitleaks.yml",
+      "kind": "yaml",
+      "lines_total": 39,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 9,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-doc-pipeline/README.md",
@@ -43890,6 +43923,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": ".github/workflows/link_checker.yml",
+      "kind": "yaml",
+      "lines_total": 35,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 2,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
+    },
+    {
       "path": "crates/vox-effort-audit/src/judge/prompt_system.md",
       "kind": "markdown",
       "lines_total": 35,
@@ -44022,17 +44066,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": "docs/src/ci/workflow-enumeration.md",
-      "kind": "markdown",
-      "lines_total": 35,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 0,
-      "lines_other_doc_signal": 1,
-      "hotspot_tier": 0,
-      "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
       "path": "docs/src/reference/ref-package-manager.md",
       "kind": "markdown",
       "lines_total": 35,
@@ -44154,6 +44187,17 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
+      "path": "docs/src/ci/workflow-enumeration.md",
+      "kind": "markdown",
+      "lines_total": 34,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 0,
+      "lines_other_doc_signal": 1,
+      "hotspot_tier": 0,
+      "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
       "path": "docs/src/reference/mcp-tool-registry-contract.md",
       "kind": "markdown",
       "lines_total": 34,
@@ -44174,6 +44218,17 @@
       "lines_other_doc_signal": 4,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
+    },
+    {
+      "path": ".github/workflows/ssot-drift.yml",
+      "kind": "yaml",
+      "lines_total": 33,
+      "lines_triple_slash": 0,
+      "lines_inner_doc": 0,
+      "lines_plain_comment": 6,
+      "lines_other_doc_signal": 0,
+      "hotspot_tier": 0,
+      "notes": "comments + structure"
     },
     {
       "path": "crates/vox-dei-shim/tests/scientia_phase_0a_planner_stub.rs",
@@ -44440,17 +44495,6 @@
       "notes": "prose doc; lines_other_doc_signal=heading count"
     },
     {
-      "path": ".github/workflows/link_checker.yml",
-      "kind": "yaml",
-      "lines_total": 31,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 2,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
-    },
-    {
       "path": "crates/vox-ml-cli/tests/quantize_cli.rs",
       "kind": "rust",
       "lines_total": 31,
@@ -44625,17 +44669,6 @@
       "lines_other_doc_signal": 4,
       "hotspot_tier": 0,
       "notes": "prose doc; lines_other_doc_signal=heading count"
-    },
-    {
-      "path": ".github/workflows/ssot-drift.yml",
-      "kind": "yaml",
-      "lines_total": 29,
-      "lines_triple_slash": 0,
-      "lines_inner_doc": 0,
-      "lines_plain_comment": 6,
-      "lines_other_doc_signal": 0,
-      "hotspot_tier": 0,
-      "notes": "comments + structure"
     },
     {
       "path": "apps/editor/vox-vscode/src/types/attention.ts",
