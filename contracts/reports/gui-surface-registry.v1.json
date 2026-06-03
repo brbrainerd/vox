@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "surface_count": 82,
+  "surface_count": 83,
   "top_level_groups": [
     "add",
     "ars",
@@ -16,6 +16,7 @@
     "commands",
     "compile",
     "completions",
+    "component",
     "config",
     "db",
     "deploy",
@@ -72,6 +73,8 @@
     "wasm",
     "workflow"
   ],
-  "unclassified_backfilled": [],
+  "unclassified_backfilled": [
+    "component"
+  ],
   "wiring_violations": []
 }
