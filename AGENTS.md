@@ -311,6 +311,33 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
 
+## PR & Review Discipline (Required, Cross-Tool)
+
+> **Canonical config:** `.coderabbit.yaml` (repo root; CodeRabbit reads it from the **default branch**).
+
+Automated PR review (CodeRabbit) is **rate-limited and shared**: every branch, every
+Claude Code tab/worktree, and every IDE you use pushes as the **same GitHub identity**,
+so they all draw from **one** per-developer review allowance (Pro tier: ~5 PR reviews/hour,
+refilling over time, throttled further under sustained bursts). Treating every `git push`
+as a review request drains that allowance in minutes and stalls all your other work.
+
+**Repo policy (enforced by `.coderabbit.yaml`):** `auto_review.auto_incremental_review:
+false` — CodeRabbit reviews a PR **once when it opens** and does **not** auto-review
+subsequent pushes. Re-review is **on demand only**.
+
+Therefore, across **all** branches/tabs/IDEs:
+
+- **Batch commits; push once when the PR is review-ready** — not after every commit. (This
+  is the same "don't re-push to iterate" rule as the CI gate tiers above, applied to review.)
+- **Request re-review explicitly** by commenting **`@coderabbitai review`** on the PR when
+  you actually want fresh eyes — never by pushing repeatedly.
+- **Don't open a PR before the work is review-ready.** If you must push early, keep the PR a
+  **Draft** (drafts are not auto-reviewed; `auto_review.drafts: false`).
+- The `vox ci pre-push` hook prints an **advisory** reminder when you re-push a branch that
+  already has an upstream (the proxy for an open PR). It never blocks the push.
+
+One-line takeaway: **one deliberate review per ready PR**, not one per push.
+
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 
 - All ````vox``` blocks in documentation must compile cleanly via `vox-doc-pipeline`'s dynamic doctest runner.
