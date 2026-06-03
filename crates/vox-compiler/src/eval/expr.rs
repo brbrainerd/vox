@@ -414,7 +414,19 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }),
             }
         }
-        HirExpr::MethodCall(obj, method, args, _, _) => {
+        HirExpr::MethodCall(obj, method, args, opt_plan, _) => {
+            // DB query-plan execution. `db.Table.op(...)` lowers to a MethodCall
+            // carrying a query plan; the `db.Table` receiver is not a real value
+            // (evaluating it would fail as `UndefinedVariable("db")`), so we
+            // intercept here, evaluate the call args, and run the plan against
+            // the interpreter's in-memory store — before touching the receiver.
+            if let Some(plan) = opt_plan {
+                let mut plan_args: Vec<(Option<String>, VoxValue)> = Vec::new();
+                for a in args {
+                    plan_args.push((a.name.clone(), eval_expr(interp, &a.value)?));
+                }
+                return super::db::execute_db_plan(interp, plan, plan_args);
+            }
             // Detect the `str.method(receiver, ...)` / `list.method(receiver, ...)`
             // free-function-style call. These were never valid in Vox — string and
             // list operations are method-only — but the previous error message

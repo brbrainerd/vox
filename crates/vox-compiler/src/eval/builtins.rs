@@ -2076,6 +2076,15 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
         }
         "len" => {
             let v = args.into_iter().next()?;
+            // Measure transparently through a `Result`/`Option` container so the
+            // canonical db idiom `len(db.User.all())` — where `all()` is
+            // `Result[List[Record]]` and typechecks under `len` — yields the row
+            // count rather than `Null`. `Err`/`None` count as 0.
+            let v = match v {
+                VoxValue::Result(Ok(inner)) | VoxValue::Option(Some(inner)) => *inner,
+                VoxValue::Result(Err(_)) | VoxValue::Option(None) => return Some(VoxValue::Int(0)),
+                other => other,
+            };
             match v {
                 VoxValue::List(ls) => Some(VoxValue::Int(ls.len() as i64)),
                 VoxValue::Str(s) => Some(VoxValue::Int(s.len() as i64)),

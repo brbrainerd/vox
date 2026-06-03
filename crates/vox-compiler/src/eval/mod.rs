@@ -1,6 +1,7 @@
 pub use vox_eval::*;
 
 pub mod builtins;
+pub mod db;
 pub mod env;
 pub mod expr;
 pub mod shell_stdlib;
@@ -41,6 +42,11 @@ pub struct Interpreter {
     /// cycles. A re-entrant resolve sees the path here and aborts with
     /// `EvalError::AssertionFailed` naming the cycle.
     pub loaded_imports: std::collections::HashSet<std::path::PathBuf>,
+    /// In-memory database for `db.*` operations under `--mode interp`. Lowered
+    /// query plans execute against this store so data-layer programs produce
+    /// real input→output in the default run mode. See
+    /// [`crate::eval::db`].
+    pub db: crate::eval::db::DbStore,
 }
 
 impl Interpreter {
@@ -230,6 +236,7 @@ impl Interpreter {
             caps: None,
             source_path: None,
             loaded_imports: std::collections::HashSet::new(),
+            db: crate::eval::db::DbStore::default(),
         }
     }
 
