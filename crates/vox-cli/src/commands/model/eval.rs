@@ -434,6 +434,8 @@ fn write_artifact(path: &std::path::Path, category: &str, rows: &[Row]) -> anyho
                 "p99_ms": result.p99_ms,
                 "n_calls": result.n_calls,
                 "passed": result.passed,
+                "cumulative_cost_usd": result.cumulative_cost_usd,
+                "cost_per_success_usd": result.cost_per_success_usd,
                 "wrote_back": wrote_back,
             }),
             Row::Skipped { model_id, reason } => serde_json::json!({

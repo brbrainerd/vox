@@ -126,7 +126,11 @@ function PublicationDetail({
         args: { __argv: ['--publication-id', manifest.publication_id] },
       });
       if (claimsOut.exit_code === 0) {
-        setClaims(JSON.parse(claimsOut.stdout) as ClaimsPayload);
+        try {
+          setClaims(JSON.parse(claimsOut.stdout) as ClaimsPayload);
+        } catch (parseErr) {
+          pushToast({ tone: 'warn', title: 'Claims (parse error)', body: `${String(parseErr)} — raw: ${claimsOut.stdout.slice(0, 200)}` });
+        }
       } else {
         pushToast({ tone: 'warn', title: 'Claims', body: claimsOut.stderr || `exit ${claimsOut.exit_code}` });
       }
@@ -136,7 +140,11 @@ function PublicationDetail({
         args: { __argv: ['--candidate-class', manifest.content_type] },
       });
       if (venueOut.exit_code === 0) {
-        setVenue(JSON.parse(venueOut.stdout) as VenueRecommendation);
+        try {
+          setVenue(JSON.parse(venueOut.stdout) as VenueRecommendation);
+        } catch (parseErr) {
+          pushToast({ tone: 'warn', title: 'Venue (parse error)', body: `${String(parseErr)} — raw: ${venueOut.stdout.slice(0, 200)}` });
+        }
       }
       // A non-zero venue exit is expected when content_type isn't a known
       // finding class; leave venue null and show the "no routing" state.
@@ -152,9 +160,9 @@ function PublicationDetail({
   // Lifecycle stepper: the ordered stages a publication passes through. The
   // current stage is derived from the manifest state via the same stage grouping
   // the board uses.
-  const stageIdx = PUBLICATION_STAGES.indexOf(
-    PUBLICATION_STAGES.find(s => groupContains(s, manifest)) ?? PUBLICATION_STAGES[0]
-  );
+  const _stageMap = groupByStage([manifest]);
+  const stageIdx = PUBLICATION_STAGES.findIndex(s => (_stageMap[s]?.length ?? 0) > 0);
+  const resolvedStageIdx = stageIdx === -1 ? 0 : stageIdx;
 
   return (
     <div className="rounded-xl border border-cyan/30 bg-cyan/[0.02] p-4">
@@ -180,7 +188,7 @@ function PublicationDetail({
         {PUBLICATION_STAGES.map((s, i) => (
           <React.Fragment key={s}>
             <span className={`rounded px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${
-              i <= stageIdx ? 'bg-cyan/15 text-cyan' : 'bg-white/5 text-zinc-600'
+              i <= resolvedStageIdx ? 'bg-cyan/15 text-cyan' : 'bg-white/5 text-zinc-600'
             }`}>{s.replace(/_/g, ' ')}</span>
             {i < PUBLICATION_STAGES.length - 1 && <span className="text-zinc-600">›</span>}
           </React.Fragment>

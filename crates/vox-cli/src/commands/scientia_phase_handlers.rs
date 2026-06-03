@@ -170,6 +170,16 @@ pub async fn critic_approve(
         ));
     }
 
+    // Guard: only transition to `approved` from a valid predecessor state.
+    let valid_predecessors = ["draft", "under_review"];
+    if !valid_predecessors.contains(&manifest.state.as_str()) {
+        return Err(anyhow::anyhow!(
+            "invalid state transition: cannot move publication {publication_id} \
+             from state {:?} to \"approved\" (valid predecessors: {valid_predecessors:?})",
+            manifest.state
+        ));
+    }
+
     let fingerprint_json = serde_json::to_string(&inputs.critic_fingerprint)
         .context("serialize critic fingerprint")?;
     db.record_publication_critic_approval_for_digest(

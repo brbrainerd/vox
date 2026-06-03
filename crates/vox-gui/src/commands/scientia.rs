@@ -2,7 +2,6 @@
 //! Reads go directly to the canonical DB, mirroring the CLI handlers — no CLI
 //! stdout parsing and no dependency on the (disabled) HTTP gateway.
 
-use std::hash::{Hash, Hasher};
 use tauri::Emitter;
 
 #[derive(Debug, serde::Serialize)]
@@ -129,18 +128,26 @@ async fn scientia_queue_signal(db: &vox_db::VoxDb) -> Result<(u64, usize, usize)
         .list_recent_research_sessions(200)
         .await
         .map_err(|e| e.to_string())?;
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    fn fnv1a_mix(mut acc: u64, bytes: &[u8]) -> u64 {
+        for &b in bytes {
+            acc ^= b as u64;
+            acc = acc.wrapping_mul(0x00000100_000001B3);
+        }
+        acc
+    }
+    let mut acc: u64 = 0xcbf29ce484222325; // FNV offset basis
     for m in &manifests {
-        m.publication_id.hash(&mut hasher);
-        m.state.hash(&mut hasher);
-        m.updated_at_ms.hash(&mut hasher);
+        acc = fnv1a_mix(acc, m.publication_id.as_bytes());
+        acc = fnv1a_mix(acc, m.state.as_bytes());
+        acc = fnv1a_mix(acc, &m.updated_at_ms.to_le_bytes());
     }
     for s in &sessions {
-        s.id.hash(&mut hasher);
-        s.status.hash(&mut hasher);
-        s.finished_at_ms.hash(&mut hasher);
+        acc = fnv1a_mix(acc, &s.id.to_le_bytes());
+        acc = fnv1a_mix(acc, s.status.as_bytes());
+        let ts_bytes = s.finished_at_ms.unwrap_or(-1_i64).to_le_bytes();
+        acc = fnv1a_mix(acc, &ts_bytes);
     }
-    Ok((hasher.finish(), manifests.len(), sessions.len()))
+    Ok((acc, manifests.len(), sessions.len()))
 }
 
 /// Spawn a background task that watches the canonical DB for Scientia-queue
@@ -158,25 +165,33 @@ async fn scientia_queue_signal(db: &vox_db::VoxDb) -> Result<(u64, usize, usize)
 pub fn spawn_scientia_queue_stream(app_handle: tauri::AppHandle) {
     tokio::spawn(async move {
         let mut last_signal: Option<u64> = None;
-        loop {
+        // Open the connection once outside the poll loop and reuse across ticks.
+        let db = loop {
             match vox_db::VoxDb::connect_canonical().await {
-                Ok(db) => match scientia_queue_signal(&db).await {
-                    Ok((signal, manifest_count, research_count)) => {
-                        if last_signal != Some(signal) {
-                            last_signal = Some(signal);
-                            let _ = app_handle.emit(
-                                SCIENTIA_QUEUE_EVENT,
-                                serde_json::json!({
-                                    "signal": signal,
-                                    "manifest_count": manifest_count,
-                                    "research_count": research_count,
-                                }),
-                            );
-                        }
+                Ok(db) => break db,
+                Err(e) => {
+                    tracing::debug!("scientia queue: db unavailable (will retry): {e}");
+                    tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS))
+                        .await;
+                }
+            }
+        };
+        loop {
+            match scientia_queue_signal(&db).await {
+                Ok((signal, manifest_count, research_count)) => {
+                    if last_signal != Some(signal) {
+                        last_signal = Some(signal);
+                        let _ = app_handle.emit(
+                            SCIENTIA_QUEUE_EVENT,
+                            serde_json::json!({
+                                "signal": signal,
+                                "manifest_count": manifest_count,
+                                "research_count": research_count,
+                            }),
+                        );
                     }
-                    Err(e) => tracing::debug!("scientia queue signal failed: {e}"),
-                },
-                Err(e) => tracing::debug!("scientia queue: db unavailable: {e}"),
+                }
+                Err(e) => tracing::debug!("scientia queue signal failed: {e}"),
             }
             tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS)).await;
         }
@@ -192,14 +207,21 @@ mod tests {
     /// fold; no DB required.)
     #[test]
     fn queue_signal_fold_is_deterministic_and_state_sensitive() {
-        fn fold(rows: &[(&str, &str, i64)]) -> u64 {
-            let mut h = std::collections::hash_map::DefaultHasher::new();
-            for (id, state, ts) in rows {
-                id.hash(&mut h);
-                state.hash(&mut h);
-                ts.hash(&mut h);
+        fn fnv1a_mix(mut acc: u64, bytes: &[u8]) -> u64 {
+            for &b in bytes {
+                acc ^= b as u64;
+                acc = acc.wrapping_mul(0x00000100_000001B3);
             }
-            h.finish()
+            acc
+        }
+        fn fold(rows: &[(&str, &str, i64)]) -> u64 {
+            let mut acc: u64 = 0xcbf29ce484222325;
+            for (id, state, ts) in rows {
+                acc = fnv1a_mix(acc, id.as_bytes());
+                acc = fnv1a_mix(acc, state.as_bytes());
+                acc = fnv1a_mix(acc, &ts.to_le_bytes());
+            }
+            acc
         }
         let a = fold(&[("pub-1", "draft", 100), ("pub-2", "approved", 200)]);
         let b = fold(&[("pub-1", "draft", 100), ("pub-2", "approved", 200)]);

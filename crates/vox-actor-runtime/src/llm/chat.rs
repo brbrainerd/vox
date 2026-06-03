@@ -326,7 +326,7 @@ pub async fn infer_with_retry(
                     response.prompt_tokens as i64,
                     response.completion_tokens as i64,
                     0,
-                    None,
+                    response.cost_usd,
                     0,
                     true,
                 )
