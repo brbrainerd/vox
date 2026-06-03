@@ -57,9 +57,9 @@ pub fn builtin_entry_param_tys(entry: BuiltinRegistryEntry) -> Option<Vec<Ty>> {
 #[must_use]
 pub fn builtin_entry_result_ty(entry: BuiltinRegistryEntry) -> Ty {
     if entry.returns_unit {
-        Ty::Result(Box::new(Ty::Unit))
+        Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))
     } else {
-        Ty::Result(Box::new(Ty::Str))
+        Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))
     }
 }
 
@@ -477,36 +477,36 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
         | ("fs", "read_file")
         | ("fs", "read_to_string")
         | ("fs", "remove")
-        | ("fs", "mkdir") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
-        ("fs", "read_bytes") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        | ("fs", "mkdir") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
+        ("fs", "read_bytes") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         ("fs", "write") | ("fs", "write_file") | ("fs", "write_to_file") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Unit))),
+            Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
         ),
-        ("fs", "cwd") => Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        ("fs", "cwd") => Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         ("fs", "walk") | ("fs", "list_recursive") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
         ),
         ("fs", "exists") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
         ("fs", "is_file") | ("fs", "is_dir") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
-        ("fs", "canonicalize") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        ("fs", "canonicalize") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         ("fs", "list_dir") | ("fs", "glob") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
         ),
         ("fs", "list_dir_detailed") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::List(Box::new(file_record_ty()))))),
+            Box::new(Ty::Result(Box::new(Ty::List(Box::new(file_record_ty()))), Box::new(Ty::Str))),
         ),
         ("fs", "stat") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(file_record_ty()))),
+            Box::new(Ty::Result(Box::new(file_record_ty()), Box::new(Ty::Str))),
         ),
-        ("fs", "remove_dir_all") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
+        ("fs", "remove_dir_all") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str)))),
         ("fs", "copy") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Unit))),
+            Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
         ),
         ("path", "join") => Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
         ("path", "join_many") => Ty::Fn(vec![Ty::List(Box::new(Ty::Str))], Box::new(Ty::Str)),
@@ -520,7 +520,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str))))
         }
         ("path", "is_absolute") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
-        ("path", "resolve") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        ("path", "resolve") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         ("env", "get") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
         ("env", "args") => Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
         ("env", "set") => Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Unit)),
@@ -565,7 +565,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
                 Ty::Str,
                 Ty::List(Box::new(Ty::Str)),
             ],
-            Box::new(Ty::Result(Box::new(Ty::Int))),
+            Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
         ),
         ("process", "run_capture") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
@@ -573,7 +573,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
                 ("exit".into(), Ty::Int),
                 ("stdout".into(), Ty::Str),
                 ("stderr".into(), Ty::Str),
-            ])))),
+            ])), Box::new(Ty::Str))),
         ),
         ("process", "run_capture_ex") => Ty::Fn(
             vec![
@@ -586,86 +586,86 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
                 ("exit".into(), Ty::Int),
                 ("stdout".into(), Ty::Str),
                 ("stderr".into(), Ty::Str),
-            ])))),
+            ])), Box::new(Ty::Str))),
         ),
         ("process", "run_capture_json") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
         ),
         ("process", "run_capture_lines") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+            Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
         ),
         ("process", "spawn_background") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-            Box::new(Ty::Result(Box::new(Ty::Int))),
+            Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
         ),
         ("process", "exec") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-            Box::new(Ty::Result(Box::new(Ty::Unit))),
+            Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
         ),
         ("process", "register_exit_command") => Ty::Fn(
             vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-            Box::new(Ty::Result(Box::new(Ty::Unit))),
+            Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
         ),
         ("process", "exit") => Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
         ("csv", "parse") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
         ),
         ("csv", "parse_records") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
         ),
         ("csv", "render") => Ty::Fn(
             vec![Ty::List(Box::new(Ty::List(Box::new(Ty::Str))))],
-            Box::new(Ty::Result(Box::new(Ty::Str))),
+            Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
         ),
         ("toml", "parse") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
         ),
         ("toml", "render") => Ty::Fn(
             vec![Ty::GenericParam(0)],
-            Box::new(Ty::Result(Box::new(Ty::Str))),
+            Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
         ),
         ("yaml", "parse") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
         ),
         ("yaml", "render") => Ty::Fn(
             vec![Ty::GenericParam(0)],
-            Box::new(Ty::Result(Box::new(Ty::Str))),
+            Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
         ),
         ("io", "open") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
         ),
         ("io", "save") => Ty::Fn(
             vec![Ty::Str, Ty::GenericParam(0)],
-            Box::new(Ty::Result(Box::new(Ty::Unit))),
+            Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
         ),
         ("json", "render") => Ty::Fn(
             vec![Ty::GenericParam(0)],
-            Box::new(Ty::Result(Box::new(Ty::Str))),
+            Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
         ),
         ("json", "parse") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
         ),
         ("json", "read_str") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Str))),
+            Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
         ),
         ("json", "read_f64") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Float))),
+            Box::new(Ty::Result(Box::new(Ty::Float), Box::new(Ty::Str))),
         ),
         ("json", "quote") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
-        ("http", "get_text") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        ("http", "get_text") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         ("http", "post_json") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Str))),
+            Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str))),
         ),
         ("crypto", "hash_fast") | ("crypto", "hash_secure") => {
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Str))
@@ -677,7 +677,7 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
         }
         ("regex", "compile") => Ty::Fn(
             vec![Ty::Str],
-            Box::new(Ty::Result(Box::new(Ty::Named("Regex".into())))),
+            Box::new(Ty::Result(Box::new(Ty::Named("Regex".into())), Box::new(Ty::Str))),
         ),
         ("agentos", "mutation_kind_for_tool") => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
         _ => return None,

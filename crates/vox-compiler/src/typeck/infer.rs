@@ -24,7 +24,7 @@ fn lower_ast_ty(type_expr: &crate::ast::types::TypeExpr, ctx: &mut InferenceCont
             } else if name == "Option" && args.len() == 1 {
                 Ty::Option(Box::new(lower_ast_ty(&args[0], ctx)))
             } else if name == "Result" && args.len() == 1 {
-                Ty::Result(Box::new(lower_ast_ty(&args[0], ctx)))
+                Ty::Result(Box::new(lower_ast_ty(&args[0], ctx)), Box::new(Ty::Str))
             } else {
                 Ty::Named(name.clone())
             }
@@ -294,8 +294,8 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
                         let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
                     }
                 }
-                (Ty::Result(obj_inner), Ty::Fn(_params, ref ret)) => {
-                    if let Ty::Result(ret_inner) = &**ret {
+                (Ty::Result(obj_inner, _), Ty::Fn(_params, ref ret)) => {
+                    if let Ty::Result(ret_inner, _) = &**ret {
                         let _ = ctx.unify(obj_inner.as_ref(), ret_inner.as_ref());
                     }
                 }
@@ -341,7 +341,7 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
         Expr::Try { target, .. } => {
             let operand_ty = infer_expr(target, ctx, builtins);
             match ctx.resolve(&operand_ty) {
-                Ty::Result(inner) | Ty::Option(inner) => (*inner).clone(),
+                Ty::Result(inner, _) | Ty::Option(inner) => (*inner).clone(),
                 _ => ctx.fresh_var(),
             }
         }

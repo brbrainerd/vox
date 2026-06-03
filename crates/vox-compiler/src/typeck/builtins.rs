@@ -87,7 +87,7 @@ impl BuiltinTypes {
             Binding {
                 ty: Ty::Fn(
                     vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
@@ -101,7 +101,7 @@ impl BuiltinTypes {
                 ty: Ty::Fn(
                     vec![Ty::Str],
                     // Error returns Result[T]
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
@@ -831,7 +831,7 @@ impl BuiltinTypes {
         for name in ["read", "read_file", "read_to_string"] {
             fs_methods.insert(
                 name.into(),
-                Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+                Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
             );
         }
         // `fs.write` / `fs.write_file` / `fs.write_to_file` are or-pattern aliases.
@@ -840,27 +840,27 @@ impl BuiltinTypes {
                 name.into(),
                 Ty::Fn(
                     vec![Ty::Str, Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::Bool))),
+                    Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str))),
                 ),
             );
         }
         // `fs.cwd` — current working directory.
         fs_methods.insert(
             "cwd".into(),
-            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         // `fs.copy(src, dst)` — copy a file. Eval impl uses `std::fs::copy`.
         fs_methods.insert(
             "copy".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Bool))),
+                Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str))),
             ),
         );
         // `fs.remove(path)` — remove a file. For directories use remove_dir_all.
         fs_methods.insert(
             "remove".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool), Box::new(Ty::Str)))),
         );
         // `fs.walk(dir)` / `fs.list_recursive(dir)` — recursive lister; eval
         // aliases both to a `**/*` glob expansion.
@@ -869,7 +869,7 @@ impl BuiltinTypes {
                 name.into(),
                 Ty::Fn(
                     vec![Ty::Str],
-                    Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+                    Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
                 ),
             );
         }
@@ -880,7 +880,7 @@ impl BuiltinTypes {
             "list_dir".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
             ),
         );
         fs_methods.insert(
@@ -891,23 +891,23 @@ impl BuiltinTypes {
                     ("name".into(), Ty::Str),
                     ("path".into(), Ty::Str),
                     ("is_dir".into(), Ty::Bool),
-                ])))))),
+                ])))), Box::new(Ty::Str))),
             ),
         );
         fs_methods.insert(
             "glob".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
             ),
         );
         fs_methods.insert(
             "mkdir".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str)))),
         );
         fs_methods.insert(
             "remove_dir_all".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str)))),
         );
         fs_methods.insert(
             "stat".into(),
@@ -917,7 +917,7 @@ impl BuiltinTypes {
                     ("is_dir".into(), Ty::Bool),
                     ("is_file".into(), Ty::Bool),
                     ("size".into(), Ty::Int),
-                ])))),
+                ])), Box::new(Ty::Str))),
             ),
         );
         methods.insert("FsModule".into(), fs_methods);
@@ -970,7 +970,7 @@ impl BuiltinTypes {
         // Regex value type in interp yet; see audit doc §10 for rationale).
         regex_module_methods.insert(
             "compile".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         methods.insert("RegexModule".into(), regex_module_methods);
 
@@ -994,7 +994,7 @@ impl BuiltinTypes {
             "parse".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())), Box::new(Ty::Str))),
             ),
         );
         methods.insert("JsonModule".into(), json_methods);
@@ -1098,7 +1098,7 @@ impl BuiltinTypes {
             "spawn_background".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Int))),
+                Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
             ),
         );
         process_methods.insert(
@@ -1114,7 +1114,7 @@ impl BuiltinTypes {
             "run_ex".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str)), Ty::Str],
-                Box::new(Ty::Result(Box::new(process_output.clone()))),
+                Box::new(Ty::Result(Box::new(process_output.clone()), Box::new(Ty::Str))),
             ),
         );
         // `run_capture_lines` — stdout split on newlines.
@@ -1122,13 +1122,13 @@ impl BuiltinTypes {
             "run_capture_lines".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))), Box::new(Ty::Str))),
             ),
         );
         // `process.cwd` — same as `fs.cwd`, aliased under process namespace.
         process_methods.insert(
             "cwd".into(),
-            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         // `process.which(cmd)` — locate binary on PATH; cross-platform.
         process_methods.insert(
@@ -1139,14 +1139,14 @@ impl BuiltinTypes {
             "exec".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Unit))),
+                Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
             ),
         );
         process_methods.insert(
             "register_exit_command".into(),
             Ty::Fn(
                 vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::Unit))),
+                Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
             ),
         );
         process_methods.insert("exit".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)));
@@ -1260,28 +1260,28 @@ impl BuiltinTypes {
             "post".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         http_methods.insert(
             "get".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         http_methods.insert(
             "put".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         http_methods.insert(
             "delete".into(),
             Ty::Fn(
                 vec![Ty::Str],
-                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())))),
+                Box::new(Ty::Result(Box::new(Ty::Named("Response".into())), Box::new(Ty::Str))),
             ),
         );
         methods.insert("HTTPModule".into(), http_methods);
@@ -1290,11 +1290,11 @@ impl BuiltinTypes {
         let mut speech_methods = std::collections::HashMap::new();
         speech_methods.insert(
             "transcribe".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         speech_methods.insert(
             "transcribe_microphone".into(),
-            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str), Box::new(Ty::Str)))),
         );
         methods.insert("SpeechModule".into(), speech_methods);
 
@@ -1485,14 +1485,14 @@ impl BuiltinTypes {
                     vec![Ty::GenericParam(0)],
                     Box::new(Ty::GenericParam(1)),
                 )],
-                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)))),
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
             ),
         );
         result_methods.insert(
             "map_err".into(),
             Ty::Fn(
                 vec![Ty::Fn(vec![Ty::Str], Box::new(Ty::Str))],
-                Box::new(Ty::Result(Box::new(Ty::GenericParam(0)))),
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
             ),
         );
         result_methods.insert(
@@ -1500,9 +1500,9 @@ impl BuiltinTypes {
             Ty::Fn(
                 vec![Ty::Fn(
                     vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(1)))),
+                    Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
                 )],
-                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)))),
+                Box::new(Ty::Result(Box::new(Ty::GenericParam(1)), Box::new(Ty::Str))),
             ),
         );
         methods.insert("Result".into(), result_methods);
@@ -1549,7 +1549,7 @@ impl BuiltinTypes {
                     let item_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![item_ty],
-                        Box::new(Ty::Result(Box::new(Ty::Int))),
+                        Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))),
                     ))
                 }
                 "get" => {
@@ -1557,14 +1557,14 @@ impl BuiltinTypes {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 "delete" => {
                     // delete(id: int) -> Result[Unit]
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Unit))),
+                        Box::new(Ty::Result(Box::new(Ty::Unit), Box::new(Ty::Str))),
                     ))
                 }
                 "query" => {
@@ -1572,22 +1572,22 @@ impl BuiltinTypes {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Str],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 "all" => {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![],
-                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::List(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
-                "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int))))),
+                "count" => Some(Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Int), Box::new(Ty::Str))))),
                 "find" => {
                     let record_ty = Ty::Record(fields.clone());
                     Some(Ty::Fn(
                         vec![Ty::Int],
-                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))))),
+                        Box::new(Ty::Result(Box::new(Ty::Option(Box::new(record_ty))), Box::new(Ty::Str))),
                     ))
                 }
                 _ => None,
@@ -1652,7 +1652,7 @@ impl BuiltinTypes {
             Ty::Int => "Int",
             Ty::Float => "Float",
             Ty::Bool => "Bool",
-            Ty::Result(_) => "Result",
+            Ty::Result(_, _) => "Result",
             Ty::Option(_) => "Option",
             _ => return None,
         };

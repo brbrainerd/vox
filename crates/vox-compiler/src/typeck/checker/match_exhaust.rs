@@ -37,7 +37,7 @@ pub(crate) fn check_hir_match_exhaustiveness(
             );
             return;
         }
-        Ty::Result(_) => {
+        Ty::Result(_, _) => {
             check_builtin_match_exhaustiveness(
                 arms,
                 span,

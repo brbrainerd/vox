@@ -14,7 +14,10 @@ pub enum Ty {
     Never,
     List(Box<Ty>),
     Option(Box<Ty>),
-    Result(Box<Ty>),
+    /// `Result[T, E]`. The error slot defaults to `Ty::Str` for the
+    /// single-parameter `Result[T]` form (the historical shape), so existing
+    /// `Result[T]` programs keep checking as `Result[T, str]`.
+    Result(Box<Ty>, Box<Ty>),
     Stream(Box<Ty>),
     Map(Box<Ty>, Box<Ty>),
     Set(Box<Ty>),
@@ -53,7 +56,16 @@ impl Ty {
             Ty::Never => "never".to_string(),
             Ty::List(inner) => format!("List[{}]", inner.signature()),
             Ty::Option(inner) => format!("Option[{}]", inner.signature()),
-            Ty::Result(inner) => format!("Result[{}]", inner.signature()),
+            Ty::Result(ok, err) => {
+                // Keep the common `Result[T, str]` form displaying as `Result[T]`
+                // so existing diagnostics/contracts stay stable; show the error
+                // slot only when it carries a non-default error type.
+                if matches!(err.as_ref(), Ty::Str) {
+                    format!("Result[{}]", ok.signature())
+                } else {
+                    format!("Result[{}, {}]", ok.signature(), err.signature())
+                }
+            }
             Ty::Stream(inner) => format!("Stream[{}]", inner.signature()),
             Ty::Map(k, v) => format!("Map[{}, {}]", k.signature(), v.signature()),
             Ty::Set(inner) => format!("Set[{}]", inner.signature()),

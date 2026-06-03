@@ -52,6 +52,27 @@ fn non_exhaustive_result_match_is_rejected() {
 }
 
 #[test]
+fn result_error_arm_binds_declared_error_type() {
+    // C1: `Result[T, E]` threads the error type. The `Error(code)` arm must bind
+    // `code` to the declared `E` (here `int`) — NOT the historical hardcoded
+    // `str` — so `code + 1` typechecks. Under the old single-param `Result`,
+    // `code` was `str` and `code + 1` would be a type error.
+    let src = "
+    fn f(r: Result[str, int]) to int {
+        return match r {
+            Ok(s) => len(s)
+            Error(code) => code + 1
+        }
+    }
+    ";
+    let errs = error_codes(src);
+    assert!(
+        errs.is_empty(),
+        "Result[str, int] should bind the Error arm payload as int (the E); got {errs:?}"
+    );
+}
+
+#[test]
 fn exhaustive_option_and_result_matches_are_accepted() {
     let src = "
     fn f(o: Option[int]) to int {
