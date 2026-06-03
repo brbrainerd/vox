@@ -3,7 +3,6 @@ use crate::ingest::InboundItem;
 use anyhow::{Context, Result};
 use feed_rs::parser;
 use reqwest::{Client, header};
-use std::time::Duration;
 
 pub struct FeedCrawler {
     client: Client,

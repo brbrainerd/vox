@@ -3,7 +3,6 @@
 //! Environment **keys and base URL precedence** live in [`vox_config::inference`]; this module adds
 //! HTTP capability discovery and constants for the HF Inference Providers router.
 
-use std::time::Duration;
 
 pub use vox_config::inference::{
     huggingface_hub_token, local_ollama_populi_base_url, openrouter_api_key,
