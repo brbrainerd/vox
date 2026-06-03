@@ -1285,4 +1285,117 @@ mod namespace_builtin_parity_tests {
         assert!(namespace_builtin_owned("fs"));
         assert!(!namespace_builtin_owned("mobile")); // mobile dispatches elsewhere — not gated.
     }
+
+    /// Does the runtime VALUE's shape match the typecheck return Ty? Catches
+    /// WRONG-SHAPE drift (e.g. typeck Option[str] but interp returns a bare str)
+    /// that the presence checker cannot. On Err/None the inner is not observable,
+    /// so we accept it; unmodelled Ty variants are permissive (never false-fail).
+    fn shape_matches(ty: &Ty, val: &VoxValue) -> bool {
+        match ty {
+            Ty::Result(inner) => match val {
+                VoxValue::Result(Ok(b)) => shape_matches(inner, &**b),
+                VoxValue::Result(Err(_)) => true,
+                _ => false,
+            },
+            Ty::Option(inner) => match val {
+                VoxValue::Option(Some(b)) => shape_matches(inner, &**b),
+                VoxValue::Option(None) => true,
+                _ => false,
+            },
+            Ty::Int => matches!(val, VoxValue::Int(_)),
+            Ty::Float => matches!(val, VoxValue::Float(_) | VoxValue::Int(_)),
+            Ty::Str => matches!(val, VoxValue::Str(_)),
+            Ty::Bool => matches!(val, VoxValue::Bool(_)),
+            Ty::List(_) => matches!(val, VoxValue::List(_)),
+            Ty::Record(_) => matches!(val, VoxValue::Object(_)),
+            Ty::Unit => matches!(val, VoxValue::Null) || matches!(val, VoxValue::Object(_)),
+            Ty::Named(n) if n == "Regex" => {
+                matches!(val, VoxValue::Tagged { name, .. } if name == "Regex")
+            }
+            Ty::Named(n) if n == "Match" => {
+                matches!(val, VoxValue::Tagged { name, .. } if name == "Match")
+            }
+            // Json is dynamic; Map/Set/Named(other)/generics are not modelled here.
+            _ => true,
+        }
+    }
+
+    /// Behavioral shape parity: each pure/hermetic std.<ns>.<method> is invoked in
+    /// the interpreter with valid inputs (so the success shape is observable) and
+    /// its return shape is asserted against the typecheck return Ty. This catches
+    /// the wrong-shape class (process.run_ex Result[int]-vs-record, regex.compile
+    /// Regex-vs-str, path.parent Option-vs-bare) that presence parity can't.
+    /// Scope: pure/string-in builtins (no process spawn). FS/process shape checks
+    /// need fixtures — a follow-up slice.
+    #[test]
+    fn interpreter_return_shape_matches_typecheck() {
+        fn s(x: &str) -> VoxValue {
+            VoxValue::Str(x.to_string())
+        }
+        let obj_k1 = VoxValue::Object(vec![("k".to_string(), VoxValue::Int(1))]);
+        let probes: Vec<(&str, &str, Vec<VoxValue>)> = vec![
+            ("path", "join", vec![s("a"), s("b")]),
+            ("path", "join_many", vec![VoxValue::List(vec![s("a"), s("b")])]),
+            ("path", "basename", vec![s("a/b.txt")]),
+            ("path", "dirname", vec![s("a/b")]),
+            ("path", "extension", vec![s("a.txt")]),
+            ("path", "parent", vec![s("a/b")]),
+            ("path", "file_name", vec![s("a/b")]),
+            ("path", "stem", vec![s("a.txt")]),
+            ("path", "is_absolute", vec![s("/a")]),
+            ("path", "resolve", vec![s(".")]),
+            ("regex", "replace", vec![s("a1"), s(r"\d"), s("X")]),
+            ("regex", "find", vec![s("a1"), s(r"\d")]),
+            ("regex", "is_match", vec![s("a1"), s(r"\d")]),
+            ("regex", "captures", vec![s("a1"), s(r"(\d)")]),
+            ("regex", "compile", vec![s(r"\d+")]),
+            ("json", "parse", vec![s("{}")]),
+            ("json", "render", vec![obj_k1.clone()]),
+            ("json", "read_str", vec![s(r#"{"k":"v"}"#), s("k")]),
+            ("json", "read_f64", vec![s(r#"{"n":1}"#), s("n")]),
+            ("json", "quote", vec![s("a")]),
+            ("csv", "parse", vec![s("a,b\n1,2")]),
+            ("csv", "parse_records", vec![s("a,b\n1,2")]),
+            ("csv", "render", vec![VoxValue::List(vec![VoxValue::List(vec![s("a"), s("b")])])]),
+            ("toml", "parse", vec![s("k = 1")]),
+            ("toml", "render", vec![obj_k1.clone()]),
+            ("yaml", "parse", vec![s("k: 1")]),
+            ("yaml", "render", vec![obj_k1.clone()]),
+            ("time", "now_ms", vec![]),
+            ("env", "args", vec![]),
+            ("env", "get", vec![s("PATH")]),
+            ("agentos", "mutation_kind_for_tool", vec![s("read_file")]),
+        ];
+        let receiver = |ns: &str| {
+            VoxValue::Object(vec![(
+                "__namespace__".to_string(),
+                VoxValue::Str(ns.to_string()),
+            )])
+        };
+        let mut mismatches = Vec::new();
+        for (ns, method, args) in probes {
+            let ret = match std_namespace_method_ty(ns, method) {
+                Some(Ty::Fn(_, ret)) => *ret,
+                other => {
+                    mismatches.push(format!("std.{ns}.{method}: no Fn typeck sig ({other:?})"));
+                    continue;
+                }
+            };
+            match call_builtin_method(&receiver(ns), method, args, None) {
+                Some(val) => {
+                    if !shape_matches(&ret, &val) {
+                        mismatches.push(format!(
+                            "std.{ns}.{method}: typeck {ret:?} but interp returned {val:?}"
+                        ));
+                    }
+                }
+                None => mismatches.push(format!("std.{ns}.{method}: interp returned None")),
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "interp return-shape mismatches vs typecheck:\n{}",
+            mismatches.join("\n")
+        );
+    }
 }

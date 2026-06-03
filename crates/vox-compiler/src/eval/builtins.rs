@@ -1241,40 +1241,44 @@ pub fn call_builtin_method(
                             .to_string();
                         Some(VoxValue::Str(ext))
                     }
+                    // parent/file_name/stem return Option[str] to match typeck +
+                    // codegen (vox_path_*). Previously returned a bare Str, so
+                    // `std.path.parent(p)` (typed Option[str]) crashed under --interp
+                    // when callers did .unwrap()/match. (Wrong-shape parity fix.)
                     "parent" => {
                         let p = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Str(String::new())),
+                            _ => return Some(VoxValue::Option(None)),
                         };
-                        let parent = std::path::Path::new(&p)
-                            .parent()
-                            .map(|s| s.to_string_lossy().to_string())
-                            .unwrap_or_default();
-                        Some(VoxValue::Str(parent))
+                        Some(VoxValue::Option(
+                            std::path::Path::new(&p)
+                                .parent()
+                                .map(|s| Box::new(VoxValue::Str(s.to_string_lossy().to_string()))),
+                        ))
                     }
                     "file_name" => {
                         let p = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Str(String::new())),
+                            _ => return Some(VoxValue::Option(None)),
                         };
-                        let name = std::path::Path::new(&p)
-                            .file_name()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("")
-                            .to_string();
-                        Some(VoxValue::Str(name))
+                        Some(VoxValue::Option(
+                            std::path::Path::new(&p)
+                                .file_name()
+                                .and_then(|s| s.to_str())
+                                .map(|s| Box::new(VoxValue::Str(s.to_string()))),
+                        ))
                     }
                     "stem" => {
                         let p = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,
-                            _ => return Some(VoxValue::Str(String::new())),
+                            _ => return Some(VoxValue::Option(None)),
                         };
-                        let stem = std::path::Path::new(&p)
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("")
-                            .to_string();
-                        Some(VoxValue::Str(stem))
+                        Some(VoxValue::Option(
+                            std::path::Path::new(&p)
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .map(|s| Box::new(VoxValue::Str(s.to_string()))),
+                        ))
                     }
                     "is_absolute" => {
                         let p = match args.into_iter().next() {
