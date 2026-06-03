@@ -122,3 +122,76 @@ fn exhaustive_option_and_result_matches_are_accepted() {
         "exhaustive Option/Result matches (incl. binding-as-wildcard) should not error; got {errs:?}"
     );
 }
+
+/// A typed error ADT — `Error(NotFound)` for `Result[int, MyErr]` — type-checks.
+/// Before `Error` was made polymorphic in its error type it forced a `str`
+/// payload, so `Error(NotFound)` failed with "Cannot unify Str with Named(...)".
+#[test]
+fn typed_error_adt_construction_typechecks() {
+    let src = "
+    type Err = | NotFound | Timeout
+    fn f() to Result[int, Err] {
+        return Error(NotFound)
+    }
+    fn main() to int {
+        return match f() {
+            Ok(x) => x
+            Error(e) => match e {
+                NotFound => 0
+                Timeout => 1
+            }
+        }
+    }
+    ";
+    let errs = error_codes(src);
+    assert!(
+        errs.is_empty(),
+        "typed-error construction + exhaustive match should type-check; got {errs:?}"
+    );
+}
+
+/// Matching the error ADT inside the `Error(e)` arm must be exhaustive — a
+/// missing variant is rejected just like any other ADT match.
+#[test]
+fn non_exhaustive_error_adt_match_is_rejected() {
+    let src = "
+    type Err = | NotFound | Timeout
+    fn f() to Result[int, Err] {
+        return Error(NotFound)
+    }
+    fn main() to int {
+        return match f() {
+            Ok(x) => x
+            Error(e) => match e {
+                NotFound => 0
+            }
+        }
+    }
+    ";
+    let errs = error_codes(src);
+    assert!(
+        errs.iter().any(|e| e.contains("Missing variant(s): Timeout")),
+        "non-exhaustive error-ADT match should be rejected; got {errs:?}"
+    );
+}
+
+/// Backward compatibility: a bare string error still infers `E = str`.
+#[test]
+fn string_error_still_typechecks() {
+    let src = "
+    fn f() to Result[int, str] {
+        return Error(\"boom\")
+    }
+    fn main() to int {
+        return match f() {
+            Ok(x) => x
+            Error(e) => 0
+        }
+    }
+    ";
+    let errs = error_codes(src);
+    assert!(
+        errs.is_empty(),
+        "string-error construction should still type-check; got {errs:?}"
+    );
+}

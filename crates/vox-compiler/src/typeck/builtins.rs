@@ -75,7 +75,10 @@ impl BuiltinTypes {
                 },
                 VariantDef {
                     name: "Error".into(),
-                    fields: vec![("message".into(), Ty::Str)],
+                    // The error payload is the second type parameter `E`, so a
+                    // typed error ADT — `Error(NotFound)` for `Result[T, MyErr]`
+                    // — type-checks. A bare `Error("msg")` infers `E = str`.
+                    fields: vec![("message".into(), Ty::GenericParam(1))],
                 },
             ],
             fields: vec![],
@@ -94,14 +97,17 @@ impl BuiltinTypes {
                 is_deprecated: false,
             },
         );
-        // Error(message: str) → Result[T]
+        // Error(err: E) → Result[T, E]. Polymorphic in the error type so typed
+        // error ADTs survive type-checking; `Error("msg")` simply infers E=str.
         env.define(
             "Error".into(),
             Binding {
                 ty: Ty::Fn(
-                    vec![Ty::Str],
-                    // Error returns Result[T]
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
+                    vec![Ty::GenericParam(1)],
+                    Box::new(Ty::Result(
+                        Box::new(Ty::GenericParam(0)),
+                        Box::new(Ty::GenericParam(1)),
+                    )),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
