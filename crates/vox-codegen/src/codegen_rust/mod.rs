@@ -489,6 +489,28 @@ fn heartbeat() { }
     }
 
     #[test]
+    fn tauri_tables_only_emits_setup_without_scheduler() {
+        // Regression guard: the `needs_setup` refactor must still emit `.setup()` + Codex
+        // management for a @table-only module (no @scheduled functions).
+        let mut module = empty_module();
+        module.tables.push(simple_task_table());
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        let main = out.files.get("src-tauri/src/main.rs").unwrap();
+        assert!(
+            main.contains(".setup("),
+            "tables-only app must still emit a setup block: {main}"
+        );
+        assert!(
+            main.contains("app.manage"),
+            "tables-only app must manage the Codex db: {main}"
+        );
+        assert!(
+            !main.contains("scheduled::register"),
+            "tables-only app must NOT register a scheduler: {main}"
+        );
+    }
+
+    #[test]
     fn tauri_emit_registers_sherpa_acl_in_build_rs() {
         let module = empty_module();
         let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();

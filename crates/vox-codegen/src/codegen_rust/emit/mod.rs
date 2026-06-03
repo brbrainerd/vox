@@ -476,8 +476,7 @@ vox-orchestrator = {{ path = "../../../crates/vox-orchestrator" }}
 vox-oratio = {{ path = "../../../crates/vox-oratio" }}
 vox-tauri-stt = {{ path = "../../../crates/vox-tauri-stt", features = ["tauri-plugin"] }}
 # P9 (2026-05-24): durable boot prelude — see vox-codegen emit/main_boot.rs.
-# (Tauri main.rs does not yet emit the prelude; deps added for symmetry +
-# so future Tauri-side durable wiring is unblocked.)
+# Tauri main.rs now emits the prelude (inside .setup) when @scheduled fns are present.
 vox-compiler = {{ path = "../../../crates/vox-compiler" }}
 vox-workflow-runtime = {{ path = "../../../crates/vox-workflow-runtime", default-features = false }}
 {fixture_deps}{rust_import_deps}
