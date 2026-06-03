@@ -915,6 +915,61 @@ pub(crate) fn collect_component_import_refs(
 ///
 /// `web_projection` must be the same Web IR graph as [`crate::projection_bundle::project_bundle_from_hir`]`(hir).web`
 /// so reactive emit does not re-lower the module per component.
+/// Emit the external-React/TS import statements for a module's `import react …`
+/// declarations (Phase 5). Default and namespace imports become one line each;
+/// named imports are grouped per module specifier. Output is fully ordered
+/// (lines sorted, members sorted) for byte-deterministic codegen. Shared by the
+/// web ([`generate_reactive_component`]) and React-Native component emitters so
+/// both targets agree on the import surface.
+pub(crate) fn emit_react_es_import_lines(imports: &[HirImport]) -> String {
+    use std::collections::BTreeMap;
+    let mut lines: Vec<String> = Vec::new();
+    // Named imports grouped per specifier: spec -> (local -> imported).
+    let mut named: BTreeMap<&str, BTreeMap<&str, &str>> = BTreeMap::new();
+    for imp in imports {
+        let (Some(spec), Some(kind)) =
+            (imp.es_module_specifier.as_deref(), imp.es_import_kind.as_ref())
+        else {
+            continue;
+        };
+        match kind {
+            EsImportKind::Default => {
+                lines.push(format!("import {} from \"{spec}\";", imp.item));
+            }
+            EsImportKind::Namespace => {
+                lines.push(format!("import * as {} from \"{spec}\";", imp.item));
+            }
+            EsImportKind::Named { imported } => {
+                named
+                    .entry(spec)
+                    .or_default()
+                    .insert(imp.item.as_str(), imported.as_str());
+            }
+        }
+    }
+    for (spec, members) in &named {
+        let parts: Vec<String> = members
+            .iter()
+            .map(|(local, imported)| {
+                if local == imported {
+                    (*local).to_string()
+                } else {
+                    format!("{imported} as {local}")
+                }
+            })
+            .collect();
+        lines.push(format!("import {{ {} }} from \"{spec}\";", parts.join(", ")));
+    }
+    lines.sort();
+    lines.dedup();
+    let mut out = String::new();
+    for l in lines {
+        out.push_str(&l);
+        out.push('\n');
+    }
+    out
+}
+
 pub fn generate_reactive_component(
     hir: &HirModule,
     rc: &HirReactiveComponent,
@@ -944,22 +999,11 @@ pub fn generate_reactive_component(
 
     out.push_str(&react_import_line(&rc.members));
 
-    // Phase 5: external React components (`import react Foo from "./Foo.tsx"` in Vox source).
-    let mut react_es_imports: Vec<(&str, &str)> = hir
-        .imports
-        .iter()
-        .filter_map(|imp| {
-            imp.es_module_specifier
-                .as_ref()
-                .map(|spec| (imp.item.as_str(), spec.as_str()))
-        })
-        .collect();
-    react_es_imports.sort_by_key(|(item, _)| *item);
-    let has_react_es = !react_es_imports.is_empty();
-    for (item, spec) in &react_es_imports {
-        out.push_str(&format!("import {item} from \"{spec}\";\n"));
-    }
-    if has_react_es {
+    // Phase 5: external React components/hooks. Supports default, named, and
+    // namespace `import react …` forms, grouped per module specifier.
+    let react_es = emit_react_es_import_lines(&hir.imports);
+    if !react_es.is_empty() {
+        out.push_str(&react_es);
         out.push('\n');
     }
 

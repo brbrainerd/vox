@@ -5,8 +5,8 @@ use crate::ast::decl::{
     AstColorToken, AstFontToken, AstScalarToken, BackButtonDecl, Decl, DeepLinkDecl, EffectDecl,
     EndpointDecl, EndpointKind, ExampleDecl, FieldConstraint, FnDecl, ForallDecl, FormDecl,
     FormField, ImportDecl, ImportPath, ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl,
-    OnCleanupDecl, OnMountDecl, PostCondition, PushDecl, ReactiveComponentDecl, ReactiveMemberDecl,
-    RustCrateImport, ScheduledDecl, TestDecl, TokensDecl,
+    OnCleanupDecl, OnMountDecl, PostCondition, PushDecl, ReactBinding, ReactNamedImport,
+    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, TestDecl, TokensDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -88,10 +88,16 @@ impl Parser {
         Ok(true)
     }
 
-    /// `import react LocalName from "./Component.tsx"` — Phase 5 React interop.
+    /// `import react …` — Phase 5 React/TS interop. Three binding shapes:
+    ///   `import react X from "<spec>"`                 (default)
+    ///   `import react { A, B as C } from "<spec>"`     (named)
+    ///   `import react * as Ns from "<spec>"`           (namespace)
     ///
-    /// Returns `Ok(false)` without consuming input when this is not that form (including
-    /// `import react.use_state`, which starts with `react` then `.`).
+    /// Returns `Ok(false)` without consuming input when this is not a react
+    /// import (including `import react.use_state`, which starts with `react`
+    /// then `.`, and the bare `import react` symbol form). Once `react` is
+    /// followed by `{` or `*` the form is unambiguous, so malformed input there
+    /// is a hard parse error rather than a silent bail.
     fn try_parse_react_component_import(
         &mut self,
         paths: &mut Vec<ImportPath>,
@@ -105,48 +111,126 @@ impl Parser {
             return Ok(false);
         }
         self.advance();
-        match self.peek().clone() {
+        let binding = match self.peek().clone() {
+            // `import react.use_state` / `import react/foo` → symbol path, not this form.
             Token::Dot | Token::Slash => {
                 self.pos = save;
-                Ok(false)
+                return Ok(false);
             }
+            // Named: `import react { A, B as C } from "<spec>"` (committed once `{` seen).
+            Token::LBrace => {
+                self.advance(); // eat `{`
+                let mut names = Vec::new();
+                loop {
+                    if matches!(self.peek(), Token::RBrace) {
+                        break;
+                    }
+                    let imported = match self.peek().clone() {
+                        Token::Ident(n) | Token::TypeIdent(n) => {
+                            self.advance();
+                            n
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected an identifier inside `import react { … }`.",
+                                vec!["identifier".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    let local = if matches!(self.peek(), Token::Ident(w) if w == "as") {
+                        self.advance();
+                        self.parse_ident_name()?
+                    } else {
+                        imported.clone()
+                    };
+                    names.push(ReactNamedImport { imported, local });
+                    if !self.eat(&Token::Comma) {
+                        break;
+                    }
+                }
+                self.expect(&Token::RBrace)?;
+                ReactBinding::Named(names)
+            }
+            // Namespace: `import react * as Ns from "<spec>"` (committed once `*` seen).
+            Token::Star => {
+                self.advance(); // eat `*`
+                if !matches!(self.peek(), Token::Ident(w) if w == "as") {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Expected `as <Name>` after `import react *`.",
+                        vec!["as".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+                self.advance(); // eat `as`
+                let local_name = self.parse_ident_name()?;
+                ReactBinding::Namespace { local_name }
+            }
+            // Default: `import react X from "<spec>"`.
             Token::Ident(local_name) | Token::TypeIdent(local_name) => {
-                let local_name = local_name.clone();
                 self.advance();
-                let Token::Ident(from_kw) = self.peek().clone() else {
-                    self.pos = save;
-                    return Ok(false);
-                };
-                if from_kw != "from" {
+                ReactBinding::Default { local_name }
+            }
+            // `import react` alone (or anything else) → let the symbol parser try.
+            _ => {
+                self.pos = save;
+                return Ok(false);
+            }
+        };
+        // All three shapes require `from "<spec>"`.
+        let from_ok = matches!(self.peek(), Token::Ident(w) if w == "from");
+        if !from_ok {
+            // Default form may have been a false positive (e.g. `import react foo`
+            // used as a symbol) — only bail for Default; named/namespace are committed.
+            if matches!(binding, ReactBinding::Default { .. }) {
+                self.pos = save;
+                return Ok(false);
+            }
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "Expected `from \"<module>\"` in a react import.",
+                vec!["from \"module\"".into()],
+                Some(self.peek().to_string()),
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        }
+        self.advance(); // eat `from`
+        let module_specifier = match self.peek().clone() {
+            Token::StringLit(s) | Token::SingleStringLit(s) => {
+                self.advance();
+                s
+            }
+            _ => {
+                if matches!(binding, ReactBinding::Default { .. }) {
                     self.pos = save;
                     return Ok(false);
                 }
-                self.advance();
-                let module_specifier = match self.peek().clone() {
-                    Token::StringLit(s) | Token::SingleStringLit(s) => {
-                        self.advance();
-                        s
-                    }
-                    _ => {
-                        self.pos = save;
-                        return Ok(false);
-                    }
-                };
-                paths.push(ImportPath {
-                    kind: ImportPathKind::ReactComponent {
-                        local_name,
-                        module_specifier,
-                    },
-                    alias: None,
-                    span: seg_start.merge(self.span()),
-                });
-                Ok(true)
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected a module specifier string after `from` in a react import.",
+                    vec!["\"@scope/pkg\"".into(), "\"./Component.tsx\"".into()],
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
             }
-            _ => {
-                self.pos = save;
-                Ok(false)
-            }
-        }
+        };
+        paths.push(ImportPath {
+            kind: ImportPathKind::ReactComponent {
+                module_specifier,
+                binding,
+            },
+            alias: None,
+            span: seg_start.merge(self.span()),
+        });
+        Ok(true)
     }
 
     /// Parse one symbol import declaration, appending zero or more `ImportPath`s to `paths`.
