@@ -46,7 +46,7 @@ vox-plugin-catalog.workspace = true
 vox-orchestrator-types.workspace = true
 
 vox-db.workspace = true
-vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape"] }
+vox-search = { workspace = true }  # tantivy/web-scrape gated graph-wide via vox-cli heavy-retrieval (WS2-T3)
 vox-config.workspace = true
 vox-repository = { workspace = true, features = ["json-schema"] }
 vox-package.workspace = true

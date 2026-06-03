@@ -21,7 +21,7 @@ vox-secrets = { workspace = true }
 vox-config = { workspace = true }
 vox-db = { workspace = true }
 vox-research-events = { workspace = true }
-vox-search = { workspace = true, features = ["tantivy-lexical", "web-scrape", "tavily"] }
+vox-search = { workspace = true }  # tantivy/web-scrape gated graph-wide via vox-cli heavy-retrieval (WS2-T3)
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

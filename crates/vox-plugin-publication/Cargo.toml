@@ -18,7 +18,7 @@ vox-db = { workspace = true }
 # the core agent runtime. The `LlmConfig` type used in `ingest.rs` is reached
 # through `vox-search`'s re-export.
 # Path dep (not `workspace = true`): Cargo forbids `default-features = false` overrides on inherited workspace deps.
-vox-search = { path = "../vox-search", default-features = false, features = ["tantivy-lexical", "web-scrape"] }
+vox-search = { path = "../vox-search", default-features = false }  # only EmbeddingService + LlmConfig used; no tantivy/scrape (WS2-T3)
 abi_stable = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
