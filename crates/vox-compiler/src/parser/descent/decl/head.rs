@@ -6,7 +6,8 @@ use crate::ast::decl::{
     EndpointDecl, EndpointKind, ExampleDecl, FieldConstraint, FnDecl, ForallDecl, FormDecl,
     FormField, ImportDecl, ImportPath, ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl,
     OnCleanupDecl, OnMountDecl, PostCondition, PushDecl, ReactBinding, ReactNamedImport,
-    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, TestDecl, TokensDecl,
+    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, TestDecl,
+    TokensDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;

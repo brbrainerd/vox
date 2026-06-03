@@ -122,11 +122,15 @@ import react Sheet from "./Sheet.tsx"
 
 #[test]
 fn react_named_import_expands_to_one_per_name() {
-    let imports =
-        parse_imports(r#"import react { Dialog, Trigger as DialogTrigger } from "@radix-ui/react-dialog""#);
+    let imports = parse_imports(
+        r#"import react { Dialog, Trigger as DialogTrigger } from "@radix-ui/react-dialog""#,
+    );
     assert_eq!(imports.len(), 2, "two names → two HirImports");
     // First name: no alias → item == imported.
-    let dialog = imports.iter().find(|i| i.item == "Dialog").expect("Dialog present");
+    let dialog = imports
+        .iter()
+        .find(|i| i.item == "Dialog")
+        .expect("Dialog present");
     assert_eq!(
         dialog.es_module_specifier.as_deref(),
         Some("@radix-ui/react-dialog")
@@ -138,7 +142,10 @@ fn react_named_import_expands_to_one_per_name() {
         .expect("DialogTrigger present");
     match trigger.es_import_kind.as_ref().expect("named kind") {
         vox_compiler::hir::EsImportKind::Named { imported } => {
-            assert_eq!(imported, "Trigger", "aliased import keeps the exported name")
+            assert_eq!(
+                imported, "Trigger",
+                "aliased import keeps the exported name"
+            )
         }
         other => panic!("expected Named, got {other:?}"),
     }

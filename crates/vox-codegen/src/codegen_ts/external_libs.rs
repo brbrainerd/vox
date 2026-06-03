@@ -207,7 +207,10 @@ mod tests {
         assert_eq!(bare_package("@mui/material/Button"), Some("@mui/material"));
         assert_eq!(bare_package("@mui/material"), Some("@mui/material"));
         assert_eq!(bare_package("react-aria/useButton"), Some("react-aria"));
-        assert_eq!(bare_package("react-native-paper"), Some("react-native-paper"));
+        assert_eq!(
+            bare_package("react-native-paper"),
+            Some("react-native-paper")
+        );
         assert_eq!(bare_package("./Foo.tsx"), None);
         assert_eq!(bare_package("../ui/Bar"), None);
     }

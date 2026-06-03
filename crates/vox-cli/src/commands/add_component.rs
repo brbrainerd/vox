@@ -318,10 +318,17 @@ mod tests {
         assert_eq!(planned.len(), 1);
         assert_eq!(
             planned[0].rel_path,
-            PathBuf::from("app").join("components").join("ui").join("button.tsx")
+            PathBuf::from("app")
+                .join("components")
+                .join("ui")
+                .join("button.tsx")
         );
         // Default config matches canonical aliases → content is verbatim.
-        assert!(planned[0].content.contains("import { cn } from \"@/lib/utils\""));
+        assert!(
+            planned[0]
+                .content
+                .contains("import { cn } from \"@/lib/utils\"")
+        );
         assert!(!planned[0].content.contains("use client"));
     }
 

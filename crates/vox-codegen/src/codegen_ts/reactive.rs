@@ -927,9 +927,10 @@ pub(crate) fn emit_react_es_import_lines(imports: &[HirImport]) -> String {
     // Named imports grouped per specifier: spec -> (local -> imported).
     let mut named: BTreeMap<&str, BTreeMap<&str, &str>> = BTreeMap::new();
     for imp in imports {
-        let (Some(spec), Some(kind)) =
-            (imp.es_module_specifier.as_deref(), imp.es_import_kind.as_ref())
-        else {
+        let (Some(spec), Some(kind)) = (
+            imp.es_module_specifier.as_deref(),
+            imp.es_import_kind.as_ref(),
+        ) else {
             continue;
         };
         match kind {
@@ -958,7 +959,10 @@ pub(crate) fn emit_react_es_import_lines(imports: &[HirImport]) -> String {
                 }
             })
             .collect();
-        lines.push(format!("import {{ {} }} from \"{spec}\";", parts.join(", ")));
+        lines.push(format!(
+            "import {{ {} }} from \"{spec}\";",
+            parts.join(", ")
+        ));
     }
     lines.sort();
     lines.dedup();
@@ -1315,7 +1319,10 @@ mod tests {
             page.contains("import { Dialog, DialogContent } from \"@radix-ui/react-dialog\";"),
             "expected grouped named import, got:\n{page}"
         );
-        assert!(page.contains("<Dialog"), "expected <Dialog> tag, got:\n{page}");
+        assert!(
+            page.contains("<Dialog"),
+            "expected <Dialog> tag, got:\n{page}"
+        );
         assert!(
             page.contains("<DialogContent"),
             "expected <DialogContent> tag, got:\n{page}"

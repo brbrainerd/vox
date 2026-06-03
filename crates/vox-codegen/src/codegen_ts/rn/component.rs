@@ -13,8 +13,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use vox_compiler::hir::{
-    HirExpr, HirImport, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember,
-    HirStmt,
+    HirExpr, HirImport, HirJsxAttr, HirJsxElement, HirReactiveComponent, HirReactiveMember, HirStmt,
 };
 
 use crate::web_ir::WebIrDiagnostic;
