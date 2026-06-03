@@ -75,6 +75,13 @@ pub enum CiCmd {
         #[arg(long)]
         write: bool,
     },
+    /// Generate or verify the GUI surface registry (forces every CLI group to be classified).
+    #[command(name = "gui-surface-registry")]
+    GuiSurfaceRegistry {
+        /// Write/update the registry, generated TS, and report. Without this flag, verify only.
+        #[arg(long)]
+        write: bool,
+    },
     /// Validate the YAML contract schema against the system's expected defaults.
     #[command(name = "model-routing-check")]
     ModelRoutingCheck,
