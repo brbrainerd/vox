@@ -57,6 +57,13 @@ surfaces:
   nav_icon: cpu
   nav_group: build
   notes: null
+- view_key: publications
+  cli_group: null
+  representation_tier: curated_decorator
+  nav_label: Publications
+  nav_icon: file
+  nav_group: research
+  notes: scientia publication lifecycle board
 - view_key: runs
   cli_group: null
   representation_tier: live_backend

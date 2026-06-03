@@ -13,4 +13,5 @@ pub mod models;
 pub mod orchestrator;
 pub mod preferences;
 pub mod runs;
+pub mod scientia;
 pub mod secrets;

@@ -104,6 +104,9 @@ async fn main() {
             commands::gamify::ack_ludus_notification,
             commands::gamify::get_gamify_settings,
             commands::gamify::set_gamify_settings,
+            commands::scientia::list_research_sessions,
+            commands::scientia::get_research_session_detail,
+            commands::scientia::list_publication_manifests,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
