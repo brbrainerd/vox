@@ -2,7 +2,7 @@
 title: "CI alternatives and local Docker-based mirroring"
 description: "Research on running GitHub Actions locally in Docker, alternatives to GitHub Actions (act, Earthly, Dagger, Forgejo, Gitea, Woodpecker, GitLab CI, BuildJet/Blacksmith/RunsOn), and how each integrates with the existing vox ci pre-push gate."
 category: "CI & Quality"
-last_updated: "2026-05-09"
+last_updated: "2026-06-03"
 training_eligible: true
 schema_type: "TechArticle"
 ---
@@ -27,11 +27,11 @@ document — it captures findings so we can decide how (or whether) to invest.
    ([local-ci-pre-push](../contributors/local-ci-pre-push.md)) is the supported
    entry point. The fastest, lowest-risk improvement is to **graft `act` (or
    Earthly) onto that hook**, not to introduce a new CI engine.
-3. **Replacing GitHub Actions wholesale is not warranted.** (The GitLab CI
-   mirror that once tracked `ci.yml` has since been retired — see the update
-   banner above.) Forgejo Actions and Gitea Actions are GH-Actions-compatible
-   drop-ins worth tracking but offer no decisive win over our current
-   self-hosted fleet.
+3. **Replacing GitHub Actions wholesale is not warranted.** GitLab CI was
+   previously kept as a parallel mirror but was **removed on 2026-06-03** — the
+   parallel pipeline was not worth maintaining. Forgejo Actions and Gitea
+   Actions are GH-Actions-compatible drop-ins worth tracking but offer no
+   decisive win over our current self-hosted fleet.
 4. **The biggest unrealised speedup is Rust build caching**, not the CI
    provider: `sccache` + `mold` + a shared `target/` cache delivers ~2–4×
    wall-clock improvements in our matrix; provider choice is downstream of
@@ -183,8 +183,10 @@ container-first OSS server we control.
 ### 4. GitLab CI
 
 **Retired (2026-06-03).** Vox previously maintained a `.gitlab-ci.yml` mirror
-for job parity; it has been deleted and GitLab CI is no longer a supported
-target. Re-adopting it would now be a full from-scratch port, not a
+for job parity; it was deleted because keeping a parallel pipeline alongside
+GitHub Actions was not worth the upkeep, and GitLab CI is no longer a supported
+target here. It remains a viable alternative *provider* in the abstract should
+we ever migrate, but re-adopting it would now be a full from-scratch port, not a
 re-sync — not recommended.
 
 ### 5. Faster GitHub-Actions-compatible runner clouds

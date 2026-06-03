@@ -10,6 +10,10 @@ on:
       - "apps/vox-mental-tracker/**"
       - ".github/workflows/vox-mental-tracker.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 defaults:
   run:
     working-directory: apps/vox-mental-tracker

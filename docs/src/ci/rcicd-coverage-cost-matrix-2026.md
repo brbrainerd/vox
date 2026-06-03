@@ -3,7 +3,7 @@ title: "RCICD coverage and cost matrix (2026)"
 description: "Maps CI workflows and jobs to risk coverage, local equivalents, and optimization notes. Companion to runner-contract and local pre-push docs."
 category: "CI & Quality"
 status: "current"
-last_updated: "2026-05-11"
+last_updated: "2026-06-03"
 training_eligible: true
 training_rationale: "Explains where CI spend goes and what belongs in GitHub Actions vs local gates."
 schema_type: "TechArticle"
@@ -66,7 +66,7 @@ For runner labels and exceptions, see [runner-contract.md](runner-contract.md) a
 3. **`mobile-e2e-android.yml`:** Path filters so macOS emulator jobs run only when `apps/vox-mental-tracker/` or the workflow file changes.
 4. **`guards-fast`:** Removed standalone **`data-ssot-guards`** after **`ssot-drift`** (already invoked at end of `run_ssot_drift`).
 5. **`deploy-hetzner.yml` Gate 1:** Dropped duplicate **`cargo fmt`** / **`cargo clippy`**; kept **`cargo build -p vox-cli --locked`** on **`ubuntu-latest`** only (merge already validated by **`ci.yml`**).
-6. ~~**`.gitlab-ci.yml`:** Replaced separate **`check-codex-ssot`**, **`check-docs-ssot`**, **`command-compliance`** with **`retired-symbol-check`** + **`ssot-drift`** to match GitHub bundling.~~ *(Obsolete — the GitLab mirror was retired and deleted 2026-06-03.)*
+6. **GitLab CI mirror removed (2026-06-03):** the parallel `.gitlab-ci.yml` pipeline was deleted; maintaining a second pipeline alongside GitHub Actions was not worth the upkeep. (Earlier optimizations that bundled its guard steps are moot now that the file is gone.)
 
 ## Rollback
 

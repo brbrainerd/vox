@@ -1,0 +1,39 @@
+# Secret scan (gitleaks)
+#
+# Scans the repository (and PR/commit history) for committed secrets.
+#
+# Note: gitleaks-action is free for public repositories. For organization-owned
+# repos a GITLEAKS_LICENSE secret may be required; set it as an env var on the
+# scan step if your org account needs it.
+name: "Secret scan (gitleaks)"
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Daily at 05:00 UTC.
+    - cron: "0 5 * * *"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}  # required for org repos

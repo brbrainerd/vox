@@ -7,6 +7,10 @@ on:
   schedule:
     - cron: '0 2 * * *' # Run nightly
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-setup:
     name: Clean Room Setup + Idempotency
@@ -39,7 +43,9 @@ jobs:
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source "$HOME/.cargo/env" || export PATH="$HOME/.cargo/bin:$PATH"
           rustup default stable
-      
+
+      - uses: Swatinem/rust-cache@v2
+
       - name: Run setup.vox (First run - Provision)
         shell: bash
         run: |

@@ -1,5 +1,5 @@
 use super::{RunBackend, ScriptOpts, parse_cargo_error};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 /// Backend for running native binaries via cargo.
@@ -103,7 +103,13 @@ impl RunBackend for NativeBackend {
         } else {
             script_target_dir.join(profile_dir).join(binary_name)
         };
-        std::fs::copy(&binary_path, &per_entry_binary)?;
+        std::fs::copy(&binary_path, &per_entry_binary).with_context(|| {
+            format!(
+                "failed to copy compiled script binary {} -> {}",
+                binary_path.display(),
+                per_entry_binary.display()
+            )
+        })?;
 
         Ok(per_entry_binary)
     }
@@ -153,12 +159,17 @@ impl RunBackend for NativeBackend {
         // On Windows with --sandbox, spawn then assign Job Object immediately
         #[cfg(target_os = "windows")]
         if opts.sandbox {
-            let mut child = cmd.spawn()?;
+            let mut child = cmd.spawn().with_context(|| {
+                format!("failed to launch script binary {}", artifact.display())
+            })?;
             super::super::sandbox::post_spawn_sandbox(&child)?;
             let status = child.wait()?;
             return Ok(status);
         }
 
-        Ok(cmd.status()?)
+        // Attach the binary path so a launch failure is not a bare, path-less
+        // `os error 3` (the clean-room idempotency failure mode on Windows).
+        cmd.status()
+            .with_context(|| format!("failed to launch script binary {}", artifact.display()))
     }
 }

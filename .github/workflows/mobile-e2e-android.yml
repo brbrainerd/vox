@@ -15,6 +15,10 @@ on:
       - 'crates/vox-tauri-codegen/**'
       - '.github/workflows/mobile-e2e-android.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 

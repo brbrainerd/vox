@@ -1,0 +1,60 @@
+# Dependabot configuration.
+#
+# Keeps dependencies current across the Rust workspace, GitHub Actions, and the
+# TypeScript/npm packages. Cargo minor+patch updates are grouped into a single PR
+# ("rust-deps") to cut noise; major bumps land as individual PRs so they can be
+# reviewed in isolation. npm entries are only declared for directories that
+# actually contain a package manifest.
+version: 2
+
+updates:
+  # Rust workspace (single virtual manifest at the root).
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      rust-deps:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions used by the workflows in .github/workflows.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # npm packages (one entry per directory that has a package.json).
+  - package-ecosystem: "npm"
+    directory: "/clients/runtime-web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/clients/runtime-types"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/apps/editor/vox-vscode"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/apps/experimental/visualizer"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/crates/vox-integration-tests"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

@@ -2,7 +2,7 @@
 title: "Workflow enumeration (GitHub Actions)"
 description: "Official documentation for Workflow enumeration (GitHub Actions) for the Vox language. Detailed technical reference, architecture guides,"
 category: "CI & Quality"
-last_updated: "2026-03-28"
+last_updated: "2026-06-03"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -31,5 +31,4 @@ schema_type: "TechArticle"
 > GitLab↔GitHub job-parity table that previously lived here are gone with it.
 
 `vox-workflow-runtime` tests also validate representative interpreted journal event rows against `contracts/workflow/workflow-journal.v1.schema.json` (including retry and mesh event families across feature modes), so CI catches v1 contract drift in both event shape and replay paths. The compose smoke lanes (`mens-compose-config`, `docker-vox-image-smoke`) live in `ci.yml`; see [deployment compose SSOT](../reference/deployment-compose.md).
-
 
