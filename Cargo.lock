@@ -14283,6 +14283,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-research-events",
+ "vox-scientia",
  "vox-search",
  "vox-secrets",
  "vox-skills",
