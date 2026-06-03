@@ -241,6 +241,9 @@ async fn dispatch_cli_inner(cli: Cli, global: &GlobalOpts) -> anyhow::Result<()>
         Cli::Remove { args } => {
             crate::commands::remove::run(&args.name).await?;
         }
+        Cli::Component { name } => {
+            crate::commands::add_component::run(&name).await?;
+        }
         Cli::Update => {
             crate::commands::update::run().await?;
         }
