@@ -580,6 +580,36 @@ fn heartbeat() { }
     }
 
     #[test]
+    fn tauri_emits_stt_for_file_transcribe_without_mic_permission() {
+        // File-based `transcribe(path)` derives `speech` (STT plugin) but NOT `microphone`.
+        let module = vox_compiler::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe(\"/tmp/a.wav\") }",
+            "t.vox",
+        )
+        .expect("frontend ok")
+        .hir;
+        let caps = crate::projection_bundle::project_bundle_from_hir(&module)
+            .capabilities
+            .capability_ids;
+        assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
+        assert!(!caps.iter().any(|c| c == "microphone"), "{caps:?}");
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        // STT plugin still emitted (gated on speech).
+        assert!(
+            out.files
+                .get("src-tauri/src/main.rs")
+                .unwrap()
+                .contains("vox_tauri_stt::plugin::init()")
+        );
+        assert!(
+            out.files
+                .get("src-tauri/capabilities/default.json")
+                .unwrap()
+                .contains("vox-stt:default")
+        );
+    }
+
+    #[test]
     fn tauri_omits_stt_without_speech() {
         let out = pipeline::generate(&empty_module(), "pkg", RustAppShell::TauriApp).unwrap();
         assert!(

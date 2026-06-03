@@ -198,13 +198,15 @@ fn generate_tauri_workspace(
     }
 
     let bundle = project_bundle_from_hir(module);
-    // Gate the STT plugin (build-script ACL, plugin init, capability permission, Cargo dep) on
-    // whether the module actually uses speech, surfaced as the derived `microphone` capability.
+    // Gate the STT plugin (build-script ACL, plugin init, capability permission, Cargo dep) on the
+    // derived `speech` capability: ANY `Speech.*` use needs the plugin. The `microphone` capability
+    // (OS mic permission) is a strictly narrower concern owned by `transcribe_microphone` and does
+    // not gate the plugin (file-based `transcribe` needs the plugin without the mic permission).
     let needs_stt = bundle
         .capabilities
         .capability_ids
         .iter()
-        .any(|c| c == "microphone");
+        .any(|c| c == "speech");
 
     files.insert("Cargo.toml".to_string(), emit_workspace_root_toml());
 

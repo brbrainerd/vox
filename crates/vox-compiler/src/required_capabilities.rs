@@ -74,13 +74,17 @@ fn is_speech_module(name: &str) -> bool {
     name == "Speech"
 }
 
-fn is_speech_method(method: &str) -> bool {
-    // TODO(capabilities): `transcribe(path)` is file-based and does not use the microphone at
-    // runtime; only `transcribe_microphone()` truly requires RECORD_AUDIO /
-    // NSMicrophoneUsageDescription.  A future change may want to derive the STT-plugin need
-    // separately from the microphone permission so that file-only transcription paths avoid
-    // triggering the microphone capability (and any associated App Store review scrutiny).
-    matches!(method, "transcribe" | "transcribe_microphone")
+/// Classify a `Speech.*` method.
+///
+/// Both methods need the STT plugin (`speech`); only microphone capture additionally needs the OS
+/// microphone permission (RECORD_AUDIO / NSMicrophoneUsageDescription). `transcribe(path)` is
+/// file-based and must NOT trigger the microphone permission (App Store review friction).
+fn speech_method_uses_microphone(method: &str) -> Option<bool> {
+    match method {
+        "transcribe" => Some(false),
+        "transcribe_microphone" => Some(true),
+        _ => None,
+    }
 }
 
 /// Usage flags accumulated during the HIR body walk for capability derivation.
@@ -88,10 +92,13 @@ fn is_speech_method(method: &str) -> bool {
 struct UsageFlags {
     fs_read: bool,
     fs_write: bool,
+    /// Module uses ANY `Speech.*` method → needs the STT plugin.
+    speech: bool,
+    /// Module uses `Speech.transcribe_microphone()` → needs the OS microphone permission.
     microphone: bool,
 }
 
-fn collect_usage_from_expr(expr: &HirExpr, read: &mut bool, write: &mut bool, mic: &mut bool) {
+fn collect_usage_from_expr(expr: &HirExpr, flags: &mut UsageFlags) {
     match expr {
         HirExpr::MethodCall(obj, method, args, _, _) => {
             if let HirExpr::Ident(module_name, _) = obj.as_ref() {
@@ -99,99 +106,104 @@ fn collect_usage_from_expr(expr: &HirExpr, read: &mut bool, write: &mut bool, mi
                     && let Some(id) = fs_method_rw(method)
                 {
                     if id == "fs.read" {
-                        *read = true;
+                        flags.fs_read = true;
                     } else {
-                        *write = true;
+                        flags.fs_write = true;
                     }
                 }
-                if is_speech_module(module_name) && is_speech_method(method) {
-                    *mic = true;
+                if is_speech_module(module_name)
+                    && let Some(uses_mic) = speech_method_uses_microphone(method)
+                {
+                    flags.speech = true;
+                    if uses_mic {
+                        flags.microphone = true;
+                    }
                 }
             }
-            collect_usage_from_expr(obj, read, write, mic);
+            collect_usage_from_expr(obj, flags);
             for a in args {
-                collect_usage_from_expr(&a.value, read, write, mic);
+                collect_usage_from_expr(&a.value, flags);
             }
         }
         HirExpr::Call(callee, args, _, _) => {
-            collect_usage_from_expr(callee, read, write, mic);
+            collect_usage_from_expr(callee, flags);
             for a in args {
-                collect_usage_from_expr(&a.value, read, write, mic);
+                collect_usage_from_expr(&a.value, flags);
             }
         }
         HirExpr::Binary(_, l, r, _) => {
-            collect_usage_from_expr(l, read, write, mic);
-            collect_usage_from_expr(r, read, write, mic);
+            collect_usage_from_expr(l, flags);
+            collect_usage_from_expr(r, flags);
         }
-        HirExpr::Unary(_, o, _) => collect_usage_from_expr(o, read, write, mic),
+        HirExpr::Unary(_, o, _) => collect_usage_from_expr(o, flags),
         HirExpr::If(c, t, e, _) => {
-            collect_usage_from_expr(c, read, write, mic);
+            collect_usage_from_expr(c, flags);
             for s in t {
-                collect_usage_from_stmt(s, read, write, mic);
+                collect_usage_from_stmt(s, flags);
             }
             if let Some(els) = e {
                 for s in els {
-                    collect_usage_from_stmt(s, read, write, mic);
+                    collect_usage_from_stmt(s, flags);
                 }
             }
         }
         HirExpr::Block(stmts, _) => {
             for s in stmts {
-                collect_usage_from_stmt(s, read, write, mic);
+                collect_usage_from_stmt(s, flags);
             }
         }
         HirExpr::For(_, _, it, body, _, _) => {
-            collect_usage_from_expr(it, read, write, mic);
-            collect_usage_from_expr(body, read, write, mic);
+            collect_usage_from_expr(it, flags);
+            collect_usage_from_expr(body, flags);
         }
-        HirExpr::Lambda(_, _, body, _, _) => collect_usage_from_expr(body, read, write, mic),
+        HirExpr::Lambda(_, _, body, _, _) => collect_usage_from_expr(body, flags),
         HirExpr::With(l, r, _) => {
-            collect_usage_from_expr(l, read, write, mic);
-            collect_usage_from_expr(r, read, write, mic);
+            collect_usage_from_expr(l, flags);
+            collect_usage_from_expr(r, flags);
         }
         HirExpr::Match(subj, arms, _) => {
-            collect_usage_from_expr(subj, read, write, mic);
+            collect_usage_from_expr(subj, flags);
             for arm in arms {
                 if let Some(g) = &arm.guard {
-                    collect_usage_from_expr(g, read, write, mic);
+                    collect_usage_from_expr(g, flags);
                 }
-                collect_usage_from_expr(&arm.body, read, write, mic);
+                collect_usage_from_expr(&arm.body, flags);
             }
         }
-        HirExpr::FieldAccess(o, _, _) => collect_usage_from_expr(o, read, write, mic),
+        HirExpr::FieldAccess(o, _, _) => collect_usage_from_expr(o, flags),
         HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
             for e in elems {
-                collect_usage_from_expr(e, read, write, mic);
+                collect_usage_from_expr(e, flags);
             }
         }
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
-                collect_usage_from_expr(v, read, write, mic);
+                collect_usage_from_expr(v, flags);
             }
         }
-        HirExpr::Spawn(inner, _) => collect_usage_from_expr(inner, read, write, mic),
+        HirExpr::Spawn(inner, _) => collect_usage_from_expr(inner, flags),
         HirExpr::JsxFragment(children, _) => {
             for c in children {
-                collect_usage_from_expr(c, read, write, mic);
+                collect_usage_from_expr(c, flags);
             }
         }
         HirExpr::Index(o, i, _) => {
-            collect_usage_from_expr(o, read, write, mic);
-            collect_usage_from_expr(i, read, write, mic);
+            collect_usage_from_expr(o, flags);
+            collect_usage_from_expr(i, flags);
         }
         HirExpr::AsyncView(v) => {
-            collect_usage_from_expr(v.source.as_ref(), read, write, mic);
+            collect_usage_from_expr(v.source.as_ref(), flags);
             if let Some(a) = &v.fetching_arm {
-                collect_usage_from_expr(a, read, write, mic);
+                collect_usage_from_expr(a, flags);
             }
             if let Some(a) = &v.empty_arm {
-                collect_usage_from_expr(a, read, write, mic);
+                collect_usage_from_expr(a, flags);
             }
             if let Some(a) = &v.error_arm {
-                collect_usage_from_expr(a, read, write, mic);
+                collect_usage_from_expr(a, flags);
             }
             if let Some(a) = &v.ok_arm {
-                collect_usage_from_expr(a, read, write, mic);
+                collect_usage_from_expr(a, flags);
             }
         }
         HirExpr::IntLit(..)
@@ -207,31 +219,31 @@ fn collect_usage_from_expr(expr: &HirExpr, read: &mut bool, write: &mut bool, mi
     }
 }
 
-fn collect_usage_from_stmt(stmt: &HirStmt, read: &mut bool, write: &mut bool, mic: &mut bool) {
+fn collect_usage_from_stmt(stmt: &HirStmt, flags: &mut UsageFlags) {
     match stmt {
         HirStmt::Let { value, .. } | HirStmt::Expr { expr: value, .. } => {
-            collect_usage_from_expr(value, read, write, mic);
+            collect_usage_from_expr(value, flags);
         }
         HirStmt::Assign { target, value, .. } => {
-            collect_usage_from_expr(target, read, write, mic);
-            collect_usage_from_expr(value, read, write, mic);
+            collect_usage_from_expr(target, flags);
+            collect_usage_from_expr(value, flags);
         }
         HirStmt::Return { value, .. } => {
             if let Some(e) = value {
-                collect_usage_from_expr(e, read, write, mic);
+                collect_usage_from_expr(e, flags);
             }
         }
         HirStmt::While {
             condition, body, ..
         } => {
-            collect_usage_from_expr(condition, read, write, mic);
+            collect_usage_from_expr(condition, flags);
             for s in body {
-                collect_usage_from_stmt(s, read, write, mic);
+                collect_usage_from_stmt(s, flags);
             }
         }
         HirStmt::Loop { body, .. } => {
             for s in body {
-                collect_usage_from_stmt(s, read, write, mic);
+                collect_usage_from_stmt(s, flags);
             }
         }
         HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
@@ -240,12 +252,7 @@ fn collect_usage_from_stmt(stmt: &HirStmt, read: &mut bool, write: &mut bool, mi
 
 fn walk_fn_body_for_usage(body: &[HirStmt], flags: &mut UsageFlags) {
     for s in body {
-        collect_usage_from_stmt(
-            s,
-            &mut flags.fs_read,
-            &mut flags.fs_write,
-            &mut flags.microphone,
-        );
+        collect_usage_from_stmt(s, flags);
     }
 }
 
@@ -315,6 +322,9 @@ pub fn project_required_capabilities(m: &HirModule) -> RequiredRuntimeCapabiliti
         ids.insert("fs.read".to_string());
         ids.insert("fs.write".to_string());
     }
+    if usage.speech {
+        ids.insert("speech".to_string());
+    }
     if usage.microphone {
         ids.insert("microphone".to_string());
     }
@@ -356,13 +366,29 @@ mod tests {
         )
         .expect("frontend ok");
         let caps = project_required_capabilities(&res.hir).capability_ids;
+        // `transcribe_microphone` derives BOTH speech (STT plugin) and microphone (OS mic permission).
         assert!(caps.iter().any(|c| c == "microphone"), "{caps:?}");
+        assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
     }
 
     #[test]
-    fn no_microphone_capability_without_speech() {
+    fn file_transcribe_derives_speech_but_not_microphone() {
+        let res = crate::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe(\"/tmp/a.wav\") }",
+            "t.vox",
+        )
+        .expect("frontend ok");
+        let caps = project_required_capabilities(&res.hir).capability_ids;
+        // File-based transcription needs the STT plugin (`speech`) but NOT the OS mic permission.
+        assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
+        assert!(!caps.iter().any(|c| c == "microphone"), "{caps:?}");
+    }
+
+    #[test]
+    fn no_speech_or_microphone_capability_without_speech() {
         let res = crate::pipeline::run_frontend_str("fn f() { }", "t.vox").expect("frontend ok");
         let caps = project_required_capabilities(&res.hir).capability_ids;
         assert!(!caps.iter().any(|c| c == "microphone"), "{caps:?}");
+        assert!(!caps.iter().any(|c| c == "speech"), "{caps:?}");
     }
 }

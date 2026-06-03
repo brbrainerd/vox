@@ -63,10 +63,16 @@ capabilities:
     ios_info_plist_keys:
       - NSLocationWhenInUseUsageDescription
     web_csp_note: null
-  - id: microphone
-    description: Microphone capture for on-device speech-to-text
+  - id: speech
+    description: Speech-to-text via the bundled STT plugin (file or microphone input)
     tauri_permission:
       - vox-stt:default
+    android_uses_permission: []
+    ios_info_plist_keys: []
+    web_csp_note: null
+  - id: microphone
+    description: OS microphone capture for live speech-to-text (transcribe_microphone)
+    tauri_permission: []
     android_uses_permission:
       - android.permission.RECORD_AUDIO
     ios_info_plist_keys:
