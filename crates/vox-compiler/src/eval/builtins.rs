@@ -1047,6 +1047,20 @@ pub fn call_builtin_method(
                     }
                     _ => None,
                 },
+                Some("time") => match method {
+                    // `std.time.now_ms()` — current UNIX time in milliseconds.
+                    // Interpreter parity with native codegen
+                    // (vox_actor_runtime::builtins::vox_now_ms) and the typeck
+                    // signature (`time.now_ms -> Int`) in builtin_registry.rs.
+                    "now_ms" => {
+                        let ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as i64)
+                            .unwrap_or(0);
+                        Some(VoxValue::Int(ms))
+                    }
+                    _ => None,
+                },
                 Some("env") => match method {
                     "get" => {
                         let name = match args.into_iter().next() {
@@ -2176,5 +2190,38 @@ pub fn vox_value_display(v: &VoxValue) -> String {
             format!("({})", items.join(", "))
         }
         _ => format!("{v:?}"),
+    }
+}
+
+#[cfg(test)]
+mod time_namespace_interp_tests {
+    use super::*;
+
+    /// Construct the `std.time` namespace object exactly as `eval/mod.rs` does
+    /// (a plain Object carrying the `__namespace__` marker).
+    fn time_namespace() -> VoxValue {
+        VoxValue::Object(vec![(
+            "__namespace__".to_string(),
+            VoxValue::Str("time".to_string()),
+        )])
+    }
+
+    /// `std.time.now_ms()` must dispatch in the interpreter, matching typeck +
+    /// native codegen (both map it to `vox_actor_runtime::builtins::vox_now_ms`).
+    /// Regression guard: previously the interpreter had no `Some("time")` arm, so
+    /// this returned `None` → `"Method now_ms not found"` under `vox run --interp`.
+    #[test]
+    fn std_time_now_ms_dispatches_in_interpreter() {
+        let result = call_builtin_method(&time_namespace(), "now_ms", vec![], None);
+        match result {
+            Some(VoxValue::Int(ms)) => {
+                // A real epoch-ms timestamp is far above this 2001-09 floor.
+                assert!(
+                    ms > 1_000_000_000_000,
+                    "std.time.now_ms should return epoch milliseconds, got {ms}"
+                );
+            }
+            other => panic!("std.time.now_ms did not dispatch in the interpreter: {other:?}"),
+        }
     }
 }
