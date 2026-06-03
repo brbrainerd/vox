@@ -455,6 +455,55 @@ pub async fn scientia_dashboard() -> Result<()> {
     Ok(())
 }
 
+// ── Phase H — cost rollup ─────────────────────────────────────────────────────
+
+/// `vox scientia cost`
+///
+/// Assembles a [`vox_scientia::dashboard::cost::CostRollup`] JSON from the
+/// live Codex DB for the **current calendar quarter** and prints it to stdout.
+///
+/// # Cost data sources
+///
+/// * `by_provider` — real per-provider totals from `agent_telemetry_flat`
+///   where `event_kind = 'cost'`.
+/// * `findings_published_this_quarter` — count of `publication_manifests`
+///   with `state = 'published'` in the quarter window.
+///
+/// # Honest zeros
+///
+/// `extraction_usd`, `critic_usd`, `novelty_retrieval_usd`, and
+/// `scholarly_submission_usd` are all **0.0** because `agent_telemetry_flat`
+/// has no `pipeline_phase` column yet.  They will be populated once that
+/// column is added (Phase 0d roadmap).  An empty DB yields an all-zeros
+/// rollup — that is correct and expected.
+pub async fn scientia_cost() -> Result<()> {
+    use vox_scientia::dashboard::cost::{CostInputs, build_cost_rollup};
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .context("connect to default Codex / VoxDb")?;
+    let (provider_rows, findings) = db
+        .scientia_cost_raw_this_quarter()
+        .await
+        .context("query scientia cost data")?;
+    let by_provider: Vec<(String, f64)> = provider_rows
+        .into_iter()
+        .map(|r| (r.provider, r.total_usd))
+        .collect();
+    let inputs = CostInputs {
+        // Phase-category breakdown not yet available in the schema.
+        // Tracked for a future `agent_telemetry_flat.pipeline_phase` column.
+        extraction_usd: 0.0,
+        critic_usd: 0.0,
+        novelty_retrieval_usd: 0.0,
+        scholarly_submission_usd: 0.0,
+        by_provider,
+        findings_published_this_quarter: findings,
+    };
+    let rollup = build_cost_rollup(&inputs);
+    println!("{}", serde_json::to_string_pretty(&rollup)?);
+    Ok(())
+}
+
 /// Merge an `ExtractedClaimsSummary` into the manifest's existing
 /// `metadata_json` under `scientia_evidence.extracted_claims`, preserving
 /// every other key. Returns the serialized JSON ready for upsert.

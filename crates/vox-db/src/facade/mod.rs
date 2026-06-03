@@ -8,6 +8,7 @@ pub mod migrations;
 pub mod scheduled;
 pub mod schema;
 pub mod scientia;
+pub mod scientia_cost;
 pub mod vox_mesh;
 pub mod workflow;
 pub mod writer_raw;

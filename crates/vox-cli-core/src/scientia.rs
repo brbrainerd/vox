@@ -541,6 +541,14 @@ pub enum ScientiaCmd {
     /// no inputs file.
     #[command(name = "dashboard")]
     Dashboard,
+
+    /// Phase H — Assemble a `CostRollup` JSON for the current calendar quarter
+    /// from the live Codex DB.  Per-provider totals come from
+    /// `agent_telemetry_flat` (event_kind='cost'); the four pipeline-phase
+    /// category lines are 0.0 until `agent_telemetry_flat` gains a
+    /// `pipeline_phase` column.  An empty DB yields an all-zeros rollup.
+    #[command(name = "cost")]
+    Cost,
 }
 
 /// Output format for `vox scientia scout`.

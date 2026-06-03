@@ -356,6 +356,9 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                 ScientiaCmd::Dashboard => {
                     return super::scientia_phase_handlers::scientia_dashboard().await;
                 }
+                ScientiaCmd::Cost => {
+                    return super::scientia_phase_handlers::scientia_cost().await;
+                }
                 ScientiaCmd::PublicationRenderLatex { scaffold, output } => {
                     return super::scientia_phase_handlers::render_latex_handler(
                         &scaffold,
