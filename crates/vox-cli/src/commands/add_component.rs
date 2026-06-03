@@ -58,7 +58,7 @@ pub struct RegistryFile {
 #[derive(Debug, Deserialize)]
 pub struct ComponentsConfig {
     /// `false` ⇒ emit JavaScript (`.jsx`). Not yet supported (see [`plan_files`]).
-    #[serde(default = "default_true")]
+    #[serde(default = "vox_config::serde_defaults::default_true")]
     pub tsx: bool,
     /// `true` ⇒ inject the `"use client"` directive into client components.
     #[serde(default)]
@@ -66,10 +66,6 @@ pub struct ComponentsConfig {
     /// Import-path aliases.
     #[serde(default)]
     pub aliases: Aliases,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 impl Default for ComponentsConfig {
