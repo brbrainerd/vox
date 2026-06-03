@@ -1,6 +1,6 @@
 ---
 description: USE WHEN creating or editing GitHub Actions workflow YAML
-globs: [".github/**", ".gitlab-ci.yml", "scripts/**"]
+globs: [".github/**", "scripts/**"]
 alwaysApply: true
 ---
 

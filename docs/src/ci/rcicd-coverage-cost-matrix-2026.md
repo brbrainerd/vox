@@ -57,7 +57,7 @@ For runner labels and exceptions, see [runner-contract.md](runner-contract.md) a
 
 - **Ignored tests:** Inventory in `contracts/reports/test-inventory.v1.json`; governance via `vox ci ignored-test-age`, `test-inventory`. Large ignored counts hide regressions if ignored-only lanes are skipped.
 - **Mutation scope:** PR mutation gate is limited to compiler/codegen paths; other crates rely on unit/integration coverage only.
-- **GitLab vs GitHub:** `.gitlab-ci.yml` **`vox-ci-guards`** uses the same **`retired-symbol-check`** then **`ssot-drift`** bundle as GitHub **`guards-fast`** (plus GitLab-only extras such as **`data-storage-guard`**). Full parity with the entire **`ci.yml`** matrix is still not guaranteed — track drift when adding GitHub jobs.
+- **GitLab mirror retired (2026-06-03):** the `.gitlab-ci.yml` mirror and its **`vox-ci-guards`** job have been deleted; GitLab CI is no longer a supported target, so GitLab↔GitHub parity is no longer tracked.
 
 ## Cost optimizations applied
 
@@ -66,7 +66,7 @@ For runner labels and exceptions, see [runner-contract.md](runner-contract.md) a
 3. **`mobile-e2e-android.yml`:** Path filters so macOS emulator jobs run only when `apps/vox-mental-tracker/` or the workflow file changes.
 4. **`guards-fast`:** Removed standalone **`data-ssot-guards`** after **`ssot-drift`** (already invoked at end of `run_ssot_drift`).
 5. **`deploy-hetzner.yml` Gate 1:** Dropped duplicate **`cargo fmt`** / **`cargo clippy`**; kept **`cargo build -p vox-cli --locked`** on **`ubuntu-latest`** only (merge already validated by **`ci.yml`**).
-6. **`.gitlab-ci.yml`:** Replaced separate **`check-codex-ssot`**, **`check-docs-ssot`**, **`command-compliance`** with **`retired-symbol-check`** + **`ssot-drift`** to match GitHub bundling.
+6. ~~**`.gitlab-ci.yml`:** Replaced separate **`check-codex-ssot`**, **`check-docs-ssot`**, **`command-compliance`** with **`retired-symbol-check`** + **`ssot-drift`** to match GitHub bundling.~~ *(Obsolete — the GitLab mirror was retired and deleted 2026-06-03.)*
 
 ## Rollback
 

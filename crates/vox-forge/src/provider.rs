@@ -11,7 +11,10 @@ use crate::types::{
     WebhookEvent,
 };
 
-/// A platform-agnostic interface to a Git forge (GitHub, GitLab, and similar REST APIs).
+/// A platform-agnostic interface to a Git forge (GitHub and similar REST APIs).
+///
+/// Note: the GitLab implementation (the `gitlab` module/feature) is
+/// **deprecated (2026-06-03)** and no longer supported.
 ///
 /// Implementations must be `Send + Sync` for use across async task boundaries.
 ///

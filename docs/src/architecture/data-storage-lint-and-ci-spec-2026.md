@@ -1,6 +1,6 @@
 ---
 title: "Data Storage Lint & CI Spec (2026)"
-description: "Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real* `.gitlab-ci.yml` `vox-ci-guards` job and `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD."
+description: "Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real* `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD."
 category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
@@ -8,6 +8,8 @@ training_rationale: "Machine-checkable policy the repository will enforce; agent
 ---
 
 # Data Storage Lint & CI Spec (2026)
+
+> **Update (2026-06-03):** The parallel GitLab CI mirror (`.gitlab-ci.yml`) has been retired and the file deleted. All CI wiring now lives solely in `.github/workflows/ci.yml`. Every migration step (M-NN) below targets GitHub Actions only; the former §6.1 `.gitlab-ci.yml` diff block is now an obsolete marker, and GitLab line-number citations (e.g. L56–81, L95–99, L99) have been dropped. All GitHub Actions guidance is unchanged.
 
 Companion to [data-storage-ssot-2026.md](data-storage-ssot-2026.md) and [data-storage-migration-backlog-2026.md](data-storage-migration-backlog-2026.md). Every rule here either prevents regression of a finding (F1–F74) or enforces a target-state invariant declared by §4 or §5 of the SSOT.
 
@@ -29,7 +31,7 @@ The `data-ssot-guards` CI sub-command already exists (`crates/vox-cli/src/comman
 
 ## 1. The `vox ci data-storage-guard` subcommand
 
-The **single entrypoint** for data-storage CI checks. New sibling to the ~70 existing variants in `crates/vox-cli/src/commands/ci/cmd_enums.rs::CiCmd` (exact count varies with in-flight PRs; verify with `grep -c '^    #\[command(name' crates/vox-cli/src/commands/ci/cmd_enums.rs`). Slots into the existing `vox-ci-guards` GitLab job (`.gitlab-ci.yml` L56–81, 21 cargo invocations at HEAD) and into the main GitHub Actions check job (`.github/workflows/ci.yml` L35–130) — this spec avoids inventing a parallel governance surface.
+The **single entrypoint** for data-storage CI checks. New sibling to the ~70 existing variants in `crates/vox-cli/src/commands/ci/cmd_enums.rs::CiCmd` (exact count varies with in-flight PRs; verify with `grep -c '^    #\[command(name' crates/vox-cli/src/commands/ci/cmd_enums.rs`). Slots into the main GitHub Actions check job (`.github/workflows/ci.yml` L35–130) — this spec avoids inventing a parallel governance surface.
 
 ### 1.1 Command shape
 
@@ -185,7 +187,7 @@ A new `data-storage-guard` sub-check `clippy-allowlist-parity` (added by M-56 st
 
 ### 2.2 Crate-root deny lints
 
-No new `#![deny(...)]` attributes are added in this PR. The crates that would carry them (`vox-db`, `vox-orchestrator`, `vox-spool`) are either already governed by the workspace-wide `-D warnings` in `.gitlab-ci.yml` L99 or do not yet exist (`vox-spool` lands in M-03). Revisit after M-03 merges.
+No new `#![deny(...)]` attributes are added in this PR. The crates that would carry them (`vox-db`, `vox-orchestrator`, `vox-spool`) are either already governed by the workspace-wide `-D warnings` in `.github/workflows/ci.yml` or do not yet exist (`vox-spool` lands in M-03). Revisit after M-03 merges.
 
 ### 2.3 Allowlists
 
@@ -246,9 +248,8 @@ name = "redb"
 
 ### 3.3 CI wiring
 
-`cargo deny check` is not currently invoked by `.gitlab-ci.yml` or `.github/workflows/ci.yml` (grep confirms). M-62 adds:
+`cargo deny check` is not currently invoked by `.github/workflows/ci.yml` (grep confirms). M-62 adds:
 
-- A new GitLab job `cargo-deny` (stage `check`, mirrors the `clippy:` job on L95–99), script: `cargo install --locked cargo-deny && cargo deny check licenses sources bans`.
 - A GitHub step in the same job as the other guards: `run: cargo deny check bans` (licenses/sources are slower and gated to nightly).
 
 ## 4. Grep-based CI checks (stateless, in-tree)
@@ -346,44 +347,9 @@ M-04 step 2 applies these two edits plus adds a `forbidden-file-exceptions` sche
 
 ## 6. CI wiring
 
-### 6.1 `.gitlab-ci.yml` — extend the `vox-ci-guards` job
+### 6.1 ~~`.gitlab-ci.yml` — extend the `vox-ci-guards` job~~ (OBSOLETE)
 
-The existing job at L56–81 runs 21 cargo invocations sequentially. Append one line plus an `artifacts:` stanza:
-
-```yaml
-# .gitlab-ci.yml (diff against L56–81)
- vox-ci-guards:
-   extends: .base
-   stage: check
-   script:
-     - cargo build -p vox-cli
-     - cargo run -p vox-cli --quiet -- ci line-endings
-     - cargo run -p vox-cli --quiet -- ci manifest
-     - cargo run -p vox-cli --quiet -- ci check-codex-ssot
-     - cargo run -p vox-cli --quiet -- ci check-docs-ssot
-     - cargo run -p vox-cli --quiet -- ci command-compliance
-     - cargo run -p vox-cli --quiet -- ci doc-inventory verify
-     - cargo run -p vox-cli --quiet -- ci eval-matrix verify
-     - cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts
-     - cargo check -p vox-cli --features gpu
-     - cargo run -p vox-cli --quiet -- ci workflow-scripts
-     - cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
-     - cargo test -p vox-populi --features transport
-     - cargo test -p vox-workflow-runtime
-     - cargo check -p vox-cli --features mesh,workflow-runtime
-     - cargo run -p vox-cli --quiet -- ci build-timings --crates
-     - cargo run -p vox-cli --quiet -- ci feature-matrix
-     - cargo run -p vox-cli --quiet -- ci no-vox-dei-import
-     - cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
-     - cargo run -p vox-cli --quiet -- ci cuda-features
-     - cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
-+    - cargo run -p vox-cli --quiet -- ci data-storage-guard --json > artifacts/data-storage-guard.json
-+  artifacts:
-+    paths:
-+      - artifacts/data-storage-guard.json
-+    when: always
-+    expire_in: 1 week
-```
+> **Obsolete (2026-06-03).** The parallel GitLab CI mirror has been retired and `.gitlab-ci.yml` deleted. The original diff block that appended the `data-storage-guard` invocation and an `artifacts:` stanza to the GitLab `vox-ci-guards` job no longer applies and has been removed. The guard is wired into GitHub Actions only — see §6.2.
 
 ### 6.2 `.github/workflows/ci.yml` — add next to `data-ssot-guards`
 
@@ -472,12 +438,12 @@ vox db doctor --json           > artifacts/release-doctor.json
 vox schema generate --verify --verbose
 ```
 
-A release is blocked if any of the three exit non-zero. M-30 wires this into the existing `release-binaries.yml` and `.gitlab-ci.yml` release stage — no separate pipeline.
+A release is blocked if any of the three exit non-zero. M-30 wires this into the existing `release-binaries.yml` GitHub workflow — no separate pipeline.
 
 ## 10. Rollout plan
 
 1. **M-00** (this PR) — land SSOT + backlog + this spec together. No code change yet.
-2. **M-01..M-09 (Phase 0)** — scaffolding. Land `vox ci data-storage-guard` with every sub-check returning `scaffolded`. The job is wired into both `.gitlab-ci.yml` and `.github/workflows/ci.yml` and emits artifacts, but cannot fail CI.
+2. **M-01..M-09 (Phase 0)** — scaffolding. Land `vox ci data-storage-guard` with every sub-check returning `scaffolded`. The job is wired into `.github/workflows/ci.yml` and emits artifacts, but cannot fail CI.
 3. **M-10..M-19 (Phase 1)** — contracts surface flipping. Each ticket's Verification step explicitly flips its owning check from `Scaffolded` → `Error`.
 4. **M-20..M-49 (Phases 2–4)** — data plane consolidation; checks flip per-ticket.
 5. **M-50..M-59 (Phase 5)** — row/wire separation; `rename-all-policy`, `row-wire-separation`, `block-on-leak` flip.
@@ -527,7 +493,7 @@ for p in \
   contracts/db/data-storage-policy.v1.yaml \
   contracts/db/baseline-version-policy.yaml \
   .cursor/rules/data-storage-policy.mdc \
-  .github/workflows/ci.yml .gitlab-ci.yml ; do
+  .github/workflows/ci.yml ; do
     test -e "$p" || echo "MISSING: $p"
 done
 

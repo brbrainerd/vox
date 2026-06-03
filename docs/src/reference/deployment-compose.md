@@ -49,10 +49,11 @@ Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` a
 - Coolify deploys **Docker Compose** bundles; use `${VAR}` / `${VAR:-default}` so secrets and toggles stay in the UI — [Coolify environment variables](https://coolify.io/docs/knowledge-base/environment-variables), [Compose on Coolify](https://coolify.io/docs/knowledge-base/docker/compose).
 - Vox template: [`infra/coolify/`](../../../infra/coolify/) — read the README for image vs `Dockerfile` MCP split and build-time vs runtime vars.
 
-## CI (GitHub & GitLab)
+## CI (GitHub)
 
 - **GitHub:** `docker compose … config` on the mens example + `docker build` default and mens feature matrix — [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml).
-- **GitLab:** see [workflow enumeration](../ci/workflow-enumeration.md) for parity jobs (compose config + optional image smoke).
+
+> The former GitLab CI mirror was retired and deleted on 2026-06-03; GitHub Actions is the sole CI surface.
 
 ## Related docs
 

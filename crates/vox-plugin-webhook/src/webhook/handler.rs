@@ -7,7 +7,7 @@ use super::WebhookError;
 /// A normalized inbound webhook payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InboundPayload {
-    /// Source identifier (e.g. "github", "gitlab", "custom")
+    /// Source identifier (e.g. "github", "custom"; "gitlab" is deprecated/unsupported as of 2026-06-03)
     pub source: String,
     /// Event type string (e.g. "push", "pull_request")
     pub event_type: String,

@@ -80,7 +80,7 @@ Repeated “full rebuild” symptoms are often **cache fragmentation**, not Rust
 **ML / repo hygiene (Rust, not shell):**
 
 - **`vox ci grammar-export-check`** — wired in the default **`.github/workflows/ci.yml`** Linux job after the CLI feature matrix; asserts grammar exports are non-empty (EBNF/GBNF/Lark/JSON-Schema).
-- **`vox ci grammar-drift`** — SHA-256 of the EBNF export vs `mens/data/grammar_fingerprint.txt` (and Populi twin); updates the file when drift is detected. The **`ml_data_extraction.yml`** workflow runs this with **`--emit github`**. Use **`--emit github`** (stdout: `drift=true|false` only, for `GITHUB_OUTPUT`) or **`--emit gitlab`** (writes `drift.env` in the repo root) when wiring other pipelines.
+- **`vox ci grammar-drift`** — SHA-256 of the EBNF export vs `mens/data/grammar_fingerprint.txt` (and Populi twin); updates the file when drift is detected. The **`ml_data_extraction.yml`** workflow runs this with **`--emit github`** (stdout: `drift=true|false` only, for `GITHUB_OUTPUT`). (The former `--emit gitlab` output channel was removed when the GitLab CI mirror was retired.)
 - **`vox ci repo-guards`** — replaces ad-hoc `grep`/`find` blocks: no `TypeVar(0)` in **`vox-codegen-rust` / `vox-codegen-ts` sources** (typechecker uses that sentinel legitimately), filtered `opencode` references under `crates/`, and no stray root clutter files (same policy as the former GitLab `guards` job).
 
 ## Build timings (wall-clock `cargo check`)
@@ -108,7 +108,7 @@ Set **`VOX_EXAMPLES_STRICT_PARSE=1`** when running **`cargo test -p vox-compiler
 
 Rust’s built-in harness (**`cargo test`**) does **not** enforce per-test timeouts. After ~60 seconds it may print *“has been running for over 60 seconds”* — that is only a **warning**; the test keeps running until it finishes or you interrupt it.
 
-**`cargo nextest run`** (used in GitHub `ci.yml` and `.gitlab-ci.yml`) reads **`.config/nextest.toml`**. There, **`slow-timeout`** marks slow tests and, with **`terminate-after`**, ends a stuck test after roughly **`terminate-after × period`** wall time (see [nextest slow tests](https://nexte.st/docs/features/slow-tests/)). The **`global-timeout`** setting caps the **entire** test run duration for a binary, not each case.
+**`cargo nextest run`** (used in GitHub `ci.yml`) reads **`.config/nextest.toml`**. There, **`slow-timeout`** marks slow tests and, with **`terminate-after`**, ends a stuck test after roughly **`terminate-after × period`** wall time (see [nextest slow tests](https://nexte.st/docs/features/slow-tests/)). The **`global-timeout`** setting caps the **entire** test run duration for a binary, not each case.
 
 For local debugging of a single crate, prefer:
 

@@ -92,7 +92,7 @@
       "path_pattern": "crates/vox-eval/**/*.rs"
     },
     "vox-forge": {
-      "role": "Platform-agnostic Git forge API (GitHub, GitLab, Gitea, Forgejo)",
+      "role": "Platform-agnostic Git forge API (GitHub, Gitea, Forgejo; GitLab deprecated)",
       "path_pattern": "crates/vox-forge/**/*.rs"
     },
     "vox-git": {
