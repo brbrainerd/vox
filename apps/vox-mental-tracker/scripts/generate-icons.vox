@@ -1,14 +1,17 @@
+// vox:caps process
 fn main() to int {
     let master = "public/icons/master.png"
     let android_sizes = [48, 72, 96, 144, 192, 512]
     let ios_sizes = [20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024]
     for size in android_sizes {
-        shell_exec("magick " + master + " -resize " + str(size) + "x" + str(size)
-            + " android/app/src/main/res/mipmap-" + density_for(size) + "/ic_launcher.png")
+        let dim = str(size) + "x" + str(size)
+        let out = "android/app/src/main/res/mipmap-" + density_for(size) + "/ic_launcher.png"
+        std.process.run("magick", [master, "-resize", dim, out])
     }
     for size in ios_sizes {
-        shell_exec("magick " + master + " -resize " + str(size) + "x" + str(size)
-            + " ios/App/App/Assets.xcassets/AppIcon.appiconset/icon-" + str(size) + ".png")
+        let dim = str(size) + "x" + str(size)
+        let out = "ios/App/App/Assets.xcassets/AppIcon.appiconset/icon-" + str(size) + ".png"
+        std.process.run("magick", [master, "-resize", dim, out])
     }
     return 0
 }

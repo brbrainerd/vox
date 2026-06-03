@@ -19,20 +19,20 @@
 
 component Dashboard() {
     state items: list[str] = ["System active", "Data synchronized"]
-    view: <div class="dashboard">
-        <h1>"Dashboard"</h1>
-        <ul>
+    view: column(raw_class="dashboard") {
+        heading(level=1) { "Dashboard" }
+        column() {
             for item in items {
-                <li>{item}</li>
+                text() { "{item}" }
             }
-        </ul>
-    </div>
+        }
+    }
 }
 
 component ItemDetail(id: str) {
-    view: <div>
-        <h2>"Item: {id}"</h2>
-    </div>
+    view: column() {
+        heading(level=2) { "Item: {id}" }
+    }
 }
 
 routes {

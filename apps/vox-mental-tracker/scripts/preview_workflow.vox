@@ -4,8 +4,8 @@
 // Web preview:    serve dist/ with any static server after wiring Vite scaffold if applicable.
 
 fn main() {
-    println("Mental Tracker preview:");
-    println("1) vox build src/main.vox -o dist");
-    println("2) pnpm install && pnpm build:plugin && pnpm test && npx cap sync");
-    println("3) Android: pnpm cap:open:android — iOS: pnpm cap:open:ios");
+    print("Mental Tracker preview:");
+    print("1) vox build src/main.vox -o dist");
+    print("2) pnpm install && pnpm build:plugin && pnpm test && npx cap sync");
+    print("3) Android: pnpm cap:open:android — iOS: pnpm cap:open:ios");
 }
