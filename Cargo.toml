@@ -192,7 +192,7 @@ http               = "1"
 bsky-sdk = { version = "0.1", default-features = false, features = ["atrium-xrpc-client", "rich-text", "default-client"] }
 atrium-api = { version = "0.25", default-features = false, features = ["bluesky"] }
 sha2               = "0.10"
-sha3               = "0.10"
+sha3               = "0.12"
 bincode            = "2"
 data-encoding      = "2"
 thiserror          = "1"
