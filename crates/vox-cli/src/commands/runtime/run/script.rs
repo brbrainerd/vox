@@ -276,9 +276,18 @@ pub(crate) async fn compile(
     );
 
     let stamp_path = cache_dir.join(".compiled");
+    // Mirror `NativeBackend::compile`'s binary-name choice, which is
+    // target-triple-aware. Using the host `cfg!(target_os)` instead would pick the
+    // wrong filename for a cross-compile (`--target`), so `cached_binary` would
+    // never match the produced artifact and the cache would miss every run.
+    let is_windows_target = opts
+        .target_triple
+        .as_ref()
+        .map(|t| t.contains("windows"))
+        .unwrap_or(cfg!(target_os = "windows"));
     let binary_name = if backend.cache_label().contains("wasi") {
         "vox-script.wasm"
-    } else if cfg!(target_os = "windows") {
+    } else if is_windows_target {
         "vox-script.exe"
     } else {
         "vox-script"
