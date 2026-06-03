@@ -54,6 +54,7 @@ database = ["vox-corpus/database"]
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:xxhash-rust",
+    "dep:vox-wasm-engine",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
     "dep:landlock",
@@ -135,7 +136,7 @@ vox-package = { workspace = true }
 
 vox-eval = { workspace = true }
 vox-container = { workspace = true }
-vox-wasm-engine = { workspace = true }
+vox-wasm-engine = { workspace = true, optional = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-openclaw-runtime = { workspace = true, optional = true }

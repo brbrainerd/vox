@@ -22,6 +22,9 @@ gpu = [
     "vox-populi/mens-hf-hub",
     "dep:vox-tensor",
     "dep:vox-plugin-host",
+    # merge-qlora's recombine path calls vox_quantize::parse_mixture, so any GPU
+    # build must also pull the quantize engine. (gpu => quantize.)
+    "quantize",
 ]
 mens-qlora = ["gpu"]
 mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]
@@ -30,7 +33,9 @@ mens-dei = ["dep:vox-tensor", "dep:vox-orchestrator", "dep:vox-cli"]
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
 populi = ["dep:vox-populi", "vox-populi/transport", "dep:blake3"]
 codex = []
-broken_inference_stub = []
+# Data-free k-quant PTQ engine (vox-quantize -> candle/gemm subtree). Off by
+# default to keep the mens-base build lean; `gpu` implies it (see above).
+quantize = ["dep:vox-quantize"]
 execution-api = ["dep:axum"]
 database = ["vox-corpus/database"]
 mens = []
@@ -54,7 +59,7 @@ vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"]
 vox-plugin-host = { workspace = true, optional = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-secrets = { workspace = true }
-vox-quantize = { workspace = true }
+vox-quantize = { workspace = true, optional = true }
 
 clap = { workspace = true }
 tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }

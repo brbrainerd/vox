@@ -628,7 +628,11 @@
       "Bash(echo \"=== EXIT $? ===\")",
       "Bash(echo \"=== EXIT: $? ===\")",
       "Bash(python3 -)",
-      "Bash(git -C \"C:/Users/Owner/vox\" worktree list --porcelain)"
+      "Bash(git -C \"C:/Users/Owner/vox\" worktree list --porcelain)",
+      "Bash(sccache --start-server)",
+      "Bash(sccache --show-stats)",
+      "Bash(grep -v '^$')",
+      "Bash(awk '{print $1\" \"$2}')"
     ]
   }
 }
