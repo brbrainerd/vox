@@ -251,6 +251,7 @@ pub async fn serve_with_listener(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[tokio::test]
     async fn populi_routes_exist_and_legacy_mens_routes_are_absent() {
@@ -286,7 +287,12 @@ mod tests {
         server.abort();
     }
 
+    // `#[serial]`: this test mutates the process-global `VOX_MESH_TOKEN` env var
+    // (read back by the handler via `populi_control_token_from_env`). Without
+    // serialization it races other tests in the same binary under the
+    // full-workspace parallel run, flaking intermittently.
     #[tokio::test]
+    #[serial]
     async fn bootstrap_exchange_round_trip() {
         const TOKEN: &str = "test-bootstrap-abc123";
         const MESH_TOKEN: &str = "mesh-bearer-xyz789";

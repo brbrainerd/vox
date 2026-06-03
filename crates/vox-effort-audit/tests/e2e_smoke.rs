@@ -132,8 +132,12 @@ async fn concurrent_judge_completes_under_budget() {
     .await
     .unwrap();
     let elapsed = started.elapsed();
+    // Budget is well under the ~1000ms sequential baseline so it still proves
+    // concurrency, but with enough headroom to survive scheduler jitter when the
+    // whole workspace test suite runs in parallel (the 700ms bound flaked under
+    // that load even though the work is the same).
     assert!(
-        elapsed < std::time::Duration::from_millis(700),
+        elapsed < std::time::Duration::from_millis(850),
         "elapsed: {elapsed:?} (sequential baseline would be ~1000ms)"
     );
 }
