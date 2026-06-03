@@ -42,8 +42,12 @@ fn form_emits_react_component_with_inputs_and_labels() {
         "must await endpoint call, got:\n{ts}"
     );
     assert!(
-        ts.contains("navigate("),
-        "must trigger redirect, got:\n{ts}"
+        // Router-agnostic redirect (see `ed7a972e08`): push history + dispatch
+        // `popstate` so the emitted router navigates to the success route.
+        // Replaced the earlier hard `navigate()` call, which assumed a router.
+        ts.contains("window.history.pushState(null, \"\", \"/timeline\")")
+            && ts.contains("PopStateEvent(\"popstate\")"),
+        "must trigger router-agnostic redirect, got:\n{ts}"
     );
 }
 
