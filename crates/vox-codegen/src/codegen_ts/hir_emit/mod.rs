@@ -970,10 +970,43 @@ fn floating_endpoint_call_name<'a>(expr: &'a HirExpr, ctx: &EmitCtx<'_>) -> Opti
     None
 }
 
+/// Like `floating_endpoint_call_name`, but for the explicit DISCARD form
+/// (`let _ = record_event(...)`). A discarded endpoint call is *always* a
+/// fire-and-forget — the binding is thrown away, so there is nothing to await.
+/// Unlike the bare-statement case, this must fire even inside a `handler_await`
+/// context (where the name lives in `async_fn_names`): awaiting a discarded
+/// promise only serves to let a rejection escape as an unhandled rejection in
+/// the async handler, which is the bug this guards against.
+fn discarded_endpoint_call_name<'a>(expr: &'a HirExpr, ctx: &EmitCtx<'_>) -> Option<&'a str> {
+    if let HirExpr::Call(callee, _, _, _) = expr {
+        if let HirExpr::Ident(name, _) = callee.as_ref() {
+            if ctx.endpoint_params.contains_key(name) {
+                return Some(name.as_str());
+            }
+        }
+    }
+    None
+}
+
 /// Render a fire-and-forget endpoint call with an attached `.catch` so it can
 /// never surface as an unhandled promise rejection.
 fn emit_floating_endpoint_call(expr: &HirExpr, ctx: &EmitCtx<'_>, name: &str, pad: &str) -> String {
-    let call = emit_hir_expr(expr, ctx);
+    // Render the call WITHOUT `await` even in a handler context: the discard
+    // path can reach here with `name` in `async_fn_names`, but a fire-and-forget
+    // promise must stay un-awaited so its rejection is caught by `.catch`, not
+    // surfaced as an unhandled rejection. Shadow the async set with one that
+    // omits this name so `emit_hir_expr` emits the bare promise.
+    let async_without_name: HashSet<String> = ctx
+        .async_fn_names
+        .iter()
+        .filter(|n| n.as_str() != name)
+        .cloned()
+        .collect();
+    let no_await_ctx = EmitCtx {
+        async_fn_names: &async_without_name,
+        ..ctx.clone()
+    };
+    let call = emit_hir_expr(expr, &no_await_ctx);
     format!(
         "{pad}void Promise.resolve({call}).catch((__e) => {{ console.error(\"[vox] endpoint '{name}' failed (fire-and-forget):\", __e); }});\n"
     )
@@ -1032,7 +1065,7 @@ pub(crate) fn emit_hir_stmt(stmt: &HirStmt, ctx: &EmitCtx<'_>, indent: usize) ->
             let is_discard = matches!(pattern, HirPattern::Wildcard(_))
                 || matches!(pattern, HirPattern::Ident(n, _) if n == "_");
             if is_discard {
-                if let Some(name) = floating_endpoint_call_name(value, ctx) {
+                if let Some(name) = discarded_endpoint_call_name(value, ctx) {
                     return emit_floating_endpoint_call(value, ctx, name, &pad);
                 }
             }
