@@ -1,3 +1,0 @@
-fn always_true() to bool {
-    return true
-}

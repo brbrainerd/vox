@@ -1,3 +1,0 @@
-fn repeat_greeting(name: str) to str {
-    return "Hi " + name + ", Hi " + name + "!"
-}

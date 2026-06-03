@@ -1,3 +1,0 @@
-fn percent(part: int, whole: int) to int {
-    return part * 100 / whole
-}

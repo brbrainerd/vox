@@ -1,7 +1,0 @@
-fn bound_add(a: int, b: int, cap: int) to int {
-    let s = a + b
-    if s > cap {
-        return cap
-    }
-    return s
-}

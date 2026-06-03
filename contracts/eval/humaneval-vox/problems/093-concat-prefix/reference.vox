@@ -1,3 +1,0 @@
-fn concat_prefix(p: str, s: str) to str {
-    return p + s
-}

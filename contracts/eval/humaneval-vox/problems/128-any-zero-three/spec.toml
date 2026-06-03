@@ -1,8 +1,0 @@
-id = "humaneval-vox-128-any-zero-three"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `any_zero_three(a: int, b: int, c: int) to bool` returning true when at least one of a, b, c is exactly 0.
-"""

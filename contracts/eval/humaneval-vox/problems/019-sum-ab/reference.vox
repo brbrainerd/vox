@@ -1,3 +1,0 @@
-fn sum_ab(a: int, b: int) to int {
-    return a + b
-}

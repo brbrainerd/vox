@@ -1,3 +1,0 @@
-fn shout(s: str) to str {
-    return s + "!"
-}

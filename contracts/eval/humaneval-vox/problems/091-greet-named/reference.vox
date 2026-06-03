@@ -1,3 +1,0 @@
-fn greet_named(name: str) to str {
-    return "Hello, " + name
-}

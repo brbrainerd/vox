@@ -1,8 +1,0 @@
-id = "humaneval-vox-063-decade-clamp"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `decade_clamp(n: int) to int` clamping n to the closed interval [0, 10].
-"""

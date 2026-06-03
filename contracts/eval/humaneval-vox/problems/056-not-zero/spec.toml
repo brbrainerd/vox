@@ -1,8 +1,0 @@
-id = "humaneval-vox-056-not-zero"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `not_zero(n: int) to bool` returning true when n is not 0.
-"""

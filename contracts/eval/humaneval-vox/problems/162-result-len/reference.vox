@@ -1,6 +1,0 @@
-fn result_len(r: Result[str]) to int {
-    match r {
-        Ok(s)    => return len(s)
-        Error(_) => return 0
-    }
-}

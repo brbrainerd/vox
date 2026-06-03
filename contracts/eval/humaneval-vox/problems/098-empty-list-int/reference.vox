@@ -1,3 +1,0 @@
-fn empty_list_int() to list[int] {
-    return []
-}

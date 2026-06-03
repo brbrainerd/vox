@@ -1,8 +1,0 @@
-id = "humaneval-vox-098-empty-list-int"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `empty_list_int() to list[int]` returning an empty list of integers.
-"""

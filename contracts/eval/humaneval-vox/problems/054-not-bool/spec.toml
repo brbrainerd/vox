@@ -1,8 +1,0 @@
-id = "humaneval-vox-054-not-bool"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `not_bool(b: bool) to bool` returning the logical negation of b.
-"""

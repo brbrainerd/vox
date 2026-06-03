@@ -1,6 +1,0 @@
-fn some_or_default(o: Option[int], d: int) to int {
-    match o {
-        Some(n) => return n
-        None    => return d
-    }
-}

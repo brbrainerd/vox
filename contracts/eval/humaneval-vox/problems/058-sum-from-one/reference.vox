@@ -1,3 +1,0 @@
-fn sum_from_one(n: int) to int {
-    return n * (n + 1) / 2
-}

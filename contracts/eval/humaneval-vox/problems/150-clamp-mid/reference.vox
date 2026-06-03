@@ -1,9 +1,0 @@
-fn clamp_mid(n: int) to int {
-    if n < -50 {
-        return -50
-    }
-    if n > 50 {
-        return 50
-    }
-    return n
-}

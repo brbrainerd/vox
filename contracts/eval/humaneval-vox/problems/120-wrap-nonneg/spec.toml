@@ -1,8 +1,0 @@
-id = "humaneval-vox-120-wrap-nonneg"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `wrap_nonneg(n: int) to Option[int]` returning Some(n) when n >= 0 else None.
-"""

@@ -1,9 +1,0 @@
-fn is_valid_username(name: str) to bool {
-    if len(name) < 3 {
-        return false
-    }
-    if len(name) > 32 {
-        return false
-    }
-    return true
-}

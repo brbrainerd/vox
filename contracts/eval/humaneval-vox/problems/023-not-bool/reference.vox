@@ -1,6 +1,0 @@
-fn negate(b: bool) to bool {
-    if b is false {
-        return true
-    }
-    return false
-}

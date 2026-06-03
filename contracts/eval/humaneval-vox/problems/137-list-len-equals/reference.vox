@@ -1,3 +1,0 @@
-fn list_len_equals(xs: list[int], n: int) to bool {
-    return len(xs) is n
-}

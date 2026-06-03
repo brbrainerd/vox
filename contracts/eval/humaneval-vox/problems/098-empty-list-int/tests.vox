@@ -1,6 +1,0 @@
-fn empty_list_int() to list[int] {
-    return []
-}
-
-@test
-fn t_len() to Unit { assert(len(empty_list_int()) is 0) }

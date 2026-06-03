@@ -1,8 +1,0 @@
-id = "humaneval-vox-161-roundtrip-some"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `roundtrip_some(n: int) to int` constructing Some(n) and then returning the inner via a match.
-"""

@@ -1,9 +1,0 @@
-id = "humaneval-vox-014-is-even"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write a Vox function `is_even(n: int) to bool` that returns true when
-`n` is divisible by 2.
-"""

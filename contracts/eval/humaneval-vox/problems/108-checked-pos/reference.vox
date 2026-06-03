@@ -1,6 +1,0 @@
-fn checked_pos(n: int) to Result[int] {
-    if n < 0 {
-        return Error("negative")
-    }
-    return Ok(n)
-}

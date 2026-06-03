@@ -1,3 +1,0 @@
-fn sub_five(n: int) to int {
-    return n - 5
-}

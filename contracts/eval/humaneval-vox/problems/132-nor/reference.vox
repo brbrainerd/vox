@@ -1,9 +1,0 @@
-fn nor(a: bool, b: bool) to bool {
-    if a {
-        return false
-    }
-    if b {
-        return false
-    }
-    return true
-}

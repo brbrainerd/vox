@@ -1,3 +1,0 @@
-fn triple(n: int) to int {
-    return n * 3
-}

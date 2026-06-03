@@ -1,3 +1,0 @@
-fn bool_equals(a: bool, b: bool) to bool {
-    return a is b
-}

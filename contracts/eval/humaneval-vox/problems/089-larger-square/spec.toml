@@ -1,8 +1,0 @@
-id = "humaneval-vox-089-larger-square"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `larger_square(a: int, b: int) to int` returning the larger of a*a and b*b.
-"""

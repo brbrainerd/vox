@@ -1,3 +1,0 @@
-fn square(n: int) to int {
-    return n * n
-}

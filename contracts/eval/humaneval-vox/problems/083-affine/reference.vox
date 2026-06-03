@@ -1,3 +1,0 @@
-fn affine(m: int, x: int, b: int) to int {
-    return m * x + b
-}

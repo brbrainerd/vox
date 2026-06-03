@@ -1,6 +1,0 @@
-fn result_double(r: Result[int]) to Result[int] {
-    match r {
-        Ok(n)    => return Ok(n * 2)
-        Error(m) => return Error(m)
-    }
-}

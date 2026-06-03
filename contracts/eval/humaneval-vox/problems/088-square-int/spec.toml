@@ -1,8 +1,0 @@
-id = "humaneval-vox-088-square-int"
-training_eligible = true
-provenance = "hand-authored"
-derived_from = "hand-authored-2026-05"
-
-prompt = """
-Write `square_int(n: int) to int` returning |n|*|n| (i.e. always nonnegative — same as n*n but emphasizes the contract).
-"""

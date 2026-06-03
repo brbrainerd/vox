@@ -1,6 +1,0 @@
-fn and_both(a: bool, b: bool) to bool {
-    if a {
-        return b
-    }
-    return false
-}

@@ -22,7 +22,7 @@ corpus:
   count_target: 164                         # anchored to HumanEval-Python
   held_out_target: 30                       # 30 of 164 must be training_eligible:false
   count_current: 164
-  held_out_current: 44
+  held_out_current: 31                        # actual training_eligible:false count (regen-verified 2026-06-03; was 44, stale)
   corpus_hash: "sha256:8a2f155a4010a0112a5dab8ab6ebc1a577d3349dd56201f4495a25ff74fdb54e"
   measured_against_panel: "see contracts/eval/llm-panel.v1.yaml"
 
