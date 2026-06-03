@@ -200,6 +200,23 @@ mod tests {
         assert_eq!(decoded["key"], 42);
     }
 
+    /// The actor dispatch wire format: a `{"event","args"}` JSON envelope
+    /// round-trips so the emitted dispatch table can read the handler name and
+    /// positional args. Pins the contract codegen targets (see
+    /// docs/superpowers/specs/2026-06-03-actor-message-wire-format-design.md).
+    #[test]
+    fn actor_event_args_wire_format_roundtrip() {
+        let msg = serde_json::json!({ "event": "greet", "args": ["ada", 7] });
+        let payload = MessagePayload::json_value(&msg);
+        let decoded: serde_json::Value = payload.deserialize_json().unwrap();
+        assert_eq!(decoded["event"], "greet");
+        // Typed positional decode, exactly as the emitted `__vox_arg` helper does.
+        let name: String = serde_json::from_value(decoded["args"][0].clone()).unwrap();
+        let count: i64 = serde_json::from_value(decoded["args"][1].clone()).unwrap();
+        assert_eq!(name, "ada");
+        assert_eq!(count, 7);
+    }
+
     #[test]
     fn constants_are_positive() {
         assert!(DEFAULT_MAILBOX_CAPACITY > 0);

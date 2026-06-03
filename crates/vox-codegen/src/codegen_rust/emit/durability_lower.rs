@@ -77,11 +77,63 @@ fn emit_activity_body(
     out
 }
 
+/// Emit the per-handler dispatch arm for one `on <event>(params)` handler.
+///
+/// Decodes the positional `args` array into each typed param, then calls the
+/// emitted `Actor_event(&mut _state, …)` function. On the request path
+/// (`is_request`) the return value is serialized back through
+/// `ProcessContext::reply`; on the message path the return (if any) is dropped.
+/// A malformed/short args array drops the envelope (`continue`s the loop).
+fn emit_actor_dispatch_arm(handler: &HirFn, is_request: bool) -> String {
+    let event = handler.name.split("::").nth(1).unwrap_or(&handler.name);
+    let call_name = handler.name.replace("::", "_");
+    let mut arm = String::new();
+    arm.push_str(&format!("                    {event:?} => {{\n"));
+    let mut call_args = String::from("&mut _state");
+    for (i, param) in handler.params.iter().enumerate() {
+        let ty = emit_type(
+            param
+                .type_ann
+                .as_ref()
+                .unwrap_or(&HirType::Named("serde_json::Value".into())),
+        );
+        arm.push_str(&format!(
+            "                        let {name}: {ty} = match __vox_arg(&__args, {i}usize) {{ \
+             Some(__a) => __a, None => continue }};\n",
+            name = param.name,
+        ));
+        call_args.push_str(&format!(", {}", param.name));
+    }
+    if is_request {
+        if handler.return_type.is_some() {
+            arm.push_str(&format!(
+                "                        let __ret = {call_name}({call_args});\n"
+            ));
+            arm.push_str(
+                "                        ::vox_actor_runtime::ProcessContext::reply(__req, \
+                 ::serde_json::to_vec(&__ret).unwrap_or_default());\n",
+            );
+        } else {
+            arm.push_str(&format!("                        {call_name}({call_args});\n"));
+            arm.push_str(
+                "                        ::vox_actor_runtime::ProcessContext::reply(__req, \
+                 ::std::vec::Vec::new());\n",
+            );
+        }
+    } else {
+        arm.push_str(&format!(
+            "                        let _ = {call_name}({call_args});\n"
+        ));
+    }
+    arm.push_str("                    }\n");
+    arm
+}
+
 fn emit_actor_body(
     func: &HirFn,
     inferred_types: Option<&HashMap<Span, HirType>>,
     usage: Option<&super::usage::UsageTracker>,
-    _handlers: &[&HirFn],
+    handlers: &[&HirFn],
 ) -> String {
     // An actor "handler" function has a name like "ChatRoom::join" and
     // carries the executable handler body lowered from the `on event(...)`
@@ -95,28 +147,65 @@ fn emit_actor_body(
         return emit_plain_body(func, inferred_types, usage);
     }
 
-    // Actor SHELL: spawn the process loop. State struct is emitted as
-    // a sibling by `emit_actor_state_structs` in workflow.rs; here we
-    // just instantiate it. The Envelope dispatch is left as a no-op
-    // for now — vox_actor_runtime::Envelope is a tagged enum
-    // (`Message(Message) | Request(Request) | Signal(Signal)`), not a
-    // struct with a `.payload` field, so a real dispatch table needs
-    // a `match envelope { Envelope::Message(m) => ..., ... }` over
-    // the inner MessagePayload. Until that wire shape is settled,
-    // consume the envelope without routing — the binary compiles
-    // and serves /health, which is what CR-P1 measures.
+    // Actor SHELL: spawn the process loop and dispatch envelopes to handlers.
+    // State struct is emitted as a sibling by `emit_actor_state_structs` in
+    // workflow.rs; here we instantiate it and route each `Envelope` to the
+    // matching `on <event>` handler via the `{"event","args"}` JSON wire format
+    // (docs/superpowers/specs/2026-06-03-actor-message-wire-format-design.md):
+    // `Message` is fire-and-forget; `Request` runs the handler and replies with
+    // the serialized return value; `Signal` is lifecycle (dropped for now).
     let actor_name = &func.name;
     let state_struct = format!("{}State", actor_name);
+
+    let message_arms: String = handlers
+        .iter()
+        .map(|h| emit_actor_dispatch_arm(h, false))
+        .collect();
+    let request_arms: String = handlers
+        .iter()
+        .map(|h| emit_actor_dispatch_arm(h, true))
+        .collect();
+
     let mut out = String::new();
-    out.push_str("    // actor shell — spawn the mailbox loop. Envelope\n");
-    out.push_str("    // dispatch is a no-op pending the wire-shape decision\n");
-    out.push_str("    // (see emit_actor_body comment in durability_lower.rs).\n");
-    out.push_str(&format!("    let _state = {state_struct}::default();\n"));
+    out.push_str("    // actor shell — spawn the mailbox loop and dispatch envelopes.\n");
+    out.push_str(&format!(
+        "    #[allow(unused_mut, unused_variables)]\n    let mut _state = {state_struct}::default();\n"
+    ));
     out.push_str(
         "    let _handle = ::vox_actor_runtime::spawn_process(move |mut ctx| async move {\n",
     );
+    // Local helper: decode positional arg `i` from the `args` JSON array.
+    out.push_str(
+        "        fn __vox_arg<__T: ::serde::de::DeserializeOwned>(args: &::serde_json::Value, i: usize) -> ::std::option::Option<__T> {\n",
+    );
+    out.push_str(
+        "            args.get(i).and_then(|__a| ::serde_json::from_value(__a.clone()).ok())\n",
+    );
+    out.push_str("        }\n");
     out.push_str("        while let Some(envelope) = ctx.receive().await {\n");
-    out.push_str("            let _ = envelope; // dispatch not yet wired\n");
+    out.push_str("            match envelope {\n");
+    // Fire-and-forget messages.
+    out.push_str("                ::vox_actor_runtime::Envelope::Message(__m) => {\n");
+    out.push_str("                    let __v: ::serde_json::Value = match __m.payload.deserialize_json() { Ok(__v) => __v, Err(_) => continue };\n");
+    out.push_str("                    let __ev = __v.get(\"event\").and_then(|__e| __e.as_str()).unwrap_or(\"\");\n");
+    out.push_str("                    let __args = __v.get(\"args\").cloned().unwrap_or(::serde_json::Value::Null);\n");
+    out.push_str("                    match __ev {\n");
+    out.push_str(&message_arms);
+    out.push_str("                    _ => {}\n");
+    out.push_str("                    }\n");
+    out.push_str("                }\n");
+    // Request/reply.
+    out.push_str("                ::vox_actor_runtime::Envelope::Request(__req) => {\n");
+    out.push_str("                    let __v: ::serde_json::Value = match __req.payload.deserialize_json() { Ok(__v) => __v, Err(_) => continue };\n");
+    out.push_str("                    let __ev = __v.get(\"event\").and_then(|__e| __e.as_str()).unwrap_or(\"\").to_string();\n");
+    out.push_str("                    let __args = __v.get(\"args\").cloned().unwrap_or(::serde_json::Value::Null);\n");
+    out.push_str("                    match __ev.as_str() {\n");
+    out.push_str(&request_arms);
+    out.push_str("                    _ => {}\n");
+    out.push_str("                    }\n");
+    out.push_str("                }\n");
+    out.push_str("                ::vox_actor_runtime::Envelope::Signal(_) => {}\n");
+    out.push_str("            }\n");
     out.push_str("        }\n");
     out.push_str("    });\n");
     out

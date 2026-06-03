@@ -60,6 +60,46 @@ fn actor_lowers_to_mailbox_spawn() {
     );
 }
 
+/// D3: the actor shell emits a real `Envelope` dispatch table that routes each
+/// `on <event>` handler — the no-op `// dispatch not yet wired` marker is gone.
+#[test]
+fn actor_dispatch_table_routes_to_handlers() {
+    let src = "actor MyActor { on greet(name: str) to str { return name } on tick(n: int) { return } }";
+    let module = parse(lex(src)).expect("parse");
+    let hir = lower_module(&module);
+    let shell = hir
+        .functions
+        .iter()
+        .find(|f| f.durability == Some(DurabilityKind::Actor) && !f.name.contains("::"))
+        .expect("actor shell present");
+    let handlers: Vec<&_> = hir
+        .functions
+        .iter()
+        .filter(|f| f.name.starts_with("MyActor::"))
+        .collect();
+    let rust = emit_fn(shell, Some(&hir.inferred_types), &handlers);
+
+    assert!(
+        !rust.contains("dispatch not yet wired"),
+        "the no-op dispatch marker must be gone; got:\n{rust}"
+    );
+    for needle in [
+        "::vox_actor_runtime::Envelope::Message(__m)",
+        "::vox_actor_runtime::Envelope::Request(__req)",
+        "match __ev",
+        "\"greet\" =>",
+        "\"tick\" =>",
+        "MyActor_greet(&mut _state, name)",
+        "MyActor_tick(&mut _state, n)",
+        "::vox_actor_runtime::ProcessContext::reply(__req",
+    ] {
+        assert!(
+            rust.contains(needle),
+            "dispatch table must contain `{needle}`; got:\n{rust}"
+        );
+    }
+}
+
 #[test]
 fn plain_fn_unchanged() {
     let src = "fn add(a: int, b: int) to int { return a + b }";
