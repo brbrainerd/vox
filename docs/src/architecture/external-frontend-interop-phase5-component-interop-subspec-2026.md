@@ -115,6 +115,7 @@ For the top-N components where authoring ergonomics matter, add a **flat facade*
   ```
 - A facade is a Vox `extern type` whose fields are `OpaqueExtern` strings, e.g. produced by `vox import-types`:
   ```vox
+  // vox:skip — illustrative only; the flat-facade `extern type` (S5) was PRUNED (see §15). Not real Vox syntax.
   extern type ButtonProps {            // facade for @mui/material Button
     variant: ts "Button['variant']"    // opaque TS-type string, not modeled
     color: ts "Button['color']"
@@ -134,6 +135,7 @@ A **dev-time** step (`vox import-types <specifier>`) invokes the TypeScript comp
 Extend the existing `import` parser ([`head.rs:95-150`](../../../crates/vox-compiler/src/parser/descent/decl/head.rs)) and `ImportPathKind::ReactComponent` ([`ast/decl/types.rs:33-55`](../../../crates/vox-compiler/src/ast/decl/types.rs)) from default-only to:
 
 ```vox
+// vox:skip — illustrative import-form surface; `Dialog` appears as both named and namespace to show the variants, so this is not a single compile unit.
 import react Button from "@mui/material/Button"                       // default
 import react { Dialog, DialogTrigger } from "@radix-ui/react-dialog"  // named
 import react { useButton } from "react-aria"                          // named hook
