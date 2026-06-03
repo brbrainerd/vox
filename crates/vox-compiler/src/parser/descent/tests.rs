@@ -556,6 +556,30 @@ fn test_parse_activity() {
     );
 }
 
+/// Phonetic keyword combinators (`and`/`or`/`not`/`in`) must be accepted as
+/// object-literal keys — the db query-predicate vocabulary depends on it
+/// (`{ and: [..] }`, `{ field: { in: [..] } }`). Before this they lexed to
+/// keyword tokens and the `{` was misparsed as a block, leaving the lowering's
+/// and/or/not/in predicate branches unreachable from source.
+#[test]
+fn object_literal_accepts_phonetic_keyword_keys() {
+    let m = parse_str(
+        "fn f() { return { and: [1], or: [2], not: 3, in: 4 } }",
+    );
+    let Decl::Function(f) = &m.declarations[0] else {
+        panic!("Expected function");
+    };
+    let Stmt::Return {
+        value: Some(Expr::ObjectLit { fields, .. }),
+        ..
+    } = &f.body[0]
+    else {
+        panic!("Expected object literal in return, got {:?}", f.body[0]);
+    };
+    let keys: Vec<&str> = fields.iter().map(|(k, _)| k.as_str()).collect();
+    assert_eq!(keys, vec!["and", "or", "not", "in"]);
+}
+
 #[test]
 fn test_parse_with_expression() {
     let m = parse_str("fn f() { return call() with { timeout: 5 } }");
