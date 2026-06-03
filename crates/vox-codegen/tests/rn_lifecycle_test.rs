@@ -256,3 +256,21 @@ component Page() {
         "RN target must emit a grouped, sorted named import, got:\n{tsx}"
     );
 }
+
+#[test]
+fn rn_paper_import_emits_provider_guidance() {
+    let src = r#"
+import react { Card } from "react-native-paper"
+
+component Page() {
+    view: column() {
+        Card()
+    }
+}
+"#;
+    let tsx = rn_component(src, "Page");
+    assert!(
+        tsx.contains("requires <PaperProvider>"),
+        "RN target must emit PaperProvider guidance for react-native-paper, got:\n{tsx}"
+    );
+}

@@ -970,6 +970,46 @@ pub(crate) fn emit_react_es_import_lines(imports: &[HirImport]) -> String {
     out
 }
 
+/// Emit support lines for known external libraries referenced by `import react …`
+/// (Phase 5 SSOT, see [`crate::codegen_ts::external_libs`]): required CSS-file
+/// imports (e.g. Mantine `@mantine/core/styles.css`, which is mandatory and not
+/// runtime-injected) plus one-line setup guidance for mandatory providers
+/// (Chakra/Mantine/Paper/Tamagui). `target_is_rn` filters web-only vs RN-only
+/// libraries. Deterministic order. Shared by the web and RN component emitters.
+pub(crate) fn emit_external_lib_support(imports: &[HirImport], target_is_rn: bool) -> String {
+    use crate::codegen_ts::external_libs::{lookup, valid_for_target};
+    use std::collections::BTreeSet;
+    let mut css: BTreeSet<&str> = BTreeSet::new();
+    let mut guidance: BTreeSet<String> = BTreeSet::new();
+    for imp in imports {
+        let Some(spec) = imp.es_module_specifier.as_deref() else {
+            continue;
+        };
+        let Some(lib) = lookup(spec) else { continue };
+        if !valid_for_target(lib, target_is_rn) {
+            continue;
+        }
+        for c in lib.css_imports {
+            css.insert(*c);
+        }
+        if let (Some(p), true) = (lib.provider, lib.provider_mandatory) {
+            guidance.insert(format!(
+                "// vox-interop: \"{}\" requires <{p}> mounted at your app root.",
+                lib.package
+            ));
+        }
+    }
+    let mut out = String::new();
+    for c in &css {
+        out.push_str(&format!("import \"{c}\";\n"));
+    }
+    for g in &guidance {
+        out.push_str(g);
+        out.push('\n');
+    }
+    out
+}
+
 pub fn generate_reactive_component(
     hir: &HirModule,
     rc: &HirReactiveComponent,
@@ -1004,6 +1044,12 @@ pub fn generate_reactive_component(
     let react_es = emit_react_es_import_lines(&hir.imports);
     if !react_es.is_empty() {
         out.push_str(&react_es);
+        out.push('\n');
+    }
+    // Phase 5 SSOT: required CSS imports + mandatory-provider guidance for known libs.
+    let lib_support = emit_external_lib_support(&hir.imports, false);
+    if !lib_support.is_empty() {
+        out.push_str(&lib_support);
         out.push('\n');
     }
 
@@ -1277,6 +1323,43 @@ mod tests {
         assert!(
             !page.contains("from \"./Dialog\""),
             "must not emit sibling import for an external named component, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn mantine_import_injects_css_and_provider_guidance() {
+        // Phase 5 SSOT: importing a known css_file lib auto-injects its required
+        // CSS import; a mandatory-provider lib emits setup guidance.
+        let files = compile(
+            "import react { Button } from \"@mantine/core\"\n\
+             component Page() { view: column() { Button() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import \"@mantine/core/styles.css\";"),
+            "expected Mantine CSS import to be injected, got:\n{page}"
+        );
+        assert!(
+            page.contains("requires <MantineProvider>"),
+            "expected MantineProvider guidance, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn radix_import_emits_no_css_or_provider_guidance() {
+        // Headless/unstyled libs (Radix) need no CSS import and no provider.
+        let files = compile(
+            "import react { Dialog } from \"@radix-ui/react-dialog\"\n\
+             component Page() { view: column() { Dialog() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            !page.contains("styles.css"),
+            "Radix must not inject a CSS import, got:\n{page}"
+        );
+        assert!(
+            !page.contains("vox-interop:"),
+            "Radix must not emit provider guidance, got:\n{page}"
         );
     }
 

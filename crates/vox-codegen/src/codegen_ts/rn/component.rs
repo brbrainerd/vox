@@ -1263,6 +1263,10 @@ pub fn emit_rn_component(
     // per-library SSOT (separate slice), not emitted here.
     let react_es = crate::codegen_ts::reactive::emit_react_es_import_lines(es_imports);
     out.push_str(&react_es);
+    // Phase 5 SSOT: mandatory-provider guidance for known RN libs (Paper/Tamagui).
+    out.push_str(&crate::codegen_ts::reactive::emit_external_lib_support(
+        es_imports, true,
+    ));
 
     // Cross-file imports: sibling components (`<NavBar />` → `./NavBar`) and
     // endpoint fns this component calls (`record_event(...)` → `./vox-client`),
