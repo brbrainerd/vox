@@ -1,0 +1,8 @@
+{
+  "model_type": "llama",
+  "architectures": ["LlamaForCausalLM"],
+  "hidden_size": 4096,
+  "num_attention_heads": 32,
+  "num_hidden_layers": 32,
+  "vocab_size": 32000
+}
