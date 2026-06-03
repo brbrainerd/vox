@@ -544,7 +544,7 @@ pub async fn get_scientia_cost(
         Ok(db) => db,
         Err(e) => return err("db_error", &e.to_string()),
     };
-    let (provider_rows, findings) = match db.scientia_cost_raw_this_quarter().await {
+    let (provider_rows, phase_rows, findings) = match db.scientia_cost_raw_this_quarter().await {
         Ok(r) => r,
         Err(e) => return err("db_error", &e.to_string()),
     };
@@ -552,7 +552,7 @@ pub async fn get_scientia_cost(
         .into_iter()
         .map(|r| (r.provider, r.total_usd))
         .collect();
-    let inputs = CostInputs {
+    let mut inputs = CostInputs {
         extraction_usd: 0.0,
         critic_usd: 0.0,
         novelty_retrieval_usd: 0.0,
@@ -560,6 +560,19 @@ pub async fn get_scientia_cost(
         by_provider,
         findings_published_this_quarter: findings,
     };
+    // Map per-phase rows (baseline v70 `pipeline_phase` GROUP BY) onto the four
+    // category lines; unknown phase strings are ignored (forward-compat). Mirrors
+    // the `apply_phase_costs` fold in the `vox scientia cost` CLI handler so the
+    // REST surface and the CLI report identical category splits.
+    for row in &phase_rows {
+        match row.phase.as_str() {
+            "extraction" => inputs.extraction_usd += row.total_usd,
+            "critic" => inputs.critic_usd += row.total_usd,
+            "novelty" => inputs.novelty_retrieval_usd += row.total_usd,
+            "scholarly" => inputs.scholarly_submission_usd += row.total_usd,
+            _ => {}
+        }
+    }
     let rollup = build_cost_rollup(&inputs);
     ok(serde_json::to_value(&rollup).unwrap_or_else(|e| json!({ "error": e.to_string() })))
 }

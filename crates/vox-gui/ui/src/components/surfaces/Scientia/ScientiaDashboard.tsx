@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { listenScientiaQueue } from '../../../transport';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -77,6 +78,23 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
     refresh();
     const id = setInterval(refresh, 10_000);
     return () => clearInterval(id);
+  }, [refresh]);
+
+  // F2: event-driven refresh — refetch immediately when the Rust DB watcher
+  // pushes a "vox://scientia-queue" ping. The 10 s interval above stays as a
+  // fallback (e.g. outside Tauri, where listen() rejects). Cleans up on unmount.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listenScientiaQueue(() => {
+      void refresh();
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {
+        /* not in Tauri or no event bridge — interval fallback covers it */
+      });
+    return () => unlisten?.();
   }, [refresh]);
 
   return (

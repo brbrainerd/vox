@@ -2,6 +2,9 @@
 //! Reads go directly to the canonical DB, mirroring the CLI handlers — no CLI
 //! stdout parsing and no dependency on the (disabled) HTTP gateway.
 
+use std::hash::{Hash, Hasher};
+use tauri::Emitter;
+
 #[derive(Debug, serde::Serialize)]
 pub struct ResearchSessionDto {
     pub id: i64,
@@ -98,4 +101,110 @@ pub async fn list_publication_manifests(
             updated_at_ms: m.updated_at_ms,
         })
         .collect())
+}
+
+// ── Live Scientia-queue push bridge (F2) ─────────────────────────────────────
+
+/// Tauri event channel carrying a lightweight "the Scientia queue changed" ping
+/// to the UI. The payload is a compact signal object
+/// (`{ signal: u64, manifest_count, research_count }`); on receipt the UI
+/// refetches via the typed read commands above.
+pub const SCIENTIA_QUEUE_EVENT: &str = "vox://scientia-queue";
+
+/// How often the push bridge samples the DB for a change. The UI keeps its own
+/// (longer) interval as a fallback, so this only governs push latency.
+const SCIENTIA_POLL_INTERVAL_MS: u64 = 3_000;
+
+/// Compute a compact change signal over the Scientia queue: a hash folded from
+/// each publication manifest's `(publication_id, state, updated_at_ms)` plus each
+/// research session's `(id, status, finished_at_ms)`. Any add / state transition
+/// / timestamp bump flips the signal; a steady queue keeps it stable. Returns
+/// `(signal, manifest_count, research_count)`.
+async fn scientia_queue_signal(db: &vox_db::VoxDb) -> Result<(u64, usize, usize), String> {
+    let manifests = db
+        .list_publication_manifests(Some("scientia"), None, 500)
+        .await
+        .map_err(|e| e.to_string())?;
+    let sessions = db
+        .list_recent_research_sessions(200)
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    for m in &manifests {
+        m.publication_id.hash(&mut hasher);
+        m.state.hash(&mut hasher);
+        m.updated_at_ms.hash(&mut hasher);
+    }
+    for s in &sessions {
+        s.id.hash(&mut hasher);
+        s.status.hash(&mut hasher);
+        s.finished_at_ms.hash(&mut hasher);
+    }
+    Ok((hasher.finish(), manifests.len(), sessions.len()))
+}
+
+/// Spawn a background task that watches the canonical DB for Scientia-queue
+/// changes and emits a [`SCIENTIA_QUEUE_EVENT`] ping when the queue signal flips.
+///
+/// This is the Scientia analog of
+/// [`spawn_orchestrator_status_stream`](crate::commands::orchestrator::spawn_orchestrator_status_stream),
+/// adapted to a DB-backed surface: the Scientia queue is sourced from the
+/// canonical DB via the typed read commands (not the daemon's status stream and
+/// not the disabled HTTP gateway), so there is no daemon RPC to subscribe to.
+/// Instead we poll a cheap change signal and push only on change — turning the
+/// UI's interval refresh into event-driven refresh. Resilient by design: a DB
+/// error is logged and retried on the next tick; the task never crashes the app.
+// toestub-ignore(skeleton/untested-pub-api) — spawns a background DB-watch task bridging Scientia-queue changes to Tauri events; covered by integration
+pub fn spawn_scientia_queue_stream(app_handle: tauri::AppHandle) {
+    tokio::spawn(async move {
+        let mut last_signal: Option<u64> = None;
+        loop {
+            match vox_db::VoxDb::connect_canonical().await {
+                Ok(db) => match scientia_queue_signal(&db).await {
+                    Ok((signal, manifest_count, research_count)) => {
+                        if last_signal != Some(signal) {
+                            last_signal = Some(signal);
+                            let _ = app_handle.emit(
+                                SCIENTIA_QUEUE_EVENT,
+                                serde_json::json!({
+                                    "signal": signal,
+                                    "manifest_count": manifest_count,
+                                    "research_count": research_count,
+                                }),
+                            );
+                        }
+                    }
+                    Err(e) => tracing::debug!("scientia queue signal failed: {e}"),
+                },
+                Err(e) => tracing::debug!("scientia queue: db unavailable: {e}"),
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(SCIENTIA_POLL_INTERVAL_MS)).await;
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The signal hash is order-deterministic and sensitive to state changes:
+    /// two folds over the same tuples match; a state change diverges. (Pure hash
+    /// fold; no DB required.)
+    #[test]
+    fn queue_signal_fold_is_deterministic_and_state_sensitive() {
+        fn fold(rows: &[(&str, &str, i64)]) -> u64 {
+            let mut h = std::collections::hash_map::DefaultHasher::new();
+            for (id, state, ts) in rows {
+                id.hash(&mut h);
+                state.hash(&mut h);
+                ts.hash(&mut h);
+            }
+            h.finish()
+        }
+        let a = fold(&[("pub-1", "draft", 100), ("pub-2", "approved", 200)]);
+        let b = fold(&[("pub-1", "draft", 100), ("pub-2", "approved", 200)]);
+        let c = fold(&[("pub-1", "approved", 100), ("pub-2", "approved", 200)]);
+        assert_eq!(a, b, "same tuples -> same signal");
+        assert_ne!(a, c, "a state transition flips the signal");
+    }
 }

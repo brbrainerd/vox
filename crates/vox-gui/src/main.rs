@@ -57,6 +57,9 @@ async fn main() {
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
             commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
+            // F2: start the live Scientia-queue watcher, emitting a
+            // "vox://scientia-queue" ping when the DB-backed queue changes.
+            commands::scientia::spawn_scientia_queue_stream(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
