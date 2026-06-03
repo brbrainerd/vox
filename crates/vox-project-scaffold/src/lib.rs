@@ -24,11 +24,11 @@ const CHATBOT_TEMPLATE: &str = r#"# Vox Chatbot — OpenRouter-powered chat app
     request_id: str
 }
 
-@endpoint(kind: query) fn recent_messages(conversation_id: str) to list[MessageTrace] {
+@query fn recent_messages(conversation_id: str) to list[MessageTrace] {
     return []
 }
 
-@endpoint(kind: mutation) fn log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool] {
+@mutation fn log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool] {
     return Ok(true)
 }
 
@@ -44,7 +44,7 @@ workflow chat_pipeline(prompt: str) to Result[str] {
     return call_provider(prompt)
 }
 
-@endpoint(kind: server) fn chat(prompt: str, request_id: str) to Result[str] {
+@server fn chat(prompt: str, request_id: str) to Result[str] {
     let response = chat_pipeline(prompt)
     let _ = log_message("conv-default", "user", prompt, request_id)
     let _ = log_message("conv-default", "assistant", "ok", request_id)
@@ -74,11 +74,11 @@ const DASHBOARD_TEMPLATE: &str = r#"# Vox Dashboard — data table with route pa
     created_at: str
 }
 
-@endpoint(kind: query) fn list_items() to list[Item] {
+@query fn list_items() to list[Item] {
     return []
 }
 
-@endpoint(kind: mutation) fn add_item(name: str, value: int) to Result[str] {
+@mutation fn add_item(name: str, value: int) to Result[str] {
     return Ok("Added: " + name)
 }
 
@@ -121,15 +121,15 @@ fn tasks_created() to str {
     return "ok"
 }
 
-@endpoint(kind: server) fn create_task(title: str) to Result[str] {
+@server fn create_task(title: str) to Result[str] {
     return Ok("Created: " + title)
 }
 
-@endpoint(kind: server) fn list_tasks() to Result[list[Task]] {
+@server fn list_tasks() to Result[list[Task]] {
     return Ok([])
 }
 
-@endpoint(kind: server) fn complete_task(id: str) to Result[bool] {
+@server fn complete_task(id: str) to Result[bool] {
     return Ok(true)
 }
 "#;
@@ -145,11 +145,11 @@ const DEFAULT_FULL_STACK: &str = r#"# My Vox App — a full-stack starter
     created_at: str
 }
 
-@endpoint(kind: server) fn add_note(title: str, content: str) to Result[str] {
+@server fn add_note(title: str, content: str) to Result[str] {
     return Ok("Added: " + title)
 }
 
-@endpoint(kind: server) fn list_notes() to Result[str] {
+@server fn list_notes() to Result[str] {
     return Ok("[]")
 }
 
