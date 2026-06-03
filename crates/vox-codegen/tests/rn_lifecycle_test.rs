@@ -209,3 +209,50 @@ fn rn_link_emits_expo_router_link() {
         "link label must render inside <Text>; got:\n{tsx}"
     );
 }
+
+// ── Phase 5 S7: external react component imports on the RN target ──────────────
+
+#[test]
+fn rn_imported_react_component_emits_es_import_not_sibling_import() {
+    let src = r#"
+import react MyButton from "@acme/btn"
+
+component Page() {
+    view: column() {
+        MyButton()
+    }
+}
+"#;
+    let tsx = rn_component(src, "Page");
+    assert!(
+        tsx.contains("import MyButton from \"@acme/btn\";"),
+        "RN target must emit the external ES import, got:\n{tsx}"
+    );
+    assert!(
+        tsx.contains("<MyButton"),
+        "RN target must render MyButton as a component tag, got:\n{tsx}"
+    );
+    assert!(
+        !tsx.contains("from \"./MyButton\""),
+        "RN target must not emit a sibling ./MyButton import, got:\n{tsx}"
+    );
+}
+
+#[test]
+fn rn_named_react_imports_are_grouped_and_deterministic() {
+    let src = r#"
+import react { Card, Avatar } from "react-native-paper"
+
+component Page() {
+    view: column() {
+        Card()
+        Avatar()
+    }
+}
+"#;
+    let tsx = rn_component(src, "Page");
+    assert!(
+        tsx.contains("import { Avatar, Card } from \"react-native-paper\";"),
+        "RN target must emit a grouped, sorted named import, got:\n{tsx}"
+    );
+}
