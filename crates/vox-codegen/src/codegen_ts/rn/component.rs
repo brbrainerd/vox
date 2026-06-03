@@ -1414,6 +1414,5 @@ fn hir_type_to_ts(ty: &vox_compiler::hir::HirType) -> String {
         }
         HirType::Unit => "void".to_string(),
         HirType::Decimal => "string".to_string(),
-        _ => "any".to_string(),
     }
 }

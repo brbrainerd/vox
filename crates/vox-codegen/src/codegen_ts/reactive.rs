@@ -881,7 +881,7 @@ pub(crate) fn collect_component_import_refs(
     let mut comps: HashSet<String> = HashSet::new();
     let mut endpoints: HashSet<String> = HashSet::new();
 
-    let mut visit = |e: &HirExpr, comps: &mut HashSet<String>, endpoints: &mut HashSet<String>| {
+    let visit = |e: &HirExpr, comps: &mut HashSet<String>, endpoints: &mut HashSet<String>| {
         collect_jsx_component_refs(e, known_components, comps);
         collect_callee_refs(e, endpoint_names, endpoints);
     };
