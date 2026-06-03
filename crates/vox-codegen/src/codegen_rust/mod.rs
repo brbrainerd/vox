@@ -462,8 +462,8 @@ mod tests {
 @scheduled("1m")
 fn heartbeat() { }
 "#;
-        let res = vox_compiler::pipeline::run_frontend_str(src, "sched_test.vox")
-            .expect("frontend ok");
+        let res =
+            vox_compiler::pipeline::run_frontend_str(src, "sched_test.vox").expect("frontend ok");
         let module = res.hir;
         let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
         let main = out
@@ -601,7 +601,10 @@ fn heartbeat() { }
                 .contains("vox-stt")
         );
         assert!(
-            !out.files.get("src-tauri/Cargo.toml").unwrap().contains("vox-tauri-stt"),
+            !out.files
+                .get("src-tauri/Cargo.toml")
+                .unwrap()
+                .contains("vox-tauri-stt"),
             "vox-tauri-stt must not appear in Cargo.toml without speech"
         );
     }

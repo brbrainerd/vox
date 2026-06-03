@@ -318,7 +318,10 @@ use {}::*;
     );
 
     let has_tables = !module.tables.is_empty();
-    let has_scheduled = module.functions.iter().any(|f| f.schedule_interval.is_some());
+    let has_scheduled = module
+        .functions
+        .iter()
+        .any(|f| f.schedule_interval.is_some());
     let needs_setup = has_tables || has_scheduled;
     let mut command_names = Vec::new();
 
