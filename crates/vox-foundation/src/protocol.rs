@@ -86,6 +86,14 @@ pub mod dei_method {
     pub const AI_PLAN_REPLAN: &str = "ai.plan.replan";
     pub const AI_PLAN_STATUS: &str = "ai.plan.status";
     pub const AI_PLAN_EXECUTE: &str = "ai.plan.execute";
+    /// `research.run` — enqueue a SCIENTIA research run inside the persistent
+    /// orchestrator daemon. Params:
+    /// `{"query": String, "scope": "web|local|both"?, "max_sources": usize?,
+    ///   "verify_claims": bool?, "site_scope": String?, "session_id": i64?}`.
+    /// Returns `{"session_id": i64, "task_id": String, "status": "running"}`
+    /// immediately while the daemon advances the session to a terminal
+    /// `completed`/`failed` status in the background.
+    pub const RESEARCH_RUN: &str = "research.run";
 }
 
 /// Outgoing request from thin clients to Dei-style JSON-line daemons.
