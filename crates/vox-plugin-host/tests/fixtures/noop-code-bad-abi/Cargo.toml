@@ -1,3 +1,8 @@
+# Empty `[workspace]` makes this fixture a self-contained workspace root, so it
+# builds standalone regardless of where the repo is checked out (e.g. from a git
+# worktree nested under the main repo). See the noop-code fixture for details.
+[workspace]
+
 [package]
 name = "vox-plugin-noop-code-bad-abi"
 version = "0.1.0"
