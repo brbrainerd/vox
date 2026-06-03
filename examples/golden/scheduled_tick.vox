@@ -1,17 +1,19 @@
 // ---
-// title: "Reference: scheduled job (post-ADR-028)"
-// description: "@scheduled is reserved per ADR-028 and rejected at parse time with E028. Until the durability runtime lands per mesh-phase1-language-spine-plan-2026, scheduled jobs are written as plain `fn` with the cadence in the name or a doc comment; orchestration is handled externally."
+// title: "Reference: @scheduled job"
+// description: "A @scheduled(\"<cadence>\") decorator declares a function the durable runtime runs on a recurring schedule (ADR-041; E028 retired)."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
-// constructs: [fn, return]
-// last_validated: 2026-05-18
+// constructs: [@scheduled, fn, return]
+// last_validated: "2026-06-03"
 // training_eligible: true
 // training_weight: 1.0
 // difficulty: beginner
 // ---
+// @training_prompt: Declare a Vox function that runs every hour using the @scheduled decorator.
 // ANCHOR: scheduled_region
-// Cadence: 1h (run via external scheduler until @scheduled lands).
+// @scheduled("<cadence>") registers the fn with the durable scheduler.
+@scheduled("1h")
 fn scheduled_tick_1h() to Unit {
     return Unit
 }

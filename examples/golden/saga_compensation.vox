@@ -1,16 +1,16 @@
 // ---
-// title: "Saga Pattern and Compensating Actions"
-// description: "Durable saga pattern covering distributed orchestration, failures, and rollbacks."
+// title: "Saga-Style Manual Compensation with Result"
+// description: "Application-level compensation: each step returns Result, and a failure triggers a compensating action (cancel) via match — no durable-workflow runtime involved."
 // syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [Result, Ok, Error, match]
-// last_validated: 2026-04-13
+// last_validated: "2026-06-03"
 // training_eligible: true
 // training_weight: 1.0
 // difficulty: advanced
 // ---
-// @training_prompt: Show a saga pattern implementation in Vox using workflows for compensation handling on failure.
+// @training_prompt: Implement saga-style compensation in Vox using plain fns and Result — on payment failure, run the compensating cancel action via match. (This is the manual pattern; a durable @workflow saga runtime is not used here.)
 // ANCHOR: display
 fn reserve_inventory(item_id: str) to Result[str] {
     return Ok("reservation_999")
