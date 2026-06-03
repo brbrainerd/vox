@@ -201,7 +201,30 @@ pub fn print_execution_plan(
 /// to [`NativeBackend`] or [`WasiBackend`] depending on `opts`.
 pub async fn run(file: &Path, args: &[String], opts: &ScriptOpts) -> Result<()> {
     let (artifact_path, backend) = compile(file, opts).await?;
-    execute_binary(&artifact_path, args, opts, &*backend).await
+    match execute_binary(&artifact_path, args, opts, &*backend).await {
+        Err(e) if !opts.no_cache => {
+            // The artifact FAILED TO LAUNCH. `execute_binary` only returns `Err`
+            // on a spawn failure — a script that runs and exits non-zero
+            // terminates this process directly — so reaching here means the
+            // (likely cached) binary could not be started at all: a poisoned,
+            // stale, or environment-broken artifact. This is the Windows
+            // clean-room idempotency failure (`os error 3` launching an existing
+            // cached `vox-script.exe` on the second run). Recompile fresh,
+            // bypassing the cache, and run that — exactly what a cache-miss first
+            // run does successfully. Retry once, only when caching was in play, so
+            // a genuine spawn failure of a freshly built binary still surfaces.
+            tracing::warn!(
+                "cached script binary failed to launch ({e:#}); recompiling without cache and retrying"
+            );
+            let fresh = ScriptOpts {
+                no_cache: true,
+                ..opts.clone()
+            };
+            let (artifact_path, backend) = compile(file, &fresh).await?;
+            execute_binary(&artifact_path, args, &fresh, &*backend).await
+        }
+        other => other,
+    }
 }
 
 /// Compile a Vox script to an executable binary (native or WASI).
