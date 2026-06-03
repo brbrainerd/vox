@@ -15,6 +15,13 @@ surfaces:
   nav_icon: matrix
   nav_group: research
   notes: claim ledger (scientia claims)
+- view_key: coverage
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Coverage
+  nav_icon: scale
+  nav_group: system
+  notes: in-product surface coverage table
 - view_key: dashboard
   cli_group: null
   representation_tier: live_backend

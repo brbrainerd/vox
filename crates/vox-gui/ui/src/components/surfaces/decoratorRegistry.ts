@@ -2,6 +2,7 @@ import React from 'react';
 import { CommandCardsView, SurfaceCard } from './CommandCardsView';
 import { ScientiaDashboard } from './Scientia/ScientiaDashboard';
 import { ClaimsView } from './Scientia/ClaimsView';
+import { CoverageView } from './Coverage/CoverageView';
 
 /**
  * Props every surface decorator receives. Decorators are hand-built views that
@@ -33,6 +34,7 @@ function commandSurface(
 export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecoratorProps>> = {
   scientia: ScientiaDashboard,
   claims: ClaimsView,
+  coverage: CoverageView,
   mens: commandSurface('Vox Mens', 'ML training & local models', [
     { key: 'status', title: 'Training Status', description: 'Latest run telemetry', path: ['mens', 'status'] },
     { key: 'models', title: 'Model Registry', description: 'Locally trained models', path: ['mens', 'models'] },

@@ -1,0 +1,46 @@
+import React from 'react';
+import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { SURFACE_REGISTRY, RepresentationTier } from '../../../generated/surfaceRegistry.generated';
+
+const TIER_STYLE: Record<RepresentationTier, { label: string; cls: string }> = {
+  none:              { label: 'Unrepresented', cls: 'text-zinc-500 ring-white/10' },
+  generic_form:      { label: 'Generic form',  cls: 'text-cyan-300 ring-cyan-400/25' },
+  curated_decorator: { label: 'Curated',       cls: 'text-emerald-300 ring-emerald-400/25' },
+  live_backend:      { label: 'Live backend',  cls: 'text-brass ring-brass/30' },
+};
+
+export function CoverageView(_props: SurfaceDecoratorProps) {
+  const rows = [...SURFACE_REGISTRY].sort((a, b) =>
+    (a.cliGroup ?? a.viewKey ?? '').localeCompare(b.cliGroup ?? b.viewKey ?? ''));
+  const counts = rows.reduce<Record<string, number>>((acc, r) => {
+    acc[r.tier] = (acc[r.tier] ?? 0) + 1; return acc;
+  }, {});
+  return (
+    <section className="space-y-4">
+      <h2 className="font-display text-lg text-zinc-100 tracking-wider uppercase">Surface Coverage</h2>
+      <div className="flex flex-wrap gap-2 text-[11px]">
+        {(Object.keys(TIER_STYLE) as RepresentationTier[]).map(t => (
+          <span key={t} className={`rounded-full px-2 py-0.5 ring-1 ${TIER_STYLE[t].cls}`}>
+            {TIER_STYLE[t].label}: {counts[t] ?? 0}
+          </span>
+        ))}
+      </div>
+      <div className="overflow-auto rounded-lg border border-white/10">
+        <table className="w-full text-left text-[12px]">
+          <thead className="text-zinc-500">
+            <tr><th className="p-2">CLI group</th><th className="p-2">View</th><th className="p-2">Tier</th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-t border-white/5">
+                <td className="p-2 font-mono text-zinc-300">{r.cliGroup ?? '—'}</td>
+                <td className="p-2 text-zinc-400">{r.viewKey ?? '—'}</td>
+                <td className="p-2"><span className={`rounded px-1.5 py-0.5 ring-1 ${TIER_STYLE[r.tier].cls}`}>{TIER_STYLE[r.tier].label}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
