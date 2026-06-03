@@ -401,7 +401,7 @@ impl<'a> Checker<'a> {
                 // fields, then each prior query's Record). Predicate field-
                 // validation is a follow-on; codegen already emits the SQL. See
                 // specs/2026-06-03-db-query-plan-typecheck-design.md.
-                if opt_plan.is_some()
+                if let Some(plan) = opt_plan
                     && matches!(
                         method.as_str(),
                         "where"
@@ -419,6 +419,19 @@ impl<'a> Checker<'a> {
                         let _ = self.check_expr(&a.value, None);
                     }
                     let row_fields = Self::db_query_record_fields(&obj_ty);
+                    // `.select(cols...)` projection validation. Only the `.select`
+                    // node carries a `projection`, so this fires exactly once per
+                    // chain (inner `.where`/`.filter` nodes have `projection:
+                    // None`) — no double-reporting. Guarded on a known field set:
+                    // if the row fields could not be resolved we skip rather than
+                    // flag every column as unknown. Predicate field-validation
+                    // remains the deferred follow-on (see
+                    // specs/2026-06-03-db-query-plan-typecheck-design.md).
+                    if let Some(cols) = &plan.projection
+                        && !row_fields.is_empty()
+                    {
+                        self.check_db_select_projection(&row_fields, cols, *span);
+                    }
                     return Ty::Result(
                         Box::new(Ty::List(Box::new(Ty::Record(row_fields)))),
                         Box::new(Ty::Str),
