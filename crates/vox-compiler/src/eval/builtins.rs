@@ -830,6 +830,32 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Result(res))
                     }
+                    // Interp parity: typecheck + native codegen expose these fs ops,
+                    // so the interpreter must too (else "Method not found" at --interp).
+                    "read_bytes" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match std::fs::read(&path) {
+                            Ok(bytes) => Ok(Box::new(VoxValue::Str(
+                                String::from_utf8_lossy(&bytes).to_string(),
+                            ))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
+                    "canonicalize" => {
+                        let path = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match std::fs::canonicalize(&path) {
+                            Ok(p) => Ok(Box::new(VoxValue::Str(p.to_string_lossy().to_string()))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
                     // `write_to_file` is the Rust-style alias of write/write_file.
                     "write" | "write_file" | "write_to_file" => {
                         let mut it = args.into_iter();
@@ -1523,6 +1549,51 @@ pub fn call_builtin_method(
                             Err(e) => Err(e),
                         }))
                     }
+                    // Interp parity: run_capture / run_capture_ex return the full
+                    // Result[{exit, stdout, stderr}] record (typeck + codegen have
+                    // these; the interpreter previously did not).
+                    "run_capture" | "run_capture_ex" => {
+                        let with_cwd = method == "run_capture_ex";
+                        let mut it = args.into_iter();
+                        let cmd_name = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let cmd_args = match it.next() {
+                            Some(VoxValue::List(ls)) => ls
+                                .into_iter()
+                                .filter_map(|v| if let VoxValue::Str(s) = v { Some(s) } else { None })
+                                .collect::<Vec<_>>(),
+                            _ => vec![],
+                        };
+                        let mut cmd = std::process::Command::new(&cmd_name);
+                        cmd.args(&cmd_args);
+                        if with_cwd {
+                            if let Some(VoxValue::Str(cwd)) = it.next() {
+                                cmd.current_dir(&cwd);
+                            }
+                            // env list (arg 4) intentionally ignored here, matching
+                            // the run_ex interpreter behavior.
+                        }
+                        let res = match cmd.output() {
+                            Ok(out) => Ok(Box::new(VoxValue::Object(vec![
+                                (
+                                    "exit".to_string(),
+                                    VoxValue::Int(out.status.code().unwrap_or(0) as i64),
+                                ),
+                                (
+                                    "stdout".to_string(),
+                                    VoxValue::Str(String::from_utf8_lossy(&out.stdout).to_string()),
+                                ),
+                                (
+                                    "stderr".to_string(),
+                                    VoxValue::Str(String::from_utf8_lossy(&out.stderr).to_string()),
+                                ),
+                            ]))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
                     // `process.cwd` — same op as `fs.cwd`, aliased here for the
                     // call sites that reach for it under the `process` namespace.
                     // Both resolve via `std::env::current_dir`.
@@ -1714,6 +1785,68 @@ pub fn call_builtin_method(
                             Ok(s) => Ok(Box::new(VoxValue::Str(s))),
                             Err(e) => Err(e),
                         }))
+                    }
+                    // Interp parity with vox_json_read_str/read_f64/quote (native).
+                    "read_str" => {
+                        let mut it = args.into_iter();
+                        let json_s = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let key = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = (|| -> Result<String, String> {
+                            let v: serde_json::Value =
+                                serde_json::from_str(&json_s).map_err(|e| e.to_string())?;
+                            let obj = v
+                                .as_object()
+                                .ok_or_else(|| "JSON root must be an object".to_string())?;
+                            let val = obj.get(&key).ok_or_else(|| format!("missing key {key:?}"))?;
+                            val.as_str()
+                                .map(str::to_string)
+                                .ok_or_else(|| format!("key {key:?} is not a string"))
+                        })();
+                        Some(VoxValue::Result(match res {
+                            Ok(s) => Ok(Box::new(VoxValue::Str(s))),
+                            Err(e) => Err(e),
+                        }))
+                    }
+                    "read_f64" => {
+                        let mut it = args.into_iter();
+                        let json_s = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let key = match it.next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = (|| -> Result<f64, String> {
+                            let v: serde_json::Value =
+                                serde_json::from_str(&json_s).map_err(|e| e.to_string())?;
+                            let obj = v
+                                .as_object()
+                                .ok_or_else(|| "JSON root must be an object".to_string())?;
+                            let val = obj.get(&key).ok_or_else(|| format!("missing key {key:?}"))?;
+                            val.as_f64()
+                                .or_else(|| val.as_i64().map(|i| i as f64))
+                                .ok_or_else(|| format!("key {key:?} is not a number"))
+                        })();
+                        Some(VoxValue::Result(match res {
+                            Ok(f) => Ok(Box::new(VoxValue::Float(f))),
+                            Err(e) => Err(e),
+                        }))
+                    }
+                    "quote" => {
+                        let s = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        Some(VoxValue::Str(
+                            serde_json::to_string(&s).unwrap_or_else(|_| "\"\"".to_string()),
+                        ))
                     }
                     _ => None,
                 },

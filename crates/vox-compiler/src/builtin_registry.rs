@@ -726,6 +726,24 @@ pub fn std_namespace_runtime_call(
             "::vox_actor_runtime::builtins::vox_fs_write(({}).as_str(), ({}).as_str())",
             args[0], args[1]
         )),
+        // Interp/codegen parity: these fs aliases typecheck and run under --interp,
+        // but previously fell through to invalid `::std::fs::read_file(...)` etc. in
+        // native emit. Route them to the canonical runtime fns (same as read/write).
+        ("fs", "read_file" | "read_to_string") if !args.is_empty() => Some(format!(
+            "::vox_actor_runtime::builtins::vox_fs_read(({}).as_str())",
+            args[0]
+        )),
+        ("fs", "write_file" | "write_to_file") if args.len() >= 2 => Some(format!(
+            "::vox_actor_runtime::builtins::vox_fs_write(({}).as_str(), ({}).as_str())",
+            args[0], args[1]
+        )),
+        ("fs", "cwd") => Some(
+            "::std::env::current_dir().map(|p| p.to_string_lossy().to_string()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)".to_string(),
+        ),
+        ("fs", "walk" | "list_recursive") if !args.is_empty() => Some(format!(
+            "::vox_actor_runtime::builtins::vox_fs_glob(format!(\"{{}}/**/*\", {}).as_str())",
+            args[0]
+        )),
         ("fs", "exists") if !args.is_empty() => {
             Some(format!("std::path::Path::new(&{}).exists()", args[0]))
         }
@@ -1023,5 +1041,207 @@ mod browser_registry_tests {
                 e.name
             );
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Canonical surface-flagged registry of `std.<ns>.<method>` builtins.
+//
+// SSOT for the interp↔codegen↔typecheck parity guard. Each entry declares which
+// SURFACES the builtin must be implemented on, so the parity tests below can
+// assert coverage without false-positives on native/codegen-only builtins
+// (http/crypto have no interpreter network/crypto stack — they are RUST-only).
+//
+// Adding a `std.<ns>.<method>` to the typechecker (std_namespace_method_ty) WITHOUT
+// adding it here, or here without the declared impls, fails the parity tests.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Surface bitflags for [`NAMESPACE_BUILTINS`].
+pub mod surface {
+    /// Tree-walking interpreter (`vox run --interp`) via `call_builtin_method`.
+    pub const INTERP: u8 = 0b01;
+    /// Native Rust codegen (`--mode script` / compiled) via `std_namespace_runtime_call`.
+    pub const RUST: u8 = 0b10;
+    /// Both interpreter and Rust codegen.
+    pub const IR: u8 = INTERP | RUST;
+}
+
+/// `(namespace, method, arg_count, surfaces)` — the canonical set of
+/// `std.<ns>.<method>` builtins and the surfaces each must support.
+pub const NAMESPACE_BUILTINS: &[(&str, &str, usize, u8)] = &[
+    // fs — file system (interp + native)
+    ("fs", "read", 1, surface::IR),
+    ("fs", "read_file", 1, surface::IR),
+    ("fs", "read_to_string", 1, surface::IR),
+    ("fs", "read_bytes", 1, surface::IR),
+    ("fs", "write", 2, surface::IR),
+    ("fs", "write_file", 2, surface::IR),
+    ("fs", "write_to_file", 2, surface::IR),
+    ("fs", "cwd", 0, surface::IR),
+    ("fs", "walk", 1, surface::IR),
+    ("fs", "list_recursive", 1, surface::IR),
+    ("fs", "exists", 1, surface::IR),
+    ("fs", "is_file", 1, surface::IR),
+    ("fs", "is_dir", 1, surface::IR),
+    ("fs", "canonicalize", 1, surface::IR),
+    ("fs", "list_dir", 1, surface::IR),
+    ("fs", "glob", 1, surface::IR),
+    ("fs", "list_dir_detailed", 1, surface::IR),
+    ("fs", "stat", 1, surface::IR),
+    ("fs", "remove_dir_all", 1, surface::IR),
+    ("fs", "copy", 2, surface::IR),
+    ("fs", "remove", 1, surface::IR),
+    ("fs", "mkdir", 1, surface::IR),
+    // path
+    ("path", "join", 2, surface::IR),
+    ("path", "join_many", 1, surface::IR),
+    ("path", "basename", 1, surface::IR),
+    ("path", "dirname", 1, surface::IR),
+    ("path", "extension", 1, surface::IR),
+    ("path", "parent", 1, surface::IR),
+    ("path", "file_name", 1, surface::IR),
+    ("path", "stem", 1, surface::IR),
+    ("path", "is_absolute", 1, surface::IR),
+    ("path", "resolve", 1, surface::IR),
+    // env
+    ("env", "get", 1, surface::IR),
+    ("env", "args", 0, surface::IR),
+    ("env", "set", 2, surface::IR),
+    // regex
+    ("regex", "replace", 3, surface::IR),
+    ("regex", "find", 2, surface::IR),
+    ("regex", "is_match", 2, surface::IR),
+    ("regex", "captures", 2, surface::IR),
+    // process
+    ("process", "which", 1, surface::IR),
+    ("process", "run", 2, surface::IR),
+    ("process", "run_ex", 4, surface::IR),
+    ("process", "run_capture", 2, surface::IR),
+    ("process", "run_capture_ex", 4, surface::IR),
+    ("process", "run_capture_json", 2, surface::IR),
+    ("process", "run_capture_lines", 2, surface::IR),
+    ("process", "spawn_background", 2, surface::IR),
+    ("process", "exec", 2, surface::IR),
+    ("process", "register_exit_command", 2, surface::IR),
+    ("process", "exit", 1, surface::IR),
+    // structured formats
+    ("csv", "parse", 1, surface::IR),
+    ("csv", "parse_records", 1, surface::IR),
+    ("csv", "render", 1, surface::IR),
+    ("toml", "parse", 1, surface::IR),
+    ("toml", "render", 1, surface::IR),
+    ("yaml", "parse", 1, surface::IR),
+    ("yaml", "render", 1, surface::IR),
+    ("io", "open", 1, surface::IR),
+    ("io", "save", 2, surface::IR),
+    ("json", "parse", 1, surface::IR),
+    ("json", "render", 1, surface::IR),
+    ("json", "read_str", 2, surface::IR),
+    ("json", "read_f64", 2, surface::IR),
+    ("json", "quote", 1, surface::IR),
+    // logging
+    ("log", "debug", 1, surface::IR),
+    ("log", "info", 1, surface::IR),
+    ("log", "warn", 1, surface::IR),
+    ("log", "error", 1, surface::IR),
+    // time
+    ("time", "now_ms", 0, surface::IR),
+    // agentos
+    ("agentos", "mutation_kind_for_tool", 1, surface::IR),
+    // crypto + http — NATIVE/codegen only. The tree-walking interpreter has no
+    // crypto/network stack; scripts needing these run via --mode script.
+    ("crypto", "hash_fast", 1, surface::RUST),
+    ("crypto", "hash_secure", 1, surface::RUST),
+    ("crypto", "uuid", 0, surface::RUST),
+    ("http", "get_text", 1, surface::RUST),
+    ("http", "post_json", 2, surface::RUST),
+];
+
+#[cfg(test)]
+mod namespace_builtin_parity_tests {
+    use super::*;
+    use crate::eval::builtins::call_builtin_method;
+    use crate::eval::value::VoxValue;
+
+    fn ns_receiver(ns: &str) -> VoxValue {
+        VoxValue::Object(vec![(
+            "__namespace__".to_string(),
+            VoxValue::Str(ns.to_string()),
+        )])
+    }
+
+    /// Every INTERP-surface builtin must dispatch in the tree-walking interpreter.
+    /// A missing arm makes `call_builtin_method` return None ("Method not found"
+    /// at runtime) — the regression we are guarding against (now_ms/path.basename).
+    #[test]
+    fn interpreter_dispatches_every_interp_builtin() {
+        // Robust probe: a missing method returns Ok(None) ("Method not found").
+        // An arm that exists but panics on our type-agnostic dummy args (e.g.
+        // process.run expects a list arg) unwinds — we catch it and treat it as
+        // PRESENT, since dispatch was reached. Only a clean None is a real gap.
+        let prev = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let mut missing = Vec::new();
+        for (ns, method, argc, surfaces) in NAMESPACE_BUILTINS {
+            if surfaces & surface::INTERP == 0 {
+                continue;
+            }
+            // process.exit calls std::process::exit — executing it would kill the
+            // test harness (catch_unwind can't stop it). Its interp arm exists by
+            // inspection; the codegen-surface test covers it safely.
+            if (*ns, *method) == ("process", "exit") {
+                continue;
+            }
+            let (ns, method, argc) = (*ns, *method, *argc);
+            let probe = std::panic::catch_unwind(|| {
+                let args: Vec<VoxValue> =
+                    (0..argc).map(|_| VoxValue::Str("x".to_string())).collect();
+                call_builtin_method(&ns_receiver(ns), method, args, None)
+            });
+            if matches!(probe, Ok(None)) {
+                missing.push(format!("std.{ns}.{method}"));
+            }
+        }
+        std::panic::set_hook(prev);
+        assert!(
+            missing.is_empty(),
+            "interpreter missing dispatch for: {missing:#?}"
+        );
+    }
+
+    /// Every RUST-surface builtin must have an explicit Rust-codegen lowering
+    /// (no arm => fallthrough to invalid `::std::ns::method(...)`).
+    #[test]
+    fn codegen_lowers_every_rust_builtin() {
+        let mut missing = Vec::new();
+        for (ns, method, argc, surfaces) in NAMESPACE_BUILTINS {
+            if surfaces & surface::RUST == 0 {
+                continue;
+            }
+            let args: Vec<String> = (0..*argc).map(|i| format!("a{i}")).collect();
+            if std_namespace_runtime_call(ns, method, &args).is_none() {
+                missing.push(format!("std.{ns}.{method}"));
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "codegen missing lowering for: {missing:#?}"
+        );
+    }
+
+    /// The canonical list must be a subset of what the typechecker accepts —
+    /// catches list entries that name a builtin the typechecker doesn't know.
+    #[test]
+    fn typecheck_knows_every_listed_builtin() {
+        let mut missing = Vec::new();
+        for (ns, method, _argc, _surfaces) in NAMESPACE_BUILTINS {
+            if std_namespace_method_ty(ns, method).is_none() {
+                missing.push(format!("std.{ns}.{method}"));
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "typecheck missing signature for: {missing:#?}"
+        );
     }
 }
