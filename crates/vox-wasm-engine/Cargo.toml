@@ -21,4 +21,4 @@ workspace-hack = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-wat = "1.220"
+wat = "1.251"
