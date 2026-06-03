@@ -5,6 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::contract_ir::ContractEndpointKind;
 use crate::hir::HirModule;
 use crate::typeck::env::TypeEnv;
 use crate::typeck::registration::type_signature_from_hir;
@@ -114,23 +115,29 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     let mut mutation_fns = Vec::new();
 
     for (ep, hir_fn) in ir.endpoints.iter().zip(module.endpoint_fns.iter()) {
+        assert_eq!(
+            ep.name, hir_fn.name,
+            "contract_ir::project must preserve endpoint identity/order: IR gave `{}`, HIR has `{}`",
+            ep.name, hir_fn.name
+        );
+        // ep.params is lossy WireType — derive the human-readable signature from HIR types.
         let signature = fn_signature(&hir_fn.params, hir_fn.return_type.as_ref());
         match ep.kind {
-            crate::contract_ir::ContractEndpointKind::Server => {
+            ContractEndpointKind::Server => {
                 server_fns.push(AppServerFnContract {
                     name: ep.name.clone(),
                     route_path: ep.path.clone(),
                     signature,
                 });
             }
-            crate::contract_ir::ContractEndpointKind::Query => {
+            ContractEndpointKind::Query => {
                 query_fns.push(AppServerFnContract {
                     name: ep.name.clone(),
                     route_path: ep.path.clone(),
                     signature,
                 });
             }
-            crate::contract_ir::ContractEndpointKind::Mutation => {
+            ContractEndpointKind::Mutation => {
                 mutation_fns.push(AppMutationContract {
                     name: ep.name.clone(),
                     route_path: ep.path.clone(),
@@ -263,6 +270,40 @@ mod tests {
             !app.mutation_fns[0].wraps_db_transaction,
             "no tables -> no transaction wrap"
         );
+    }
+
+    /// Characterization test: endpoints declared in interleaved kind order
+    /// (`@server a`, `@mutation b`, `@query c`, `@server d`) must end up in
+    /// the correct per-kind list with the correct name and route_path,
+    /// proving that the ContractIr/HIR zip preserves identity across kind
+    /// interleaving rather than only within homogeneous per-kind blocks.
+    #[test]
+    fn project_app_contract_interleaved_kinds_preserve_identity() {
+        let src = r#"
+@server fn a(x: int) to str { return "a" }
+@mutation fn b(y: bool) to bool { return y }
+@query fn c(n: int) to int { return n }
+@server fn d() to int { return 0 }
+"#;
+        let hir = lower(src);
+        let app = project_app_contract(&hir);
+
+        // server_fns: a then d (source order within kind).
+        assert_eq!(app.server_fns.len(), 2, "two @server endpoints");
+        assert_eq!(app.server_fns[0].name, "a");
+        assert_eq!(app.server_fns[0].route_path, "/api/a");
+        assert_eq!(app.server_fns[1].name, "d");
+        assert_eq!(app.server_fns[1].route_path, "/api/d");
+
+        // mutation_fns: b only.
+        assert_eq!(app.mutation_fns.len(), 1, "one @mutation endpoint");
+        assert_eq!(app.mutation_fns[0].name, "b");
+        assert_eq!(app.mutation_fns[0].route_path, "/api/mutation/b");
+
+        // query_fns: c only.
+        assert_eq!(app.query_fns.len(), 1, "one @query endpoint");
+        assert_eq!(app.query_fns[0].name, "c");
+        assert_eq!(app.query_fns[0].route_path, "/api/query/c");
     }
 }
 
