@@ -115,7 +115,7 @@ it). Severity is the agent's; the tier grouping is editorial.
   [`AppContractModule`](../../../crates/vox-compiler/src/app_contract.rs),
   [`ContractIR`](../../../crates/vox-compiler/src/contract_ir/mod.rs), `WebIR`'s `RouteNode`
   ([`web_ir/mod.rs`](../../../crates/vox-codegen/src/web_ir/mod.rs)), and
-  [`RouteIR`](../../../crates/vox-codegen/src/codegen_shared/route_ir.rs) each re-derive
+  `RouteIR` (then in `codegen_shared/route_ir.rs`) each re-derive
   endpoint name/path/method/params from `HirModule.endpoint_fns`. Renaming one endpoint can
   touch four lowering paths. `RouteIR` was *built* to be the SSOT here, but the TypeScript
   side ignores it. **This is the single most expensive split-brain.** Fix: make `ContractIR`
@@ -124,7 +124,7 @@ it). Severity is the agent's; the tier grouping is editorial.
   `generate_component` + the AST JSX walker in
   [`jsx.rs`](../../../crates/vox-codegen/src/codegen_ts/jsx.rs) (~900 lines) have zero
   call-sites — the live loop only calls `generate_reactive_component`. There is also an
-  orphaned [`activity.rs`](../../../crates/vox-codegen/src/codegen_ts/activity.rs) that
+  orphaned `activity.rs` (then under `codegen_ts/`) that
   Cargo never compiles. *Caveat:* `jsx.rs` re-exports two helpers used by tests, so the fix
   is "delete the dead functions, keep the re-export," not delete the file.
 - **T1-3 · The view is rendered twice and one copy is discarded.** In
