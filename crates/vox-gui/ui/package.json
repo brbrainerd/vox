@@ -4,10 +4,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "lint": "vite build"
+    "lint": "tsc --noEmit && vite build"
   },
   "dependencies": {
     "@msgpack/msgpack": "^3.1.3",

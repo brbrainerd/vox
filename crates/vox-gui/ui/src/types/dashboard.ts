@@ -11,7 +11,8 @@ export interface Peer {
 
 export interface KPI {
   label: string;
-  value: number;
+  /** Numeric for ratio bars (budget); a preformatted string for display-only KPIs (e.g. mesh "3.2 GB/s"). */
+  value: number | string;
   cap: number;
   spark: number[];
 }

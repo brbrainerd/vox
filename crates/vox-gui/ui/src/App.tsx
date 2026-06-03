@@ -507,7 +507,7 @@ export default function App() {
     else if (cmd.id === 'ack-all') data.alerts.forEach(handleAckAlert);
     else if (cmd.id?.startsWith('agent:')) { setActiveView('flow'); setSelectedAgentId(cmd.id.slice(6)); }
     else if (cmd.id?.startsWith('skill:')) {
-      const s = data.skills.find((x: any) => x.id === cmd.id.slice(6));
+      const s: any = data.skills.find((x: any) => x.id === cmd.id.slice(6));
       if (s) {
         setDeployedSet(prev => new Set([...prev, s.id]));
         handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: s.id });

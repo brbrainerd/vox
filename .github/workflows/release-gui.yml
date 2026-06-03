@@ -49,11 +49,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Build frontend
+      - name: Typecheck frontend (tsc --noEmit)
         working-directory: ./crates/vox-gui/ui
         run: |
           pnpm install
-          pnpm build
+          pnpm typecheck
+
+      - name: Build frontend
+        working-directory: ./crates/vox-gui/ui
+        run: pnpm build
 
       - name: Build Tauri Application
         uses: tauri-apps/tauri-action@v0
