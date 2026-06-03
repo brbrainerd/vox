@@ -189,6 +189,49 @@ pub async fn critic_approve(
         .await
         .context("set publication state to approved")?;
 
+    // ── Cost-category instrumentation (critic phase) ──────────────────────
+    // Emit a phase-tagged ('critic') cost row so `vox scientia cost` attributes
+    // critic-gate activity to its category line as a real, queryable, attributed
+    // row (vs a hardcoded 0.0).
+    //
+    // HONESTY: the critic *gate* (`evaluate_gate`) is pure approval-policy logic
+    // — it runs no model and therefore has no LLM cost of its own. The dollar
+    // cost of a critic belongs to the upstream model that produced the critic's
+    // signed report; that report is supplied here as a URI, not a priced facade
+    // call, so no per-call $ is available at this site and the recorded cost is
+    // 0.0. The mechanism is real and one line from carrying true spend the
+    // moment a critic report surfaces its generation cost (thread it into
+    // `critic_cost_usd`). The model fingerprint is tagged so the row is
+    // attributable to the critic that approved.
+    let critic_cost_usd = 0.0_f64;
+    let critic_model = serde_json::to_string(&inputs.critic_fingerprint).ok();
+    if let Err(e) = db
+        .insert_scientia_cost_telemetry(
+            "scientia-critic",
+            &publication_id.to_string(),
+            "vox-scientia",
+            "critic",
+            None,
+            critic_model.as_deref(),
+            None,
+            None,
+            critic_cost_usd,
+            Some(
+                &serde_json::json!({
+                    "publication_id": publication_id,
+                    "critic_id": critic_id,
+                    "digest": manifest.content_sha3_256,
+                    "cost_basis": "critic gate is pure policy; report cost is upstream and not a priced facade call; 0.0 until the critic report reports $",
+                })
+                .to_string(),
+            ),
+        )
+        .await
+    {
+        // Telemetry is best-effort; never fail an approval on a recording miss.
+        eprintln!("warning: failed to record critic cost telemetry: {e}");
+    }
+
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
@@ -516,10 +559,15 @@ pub async fn scientia_dashboard() -> Result<()> {
 /// `cost` rows grouped by the `pipeline_phase` column (baseline v70) — see
 /// [`apply_phase_costs`]. A phase shows non-zero only once its call sites emit
 /// phase-tagged cost rows via `VoxDb::insert_scientia_cost_telemetry`. As of
-/// this change the **extraction** phase is wired (at
-/// `publication-extract-claims`); the other three legitimately stay 0.0 until
-/// their LLM/cost sites are instrumented. An empty DB yields an all-zeros
-/// rollup — that is correct and expected.
+/// this change the **extraction** (at `publication-extract-claims`) and
+/// **critic** (at `publication-critic-approve`) phases emit attributable rows;
+/// `novelty` and `scholarly` legitimately stay 0.0 until their retrieval /
+/// submission sites are instrumented. Note the recorded dollar amounts may
+/// themselves be 0.0 where the underlying site has no priced facade call yet
+/// (the critic gate is pure policy; the MiniCheck verifier reports no $) — the
+/// row is real and attributed regardless, and carries true spend once those
+/// sites surface cost. An empty DB yields an all-zeros rollup — correct and
+/// expected.
 pub async fn scientia_cost() -> Result<()> {
     use vox_scientia::dashboard::cost::{CostInputs, build_cost_rollup};
     let db = vox_db::VoxDb::connect_default()

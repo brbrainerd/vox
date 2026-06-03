@@ -180,6 +180,7 @@ pub async fn llm_chat(
                 prompt_tokens: usage.prompt_tokens,
                 completion_tokens: usage.completion_tokens,
                 model: model_id,
+                cost_usd,
             }))
         };
         let fut_typed: LlmChatActivityFuture = Box::pin(fut);

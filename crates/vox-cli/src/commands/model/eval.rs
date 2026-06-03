@@ -82,6 +82,10 @@ pub struct FixtureResult {
     pub total_tokens: u32,
     /// Wall-clock latency of the call in milliseconds.
     pub latency_ms: i64,
+    /// Cost of this call in USD as reported by the LLM facade
+    /// ([`LlmResponse::cost_usd`]): provider-reported `total_cost` when present,
+    /// else a `cost_per_1k` estimate, else `None` (unknown / free mock backend).
+    pub cost_usd: Option<f64>,
 }
 
 /// The three folded axis scores for a single model.
@@ -101,6 +105,12 @@ pub struct ModelEvalResult {
     pub n_calls: usize,
     /// Number of fixtures answered correctly.
     pub passed: usize,
+    /// Sum of per-call `cost_usd` across all fixtures with a known cost (USD).
+    /// Calls whose cost was `None` (e.g. the free mock backend) contribute 0.
+    pub cumulative_cost_usd: f64,
+    /// Cost in USD per *successful* answer (`cumulative_cost_usd / passed`), or
+    /// `None` when no fixtures passed or no call reported a cost.
+    pub cost_per_success_usd: Option<f64>,
 }
 
 /// Pure scoring fold: given per-fixture results, compute the three axis scores.
@@ -126,6 +136,17 @@ pub fn score_eval(results: &[FixtureResult]) -> ModelEvalResult {
     let p50_ms = percentile(&latencies, 0.50);
     let p99_ms = percentile(&latencies, 0.99);
 
+    // Cost fold: sum known per-call costs; unknown (None) calls contribute 0.
+    // `cost_per_success_usd` is None when nothing passed or no cost was reported,
+    // so the scoreboard distinguishes "free/unknown" from a real "$0.00".
+    let cumulative_cost_usd: f64 = results.iter().filter_map(|r| r.cost_usd).sum();
+    let any_cost_known = results.iter().any(|r| r.cost_usd.is_some());
+    let cost_per_success_usd = if passed > 0 && any_cost_known {
+        Some(cumulative_cost_usd / passed as f64)
+    } else {
+        None
+    };
+
     ModelEvalResult {
         intelligence,
         tokens_per_pass,
@@ -134,6 +155,8 @@ pub fn score_eval(results: &[FixtureResult]) -> ModelEvalResult {
         p99_ms,
         n_calls,
         passed,
+        cumulative_cost_usd,
+        cost_per_success_usd,
     }
 }
 
@@ -169,11 +192,11 @@ pub fn scoreboard_row_from_eval(
         success_rate: result.intelligence,
         p50_latency_ms: Some(result.p50_ms),
         p99_latency_ms: Some(result.p99_ms),
-        cost_per_success_usd: None,
+        cost_per_success_usd: result.cost_per_success_usd,
         quality_score: result.intelligence,
         updated_at_ms: now,
         success_count: result.passed as i64,
-        cumulative_cost_usd: 0.0,
+        cumulative_cost_usd: result.cumulative_cost_usd,
     }
 }
 
@@ -320,6 +343,7 @@ async fn eval_one_model(model_id: &str) -> Result<Vec<FixtureResult>, String> {
                     correct,
                     total_tokens: resp.prompt_tokens + resp.completion_tokens,
                     latency_ms,
+                    cost_usd: resp.cost_usd,
                 });
             }
             Err(provider_err) => {
@@ -332,6 +356,7 @@ async fn eval_one_model(model_id: &str) -> Result<Vec<FixtureResult>, String> {
                     correct: false,
                     total_tokens: 0,
                     latency_ms,
+                    cost_usd: None,
                 });
             }
         }
@@ -444,7 +469,45 @@ mod tests {
             correct,
             total_tokens: tokens,
             latency_ms: latency,
+            cost_usd: None,
         }
+    }
+
+    fn rc(correct: bool, tokens: u32, latency: i64, cost: Option<f64>) -> FixtureResult {
+        FixtureResult {
+            correct,
+            total_tokens: tokens,
+            latency_ms: latency,
+            cost_usd: cost,
+        }
+    }
+
+    #[test]
+    fn score_eval_folds_cost_summing_known_and_ignoring_unknown() {
+        // Two passing calls with cost, one passing free (None), one failing.
+        let results = vec![
+            rc(true, 10, 100, Some(0.02)),
+            rc(true, 20, 200, Some(0.03)),
+            rc(true, 30, 300, None), // free/unknown -> contributes 0
+            rc(false, 40, 400, Some(0.05)),
+        ];
+        let out = score_eval(&results);
+        // 0.02 + 0.03 + 0.05 = 0.10 cumulative (None ignored).
+        assert!((out.cumulative_cost_usd - 0.10).abs() < 1e-9);
+        // 3 passed; cost per success = 0.10 / 3.
+        let cps = out.cost_per_success_usd.expect("some cost known");
+        assert!((cps - (0.10 / 3.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn score_eval_cost_per_success_none_when_all_costs_unknown() {
+        let results = vec![rc(true, 10, 100, None), rc(false, 20, 200, None)];
+        let out = score_eval(&results);
+        assert_eq!(out.cumulative_cost_usd, 0.0);
+        assert!(
+            out.cost_per_success_usd.is_none(),
+            "no known cost -> None, not a misleading $0.00"
+        );
     }
 
     #[test]
