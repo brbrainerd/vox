@@ -88,17 +88,23 @@ export function ResearchView({ pushToast }: SurfaceDecoratorProps) {
           <span className="font-display text-[12px] uppercase tracking-wide text-zinc-400">Recent sessions</span>
           <button onClick={loadHistory} className="text-[11px] text-zinc-500 hover:text-zinc-200">Refresh</button>
         </div>
-        <ul className="space-y-1">
-          {sessions.map(s => (
-            <li key={s.id}>
-              <button onClick={() => openDetail(s.id)}
-                className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-left hover:bg-white/[0.04]">
-                <span className="truncate text-[12px] text-zinc-300">{s.query_text}</span>
-                <span className="ml-3 shrink-0 font-mono text-[10px] text-zinc-500">{s.status}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {sessions.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-white/5 py-6 text-center text-[11px] text-zinc-600">
+            No research sessions yet — ask a question above to run one.
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {sessions.map(s => (
+              <li key={s.id}>
+                <button onClick={() => openDetail(s.id)}
+                  className="flex w-full items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-left hover:bg-white/[0.04]">
+                  <span className="truncate text-[12px] text-zinc-300">{s.query_text}</span>
+                  <span className="ml-3 shrink-0 font-mono text-[10px] text-zinc-500">{s.status}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {detail && (
