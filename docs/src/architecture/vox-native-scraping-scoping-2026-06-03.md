@@ -1,7 +1,7 @@
 ---
 title: Native Scraping / Browser Automation in Vox — Scoping & Handoff (2026-06-03)
 description: Honest scope for making scrapers/checkers/screenshots easy to write in Vox (and easy for LLMs). Audits what already exists (a chromiumoxide CDP engine + a static fetch/parse path are already in-tree), surveys the Rust landscape, and recommends a majority-of-benefit path that is mostly assembly + ergonomics + governance, not a from-scratch build.
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # Native Scraping / Browser Automation in Vox — Scoping & Handoff

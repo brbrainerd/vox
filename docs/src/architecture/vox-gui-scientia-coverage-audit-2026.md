@@ -1,7 +1,7 @@
 ---
 title: Vox GUI ↔ CLI / Scientia Coverage Audit (2026-06-03)
 description: Verified gap map between the Tauri GUI and the CLI/Scientia surface, with the three-part self-surfacing recommendation and pointers to the implementation plans.
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # Vox GUI ↔ CLI / Scientia Coverage Audit (2026-06-03)

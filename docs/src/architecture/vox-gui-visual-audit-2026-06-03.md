@@ -1,7 +1,7 @@
 ---
 title: Vox GUI Visual Audit & Fix Handoff (2026-06-03)
 description: Full-surface screenshot audit of the Tauri GUI frontend — the app-blanking icon crash found and fixed, plus a prioritized list of remaining visual/robustness fixes and the reusable Playwright capture harness.
-category: architecture
+category: "Architecture SSOTs"
 ---
 
 # Vox GUI Visual Audit & Fix Handoff (2026-06-03)

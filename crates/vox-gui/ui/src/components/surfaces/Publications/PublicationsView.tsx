@@ -31,9 +31,9 @@ export function PublicationsView({ pushToast }: SurfaceDecoratorProps) {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex gap-3 overflow-x-auto pb-3 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
         {PUBLICATION_STAGES.map(stage => (
-          <div key={stage} className="w-56 shrink-0">
+          <div key={stage} className="w-44 shrink-0">
             <div className="mb-2 flex items-center justify-between">
               <span className="font-mono text-[10px] uppercase tracking-wide text-zinc-400">{stage.replace(/_/g, ' ')}</span>
               <span className="rounded-full bg-white/[0.05] px-1.5 font-mono text-[9px] text-zinc-500">{groups[stage].length}</span>

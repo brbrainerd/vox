@@ -85,7 +85,7 @@ export function ModelsView({ pushToast }: ModelsViewProps) {
           <div>
             <div className="font-display text-sm tracking-widest text-zinc-200 uppercase">Model Registry</div>
             <div className="text-xs text-zinc-500 mt-1">
-              {summary ? `${summary.model_count} models · ${summary.arm_count} routing arms · explore $${summary.exploration_spent_usd.toFixed(2)} / $${summary.exploration_budget_usd.toFixed(0)}` : 'Loading routing summary…'}
+              {summary ? `${summary.model_count} models · ${summary.arm_count} routing arms · explore $${(summary.exploration_spent_usd ?? 0).toFixed(2)} / $${(summary.exploration_budget_usd ?? 0).toFixed(0)}` : 'Loading routing summary…'}
             </div>
           </div>
           <div className="text-right">
@@ -99,7 +99,7 @@ export function ModelsView({ pushToast }: ModelsViewProps) {
           <div className="font-display text-[11px] tracking-[0.2em] uppercase text-zinc-400">Decision Preview</div>
           <div className="mt-2 text-xs text-zinc-200 font-mono">{summary.decision_preview.selected_model}</div>
           <div className="text-[10px] text-zinc-500 mt-1">
-            state={summary.decision_preview.discovery_state} · intel={summary.decision_preview.intelligence_score.toFixed(2)} · eff={summary.decision_preview.efficiency_score.toFixed(2)} · lat={summary.decision_preview.latency_score.toFixed(2)}
+            state={summary.decision_preview.discovery_state} · intel={(summary.decision_preview.intelligence_score ?? 0).toFixed(2)} · eff={(summary.decision_preview.efficiency_score ?? 0).toFixed(2)} · lat={(summary.decision_preview.latency_score ?? 0).toFixed(2)}
           </div>
           {summary.decision_preview.alternatives?.length ? (
             <div className="mt-2 text-[10px] text-zinc-500">

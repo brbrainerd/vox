@@ -149,10 +149,14 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
     ...c,
     entries: memStatus?.corpus_counts?.[c.id] ?? 0,
   }));
-  const totalEntries = corpora.reduce(
+  const corpusTotal = corpora.reduce(
     (s, c) => s + (scope.includes(c.id) ? c.entries : 0),
     0
   );
+  // Fall back to summing shard entries when corpus_counts is absent or all-zero
+  // (backend may omit corpus_counts on a partial status payload).
+  const shardTotal = (memStatus?.shards ?? []).reduce((s, sh) => s + sh.entries, 0);
+  const totalEntries = corpusTotal > 0 ? corpusTotal : shardTotal;
   const toggleScope = (id: MemCorpusId) =>
     setScope(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
@@ -204,7 +208,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
               Mnemosyne · Memory
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              Vector + symbolic recall · {scope.length} corpora active · {totalEntries.toLocaleString()} indexed entries
+              Vector + symbolic recall · {scope.length} corpora active · {(totalEntries ?? 0).toLocaleString()} indexed entries
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -369,7 +373,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
                 </div>
                 <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
                   <div className="uppercase tracking-widest text-zinc-500">Entries</div>
-                  <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{s.entries.toLocaleString()}</div>
+                  <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{(s.entries ?? 0).toLocaleString()}</div>
                 </div>
               </div>
               <div className="mt-2 h-8">

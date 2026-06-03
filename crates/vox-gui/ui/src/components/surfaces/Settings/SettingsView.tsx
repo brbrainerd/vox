@@ -75,7 +75,7 @@ function RangeInline({
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
         style={{ background: `linear-gradient(to right, #d4af37 ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
       />
-      <span className="w-14 text-right font-mono text-[11px] text-zinc-200">{suffix}{value}</span>
+      <span className="w-14 text-right font-mono text-[11px] text-zinc-200">{value}{suffix}</span>
     </div>
   );
 }
