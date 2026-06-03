@@ -165,9 +165,21 @@ IDs are stable. Status reflects the 2026-06-03 execution pass.
   partial win available regardless: merge the 207-LoC `fs_utils` superset into `vox-cli-core`
   (dedups the 59-LoC stub) and repoint the one `fs_utils` inversion call — but that alone does
   not remove the `known_inversion` (build::run + RustAppShell edges remain).
-- **WS5-T4 (URGENT, gated)** — Execute the `vox-cli-ci` extraction (26,337 LoC; `vox-cli`
-  at 92% of its 90K budget) per the existing
-  [2026-05-15-cli-ci-extraction-plan.md](./2026-05-15-cli-ci-extraction-plan.md).
+- **WS5-T4 — AUDITED 2026-06-03: legitimate but NOT urgent; DEFER.** Re-examined with data
+  rather than the earlier "URGENT" label. Findings: ci/ = **26,344 LoC / 101 files (~32% of
+  vox-cli's 82,862)**; **~65% of recent vox-cli commits touch ci/** (highest-churn subtree);
+  incremental `cargo check -p vox-cli` after touching a ci/ file = **10s** (warm + sccache).
+  BUT: (1) the `max_loc = 90_000` budget is a **`warn`, not an error**, and is **not promoted
+  to error in CI** — there is **no hard wall** at 90K, so "URGENT at 92%" was overstated;
+  (2) the incremental-rebuild win is **variable** — vox-cli depends on vox-cli-ci, so
+  API-changing ci edits recompile both crates (≈ same total work); only internal-only ci
+  edits would drop from an 82K-LoC recompile to ~26K + relink; (3) the cost is real — the
+  **HAZARD-1 `build_catalog()` → `VoxCliRoot` cycle** needs a dependency-injection refactor
+  (design work), plus a 26K-LoC move, ~12 seam repoints, and "don't-run-concurrently"
+  coordination. **Determination:** the separation has genuine merit (build hygiene, parallel
+  compile, faster internal-edit rebuilds) but is **not forced**. Defer until either the
+  loc_budget warn is promoted to error, or it is funded as a dedicated isolated PR that does
+  the `build_catalog` DI refactor FIRST, then the mechanical move. Do NOT rush it.
 - **WS5-T5 (HOLD)** — `vox-orchestrator-core` extraction is correctly gated on a Rule-13
   growth trigger that has **not** fired (~8% headroom); a coherence-constrained ~17–25K
   LoC co-move. Do **not** start now.
