@@ -318,6 +318,7 @@ model/classify
 model/costs
 model/council-report
 model/discover
+model/eval
 model/explain
 model/list
 model/preferences
@@ -390,6 +391,8 @@ run
 schola
 scientia
 scientia/capability-list
+scientia/claims
+scientia/dashboard
 scientia/diagnose
 scientia/feed-source-add
 scientia/feed-source-list
@@ -471,6 +474,8 @@ test
 train
 update
 upgrade
+wasm
+wasm/run
 workflow
 workflow/drain
 workflow/ls
