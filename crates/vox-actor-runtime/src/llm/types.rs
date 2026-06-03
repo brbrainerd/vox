@@ -260,15 +260,42 @@ pub struct LlmResponse {
     pub completion_tokens: u32,
     /// Model id from the response body, or the configured model as fallback.
     pub model: String,
+    /// Cost of this call in USD when derivable: the provider-reported
+    /// `usage.total_cost`/`usage.cost`, else a `cost_per_1k` token estimate,
+    /// else `None`. This is the same value recorded to telemetry; surfacing it
+    /// on the response lets callers (e.g. Scientia pipeline phases) attribute
+    /// per-phase spend without re-deriving it.
+    #[serde(default)]
+    pub cost_usd: Option<f64>,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{LlmConfig, ModelRegistryEntry};
+    use super::{LlmConfig, LlmResponse, ModelRegistryEntry};
     use std::collections::HashMap;
     use std::sync::Mutex;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn llm_response_carries_and_roundtrips_cost_usd() {
+        let resp = LlmResponse {
+            content: "hi".into(),
+            prompt_tokens: 10,
+            completion_tokens: 5,
+            model: "test-model".into(),
+            cost_usd: Some(0.0123),
+        };
+        let json = serde_json::to_string(&resp).expect("serialize");
+        let back: LlmResponse = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.cost_usd, Some(0.0123));
+
+        // Back-compat: payloads written before the field existed deserialize to
+        // None (the field is `#[serde(default)]`).
+        let legacy = r#"{"content":"x","prompt_tokens":1,"completion_tokens":1,"model":"m"}"#;
+        let legacy_resp: LlmResponse = serde_json::from_str(legacy).expect("legacy deserialize");
+        assert_eq!(legacy_resp.cost_usd, None);
+    }
 
     #[test]
     #[allow(unsafe_code)]

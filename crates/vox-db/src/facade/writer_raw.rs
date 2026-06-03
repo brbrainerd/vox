@@ -165,6 +165,53 @@ impl VoxDb {
         Ok(())
     }
 
+    /// Internal raw insert for a Scientia pipeline-phase-tagged cost row.
+    ///
+    /// Writes an `event_kind = 'cost'` row into `agent_telemetry_flat` carrying a
+    /// non-NULL `pipeline_phase` (`'extraction'` | `'critic'` | `'novelty'` |
+    /// `'scholarly'`). This is the write path that makes the four category lines
+    /// in `vox scientia cost` real (vs the historical honest-0.0). The generic
+    /// [`insert_telemetry_flat_raw`](Self::insert_telemetry_flat_raw) leaves
+    /// `pipeline_phase` NULL, so only rows written here are attributed to a phase.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn insert_scientia_cost_telemetry(
+        &self,
+        agent_id: &str,
+        session_id: &str,
+        repository_id: &str,
+        pipeline_phase: &str,
+        provider: Option<&str>,
+        model_id: Option<&str>,
+        input_tokens: Option<i64>,
+        output_tokens: Option<i64>,
+        cost_usd: f64,
+        payload_json: Option<&str>,
+    ) -> Result<(), StoreError> {
+        self.conn
+            .execute(
+                "INSERT INTO agent_telemetry_flat (
+                    agent_id, session_id, repository_id, event_kind, model_id, provider,
+                    input_tokens, output_tokens, cost_usd, pipeline_phase, payload_json, recorded_at_ms
+                 ) VALUES (?1, ?2, ?3, 'cost', ?4, ?5, ?6, ?7, ?8, ?9, ?10, unixepoch('now') * 1000)",
+                params![
+                    agent_id,
+                    session_id,
+                    repository_id,
+                    model_id,
+                    provider,
+                    input_tokens,
+                    output_tokens,
+                    cost_usd,
+                    pipeline_phase,
+                    payload_json,
+                ],
+            )
+            .await
+            .map_err(|e| StoreError::Db(e.to_string()))?;
+
+        Ok(())
+    }
+
     /// Internal raw insert for the scientia publication queue.
     pub async fn insert_publication_queue_raw(
         &self,

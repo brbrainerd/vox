@@ -15,7 +15,7 @@ use super::super::planner::{decompose_query_with_config, plan_to_json};
 use super::super::provider::ProviderRegistry;
 use super::super::types::{
     Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchHit, ResearchMetadata,
-    ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact, ResearchScope,
+    ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact, ResearchScope, ResearchStage,
     RetrievalDiagnostics, RoutingTier,
 };
 use super::super::verifier::verify_claims_with_config;
@@ -126,6 +126,9 @@ pub async fn run_research_with_context_and_session(
             recorded_at_ms: now_ms_i64(),
         },
     );
+    // Set status → planning before decomposition.
+    set_session_stage(db, session_id, ResearchStage::Planning).await;
+
     report_progress(
         "Decomposing query into subqueries...".to_string(),
         Some(0.05),
@@ -174,6 +177,9 @@ pub async fn run_research_with_context_and_session(
             )
             .await;
     }
+
+    // Set status → retrieving before web/local gather.
+    set_session_stage(db, session_id, ResearchStage::Retrieving).await;
 
     report_progress(
         format!("Running {} subqueries...", plan.subqueries.len()),
@@ -312,6 +318,8 @@ pub async fn run_research_with_context_and_session(
     );
 
     // ── (f) Claim verification ────────────────────────────────────────────────
+    // Set status → verifying_claims before NLI classification.
+    set_session_stage(db, session_id, ResearchStage::VerifyingClaims).await;
     report_progress("Verifying research claims...".to_string(), Some(0.60));
     let claim_verdicts = if query.verify_claims
         && matches!(routing_tier, RoutingTier::DeepResearch)
@@ -395,6 +403,8 @@ pub async fn run_research_with_context_and_session(
         .collect();
 
     // ── (i) Synthesize answer ─────────────────────────────────────────────────
+    // Set status → synthesizing before LLM synthesis call.
+    set_session_stage(db, session_id, ResearchStage::Synthesizing).await;
     report_progress(
         "Synthesizing final research report...".to_string(),
         Some(0.85),
@@ -457,15 +467,10 @@ pub async fn run_research_with_context_and_session(
     // session management methods missing from vox_db).
     // Phase 1 re-enables after vox_db gains create_research_session etc.
 
-    // ── (k) Finalize session ──────────────────────────────────────────────────
+    // ── (k) Citation audit stage ──────────────────────────────────────────────
     let duration_ms = start.elapsed().as_millis() as u64;
-    if let Some(db) = db
-        && session_id > 0
-    {
-        let _ = db
-            .update_research_session_status(session_id, "completed")
-            .await;
-    }
+    // Set status → auditing_citations before citation audit computation.
+    set_session_stage(db, session_id, ResearchStage::AuditingCitations).await;
 
     // ── (l) Optional CoVE-style self-verification ─────────────────────────────
     let self_verification =
@@ -578,6 +583,8 @@ pub async fn run_research_with_context_and_session(
         research_metadata: metadata,
     };
 
+    // Set status → persisting_artifact before artifact store.
+    set_session_stage(db, session_id, ResearchStage::PersistingArtifact).await;
     if let Some(db) = db
         && session_id > 0
     {
@@ -596,7 +603,31 @@ pub async fn run_research_with_context_and_session(
         }
     }
 
+    // Set status → completed after all work is done.
+    set_session_stage(db, session_id, ResearchStage::Completed).await;
+
     Ok(result)
+}
+
+/// Best-effort stage status update. Errors are logged and swallowed so a
+/// transient DB failure never aborts the research pipeline.
+async fn set_session_stage(db: Option<&Codex>, session_id: i64, stage: ResearchStage) {
+    if session_id <= 0 {
+        return;
+    }
+    if let Some(db) = db {
+        if let Err(e) = db
+            .update_research_session_status(session_id, stage.as_str())
+            .await
+        {
+            tracing::warn!(
+                session_id,
+                stage = stage.as_str(),
+                error = %e,
+                "research_stage_update_failed"
+            );
+        }
+    }
 }
 
 fn dedupe_hits_by_url(hits: &mut Vec<ResearchHit>) {

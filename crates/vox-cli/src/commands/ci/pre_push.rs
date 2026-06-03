@@ -198,6 +198,7 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         "pre-push: profile `{}` — all checks passed in {total_ms}ms",
         profile_name(&opts)
     );
+    print_pr_review_discipline_hint(root);
     write_pre_push_report(
         root,
         &opts,
@@ -211,6 +212,47 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         check_tier_budget(root, profile_name(&opts), total_ms)?;
     }
     Ok(())
+}
+
+/// Non-blocking advisory printed after a successful pre-push: when re-pushing a
+/// feature branch that already has an upstream (the proxy for an open PR),
+/// remind that pushes do **not** auto-trigger a CodeRabbit review (the repo
+/// `.coderabbit.yaml` sets `auto_review.auto_incremental_review: false`) and that
+/// `@coderabbitai review` is the on-demand trigger. See AGENTS.md §"PR & Review
+/// Discipline". Best-effort and never fails the push; uses only local git (no
+/// network), so it adds no measurable latency.
+fn print_pr_review_discipline_hint(root: &Path) {
+    use std::process::Command;
+    let branch = match Command::new("git")
+        .current_dir(root)
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .output()
+    {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).trim().to_string(),
+        _ => return,
+    };
+    if branch.is_empty() || branch == "main" || branch == "master" || branch == "HEAD" {
+        return;
+    }
+    // An upstream tracking branch means this branch was pushed before — i.e. this
+    // is a re-push, the case where an open PR likely already exists. First pushes
+    // (no upstream yet) stay silent so the initial PR-open review isn't second-guessed.
+    let has_upstream = Command::new("git")
+        .current_dir(root)
+        .args(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if !has_upstream {
+        return;
+    }
+    eprintln!(
+        "pre-push: review discipline — this re-push will NOT auto-trigger a CodeRabbit review"
+    );
+    eprintln!(
+        "          (.coderabbit.yaml auto_incremental_review=false). Batch commits, and comment"
+    );
+    eprintln!("          `@coderabbitai review` on the PR when it's ready for a fresh review.");
 }
 
 fn run_step_with_heartbeat(label: &str, f: impl FnOnce() -> Result<()>) -> Result<()> {

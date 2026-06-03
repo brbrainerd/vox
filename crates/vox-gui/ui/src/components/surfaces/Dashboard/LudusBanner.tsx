@@ -12,6 +12,7 @@ export function LudusBanner({ note, onAck }: LudusBannerProps) {
     ok:     { ring: "ring-emerald-400/25", bg: "bg-gradient-to-br from-emerald-500/[0.08] via-emerald-500/[0.02] to-transparent", text: "text-emerald-300", icon: <Icon.check className="size-4"/> },
     warn:   { ring: "ring-amber-400/25", bg: "bg-gradient-to-br from-amber-500/[0.08] via-amber-500/[0.02] to-transparent", text: "text-amber-300", icon: <Icon.alert className="size-4"/> },
     info:   { ring: "ring-cyan-400/25", bg: "bg-gradient-to-br from-cyan-500/[0.08] via-cyan-500/[0.02] to-transparent", text: "text-cyan-300", icon: <Icon.spark className="size-4"/> },
+    error:  { ring: "ring-rose-400/25", bg: "bg-gradient-to-br from-rose-500/[0.08] via-rose-500/[0.02] to-transparent", text: "text-rose-300", icon: <Icon.alert className="size-4"/> },
   };
   const styling = stylingMap[note.level] || { ring: "ring-white/10", bg: "", text: "text-zinc-300", icon: <Icon.alert className="size-4"/> };
 

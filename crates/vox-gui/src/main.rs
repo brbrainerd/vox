@@ -57,6 +57,9 @@ async fn main() {
             // B4: start the live agent-event stream, re-emitting each AgentEvent
             // as the "vox://agent-events" Tauri event.
             commands::orchestrator::spawn_agent_event_stream(app.handle().clone(), daemon.clone());
+            // F2: start the live Scientia-queue watcher, emitting a
+            // "vox://scientia-queue" ping when the DB-backed queue changes.
+            commands::scientia::spawn_scientia_queue_stream(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -99,6 +102,19 @@ async fn main() {
             commands::secrets::list_secret_status,
             commands::secrets::set_secret,
             commands::secrets::remove_secret,
+            commands::gamify::get_ludus_profile,
+            commands::gamify::list_ludus_notifications,
+            commands::gamify::ack_ludus_notification,
+            commands::gamify::get_gamify_settings,
+            commands::gamify::set_gamify_settings,
+            commands::gamify::list_gamify_leaderboard,
+            commands::gamify::list_gamify_companions,
+            commands::gamify::list_gamify_quests,
+            commands::scientia::list_research_sessions,
+            commands::scientia::get_research_session_detail,
+            commands::scientia::list_publication_manifests,
+            commands::search::vox_search_query,
+            commands::search::open_locator,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

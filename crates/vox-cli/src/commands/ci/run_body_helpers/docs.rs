@@ -516,6 +516,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     crate::commands::ci::gui_version_sync::run(root, false)?;
     crate::commands::ci::gui_catalog_parity::run(&root.to_path_buf())?;
     crate::commands::ci::gui_surface_coverage::run(root, false)?;
+    crate::commands::ci::gui_surface_registry::run(root, false)?;
     crate::commands::ci::capability_sync::run(root, false)?;
     contracts_index::run(root)?;
     crate::commands::ci::docs_reality_audit::run_verify(root)?;

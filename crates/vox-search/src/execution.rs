@@ -15,6 +15,7 @@ use crate::embeddings::EmbeddingService;
 use crate::memory_cache::cached_memory_engine;
 use crate::memory_hybrid::HybridSearchHit;
 use crate::policy::SearchPolicy;
+use crate::unified::{UnifiedHit, sort_unified_hits_desc};
 
 /// Substring scan fallback for markdown memory when BM25 returns empty.
 pub trait LexicalMemoryFallback: Send + Sync {
@@ -48,6 +49,10 @@ pub struct SearchExecution {
     pub web_lines: Vec<String>,
     /// Candidates from semantic proximity scanning (split-brain detection).
     pub symbol_proximity_lines: Vec<String>,
+    /// Typed, structured hits captured at-source from the per-corpus typed results,
+    /// sorted by descending score. Parallel to the `_lines` fields (which are kept
+    /// for existing consumers); lets GUIs render real typed results without re-parsing.
+    pub unified_hits: Vec<UnifiedHit>,
     /// Secure references to large evidence bodies, replacing inline text for high-volume results.
     pub durable_artifacts: Vec<DurableArtifact>,
     /// Non-fatal issues (e.g. Qdrant HTTP errors) copied into [`SearchDiagnostics::notes`].
@@ -265,6 +270,7 @@ pub async fn execute_search_plan(
     }
     let engine = cached_memory_engine(ctx, policy).await;
     let mut warnings: Vec<String> = Vec::new();
+    let mut unified_hits: Vec<UnifiedHit> = Vec::new();
 
     let mut lexical_fallback_used = false;
     let mut used_vector = false;
@@ -336,6 +342,15 @@ pub async fn execute_search_plan(
             hybrid_hits
                 .into_iter()
                 .map(|h| {
+                    unified_hits.push(UnifiedHit {
+                        source: "memory".to_string(),
+                        kind: "memory".to_string(),
+                        path: Some(h.path.clone()),
+                        title: (!h.title.is_empty()).then(|| h.title.clone()),
+                        snippet: h.content_snippet.replace('\n', " "),
+                        score: h.score,
+                        provenance: h.provenance.clone(),
+                    });
                     format!(
                         "[{}] {} (score {:.3}; provenance: {}; contradiction: {})",
                         h.path,
@@ -364,6 +379,15 @@ pub async fn execute_search_plan(
             rows.into_iter()
                 .map(|(id, label, snippet)| {
                     let snip = snippet.replace('\n', " ");
+                    unified_hits.push(UnifiedHit {
+                        source: "knowledge".to_string(),
+                        kind: "knowledge".to_string(),
+                        path: Some(format!("node:{id}")),
+                        title: (!label.is_empty()).then(|| label.clone()),
+                        snippet: snip.clone(),
+                        score: 0.0,
+                        provenance: vec!["knowledge:fts".to_string()],
+                    });
                     format!("[node:{id}] {label} — {snip}")
                 })
                 .collect::<Vec<_>>()
@@ -397,6 +421,15 @@ pub async fn execute_search_plan(
             let lines = rows
                 .into_iter()
                 .map(|hit| {
+                    unified_hits.push(UnifiedHit {
+                        source: "chunk".to_string(),
+                        kind: "doc".to_string(),
+                        path: Some(hit.chunk_id.clone()),
+                        title: (!hit.source.is_empty()).then(|| hit.source.clone()),
+                        snippet: hit.snippet.replace('\n', " "),
+                        score: f64::from(hit.score),
+                        provenance: vec![format!("{:?}", hit.evidence_source)],
+                    });
                     format!(
                         "[chunk:{} title:{}] {} (score {:.3}; provenance: {:?})",
                         hit.chunk_id,
@@ -439,7 +472,18 @@ pub async fn execute_search_plan(
     }
     let repo_lines = repo_hits
         .into_iter()
-        .map(|hit| format!("[repo:{}] {}", hit.chunk_id, hit.snippet))
+        .map(|hit| {
+            unified_hits.push(UnifiedHit {
+                source: "repo".to_string(),
+                kind: "code".to_string(),
+                path: Some(hit.chunk_id.clone()),
+                title: None,
+                snippet: hit.snippet.clone(),
+                score: f64::from(hit.score),
+                provenance: vec!["repo:path".to_string()],
+            });
+            format!("[repo:{}] {}", hit.chunk_id, hit.snippet)
+        })
         .collect::<Vec<_>>();
 
     let tantivy_doc_lines = tantivy_supplemental_lines(ctx, policy, query, limit);
@@ -545,6 +589,15 @@ pub async fn execute_search_plan(
                             .iter()
                             .find_map(|p| p.strip_prefix("engine:"))
                             .unwrap_or("unknown");
+                        unified_hits.push(UnifiedHit {
+                            source: "web".to_string(),
+                            kind: "web".to_string(),
+                            path: Some(h.path.clone()),
+                            title: (!h.title.is_empty()).then(|| h.title.clone()),
+                            snippet: h.content_snippet.replace('\n', " "),
+                            score: h.score,
+                            provenance: h.provenance.clone(),
+                        });
                         format!(
                             "[web:{}] {} (score {:.3}; engine: {})",
                             h.path,
@@ -650,6 +703,8 @@ pub async fn execute_search_plan(
         None
     };
 
+    sort_unified_hits_desc(&mut unified_hits);
+
     Ok(SearchExecution {
         memory_lines,
         knowledge_lines,
@@ -660,6 +715,7 @@ pub async fn execute_search_plan(
         rrf_fused_lines,
         web_lines,
         symbol_proximity_lines,
+        unified_hits,
         durable_artifacts: Vec::new(),
         warnings,
         used_vector,

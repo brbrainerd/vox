@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vox GUI Surface Registry v1",
+  "type": "object",
+  "required": ["x_vox_version", "schema_version", "surfaces"],
+  "additionalProperties": false,
+  "properties": {
+    "x_vox_version": { "type": "integer" },
+    "schema_version": { "const": 1 },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["representation_tier"],
+        "additionalProperties": false,
+        "properties": {
+          "view_key": { "type": ["string", "null"] },
+          "cli_group": { "type": ["string", "null"] },
+          "representation_tier": {
+            "type": "string",
+            "enum": ["none", "generic_form", "curated_decorator", "live_backend"]
+          },
+          "nav_label": { "type": ["string", "null"] },
+          "nav_icon": { "type": ["string", "null"] },
+          "nav_group": { "type": ["string", "null"] },
+          "notes": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

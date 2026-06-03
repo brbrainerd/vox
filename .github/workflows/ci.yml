@@ -908,6 +908,16 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
+      # Typecheck the hand-authored GUI frontend (tsc --noEmit). The GUI build
+      # is `vite build` (esbuild, no type errors), so without this a missing
+      # property / undefined component (e.g. the Icon.plus crash that blanked the
+      # whole app) ships undetected. Fails fast, before the heavier golden route.
+      - name: GUI frontend typecheck (tsc --noEmit)
+        run: |
+          cd crates/vox-gui/ui
+          pnpm install --prefer-offline
+          pnpm typecheck
+
       - name: Cache Cargo
         uses: actions/cache@v5
         with:

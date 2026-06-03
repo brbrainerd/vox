@@ -10,7 +10,7 @@
 use async_trait::async_trait;
 
 use vox_foundation::protocol::{
-    DispatchPayload, DispatchRequest, DispatchResponse, orch_daemon_method,
+    DispatchPayload, DispatchRequest, DispatchResponse, dei_method, orch_daemon_method,
 };
 use vox_orchestrator::orch_daemon::ExtraDispatch;
 
@@ -50,6 +50,48 @@ fn error(id: &str, message: impl Into<String>) -> DispatchResponse {
 impl ExtraDispatch for McpExtraDispatch {
     async fn try_handle(&self, req: &DispatchRequest) -> Option<DispatchResponse> {
         match req.method.as_str() {
+            // Enqueue a SCIENTIA research run inside this persistent daemon. The
+            // underlying MCP handler creates the session row, spawns the pipeline
+            // (which advances the session through real stages to a terminal
+            // `completed`/`failed`), and returns immediately — fire-and-forget.
+            // This is the cross-process executor for `vox research run --async`,
+            // which only inserts a `queued` row and never runs the pipeline.
+            dei_method::RESEARCH_RUN => {
+                let params: crate::memory::ResearchStartParams =
+                    match serde_json::from_value(req.params.clone()) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            return Some(error(
+                                &req.id,
+                                format!("invalid research.run params: {e}"),
+                            ));
+                        }
+                    };
+                // `research_start` is the async fire-and-forget executor: it
+                // creates the session, spawns the pipeline (which advances to a
+                // terminal `completed`/`failed`), and returns a `running`
+                // envelope immediately. Returns a JSON-string `ToolResult`.
+                let json = crate::memory::research_start(&self.state, params).await;
+                let envelope = serde_json::from_str::<serde_json::Value>(&json)
+                    .unwrap_or_else(|_| serde_json::json!({ "raw": json }));
+                // On failure, surface the ToolResult error as a daemon error.
+                if envelope.get("success") == Some(&serde_json::Value::Bool(false)) {
+                    let msg = envelope
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("research.run failed");
+                    return Some(error(&req.id, msg.to_string()));
+                }
+                // `research_start` nests its `{session_id, task_id, status}`
+                // object as a JSON *string* under `data`; unwrap it so callers
+                // get a clean object rather than a stringified envelope.
+                let value = envelope
+                    .get("data")
+                    .and_then(|d| d.as_str())
+                    .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+                    .unwrap_or(envelope);
+                Some(result(&req.id, value))
+            }
             orch_daemon_method::TOOL_CALL => {
                 let Some(name) = req.params.get("name").and_then(|v| v.as_str()) else {
                     return Some(error(&req.id, "params.name (string) required"));

@@ -43,6 +43,31 @@ export function listenAgentEvents(
   return listen<AgentEventFrame>(AGENT_EVENTS_EVENT, (event) => onEvent(event.payload));
 }
 
+/** Tauri event name carrying a Scientia-queue change ping (see F2 DB watcher). */
+export const SCIENTIA_QUEUE_EVENT = 'vox://scientia-queue';
+
+/**
+ * Compact payload pushed when the Scientia queue changes. It is a *signal*, not
+ * the queue itself: on receipt the UI refetches via the typed read commands.
+ */
+export interface ScientiaQueuePing {
+  signal: number;
+  manifest_count: number;
+  research_count: number;
+}
+
+/**
+ * Subscribe to the pushed Scientia-queue change stream (F2). The Rust side polls
+ * the canonical DB and emits only when the queue signal flips, so each callback
+ * means "something changed — refetch". Returns the `UnlistenFn` for cleanup.
+ * Rejects if not running inside Tauri (caller should keep its interval fallback).
+ */
+export function listenScientiaQueue(
+  onChange: (ping: ScientiaQueuePing) => void,
+): Promise<UnlistenFn> {
+  return listen<ScientiaQueuePing>(SCIENTIA_QUEUE_EVENT, (event) => onChange(event.payload));
+}
+
 export interface ExecuteOutput {
   exit_code: number;
   stdout: string;

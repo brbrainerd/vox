@@ -7,6 +7,8 @@
 mod status;
 use status::*;
 mod dashboard_api;
+mod scientia_feed;
+use scientia_feed::{TopicMessage, spawn_scientia_queue_poller};
 mod rpc_tools;
 use rpc_tools::*;
 mod token;
@@ -109,6 +111,9 @@ pub struct GatewayState {
     rate_limiter: Arc<IdentityRateLimiter>,
     pub public_eval_enabled: bool,
     pub public_eval_rate_limiter: Arc<IdentityRateLimiter>,
+    /// Broadcast channel for topic-multiplexed WS messages (e.g.
+    /// `scientia.queue.changed`). Each WS connection subscribes and filters by topic.
+    topic_tx: tokio::sync::broadcast::Sender<TopicMessage>,
 }
 
 impl GatewayState {
@@ -131,6 +136,7 @@ impl GatewayState {
             rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
             public_eval_enabled: false,
             public_eval_rate_limiter: new_identity_rate_limiter(10),
+            topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
         }
     }
 }
@@ -308,6 +314,9 @@ pub fn spawn_http_gateway_if_enabled(
     let read_role_eligible_tools = Arc::new(metadata_read_role_eligible_tools());
     let read_role_tools_override = parse_read_role_allowed_tools_override()?.map(Arc::new);
 
+    let (topic_tx, _) =
+        tokio::sync::broadcast::channel::<TopicMessage>(scientia_feed::TOPIC_CHANNEL_CAPACITY);
+
     let gateway_state = GatewayState {
         server_state: state,
         bearer_token: bearer_token.clone(),
@@ -324,7 +333,11 @@ pub fn spawn_http_gateway_if_enabled(
         rate_limiter: new_identity_rate_limiter(calls_per_minute),
         public_eval_enabled,
         public_eval_rate_limiter,
+        topic_tx: topic_tx.clone(),
     };
+
+    // Real change-source: poll the scientia queue and broadcast on change.
+    spawn_scientia_queue_poller(topic_tx);
 
     let app = build_app(gateway_state.clone());
 
