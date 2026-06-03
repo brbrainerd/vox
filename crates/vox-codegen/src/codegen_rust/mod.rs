@@ -601,11 +601,18 @@ fn heartbeat() { }
                 .unwrap()
                 .contains("vox_tauri_stt::plugin::init()")
         );
+        let default_json = out
+            .files
+            .get("src-tauri/capabilities/default.json")
+            .unwrap();
+        assert!(default_json.contains("vox-stt:default"));
+        // "without mic permission": the emitted Tauri capability manifest must NOT carry any
+        // microphone-permission token. The OS mic permission (RECORD_AUDIO / NSMicrophone) is a
+        // strictly narrower concern owned by `transcribe_microphone`; a file-based `transcribe`
+        // derives `speech` only, so nothing microphone-related may appear in default.json.
         assert!(
-            out.files
-                .get("src-tauri/capabilities/default.json")
-                .unwrap()
-                .contains("vox-stt:default")
+            !default_json.to_lowercase().contains("microphone"),
+            "file-transcribe default.json must not request a microphone permission: {default_json}"
         );
     }
 

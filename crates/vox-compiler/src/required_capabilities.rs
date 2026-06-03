@@ -188,6 +188,19 @@ fn collect_usage_from_expr(expr: &HirExpr, flags: &mut UsageFlags) {
                 collect_usage_from_expr(c, flags);
             }
         }
+        HirExpr::Jsx(el) => {
+            for a in &el.attributes {
+                collect_usage_from_expr(&a.value, flags);
+            }
+            for c in &el.children {
+                collect_usage_from_expr(c, flags);
+            }
+        }
+        HirExpr::JsxSelfClosing(el) => {
+            for a in &el.attributes {
+                collect_usage_from_expr(&a.value, flags);
+            }
+        }
         HirExpr::Index(o, i, _) => {
             collect_usage_from_expr(o, flags);
             collect_usage_from_expr(i, flags);
@@ -213,8 +226,6 @@ fn collect_usage_from_expr(expr: &HirExpr, flags: &mut UsageFlags) {
         | HirExpr::StringLit(..)
         | HirExpr::BoolLit(..)
         | HirExpr::Ident(..)
-        | HirExpr::JsxSelfClosing(_)
-        | HirExpr::Jsx(_)
         | HirExpr::WorkflowVersion(_) => {}
     }
 }
@@ -407,6 +418,35 @@ mod tests {
         // File-based transcription needs the STT plugin (`speech`) but NOT the OS mic permission.
         assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
         assert!(!caps.iter().any(|c| c == "microphone"), "{caps:?}");
+    }
+
+    #[test]
+    fn jsx_attribute_microphone_call_derives_speech_and_microphone() {
+        // Self-closing view-call (`<Recorder audio={...} />`) sugars to `HirExpr::JsxSelfClosing`.
+        // The capability walker must descend into attribute value expressions, so an effectful
+        // `Speech.transcribe_microphone()` inside a prop derives both `speech` and `microphone`.
+        let res = crate::pipeline::run_frontend_str(
+            "fn render() -> Result[str] { Recorder(audio=Speech.transcribe_microphone()) }",
+            "t.vox",
+        )
+        .expect("frontend ok");
+        let caps = project_required_capabilities(&res.hir).capability_ids;
+        assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
+        assert!(caps.iter().any(|c| c == "microphone"), "{caps:?}");
+    }
+
+    #[test]
+    fn jsx_child_microphone_call_derives_speech_and_microphone() {
+        // Element with children (`<Wrapper>{ Speech.transcribe_microphone() }</Wrapper>`) sugars to
+        // `HirExpr::Jsx`. The walker must descend into both attributes AND children.
+        let res = crate::pipeline::run_frontend_str(
+            "fn render() -> Result[str] { Wrapper() { Speech.transcribe_microphone() } }",
+            "t.vox",
+        )
+        .expect("frontend ok");
+        let caps = project_required_capabilities(&res.hir).capability_ids;
+        assert!(caps.iter().any(|c| c == "speech"), "{caps:?}");
+        assert!(caps.iter().any(|c| c == "microphone"), "{caps:?}");
     }
 
     #[test]
