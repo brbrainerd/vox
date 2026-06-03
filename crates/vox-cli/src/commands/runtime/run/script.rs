@@ -253,16 +253,23 @@ pub(crate) async fn compile(
     );
 
     let stamp_path = cache_dir.join(".compiled");
+    let binary_name = if backend.cache_label().contains("wasi") {
+        "vox-script.wasm"
+    } else if cfg!(target_os = "windows") {
+        "vox-script.exe"
+    } else {
+        "vox-script"
+    };
+    let cached_binary = cache_dir.join(binary_name);
 
-    let artifact_path = if !opts.no_cache && stamp_path.exists() {
-        let binary_name = if backend.cache_label().contains("wasi") {
-            "vox-script.wasm"
-        } else if cfg!(target_os = "windows") {
-            "vox-script.exe"
-        } else {
-            "vox-script"
-        };
-        cache_dir.join(binary_name)
+    // A cache hit requires BOTH the `.compiled` stamp AND the actual binary.
+    // Previously only the stamp was checked, so a stamp left without its binary
+    // (evicted/partial cache, or an interrupted prior compile) made the launcher
+    // try to execute a missing path — surfacing as a bare, path-less `os error 3`
+    // ("the system cannot find the path specified") on Windows, which is exactly
+    // how the clean-room idempotency (second) run failed. Recompile instead.
+    let artifact_path = if cache_artifact_reusable(opts.no_cache, &stamp_path, &cached_binary) {
+        cached_binary
     } else {
         std::fs::create_dir_all(&cache_dir)?;
         let path = backend.compile(hir, &cache_dir, &shared_target, opts)?;
@@ -326,4 +333,40 @@ pub async fn eval_inline(expr: &str, sandbox: bool) -> Result<()> {
     };
 
     run(&tmp_file, &[], &opts).await
+}
+
+/// A cached script artifact is reusable only when caching is enabled, the
+/// `.compiled` stamp is present, AND the compiled binary actually exists on
+/// disk. A stamp without its binary (evicted/partial cache, or an interrupted
+/// prior compile) must trigger a recompile rather than an attempt to execute a
+/// missing path — which on Windows surfaces as a bare, path-less `os error 3`
+/// (the clean-room idempotency failure mode).
+fn cache_artifact_reusable(no_cache: bool, stamp: &Path, binary: &Path) -> bool {
+    !no_cache && stamp.exists() && binary.exists()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::cache_artifact_reusable;
+
+    #[test]
+    fn cache_hit_requires_both_stamp_and_binary() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let stamp = dir.path().join(".compiled");
+        let binary = dir.path().join("vox-script.exe");
+
+        // Nothing on disk yet -> not reusable.
+        assert!(!cache_artifact_reusable(false, &stamp, &binary));
+
+        // Stamp present but binary missing (the bug) -> NOT reusable; recompile.
+        std::fs::write(&stamp, "hash").expect("write stamp");
+        assert!(!cache_artifact_reusable(false, &stamp, &binary));
+
+        // Both present -> reusable.
+        std::fs::write(&binary, b"\0").expect("write binary");
+        assert!(cache_artifact_reusable(false, &stamp, &binary));
+
+        // `--no-cache` always recompiles, even with both present.
+        assert!(!cache_artifact_reusable(true, &stamp, &binary));
+    }
 }
