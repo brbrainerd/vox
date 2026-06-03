@@ -45,7 +45,9 @@ fn typecheck_errors(src: &str, label: &str) -> Option<Vec<String>> {
     let module = match parse(tokens) {
         Ok(m) => m,
         Err(errs) => {
-            eprintln!("[golden_typecheck_gate] parse error in {label} (covered elsewhere): {errs:?}");
+            eprintln!(
+                "[golden_typecheck_gate] parse error in {label} (covered elsewhere): {errs:?}"
+            );
             return None;
         }
     };
@@ -54,7 +56,16 @@ fn typecheck_errors(src: &str, label: &str) -> Option<Vec<String>> {
         diags
             .into_iter()
             .filter(|d| d.severity == TypeckSeverity::Error)
-            .map(|d| format!("{}{}", d.code.as_deref().map(|c| format!("[{c}] ")).unwrap_or_default(), d.message))
+            .map(|d| {
+                format!(
+                    "{}{}",
+                    d.code
+                        .as_deref()
+                        .map(|c| format!("[{c}] "))
+                        .unwrap_or_default(),
+                    d.message
+                )
+            })
             .collect(),
     )
 }
@@ -101,7 +112,14 @@ fn all_golden_vox_examples_typecheck_clean() {
     } else {
         let report: String = failures
             .iter()
-            .map(|(label, errs)| format!("  {label}\n{}", errs.iter().map(|e| format!("      {e}\n")).collect::<String>()))
+            .map(|(label, errs)| {
+                format!(
+                    "  {label}\n{}",
+                    errs.iter()
+                        .map(|e| format!("      {e}\n"))
+                        .collect::<String>()
+                )
+            })
             .collect();
         panic!(
             "{} golden file(s) fail `vox check` (typecheck):\n{}",
@@ -118,8 +136,7 @@ fn all_golden_vox_examples_typecheck_clean() {
 #[test]
 fn gate_actually_catches_type_errors() {
     let bad = "fn broken() to int {\n  let x: int = \"not an int\"\n  return x\n}\n";
-    let errs = typecheck_errors(bad, "<self-test>")
-        .expect("self-test source must parse");
+    let errs = typecheck_errors(bad, "<self-test>").expect("self-test source must parse");
     assert!(
         !errs.is_empty(),
         "typecheck gate failed to flag an obvious type error — the gate is a no-op"

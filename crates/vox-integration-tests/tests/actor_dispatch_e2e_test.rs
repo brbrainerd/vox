@@ -11,7 +11,7 @@
 
 #![allow(non_snake_case)]
 
-use vox_actor_runtime::{spawn_process, Envelope, Message, MessagePayload, Pid, ProcessContext};
+use vox_actor_runtime::{Envelope, Message, MessagePayload, Pid, ProcessContext, spawn_process};
 
 #[derive(Default)]
 struct CounterState {
@@ -34,7 +34,8 @@ async fn emitted_actor_dispatch_delivers_mutates_and_replies() {
             args: &::serde_json::Value,
             i: usize,
         ) -> ::std::option::Option<__T> {
-            args.get(i).and_then(|__a| ::serde_json::from_value(__a.clone()).ok())
+            args.get(i)
+                .and_then(|__a| ::serde_json::from_value(__a.clone()).ok())
         }
         #[allow(unused_mut, unused_variables)]
         let mut _state = CounterState::default();
@@ -46,7 +47,10 @@ async fn emitted_actor_dispatch_delivers_mutates_and_replies() {
                         Err(_) => continue,
                     };
                     let __ev = __v.get("event").and_then(|__e| __e.as_str()).unwrap_or("");
-                    let __args = __v.get("args").cloned().unwrap_or(::serde_json::Value::Null);
+                    let __args = __v
+                        .get("args")
+                        .cloned()
+                        .unwrap_or(::serde_json::Value::Null);
                     match __ev {
                         "add" => {
                             let n: i64 = match __vox_arg(&__args, 0usize) {
@@ -68,7 +72,10 @@ async fn emitted_actor_dispatch_delivers_mutates_and_replies() {
                         .and_then(|__e| __e.as_str())
                         .unwrap_or("")
                         .to_string();
-                    let __args = __v.get("args").cloned().unwrap_or(::serde_json::Value::Null);
+                    let __args = __v
+                        .get("args")
+                        .cloned()
+                        .unwrap_or(::serde_json::Value::Null);
                     match __ev.as_str() {
                         "get" => {
                             let __ret = Counter_get(&mut _state);
@@ -107,11 +114,13 @@ async fn emitted_actor_dispatch_delivers_mutates_and_replies() {
         .await
         .expect("call get");
     let total: i64 = serde_json::from_slice(&reply).expect("decode reply");
-    assert_eq!(total, 12, "5 + 3 + 4 delivered to the handler and summed in state");
+    assert_eq!(
+        total, 12,
+        "5 + 3 + 4 delivered to the handler and summed in state"
+    );
 
     // An unknown event is dropped without panicking; the loop survives.
-    let unknown =
-        MessagePayload::json_value(&serde_json::json!({ "event": "nope", "args": [] }));
+    let unknown = MessagePayload::json_value(&serde_json::json!({ "event": "nope", "args": [] }));
     handle
         .send(Envelope::Message(Message {
             from: Pid::new(),

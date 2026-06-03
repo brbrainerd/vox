@@ -300,7 +300,10 @@ fn std_time_now_ms_runs_in_interp() {
         .expect("Failed to call main");
     match res {
         vox_compiler::eval::value::VoxValue::Int(ms) => {
-            assert!(ms > 0, "std.time.now_ms() should be a positive epoch ms, got {ms}");
+            assert!(
+                ms > 0,
+                "std.time.now_ms() should be a positive epoch ms, got {ms}"
+            );
         }
         other => panic!("std.time.now_ms() should return Int, got {other:?}"),
     }
@@ -340,7 +343,9 @@ fn std_http_get_text_performs_real_request_in_interp() {
                 "std.http should perform a real request in interp, not return a stub: {msg}"
             );
         }
-        other => panic!("std.http.get_text on an invalid URL should return Result::Err, got {other:?}"),
+        other => {
+            panic!("std.http.get_text on an invalid URL should return Result::Err, got {other:?}")
+        }
     }
 }
 

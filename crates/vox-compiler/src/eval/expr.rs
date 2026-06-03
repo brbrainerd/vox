@@ -248,22 +248,54 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 // Mixed Int/Float — the typechecker promotes these to Float
                 // (checker/expr_ops.rs), so the interpreter must compute them in
                 // f64 rather than erroring.
-                (HirBinOp::Add, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a as f64 + b)),
-                (HirBinOp::Add, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Float(a + b as f64)),
-                (HirBinOp::Sub, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a as f64 - b)),
-                (HirBinOp::Sub, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Float(a - b as f64)),
-                (HirBinOp::Mul, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a as f64 * b)),
-                (HirBinOp::Mul, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Float(a * b as f64)),
-                (HirBinOp::Div, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Float(a as f64 / b)),
-                (HirBinOp::Div, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Float(a / b as f64)),
-                (HirBinOp::Lt, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Bool((a as f64) < b)),
-                (HirBinOp::Lt, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a < b as f64)),
-                (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Bool((a as f64) > b)),
-                (HirBinOp::Gt, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a > b as f64)),
-                (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Bool((a as f64) <= b)),
-                (HirBinOp::Lte, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a <= b as f64)),
-                (HirBinOp::Gte, VoxValue::Int(a), VoxValue::Float(b)) => Ok(VoxValue::Bool((a as f64) >= b)),
-                (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Int(b)) => Ok(VoxValue::Bool(a >= b as f64)),
+                (HirBinOp::Add, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 + b))
+                }
+                (HirBinOp::Add, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a + b as f64))
+                }
+                (HirBinOp::Sub, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 - b))
+                }
+                (HirBinOp::Sub, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a - b as f64))
+                }
+                (HirBinOp::Mul, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 * b))
+                }
+                (HirBinOp::Mul, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a * b as f64))
+                }
+                (HirBinOp::Div, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Float(a as f64 / b))
+                }
+                (HirBinOp::Div, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Float(a / b as f64))
+                }
+                (HirBinOp::Lt, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) < b))
+                }
+                (HirBinOp::Lt, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a < b as f64))
+                }
+                (HirBinOp::Gt, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) > b))
+                }
+                (HirBinOp::Gt, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a > b as f64))
+                }
+                (HirBinOp::Lte, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) <= b))
+                }
+                (HirBinOp::Lte, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a <= b as f64))
+                }
+                (HirBinOp::Gte, VoxValue::Int(a), VoxValue::Float(b)) => {
+                    Ok(VoxValue::Bool((a as f64) >= b))
+                }
+                (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Int(b)) => {
+                    Ok(VoxValue::Bool(a >= b as f64))
+                }
                 (op, l, r) => Err(EvalError::AssertionFailed(format!(
                     "unsupported binary op `{op:?}` for operands {} and {}",
                     crate::eval::builtins::vox_value_type_name(&l),

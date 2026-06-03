@@ -4,7 +4,6 @@
 //! as multipart/form-data. Uses `VoxCrossrefPlusApiKey` as `login_passwd`.
 //! Reference: <https://www.crossref.org/documentation/member-setup/direct-deposit-xml/>
 
-
 use async_trait::async_trait;
 use chrono::Utc;
 

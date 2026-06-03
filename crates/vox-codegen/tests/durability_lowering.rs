@@ -64,7 +64,8 @@ fn actor_lowers_to_mailbox_spawn() {
 /// `on <event>` handler — the no-op `// dispatch not yet wired` marker is gone.
 #[test]
 fn actor_dispatch_table_routes_to_handlers() {
-    let src = "actor MyActor { on greet(name: str) to str { return name } on tick(n: int) { return } }";
+    let src =
+        "actor MyActor { on greet(name: str) to str { return name } on tick(n: int) { return } }";
     let module = parse(lex(src)).expect("parse");
     let hir = lower_module(&module);
     let shell = hir

@@ -163,10 +163,9 @@ impl InferenceContext {
     fn occurs(&self, id: u32, ty: &Ty) -> bool {
         match self.resolve(ty) {
             Ty::TypeVar(other_id) => id == other_id,
-            Ty::List(inner)
-            | Ty::Set(inner)
-            | Ty::Stream(inner)
-            | Ty::Option(inner) => self.occurs(id, &inner),
+            Ty::List(inner) | Ty::Set(inner) | Ty::Stream(inner) | Ty::Option(inner) => {
+                self.occurs(id, &inner)
+            }
             Ty::Result(ok, err) => self.occurs(id, &ok) || self.occurs(id, &err),
             Ty::Map(k, v) => self.occurs(id, &k) || self.occurs(id, &v),
             Ty::Tuple(elems) => elems.iter().any(|e| self.occurs(id, e)),

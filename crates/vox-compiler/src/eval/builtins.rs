@@ -690,12 +690,10 @@ pub fn call_builtin_method(
             // sentinel is caught upstream and converted to an EvalError.
             "unwrap" => Some(match res.as_ref() {
                 Ok(v) => (**v).clone(),
-                Err(e) => {
-                    VoxValue::_Panic(format!(
-                        "called `Result.unwrap()` on an Err value: {}",
-                        vox_value_display(e)
-                    ))
-                }
+                Err(e) => VoxValue::_Panic(format!(
+                    "called `Result.unwrap()` on an Err value: {}",
+                    vox_value_display(e)
+                )),
             }),
             // `unwrap_err()` panics on Ok — the inverse of unwrap. Prior
             // impl returned empty Str on Ok, masking the misuse silently.
@@ -970,7 +968,9 @@ pub fn call_builtin_method(
                                 }
                                 Some(VoxValue::Result(Ok(Box::new(VoxValue::List(entries)))))
                             }
-                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(e.to_string())))),
+                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                e.to_string(),
+                            )))),
                         }
                     }
                     "exists" => {
@@ -1387,7 +1387,9 @@ pub fn call_builtin_method(
                                 });
                                 Some(VoxValue::Result(Ok(Box::new(VoxValue::Int(id as i64)))))
                             }
-                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(e.to_string())))),
+                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                e.to_string(),
+                            )))),
                         }
                     }
                     "exec" => {
@@ -1414,7 +1416,9 @@ pub fn call_builtin_method(
                         {
                             use std::os::unix::process::CommandExt;
                             let err = std::process::Command::new(cmd_name).args(cmd_args).exec();
-                            Some(VoxValue::Result(Err(crate::eval::value::err_str(err.to_string()))))
+                            Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                err.to_string(),
+                            ))))
                         }
                         #[cfg(not(unix))]
                         {
@@ -1423,7 +1427,9 @@ pub fn call_builtin_method(
                                     vox_flush_exit_commands();
                                     std::process::exit(st.code().unwrap_or(1))
                                 }
-                                Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(e.to_string())))),
+                                Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    e.to_string(),
+                                )))),
                             }
                         }
                     }
@@ -1690,7 +1696,9 @@ pub fn call_builtin_method(
                         };
                         match serde_json::from_str::<serde_json::Value>(&s) {
                             Ok(v) => Some(VoxValue::Result(Ok(Box::new(json_to_vox(v))))),
-                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(format!("json.parse: {e}"))))),
+                            Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                format!("json.parse: {e}"),
+                            )))),
                         }
                     }
                     "render" | "stringify" | "encode" => {
@@ -1738,7 +1746,8 @@ pub fn call_builtin_method(
                             }
                         };
                         Some(VoxValue::Result(
-                            http_blocking_get_text(&url).map(|s| Box::new(VoxValue::Str(s)))
+                            http_blocking_get_text(&url)
+                                .map(|s| Box::new(VoxValue::Str(s)))
                                 .map_err(crate::eval::value::err_str),
                         ))
                     }
@@ -1761,7 +1770,8 @@ pub fn call_builtin_method(
                             }
                         };
                         Some(VoxValue::Result(
-                            http_blocking_post_json(&url, &body).map(|s| Box::new(VoxValue::Str(s)))
+                            http_blocking_post_json(&url, &body)
+                                .map(|s| Box::new(VoxValue::Str(s)))
                                 .map_err(crate::eval::value::err_str),
                         ))
                     }
@@ -1875,16 +1885,18 @@ pub fn call_builtin_method(
                             let pattern = match it.next() {
                                 Some(VoxValue::Str(s)) => s,
                                 _ => {
-                                    return Some(VoxValue::Result(Err(crate::eval::value::err_str(
-                                        "regex.compile expected a string pattern".to_string(),
-                                    ))));
+                                    return Some(VoxValue::Result(Err(
+                                        crate::eval::value::err_str(
+                                            "regex.compile expected a string pattern".to_string(),
+                                        ),
+                                    )));
                                 }
                             };
                             match regex::Regex::new(&pattern) {
-                                Ok(re) => {
-                                    Some(VoxValue::Result(Ok(Box::new(VoxValue::Regex(re)))))
-                                }
-                                Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(e.to_string())))),
+                                Ok(re) => Some(VoxValue::Result(Ok(Box::new(VoxValue::Regex(re))))),
+                                Err(e) => Some(VoxValue::Result(Err(crate::eval::value::err_str(
+                                    e.to_string(),
+                                )))),
                             }
                         }
                         _ => None,

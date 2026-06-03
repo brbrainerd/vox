@@ -15,10 +15,10 @@
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use crate::eval::expr::eval_expr;
-use crate::eval::value::VoxValue;
 use crate::eval::EvalError;
 use crate::eval::Interpreter;
+use crate::eval::expr::eval_expr;
+use crate::eval::value::VoxValue;
 use crate::hir::nodes::{HirDbPredicate, HirDbQueryPlan, HirDbTableOp};
 
 /// One row is an ordered list of `(field, value)` pairs, matching
@@ -83,7 +83,10 @@ fn apply_op(op: &str, have: &VoxValue, want: &VoxValue) -> bool {
         "lt" => vox_cmp(have, want) == Some(Ordering::Less),
         "lte" => matches!(vox_cmp(have, want), Some(Ordering::Less | Ordering::Equal)),
         "gt" => vox_cmp(have, want) == Some(Ordering::Greater),
-        "gte" => matches!(vox_cmp(have, want), Some(Ordering::Greater | Ordering::Equal)),
+        "gte" => matches!(
+            vox_cmp(have, want),
+            Some(Ordering::Greater | Ordering::Equal)
+        ),
         "contains" => match (have, want) {
             (VoxValue::Str(h), VoxValue::Str(w)) => h.contains(w.as_str()),
             (VoxValue::List(items), w) => items.iter().any(|it| it == w),
@@ -228,9 +231,7 @@ pub fn execute_db_plan(
             let n = interp.db.table_mut(&plan.table).rows.len() as i64;
             Ok(ok(VoxValue::Int(n)))
         }
-        HirDbTableOp::All
-        | HirDbTableOp::FilterRecord
-        | HirDbTableOp::UnsafeQueryRawClause => {
+        HirDbTableOp::All | HirDbTableOp::FilterRecord | HirDbTableOp::UnsafeQueryRawClause => {
             // Evaluate the plan-carried predicate values and limit first (both
             // borrow `interp` mutably via `eval_expr`), then snapshot rows and
             // filter / order / limit / project. The predicate values come from

@@ -563,9 +563,7 @@ fn test_parse_activity() {
 /// and/or/not/in predicate branches unreachable from source.
 #[test]
 fn object_literal_accepts_phonetic_keyword_keys() {
-    let m = parse_str(
-        "fn f() { return { and: [1], or: [2], not: 3, in: 4 } }",
-    );
+    let m = parse_str("fn f() { return { and: [1], or: [2], not: 3, in: 4 } }");
     let Decl::Function(f) = &m.declarations[0] else {
         panic!("Expected function");
     };

@@ -114,7 +114,9 @@ fn emit_actor_dispatch_arm(handler: &HirFn, is_request: bool) -> String {
                  ::serde_json::to_vec(&__ret).unwrap_or_default());\n",
             );
         } else {
-            arm.push_str(&format!("                        {call_name}({call_args});\n"));
+            arm.push_str(&format!(
+                "                        {call_name}({call_args});\n"
+            ));
             arm.push_str(
                 "                        ::vox_actor_runtime::ProcessContext::reply(__req, \
                  ::std::vec::Vec::new());\n",

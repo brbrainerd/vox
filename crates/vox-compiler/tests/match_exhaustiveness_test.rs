@@ -170,7 +170,8 @@ fn non_exhaustive_error_adt_match_is_rejected() {
     ";
     let errs = error_codes(src);
     assert!(
-        errs.iter().any(|e| e.contains("Missing variant(s): Timeout")),
+        errs.iter()
+            .any(|e| e.contains("Missing variant(s): Timeout")),
         "non-exhaustive error-ADT match should be rejected; got {errs:?}"
     );
 }

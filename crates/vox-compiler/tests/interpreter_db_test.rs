@@ -101,7 +101,11 @@ fn get_by_id_returns_some_then_delete() {
         ",
     );
     // get(1) is Some → 1; after delete(0), count 1 → 11.
-    assert_eq!(res, VoxValue::Int(11), "get(1)=Some, delete(0) leaves 1 row");
+    assert_eq!(
+        res,
+        VoxValue::Int(11),
+        "get(1)=Some, delete(0) leaves 1 row"
+    );
 }
 
 #[test]
