@@ -1163,6 +1163,59 @@ pub fn call_builtin_method(
                         };
                         Some(VoxValue::Bool(std::path::Path::new(&p).is_absolute()))
                     }
+                    // Interp parity for registered path methods missing here:
+                    // basename/dirname/join_many/resolve (typeck + native codegen
+                    // already know them; the interpreter previously errored with
+                    // "Method <name> not found"). Return types match builtin_registry.rs.
+                    "basename" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str(String::new())),
+                        };
+                        let name = std::path::Path::new(&p)
+                            .file_name()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string();
+                        Some(VoxValue::Str(name))
+                    }
+                    "dirname" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Str(String::new())),
+                        };
+                        let parent = std::path::Path::new(&p)
+                            .parent()
+                            .map(|s| s.to_string_lossy().to_string())
+                            .unwrap_or_default();
+                        Some(VoxValue::Str(parent))
+                    }
+                    "join_many" => {
+                        let segments = match args.into_iter().next() {
+                            Some(VoxValue::List(items)) => items,
+                            _ => return Some(VoxValue::Str(String::new())),
+                        };
+                        let mut acc = std::path::PathBuf::new();
+                        for seg in segments {
+                            if let VoxValue::Str(s) = seg {
+                                acc.push(s);
+                            }
+                        }
+                        Some(VoxValue::Str(acc.to_string_lossy().to_string()))
+                    }
+                    "resolve" => {
+                        let p = match args.into_iter().next() {
+                            Some(VoxValue::Str(s)) => s,
+                            _ => return Some(VoxValue::Null),
+                        };
+                        let res = match std::fs::canonicalize(&p) {
+                            Ok(abs) => Ok(Box::new(VoxValue::Str(
+                                abs.to_string_lossy().to_string(),
+                            ))),
+                            Err(e) => Err(e.to_string()),
+                        };
+                        Some(VoxValue::Result(res))
+                    }
                     _ => None,
                 },
                 Some("secrets") => match method {
@@ -2222,6 +2275,62 @@ mod time_namespace_interp_tests {
                 );
             }
             other => panic!("std.time.now_ms did not dispatch in the interpreter: {other:?}"),
+        }
+    }
+
+    fn path_namespace() -> VoxValue {
+        VoxValue::Object(vec![(
+            "__namespace__".to_string(),
+            VoxValue::Str("path".to_string()),
+        )])
+    }
+
+    /// `std.path.{basename,dirname,join_many,resolve}` must dispatch in the
+    /// interpreter. They are registered for typeck + native codegen but were
+    /// previously absent from the interpreter's `Some("path")` arm → runtime
+    /// "Method <name> not found" despite passing `vox check`.
+    #[test]
+    fn std_path_basename_dirname_dispatch_in_interpreter() {
+        let p = path_namespace();
+        let base = call_builtin_method(
+            &p,
+            "basename",
+            vec![VoxValue::Str("a/b/c.txt".to_string())],
+            None,
+        );
+        assert_eq!(base, Some(VoxValue::Str("c.txt".to_string())));
+
+        let dir = call_builtin_method(
+            &p,
+            "dirname",
+            vec![VoxValue::Str("a/b/c.txt".to_string())],
+            None,
+        );
+        match dir {
+            Some(VoxValue::Str(s)) => assert!(s.ends_with("b"), "dirname got {s}"),
+            other => panic!("std.path.dirname did not dispatch: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn std_path_join_many_dispatches_in_interpreter() {
+        let p = path_namespace();
+        let joined = call_builtin_method(
+            &p,
+            "join_many",
+            vec![VoxValue::List(vec![
+                VoxValue::Str("a".to_string()),
+                VoxValue::Str("b".to_string()),
+                VoxValue::Str("c".to_string()),
+            ])],
+            None,
+        );
+        match joined {
+            Some(VoxValue::Str(s)) => {
+                let n = s.replace('\\', "/");
+                assert_eq!(n, "a/b/c", "join_many got {s}");
+            }
+            other => panic!("std.path.join_many did not dispatch: {other:?}"),
         }
     }
 }
