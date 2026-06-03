@@ -8,6 +8,9 @@ mod command_registry_handler_needles;
 
 pub mod add;
 
+/// `vox component <name>` — vendor a shadcn/ui component into the project.
+pub mod add_component;
+
 /// Quality-gate umbrella command (`vox audit`); reads `contracts/ci/check-targets.v1.yaml`.
 pub mod audit;
 

@@ -116,6 +116,7 @@ impl LowerCtx {
                                     module_path: mod_path,
                                     item: path.alias.clone().unwrap_or(item),
                                     es_module_specifier: None,
+                                    es_import_kind: None,
                                     local_file_path: None,
                                     local_file_alias: None,
                                     span: path.span,
@@ -137,17 +138,39 @@ impl LowerCtx {
                                 });
                             }
                             ImportPathKind::ReactComponent {
-                                local_name,
                                 module_specifier,
+                                binding,
                             } => {
-                                hir.imports.push(HirImport {
-                                    module_path: Vec::new(),
-                                    item: local_name.clone(),
-                                    es_module_specifier: Some(module_specifier.clone()),
-                                    local_file_path: None,
-                                    local_file_alias: None,
-                                    span: path.span,
-                                });
+                                let spec = module_specifier.clone();
+                                let mut push_es = |item: String, kind: EsImportKind| {
+                                    hir.imports.push(HirImport {
+                                        module_path: Vec::new(),
+                                        item,
+                                        es_module_specifier: Some(spec.clone()),
+                                        es_import_kind: Some(kind),
+                                        local_file_path: None,
+                                        local_file_alias: None,
+                                        span: path.span,
+                                    });
+                                };
+                                match binding {
+                                    ReactBinding::Default { local_name } => {
+                                        push_es(local_name.clone(), EsImportKind::Default);
+                                    }
+                                    ReactBinding::Namespace { local_name } => {
+                                        push_es(local_name.clone(), EsImportKind::Namespace);
+                                    }
+                                    ReactBinding::Named(names) => {
+                                        for n in names {
+                                            push_es(
+                                                n.local.clone(),
+                                                EsImportKind::Named {
+                                                    imported: n.imported.clone(),
+                                                },
+                                            );
+                                        }
+                                    }
+                                }
                             }
                             ImportPathKind::LocalFile { path: file_path } => {
                                 // Intra-project Vox file import (RFC 2026-05-23).
@@ -158,6 +181,7 @@ impl LowerCtx {
                                     module_path: Vec::new(),
                                     item: String::new(),
                                     es_module_specifier: None,
+                                    es_import_kind: None,
                                     local_file_path: Some(file_path.clone()),
                                     local_file_alias: path.alias.clone(),
                                     span: path.span,

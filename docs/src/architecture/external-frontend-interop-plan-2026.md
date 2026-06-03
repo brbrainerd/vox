@@ -136,6 +136,8 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 ## Phase 5 — Bidirectional Vox↔React component interop (`@island` retired 2026-05-03)
 
 > **Status update (2026-05-03):** `@island` is retired across the workspace. The remaining Phase 5 work is the bidirectional import bridge: Vox-side `import_react` for consuming React components, and emitted-component packaging so Vox components are first-class npm-importable React components.
+>
+> **Sub-spec (2026-06-03):** the deferred decisions below (exact `import react …` syntax, the type-bridge mechanism, the user-edit escape hatch, and the React Native mapping) are now specified in [Phase 5 Sub-Spec: Native React / React Native Component Interop (2026)](external-frontend-interop-phase5-component-interop-subspec-2026.md) — opaque-extern types + an opt-in flat prop facade, shadcn/ui as a vendor codegen mode, one-IR RN mapping, and a code-anchored implementation plan.
 
 **Goal:** Make the Vox GUI language and the React ecosystem into peer citizens. A Vox component can use any React component; an emitted Vox component is a normal React component any external React app can use.
 

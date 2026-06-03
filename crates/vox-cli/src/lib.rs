@@ -294,6 +294,12 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::RemoveDependencyArgs,
     },
+    /// Vendor a shadcn/ui component into the project (fetches source from
+    /// ui.shadcn.com and writes it under your `components.json` aliases).
+    Component {
+        /// Component name from the shadcn registry (e.g. `button`).
+        name: String,
+    },
     /// Refresh `vox.lock` from the local PM index (project graph — not the Vox toolchain).
     Update,
     /// Resolve `Vox.toml` and write `vox.lock` without downloading artifacts.

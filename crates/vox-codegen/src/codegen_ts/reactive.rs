@@ -915,6 +915,105 @@ pub(crate) fn collect_component_import_refs(
 ///
 /// `web_projection` must be the same Web IR graph as [`crate::projection_bundle::project_bundle_from_hir`]`(hir).web`
 /// so reactive emit does not re-lower the module per component.
+/// Emit the external-React/TS import statements for a module's `import react …`
+/// declarations (Phase 5). Default and namespace imports become one line each;
+/// named imports are grouped per module specifier. Output is fully ordered
+/// (lines sorted, members sorted) for byte-deterministic codegen. Shared by the
+/// web ([`generate_reactive_component`]) and React-Native component emitters so
+/// both targets agree on the import surface.
+pub(crate) fn emit_react_es_import_lines(imports: &[HirImport]) -> String {
+    use std::collections::BTreeMap;
+    let mut lines: Vec<String> = Vec::new();
+    // Named imports grouped per specifier: spec -> (local -> imported).
+    let mut named: BTreeMap<&str, BTreeMap<&str, &str>> = BTreeMap::new();
+    for imp in imports {
+        let (Some(spec), Some(kind)) = (
+            imp.es_module_specifier.as_deref(),
+            imp.es_import_kind.as_ref(),
+        ) else {
+            continue;
+        };
+        match kind {
+            EsImportKind::Default => {
+                lines.push(format!("import {} from \"{spec}\";", imp.item));
+            }
+            EsImportKind::Namespace => {
+                lines.push(format!("import * as {} from \"{spec}\";", imp.item));
+            }
+            EsImportKind::Named { imported } => {
+                named
+                    .entry(spec)
+                    .or_default()
+                    .insert(imp.item.as_str(), imported.as_str());
+            }
+        }
+    }
+    for (spec, members) in &named {
+        let parts: Vec<String> = members
+            .iter()
+            .map(|(local, imported)| {
+                if local == imported {
+                    (*local).to_string()
+                } else {
+                    format!("{imported} as {local}")
+                }
+            })
+            .collect();
+        lines.push(format!(
+            "import {{ {} }} from \"{spec}\";",
+            parts.join(", ")
+        ));
+    }
+    lines.sort();
+    lines.dedup();
+    let mut out = String::new();
+    for l in lines {
+        out.push_str(&l);
+        out.push('\n');
+    }
+    out
+}
+
+/// Emit support lines for known external libraries referenced by `import react …`
+/// (Phase 5 SSOT, see [`crate::codegen_ts::external_libs`]): required CSS-file
+/// imports (e.g. Mantine `@mantine/core/styles.css`, which is mandatory and not
+/// runtime-injected) plus one-line setup guidance for mandatory providers
+/// (Chakra/Mantine/Paper/Tamagui). `target_is_rn` filters web-only vs RN-only
+/// libraries. Deterministic order. Shared by the web and RN component emitters.
+pub(crate) fn emit_external_lib_support(imports: &[HirImport], target_is_rn: bool) -> String {
+    use crate::codegen_ts::external_libs::{lookup, valid_for_target};
+    use std::collections::BTreeSet;
+    let mut css: BTreeSet<&str> = BTreeSet::new();
+    let mut guidance: BTreeSet<String> = BTreeSet::new();
+    for imp in imports {
+        let Some(spec) = imp.es_module_specifier.as_deref() else {
+            continue;
+        };
+        let Some(lib) = lookup(spec) else { continue };
+        if !valid_for_target(lib, target_is_rn) {
+            continue;
+        }
+        for c in lib.css_imports {
+            css.insert(*c);
+        }
+        if let (Some(p), true) = (lib.provider, lib.provider_mandatory) {
+            guidance.insert(format!(
+                "// vox-interop: \"{}\" requires <{p}> mounted at your app root.",
+                lib.package
+            ));
+        }
+    }
+    let mut out = String::new();
+    for c in &css {
+        out.push_str(&format!("import \"{c}\";\n"));
+    }
+    for g in &guidance {
+        out.push_str(g);
+        out.push('\n');
+    }
+    out
+}
+
 pub fn generate_reactive_component(
     hir: &HirModule,
     rc: &HirReactiveComponent,
@@ -944,22 +1043,17 @@ pub fn generate_reactive_component(
 
     out.push_str(&react_import_line(&rc.members));
 
-    // Phase 5: external React components (`import react Foo from "./Foo.tsx"` in Vox source).
-    let mut react_es_imports: Vec<(&str, &str)> = hir
-        .imports
-        .iter()
-        .filter_map(|imp| {
-            imp.es_module_specifier
-                .as_ref()
-                .map(|spec| (imp.item.as_str(), spec.as_str()))
-        })
-        .collect();
-    react_es_imports.sort_by_key(|(item, _)| *item);
-    let has_react_es = !react_es_imports.is_empty();
-    for (item, spec) in &react_es_imports {
-        out.push_str(&format!("import {item} from \"{spec}\";\n"));
+    // Phase 5: external React components/hooks. Supports default, named, and
+    // namespace `import react …` forms, grouped per module specifier.
+    let react_es = emit_react_es_import_lines(&hir.imports);
+    if !react_es.is_empty() {
+        out.push_str(&react_es);
+        out.push('\n');
     }
-    if has_react_es {
+    // Phase 5 SSOT: required CSS imports + mandatory-provider guidance for known libs.
+    let lib_support = emit_external_lib_support(&hir.imports, false);
+    if !lib_support.is_empty() {
+        out.push_str(&lib_support);
         out.push('\n');
     }
 
@@ -1163,6 +1257,116 @@ mod tests {
         assert!(
             outer.contains("import { Inner } from \"./Inner\";"),
             "expected import for Inner in Outer.tsx, got:\n{outer}"
+        );
+    }
+
+    #[test]
+    fn imported_react_component_used_in_view_emits_es_import_not_sibling_import() {
+        // Phase 5 S2: an `import react …` component referenced in a `view:` must
+        // (a) emit the ES import, (b) render as a component tag, and (c) NOT emit a
+        // bogus sibling `./Name` import (the ES import already binds it).
+        let files = compile(
+            "import react MyButton from \"@acme/btn\"\n\
+             component Page() { view: column() { MyButton() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import MyButton from \"@acme/btn\";"),
+            "expected ES import for MyButton, got:\n{page}"
+        );
+        assert!(
+            page.contains("<MyButton"),
+            "expected MyButton rendered as a component tag, got:\n{page}"
+        );
+        assert!(
+            !page.contains("from \"./MyButton\""),
+            "must NOT emit a sibling ./MyButton import, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn imported_react_namespace_emits_namespace_import() {
+        // Phase 5 S2: a namespace react import emits `import * as X from "<spec>"`.
+        //
+        // LIMITATION (documented, not a stub): using a namespace *member* as a JSX
+        // element (`<Dialog.Root>`) is not yet supported — `Dialog.Root()` in a
+        // `view:` lowers to a call expression (`{Dialog.Root()}`), not a
+        // `<Dialog.Root/>` tag, because dotted member-call → JSX-element lowering
+        // is not implemented. The supported path for Radix-style component sets is
+        // the NAMED form, which renders as tags:
+        //   `import react { Dialog, DialogContent } from "@radix-ui/react-dialog"`.
+        let files = compile(
+            "import react * as Dialog from \"@radix-ui/react-dialog\"\n\
+             component Page() { view: column() { text() { \"x\" } } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import * as Dialog from \"@radix-ui/react-dialog\";"),
+            "expected namespace import line, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn imported_react_named_components_render_as_tags() {
+        // Phase 5 S2: the NAMED form (the supported Radix-style path) emits a
+        // grouped named import and renders each name as a component tag.
+        let files = compile(
+            "import react { Dialog, DialogContent } from \"@radix-ui/react-dialog\"\n\
+             component Page() { view: column() { Dialog() DialogContent() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import { Dialog, DialogContent } from \"@radix-ui/react-dialog\";"),
+            "expected grouped named import, got:\n{page}"
+        );
+        assert!(
+            page.contains("<Dialog"),
+            "expected <Dialog> tag, got:\n{page}"
+        );
+        assert!(
+            page.contains("<DialogContent"),
+            "expected <DialogContent> tag, got:\n{page}"
+        );
+        assert!(
+            !page.contains("from \"./Dialog\""),
+            "must not emit sibling import for an external named component, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn mantine_import_injects_css_and_provider_guidance() {
+        // Phase 5 SSOT: importing a known css_file lib auto-injects its required
+        // CSS import; a mandatory-provider lib emits setup guidance.
+        let files = compile(
+            "import react { Button } from \"@mantine/core\"\n\
+             component Page() { view: column() { Button() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            page.contains("import \"@mantine/core/styles.css\";"),
+            "expected Mantine CSS import to be injected, got:\n{page}"
+        );
+        assert!(
+            page.contains("requires <MantineProvider>"),
+            "expected MantineProvider guidance, got:\n{page}"
+        );
+    }
+
+    #[test]
+    fn radix_import_emits_no_css_or_provider_guidance() {
+        // Headless/unstyled libs (Radix) need no CSS import and no provider.
+        let files = compile(
+            "import react { Dialog } from \"@radix-ui/react-dialog\"\n\
+             component Page() { view: column() { Dialog() } }",
+        );
+        let page = get(&files, "Page.tsx");
+        assert!(
+            !page.contains("styles.css"),
+            "Radix must not inject a CSS import, got:\n{page}"
+        );
+        assert!(
+            !page.contains("vox-interop:"),
+            "Radix must not emit provider guidance, got:\n{page}"
         );
     }
 

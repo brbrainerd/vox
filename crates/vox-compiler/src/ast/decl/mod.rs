@@ -53,6 +53,7 @@ mod reactive;
 mod types;
 
 pub use types::{
-    Decl, HttpMethod, ImportDecl, ImportPath, ImportPathKind, Module, RustCrateImport,
+    Decl, HttpMethod, ImportDecl, ImportPath, ImportPathKind, Module, ReactBinding,
+    ReactNamedImport, RustCrateImport,
 };
 pub use ui::{AstColorToken, AstFontToken, AstScalarToken, TokensDecl};

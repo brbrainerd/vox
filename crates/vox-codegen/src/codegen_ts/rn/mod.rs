@@ -92,6 +92,7 @@ pub fn generate_rn(hir: &HirModule, _options: &CodegenOptions) -> Result<RnCodeg
             &form_names,
             &endpoint_params,
             &screen_root_names,
+            &hir.imports,
             &mut diagnostics,
         );
         files.push((filename, content));

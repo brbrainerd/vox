@@ -52,6 +52,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { "@": path.resolve(__dirname, "app") },
+    // Force a single React copy so imported external component libraries
+    // (MUI, Radix, etc.) and the app share one react/react-dom — duplicates
+    // cause React's "Invalid hook call" runtime error.
+    dedupe: ["react", "react-dom"],
   },
   build: {
     outDir: "dist",
