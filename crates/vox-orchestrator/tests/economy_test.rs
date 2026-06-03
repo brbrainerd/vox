@@ -103,9 +103,13 @@ async fn test_model_selection_preference() {
         provider: "anthropic".to_string(),
         provider_type: vox_orchestrator::models::ProviderType::OpenRouter,
         max_tokens: 200_000,
-        cost_per_1k: 3.0,
-        cost_per_1k_input: 3.0,
-        cost_per_1k_output: 15.0,
+        // Priced under the `safety.max_cost_usd_per_request` cap ($5) for the
+        // default 1024-token estimate, so this test exercises the
+        // performance-vs-economy *selection* logic rather than being filtered
+        // out by the orthogonal cost-safety guard in `best_for_internal`.
+        cost_per_1k: 2.0,
+        cost_per_1k_input: 2.0,
+        cost_per_1k_output: 4.0,
         is_free: false,
         observed_cost_per_1k: None,
         strengths: vec![vox_orchestrator::models::StrengthTag::Codegen],

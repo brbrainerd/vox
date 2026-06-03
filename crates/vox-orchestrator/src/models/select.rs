@@ -1054,8 +1054,8 @@ mod tests {
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
         // An empty policy carries no steps, so the resolver yields nothing and
         // `select_with_policy` falls through to the pre-existing `select` cascade.
-        let policy = super::policy::SelectionPolicy::default();
-        let ctx = super::policy::PolicyContext::default();
+        let policy = crate::models::policy::SelectionPolicy::default();
+        let ctx = crate::models::policy::PolicyContext::default();
         let via_policy = select_with_policy(&intent, &registry, &policy, &ctx)
             .expect("a model exists for codegen");
         let via_cascade = select(&intent, &registry).expect("a model exists for codegen");
