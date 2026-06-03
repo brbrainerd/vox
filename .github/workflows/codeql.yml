@@ -1,0 +1,62 @@
+# CodeQL
+#
+# Static security analysis for Rust and JavaScript/TypeScript.
+#
+# Rust CodeQL support is now GA. CodeQL's Rust extractor relies on build tracing,
+# so we run an explicit `cargo build` for the rust language instead of autobuild.
+# If GitHub's "default setup" for CodeQL is enabled on this repo it can conflict
+# with this advanced (workflow-defined) setup; disable the default setup under
+# Settings -> Security -> Code scanning if you see duplicate or failing analyses.
+name: "CodeQL"
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, Monday 04:30 UTC.
+    - cron: "30 4 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  security-events: write
+  contents: read
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [rust, javascript-typescript]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Cache Rust build
+        if: matrix.language == 'rust'
+        uses: Swatinem/rust-cache@v2
+
+      # CodeQL's Rust extractor uses build tracing, so build explicitly.
+      - name: Build (rust)
+        if: matrix.language == 'rust'
+        run: cargo build --workspace
+
+      - name: Autobuild
+        if: matrix.language != 'rust'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3

@@ -1,0 +1,71 @@
+# CI Fallback (GitHub-hosted)
+#
+# This is a degraded-mode, GitHub-hosted mirror of the self-hosted `ci.yml` merge
+# gate. The primary gate runs on the self-hosted runner fleet ([self-hosted, linux,
+# x64]). When that fleet has zero registered runners (or is otherwise down), the
+# entire merge gate stalls and *all* merges are blocked. This workflow runs on
+# GitHub-hosted `ubuntu-latest` so a runner-fleet outage degrades coverage instead
+# of blocking every merge.
+#
+# It intentionally omits the lanes that require the self-hosted fleet's hardware and
+# preinstalled services: GPU jobs, Docker-based integration, Playwright/browser E2E,
+# and the heavier audit lanes. Those remain exclusive to the self-hosted gate. This
+# fallback covers the portable Rust core: fmt, clippy, unit/integration tests,
+# doctests, and supply-chain checks (deny/audit).
+name: "CI Fallback (GitHub-hosted)"
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-deny,cargo-audit
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # `--profile ci` excludes slow #[ignore] tests by design; those run on the
+      # self-hosted fleet.
+      - name: Test (nextest)
+        run: cargo nextest run --workspace --profile ci
+        env:
+          INSTA_UPDATE: unseen
+
+      - name: Doctests
+        run: cargo test --workspace --doc
+
+      - name: cargo-deny
+        run: cargo deny check
+
+      - name: cargo-audit
+        run: cargo audit

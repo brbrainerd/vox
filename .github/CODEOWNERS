@@ -1,0 +1,27 @@
+# CODEOWNERS — default review routing
+#
+# REPLACE the placeholder `@vox-foundation/maintainers` below with real GitHub
+# team handles (e.g. @vox-foundation/compiler-team) or individual users. The
+# last matching pattern for a given path wins, so order matters: keep the broad
+# `*` rule first and more specific paths after it.
+
+# Fallback owner for everything not matched by a more specific rule below.
+*                          @vox-foundation/maintainers
+
+# CI / repo automation and policy.
+/.github/                  @vox-foundation/maintainers
+
+# Rust workspace.
+/crates/                   @vox-foundation/maintainers
+
+# Public contracts / API surface.
+/contracts/                @vox-foundation/maintainers
+
+# Architecture docs (SSOTs, plans, ADRs).
+/docs/src/architecture/    @vox-foundation/maintainers
+
+# TypeScript clients / runtimes.
+/clients/                  @vox-foundation/maintainers
+
+# Apps (editor, experimental tooling).
+/apps/                     @vox-foundation/maintainers

@@ -2,7 +2,7 @@
 title: "CI runner contract"
 description: "Official documentation for CI runner contract for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "CI & Quality"
-last_updated: "2026-05-11"
+last_updated: "2026-06-03"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -108,7 +108,7 @@ Set **`VOX_EXAMPLES_STRICT_PARSE=1`** when running **`cargo test -p vox-compiler
 
 Rust’s built-in harness (**`cargo test`**) does **not** enforce per-test timeouts. After ~60 seconds it may print *“has been running for over 60 seconds”* — that is only a **warning**; the test keeps running until it finishes or you interrupt it.
 
-**`cargo nextest run`** (used in GitHub `ci.yml` and `.gitlab-ci.yml`) reads **`.config/nextest.toml`**. There, **`slow-timeout`** marks slow tests and, with **`terminate-after`**, ends a stuck test after roughly **`terminate-after × period`** wall time (see [nextest slow tests](https://nexte.st/docs/features/slow-tests/)). The **`global-timeout`** setting caps the **entire** test run duration for a binary, not each case.
+**`cargo nextest run`** (used in GitHub `ci.yml`) reads **`.config/nextest.toml`**. There, **`slow-timeout`** marks slow tests and, with **`terminate-after`**, ends a stuck test after roughly **`terminate-after × period`** wall time (see [nextest slow tests](https://nexte.st/docs/features/slow-tests/)). The **`global-timeout`** setting caps the **entire** test run duration for a binary, not each case.
 
 For local debugging of a single crate, prefer:
 

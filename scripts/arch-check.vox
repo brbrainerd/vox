@@ -3,8 +3,8 @@
 // Single source of truth for the architecture check CI step.
 //
 // Invokes `cargo run -p vox-arch-check --quiet` and forwards the exit code.
-// Both .github/workflows/ci.yml and .gitlab-ci.yml call this script so the
-// invocation flags live in one place.
+// .github/workflows/ci.yml calls this script so the invocation flags live in
+// one place.
 //
 // Usage: vox run scripts/arch-check.vox
 // Source of truth: docs/src/architecture/layers.toml

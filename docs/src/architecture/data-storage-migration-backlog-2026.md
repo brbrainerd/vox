@@ -9,6 +9,11 @@ audience: ["contributors", "agents"]
 
 # Data Storage Migration Backlog (2026)
 
+> **Update (2026-06-03):** The repository's parallel `.gitlab-ci.yml` mirror has
+> been **removed**; maintaining a second CI pipeline was not worth the upkeep.
+> Backlog steps that wire a guard into the `.gitlab-ci.yml` `vox-ci-guards` job
+> are obsolete — wire the equivalent into `.github/workflows/ci.yml` only.
+
 ## Execution order (authoritative)
 
 The omni-agent reads this list top-down. An item is "landed" when `git log --all --grep "^M-NN\b" --pretty=oneline` returns at least one commit. The agent skips landed items and executes the first un-landed item whose listed blockers are all landed.

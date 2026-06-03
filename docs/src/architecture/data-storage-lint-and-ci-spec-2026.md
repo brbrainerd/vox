@@ -1,6 +1,6 @@
 ---
 title: "Data Storage Lint & CI Spec (2026)"
-description: "Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real* `.gitlab-ci.yml` `vox-ci-guards` job and `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD."
+description: "Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against `.github/workflows/ci.yml` — that implement the regression gates called for by the Data Storage SSOT. (The former parallel `.gitlab-ci.yml` mirror was removed 2026-06-03; its wiring steps here are obsolete.) Every rule is small, specific, paired with a finding ID, and references a file path that resolves against HEAD."
 category: "Architecture SSOTs"
 status: "roadmap"
 training_eligible: true
@@ -8,6 +8,13 @@ training_rationale: "Machine-checkable policy the repository will enforce; agent
 ---
 
 # Data Storage Lint & CI Spec (2026)
+
+> **Update (2026-06-03):** The repository's parallel `.gitlab-ci.yml` mirror has
+> been **removed** — maintaining a second CI pipeline alongside GitHub Actions
+> was not worth the upkeep. Wherever this spec wires checks into `.gitlab-ci.yml`
+> (the `vox-ci-guards` job, the §6.1 diff, release-stage wiring, etc.), treat
+> those steps as obsolete and wire the equivalent into `.github/workflows/ci.yml`
+> only. The GitHub Actions guidance below is unaffected.
 
 Companion to [data-storage-ssot-2026.md](data-storage-ssot-2026.md) and [data-storage-migration-backlog-2026.md](data-storage-migration-backlog-2026.md). Every rule here either prevents regression of a finding (F1–F74) or enforces a target-state invariant declared by §4 or §5 of the SSOT.
 

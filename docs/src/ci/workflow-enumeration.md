@@ -2,7 +2,7 @@
 title: "Workflow enumeration (GitHub Actions)"
 description: "Official documentation for Workflow enumeration (GitHub Actions) for the Vox language. Detailed technical reference, architecture guides,"
 category: "CI & Quality"
-last_updated: "2026-03-28"
+last_updated: "2026-06-03"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -24,15 +24,10 @@ schema_type: "TechArticle"
 
 **CUDA / GPU compile gates:** when a job needs `nvcc` or CUDA-enabled `cargo check`, use the **Docker** self-hosted profile (`[self-hosted, linux, x64, docker]`) per [runner contract](runner-contract.md); keep `runs-on` explicit per job.
 
-GitLab: `.gitlab-ci.yml` mirrors Rust guards, tests, docs, and ML jobs. Job **`vox-ci-guards`** runs the same **`vox ci` + scoped cargo** slice as the first half of GitHub `ci.yml` (through **`build-timings --crates`**): **`line-endings`**, **`command-compliance`**, **`eval-matrix verify`**, **`eval-matrix run --milestone m3-dei-contracts`**, **`cargo check -p vox-cli --features gpu`**, **`workflow-scripts`**, repository/orchestrator/MCP-lib + **`vox-git`** check, **`vox-populi --features transport`** tests, **`vox-workflow-runtime`** tests, **`vox-cli --features mesh,workflow-runtime`** check, **`build-timings --crates`**, **`feature-matrix`**, **`no-vox-orchestrator-import`**, **`toestub-scoped`**, **`cuda-features`**, **`mens-gate --profile ci_full`**. Separate GitLab jobs cover **`cargo fmt`**, **`cargo doc -D warnings`**, **`clippy`**, doc-only **`cargo test`**, and **`coverage`** (`cargo llvm-cov nextest`, not a separate full `nextest run` in **`test`**). **Docker parity (optional):**
+> **Note:** A parallel `.gitlab-ci.yml` pipeline was previously maintained as a
+> mirror of these GitHub Actions workflows. It was **removed on 2026-06-03** —
+> maintaining a second pipeline was not worth the upkeep. GitHub Actions is now
+> the single CI surface for this repository.
 
-`vox-workflow-runtime` tests also validate representative interpreted journal event rows against `contracts/workflow/workflow-journal.v1.schema.json` (including retry and mesh event families across feature modes), so CI catches v1 contract drift in both event shape and replay paths.
-
-| Job | GitHub equivalent | Notes |
-|-----|-------------------|--------|
-| `mens-compose-config` | `mens-compose-config` in `ci.yml` | `docker compose -f examples/mens-compose.yml config` using `docker:26-cli` (no DinD if `config` is client-only). |
-| `docker-vox-image-smoke` | `docker-vox-image-smoke` | `docker build` default + mens features; Docker-in-Docker service + `allow_failure: true` unless the runner allows **privileged** service containers (typical GitLab constraint). |
-
-If your runner cannot run DinD, the smoke job fails soft; keep **`mens-compose-config`** green for compose YAML validation. See [deployment compose SSOT](../reference/deployment-compose.md).
-
+`vox-workflow-runtime` tests validate representative interpreted journal event rows against `contracts/workflow/workflow-journal.v1.schema.json` (including retry and mesh event families across feature modes), so CI catches v1 contract drift in both event shape and replay paths.
 

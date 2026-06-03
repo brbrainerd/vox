@@ -2,7 +2,7 @@
 title: "CI alternatives and local Docker-based mirroring"
 description: "Research on running GitHub Actions locally in Docker, alternatives to GitHub Actions (act, Earthly, Dagger, Forgejo, Gitea, Woodpecker, GitLab CI, BuildJet/Blacksmith/RunsOn), and how each integrates with the existing vox ci pre-push gate."
 category: "CI & Quality"
-last_updated: "2026-05-09"
+last_updated: "2026-06-03"
 training_eligible: true
 schema_type: "TechArticle"
 ---
@@ -25,10 +25,11 @@ document — it captures findings so we can decide how (or whether) to invest.
    ([local-ci-pre-push](../contributors/local-ci-pre-push.md)) is the supported
    entry point. The fastest, lowest-risk improvement is to **graft `act` (or
    Earthly) onto that hook**, not to introduce a new CI engine.
-3. **Replacing GitHub Actions wholesale is not warranted.** GitLab CI is
-   already mirrored ([workflow-enumeration](workflow-enumeration.md)).
-   Forgejo Actions and Gitea Actions are GH-Actions-compatible drop-ins worth
-   tracking but offer no decisive win over our current self-hosted fleet.
+3. **Replacing GitHub Actions wholesale is not warranted.** GitLab CI was
+   previously kept as a parallel mirror but was **removed on 2026-06-03** — the
+   parallel pipeline was not worth maintaining. Forgejo Actions and Gitea
+   Actions are GH-Actions-compatible drop-ins worth tracking but offer no
+   decisive win over our current self-hosted fleet.
 4. **The biggest unrealised speedup is Rust build caching**, not the CI
    provider: `sccache` + `mold` + a shared `target/` cache delivers ~2–4×
    wall-clock improvements in our matrix; provider choice is downstream of
@@ -43,7 +44,6 @@ document — it captures findings so we can decide how (or whether) to invest.
 | Browser / Playwright | `[self-hosted, linux, x64, browser]` | Chromium pool. |
 | GH-hosted exceptions | `ubuntu-latest`, `windows-latest`, `macos-latest` | 7 workflow surfaces; documented. |
 | Local mirror | `vox ci pre-push` | Quick / default / full modes (~30 s / 2–4 min / 10–25 min). |
-| Mirror | `.gitlab-ci.yml` | Job parity for guards, fmt/clippy/doc, coverage, tests. |
 
 The architecture already separates "guard logic" (Rust binaries under
 `crates/vox-cli/src/commands/ci/`) from "workflow YAML" (`.github/workflows/`).
@@ -180,8 +180,10 @@ container-first OSS server we control.
 
 ### 4. GitLab CI
 
-Already mirrored at `.gitlab-ci.yml`. The parity is intentional — drift is
-caught by `vox ci command-compliance`. No action needed.
+A `.gitlab-ci.yml` mirror was previously maintained here for job parity, but it
+was **removed on 2026-06-03**: maintaining a parallel CI pipeline was judged not
+worth the upkeep. GitLab CI remains a viable alternative *provider* should we
+ever migrate, but we no longer keep a parallel pipeline in this repo.
 
 ### 5. Faster GitHub-Actions-compatible runner clouds
 
@@ -233,8 +235,6 @@ These are sequenced by "smallest diff with biggest signal" first.
 
 - Replacing the self-hosted runner fleet — out of scope; orthogonal to
   provider choice.
-- Removing the `.gitlab-ci.yml` mirror — the parity is a safety net, not
-  duplication.
 - Auto-blocking commits on `act` results — pre-push is the right surface
   per `AGENTS.md`; pre-commit is too noisy for this codebase's build
   times.
