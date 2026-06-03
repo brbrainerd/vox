@@ -88,7 +88,10 @@ impl VoxDb {
         {
             let provider: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
             let total_usd: f64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
-            out.push(ProviderCostRow { provider, total_usd });
+            out.push(ProviderCostRow {
+                provider,
+                total_usd,
+            });
         }
         Ok(out)
     }
@@ -265,7 +268,10 @@ mod tests {
         // A quarter is roughly 90 days; verify it's at least 80 days and at
         // most 95 days wide.
         let days = (end - start) / (1000 * 60 * 60 * 24);
-        assert!(days >= 80 && days <= 95, "unexpected quarter width: {days} days");
+        assert!(
+            days >= 80 && days <= 95,
+            "unexpected quarter width: {days} days"
+        );
     }
 
     /// Mapping `ProviderCostRow` → `(String, f64)` tuple preserves values.
@@ -281,8 +287,10 @@ mod tests {
                 total_usd: 1.25,
             },
         ];
-        let tuples: Vec<(String, f64)> =
-            rows.into_iter().map(|r| (r.provider, r.total_usd)).collect();
+        let tuples: Vec<(String, f64)> = rows
+            .into_iter()
+            .map(|r| (r.provider, r.total_usd))
+            .collect();
         assert_eq!(tuples[0], ("anthropic".into(), 3.50));
         assert_eq!(tuples[1], ("openai".into(), 1.25));
     }

@@ -6,8 +6,8 @@ use std::sync::Arc;
 use vox_db::{DbConfig, SearchCorpus, SearchPlan, VoxDb, heuristic_search_plan};
 use vox_repository::discover_repository_or_fallback;
 use vox_search::{
-    RetrievalTriggerMode, SearchPolicy, SearchRuntimeContext, UnifiedHit,
-    execute_search_plan, run_search_with_verification,
+    RetrievalTriggerMode, SearchPolicy, SearchRuntimeContext, UnifiedHit, execute_search_plan,
+    run_search_with_verification,
 };
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ use vox_search::{
 /// Field names are part of a cross-agent DTO contract — do NOT rename.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct OpenLocatorDto {
-    pub kind: String,  // "file" | "web" | "memory" | "none"
+    pub kind: String, // "file" | "web" | "memory" | "none"
     pub value: String,
 }
 
@@ -58,7 +58,7 @@ pub struct SearchResponseDto {
 /// Outcome of an open_locator call.
 #[derive(Debug, serde::Serialize)]
 pub struct OpenOutcomeDto {
-    pub action: String,  // "spawned" | "opened"
+    pub action: String, // "spawned" | "opened"
 }
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -73,9 +73,15 @@ pub(crate) fn locator_for(source: &str, path: Option<&str>) -> OpenLocatorDto {
         _ => "none",
     };
     if kind != "none" && !value.is_empty() {
-        OpenLocatorDto { kind: kind.to_string(), value }
+        OpenLocatorDto {
+            kind: kind.to_string(),
+            value,
+        }
     } else {
-        OpenLocatorDto { kind: "none".to_string(), value: String::new() }
+        OpenLocatorDto {
+            kind: "none".to_string(),
+            value: String::new(),
+        }
     }
 }
 
@@ -117,7 +123,12 @@ pub(crate) fn url_open_command(os: &str, url: &str) -> (String, Vec<String>) {
     match os {
         "windows" => (
             "cmd".to_string(),
-            vec!["/C".to_string(), "start".to_string(), String::new(), url.to_string()],
+            vec![
+                "/C".to_string(),
+                "start".to_string(),
+                String::new(),
+                url.to_string(),
+            ],
         ),
         "macos" => ("open".to_string(), vec![url.to_string()]),
         _ => ("xdg-open".to_string(), vec![url.to_string()]),
@@ -142,7 +153,10 @@ fn build_facets(hits: &[UnifiedHitDto], key: impl Fn(&UnifiedHitDto) -> &str) ->
     for h in hits {
         *map.entry(key(h).to_string()).or_insert(0) += 1;
     }
-    let mut v: Vec<FacetCount> = map.into_iter().map(|(value, count)| FacetCount { value, count }).collect();
+    let mut v: Vec<FacetCount> = map
+        .into_iter()
+        .map(|(value, count)| FacetCount { value, count })
+        .collect();
     v.sort_by(|a, b| b.count.cmp(&a.count).then(a.value.cmp(&b.value)));
     v
 }
@@ -193,8 +207,8 @@ pub async fn vox_search_query(
     let engine_limit = off + lim;
 
     // ── Repo discovery ────────────────────────────────────────────────────────
-    let cwd = std::env::current_dir()
-        .map_err(|e| format!("cannot determine current directory: {e}"))?;
+    let cwd =
+        std::env::current_dir().map_err(|e| format!("cannot determine current directory: {e}"))?;
     let repo_ctx = discover_repository_or_fallback(&cwd);
     let repo_root = repo_ctx.root;
 
@@ -219,7 +233,11 @@ pub async fn vox_search_query(
             None
         } else {
             let mapped: Vec<SearchCorpus> = v.iter().filter_map(|s| scope_to_corpus(s)).collect();
-            if mapped.is_empty() { None } else { Some(mapped) }
+            if mapped.is_empty() {
+                None
+            } else {
+                Some(mapped)
+            }
         }
     });
 
@@ -256,7 +274,11 @@ pub async fn vox_search_query(
 
     // ── Map hits → DTOs ───────────────────────────────────────────────────────
     let kinds_set: Option<std::collections::HashSet<String>> = kinds.and_then(|v| {
-        if v.is_empty() { None } else { Some(v.into_iter().collect()) }
+        if v.is_empty() {
+            None
+        } else {
+            Some(v.into_iter().collect())
+        }
     });
 
     let mut all_hits: Vec<UnifiedHitDto> = exec
@@ -265,12 +287,18 @@ pub async fn vox_search_query(
         .map(unified_hit_to_dto)
         .filter(|h| {
             // kind filter
-            kinds_set.as_ref().map(|s| s.contains(&h.kind)).unwrap_or(true)
+            kinds_set
+                .as_ref()
+                .map(|s| s.contains(&h.kind))
+                .unwrap_or(true)
         })
         .filter(|h| {
             // path_glob filter
             if let Some(pat) = &path_glob {
-                h.path.as_deref().map(|p| glob_match(pat, p)).unwrap_or(false)
+                h.path
+                    .as_deref()
+                    .map(|p| glob_match(pat, p))
+                    .unwrap_or(false)
             } else {
                 true
             }
@@ -315,7 +343,9 @@ pub async fn open_locator(locator: OpenLocatorDto) -> Result<OpenOutcomeDto, Str
                 .arg(&value)
                 .spawn()
                 .map_err(|e| format!("failed to spawn editor: {e}"))?;
-            Ok(OpenOutcomeDto { action: "spawned".to_string() })
+            Ok(OpenOutcomeDto {
+                action: "spawned".to_string(),
+            })
         }
         "web" => {
             let (prog, args) = url_open_command(std::env::consts::OS, &value);
@@ -323,7 +353,9 @@ pub async fn open_locator(locator: OpenLocatorDto) -> Result<OpenOutcomeDto, Str
                 .args(&args)
                 .spawn()
                 .map_err(|e| format!("failed to open URL: {e}"))?;
-            Ok(OpenOutcomeDto { action: "opened".to_string() })
+            Ok(OpenOutcomeDto {
+                action: "opened".to_string(),
+            })
         }
         _ => Err("not openable".to_string()),
     }
@@ -476,7 +508,11 @@ mod tests {
         let off = 0usize;
         let lim = 2usize;
         let page: Vec<_> = hits.drain(off..).take(lim).collect();
-        let next_cursor = if off + page.len() < total { Some(off + lim) } else { None };
+        let next_cursor = if off + page.len() < total {
+            Some(off + lim)
+        } else {
+            None
+        };
         assert_eq!(page.len(), 2);
         assert_eq!(next_cursor, Some(2));
     }
@@ -489,8 +525,16 @@ mod tests {
         let total = hits.len();
         let off = 2usize;
         let lim = 5usize;
-        let page: Vec<_> = if off < hits.len() { hits.drain(off..).take(lim).collect() } else { vec![] };
-        let next_cursor = if off + page.len() < total { Some(off + lim) } else { None };
+        let page: Vec<_> = if off < hits.len() {
+            hits.drain(off..).take(lim).collect()
+        } else {
+            vec![]
+        };
+        let next_cursor = if off + page.len() < total {
+            Some(off + lim)
+        } else {
+            None
+        };
         assert_eq!(page.len(), 1);
         assert_eq!(next_cursor, None);
     }

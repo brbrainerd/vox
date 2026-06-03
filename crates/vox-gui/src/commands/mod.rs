@@ -1,5 +1,4 @@
 pub mod action_manifest;
-pub mod gamify;
 pub mod app_state;
 pub mod build_info;
 pub mod catalog;
@@ -7,6 +6,7 @@ pub mod control_plane;
 pub mod daemon;
 pub mod dynamic_mapping;
 pub mod execute;
+pub mod gamify;
 pub mod mcp;
 pub mod memory;
 pub mod models;

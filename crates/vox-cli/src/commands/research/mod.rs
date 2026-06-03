@@ -345,9 +345,7 @@ fn research_scope_label(scope: &vox_dei_shim::research::ResearchScope) -> &'stat
 }
 
 /// Build the `research.run` JSON params from a [`ResearchQuery`].
-fn research_run_daemon_params(
-    rq: &vox_dei_shim::research::ResearchQuery,
-) -> serde_json::Value {
+fn research_run_daemon_params(rq: &vox_dei_shim::research::ResearchQuery) -> serde_json::Value {
     serde_json::json!({
         "query": rq.query,
         "scope": research_scope_label(&rq.scope),

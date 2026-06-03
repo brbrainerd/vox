@@ -25,9 +25,7 @@ async fn connect_canonical_db() -> Result<vox_db::VoxDb, String> {
 }
 
 #[tauri::command]
-pub async fn list_research_sessions(
-    limit: Option<u32>,
-) -> Result<Vec<ResearchSessionDto>, String> {
+pub async fn list_research_sessions(limit: Option<u32>) -> Result<Vec<ResearchSessionDto>, String> {
     let db = connect_canonical_db().await?;
     let rows = db
         .list_recent_research_sessions(limit.unwrap_or(20))
@@ -46,9 +44,7 @@ pub async fn list_research_sessions(
 }
 
 #[tauri::command]
-pub async fn get_research_session_detail(
-    session_id: i64,
-) -> Result<ResearchDetailDto, String> {
+pub async fn get_research_session_detail(session_id: i64) -> Result<ResearchDetailDto, String> {
     let db = connect_canonical_db().await?;
     let s = db
         .get_research_session(session_id)

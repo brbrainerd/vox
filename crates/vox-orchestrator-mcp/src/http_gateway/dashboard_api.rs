@@ -523,7 +523,8 @@ pub async fn get_scientia_queue(
     }
     match assemble_scientia_queue().await {
         Ok(snapshot) => {
-            ok(serde_json::to_value(&snapshot).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+            ok(serde_json::to_value(&snapshot)
+                .unwrap_or_else(|e| json!({ "error": e.to_string() })))
         }
         Err(e) => err("db_error", &e.to_string()),
     }

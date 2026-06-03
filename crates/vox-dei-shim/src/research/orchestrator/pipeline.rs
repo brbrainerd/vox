@@ -15,8 +15,8 @@ use super::super::planner::{decompose_query_with_config, plan_to_json};
 use super::super::provider::ProviderRegistry;
 use super::super::types::{
     Citation, CitationAuditResult, ClaimSupport, CompetenceSignal, ResearchHit, ResearchMetadata,
-    ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact, ResearchScope,
-    ResearchStage, RetrievalDiagnostics, RoutingTier,
+    ResearchPlan, ResearchQuery, ResearchResult, ResearchRunArtifact, ResearchScope, ResearchStage,
+    RetrievalDiagnostics, RoutingTier,
 };
 use super::super::verifier::verify_claims_with_config;
 use super::config::ResearchConfig;

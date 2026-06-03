@@ -61,7 +61,10 @@ impl ExtraDispatch for McpExtraDispatch {
                     match serde_json::from_value(req.params.clone()) {
                         Ok(p) => p,
                         Err(e) => {
-                            return Some(error(&req.id, format!("invalid research.run params: {e}")));
+                            return Some(error(
+                                &req.id,
+                                format!("invalid research.run params: {e}"),
+                            ));
                         }
                     };
                 // `research_start` is the async fire-and-forget executor: it

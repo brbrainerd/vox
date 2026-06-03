@@ -85,7 +85,9 @@ impl LudusNotificationDto {
 
 async fn open_gamify_db() -> Result<vox_db::Codex, String> {
     let config = vox_db::DbConfig::resolve_for_mesh().map_err(|e| e.to_string())?;
-    vox_db::Codex::connect(config).await.map_err(|e| e.to_string())
+    vox_db::Codex::connect(config)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -101,13 +103,18 @@ pub async fn get_ludus_profile() -> Result<LudusProfileDto, String> {
 }
 
 #[tauri::command]
-pub async fn list_ludus_notifications(limit: Option<u32>) -> Result<Vec<LudusNotificationDto>, String> {
+pub async fn list_ludus_notifications(
+    limit: Option<u32>,
+) -> Result<Vec<LudusNotificationDto>, String> {
     let db = open_gamify_db().await?;
     let user_id = vox_gamify::db::canonical_user_id();
     let notes = vox_gamify::db::list_unread_notifications(&db, &user_id, limit.unwrap_or(20))
         .await
         .map_err(|e| e.to_string())?;
-    Ok(notes.iter().map(LudusNotificationDto::from_notification).collect())
+    Ok(notes
+        .iter()
+        .map(LudusNotificationDto::from_notification)
+        .collect())
 }
 
 #[tauri::command]
@@ -197,6 +204,9 @@ mod tests {
     fn notification_level_maps_severity() {
         assert_eq!(notification_level(&NotificationType::LevelUp), "ok");
         assert_eq!(notification_level(&NotificationType::StreakLost), "warn");
-        assert_eq!(notification_level(&NotificationType::CompanionStatus), "info");
+        assert_eq!(
+            notification_level(&NotificationType::CompanionStatus),
+            "info"
+        );
     }
 }

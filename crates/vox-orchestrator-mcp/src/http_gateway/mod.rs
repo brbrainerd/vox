@@ -136,10 +136,7 @@ impl GatewayState {
             rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
             public_eval_enabled: false,
             public_eval_rate_limiter: new_identity_rate_limiter(10),
-            topic_tx: tokio::sync::broadcast::channel(
-                scientia_feed::TOPIC_CHANNEL_CAPACITY,
-            )
-            .0,
+            topic_tx: tokio::sync::broadcast::channel(scientia_feed::TOPIC_CHANNEL_CAPACITY).0,
         }
     }
 }
