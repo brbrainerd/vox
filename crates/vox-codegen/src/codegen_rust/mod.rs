@@ -600,6 +600,10 @@ fn heartbeat() { }
                 .unwrap()
                 .contains("vox-stt")
         );
+        assert!(
+            !out.files.get("src-tauri/Cargo.toml").unwrap().contains("vox-tauri-stt"),
+            "vox-tauri-stt must not appear in Cargo.toml without speech"
+        );
     }
 
     #[test]
