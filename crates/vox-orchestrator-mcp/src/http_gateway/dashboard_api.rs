@@ -464,29 +464,20 @@ pub async fn get_models_catalog(
     }))
 }
 
-/// GET /api/v2/scientia/queue — live `QueueSnapshot` assembled from the Codex DB.
-pub async fn get_scientia_queue(
-    State(gs): State<GatewayState>,
-    connect: ConnectInfo<SocketAddr>,
-    headers: HeaderMap,
-) -> Json<Value> {
-    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
-        return e;
-    }
+/// Assemble the live scientia [`QueueSnapshot`] directly from the Codex DB.
+///
+/// Shared by the REST handler [`get_scientia_queue`] and the WebSocket
+/// `scientia.queue.changed` poller (see [`super::scientia_feed`]) so both
+/// surfaces compute identical snapshots from one source of truth.
+pub(crate) async fn assemble_scientia_queue()
+-> anyhow::Result<vox_scientia::dashboard::QueueSnapshot> {
     use vox_scientia::dashboard::{
         CandidateRow, ClaimsPendingSummary, DashboardInputs, ReplyWindowEntry, build_queue_snapshot,
     };
-    let db = match vox_db::VoxDb::connect_default().await {
-        Ok(db) => db,
-        Err(e) => return err("db_error", &e.to_string()),
-    };
-    let manifests = match db
+    let db = vox_db::VoxDb::connect_default().await?;
+    let manifests = db
         .list_publication_manifests(Some("scientia"), None, 200)
-        .await
-    {
-        Ok(m) => m,
-        Err(e) => return err("db_error", &e.to_string()),
-    };
+        .await?;
     let candidates: Vec<CandidateRow> = manifests
         .iter()
         .map(|m| CandidateRow {
@@ -503,10 +494,7 @@ pub async fn get_scientia_queue(
         .filter(|c| c.state == "retracted")
         .map(|c| c.candidate_id.clone())
         .collect();
-    let counts = match db.scientia_claims_pending_summary().await {
-        Ok(c) => c,
-        Err(e) => return err("db_error", &e.to_string()),
-    };
+    let counts = db.scientia_claims_pending_summary().await?;
     let claims_pending = ClaimsPendingSummary {
         verifiable: counts.verifiable.max(0) as u64,
         abstained: counts.abstained.max(0) as u64,
@@ -521,8 +509,24 @@ pub async fn get_scientia_queue(
         retraction_queue: &retraction_queue,
         now_ms,
     };
-    let snapshot = build_queue_snapshot(&inputs);
-    ok(serde_json::to_value(&snapshot).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+    Ok(build_queue_snapshot(&inputs))
+}
+
+/// GET /api/v2/scientia/queue — live `QueueSnapshot` assembled from the Codex DB.
+pub async fn get_scientia_queue(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    match assemble_scientia_queue().await {
+        Ok(snapshot) => {
+            ok(serde_json::to_value(&snapshot).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+        }
+        Err(e) => err("db_error", &e.to_string()),
+    }
 }
 
 /// GET /api/v2/scientia/cost — live `CostRollup` for the current quarter from the Codex DB.
