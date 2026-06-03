@@ -27,7 +27,7 @@ impl VoxDb {
                 conn.execute(
                     "INSERT OR IGNORE INTO scientia_research_sessions \
                      (session_key, status, started_at_ms, query_text) \
-                     VALUES (?1, 'active', ?2, ?3)",
+                     VALUES (?1, 'queued', ?2, ?3)",
                     params![key.as_str(), now, q.as_str()],
                 )
                 .await?;

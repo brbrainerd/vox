@@ -1,4 +1,5 @@
 use clap::Subcommand;
+use vox_dei_shim::research::types::ResearchStage;
 
 pub mod eval;
 pub mod infra;
@@ -231,16 +232,7 @@ fn research_plan_preview(query: &str) -> serde_json::Value {
         "scope": "both",
         "max_sources_per_subquery": 10,
         "subqueries": subqueries,
-        "progress_states": [
-            "queued",
-            "planning",
-            "retrieving",
-            "verifying_claims",
-            "synthesizing",
-            "auditing_citations",
-            "persisting_artifact",
-            "completed"
-        ],
+        "progress_states": ResearchStage::ORDERED.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
         "free_baseline": {
             "required_paid_services": false,
             "optional_tavily_when_user_configured": true
