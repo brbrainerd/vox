@@ -21,6 +21,10 @@ on:
       - 'crates/vox-doc-pipeline/**'
       - 'crates/vox-cli/src/commands/ci/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true

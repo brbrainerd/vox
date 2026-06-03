@@ -14,6 +14,10 @@ on:
       - ".github/workflows/docker-eval.yml"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
@@ -62,3 +66,16 @@ jobs:
           cache-to: type=inline
           build-args: |
             VOX_CLI_FEATURES=mcp-server
+
+      # Report-only container vulnerability scan of the image we just pushed.
+      # exit-code: '0' means findings are surfaced in the job log but never fail
+      # the build. Once the image is clean, tighten this to exit-code: '1' to
+      # make CRITICAL/HIGH vulnerabilities merge-blocking.
+      - name: Scan image for vulnerabilities (Trivy, report-only)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '0'

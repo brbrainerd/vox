@@ -12994,6 +12994,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "rust_decimal",
+ "scraper",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -13250,6 +13251,8 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "vox-cli",
+ "vox-codegen",
+ "vox-compiler",
 ]
 
 [[package]]

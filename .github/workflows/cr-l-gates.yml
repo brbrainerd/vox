@@ -37,6 +37,10 @@ on:
     # or a CR-L8 corpus-feedback artifact ages past its 90-day window.
     - cron: '0 6 * * *'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

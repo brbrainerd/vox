@@ -23,7 +23,7 @@ pub mod http_decorators;
 pub mod layer_decorator;
 /// Actors, agents, workflows, activities, and HTTP routes.
 pub mod logic;
-/// Mobile Capacitor primitive declarations (`@back_button`, `@deep_link`, `@push`).
+/// Mobile primitive declarations (`@back_button`, `@deep_link`, `@push`).
 pub mod mobile;
 /// State machine declarations (`state_machine Name { … }`).
 pub mod state_machine;
@@ -53,6 +53,7 @@ mod reactive;
 mod types;
 
 pub use types::{
-    Decl, HttpMethod, ImportDecl, ImportPath, ImportPathKind, Module, RustCrateImport,
+    Decl, HttpMethod, ImportDecl, ImportPath, ImportPathKind, Module, ReactBinding,
+    ReactNamedImport, RustCrateImport,
 };
 pub use ui::{AstColorToken, AstFontToken, AstScalarToken, TokensDecl};

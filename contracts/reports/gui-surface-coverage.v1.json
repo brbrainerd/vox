@@ -255,6 +255,7 @@
     "commands",
     "compile",
     "completions",
+    "component",
     "config",
     "config get",
     "config list",

@@ -9,6 +9,8 @@ audience: ["contributors", "agents"]
 
 # Data Storage Migration Backlog (2026)
 
+> **Update (2026-06-03):** The parallel GitLab CI mirror (`.gitlab-ci.yml`) has been retired and the file deleted. Every migration step (M-NN) below that previously wired a check into the GitLab `vox-ci-guards` job now targets `.github/workflows/ci.yml` only. All GitHub Actions guidance is unchanged.
+
 ## Execution order (authoritative)
 
 The omni-agent reads this list top-down. An item is "landed" when `git log --all --grep "^M-NN\b" --pretty=oneline` returns at least one commit. The agent skips landed items and executes the first un-landed item whose listed blockers are all landed.
@@ -66,8 +68,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   2. Create `crates/vox-cli/src/commands/ci/data_storage_guard.rs` with a `pub fn run(opts: &GuardOpts) -> anyhow::Result<GuardReport>` stub that logs "stub" and returns `Ok(GuardReport::empty())`.
   3. Register the handler in `crates/vox-cli/src/commands/ci/mod.rs` following the pattern of `contracts_index.rs` or `exec_policy_contract.rs`.
   4. Add a `GuardReport` type that mirrors `contracts/db/data-storage-guard-report.v1.schema.json` (authored in M-04).
-  5. Wire a no-op invocation in `.gitlab-ci.yml` `vox-ci-guards` job so the command exists but is green.
-- **Verification**: `vox ci data-storage-guard --help` succeeds locally; CI pipeline on a PR shows `vox-ci-guards: passed` with a stub log line.
+  5. Wire a no-op invocation into the `.github/workflows/ci.yml` guard job so the command exists but is green.
+- **Verification**: `vox ci data-storage-guard --help` succeeds locally; the GitHub Actions check job on a PR passes with a stub log line.
 
 > Landed in 1fa8aa2c on 2026-04-22; verification: green.
 
@@ -734,7 +736,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Blast radius**: L.
 - **Blockers**: M-13, M-14.
 - **SSOT findings**: F47.
-- **Sub-steps**: wire the existing `env-parity` guard sub-check into `.gitlab-ci.yml` `vox-ci-guards` job as a hard failure.
+- **Sub-steps**: wire the existing `env-parity` guard sub-check into the `.github/workflows/ci.yml` guard job as a hard failure.
 - **Verification**: CI blocks a synthetic PR that adds an undocumented `VOX_*` read.
 
 ### M-59 · `VOX_USER_ID` deterministic default
@@ -757,9 +759,8 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **Blockers**: all Phase 0–5.
 - **SSOT findings**: F56.
 - **Sub-steps**:
-  1. In `.gitlab-ci.yml`, add `vox ci data-storage-guard --fail-on warn` to the `vox-ci-guards` job.
-  2. In `.github/workflows/ci.yml`, add the same call to the check phase.
-  3. Remove the `--stub` flag that M-01 used.
+  1. In `.github/workflows/ci.yml`, add `vox ci data-storage-guard --fail-on warn` to the guard job in the check phase.
+  2. Remove the `--stub` flag that M-01 used.
 - **Verification**: CI fails a synthetic PR that introduces any guarded violation.
 
 ### M-61 · `deny.toml` ban on direct Turso imports
@@ -1076,6 +1077,6 @@ These four tickets close the findings added in SSOT §I (F75–F78) after reconc
 - **Config owner**: owners of `vox-config`.
 - **Frontend**: owners of `apps/interop/marquee_app/`, `dist/`, `apps/editor/vox-vscode`.
 - **Governance**: owners of `AGENTS.md`, `crates/_frozen.md`, and `docs/src/architecture/decisions/`.
-- **CI**: owners of `.gitlab-ci.yml`, `.github/workflows/`, and the `vox ci` subcommands.
+- **CI**: owners of `.github/workflows/` and the `vox ci` subcommands.
 
 If a team lead isn't named when a ticket is claimed, the default claimant is the crate's most recent non-agent com

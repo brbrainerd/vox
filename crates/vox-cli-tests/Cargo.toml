@@ -22,6 +22,12 @@ toml = "0.8"
 # no file-lock race with the outer `cargo test`.
 vox-cli = { path = "../vox-cli" }
 assert_cmd = "2"
+# Used by the @scheduled desktop-target guard to drive the same TauriApp codegen
+# path the `vox compile --target desktop` pipeline uses, without requiring the
+# Tauri toolchain (the deterministic gate is a string assertion on the emitted
+# `src-tauri/src/main.rs`).
+vox-codegen = { path = "../vox-codegen" }
+vox-compiler = { path = "../vox-compiler" }
 
 [[test]]
 name = "build_e2e"

@@ -88,7 +88,7 @@ This audit classifies every crate in `crates/` against five labels:
 | vox-openclaw-runtime | CORE (optional) | 2 (orchestrator + runtime, mandatory) | OpenClaw / ARS runtime facade; used at runtime |
 | vox-audio-ingress | MISPLACED | 1 (self-referential via vox-oratio dep) | brings in vox-oratio; should be PLUGIN |
 | vox-browser | DEAD | 0 | browser abstraction; no consumer; MISPLACED into vox-plugin-browser |
-| vox-forge | CORE (optional) | 1 (vox-cli behind `coderabbit` feature) | GitHub/GitLab integration |
+| vox-forge | CORE (optional) | 1 (vox-cli behind `coderabbit` feature) | GitHub integration (GitLab deprecated 2026-06-03) |
 | vox-git | CORE (optional) | 1 (vox-cli behind `coderabbit` feature) | git integration |
 | vox-gamify | CORE (optional) | 0 direct / 1 optional | gamification; optional in vox-cli |
 | vox-code-audit | CORE (optional) | 1 optional | completion guard; optional |

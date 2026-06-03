@@ -14,6 +14,10 @@ on:
       - 'examples/golden-ts/**'
       - 'crates/vox-integration-tests/ts-noemit-scratch/**'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ts-noemit:
     runs-on: ubuntu-latest

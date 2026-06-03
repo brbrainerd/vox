@@ -28,6 +28,8 @@ vox-db = { workspace = true, optional = true }
 vox-telemetry = { workspace = true }
 reqwest = { workspace = true, features = ["stream"] }
 vox-http-client = { workspace = true }
+# Static-tier scraping (Scrape.* builtins): HTML parse + CSS select + readability text.
+scraper = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

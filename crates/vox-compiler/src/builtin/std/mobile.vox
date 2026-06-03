@@ -1,5 +1,5 @@
 /// Hardware and native mobile integration.
-/// Maps to Capacitor.Plugins on Vox Mobile.
+/// Maps to the `@vox/runtime` adapter on Vox Mobile — Tauri 2 plugins (`@tauri-apps/plugin-*`) on desktop, React Native + Expo on mobile.
 
 @mobile.native
 pub fn notify(title: str, body: str) -> Result[unit] { }
@@ -13,7 +13,7 @@ pub fn vibrate() -> Result[unit] { }
 @mobile.native
 pub fn take_photo() -> Result[str] { }
 
-/// On-device speech-to-text via native Sherpa-ONNX / Capacitor plugin (`VoxSherpaTranscribe`).
+/// On-device speech-to-text via the native `vox-tauri-stt` Tauri STT plugin (Sherpa-ONNX engine).
 /// Browser tier returns `Error` unless a compatible plugin is registered.
 @mobile.native
 pub fn transcribe_microphone() -> Result[str] { }

@@ -51,11 +51,22 @@ impl OrchestratorInboxItem {
     /// Construct an `OrchestratorInboxItem` from a [`WebhookEvent`].
     ///
     /// Routing rules (source → kind):
-    /// - `github` or `gitlab` + event_type `push` → `GitPush`
-    /// - `github` or `gitlab` + event_type `pull_request` / `merge_request` → `PullRequest`
+    /// - `github` + event_type `push` → `GitPush`
+    /// - `github` + event_type `pull_request` → `PullRequest`
     /// - `discord` or `slack` → `ChannelMessage`
     /// - anything else → `ExternalEvent`
+    ///
+    /// `gitlab` sources (`merge_request` / `tag_push`) are still routed for
+    /// backward compatibility but are **DEPRECATED (2026-06-03)**: GitLab is no
+    /// longer supported and the routing emits a runtime warning.
     pub fn from_webhook(event: WebhookEvent) -> Self {
+        if event.source.as_str() == "gitlab" {
+            tracing::warn!(
+                source = %event.source,
+                "received a GitLab webhook event; GitLab support is DEPRECATED (2026-06-03) \
+                 and no longer supported — this routing will be removed in a future release"
+            );
+        }
         let kind = match (event.source.as_ref(), event.event_type.as_ref()) {
             ("github" | "gitlab", "push" | "tag_push") => InboxItemKind::GitPush,
             ("github" | "gitlab", "pull_request" | "merge_request") => InboxItemKind::PullRequest,

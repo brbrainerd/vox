@@ -52,6 +52,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { "@": path.resolve(__dirname, "app") },
+    // Force a single React copy so imported external component libraries
+    // (MUI, Radix, etc.) and the app share one react/react-dom — duplicates
+    // cause React's "Invalid hook call" runtime error.
+    dedupe: ["react", "react-dom"],
   },
   build: {
     outDir: "dist",
@@ -101,7 +105,6 @@ export default defineConfig({
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router": "^7.0.0",
     "lucide-react": "^0.400.0"
   },
   "devDependencies": {
@@ -133,4 +136,31 @@ pub fn write_scaffold_if_missing(project_root: &Path, project_name: &str) -> std
         std::fs::write(path, content)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The emitted `vox-app.tsx` ships a dependency-free router, and
+    /// `web_entry.rs` asserts no react-router import. The scaffold's
+    /// `package.json` must therefore NOT pull in `react-router`.
+    #[test]
+    fn package_json_has_no_react_router() {
+        let files = web_config_files("vox-app");
+        let (_, pkg) = files
+            .iter()
+            .find(|(rel, _)| rel == "package.json")
+            .expect("package.json scaffold file present");
+        let json: serde_json::Value =
+            serde_json::from_str(pkg).expect("scaffold package.json must be valid JSON");
+        for section in ["dependencies", "devDependencies"] {
+            if let Some(deps) = json.get(section).and_then(|v| v.as_object()) {
+                assert!(
+                    !deps.contains_key("react-router"),
+                    "scaffold package.json `{section}` must not depend on react-router; emitted router is dependency-free"
+                );
+            }
+        }
+    }
 }

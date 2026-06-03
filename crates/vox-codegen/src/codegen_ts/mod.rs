@@ -11,6 +11,8 @@ pub mod builtin_registry;
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
+/// SSOT for external React/RN component libraries (CSS imports, providers, peers).
+pub mod external_libs;
 /// `@form` declaration → React form components in `forms.tsx` (Task C3).
 pub mod form_emit;
 /// `fragment` declaration → typed React function components in `fragments.tsx`
@@ -22,7 +24,7 @@ pub mod hir_emit;
 pub mod jsx;
 /// `package.json` skeleton for Library / client-target SDK folders.
 pub mod library_package_emit;
-/// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
+/// Mobile primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` via `@vox/runtime` adapter (Tasks D2-D4).
 pub mod mobile_emit;
 /// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
 /// external frontend interop plan).

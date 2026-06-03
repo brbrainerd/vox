@@ -2,7 +2,7 @@ use serde::Serialize;
 use serde_yaml::Value;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionHandlerKind {
     Cli,
@@ -240,7 +240,7 @@ pub fn build_action_manifest() -> Result<GuiActionManifest, String> {
             product_lane: op.and_then(|m| m.product_lane.clone()),
             platform: ActionPlatform {
                 desktop: true,
-                mobile: true,
+                mobile: false,
             },
             arguments: cmd.arguments,
         });
@@ -304,4 +304,35 @@ pub fn build_action_manifest() -> Result<GuiActionManifest, String> {
 #[tauri::command]
 pub fn get_action_manifest() -> Result<GuiActionManifest, String> {
     build_action_manifest()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_actions_are_not_advertised_on_mobile() {
+        let manifest = build_action_manifest()
+            .expect("build_action_manifest must succeed in the test environment");
+        for a in manifest
+            .actions
+            .iter()
+            .filter(|a| a.handler_kind == ActionHandlerKind::Cli)
+        {
+            assert!(
+                !a.platform.mobile,
+                "CLI action `{}` must not be advertised on mobile (sidecar-only)",
+                a.id
+            );
+        }
+        let cli_count = manifest
+            .actions
+            .iter()
+            .filter(|a| a.handler_kind == ActionHandlerKind::Cli)
+            .count();
+        assert!(
+            cli_count > 0,
+            "expected at least one CLI action in the manifest"
+        );
+    }
 }

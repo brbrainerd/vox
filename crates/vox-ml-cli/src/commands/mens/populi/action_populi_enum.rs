@@ -472,7 +472,7 @@ pub enum PopuliAction {
         /// CI mode: exit non-zero on issues
         #[arg(long, default_value = "false")]
         ci: bool,
-        /// Add review as PR comments (GitHub/GitLab)
+        /// Add review as PR comments (GitHub)
         #[arg(long, default_value = "false")]
         pr_comment: bool,
         /// Git base ref for diff-based review
