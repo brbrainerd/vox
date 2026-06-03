@@ -1,6 +1,6 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
-assertion_line: 552
+assertion_line: 558
 expression: dash.1
 ---
 import React, { useState } from "react";
@@ -8,8 +8,10 @@ import React, { useState } from "react";
 export function Dashboard(): React.ReactElement {
   const [n, set_n] = useState(0);
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col", "dash"].filter(Boolean).join(" ")}>
       {n}
+    </div>
     </div>
   );
 }

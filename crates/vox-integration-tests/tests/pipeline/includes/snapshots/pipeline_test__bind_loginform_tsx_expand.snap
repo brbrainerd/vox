@@ -8,6 +8,8 @@ import React, { useState } from "react";
 export function LoginForm(): React.ReactElement {
     const [email, set_email] = useState("");
   return (
+    <div className="px-4">
     <input className={"email-field"} onChange={(e) => set_email(e.target.value)} value={email} />
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 ---
 source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
-assertion_line: 611
+assertion_line: 627
 expression: chat_tsx.1
 ---
 import React, { useState } from "react";
@@ -12,6 +12,7 @@ export function Chat(): React.ReactElement {
     const [input, set_input] = useState("");
     const send = ((_e) => (set_messages(messages.append({ role: "user", text: input }))));
   return (
+    <div className="px-4">
     <div className={["flex", "flex-col", "chat_container"].filter(Boolean).join(" ")}>
       <div className={["flex", "flex-col", "messages"].filter(Boolean).join(" ")}>
         {messages.map((msg: any, _i: number) => (<div className={["flex", "flex-col", "message"].filter(Boolean).join(" ")}
@@ -19,12 +20,13 @@ export function Chat(): React.ReactElement {
       {msg.text}
     </div>))}
       </div>
-      <div className={["flex", "flex-row", "input_area"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "flex-wrap", "input_area"].filter(Boolean).join(" ")}>
         <input aria-label={"Chat message"} className={"chat_input"} onChange={(e) => set_input(e.target.value)} placeholder={"Type a message..."} value={input} />
         <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "send_btn"].filter(Boolean).join(" ")} onClick={send}>
           {"Send"}
         </button>
       </div>
+    </div>
     </div>
   );
 }
