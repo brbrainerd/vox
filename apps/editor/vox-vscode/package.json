@@ -410,7 +410,7 @@
     "esbuild": "^0.27.3",
     "eslint": "^10.1.0",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.5.0",
+    "typescript": "^6.0.3",
     "typescript-eslint": "^8.57.2"
   },
   "dependencies": {
