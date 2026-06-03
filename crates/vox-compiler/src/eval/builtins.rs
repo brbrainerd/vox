@@ -133,6 +133,62 @@ pub fn call_builtin_method(
     }
 
     match obj {
+        // ── compiled Regex (std.regex.compile) ────────────────────────
+        VoxValue::Regex(re) => match method {
+            "matches" | "is_match" => match args.first() {
+                Some(VoxValue::Str(s)) => Some(VoxValue::Bool(re.is_match(s))),
+                _ => Some(VoxValue::Bool(false)),
+            },
+            "find" => match args.first() {
+                Some(VoxValue::Str(s)) => Some(VoxValue::Option(re.captures(s).map(|caps| {
+                    let groups: Vec<core::option::Option<String>> = caps
+                        .iter()
+                        .map(|g| g.map(|m| m.as_str().to_string()))
+                        .collect();
+                    Box::new(VoxValue::Match(groups))
+                }))),
+                _ => Some(VoxValue::Option(None)),
+            },
+            "find_all" => match args.first() {
+                Some(VoxValue::Str(s)) => {
+                    let all: Vec<VoxValue> = re
+                        .captures_iter(s)
+                        .map(|caps| {
+                            let groups: Vec<core::option::Option<String>> = caps
+                                .iter()
+                                .map(|g| g.map(|m| m.as_str().to_string()))
+                                .collect();
+                            VoxValue::Match(groups)
+                        })
+                        .collect();
+                    Some(VoxValue::List(all))
+                }
+                _ => Some(VoxValue::List(vec![])),
+            },
+            _ => None,
+        },
+        // ── Regex Match (capture groups; group 0 = whole match) ───────
+        VoxValue::Match(groups) => match method {
+            "group" => {
+                let idx = match args.first() {
+                    Some(VoxValue::Int(i)) => *i as usize,
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                Some(VoxValue::Option(
+                    groups
+                        .get(idx)
+                        .and_then(|g| g.clone())
+                        .map(|s| Box::new(VoxValue::Str(s))),
+                ))
+            }
+            "groups" => Some(VoxValue::List(
+                groups
+                    .iter()
+                    .map(|g| VoxValue::Str(g.clone().unwrap_or_default()))
+                    .collect(),
+            )),
+            _ => None,
+        },
         // ── List ──────────────────────────────────────────────────────
         VoxValue::List(v) => match method {
             "len" => Some(VoxValue::Int(v.len() as i64)),
@@ -1650,6 +1706,64 @@ pub fn call_builtin_method(
                     }
                     _ => None,
                 },
+                Some("time") => match method {
+                    // std.time.now_ms() — wall-clock epoch milliseconds. Mirrors
+                    // the codegen `vox_now_ms` builtin so `std.time.now_ms`
+                    // resolves under `--mode interp` instead of erroring as an
+                    // unreachable namespace. Non-deterministic (the determinism
+                    // lint already flags it in workflow bodies).
+                    "now_ms" | "now" => {
+                        use std::time::{SystemTime, UNIX_EPOCH};
+                        Some(VoxValue::Int(
+                            SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .map(|d| d.as_millis() as i64)
+                                .unwrap_or(0),
+                        ))
+                    }
+                    _ => None,
+                },
+                Some("http") => match method {
+                    // Real blocking HTTP in the interpreter (Vox is a web-app
+                    // language). Mirrors the codegen path so std.http behaves the
+                    // same under --mode interp and --mode script.
+                    "get_text" => {
+                        let url = match args.first() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            _ => {
+                                return Some(VoxValue::Result(Err(
+                                    "std.http.get_text expects a url string".to_string(),
+                                )));
+                            }
+                        };
+                        Some(VoxValue::Result(
+                            http_blocking_get_text(&url).map(|s| Box::new(VoxValue::Str(s))),
+                        ))
+                    }
+                    "post_json" => {
+                        let mut it = args.iter();
+                        let url = match it.next() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            _ => {
+                                return Some(VoxValue::Result(Err(
+                                    "std.http.post_json expects (url, body) strings".to_string(),
+                                )));
+                            }
+                        };
+                        let body = match it.next() {
+                            Some(VoxValue::Str(s)) => s.clone(),
+                            _ => {
+                                return Some(VoxValue::Result(Err(
+                                    "std.http.post_json expects a json body string".to_string(),
+                                )));
+                            }
+                        };
+                        Some(VoxValue::Result(
+                            http_blocking_post_json(&url, &body).map(|s| Box::new(VoxValue::Str(s))),
+                        ))
+                    }
+                    _ => None,
+                },
                 Some("regex") => {
                     // regex.replace(haystack, pattern, replacement) -> str
                     // regex.is_match(haystack, pattern) -> bool
@@ -1764,8 +1878,8 @@ pub fn call_builtin_method(
                                 }
                             };
                             match regex::Regex::new(&pattern) {
-                                Ok(_) => {
-                                    Some(VoxValue::Result(Ok(Box::new(VoxValue::Str(pattern)))))
+                                Ok(re) => {
+                                    Some(VoxValue::Result(Ok(Box::new(VoxValue::Regex(re)))))
                                 }
                                 Err(e) => Some(VoxValue::Result(Err(e.to_string()))),
                             }
@@ -2122,6 +2236,9 @@ pub fn vox_value_type_name(v: &VoxValue) -> &'static str {
     match v {
         VoxValue::Int(_) => "Int",
         VoxValue::Float(_) => "Float",
+        VoxValue::Decimal(_) => "Decimal",
+        VoxValue::Regex(_) => "Regex",
+        VoxValue::Match(_) => "Match",
         VoxValue::Str(_) => "Str",
         VoxValue::Bool(_) => "Bool",
         VoxValue::List(_) => "List",
@@ -2175,6 +2292,51 @@ pub fn vox_value_display(v: &VoxValue) -> String {
             let items: Vec<String> = t.iter().map(vox_value_display).collect();
             format!("({})", items.join(", "))
         }
+        VoxValue::Decimal(d) => d.to_string(),
+        VoxValue::Regex(re) => re.as_str().to_string(),
         _ => format!("{v:?}"),
     }
+}
+
+/// Blocking HTTP GET for the `--mode interp` `std.http` tier. Runs on a dedicated
+/// OS thread: the interpreter executes inside the CLI's tokio runtime, and
+/// `reqwest::blocking` panics if constructed in an async runtime context. This
+/// mirrors the codegen path (`vox_actor_runtime::builtins::vox_http_get_text`),
+/// so `std.http.get_text` behaves the same under `--mode interp` and `--mode script`.
+fn http_blocking_get_text(url: &str) -> Result<String, String> {
+    let url = url.to_string();
+    std::thread::spawn(move || -> Result<String, String> {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent(concat!("vox-interp/", env!("CARGO_PKG_VERSION")))
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let resp = client.get(&url).send().map_err(|e| e.to_string())?;
+        resp.text().map_err(|e| e.to_string())
+    })
+    .join()
+    .map_err(|_| "std.http.get_text worker thread panicked".to_string())?
+}
+
+/// Blocking HTTP POST (JSON body) for the `--mode interp` `std.http` tier. See
+/// [`http_blocking_get_text`] for why this runs on a dedicated thread.
+fn http_blocking_post_json(url: &str, body: &str) -> Result<String, String> {
+    let url = url.to_string();
+    let body = body.to_string();
+    std::thread::spawn(move || -> Result<String, String> {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent(concat!("vox-interp/", env!("CARGO_PKG_VERSION")))
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let resp = client
+            .post(&url)
+            .header("content-type", "application/json")
+            .body(body)
+            .send()
+            .map_err(|e| e.to_string())?;
+        resp.text().map_err(|e| e.to_string())
+    })
+    .join()
+    .map_err(|_| "std.http.post_json worker thread panicked".to_string())?
 }

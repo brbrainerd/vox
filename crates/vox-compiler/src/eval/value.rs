@@ -4,6 +4,17 @@ use crate::hir::nodes::HirStmt;
 pub enum VoxValue {
     Int(i64),
     Float(f64),
+    /// Exact fixed-point decimal (`dec` literals), backed by `rust_decimal` so
+    /// interpreter arithmetic matches the Rust-codegen (`--mode script`) path:
+    /// `0.1dec + 0.2dec` is exactly `0.3dec`, not an IEEE-754 approximation.
+    Decimal(rust_decimal::Decimal),
+    /// A compiled regular expression (`std.regex.compile`). Holds the parsed
+    /// `regex::Regex` so `re.find/matches/find_all` run without recompiling,
+    /// matching the Rust-codegen `VoxRegex` path.
+    Regex(regex::Regex),
+    /// A regex match: capture groups by index (group 0 = whole match). A `None`
+    /// slot means that group did not participate. `m.group(i)` → `Option[str]`.
+    Match(Vec<core::option::Option<String>>),
     Str(String),
     Bool(bool),
     List(Vec<VoxValue>),
@@ -51,6 +62,11 @@ impl PartialEq for VoxValue {
         match (self, other) {
             (Self::Int(a), Self::Int(b)) => a == b,
             (Self::Float(a), Self::Float(b)) => a == b,
+            // rust_decimal's Eq compares numeric value regardless of trailing
+            // zeros, so `8.2500dec == 8.25dec` is true.
+            (Self::Decimal(a), Self::Decimal(b)) => a == b,
+            (Self::Regex(a), Self::Regex(b)) => a.as_str() == b.as_str(),
+            (Self::Match(a), Self::Match(b)) => a == b,
             (Self::Str(a), Self::Str(b)) => a == b,
             (Self::Bool(a), Self::Bool(b)) => a == b,
             (Self::List(a), Self::List(b)) => a == b,

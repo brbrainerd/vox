@@ -22,6 +22,32 @@ pub(crate) fn check_hir_match_exhaustiveness(
             return;
         }
         Ty::Named(name) => name.as_str(),
+        // Built-in sum types: Option (Some/None) and Result (Ok/Err|Error).
+        // These are Ty::Option/Ty::Result, never Ty::Named, so they previously
+        // fell through unchecked — a non-exhaustive match on the two most-matched
+        // types in the language compiled clean. (C2.)
+        Ty::Option(_) => {
+            check_builtin_match_exhaustiveness(
+                arms,
+                span,
+                diags,
+                source,
+                "Option",
+                &[&["Some"], &["None"]],
+            );
+            return;
+        }
+        Ty::Result(_) => {
+            check_builtin_match_exhaustiveness(
+                arms,
+                span,
+                diags,
+                source,
+                "Result",
+                &[&["Ok"], &["Err", "Error"]],
+            );
+            return;
+        }
         _ => return,
     };
 
@@ -136,6 +162,64 @@ fn check_bool_exhaustiveness(
             source,
         );
         d.missing_cases = missing;
+        d.code = Some("E0301".into());
+        diags.push(d);
+    }
+}
+
+/// Exhaustiveness for the built-in sum types Option and Result. `required` lists
+/// the variant slots; each inner slice holds the acceptable aliases for that slot
+/// (Result's error slot is satisfied by `Err` *or* `Error`). A wildcard, or a
+/// bare binding identifier that names no known variant (e.g. `other`), covers all
+/// remaining cases. Mirrors the ADT path's `E0301` diagnostic.
+fn check_builtin_match_exhaustiveness(
+    arms: &[HirMatchArm],
+    span: Span,
+    diags: &mut Vec<Diagnostic>,
+    source: &str,
+    type_name: &str,
+    required: &[&[&str]],
+) {
+    let mut has_wildcard = false;
+    let mut covered: Vec<String> = Vec::new();
+    for arm in arms {
+        match &arm.pattern {
+            HirPattern::Wildcard(_) => has_wildcard = true,
+            HirPattern::Ident(name, _) => {
+                if required.iter().any(|grp| grp.contains(&name.as_str())) {
+                    covered.push(name.clone());
+                } else {
+                    // A binding identifier matches anything (acts as a wildcard).
+                    has_wildcard = true;
+                }
+            }
+            HirPattern::Constructor(name, _, _) => covered.push(name.clone()),
+            HirPattern::Tuple(_, _) | HirPattern::Literal(_, _) => {}
+        }
+    }
+
+    if has_wildcard {
+        return;
+    }
+
+    let missing: Vec<String> = required
+        .iter()
+        .filter(|grp| !grp.iter().any(|alias| covered.iter().any(|c| c == alias)))
+        .map(|grp| grp[0].to_string())
+        .collect();
+
+    if !missing.is_empty() {
+        let mut d = Diagnostic::error(
+            format!(
+                "Non-exhaustive match on type '{}'. Missing variant(s): {}",
+                type_name,
+                missing.join(", ")
+            ),
+            span,
+            source,
+        );
+        d.missing_cases = missing;
+        d.ast_node_kind = Some("MatchExpr".to_string());
         d.code = Some("E0301".into());
         diags.push(d);
     }

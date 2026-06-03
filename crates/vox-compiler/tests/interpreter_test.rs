@@ -33,6 +33,145 @@ fn for_loop_with_index_binds_index_in_body() {
     );
 }
 
+/// B1 — exact decimal arithmetic in the interpreter. `0.1dec + 0.2dec is 0.3dec`
+/// must be exactly `true`. Under the old `DecimalLit -> f64` approximation this
+/// was silently `false` (0.1 + 0.2 != 0.3 in IEEE-754), so `decimal_math.vox`'s
+/// asserts held under `--mode script` but failed under `--mode interp`.
+#[test]
+fn decimal_arithmetic_is_exact_in_interp() {
+    let source = "
+    fn main() -> bool {
+        return 0.1dec + 0.2dec is 0.3dec
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Bool(true),
+        "0.1dec + 0.2dec is 0.3dec must be exactly true under --mode interp"
+    );
+}
+
+/// B2 — compiled-regex object idiom in the interpreter. `std.regex.compile`
+/// must return a real Regex value whose `.find()` yields a Match with `.group(i)`
+/// (the form `regex_stdlib.vox` teaches). Previously `compile` returned a bare
+/// string, so `re.find(...).group(1)` was unreachable under `--mode interp`.
+#[test]
+fn compiled_regex_find_group_in_interp() {
+    let source = r#"
+    fn main() -> Option {
+        let compiled = std.regex.compile("(?:mood|feeling).*?(\\d)")
+        return match compiled {
+            Ok(re) => match re.find("my mood is 7 today") {
+                Some(m) => m.group(1)
+                None => None
+            }
+            Error(_) => None
+        }
+    }
+    "#;
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    assert_eq!(
+        res,
+        vox_compiler::eval::value::VoxValue::Option(Some(Box::new(
+            vox_compiler::eval::value::VoxValue::Str("7".to_string())
+        ))),
+        "compiled regex re.find(...).group(1) should extract \"7\" under --mode interp"
+    );
+}
+
+/// B4 — `std.time.now_ms()` must resolve under `--mode interp`. It was declared
+/// in typeck + codegen but had no interpreter dispatch arm, so it errored as an
+/// unreachable namespace. We can't assert an exact value (it's wall-clock), but
+/// it must return a positive Int.
+#[test]
+fn std_time_now_ms_runs_in_interp() {
+    let source = "
+    fn main() -> int {
+        return std.time.now_ms()
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    match res {
+        vox_compiler::eval::value::VoxValue::Int(ms) => {
+            assert!(ms > 0, "std.time.now_ms() should be a positive epoch ms, got {ms}");
+        }
+        other => panic!("std.time.now_ms() should return Int, got {other:?}"),
+    }
+}
+
+/// B3 — `std.http` performs a REAL request under `--mode interp` (Vox is a
+/// web-app language). An empty URL makes reqwest fail to build the request, so
+/// the call returns `Result::Err` with a transport/URL error — NOT the old
+/// "use --mode script" stub. This exercises the real interp HTTP path without
+/// depending on external network availability.
+#[test]
+fn std_http_get_text_performs_real_request_in_interp() {
+    let source = "
+    fn main() -> Result {
+        return std.http.get_text(\"\")
+    }
+    ";
+
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::descent::parse(tokens).expect("Failed to parse");
+    let lowered = vox_compiler::hir::lower::lower_module(&module);
+
+    let mut interpreter = vox_compiler::eval::Interpreter::new(100_000);
+    interpreter
+        .run_module(&lowered)
+        .expect("Failed to run module");
+
+    let res = interpreter
+        .call("main", vec![])
+        .expect("Failed to call main");
+    match res {
+        vox_compiler::eval::value::VoxValue::Result(Err(msg)) => {
+            assert!(
+                !msg.contains("--mode script"),
+                "std.http should perform a real request in interp, not return a stub: {msg}"
+            );
+        }
+        other => panic!("std.http.get_text on an invalid URL should return Result::Err, got {other:?}"),
+    }
+}
+
 #[test]
 fn test_interpreter_basic() {
     let source = "

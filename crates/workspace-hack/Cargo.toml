@@ -29,6 +29,7 @@ bstr = { version = "1" }
 bumpalo = { version = "3", features = ["allocator-api2", "collections"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "wasm_simd"] }
 bytes = { version = "1", features = ["serde"] }
+camino = { version = "1", default-features = false, features = ["serde1"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
 clap_builder = { version = "4", default-features = false, features = ["color", "env", "help", "std", "suggestions", "usage"] }
@@ -44,7 +45,6 @@ deadpool = { version = "0.12", features = ["rt_tokio_1"] }
 deadpool-runtime = { version = "0.1", default-features = false, features = ["tokio_1"] }
 deranged = { version = "0.5", features = ["powerfmt", "serde"] }
 digest = { version = "0.10", features = ["mac", "std"] }
-ed25519-dalek = { version = "2", default-features = false, features = ["rand_core"] }
 either = { version = "1", features = ["use_std"] }
 fastrand = { version = "2" }
 flate2 = { version = "1", features = ["zlib-rs"] }
@@ -54,6 +54,7 @@ form_urlencoded = { version = "1" }
 futures = { version = "0.3" }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
+futures-io = { version = "0.3" }
 futures-sink = { version = "0.3" }
 futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
@@ -76,16 +77,19 @@ hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "http2", "server", "service"] }
 idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
-insta = { version = "1", features = ["json"] }
+insta = { version = "1", features = ["json", "yaml"] }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 jsonschema = { version = "0.26", default-features = false, features = ["resolve-file"] }
+libc = { version = "0.2" }
 lock_api = { version = "0.4", features = ["arc_lock"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2" }
 memmap2 = { version = "0.9", default-features = false, features = ["stable_deref_trait"] }
 miette = { version = "7", features = ["fancy"] }
 mime_guess = { version = "2" }
+minimal-lexical = { version = "0.2", default-features = false, features = ["std"] }
 miniz_oxide = { version = "0.8", features = ["simd"] }
+nom = { version = "7" }
 num-bigint = { version = "0.4", features = ["serde"] }
 num-complex = { version = "0.4", features = ["bytemuck"] }
 num-integer = { version = "0.1", features = ["i128"] }
@@ -126,6 +130,7 @@ stable_deref_trait = { version = "1" }
 subtle = { version = "2" }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 tauri-utils = { version = "2", default-features = false, features = ["build-2", "compression", "resources"] }
+textwrap = { version = "0.16", default-features = false, features = ["smawk", "unicode-linebreak", "unicode-width"] }
 thiserror = { version = "2" }
 time = { version = "0.3", features = ["macros", "serde-well-known"] }
 tokio = { version = "1", features = ["full", "test-util"] }
@@ -167,6 +172,7 @@ bstr = { version = "1" }
 bumpalo = { version = "3", features = ["allocator-api2", "collections"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "wasm_simd"] }
 bytes = { version = "1", features = ["serde"] }
+camino = { version = "1", default-features = false, features = ["serde1"] }
 cc = { version = "1", default-features = false, features = ["parallel"] }
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4", features = ["derive", "env"] }
@@ -183,7 +189,6 @@ deadpool = { version = "0.12", features = ["rt_tokio_1"] }
 deadpool-runtime = { version = "0.1", default-features = false, features = ["tokio_1"] }
 deranged = { version = "0.5", features = ["powerfmt", "serde"] }
 digest = { version = "0.10", features = ["mac", "std"] }
-ed25519-dalek = { version = "2", default-features = false, features = ["rand_core"] }
 either = { version = "1", features = ["use_std"] }
 fastrand = { version = "2" }
 flate2 = { version = "1", features = ["zlib-rs"] }
@@ -193,6 +198,7 @@ form_urlencoded = { version = "1" }
 futures = { version = "0.3" }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-core = { version = "0.3" }
+futures-io = { version = "0.3" }
 futures-sink = { version = "0.3" }
 futures-task = { version = "0.3", default-features = false, features = ["std"] }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
@@ -215,9 +221,10 @@ hyper = { version = "1", features = ["full"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "http2", "server", "service"] }
 idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
-insta = { version = "1", features = ["json"] }
+insta = { version = "1", features = ["json", "yaml"] }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
 jsonschema = { version = "0.26", default-features = false, features = ["resolve-file"] }
+libc = { version = "0.2" }
 lock_api = { version = "0.4", features = ["arc_lock"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
 maybe-async = { version = "0.2", features = ["is_sync"] }
@@ -225,7 +232,9 @@ memchr = { version = "2" }
 memmap2 = { version = "0.9", default-features = false, features = ["stable_deref_trait"] }
 miette = { version = "7", features = ["fancy"] }
 mime_guess = { version = "2" }
+minimal-lexical = { version = "0.2", default-features = false, features = ["std"] }
 miniz_oxide = { version = "0.8", features = ["simd"] }
+nom = { version = "7" }
 num-bigint = { version = "0.4", features = ["serde"] }
 num-complex = { version = "0.4", features = ["bytemuck"] }
 num-integer = { version = "0.1", features = ["i128"] }
@@ -267,6 +276,7 @@ subtle = { version = "2" }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 tauri-build = { version = "2" }
 tauri-utils = { version = "2", default-features = false, features = ["build-2", "compression", "resources"] }
+textwrap = { version = "0.16", default-features = false, features = ["smawk", "unicode-linebreak", "unicode-width"] }
 thiserror = { version = "2" }
 time = { version = "0.3", features = ["macros", "serde-well-known"] }
 time-macros = { version = "0.2", default-features = false, features = ["formatting", "parsing", "serde"] }
@@ -298,11 +308,10 @@ zstd-sys = { version = "2", default-features = false, features = ["experimental"
 bitflags = { version = "2", default-features = false, features = ["serde"] }
 crossbeam-epoch = { version = "0.9" }
 futures-executor = { version = "0.3" }
-futures-io = { version = "0.3" }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
-libc = { version = "0.2", features = ["extra_traits"] }
+libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 linux-raw-sys-5ef9efb8ec2df382 = { package = "linux-raw-sys", version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "io_uring", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 linux-raw-sys-9fbad63c4bcf4a8f = { package = "linux-raw-sys", version = "0.4", default-features = false, features = ["elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "xdp"] }
 object = { version = "0.37", default-features = false, features = ["read"] }
@@ -318,11 +327,10 @@ tracing = { version = "0.1" }
 bitflags = { version = "2", default-features = false, features = ["serde"] }
 crossbeam-epoch = { version = "0.9" }
 futures-executor = { version = "0.3" }
-futures-io = { version = "0.3" }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
-libc = { version = "0.2", features = ["extra_traits"] }
+libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 linux-raw-sys-5ef9efb8ec2df382 = { package = "linux-raw-sys", version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "io_uring", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 linux-raw-sys-9fbad63c4bcf4a8f = { package = "linux-raw-sys", version = "0.4", default-features = false, features = ["elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "xdp"] }
 object = { version = "0.37", default-features = false, features = ["read"] }
@@ -340,13 +348,13 @@ bitflags = { version = "2", default-features = false, features = ["serde"] }
 block2 = { version = "0.6" }
 core-foundation-sys = { version = "0.8" }
 crossbeam-epoch = { version = "0.9" }
+dispatch2 = { version = "0.3" }
 errno = { version = "0.3" }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 itertools-594e8ee84c453af0 = { package = "itertools", version = "0.13" }
-libc = { version = "0.2", features = ["extra_traits"] }
-nom = { version = "7" }
+libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 objc2 = { version = "0.6", features = ["disable-encoding-assertions", "exception"] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["CFArray", "CFAttributedString", "CFBase", "CFCGTypes", "CFCalendar", "CFCharacterSet", "CFData", "CFDate", "CFDictionary", "CFError", "CFFileSecurity", "CFLocale", "CFMachPort", "CFMessagePort", "CFNumber", "CFPlugInCOM", "CFRunLoop", "CFSet", "CFStream", "CFString", "CFURL", "CFUUID", "objc2", "std"] }
 objc2-foundation = { version = "0.3" }
@@ -364,13 +372,13 @@ bitflags = { version = "2", default-features = false, features = ["serde"] }
 block2 = { version = "0.6" }
 core-foundation-sys = { version = "0.8" }
 crossbeam-epoch = { version = "0.9" }
+dispatch2 = { version = "0.3" }
 errno = { version = "0.3" }
 hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "tls12", "webpki-tokio"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-proxy", "client-proxy-system"] }
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 itertools-594e8ee84c453af0 = { package = "itertools", version = "0.13" }
-libc = { version = "0.2", features = ["extra_traits"] }
-nom = { version = "7" }
+libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 objc2 = { version = "0.6", features = ["disable-encoding-assertions", "exception"] }
 objc2-core-foundation = { version = "0.3", default-features = false, features = ["CFArray", "CFAttributedString", "CFBase", "CFCGTypes", "CFCalendar", "CFCharacterSet", "CFData", "CFDate", "CFDictionary", "CFError", "CFFileSecurity", "CFLocale", "CFMachPort", "CFMessagePort", "CFNumber", "CFPlugInCOM", "CFRunLoop", "CFSet", "CFStream", "CFString", "CFURL", "CFUUID", "objc2", "std"] }
 objc2-foundation = { version = "0.3" }

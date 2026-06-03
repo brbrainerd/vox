@@ -80,8 +80,14 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
         // Exact decimal arithmetic is a future enhancement; for now the corpus
         // programs only use integer arithmetic or float literals.
         HirExpr::DecimalLit(s, _) => {
-            let f: f64 = s.parse().unwrap_or(0.0);
-            Ok(VoxValue::Float(f))
+            // Exact fixed-point decimal — mirrors the Rust codegen path
+            // (`rust_decimal::Decimal::from_str_exact`). Falls back to a lenient
+            // parse, then zero, so a malformed literal never panics the interp.
+            use std::str::FromStr;
+            let d = rust_decimal::Decimal::from_str_exact(s)
+                .or_else(|_| rust_decimal::Decimal::from_str(s))
+                .unwrap_or_default();
+            Ok(VoxValue::Decimal(d))
         }
         HirExpr::ObjectLit(fields, _) => {
             let mut obj = Vec::new();
@@ -194,6 +200,38 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirBinOp::Gte, VoxValue::Float(a), VoxValue::Float(b)) => {
                     Ok(VoxValue::Bool(a >= b))
                 }
+                // Exact decimal arithmetic (rust_decimal) — matches the Rust
+                // codegen path so `dec` programs run identically in interp.
+                (HirBinOp::Add, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Decimal(a + b))
+                }
+                (HirBinOp::Sub, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Decimal(a - b))
+                }
+                (HirBinOp::Mul, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Decimal(a * b))
+                }
+                (HirBinOp::Div, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    if b == rust_decimal::Decimal::ZERO {
+                        Err(EvalError::AssertionFailed(
+                            "decimal division by zero".to_string(),
+                        ))
+                    } else {
+                        Ok(VoxValue::Decimal(a / b))
+                    }
+                }
+                (HirBinOp::Lt, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a < b))
+                }
+                (HirBinOp::Gt, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a > b))
+                }
+                (HirBinOp::Lte, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a <= b))
+                }
+                (HirBinOp::Gte, VoxValue::Decimal(a), VoxValue::Decimal(b)) => {
+                    Ok(VoxValue::Bool(a >= b))
+                }
                 // Mixed Int + Float (or any other type pair the arms above
                 // didn't catch) used to silently return Null — a health
                 // foot-gun (audit doc §10.4 health-corrections section). An
@@ -213,6 +251,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 (HirUnOp::Not, VoxValue::Bool(b)) => Ok(VoxValue::Bool(!b)),
                 (HirUnOp::Neg, VoxValue::Int(n)) => Ok(VoxValue::Int(-n)),
                 (HirUnOp::Neg, VoxValue::Float(f)) => Ok(VoxValue::Float(-f)),
+                (HirUnOp::Neg, VoxValue::Decimal(d)) => Ok(VoxValue::Decimal(-d)),
                 (op, other) => Err(EvalError::AssertionFailed(format!(
                     "unsupported unary op `{op:?}` for operand {}",
                     crate::eval::builtins::vox_value_type_name(&other),
