@@ -141,7 +141,7 @@ component Solo() {
         .iter()
         .find(|(name, _)| name == "Solo.tsx")
         .map(|(_, c)| c.clone())
-        .unwrap_or_default();
+        .expect("Solo.tsx must be emitted");
     assert!(
         !solo.contains("import { Solo } from \"./Solo\""),
         "component must not self-import; got:\n{solo}"
