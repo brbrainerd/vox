@@ -621,10 +621,10 @@ fn try_emit_namespace_call(
     };
     let with_await = |s: String| -> String { if is_await { format!("{}.await", s) } else { s } };
 
-    // Shape 1: `Module.fn(args)` where Module is OpenClaw / Browser / fs.
+    // Shape 1: `Module.fn(args)` where Module is OpenClaw / Browser / Scrape / fs.
     if let HirExpr::Ident(module_name, _) = namespace_expr.as_ref() {
         let a: Vec<_> = args.iter().map(|arg| emit_owned(&arg.value)).collect();
-        if module_name == "OpenClaw" || module_name == "Browser" {
+        if module_name == "OpenClaw" || module_name == "Browser" || module_name == "Scrape" {
             if let Some(expr) = emit_openclaw_or_browser_registry_call(module_name, fn_name, &a) {
                 return Some(expr);
             }
@@ -908,5 +908,54 @@ fn is_builtin_arg_borrowed(namespace: &str, fn_name: &str, arg_index: usize) -> 
         ("http", "get" | "post" | "put" | "delete", 0) => true,
         ("std", "print" | "println", _) => true,
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod scrape_emit_tests {
+    use super::emit_openclaw_or_browser_registry_call;
+
+    #[test]
+    fn scrape_lowers_to_runtime_symbol_without_wasm_guard() {
+        let out = emit_openclaw_or_browser_registry_call("Scrape", "fetch", &["url".to_string()])
+            .expect("Scrape.fetch should be in the builtin registry");
+        assert!(
+            out.contains("vox_actor_runtime::builtins::vox_scrape_fetch((url).as_str())"),
+            "unexpected emit: {out}"
+        );
+        // Static scraping is pure-Rust — it must NOT carry the Browser wasm32 guard.
+        assert!(
+            !out.contains("wasm32"),
+            "Scrape.* must not be wasm-guarded: {out}"
+        );
+        assert!(out.contains("Ok(v) => Ok(v)") && out.contains("Err(m) => Error(m)"));
+    }
+
+    #[test]
+    fn scrape_select_attr_lowers_three_args() {
+        let out = emit_openclaw_or_browser_registry_call(
+            "Scrape",
+            "select_attr",
+            &["h".to_string(), "a".to_string(), "href".to_string()],
+        )
+        .expect("Scrape.select_attr in registry");
+        assert!(
+            out.contains("vox_scrape_select_attr((h).as_str(), (a).as_str(), (href).as_str())"),
+            "unexpected emit: {out}"
+        );
+    }
+
+    #[test]
+    fn browser_still_wasm_guarded() {
+        let out = emit_openclaw_or_browser_registry_call(
+            "Browser",
+            "text",
+            &["p".to_string(), "s".to_string()],
+        )
+        .expect("Browser.text in registry");
+        assert!(
+            out.contains("wasm32"),
+            "Browser.* must keep the wasm guard: {out}"
+        );
     }
 }

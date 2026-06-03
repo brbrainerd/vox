@@ -252,6 +252,44 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             arg_kinds: &[],
             returns_unit: false,
         },
+        // Static scraping (no browser): fetch + parse + CSS-select. Pure-Rust;
+        // network builtins are not wasm-guarded here (they reuse the http path).
+        BuiltinRegistryEntry {
+            namespace: "Scrape",
+            name: "fetch",
+            arg_count: 1,
+            signature: "fn(str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_scrape_fetch"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "Scrape",
+            name: "fetch_html",
+            arg_count: 1,
+            signature: "fn(str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_scrape_fetch_html"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "Scrape",
+            name: "select",
+            arg_count: 2,
+            signature: "fn(str, str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_scrape_select"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "Scrape",
+            name: "select_attr",
+            arg_count: 3,
+            signature: "fn(str, str, str) -> Result[str]",
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_scrape_select_attr"),
+            arg_kinds: &[],
+            returns_unit: false,
+        },
         BuiltinRegistryEntry {
             namespace: "std.mobile",
             name: "notify",
@@ -1022,6 +1060,32 @@ mod browser_registry_tests {
                 "unexpected symbol for Browser.{}: {sym}",
                 e.name
             );
+        }
+    }
+
+    #[test]
+    fn scrape_builtins_map_to_vox_runtime() {
+        let scrape: Vec<_> = builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "Scrape")
+            .collect();
+        assert_eq!(
+            scrape.len(),
+            4,
+            "Scrape registry size drift (update typeck builtins.rs + runtime if intentional)"
+        );
+        for e in scrape {
+            let sym = e
+                .runtime_symbol
+                .unwrap_or_else(|| panic!("Scrape.{} missing runtime_symbol", e.name));
+            assert!(
+                sym.starts_with("vox_actor_runtime::builtins::vox_scrape_"),
+                "unexpected symbol for Scrape.{}: {sym}",
+                e.name
+            );
+            // All Scrape fns return Result[str].
+            assert!(!e.returns_unit, "Scrape.{} must return Result[str]", e.name);
         }
     }
 }
