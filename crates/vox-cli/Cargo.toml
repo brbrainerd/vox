@@ -32,7 +32,6 @@ default = ["keyring-store"]
 # OS credential store for `vox login` / `vox auth connect` vault persistence.
 # Disable on headless CI builds where no keyring daemon is available.
 keyring-store = ["dep:keyring"]
-ai-fixtures-v1 = []
 # Fast fuzzy ranking for command catalog, MCP tool picker, dashboard palette.
 # Uses nucleo-matcher (same scorer as Helix/Zed). Adds ~300KB to binary.
 fuzzy-search = ["dep:nucleo"]
