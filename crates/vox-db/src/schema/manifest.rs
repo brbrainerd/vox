@@ -8,7 +8,7 @@ use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-pub const BASELINE_VERSION: i64 = 69; // +2: agent_runs + hitl_approvals tables (execution domain: agent-run + HITL approval audit log)
+pub const BASELINE_VERSION: i64 = 70; // +1: agent_telemetry_flat.pipeline_phase column (Scientia cost-category split: extraction/critic/novelty/scholarly)
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]

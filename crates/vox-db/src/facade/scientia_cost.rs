@@ -13,19 +13,27 @@
 //!   observed blended rate).  Used by orchestrator for *budget forecasting*, not
 //!   actuals.  We do NOT use it here because it does not hold per-run totals.
 //!
-//! # What we CANNOT source yet
+//! # Per-phase cost split
 //!
-//! The schema does not tag individual telemetry rows with a Scientia pipeline
-//! phase (extraction / critic / novelty-retrieval / scholarly-submission).
-//! Therefore `extraction_usd`, `critic_usd`, `novelty_retrieval_usd`, and
-//! `scholarly_submission_usd` are all set to **0.0** in this implementation.
-//! They will be populated once `agent_telemetry_flat` gains a `pipeline_phase`
-//! column (tracked in the Phase 0d roadmap).
+//! `agent_telemetry_flat` now carries a nullable `pipeline_phase` column
+//! (baseline v70). Cost rows written via
+//! [`VoxDb::insert_scientia_cost_telemetry`](crate::VoxDb::insert_scientia_cost_telemetry)
+//! tag the phase (`'extraction'` | `'critic'` | `'novelty'` | `'scholarly'`);
+//! [`scientia_cost_by_phase`](VoxDb::scientia_cost_by_phase) groups by it so the
+//! four category lines in `vox scientia cost` reflect real, attributed spend.
+//!
+//! Honesty note: a phase only shows non-zero cost once its call sites actually
+//! write phase-tagged rows. As of this change the **extraction** phase is wired
+//! at the `vox scientia publication-extract-claims` handler; `critic`,
+//! `novelty`, and `scholarly` legitimately stay 0.0 until their LLM/cost sites
+//! emit phase-tagged rows. The mechanism is real for all four — only the
+//! emit-side wiring differs.
 //!
 //! # What this implementation *does* provide
 //!
 //! * `by_provider` — real per-provider cost totals for the current calendar
 //!   quarter sourced from `agent_telemetry_flat` `cost` rows.
+//! * `by_phase` — real per-phase cost totals (GROUP BY `pipeline_phase`).
 //! * `findings_published_this_quarter` — count of publication manifests whose
 //!   `state = 'published'` and `updated_at_ms` falls in the current quarter.
 
@@ -36,6 +44,14 @@ use turso::params;
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProviderCostRow {
     pub provider: String,
+    pub total_usd: f64,
+}
+
+/// Raw per-pipeline-phase cost row returned from the DB.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PhaseCostRow {
+    /// Scientia pipeline phase: `'extraction'` | `'critic'` | `'novelty'` | `'scholarly'`.
+    pub phase: String,
     pub total_usd: f64,
 }
 
@@ -77,6 +93,81 @@ impl VoxDb {
         Ok(out)
     }
 
+    /// Whether `table` currently has `column` (via `PRAGMA table_info`). Used to
+    /// stay compatible with DBs created before an additive column landed.
+    async fn scientia_table_has_column(
+        &self,
+        table: &str,
+        column: &str,
+    ) -> Result<bool, StoreError> {
+        // `table` is a fixed internal literal at all call sites (no user input).
+        let mut rows = self
+            .conn
+            .query(&format!("PRAGMA table_info({table})"), ())
+            .await
+            .map_err(|e| StoreError::Db(e.to_string()))?;
+        while let Some(row) = rows
+            .next()
+            .await
+            .map_err(|e| StoreError::Db(e.to_string()))?
+        {
+            // PRAGMA table_info columns: cid, name, type, notnull, dflt_value, pk.
+            let name: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            if name == column {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Fetch per-pipeline-phase cost totals from `agent_telemetry_flat` for the
+    /// window `[start_ms, end_ms)`. Only `event_kind = 'cost'` rows with a
+    /// non-NULL `pipeline_phase` are included (rows tagged by
+    /// [`insert_scientia_cost_telemetry`](Self::insert_scientia_cost_telemetry)).
+    pub async fn scientia_cost_by_phase(
+        &self,
+        start_ms: i64,
+        end_ms: i64,
+    ) -> Result<Vec<PhaseCostRow>, StoreError> {
+        // Tolerate DBs that predate the `pipeline_phase` column (baseline v70).
+        // The column is added to fresh DBs by the baseline and to existing DBs by
+        // `AutoMigrator` (`vox db` migrate); until then there are simply no
+        // phase-tagged rows, so report none rather than failing the whole rollup.
+        if !self
+            .scientia_table_has_column("agent_telemetry_flat", "pipeline_phase")
+            .await?
+        {
+            return Ok(Vec::new());
+        }
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT pipeline_phase, SUM(COALESCE(cost_usd, 0.0)) AS total_usd \
+                 FROM agent_telemetry_flat \
+                 WHERE event_kind = 'cost' \
+                   AND recorded_at_ms >= ?1 \
+                   AND recorded_at_ms < ?2 \
+                   AND pipeline_phase IS NOT NULL \
+                 GROUP BY pipeline_phase \
+                 ORDER BY total_usd DESC",
+                params![start_ms, end_ms],
+            )
+            .await
+            .map_err(|e| StoreError::Db(e.to_string()))?;
+
+        let mut out = Vec::new();
+        while let Some(row) = rows
+            .next()
+            .await
+            .map_err(|e| StoreError::Db(e.to_string()))?
+        {
+            let phase: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let total_usd: f64 = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push(PhaseCostRow { phase, total_usd });
+        }
+        Ok(out)
+    }
+
     /// Count publication manifests with `state = 'published'` whose
     /// `updated_at_ms` falls in `[quarter_start_ms, quarter_end_ms)`.
     pub async fn scientia_published_findings_count(
@@ -110,25 +201,30 @@ impl VoxDb {
 
     /// Assemble the raw cost data for the current calendar quarter.
     ///
-    /// Returns `(by_provider, findings_count)` where:
+    /// Returns `(by_provider, by_phase, findings_count)` where:
     /// * `by_provider` — per-provider `(name, total_usd)` pairs sourced from
     ///   `agent_telemetry_flat` `cost` rows.
+    /// * `by_phase` — per-pipeline-phase totals (only phases with tagged rows).
     /// * `findings_count` — count of `publication_manifests` with
     ///   `state='published'` whose `updated_at_ms` is in the quarter window.
     ///
-    /// The caller (the CLI handler) assembles these into a `CostInputs` and
-    /// sets the four category lines to 0.0 (see module doc for the reason).
+    /// The caller (the CLI handler) maps `phase_rows` onto the four category
+    /// lines of `CostInputs` (see [`PhaseCostRow`]); uninstrumented phases are
+    /// simply absent from the result and stay 0.0.
     pub async fn scientia_cost_raw_this_quarter(
         &self,
-    ) -> Result<(Vec<ProviderCostRow>, u64), StoreError> {
+    ) -> Result<(Vec<ProviderCostRow>, Vec<PhaseCostRow>, u64), StoreError> {
         let (quarter_start_ms, quarter_end_ms) = current_quarter_window_ms();
         let provider_rows = self
             .scientia_cost_by_provider(quarter_start_ms, quarter_end_ms)
             .await?;
+        let phase_rows = self
+            .scientia_cost_by_phase(quarter_start_ms, quarter_end_ms)
+            .await?;
         let findings = self
             .scientia_published_findings_count(quarter_start_ms, quarter_end_ms)
             .await?;
-        Ok((provider_rows, findings))
+        Ok((provider_rows, phase_rows, findings))
     }
 }
 

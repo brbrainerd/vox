@@ -308,6 +308,46 @@ pub async fn publication_extract_claims(publication_id: &str) -> Result<()> {
         extracted_at_ms: chrono::Utc::now().timestamp_millis(),
     };
 
+    // ── Cost-category instrumentation (extraction phase) ──────────────────
+    // Emit a phase-tagged ('extraction') cost row into agent_telemetry_flat so
+    // `vox scientia cost` attributes extraction spend to its category line.
+    //
+    // HONESTY: the extraction/MiniCheck pipeline does not currently surface a
+    // per-call dollar cost — the mock backend is free and the HTTP MiniCheck
+    // verifier returns only support scores (`VerifierOutput` carries no token
+    // counts or $). So the recorded `cost_usd` is 0.0 today. This row is NOT a
+    // fabrication: the *mechanism* (a real, phase-tagged, queryable row) is
+    // wired end-to-end, and it will carry true spend the moment the verifier
+    // begins reporting cost (thread it into `cost_usd` below). Provider/model
+    // are tagged so the row is attributable. The other three phases (critic /
+    // novelty / scholarly) emit no such row yet and stay 0.0 by construction.
+    let extraction_cost_usd = 0.0_f64;
+    if let Err(e) = db
+        .insert_scientia_cost_telemetry(
+            "scientia-extractor",
+            &publication_id.to_string(),
+            "vox-scientia",
+            "extraction",
+            None,
+            Some(&summary.verifier_model),
+            None,
+            None,
+            extraction_cost_usd,
+            Some(
+                &serde_json::json!({
+                    "publication_id": publication_id,
+                    "total_atomic": total_atomic,
+                    "cost_basis": "verifier reports no per-call $ today; 0.0 until instrumented",
+                })
+                .to_string(),
+            ),
+        )
+        .await
+    {
+        // Telemetry is best-effort; never fail extraction on a recording miss.
+        eprintln!("warning: failed to record extraction cost telemetry: {e}");
+    }
+
     let merged_metadata =
         merge_extracted_claims_into_metadata(manifest_row.metadata_json.as_deref(), &summary)?;
 
@@ -469,19 +509,23 @@ pub async fn scientia_dashboard() -> Result<()> {
 /// * `findings_published_this_quarter` — count of `publication_manifests`
 ///   with `state = 'published'` in the quarter window.
 ///
-/// # Honest zeros
+/// # Per-phase category lines
 ///
 /// `extraction_usd`, `critic_usd`, `novelty_retrieval_usd`, and
-/// `scholarly_submission_usd` are all **0.0** because `agent_telemetry_flat`
-/// has no `pipeline_phase` column yet.  They will be populated once that
-/// column is added (Phase 0d roadmap).  An empty DB yields an all-zeros
+/// `scholarly_submission_usd` are sourced from `agent_telemetry_flat`
+/// `cost` rows grouped by the `pipeline_phase` column (baseline v70) — see
+/// [`apply_phase_costs`]. A phase shows non-zero only once its call sites emit
+/// phase-tagged cost rows via `VoxDb::insert_scientia_cost_telemetry`. As of
+/// this change the **extraction** phase is wired (at
+/// `publication-extract-claims`); the other three legitimately stay 0.0 until
+/// their LLM/cost sites are instrumented. An empty DB yields an all-zeros
 /// rollup — that is correct and expected.
 pub async fn scientia_cost() -> Result<()> {
     use vox_scientia::dashboard::cost::{CostInputs, build_cost_rollup};
     let db = vox_db::VoxDb::connect_default()
         .await
         .context("connect to default Codex / VoxDb")?;
-    let (provider_rows, findings) = db
+    let (provider_rows, phase_rows, findings) = db
         .scientia_cost_raw_this_quarter()
         .await
         .context("query scientia cost data")?;
@@ -489,9 +533,7 @@ pub async fn scientia_cost() -> Result<()> {
         .into_iter()
         .map(|r| (r.provider, r.total_usd))
         .collect();
-    let inputs = CostInputs {
-        // Phase-category breakdown not yet available in the schema.
-        // Tracked for a future `agent_telemetry_flat.pipeline_phase` column.
+    let mut inputs = CostInputs {
         extraction_usd: 0.0,
         critic_usd: 0.0,
         novelty_retrieval_usd: 0.0,
@@ -499,9 +541,34 @@ pub async fn scientia_cost() -> Result<()> {
         by_provider,
         findings_published_this_quarter: findings,
     };
+    apply_phase_costs(
+        &mut inputs,
+        phase_rows.iter().map(|r| (r.phase.as_str(), r.total_usd)),
+    );
     let rollup = build_cost_rollup(&inputs);
     println!("{}", serde_json::to_string_pretty(&rollup)?);
     Ok(())
+}
+
+/// Map `(pipeline_phase, usd)` rows onto the four `CostInputs` category fields.
+///
+/// Phase string → field: `"extraction"`→`extraction_usd`, `"critic"`→
+/// `critic_usd`, `"novelty"`→`novelty_retrieval_usd`, `"scholarly"`→
+/// `scholarly_submission_usd`. Unknown phase strings are ignored (forward-compat
+/// for new phases). Pure (no IO) so the mapping is unit-testable without a DB.
+fn apply_phase_costs<'a>(
+    inputs: &mut vox_scientia::dashboard::cost::CostInputs,
+    phases: impl IntoIterator<Item = (&'a str, f64)>,
+) {
+    for (phase, usd) in phases {
+        match phase {
+            "extraction" => inputs.extraction_usd += usd,
+            "critic" => inputs.critic_usd += usd,
+            "novelty" => inputs.novelty_retrieval_usd += usd,
+            "scholarly" => inputs.scholarly_submission_usd += usd,
+            _ => { /* unknown phase: ignore (forward-compat) */ }
+        }
+    }
 }
 
 /// Merge an `ExtractedClaimsSummary` into the manifest's existing
@@ -706,6 +773,50 @@ mod tests {
             verdict_to_row(&ClaimVerdict::Abstain { reason: "x".into() }),
             ("Abstain", 0.0)
         );
+    }
+
+    #[test]
+    fn apply_phase_costs_maps_phase_strings_to_fields() {
+        use vox_scientia::dashboard::cost::CostInputs;
+        let mut inputs = CostInputs {
+            extraction_usd: 0.0,
+            critic_usd: 0.0,
+            novelty_retrieval_usd: 0.0,
+            scholarly_submission_usd: 0.0,
+            by_provider: vec![],
+            findings_published_this_quarter: 0,
+        };
+        apply_phase_costs(
+            &mut inputs,
+            vec![
+                ("extraction", 1.5),
+                ("critic", 0.25),
+                ("novelty", 0.75),
+                ("scholarly", 2.0),
+                ("unknown_future_phase", 99.0), // ignored
+                ("extraction", 0.5),            // accumulates
+            ],
+        );
+        assert_eq!(inputs.extraction_usd, 2.0);
+        assert_eq!(inputs.critic_usd, 0.25);
+        assert_eq!(inputs.novelty_retrieval_usd, 0.75);
+        assert_eq!(inputs.scholarly_submission_usd, 2.0);
+    }
+
+    #[test]
+    fn apply_phase_costs_empty_leaves_all_zero() {
+        use vox_scientia::dashboard::cost::CostInputs;
+        let mut inputs = CostInputs {
+            extraction_usd: 0.0,
+            critic_usd: 0.0,
+            novelty_retrieval_usd: 0.0,
+            scholarly_submission_usd: 0.0,
+            by_provider: vec![],
+            findings_published_this_quarter: 0,
+        };
+        apply_phase_costs(&mut inputs, std::iter::empty());
+        assert_eq!(inputs.extraction_usd, 0.0);
+        assert_eq!(inputs.scholarly_submission_usd, 0.0);
     }
 
     #[test]
