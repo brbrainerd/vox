@@ -1250,11 +1250,9 @@ pub fn call_builtin_method(
                             Some(VoxValue::Str(s)) => s,
                             _ => return Some(VoxValue::Option(None)),
                         };
-                        Some(VoxValue::Option(
-                            std::path::Path::new(&p)
-                                .parent()
-                                .map(|s| Box::new(VoxValue::Str(s.to_string_lossy().to_string()))),
-                        ))
+                        Some(VoxValue::Option(std::path::Path::new(&p).parent().map(
+                            |s| Box::new(VoxValue::Str(s.to_string_lossy().to_string())),
+                        )))
                     }
                     "file_name" => {
                         let p = match args.into_iter().next() {
@@ -1333,9 +1331,9 @@ pub fn call_builtin_method(
                             _ => return Some(VoxValue::Null),
                         };
                         let res = match std::fs::canonicalize(&p) {
-                            Ok(abs) => Ok(Box::new(VoxValue::Str(
-                                abs.to_string_lossy().to_string(),
-                            ))),
+                            Ok(abs) => {
+                                Ok(Box::new(VoxValue::Str(abs.to_string_lossy().to_string())))
+                            }
                             Err(e) => Err(e.to_string()),
                         };
                         Some(VoxValue::Result(res))
@@ -1645,7 +1643,13 @@ pub fn call_builtin_method(
                         let cmd_args = match it.next() {
                             Some(VoxValue::List(ls)) => ls
                                 .into_iter()
-                                .filter_map(|v| if let VoxValue::Str(s) = v { Some(s) } else { None })
+                                .filter_map(|v| {
+                                    if let VoxValue::Str(s) = v {
+                                        Some(s)
+                                    } else {
+                                        None
+                                    }
+                                })
                                 .collect::<Vec<_>>(),
                             _ => vec![],
                         };
@@ -1886,7 +1890,9 @@ pub fn call_builtin_method(
                             let obj = v
                                 .as_object()
                                 .ok_or_else(|| "JSON root must be an object".to_string())?;
-                            let val = obj.get(&key).ok_or_else(|| format!("missing key {key:?}"))?;
+                            let val = obj
+                                .get(&key)
+                                .ok_or_else(|| format!("missing key {key:?}"))?;
                             val.as_str()
                                 .map(str::to_string)
                                 .ok_or_else(|| format!("key {key:?} is not a string"))
@@ -1912,7 +1918,9 @@ pub fn call_builtin_method(
                             let obj = v
                                 .as_object()
                                 .ok_or_else(|| "JSON root must be an object".to_string())?;
-                            let val = obj.get(&key).ok_or_else(|| format!("missing key {key:?}"))?;
+                            let val = obj
+                                .get(&key)
+                                .ok_or_else(|| format!("missing key {key:?}"))?;
                             val.as_f64()
                                 .or_else(|| val.as_i64().map(|i| i as f64))
                                 .ok_or_else(|| format!("key {key:?} is not a number"))
@@ -2567,12 +2575,21 @@ mod time_namespace_interp_tests {
             fields: vec![VoxValue::Str(r"(\d+)-(\d+)".to_string())],
         };
         assert_eq!(
-            call_builtin_method(&re, "matches", vec![VoxValue::Str("12-34".to_string())], None),
+            call_builtin_method(
+                &re,
+                "matches",
+                vec![VoxValue::Str("12-34".to_string())],
+                None
+            ),
             Some(VoxValue::Bool(true))
         );
         // find → Some(Match); Match.group(1) == "12".
-        let found =
-            call_builtin_method(&re, "find", vec![VoxValue::Str("x 12-34".to_string())], None);
+        let found = call_builtin_method(
+            &re,
+            "find",
+            vec![VoxValue::Str("x 12-34".to_string())],
+            None,
+        );
         let m = match found {
             Some(VoxValue::Option(Some(boxed))) => *boxed,
             other => panic!("regex.find did not return Some(Match): {other:?}"),
@@ -2580,7 +2597,9 @@ mod time_namespace_interp_tests {
         let g1 = call_builtin_method(&m, "group", vec![VoxValue::Int(1)], None);
         assert_eq!(
             g1,
-            Some(VoxValue::Option(Some(Box::new(VoxValue::Str("12".to_string())))))
+            Some(VoxValue::Option(Some(Box::new(VoxValue::Str(
+                "12".to_string()
+            )))))
         );
         // find_all → 2 matches.
         let all = call_builtin_method(

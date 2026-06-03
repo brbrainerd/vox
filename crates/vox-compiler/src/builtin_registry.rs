@@ -1176,7 +1176,9 @@ pub const NAMESPACE_BUILTINS: &[(&str, &str, usize, u8)] = &[
 /// (i.e. its full method set is declared there). Used by the typecheck gate.
 #[must_use]
 pub fn namespace_builtin_owned(namespace: &str) -> bool {
-    NAMESPACE_BUILTINS.iter().any(|(ns, _, _, _)| *ns == namespace)
+    NAMESPACE_BUILTINS
+        .iter()
+        .any(|(ns, _, _, _)| *ns == namespace)
 }
 
 /// True if `(namespace, method)` is listed in [`NAMESPACE_BUILTINS`].
@@ -1340,7 +1342,11 @@ mod namespace_builtin_parity_tests {
         let obj_k1 = VoxValue::Object(vec![("k".to_string(), VoxValue::Int(1))]);
         let probes: Vec<(&str, &str, Vec<VoxValue>)> = vec![
             ("path", "join", vec![s("a"), s("b")]),
-            ("path", "join_many", vec![VoxValue::List(vec![s("a"), s("b")])]),
+            (
+                "path",
+                "join_many",
+                vec![VoxValue::List(vec![s("a"), s("b")])],
+            ),
             ("path", "basename", vec![s("a/b.txt")]),
             ("path", "dirname", vec![s("a/b")]),
             ("path", "extension", vec![s("a.txt")]),
@@ -1361,7 +1367,11 @@ mod namespace_builtin_parity_tests {
             ("json", "quote", vec![s("a")]),
             ("csv", "parse", vec![s("a,b\n1,2")]),
             ("csv", "parse_records", vec![s("a,b\n1,2")]),
-            ("csv", "render", vec![VoxValue::List(vec![VoxValue::List(vec![s("a"), s("b")])])]),
+            (
+                "csv",
+                "render",
+                vec![VoxValue::List(vec![VoxValue::List(vec![s("a"), s("b")])])],
+            ),
             ("toml", "parse", vec![s("k = 1")]),
             ("toml", "render", vec![obj_k1.clone()]),
             ("yaml", "parse", vec![s("k: 1")]),
@@ -1438,8 +1448,16 @@ mod namespace_builtin_parity_tests {
             ("fs", "read_file", vec![s(&file_s)]),
             ("fs", "read_to_string", vec![s(&file_s)]),
             ("fs", "read_bytes", vec![s(&file_s)]),
-            ("fs", "write", vec![s(&tmp.join("w.txt").to_string_lossy()), s("x")]),
-            ("fs", "write_file", vec![s(&tmp.join("w2.txt").to_string_lossy()), s("x")]),
+            (
+                "fs",
+                "write",
+                vec![s(&tmp.join("w.txt").to_string_lossy()), s("x")],
+            ),
+            (
+                "fs",
+                "write_file",
+                vec![s(&tmp.join("w2.txt").to_string_lossy()), s("x")],
+            ),
             ("fs", "exists", vec![s(&file_s)]),
             ("fs", "is_file", vec![s(&file_s)]),
             ("fs", "is_dir", vec![s(&dir_s)]),
@@ -1450,16 +1468,32 @@ mod namespace_builtin_parity_tests {
             ("fs", "stat", vec![s(&file_s)]),
             ("fs", "walk", vec![s(&dir_s)]),
             ("fs", "list_recursive", vec![s(&dir_s)]),
-            ("fs", "copy", vec![s(&file_s), s(&tmp.join("c.txt").to_string_lossy())]),
+            (
+                "fs",
+                "copy",
+                vec![s(&file_s), s(&tmp.join("c.txt").to_string_lossy())],
+            ),
             ("fs", "mkdir", vec![s(&tmp.join("sub").to_string_lossy())]),
             ("fs", "cwd", vec![]),
             ("process", "which", vec![s("rustc")]),
             ("process", "run", vec![s("rustc"), args_list()]),
-            ("process", "run_ex", vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])]),
+            (
+                "process",
+                "run_ex",
+                vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])],
+            ),
             ("process", "run_capture", vec![s("rustc"), args_list()]),
-            ("process", "run_capture_ex", vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])]),
+            (
+                "process",
+                "run_capture_ex",
+                vec![s("rustc"), args_list(), s("."), VoxValue::List(vec![])],
+            ),
             ("process", "run_capture_json", vec![s("rustc"), args_list()]),
-            ("process", "run_capture_lines", vec![s("rustc"), args_list()]),
+            (
+                "process",
+                "run_capture_lines",
+                vec![s("rustc"), args_list()],
+            ),
         ];
 
         let mut mismatches = Vec::new();
