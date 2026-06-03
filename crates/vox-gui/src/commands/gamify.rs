@@ -182,6 +182,125 @@ pub async fn set_gamify_settings(enabled: bool, mode: String) -> Result<(), Stri
     Ok(())
 }
 
+// ── Leaderboard / companions / quests surfaces (F3) ──────────────────────────
+
+#[derive(Debug, serde::Serialize)]
+pub struct LeaderboardEntryDto {
+    pub rank: u32,
+    pub user_id: String,
+    pub level: u64,
+    pub score: i64,
+}
+
+/// Top players by XP. Mirrors `vox ludus leaderboard` (the CLI's
+/// `leaderboard_show`) over `vox_gamify::db::leaderboard`.
+#[tauri::command]
+pub async fn list_gamify_leaderboard(
+    limit: Option<u32>,
+) -> Result<Vec<LeaderboardEntryDto>, String> {
+    let db = open_gamify_db().await?;
+    let rows = vox_gamify::db::leaderboard(&db, limit.unwrap_or(20) as i64)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(rows
+        .iter()
+        .enumerate()
+        .map(|(i, r)| LeaderboardEntryDto {
+            rank: (i + 1) as u32,
+            user_id: r.user_id.clone(),
+            level: r.level,
+            score: r.score,
+        })
+        .collect())
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct CompanionDto {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub language: String,
+    pub mood: String,
+    pub health: i32,
+    pub max_health: i32,
+    pub energy: i32,
+    pub max_energy: i32,
+    pub code_quality: u8,
+    pub last_active: i64,
+    /// Inline SVG markup (no external runtime) rendered from the companion's
+    /// current mood via `sprite_svg::generate_svg_from_mood`.
+    pub svg: String,
+}
+
+/// The user's companions, each with a freshly rendered mood SVG. Mirrors
+/// `vox_gamify::db::list_companions`.
+#[tauri::command]
+pub async fn list_gamify_companions() -> Result<Vec<CompanionDto>, String> {
+    let db = open_gamify_db().await?;
+    let user_id = vox_gamify::db::canonical_user_id();
+    let companions = vox_gamify::db::list_companions(&db, &user_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(companions
+        .iter()
+        .map(|c| CompanionDto {
+            id: c.id.clone(),
+            name: c.name.clone(),
+            description: c.description.clone(),
+            language: c.language.clone(),
+            mood: format!("{:?}", c.mood),
+            health: c.health,
+            max_health: c.max_health,
+            energy: c.energy,
+            max_energy: c.max_energy,
+            code_quality: c.code_quality,
+            last_active: c.last_active,
+            svg: vox_gamify::sprite_svg::generate_svg_from_mood(c.mood, None).svg_body,
+        })
+        .collect())
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct QuestDto {
+    pub id: String,
+    pub quest_type: String,
+    pub description: String,
+    pub hint: String,
+    pub target: u32,
+    pub progress: u32,
+    pub xp_reward: u64,
+    pub crystal_reward: u64,
+    pub completed: bool,
+    pub status: String,
+    pub expires_at: i64,
+}
+
+/// The user's active quests. Mirrors `vox_gamify::db::list_quests`.
+#[tauri::command]
+pub async fn list_gamify_quests() -> Result<Vec<QuestDto>, String> {
+    let db = open_gamify_db().await?;
+    let user_id = vox_gamify::db::canonical_user_id();
+    let quests = vox_gamify::db::list_quests(&db, &user_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(quests
+        .iter()
+        .map(|q| QuestDto {
+            id: q.id.clone(),
+            quest_type: format!("{:?}", q.quest_type),
+            description: q.description.clone(),
+            hint: q.hint.clone(),
+            target: q.target,
+            progress: q.progress,
+            xp_reward: q.xp_reward,
+            crystal_reward: q.crystal_reward,
+            completed: q.completed,
+            status: q.status.clone(),
+            expires_at: q.expires_at,
+        })
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
