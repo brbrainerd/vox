@@ -5,6 +5,7 @@ import { ClaimsView } from './Scientia/ClaimsView';
 import { CoverageView } from './Coverage/CoverageView';
 import { ResearchView } from './Research/ResearchView';
 import { PublicationsView } from './Publications/PublicationsView';
+import { SearchView } from './Search/SearchView';
 
 /**
  * Props every surface decorator receives. Decorators are hand-built views that
@@ -37,6 +38,7 @@ export const surfaceDecorators: Record<string, React.ComponentType<SurfaceDecora
   scientia: ScientiaDashboard,
   claims: ClaimsView,
   coverage: CoverageView,
+  search: SearchView,
   mens: commandSurface('Vox Mens', 'ML training & local models', [
     { key: 'status', title: 'Training Status', description: 'Latest run telemetry', path: ['mens', 'status'] },
     { key: 'models', title: 'Model Registry', description: 'Locally trained models', path: ['mens', 'models'] },

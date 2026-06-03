@@ -610,7 +610,8 @@
     "spawn_orchestrator_status_stream",
     "start_gui_run",
     "submit_orchestrator_task",
-    "suggest_model_for_task"
+    "suggest_model_for_task",
+    "vox_search_query"
   ],
   "gui_routes": [
     "approvals",

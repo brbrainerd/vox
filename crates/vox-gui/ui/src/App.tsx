@@ -53,7 +53,8 @@ type View =
   | 'skills'
   | 'settings'
   | 'coverage'
-  | 'publications';
+  | 'publications'
+  | 'search';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
 function mapAgent(a: any): Agent {
@@ -229,7 +230,7 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings', 'coverage', 'publications'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});

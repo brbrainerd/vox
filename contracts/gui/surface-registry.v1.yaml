@@ -71,6 +71,13 @@ surfaces:
   nav_icon: scale
   nav_group: operate
   notes: null
+- view_key: search
+  cli_group: null
+  representation_tier: live_backend
+  nav_label: Search
+  nav_icon: search
+  nav_group: operate
+  notes: unified hybrid search (vox-search)
 - view_key: null
   cli_group: add
   representation_tier: none

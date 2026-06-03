@@ -14,4 +14,5 @@ pub mod orchestrator;
 pub mod preferences;
 pub mod runs;
 pub mod scientia;
+pub mod search;
 pub mod secrets;
