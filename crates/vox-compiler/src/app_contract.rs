@@ -91,40 +91,55 @@ fn fn_signature(params: &[crate::hir::HirParam], ret: Option<&crate::hir::HirTyp
 pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     let http_routes = Vec::new();
 
-    let server_fns = module
-        .endpoint_fns
-        .iter()
-        .filter(|sf| sf.kind == crate::hir::HirEndpointKind::Server)
-        .map(|sf| AppServerFnContract {
-            name: sf.name.clone(),
-            route_path: sf.route_path.clone(),
-            signature: fn_signature(&sf.params, sf.return_type.as_ref()),
-        })
-        .collect();
-
-    let query_fns = module
-        .endpoint_fns
-        .iter()
-        .filter(|sf| sf.kind == crate::hir::HirEndpointKind::Query)
-        .map(|qf| AppServerFnContract {
-            name: qf.name.clone(),
-            route_path: qf.route_path.clone(),
-            signature: fn_signature(&qf.params, qf.return_type.as_ref()),
-        })
-        .collect();
+    // Derive the HTTP-endpoint lists from Contract IR — the single endpoint
+    // lens (Phase 5.2). `contract_ir::project` projects `module.endpoint_fns`
+    // 1:1 in source order, so we zip each `ContractEndpoint` back with its
+    // originating `HirEndpointFn` to recover the HIR-level `signature` string
+    // (the wire-level `WireType` carried by `ContractEndpoint` is lossy — e.g.
+    // `int`/`i64`/`f64` all collapse to `Number` — so it cannot reconstruct the
+    // signature). `name`, `route_path`, and the kind grouping come from
+    // Contract IR; `wraps_db_transaction` stays module-level (it is not a
+    // Contract IR property).
+    let ir = crate::contract_ir::project(module);
+    debug_assert_eq!(
+        ir.endpoints.len(),
+        module.endpoint_fns.len(),
+        "contract_ir::project must project endpoint_fns 1:1 in source order"
+    );
 
     let wraps_db_transaction = !module.tables.is_empty();
-    let mutation_fns = module
-        .endpoint_fns
-        .iter()
-        .filter(|sf| sf.kind == crate::hir::HirEndpointKind::Mutation)
-        .map(|mf| AppMutationContract {
-            name: mf.name.clone(),
-            route_path: mf.route_path.clone(),
-            signature: fn_signature(&mf.params, mf.return_type.as_ref()),
-            wraps_db_transaction,
-        })
-        .collect();
+
+    let mut server_fns = Vec::new();
+    let mut query_fns = Vec::new();
+    let mut mutation_fns = Vec::new();
+
+    for (ep, hir_fn) in ir.endpoints.iter().zip(module.endpoint_fns.iter()) {
+        let signature = fn_signature(&hir_fn.params, hir_fn.return_type.as_ref());
+        match ep.kind {
+            crate::contract_ir::ContractEndpointKind::Server => {
+                server_fns.push(AppServerFnContract {
+                    name: ep.name.clone(),
+                    route_path: ep.path.clone(),
+                    signature,
+                });
+            }
+            crate::contract_ir::ContractEndpointKind::Query => {
+                query_fns.push(AppServerFnContract {
+                    name: ep.name.clone(),
+                    route_path: ep.path.clone(),
+                    signature,
+                });
+            }
+            crate::contract_ir::ContractEndpointKind::Mutation => {
+                mutation_fns.push(AppMutationContract {
+                    name: ep.name.clone(),
+                    route_path: ep.path.clone(),
+                    signature,
+                    wraps_db_transaction,
+                });
+            }
+        }
+    }
 
     let mcp_tools = module
         .mcp_tools
@@ -161,6 +176,93 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
             dev_proxy_env_var: "VOX_SSR_DEV_URL".to_string(),
             static_assets_embed_dir: "public/".to_string(),
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::lower_module;
+    use crate::lexer::lex;
+    use crate::parser::parse;
+
+    fn lower(src: &str) -> HirModule {
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse");
+        lower_module(&module)
+    }
+
+    /// Characterization test (Phase 5.2): pins the current behavior of
+    /// `project_app_contract` for the endpoint lists so the ContractIr-derived
+    /// refactor stays byte-identical.
+    ///
+    /// Asserts: kind grouping (Server/Query/Mutation), source order, name,
+    /// route_path, the full HIR-level `signature` string, and
+    /// `wraps_db_transaction = true` for mutations when `@table` exists.
+    #[test]
+    fn project_app_contract_endpoint_lists_characterization() {
+        let src = r#"
+@table type Task { title: str done: bool }
+
+@server fn sf_one(a: int) to str { return "x" }
+@server fn sf_two() to int { return 0 }
+@query fn q_one(n: int) to int { return n }
+@mutation fn m_one(title: str) to int {
+    db.Task.insert({ title: title, done: false })
+    return 1
+}
+@mutation fn m_two(x: bool) to bool { return x }
+"#;
+        let hir = lower(src);
+        let app = project_app_contract(&hir);
+
+        // server_fns: source order, name, route_path, signature.
+        assert_eq!(app.server_fns.len(), 2, "two @server endpoints");
+        assert_eq!(app.server_fns[0].name, "sf_one");
+        assert_eq!(app.server_fns[1].name, "sf_two");
+        assert_eq!(app.server_fns[0].route_path, "/api/sf_one");
+        assert_eq!(app.server_fns[1].route_path, "/api/sf_two");
+        assert_eq!(
+            app.server_fns[0].signature,
+            "fn(a: int) -> str",
+            "server_fns[0] signature is the HIR-level type signature"
+        );
+        assert_eq!(app.server_fns[1].signature, "fn() -> int");
+
+        // query_fns.
+        assert_eq!(app.query_fns.len(), 1, "one @query endpoint");
+        assert_eq!(app.query_fns[0].name, "q_one");
+        assert_eq!(app.query_fns[0].route_path, "/api/query/q_one");
+        assert_eq!(app.query_fns[0].signature, "fn(n: int) -> int");
+
+        // mutation_fns: source order + wraps_db_transaction true (tables exist).
+        assert_eq!(app.mutation_fns.len(), 2, "two @mutation endpoints");
+        assert_eq!(app.mutation_fns[0].name, "m_one");
+        assert_eq!(app.mutation_fns[1].name, "m_two");
+        assert_eq!(app.mutation_fns[0].route_path, "/api/mutation/m_one");
+        assert_eq!(app.mutation_fns[1].route_path, "/api/mutation/m_two");
+        assert_eq!(app.mutation_fns[0].signature, "fn(title: str) -> int");
+        assert_eq!(app.mutation_fns[1].signature, "fn(x: bool) -> bool");
+        assert!(
+            app.mutation_fns[0].wraps_db_transaction,
+            "wraps_db_transaction true when @table present"
+        );
+        assert!(app.mutation_fns[1].wraps_db_transaction);
+    }
+
+    /// Without any `@table`, mutations carry `wraps_db_transaction = false`.
+    #[test]
+    fn project_app_contract_mutation_no_tables_no_tx() {
+        let src = r#"
+@mutation fn m_only(x: int) to int { return x }
+"#;
+        let hir = lower(src);
+        let app = project_app_contract(&hir);
+        assert_eq!(app.mutation_fns.len(), 1);
+        assert!(
+            !app.mutation_fns[0].wraps_db_transaction,
+            "no tables -> no transaction wrap"
+        );
     }
 }
 
