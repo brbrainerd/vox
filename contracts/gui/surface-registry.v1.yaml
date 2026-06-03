@@ -1,0 +1,28 @@
+x_vox_version: 2
+schema_version: 1
+surfaces:
+  # ── Operator chrome (no single CLI group) ──────────────────────────────
+  - { view_key: dashboard, cli_group: null, representation_tier: live_backend, nav_label: Dashboard, nav_icon: dashboard, nav_group: operate, notes: orchestrator status }
+  - { view_key: flow, cli_group: null, representation_tier: live_backend, nav_label: Agents, nav_icon: flow, nav_group: operate, notes: agent flow graph }
+  - { view_key: catalog, cli_group: commands, representation_tier: live_backend, nav_label: Commands, nav_icon: catalog, nav_group: operate, notes: generated command form browser }
+  - { view_key: matrix, cli_group: null, representation_tier: live_backend, nav_label: Policies, nav_icon: matrix, nav_group: operate, notes: policy/intention matrix }
+  # ── Research / Scientia ────────────────────────────────────────────────
+  - { view_key: scientia, cli_group: scientia, representation_tier: curated_decorator, nav_label: Scientia, nav_icon: file, nav_group: research, notes: Phase H queue dashboard }
+  - { view_key: claims, cli_group: null, representation_tier: curated_decorator, nav_label: Claims, nav_icon: matrix, nav_group: research, notes: claim ledger (scientia claims) }
+  - { view_key: research, cli_group: research, representation_tier: curated_decorator, nav_label: Research, nav_icon: memory, nav_group: research, notes: deep-research surface }
+  # ── AI / ML ────────────────────────────────────────────────────────────
+  - { view_key: mens, cli_group: mens, representation_tier: curated_decorator, nav_label: Mens, nav_icon: cpu, nav_group: ai }
+  - { view_key: populi, cli_group: populi, representation_tier: curated_decorator, nav_label: Populi, nav_icon: flow, nav_group: ai }
+  - { view_key: oratio, cli_group: oratio, representation_tier: curated_decorator, nav_label: Oratio, nav_icon: spark, nav_group: ai }
+  - { view_key: models, cli_group: model, representation_tier: live_backend, nav_label: Models, nav_icon: cpu, nav_group: ai }
+  # ── Build / run ────────────────────────────────────────────────────────
+  - { view_key: harness, cli_group: null, representation_tier: live_backend, nav_label: Harness, nav_icon: command, nav_group: build }
+  - { view_key: repository, cli_group: repo, representation_tier: live_backend, nav_label: Repository, nav_icon: file, nav_group: build }
+  - { view_key: mesh, cli_group: null, representation_tier: live_backend, nav_label: Mesh, nav_icon: cpu, nav_group: build }
+  # ── Operate cont. ──────────────────────────────────────────────────────
+  - { view_key: gamify, cli_group: ludus, representation_tier: curated_decorator, nav_label: Gamify, nav_icon: spark, nav_group: operate }
+  - { view_key: runs, cli_group: null, representation_tier: live_backend, nav_label: Runs, nav_icon: scale, nav_group: operate }
+  - { view_key: approvals, cli_group: null, representation_tier: live_backend, nav_label: Approvals, nav_icon: shield, nav_group: operate }
+  - { view_key: skills, cli_group: skill, representation_tier: live_backend, nav_label: Skills, nav_icon: catalog, nav_group: build }
+  - { view_key: memory, cli_group: memory, representation_tier: live_backend, nav_label: Memory, nav_icon: memory, nav_group: operate }
+  - { view_key: settings, cli_group: config, representation_tier: live_backend, nav_label: Settings, nav_icon: settings, nav_group: system }
