@@ -26,6 +26,7 @@ fn emit_model_call() {
         model: "test".into(),
         provider: "test".into(),
         route_profile: None,
+        selection_rationale: None,
         prompt_tokens: 1,
         completion_tokens: 1,
         cache_read_input_tokens: None,
