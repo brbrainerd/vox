@@ -63,6 +63,15 @@ capabilities:
     ios_info_plist_keys:
       - NSLocationWhenInUseUsageDescription
     web_csp_note: null
+  - id: microphone
+    description: Microphone capture for on-device speech-to-text
+    tauri_permission:
+      - vox-stt:default
+    android_uses_permission:
+      - android.permission.RECORD_AUDIO
+    ios_info_plist_keys:
+      - NSMicrophoneUsageDescription
+    web_csp_note: null
   - id: deep_link
     description: URL schemes / universal links
     tauri_permission:

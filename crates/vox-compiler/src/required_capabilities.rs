@@ -70,103 +70,123 @@ fn fs_method_rw(method: &str) -> Option<&'static str> {
     None
 }
 
-fn collect_fs_rw_from_expr(expr: &HirExpr, read: &mut bool, write: &mut bool) {
+fn is_speech_module(name: &str) -> bool {
+    name == "Speech"
+}
+
+fn is_speech_method(method: &str) -> bool {
+    matches!(method, "transcribe" | "transcribe_microphone")
+}
+
+/// Usage flags accumulated during the HIR body walk for capability derivation.
+#[derive(Default)]
+struct UsageFlags {
+    fs_read: bool,
+    fs_write: bool,
+    microphone: bool,
+}
+
+fn collect_fs_rw_from_expr(expr: &HirExpr, read: &mut bool, write: &mut bool, mic: &mut bool) {
     match expr {
         HirExpr::MethodCall(obj, method, args, _, _) => {
-            if let HirExpr::Ident(module_name, _) = obj.as_ref()
-                && is_fs_module(module_name)
-                && let Some(id) = fs_method_rw(method)
-            {
-                if id == "fs.read" {
-                    *read = true;
-                } else {
-                    *write = true;
+            if let HirExpr::Ident(module_name, _) = obj.as_ref() {
+                if is_fs_module(module_name)
+                    && let Some(id) = fs_method_rw(method)
+                {
+                    if id == "fs.read" {
+                        *read = true;
+                    } else {
+                        *write = true;
+                    }
+                }
+                if is_speech_module(module_name) && is_speech_method(method) {
+                    *mic = true;
                 }
             }
-            collect_fs_rw_from_expr(obj, read, write);
+            collect_fs_rw_from_expr(obj, read, write, mic);
             for a in args {
-                collect_fs_rw_from_expr(&a.value, read, write);
+                collect_fs_rw_from_expr(&a.value, read, write, mic);
             }
         }
         HirExpr::Call(callee, args, _, _) => {
-            collect_fs_rw_from_expr(callee, read, write);
+            collect_fs_rw_from_expr(callee, read, write, mic);
             for a in args {
-                collect_fs_rw_from_expr(&a.value, read, write);
+                collect_fs_rw_from_expr(&a.value, read, write, mic);
             }
         }
         HirExpr::Binary(_, l, r, _) => {
-            collect_fs_rw_from_expr(l, read, write);
-            collect_fs_rw_from_expr(r, read, write);
+            collect_fs_rw_from_expr(l, read, write, mic);
+            collect_fs_rw_from_expr(r, read, write, mic);
         }
-        HirExpr::Unary(_, o, _) => collect_fs_rw_from_expr(o, read, write),
+        HirExpr::Unary(_, o, _) => collect_fs_rw_from_expr(o, read, write, mic),
         HirExpr::If(c, t, e, _) => {
-            collect_fs_rw_from_expr(c, read, write);
+            collect_fs_rw_from_expr(c, read, write, mic);
             for s in t {
-                collect_fs_rw_from_stmt(s, read, write);
+                collect_fs_rw_from_stmt(s, read, write, mic);
             }
             if let Some(els) = e {
                 for s in els {
-                    collect_fs_rw_from_stmt(s, read, write);
+                    collect_fs_rw_from_stmt(s, read, write, mic);
                 }
             }
         }
         HirExpr::Block(stmts, _) => {
             for s in stmts {
-                collect_fs_rw_from_stmt(s, read, write);
+                collect_fs_rw_from_stmt(s, read, write, mic);
             }
         }
         HirExpr::For(_, _, it, body, _, _) => {
-            collect_fs_rw_from_expr(it, read, write);
-            collect_fs_rw_from_expr(body, read, write);
+            collect_fs_rw_from_expr(it, read, write, mic);
+            collect_fs_rw_from_expr(body, read, write, mic);
         }
-        HirExpr::Lambda(_, _, body, _, _) => collect_fs_rw_from_expr(body, read, write),
+        HirExpr::Lambda(_, _, body, _, _) => collect_fs_rw_from_expr(body, read, write, mic),
         HirExpr::With(l, r, _) => {
-            collect_fs_rw_from_expr(l, read, write);
-            collect_fs_rw_from_expr(r, read, write);
+            collect_fs_rw_from_expr(l, read, write, mic);
+            collect_fs_rw_from_expr(r, read, write, mic);
         }
         HirExpr::Match(subj, arms, _) => {
-            collect_fs_rw_from_expr(subj, read, write);
+            collect_fs_rw_from_expr(subj, read, write, mic);
             for arm in arms {
                 if let Some(g) = &arm.guard {
-                    collect_fs_rw_from_expr(g, read, write);
+                    collect_fs_rw_from_expr(g, read, write, mic);
                 }
-                collect_fs_rw_from_expr(&arm.body, read, write);
+                collect_fs_rw_from_expr(&arm.body, read, write, mic);
             }
         }
-        HirExpr::FieldAccess(o, _, _) => collect_fs_rw_from_expr(o, read, write),
+        HirExpr::FieldAccess(o, _, _) => collect_fs_rw_from_expr(o, read, write, mic),
         HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
             for e in elems {
-                collect_fs_rw_from_expr(e, read, write);
+                collect_fs_rw_from_expr(e, read, write, mic);
             }
         }
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
-                collect_fs_rw_from_expr(v, read, write);
+                collect_fs_rw_from_expr(v, read, write, mic);
             }
         }
-        HirExpr::Spawn(inner, _) => collect_fs_rw_from_expr(inner, read, write),
+        HirExpr::Spawn(inner, _) => collect_fs_rw_from_expr(inner, read, write, mic),
         HirExpr::JsxFragment(children, _) => {
             for c in children {
-                collect_fs_rw_from_expr(c, read, write);
+                collect_fs_rw_from_expr(c, read, write, mic);
             }
         }
         HirExpr::Index(o, i, _) => {
-            collect_fs_rw_from_expr(o, read, write);
-            collect_fs_rw_from_expr(i, read, write);
+            collect_fs_rw_from_expr(o, read, write, mic);
+            collect_fs_rw_from_expr(i, read, write, mic);
         }
         HirExpr::AsyncView(v) => {
-            collect_fs_rw_from_expr(v.source.as_ref(), read, write);
+            collect_fs_rw_from_expr(v.source.as_ref(), read, write, mic);
             if let Some(a) = &v.fetching_arm {
-                collect_fs_rw_from_expr(a, read, write);
+                collect_fs_rw_from_expr(a, read, write, mic);
             }
             if let Some(a) = &v.empty_arm {
-                collect_fs_rw_from_expr(a, read, write);
+                collect_fs_rw_from_expr(a, read, write, mic);
             }
             if let Some(a) = &v.error_arm {
-                collect_fs_rw_from_expr(a, read, write);
+                collect_fs_rw_from_expr(a, read, write, mic);
             }
             if let Some(a) = &v.ok_arm {
-                collect_fs_rw_from_expr(a, read, write);
+                collect_fs_rw_from_expr(a, read, write, mic);
             }
         }
         HirExpr::IntLit(..)
@@ -182,40 +202,45 @@ fn collect_fs_rw_from_expr(expr: &HirExpr, read: &mut bool, write: &mut bool) {
     }
 }
 
-fn collect_fs_rw_from_stmt(stmt: &HirStmt, read: &mut bool, write: &mut bool) {
+fn collect_fs_rw_from_stmt(stmt: &HirStmt, read: &mut bool, write: &mut bool, mic: &mut bool) {
     match stmt {
         HirStmt::Let { value, .. } | HirStmt::Expr { expr: value, .. } => {
-            collect_fs_rw_from_expr(value, read, write);
+            collect_fs_rw_from_expr(value, read, write, mic);
         }
         HirStmt::Assign { target, value, .. } => {
-            collect_fs_rw_from_expr(target, read, write);
-            collect_fs_rw_from_expr(value, read, write);
+            collect_fs_rw_from_expr(target, read, write, mic);
+            collect_fs_rw_from_expr(value, read, write, mic);
         }
         HirStmt::Return { value, .. } => {
             if let Some(e) = value {
-                collect_fs_rw_from_expr(e, read, write);
+                collect_fs_rw_from_expr(e, read, write, mic);
             }
         }
         HirStmt::While {
             condition, body, ..
         } => {
-            collect_fs_rw_from_expr(condition, read, write);
+            collect_fs_rw_from_expr(condition, read, write, mic);
             for s in body {
-                collect_fs_rw_from_stmt(s, read, write);
+                collect_fs_rw_from_stmt(s, read, write, mic);
             }
         }
         HirStmt::Loop { body, .. } => {
             for s in body {
-                collect_fs_rw_from_stmt(s, read, write);
+                collect_fs_rw_from_stmt(s, read, write, mic);
             }
         }
         HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
     }
 }
 
-fn walk_fn_body_for_fs(body: &[HirStmt], read: &mut bool, write: &mut bool) {
+fn walk_fn_body_for_usage(body: &[HirStmt], flags: &mut UsageFlags) {
     for s in body {
-        collect_fs_rw_from_stmt(s, read, write);
+        collect_fs_rw_from_stmt(
+            s,
+            &mut flags.fs_read,
+            &mut flags.fs_write,
+            &mut flags.microphone,
+        );
     }
 }
 
@@ -249,8 +274,7 @@ pub fn project_required_capabilities(m: &HirModule) -> RequiredRuntimeCapabiliti
     }
 
     let mut fs_declared = false;
-    let mut fs_read = false;
-    let mut fs_write = false;
+    let mut usage = UsageFlags::default();
 
     for f in &m.functions {
         for cap in effective_fn_capabilities(f) {
@@ -261,7 +285,7 @@ pub fn project_required_capabilities(m: &HirModule) -> RequiredRuntimeCapabiliti
                 ids.insert(id.to_string());
             }
         }
-        walk_fn_body_for_fs(&f.body, &mut fs_read, &mut fs_write);
+        walk_fn_body_for_usage(&f.body, &mut usage);
     }
 
     for f in &m.endpoint_fns {
@@ -273,18 +297,21 @@ pub fn project_required_capabilities(m: &HirModule) -> RequiredRuntimeCapabiliti
                 ids.insert(id.to_string());
             }
         }
-        walk_fn_body_for_fs(&f.body, &mut fs_read, &mut fs_write);
+        walk_fn_body_for_usage(&f.body, &mut usage);
     }
 
-    if fs_read {
+    if usage.fs_read {
         ids.insert("fs.read".to_string());
     }
-    if fs_write {
+    if usage.fs_write {
         ids.insert("fs.write".to_string());
     }
-    if fs_declared && !fs_read && !fs_write {
+    if fs_declared && !usage.fs_read && !usage.fs_write {
         ids.insert("fs.read".to_string());
         ids.insert("fs.write".to_string());
+    }
+    if usage.microphone {
+        ids.insert("microphone".to_string());
     }
 
     let mut capability_ids: Vec<String> = ids.into_iter().collect();
@@ -314,5 +341,24 @@ mod tests {
         let m = HirModule::default();
         let r = project_required_capabilities(&m);
         assert!(r.capability_ids.is_empty());
+    }
+
+    #[test]
+    fn microphone_capability_emitted_when_speech_used() {
+        let res = crate::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe_microphone() }",
+            "t.vox",
+        )
+        .expect("frontend ok");
+        let caps = project_required_capabilities(&res.hir).capability_ids;
+        assert!(caps.iter().any(|c| c == "microphone"), "{caps:?}");
+    }
+
+    #[test]
+    fn no_microphone_capability_without_speech() {
+        let res = crate::pipeline::run_frontend_str("fn f() { }", "t.vox")
+            .expect("frontend ok");
+        let caps = project_required_capabilities(&res.hir).capability_ids;
+        assert!(!caps.iter().any(|c| c == "microphone"), "{caps:?}");
     }
 }
