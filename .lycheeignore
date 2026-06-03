@@ -173,3 +173,7 @@ https://expo\.dev/settings/.*
 .*jj-vcs\.github\.io/.*
 .*pijul\.com/.*
 .*localhost\.run/.*
+
+# getmrq.com returns 402 Payment Required to CI bots (anti-bot/soft-paywall);
+# the citation is valid for human readers. See agentic-version-control research doc.
+.*getmrq\.com/.*
