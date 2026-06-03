@@ -60,7 +60,7 @@ futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std", "wasm_js"] }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 gimli = { version = "0.33", default-features = false, features = ["read", "std", "write"] }
-gix = { version = "0.70", default-features = false, features = ["blocking-http-transport-reqwest", "progress-tree", "revision"] }
+gix = { version = "0.83", default-features = false, features = ["blocking-http-transport-reqwest", "progress-tree", "revision"] }
 gix-features = { version = "0.40", features = ["crc32", "fs-read-dir", "io-pipe", "once_cell", "progress", "rustsha1", "walkdir", "zlib"] }
 gix-pack = { version = "0.57", default-features = false, features = ["object-cache-dynamic", "streaming-input"] }
 gix-packetline = { version = "0.18", features = ["blocking-io"] }
@@ -199,7 +199,7 @@ futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
 getrandom-468e82937335b1c9 = { package = "getrandom", version = "0.3", default-features = false, features = ["std", "wasm_js"] }
 getrandom-6f8ce4dd05d13bba = { package = "getrandom", version = "0.2", default-features = false, features = ["std"] }
 gimli = { version = "0.33", default-features = false, features = ["read", "std", "write"] }
-gix = { version = "0.70", default-features = false, features = ["blocking-http-transport-reqwest", "progress-tree", "revision"] }
+gix = { version = "0.83", default-features = false, features = ["blocking-http-transport-reqwest", "progress-tree", "revision"] }
 gix-features = { version = "0.40", features = ["crc32", "fs-read-dir", "io-pipe", "once_cell", "progress", "rustsha1", "walkdir", "zlib"] }
 gix-pack = { version = "0.57", default-features = false, features = ["object-cache-dynamic", "streaming-input"] }
 gix-packetline = { version = "0.18", features = ["blocking-io"] }
