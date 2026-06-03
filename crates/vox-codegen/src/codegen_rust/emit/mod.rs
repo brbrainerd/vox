@@ -299,6 +299,8 @@ use {}::*;
     );
 
     let has_tables = !module.tables.is_empty();
+    let has_scheduled = module.functions.iter().any(|f| f.schedule_interval.is_some());
+    let needs_setup = has_tables || has_scheduled;
     let mut command_names = Vec::new();
 
     for sf in &module.endpoint_fns {
@@ -363,20 +365,41 @@ use {}::*;
         ));
     }
 
-    if has_tables {
+    if needs_setup {
         out.push_str("        .setup(|app| {\n");
-        out.push_str(r#"            let db_url = std::env::var("VOX_DB_URL").unwrap_or_else(|_| "sqlite://local.db".to_string());
+        if has_tables {
+            out.push_str(r#"            let db_url = std::env::var("VOX_DB_URL").unwrap_or_else(|_| "sqlite://local.db".to_string());
             let db_token = std::env::var("VOX_DB_TOKEN").unwrap_or_default();
             let db = vox_db::Codex::open_with_embedded_migrations(&db_url, &db_token);
             app.manage(std::sync::Arc::new(db));
-            Ok(())
-        })
 "#);
+        }
+        if has_scheduled {
+            // Tauri's `fn main()` is synchronous but the durable-boot prelude
+            // emits `.await` sites, so run it inside `block_on`. The scheduler
+            // handle is kept alive for the process lifetime via `mem::forget`.
+            out.push_str("            tauri::async_runtime::block_on(async {\n");
+            out.push_str(&main_boot::emit_durable_boot_prelude(
+                module,
+                "vox_durable_db",
+                true,
+                main_boot::BootPropagation::Expect,
+            ));
+            out.push_str("                std::mem::forget(scheduled_handle);\n");
+            out.push_str("            });\n");
+        }
+        out.push_str("            Ok(())\n");
+        out.push_str("        })\n");
     }
 
     out.push_str("        .run(tauri::generate_context!())\n");
     out.push_str("        .expect(\"error while running tauri application\");\n");
     out.push_str("}\n");
+
+    if has_scheduled {
+        out.push('\n');
+        out.push_str(&main_boot::emit_durable_boot_helpers(module));
+    }
 
     out
 }

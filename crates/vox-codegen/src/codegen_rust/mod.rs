@@ -461,6 +461,34 @@ mod tests {
     }
 
     #[test]
+    fn tauri_main_registers_scheduled_fns() {
+        let src = r#"
+@scheduled("1m")
+fn heartbeat() { }
+"#;
+        let res = vox_compiler::pipeline::run_frontend_str(src, "sched_test.vox")
+            .expect("frontend ok");
+        let module = res.hir;
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        let main = out
+            .files
+            .get("src-tauri/src/main.rs")
+            .expect("src-tauri main.rs");
+        assert!(
+            main.contains("vox_workflow_runtime::scheduled::register"),
+            "must register @scheduled fns: {main}"
+        );
+        assert!(
+            main.contains("scheduled::start"),
+            "must start scheduler: {main}"
+        );
+        assert!(
+            main.contains("load_hir_module_from_embedded"),
+            "must embed+register HirModule: {main}"
+        );
+    }
+
+    #[test]
     fn tauri_emit_registers_sherpa_acl_in_build_rs() {
         let module = empty_module();
         let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
