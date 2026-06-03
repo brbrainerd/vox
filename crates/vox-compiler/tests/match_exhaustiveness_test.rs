@@ -195,3 +195,34 @@ fn string_error_still_typechecks() {
         "string-error construction should still type-check; got {errs:?}"
     );
 }
+
+/// `Ok(v)` constructed in a function declared `to Result[T, MyErr]` must unify
+/// its error parameter with the declared ADT, not force `E = str`. Before `Ok`
+/// was made polymorphic in `E` this failed with "Cannot unify Str with
+/// Named(...)" (the marquee slot-1 regression).
+#[test]
+fn ok_construction_in_typed_result_typechecks() {
+    let src = "
+    type AddItemError = | Duplicate | Invalid
+    fn add(name: str) to Result[str, AddItemError] {
+        if name is \"\" {
+            return Error(Invalid)
+        }
+        return Ok(\"added\")
+    }
+    fn main() to str {
+        return match add(\"x\") {
+            Ok(s) => s
+            Error(e) => match e {
+                Duplicate => \"dup\"
+                Invalid => \"bad\"
+            }
+        }
+    }
+    ";
+    let errs = error_codes(src);
+    assert!(
+        errs.is_empty(),
+        "Ok/Error in a typed Result[T, MyErr] fn should type-check; got {errs:?}"
+    );
+}

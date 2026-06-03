@@ -84,13 +84,19 @@ impl BuiltinTypes {
             fields: vec![],
         });
 
-        // Ok(value: T) → Result[T]
+        // Ok(value: T) → Result[T, E]. Polymorphic in the error type so that
+        // `Ok(v)` in a function declared `to Result[T, MyErr]` unifies `E` with
+        // the declared error ADT instead of forcing `E = str`. `Result[T]`
+        // (one-arg sugar) still infers `E = str` from context.
         env.define(
             "Ok".into(),
             Binding {
                 ty: Ty::Fn(
                     vec![Ty::GenericParam(0)],
-                    Box::new(Ty::Result(Box::new(Ty::GenericParam(0)), Box::new(Ty::Str))),
+                    Box::new(Ty::Result(
+                        Box::new(Ty::GenericParam(0)),
+                        Box::new(Ty::GenericParam(1)),
+                    )),
                 ),
                 mutable: false,
                 kind: BindingKind::Constructor,
