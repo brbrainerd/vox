@@ -290,6 +290,22 @@ impl Interpreter {
             self.module_scope.set(f.name.clone(), val);
         }
 
+        // Register endpoint handlers (`@query`/`@mutation`/`@endpoint`/`@server`)
+        // as ordinary callables. Under `--mode script` these become HTTP
+        // handlers, but in the interpreter they are still plain functions —
+        // without this a `@query fn` called from `main`/a `@test` failed with
+        // `UndefinedVariable`, since endpoint fns live in `module.endpoint_fns`,
+        // not `module.functions`.
+        for f in &module.endpoint_fns {
+            let val = VoxValue::Fn {
+                params: f.params.iter().map(|p| p.name.clone()).collect(),
+                body: f.body.clone(),
+                env: self.scope.clone(),
+            };
+            self.scope.set(f.name.clone(), val.clone());
+            self.module_scope.set(f.name.clone(), val);
+        }
+
         Ok(())
     }
 

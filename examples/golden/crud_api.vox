@@ -42,11 +42,13 @@ fn seed_user(name: str) to str {
 // Behavioral coverage: exercise the db.* surface under `--mode interp` so the
 // data layer is verified end-to-end, not just typechecked.
 @test fn db_insert_and_query_roundtrip() {
+    // Exercise the actual @mutation / @query handlers end-to-end.
+    assert(seed_user("ada") is "created")
+    assert(seed_user("alan") is "created")
+    assert(user_count() is 2)
+    assert(all_users() is 2)
+    // And the raw db.* surface.
     let id = db.User.insert({ name: "grace", active: true })
-    assert(id.unwrap() is 0)
-    db.User.insert({ name: "ada", active: true })
-    db.User.insert({ name: "alan", active: false })
-    assert(len(db.User.all()) is 3)
-    assert(db.User.count().unwrap() is 3)
-    assert(len(db.User.filter({ active: true })) is 2)
+    assert(id.unwrap() is 2)
+    assert(len(db.User.filter({ active: true })) is 3)
 }
