@@ -173,6 +173,7 @@
     "ci gui-catalog-parity",
     "ci gui-smoke",
     "ci gui-surface-coverage",
+    "ci gui-surface-registry",
     "ci gui-version-sync",
     "ci ignored-test-age",
     "ci install-hooks",
