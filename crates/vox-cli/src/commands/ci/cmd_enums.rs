@@ -187,7 +187,7 @@ pub enum CiCmd {
     /// the JUnit XML and maps it to the supplied profile's `warn_ms` / `fail_ms` thresholds.
     ///
     /// Typical CI use (runs after the existing nextest step without re-running tests):
-    /// ```
+    /// ```text
     /// cargo run -p vox-cli -- ci tier-budget-check \
     ///   --junit target/nextest/ci/junit.xml --profile full
     /// ```
