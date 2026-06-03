@@ -454,10 +454,6 @@ mod tests {
             .get("src-tauri/src/main.rs")
             .expect("src-tauri main.rs");
         assert!(main.contains("rust_app_shell=TauriApp"), "{main}");
-        assert!(
-            main.contains("vox_tauri_stt::plugin::init()"),
-            "expected STT plugin registration: {main}"
-        );
     }
 
     #[test]
@@ -512,7 +508,12 @@ fn heartbeat() { }
 
     #[test]
     fn tauri_emit_registers_sherpa_acl_in_build_rs() {
-        let module = empty_module();
+        let module = vox_compiler::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe_microphone() }",
+            "t.vox",
+        )
+        .expect("frontend ok")
+        .hir;
         let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
         let build_rs = out.files.get("src-tauri/build.rs").expect("build.rs");
         assert!(
@@ -546,6 +547,58 @@ fn heartbeat() { }
         assert!(
             cap.contains("vox-stt:default"),
             "expected vox-stt default permission in capability: {cap}"
+        );
+    }
+
+    #[test]
+    fn tauri_emits_stt_only_when_speech_used() {
+        let module = vox_compiler::pipeline::run_frontend_str(
+            "fn note() -> Result[str] { Speech.transcribe_microphone() }",
+            "t.vox",
+        )
+        .expect("frontend ok")
+        .hir;
+        let out = pipeline::generate(&module, "pkg", RustAppShell::TauriApp).unwrap();
+        assert!(
+            out.files
+                .get("src-tauri/src/main.rs")
+                .unwrap()
+                .contains("vox_tauri_stt::plugin::init()")
+        );
+        assert!(
+            out.files
+                .get("src-tauri/build.rs")
+                .unwrap()
+                .contains("\"vox-stt\"")
+        );
+        assert!(
+            out.files
+                .get("src-tauri/capabilities/default.json")
+                .unwrap()
+                .contains("vox-stt:default")
+        );
+    }
+
+    #[test]
+    fn tauri_omits_stt_without_speech() {
+        let out = pipeline::generate(&empty_module(), "pkg", RustAppShell::TauriApp).unwrap();
+        assert!(
+            !out.files
+                .get("src-tauri/src/main.rs")
+                .unwrap()
+                .contains("vox_tauri_stt")
+        );
+        assert!(
+            !out.files
+                .get("src-tauri/build.rs")
+                .unwrap()
+                .contains("vox-stt")
+        );
+        assert!(
+            !out.files
+                .get("src-tauri/capabilities/default.json")
+                .unwrap()
+                .contains("vox-stt")
         );
     }
 
