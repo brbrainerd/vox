@@ -49,6 +49,15 @@ jobs:
         if: matrix.language == 'rust'
         uses: Swatinem/rust-cache@v2
 
+      # `cargo build --workspace` pulls `libdbus-sys` transitively (keyring /
+      # secret-service, the default `keyring-store` feature). ubuntu-latest ships
+      # only the D-Bus runtime, not the `-dev` headers pkg-config needs, so the
+      # build script fails without this. (Matches the dep already required by the
+      # rest of the workspace; other CI lanes run on images that include it.)
+      - name: Install system dependencies (rust)
+        if: matrix.language == 'rust'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       # CodeQL's Rust extractor uses build tracing, so build explicitly.
       - name: Build (rust)
         if: matrix.language == 'rust'
