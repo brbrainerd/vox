@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // difficulty: beginner
 // ---
+// ANCHOR: display
 // Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.
 
 import std.mobile
@@ -19,3 +20,4 @@ component App() {
         "Notify Me"
     }
 }
+// ANCHOR_END: display

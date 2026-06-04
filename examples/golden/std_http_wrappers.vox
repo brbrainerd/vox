@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // difficulty: beginner
 // ---
+// ANCHOR: display
 // Narrow `std.http` wrapper demo (`get_text` / `post_json`). Requires `http` to parse as a
 // dotted path segment (see `parse_ident_name` / `parse_import_path`).
 // RUNTIME: std.http performs real network I/O in BOTH `--mode interp` (blocking, on a
@@ -24,3 +25,4 @@ fn main() {
     print(str(ping))
     print(str(posted))
 }
+// ANCHOR_END: display

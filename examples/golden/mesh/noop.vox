@@ -10,7 +10,9 @@
 // training_weight: 1.0
 // difficulty: beginner
 // ---
+// ANCHOR: display
 // Minimal script worker for mesh/compose examples (`vox run --mode script`).
 fn main() to int {
     return 0
 }
+// ANCHOR_END: display

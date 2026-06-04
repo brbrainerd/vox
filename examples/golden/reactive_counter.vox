@@ -10,6 +10,7 @@
 // training_weight: 1.0
 // difficulty: intermediate
 // ---
+// ANCHOR: display
 /// Reactive counter demo (current `component` surface). Uses `on mount` / `on cleanup`
 /// (not bare `mount:` / `cleanup:`). See `crates/vox-compiler/tests/reactive_smoke.rs`.
 
@@ -41,3 +42,4 @@ component Counter(initial: int) {
         button(on_click={count = 0}) { "Reset" }
     }
 }
+// ANCHOR_END: display
