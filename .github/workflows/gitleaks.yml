@@ -42,5 +42,9 @@ jobs:
             | sudo tar -xz -C /usr/local/bin gitleaks
           gitleaks version
 
+      # Scan the working tree (`dir`) rather than full history (`git`): a PR gate
+      # should flag secrets being *added*, not re-litigate every historical
+      # commit. gitleaks auto-discovers `.gitleaks.toml` at the repo root, which
+      # allowlists docs/test/fixture placeholders.
       - name: Gitleaks scan
-        run: gitleaks git . --redact --verbose --exit-code 1
+        run: gitleaks dir . --redact --verbose --exit-code 1
