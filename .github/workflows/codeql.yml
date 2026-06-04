@@ -72,9 +72,13 @@ jobs:
             librsvg2-dev
 
       # CodeQL's Rust extractor uses build tracing, so build explicitly.
+      # Exclude `vox-gui`: its `tauri::generate_context!()` macro fails at compile
+      # time unless the web frontend (`ui/dist`) has been built first, which this
+      # analysis job does not do. vox-gui is a thin Tauri shell — the Rust logic
+      # CodeQL needs to analyze lives in the (still-built) backend crates.
       - name: Build (rust)
         if: matrix.language == 'rust'
-        run: cargo build --workspace
+        run: cargo build --workspace --exclude vox-gui
 
       - name: Autobuild
         if: matrix.language != 'rust'
