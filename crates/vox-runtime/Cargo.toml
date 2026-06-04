@@ -1,6 +1,6 @@
 [package]
 name = "vox-runtime"
-version = "0.6.0"
+version.workspace = true
 edition = "2024"
 description = "Umbrella runtime crate for Vox — declares the RuntimeProfile (Desktop vs Mobile) + lifecycle traits + VoxConfig that downstream runtime crates (vox-workflow-runtime, vox-actor-runtime, vox-inference) and the uniffi-bindgen-react-native bridge consume. Foundation for `@vox/runtime-rn` on device."
 license = "Apache-2.0"

@@ -1,6 +1,6 @@
 [package]
 name = "vox-plugin-runtime-container"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 publish = false
 description = "Skill-runtime plugin: Docker + Podman backends for vox-skill-runtime"

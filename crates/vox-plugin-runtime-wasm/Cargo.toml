@@ -1,6 +1,6 @@
 [package]
 name = "vox-plugin-runtime-wasm"
-version = "0.1.0"
+version.workspace = true
 edition.workspace = true
 publish = false
 description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills)"
