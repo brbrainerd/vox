@@ -8,15 +8,30 @@
  *
  * Run: pnpm exec playwright test screenshots.spec.ts --project=chromium
  */
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { SURFACE_REGISTRY } from '../src/generated/surfaceRegistry.generated';
 
-const VIEWS = [
-  'dashboard', 'flow', 'catalog', 'matrix',
-  'scientia', 'claims', 'research', 'publications',
-  'mens', 'populi', 'oratio', 'models',
-  'harness', 'repository', 'mesh', 'gamify',
-  'runs', 'approvals', 'skills', 'memory',
-  'search', 'coverage', 'settings',
+/**
+ * Every screenshot-able surface is derived from the generated SURFACE_REGISTRY — the same
+ * SSOT the sidebar renders from. This keeps the sweep drift-proof: when a surface is added,
+ * renamed, combined, or removed, `vox ci gui-surface-registry --write` regenerates the
+ * registry and this list follows automatically. There is no hand-maintained view list to
+ * fall out of date.
+ */
+const VIEWS: string[] = Array.from(
+  new Set(
+    SURFACE_REGISTRY.filter((e) => e.viewKey && e.tier !== 'none').map((e) => e.viewKey as string),
+  ),
+).sort();
+
+/**
+ * Console-error substrings that are environmental noise rather than surface defects
+ * (e.g. a missing favicon under the bare Vite dev server). Everything else — React key/prop
+ * warnings, failed IPC, render exceptions — fails the audit.
+ */
+const BENIGN_CONSOLE: string[] = [
+  'favicon',
+  'Failed to load resource: the server responded with a status of 404',
 ];
 
 function installMock(target: string) {
@@ -24,8 +39,13 @@ function installMock(target: string) {
   localStorage.setItem('vox_sidebar_mode', 'default');
   (window as any).__TAURI_CALLS__ = [];
 
+  const modelIds = ['mens-8b', 'opus-4-8', 'sonnet-4-6', 'haiku-4-5', 'qwen-coder-7b', 'local-llama'];
+  const modelNames = ['Mens 8B', 'Opus 4.8', 'Sonnet 4.6', 'Haiku 4.5', 'Qwen Coder 7B', 'Local Llama'];
   const models = Array.from({ length: 6 }, (_, i) => ({
-    id: ['mens-8b', 'opus-4-8', 'sonnet-4-6', 'haiku-4-5', 'qwen-coder-7b', 'local-llama'][i],
+    id: modelIds[i],
+    // HarnessView keys/reads `model_id` + `display_name`; ModelsView reads `id`. Provide all.
+    model_id: modelIds[i],
+    display_name: modelNames[i],
     provider: ['mens', 'anthropic', 'anthropic', 'anthropic', 'local', 'ollama'][i],
     tier: ['Local', 'Elite', 'Pro', 'Fast', 'Free', 'Local'][i],
     cost_per_1k: [0, 0.015, 0.003, 0.0008, 0, 0][i],
@@ -114,7 +134,16 @@ function installMock(target: string) {
               intelligence_score: 0.92, efficiency_score: 0.7, latency_score: 0.6 },
           };
         case 'get_selection_policy': return { chain: ['opus-4-8', 'sonnet-4-6', 'haiku-4-5'], free_tier: true };
-        case 'get_model_scoreboard': return models.map(m => ({ id: m.id, success_rate: m.success_rate, quality_score: m.quality_score, latency_p50_ms: m.latency_p50_ms }));
+        case 'get_model_scoreboard': return models.map((m, i) => ({
+          model_id: m.id,
+          task_category: ['code', 'research', 'chat', 'plan', 'code', 'chat'][i],
+          strength_tag: ['speed', 'quality', 'balanced', 'quality', 'speed', 'balanced'][i],
+          n_calls: [120, 80, 60, 40, 30, 20][i],
+          success_rate: m.success_rate,
+          p50_latency_ms: m.latency_p50_ms,
+          cost_per_success_usd: [0.0, 0.02, 0.004, 0.001, 0.0, 0.0][i],
+          quality_score: m.quality_score,
+        }));
         case 'explain_model_selection': return { chosen: 'opus-4-8', reason: 'highest quality within budget' };
         case 'suggest_model_for_task': return 'sonnet-4-6';
         case 'get_ludus_profile': return ludusProfile;
@@ -124,6 +153,25 @@ function installMock(target: string) {
           { id: 'n3', level: 'warn', title: 'Streak at risk', message: 'Code today to keep your 9-day streak', created_at: 1717400000000, kind: 'StreakLost' },
         ];
         case 'get_gamify_settings': return { enabled: true, mode: 'balanced' };
+        case 'list_gamify_leaderboard': return Array.from({ length: 6 }, (_, i) => ({
+          rank: i + 1, user_id: ['archon', 'nova', 'cipher', 'quill', 'atlas', 'echo'][i],
+          level: [27, 25, 22, 19, 17, 14][i], score: [91000, 84000, 72000, 60000, 51000, 42000][i],
+        }));
+        case 'list_gamify_companions': return Array.from({ length: 3 }, (_, i) => ({
+          id: `comp-${i + 1}`, name: ['Byte', 'Quill', 'Sprocket'][i], description: null,
+          language: ['rust', 'typescript', 'python'][i], mood: ['happy', 'focused', 'sleepy'][i],
+          health: [80, 65, 40][i], max_health: 100, energy: [70, 50, 30][i], max_energy: 100,
+          code_quality: [0.9, 0.8, 0.7][i], last_active: 1717400000000,
+          svg: '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#d4af37"/></svg>',
+        }));
+        case 'list_gamify_quests': return Array.from({ length: 3 }, (_, i) => ({
+          id: `quest-${i + 1}`, quest_type: ['daily', 'weekly', 'epic'][i],
+          description: ['Fix 3 failing tests', 'Land a refactor PR', 'Ship a new surface'][i],
+          hint: ['run vox test', 'keep diffs small', 'register it in the surface registry'][i],
+          target: [3, 1, 1][i], progress: [2, 0, 1][i], xp_reward: [150, 400, 1000][i],
+          crystal_reward: [10, 40, 120][i], completed: [false, false, true][i],
+          status: ['active', 'active', 'completed'][i], expires_at: 1717999999999,
+        }));
         case 'vox_search_query': return searchResponse;
         case 'open_locator': return { action: 'opened' };
         case 'list_research_sessions': return sessions;
@@ -188,16 +236,28 @@ test.describe('GUI visual audit', () => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
       const consoleErrors: string[] = [];
+      const pageErrors: string[] = [];
       page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
-      page.on('pageerror', e => consoleErrors.push('PAGEERROR: ' + e.message));
+      page.on('pageerror', e => pageErrors.push(e.message));
       await page.addInitScript(installMock, view);
       await page.goto('/');
+      // The app shell (sidebar nav) must mount before we judge the surface itself.
+      await page.waitForSelector('nav', { timeout: 15_000 });
       await page.waitForTimeout(1600);
       await page.screenshot({ path: `e2e/screens/${view}.png`, fullPage: true });
-      if (consoleErrors.length) {
-        // Surface console errors into the test output for the audit.
-        console.log(`[${view}] console errors:\n` + consoleErrors.slice(0, 12).join('\n'));
-      }
+
+      // ── Visual-audit assertions ─────────────────────────────────────────
+      // 1. The surface rendered without tripping its error boundary.
+      await expect(
+        page.locator('[data-surface-error]'),
+        `[${view}] crashed into its error boundary`,
+      ).toHaveCount(0);
+      // 2. No uncaught exceptions during render.
+      expect(pageErrors, `[${view}] uncaught page errors:\n${pageErrors.join('\n')}`).toEqual([]);
+      // 3. No console errors (React key/prop warnings, failed IPC, …) beyond the benign allowlist.
+      const meaningful = consoleErrors.filter(t => !BENIGN_CONSOLE.some(b => t.includes(b)));
+      expect(meaningful, `[${view}] console errors:\n${meaningful.join('\n')}`).toEqual([]);
+
       await ctx.close();
     });
   }

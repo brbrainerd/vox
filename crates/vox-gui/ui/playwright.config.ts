@@ -6,9 +6,10 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  // `open: 'never'` keeps the HTML artifact without blocking headless/CI runs on a report server.
+  reporter: [['html', { open: 'never' }], ['line']],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:1420',
     trace: 'on-first-retry',
   },
   projects: [
@@ -19,7 +20,8 @@ export default defineConfig({
   ],
   webServer: {
     command: 'pnpm run dev',
-    url: 'http://localhost:5173',
+    url: 'http://localhost:1420',
     reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
 });
