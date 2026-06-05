@@ -24,8 +24,8 @@ training_rationale: "Snapshot of ML framework usage; clarifies Burn vs Candle ro
 | `crates/vox-tensor/src/{tensor,vox_nn,train,optim,lora,lora_config,grpo}.rs` | Burn-based tensor library, GPU-feature-gated | ~2,500 |
 | `crates/vox-populi/src/mens/tensor/burn_stack.rs` | `TransformerBlock<B: Backend>`, merged-weight VoxTransformer | ~600 |
 | `crates/vox-populi/src/mens/tensor/lora/` | LoRA layers in Burn (attention, block, vox transformer, GPU tests) | ~700 |
-| `crates/vox-mens/src/training/native.rs` | Burn NdArray training loop (CPU dogfood) | ~400 |
-| `crates/vox-mens/src/commands/mens/merge_weights.rs` | Merge Burn LoRA checkpoints into a Burn `VoxTransformer` | ~120 |
+| `vox-mens (removed) src/training/native.rs` | Burn NdArray training loop (CPU dogfood) | ~400 |
+| `vox-mens (removed) src/commands/mens/merge_weights.rs` | Merge Burn LoRA checkpoints into a Burn `VoxTransformer` | ~120 |
 | `crates/vox-populi/tests/candle_burn_*_parity.rs` (×4) | Burn↔Candle op equivalence tests | ~200 |
 | `crates/vox-plugin-tensor-burn-wgpu/` | Empty plugin scaffold; SP7 deferral | ~30 |
 | **Total** | | **~4,550 LOC** |
@@ -40,11 +40,11 @@ Heavy workspace deps gated behind these features: `burn` (autodiff + wgpu + trai
 
 `vox mens train --backend qlora` → `vox-plugin-mens-candle-cuda/src/candle_qlora_train/` is the canonical Qwen 3.5 fine-tuning path. Reads HF-format models, runs QLoRA via `qlora-rs`, writes adapter manifests as v3. Has Qwen35 attention block (full + linear), partial-rotary RoPE, NF4 dequant, the whole stack.
 
-Source: `crates/vox-mens/src/commands/ai/train.rs` shells out to `vox mens train --backend qlora --tokenizer hf`.
+Source: `vox-mens (removed) src/commands/ai/train.rs` shells out to `vox mens train --backend qlora --tokenizer hf`.
 
 ### Legacy: Burn (explicitly labeled so by the codebase)
 
-From the doc-comment of `crates/vox-mens/src/commands/ai/train.rs`:
+From the doc-comment of `vox-mens (removed) src/commands/ai/train.rs`:
 
 > *"**`--native`** (legacy Burn scratch trainer behind `mens-dei`)"*
 
@@ -113,9 +113,9 @@ crates/vox-tensor/Cargo.toml — drop [features.gpu], [features.train], burn dep
 crates/vox-populi/src/mens/tensor/burn_stack.rs
 crates/vox-populi/src/mens/tensor/lora/   (entire dir)
 crates/vox-populi/Cargo.toml — drop mens-gpu feature, burn dep, wgpu dep
-crates/vox-mens/src/training/native.rs
-crates/vox-mens/src/commands/ai/train.rs — drop --native flag + run_native()
-crates/vox-mens/src/commands/mens/merge_weights.rs (delete; Candle has its own merge)
+vox-mens (removed) src/training/native.rs
+vox-mens (removed) src/commands/ai/train.rs — drop --native flag + run_native()
+vox-mens (removed) src/commands/mens/merge_weights.rs (delete; Candle has its own merge)
 crates/vox-populi/tests/candle_burn_*_parity.rs (×4 files; lose regression net but regress against what?)
 crates/vox-plugin-tensor-burn-wgpu/   (empty scaffold; delete entirely + remove from catalog)
 ```
