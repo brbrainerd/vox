@@ -8,7 +8,7 @@
  *
  * Run: pnpm exec playwright test screenshots.spec.ts --project=chromium
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { SURFACE_REGISTRY } from '../src/generated/surfaceRegistry.generated';
 
 /**
@@ -25,14 +25,24 @@ const VIEWS: string[] = Array.from(
 ).sort();
 
 /**
- * Console-error substrings that are environmental noise rather than surface defects
- * (e.g. a missing favicon under the bare Vite dev server). Everything else — React key/prop
- * warnings, failed IPC, render exceptions — fails the audit.
+ * Console-error substrings that are environmental noise rather than surface defects. Kept
+ * deliberately narrow — only favicon requests, matched by their URL (the console text for a
+ * failed resource is just "Failed to load resource: …404") — so a real missing asset or any
+ * other 404 still fails the audit.
  */
-const BENIGN_CONSOLE: string[] = [
-  'favicon',
-  'Failed to load resource: the server responded with a status of 404',
-];
+const BENIGN_CONSOLE: string[] = ['favicon'];
+
+/** Capture console-error + pageerror streams for a page. Console entries carry their resource
+ *  URL so favicon noise can be filtered by URL without masking other failures. */
+function captureErrors(page: Page) {
+  const consoleErrors: string[] = [];
+  const pageErrors: string[] = [];
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(`${m.text()} ${m.location()?.url ?? ''}`); });
+  page.on('pageerror', e => pageErrors.push(e.message));
+  return { consoleErrors, pageErrors };
+}
+
+const meaningfulConsole = (errs: string[]) => errs.filter(t => !BENIGN_CONSOLE.some(b => t.includes(b)));
 
 function installMock(target: string) {
   localStorage.setItem('vox_active_view', JSON.stringify(target));
@@ -235,10 +245,7 @@ test.describe('GUI visual audit', () => {
     test(`capture ${view}`, async ({ browser }) => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
-      const consoleErrors: string[] = [];
-      const pageErrors: string[] = [];
-      page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
-      page.on('pageerror', e => pageErrors.push(e.message));
+      const { consoleErrors, pageErrors } = captureErrors(page);
       await page.addInitScript(installMock, view);
       await page.goto('/');
       // The app shell (sidebar nav) must mount before we judge the surface itself.
@@ -255,7 +262,7 @@ test.describe('GUI visual audit', () => {
       // 2. No uncaught exceptions during render.
       expect(pageErrors, `[${view}] uncaught page errors:\n${pageErrors.join('\n')}`).toEqual([]);
       // 3. No console errors (React key/prop warnings, failed IPC, …) beyond the benign allowlist.
-      const meaningful = consoleErrors.filter(t => !BENIGN_CONSOLE.some(b => t.includes(b)));
+      const meaningful = meaningfulConsole(consoleErrors);
       expect(meaningful, `[${view}] console errors:\n${meaningful.join('\n')}`).toEqual([]);
 
       await ctx.close();
@@ -282,8 +289,7 @@ test.describe('GUI visual audit', () => {
     test(`capture sidebar-${sbMode}`, async ({ browser }) => {
       const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
       const page = await ctx.newPage();
-      const pageErrors: string[] = [];
-      page.on('pageerror', e => pageErrors.push(e.message));
+      const { consoleErrors, pageErrors } = captureErrors(page);
       await page.addInitScript(installMock, 'dashboard');
       // useLocalStorage JSON-parses its value, so the mode must be stored as JSON.
       await page.addInitScript((m: string) => localStorage.setItem('vox_sidebar_mode', JSON.stringify(m)), sbMode);
@@ -293,6 +299,8 @@ test.describe('GUI visual audit', () => {
       await page.screenshot({ path: `e2e/screens/_sidebar-${sbMode}.png`, fullPage: false });
       await expect(page.locator('[data-surface-error]')).toHaveCount(0);
       expect(pageErrors, `[sidebar-${sbMode}] uncaught page errors:\n${pageErrors.join('\n')}`).toEqual([]);
+      const meaningful = meaningfulConsole(consoleErrors);
+      expect(meaningful, `[sidebar-${sbMode}] console errors:\n${meaningful.join('\n')}`).toEqual([]);
       await ctx.close();
     });
   }
