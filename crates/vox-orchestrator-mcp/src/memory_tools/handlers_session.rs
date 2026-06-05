@@ -24,7 +24,7 @@ pub async fn session_list(state: &ServerState) -> String {
     let sessions: Vec<SessionInfo> = mgr
         .list_sessions()
         .iter()
-        .map(|s| SessionInfo::from_session(*s))
+        .map(|s| SessionInfo::from_session(s))
         .collect();
     ToolResult::ok(sessions).to_json()
 }

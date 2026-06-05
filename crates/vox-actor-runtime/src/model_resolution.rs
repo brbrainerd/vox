@@ -560,7 +560,11 @@ mod tests {
     #[test]
     fn selector_model_env_precedes_default_cascade() {
         let prior = std::env::var("VOX_SELECTOR_MODEL").ok();
-        unsafe { std::env::set_var("VOX_SELECTOR_MODEL", "openai/gpt-4o-mini") };
+        // SAFETY: single-threaded test; no other thread reads the environment concurrently.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_SELECTOR_MODEL", "openai/gpt-4o-mini")
+        };
         let r = resolve_chat_provider_route_impl(
             &RouteResolutionInput {
                 manual_model: None,
@@ -582,6 +586,8 @@ mod tests {
             }
             other => panic!("expected selector openrouter route, got {other:?}"),
         }
+        // SAFETY: single-threaded test; no other thread reads the environment concurrently.
+        #[allow(unsafe_code)]
         unsafe {
             match prior {
                 Some(v) => std::env::set_var("VOX_SELECTOR_MODEL", v),

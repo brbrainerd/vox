@@ -3,7 +3,6 @@
 // On CI machines without GPU hardware, all platform probes return NoDevice and
 // the pipeline falls back to "Host CPU".
 
-use std::time::Duration;
 use vox_populi::mens::hardware::pipeline::ProbePipeline;
 use vox_populi::mens::hardware::probe::ProbeOutcome;
 use vox_populi::mens::hardware::registry::HardwareRegistryV2;

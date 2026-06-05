@@ -728,7 +728,7 @@ fn select_via_scorer(
     // Install this request's axes as the scorer's base weights for the duration
     // of the pass, so per-task SelectionAxes actually drive the choice (not just
     // the global VOX_AUTO_ROUTING_PRIORITY env). Restored on drop.
-    let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes.clone());
+    let _axes_guard = crate::models::scoring::AxesOverrideGuard::set(effective_axes);
     let model = registry.best_for_with_filter(
         intent.task,
         intent.complexity,
@@ -796,7 +796,7 @@ fn score_for_intent(m: &ModelSpec, intent: &SelectionIntent) -> f64 {
     }
     // Prefer models with stronger strength match.
     let want = crate::models::task_category_strength(intent.task);
-    if m.strengths.iter().any(|t| *t == want) {
+    if m.strengths.contains(&want) {
         s += 0.5;
     }
     // Tie-breaker: larger context.
@@ -816,6 +816,9 @@ pub fn select_with_default_registry(intent: &SelectionIntent) -> Option<Selectio
 
 #[cfg(test)]
 mod tests {
+    // Tests set/remove process env vars to exercise `from_env` cascades.
+    // SAFETY: each test snapshots and restores the var; runner is single-threaded.
+    #![allow(unsafe_code)]
     use super::*;
 
     #[test]
@@ -1054,8 +1057,8 @@ mod tests {
         let intent = SelectionIntent::for_task(TaskCategory::CodeGen);
         // An empty policy carries no steps, so the resolver yields nothing and
         // `select_with_policy` falls through to the pre-existing `select` cascade.
-        let policy = super::policy::SelectionPolicy::default();
-        let ctx = super::policy::PolicyContext::default();
+        let policy = crate::models::policy::SelectionPolicy::default();
+        let ctx = crate::models::policy::PolicyContext::default();
         let via_policy = select_with_policy(&intent, &registry, &policy, &ctx)
             .expect("a model exists for codegen");
         let via_cascade = select(&intent, &registry).expect("a model exists for codegen");

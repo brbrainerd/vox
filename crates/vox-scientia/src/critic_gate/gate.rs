@@ -193,9 +193,9 @@ pub fn evaluate_gate(inputs: &GateInputs<'_>) -> GateOutcome {
         GateReason::CriticFingerprintCollidesWithArtifact
     } else if had_non_approving {
         GateReason::CriticRecommendationNotApproving
-    } else if had_critic {
-        GateReason::InsufficientApprovers
     } else {
+        // Whether or not any critic was present, the residual failure is the
+        // same: not enough approvers cleared the bar.
         GateReason::InsufficientApprovers
     };
     let mut diagnostics = Vec::new();

@@ -134,8 +134,10 @@ fn free_tier_router_satisfies_hard_constraints() {
     let models = vec![vision_free, base];
 
     let router = FreeTierRouter::new();
-    let mut req = FreeTierRouteRequest::default();
-    req.requires_vision = true;
+    let req = FreeTierRouteRequest {
+        requires_vision: true,
+        ..Default::default()
+    };
 
     let results = router.route(&req, &models);
     assert_eq!(results.len(), 1);
@@ -149,9 +151,11 @@ fn free_tier_router_prioritizes_latency() {
     let models = vec![slow_free, fast_free];
 
     let router = FreeTierRouter::new();
-    let mut req = FreeTierRouteRequest::default();
-    req.latency_critical = true;
-    req.max_candidates = 2;
+    let req = FreeTierRouteRequest {
+        latency_critical: true,
+        max_candidates: 2,
+        ..Default::default()
+    };
 
     let results = router.route(&req, &models);
     // fast_free should appear first (latency bonus +5.0 was applied)
@@ -171,9 +175,11 @@ fn free_tier_router_routes_to_fim() {
     let models = vec![mistral, deepseek, other];
 
     let router = FreeTierRouter::new();
-    let mut req = FreeTierRouteRequest::default();
-    req.requires_fill_in_middle = true;
-    req.max_candidates = 2;
+    let req = FreeTierRouteRequest {
+        requires_fill_in_middle: true,
+        max_candidates: 2,
+        ..Default::default()
+    };
 
     let results = router.route(&req, &models);
     // Only Mistral and DeepSeek pass the FIM filter.

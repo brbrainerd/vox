@@ -52,12 +52,14 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Clippy
-        # See ci.yml for rationale: deny all lints except a small cosmetic set.
+        # See ci.yml for rationale: deny all lints except a small cosmetic set;
+        # exclude vox-gui (Tauri frontend not built in this lane).
         run: >-
-          cargo clippy --workspace --all-targets --
+          cargo clippy --workspace --all-targets --exclude vox-gui --
           -D warnings
           -A clippy::items_after_test_module
           -A clippy::collapsible_match
+          -A clippy::collapsible_if
           -A clippy::should_implement_trait
           -A clippy::doc_overindented_list_items
           -A clippy::doc_lazy_continuation

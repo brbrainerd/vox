@@ -201,6 +201,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn constants_are_positive() {
         assert!(DEFAULT_MAILBOX_CAPACITY > 0);
         assert!(DEFAULT_MAX_REDUCTIONS > 0);

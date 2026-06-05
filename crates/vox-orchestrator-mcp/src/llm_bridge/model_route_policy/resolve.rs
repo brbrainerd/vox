@@ -197,7 +197,7 @@ fn resolve_mcp_chat_model_sync_inner(
     user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
-    availability_hint: Option<&[RemainingBudget]>,
+    _availability_hint: Option<&[RemainingBudget]>,
     rationale_out: &mut Option<String>,
 ) -> Result<(ModelSpec, bool), String> {
     if crate::llm_bridge::infer_test_stub::infer_stub_env_active() {

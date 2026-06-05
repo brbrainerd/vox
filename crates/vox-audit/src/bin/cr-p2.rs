@@ -220,7 +220,7 @@ fn resolve_probe_url(app: &AppEntry) -> String {
 fn probe_health(url: &str) -> (bool, Option<u16>, Option<String>) {
     use std::io::Read;
     use std::net::TcpStream;
-    
+
     let (host, port, path) = match parse_http_url(url) {
         Some(t) => t,
         None => return (false, None, Some(format!("malformed url: {url}"))),
@@ -296,7 +296,7 @@ fn load_rows(log_path: &std::path::Path) -> Vec<ProbeRow> {
     let reader = BufReader::new(file);
     reader
         .lines()
-        .filter_map(|l| l.ok())
+        .map_while(Result::ok)
         .filter(|l| !l.trim().is_empty())
         .filter_map(|l| serde_json::from_str(&l).ok())
         .collect()

@@ -21,7 +21,7 @@ async fn register_then_resolve_wakes_the_awaiter() {
     assert_eq!(listed[0].tool, "vox_write_file");
 
     // A separate task parks on the decision; resolving from here wakes it.
-    let waiter = tokio::spawn(async move { rx.await });
+    let waiter = tokio::spawn(rx);
     assert!(reg.resolve(&id, ApprovalOutcome::Approved));
     let outcome = waiter.await.expect("join").expect("sender not dropped");
     assert_eq!(outcome, ApprovalOutcome::Approved);

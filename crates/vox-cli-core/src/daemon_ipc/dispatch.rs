@@ -258,8 +258,9 @@ pub async fn subscribe_daemon(
 
     let mut reader = BufReader::new(stdout).lines();
     while let Ok(Some(line)) = reader.next_line().await {
-        match serde_json::from_str::<DispatchResponse>(&line) {
-            Ok(resp) => match resp.payload {
+        // Unstructured lines are not part of the subscribe contract; ignore them.
+        if let Ok(resp) = serde_json::from_str::<DispatchResponse>(&line) {
+            match resp.payload {
                 DispatchPayload::Event { value } => {
                     if tx.send(value).await.is_err() {
                         // Receiver dropped; stop streaming.
@@ -274,9 +275,7 @@ pub async fn subscribe_daemon(
                 // Other variants (logs, progress, results, etc.) are not part of
                 // the subscribe contract and are ignored.
                 _ => {}
-            },
-            // Unstructured lines are not part of the subscribe contract; ignore.
-            Err(_) => {}
+            }
         }
     }
 

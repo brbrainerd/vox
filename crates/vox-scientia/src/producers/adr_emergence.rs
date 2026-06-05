@@ -119,9 +119,10 @@ fn walk_adrs(dir: &std::path::Path, on_adr: &mut dyn FnMut(&std::path::Path, &st
         if path.is_dir() {
             walk_adrs(&path, on_adr);
         } else if is_adr_path(&path)
-            && let Ok(contents) = std::fs::read_to_string(&path) {
-                on_adr(&path, &contents);
-            }
+            && let Ok(contents) = std::fs::read_to_string(&path)
+        {
+            on_adr(&path, &contents);
+        }
     }
 }
 

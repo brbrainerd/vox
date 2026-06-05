@@ -247,7 +247,6 @@ fn gzip_size(bytes: &[u8]) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
 
     #[test]
     fn gzip_size_is_deterministic() {

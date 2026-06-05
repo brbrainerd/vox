@@ -19,7 +19,7 @@ async fn test_methodological_phase_and_transcript_recovery() {
     let aid = orch.agent_ids()[0];
 
     // 2. Submit a task manually into the queue
-    let mut task = AgentTask::new(tid, "persistence test task", TaskPriority::Normal, vec![]);
+    let task = AgentTask::new(tid, "persistence test task", TaskPriority::Normal, vec![]);
     {
         let ql = orch.agent_queue(aid).expect("queue");
         let mut q = crate::sync_lock::rw_write(&*ql);

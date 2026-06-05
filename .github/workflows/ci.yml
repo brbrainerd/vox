@@ -294,14 +294,25 @@ jobs:
         # toolchain and add churn without correctness value:
         #   - items_after_test_module   — `mod tests` placement (purely cosmetic)
         #   - collapsible_match         — nested `if let`/`match` readability preference
+        #   - collapsible_if            — `if x { if let .. }` cannot collapse without
+        #                                 edition-2024 let-chains; flattening via tuple
+        #                                 patterns would change side-effect ordering
         #   - should_implement_trait    — e.g. inherent `from_str` vs the `FromStr` trait
         #   - doc_overindented_list_items / doc_lazy_continuation — rustdoc markdown nits
         # Every correctness/suspicious/perf lint remains denied.
+        #
+        # vox-gui is excluded for the same reason as cross-platform-check.yml's
+        # `cargo check`: its Tauri `generate_context!()` needs the built frontend
+        # (`frontendDist = "ui/dist"`) at compile time, which this job does not
+        # produce. The full vox-gui build (incl. the pnpm frontend) is covered by
+        # release-gui.yml, so exclude it here rather than make the merge gate
+        # depend on stale on-runner `ui/dist` state.
         run: >-
-          cargo clippy --workspace --all-targets --
+          cargo clippy --workspace --all-targets --exclude vox-gui --
           -D warnings
           -A clippy::items_after_test_module
           -A clippy::collapsible_match
+          -A clippy::collapsible_if
           -A clippy::should_implement_trait
           -A clippy::doc_overindented_list_items
           -A clippy::doc_lazy_continuation

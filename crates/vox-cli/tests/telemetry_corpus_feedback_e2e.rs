@@ -6,6 +6,10 @@
 //!
 //! Lives in `tests/` so the `set_global_recorder` OnceLock starts fresh.
 
+// Tests set/restore process env vars to point the sink at a temp dir.
+// SAFETY: single-threaded integration test; each var is snapshotted and restored.
+#![allow(unsafe_code)]
+
 use std::path::PathBuf;
 
 use vox_telemetry::{

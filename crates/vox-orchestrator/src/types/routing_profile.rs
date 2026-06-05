@@ -105,6 +105,9 @@ pub fn config_to_routing_profile(cfg: &crate::config::OrchestratorConfig) -> Rou
 
 #[cfg(test)]
 mod tests {
+    // Tests remove/restore VOX_ROUTING_PROFILE to exercise deterministic branches.
+    // SAFETY: each test snapshots and restores the var; runner is single-threaded.
+    #![allow(unsafe_code)]
     use super::*;
     use std::str::FromStr;
 
@@ -173,8 +176,10 @@ mod tests {
         let prior = std::env::var("VOX_ROUTING_PROFILE").ok();
         unsafe { std::env::remove_var("VOX_ROUTING_PROFILE") };
 
-        let mut cfg = crate::config::OrchestratorConfig::default();
-        cfg.cost_preference = crate::config::CostPreference::Economy;
+        let mut cfg = crate::config::OrchestratorConfig {
+            cost_preference: crate::config::CostPreference::Economy,
+            ..Default::default()
+        };
         assert_eq!(config_to_routing_profile(&cfg), RoutingProfile::Free);
         cfg.cost_preference = crate::config::CostPreference::Performance;
         assert_eq!(config_to_routing_profile(&cfg), RoutingProfile::Performance);

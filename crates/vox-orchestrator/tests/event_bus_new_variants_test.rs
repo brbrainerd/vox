@@ -1,4 +1,4 @@
-use tokio::time::{Duration, timeout};
+use tokio::time::timeout;
 use vox_orchestrator::events::{AgentEventKind, BuildStageKind, EventBus};
 
 #[tokio::test]

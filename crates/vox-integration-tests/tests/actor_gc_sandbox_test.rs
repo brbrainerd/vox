@@ -1,4 +1,3 @@
-use std::time::Duration;
 use tokio::time::timeout;
 
 /// This test sandbox targets the AST preemption logic injected in Wave 1.

@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 use crate::mens::hardware::probe::{HardwareProbe, ProbeError};
 use crate::mens::hardware::types::HardwareSummary;
 use async_trait::async_trait;

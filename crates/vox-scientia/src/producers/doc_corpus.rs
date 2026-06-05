@@ -90,9 +90,10 @@ fn walk_md(dir: &std::path::Path, on_md: &mut dyn FnMut(&std::path::Path, &str))
         if path.is_dir() {
             walk_md(&path, on_md);
         } else if path.extension().and_then(|e| e.to_str()) == Some("md")
-            && let Ok(contents) = std::fs::read_to_string(&path) {
-                on_md(&path, &contents);
-            }
+            && let Ok(contents) = std::fs::read_to_string(&path)
+        {
+            on_md(&path, &contents);
+        }
     }
 }
 

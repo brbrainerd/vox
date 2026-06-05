@@ -151,6 +151,9 @@ impl TelemetryRecorder for CorpusFeedbackJsonlSink {
 
 #[cfg(test)]
 mod tests {
+    // Tests set/restore EVENTS_DIR_ENV to drive env-resolution branches.
+    // SAFETY (per block below): single-threaded runner; var restored after each test.
+    #![allow(unsafe_code)]
     use super::*;
     use vox_telemetry::{LintFindingEvent, ModelCallEvent, RepairOutcomeEvent};
 

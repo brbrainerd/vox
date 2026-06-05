@@ -1,5 +1,4 @@
 use serial_test::serial;
-use std::time::Duration;
 use tokio::net::TcpListener;
 use vox_populi::http_client::PopuliHttpClient;
 use vox_populi::transport::{PopuliHttpAuth, PopuliTransportState, populi_http_app_with_auth};

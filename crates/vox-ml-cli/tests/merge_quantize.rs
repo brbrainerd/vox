@@ -3,6 +3,9 @@
 //! Drives `vox_quantize::recombine::recombine` + `vox_quantize::quantize`
 //! directly — the same calls the CLI post-merge branch makes — without needing
 //! a real trained adapter or GPU.
+//!
+//! Gated on the `quantize` feature: without it `vox_quantize` is not linked.
+#![cfg(feature = "quantize")]
 
 #[test]
 fn merge_then_quantize_produces_quantized_artifact() {

@@ -92,7 +92,6 @@ async fn run_probe_internal() -> ProbeReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
 
     #[tokio::test]
     async fn fresh_registry_probes_on_first_call() {

@@ -133,9 +133,10 @@ async fn list_exec_durations_for_tool(
     while let Some(r) = rows.next().await.map_err(vox_db::StoreError::Turso)? {
         let d: Option<i64> = r.get(0).map_err(vox_db::StoreError::Turso)?;
         if let Some(d) = d
-            && d >= 0 {
-                out.push(d as u64);
-            }
+            && d >= 0
+        {
+            out.push(d as u64);
+        }
     }
     Ok(out)
 }

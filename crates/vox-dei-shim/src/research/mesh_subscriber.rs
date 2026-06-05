@@ -63,7 +63,6 @@ fn apply_publisher_mesh_intake(repo_root: &std::path::Path, event: &ResearchEven
     #[cfg(not(feature = "news-publish"))]
     {
         let _ = (repo_root, event);
-        return;
     }
     #[cfg(feature = "news-publish")]
     {
