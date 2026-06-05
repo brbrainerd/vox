@@ -54,6 +54,9 @@ use super::retired_symbol_check;
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
     let root = repo_root();
+    // A stale `vox` binary runs outdated guard logic/allowlists, so its `vox ci`
+    // verdict would not reflect the current source. Refuse rather than mislead.
+    crate::freshness::enforce_for_ci(&root)?;
     match cmd {
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),

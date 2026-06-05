@@ -36,6 +36,8 @@ pub mod dispatch {
 pub mod dispatch_protocol {
     pub use vox_cli_core::daemon_ipc::dispatch_protocol::*;
 }
+/// Binary-freshness self-check (stale installed `vox` detection for `vox ci *` / `vox doctor`).
+pub mod freshness;
 /// Vite/React scaffold helpers and shared **pnpm** executable resolution (`pnpm_executable`).
 pub mod frontend;
 pub mod fs_utils;
