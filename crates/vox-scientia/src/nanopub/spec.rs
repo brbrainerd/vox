@@ -82,6 +82,131 @@ pub fn build_and_sign(
     })
 }
 
+/// Build the enriched assertion-graph Turtle for a single verified claim, carrying
+/// its FULL structure (not just text) under the `scientia:` vocabulary on the
+/// `scientia:claim1` subject. The result is the inner assertion body (Turtle
+/// without graph braces), suitable to pass as `assertion_ttl` to [`build_and_sign`].
+///
+/// Reuses the `scientia:` and `xsd:` prefixes that [`build_and_sign`]'s TriG
+/// template already declares, so the body is injected directly into the assertion
+/// graph. Emits, at minimum:
+/// - `scientia:text` (with `"` and `\` escaped in the literal),
+/// - when `tuple` is `Some`: `scientia:variableA` / `scientia:relation` / `scientia:variableB`,
+/// - `scientia:verifiability`,
+/// - `scientia:confidence "<conf>"^^xsd:decimal`,
+/// - `scientia:noveltyVerdict`,
+/// - one `scientia:closestPriorArt <uri>` per prior-art URI (IRIs in angle brackets).
+pub fn assertion_ttl_for_claim(
+    text: &str,
+    tuple: Option<(&str, &str, &str)>,
+    verifiability: &str,
+    confidence: f64,
+    novelty: &str,
+    prior_art_uris: &[&str],
+) -> String {
+    // Predicate-object lines, joined with " ;\n    " and terminated with " .".
+    let mut lines: Vec<String> = Vec::new();
+
+    lines.push(format!("scientia:text \"{}\"", escape_turtle_string(text)));
+
+    if let Some((variable_a, relation, variable_b)) = tuple {
+        lines.push(format!(
+            "scientia:variableA \"{}\"",
+            escape_turtle_string(variable_a)
+        ));
+        lines.push(format!(
+            "scientia:relation \"{}\"",
+            escape_turtle_string(relation)
+        ));
+        lines.push(format!(
+            "scientia:variableB \"{}\"",
+            escape_turtle_string(variable_b)
+        ));
+    }
+
+    lines.push(format!(
+        "scientia:verifiability \"{}\"",
+        escape_turtle_string(verifiability)
+    ));
+
+    // xsd:decimal lexical form: a plain decimal with a fractional part.
+    lines.push(format!(
+        "scientia:confidence \"{}\"^^xsd:decimal",
+        format_decimal(confidence)
+    ));
+
+    lines.push(format!(
+        "scientia:noveltyVerdict \"{}\"",
+        escape_turtle_string(novelty)
+    ));
+
+    for uri in prior_art_uris {
+        // IRIs go in angle brackets; escape `>` / `<` / whitespace conservatively.
+        lines.push(format!("scientia:closestPriorArt <{}>", escape_iri(uri)));
+    }
+
+    format!("scientia:claim1\n    {} .", lines.join(" ;\n    "))
+}
+
+/// Escape a string for use inside a Turtle double-quoted literal (`"..."`).
+/// Handles backslash, double-quote, and the control characters that the oxttl
+/// parser rejects unescaped in a single-line literal.
+fn escape_turtle_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// Escape a URI for use inside a Turtle IRI reference (`<...>`). Per the Turtle
+/// grammar, the delimiters `<`, `>`, `"`, `{`, `}`, `|`, `^`, backtick, backslash,
+/// and whitespace are not allowed bare in an IRIREF and must be percent- or
+/// backslash-handled. We percent-encode the disallowed set so the IRI stays valid.
+fn escape_iri(uri: &str) -> String {
+    let mut out = String::with_capacity(uri.len());
+    for ch in uri.chars() {
+        match ch {
+            '<' => out.push_str("%3C"),
+            '>' => out.push_str("%3E"),
+            '"' => out.push_str("%22"),
+            '{' => out.push_str("%7B"),
+            '}' => out.push_str("%7D"),
+            '|' => out.push_str("%7C"),
+            '^' => out.push_str("%5E"),
+            '`' => out.push_str("%60"),
+            '\\' => out.push_str("%5C"),
+            c if c.is_whitespace() || (c as u32) <= 0x20 => {
+                for b in c.to_string().bytes() {
+                    out.push_str(&format!("%{b:02X}"));
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+/// Format an `f64` confidence as an `xsd:decimal` lexical form. `xsd:decimal`
+/// forbids exponents and requires at least one digit on each side of the point,
+/// so we always emit a fractional part.
+fn format_decimal(value: f64) -> String {
+    // `{:?}` on f64 never uses exponent form for finite values in this range and
+    // preserves a round-trippable representation; ensure a decimal point exists.
+    let mut s = format!("{value}");
+    if !s.contains('.') {
+        s.push_str(".0");
+    }
+    s
+}
+
 /// Validate a signed nanopub TriG OFFLINE: re-derives the trusty hash and verifies
 /// the embedded RSA signature against the embedded public key. No network access.
 pub fn validate_offline(trig: &str) -> Result<(), NanopubSpecError> {
@@ -176,6 +301,62 @@ mod tests {
 
         // Offline validation of the signed TriG must pass (trusty + RSA signature).
         validate_offline(&signed.trig).expect("offline validation should pass");
+    }
+
+    #[test]
+    fn enriched_assertion_carries_structure() {
+        let ttl = assertion_ttl_for_claim(
+            "p95 latency increased by 12ms",
+            Some(("p95_latency_ms", "increased_by", "12 ms")),
+            "numeric",
+            0.91,
+            "possibly_novel",
+            &["https://doi.org/10.1/x"],
+        );
+
+        assert!(ttl.contains("scientia:text"), "missing text: {ttl}");
+        assert!(ttl.contains("scientia:relation"), "missing relation: {ttl}");
+        assert!(
+            ttl.contains("scientia:confidence"),
+            "missing confidence: {ttl}"
+        );
+        assert!(
+            ttl.contains("scientia:noveltyVerdict"),
+            "missing noveltyVerdict: {ttl}"
+        );
+        assert!(
+            ttl.contains("closestPriorArt"),
+            "missing closestPriorArt: {ttl}"
+        );
+    }
+
+    #[test]
+    fn enriched_nanopub_validates_offline() {
+        let profile = NanopubProfile {
+            orcid: "https://orcid.org/0000-0002-1267-0234".to_string(),
+            name: "Vox Scientia Test".to_string(),
+            rsa_private_key_b64: throwaway_rsa_private_key(),
+        };
+
+        let assertion = assertion_ttl_for_claim(
+            "p95 latency increased by 12ms",
+            Some(("p95_latency_ms", "increased_by", "12 ms")),
+            "numeric",
+            0.91,
+            "possibly_novel",
+            &["https://doi.org/10.1/x"],
+        );
+
+        let signed = build_and_sign(
+            &assertion,
+            "https://orcid.org/0000-0002-1267-0234",
+            1_700_000_000,
+            &profile,
+        )
+        .expect("build_and_sign should succeed on enriched assertion");
+
+        validate_offline(&signed.trig)
+            .expect("offline validation should pass for enriched nanopub");
     }
 
     #[test]
