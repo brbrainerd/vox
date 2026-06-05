@@ -240,19 +240,54 @@ vox-script-wasi = {{ path = "{wasi_path}" }}
             match target {
                 ScriptTarget::Native => {
                     let is_async = func.is_async;
+                    // A non-Unit-returning `main` (`fn main() to int`/`to str`)
+                    // cannot map to a Rust `fn main()` (which returns `()`):
+                    // the emitted `return <value>` would be E0308. Mirror the
+                    // interpreter (`vox run --mode interp`, which prints main's
+                    // display value): run the body in a closure and print the
+                    // result. Unit / unannotated mains keep the direct form.
+                    let non_unit_ret = if is_async {
+                        None
+                    } else {
+                        func.return_type
+                            .as_ref()
+                            .map(emit::emit_type)
+                            .filter(|t| t != "()")
+                    };
                     if is_async {
                         main_rs.push_str("#[tokio::main]\nasync fn main() {\n");
+                        for stmt in &func.body {
+                            main_rs.push_str(&emit::emit_main_stmt(
+                                stmt,
+                                1,
+                                Some(&module.inferred_types),
+                            ));
+                        }
+                        main_rs.push_str("}\n");
+                    } else if let Some(ret_ty) = non_unit_ret {
+                        main_rs.push_str("fn main() {\n");
+                        main_rs.push_str(&format!("    let __vox_main_ret: {ret_ty} = (|| {{\n"));
+                        for stmt in &func.body {
+                            main_rs.push_str(&emit::emit_main_stmt(
+                                stmt,
+                                2,
+                                Some(&module.inferred_types),
+                            ));
+                        }
+                        main_rs.push_str("    })();\n");
+                        main_rs.push_str("    println!(\"{}\", __vox_main_ret);\n");
+                        main_rs.push_str("}\n");
                     } else {
                         main_rs.push_str("fn main() {\n");
+                        for stmt in &func.body {
+                            main_rs.push_str(&emit::emit_main_stmt(
+                                stmt,
+                                1,
+                                Some(&module.inferred_types),
+                            ));
+                        }
+                        main_rs.push_str("}\n");
                     }
-                    for stmt in &func.body {
-                        main_rs.push_str(&emit::emit_main_stmt(
-                            stmt,
-                            1,
-                            Some(&module.inferred_types),
-                        ));
-                    }
-                    main_rs.push_str("}\n");
                 }
                 ScriptTarget::Wasi => {
                     if func.is_async {
