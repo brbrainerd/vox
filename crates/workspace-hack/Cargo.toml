@@ -24,7 +24,6 @@ bincode = { version = "2", features = ["serde"] }
 bit-set = { version = "0.8" }
 bitflags = { version = "2", default-features = false, features = ["std"] }
 blake2 = { version = "0.10" }
-borrow-or-share = { version = "0.2" }
 bstr = { version = "1" }
 bumpalo = { version = "3", features = ["allocator-api2", "collections"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "wasm_simd"] }
@@ -48,6 +47,7 @@ digest = { version = "0.10", features = ["mac", "std"] }
 either = { version = "1", features = ["use_std"] }
 fastrand = { version = "2" }
 flate2 = { version = "1", features = ["zlib-rs"] }
+fluent-uri = { version = "0.4", features = ["serde"] }
 fnv = { version = "1" }
 foldhash = { version = "0.2" }
 form_urlencoded = { version = "1" }
@@ -78,7 +78,7 @@ idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
 insta = { version = "1", features = ["json", "yaml"] }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
-jsonschema = { version = "0.26", default-features = false, features = ["resolve-file"] }
+jsonschema = { version = "0.46", default-features = false, features = ["resolve-file"] }
 libc = { version = "0.2" }
 lock_api = { version = "0.4", features = ["arc_lock"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
@@ -165,7 +165,6 @@ bincode = { version = "2", features = ["serde"] }
 bit-set = { version = "0.8" }
 bitflags = { version = "2", default-features = false, features = ["std"] }
 blake2 = { version = "0.10" }
-borrow-or-share = { version = "0.2" }
 bstr = { version = "1" }
 bumpalo = { version = "3", features = ["allocator-api2", "collections"] }
 bytemuck = { version = "1", default-features = false, features = ["aarch64_simd", "derive", "wasm_simd"] }
@@ -190,6 +189,7 @@ digest = { version = "0.10", features = ["mac", "std"] }
 either = { version = "1", features = ["use_std"] }
 fastrand = { version = "2" }
 flate2 = { version = "1", features = ["zlib-rs"] }
+fluent-uri = { version = "0.4", features = ["serde"] }
 fnv = { version = "1" }
 foldhash = { version = "0.2" }
 form_urlencoded = { version = "1" }
@@ -220,7 +220,7 @@ idna = { version = "1" }
 indexmap = { version = "2", features = ["serde"] }
 insta = { version = "1", features = ["json", "yaml"] }
 itertools-5ef9efb8ec2df382 = { package = "itertools", version = "0.12" }
-jsonschema = { version = "0.26", default-features = false, features = ["resolve-file"] }
+jsonschema = { version = "0.46", default-features = false, features = ["resolve-file"] }
 libc = { version = "0.2" }
 lock_api = { version = "0.4", features = ["arc_lock"] }
 log = { version = "0.4", default-features = false, features = ["std"] }
