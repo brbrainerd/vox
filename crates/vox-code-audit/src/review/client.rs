@@ -266,9 +266,12 @@ impl ReviewClient {
         prompt: &str,
         policy: &ConfidencePolicy,
     ) -> Result<(String, usize), String> {
+        // Endpoint is HTTPS (TLS-encrypted). The API key is passed via the
+        // `x-goog-api-key` header rather than the URL query string so it does
+        // not leak into request logs.
         let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-            model, api_key
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            model
         );
         let full_prompt = format!("{}\n\n{}", review_system_prompt(policy), prompt);
         let body = serde_json::json!({
@@ -279,6 +282,7 @@ impl ReviewClient {
         let resp = self
             .http
             .post(&url)
+            .header("x-goog-api-key", api_key)
             .json(&body)
             .send()
             .await

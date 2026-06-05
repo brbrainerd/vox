@@ -103,7 +103,7 @@ pub fn render_finding_page(page: &FindingPage) -> String {
             if let Some(doi) = &v.doi {
                 out.push_str(&escape(doi));
             } else {
-                out.push_str("—");
+                out.push('—');
             }
             out.push_str("</td>");
             out.push_str("<td><code>");

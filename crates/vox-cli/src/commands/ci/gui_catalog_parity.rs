@@ -3,7 +3,7 @@ use serde_json::json;
 use serde_yaml::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug, Clone, Default)]
 struct OperationMeta {
@@ -22,7 +22,7 @@ struct OperationMeta {
     mcp_name: Option<String>,
 }
 
-fn read_operation_catalog(repo_root: &PathBuf) -> Result<Vec<OperationMeta>> {
+fn read_operation_catalog(repo_root: &Path) -> Result<Vec<OperationMeta>> {
     let catalog_path = repo_root.join("contracts/operations/catalog.v1.yaml");
     let raw = fs::read_to_string(&catalog_path).context("read operations catalog")?;
     let parsed: Value = serde_yaml::from_str(&raw).context("parse operations catalog")?;
@@ -42,7 +42,7 @@ fn read_operation_catalog(repo_root: &PathBuf) -> Result<Vec<OperationMeta>> {
         let cli_path = op
             .get("cli")
             .and_then(Value::as_mapping)
-            .and_then(|cli| cli.get(&Value::String("path".to_string())))
+            .and_then(|cli| cli.get(Value::String("path".to_string())))
             .and_then(Value::as_sequence)
             .map(|parts| {
                 parts
@@ -55,13 +55,13 @@ fn read_operation_catalog(repo_root: &PathBuf) -> Result<Vec<OperationMeta>> {
         let status = op
             .get("cli")
             .and_then(Value::as_mapping)
-            .and_then(|cli| cli.get(&Value::String("status".to_string())))
+            .and_then(|cli| cli.get(Value::String("status".to_string())))
             .and_then(Value::as_str)
             .map(ToString::to_string);
         let mcp_name = op
             .get("mcp")
             .and_then(Value::as_mapping)
-            .and_then(|mcp| mcp.get(&Value::String("name".to_string())))
+            .and_then(|mcp| mcp.get(Value::String("name".to_string())))
             .and_then(Value::as_str)
             .map(ToString::to_string);
         out.push(OperationMeta {
@@ -86,7 +86,7 @@ fn read_operation_catalog(repo_root: &PathBuf) -> Result<Vec<OperationMeta>> {
             feature_gate: op
                 .get("cli")
                 .and_then(Value::as_mapping)
-                .and_then(|cli| cli.get(&Value::String("feature_gate".to_string())))
+                .and_then(|cli| cli.get(Value::String("feature_gate".to_string())))
                 .and_then(Value::as_str)
                 .map(ToString::to_string),
             scope_kind: op
@@ -133,7 +133,7 @@ fn confirmation_policy_from_safety(safety: &str) -> &'static str {
     }
 }
 
-fn generated_manifest_payload(repo_root: &PathBuf) -> Result<serde_json::Value> {
+fn generated_manifest_payload(repo_root: &Path) -> Result<serde_json::Value> {
     let catalog = crate::command_catalog::build_catalog();
     let operations = read_operation_catalog(repo_root)?;
     let mut by_cli_path: HashMap<String, OperationMeta> = HashMap::new();
@@ -222,7 +222,7 @@ fn generated_manifest_payload(repo_root: &PathBuf) -> Result<serde_json::Value> 
     }))
 }
 
-pub fn run(repo_root: &PathBuf) -> Result<()> {
+pub fn run(repo_root: &Path) -> Result<()> {
     tracing::info!("Running gui-catalog-parity check...");
     crate::commands::ci::gui_version_sync::run(repo_root, false)?;
 

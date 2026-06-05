@@ -3,14 +3,17 @@ import { invoke } from '@tauri-apps/api/core';
 import { Glass } from '../../ui/Glass';
 import { Icon } from '../../ui/Icons';
 import { Sparkline } from '../../ui/Sparkline';
+import { renderHighlights, UnifiedHit, SearchResponse } from '../Search/searchHelpers';
 
-interface HitResult {
-  src: string;
-  line: number;
-  score: number;
-  kind: string;
-  text: string;
-}
+// Corpus vocabulary aligned with vox_db SearchCorpus variants.
+// Scope ids must match the corpus names accepted by vox_search_query.
+const MEM_CORPORA = [
+  { id: 'memory',    name: 'Memory'    },
+  { id: 'knowledge', name: 'Knowledge' },
+  { id: 'chunk',     name: 'Chunk'     },
+] as const;
+
+type MemCorpusId = typeof MEM_CORPORA[number]['id'];
 
 function CorpusChip({
   corpus,
@@ -36,7 +39,17 @@ function CorpusChip({
   );
 }
 
-function HitCard({ hit, onPin }: { hit: HitResult; onPin: () => void }) {
+function HitCard({
+  hit,
+  query,
+  onPin,
+  onOpen,
+}: {
+  hit: UnifiedHit;
+  query: string;
+  onPin: () => void;
+  onOpen: () => void;
+}) {
   const kindIcon: Record<string, React.ReactNode> = {
     code:   <Icon.file className="size-3.5" />,
     text:   <Icon.catalog className="size-3.5" />,
@@ -45,34 +58,61 @@ function HitCard({ hit, onPin }: { hit: HitResult; onPin: () => void }) {
     web:    <Icon.link className="size-3.5" />,
   };
 
+  const isOpenable = hit.locator.kind === 'file' || hit.locator.kind === 'web';
+  // Bridge: use path as the src display; score as relevance; snippet as text.
+  const src = hit.path ?? hit.source;
+
+  const segments = renderHighlights(hit.snippet, query);
+
   return (
-    <div className="group flex items-start gap-3 rounded-md border border-white/5 bg-white/[0.02] p-3 hover:border-white/15 transition">
+    <div
+      className={`group flex items-start gap-3 rounded-md border border-white/5 bg-white/[0.02] p-3 hover:border-white/15 transition ${isOpenable ? 'cursor-pointer' : ''}`}
+      onClick={isOpenable ? onOpen : undefined}
+    >
       <div className="flex size-7 shrink-0 items-center justify-center rounded bg-white/[0.03] text-zinc-400">
         {kindIcon[hit.kind] ?? <Icon.file className="size-3.5" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-zinc-300 truncate">{hit.src}</span>
-          {hit.line > 0 && <span className="font-mono text-[9px] text-zinc-500">:{hit.line}</span>}
+          <span className="font-mono text-[11px] text-zinc-300 truncate">{src}</span>
+          {/* Show score instead of line number (no line field in UnifiedHit). */}
+          <span className="font-mono text-[9px] text-zinc-500">
+            {(hit.score * 100).toFixed(1)}%
+          </span>
         </div>
-        <div className="mt-1 text-[12px] leading-relaxed text-zinc-300 line-clamp-2">{hit.text}</div>
+        <div className="mt-1 text-[12px] leading-relaxed text-zinc-300 line-clamp-2">
+          {segments.map((seg, i) =>
+            seg.mark ? (
+              <mark key={i} className="bg-brass/20 text-brass rounded px-0.5">{seg.text}</mark>
+            ) : (
+              <span key={i}>{seg.text}</span>
+            )
+          )}
+        </div>
       </div>
       <div className="flex flex-col items-end gap-1">
-        <span className="font-mono text-[10px] tabular-nums text-emerald-300">
-          {(hit.score * 100).toFixed(1)}%
-        </span>
         <div className="h-1 w-16 overflow-hidden rounded-full bg-white/5">
           <div
             className="h-full bg-gradient-to-r from-violet-400 to-emerald-400"
             style={{ width: `${hit.score * 100}%` }}
           />
         </div>
-        <button
-          onClick={onPin}
-          className="opacity-0 group-hover:opacity-100 transition rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:bg-white/5"
-        >
-          <Icon.pin className="size-2.5 inline mr-0.5" />pin
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+          {isOpenable && (
+            <button
+              onClick={e => { e.stopPropagation(); onOpen(); }}
+              className="rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:bg-white/5"
+            >
+              <Icon.link className="size-2.5 inline mr-0.5" />open
+            </button>
+          )}
+          <button
+            onClick={e => { e.stopPropagation(); onPin(); }}
+            className="rounded border border-white/10 bg-white/[0.02] px-1.5 py-0.5 font-mono text-[9px] text-zinc-300 hover:bg-white/5"
+          >
+            <Icon.pin className="size-2.5 inline mr-0.5" />pin
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -91,10 +131,12 @@ interface MemoryViewProps {
 export function MemoryView({ pushToast }: MemoryViewProps) {
   const [memStatus, setMemStatus] = useState<MemoryStatusPayload | null>(null);
   const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<string[]>(['proj', 'docs', 'chats', 'rules', 'web']);
+  // Scope uses the corpus vocabulary aligned with vox_search_query.
+  // Default: all three memory/knowledge/chunk corpora active.
+  const [scope, setScope] = useState<MemCorpusId[]>(['memory', 'knowledge', 'chunk']);
   const [topK, setTopK] = useState(8);
   const [recallOn, setRecallOn] = useState(false);
-  const [hits, setHits] = useState<HitResult[]>([]);
+  const [hits, setHits] = useState<UnifiedHit[]>([]);
   const [recalling, setRecalling] = useState(false);
 
   useEffect(() => {
@@ -103,12 +145,19 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
       .catch((err) => pushToast({ tone: 'warn', title: 'Memory status unavailable', body: String(err) }));
   }, [pushToast]);
 
-  const corpora = MEM_CORPORA.map((c) => ({ ...c, entries: memStatus?.corpus_counts?.[c.id] ?? 0 }));
-  const totalEntries = corpora.reduce(
+  const corpora = MEM_CORPORA.map((c) => ({
+    ...c,
+    entries: memStatus?.corpus_counts?.[c.id] ?? 0,
+  }));
+  const corpusTotal = corpora.reduce(
     (s, c) => s + (scope.includes(c.id) ? c.entries : 0),
     0
   );
-  const toggleScope = (id: string) =>
+  // Fall back to summing shard entries when corpus_counts is absent or all-zero
+  // (backend may omit corpus_counts on a partial status payload).
+  const shardTotal = (memStatus?.shards ?? []).reduce((s, sh) => s + sh.entries, 0);
+  const totalEntries = corpusTotal > 0 ? corpusTotal : shardTotal;
+  const toggleScope = (id: MemCorpusId) =>
     setScope(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
   const recall = async (q?: string) => {
@@ -118,23 +167,34 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
     setHits([]);
 
     try {
-      const res = await invoke<HitResult[]>('mnemosyne_recall', {
+      // Repointed from mnemosyne_recall to vox_search_query scoped to memory corpora.
+      const res = await invoke<SearchResponse>('vox_search_query', {
         query: qq,
-        scope: scope.join(','),
+        scope: scope.length > 0 ? scope : null,
         limit: topK,
       });
-      setHits(res.slice(0, topK));
+      setHits(res.hits.slice(0, topK));
       pushToast({
         tone: 'ok',
         title: 'Recall complete',
         body: `Top hits across ${scope.length} corpora`,
-        cmd: `mnemosyne recall • "${qq}"`,
+        cmd: `vox_search_query • "${qq}"`,
       });
     } catch (err) {
       pushToast({ tone: 'warn', title: 'Recall backend error', body: String(err) });
     } finally {
       setRecalling(false);
       invoke<MemoryStatusPayload>('get_memory_status').then(setMemStatus).catch(() => {});
+    }
+  };
+
+  const openHit = async (hit: UnifiedHit) => {
+    if (hit.locator.kind === 'file' || hit.locator.kind === 'web') {
+      try {
+        await invoke('open_locator', { locator: hit.locator });
+      } catch (err) {
+        pushToast({ tone: 'warn', title: 'Could not open', body: String(err) });
+      }
     }
   };
 
@@ -148,7 +208,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
               Mnemosyne · Memory
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              Vector + symbolic recall · {scope.length} corpora active · {totalEntries.toLocaleString()} indexed entries
+              Vector + symbolic recall · {scope.length} corpora active · {(totalEntries ?? 0).toLocaleString()} indexed entries
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -204,11 +264,16 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
           </button>
         </div>
 
-        {/* Scope chips */}
+        {/* Scope chips — corpus vocabulary: memory / knowledge / chunk */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <span className="font-display text-[9px] uppercase tracking-[0.22em] text-zinc-500">Scope</span>
           {corpora.map(c => (
-            <CorpusChip key={c.id} corpus={c} active={scope.includes(c.id)} onToggle={() => toggleScope(c.id)} />
+            <CorpusChip
+              key={c.id}
+              corpus={c}
+              active={scope.includes(c.id)}
+              onToggle={() => toggleScope(c.id)}
+            />
           ))}
         </div>
       </Glass>
@@ -272,7 +337,9 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
               <HitCard
                 key={i}
                 hit={h}
-                onPin={() => pushToast({ tone: 'ok', title: 'Cited', body: h.src, cmd: 'context.pin' })}
+                query={query}
+                onOpen={() => openHit(h)}
+                onPin={() => pushToast({ tone: 'ok', title: 'Cited', body: h.path ?? h.source, cmd: 'context.pin' })}
               />
             ))}
         </div>
@@ -306,7 +373,7 @@ export function MemoryView({ pushToast }: MemoryViewProps) {
                 </div>
                 <div className="rounded border border-white/5 bg-zinc-950/40 px-2 py-1.5">
                   <div className="uppercase tracking-widest text-zinc-500">Entries</div>
-                  <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{s.entries.toLocaleString()}</div>
+                  <div className="mt-0.5 font-mono text-[11px] text-zinc-200">{(s.entries ?? 0).toLocaleString()}</div>
                 </div>
               </div>
               <div className="mt-2 h-8">

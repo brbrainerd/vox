@@ -112,6 +112,6 @@ impl UsageTracker {
     }
 
     pub fn is_last_use(&self, name: &str, span: Span) -> bool {
-        self.last_use.get(name).map_or(false, |s| *s == span)
+        self.last_use.get(name).is_some_and(|s| *s == span)
     }
 }

@@ -105,6 +105,11 @@ pub fn config_to_routing_profile(cfg: &crate::config::OrchestratorConfig) -> Rou
 
 #[cfg(test)]
 mod tests {
+    // The env-mutating test removes/restores VOX_ROUTING_PROFILE; it is `#[serial]`
+    // so no other env-mutating test runs concurrently, and it restores the prior value.
+    #![allow(unsafe_code)]
+    use serial_test::serial;
+
     use super::*;
     use std::str::FromStr;
 
@@ -167,14 +172,17 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn config_maps_cost_preference_when_secret_unset() {
         // The secret overlay reads VOX_ROUTING_PROFILE; remove it so the
         // CostPreference branch is exercised deterministically.
         let prior = std::env::var("VOX_ROUTING_PROFILE").ok();
         unsafe { std::env::remove_var("VOX_ROUTING_PROFILE") };
 
-        let mut cfg = crate::config::OrchestratorConfig::default();
-        cfg.cost_preference = crate::config::CostPreference::Economy;
+        let mut cfg = crate::config::OrchestratorConfig {
+            cost_preference: crate::config::CostPreference::Economy,
+            ..Default::default()
+        };
         assert_eq!(config_to_routing_profile(&cfg), RoutingProfile::Free);
         cfg.cost_preference = crate::config::CostPreference::Performance;
         assert_eq!(config_to_routing_profile(&cfg), RoutingProfile::Performance);

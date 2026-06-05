@@ -1,3 +1,7 @@
+// Exercises `commands::quantize` + the `vox_quantize` engine, both gated behind
+// the `quantize` feature; skip the whole file when that feature is off.
+#![cfg(feature = "quantize")]
+
 #[test]
 fn quantize_cli_produces_artifact() {
     use candle_core::{DType, Device, Tensor};

@@ -120,9 +120,8 @@ impl OpenClawGatewayWsClient {
             serde_json::to_value(params).unwrap_or_else(|_| json!({})),
         );
         ws.send(Message::Text(
-            (serde_json::to_string(&frame)
-                .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?)
-            .into(),
+            serde_json::to_string(&frame)
+                .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?,
         ))
         .await
         .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?;
@@ -194,9 +193,8 @@ impl OpenClawGatewayWsClient {
         let frame = GatewayRequest::req(id.clone(), method.to_string(), params);
         self.ws
             .send(Message::Text(
-                (serde_json::to_string(&frame)
-                    .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?)
-                .into(),
+                serde_json::to_string(&frame)
+                    .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?,
             ))
             .await
             .map_err(|e| OpenClawGatewayWsError::Send(e.to_string()))?;

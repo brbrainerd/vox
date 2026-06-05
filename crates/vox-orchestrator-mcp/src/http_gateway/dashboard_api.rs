@@ -12,7 +12,7 @@ use axum::Json;
 use axum::Router;
 use axum::extract::{ConnectInfo, Path, State};
 use axum::http::HeaderMap;
-use axum::routing::{get, post, put};
+use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::net::SocketAddr;
@@ -464,6 +464,119 @@ pub async fn get_models_catalog(
     }))
 }
 
+/// Assemble the live scientia [`QueueSnapshot`] directly from the Codex DB.
+///
+/// Shared by the REST handler [`get_scientia_queue`] and the WebSocket
+/// `scientia.queue.changed` poller (see [`super::scientia_feed`]) so both
+/// surfaces compute identical snapshots from one source of truth.
+pub(crate) async fn assemble_scientia_queue()
+-> anyhow::Result<vox_scientia::dashboard::QueueSnapshot> {
+    use vox_scientia::dashboard::{
+        CandidateRow, ClaimsPendingSummary, DashboardInputs, ReplyWindowEntry, build_queue_snapshot,
+    };
+    let db = vox_db::VoxDb::connect_default().await?;
+    let manifests = db
+        .list_publication_manifests(Some("scientia"), None, 200)
+        .await?;
+    let candidates: Vec<CandidateRow> = manifests
+        .iter()
+        .map(|m| CandidateRow {
+            candidate_id: m.publication_id.clone(),
+            candidate_class: m.content_type.clone(),
+            confidence: 0.0,
+            state: m.state.clone(),
+            created_at_ms: m.created_at_ms,
+            updated_at_ms: m.updated_at_ms,
+        })
+        .collect();
+    let retraction_queue: Vec<String> = candidates
+        .iter()
+        .filter(|c| c.state == "retracted")
+        .map(|c| c.candidate_id.clone())
+        .collect();
+    let counts = db.scientia_claims_pending_summary().await?;
+    let claims_pending = ClaimsPendingSummary {
+        verifiable: counts.verifiable.max(0) as u64,
+        abstained: counts.abstained.max(0) as u64,
+        extraction_running: counts.extraction_running.max(0) as u64,
+    };
+    let manifests_in_reply_window: Vec<ReplyWindowEntry> = Vec::new();
+    let now_ms = chrono::Utc::now().timestamp_millis();
+    let inputs = DashboardInputs {
+        candidates: &candidates,
+        claims_pending,
+        manifests_in_reply_window: &manifests_in_reply_window,
+        retraction_queue: &retraction_queue,
+        now_ms,
+    };
+    Ok(build_queue_snapshot(&inputs))
+}
+
+/// GET /api/v2/scientia/queue — live `QueueSnapshot` assembled from the Codex DB.
+pub async fn get_scientia_queue(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    match assemble_scientia_queue().await {
+        Ok(snapshot) => {
+            ok(serde_json::to_value(&snapshot)
+                .unwrap_or_else(|e| json!({ "error": e.to_string() })))
+        }
+        Err(e) => err("db_error", &e.to_string()),
+    }
+}
+
+/// GET /api/v2/scientia/cost — live `CostRollup` for the current quarter from the Codex DB.
+pub async fn get_scientia_cost(
+    State(gs): State<GatewayState>,
+    connect: ConnectInfo<SocketAddr>,
+    headers: HeaderMap,
+) -> Json<Value> {
+    if let Err(e) = enforce_dashboard_read(&gs, &connect.0, &headers) {
+        return e;
+    }
+    use vox_scientia::dashboard::cost::{CostInputs, build_cost_rollup};
+    let db = match vox_db::VoxDb::connect_default().await {
+        Ok(db) => db,
+        Err(e) => return err("db_error", &e.to_string()),
+    };
+    let (provider_rows, phase_rows, findings) = match db.scientia_cost_raw_this_quarter().await {
+        Ok(r) => r,
+        Err(e) => return err("db_error", &e.to_string()),
+    };
+    let by_provider: Vec<(String, f64)> = provider_rows
+        .into_iter()
+        .map(|r| (r.provider, r.total_usd))
+        .collect();
+    let mut inputs = CostInputs {
+        extraction_usd: 0.0,
+        critic_usd: 0.0,
+        novelty_retrieval_usd: 0.0,
+        scholarly_submission_usd: 0.0,
+        by_provider,
+        findings_published_this_quarter: findings,
+    };
+    // Map per-phase rows (baseline v70 `pipeline_phase` GROUP BY) onto the four
+    // category lines; unknown phase strings are ignored (forward-compat). Mirrors
+    // the `apply_phase_costs` fold in the `vox scientia cost` CLI handler so the
+    // REST surface and the CLI report identical category splits.
+    for row in &phase_rows {
+        match row.phase.as_str() {
+            "extraction" => inputs.extraction_usd += row.total_usd,
+            "critic" => inputs.critic_usd += row.total_usd,
+            "novelty" => inputs.novelty_retrieval_usd += row.total_usd,
+            "scholarly" => inputs.scholarly_submission_usd += row.total_usd,
+            _ => {}
+        }
+    }
+    let rollup = build_cost_rollup(&inputs);
+    ok(serde_json::to_value(&rollup).unwrap_or_else(|e| json!({ "error": e.to_string() })))
+}
+
 /// Build the dashboard sub-router nested at `/api/v2`.
 pub fn router() -> Router<GatewayState> {
     Router::new()
@@ -477,4 +590,6 @@ pub fn router() -> Router<GatewayState> {
         .route("/routing/manual-ssot", get(get_routing_manual_ssot))
         .route("/models/catalog", get(get_models_catalog))
         .route("/mesh/nodes/{id}/kill", post(post_mesh_node_kill))
+        .route("/scientia/queue", get(get_scientia_queue))
+        .route("/scientia/cost", get(get_scientia_cost))
 }

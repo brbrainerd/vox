@@ -29,9 +29,9 @@ fn run_probe(source: &str) -> Result<VoxValue, String> {
         .map_err(|e| format!("call: {e:?}"))
 }
 
-/// Every probe below was crafted from a real `vox check`-passes-but-`vox run`-
-/// fails case that the 2026-05-23 audit found. Each one exercises one
-/// eval/typeck parity point.
+// Every probe below was crafted from a real `vox check`-passes-but-`vox run`-
+// fails case that the 2026-05-23 audit found. Each one exercises one
+// eval/typeck parity point.
 
 /// `record.get(key).unwrap()` — typeck says `Option[T]`; eval used to return
 /// the bare value, breaking `.unwrap()`. Fixed by eval/builtins.rs change.

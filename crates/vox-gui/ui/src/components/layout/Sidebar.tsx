@@ -2,6 +2,7 @@ import React from 'react';
 import { Glass } from '../ui/Glass';
 import { Icon } from '../ui/Icons';
 import { DashboardData } from '../../types/dashboard';
+import { SURFACE_REGISTRY } from '../../generated/surfaceRegistry.generated';
 
 export type SidebarMode = 'rail' | 'default' | 'wide';
 
@@ -86,25 +87,22 @@ export function Sidebar({ view, setView, agentsCount, data, mode, setMode, pushT
           </div>
         )}
         <nav className="flex flex-col gap-1">
-          <NavItem collapsed={collapsed} active={view === "dashboard"} onClick={() => setView("dashboard")} icon={<Icon.dashboard className="size-4"/>} label="Dashboard" />
-          <NavItem collapsed={collapsed} active={view === "flow"}      onClick={() => setView("flow")}      icon={<Icon.flow className="size-4"/>}      label="Agents" badge={agentsCount} />
-          <NavItem collapsed={collapsed} active={view === "catalog"}   onClick={() => setView("catalog")}   icon={<Icon.catalog className="size-4"/>}   label="Commands" />
-          <NavItem collapsed={collapsed} active={view === "matrix"}    onClick={() => setView("matrix")}    icon={<Icon.matrix className="size-4"/>}    label="Policies" />
-          <NavItem collapsed={collapsed} active={view === "scientia"}  onClick={() => setView("scientia")}  icon={<Icon.file className="size-4"/>}   label="Scientia" />
-          <NavItem collapsed={collapsed} active={view === "claims"}    onClick={() => setView("claims")}    icon={<Icon.matrix className="size-4"/>} label="Claims" />
-          <NavItem collapsed={collapsed} active={view === "mens"}      onClick={() => setView("mens")}      icon={<Icon.cpu className="size-4"/>}    label="Mens" />
-          <NavItem collapsed={collapsed} active={view === "populi"}    onClick={() => setView("populi")}    icon={<Icon.flow className="size-4"/>}   label="Populi" />
-          <NavItem collapsed={collapsed} active={view === "research"}  onClick={() => setView("research")}  icon={<Icon.memory className="size-4"/>} label="Research" />
-          <NavItem collapsed={collapsed} active={view === "oratio"}    onClick={() => setView("oratio")}    icon={<Icon.spark className="size-4"/>}  label="Oratio" />
-          <NavItem collapsed={collapsed} active={view === "models"}    onClick={() => setView("models")}    icon={<Icon.cpu className="size-4"/>}    label="Models" />
-          <NavItem collapsed={collapsed} active={view === "harness"}   onClick={() => setView("harness")}   icon={<Icon.command className="size-4"/>} label="Harness" />
-          <NavItem collapsed={collapsed} active={view === "repository"} onClick={() => setView("repository")} icon={<Icon.file className="size-4"/>} label="Repository" />
-          <NavItem collapsed={collapsed} active={view === "mesh"}      onClick={() => setView("mesh")}      icon={<Icon.cpu className="size-4"/>} label="Mesh" />
-          <NavItem collapsed={collapsed} active={view === "gamify"}    onClick={() => setView("gamify")}    icon={<Icon.spark className="size-4"/>} label="Gamify" />
-          <NavItem collapsed={collapsed} active={view === "runs"}      onClick={() => setView("runs")}      icon={<Icon.scale className="size-4"/>}      label="Runs" />
-          <NavItem collapsed={collapsed} active={view === "approvals"} onClick={() => setView("approvals")} icon={<Icon.shield className="size-4"/>} label="Approvals" />
-          <NavItem collapsed={collapsed} active={view === "skills"}    onClick={() => setView("skills")}    icon={<Icon.catalog className="size-4"/>}   label="Skills" />
-          <NavItem collapsed={collapsed} active={view === "memory"}    onClick={() => setView("memory")}    icon={<Icon.memory className="size-4"/>}    label="Memory" />
+          {SURFACE_REGISTRY
+            .filter(e => e.viewKey && e.navLabel && e.navGroup !== 'system')
+            .map(e => {
+              const IconCmp = (Icon as Record<string, any>)[e.navIcon ?? 'file'] ?? Icon.file;
+              return (
+                <NavItem
+                  key={e.viewKey as string}
+                  collapsed={collapsed}
+                  active={view === e.viewKey}
+                  onClick={() => setView(e.viewKey)}
+                  icon={<IconCmp className="size-4" />}
+                  label={e.navLabel as string}
+                  badge={e.viewKey === 'flow' ? agentsCount : undefined}
+                />
+              );
+            })}
         </nav>
 
         <div className="mt-auto flex flex-col gap-2 pt-3">

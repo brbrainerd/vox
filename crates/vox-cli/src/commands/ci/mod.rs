@@ -33,6 +33,7 @@ mod grammar_ssot_parity;
 mod gui_catalog_parity;
 mod gui_smoke;
 mod gui_surface_coverage;
+pub mod gui_surface_registry;
 mod gui_version_sync;
 mod install_hooks;
 mod kill_stuck_tests;

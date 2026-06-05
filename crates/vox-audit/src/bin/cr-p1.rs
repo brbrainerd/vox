@@ -35,7 +35,6 @@ use serde::Deserialize;
 use serde_json::json;
 use std::io::Read;
 use std::net::TcpStream;
-use std::time::Duration;
 
 #[derive(Debug, Deserialize)]
 struct Manifest {

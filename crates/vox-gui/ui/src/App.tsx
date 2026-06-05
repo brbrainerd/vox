@@ -51,7 +51,10 @@ type View =
   | 'oratio'
   | 'approvals'
   | 'skills'
-  | 'settings';
+  | 'settings'
+  | 'coverage'
+  | 'publications'
+  | 'search';
 
 // ─── Agent mapper — shared between EventBus and polling fallback ─────────────
 function mapAgent(a: any): Agent {
@@ -227,7 +230,7 @@ export default function App() {
       .catch(() => setAppVersion('unknown'));
 
     invoke('get_initial_view').then((view: any) => {
-      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings'] as string[]).includes(view)) {
+      if (view && (['dashboard', 'flow', 'catalog', 'matrix', 'memory', 'models', 'runs', 'repository', 'mesh', 'gamify', 'harness', 'scientia', 'claims', 'mens', 'populi', 'research', 'oratio', 'approvals', 'skills', 'settings', 'coverage', 'publications', 'search'] as string[]).includes(view)) {
         setActiveView(view as View);
       }
     }).catch(() => {});
@@ -493,9 +496,9 @@ export default function App() {
 
   const handleAckAlert = useCallback(async (note: LudusAlert) => {
     setData(prev => ({ ...prev, alerts: prev.alerts.filter(x => x.id !== note.id) }));
-    await executeWithRun('vox_gamify_notification_ack', { notification_id: note.id }, 'gui.alert.ack')
+    await invoke('ack_ludus_notification', { notificationId: note.id })
       .catch((err) => pushToast({ tone: 'warn', title: 'Alert ack failed', body: String(err) }));
-  }, [executeWithRun, pushToast]);
+  }, [pushToast]);
 
   const handleCommandAction = useCallback((cmd: any) => {
     if (cmd.id === 'submit') document.querySelector('textarea')?.focus();
@@ -504,11 +507,13 @@ export default function App() {
     else if (cmd.id === 'ack-all') data.alerts.forEach(handleAckAlert);
     else if (cmd.id?.startsWith('agent:')) { setActiveView('flow'); setSelectedAgentId(cmd.id.slice(6)); }
     else if (cmd.id?.startsWith('skill:')) {
-      const s = data.skills.find((x: any) => x.id === cmd.id.slice(6));
+      const s: any = data.skills.find((x: any) => x.id === cmd.id.slice(6));
       if (s) {
         setDeployedSet(prev => new Set([...prev, s.id]));
         handleLoquelaSubmit({ description: `Deploy skill: ${s.command}`, active_skill: s.id });
       }
+    } else if (cmd.id === 'search') {
+      setActiveView('search');
     } else {
       pushToast({ tone: 'info', title: 'Command', body: cmd.label });
     }

@@ -175,6 +175,15 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 
 **Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
 
+**Formatting Rust (Windows-safe).** Never run `cargo fmt --all` on this workspace — it passes every crate's target root to a single `rustfmt` process, which overflows the Windows `CreateProcess` command-line limit and dies with `os error 206` ("The filename or extension is too long"). Format the whole workspace with:
+
+```
+vox run scripts/fmt.vox                    # write (fix) — Windows/Linux/macOS
+VOX_FMT_CHECK=1 vox run scripts/fmt.vox    # check only (nonzero exit on drift)
+```
+
+`scripts/fmt.vox` formats each crate via `cargo fmt --manifest-path crates/<crate>/Cargo.toml`, so every invocation is tiny while cargo still resolves `rustfmt.toml` + per-crate edition (full fidelity — a raw `rustfmt` loop loses the config on Windows `\\?\` paths and emits phantom diffs). The pre-push gate (`vox ci pre-push` → `check_fmt`) and both CI workflows use the same per-crate strategy. To fix a single crate: `cargo fmt -p <crate>`.
+
 Full rationale, execution tier map, security model, and migration plan: background research in `docs/src/archive/research-2026-q1/` (do not ingest — see §Archival Protocol).
 
 ## Grammar Unification (Vox Source Syntax)
@@ -310,6 +319,33 @@ Use `vox ci pre-push` to run any tier locally. Install the hook once with `cargo
 **Slow-test partition** (`--include-slow`): runs four `#[ignore = "slow; ..."]` tests that are excluded by default. CI always sets this flag. The 4 tests are: `arch_check_smoke_test`, `description_rule_produces_output_on_clean_workspace`, `timeout_kills_long_running_child`, `generated_ai_fixture_bundle_passes_cargo_check`.
 
 **Budget enforcement:** `--enforce-budgets` compares total elapsed against `contracts/budgets/test-tier-budgets.v1.yaml` (warn at 1.2×, fail at 1.5× measured baseline). No-op if the budgets file is absent. CI also runs `vox ci tier-budget-check --junit target/nextest/ci/junit.xml --profile full` after each nextest run.
+
+## PR & Review Discipline (Required, Cross-Tool)
+
+> **Canonical config:** `.coderabbit.yaml` (repo root; CodeRabbit reads it from the **default branch**).
+
+Automated PR review (CodeRabbit) is **rate-limited and shared**: every branch, every
+Claude Code tab/worktree, and every IDE you use pushes as the **same GitHub identity**,
+so they all draw from **one** per-developer review allowance (Pro tier: ~5 PR reviews/hour,
+refilling over time, throttled further under sustained bursts). Treating every `git push`
+as a review request drains that allowance in minutes and stalls all your other work.
+
+**Repo policy (enforced by `.coderabbit.yaml`):** `auto_review.auto_incremental_review:
+false` — CodeRabbit reviews a PR **once when it opens** and does **not** auto-review
+subsequent pushes. Re-review is **on demand only**.
+
+Therefore, across **all** branches/tabs/IDEs:
+
+- **Batch commits; push once when the PR is review-ready** — not after every commit. (This
+  is the same "don't re-push to iterate" rule as the CI gate tiers above, applied to review.)
+- **Request re-review explicitly** by commenting **`@coderabbitai review`** on the PR when
+  you actually want fresh eyes — never by pushing repeatedly.
+- **Don't open a PR before the work is review-ready.** If you must push early, keep the PR a
+  **Draft** (drafts are not auto-reviewed; `auto_review.drafts: false`).
+- The `vox ci pre-push` hook prints an **advisory** reminder when you re-push a branch that
+  already has an upstream (the proxy for an open PR). It never blocks the push.
+
+One-line takeaway: **one deliberate review per ready PR**, not one per push.
 
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 

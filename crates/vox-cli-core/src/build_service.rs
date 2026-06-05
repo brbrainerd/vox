@@ -198,7 +198,8 @@ pub fn run_cargo(req: &CargoRequest) -> Result<Output> {
 
     let output = cmd.output().context("Failed to run cargo")?;
     let wait_ms = t0.elapsed().as_millis() as u64;
-    drop(_guard);
+    // `_guard` (PeriodicWaitLogger) has no Drop impl, so it falls out of scope
+    // here naturally; an explicit `drop` would be a no-op.
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     log_spawn_complete(
@@ -269,7 +270,8 @@ pub fn run_cargo_inherit(req: &CargoRequest) -> Result<std::process::ExitStatus>
 
     let status = cmd.status().context("Failed to run cargo")?;
     let wait_ms = t0.elapsed().as_millis() as u64;
-    drop(_guard);
+    // `_guard` (PeriodicWaitLogger) has no Drop impl, so it falls out of scope
+    // here naturally; an explicit `drop` would be a no-op.
     log_spawn_complete(
         &req.command,
         &manifest.display().to_string(),

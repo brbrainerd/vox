@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS agent_telemetry_flat (
     output_tokens     INTEGER,
     cost_usd          REAL,
     trust_score       REAL,
+    pipeline_phase    TEXT,                  -- Scientia pipeline phase tag for cost rows: 'extraction' | 'critic' | 'novelty' | 'scholarly'; NULL for non-Scientia telemetry
     payload_json      TEXT,                  -- narrow, non-PII subset
     recorded_at_ms    INTEGER NOT NULL
 );

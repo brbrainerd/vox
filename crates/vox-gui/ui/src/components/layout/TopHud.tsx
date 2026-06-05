@@ -60,7 +60,7 @@ export function TopHud({ kpis, onCommand }: TopHudProps) {
         </div>
       </div>
 
-      <div className="flex items-stretch divide-x divide-white/5 overflow-hidden">
+      <div className="flex min-w-0 flex-1 items-stretch divide-x divide-white/5 overflow-x-auto">
         <KPI 
           label="Active Agents" 
           value={kpis.activeAgents.value} 

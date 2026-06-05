@@ -412,7 +412,6 @@ fn versioned_event(mut entry: Value) -> Value {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 async fn execute_with_retry_logic<T, Work, WorkFut, OnFailed, OnRetry>(
     max_attempts: u32,
     initial_backoff_ms: u64,

@@ -81,7 +81,6 @@ fn enforce_free_tier_only_swaps_paid_best_for() {
             enforce_free_tier_only: true,
             ..Default::default()
         },
-        None,
     )
     .expect("resolve");
     assert!(resolved.0.is_free);
@@ -159,7 +158,6 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
             allow_cheapest_fallback: true,
             ..Default::default()
         },
-        None,
     )
     .expect_err("sticky ollama must fail");
     assert!(
@@ -389,7 +387,6 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
             enforce_free_tier_only: true,
             ..Default::default()
         },
-        None,
     )
     .expect_err("no allowed free model");
     assert!(
@@ -495,7 +492,7 @@ fn mcp_request_to_canonical_decision_to_route_output_parity() {
     };
 
     let (resolved_model, _) =
-        resolve_mcp_chat_model_sync(&orch, "generate a parser", None, request.clone(), None)
+        resolve_mcp_chat_model_sync(&orch, "generate a parser", None, request.clone())
             .expect("canonical decision");
     let canonical_decision_model_id = resolved_model.id.clone();
 
@@ -504,7 +501,6 @@ fn mcp_request_to_canonical_decision_to_route_output_parity() {
         "generate a parser",
         Some(&canonical_decision_model_id),
         request,
-        None,
     )
     .expect("sticky route output");
 
@@ -555,7 +551,6 @@ fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
             task_category: vox_orchestrator::types::TaskCategory::CodeGen,
             ..Default::default()
         },
-        None,
     )
     .expect("should resolve");
 
@@ -594,7 +589,6 @@ fn vox_local_not_preferred_for_non_code_tasks() {
             task_category: vox_orchestrator::types::TaskCategory::Research,
             ..Default::default()
         },
-        None,
     )
     .expect("should resolve");
 

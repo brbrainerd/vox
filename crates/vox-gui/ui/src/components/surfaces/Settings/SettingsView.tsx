@@ -14,6 +14,7 @@ const SECTIONS = [
   { id: 'telemetry',    icon: 'scale',   label: 'Telemetry' },
   { id: 'keybinds',     icon: 'command', label: 'Keybinds' },
   { id: 'theme',        icon: 'spark',   label: 'Theme' },
+  { id: 'gamify',       icon: 'bolt',    label: 'Gamification' },
 ];
 
 const KEYBINDS = [
@@ -74,7 +75,7 @@ function RangeInline({
         className="vox-range flex-1 h-1 appearance-none rounded-full overflow-hidden"
         style={{ background: `linear-gradient(to right, #d4af37 ${pct}%, rgba(255,255,255,0.08) ${pct}%)` } as any}
       />
-      <span className="w-14 text-right font-mono text-[11px] text-zinc-200">{suffix}{value}</span>
+      <span className="w-14 text-right font-mono text-[11px] text-zinc-200">{value}{suffix}</span>
     </div>
   );
 }
@@ -278,7 +279,20 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
       }
     };
     hydrate();
+    invoke<{ enabled: boolean; mode: string }>('get_gamify_settings').then(setGamify).catch(() => {});
   }, []);
+
+  const [gamify, setGamify] = useState<{ enabled: boolean; mode: string }>({ enabled: true, mode: 'balanced' });
+
+  const updateGamify = async (patch: Partial<{ enabled: boolean; mode: string }>) => {
+    const next = { ...gamify, ...patch };
+    setGamify(next);
+    try {
+      await invoke('set_gamify_settings', { enabled: next.enabled, mode: next.mode });
+    } catch (err) {
+      pushToast({ tone: 'warn', title: 'Gamify save failed', body: String(err) });
+    }
+  };
 
   const [advanced, setAdvanced] = useState(false);
 
@@ -568,6 +582,26 @@ export function SettingsView({ pushToast }: SettingsViewProps) {
               ))}
             </div>
           </>
+        )}
+
+        {section === 'gamify' && (
+          <div className="space-y-3">
+            <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-3 text-sm">
+              <span>Gamification enabled</span>
+              <input type="checkbox" checked={gamify.enabled} onChange={e => updateGamify({ enabled: e.target.checked })} />
+            </label>
+            <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/[0.02] p-3 text-sm">
+              <span>Mode</span>
+              <select value={gamify.mode} disabled={!gamify.enabled}
+                onChange={e => updateGamify({ mode: e.target.value })}
+                className="rounded bg-black/40 px-2 py-1 text-zinc-200">
+                <option value="balanced">Balanced</option>
+                <option value="serious">Serious (silent)</option>
+                <option value="learning">Learning</option>
+              </select>
+            </label>
+            <p className="text-[11px] text-zinc-500">Serious mode keeps rewards active but hides overlays and hints.</p>
+          </div>
         )}
 
         {section === 'theme' && (

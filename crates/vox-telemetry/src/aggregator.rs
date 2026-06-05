@@ -124,10 +124,10 @@ pub fn fill_task_root_summary(event: &mut TaskRootSummaryEvent) {
     event.child_call_count = agg.child_call_count;
     event.max_span_depth = event.max_span_depth.max(agg.max_span_depth);
     event.subagent_fanout = agg.subagent_fanout;
-    if event.wall_time_ms == 0 {
-        if let Some(started) = agg.started_at {
-            event.wall_time_ms = started.elapsed().as_millis() as u64;
-        }
+    if event.wall_time_ms == 0
+        && let Some(started) = agg.started_at
+    {
+        event.wall_time_ms = started.elapsed().as_millis() as u64;
     }
 }
 
@@ -265,12 +265,11 @@ mod tests {
             subagent_fanout: 0,
         };
         fill_task_root_summary(&mut summary);
-        // wall_time_ms may be 0 or very small (Instant elapsed since model call) but
-        // the key guarantee is that it does NOT stay 0 after a model call was observed.
-        // In practice the sleep ensures > 0; use >= 0 to avoid flakiness on fast machines.
+        // started_at is anchored when the model call is observed, and we slept
+        // ≥2ms before filling, so the elapsed wall time must be strictly > 0.
         assert!(
-            summary.wall_time_ms >= 0,
-            "wall_time_ms should be non-negative; got {}",
+            summary.wall_time_ms > 0,
+            "expected wall_time_ms > 0 after first model call; got {}",
             summary.wall_time_ms
         );
     }

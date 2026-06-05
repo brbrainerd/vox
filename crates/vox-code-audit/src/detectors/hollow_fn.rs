@@ -218,16 +218,14 @@ impl HollowFnDetector {
                                     meaningful_stmts += 1;
                                 }
                                 last_expr = Some(expr);
-                            } else {
-                                if let syn::Expr::Return(ret) = expr {
-                                    if let Some(e) = &ret.expr {
-                                        last_expr = Some(&**e);
-                                    } else {
-                                        last_expr = Some(expr);
-                                    }
+                            } else if let syn::Expr::Return(ret) = expr {
+                                if let Some(e) = &ret.expr {
+                                    last_expr = Some(&**e);
                                 } else {
-                                    meaningful_stmts += 1;
+                                    last_expr = Some(expr);
                                 }
+                            } else {
+                                meaningful_stmts += 1;
                             }
                         }
                         syn::Stmt::Macro(mac) => {

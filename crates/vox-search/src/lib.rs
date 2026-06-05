@@ -29,6 +29,7 @@ mod searxng_defaults;
 pub mod semantic_fs;
 pub mod symbol_proximity;
 mod tavily_budget;
+pub mod unified;
 pub mod web_dispatcher;
 
 #[cfg(feature = "tantivy-lexical")]
@@ -57,4 +58,5 @@ pub use ingest::ingest_markdown_tree;
 pub use memory_hybrid::{HybridSearchHit, MemorySearchEngine};
 pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy, SearchPolicyFeedback};
 pub use tavily_budget::TavilySessionBudget;
+pub use unified::UnifiedHit;
 pub use vox_actor_runtime::llm::LlmConfig;

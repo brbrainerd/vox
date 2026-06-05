@@ -6,6 +6,17 @@ import { AgentRow } from './AgentRow';
 import { LudusBanner } from './LudusBanner';
 import { DashboardData, Agent, StreamItem, LudusAlert } from '../../../types/dashboard';
 
+/** Consistent empty-state hint for a panel with no data yet. */
+function EmptyHint({ icon, title, hint }: { icon?: React.ReactNode; title: string; hint?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/5 py-8 text-center">
+      {icon && <div className="text-zinc-600">{icon}</div>}
+      <div className="text-[12px] text-zinc-400">{title}</div>
+      {hint && <div className="text-[11px] text-zinc-600">{hint}</div>}
+    </div>
+  );
+}
+
 interface DashboardProps {
   data: DashboardData;
   onPause: (a: Agent) => void;
@@ -57,7 +68,15 @@ export function Dashboard({
           </div>
         </div>
         <div className="mt-4 flex flex-col gap-2.5">
-          {stream.map(s => <StreamCard key={s.id} item={s} onDoubt={onDoubt} onOverrule={onOverrule} />)}
+          {stream.length === 0 ? (
+            <EmptyHint
+              icon={<Icon.flow className="size-5" />}
+              title={filterKind === 'all' ? 'No events yet' : `No ${filterKind} events`}
+              hint="Live agent telemetry streams here once tasks run. Submit a task below to begin."
+            />
+          ) : (
+            stream.map(s => <StreamCard key={s.id} item={s} onDoubt={onDoubt} onOverrule={onOverrule} />)
+          )}
         </div>
       </Glass>
 
@@ -72,7 +91,13 @@ export function Dashboard({
             <span className="font-mono text-[10px] text-zinc-500">{data.alerts.length} open</span>
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            {data.alerts.map(n => <LudusBanner key={n.id} note={n} onAck={onAckLudus} />)}
+            {data.alerts.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-white/5 py-4 text-center text-[11px] text-zinc-600">
+                All clear — no open alerts.
+              </div>
+            ) : (
+              data.alerts.map(n => <LudusBanner key={n.id} note={n} onAck={onAckLudus} />)
+            )}
           </div>
         </Glass>
 
@@ -82,7 +107,13 @@ export function Dashboard({
             <span className="font-mono text-[10px] text-zinc-500">{data.agents.length} shards</span>
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            {data.agents.map(a => <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} />)}
+            {data.agents.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-white/5 py-4 text-center text-[11px] text-zinc-600">
+                No active agents — submit a task below to spin one up.
+              </div>
+            ) : (
+              data.agents.map(a => <AgentRow key={a.id} a={a} onPause={onPause} onResume={onResume} />)
+            )}
           </div>
         </Glass>
       </div>

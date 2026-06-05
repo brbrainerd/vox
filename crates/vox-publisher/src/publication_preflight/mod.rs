@@ -417,5 +417,4 @@ pub fn run_preflight_with_worthiness_attention_heuristics(
 }
 
 #[cfg(test)]
-#[cfg(test)]
 mod tests;

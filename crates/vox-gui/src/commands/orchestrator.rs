@@ -231,14 +231,17 @@ fn to_gui_status(status: serde_json::Value) -> GuiOrchestratorStatus {
 #[tauri::command]
 pub async fn get_orchestrator_status() -> Result<serde_json::Value, String> {
     let status = daemon_status().await?;
-    serde_json::to_value(to_gui_status(status)).map_err(|e| e.to_string())
+    let mut gui = to_gui_status(status);
+    gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
+    serde_json::to_value(gui).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_orchestrator_status_bin() -> Result<tauri::ipc::Response, String> {
     let status = daemon_status().await?;
-    let gui_status = to_gui_status(status);
-    let bytes = rmp_serde::to_vec_named(&gui_status).map_err(|e| e.to_string())?;
+    let mut gui = to_gui_status(status);
+    gui.alerts = crate::commands::gamify::fetch_gamify_alerts().await;
+    let bytes = rmp_serde::to_vec_named(&gui).map_err(|e| e.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
 }
 

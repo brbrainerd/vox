@@ -186,6 +186,59 @@ pub struct ResearchResult {
     pub research_metadata: ResearchMetadata,
 }
 
+/// Typed status enum for a research-pipeline session.
+///
+/// The 8 progress stages (`Queued`..`Completed`) are listed in order in
+/// [`ResearchStage::ORDERED`]. Terminal/error variants (`Failed`, `Orphaned`)
+/// are excluded from `ORDERED` because they are not part of the forward
+/// progress path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResearchStage {
+    Queued,
+    Planning,
+    Retrieving,
+    VerifyingClaims,
+    Synthesizing,
+    AuditingCitations,
+    PersistingArtifact,
+    Completed,
+    Failed,
+    Orphaned,
+}
+
+impl ResearchStage {
+    /// Returns the snake_case wire string for this stage (matches the DB
+    /// `status` column and the serde representation).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Queued => "queued",
+            Self::Planning => "planning",
+            Self::Retrieving => "retrieving",
+            Self::VerifyingClaims => "verifying_claims",
+            Self::Synthesizing => "synthesizing",
+            Self::AuditingCitations => "auditing_citations",
+            Self::PersistingArtifact => "persisting_artifact",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Orphaned => "orphaned",
+        }
+    }
+
+    /// The 8 non-terminal progress stages in forward order (queued → completed).
+    pub const ORDERED: [ResearchStage; 8] = [
+        Self::Queued,
+        Self::Planning,
+        Self::Retrieving,
+        Self::VerifyingClaims,
+        Self::Synthesizing,
+        Self::AuditingCitations,
+        Self::PersistingArtifact,
+        Self::Completed,
+    ];
+}
+
 /// Durable artifact persisted for CLI/MCP result retrieval and report export.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchRunArtifact {
@@ -194,4 +247,42 @@ pub struct ResearchRunArtifact {
     pub plan: ResearchPlan,
     pub result: ResearchResult,
     pub report_markdown: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ResearchStage;
+
+    #[test]
+    fn research_stage_as_str_round_trips() {
+        // Every variant's as_str() must survive JSON round-trip via serde.
+        let all = [
+            ResearchStage::Queued,
+            ResearchStage::Planning,
+            ResearchStage::Retrieving,
+            ResearchStage::VerifyingClaims,
+            ResearchStage::Synthesizing,
+            ResearchStage::AuditingCitations,
+            ResearchStage::PersistingArtifact,
+            ResearchStage::Completed,
+            ResearchStage::Failed,
+            ResearchStage::Orphaned,
+        ];
+        for stage in all {
+            let serialized = serde_json::to_string(&stage).expect("serializes");
+            // serde produces a JSON string (with quotes); strip them for comparison.
+            let wire = serialized.trim_matches('"');
+            assert_eq!(wire, stage.as_str(), "as_str mismatch for {stage:?}");
+        }
+    }
+
+    #[test]
+    fn research_stage_ordered_first_and_last() {
+        assert_eq!(ResearchStage::ORDERED[0], ResearchStage::Queued);
+        assert_eq!(
+            ResearchStage::ORDERED[ResearchStage::ORDERED.len() - 1],
+            ResearchStage::Completed
+        );
+        assert_eq!(ResearchStage::ORDERED.len(), 8);
+    }
 }

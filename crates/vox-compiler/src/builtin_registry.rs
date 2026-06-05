@@ -1431,7 +1431,7 @@ mod namespace_builtin_parity_tests {
                 _ => false,
             },
             Ty::Option(inner) => match val {
-                VoxValue::Option(Some(b)) => shape_matches(inner, &**b),
+                VoxValue::Option(Some(b)) => shape_matches(inner, b),
                 VoxValue::Option(None) => true,
                 _ => false,
             },

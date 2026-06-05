@@ -176,7 +176,7 @@ async fn workflow_runs_fresh_when_journal_is_empty() {
         .filter_map(|e| e.get("event").and_then(|v| v.as_str()))
         .collect();
 
-    let any_replayed = event_names.iter().any(|n| *n == "ActivityReplayed");
+    let any_replayed = event_names.contains(&"ActivityReplayed");
     assert!(
         !any_replayed,
         "fresh run must not emit ActivityReplayed; got {event_names:?}"

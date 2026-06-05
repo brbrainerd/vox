@@ -369,11 +369,15 @@ mod tests {
         );
         // Corpus size must match minimum-viable count (50) or be 0 if CI
         // skips the build step and the manifest can't be found.
-        // We accept any non-negative count.
-        assert!(
-            outcome.report.corpus_size >= 0,
-            "negative corpus size is impossible but added for exhaustiveness"
-        );
+        // We accept any count: `corpus_size` is unsigned, so the lower bound is
+        // structurally guaranteed. The assertion documents intent for readers.
+        #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+        {
+            assert!(
+                outcome.report.corpus_size >= 0,
+                "negative corpus size is impossible but added for exhaustiveness"
+            );
+        }
         // Threshold block must be present when bar applies.
         match outcome.exit_code {
             ExitCode::Ok | ExitCode::BarMissed => {

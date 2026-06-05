@@ -457,12 +457,11 @@ pub fn check_parity_at_paths(
         let registry_path = builtins_parent
             .parent() // src/
             .map(|p| p.join("builtin_registry.rs"));
-        if let Some(reg) = registry_path {
-            if reg.exists() {
-                if let Ok(reg_syms) = parse_registry_entries(&reg) {
-                    binary.extend(reg_syms);
-                }
-            }
+        if let Some(reg) = registry_path
+            && reg.exists()
+            && let Ok(reg_syms) = parse_registry_entries(&reg)
+        {
+            binary.extend(reg_syms);
         }
     }
 

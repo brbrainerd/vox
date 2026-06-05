@@ -67,13 +67,13 @@ where
                 await_or_expect_suffix(fallible, "vox codegen: db delete")
             )
         }
-        HirDbTableOp::All => emit_all_op(emit_expr, table_name, order_by, limit, fallible, &db),
+        HirDbTableOp::All => emit_all_op(emit_expr, table_name, order_by, limit, fallible, db),
         HirDbTableOp::Count => {
             if order_by.is_some() || limit.is_some() {
                 return "/* vox codegen: invalid count modifiers (typecheck should reject) */ 0"
                     .into();
             }
-            emit_count_op(emit_expr, table_name, args, plan, fallible, &db)
+            emit_count_op(emit_expr, table_name, args, plan, fallible, db)
         }
         HirDbTableOp::FilterRecord => emit_filter_record(
             emit_expr,
@@ -84,7 +84,7 @@ where
             limit,
             plan,
             fallible,
-            &db,
+            db,
         ),
         HirDbTableOp::UnsafeQueryRawClause => {
             format!(

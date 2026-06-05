@@ -1,4 +1,5 @@
 use clap::Subcommand;
+use vox_dei_shim::research::types::ResearchStage;
 
 pub mod eval;
 pub mod infra;
@@ -231,16 +232,7 @@ fn research_plan_preview(query: &str) -> serde_json::Value {
         "scope": "both",
         "max_sources_per_subquery": 10,
         "subqueries": subqueries,
-        "progress_states": [
-            "queued",
-            "planning",
-            "retrieving",
-            "verifying_claims",
-            "synthesizing",
-            "auditing_citations",
-            "persisting_artifact",
-            "completed"
-        ],
+        "progress_states": ResearchStage::ORDERED.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
         "free_baseline": {
             "required_paid_services": false,
             "optional_tavily_when_user_configured": true
@@ -302,18 +294,7 @@ pub async fn run_research_query(
     };
 
     if async_run {
-        let db = connect_research_db().await?;
-        let session_key = format!("research_cli_async:{}", uuid::Uuid::new_v4());
-        let session_id = db.create_research_session(&session_key, &rq.query).await?;
-        println!(
-            "{}",
-            serde_json::json!({
-                "session_id": session_id,
-                "task_id": format!("research-{session_id}"),
-                "status": "queued"
-            })
-        );
-        return Ok(());
+        return run_research_async_via_daemon(&rq, json).await;
     }
 
     let config = ResearchConfig::default();
@@ -348,6 +329,101 @@ pub async fn run_research_query(
             result.sources.len(),
             result.research_metadata.quality_score
         );
+    }
+
+    Ok(())
+}
+
+/// Map a [`ResearchScope`] to its `web|local|both` wire label for `research.run`.
+fn research_scope_label(scope: &vox_dei_shim::research::ResearchScope) -> &'static str {
+    use vox_dei_shim::research::ResearchScope;
+    match scope {
+        ResearchScope::Web => "web",
+        ResearchScope::Local => "local",
+        ResearchScope::Both => "both",
+    }
+}
+
+/// Build the `research.run` JSON params from a [`ResearchQuery`].
+fn research_run_daemon_params(rq: &vox_dei_shim::research::ResearchQuery) -> serde_json::Value {
+    serde_json::json!({
+        "query": rq.query,
+        "scope": research_scope_label(&rq.scope),
+        "max_sources": rq.max_sources,
+        "verify_claims": rq.verify_claims,
+        "site_scope": rq.site_scope,
+    })
+}
+
+/// Submit an async research run to the **persistent** orchestrator daemon
+/// (`vox-orchestrator-d`) over its TCP transport, which actually executes the
+/// pipeline to a terminal status in the background. Returns immediately with the
+/// `{session_id, task_id, status}` envelope so `research watch` can poll.
+///
+/// This is the real fire-and-forget path: the work runs inside the long-lived
+/// daemon process, never in this ephemeral CLI process (which exits right after
+/// printing). A bare `tokio::spawn` here would be killed on exit — see the task
+/// design notes. The daemon's `research.run` handler (MCP `ExtraDispatch`) owns
+/// the spawn and advances the session to `completed`/`failed`.
+async fn run_research_async_via_daemon(
+    rq: &vox_dei_shim::research::ResearchQuery,
+    json: bool,
+) -> anyhow::Result<()> {
+    use vox_foundation::protocol::dei_method;
+    use vox_orchestrator::orch_daemon::{OrchDaemonClient, is_stdio_transport};
+
+    let socket = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
+        .expose()
+        .map(str::to_string)
+        .filter(|s| !s.trim().is_empty());
+
+    let Some(socket) = socket else {
+        anyhow::bail!(
+            "research run --async needs a running orchestrator daemon, but \
+             VOX_ORCHESTRATOR_DAEMON_SOCKET is unset.\n\
+             Start the daemon (e.g. `VOX_ORCHESTRATOR_DAEMON_SOCKET=127.0.0.1:9745 vox-orchestrator-d`) \
+             and re-run, or drop --async to run the pipeline inline in this process."
+        );
+    };
+
+    // Only the long-lived TCP daemon can host the background pipeline run; a
+    // per-call stdio daemon would exit (killing the spawned task) the moment
+    // this CLI closes the connection. Refuse stdio rather than silently dropping
+    // the work on the floor.
+    if is_stdio_transport(&socket) {
+        anyhow::bail!(
+            "research run --async requires a TCP orchestrator daemon (e.g. 127.0.0.1:9745), \
+             but VOX_ORCHESTRATOR_DAEMON_SOCKET is set to stdio. A stdio daemon is per-call and \
+             cannot run the pipeline in the background. Point it at a TCP socket, or drop --async."
+        );
+    }
+
+    let client = OrchDaemonClient::new(socket.clone());
+    let value = client
+        .call(dei_method::RESEARCH_RUN, research_run_daemon_params(rq))
+        .await
+        .map_err(|e| {
+            anyhow::anyhow!(
+                "failed to submit async research to orchestrator daemon at {socket}: {e}\n\
+                 Is `vox-orchestrator-d` running and bound to that socket?"
+            )
+        })?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&value)?);
+    } else {
+        let session_id = value.get("session_id").and_then(|v| v.as_i64());
+        let status = value
+            .get("status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("running");
+        match session_id {
+            Some(id) => println!(
+                "research run submitted (session_id={id}, status={status}). \
+                 Track it with `vox research watch {id}`."
+            ),
+            None => println!("{value}"),
+        }
     }
 
     Ok(())

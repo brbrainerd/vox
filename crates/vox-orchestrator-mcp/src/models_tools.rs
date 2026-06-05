@@ -79,7 +79,7 @@ pub async fn suggest_model(state: &ServerState, params: SuggestModelParams) -> S
         enforce_free_tier_only: false,
         context_fill_ratio: None,
     };
-    match resolve_mcp_chat_model_sync(orch, "", None, resolution, None) {
+    match resolve_mcp_chat_model_sync(orch, "", None, resolution) {
         Ok((model, _is_free)) => ToolResult::ok(model).to_json(),
         Err(_) => ToolResult::<String>::err_with_remediation(
             "No suitable model found for category",

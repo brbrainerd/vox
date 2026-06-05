@@ -49,10 +49,31 @@ jobs:
           tool: cargo-nextest,cargo-deny,cargo-audit
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        # Per-manifest, NOT `cargo fmt --all` (overflows the Windows
+        # command-line limit — os error 206 — on this large workspace). Same
+        # check on every OS. Local writer: `vox run scripts/fmt.vox`.
+        run: |
+          fail=0
+          for m in crates/*/Cargo.toml; do
+            cargo fmt --manifest-path "$m" -- --check || fail=1
+          done
+          if [ "$fail" != 0 ]; then
+            echo "::error::rustfmt found unformatted files — run 'vox run scripts/fmt.vox' to fix"
+            exit 1
+          fi
 
       - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        # See ci.yml for rationale: deny all lints except a small cosmetic set;
+        # exclude vox-gui (Tauri frontend not built in this lane).
+        run: >-
+          cargo clippy --workspace --all-targets --exclude vox-gui --
+          -D warnings
+          -A clippy::items_after_test_module
+          -A clippy::collapsible_match
+          -A clippy::collapsible_if
+          -A clippy::should_implement_trait
+          -A clippy::doc_overindented_list_items
+          -A clippy::doc_lazy_continuation
 
       # `--profile ci` excludes slow #[ignore] tests by design; those run on the
       # self-hosted fleet.

@@ -93,7 +93,7 @@ fn class_string_to_style_key(class_tokens: &[&str]) -> Option<&'static str> {
     if class_tokens.is_empty() {
         return None;
     }
-    let joined: Vec<&str> = class_tokens.iter().copied().collect();
+    let joined: Vec<&str> = class_tokens.to_vec();
     if joined.contains(&"flex") && joined.contains(&"flex-col") {
         Some("col")
     } else if joined.contains(&"flex") && joined.contains(&"flex-row") {

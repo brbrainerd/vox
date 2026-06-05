@@ -79,14 +79,14 @@ fn callee_path(expr: &HirExpr) -> Option<String> {
     match expr {
         HirExpr::MethodCall(receiver, method, _args, _plan, _span) => {
             let mut path = ident_path(receiver)?;
-            path.push_str(".");
+            path.push('.');
             path.push_str(method);
             Some(path)
         }
         HirExpr::Call(callee, _args, _tail, _span) => match callee.as_ref() {
             HirExpr::FieldAccess(inner, field, _) => {
                 let mut path = ident_path(inner)?;
-                path.push_str(".");
+                path.push('.');
                 path.push_str(field);
                 Some(path)
             }
@@ -104,7 +104,7 @@ fn ident_path(expr: &HirExpr) -> Option<String> {
         HirExpr::Ident(name, _) => Some(name.clone()),
         HirExpr::FieldAccess(inner, field, _) => {
             let mut p = ident_path(inner)?;
-            p.push_str(".");
+            p.push('.');
             p.push_str(field);
             Some(p)
         }

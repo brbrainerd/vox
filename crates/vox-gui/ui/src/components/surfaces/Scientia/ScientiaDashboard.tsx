@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SurfaceDecoratorProps } from '../decoratorRegistry';
+import { listenScientiaQueue } from '../../../transport';
 
 interface ExecuteOutput {
   exit_code: number;
@@ -45,8 +46,12 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: stri
 export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
   const [snap, setSnap] = useState<QueueSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
+  // Guard against interval-triggered overlapping fetches while one is in flight.
+  const fetchingRef = React.useRef(false);
 
   const refresh = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setLoading(true);
     try {
       const out = await invoke<ExecuteOutput>('execute_command', {
@@ -64,11 +69,32 @@ export function ScientiaDashboard({ pushToast }: SurfaceDecoratorProps) {
       setSnap(null);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, [pushToast]);
 
+  // Initial fetch + 10 s auto-refresh; interval is cleared on unmount.
   useEffect(() => {
     refresh();
+    const id = setInterval(refresh, 10_000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  // F2: event-driven refresh — refetch immediately when the Rust DB watcher
+  // pushes a "vox://scientia-queue" ping. The 10 s interval above stays as a
+  // fallback (e.g. outside Tauri, where listen() rejects). Cleans up on unmount.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listenScientiaQueue(() => {
+      void refresh();
+    })
+      .then((fn) => {
+        unlisten = fn;
+      })
+      .catch(() => {
+        /* not in Tauri or no event bridge — interval fallback covers it */
+      });
+    return () => unlisten?.();
   }, [refresh]);
 
   return (

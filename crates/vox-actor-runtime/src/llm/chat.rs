@@ -180,6 +180,7 @@ pub async fn llm_chat(
                 prompt_tokens: usage.prompt_tokens,
                 completion_tokens: usage.completion_tokens,
                 model: model_id,
+                cost_usd,
             }))
         };
         let fut_typed: LlmChatActivityFuture = Box::pin(fut);
@@ -325,7 +326,7 @@ pub async fn infer_with_retry(
                     response.prompt_tokens as i64,
                     response.completion_tokens as i64,
                     0,
-                    None,
+                    response.cost_usd,
                     0,
                     true,
                 )
