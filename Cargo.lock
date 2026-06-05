@@ -13477,7 +13477,6 @@ dependencies = [
  "tracing",
  "turso",
  "uuid",
- "vox-codegen",
  "vox-compiler",
  "vox-config",
  "vox-db-types",
