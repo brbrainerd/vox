@@ -10,6 +10,16 @@
 
 **Design source:** [scientia-micropublication-ssot-and-surfacing-design-2026.md](../../../src/architecture/scientia-micropublication-ssot-and-surfacing-design-2026.md) §4, §4.1.
 
+**CONFIRMED nanopub 0.2.0 API (verified by Task 1, commit `23c4261f`):**
+- License **MIT**, pure-Rust (oxrdf/oxttl + `rsa` 0.9, no OpenSSL); builds on Windows.
+- Construct: `Nanopub::new(rdf: impl RdfSource) -> Result<Nanopub, NpError>` (`&str`/`String` are `RdfSource`).
+- Profile: `ProfileBuilder::new(private_key: String).with_orcid(String).with_name(String).build() -> Result<NpProfile, NpError>` — validates ORCID starts with `https://orcid.org/` and derives the public key from the private key.
+- Sign: `Nanopub::sign(self, profile: &NpProfile) -> Result<Nanopub, NpError>` (consumes self).
+- Trusty URI: `nanopub.info.uri.as_str()` (hash form `RA<base64url>`).
+- TriG out: `Nanopub::rdf() -> Result<String, NpError>`.
+- Offline validate: `Nanopub::check() -> Result<Nanopub, NpError>` (re-derives trusty hash + RSA-verifies embedded signature; **no network**). ⚠️ prints `✅ … is valid` to **stdout** on success — callers emitting JSON (Task 6) must suppress/redirect this.
+- Keygen: `nanopub::profile::gen_keys() -> Result<(String, String), NpError>` → (private, public) as **normalized base64 PKCS#8** strings. NOTE: `ProfileBuilder::new` takes this **base64 key string** (not a PEM block) — so the stored secret + `user_identities` column should hold the **base64 key**, not a PEM. Rename `rsa_private_key_pem`→`rsa_private_key_b64` and `nanopub_pubkey_pem`→`nanopub_pubkey_b64` in Tasks 2–4 accordingly. The Task 1 wrapper already exists as `vox_scientia::nanopub::spec::{SignedNanopubDoc, NanopubProfile, build_and_sign, validate_offline}`.
+
 ---
 
 ## Context the engineer needs (verified facts)
