@@ -83,7 +83,7 @@ constructs and **non-growing** otherwise. (Council steer 2026-06-05: all three
 arms are parity-gated for v1.0.)
 - `verify_cmd`: `cargo test -p vox-integration-tests --test golden_arm_parity_test`
 - `artifact_path`: `contracts/reports/arm-parity/<UTC>.json` (`{interp_out, script_out, ts_out, all_agree}` per program)
-- `if_failing`: reconcile the diverging arm builtin-by-builtin; for codegen-ts add a Node execution harness over emitted output. **Status: harness UNBUILT; no differential cross-arm test exists today.**
+- `if_failing`: reconcile the diverging arm builtin-by-builtin; for codegen-ts add a Node execution harness over emitted output. **Status: MEASURED 2026-06-05 — interp 10/10 vs `--mode script` (codegen-rust) 0/10: the codegen-rust arm compiles NONE of the `main()`-goldens (even `fn main() to int { return 0 }`). CR-F2 is blocked on a 7-class codegen-rust repair backlog before any gate can land — see [`cr-f2-arm-parity-reality-2026-06-05.md`](./cr-f2-arm-parity-reality-2026-06-05.md).**
 
 **[CR-F3] Language-spec coverage.** A machine-readable checklist
 (`contracts/spec/language-surface-coverage.v1.yaml`) enumerates every grammar
