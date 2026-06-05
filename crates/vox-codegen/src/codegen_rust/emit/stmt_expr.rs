@@ -466,14 +466,21 @@ pub(super) fn emit_pattern(
             // Let's generate Tuple variants in Rust for simplicity: `Ok(String)`.
             // And ignore field names in TypeDef?
             // Or use the names?
-            format!(
-                "{}({})",
-                n,
-                pats.iter()
-                    .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            )
+            if pats.is_empty() {
+                // Nullary variant (`None`, a unit ADT variant): emit the bare
+                // name. `None()` would be `E0532 expected tuple variant, found
+                // unit variant` against the unit enum variant emitted by emit_lib.
+                n.clone()
+            } else {
+                format!(
+                    "{}({})",
+                    n,
+                    pats.iter()
+                        .map(|p| emit_pattern(p, is_route, is_actor, mutation_tx))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
         }
     }
 }
