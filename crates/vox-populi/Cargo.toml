@@ -160,7 +160,7 @@ ed25519-dalek = { workspace = true }
 blake3 = { workspace = true }
 tracing-test = { workspace = true }
 # TLS smoke test helpers (P0-T5)
-rcgen = "0.13"
+rcgen = "0.14"
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
 data-encoding = { workspace = true }
