@@ -7,7 +7,7 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
             "float" => "f64".into(),
             "bool" => "bool".into(),
             "str" => "String".into(),
-            "Element" | "Result" | "Any" => "serde_json::Value".into(),
+            "Element" | "Result" | "Any" | "Json" => "serde_json::Value".into(),
             other => other.to_string(),
         },
         HirType::Generic(n, args) => {

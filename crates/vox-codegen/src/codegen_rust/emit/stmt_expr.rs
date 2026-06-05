@@ -191,7 +191,24 @@ fn emit_assign_target(
                 field
             )
         }
-        // Fallback: use the generic emitter for complex lvalues (index ops etc.)
+        // Index on the LHS of an assignment (`xs[i] = v`) needs a raw,
+        // assignable lvalue `xs[i as usize]` — NOT the Option-returning
+        // `.get(i).cloned()` READ form (which is not an lvalue -> E0070). The
+        // index is itself a read expression.
+        HirExpr::Index(obj, idx, _) => format!(
+            "{}[{} as usize]",
+            emit_assign_target(obj, inferred_types, usage),
+            emit_expr_with(
+                idx,
+                false,
+                false,
+                false,
+                inferred_types,
+                usage,
+                OwnershipMode::Owned,
+            ),
+        ),
+        // Fallback: use the generic emitter for complex lvalues.
         other => emit_expr_with(
             other,
             false,
@@ -581,8 +598,14 @@ pub(super) fn emit_expr_with(
             }
         }
         HirExpr::Index(obj, idx, _) => {
+            // Vox indexing returns `Option[T]` (interpreter eval::expr Index arm
+            // wraps in `VoxValue::Option`; typeck `list[i] : Option[T]`), so
+            // `match xs[i] { Some(v) => .. None => .. }` is the idiomatic form.
+            // Emit `.get(i).cloned()` -> `Option<T>` rather than raw `xs[i]`
+            // (which returns `T` and panics out of bounds) so the Option match
+            // typechecks and bounds are safe.
             format!(
-                "{}[{} as usize]",
+                "{}.get({} as usize).cloned()",
                 emit(obj, OwnershipMode::Owned),
                 emit(idx, OwnershipMode::Owned)
             )
@@ -856,6 +879,22 @@ where
         ("Error", 1) => Some(format!(
             "Err({})",
             emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        // `panic` is a Rust macro, not a function — emit `panic!(..)`.
+        ("panic", 1) => Some(format!(
+            "panic!(\"{{}}\", {})",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        // `range(n)` / `range(start, end)` materialize an integer list, matching
+        // the interpreter (which returns a `VoxValue::List` of ints).
+        ("range", 1) => Some(format!(
+            "(0..({}) as i64).map(|__i| __i as i64).collect::<Vec<i64>>()",
+            emit(&args[0].value, OwnershipMode::Owned)
+        )),
+        ("range", 2) => Some(format!(
+            "(({}) as i64..({}) as i64).map(|__i| __i as i64).collect::<Vec<i64>>()",
+            emit(&args[0].value, OwnershipMode::Owned),
+            emit(&args[1].value, OwnershipMode::Owned)
         )),
         _ => None,
     }
