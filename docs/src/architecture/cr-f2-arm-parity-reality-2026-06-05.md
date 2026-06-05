@@ -19,7 +19,7 @@ The two execution arms are **fully divergent**, not subtly drifting:
 | Arm | main()-goldens that work |
 |---|---|
 | `--mode interp` (tree-walking interpreter) | **10 / 10** run and match their `// EXPECT:` output |
-| `--mode script` (codegen-rust → `cargo` compile + run) | **1 / 10** (was 0/10; `mesh/noop` fixed 2026-06-05, backlog #1) |
+| `--mode script` (codegen-rust → `cargo` compile + run) | **3 / 10** (was 0/10 → 1 → 3; noop + while_loop_algorithms + decimal_math green as of 2026-06-05) |
 
 The interpreter is production-shaped for these programs. The codegen-rust
 arm **cannot compile even the trivial program** `fn main() to int { return 0 }`
